@@ -1,0 +1,19 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    # Security
+    - gosec
+    # Correctness / quality (beyond the defaults: errcheck, govet, ineffassign,
+    # staticcheck, unused)
+    - bodyclose
+    - misspell
+    - revive
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
