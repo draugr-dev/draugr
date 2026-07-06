@@ -43,3 +43,11 @@ make vet     # go vet
 make fmt     # gofmt -w .
 ./bin/draugr version
 ```
+
+### Observability
+
+Draugr uses [Cobra](https://github.com/spf13/cobra) for the CLI, `log/slog` for
+structured logging (`--log-level`, `--log-format json|text`), and
+[OpenTelemetry](https://opentelemetry.io) for tracing. Tracing is opt-in via the standard
+`OTEL_*` environment variables (e.g. `OTEL_EXPORTER_OTLP_ENDPOINT`) — a no-op with zero
+overhead when unset. Logs and spans never carry secrets.
