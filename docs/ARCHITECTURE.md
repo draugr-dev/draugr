@@ -144,7 +144,10 @@ lossless core. Consequences:
 
 ```
 draugr/
-  cmd/draugr/            # CLI entrypoint
+  cmd/draugr/            # CLI entrypoint (thin: delegates to internal/cli)
+  internal/cli/          # Cobra command tree + global flags
+  internal/observability/# slog logging + OpenTelemetry tracing
+  internal/version/      # build metadata (ldflags-injected)
   pkg/saga/              # descriptor: schema, parse, validate, meta-sources, env subst
   pkg/engine/            # plan, schedule, worker pools, cache
   pkg/plugin/            # plugin SDK: interfaces, gRPC contract, tool-adapter runtime
@@ -166,7 +169,32 @@ draugr/
   policies outgrow them.
 - **Waivers/exemptions:** first-class model for accepted risk (with expiry + audit trail).
 
-## 9. Open questions
+## 9. Observability & security standards
+
+Draugr is a security product, so its own operational standards must be high.
+
+**CLI framework.** [Cobra](https://github.com/spf13/cobra) — the de-facto Go CLI standard
+(kubectl, gh, docker). Consistent help, flags, subcommands, and shell completion.
+
+**Logging.** Structured logging via the standard library's `log/slog`. JSON by default
+(machine-readable for log pipelines), `text` for humans; level and format are global
+flags (`--log-level`, `--log-format`).
+
+**Tracing/metrics.** [OpenTelemetry](https://opentelemetry.io). Tracing is wired at the
+CLI boundary and is opt-in via the standard `OTEL_*` environment variables — a no-op with
+zero overhead when unconfigured, OTLP export when an endpoint is set. Metrics across the
+scan pipeline follow.
+
+**Secret hygiene (hard rule).** Logs and span attributes must never carry secrets
+(tokens, credentials, full request/response bodies). Plugins and scanners redact
+sensitive values at the boundary before anything reaches a logger or span.
+
+**Supply-chain & code security (tracked separately, enforced in CI).**
+`govulncheck` (known-vuln deps), `gosec` + `golangci-lint` (static analysis), pinned
+dependencies + `go.sum`, Dependabot, SBOM generation, and signed releases (Sigstore/cosign)
+with provenance. Draugr should meet the bar it holds others to.
+
+## 10. Open questions
 
 - gRPC plugin contract versioning + compatibility policy.
 - Cache backend abstraction (local dir → shared/remote for CI and the control plane).
