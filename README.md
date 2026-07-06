@@ -24,9 +24,22 @@ This is the open-source core engine.
 - **Scanners** — wrap individual tools; normalize output to SARIF.
 - **Surveyors** ("the Ravens") — discover your app's surface and auto-populate the Saga.
 
-See [`docs/naming.md`](docs/naming.md) for the full terminology and Norse naming scheme.
+See [`docs/naming.md`](docs/naming.md) for terminology, [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+for the design, and [`docs/plugin-api.md`](docs/plugin-api.md) for the plugin interfaces.
 
 ## Interoperability
 
 Every scanner normalizes to **SARIF** (the JSON standard for security findings), so
 plugins interoperate and results flow straight into GitHub / Azure DevOps / GitLab.
+
+## Development
+
+Requires Go 1.26+.
+
+```bash
+make build   # build ./bin/draugr
+make test    # run tests
+make vet     # go vet
+make fmt     # gofmt -w .
+./bin/draugr version
+```
