@@ -63,8 +63,9 @@ func TestHighestEmpty(t *testing.T) {
 
 func TestFingerprintDistinguishes(t *testing.T) {
 	base := Result{Tool: "t", RuleID: "R", Level: LevelError, Message: "m", Location: Location{URI: "u", StartLine: 1}}
-	if base.Fingerprint() != base.Fingerprint() {
-		t.Fatal("fingerprint must be stable")
+	sameContent := Result{Tool: "t", RuleID: "R", Level: LevelError, Message: "m", Location: Location{URI: "u", StartLine: 1}}
+	if base.Fingerprint() != sameContent.Fingerprint() {
+		t.Fatal("fingerprint must be stable for identical content")
 	}
 	other := base
 	other.Location.StartLine = 2
