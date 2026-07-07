@@ -8,7 +8,6 @@ type Model struct {
 	Components            []Component  `yaml:"components,omitempty"`
 	ComponentsMetaSources []MetaSource `yaml:"componentsMetaSources,omitempty"`
 	References            []Reference  `yaml:"references,omitempty"`
-	NotApplicable         []NAControl  `yaml:"notApplicable,omitempty"`
 }
 
 // Release identifies what is being assessed.
@@ -77,12 +76,6 @@ type MetaSource struct {
 type Reference struct {
 	Type string `yaml:"type"`
 	Link string `yaml:"link"`
-}
-
-// NAControl declares a control that is not applicable, with a justification.
-type NAControl struct {
-	Type   string `yaml:"type"`
-	Reason string `yaml:"reason"`
 }
 
 // Fragment is a partial Saga contributed by a Surveyor (one of "the Ravens"). The engine
