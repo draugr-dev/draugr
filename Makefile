@@ -7,7 +7,7 @@ LDFLAGS := -X $(PKG)/internal/version.Version=$(VERSION) \
            -X $(PKG)/internal/version.Commit=$(COMMIT) \
            -X $(PKG)/internal/version.Date=$(DATE)
 
-.PHONY: build run test vet fmt tidy clean
+.PHONY: build run test vet fmt tidy clean gate
 
 build: ## Build the draugr binary into bin/
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/draugr
@@ -26,6 +26,9 @@ fmt: ## Format all Go sources
 
 tidy: ## Tidy module dependencies
 	go mod tidy
+
+gate: ## Run the full local quality gate (fmt, vet, lint, race tests, vulncheck)
+	./scripts/gate.sh
 
 clean: ## Remove build artifacts
 	rm -rf bin
