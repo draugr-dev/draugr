@@ -3,10 +3,14 @@ package sarif
 import "testing"
 
 func TestSeverityOrdering(t *testing.T) {
-	if !(LevelError.Severity() > LevelWarning.Severity() &&
-		LevelWarning.Severity() > LevelNote.Severity() &&
-		LevelNote.Severity() > LevelNone.Severity()) {
-		t.Fatal("severity ordering is wrong")
+	if LevelError.Severity() <= LevelWarning.Severity() {
+		t.Error("error should outrank warning")
+	}
+	if LevelWarning.Severity() <= LevelNote.Severity() {
+		t.Error("warning should outrank note")
+	}
+	if LevelNote.Severity() <= LevelNone.Severity() {
+		t.Error("note should outrank none")
 	}
 	if Level("bogus").Severity() != 0 {
 		t.Error("unknown level should have severity 0")
