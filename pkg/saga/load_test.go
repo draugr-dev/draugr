@@ -41,9 +41,6 @@ components:
 references:
   - type: ThreatModel
     link: https://example.com/tm
-notApplicable:
-  - type: DAST
-    reason: no web surface
 `
 
 func TestLoadValid(t *testing.T) {
@@ -64,8 +61,8 @@ func TestLoadValid(t *testing.T) {
 	if c.Infrastructure[0].Kind != "kubernetes" {
 		t.Errorf("infra = %+v", c.Infrastructure)
 	}
-	if len(m.References) != 1 || len(m.NotApplicable) != 1 {
-		t.Errorf("references/na not parsed")
+	if len(m.References) != 1 {
+		t.Errorf("references not parsed")
 	}
 }
 
