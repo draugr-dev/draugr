@@ -22,8 +22,9 @@ const (
 	LevelNone    Level = "none"
 )
 
-// rank orders severities from most to least severe (higher is worse).
-func (l Level) rank() int {
+// Severity ranks levels from most to least severe (higher is worse): error=3,
+// warning=2, note=1, none/unknown=0.
+func (l Level) Severity() int {
 	switch l {
 	case LevelError:
 		return 3
@@ -35,6 +36,9 @@ func (l Level) rank() int {
 		return 0
 	}
 }
+
+// AtLeast reports whether l is at least as severe as other.
+func (l Level) AtLeast(other Level) bool { return l.Severity() >= other.Severity() }
 
 // Location points at where a finding was observed.
 type Location struct {
@@ -103,7 +107,7 @@ func (r Report) Counts() Counts {
 func (r Report) Highest() Level {
 	highest := LevelNone
 	for _, res := range r.Results {
-		if res.Level.rank() > highest.rank() {
+		if res.Level.Severity() > highest.Severity() {
 			highest = res.Level
 		}
 	}
