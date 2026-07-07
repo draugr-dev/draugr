@@ -12,6 +12,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -21,6 +22,7 @@ import (
 type Engine struct {
 	reg         *Registry
 	concurrency int
+	cache       cache.Cache
 }
 
 // Option configures an Engine.
@@ -34,6 +36,12 @@ func WithConcurrency(n int) Option {
 			e.concurrency = n
 		}
 	}
+}
+
+// WithCache enables result caching: a cache hit for a job's key reuses the stored report
+// instead of re-scanning. A nil cache disables caching (the default).
+func WithCache(c cache.Cache) Option {
+	return func(e *Engine) { e.cache = c }
 }
 
 // New creates an Engine over the given registry. By default it runs up to NumCPU jobs
@@ -97,9 +105,27 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 	return planned, errors.Join(errs...)
 }
 
-// Result is the outcome of a run: one aggregated ControlResult per control.
+// Result is the outcome of a run: one aggregated ControlResult per control, plus run
+// statistics.
 type Result struct {
 	Controls map[string]plugin.ControlResult
+	Stats    Stats
+}
+
+// Stats summarizes execution, including cache effectiveness.
+type Stats struct {
+	Jobs      int
+	Scans     int
+	CacheHits int
+}
+
+// effectiveKey returns the job's cache key, computing one from the scan inputs when the
+// controller did not set it.
+func effectiveKey(job plugin.ScanJob, scanner plugin.Scanner) string {
+	if job.CacheKey != "" {
+		return string(job.CacheKey)
+	}
+	return string(plugin.ComputeCacheKey(job.Scanner, scanner.Info().Version, job.Target, job.Config))
 }
 
 // Run plans and executes scans with bounded concurrency, then aggregates per control.
@@ -113,6 +139,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		wg       sync.WaitGroup
 		byCtl    = make(map[string][]sarif.Report)
 		errs     []error
+		stats    = Stats{Jobs: len(planned)}
 		sem      = make(chan struct{}, e.concurrency)
 		canceled bool
 	)
@@ -138,14 +165,32 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				mu.Unlock()
 				return
 			}
+
+			key := effectiveKey(pj.Job, scanner)
+			if e.cache != nil {
+				if report, hit := e.cache.Get(key); hit {
+					mu.Lock()
+					byCtl[pj.Control] = append(byCtl[pj.Control], report)
+					stats.CacheHits++
+					mu.Unlock()
+					return
+				}
+			}
+
 			report, err := scanner.Scan(ctx, pj.Job.Target, pj.Job.Config)
-			mu.Lock()
-			defer mu.Unlock()
 			if err != nil {
+				mu.Lock()
 				errs = append(errs, fmt.Errorf("scan %s/%s: %w", pj.Control, pj.Job.Scanner, err))
+				mu.Unlock()
 				return
 			}
+			if e.cache != nil {
+				_ = e.cache.Put(key, report)
+			}
+			mu.Lock()
 			byCtl[pj.Control] = append(byCtl[pj.Control], report)
+			stats.Scans++
+			mu.Unlock()
 		}(pj)
 	}
 	wg.Wait()
@@ -153,7 +198,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		errs = append(errs, ctx.Err())
 	}
 
-	res := Result{Controls: make(map[string]plugin.ControlResult)}
+	res := Result{Controls: make(map[string]plugin.ControlResult), Stats: stats}
 	for _, control := range sortedReportKeys(byCtl) {
 		ctrl, ok := e.reg.Controller(control)
 		if !ok {

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -196,6 +197,43 @@ func TestRunContextCanceled(t *testing.T) {
 	}
 	if len(res.Controls) != 0 {
 		t.Errorf("canceled run should produce no results, got %d", len(res.Controls))
+	}
+}
+
+func TestRunWithCache(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	sc := &fakeScanner{name: "s"}
+	reg.RegisterScanner(sc)
+
+	e := New(reg, WithCache(cache.NewMemory()))
+
+	// First run: 2 jobs, both scanned and cached.
+	res1, err := e.Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res1.Stats.Scans != 2 || res1.Stats.CacheHits != 0 {
+		t.Fatalf("first run stats = %+v, want 2 scans / 0 hits", res1.Stats)
+	}
+	if sc.calls() != 2 {
+		t.Fatalf("scanner calls after run 1 = %d, want 2", sc.calls())
+	}
+
+	// Second run: same inputs → all cache hits, no new scans.
+	res2, err := e.Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Stats.CacheHits != 2 || res2.Stats.Scans != 0 {
+		t.Fatalf("second run stats = %+v, want 0 scans / 2 hits", res2.Stats)
+	}
+	if sc.calls() != 2 {
+		t.Errorf("scanner should not be called again, total calls = %d", sc.calls())
+	}
+	// Cached results still aggregate correctly.
+	if res2.Controls["images"].Summary.Warnings != 2 {
+		t.Errorf("cached aggregation wrong: %+v", res2.Controls["images"].Summary)
 	}
 }
 
