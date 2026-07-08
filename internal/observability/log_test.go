@@ -56,3 +56,19 @@ func TestParseLevelDefaults(t *testing.T) {
 		t.Fatalf("empty level = (%v,%v), want (info,nil)", lvl, err)
 	}
 }
+
+func TestNewLoggerAllLevels(t *testing.T) {
+	for _, lvl := range []string{"debug", "info", "warn", "warning", "error"} {
+		if _, err := NewLogger(&bytes.Buffer{}, LogOptions{Level: lvl}); err != nil {
+			t.Errorf("level %q: %v", lvl, err)
+		}
+	}
+}
+
+func TestSetDefault(t *testing.T) {
+	l, err := NewLogger(&bytes.Buffer{}, LogOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	SetDefault(l) // must not panic
+}
