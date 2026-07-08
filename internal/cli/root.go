@@ -47,12 +47,19 @@ func newRootCommand() *cobra.Command {
 		"log format: json, text")
 
 	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(newScanCommand())
 	return cmd
 }
 
-// Execute builds and runs the root command, wiring telemetry around it.
-// It returns a process exit code.
+// Execute builds and runs the root command using the process arguments, wiring telemetry
+// around it. It returns a process exit code.
 func Execute(ctx context.Context) int {
+	return execute(ctx, os.Args[1:])
+}
+
+// execute runs the root command with the given args; separated from Execute so it can be
+// driven in tests.
+func execute(ctx context.Context, args []string) int {
 	shutdown, err := observability.InitTracing(ctx, "draugr", version.Version)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "draugr: telemetry init: "+err.Error())
@@ -63,7 +70,9 @@ func Execute(ctx context.Context) int {
 	ctx, span := otel.Tracer("draugr").Start(ctx, "cli.execute")
 	defer span.End()
 
-	if err := newRootCommand().ExecuteContext(ctx); err != nil {
+	root := newRootCommand()
+	root.SetArgs(args)
+	if err := root.ExecuteContext(ctx); err != nil {
 		span.RecordError(err)
 		fmt.Fprintln(os.Stderr, "draugr: "+err.Error())
 		return 1
