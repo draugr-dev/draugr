@@ -1,0 +1,42 @@
+# Example Saga — the declarative account of your app's security surface.
+# Run it with:  draugr scan examples/draugr.saga.yaml
+# (Requires Trivy on your PATH for the images control.)
+
+release:
+  name: my-app
+  version: "1.0"
+  # stage: dev            # optional, free-form
+
+# Global controller configuration. A controller only runs when it is enabled here
+# (or enabled on a component below). Today the "images" control is implemented (Trivy).
+config:
+  controllers:
+    images:
+      enabled: true
+
+components:
+  - name: web
+    # Container images to assess (scanned by the images control).
+    images:
+      - image: alpine:3.19
+    # Source repositories (used by SAST/SCA controls — on the roadmap).
+    repositories:
+      - url: https://github.com/acme/web.git
+        revision: main
+    # Running endpoints (used by headers/DAST/certificate controls — on the roadmap).
+    hosts:
+      - name: api
+        url: https://api.example.com
+        type: api            # api | web
+    # Infrastructure surface (used by infrastructure controls — on the roadmap).
+    infrastructure:
+      - kind: kubernetes
+        ref: prod-cluster
+
+    # Per-component overrides (optional): enable/disable controls for just this component.
+    # controllers:
+    #   images:
+    #     enabled: true
+
+# Tip: string values support environment-variable substitution.
+# See docs/saga-reference.md for the syntax.
