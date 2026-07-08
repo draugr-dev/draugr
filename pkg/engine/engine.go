@@ -11,6 +11,12 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -134,6 +140,10 @@ func effectiveKey(job plugin.ScanJob, scanner plugin.Scanner) string {
 func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	planned, planErr := e.Plan(model)
 
+	ctx, runSpan := tracer.Start(ctx, "engine.run",
+		trace.WithAttributes(attribute.Int("jobs", len(planned))))
+	defer runSpan.End()
+
 	var (
 		mu       sync.Mutex
 		wg       sync.WaitGroup
@@ -158,17 +168,30 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			defer wg.Done()
 			defer func() { <-sem }()
 
+			jobCtx, span := tracer.Start(ctx, "engine.scan", trace.WithAttributes(
+				attribute.String("control", pj.Control),
+				attribute.String("scanner", pj.Job.Scanner),
+			))
+			defer span.End()
+
 			scanner, ok := e.reg.Scanner(pj.Job.Scanner)
 			if !ok {
+				err := fmt.Errorf("no scanner %q for control %q", pj.Job.Scanner, pj.Control)
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "scanner not found")
 				mu.Lock()
-				errs = append(errs, fmt.Errorf("no scanner %q for control %q", pj.Job.Scanner, pj.Control))
+				errs = append(errs, err)
 				mu.Unlock()
 				return
 			}
+			span.SetAttributes(attribute.String("target.kind", string(pj.Job.Target.Kind())))
 
 			key := effectiveKey(pj.Job, scanner)
 			if e.cache != nil {
 				if report, hit := e.cache.Get(key); hit {
+					span.SetAttributes(attribute.Bool("cache.hit", true))
+					cacheHitCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("control", pj.Control)))
+					recordFindings(jobCtx, pj.Control, report)
 					mu.Lock()
 					byCtl[pj.Control] = append(byCtl[pj.Control], report)
 					stats.CacheHits++
@@ -176,14 +199,22 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					return
 				}
 			}
+			span.SetAttributes(attribute.Bool("cache.hit", false))
 
-			report, err := scanner.Scan(ctx, pj.Job.Target, pj.Job.Config)
+			start := time.Now()
+			report, err := scanner.Scan(jobCtx, pj.Job.Target, pj.Job.Config)
+			scanDuration.Record(jobCtx, time.Since(start).Seconds(),
+				metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
 			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "scan failed")
 				mu.Lock()
 				errs = append(errs, fmt.Errorf("scan %s/%s: %w", pj.Control, pj.Job.Scanner, err))
 				mu.Unlock()
 				return
 			}
+			scanCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
+			recordFindings(jobCtx, pj.Control, report)
 			if e.cache != nil {
 				_ = e.cache.Put(key, report)
 			}

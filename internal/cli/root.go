@@ -60,12 +60,19 @@ func Execute(ctx context.Context) int {
 // execute runs the root command with the given args; separated from Execute so it can be
 // driven in tests.
 func execute(ctx context.Context, args []string) int {
-	shutdown, err := observability.InitTracing(ctx, "draugr", version.Version)
+	shutdownTraces, err := observability.InitTracing(ctx, "draugr", version.Version)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "draugr: telemetry init: "+err.Error())
 		return 1
 	}
-	defer func() { _ = shutdown(context.Background()) }()
+	defer func() { _ = shutdownTraces(context.Background()) }()
+
+	shutdownMetrics, err := observability.InitMetrics(ctx, "draugr", version.Version)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "draugr: telemetry init: "+err.Error())
+		return 1
+	}
+	defer func() { _ = shutdownMetrics(context.Background()) }()
 
 	ctx, span := otel.Tracer("draugr").Start(ctx, "cli.execute")
 	defer span.End()
