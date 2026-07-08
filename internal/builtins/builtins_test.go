@@ -11,3 +11,12 @@ func TestRegistryHasDefaults(t *testing.T) {
 		t.Error("trivy scanner should be registered")
 	}
 }
+
+func TestSurveyorRegistryHasDefaults(t *testing.T) {
+	reg := SurveyorRegistry()
+	for _, name := range []string{"k8s-images", "github-org-repos"} {
+		if _, ok := reg.Get(name); !ok {
+			t.Errorf("%s surveyor should be registered", name)
+		}
+	}
+}
