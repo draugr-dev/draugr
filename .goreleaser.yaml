@@ -1,0 +1,71 @@
+version: 2
+
+project_name: draugr
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: draugr
+    main: ./cmd/draugr
+    binary: draugr
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/draugr-dev/draugr/internal/version.Version={{ .Version }}
+      - -X github.com/draugr-dev/draugr/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/draugr-dev/draugr/internal/version.Date={{ .Date }}
+
+archives:
+  - id: draugr
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+# Software Bill of Materials for each archive (generated with syft).
+sboms:
+  - id: archive
+    artifacts: archive
+
+# Keyless signing of the checksums file with cosign (Sigstore, via GitHub OIDC).
+signs:
+  - id: cosign
+    cmd: cosign
+    signature: ${artifact}.sig
+    certificate: ${artifact}.pem
+    args:
+      - sign-blob
+      - --yes
+      - --output-signature=${signature}
+      - --output-certificate=${certificate}
+      - ${artifact}
+    artifacts: checksum
+    output: true
+
+release:
+  draft: false
+  prerelease: auto
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
