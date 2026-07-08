@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 )
@@ -30,6 +31,15 @@ func TestUnknownCommandFails(t *testing.T) {
 
 	if err := cmd.Execute(); err == nil {
 		t.Fatal("expected error for unknown command, got nil")
+	}
+}
+
+func TestExecute(t *testing.T) {
+	if code := execute(context.Background(), []string{"version"}); code != 0 {
+		t.Errorf("execute version = %d, want 0", code)
+	}
+	if code := execute(context.Background(), []string{"definitely-not-a-command"}); code != 1 {
+		t.Errorf("execute bogus = %d, want 1", code)
 	}
 }
 
