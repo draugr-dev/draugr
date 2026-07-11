@@ -19,6 +19,25 @@ func NewTrivy() plugin.Scanner {
 	})
 }
 
+// NewTrivyFS returns a Scanner that runs Trivy in filesystem mode over a checked-out
+// repository to find dependency vulnerabilities (SCA). It serves the "sca" control.
+// (License findings are not included in Trivy's SARIF output and are tracked separately.)
+func NewTrivyFS() plugin.Scanner {
+	return newRepoScanner(
+		plugin.ScannerInfo{
+			Name:        "trivy-fs",
+			Controls:    []string{"sca"},
+			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+		},
+		trivyFSArgs,
+	)
+}
+
+// trivyFSArgs builds `trivy fs --quiet --scanners vuln --format sarif <dir>`.
+func trivyFSArgs(dir string, _ plugin.Config) []string {
+	return []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "sarif", dir}
+}
+
 // trivyArgv builds `trivy image --quiet --format sarif <ref>` for an image target.
 func trivyArgv(target plugin.Target, _ plugin.Config) ([]string, error) {
 	img, ok := target.(plugin.ImageTarget)

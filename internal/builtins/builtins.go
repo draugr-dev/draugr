@@ -15,7 +15,9 @@ import (
 func Registry() *engine.Registry {
 	reg := engine.NewRegistry()
 	reg.RegisterController(controllers.NewImages())
+	reg.RegisterController(controllers.NewSCA())
 	reg.RegisterScanner(scanners.NewTrivy())
+	reg.RegisterScanner(scanners.NewTrivyFS())
 	return reg
 }
 
