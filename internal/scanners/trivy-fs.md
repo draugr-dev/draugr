@@ -23,6 +23,6 @@ entry](../../docs/glossary.md#sca--software-composition-analysis).
 
 - Integration mode: **exec** over a local checkout; Trivy + `git` must be on `PATH`.
 - Trivy's SARIF output does **not** include license findings — licenses will be added via
-  Trivy's JSON output in a follow-up (tracked in #49).
-- OSV-Scanner is a planned second SCA scanner (#49); its non-zero exit-on-findings needs
+  Trivy's JSON output in a follow-up (tracked in [#49](https://github.com/draugr-dev/draugr/issues/49)).
+- OSV-Scanner is a planned second SCA scanner ([#49](https://github.com/draugr-dev/draugr/issues/49)); its non-zero exit-on-findings needs
   special handling.

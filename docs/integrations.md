@@ -18,15 +18,15 @@ See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
 |---------|---------------|-------|:------:|------------|-----|
 | `images` | Container image scanning | component | ✅ | `trivy` | [doc](../internal/controllers/images.md) |
 | `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` | [doc](../internal/controllers/sca.md) |
-| `sast` | Static Application Security Testing | component | 🗺️ #50 | Semgrep | — |
-| `secrets` | Secret detection | component | 🗺️ #51 | Gitleaks | — |
-| `iac` | IaC / misconfiguration | component | 🗺️ #52 | Trivy config, Checkov | — |
-| `headers` | HTTP security headers | component | 🗺️ #53 | native | — |
-| `dast` | Dynamic Application Security Testing | component | 🗺️ #54 | OWASP ZAP | — |
-| `infrastructure` | CIS benchmarks / posture | project | 🗺️ #55 | kube-bench | — |
-| `tls` | TLS/certificate assessment | component | 🗺️ #56 | testssl.sh | — |
-| `sbom` | Software Bill of Materials | component | 🗺️ #57 | Syft | — |
-| `threats` | Threat intelligence | component | 🗺️ #59 | URLhaus, VirusTotal | — |
+| `sast` | Static Application Security Testing | component | 🗺️ [#50](https://github.com/draugr-dev/draugr/issues/50) | Semgrep | — |
+| `secrets` | Secret detection | component | 🗺️ [#51](https://github.com/draugr-dev/draugr/issues/51) | Gitleaks | — |
+| `iac` | IaC / misconfiguration | component | 🗺️ [#52](https://github.com/draugr-dev/draugr/issues/52) | Trivy config, Checkov | — |
+| `headers` | HTTP security headers | component | 🗺️ [#53](https://github.com/draugr-dev/draugr/issues/53) | native | — |
+| `dast` | Dynamic Application Security Testing | component | 🗺️ [#54](https://github.com/draugr-dev/draugr/issues/54) | OWASP ZAP | — |
+| `infrastructure` | CIS benchmarks / posture | project | 🗺️ [#55](https://github.com/draugr-dev/draugr/issues/55) | kube-bench | — |
+| `tls` | TLS/certificate assessment | component | 🗺️ [#56](https://github.com/draugr-dev/draugr/issues/56) | testssl.sh | — |
+| `sbom` | Software Bill of Materials | component | 🗺️ [#57](https://github.com/draugr-dev/draugr/issues/57) | Syft | — |
+| `threats` | Threat intelligence | component | 🗺️ [#59](https://github.com/draugr-dev/draugr/issues/59) | URLhaus, VirusTotal | — |
 
 ## Scanners
 
@@ -45,4 +45,4 @@ See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
 ## Reporters & publishers
 
 Pluggable reporting (Reporter/Publisher interfaces + `json`/`sarif`/`file`) is planned —
-see #58 (OSS) and the enterprise managed-reporting counterpart.
+see [#58](https://github.com/draugr-dev/draugr/issues/58) (OSS) and the enterprise managed-reporting counterpart.
