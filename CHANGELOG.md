@@ -10,7 +10,12 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Secret detection** (`secrets` control, via [Gitleaks](https://github.com/gitleaks/gitleaks)):
+  scans a component's repositories for leaked credentials — API keys, tokens, private keys.
+  Any detected secret **fails the gate** regardless of how the scanner rated it. Requires
+  `gitleaks` on your `PATH`.
 
 ## [0.1.0] - 2026-07-11
 
