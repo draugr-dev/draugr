@@ -4,11 +4,15 @@ import "testing"
 
 func TestRegistryHasDefaults(t *testing.T) {
 	reg := Registry()
-	if _, ok := reg.Controller("images"); !ok {
-		t.Error("images controller should be registered")
+	for _, c := range []string{"images", "sca"} {
+		if _, ok := reg.Controller(c); !ok {
+			t.Errorf("%s controller should be registered", c)
+		}
 	}
-	if _, ok := reg.Scanner("trivy"); !ok {
-		t.Error("trivy scanner should be registered")
+	for _, s := range []string{"trivy", "trivy-fs"} {
+		if _, ok := reg.Scanner(s); !ok {
+			t.Errorf("%s scanner should be registered", s)
+		}
 	}
 }
 
