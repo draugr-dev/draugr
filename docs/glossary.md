@@ -21,7 +21,7 @@ line count, deep transitive trees), so this is where a large share of real risk 
    doesn't slip into a proprietary product (see `planning/third-party-tool-licensing.md`).
 
 **In Draugr:** the **`sca`** control, backed by [Trivy](https://trivy.dev) (filesystem
-mode) and [OSV-Scanner](https://google.github.io/osv-scanner/). Roadmap: draugr#49.
+mode) and [OSV-Scanner](https://google.github.io/osv-scanner/). Roadmap: [#49](https://github.com/draugr-dev/draugr/issues/49).
 
 **Not to be confused with:**
 - **SAST** — analyzes *your* code, not dependencies.
@@ -33,24 +33,24 @@ mode) and [OSV-Scanner](https://google.github.io/osv-scanner/). Roadmap: draugr#
 
 Analyzes your **own source code** (without running it) for security bugs — injection,
 unsafe APIs, hardcoded logic flaws. In Draugr: **`sast`** via
-[Semgrep](https://semgrep.dev). Roadmap: draugr#50.
+[Semgrep](https://semgrep.dev). Roadmap: [#50](https://github.com/draugr-dev/draugr/issues/50).
 
 ## DAST — Dynamic Application Security Testing
 
 Tests a **running application** from the outside (like an attacker) — crawling endpoints
 and probing for issues (XSS, injection, misconfig). In Draugr: **`dast`** via
-[OWASP ZAP](https://www.zaproxy.org). Roadmap: draugr#54.
+[OWASP ZAP](https://www.zaproxy.org). Roadmap: [#54](https://github.com/draugr-dev/draugr/issues/54).
 
 ## Secret detection
 
 Scans code/history for **leaked credentials** — API keys, tokens, private keys. In Draugr:
-**`secrets`** via [Gitleaks](https://github.com/gitleaks/gitleaks). Roadmap: draugr#51.
+**`secrets`** via [Gitleaks](https://github.com/gitleaks/gitleaks). Roadmap: [#51](https://github.com/draugr-dev/draugr/issues/51).
 
 ## IaC scanning — Infrastructure as Code
 
 Finds **misconfigurations** in infrastructure definitions (Terraform, Kubernetes manifests,
 Dockerfiles, CloudFormation) — open security groups, privileged containers, etc. In Draugr:
-**`iac`** via Trivy config / [Checkov](https://www.checkov.io). Roadmap: draugr#52.
+**`iac`** via Trivy config / [Checkov](https://www.checkov.io). Roadmap: [#52](https://github.com/draugr-dev/draugr/issues/52).
 
 ## Container image scanning
 
@@ -63,30 +63,30 @@ A formal, shareable **inventory of everything in your software** (components + v
 licenses), in a standard format ([SPDX](https://spdx.dev/),
 [CycloneDX](https://cyclonedx.org/)). Foundation for SCA, incident response ("am I affected
 by X?"), and compliance. In Draugr: **`sbom`** via [Syft](https://github.com/anchore/syft).
-Roadmap: draugr#57.
+Roadmap: [#57](https://github.com/draugr-dev/draugr/issues/57).
 
 ## HTTP security headers
 
 Checks a web endpoint's **response headers** (CSP, HSTS, X-Content-Type-Options, …) that
-harden the browser against classes of attack. In Draugr: **`headers`** (native). Roadmap: draugr#53.
+harden the browser against classes of attack. In Draugr: **`headers`** (native). Roadmap: [#53](https://github.com/draugr-dev/draugr/issues/53).
 
 ## TLS / certificate assessment
 
 Evaluates an endpoint's **TLS configuration and certificates** — protocol versions, cipher
 strength, expiry, chain validity. In Draugr: **`tls`** via
-[testssl.sh](https://testssl.sh). Roadmap: draugr#56.
+[testssl.sh](https://testssl.sh). Roadmap: [#56](https://github.com/draugr-dev/draugr/issues/56).
 
 ## Threat intelligence
 
 Checks the **reputation** of hosts/URLs against known-bad feeds (malware, phishing,
 command-and-control). In Draugr: **`threats`** via URLhaus (+ optional VirusTotal).
-Roadmap: draugr#59.
+Roadmap: [#59](https://github.com/draugr-dev/draugr/issues/59).
 
 ## CIS benchmarks / posture
 
 Audits infrastructure/runtime against hardening baselines — e.g. the **CIS Kubernetes
 Benchmark**. In Draugr: **`infrastructure`** via
-[kube-bench](https://github.com/aquasecurity/kube-bench). Roadmap: draugr#55.
+[kube-bench](https://github.com/aquasecurity/kube-bench). Roadmap: [#55](https://github.com/draugr-dev/draugr/issues/55).
 
 ---
 
