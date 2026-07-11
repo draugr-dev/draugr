@@ -1,0 +1,64 @@
+name: Self-scan
+
+# Dogfood: run a pinned, released Draugr against this repo (see issue #64).
+# Uses a stable release (not a source build) — the way real users consume Draugr.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Bump to consume a newer Draugr release.
+  DRAUGR_VERSION: v0.1.0
+
+jobs:
+  selfscan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+
+      - name: Download, verify, and install pinned Draugr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download "$DRAUGR_VERSION" --repo draugr-dev/draugr \
+            --pattern 'draugr_*_linux_amd64.tar.gz' \
+            --pattern 'checksums.txt' --pattern 'checksums.txt.pem' --pattern 'checksums.txt.sig'
+
+          # Verify the checksums file was signed by our release workflow (keyless cosign).
+          cosign verify-blob \
+            --certificate checksums.txt.pem \
+            --signature checksums.txt.sig \
+            --certificate-identity-regexp '^https://github\.com/draugr-dev/draugr/\.github/workflows/release\.yml@refs/tags/v.*$' \
+            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+            checksums.txt
+
+          # Verify our downloaded archive matches the signed checksums.
+          sha256sum --ignore-missing -c checksums.txt
+
+          tar -xzf draugr_*_linux_amd64.tar.gz draugr
+          ./draugr version
+
+      - name: Draugr self-scan
+        continue-on-error: true # non-blocking for now; tighten with --fail-on later
+        run: ./draugr scan .draugr/self.saga.yaml --output draugr-out --log-level warn
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: draugr-selfscan
+          path: draugr-out/
+          if-no-files-found: warn
