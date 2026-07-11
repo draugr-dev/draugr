@@ -35,8 +35,8 @@ config:
       enabled: true          # absent entry ⇒ disabled; entry without `enabled` ⇒ enabled
 ```
 
-> Implemented today: **`images`** (Trivy). Other controls (`sast`, `opensource`, `dast`,
-> `headers`, `certificates`, `infrastructure`, `threats`) are on the roadmap.
+> Implemented today: **`images`** (Trivy). Other controls (`sast`, `sca`, `dast`,
+> `headers`, `tls`, `infrastructure`, `threats`) are on the roadmap.
 
 ## `components`
 

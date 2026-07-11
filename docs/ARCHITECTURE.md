@@ -54,7 +54,7 @@ release:
 config:                                # global controller config, overridable per component
   controllers:
     sast:      { enabled: true }
-    opensource:{ enabled: true }
+    sca:       { enabled: true }
     images:    { enabled: true }
     dast:      { enabled: true }
 
