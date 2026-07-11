@@ -6,10 +6,48 @@ the descriptor for you.
 ## 1. Install
 
 **Requirements**
-- [Trivy](https://github.com/aquasecurity/trivy) on your `PATH` — used by the `images` control.
-- Go 1.26+ — only needed to build from source.
+- [Trivy](https://github.com/aquasecurity/trivy) on your `PATH` — used by the `images` and
+  `sca` controls. (`git` is also needed for repository scans.)
+- Go 1.26+ — only needed if you build from source.
 
-**Build from source**
+### From a release (recommended)
+
+Download the archive for your OS/arch from the
+[releases page](https://github.com/draugr-dev/draugr/releases), extract the `draugr`
+binary, and put it on your `PATH`. Linux (amd64) example:
+
+```bash
+VERSION=v0.1.0
+base="https://github.com/draugr-dev/draugr/releases/download/${VERSION}"
+curl -sSL -o draugr.tar.gz "${base}/draugr_${VERSION#v}_linux_amd64.tar.gz"
+tar -xzf draugr.tar.gz draugr
+sudo mv draugr /usr/local/bin/       # or anywhere on your PATH
+draugr version
+```
+
+Swap `linux_amd64` for `darwin_arm64`, `darwin_amd64`, `linux_arm64`, or `windows_amd64`.
+
+**Verify the download (optional but recommended).** Releases ship a cosign-signed
+`checksums.txt` and per-archive SBOMs:
+
+```bash
+curl -sSLO "${base}/checksums.txt"
+curl -sSLO "${base}/checksums.txt.sig"
+curl -sSLO "${base}/checksums.txt.pem"
+# verify the signature came from Draugr's release workflow (needs cosign)
+cosign verify-blob \
+  --certificate checksums.txt.pem --signature checksums.txt.sig \
+  --certificate-identity-regexp '^https://github\.com/draugr-dev/draugr/\.github/workflows/release\.yml@refs/tags/v.*$' \
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+  checksums.txt
+# verify your archive matches
+sha256sum --ignore-missing -c checksums.txt
+```
+
+> While the repository is private, download release assets with
+> `gh release download ${VERSION} --repo draugr-dev/draugr -p '*'` instead of `curl`.
+
+### From source
 
 ```bash
 git clone https://github.com/draugr-dev/draugr.git
@@ -18,8 +56,11 @@ make build          # produces ./bin/draugr
 ./bin/draugr version
 ```
 
-(Signed release binaries with SBOMs are produced by the release pipeline once a version is
-tagged.)
+### With Go
+
+```bash
+go install github.com/draugr-dev/draugr/cmd/draugr@v0.1.0   # once the module is public
+```
 
 ## 2. Describe your app
 

@@ -23,10 +23,21 @@ the end-to-end `scan` pipeline (plan → scan → judge → report), content-has
 
 ## Quickstart
 
-**Requirements:** [Trivy](https://github.com/aquasecurity/trivy) on your `PATH` (for image
-scanning). To build from source you need Go 1.26+.
+**Requirements:** [Trivy](https://github.com/aquasecurity/trivy) on your `PATH` (for the
+`images` and `sca` controls; `git` for repo scans). Go 1.26+ only to build from source.
 
-Install (build from source):
+**Install from a release (recommended)** — download the archive for your OS/arch from the
+[releases page](https://github.com/draugr-dev/draugr/releases), or:
+
+```bash
+VERSION=v0.1.0
+curl -sSL "https://github.com/draugr-dev/draugr/releases/download/${VERSION}/draugr_${VERSION#v}_linux_amd64.tar.gz" | tar -xz draugr
+sudo mv draugr /usr/local/bin/ && draugr version
+```
+
+Releases are cosign-signed with SBOMs — see [verifying downloads](docs/quickstart.md#from-a-release-recommended).
+
+**Or build from source:**
 
 ```bash
 git clone https://github.com/draugr-dev/draugr.git
