@@ -15,14 +15,21 @@ var envPattern = regexp.MustCompile(`\$\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
 // Load parses a Saga descriptor from YAML bytes, substituting ${{ VAR }} references from
 // the environment and validating the result.
 func Load(data []byte) (*Model, error) {
-	expanded, err := expandEnv(data)
-	if err != nil {
-		return nil, err
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return nil, fmt.Errorf("parse saga: %w", err)
+	}
+
+	if missing := substituteEnv(&root); len(missing) > 0 {
+		return nil, fmt.Errorf("undefined environment variable(s) referenced in saga: %s",
+			strings.Join(missing, ", "))
 	}
 
 	var m Model
-	if err := yaml.Unmarshal(expanded, &m); err != nil {
-		return nil, fmt.Errorf("parse saga: %w", err)
+	if root.Kind != 0 { // empty document decodes to the zero Model
+		if err := root.Decode(&m); err != nil {
+			return nil, fmt.Errorf("parse saga: %w", err)
+		}
 	}
 	if err := m.Validate(); err != nil {
 		return nil, err
@@ -39,29 +46,38 @@ func LoadFile(path string) (*Model, error) {
 	return Load(data)
 }
 
-// expandEnv replaces every ${{ VAR }} with the value of the VAR environment variable.
-// It returns an error listing any referenced variables that are not set, so config
-// mistakes fail fast instead of silently producing empty values.
-func expandEnv(data []byte) ([]byte, error) {
+// substituteEnv walks the parsed YAML tree and replaces every ${{ VAR }} in scalar
+// values with the corresponding environment variable. Because it operates on parsed
+// nodes, YAML comments (which live in the nodes' comment fields, not in scalar values)
+// are never substituted. It returns any referenced-but-undefined variable names, so
+// config mistakes fail fast instead of silently producing empty values.
+func substituteEnv(root *yaml.Node) []string {
 	var missing []string
 	seen := map[string]bool{}
 
-	out := envPattern.ReplaceAllStringFunc(string(data), func(match string) string {
-		name := envPattern.FindStringSubmatch(match)[1]
-		val, ok := os.LookupEnv(name)
-		if !ok {
-			if !seen[name] {
-				seen[name] = true
-				missing = append(missing, name)
-			}
-			return match
+	var walk func(*yaml.Node)
+	walk = func(n *yaml.Node) {
+		if n == nil {
+			return
 		}
-		return val
-	})
-
-	if len(missing) > 0 {
-		return nil, fmt.Errorf("undefined environment variable(s) referenced in saga: %s",
-			strings.Join(missing, ", "))
+		if n.Kind == yaml.ScalarNode {
+			n.Value = envPattern.ReplaceAllStringFunc(n.Value, func(match string) string {
+				name := envPattern.FindStringSubmatch(match)[1]
+				if val, ok := os.LookupEnv(name); ok {
+					return val
+				}
+				if !seen[name] {
+					seen[name] = true
+					missing = append(missing, name)
+				}
+				return match
+			})
+		}
+		for _, child := range n.Content {
+			walk(child)
+		}
 	}
-	return []byte(out), nil
+
+	walk(root)
+	return missing
 }

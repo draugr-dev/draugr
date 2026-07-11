@@ -38,5 +38,7 @@ components:
     #   images:
     #     enabled: true
 
-# Tip: string values support environment-variable substitution.
-# See docs/saga-reference.md for the syntax.
+# Tip: string values support environment-variable substitution, e.g.
+#   version: "${{ RELEASE_VERSION }}"
+#   image: registry.example.com/acme/web:${{ IMAGE_TAG }}
+# Referenced variables must be set in the environment (tokens in comments are ignored).
