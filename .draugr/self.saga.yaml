@@ -8,6 +8,8 @@ config:
   controllers:
     sca:
       enabled: true
+    secrets:
+      enabled: true
 components:
   - name: draugr
     repositories:

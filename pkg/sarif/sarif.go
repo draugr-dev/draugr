@@ -111,10 +111,16 @@ func FromSARIF(data []byte) (Report, error) {
 			out.Tool = run.Tool.Driver.Name
 		}
 		for _, sr := range run.Results {
+			level := Level(sr.Level)
+			if level == "" {
+				// SARIF 2.1.0: a result with no level (and no rule config) defaults to
+				// "warning". Some tools (e.g. Gitleaks) omit it.
+				level = LevelWarning
+			}
 			res := Result{
 				Tool:    run.Tool.Driver.Name,
 				RuleID:  sr.RuleID,
-				Level:   Level(sr.Level),
+				Level:   level,
 				Message: sr.Message.Text,
 			}
 			if len(sr.Locations) > 0 {
