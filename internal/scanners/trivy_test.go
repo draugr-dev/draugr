@@ -47,3 +47,26 @@ func TestTrivyArgvErrors(t *testing.T) {
 		t.Error("image target with no ref/digest should error")
 	}
 }
+
+func TestTrivyFSInfo(t *testing.T) {
+	info := NewTrivyFS().Info()
+	if info.Name != "trivy-fs" {
+		t.Errorf("name = %q", info.Name)
+	}
+	if len(info.Controls) != 1 || info.Controls[0] != "sca" {
+		t.Errorf("controls = %v", info.Controls)
+	}
+}
+
+func TestTrivyFSArgs(t *testing.T) {
+	argv := trivyFSArgs("/work/repo", nil)
+	want := []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "sarif", "/work/repo"}
+	if len(argv) != len(want) {
+		t.Fatalf("argv = %v", argv)
+	}
+	for i := range want {
+		if argv[i] != want[i] {
+			t.Fatalf("argv[%d] = %q, want %q", i, argv[i], want[i])
+		}
+	}
+}
