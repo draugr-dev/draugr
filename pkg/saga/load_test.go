@@ -119,6 +119,21 @@ components:
 	}
 }
 
+func TestEnvSubstitutionIgnoresComments(t *testing.T) {
+	// Tokens inside YAML comments must NOT trigger substitution (regression: #44).
+	src := `
+release:
+  name: x
+  version: "1.0"
+# Tip: string values support ${{ SOME_UNDEFINED_VAR }} substitution.
+components:
+  - name: c   # e.g. image tag ${{ ALSO_UNDEFINED }}
+`
+	if _, err := Load([]byte(src)); err != nil {
+		t.Fatalf("comment tokens must not be substituted, got: %v", err)
+	}
+}
+
 func TestEnvSubstitutionMissing(t *testing.T) {
 	src := `
 release:
