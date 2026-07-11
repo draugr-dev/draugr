@@ -32,6 +32,31 @@ plainer phrasing (e.g. "discovery" for surveyors) where it aids first-time under
 
 ---
 
+## Security controls (taxonomy)
+
+Control IDs use **recognized industry terms** so Draugr is easy to learn and respected by
+security professionals. These are the values under `config.controllers.<id>` in the Saga.
+Each is defined in [`glossary.md`](glossary.md).
+
+| Control ID | Industry term | What it assesses |
+|------------|---------------|------------------|
+| `sast` | Static Application Security Testing | Your own source code |
+| `sca` | Software Composition Analysis | Third-party/OSS dependencies (vulns + licenses) |
+| `secrets` | Secret detection | Leaked credentials/keys in code |
+| `images` | Container image scanning | OS/library vulns in container images |
+| `iac` | Infrastructure-as-Code scanning | Misconfigurations in Terraform/K8s/Dockerfiles |
+| `dast` | Dynamic Application Security Testing | A running app/endpoint |
+| `headers` | HTTP security headers | Response security headers |
+| `tls` | TLS/certificate assessment | TLS config and certificates of endpoints |
+| `threats` | Threat intelligence | Reputation of hosts/URLs (malware, phishing) |
+| `infrastructure` | CIS benchmarks / posture | Cluster/runtime hardening (e.g. kube-bench) |
+| `sbom` | Software Bill of Materials | The dependency inventory, as a shareable artifact |
+
+History: `sca` was formerly `opensource`, and `tls` was `certificates`; renamed to the
+standard terms. `images` maps to the Saga's `images:` resource.
+
+---
+
 ## Draugr-flavored names (Norse theme)
 
 Names we adopt for major concepts. Use sparingly — over-naming is a cognitive tax, so

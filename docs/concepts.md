@@ -13,7 +13,7 @@ and which **controls** must pass. You write what you know; Draugr does the rest.
 ## Controllers
 
 A **controller** owns one **security control** (e.g. `images`, and — on the roadmap —
-`sast`, `opensource`, `dast`, `headers`, `certificates`, `infrastructure`, `threats`).
+`sast`, `sca`, `dast`, `headers`, `tls`, `infrastructure`, `threats`).
 It plans the work for the components it applies to and aggregates the results. Controllers
 are either **project-scoped** or **component-scoped**.
 

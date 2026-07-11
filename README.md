@@ -72,6 +72,7 @@ Full walkthrough: [`docs/quickstart.md`](docs/quickstart.md).
 - [Quickstart](docs/quickstart.md) — install, first scan, first survey, CI usage
 - [Concepts](docs/concepts.md) — Saga, controllers, scanners, surveyors, the pipeline, verdicts
 - [Pipeline stages](docs/pipeline.md) — each stage in depth, incl. how the Norn (gate) works
+- [Glossary](docs/glossary.md) — security categories explained (SCA, SAST, DAST, SBOM, …)
 - [CLI reference](docs/cli.md) — every command and flag
 - [Saga reference](docs/saga-reference.md) — the descriptor, field by field
 - [Architecture](docs/ARCHITECTURE.md) · [Plugin API](docs/plugin-api.md) · [Naming](docs/naming.md)
