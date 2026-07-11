@@ -1,0 +1,14 @@
+# Draugr scanning itself — dogfooding (see issue #64). Run: draugr scan .draugr/self.saga.yaml
+# Only controls that apply to this Go repo are enabled today. "url: ." scans the current
+# checkout (git clone of the working directory), so CI scans the pushed commit.
+release:
+  name: draugr
+  version: dev
+config:
+  controllers:
+    sca:
+      enabled: true
+components:
+  - name: draugr
+    repositories:
+      - url: .
