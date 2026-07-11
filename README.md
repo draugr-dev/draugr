@@ -93,3 +93,7 @@ logging (`--log-level`, `--log-format json|text`), and [OpenTelemetry](https://o
 for traces and metrics. Telemetry is opt-in via the standard `OTEL_*` environment variables
 (e.g. `OTEL_EXPORTER_OTLP_ENDPOINT`) — a no-op with zero overhead when unset. Logs and spans
 never carry secrets.
+
+## License
+
+Draugr is licensed under the [Apache License 2.0](LICENSE).
