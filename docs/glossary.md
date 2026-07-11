@@ -44,7 +44,7 @@ and probing for issues (XSS, injection, misconfig). In Draugr: **`dast`** via
 ## Secret detection
 
 Scans code/history for **leaked credentials** — API keys, tokens, private keys. In Draugr:
-**`secrets`** via [Gitleaks](https://github.com/gitleaks/gitleaks). Roadmap: [#51](https://github.com/draugr-dev/draugr/issues/51).
+**`secrets`** via [Gitleaks](https://github.com/gitleaks/gitleaks). (Implemented today.)
 
 ## IaC scanning — Infrastructure as Code
 

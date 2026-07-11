@@ -59,6 +59,28 @@ func TestSARIFRoundTrip(t *testing.T) {
 	}
 }
 
+// Some tools (e.g. Gitleaks) emit results with no "level". SARIF 2.1.0 says such a result
+// defaults to "warning" when there's no rule configuration to say otherwise.
+func TestFromSARIFDefaultsAbsentLevelToWarning(t *testing.T) {
+	data := []byte(`{
+		"version": "2.1.0",
+		"runs": [{
+			"tool": {"driver": {"name": "gitleaks"}},
+			"results": [{"ruleId": "aws-key", "message": {"text": "leaked key"}}]
+		}]
+	}`)
+	got, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 1 {
+		t.Fatalf("results = %d, want 1", len(got.Results))
+	}
+	if got.Results[0].Level != LevelWarning {
+		t.Errorf("absent level = %q, want warning", got.Results[0].Level)
+	}
+}
+
 func TestFromSARIFInvalid(t *testing.T) {
 	if _, err := FromSARIF([]byte("{not json")); err == nil {
 		t.Fatal("expected error")
