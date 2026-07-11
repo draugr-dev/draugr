@@ -68,7 +68,7 @@ type Controller interface {
 }
 
 type ControllerInfo struct {
-    Name  string          // e.g. "images", "sast", "opensource"
+    Name  string          // e.g. "images", "sast", "sca"
     Scope Scope           // project | component
 }
 type Scope string
