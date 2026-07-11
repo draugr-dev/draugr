@@ -1,0 +1,48 @@
+# Integrations catalog
+
+The single place to navigate every **controller**, **scanner**, and **surveyor** Draugr
+ships or plans. Each component has a **markdown doc kept next to its implementation** —
+what it is, which control it relates to, links, and license/terms.
+
+> **Convention:** every new scanner/controller/surveyor ships a colocated `.md` (e.g.
+> `internal/scanners/<name>.md`) covering: what it does · control · tool + links ·
+> **license & terms of use** · integration notes. Add a row here too.
+
+See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
+[glossary](glossary.md) · [licensing due-diligence](../../planning/third-party-tool-licensing.md)
+(private).
+
+## Controllers
+
+| Control | Industry term | Scope | Status | Scanner(s) | Doc |
+|---------|---------------|-------|:------:|------------|-----|
+| `images` | Container image scanning | component | ✅ | `trivy` | [doc](../internal/controllers/images.md) |
+| `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` | [doc](../internal/controllers/sca.md) |
+| `sast` | Static Application Security Testing | component | 🗺️ #50 | Semgrep | — |
+| `secrets` | Secret detection | component | 🗺️ #51 | Gitleaks | — |
+| `iac` | IaC / misconfiguration | component | 🗺️ #52 | Trivy config, Checkov | — |
+| `headers` | HTTP security headers | component | 🗺️ #53 | native | — |
+| `dast` | Dynamic Application Security Testing | component | 🗺️ #54 | OWASP ZAP | — |
+| `infrastructure` | CIS benchmarks / posture | project | 🗺️ #55 | kube-bench | — |
+| `tls` | TLS/certificate assessment | component | 🗺️ #56 | testssl.sh | — |
+| `sbom` | Software Bill of Materials | component | 🗺️ #57 | Syft | — |
+| `threats` | Threat intelligence | component | 🗺️ #59 | URLhaus, VirusTotal | — |
+
+## Scanners
+
+| Scanner | Control | Tool | License | Status | Doc |
+|---------|---------|------|---------|:------:|-----|
+| `trivy` | images | Aqua Trivy | Apache-2.0 | ✅ | [doc](../internal/scanners/trivy.md) |
+| `trivy-fs` | sca | Aqua Trivy (fs) | Apache-2.0 | ✅ | [doc](../internal/scanners/trivy-fs.md) |
+
+## Surveyors (the Ravens)
+
+| Surveyor | Discovers | Auth | Status | Doc |
+|----------|-----------|------|:------:|-----|
+| `k8s-images` | container images in a k8s cluster | kubeconfig | ✅ | [doc](../internal/surveyors/k8s-images.md) |
+| `github-org-repos` | repositories in a GitHub org | `GITHUB_TOKEN` | ✅ | [doc](../internal/surveyors/github-org-repos.md) |
+
+## Reporters & publishers
+
+Pluggable reporting (Reporter/Publisher interfaces + `json`/`sarif`/`file`) is planned —
+see #58 (OSS) and the enterprise managed-reporting counterpart.
