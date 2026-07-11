@@ -6,6 +6,9 @@ dist/
 *.out
 coverage.*
 
+# Release notes generated in CI from CHANGELOG (keeps the tree clean for GoReleaser)
+/RELEASE_NOTES.md
+
 # Editor / OS
 .DS_Store
 *.swp
