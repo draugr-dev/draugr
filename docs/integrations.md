@@ -18,7 +18,7 @@ See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
 |---------|---------------|-------|:------:|------------|-----|
 | `images` | Container image scanning | component | ✅ | `trivy` | [doc](../internal/controllers/images.md) |
 | `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` | [doc](../internal/controllers/sca.md) |
-| `sast` | Static Application Security Testing | component | 🗺️ [#50](https://github.com/draugr-dev/draugr/issues/50) | Semgrep | — |
+| `sast` | Static Application Security Testing | component | ✅ | `semgrep` | [doc](../internal/controllers/sast.md) |
 | `secrets` | Secret detection | component | ✅ | `gitleaks` | [doc](../internal/controllers/secrets.md) |
 | `iac` | IaC / misconfiguration | component | 🗺️ [#52](https://github.com/draugr-dev/draugr/issues/52) | Trivy config, Checkov | — |
 | `headers` | HTTP security headers | component | 🗺️ [#53](https://github.com/draugr-dev/draugr/issues/53) | native | — |
@@ -35,6 +35,7 @@ See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
 | `trivy` | images | Aqua Trivy | Apache-2.0 | ✅ | [doc](../internal/scanners/trivy.md) |
 | `trivy-fs` | sca | Aqua Trivy (fs) | Apache-2.0 | ✅ | [doc](../internal/scanners/trivy-fs.md) |
 | `gitleaks` | secrets | Gitleaks | MIT | ✅ | [doc](../internal/scanners/gitleaks.md) |
+| `semgrep` | sast | Semgrep | LGPL-2.1 | ✅ | [doc](../internal/scanners/semgrep.md) |
 
 ## Surveyors (the Ravens)
 

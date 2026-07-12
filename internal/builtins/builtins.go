@@ -17,9 +17,11 @@ func Registry() *engine.Registry {
 	reg.RegisterController(controllers.NewImages())
 	reg.RegisterController(controllers.NewSCA())
 	reg.RegisterController(controllers.NewSecrets())
+	reg.RegisterController(controllers.NewSAST())
 	reg.RegisterScanner(scanners.NewTrivy())
 	reg.RegisterScanner(scanners.NewTrivyFS())
 	reg.RegisterScanner(scanners.NewGitleaks())
+	reg.RegisterScanner(scanners.NewSemgrep())
 	return reg
 }
 

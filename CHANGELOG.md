@@ -10,7 +10,11 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Static analysis** (`sast` control, via [Semgrep](https://semgrep.dev)): scans a
+  component's repositories for security bugs in your own source code (injection, unsafe APIs,
+  and more). Requires `semgrep` on your `PATH`.
 
 ## [0.2.0] - 2026-07-11
 
