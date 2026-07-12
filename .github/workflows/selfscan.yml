@@ -17,6 +17,8 @@ env:
   # Pinned so the download is reproducible and integrity-checked (sha256 below).
   GITLEAKS_VERSION: "8.30.1"
   GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  # Pinned Semgrep (pip verifies the PyPI package hash for this exact version).
+  SEMGREP_VERSION: "1.169.0"
 
 jobs:
   selfscan:
@@ -36,6 +38,12 @@ jobs:
           tar -xzf "$tarball" gitleaks
           sudo mv gitleaks /usr/local/bin/
           gitleaks version
+
+      - name: Install Semgrep
+        run: |
+          set -euo pipefail
+          pipx install "semgrep==${SEMGREP_VERSION}"
+          semgrep --version
 
       - name: Install cosign
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3

@@ -26,7 +26,17 @@ type sarifTool struct {
 }
 
 type sarifDriver struct {
-	Name string `json:"name"`
+	Name  string      `json:"name"`
+	Rules []sarifRule `json:"rules,omitempty"`
+}
+
+type sarifRule struct {
+	ID                   string           `json:"id"`
+	DefaultConfiguration *sarifRuleConfig `json:"defaultConfiguration,omitempty"`
+}
+
+type sarifRuleConfig struct {
+	Level string `json:"level"`
 }
 
 type sarifResult struct {
@@ -110,12 +120,26 @@ func FromSARIF(data []byte) (Report, error) {
 		if i == 0 {
 			out.Tool = run.Tool.Driver.Name
 		}
+		// SARIF lets a result omit its level and inherit it from the rule's
+		// defaultConfiguration. Some tools (e.g. Semgrep) rely on this. Index the rules so
+		// we can resolve a result's severity from its ruleId.
+		ruleLevel := make(map[string]Level, len(run.Tool.Driver.Rules))
+		for _, rule := range run.Tool.Driver.Rules {
+			if rule.DefaultConfiguration != nil && rule.DefaultConfiguration.Level != "" {
+				ruleLevel[rule.ID] = Level(rule.DefaultConfiguration.Level)
+			}
+		}
 		for _, sr := range run.Results {
 			level := Level(sr.Level)
 			if level == "" {
-				// SARIF 2.1.0: a result with no level (and no rule config) defaults to
-				// "warning". Some tools (e.g. Gitleaks) omit it.
-				level = LevelWarning
+				// Resolution order per SARIF 2.1.0: the result's own level, then its rule's
+				// defaultConfiguration.level, then "warning". Some tools (e.g. Gitleaks) omit
+				// it entirely and fall through to the default.
+				if rl, ok := ruleLevel[sr.RuleID]; ok {
+					level = rl
+				} else {
+					level = LevelWarning
+				}
 			}
 			res := Result{
 				Tool:    run.Tool.Driver.Name,
