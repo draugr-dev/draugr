@@ -67,6 +67,8 @@ func execArgv(ctx context.Context, argv []string) ([]byte, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("empty command")
 	}
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // configured tool invocation
+	// Executing the configured tool is the point; no shell (exec.CommandContext, not "sh -c")
+	// and argv is built from typed config, not user shell input.
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	return cmd.Output()
 }

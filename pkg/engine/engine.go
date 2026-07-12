@@ -154,7 +154,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		canceled bool
 	)
 	if planErr != nil {
-		errs = append(errs, planErr)
+		// Runs before any worker goroutine starts; the concurrent appends below are
+		// mutex-guarded, so this is not a data race.
+		errs = append(errs, planErr) // nosem: trailofbits.go.racy-append-to-slice.racy-append-to-slice
 	}
 
 	for _, pj := range planned {

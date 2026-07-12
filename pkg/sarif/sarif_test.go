@@ -142,6 +142,32 @@ func TestFromSARIFResultLevelOverridesRule(t *testing.T) {
 	}
 }
 
+// A result the tool marks as suppressed (e.g. Semgrep's in-source `nosem`) is not an active
+// finding and must be dropped during parsing.
+func TestFromSARIFSkipsSuppressed(t *testing.T) {
+	data := []byte(`{
+		"version": "2.1.0",
+		"runs": [{
+			"tool": {"driver": {"name": "semgrep"}},
+			"results": [
+				{"ruleId": "kept", "level": "error", "message": {"text": "real"}},
+				{"ruleId": "hidden", "level": "error", "message": {"text": "nosem"},
+				 "suppressions": [{"kind": "inSource"}]}
+			]
+		}]
+	}`)
+	got, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 1 {
+		t.Fatalf("results = %d, want 1 (suppressed dropped)", len(got.Results))
+	}
+	if got.Results[0].RuleID != "kept" {
+		t.Errorf("kept the wrong result: %q", got.Results[0].RuleID)
+	}
+}
+
 func TestFromSARIFInvalid(t *testing.T) {
 	if _, err := FromSARIF([]byte("{not json")); err == nil {
 		t.Fatal("expected error")

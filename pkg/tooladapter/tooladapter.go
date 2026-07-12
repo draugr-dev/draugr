@@ -84,6 +84,8 @@ func (a *Adapter) Scan(ctx context.Context, target plugin.Target, cfg plugin.Con
 
 // execRun runs the command and returns its stdout.
 func execRun(ctx context.Context, argv []string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // adapters intentionally run configured tools
+	// Adapters intentionally run the configured tool; no shell (exec.CommandContext, not
+	// "sh -c") and argv is built from typed config, not user shell input.
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // adapters intentionally run configured tools // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	return cmd.Output()
 }
