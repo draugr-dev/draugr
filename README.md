@@ -23,19 +23,22 @@ the end-to-end `scan` pipeline (plan → scan → judge → report), content-has
 
 ## Quickstart
 
-**Requirements:** [Trivy](https://github.com/aquasecurity/trivy) on your `PATH` (for the
-`images` and `sca` controls; `git` for repo scans). Go 1.26+ only to build from source.
+**Requirements:** the external scanners for the controls you use —
+[Trivy](https://github.com/aquasecurity/trivy) (`images`, `sca`) and
+[Gitleaks](https://github.com/gitleaks/gitleaks) (`secrets`); `git` for repo scans. Go 1.26+
+only to build from source.
 
-**Install from a release (recommended)** — download the archive for your OS/arch from the
-[releases page](https://github.com/draugr-dev/draugr/releases), or:
+**Install from a release (recommended).** While this repo is **private**, download with the
+GitHub CLI (plain `curl` returns `404` on private assets — it needs auth):
 
 ```bash
-VERSION=v0.1.0
-curl -sSL "https://github.com/draugr-dev/draugr/releases/download/${VERSION}/draugr_${VERSION#v}_linux_amd64.tar.gz" | tar -xz draugr
+gh release download --repo draugr-dev/draugr -p 'draugr_*_linux_amd64.tar.gz'   # omit tag = latest
+tar -xzf draugr_*_linux_amd64.tar.gz draugr
 sudo mv draugr /usr/local/bin/ && draugr version
 ```
 
-Releases are cosign-signed with SBOMs — see [verifying downloads](docs/quickstart.md#from-a-release-recommended).
+Releases are cosign-signed with SBOMs — see [install & verifying downloads](docs/quickstart.md#1-install)
+(includes the `curl` recipe for once the repo is public).
 
 **Or build from source:**
 

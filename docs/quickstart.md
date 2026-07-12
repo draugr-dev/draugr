@@ -5,35 +5,36 @@ the descriptor for you.
 
 ## 1. Install
 
-**Requirements**
-- [Trivy](https://github.com/aquasecurity/trivy) on your `PATH` — used by the `images` and
-  `sca` controls. (`git` is also needed for repository scans.)
+**Requirements** — Draugr execs external scanners; install the ones for the controls you use:
+- [Trivy](https://github.com/aquasecurity/trivy) — `images` and `sca` controls.
+- [Gitleaks](https://github.com/gitleaks/gitleaks) — `secrets` control.
+- `git` — needed for any repository scan (`sca`, `secrets`).
 - Go 1.26+ — only needed if you build from source.
 
-### From a release (recommended)
+> **Pre-launch note.** While `draugr-dev/draugr` is **private**, plain `curl` to a release
+> asset returns `404` — private downloads require authentication. Use the **GitHub CLI**
+> method below until the repo is public.
 
-Download the archive for your OS/arch from the
-[releases page](https://github.com/draugr-dev/draugr/releases), extract the `draugr`
-binary, and put it on your `PATH`. Linux (amd64) example:
+### From a release (recommended) — GitHub CLI
+
+Works while the repo is private (`gh` is authenticated). Omit the tag to get the **latest**
+release, or pass a `vX.Y.Z` to pin:
 
 ```bash
-VERSION=v0.1.0
-base="https://github.com/draugr-dev/draugr/releases/download/${VERSION}"
-curl -sSL -o draugr.tar.gz "${base}/draugr_${VERSION#v}_linux_amd64.tar.gz"
-tar -xzf draugr.tar.gz draugr
+gh release download --repo draugr-dev/draugr -p 'draugr_*_linux_amd64.tar.gz'
+tar -xzf draugr_*_linux_amd64.tar.gz draugr
 sudo mv draugr /usr/local/bin/       # or anywhere on your PATH
 draugr version
 ```
 
 Swap `linux_amd64` for `darwin_arm64`, `darwin_amd64`, `linux_arm64`, or `windows_amd64`.
 
-**Verify the download (optional but recommended).** Releases ship a cosign-signed
-`checksums.txt` and per-archive SBOMs:
+**Verify the download (recommended).** Releases ship a cosign-signed `checksums.txt` and
+per-archive SBOMs:
 
 ```bash
-curl -sSLO "${base}/checksums.txt"
-curl -sSLO "${base}/checksums.txt.sig"
-curl -sSLO "${base}/checksums.txt.pem"
+gh release download --repo draugr-dev/draugr \
+  -p 'checksums.txt' -p 'checksums.txt.sig' -p 'checksums.txt.pem'
 # verify the signature came from Draugr's release workflow (needs cosign)
 cosign verify-blob \
   --certificate checksums.txt.pem --signature checksums.txt.sig \
@@ -44,8 +45,21 @@ cosign verify-blob \
 sha256sum --ignore-missing -c checksums.txt
 ```
 
-> While the repository is private, download release assets with
-> `gh release download ${VERSION} --repo draugr-dev/draugr -p '*'` instead of `curl`.
+### From a release — curl (once public)
+
+After launch, plain `curl` works. Pick a version from the
+[releases page](https://github.com/draugr-dev/draugr/releases):
+
+```bash
+VERSION=v0.2.0
+base="https://github.com/draugr-dev/draugr/releases/download/${VERSION}"
+curl -fsSL -o draugr.tar.gz "${base}/draugr_${VERSION#v}_linux_amd64.tar.gz"
+tar -xzf draugr.tar.gz draugr
+sudo mv draugr /usr/local/bin/
+draugr version
+```
+
+(`-f` makes `curl` fail loudly on an HTTP error instead of silently saving the error page.)
 
 ### From source
 
@@ -59,7 +73,7 @@ make build          # produces ./bin/draugr
 ### With Go
 
 ```bash
-go install github.com/draugr-dev/draugr/cmd/draugr@v0.1.0   # once the module is public
+go install github.com/draugr-dev/draugr/cmd/draugr@v0.2.0   # once the module is public
 ```
 
 ## 2. Describe your app
