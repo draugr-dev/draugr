@@ -10,11 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.3.0] - 2026-07-11
+
 ### Added
 
 - **Static analysis** (`sast` control, via [Semgrep](https://semgrep.dev)): scans a
   component's repositories for security bugs in your own source code (injection, unsafe APIs,
   and more). Requires `semgrep` on your `PATH`.
+
+### Fixed
+
+- SARIF results that omit a severity level now inherit it from the rule definition (per the
+  SARIF spec), so Semgrep's error-level findings are correctly reported as errors and fail
+  the gate — instead of all being downgraded to warnings.
 
 ## [0.2.0] - 2026-07-11
 
@@ -59,6 +69,7 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.3.0
 [0.2.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.2.0
 [0.1.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.1.0
