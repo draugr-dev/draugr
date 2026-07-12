@@ -12,6 +12,8 @@ config:
       enabled: true
     sast:
       enabled: true
+    iac:
+      enabled: true
 components:
   - name: draugr
     repositories:

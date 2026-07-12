@@ -10,7 +10,11 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **IaC scanning** (`iac` control, via [Trivy](https://trivy.dev) config mode): scans a
+  component's repositories for insecure Infrastructure as Code — Terraform, Kubernetes
+  manifests, Dockerfiles, Helm, and more. Requires `trivy` on your `PATH`.
 
 ## [0.3.0] - 2026-07-11
 

@@ -18,10 +18,12 @@ func Registry() *engine.Registry {
 	reg.RegisterController(controllers.NewSCA())
 	reg.RegisterController(controllers.NewSecrets())
 	reg.RegisterController(controllers.NewSAST())
+	reg.RegisterController(controllers.NewIAC())
 	reg.RegisterScanner(scanners.NewTrivy())
 	reg.RegisterScanner(scanners.NewTrivyFS())
 	reg.RegisterScanner(scanners.NewGitleaks())
 	reg.RegisterScanner(scanners.NewSemgrep())
+	reg.RegisterScanner(scanners.NewTrivyConfig())
 	return reg
 }
 
