@@ -81,6 +81,67 @@ func TestFromSARIFDefaultsAbsentLevelToWarning(t *testing.T) {
 	}
 }
 
+// Semgrep-style SARIF: results omit "level" and inherit it from the rule's
+// defaultConfiguration. The parser must resolve the rule level (and fall back to warning
+// for a result whose rule has no configured level).
+func TestFromSARIFResolvesLevelFromRule(t *testing.T) {
+	data := []byte(`{
+		"version": "2.1.0",
+		"runs": [{
+			"tool": {"driver": {
+				"name": "semgrep",
+				"rules": [
+					{"id": "sql-injection", "defaultConfiguration": {"level": "error"}},
+					{"id": "todo-comment", "defaultConfiguration": {"level": "note"}}
+				]
+			}},
+			"results": [
+				{"ruleId": "sql-injection", "message": {"text": "tainted query"}},
+				{"ruleId": "todo-comment", "message": {"text": "TODO"}},
+				{"ruleId": "unknown-rule", "message": {"text": "no rule config"}}
+			]
+		}]
+	}`)
+	got, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]Level{
+		"sql-injection": LevelError,
+		"todo-comment":  LevelNote,
+		"unknown-rule":  LevelWarning, // rule not found → default
+	}
+	if len(got.Results) != len(want) {
+		t.Fatalf("results = %d, want %d", len(got.Results), len(want))
+	}
+	for _, r := range got.Results {
+		if r.Level != want[r.RuleID] {
+			t.Errorf("%s level = %q, want %q", r.RuleID, r.Level, want[r.RuleID])
+		}
+	}
+}
+
+// An explicit result-level "level" wins over the rule's defaultConfiguration.
+func TestFromSARIFResultLevelOverridesRule(t *testing.T) {
+	data := []byte(`{
+		"version": "2.1.0",
+		"runs": [{
+			"tool": {"driver": {
+				"name": "t",
+				"rules": [{"id": "r", "defaultConfiguration": {"level": "note"}}]
+			}},
+			"results": [{"ruleId": "r", "level": "error", "message": {"text": "x"}}]
+		}]
+	}`)
+	got, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 1 || got.Results[0].Level != LevelError {
+		t.Fatalf("result level should override rule default, got %+v", got.Results)
+	}
+}
+
 func TestFromSARIFInvalid(t *testing.T) {
 	if _, err := FromSARIF([]byte("{not json")); err == nil {
 		t.Fatal("expected error")

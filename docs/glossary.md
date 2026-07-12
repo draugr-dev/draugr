@@ -33,7 +33,7 @@ mode) and [OSV-Scanner](https://google.github.io/osv-scanner/). Roadmap: [#49](h
 
 Analyzes your **own source code** (without running it) for security bugs — injection,
 unsafe APIs, hardcoded logic flaws. In Draugr: **`sast`** via
-[Semgrep](https://semgrep.dev). Roadmap: [#50](https://github.com/draugr-dev/draugr/issues/50).
+[Semgrep](https://semgrep.dev). (Implemented today.)
 
 ## DAST — Dynamic Application Security Testing
 
