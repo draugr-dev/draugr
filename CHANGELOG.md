@@ -10,11 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.4.0] - 2026-07-12
+
 ### Added
 
 - **IaC scanning** (`iac` control, via [Trivy](https://trivy.dev) config mode): scans a
   component's repositories for insecure Infrastructure as Code — Terraform, Kubernetes
   manifests, Dockerfiles, Helm, and more. Requires `trivy` on your `PATH`.
+
+### Fixed
+
+- In-source scanner suppressions are now honored: results a scanner marks as suppressed
+  (e.g. Semgrep `// nosem` comments) are dropped instead of counted, so intentional,
+  justified exceptions no longer fail the gate.
 
 ## [0.3.0] - 2026-07-11
 
@@ -73,7 +83,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.4.0
 [0.3.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.3.0
 [0.2.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.2.0
 [0.1.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.1.0
