@@ -50,7 +50,7 @@ Scans code/history for **leaked credentials** — API keys, tokens, private keys
 
 Finds **misconfigurations** in infrastructure definitions (Terraform, Kubernetes manifests,
 Dockerfiles, CloudFormation) — open security groups, privileged containers, etc. In Draugr:
-**`iac`** via Trivy config / [Checkov](https://www.checkov.io). Roadmap: [#52](https://github.com/draugr-dev/draugr/issues/52).
+**`iac`** via Trivy config (optionally [Checkov](https://www.checkov.io) — [#52](https://github.com/draugr-dev/draugr/issues/52)). (Implemented today.)
 
 ## Container image scanning
 
