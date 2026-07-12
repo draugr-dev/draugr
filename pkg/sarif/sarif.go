@@ -40,10 +40,17 @@ type sarifRuleConfig struct {
 }
 
 type sarifResult struct {
-	RuleID    string          `json:"ruleId,omitempty"`
-	Level     string          `json:"level,omitempty"`
-	Message   sarifMessage    `json:"message"`
-	Locations []sarifLocation `json:"locations,omitempty"`
+	RuleID       string             `json:"ruleId,omitempty"`
+	Level        string             `json:"level,omitempty"`
+	Message      sarifMessage       `json:"message"`
+	Locations    []sarifLocation    `json:"locations,omitempty"`
+	Suppressions []sarifSuppression `json:"suppressions,omitempty"`
+}
+
+// sarifSuppression marks a result the author or tool has suppressed (e.g. Semgrep's
+// in-source `nosem` comments). A result with any suppression is not an active finding.
+type sarifSuppression struct {
+	Kind string `json:"kind"`
 }
 
 type sarifMessage struct {
@@ -130,6 +137,11 @@ func FromSARIF(data []byte) (Report, error) {
 			}
 		}
 		for _, sr := range run.Results {
+			// Skip results the tool reports as suppressed (e.g. Semgrep in-source `nosem`
+			// comments). Per SARIF, a result with any suppression is not an active finding.
+			if len(sr.Suppressions) > 0 {
+				continue
+			}
 			level := Level(sr.Level)
 			if level == "" {
 				// Resolution order per SARIF 2.1.0: the result's own level, then its rule's
