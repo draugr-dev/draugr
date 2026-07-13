@@ -10,7 +10,11 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- Merged SARIF output now preserves each finding's numeric **`security-severity`** score
+  (read from the scanner and re-emitted), so GitHub / GitLab / Azure DevOps rank Draugr's
+  findings by their real CVSS-style severity instead of a coarse pass/fail level.
 
 ## [0.4.0] - 2026-07-12
 

@@ -22,9 +22,9 @@ const (
 	LevelNone    Level = "none"
 )
 
-// Severity ranks levels from most to least severe (higher is worse): error=3,
+// Rank orders levels from most to least severe (higher is worse): error=3,
 // warning=2, note=1, none/unknown=0.
-func (l Level) Severity() int {
+func (l Level) Rank() int {
 	switch l {
 	case LevelError:
 		return 3
@@ -38,7 +38,7 @@ func (l Level) Severity() int {
 }
 
 // AtLeast reports whether l is at least as severe as other.
-func (l Level) AtLeast(other Level) bool { return l.Severity() >= other.Severity() }
+func (l Level) AtLeast(other Level) bool { return l.Rank() >= other.Rank() }
 
 // Location points at where a finding was observed.
 type Location struct {
@@ -54,6 +54,11 @@ type Result struct {
 	Level    Level    `json:"level"`
 	Message  string   `json:"message"`
 	Location Location `json:"location,omitempty"`
+	// Score is the finding's numeric CVSS-style severity (0–10), sourced from the SARIF
+	// "security-severity" property. HasScore reports whether a score was present; without
+	// one, normalized Severity falls back to Level.
+	Score    float64 `json:"score,omitempty"`
+	HasScore bool    `json:"-"`
 }
 
 // Fingerprint is a stable identifier for deduplication: two results with the same
@@ -107,7 +112,7 @@ func (r Report) Counts() Counts {
 func (r Report) Highest() Level {
 	highest := LevelNone
 	for _, res := range r.Results {
-		if res.Level.Severity() > highest.Severity() {
+		if res.Level.Rank() > highest.Rank() {
 			highest = res.Level
 		}
 	}

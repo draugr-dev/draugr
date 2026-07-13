@@ -168,6 +168,64 @@ func TestFromSARIFSkipsSuppressed(t *testing.T) {
 	}
 }
 
+// Trivy-style SARIF: the numeric score lives in the rule's properties as a
+// "security-severity" string, keyed to results by ruleId. A result-level property overrides.
+func TestFromSARIFParsesSecuritySeverity(t *testing.T) {
+	data := []byte(`{
+		"version": "2.1.0",
+		"runs": [{
+			"tool": {"driver": {
+				"name": "trivy",
+				"rules": [{"id": "CVE-1", "properties": {"security-severity": "7.5"}}]
+			}},
+			"results": [
+				{"ruleId": "CVE-1", "level": "warning", "message": {"text": "from rule"}},
+				{"ruleId": "CVE-1", "level": "warning", "message": {"text": "result override"},
+				 "properties": {"security-severity": "9.3"}},
+				{"ruleId": "no-score", "level": "warning", "message": {"text": "none"}}
+			]
+		}]
+	}`)
+	got, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byMsg := map[string]Result{}
+	for _, r := range got.Results {
+		byMsg[r.Message] = r
+	}
+	if r := byMsg["from rule"]; !r.HasScore || r.Score != 7.5 {
+		t.Errorf("rule-inherited score = %v (has=%v), want 7.5", r.Score, r.HasScore)
+	}
+	if r := byMsg["result override"]; !r.HasScore || r.Score != 9.3 {
+		t.Errorf("result override score = %v, want 9.3", r.Score)
+	}
+	if r := byMsg["none"]; r.HasScore {
+		t.Errorf("finding with no score should have HasScore=false, got %v", r.Score)
+	}
+	// The scored finding normalizes to critical despite a "warning" level.
+	if s := byMsg["result override"].Severity(""); s != SeverityCritical {
+		t.Errorf("severity = %q, want critical", s)
+	}
+}
+
+func TestSARIFScoreRoundTrips(t *testing.T) {
+	orig := Report{Results: []Result{
+		{Tool: "trivy", RuleID: "CVE-1", Level: LevelWarning, Message: "x", Score: 7.5, HasScore: true},
+	}}
+	data, err := orig.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 1 || !got.Results[0].HasScore || got.Results[0].Score != 7.5 {
+		t.Fatalf("score did not round-trip: %+v", got.Results)
+	}
+}
+
 func TestFromSARIFInvalid(t *testing.T) {
 	if _, err := FromSARIF([]byte("{not json")); err == nil {
 		t.Fatal("expected error")
