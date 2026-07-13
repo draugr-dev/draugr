@@ -66,8 +66,9 @@ draugr version
 ```bash
 git clone https://github.com/draugr-dev/draugr.git
 cd draugr
-make build          # produces ./bin/draugr
+make build             # produces ./bin/draugr
 ./bin/draugr version
+make install-latest    # or: download & install the latest release into ~/.local/bin (needs gh)
 ```
 
 ### With Go
