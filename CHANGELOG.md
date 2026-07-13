@@ -10,7 +10,12 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- The **`k8s-images` surveyor now proposes a component's `exposure`** from namespace topology
+  when surveying a specific namespace — an Ingress or externally-reachable Service →
+  `public`, a NetworkPolicy → `restricted`, otherwise `internal`. It's a suggestion to review
+  (authentication can't be inferred; downgrade to `authenticated` where appropriate).
 
 ## [0.6.0] - 2026-07-13
 
