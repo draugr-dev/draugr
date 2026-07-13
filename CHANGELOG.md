@@ -12,6 +12,11 @@ and move it under a version on release.
 
 ### Added
 
+- **Exploitability enrichment** — `draugr scan --kev <file>` escalates any finding whose CVE
+  is on the CISA Known Exploited Vulnerabilities catalog to critical, and `--epss <file>`
+  (with `--epss-threshold`) bumps CVEs the FIRST EPSS model predicts are likely to be
+  exploited. Both are optional and offline (bring your own downloaded feed), so priority
+  reflects real-world exploitability, not just CVSS.
 - The **`k8s-images` surveyor now proposes a component's `exposure`** from namespace topology
   when surveying a specific namespace — an Ingress or externally-reachable Service →
   `public`, a NetworkPolicy → `restricted`, otherwise `internal`. It's a suggestion to review

@@ -179,6 +179,34 @@ func TestRunScanFailOnPriority(t *testing.T) {
 	}
 }
 
+func TestLoadExploitSource(t *testing.T) {
+	if src, err := loadExploitSource(scanOptions{}); err != nil || src != nil {
+		t.Fatalf("no files should yield nil source, got %v %v", src, err)
+	}
+	kev := filepath.Join(t.TempDir(), "kev.json")
+	if err := os.WriteFile(kev, []byte(`{"vulnerabilities":[{"cveID":"CVE-2021-44228"}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	src, err := loadExploitSource(scanOptions{kevFile: kev, epssThreshold: 0.5})
+	if err != nil || src == nil || src.Empty() {
+		t.Fatalf("kev file should yield a non-empty source, got %v %v", src, err)
+	}
+	if _, err := loadExploitSource(scanOptions{kevFile: filepath.Join(t.TempDir(), "nope.json")}); err == nil {
+		t.Error("missing --kev file should error")
+	}
+	if _, err := loadExploitSource(scanOptions{epssFile: filepath.Join(t.TempDir(), "nope.csv")}); err == nil {
+		t.Error("missing --epss file should error")
+	}
+}
+
+func TestRunScanBadKEVFileErrors(t *testing.T) {
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", kevFile: "/nonexistent/kev.json"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "--kev") {
+		t.Fatalf("expected --kev open error, got %v", err)
+	}
+}
+
 func TestRunScanFail(t *testing.T) {
 	var buf bytes.Buffer
 	path := writeSaga(t, sagaWithImage)
