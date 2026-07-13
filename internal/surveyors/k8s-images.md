@@ -26,6 +26,13 @@ proposed as `public` (downgrade to `authenticated` if it sits behind auth). A wh
 survey lumps namespaces into one component, so exposure is not proposed there. `criticality`
 is never inferred (it's human-declared) — run `draugr classify` to set it.
 
+## Known limitations
+
+- Exposure inference reads only **core** constructs (`Ingress`, `Service`). Workloads exposed
+  via a **service mesh or alternative router** (Istio `Gateway`/`VirtualService`, Gateway API,
+  OpenShift `Route`, …) are not yet detected and may be under-proposed as `internal`. Tracked
+  in [#113](https://github.com/draugr-dev/draugr/issues/113).
+
 ## Links
 
 - client-go: https://github.com/kubernetes/client-go
