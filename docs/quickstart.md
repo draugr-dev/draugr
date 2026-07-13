@@ -3,6 +3,11 @@
 This guide takes you from zero to a security verdict, then shows how discovery can write
 the descriptor for you.
 
+**Contents:** [Install](#1-install) · [Describe your app](#2-describe-your-app) ·
+[Scan](#3-scan) · [Focus: what to fix first](#focus-what-to-fix-first) ·
+[Discovery — the Ravens](#4-let-discovery-write-the-descriptor-the-ravens) ·
+[Run it in CI](#5-run-it-in-ci) · [Troubleshooting](#troubleshooting)
+
 ## 1. Install
 
 **Requirements** — Draugr execs external scanners; install the ones for the controls you use:

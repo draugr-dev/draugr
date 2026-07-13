@@ -1,8 +1,10 @@
 # Integrations catalog
 
-The single place to navigate every **controller**, **scanner**, and **surveyor** Draugr
-ships or plans. Each component has a **markdown doc kept next to its implementation** —
-what it is, which control it relates to, links, and license/terms.
+The single place to navigate every [**controller**](concepts.md#controllers),
+[**scanner**](concepts.md#scanners), and [**surveyor**](concepts.md#surveyors--the-ravens)
+Draugr ships or plans (new to these terms? see [concepts](concepts.md)). Each component has a
+**markdown doc kept next to its implementation** — what it is, which control it relates to,
+links, and license/terms.
 
 > **Convention:** every new scanner/controller/surveyor ships a colocated `.md` (e.g.
 > `internal/scanners/<name>.md`) covering: what it does · control · tool + links ·

@@ -1,7 +1,16 @@
 # Draugr — Architecture (v0 draft)
 
-Status: **draft for discussion**. Nothing here is committed to code yet.
+Status: **draft for discussion**.
 Companion: [`plugin-api.md`](plugin-api.md) (interface sketches), [`naming.md`](naming.md).
+
+**Contents:** [1. Model](#1-one-paragraph-model) · [2. Pipeline](#2-pipeline) ·
+[3. Data model — the Saga](#3-data-model--the-saga) · [4. Plugin model](#4-plugin-model) ·
+[5. SARIF](#5-interchange--sarif-everywhere) ·
+[6. Cheap at scale](#6-execution--the-cheap-at-scale-pillar) ·
+[7. Component layout](#7-component-layout-proposed-go-module) ·
+[8. Deferred](#8-deliberately-deferred) ·
+[9. Observability & security](#9-observability--security-standards) ·
+[10. Open questions](#10-open-questions)
 
 ---
 
