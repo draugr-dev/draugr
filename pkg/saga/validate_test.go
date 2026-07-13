@@ -41,6 +41,16 @@ func TestValidateErrors(t *testing.T) {
 			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    hosts:\n     - name: h\n",
 			want: "hosts[0].url is required",
 		},
+		{
+			name: "invalid exposure",
+			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure: public\n",
+			want: "invalid exposure \"public\"",
+		},
+		{
+			name: "invalid criticality",
+			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    criticality: bc9\n",
+			want: "invalid criticality \"bc9\"",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -49,6 +59,47 @@ func TestValidateErrors(t *testing.T) {
 				t.Fatalf("err = %v, want contains %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestValidateAcceptsValidClassification(t *testing.T) {
+	yaml := "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure: re1\n    criticality: bc1\n"
+	m, err := Load([]byte(yaml))
+	if err != nil {
+		t.Fatalf("valid classification should load, got %v", err)
+	}
+	if m.Components[0].Exposure != ExposureRE1 || m.Components[0].Criticality != CriticalityBC1 {
+		t.Fatalf("classification not parsed: %+v", m.Components[0])
+	}
+}
+
+func TestClassificationOptional(t *testing.T) {
+	// A component with no exposure/criticality is valid (unclassified).
+	m, err := Load([]byte("release:\n  version: '1'\ncomponents:\n  - name: a\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Components[0].Exposure != "" || m.Components[0].Criticality != "" {
+		t.Fatalf("unset classification should be empty, got %+v", m.Components[0])
+	}
+}
+
+func TestExposureCriticalityValid(t *testing.T) {
+	for _, e := range Exposures {
+		if !e.Valid() {
+			t.Errorf("%q should be valid", e)
+		}
+	}
+	for _, c := range Criticalities {
+		if !c.Valid() {
+			t.Errorf("%q should be valid", c)
+		}
+	}
+	if Exposure("").Valid() || Exposure("re5").Valid() {
+		t.Error("empty/unknown exposure should be invalid")
+	}
+	if Criticality("").Valid() || Criticality("bc0").Valid() {
+		t.Error("empty/unknown criticality should be invalid")
 	}
 }
 

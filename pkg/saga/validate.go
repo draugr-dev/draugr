@@ -27,6 +27,13 @@ func (m *Model) Validate() error {
 			where = fmt.Sprintf("component %q", c.Name)
 		}
 
+		if c.Exposure != "" && !c.Exposure.Valid() {
+			errs = append(errs, fmt.Errorf("%s: invalid exposure %q (want one of %v)", where, c.Exposure, Exposures))
+		}
+		if c.Criticality != "" && !c.Criticality.Valid() {
+			errs = append(errs, fmt.Errorf("%s: invalid criticality %q (want one of %v)", where, c.Criticality, Criticalities))
+		}
+
 		for j, r := range c.Repositories {
 			if r.URL == "" {
 				errs = append(errs, fmt.Errorf("%s: repositories[%d].url is required", where, j))
