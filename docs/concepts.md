@@ -64,6 +64,11 @@ control floor) combines with the component's `exposure × criticality` through t
 lookup matrices to yield the priority. So the *same* CVE is P1 on a public, business-critical
 gateway and P3 on an internal dev tool — same finding, different risk.
 
+**Exploitability enrichment (optional).** Severity can be raised by real-world signals before
+ranking: a CVE on CISA **KEV** (Known Exploited Vulnerabilities — confirmed exploited) becomes
+critical, and a CVE at/above an **EPSS** (Exploit Prediction Scoring System) threshold is
+bumped one band. Supply the data with `--kev`/`--epss` (offline, bring-your-own files).
+
 - **Focus:** `--min-priority P2` lists only the findings worth acting on now
   (P1 = act now · P2 = this cycle · P3 = backlog · P4 = track).
 - **Gate:** `--fail-on-priority P1` fails the build on any P1 — component-aware gating with no

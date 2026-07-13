@@ -23,6 +23,9 @@ report to stdout. **Exits non-zero when the verdict is `fail`.**
 | `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`) |
+| `--kev` | — | CISA KEV catalog JSON; a CVE on it is escalated to critical |
+| `--epss` | — | FIRST EPSS scores CSV; a CVE at/above `--epss-threshold` is bumped one band |
+| `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump |
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 
@@ -37,6 +40,12 @@ draugr scan draugr.saga.yaml --cache-dir .draugr-cache
 **Priority** requires components to declare `exposure`/`criticality` (see the
 [Saga reference](saga-reference.md)); Draugr ranks each finding P1–P4 from its severity and
 the component's risk. See [concepts](concepts.md#prioritization-what-to-fix-first).
+
+**Exploitability (`--kev`/`--epss`)** raises a finding's severity by real-world signals — a
+CVE on CISA's [KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)
+(confirmed exploited) becomes critical; a CVE at/above the [EPSS](https://www.first.org/epss/)
+threshold (predicted likely) is bumped one band. Both are optional, offline (bring your own
+downloaded file), and only affect findings whose rule id is a CVE.
 
 ---
 

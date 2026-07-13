@@ -34,6 +34,19 @@ func (s Severity) Rank() int {
 // AtLeast reports whether s is at least as severe as other.
 func (s Severity) AtLeast(other Severity) bool { return s.Rank() >= other.Rank() }
 
+// Escalate returns the next-higher severity band; critical is already the maximum. Used by
+// exploitability enrichment to bump a finding one band.
+func (s Severity) Escalate() Severity {
+	switch s {
+	case SeverityLow:
+		return SeverityMedium
+	case SeverityMedium:
+		return SeverityHigh
+	default: // high → critical, critical → critical
+		return SeverityCritical
+	}
+}
+
 // severityFromScore maps a numeric CVSS-style score (0–10) to a band, using the standard
 // CVSS v3 ranges.
 func severityFromScore(score float64) Severity {
