@@ -65,6 +65,23 @@ draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
 
 ---
 
+## `draugr classify <saga.yaml>`
+
+A guided wizard that sets each component's **`exposure`** and **`criticality`** — the two
+inputs to finding prioritization — and writes them back into the Saga (preserving comments and
+formatting). It asks a few questions per component and derives the labels; by default it only
+asks about unclassified components.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--all` | `false` | Re-classify every component, not just unclassified ones |
+
+```bash
+draugr classify draugr.saga.yaml
+```
+
+---
+
 ## `draugr version`
 
 Print the version, commit, build date, and Go version.
