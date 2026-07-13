@@ -17,6 +17,10 @@ and move it under a version on release.
   and how business-critical its component is. The report includes `priorities` counts, and
   `draugr scan --min-priority P2` lists just the findings worth acting on now. Unclassified
   components are treated as high-risk so nothing slips.
+- **Priority gating** — `draugr scan --fail-on-priority P1` fails the gate on any finding at
+  or above a priority band. Because priority already folds in a component's exposure and
+  criticality, this gates per component without per-component config; it composes with
+  `--fail-on` (the run fails if either trips).
 
 ### Changed
 

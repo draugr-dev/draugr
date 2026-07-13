@@ -85,3 +85,49 @@ func TestThresholdForFallbacks(t *testing.T) {
 		t.Errorf("thresholdFor unknown = %s, want warning", got)
 	}
 }
+
+// reportWithPriority builds a report whose single finding has the given level and priority.
+func reportWithPriority(level sarif.Level, priority string) sarif.Report {
+	return sarif.Report{Results: []sarif.Result{{Level: level, Priority: priority}}}
+}
+
+func TestPriorityGateFailsBelowLevelThreshold(t *testing.T) {
+	// A note-level finding would pass a fail-on-error level gate, but its P1 priority trips
+	// the priority gate — component-aware gating in action.
+	p := Policy{FailOn: sarif.LevelError, FailOnPriority: "P2"}
+	res := p.Evaluate(map[string]sarif.Report{
+		"images": reportWithPriority(sarif.LevelNote, "P1"),
+	})
+	if res.Verdict != Fail {
+		t.Fatalf("verdict = %s, want fail (P1 >= P2 gate)", res.Verdict)
+	}
+	if res.Controls[0].HighestPriority != "P1" {
+		t.Errorf("highestPriority = %q, want P1", res.Controls[0].HighestPriority)
+	}
+}
+
+func TestPriorityGatePassesWhenBelowBand(t *testing.T) {
+	// P3 finding, gate at P1: priority gate does not trip; note level passes too.
+	p := Policy{FailOn: sarif.LevelError, FailOnPriority: "P1"}
+	res := p.Evaluate(map[string]sarif.Report{
+		"sast": reportWithPriority(sarif.LevelNote, "P3"),
+	})
+	if res.Verdict != Pass {
+		t.Fatalf("verdict = %s, want pass", res.Verdict)
+	}
+}
+
+func TestPriorityGateDisabledByDefault(t *testing.T) {
+	// Without FailOnPriority, a P1 finding at note level still passes a fail-on-error gate.
+	p := Policy{FailOn: sarif.LevelError}
+	res := p.Evaluate(map[string]sarif.Report{
+		"sast": reportWithPriority(sarif.LevelNote, "P1"),
+	})
+	if res.Verdict != Pass {
+		t.Fatalf("verdict = %s, want pass (priority gate off)", res.Verdict)
+	}
+	// HighestPriority is still reported as evidence.
+	if res.Controls[0].HighestPriority != "P1" {
+		t.Errorf("highestPriority = %q, want P1", res.Controls[0].HighestPriority)
+	}
+}

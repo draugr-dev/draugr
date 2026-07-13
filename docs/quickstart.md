@@ -131,6 +131,7 @@ draugr scan draugr.saga.yaml -o out/            # write out/report.json + out/re
 draugr scan draugr.saga.yaml --fail-on warning  # stricter gate (default: error)
 draugr scan draugr.saga.yaml --cache-dir .draugr-cache   # skip re-scanning unchanged targets
 draugr scan draugr.saga.yaml --min-priority P2  # list only the findings worth acting on now
+draugr scan draugr.saga.yaml --fail-on-priority P1  # also fail the gate on any P1 finding
 ```
 
 ## Focus: what to fix first
@@ -154,6 +155,11 @@ of the whole wall:
 
 P1 = act now · P2 = this cycle · P3 = backlog · P4 = track. A component left unclassified is
 treated as high-risk so nothing slips.
+
+**Gate on priority.** `--fail-on-priority P1` fails the build when any finding reaches that
+band — component-aware gating without a per-component config, since priority already folds in
+exposure and criticality. It composes with the level gate (`--fail-on`): the run fails if
+*either* trips. Each control also reports its `highestPriority` as evidence.
 
 ## 4. Let discovery write the descriptor (the Ravens)
 
