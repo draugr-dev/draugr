@@ -47,8 +47,8 @@ what applies.
 components:
   - name: web                 # required, unique
     labels: { team: platform } # optional key/value metadata
-    exposure: re1             # optional — risk exposure (re1..re4)
-    criticality: bc1          # optional — business criticality (bc1..bc3)
+    exposure: public          # optional — risk exposure
+    criticality: critical     # optional — business criticality
     repositories:
       - url: https://github.com/acme/web.git   # required
         revision: main                          # optional
@@ -78,10 +78,10 @@ component may be left unclassified.
 
 | `exposure` | meaning | | `criticality` | meaning |
 |------------|---------|-|---------------|---------|
-| `re1` | publicly exposed, no auth | | `bc1` | failure causes outage / data loss |
-| `re2` | publicly exposed behind auth | | `bc2` | degraded, no immediate outage |
-| `re3` | internal, broadly reachable | | `bc3` | limited operational impact |
-| `re4` | restricted / narrowly scoped | | | |
+| `public` | internet-facing, no auth | | `critical` | failure causes outage / data loss |
+| `authenticated` | internet-facing, behind auth | | `important` | degraded, no immediate outage |
+| `internal` | reachable within the environment | | `supporting` | limited operational impact |
+| `restricted` | namespace- / network-policy-scoped | | | |
 
 ## `componentsMetaSources` (planned)
 

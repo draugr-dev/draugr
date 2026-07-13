@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Breaking:** component risk classification now uses readable labels instead of codes —
+  `exposure: public | authenticated | internal | restricted` and
+  `criticality: critical | important | supporting` (was `re1`–`re4` / `bc1`–`bc3`). They're
+  self-documenting in the descriptor and reports. Pre-1.0 change — update any descriptors
+  that used the old codes.
 
 ## [0.5.0] - 2026-07-13
 

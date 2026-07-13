@@ -27,12 +27,12 @@ func TestDefaultMatricesKeyCells(t *testing.T) {
 		sev  sarif.Severity
 		want Priority
 	}{
-		{saga.ExposureRE1, saga.CriticalityBC1, sarif.SeverityCritical, P1}, // public + critical + crit
-		{saga.ExposureRE1, saga.CriticalityBC1, sarif.SeverityHigh, P1},
-		{saga.ExposureRE1, saga.CriticalityBC1, sarif.SeverityLow, P3}, // public+critical but low sev
-		{saga.ExposureRE4, saga.CriticalityBC3, sarif.SeverityLow, P4}, // restricted + supporting + low
-		{saga.ExposureRE4, saga.CriticalityBC3, sarif.SeverityCritical, P2},
-		{saga.ExposureRE3, saga.CriticalityBC2, sarif.SeverityMedium, P3},
+		{saga.ExposurePublic, saga.CriticalityCritical, sarif.SeverityCritical, P1}, // public + critical + crit
+		{saga.ExposurePublic, saga.CriticalityCritical, sarif.SeverityHigh, P1},
+		{saga.ExposurePublic, saga.CriticalityCritical, sarif.SeverityLow, P3},       // public+critical but low sev
+		{saga.ExposureRestricted, saga.CriticalitySupporting, sarif.SeverityLow, P4}, // restricted + supporting + low
+		{saga.ExposureRestricted, saga.CriticalitySupporting, sarif.SeverityCritical, P2},
+		{saga.ExposureInternal, saga.CriticalityImportant, sarif.SeverityMedium, P3},
 	}
 	for _, tc := range cases {
 		if got := m.Prioritize(tc.e, tc.c, tc.sev); got != tc.want {
@@ -45,8 +45,8 @@ func TestDefaultMatricesKeyCells(t *testing.T) {
 // or a finding more severe, must never lower its priority.
 func TestDefaultMatricesMonotonic(t *testing.T) {
 	m := DefaultMatrices()
-	exp := []saga.Exposure{saga.ExposureRE1, saga.ExposureRE2, saga.ExposureRE3, saga.ExposureRE4} // most→least
-	crit := []saga.Criticality{saga.CriticalityBC1, saga.CriticalityBC2, saga.CriticalityBC3}
+	exp := []saga.Exposure{saga.ExposurePublic, saga.ExposureAuthenticated, saga.ExposureInternal, saga.ExposureRestricted} // most→least
+	crit := []saga.Criticality{saga.CriticalityCritical, saga.CriticalityImportant, saga.CriticalitySupporting}
 	sev := []sarif.Severity{sarif.SeverityCritical, sarif.SeverityHigh, sarif.SeverityMedium, sarif.SeverityLow}
 
 	// Along each axis (ordered most→least), priority urgency must not increase.
@@ -79,7 +79,7 @@ func TestDefaultMatricesMonotonic(t *testing.T) {
 	}
 }
 
-// Unclassified components are treated as worst-case (re1/bc1) so their findings surface.
+// Unclassified components are treated as worst-case (public/critical) so their findings surface.
 func TestUnclassifiedTreatedAsElevated(t *testing.T) {
 	m := DefaultMatrices()
 	if got := m.ContextOf("", ""); got != C1 {
@@ -88,9 +88,9 @@ func TestUnclassifiedTreatedAsElevated(t *testing.T) {
 	if got := m.ContextOf("bogus", "bogus"); got != C1 {
 		t.Errorf("invalid classification context = %s, want C1", got)
 	}
-	// Same priority as an explicit re1/bc1.
-	if m.Prioritize("", "", sarif.SeverityHigh) != m.Prioritize(saga.ExposureRE1, saga.CriticalityBC1, sarif.SeverityHigh) {
-		t.Error("unclassified should match re1/bc1")
+	// Same priority as an explicit public/critical.
+	if m.Prioritize("", "", sarif.SeverityHigh) != m.Prioritize(saga.ExposurePublic, saga.CriticalityCritical, sarif.SeverityHigh) {
+		t.Error("unclassified should match public/critical")
 	}
 }
 
@@ -109,7 +109,7 @@ func TestIncompleteMatricesFallBackSafely(t *testing.T) {
 		ContextTier:  map[saga.Exposure]map[saga.Criticality]Context{},
 		PriorityBand: map[Context]map[sarif.Severity]Priority{},
 	}
-	if got := empty.ContextOf(saga.ExposureRE1, saga.CriticalityBC1); got != C1 {
+	if got := empty.ContextOf(saga.ExposurePublic, saga.CriticalityCritical); got != C1 {
 		t.Errorf("missing context cell = %s, want C1", got)
 	}
 	if got := empty.PriorityOf(C1, sarif.SeverityHigh); got != P2 {
@@ -119,13 +119,13 @@ func TestIncompleteMatricesFallBackSafely(t *testing.T) {
 
 func TestOverrideCell(t *testing.T) {
 	m := DefaultMatrices()
-	// Org treats crown jewels (bc1) as always highest concern regardless of exposure.
-	m.ContextTier[saga.ExposureRE4][saga.CriticalityBC1] = C1
-	if got := m.Prioritize(saga.ExposureRE4, saga.CriticalityBC1, sarif.SeverityCritical); got != P1 {
-		t.Errorf("overridden re4/bc1 crit = %s, want P1", got)
+	// Org treats crown jewels (critical) as always highest concern regardless of exposure.
+	m.ContextTier[saga.ExposureRestricted][saga.CriticalityCritical] = C1
+	if got := m.Prioritize(saga.ExposureRestricted, saga.CriticalityCritical, sarif.SeverityCritical); got != P1 {
+		t.Errorf("overridden restricted/critical crit = %s, want P1", got)
 	}
 	// A fresh default is unaffected (override mutated only this copy's maps).
-	if DefaultMatrices().ContextOf(saga.ExposureRE4, saga.CriticalityBC1) != C3 {
+	if DefaultMatrices().ContextOf(saga.ExposureRestricted, saga.CriticalityCritical) != C3 {
 		t.Error("DefaultMatrices should return the shipped defaults, not the override")
 	}
 }

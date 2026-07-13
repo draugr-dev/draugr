@@ -69,10 +69,10 @@ type Matrices struct {
 func DefaultMatrices() Matrices {
 	return Matrices{
 		ContextTier: map[saga.Exposure]map[saga.Criticality]Context{
-			saga.ExposureRE1: {saga.CriticalityBC1: C1, saga.CriticalityBC2: C1, saga.CriticalityBC3: C2},
-			saga.ExposureRE2: {saga.CriticalityBC1: C1, saga.CriticalityBC2: C2, saga.CriticalityBC3: C3},
-			saga.ExposureRE3: {saga.CriticalityBC1: C2, saga.CriticalityBC2: C3, saga.CriticalityBC3: C4},
-			saga.ExposureRE4: {saga.CriticalityBC1: C3, saga.CriticalityBC2: C4, saga.CriticalityBC3: C4},
+			saga.ExposurePublic:        {saga.CriticalityCritical: C1, saga.CriticalityImportant: C1, saga.CriticalitySupporting: C2},
+			saga.ExposureAuthenticated: {saga.CriticalityCritical: C1, saga.CriticalityImportant: C2, saga.CriticalitySupporting: C3},
+			saga.ExposureInternal:      {saga.CriticalityCritical: C2, saga.CriticalityImportant: C3, saga.CriticalitySupporting: C4},
+			saga.ExposureRestricted:    {saga.CriticalityCritical: C3, saga.CriticalityImportant: C4, saga.CriticalitySupporting: C4},
 		},
 		PriorityBand: map[Context]map[sarif.Severity]Priority{
 			C1: {sarif.SeverityCritical: P1, sarif.SeverityHigh: P1, sarif.SeverityMedium: P2, sarif.SeverityLow: P3},
@@ -84,14 +84,14 @@ func DefaultMatrices() Matrices {
 }
 
 // ContextOf returns the context tier for a component's classification. Unclassified or
-// unknown exposure/criticality is treated as the most severe level (re1 / bc1), so findings
+// unknown exposure/criticality is treated as the most severe level (public / critical), so findings
 // on unclassified components surface rather than hide.
 func (m Matrices) ContextOf(exposure saga.Exposure, criticality saga.Criticality) Context {
 	if !exposure.Valid() {
-		exposure = saga.ExposureRE1
+		exposure = saga.ExposurePublic
 	}
 	if !criticality.Valid() {
-		criticality = saga.CriticalityBC1
+		criticality = saga.CriticalityCritical
 	}
 	if byCrit, ok := m.ContextTier[exposure]; ok {
 		if ctx, ok := byCrit[criticality]; ok {
