@@ -1,6 +1,9 @@
 package sarif
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 // Version is the SARIF specification version Draugr emits.
 const Version = "2.1.0"
@@ -33,10 +36,17 @@ type sarifDriver struct {
 type sarifRule struct {
 	ID                   string           `json:"id"`
 	DefaultConfiguration *sarifRuleConfig `json:"defaultConfiguration,omitempty"`
+	Properties           *sarifProperties `json:"properties,omitempty"`
 }
 
 type sarifRuleConfig struct {
 	Level string `json:"level"`
+}
+
+// sarifProperties carries the property-bag fields Draugr reads/writes. "security-severity"
+// is the SARIF/GitHub convention for a numeric CVSS-style score, serialized as a string.
+type sarifProperties struct {
+	SecuritySeverity string `json:"security-severity,omitempty"`
 }
 
 type sarifResult struct {
@@ -45,6 +55,7 @@ type sarifResult struct {
 	Message      sarifMessage       `json:"message"`
 	Locations    []sarifLocation    `json:"locations,omitempty"`
 	Suppressions []sarifSuppression `json:"suppressions,omitempty"`
+	Properties   *sarifProperties   `json:"properties,omitempty"`
 }
 
 // sarifSuppression marks a result the author or tool has suppressed (e.g. Semgrep's
@@ -108,11 +119,29 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 				}
 				sr.Locations = append(sr.Locations, loc)
 			}
+			if res.HasScore {
+				sr.Properties = &sarifProperties{
+					SecuritySeverity: strconv.FormatFloat(res.Score, 'f', -1, 64),
+				}
+			}
 			run.Results = append(run.Results, sr)
 		}
 		log.Runs = append(log.Runs, run)
 	}
 	return json.MarshalIndent(log, "", "  ")
+}
+
+// parseSecuritySeverity reads the numeric "security-severity" score (a string per SARIF)
+// from a property bag, reporting whether a valid score was present.
+func parseSecuritySeverity(p *sarifProperties) (float64, bool) {
+	if p == nil || p.SecuritySeverity == "" {
+		return 0, false
+	}
+	score, err := strconv.ParseFloat(p.SecuritySeverity, 64)
+	if err != nil {
+		return 0, false
+	}
+	return score, true
 }
 
 // FromSARIF parses standard SARIF 2.1.0 JSON into a Report, flattening all runs and
@@ -131,9 +160,15 @@ func FromSARIF(data []byte) (Report, error) {
 		// defaultConfiguration. Some tools (e.g. Semgrep) rely on this. Index the rules so
 		// we can resolve a result's severity from its ruleId.
 		ruleLevel := make(map[string]Level, len(run.Tool.Driver.Rules))
+		// Rules also carry a numeric "security-severity" (CVSS-style) that results inherit
+		// by ruleId, the way many tools (e.g. Trivy) express severity.
+		ruleScore := make(map[string]float64, len(run.Tool.Driver.Rules))
 		for _, rule := range run.Tool.Driver.Rules {
 			if rule.DefaultConfiguration != nil && rule.DefaultConfiguration.Level != "" {
 				ruleLevel[rule.ID] = Level(rule.DefaultConfiguration.Level)
+			}
+			if score, ok := parseSecuritySeverity(rule.Properties); ok {
+				ruleScore[rule.ID] = score
 			}
 		}
 		for _, sr := range run.Results {
@@ -164,6 +199,12 @@ func FromSARIF(data []byte) (Report, error) {
 				if region := sr.Locations[0].PhysicalLocation.Region; region != nil {
 					res.Location.StartLine = region.StartLine
 				}
+			}
+			// A numeric score on the result overrides the rule's; otherwise inherit it.
+			if score, ok := parseSecuritySeverity(sr.Properties); ok {
+				res.Score, res.HasScore = score, true
+			} else if score, ok := ruleScore[sr.RuleID]; ok {
+				res.Score, res.HasScore = score, true
 			}
 			out.Results = append(out.Results, res)
 		}

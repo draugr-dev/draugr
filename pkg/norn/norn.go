@@ -67,8 +67,8 @@ func (p Policy) Evaluate(reports map[string]sarif.Report) Result {
 			Threshold: threshold,
 		}
 		// A control fails only when it has a finding at or above the threshold. Since
-		// LevelNone has severity 0 and any real threshold is >= 1, empty reports pass.
-		if highest.AtLeast(threshold) && highest.Severity() > 0 {
+		// LevelNone has rank 0 and any real threshold is >= 1, empty reports pass.
+		if highest.AtLeast(threshold) && highest.Rank() > 0 {
 			outcome.Verdict = Fail
 			res.Verdict = Fail
 		}
