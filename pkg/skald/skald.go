@@ -51,14 +51,15 @@ type releaseInfo struct {
 }
 
 type controlReport struct {
-	Name      string `json:"name"`
-	Verdict   string `json:"verdict"`
-	Highest   string `json:"highest"`
-	Threshold string `json:"threshold"`
-	Errors    int    `json:"errors"`
-	Warnings  int    `json:"warnings"`
-	Notes     int    `json:"notes"`
-	Total     int    `json:"total"`
+	Name            string `json:"name"`
+	Verdict         string `json:"verdict"`
+	Highest         string `json:"highest"`
+	HighestPriority string `json:"highestPriority,omitempty"`
+	Threshold       string `json:"threshold"`
+	Errors          int    `json:"errors"`
+	Warnings        int    `json:"warnings"`
+	Notes           int    `json:"notes"`
+	Total           int    `json:"total"`
 }
 
 type statsInfo struct {
@@ -79,14 +80,15 @@ func RenderJSON(w io.Writer, release saga.Release, run engine.Result, verdict no
 	}
 	for _, oc := range verdict.Controls {
 		doc.Controls = append(doc.Controls, controlReport{
-			Name:      oc.Control,
-			Verdict:   string(oc.Verdict),
-			Highest:   string(oc.Highest),
-			Threshold: string(oc.Threshold),
-			Errors:    oc.Counts.Error,
-			Warnings:  oc.Counts.Warning,
-			Notes:     oc.Counts.Note,
-			Total:     oc.Counts.Total(),
+			Name:            oc.Control,
+			Verdict:         string(oc.Verdict),
+			Highest:         string(oc.Highest),
+			HighestPriority: oc.HighestPriority,
+			Threshold:       string(oc.Threshold),
+			Errors:          oc.Counts.Error,
+			Warnings:        oc.Counts.Warning,
+			Notes:           oc.Counts.Note,
+			Total:           oc.Counts.Total(),
 		})
 	}
 	sort.Slice(doc.Controls, func(i, j int) bool { return doc.Controls[i].Name < doc.Controls[j].Name })

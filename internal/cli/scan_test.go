@@ -90,16 +90,16 @@ func writeSaga(t *testing.T, body string) string {
 
 // --- tests ---
 
-func TestNormalizeMinPriority(t *testing.T) {
+func TestValidatePriority(t *testing.T) {
 	for _, v := range []string{"", "P1", "p2", "P4"} {
-		if _, err := normalizeMinPriority(v); err != nil {
+		if _, err := validatePriority("--min-priority", v); err != nil {
 			t.Errorf("%q should be valid: %v", v, err)
 		}
 	}
-	if got, _ := normalizeMinPriority("p2"); got != "P2" {
-		t.Errorf("normalize should upper-case, got %q", got)
+	if got, _ := validatePriority("--min-priority", "p2"); got != "P2" {
+		t.Errorf("validate should upper-case, got %q", got)
 	}
-	if _, err := normalizeMinPriority("P9"); err == nil {
+	if _, err := validatePriority("--fail-on-priority", "P9"); err == nil {
 		t.Error("P9 should be rejected")
 	}
 }
@@ -130,6 +130,14 @@ func TestRunScanInvalidMinPriority(t *testing.T) {
 	}
 }
 
+func TestRunScanInvalidFailOnPriority(t *testing.T) {
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", failOnPriority: "bogus"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "invalid --fail-on-priority") {
+		t.Fatalf("expected invalid fail-on-priority error, got %v", err)
+	}
+}
+
 func TestRunScanWarnsOnScanError(t *testing.T) {
 	// A scanner error is surfaced (logged) but does not by itself fail the gate: no findings
 	// means the verdict passes.
@@ -154,6 +162,20 @@ func TestWriteArtifactsMkdirError(t *testing.T) {
 		scanOptions{failOn: "error", outputDir: filepath.Join(f, "sub")}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
 	if err == nil {
 		t.Fatal("expected an error creating the output directory under a file")
+	}
+}
+
+func TestRunScanFailOnPriority(t *testing.T) {
+	path := writeSaga(t, sagaWithImage)
+	// A warning finding passes the fail-on-error level gate; on an unclassified component it
+	// resolves to P2, so --fail-on-priority P2 must flip the verdict to fail.
+	base := scanOptions{failOn: "error"}
+	if err := runScan(context.Background(), path, base, fakeRegistry(sarif.LevelWarning), &bytes.Buffer{}); err != nil {
+		t.Fatalf("without priority gate, warning should pass fail-on-error: %v", err)
+	}
+	withGate := scanOptions{failOn: "error", failOnPriority: "P2"}
+	if err := runScan(context.Background(), path, withGate, fakeRegistry(sarif.LevelWarning), &bytes.Buffer{}); err == nil {
+		t.Fatal("expected fail: a P2 finding should trip --fail-on-priority P2")
 	}
 }
 

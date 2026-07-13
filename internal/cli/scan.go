@@ -24,11 +24,12 @@ import (
 )
 
 type scanOptions struct {
-	outputDir   string
-	failOn      string
-	cacheDir    string
-	cacheTTL    time.Duration
-	minPriority string
+	outputDir      string
+	failOn         string
+	failOnPriority string
+	cacheDir       string
+	cacheTTL       time.Duration
+	minPriority    string
 }
 
 func newScanCommand() *cobra.Command {
@@ -45,6 +46,7 @@ func newScanCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&opts.outputDir, "output", "o", "", "directory to write report.json and results.sarif")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.LevelError), "severity that fails the gate: error, warning, note")
+	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "", "also fail the gate on any finding at or above this priority (P1-P4)")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "list findings at or above this priority band (P1-P4)")
@@ -57,7 +59,11 @@ func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine
 	if err != nil {
 		return err
 	}
-	minPriority, err := normalizeMinPriority(opts.minPriority)
+	minPriority, err := validatePriority("--min-priority", opts.minPriority)
+	if err != nil {
+		return err
+	}
+	failOnPriority, err := validatePriority("--fail-on-priority", opts.failOnPriority)
 	if err != nil {
 		return err
 	}
@@ -77,7 +83,7 @@ func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine
 	for name, cr := range run.Controls {
 		reports[name] = cr.Report
 	}
-	verdict := norn.Policy{FailOn: sarif.Level(opts.failOn)}.Evaluate(reports)
+	verdict := norn.Policy{FailOn: sarif.Level(opts.failOn), FailOnPriority: failOnPriority}.Evaluate(reports)
 
 	if err := skald.RenderJSON(w, model.Release, run, verdict, minPriority); err != nil {
 		return err
@@ -105,9 +111,9 @@ func defaultPrioritizer() engine.Prioritizer {
 	}
 }
 
-// normalizeMinPriority validates and upper-cases the --min-priority flag. Empty is allowed
-// (no filter).
-func normalizeMinPriority(v string) (string, error) {
+// validatePriority validates and upper-cases a priority-band flag value. Empty is allowed
+// (feature disabled); flag names the flag for the error message.
+func validatePriority(flag, v string) (string, error) {
 	if v == "" {
 		return "", nil
 	}
@@ -116,7 +122,7 @@ func normalizeMinPriority(v string) (string, error) {
 	case prioritization.P1, prioritization.P2, prioritization.P3, prioritization.P4:
 		return up, nil
 	default:
-		return "", fmt.Errorf("invalid --min-priority %q (want one of P1, P2, P3, P4)", v)
+		return "", fmt.Errorf("invalid %s %q (want one of P1, P2, P3, P4)", flag, v)
 	}
 }
 
