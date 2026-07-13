@@ -63,6 +63,10 @@ draugr survey --github-org my-org -o draugr.saga.yaml
 draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
 ```
 
+When scoped to a specific namespace, `--k8s-images` also **proposes each component's
+`exposure`** from topology (Ingress/external Service → `public`, NetworkPolicy → `restricted`,
+else `internal`) — review it, then set `criticality` with [`draugr classify`](#draugr-classify-sagayaml).
+
 ---
 
 ## `draugr classify <saga.yaml>`

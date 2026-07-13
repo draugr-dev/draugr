@@ -12,6 +12,20 @@
 Lists pods in a namespace (or all namespaces) via the Kubernetes API and returns the unique
 container images (init + regular) as a Saga component, so the descriptor writes itself.
 
+**Proposes exposure.** When surveying a *specific* namespace, it also infers the component's
+`exposure` from topology (see [prioritization](../../docs/concepts.md#prioritization-what-to-fix-first)):
+
+| Signal in the namespace | Proposed `exposure` |
+|-------------------------|---------------------|
+| An `Ingress`, or a `Service` of type `LoadBalancer`/`NodePort` | `public` |
+| A `NetworkPolicy` (and no external reach) | `restricted` |
+| Otherwise | `internal` |
+
+It's a **proposal to confirm** — authentication can't be inferred, so internet-reachable is
+proposed as `public` (downgrade to `authenticated` if it sits behind auth). A whole-cluster
+survey lumps namespaces into one component, so exposure is not proposed there. `criticality`
+is never inferred (it's human-declared) — run `draugr classify` to set it.
+
 ## Links
 
 - client-go: https://github.com/kubernetes/client-go

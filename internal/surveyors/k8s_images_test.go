@@ -6,11 +6,13 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 func pod(ns, name string, images ...string) *corev1.Pod {
@@ -102,5 +104,68 @@ func TestCollectImagesIncludesInitContainers(t *testing.T) {
 	imgs := collectImages([]corev1.Pod{*p})
 	if len(imgs) != 2 {
 		t.Fatalf("want init + app images, got %+v", imgs)
+	}
+}
+
+func TestInferExposurePublicFromIngress(t *testing.T) {
+	cs := fake.NewSimpleClientset(
+		pod("prod", "a", "repo/x:1"),
+		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "www", Namespace: "prod"}},
+	)
+	frag, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if frag.Components[0].Exposure != saga.ExposurePublic {
+		t.Errorf("ingress → exposure = %q, want public", frag.Components[0].Exposure)
+	}
+}
+
+func TestInferExposurePublicFromLoadBalancer(t *testing.T) {
+	cs := fake.NewSimpleClientset(
+		pod("prod", "a", "repo/x:1"),
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: "svc", Namespace: "prod"},
+			Spec:       corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+		},
+	)
+	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
+	if frag.Components[0].Exposure != saga.ExposurePublic {
+		t.Errorf("LoadBalancer → exposure = %q, want public", frag.Components[0].Exposure)
+	}
+}
+
+func TestInferExposureRestrictedFromNetworkPolicy(t *testing.T) {
+	cs := fake.NewSimpleClientset(
+		pod("prod", "a", "repo/x:1"),
+		&corev1.Service{ // ClusterIP (not external)
+			ObjectMeta: metav1.ObjectMeta{Name: "svc", Namespace: "prod"},
+			Spec:       corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP},
+		},
+		&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: "np", Namespace: "prod"}},
+	)
+	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
+	if frag.Components[0].Exposure != saga.ExposureRestricted {
+		t.Errorf("network policy → exposure = %q, want restricted", frag.Components[0].Exposure)
+	}
+}
+
+func TestInferExposureInternalByDefault(t *testing.T) {
+	cs := fake.NewSimpleClientset(pod("prod", "a", "repo/x:1")) // no ingress/svc/netpol
+	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
+	if frag.Components[0].Exposure != saga.ExposureInternal {
+		t.Errorf("no topology signal → exposure = %q, want internal", frag.Components[0].Exposure)
+	}
+}
+
+func TestNoExposureForWholeCluster(t *testing.T) {
+	// A whole-cluster survey (no namespace) lumps components; exposure is not proposed.
+	cs := fake.NewSimpleClientset(
+		pod("prod", "a", "repo/x:1"),
+		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "www", Namespace: "prod"}},
+	)
+	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{})
+	if frag.Components[0].Exposure != "" {
+		t.Errorf("whole-cluster survey should not propose exposure, got %q", frag.Components[0].Exposure)
 	}
 }
