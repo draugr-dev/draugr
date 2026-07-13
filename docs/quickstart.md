@@ -136,12 +136,33 @@ draugr scan draugr.saga.yaml --fail-on-priority P1  # also fail the gate on any 
 
 ## Focus: what to fix first
 
-If your components declare `exposure` and `criticality` (see the
-[Saga reference](saga-reference.md)), Draugr ranks every finding into a priority band —
-combining the finding's severity with how exposed and how business-critical its component is.
-The report always includes a `priorities` count (P1–P4); `--min-priority` adds a ranked
-`findings` list of just those at or above the band, so you can act on the short list instead
-of the whole wall:
+**Classify your components.** The fastest way to set up prioritization is the guided wizard —
+it asks a few questions per component and writes `exposure` and `criticality` back into your
+Saga (comments and formatting preserved):
+
+```bash
+draugr classify draugr.saga.yaml
+```
+
+```
+Component: web
+  Exposure — how reachable is it?
+  Reachable from the public internet? [y/N] y
+  Does it require authentication? [y/N] n
+  Criticality — impact if it fails or is compromised?
+    1) outage or data loss   2) degraded, no outage   3) limited impact
+  Choose [1-3]: 1
+  → web: exposure=public, criticality=critical
+```
+
+(Prefer to hand-edit? The fields are in the [Saga reference](saga-reference.md). And
+`draugr survey` on a k8s namespace already *proposes* `exposure` for you.)
+
+Once components declare `exposure` and `criticality`, Draugr ranks every finding into a
+priority band — combining the finding's severity with how exposed and how business-critical
+its component is. The report always includes a `priorities` count (P1–P4); `--min-priority`
+adds a ranked `findings` list of just those at or above the band, so you can act on the short
+list instead of the whole wall:
 
 ```json
 {
