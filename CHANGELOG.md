@@ -10,6 +10,12 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`draugr classify`** — a guided wizard that asks a few questions about each component and
+  writes its `exposure` and `criticality` back into the Saga (comments and formatting
+  preserved). The easy way to set up prioritization without hand-editing the descriptor.
+
 ### Changed
 
 - **Breaking:** component risk classification now uses readable labels instead of codes —
