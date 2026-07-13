@@ -52,10 +52,10 @@ type Exposure string
 
 // Exposure levels, from most to least exposed.
 const (
-	ExposureRE1 Exposure = "re1" // publicly exposed, no authentication
-	ExposureRE2 Exposure = "re2" // publicly exposed behind authentication
-	ExposureRE3 Exposure = "re3" // internal, broadly reachable
-	ExposureRE4 Exposure = "re4" // restricted / narrowly scoped
+	ExposurePublic        Exposure = "public"        // internet-facing, no authentication
+	ExposureAuthenticated Exposure = "authenticated" // internet-facing, behind authentication
+	ExposureInternal      Exposure = "internal"      // reachable within the environment
+	ExposureRestricted    Exposure = "restricted"    // namespace- / network-policy-scoped
 )
 
 // Criticality is a component's business-criticality level — the operational impact if it
@@ -66,16 +66,16 @@ type Criticality string
 
 // Criticality levels, from most to least critical.
 const (
-	CriticalityBC1 Criticality = "bc1" // failure causes outage or data loss
-	CriticalityBC2 Criticality = "bc2" // degraded functionality, no immediate outage
-	CriticalityBC3 Criticality = "bc3" // limited operational impact
+	CriticalityCritical   Criticality = "critical"   // failure causes outage or data loss
+	CriticalityImportant  Criticality = "important"  // degraded functionality, no immediate outage
+	CriticalitySupporting Criticality = "supporting" // limited operational impact
 )
 
 // Exposures lists the valid exposure levels, most to least exposed.
-var Exposures = []Exposure{ExposureRE1, ExposureRE2, ExposureRE3, ExposureRE4}
+var Exposures = []Exposure{ExposurePublic, ExposureAuthenticated, ExposureInternal, ExposureRestricted}
 
 // Criticalities lists the valid criticality levels, most to least critical.
-var Criticalities = []Criticality{CriticalityBC1, CriticalityBC2, CriticalityBC3}
+var Criticalities = []Criticality{CriticalityCritical, CriticalityImportant, CriticalitySupporting}
 
 // Valid reports whether e is a known exposure level. The empty value (unclassified) is not
 // valid here; callers decide how to treat unset exposure.

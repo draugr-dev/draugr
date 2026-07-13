@@ -96,11 +96,11 @@ func TestWithPrioritizationStampsFindings(t *testing.T) {
 	m := saga.Model{
 		Release:    saga.Release{Version: "1"},
 		Config:     saga.Config{Controllers: map[string]saga.ControllerSettings{"images": {"enabled": true}}},
-		Components: []saga.Component{{Name: "a", Exposure: saga.ExposureRE1, Criticality: saga.CriticalityBC1}},
+		Components: []saga.Component{{Name: "a", Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical}},
 	}
 	// The prioritizer receives the component's classification and the control name.
 	prio := func(control string, e saga.Exposure, c saga.Criticality, _ sarif.Result) string {
-		if control == "images" && e == saga.ExposureRE1 && c == saga.CriticalityBC1 {
+		if control == "images" && e == saga.ExposurePublic && c == saga.CriticalityCritical {
 			return "P1"
 		}
 		return "P4"

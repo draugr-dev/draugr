@@ -107,7 +107,7 @@ func TestValidatePriority(t *testing.T) {
 func TestRunScanMinPriorityListsFindings(t *testing.T) {
 	var buf bytes.Buffer
 	path := writeSaga(t, sagaWithImage)
-	// Unclassified component → treated as re1/bc1 (C1); a note-level finding → P3.
+	// Unclassified component → treated as public/critical (C1); a note-level finding → P3.
 	err := runScan(context.Background(), path,
 		scanOptions{failOn: "error", minPriority: "P3"}, fakeRegistry(sarif.LevelNote), &buf)
 	if err != nil {

@@ -54,9 +54,10 @@ Severity isn't priority. A `scan` can return a wall of "high" findings, but whic
 fix first depends on **where it lives**. Declare two attributes on a component and Draugr
 ranks every finding into a band **P1–P4**:
 
-- **`exposure`** (`re1`–`re4`) — how reachable the component is (public/no-auth → restricted).
-  This drives *likelihood*.
-- **`criticality`** (`bc1`–`bc3`) — the business impact if it fails. This drives *impact*.
+- **`exposure`** (`public` → `authenticated` → `internal` → `restricted`) — how reachable the
+  component is. This drives *likelihood*.
+- **`criticality`** (`critical` → `important` → `supporting`) — the business impact if it
+  fails. This drives *impact*.
 
 A finding's **normalized severity** (from its CVSS score, or its SARIF level, or a
 control floor) combines with the component's `exposure × criticality` through two small

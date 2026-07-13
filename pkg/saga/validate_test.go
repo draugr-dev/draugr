@@ -43,8 +43,8 @@ func TestValidateErrors(t *testing.T) {
 		},
 		{
 			name: "invalid exposure",
-			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure: public\n",
-			want: "invalid exposure \"public\"",
+			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure: web\n",
+			want: "invalid exposure \"web\"",
 		},
 		{
 			name: "invalid criticality",
@@ -63,12 +63,12 @@ func TestValidateErrors(t *testing.T) {
 }
 
 func TestValidateAcceptsValidClassification(t *testing.T) {
-	yaml := "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure: re1\n    criticality: bc1\n"
+	yaml := "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure: public\n    criticality: critical\n"
 	m, err := Load([]byte(yaml))
 	if err != nil {
 		t.Fatalf("valid classification should load, got %v", err)
 	}
-	if m.Components[0].Exposure != ExposureRE1 || m.Components[0].Criticality != CriticalityBC1 {
+	if m.Components[0].Exposure != ExposurePublic || m.Components[0].Criticality != CriticalityCritical {
 		t.Fatalf("classification not parsed: %+v", m.Components[0])
 	}
 }
