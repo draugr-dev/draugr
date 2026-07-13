@@ -10,6 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **Finding prioritization** — declare a component's `exposure` and `criticality` and Draugr
+  ranks every finding into a priority band (P1–P4) by combining its severity with how exposed
+  and how business-critical its component is. The report includes `priorities` counts, and
+  `draugr scan --min-priority P2` lists just the findings worth acting on now. Unclassified
+  components are treated as high-risk so nothing slips.
+
 ### Changed
 
 - Merged SARIF output now preserves each finding's numeric **`security-severity`** score

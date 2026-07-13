@@ -29,7 +29,13 @@ type Engine struct {
 	reg         *Registry
 	concurrency int
 	cache       cache.Cache
+	prioritize  Prioritizer
 }
+
+// Prioritizer computes a finding's priority band from its control and its component's risk
+// classification. Injected via WithPrioritization so the engine stays decoupled from the
+// prioritization matrices and per-control severity floors; nil disables priority stamping.
+type Prioritizer func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) string
 
 // Option configures an Engine.
 type Option func(*Engine)
@@ -50,6 +56,12 @@ func WithCache(c cache.Cache) Option {
 	return func(e *Engine) { e.cache = c }
 }
 
+// WithPrioritization stamps each finding with a priority band computed by p. Priority is
+// applied per run (never cached), since it depends on the component's current classification.
+func WithPrioritization(p Prioritizer) Option {
+	return func(e *Engine) { e.prioritize = p }
+}
+
 // New creates an Engine over the given registry. By default it runs up to NumCPU jobs
 // concurrently.
 func New(reg *Registry, opts ...Option) *Engine {
@@ -67,10 +79,13 @@ func defaultConcurrency() int {
 	return 1
 }
 
-// PlannedJob is a scan job tagged with the control that produced it.
+// PlannedJob is a scan job tagged with the control that produced it and the risk
+// classification of the component it targets (empty for project-scoped controls).
 type PlannedJob struct {
-	Control string
-	Job     plugin.ScanJob
+	Control     string
+	Job         plugin.ScanJob
+	Exposure    saga.Exposure
+	Criticality saga.Criticality
 }
 
 // Plan expands the model into scan jobs. Only registered controllers that are enabled
@@ -92,7 +107,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				errs = append(errs, fmt.Errorf("plan %s: %w", name, err))
 				continue
 			}
-			planned = appendJobs(planned, name, jobs)
+			planned = appendJobs(planned, name, "", "", jobs)
 		case plugin.ScopeComponent:
 			for i := range model.Components {
 				comp := &model.Components[i]
@@ -104,7 +119,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 					errs = append(errs, fmt.Errorf("plan %s/%s: %w", name, comp.Name, err))
 					continue
 				}
-				planned = appendJobs(planned, name, jobs)
+				planned = appendJobs(planned, name, comp.Exposure, comp.Criticality, jobs)
 			}
 		}
 	}
@@ -194,6 +209,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					span.SetAttributes(attribute.Bool("cache.hit", true))
 					cacheHitCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("control", pj.Control)))
 					recordFindings(jobCtx, pj.Control, report)
+					report = e.stampPriority(report, pj)
 					mu.Lock()
 					byCtl[pj.Control] = append(byCtl[pj.Control], report)
 					stats.CacheHits++
@@ -218,8 +234,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			scanCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
 			recordFindings(jobCtx, pj.Control, report)
 			if e.cache != nil {
-				_ = e.cache.Put(key, report)
+				_ = e.cache.Put(key, report) // cache the raw findings; priority is stamped per run
 			}
+			report = e.stampPriority(report, pj)
 			mu.Lock()
 			byCtl[pj.Control] = append(byCtl[pj.Control], report)
 			stats.Scans++
@@ -247,11 +264,27 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	return res, errors.Join(errs...)
 }
 
-func appendJobs(dst []PlannedJob, control string, jobs []plugin.ScanJob) []PlannedJob {
+func appendJobs(dst []PlannedJob, control string, exposure saga.Exposure, criticality saga.Criticality, jobs []plugin.ScanJob) []PlannedJob {
 	for _, j := range jobs {
-		dst = append(dst, PlannedJob{Control: control, Job: j})
+		dst = append(dst, PlannedJob{Control: control, Job: j, Exposure: exposure, Criticality: criticality})
 	}
 	return dst
+}
+
+// stampPriority returns a copy of report with each finding's Priority set from the injected
+// Prioritizer. It copies the results slice so a cached report is never mutated (priority is
+// per-run, since classification can differ between jobs sharing a cache key).
+func (e *Engine) stampPriority(report sarif.Report, pj PlannedJob) sarif.Report {
+	if e.prioritize == nil || len(report.Results) == 0 {
+		return report
+	}
+	out := report
+	out.Results = make([]sarif.Result, len(report.Results))
+	copy(out.Results, report.Results)
+	for i := range out.Results {
+		out.Results[i].Priority = e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
+	}
+	return out
 }
 
 func sortedControllerNames(m map[string]plugin.Controller) []string {

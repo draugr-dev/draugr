@@ -44,9 +44,11 @@ type sarifRuleConfig struct {
 }
 
 // sarifProperties carries the property-bag fields Draugr reads/writes. "security-severity"
-// is the SARIF/GitHub convention for a numeric CVSS-style score, serialized as a string.
+// is the SARIF/GitHub convention for a numeric CVSS-style score, serialized as a string;
+// "priority" is Draugr's computed action band.
 type sarifProperties struct {
 	SecuritySeverity string `json:"security-severity,omitempty"`
+	Priority         string `json:"priority,omitempty"`
 }
 
 type sarifResult struct {
@@ -119,9 +121,10 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 				}
 				sr.Locations = append(sr.Locations, loc)
 			}
-			if res.HasScore {
-				sr.Properties = &sarifProperties{
-					SecuritySeverity: strconv.FormatFloat(res.Score, 'f', -1, 64),
+			if res.HasScore || res.Priority != "" {
+				sr.Properties = &sarifProperties{Priority: res.Priority}
+				if res.HasScore {
+					sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
 				}
 			}
 			run.Results = append(run.Results, sr)
@@ -205,6 +208,9 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Score, res.HasScore = score, true
 			} else if score, ok := ruleScore[sr.RuleID]; ok {
 				res.Score, res.HasScore = score, true
+			}
+			if sr.Properties != nil && sr.Properties.Priority != "" {
+				res.Priority = sr.Properties.Priority
 			}
 			out.Results = append(out.Results, res)
 		}

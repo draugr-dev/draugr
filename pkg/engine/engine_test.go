@@ -89,6 +89,47 @@ func model() saga.Model {
 
 // --- tests ---
 
+func TestWithPrioritizationStampsFindings(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterScanner(&fakeScanner{name: "s"})
+	m := saga.Model{
+		Release:    saga.Release{Version: "1"},
+		Config:     saga.Config{Controllers: map[string]saga.ControllerSettings{"images": {"enabled": true}}},
+		Components: []saga.Component{{Name: "a", Exposure: saga.ExposureRE1, Criticality: saga.CriticalityBC1}},
+	}
+	// The prioritizer receives the component's classification and the control name.
+	prio := func(control string, e saga.Exposure, c saga.Criticality, _ sarif.Result) string {
+		if control == "images" && e == saga.ExposureRE1 && c == saga.CriticalityBC1 {
+			return "P1"
+		}
+		return "P4"
+	}
+	res, err := New(reg, WithPrioritization(prio)).Run(context.Background(), m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := res.Controls["images"].Report
+	if len(report.Results) != 1 || report.Results[0].Priority != "P1" {
+		t.Fatalf("expected finding stamped P1, got %+v", report.Results)
+	}
+}
+
+func TestNoPrioritizationLeavesPriorityEmpty(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterScanner(&fakeScanner{name: "s"})
+	res, err := New(reg).Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range res.Controls["images"].Report.Results {
+		if r.Priority != "" {
+			t.Errorf("priority should be empty without WithPrioritization, got %q", r.Priority)
+		}
+	}
+}
+
 func TestPlanComponentScope(t *testing.T) {
 	reg := NewRegistry()
 	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
