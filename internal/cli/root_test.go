@@ -3,9 +3,19 @@ package cli
 import (
 	"bytes"
 	"context"
+	"os"
 	"strings"
 	"testing"
 )
+
+func TestExecuteUsesProcessArgs(t *testing.T) {
+	saved := os.Args
+	defer func() { os.Args = saved }()
+	os.Args = []string{"draugr", "version"}
+	if code := Execute(context.Background()); code != 0 {
+		t.Errorf("Execute(version) exit = %d, want 0", code)
+	}
+}
 
 func TestVersionCommand(t *testing.T) {
 	cmd := newRootCommand()
