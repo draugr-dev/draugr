@@ -12,18 +12,20 @@ and which **controls** must pass. You write what you know; Draugr does the rest.
 
 ## Controllers
 
-A **controller** owns one **security control** (e.g. `images`, and — on the roadmap —
-`sast`, `sca`, `dast`, `headers`, `tls`, `infrastructure`, `threats`).
-It plans the work for the components it applies to and aggregates the results. Controllers
-are either **project-scoped** or **component-scoped**.
+A **controller** owns one **security control**. It plans the work for the components it
+applies to and aggregates the results. Controllers are either **project-scoped** or
+**component-scoped**.
 
-> Implemented today: **`images`**.
+> Implemented today: **`images`**, **`sca`**, **`secrets`**, **`sast`**, **`iac`**. On the
+> roadmap: `dast`, `headers`, `tls`, `sbom`, `infrastructure`, `threats`. See the
+> [integrations catalog](integrations.md).
 
 ## Scanners
 
 A **scanner** wraps a single security tool and normalizes its output to **SARIF**. Most
 tools are integrated declaratively via a *tool adapter* — describe how to invoke the tool
-and Draugr runs it and parses its SARIF. The first built-in scanner is **Trivy** (images).
+and Draugr runs it and parses its SARIF. Built-in today: **Trivy** (`images`, `sca`, `iac`),
+**Gitleaks** (`secrets`), and **Semgrep** (`sast`).
 
 ## Surveyors — "the Ravens"
 
@@ -46,6 +48,27 @@ Describe ─► Plan ─► Scan ─► Aggregate ─► Judge ─► Report
   and overall. The Norns decide fate; here, a release's.
 - **Report (the Skald)** — render a JSON evidence summary and merged SARIF.
 
+## Prioritization: what to fix first
+
+Severity isn't priority. A `scan` can return a wall of "high" findings, but which one you
+fix first depends on **where it lives**. Declare two attributes on a component and Draugr
+ranks every finding into a band **P1–P4**:
+
+- **`exposure`** (`re1`–`re4`) — how reachable the component is (public/no-auth → restricted).
+  This drives *likelihood*.
+- **`criticality`** (`bc1`–`bc3`) — the business impact if it fails. This drives *impact*.
+
+A finding's **normalized severity** (from its CVSS score, or its SARIF level, or a
+control floor) combines with the component's `exposure × criticality` through two small
+lookup matrices to yield the priority. So the *same* CVE is P1 on a public, business-critical
+gateway and P3 on an internal dev tool — same finding, different risk.
+
+- **Focus:** `--min-priority P2` lists only the findings worth acting on now
+  (P1 = act now · P2 = this cycle · P3 = backlog · P4 = track).
+- **Gate:** `--fail-on-priority P1` fails the build on any P1 — component-aware gating with no
+  per-component config.
+- A component left **unclassified** is treated as high-risk, so nothing slips silently.
+
 ## SARIF everywhere
 
 Every finding is normalized to **SARIF 2.1.0** (the OASIS standard). That means plugins
@@ -63,7 +86,8 @@ vulnerabilities can affect an unchanged artifact.
 
 The Norn produces `pass` / `fail`. `draugr scan` exits non-zero on `fail`, so it gates a
 pipeline directly. The failure threshold is configurable (`--fail-on`, default `error`),
-with optional per-control overrides.
+with optional per-control overrides, plus a component-aware priority gate
+(`--fail-on-priority`). The run fails if either gate trips.
 
 ## Observability & security posture
 

@@ -21,14 +21,22 @@ report to stdout. **Exits non-zero when the verdict is `fail`.**
 |------|---------|-------------|
 | `-o, --output` | — | Directory to write `report.json` and `results.sarif` |
 | `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
+| `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
+| `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`) |
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 
 ```bash
 draugr scan draugr.saga.yaml
 draugr scan draugr.saga.yaml -o out/ --fail-on warning
+draugr scan draugr.saga.yaml --min-priority P2        # focus on what matters now
+draugr scan draugr.saga.yaml --fail-on-priority P1    # also block on P1 findings
 draugr scan draugr.saga.yaml --cache-dir .draugr-cache
 ```
+
+**Priority** requires components to declare `exposure`/`criticality` (see the
+[Saga reference](saga-reference.md)); Draugr ranks each finding P1–P4 from its severity and
+the component's risk. See [concepts](concepts.md#prioritization-what-to-fix-first).
 
 ---
 

@@ -142,15 +142,20 @@ shows exactly *why* it passed or failed.
 
 ### Configuring it
 
-Today the gate is driven by `--fail-on` on `draugr scan`:
+The gate is driven by `--fail-on` (a severity level) and, optionally, `--fail-on-priority`
+(a component-aware priority band) on `draugr scan`:
 
 ```bash
-draugr scan draugr.saga.yaml                    # fail on error (default)
-draugr scan draugr.saga.yaml --fail-on warning  # stricter: warnings fail too
+draugr scan draugr.saga.yaml                       # fail on error (default)
+draugr scan draugr.saga.yaml --fail-on warning     # stricter: warnings fail too
+draugr scan draugr.saga.yaml --fail-on-priority P1 # also fail on any P1 finding
 ```
 
-Per-control thresholds and richer policy (waivers/exemptions, OPA/Rego) are planned;
-they'll be expressed in the Saga so the gate travels with the app.
+The run fails if **either** gate trips. Because a finding's priority already folds in its
+component's `exposure` and `criticality`, `--fail-on-priority` gates per component without a
+per-component threshold — see [prioritization](concepts.md#prioritization-what-to-fix-first).
+Richer policy (waivers/exemptions, OPA/Rego) is planned; it'll be expressed in the Saga so
+the gate travels with the app.
 
 ### Verdict → exit code
 

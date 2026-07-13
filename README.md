@@ -15,10 +15,17 @@ This is the open-source core engine.
 
 ## Status
 
-🚧 **Early.** Working today: the **`images`** control (via [Trivy](https://github.com/aquasecurity/trivy)),
-the end-to-end `scan` pipeline (plan → scan → judge → report), content-hash caching, and
-`survey` discovery for Kubernetes images and GitHub org repositories. More controls
-(SAST, SCA, DAST, headers, certificates, …) are on the roadmap. See
+🚧 **Early, and moving fast.** Working today:
+
+- **Controls:** `images` (Trivy), `sca` (Trivy fs), `secrets` (Gitleaks), `sast` (Semgrep),
+  `iac` (Trivy config). See the [integrations catalog](docs/integrations.md).
+- **Pipeline:** end-to-end `scan` (plan → scan → judge → report), content-hash caching,
+  results normalized to SARIF.
+- **Prioritization:** declare a component's `exposure` and `criticality` and Draugr ranks
+  every finding P1–P4 (`--min-priority` to focus, `--fail-on-priority` to gate).
+- **Discovery ("the Ravens"):** `survey` for Kubernetes images and GitHub org repositories.
+
+More controls (DAST, headers, TLS, SBOM, …) are on the roadmap. See
 [`docs/concepts.md`](docs/concepts.md) for what maps to what.
 
 ## Quickstart
