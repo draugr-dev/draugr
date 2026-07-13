@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,6 +48,20 @@ func fakeRegistry(level sarif.Level) *engine.Registry {
 	reg := engine.NewRegistry()
 	reg.RegisterController(fakeController{})
 	reg.RegisterScanner(fakeScanner{level: level})
+	return reg
+}
+
+type failScanner struct{}
+
+func (failScanner) Info() plugin.ScannerInfo { return plugin.ScannerInfo{Name: "fake"} }
+func (failScanner) Scan(context.Context, plugin.Target, plugin.Config) (sarif.Report, error) {
+	return sarif.Report{}, errors.New("scan boom")
+}
+
+func failingRegistry() *engine.Registry {
+	reg := engine.NewRegistry()
+	reg.RegisterController(fakeController{})
+	reg.RegisterScanner(failScanner{})
 	return reg
 }
 
@@ -112,6 +127,33 @@ func TestRunScanInvalidMinPriority(t *testing.T) {
 		scanOptions{failOn: "error", minPriority: "bogus"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "invalid --min-priority") {
 		t.Fatalf("expected invalid min-priority error, got %v", err)
+	}
+}
+
+func TestRunScanWarnsOnScanError(t *testing.T) {
+	// A scanner error is surfaced (logged) but does not by itself fail the gate: no findings
+	// means the verdict passes.
+	var buf bytes.Buffer
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error"}, failingRegistry(), &buf)
+	if err != nil {
+		t.Fatalf("scan errors should not fail the gate, got %v", err)
+	}
+	if !strings.Contains(buf.String(), "\"verdict\": \"pass\"") {
+		t.Errorf("expected pass verdict:\n%s", buf.String())
+	}
+}
+
+func TestWriteArtifactsMkdirError(t *testing.T) {
+	// Point the output dir under a regular file so MkdirAll fails.
+	f := filepath.Join(t.TempDir(), "afile")
+	if err := os.WriteFile(f, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", outputDir: filepath.Join(f, "sub")}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("expected an error creating the output directory under a file")
 	}
 }
 

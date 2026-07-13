@@ -3,6 +3,7 @@ package skald
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -12,6 +13,10 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
+
+type errWriter struct{}
+
+func (errWriter) Write([]byte) (int, error) { return 0, errors.New("write failed") }
 
 func sampleRun() engine.Result {
 	return engine.Result{
@@ -91,6 +96,52 @@ func TestRenderJSONNoPriorityWhenUnprioritized(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), "\"priorities\"") {
 		t.Error("unprioritized run should omit priorities")
+	}
+}
+
+func TestSortFindingsTieBreakers(t *testing.T) {
+	// RuleIDs encode the expected final order (0..4) so the assertion is unambiguous.
+	fs := []findingReport{
+		{RuleID: "4", Priority: "P2", Level: "warning", Score: 5}, // P2, score 5, lowest level → last
+		{RuleID: "0", Priority: "P1", Level: "note", Score: 1},    // highest priority → first
+		{RuleID: "1", Priority: "P2", Level: "error", Score: 9},   // P2, highest score
+		{RuleID: "3", Priority: "P2", Level: "error", Score: 5},   // score tie with "2", ruleID "3" > "2"
+		{RuleID: "2", Priority: "P2", Level: "error", Score: 5},   // score tie, ruleID "2" first
+	}
+	sortFindings(fs)
+	for i, f := range fs {
+		if f.RuleID != string(rune('0'+i)) {
+			got := make([]string, len(fs))
+			for j, x := range fs {
+				got[j] = x.RuleID
+			}
+			t.Fatalf("sort order = %v, want 0..4", got)
+		}
+	}
+}
+
+func TestSummarizePrioritiesCountsP4(t *testing.T) {
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"images": {Control: "images", Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "x", Level: sarif.LevelNote, Priority: "P4"},
+		}}},
+	}}
+	counts, _ := summarizePriorities(run, "")
+	if counts == nil || counts.P4 != 1 {
+		t.Fatalf("P4 count = %+v", counts)
+	}
+}
+
+func TestWriteSARIFWriteError(t *testing.T) {
+	if err := WriteSARIF(errWriter{}, prioritizedRun()); err == nil {
+		t.Error("expected a write error to propagate")
+	}
+}
+
+func TestRenderJSONWriteError(t *testing.T) {
+	err := RenderJSON(errWriter{}, saga.Release{Version: "1"}, prioritizedRun(), sampleVerdict(), "")
+	if err == nil {
+		t.Error("expected a write error to propagate")
 	}
 }
 
