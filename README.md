@@ -90,6 +90,9 @@ Full walkthrough: [`docs/quickstart.md`](docs/quickstart.md).
 
 ## Documentation
 
+**[Full documentation index →](docs/README.md)** (grouped by task, with a "building blocks"
+glossary of Saga / Norn / Skald / the Ravens).
+
 - [Quickstart](docs/quickstart.md) — install, first scan, first survey, CI usage
 - [Concepts](docs/concepts.md) — Saga, controllers, scanners, surveyors, the pipeline, verdicts
 - [Pipeline stages](docs/pipeline.md) — each stage in depth, incl. how the Norn (gate) works
