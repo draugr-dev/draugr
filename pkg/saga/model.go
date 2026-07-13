@@ -1,5 +1,7 @@
 package saga
 
+import "slices"
+
 // Model is a parsed Saga descriptor — the declarative account of an application's
 // security surface plus the controller configuration that drives a scan.
 type Model struct {
@@ -28,16 +30,60 @@ type Config struct {
 type ControllerSettings map[string]any
 
 // Component is one logical part of an application: its repositories, images, hosts, and
-// infrastructure, plus optional per-component controller overrides.
+// infrastructure, plus optional per-component controller overrides and risk classification.
 type Component struct {
 	Name           string                        `yaml:"name"`
 	Labels         map[string]string             `yaml:"labels,omitempty"`
+	Exposure       Exposure                      `yaml:"exposure,omitempty"`
+	Criticality    Criticality                   `yaml:"criticality,omitempty"`
 	Repositories   []Repository                  `yaml:"repositories,omitempty"`
 	Images         []Image                       `yaml:"images,omitempty"`
 	Hosts          []Host                        `yaml:"hosts,omitempty"`
 	Infrastructure []Infrastructure              `yaml:"infrastructure,omitempty"`
 	Controllers    map[string]ControllerSettings `yaml:"controllers,omitempty"`
 }
+
+// Exposure is a component's risk-exposure level — how reachable it is to an attacker, and so
+// how likely a weakness in it is to be hit. It is one axis of risk prioritization; higher
+// exposure ranks a component's findings higher. The levels are a fixed ladder: an
+// organization may redefine what each means, but not the count. Exposure may be proposed by
+// a surveyor from topology and confirmed by a human. See planning/risk-prioritization.md.
+type Exposure string
+
+// Exposure levels, from most to least exposed.
+const (
+	ExposureRE1 Exposure = "re1" // publicly exposed, no authentication
+	ExposureRE2 Exposure = "re2" // publicly exposed behind authentication
+	ExposureRE3 Exposure = "re3" // internal, broadly reachable
+	ExposureRE4 Exposure = "re4" // restricted / narrowly scoped
+)
+
+// Criticality is a component's business-criticality level — the operational impact if it
+// fails or is compromised. It is the other axis of risk prioritization and is always
+// human-declared, as it cannot be inferred from code. The levels are a fixed ladder with
+// org-defined meaning. See planning/risk-prioritization.md.
+type Criticality string
+
+// Criticality levels, from most to least critical.
+const (
+	CriticalityBC1 Criticality = "bc1" // failure causes outage or data loss
+	CriticalityBC2 Criticality = "bc2" // degraded functionality, no immediate outage
+	CriticalityBC3 Criticality = "bc3" // limited operational impact
+)
+
+// Exposures lists the valid exposure levels, most to least exposed.
+var Exposures = []Exposure{ExposureRE1, ExposureRE2, ExposureRE3, ExposureRE4}
+
+// Criticalities lists the valid criticality levels, most to least critical.
+var Criticalities = []Criticality{CriticalityBC1, CriticalityBC2, CriticalityBC3}
+
+// Valid reports whether e is a known exposure level. The empty value (unclassified) is not
+// valid here; callers decide how to treat unset exposure.
+func (e Exposure) Valid() bool { return slices.Contains(Exposures, e) }
+
+// Valid reports whether c is a known criticality level. The empty value (unclassified) is
+// not valid here; callers decide how to treat unset criticality.
+func (c Criticality) Valid() bool { return slices.Contains(Criticalities, c) }
 
 // Repository is a source repository at a revision, optionally scoped to paths.
 type Repository struct {

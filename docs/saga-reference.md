@@ -47,6 +47,8 @@ what applies.
 components:
   - name: web                 # required, unique
     labels: { team: platform } # optional key/value metadata
+    exposure: re1             # optional — risk exposure (re1..re4)
+    criticality: bc1          # optional — business criticality (bc1..bc3)
     repositories:
       - url: https://github.com/acme/web.git   # required
         revision: main                          # optional
@@ -67,6 +69,19 @@ components:
 
 **Control resolution:** a component-scoped control runs for a component when it is enabled
 on the component, or (absent an override) enabled globally under `config.controllers`.
+
+**Risk classification** (`exposure`, `criticality`) — optional, and the two axes of risk
+prioritization: exposure is how reachable the component is (likelihood), criticality is the
+business impact if it fails. Both are fixed ladders whose meaning an organization can
+redefine (the levels stay stable). They feed finding prioritization as that ships; a
+component may be left unclassified.
+
+| `exposure` | meaning | | `criticality` | meaning |
+|------------|---------|-|---------------|---------|
+| `re1` | publicly exposed, no auth | | `bc1` | failure causes outage / data loss |
+| `re2` | publicly exposed behind auth | | `bc2` | degraded, no immediate outage |
+| `re3` | internal, broadly reachable | | `bc3` | limited operational impact |
+| `re4` | restricted / narrowly scoped | | | |
 
 ## `componentsMetaSources` (planned)
 
