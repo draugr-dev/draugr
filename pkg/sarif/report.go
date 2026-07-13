@@ -59,6 +59,9 @@ type Result struct {
 	// one, normalized Severity falls back to Level.
 	Score    float64 `json:"score,omitempty"`
 	HasScore bool    `json:"-"`
+	// Priority is the computed action band (P1–P4) for this finding, stamped by the engine
+	// from the component's risk classification. Empty when prioritization is not configured.
+	Priority string `json:"priority,omitempty"`
 }
 
 // Fingerprint is a stable identifier for deduplication: two results with the same

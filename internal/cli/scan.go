@@ -7,24 +7,28 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 type scanOptions struct {
-	outputDir string
-	failOn    string
-	cacheDir  string
-	cacheTTL  time.Duration
+	outputDir   string
+	failOn      string
+	cacheDir    string
+	cacheTTL    time.Duration
+	minPriority string
 }
 
 func newScanCommand() *cobra.Command {
@@ -43,6 +47,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.LevelError), "severity that fails the gate: error, warning, note")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
+	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "list findings at or above this priority band (P1-P4)")
 	return cmd
 }
 
@@ -52,8 +57,12 @@ func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine
 	if err != nil {
 		return err
 	}
+	minPriority, err := normalizeMinPriority(opts.minPriority)
+	if err != nil {
+		return err
+	}
 
-	var eopts []engine.Option
+	eopts := []engine.Option{engine.WithPrioritization(defaultPrioritizer())}
 	if opts.cacheDir != "" {
 		eopts = append(eopts, engine.WithCache(cache.NewLocal(opts.cacheDir, opts.cacheTTL)))
 	}
@@ -70,11 +79,11 @@ func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine
 	}
 	verdict := norn.Policy{FailOn: sarif.Level(opts.failOn)}.Evaluate(reports)
 
-	if err := skald.RenderJSON(w, model.Release, run, verdict); err != nil {
+	if err := skald.RenderJSON(w, model.Release, run, verdict, minPriority); err != nil {
 		return err
 	}
 	if opts.outputDir != "" {
-		if err := writeArtifacts(opts.outputDir, model.Release, run, verdict); err != nil {
+		if err := writeArtifacts(opts.outputDir, model.Release, run, verdict, minPriority); err != nil {
 			return err
 		}
 	}
@@ -85,7 +94,33 @@ func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine
 	return nil
 }
 
-func writeArtifacts(dir string, release saga.Release, run engine.Result, verdict norn.Result) error {
+// defaultPrioritizer builds the engine prioritizer from the shipped matrices and the
+// per-control severity floors: resolve each finding's normalized severity, then rank it by
+// the component's exposure and criticality.
+func defaultPrioritizer() engine.Prioritizer {
+	matrices := prioritization.DefaultMatrices()
+	return func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) string {
+		sev := res.Severity(controllers.SeverityFloor(control))
+		return string(matrices.Prioritize(exposure, criticality, sev))
+	}
+}
+
+// normalizeMinPriority validates and upper-cases the --min-priority flag. Empty is allowed
+// (no filter).
+func normalizeMinPriority(v string) (string, error) {
+	if v == "" {
+		return "", nil
+	}
+	up := strings.ToUpper(v)
+	switch prioritization.Priority(up) {
+	case prioritization.P1, prioritization.P2, prioritization.P3, prioritization.P4:
+		return up, nil
+	default:
+		return "", fmt.Errorf("invalid --min-priority %q (want one of P1, P2, P3, P4)", v)
+	}
+}
+
+func writeArtifacts(dir string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
@@ -94,7 +129,7 @@ func writeArtifacts(dir string, release saga.Release, run engine.Result, verdict
 		return err
 	}
 	defer func() { _ = reportFile.Close() }()
-	if err := skald.RenderJSON(reportFile, release, run, verdict); err != nil {
+	if err := skald.RenderJSON(reportFile, release, run, verdict, minPriority); err != nil {
 		return err
 	}
 

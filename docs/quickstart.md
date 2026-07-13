@@ -130,7 +130,30 @@ Useful flags:
 draugr scan draugr.saga.yaml -o out/            # write out/report.json + out/results.sarif
 draugr scan draugr.saga.yaml --fail-on warning  # stricter gate (default: error)
 draugr scan draugr.saga.yaml --cache-dir .draugr-cache   # skip re-scanning unchanged targets
+draugr scan draugr.saga.yaml --min-priority P2  # list only the findings worth acting on now
 ```
+
+## Focus: what to fix first
+
+If your components declare `exposure` and `criticality` (see the
+[Saga reference](saga-reference.md)), Draugr ranks every finding into a priority band —
+combining the finding's severity with how exposed and how business-critical its component is.
+The report always includes a `priorities` count (P1–P4); `--min-priority` adds a ranked
+`findings` list of just those at or above the band, so you can act on the short list instead
+of the whole wall:
+
+```json
+{
+  "priorities": { "p1": 2, "p2": 5, "p3": 3, "p4": 0 },
+  "findings": [
+    { "priority": "P1", "level": "error", "score": 9.1, "control": "sca",
+      "ruleId": "CVE-2025-0001", "message": "…", "location": "go.mod" }
+  ]
+}
+```
+
+P1 = act now · P2 = this cycle · P3 = backlog · P4 = track. A component left unclassified is
+treated as high-risk so nothing slips.
 
 ## 4. Let discovery write the descriptor (the Ravens)
 

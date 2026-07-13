@@ -24,6 +24,76 @@ func sampleRun() engine.Result {
 	}
 }
 
+func prioritizedRun() engine.Result {
+	return engine.Result{
+		Controls: map[string]plugin.ControlResult{
+			"images": {Control: "images", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+				{RuleID: "CVE-1", Level: sarif.LevelError, Score: 9.1, HasScore: true, Priority: "P1", Location: sarif.Location{URI: "img", StartLine: 3}},
+				{RuleID: "CVE-2", Level: sarif.LevelWarning, Priority: "P3"},
+			}}},
+			"secrets": {Control: "secrets", Report: sarif.Report{Tool: "gitleaks", Results: []sarif.Result{
+				{RuleID: "aws-key", Level: sarif.LevelError, Priority: "P2"},
+			}}},
+		},
+		Stats: engine.Stats{Jobs: 2, Scans: 2},
+	}
+}
+
+func TestRenderJSONPriorityCounts(t *testing.T) {
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Name: "a", Version: "1"}, prioritizedRun(), sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Priorities map[string]int   `json:"priorities"`
+		Findings   []map[string]any `json:"findings"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Priorities["p1"] != 1 || doc.Priorities["p2"] != 1 || doc.Priorities["p3"] != 1 {
+		t.Errorf("priority counts = %v", doc.Priorities)
+	}
+	if len(doc.Findings) != 0 {
+		t.Errorf("no findings list expected without --min-priority, got %d", len(doc.Findings))
+	}
+}
+
+func TestRenderJSONMinPriorityFilterAndOrder(t *testing.T) {
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Name: "a", Version: "1"}, prioritizedRun(), sampleVerdict(), "P2"); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Findings []struct {
+			Priority, Control, RuleID, Location string
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	// P1 and P2 survive the P2 floor; P3 is filtered out.
+	if len(doc.Findings) != 2 {
+		t.Fatalf("want 2 findings (P1,P2), got %d: %+v", len(doc.Findings), doc.Findings)
+	}
+	if doc.Findings[0].Priority != "P1" || doc.Findings[1].Priority != "P2" {
+		t.Errorf("findings not ordered most-urgent first: %+v", doc.Findings)
+	}
+	if doc.Findings[0].Control != "images" || doc.Findings[0].Location != "img:3" {
+		t.Errorf("finding attribution wrong: %+v", doc.Findings[0])
+	}
+}
+
+func TestRenderJSONNoPriorityWhenUnprioritized(t *testing.T) {
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Name: "a", Version: "1"}, sampleRun(), sampleVerdict(), "P1"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "\"priorities\"") {
+		t.Error("unprioritized run should omit priorities")
+	}
+}
+
 func sampleVerdict() norn.Result {
 	return norn.Result{
 		Verdict: norn.Fail,
@@ -36,7 +106,7 @@ func sampleVerdict() norn.Result {
 
 func TestRenderJSON(t *testing.T) {
 	var buf bytes.Buffer
-	err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, sampleRun(), sampleVerdict())
+	err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, sampleRun(), sampleVerdict(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

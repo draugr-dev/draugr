@@ -75,6 +75,46 @@ func writeSaga(t *testing.T, body string) string {
 
 // --- tests ---
 
+func TestNormalizeMinPriority(t *testing.T) {
+	for _, v := range []string{"", "P1", "p2", "P4"} {
+		if _, err := normalizeMinPriority(v); err != nil {
+			t.Errorf("%q should be valid: %v", v, err)
+		}
+	}
+	if got, _ := normalizeMinPriority("p2"); got != "P2" {
+		t.Errorf("normalize should upper-case, got %q", got)
+	}
+	if _, err := normalizeMinPriority("P9"); err == nil {
+		t.Error("P9 should be rejected")
+	}
+}
+
+func TestRunScanMinPriorityListsFindings(t *testing.T) {
+	var buf bytes.Buffer
+	path := writeSaga(t, sagaWithImage)
+	// Unclassified component → treated as re1/bc1 (C1); a note-level finding → P3.
+	err := runScan(context.Background(), path,
+		scanOptions{failOn: "error", minPriority: "P3"}, fakeRegistry(sarif.LevelNote), &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "\"priorities\"") || !strings.Contains(out, "\"findings\"") {
+		t.Errorf("expected priorities + findings with --min-priority:\n%s", out)
+	}
+	if !strings.Contains(out, "\"P3\"") {
+		t.Errorf("expected a P3 finding:\n%s", out)
+	}
+}
+
+func TestRunScanInvalidMinPriority(t *testing.T) {
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", minPriority: "bogus"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "invalid --min-priority") {
+		t.Fatalf("expected invalid min-priority error, got %v", err)
+	}
+}
+
 func TestRunScanFail(t *testing.T) {
 	var buf bytes.Buffer
 	path := writeSaga(t, sagaWithImage)
