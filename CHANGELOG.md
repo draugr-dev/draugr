@@ -21,6 +21,12 @@ and move it under a version on release.
   downloads anything.
 - **`draugr validate <saga.yaml>`** — check a Saga against the schema without running any
   scanners. Fast and dependency-free, for a pre-commit hook, CI lint step, or editor.
+
+### Changed
+
+- **Clearer descriptor errors.** When `scan`, `classify`, or `survey` hit an invalid Saga they
+  now say which file is bad, list every problem at once, and point you at
+  `draugr validate <file>` — instead of a bare, context-free validation message.
 - **Exploitability enrichment** — `draugr scan --kev <file>` escalates any finding whose CVE
   is on the CISA Known Exploited Vulnerabilities catalog to critical, and `--epss <file>`
   (with `--epss-threshold`) bumps CVEs the FIRST EPSS model predicts are likely to be
