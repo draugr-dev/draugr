@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/draugr-dev/draugr/internal/observability"
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 )
 
@@ -52,6 +53,7 @@ func newRootCommand() *cobra.Command {
 	cmd.AddCommand(newClassifyCommand())
 	cmd.AddCommand(newValidateCommand())
 	cmd.AddCommand(newDoctorCommand())
+	cmd.AddCommand(newToolsCommand())
 	return cmd
 }
 
@@ -80,6 +82,12 @@ func execute(ctx context.Context, args []string) int {
 
 	ctx, span := otel.Tracer("draugr").Start(ctx, "cli.execute")
 	defer span.End()
+
+	// Make tools provisioned by `draugr tools install` (~/.draugr/bin) discoverable to the
+	// scanners we spawn and to `doctor`, without the user editing their shell. Best-effort.
+	if dir, err := tools.BinDir(); err == nil {
+		_ = os.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
 
 	root := newRootCommand()
 	root.SetArgs(args)

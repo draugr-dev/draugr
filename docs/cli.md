@@ -126,9 +126,42 @@ draugr doctor draugr.saga.yaml      # check only what this Saga needs (+ validat
 draugr doctor --json draugr.saga.yaml
 ```
 
-Provisioning the missing tools (pinned + verified) is coming via `draugr tools install`
-([#91](https://github.com/draugr-dev/draugr/issues/91)); doctor only reports and hints —
-it never downloads anything.
+Provisioning the missing tools (pinned + verified) is handled by
+[`draugr tools install`](#draugr-tools-install-tool); doctor only reports and hints — it
+never downloads anything.
+
+---
+
+## `draugr tools`
+
+Provision and inspect the external scanners Draugr runs. Installs are **opt-in and
+checksum-verified** — nothing is ever downloaded during a scan.
+
+### `draugr tools install [tool...]`
+
+Download **pinned** scanner binaries, verify each against a **SHA-256 recorded in Draugr**
+(sourced from the upstream checksums files), and install them into `~/.draugr/bin` — which
+Draugr **adds to `PATH` automatically**, so `scan`/`doctor` use them with no shell config. With
+no arguments, installs everything Draugr can provision (`trivy`, `gitleaks`).
+
+```bash
+draugr tools install            # trivy + gitleaks, verified, into ~/.draugr/bin
+draugr tools install trivy      # just one
+```
+
+Semgrep ships as a Python package, not a standalone binary, so `tools install` prints the
+pinned `pipx install semgrep==<version>` command rather than downloading it. `git` is expected
+from your system. Signature (cosign) verification on top of SHA-256 is tracked in
+[#124](https://github.com/draugr-dev/draugr/issues/124).
+
+### `draugr tools list`
+
+Show every scanner Draugr knows about: its pinned version, how it's obtained (managed install /
+pipx / system), and whether it's currently found (with path + version).
+
+```bash
+draugr tools list
+```
 
 ---
 

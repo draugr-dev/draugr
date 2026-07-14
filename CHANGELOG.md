@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr tools install`** — fetch pinned, **checksum-verified** scanner binaries (`trivy`,
+  `gitleaks`) into a Draugr-managed `~/.draugr/bin`, which Draugr adds to `PATH` automatically so
+  `scan` and `doctor` use them with no shell config. Opt-in and explicit — nothing is ever
+  downloaded during a scan, and every download is verified against a SHA-256 recorded in Draugr
+  before it's placed on disk. Semgrep (a Python package) prints its pinned `pipx` command instead.
+  `draugr tools list` shows what's pinned and what's installed.
 
 ## [0.7.0] - 2026-07-14
 
