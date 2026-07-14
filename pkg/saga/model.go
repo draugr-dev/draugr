@@ -97,7 +97,8 @@ type Image struct {
 	Image string `yaml:"image"`
 }
 
-// Host is a running endpoint. Type is "api" or "web".
+// Host is a running endpoint. Type is "browser" (browser-facing UI) or "api" (programmatic);
+// it tunes which security-header checks apply. Optional; defaults to "browser".
 type Host struct {
 	Name string `yaml:"name"`
 	URL  string `yaml:"url"`

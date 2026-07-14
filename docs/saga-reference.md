@@ -58,7 +58,7 @@ components:
     hosts:
       - name: api
         url: https://api.example.com            # required
-        type: api                               # api | web
+        type: api                               # browser | api (default browser); tunes header checks
     infrastructure:
       - kind: kubernetes                        # e.g. kubernetes
         ref: prod-cluster

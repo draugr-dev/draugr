@@ -10,7 +10,15 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`headers` control** — a native HTTP security-header analyzer (no external tool) for a
+  component's `hosts:`. Fetches each endpoint and checks it against the OWASP Secure Headers
+  guidance — HSTS, `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`, wildcard CORS, and `Server`/`X-Powered-By`
+  disclosure — normalized to SARIF like every other control. The checklist is tuned by each
+  host's `type` (`browser` — the default — vs. `api`), so browser-only headers aren't flagged
+  on APIs. The host `type` values are now **`browser` | `api`** (was `web` | `api`).
 
 ## [0.8.0] - 2026-07-14
 

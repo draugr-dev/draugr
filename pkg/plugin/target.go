@@ -50,7 +50,7 @@ func (t ImageTarget) Identity() string {
 	return t.Ref
 }
 
-// HostTarget is a running endpoint. Type is "api" or "web".
+// HostTarget is a running endpoint. Type is "browser" or "api".
 type HostTarget struct {
 	Name string
 	URL  string
