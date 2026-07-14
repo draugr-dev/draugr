@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.8.0] - 2026-07-14
+
 ### Added
 
 - **`draugr tools install`** — fetch pinned, **checksum-verified** scanner binaries (`trivy`,
@@ -155,7 +159,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.8.0
 [0.7.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.7.0
 [0.6.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.6.0
 [0.5.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.5.0
