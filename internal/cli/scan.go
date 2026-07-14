@@ -62,7 +62,7 @@ func newScanCommand() *cobra.Command {
 
 // runScan executes the full pipeline: describe → plan → scan → aggregate → judge → report.
 func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine.Registry, w io.Writer) error {
-	model, err := saga.LoadFile(sagaPath)
+	model, err := loadSaga(sagaPath)
 	if err != nil {
 		return err
 	}

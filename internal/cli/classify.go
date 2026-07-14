@@ -32,7 +32,7 @@ func newClassifyCommand() *cobra.Command {
 // runClassify loads the Saga, asks about each component needing classification, and writes
 // the exposure/criticality back into the file (preserving comments and formatting).
 func runClassify(path string, all bool, in io.Reader, out io.Writer) error {
-	model, err := saga.LoadFile(path)
+	model, err := loadSaga(path)
 	if err != nil {
 		return err
 	}

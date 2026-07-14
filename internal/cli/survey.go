@@ -103,7 +103,7 @@ func surveyRequests(opts surveyOptions) []surveyor.Request {
 // --output exists, otherwise a fresh model with the given release info.
 func baseModel(opts surveyOptions) (saga.Model, error) {
 	if opts.merge && opts.output != "" && fileExists(opts.output) {
-		m, err := saga.LoadFile(opts.output)
+		m, err := loadSaga(opts.output)
 		if err != nil {
 			return saga.Model{}, err
 		}

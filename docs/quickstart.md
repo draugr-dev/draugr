@@ -218,7 +218,13 @@ draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
 
 ## Troubleshooting
 
+- **Not sure what's installed?** — run `draugr doctor draugr.saga.yaml` for a preflight: it
+  validates the descriptor and lists every scanner the Saga needs as found / missing / version,
+  with an install hint for each. Use it as a CI gate: `draugr doctor saga.yaml && draugr scan saga.yaml`.
 - **No findings / control didn't run** — ensure the control is `enabled` and the component
   has the relevant resources (e.g. `images` for the images control).
-- **`trivy: executable file not found`** — install Trivy and ensure it's on `PATH`.
+- **`executable file not found`** — the scanner for a control isn't on `PATH`; run
+  `draugr doctor` to see exactly which tool is missing and how to install it.
+- **Descriptor errors** — run `draugr validate draugr.saga.yaml` to check the Saga against the
+  schema without running any scanners (good in a pre-commit hook or CI lint step).
 - **Verbose output** — add `--log-level debug` (optionally `--log-format text`).

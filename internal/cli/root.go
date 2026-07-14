@@ -50,6 +50,8 @@ func newRootCommand() *cobra.Command {
 	cmd.AddCommand(newScanCommand())
 	cmd.AddCommand(newSurveyCommand())
 	cmd.AddCommand(newClassifyCommand())
+	cmd.AddCommand(newValidateCommand())
+	cmd.AddCommand(newDoctorCommand())
 	return cmd
 }
 
