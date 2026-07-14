@@ -24,8 +24,9 @@ This is the open-source core engine.
 - **Prioritization:** declare a component's `exposure` and `criticality` and Draugr ranks
   every finding P1–P4 (`--min-priority` to focus, `--fail-on-priority` to gate).
 - **Discovery ("the Ravens"):** `survey` for Kubernetes images and GitHub org repositories.
-- **Preflight:** `validate` (check a Saga against the schema) and `doctor` (report which scanner
-  tools are present/missing/version, with install hints) — catch problems before a scan.
+- **Preflight & tooling:** `validate` (check a Saga against the schema), `doctor` (report which
+  scanner tools are present/missing/version), and `tools install` (fetch pinned,
+  checksum-verified scanners into `~/.draugr/bin`) — catch problems, and get set up, before a scan.
 
 More controls (DAST, headers, TLS, SBOM, …) are on the roadmap. See
 [`docs/concepts.md`](docs/concepts.md) for what maps to what.

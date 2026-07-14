@@ -16,6 +16,17 @@ the descriptor for you.
 - `git` — needed for any repository scan (`sca`, `secrets`).
 - Go 1.26+ — only needed if you build from source.
 
+The fastest way to get the scanners is to let Draugr fetch pinned, checksum-verified copies
+into `~/.draugr/bin` (added to your `PATH` automatically):
+
+```bash
+draugr tools install     # trivy + gitleaks, verified
+draugr tools list        # what's pinned and what's installed
+```
+
+Prefer your own install (Homebrew, package manager, an existing copy)? That works too — run
+`draugr doctor` to confirm everything's found.
+
 > **Pre-launch note.** While `draugr-dev/draugr` is **private**, plain `curl` to a release
 > asset returns `404` — private downloads require authentication. Use the **GitHub CLI**
 > method below until the repo is public.
