@@ -23,7 +23,7 @@ const (
 
 type RepositoryTarget struct { URL, Revision string; Paths []string }
 type ImageTarget      struct { Ref, Digest string }          // digest drives the cache key
-type HostTarget       struct { Name, URL, Type string }      // type: api | web
+type HostTarget       struct { Name, URL, Type string }      // type: browser | api
 type InfraTarget      struct { Kind, Ref string }            // e.g. kubernetes / prod-cluster
 
 // Config is validated against the plugin's declared JSON schema before use.

@@ -68,7 +68,8 @@ Roadmap: [#57](https://github.com/draugr-dev/draugr/issues/57).
 ## HTTP security headers
 
 Checks a web endpoint's **response headers** (CSP, HSTS, X-Content-Type-Options, …) that
-harden the browser against classes of attack. In Draugr: **`headers`** (native). Roadmap: [#53](https://github.com/draugr-dev/draugr/issues/53).
+harden the browser against classes of attack. In Draugr: **`headers`** (native; tuned per host
+`type` — browser vs. api). (Implemented today.)
 
 ## TLS / certificate assessment
 

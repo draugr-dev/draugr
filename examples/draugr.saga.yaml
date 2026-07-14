@@ -27,7 +27,7 @@ components:
     hosts:
       - name: api
         url: https://api.example.com
-        type: api            # api | web
+        type: api            # browser | api (default browser)
     # Infrastructure surface (used by infrastructure controls — on the roadmap).
     infrastructure:
       - kind: kubernetes
