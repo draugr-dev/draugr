@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write # publish the self-scan SARIF to GitHub code scanning (#64)
 
 env:
   # Pinned so the download is reproducible and integrity-checked (sha256 below).
@@ -77,6 +78,21 @@ jobs:
       - name: Draugr self-scan
         continue-on-error: true # non-blocking for now; tighten with --fail-on later
         run: ./draugr scan .draugr/self.saga.yaml --output draugr-out --log-level warn
+
+      - name: Publish SARIF to code scanning
+        # Publishes to the repo's Security tab. Non-blocking on two counts: if: always() so it
+        # runs even when the (continue-on-error) scan reports findings, and continue-on-error
+        # because code scanning needs GitHub Advanced Security, which isn't available on a
+        # private repo without it — the upload 403s until this repo goes public (code scanning
+        # is free for public repos) or GHAS is enabled. The step still validates our SARIF
+        # every run, so it lights up automatically at public launch with no further change.
+        # See #64.
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@02c5e83432fe5497fd85b873b6c9f16a8578e1d9 # v3.37.0
+        with:
+          sarif_file: draugr-out/results.sarif
+          category: draugr-selfscan
 
       - name: Upload evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -3,7 +3,7 @@
 - **Industry term:** Software Composition Analysis
 - **Scope:** component
 - **Status:** ✅ implemented (dependency vulnerabilities)
-- **Scanners:** [`trivy-fs`](../scanners/trivy-fs.md) (OSV-Scanner planned — [#49](https://github.com/draugr-dev/draugr/issues/49))
+- **Scanners:** [`trivy-fs`](../scanners/trivy-fs.md) (license findings planned — [#120](https://github.com/draugr-dev/draugr/issues/120))
 - **Resource:** a component's `repositories:`
 
 ## What it does
@@ -19,4 +19,4 @@ result with a severity summary.
 
 ## Notes
 
-- Dependency **vulnerabilities** today; **license** findings are a follow-up ([#49](https://github.com/draugr-dev/draugr/issues/49)).
+- Dependency **vulnerabilities** today; **license** findings are a follow-up ([#120](https://github.com/draugr-dev/draugr/issues/120)).
