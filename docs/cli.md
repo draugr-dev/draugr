@@ -95,6 +95,43 @@ draugr classify draugr.saga.yaml
 
 ---
 
+## `draugr validate <saga.yaml>`
+
+Parse a Saga, resolve `${{ VAR }}` references, and check it against the schema — **without
+running any scanners**. Fast and dependency-free, so it fits a pre-commit hook, a CI lint
+step, or an editor. **Exits non-zero when the descriptor is invalid.**
+
+```bash
+draugr validate draugr.saga.yaml
+```
+
+---
+
+## `draugr doctor [saga.yaml]`
+
+Preflight the environment: report which external scanner tools are **present, missing, or of
+what version**, with an install hint for each — so a missing tool is caught up front instead
+of failing mid-scan. Given a Saga, it first **validates the descriptor**, then checks only the
+tools its enabled controls need (`trivy`, `gitleaks`, `semgrep`, plus `git` for repo scans);
+without one, it checks them all. **Exits non-zero when the descriptor is invalid or a required
+tool is missing**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--json` | `false` | Emit the report as JSON instead of a table |
+
+```bash
+draugr doctor                       # check every tool Draugr can use
+draugr doctor draugr.saga.yaml      # check only what this Saga needs (+ validate it)
+draugr doctor --json draugr.saga.yaml
+```
+
+Provisioning the missing tools (pinned + verified) is coming via `draugr tools install`
+([#91](https://github.com/draugr-dev/draugr/issues/91)); doctor only reports and hints —
+it never downloads anything.
+
+---
+
 ## `draugr version`
 
 Print the version, commit, build date, and Go version.

@@ -17,6 +17,7 @@ import (
 // Config declares how to adapt a tool.
 type Config struct {
 	Name        string
+	Binary      string
 	Version     string
 	Controls    []string
 	TargetKinds []plugin.TargetKind
@@ -45,6 +46,7 @@ func New(cfg Config) *Adapter {
 func (a *Adapter) Info() plugin.ScannerInfo {
 	return plugin.ScannerInfo{
 		Name:        a.cfg.Name,
+		Binary:      a.cfg.Binary,
 		Version:     a.cfg.Version,
 		Controls:    a.cfg.Controls,
 		TargetKinds: a.cfg.TargetKinds,

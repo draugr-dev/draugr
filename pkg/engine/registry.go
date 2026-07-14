@@ -1,6 +1,10 @@
 package engine
 
-import "github.com/draugr-dev/draugr/pkg/plugin"
+import (
+	"sort"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
+)
 
 // Registry holds the controllers and scanners available to the engine, keyed by name.
 type Registry struct {
@@ -36,4 +40,14 @@ func (r *Registry) Controller(name string) (plugin.Controller, bool) {
 func (r *Registry) Scanner(name string) (plugin.Scanner, bool) {
 	s, ok := r.scanners[name]
 	return s, ok
+}
+
+// Scanners returns all registered scanners, sorted by Info().Name for stable output.
+func (r *Registry) Scanners() []plugin.Scanner {
+	out := make([]plugin.Scanner, 0, len(r.scanners))
+	for _, s := range r.scanners {
+		out = append(out, s)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Info().Name < out[j].Info().Name })
+	return out
 }

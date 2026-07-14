@@ -13,6 +13,7 @@ import (
 func NewTrivy() plugin.Scanner {
 	return tooladapter.New(tooladapter.Config{
 		Name:        "trivy",
+		Binary:      "trivy",
 		Controls:    []string{"images"},
 		TargetKinds: []plugin.TargetKind{plugin.TargetImage},
 		Argv:        trivyArgv,
@@ -26,6 +27,7 @@ func NewTrivyFS() plugin.Scanner {
 	return newRepoScanner(
 		plugin.ScannerInfo{
 			Name:        "trivy-fs",
+			Binary:      "trivy",
 			Controls:    []string{"sca"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
 		},
