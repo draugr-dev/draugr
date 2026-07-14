@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.7.0] - 2026-07-14
+
 ### Added
 
 - **`draugr doctor`** — a preflight that reports which external scanner tools are present,
@@ -21,12 +25,6 @@ and move it under a version on release.
   downloads anything.
 - **`draugr validate <saga.yaml>`** — check a Saga against the schema without running any
   scanners. Fast and dependency-free, for a pre-commit hook, CI lint step, or editor.
-
-### Changed
-
-- **Clearer descriptor errors.** When `scan`, `classify`, or `survey` hit an invalid Saga they
-  now say which file is bad, list every problem at once, and point you at
-  `draugr validate <file>` — instead of a bare, context-free validation message.
 - **Exploitability enrichment** — `draugr scan --kev <file>` escalates any finding whose CVE
   is on the CISA Known Exploited Vulnerabilities catalog to critical, and `--epss <file>`
   (with `--epss-threshold`) bumps CVEs the FIRST EPSS model predicts are likely to be
@@ -36,6 +34,12 @@ and move it under a version on release.
   when surveying a specific namespace — an Ingress or externally-reachable Service →
   `public`, a NetworkPolicy → `restricted`, otherwise `internal`. It's a suggestion to review
   (authentication can't be inferred; downgrade to `authenticated` where appropriate).
+
+### Changed
+
+- **Clearer descriptor errors.** When `scan`, `classify`, or `survey` hit an invalid Saga they
+  now say which file is bad, list every problem at once, and point you at
+  `draugr validate <file>` — instead of a bare, context-free validation message.
 
 ## [0.6.0] - 2026-07-13
 
@@ -144,7 +148,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.7.0
 [0.6.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.6.0
 [0.5.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.5.0
 [0.4.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.4.0
