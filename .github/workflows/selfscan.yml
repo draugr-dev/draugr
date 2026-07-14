@@ -15,7 +15,11 @@ permissions:
   security-events: write # publish the self-scan SARIF to GitHub code scanning (#64)
 
 env:
-  # Pinned so the download is reproducible and integrity-checked (sha256 below).
+  # These versions are the single source of truth's mirror: they MUST match the pinned
+  # manifest in internal/tools/install.go (trivy/gitleaks) and internal/tools/tools.go
+  # (semgrep). internal/tools TestSelfscanPinsMatchManifest fails CI if they drift — so the
+  # tools Draugr ships (`draugr tools install`) are exactly the ones the self-scan validates.
+  TRIVY_VERSION: "0.69.3"
   GITLEAKS_VERSION: "8.30.1"
   GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
   # Pinned Semgrep (pip verifies the PyPI package hash for this exact version).
@@ -29,6 +33,8 @@ jobs:
 
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v${{ env.TRIVY_VERSION }}
 
       - name: Install Gitleaks
         run: |
