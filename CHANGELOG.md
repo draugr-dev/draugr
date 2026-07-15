@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.10.0] - 2026-07-15
+
 ### Changed
 
 - **SARIF now reports as a single `Draugr` tool.** Draugr is an orchestrator that normalizes many
@@ -182,7 +186,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.10.0
 [0.9.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.9.0
 [0.8.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.8.0
 [0.7.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.7.0
