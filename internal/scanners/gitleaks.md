@@ -4,8 +4,7 @@
 - **Tool:** **Gitleaks** — https://github.com/gitleaks/gitleaks
 - **Status:** ✅ implemented
 - **Target:** source repository (`RepositoryTarget`) — checked out via `internal/git`
-- **License / terms:** **MIT** (permissive). Run via **exec**. See
-  `planning/third-party-tool-licensing.md`.
+- **License / terms:** **MIT** (permissive). Run via **exec**.
 
 ## What it does
 

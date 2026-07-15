@@ -11,8 +11,7 @@ links, and license/terms.
 > **license & terms of use** · integration notes. Add a row here too.
 
 See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
-[glossary](glossary.md) · [licensing due-diligence](../../planning/third-party-tool-licensing.md)
-(private).
+[glossary](glossary.md).
 
 ## Controllers
 

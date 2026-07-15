@@ -6,7 +6,7 @@
 - **Target:** container image (`ImageTarget`)
 - **License / terms:** Trivy is **Apache-2.0** (permissive). Run via **exec** (no bundling
   required). Trivy's vulnerability **database** has its own distribution terms + pull rate
-  limits — review before caching/redistributing. See `planning/third-party-tool-licensing.md`.
+  limits — review before caching/redistributing.
 
 ## What it does
 
