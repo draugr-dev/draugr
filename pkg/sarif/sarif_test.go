@@ -245,3 +245,56 @@ func TestMarshalEmptyReport(t *testing.T) {
 		t.Errorf("empty report should round-trip to zero results, got %d", len(got.Results))
 	}
 }
+
+func TestMarshalSARIFSingleDraugrTool(t *testing.T) {
+	r := Report{Results: []Result{
+		{Tool: "trivy", RuleID: "CVE-1", Level: LevelError, Message: "m1", Location: Location{URI: "go.mod"}},
+		{Tool: "semgrep", RuleID: "go.xss", Level: LevelWarning, Message: "m2", Location: Location{URI: "h.go", StartLine: 3}},
+	}}
+	data, err := r.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var log struct {
+		Runs []struct {
+			Tool struct {
+				Driver struct{ Name string } `json:"driver"`
+			} `json:"tool"`
+			Results []struct {
+				RuleID     string                `json:"ruleId"`
+				Properties struct{ Tool string } `json:"properties"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(data, &log); err != nil {
+		t.Fatal(err)
+	}
+	// One consolidated "Draugr" tool holding every finding.
+	if len(log.Runs) != 1 || log.Runs[0].Tool.Driver.Name != "Draugr" {
+		t.Fatalf("want a single Draugr run, got %d runs", len(log.Runs))
+	}
+	if len(log.Runs[0].Results) != 2 {
+		t.Fatalf("want 2 results in the run, got %d", len(log.Runs[0].Results))
+	}
+	// Originating scanner preserved per-finding.
+	got := map[string]string{}
+	for _, res := range log.Runs[0].Results {
+		got[res.RuleID] = res.Properties.Tool
+	}
+	if got["CVE-1"] != "trivy" || got["go.xss"] != "semgrep" {
+		t.Errorf("per-finding tool not preserved: %v", got)
+	}
+
+	// Round-trip: reading Draugr's own SARIF restores each result's originating tool.
+	back, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt := map[string]string{}
+	for _, res := range back.Results {
+		rt[res.RuleID] = res.Tool
+	}
+	if rt["CVE-1"] != "trivy" || rt["go.xss"] != "semgrep" {
+		t.Errorf("round-trip lost the originating tool: %v", rt)
+	}
+}

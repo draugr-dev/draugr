@@ -49,6 +49,9 @@ type sarifRuleConfig struct {
 type sarifProperties struct {
 	SecuritySeverity string `json:"security-severity,omitempty"`
 	Priority         string `json:"priority,omitempty"`
+	// Tool is the originating scanner (e.g. "trivy", "semgrep"). Draugr reports as a single
+	// "Draugr" SARIF tool; this preserves per-finding attribution to the scanner that found it.
+	Tool string `json:"tool,omitempty"`
 }
 
 type sarifResult struct {
@@ -87,51 +90,44 @@ type sarifRegion struct {
 	StartLine int `json:"startLine,omitempty"`
 }
 
-// MarshalSARIF serializes the report to standard SARIF 2.1.0 JSON. Results are grouped
-// into one run per tool.
+// driverName is the single SARIF tool Draugr reports as. Draugr is an orchestrator that
+// normalizes many scanners into one report, so it presents as one tool; each finding keeps its
+// originating scanner in properties.tool. This gives consumers (e.g. GitHub code scanning) a
+// single "Draugr" analysis tool instead of one per underlying scanner.
+const driverName = "Draugr"
+
+// MarshalSARIF serializes the report to standard SARIF 2.1.0 JSON as a single "Draugr" run,
+// with each result's originating scanner recorded in its property bag ("tool").
 func (r Report) MarshalSARIF() ([]byte, error) {
-	byTool := make(map[string][]Result)
-	var order []string
+	run := sarifRun{Tool: sarifTool{Driver: sarifDriver{Name: driverName}}, Results: []sarifResult{}}
 	for _, res := range r.Results {
 		tool := res.Tool
 		if tool == "" {
 			tool = r.Tool
 		}
-		if _, ok := byTool[tool]; !ok {
-			order = append(order, tool)
+		sr := sarifResult{
+			RuleID:  res.RuleID,
+			Level:   string(res.Level),
+			Message: sarifMessage{Text: res.Message},
 		}
-		byTool[tool] = append(byTool[tool], res)
-	}
-
-	log := sarifLog{Schema: schemaURL, Version: Version, Runs: []sarifRun{}}
-	for _, tool := range order {
-		run := sarifRun{Tool: sarifTool{Driver: sarifDriver{Name: tool}}, Results: []sarifResult{}}
-		for _, res := range byTool[tool] {
-			sr := sarifResult{
-				RuleID:  res.RuleID,
-				Level:   string(res.Level),
-				Message: sarifMessage{Text: res.Message},
+		if res.Location.URI != "" {
+			loc := sarifLocation{PhysicalLocation: sarifPhysical{
+				ArtifactLocation: sarifArtifact{URI: res.Location.URI},
+			}}
+			if res.Location.StartLine > 0 {
+				loc.PhysicalLocation.Region = &sarifRegion{StartLine: res.Location.StartLine}
 			}
-			if res.Location.URI != "" {
-				loc := sarifLocation{PhysicalLocation: sarifPhysical{
-					ArtifactLocation: sarifArtifact{URI: res.Location.URI},
-				}}
-				if res.Location.StartLine > 0 {
-					loc.PhysicalLocation.Region = &sarifRegion{StartLine: res.Location.StartLine}
-				}
-				sr.Locations = append(sr.Locations, loc)
-			}
-			if res.HasScore || res.Priority != "" {
-				sr.Properties = &sarifProperties{Priority: res.Priority}
-				if res.HasScore {
-					sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
-				}
-			}
-			run.Results = append(run.Results, sr)
+			sr.Locations = append(sr.Locations, loc)
 		}
-		log.Runs = append(log.Runs, run)
+		if tool != "" || res.HasScore || res.Priority != "" {
+			sr.Properties = &sarifProperties{Tool: tool, Priority: res.Priority}
+			if res.HasScore {
+				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
+			}
+		}
+		run.Results = append(run.Results, sr)
 	}
-	return json.MarshalIndent(log, "", "  ")
+	return json.MarshalIndent(sarifLog{Schema: schemaURL, Version: Version, Runs: []sarifRun{run}}, "", "  ")
 }
 
 // parseSecuritySeverity reads the numeric "security-severity" score (a string per SARIF)
@@ -191,8 +187,15 @@ func FromSARIF(data []byte) (Report, error) {
 					level = LevelWarning
 				}
 			}
+			// Prefer the per-result originating tool (properties.tool, written when Draugr
+			// emits a single "Draugr" run) over the run's driver name, so round-tripping
+			// Draugr's own SARIF preserves each finding's scanner.
+			tool := run.Tool.Driver.Name
+			if sr.Properties != nil && sr.Properties.Tool != "" {
+				tool = sr.Properties.Tool
+			}
 			res := Result{
-				Tool:    run.Tool.Driver.Name,
+				Tool:    tool,
 				RuleID:  sr.RuleID,
 				Level:   level,
 				Message: sr.Message.Text,

@@ -12,6 +12,11 @@ and move it under a version on release.
 
 ### Changed
 
+- **SARIF now reports as a single `Draugr` tool.** Draugr is an orchestrator that normalizes many
+  scanners into one report, so its SARIF is emitted as one `Draugr` run instead of one run per
+  underlying scanner — each finding keeps its originating scanner in `properties.tool`. In GitHub
+  code scanning this shows a single "Draugr" analysis/check rather than separate "Trivy",
+  "Semgrep OSS", … checks, with per-finding attribution preserved.
 - **Result cache now invalidates when Trivy's vulnerability DB updates.** With `--cache-dir`,
   cached image/dependency/IaC results were keyed without the scanner or DB version, so a new
   Trivy DB (new CVEs) wouldn't trigger a re-scan until the TTL expired. The cache key now folds
