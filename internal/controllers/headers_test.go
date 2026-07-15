@@ -35,9 +35,6 @@ func TestHeadersPlan(t *testing.T) {
 		if j.Scanner != "http-headers" {
 			t.Errorf("scanner = %q", j.Scanner)
 		}
-		if j.CacheKey == "" {
-			t.Error("job should carry a cache key")
-		}
 		if _, ok := j.Target.(plugin.HostTarget); !ok {
 			t.Errorf("target = %T, want HostTarget", j.Target)
 		}

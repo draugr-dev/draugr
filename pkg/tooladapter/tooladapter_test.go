@@ -95,3 +95,18 @@ func TestInfo(t *testing.T) {
 		t.Fatalf("info = %+v", info)
 	}
 }
+
+func TestAdapterCacheVersion(t *testing.T) {
+	// Not configured → empty.
+	if v := New(Config{Name: "trivy", Argv: imageArgv}).CacheVersion(context.Background()); v != "" {
+		t.Errorf("unset CacheVersion should be empty, got %q", v)
+	}
+	// Configured → returns the wired value.
+	a := New(Config{
+		Name: "trivy", Argv: imageArgv,
+		CacheVersion: func(context.Context) string { return "trivy@1.2.3;db@X" },
+	})
+	if v := a.CacheVersion(context.Background()); v != "trivy@1.2.3;db@X" {
+		t.Errorf("CacheVersion = %q", v)
+	}
+}

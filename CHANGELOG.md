@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Result cache now invalidates when Trivy's vulnerability DB updates.** With `--cache-dir`,
+  cached image/dependency/IaC results were keyed without the scanner or DB version, so a new
+  Trivy DB (new CVEs) wouldn't trigger a re-scan until the TTL expired. The cache key now folds
+  in the Trivy tool and vuln-DB version, so a DB refresh correctly invalidates stale results.
+  The version is probed once per run and only when caching is enabled (no overhead otherwise).
 
 ## [0.9.0] - 2026-07-14
 

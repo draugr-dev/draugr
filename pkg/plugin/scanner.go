@@ -15,6 +15,17 @@ type Scanner interface {
 	Scan(ctx context.Context, target Target, cfg Config) (sarif.Report, error)
 }
 
+// CacheVersioner is an optional interface a Scanner may implement to contribute a
+// tool/data version to its cache key — so that an update to the underlying tool or its
+// data (e.g. a vulnerability database) invalidates cached results, not just the TTL. The
+// engine calls CacheVersion only when caching is enabled, and folds a non-empty return
+// into the cache key. It is resolved lazily; implementations should memoize any probe and
+// return "" when the version can't be determined (the key then falls back to Info().Version).
+// Unlike Info(), CacheVersion may perform I/O.
+type CacheVersioner interface {
+	CacheVersion(ctx context.Context) string
+}
+
 // ScannerInfo describes a scanner and its capabilities.
 type ScannerInfo struct {
 	// Name is the scanner identifier, e.g. "trivy".

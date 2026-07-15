@@ -30,9 +30,6 @@ func TestImagesPlan(t *testing.T) {
 		if j.Scanner != "trivy" {
 			t.Errorf("scanner = %q", j.Scanner)
 		}
-		if j.CacheKey == "" {
-			t.Error("job should carry a cache key")
-		}
 	}
 }
 

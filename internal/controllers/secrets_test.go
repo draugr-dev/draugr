@@ -30,9 +30,6 @@ func TestSecretsPlan(t *testing.T) {
 		if j.Scanner != "gitleaks" {
 			t.Errorf("scanner = %q", j.Scanner)
 		}
-		if j.CacheKey == "" {
-			t.Error("job should carry a cache key")
-		}
 	}
 }
 

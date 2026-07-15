@@ -30,9 +30,8 @@ func (IAC) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	for _, repo := range comp.Repositories {
 		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths}
 		jobs = append(jobs, plugin.ScanJob{
-			Scanner:  trivyConfigScanner,
-			Target:   target,
-			CacheKey: plugin.ComputeCacheKey(trivyConfigScanner, "", target, nil),
+			Scanner: trivyConfigScanner,
+			Target:  target,
 		})
 	}
 	return jobs, nil

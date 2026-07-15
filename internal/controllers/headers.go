@@ -32,9 +32,8 @@ func (Headers) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error
 		}
 		target := plugin.HostTarget{Name: host.Name, URL: host.URL, Type: host.Type}
 		jobs = append(jobs, plugin.ScanJob{
-			Scanner:  httpHeadersScanner,
-			Target:   target,
-			CacheKey: plugin.ComputeCacheKey(httpHeadersScanner, "", target, nil),
+			Scanner: httpHeadersScanner,
+			Target:  target,
 		})
 	}
 	return jobs, nil

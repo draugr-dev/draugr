@@ -30,9 +30,8 @@ func (Secrets) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error
 	for _, repo := range comp.Repositories {
 		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths}
 		jobs = append(jobs, plugin.ScanJob{
-			Scanner:  gitleaksScanner,
-			Target:   target,
-			CacheKey: plugin.ComputeCacheKey(gitleaksScanner, "", target, nil),
+			Scanner: gitleaksScanner,
+			Target:  target,
 		})
 	}
 	return jobs, nil
