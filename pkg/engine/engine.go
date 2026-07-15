@@ -138,6 +138,16 @@ type Stats struct {
 	Jobs      int
 	Scans     int
 	CacheHits int
+	// Deduped counts jobs that reused an identical scan already running/completed in this run
+	// (in-run singleflight), rather than scanning or hitting the persistent cache.
+	Deduped int
+}
+
+// scanOutcome is the raw result of obtaining a job's report (via cache or a fresh scan),
+// shared across identical jobs by the in-run singleflight before per-job priority stamping.
+type scanOutcome struct {
+	report sarif.Report
+	cached bool
 }
 
 // effectiveKey returns the job's cache key, computing one from the scan inputs when the
@@ -174,12 +184,35 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		errs     []error
 		stats    = Stats{Jobs: len(planned)}
 		sem      = make(chan struct{}, e.concurrency)
+		sf       = &sfGroup{}
 		canceled bool
 	)
 	if planErr != nil {
 		// Runs before any worker goroutine starts; the concurrent appends below are
 		// mutex-guarded, so this is not a data race.
 		errs = append(errs, planErr) // nosem: trailofbits.go.racy-append-to-slice.racy-append-to-slice
+	}
+
+	// Warm shared scanner state (e.g. Trivy's vuln DB) once per distinct scanner, before the
+	// concurrent fan-out — so parallel scans don't each cold-start it. Best-effort.
+	warmed := make(map[string]bool)
+	for _, pj := range planned {
+		if ctx.Err() != nil {
+			break
+		}
+		name := pj.Job.Scanner
+		if warmed[name] {
+			continue
+		}
+		warmed[name] = true
+		if sc, ok := e.reg.Scanner(name); ok {
+			if pw, ok := sc.(plugin.Prewarmer); ok {
+				if err := pw.Prewarm(ctx); err != nil {
+					runSpan.AddEvent("prewarm failed", trace.WithAttributes(
+						attribute.String("scanner", name), attribute.String("error", err.Error())))
+				}
+			}
+		}
 	}
 
 	for _, pj := range planned {
@@ -211,46 +244,56 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			}
 			span.SetAttributes(attribute.String("target.kind", string(pj.Job.Target.Kind())))
 
-			// The cache key (and any tool/DB version probe it triggers) is computed only when
-			// caching is enabled — the default no-cache path pays nothing.
-			var key string
-			if e.cache != nil {
-				key = effectiveKey(jobCtx, pj.Job, scanner)
-				if report, hit := e.cache.Get(key); hit {
-					span.SetAttributes(attribute.Bool("cache.hit", true))
-					cacheHitCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("control", pj.Control)))
-					recordFindings(jobCtx, pj.Control, report)
-					report = e.stampPriority(report, pj)
-					mu.Lock()
-					byCtl[pj.Control] = append(byCtl[pj.Control], report)
-					stats.CacheHits++
-					mu.Unlock()
-					return
+			// Collapse identical concurrent jobs (same scanner+target+config) to a single scan.
+			// The version-less identity is cheap (no DB-version probe) and constant within a run.
+			ident := string(plugin.ComputeCacheKey(pj.Job.Scanner, "", pj.Job.Target, pj.Job.Config))
+			out, shared, scanErr := sf.do(ident, func() (any, error) {
+				// The cache key (and any tool/DB version probe) is built only when caching is on.
+				var key string
+				if e.cache != nil {
+					key = effectiveKey(jobCtx, pj.Job, scanner)
+					if rep, hit := e.cache.Get(key); hit {
+						cacheHitCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("control", pj.Control)))
+						return scanOutcome{report: rep, cached: true}, nil
+					}
 				}
-				span.SetAttributes(attribute.Bool("cache.hit", false))
-			}
-
-			start := time.Now()
-			report, err := scanner.Scan(jobCtx, pj.Job.Target, pj.Job.Config)
-			scanDuration.Record(jobCtx, time.Since(start).Seconds(),
-				metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
-			if err != nil {
-				span.RecordError(err)
+				start := time.Now()
+				rep, err := scanner.Scan(jobCtx, pj.Job.Target, pj.Job.Config)
+				scanDuration.Record(jobCtx, time.Since(start).Seconds(),
+					metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
+				if err != nil {
+					return scanOutcome{}, err
+				}
+				if e.cache != nil {
+					_ = e.cache.Put(key, rep) // cache the raw findings; priority is stamped per run
+				}
+				scanCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
+				return scanOutcome{report: rep}, nil
+			})
+			if scanErr != nil {
+				span.RecordError(scanErr)
 				span.SetStatus(codes.Error, "scan failed")
-				mu.Lock()
-				errs = append(errs, fmt.Errorf("scan %s/%s: %w", pj.Control, pj.Job.Scanner, err))
-				mu.Unlock()
+				if !shared { // record the underlying error once, not once per collapsed job
+					mu.Lock()
+					errs = append(errs, fmt.Errorf("scan %s/%s: %w", pj.Control, pj.Job.Scanner, scanErr))
+					mu.Unlock()
+				}
 				return
 			}
-			scanCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
-			recordFindings(jobCtx, pj.Control, report)
-			if e.cache != nil {
-				_ = e.cache.Put(key, report) // cache the raw findings; priority is stamped per run
-			}
-			report = e.stampPriority(report, pj)
+			res := out.(scanOutcome)
+			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
+			recordFindings(jobCtx, pj.Control, res.report)
+			report := e.stampPriority(res.report, pj)
 			mu.Lock()
 			byCtl[pj.Control] = append(byCtl[pj.Control], report)
-			stats.Scans++
+			switch {
+			case shared:
+				stats.Deduped++
+			case res.cached:
+				stats.CacheHits++
+			default:
+				stats.Scans++
+			}
 			mu.Unlock()
 		}(pj)
 	}

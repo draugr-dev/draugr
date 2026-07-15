@@ -22,6 +22,9 @@ type repoScanner struct {
 	// cacheVersion, when set, contributes a tool/data version to the cache key (see
 	// plugin.CacheVersioner). Nil for scanners with no dynamic version.
 	cacheVersion func(ctx context.Context) string
+	// prewarm, when set, warms shared tool state before a run (see plugin.Prewarmer). Nil for
+	// scanners with nothing to warm.
+	prewarm func(ctx context.Context) error
 }
 
 // CacheVersion reports the scanner's tool/data version for the cache key, when one is wired
@@ -31,6 +34,15 @@ func (s repoScanner) CacheVersion(ctx context.Context) string {
 		return ""
 	}
 	return s.cacheVersion(ctx)
+}
+
+// Prewarm warms shared tool state before a run, when one is wired (implements
+// plugin.Prewarmer). No-op otherwise.
+func (s repoScanner) Prewarm(ctx context.Context) error {
+	if s.prewarm == nil {
+		return nil
+	}
+	return s.prewarm(ctx)
 }
 
 func newRepoScanner(info plugin.ScannerInfo, args func(string, plugin.Config) []string) repoScanner {

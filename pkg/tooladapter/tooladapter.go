@@ -29,6 +29,9 @@ type Config struct {
 	// CacheVersion, when set, contributes a tool/data version to the cache key (see
 	// plugin.CacheVersioner). Optional.
 	CacheVersion func(ctx context.Context) string
+	// Prewarm, when set, warms shared tool state once before a run's fan-out (see
+	// plugin.Prewarmer). Optional.
+	Prewarm func(ctx context.Context) error
 }
 
 // Adapter is a Scanner backed by an external tool.
@@ -63,6 +66,15 @@ func (a *Adapter) CacheVersion(ctx context.Context) string {
 		return ""
 	}
 	return a.cfg.CacheVersion(ctx)
+}
+
+// Prewarm warms shared tool state before a run, when the adapter was configured with a
+// prewarm hook (implements plugin.Prewarmer). No-op otherwise.
+func (a *Adapter) Prewarm(ctx context.Context) error {
+	if a.cfg.Prewarm == nil {
+		return nil
+	}
+	return a.cfg.Prewarm(ctx)
 }
 
 // Scan builds and runs the command for target, then parses its SARIF output. The tool

@@ -18,6 +18,7 @@ func NewTrivy() plugin.Scanner {
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
 		Argv:         trivyArgv,
 		CacheVersion: sharedTrivyVersion.cacheVersion,
+		Prewarm:      sharedTrivyDB.warm,
 	})
 }
 
@@ -35,6 +36,7 @@ func NewTrivyFS() plugin.Scanner {
 		trivyFSArgs,
 	)
 	s.cacheVersion = sharedTrivyVersion.cacheVersion
+	s.prewarm = sharedTrivyDB.warm
 	return s
 }
 

@@ -110,3 +110,16 @@ func TestAdapterCacheVersion(t *testing.T) {
 		t.Errorf("CacheVersion = %q", v)
 	}
 }
+
+func TestAdapterPrewarm(t *testing.T) {
+	// Not configured → no-op nil.
+	if err := New(Config{Name: "trivy", Argv: imageArgv}).Prewarm(context.Background()); err != nil {
+		t.Errorf("unset Prewarm should be a nil no-op, got %v", err)
+	}
+	// Configured → calls the hook.
+	called := false
+	a := New(Config{Name: "trivy", Argv: imageArgv, Prewarm: func(context.Context) error { called = true; return nil }})
+	if err := a.Prewarm(context.Background()); err != nil || !called {
+		t.Errorf("Prewarm should invoke the hook (called=%v, err=%v)", called, err)
+	}
+}

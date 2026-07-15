@@ -47,3 +47,24 @@ func (p *trivyVersionProbe) cacheVersion(ctx context.Context) string {
 // sharedTrivyVersion is the process-wide probe used by all Trivy-backed scanners, so the
 // version is resolved once per process regardless of how many Trivy scanners run.
 var sharedTrivyVersion = newTrivyVersionProbe()
+
+// trivyDBWarmer downloads Trivy's vulnerability database once (memoized) so that a run's
+// concurrent scans don't each cold-start the DB. run is injectable for tests.
+type trivyDBWarmer struct {
+	once sync.Once
+	err  error
+	run  func(ctx context.Context, argv []string) ([]byte, error)
+}
+
+// warm runs `trivy image --download-db-only` at most once and returns any error (best-effort:
+// callers treat failure as non-fatal — a real problem resurfaces at scan time).
+func (w *trivyDBWarmer) warm(ctx context.Context) error {
+	w.once.Do(func() {
+		_, w.err = w.run(ctx, []string{"trivy", "image", "--download-db-only"})
+	})
+	return w.err
+}
+
+// sharedTrivyDB pre-warms the vuln DB once per process for all Trivy-backed scanners (they
+// share Trivy's on-disk cache), so one download serves image, fs, and config scans.
+var sharedTrivyDB = &trivyDBWarmer{run: execArgv}

@@ -26,6 +26,15 @@ type CacheVersioner interface {
 	CacheVersion(ctx context.Context) string
 }
 
+// Prewarmer is an optional interface a Scanner may implement to warm shared, expensive state
+// once before a run's concurrent fan-out — e.g. downloading a vulnerability database — so that
+// many parallel scans don't each cold-start it (a thundering herd). The engine calls Prewarm
+// once per distinct scanner, before scans start; a returned error is best-effort (logged, not
+// fatal — the scan will surface any real problem). Implementations should memoize.
+type Prewarmer interface {
+	Prewarm(ctx context.Context) error
+}
+
 // ScannerInfo describes a scanner and its capabilities.
 type ScannerInfo struct {
 	// Name is the scanner identifier, e.g. "trivy".
