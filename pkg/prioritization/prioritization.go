@@ -6,7 +6,7 @@
 //	context × severity → priority (P1–P4) "this finding's rank"
 //
 // The default matrices ship opinionated and are overridable. See
-// planning/risk-prioritization.md.
+// docs/concepts.md (prioritization).
 package prioritization
 
 import (
@@ -65,7 +65,7 @@ type Matrices struct {
 
 // DefaultMatrices returns the shipped, opinionated matrices (a fresh copy, safe to mutate
 // for overrides). Both are monotonic: raising exposure, criticality, or severity never
-// lowers priority, and P1 is deliberately scarce. See planning/risk-prioritization.md.
+// lowers priority, and P1 is deliberately scarce. See docs/concepts.md (prioritization).
 func DefaultMatrices() Matrices {
 	return Matrices{
 		ContextTier: map[saga.Exposure]map[saga.Criticality]Context{

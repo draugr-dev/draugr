@@ -5,7 +5,7 @@
 - **Status:** ✅ implemented (dependency vulnerabilities). License findings: follow-up.
 - **Target:** source repository (`RepositoryTarget`) — checked out via `internal/git`
 - **License / terms:** **Apache-2.0** (permissive). Run via **exec**. Vulnerability DB has
-  separate terms (see the Trivy scanner doc + `planning/third-party-tool-licensing.md`).
+  separate terms (see the Trivy scanner doc).
 
 ## What it does
 

@@ -47,7 +47,7 @@ type Component struct {
 // how likely a weakness in it is to be hit. It is one axis of risk prioritization; higher
 // exposure ranks a component's findings higher. The levels are a fixed ladder: an
 // organization may redefine what each means, but not the count. Exposure may be proposed by
-// a surveyor from topology and confirmed by a human. See planning/risk-prioritization.md.
+// a surveyor from topology and confirmed by a human. See docs/concepts.md (prioritization).
 type Exposure string
 
 // Exposure levels, from most to least exposed.
@@ -61,7 +61,7 @@ const (
 // Criticality is a component's business-criticality level — the operational impact if it
 // fails or is compromised. It is the other axis of risk prioritization and is always
 // human-declared, as it cannot be inferred from code. The levels are a fixed ladder with
-// org-defined meaning. See planning/risk-prioritization.md.
+// org-defined meaning. See docs/concepts.md (prioritization).
 type Criticality string
 
 // Criticality levels, from most to least critical.

@@ -5,7 +5,7 @@
 - **Status:** ✅ implemented
 - **Target:** source repository (`RepositoryTarget`) — checked out via `internal/git`
 - **License / terms:** **Apache-2.0** (permissive). Run via **exec**. The bundled misconfig
-  policies have their own terms; see `planning/third-party-tool-licensing.md`.
+  policies have their own terms.
 
 ## What it does
 

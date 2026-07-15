@@ -18,7 +18,7 @@ line count, deep transitive trees), so this is where a large share of real risk 
    databases ([OSV](https://osv.dev/), GitHub Advisories, NVD): e.g. "you use
    `lodash@4.17.15` → CVE-2020-8203."
 3. **Checks licenses** — surfaces each dependency's license so a copyleft/GPL library
-   doesn't slip into a proprietary product (see `planning/third-party-tool-licensing.md`).
+   doesn't slip into a proprietary product.
 
 **In Draugr:** the **`sca`** control, backed by [Trivy](https://trivy.dev) (filesystem
 mode) and [OSV-Scanner](https://google.github.io/osv-scanner/). Roadmap: [#49](https://github.com/draugr-dev/draugr/issues/49).

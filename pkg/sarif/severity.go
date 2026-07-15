@@ -3,7 +3,7 @@ package sarif
 // Severity is Draugr's normalized, cross-control severity ladder. Unlike Level (the SARIF
 // wire values error/warning/note), Severity is what prioritization ranks on: it splits a
 // numeric CVSS-style score into four bands so a dependency CVE, a leaked secret, and an IaC
-// misconfiguration can share one ordered list. See planning/risk-prioritization.md.
+// misconfiguration can share one ordered list. See docs/concepts.md (prioritization).
 type Severity string
 
 // Severity bands, from most to least severe.

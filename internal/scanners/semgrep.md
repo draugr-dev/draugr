@@ -6,7 +6,7 @@
 - **Target:** source repository (`RepositoryTarget`) — checked out via `internal/git`
 - **License / terms:** **LGPL-2.1** (copyleft) — **exec only, do not bundle or import**.
   Semgrep Pro and some registry rules are separate/commercial; Draugr uses the OSS CLI with
-  OSS/user-provided rules. See `planning/third-party-tool-licensing.md`.
+  OSS/user-provided rules.
 
 ## What it does
 
