@@ -26,6 +26,9 @@ type Config struct {
 	// Run executes argv and returns the tool's SARIF output. Optional; defaults to
 	// executing the command and capturing stdout.
 	Run func(ctx context.Context, argv []string) ([]byte, error)
+	// CacheVersion, when set, contributes a tool/data version to the cache key (see
+	// plugin.CacheVersioner). Optional.
+	CacheVersion func(ctx context.Context) string
 }
 
 // Adapter is a Scanner backed by an external tool.
@@ -51,6 +54,15 @@ func (a *Adapter) Info() plugin.ScannerInfo {
 		Controls:    a.cfg.Controls,
 		TargetKinds: a.cfg.TargetKinds,
 	}
+}
+
+// CacheVersion reports the tool/data version for the cache key, when the adapter was
+// configured with one (implements plugin.CacheVersioner). Empty otherwise.
+func (a *Adapter) CacheVersion(ctx context.Context) string {
+	if a.cfg.CacheVersion == nil {
+		return ""
+	}
+	return a.cfg.CacheVersion(ctx)
 }
 
 // Scan builds and runs the command for target, then parses its SARIF output. The tool

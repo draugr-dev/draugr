@@ -29,9 +29,6 @@ func TestIACPlan(t *testing.T) {
 		if j.Scanner != "trivy-config" {
 			t.Errorf("scanner = %q", j.Scanner)
 		}
-		if j.CacheKey == "" {
-			t.Error("job should carry a cache key")
-		}
 	}
 }
 

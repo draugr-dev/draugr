@@ -29,9 +29,8 @@ func (Images) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error)
 	for _, img := range comp.Images {
 		target := plugin.ImageTarget{Ref: img.Image}
 		jobs = append(jobs, plugin.ScanJob{
-			Scanner:  trivyScanner,
-			Target:   target,
-			CacheKey: plugin.ComputeCacheKey(trivyScanner, "", target, nil),
+			Scanner: trivyScanner,
+			Target:  target,
 		})
 	}
 	return jobs, nil

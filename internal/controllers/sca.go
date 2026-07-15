@@ -29,9 +29,8 @@ func (SCA) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	for _, repo := range comp.Repositories {
 		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths}
 		jobs = append(jobs, plugin.ScanJob{
-			Scanner:  trivyFSScanner,
-			Target:   target,
-			CacheKey: plugin.ComputeCacheKey(trivyFSScanner, "", target, nil),
+			Scanner: trivyFSScanner,
+			Target:  target,
 		})
 	}
 	return jobs, nil

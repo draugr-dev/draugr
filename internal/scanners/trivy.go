@@ -12,11 +12,12 @@ import (
 // its native SARIF output. It serves the "images" control.
 func NewTrivy() plugin.Scanner {
 	return tooladapter.New(tooladapter.Config{
-		Name:        "trivy",
-		Binary:      "trivy",
-		Controls:    []string{"images"},
-		TargetKinds: []plugin.TargetKind{plugin.TargetImage},
-		Argv:        trivyArgv,
+		Name:         "trivy",
+		Binary:       "trivy",
+		Controls:     []string{"images"},
+		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
+		Argv:         trivyArgv,
+		CacheVersion: sharedTrivyVersion.cacheVersion,
 	})
 }
 
@@ -24,7 +25,7 @@ func NewTrivy() plugin.Scanner {
 // repository to find dependency vulnerabilities (SCA). It serves the "sca" control.
 // (License findings are not included in Trivy's SARIF output and are tracked separately.)
 func NewTrivyFS() plugin.Scanner {
-	return newRepoScanner(
+	s := newRepoScanner(
 		plugin.ScannerInfo{
 			Name:        "trivy-fs",
 			Binary:      "trivy",
@@ -33,6 +34,8 @@ func NewTrivyFS() plugin.Scanner {
 		},
 		trivyFSArgs,
 	)
+	s.cacheVersion = sharedTrivyVersion.cacheVersion
+	return s
 }
 
 // trivyFSArgs builds `trivy fs --quiet --scanners vuln --format sarif <dir>`.

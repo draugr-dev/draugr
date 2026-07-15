@@ -29,9 +29,8 @@ func (SAST) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	for _, repo := range comp.Repositories {
 		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths}
 		jobs = append(jobs, plugin.ScanJob{
-			Scanner:  semgrepScanner,
-			Target:   target,
-			CacheKey: plugin.ComputeCacheKey(semgrepScanner, "", target, nil),
+			Scanner: semgrepScanner,
+			Target:  target,
 		})
 	}
 	return jobs, nil

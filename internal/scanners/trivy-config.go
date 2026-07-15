@@ -6,7 +6,7 @@ import "github.com/draugr-dev/draugr/pkg/plugin"
 // checked-out repository to find insecure Infrastructure-as-Code (Terraform, Kubernetes
 // manifests, Dockerfiles, Helm, …). It serves the "iac" control.
 func NewTrivyConfig() plugin.Scanner {
-	return newRepoScanner(
+	s := newRepoScanner(
 		plugin.ScannerInfo{
 			Name:        "trivy-config",
 			Binary:      "trivy",
@@ -15,6 +15,8 @@ func NewTrivyConfig() plugin.Scanner {
 		},
 		trivyConfigArgs,
 	)
+	s.cacheVersion = sharedTrivyVersion.cacheVersion
+	return s
 }
 
 // trivyConfigArgs builds `trivy config --quiet --format sarif <dir>`. Trivy exits 0 even

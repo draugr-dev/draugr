@@ -19,6 +19,18 @@ type repoScanner struct {
 	args     func(dir string, cfg plugin.Config) []string
 	checkout func(ctx context.Context, url, revision string) (string, func(), error)
 	run      func(ctx context.Context, argv []string) ([]byte, error)
+	// cacheVersion, when set, contributes a tool/data version to the cache key (see
+	// plugin.CacheVersioner). Nil for scanners with no dynamic version.
+	cacheVersion func(ctx context.Context) string
+}
+
+// CacheVersion reports the scanner's tool/data version for the cache key, when one is wired
+// (implements plugin.CacheVersioner). Empty otherwise.
+func (s repoScanner) CacheVersion(ctx context.Context) string {
+	if s.cacheVersion == nil {
+		return ""
+	}
+	return s.cacheVersion(ctx)
 }
 
 func newRepoScanner(info plugin.ScannerInfo, args func(string, plugin.Config) []string) repoScanner {

@@ -141,12 +141,20 @@ type Stats struct {
 }
 
 // effectiveKey returns the job's cache key, computing one from the scan inputs when the
-// controller did not set it.
-func effectiveKey(job plugin.ScanJob, scanner plugin.Scanner) string {
+// controller did not set it. The version component reflects the scanner's tool/data version:
+// a CacheVersioner (e.g. Trivy, folding in its vuln-DB version) takes precedence over the
+// static ScannerInfo.Version, so an updated database invalidates cached results.
+func effectiveKey(ctx context.Context, job plugin.ScanJob, scanner plugin.Scanner) string {
 	if job.CacheKey != "" {
 		return string(job.CacheKey)
 	}
-	return string(plugin.ComputeCacheKey(job.Scanner, scanner.Info().Version, job.Target, job.Config))
+	version := scanner.Info().Version
+	if cv, ok := scanner.(plugin.CacheVersioner); ok {
+		if v := cv.CacheVersion(ctx); v != "" {
+			version = v
+		}
+	}
+	return string(plugin.ComputeCacheKey(job.Scanner, version, job.Target, job.Config))
 }
 
 // Run plans and executes scans with bounded concurrency, then aggregates per control.
@@ -203,8 +211,11 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			}
 			span.SetAttributes(attribute.String("target.kind", string(pj.Job.Target.Kind())))
 
-			key := effectiveKey(pj.Job, scanner)
+			// The cache key (and any tool/DB version probe it triggers) is computed only when
+			// caching is enabled — the default no-cache path pays nothing.
+			var key string
 			if e.cache != nil {
+				key = effectiveKey(jobCtx, pj.Job, scanner)
 				if report, hit := e.cache.Get(key); hit {
 					span.SetAttributes(attribute.Bool("cache.hit", true))
 					cacheHitCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("control", pj.Control)))
@@ -216,8 +227,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					mu.Unlock()
 					return
 				}
+				span.SetAttributes(attribute.Bool("cache.hit", false))
 			}
-			span.SetAttributes(attribute.Bool("cache.hit", false))
 
 			start := time.Now()
 			report, err := scanner.Scan(jobCtx, pj.Job.Target, pj.Job.Config)
