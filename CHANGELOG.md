@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Faster high-volume scanning.** Before the concurrent scan fan-out, Draugr now pre-warms
+  shared scanner state once — for Trivy, it downloads the vulnerability DB a single time
+  (`trivy image --download-db-only`) instead of every parallel process cold-starting it. And
+  identical jobs within a run (the same scanner + target + config, e.g. one image referenced by
+  two components) are de-duplicated so the target is scanned once and the result shared. Run
+  stats now report `deduped` alongside `scans` and `cacheHits`.
 
 ## [0.10.0] - 2026-07-15
 

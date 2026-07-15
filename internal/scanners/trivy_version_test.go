@@ -45,3 +45,35 @@ func TestRepoScannerCacheVersion(t *testing.T) {
 		t.Error("gitleaks CacheVersion should be empty")
 	}
 }
+
+func TestTrivyDBWarmerMemoized(t *testing.T) {
+	var calls int
+	w := &trivyDBWarmer{run: func(context.Context, []string) ([]byte, error) { calls++; return nil, nil }}
+	_ = w.warm(context.Background())
+	_ = w.warm(context.Background())
+	if calls != 1 {
+		t.Errorf("warm should run once (memoized), got %d", calls)
+	}
+}
+
+func TestTrivyDBWarmerError(t *testing.T) {
+	w := &trivyDBWarmer{run: func(context.Context, []string) ([]byte, error) { return nil, errors.New("no trivy") }}
+	if err := w.warm(context.Background()); err == nil {
+		t.Error("warm should surface the run error")
+	}
+}
+
+func TestRepoScannerPrewarm(t *testing.T) {
+	// trivy-fs wires the shared warmer → implements Prewarmer.
+	if _, ok := NewTrivyFS().(interface {
+		Prewarm(context.Context) error
+	}); !ok {
+		t.Error("trivy-fs should implement Prewarmer")
+	}
+	// gitleaks has nothing to warm → Prewarm is a no-op returning nil.
+	if s, ok := NewGitleaks().(interface {
+		Prewarm(context.Context) error
+	}); !ok || s.Prewarm(context.Background()) != nil {
+		t.Error("gitleaks Prewarm should be a nil-returning no-op")
+	}
+}
