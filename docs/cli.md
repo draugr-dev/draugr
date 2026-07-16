@@ -149,10 +149,17 @@ draugr tools install            # trivy + gitleaks, verified, into ~/.draugr/bin
 draugr tools install trivy      # just one
 ```
 
+**Provenance.** The SHA-256 pin is the mandatory integrity floor. On top of it, for upstreams
+that publish a keyless **cosign** signature over their checksums file (e.g. Trivy), Draugr also
+verifies that signature — checking the signing certificate identity and OIDC issuer, then
+confirming the archive is listed in the signed checksums — when the `cosign` CLI is installed.
+Without `cosign`, or for tools the upstream doesn't sign (e.g. gitleaks), it degrades to
+SHA-256-only and says so. Each line reports what was verified (`sha256 + cosign verified` /
+`sha256 verified`). If `cosign` is present but verification fails, the install aborts.
+
 Semgrep ships as a Python package, not a standalone binary, so `tools install` prints the
 pinned `pipx install semgrep==<version>` command rather than downloading it. `git` is expected
-from your system. Signature (cosign) verification on top of SHA-256 is tracked in
-[#124](https://github.com/draugr-dev/draugr/issues/124).
+from your system.
 
 ### `draugr tools list`
 

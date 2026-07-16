@@ -58,6 +58,19 @@ func newToolsListCommand() *cobra.Command {
 // runToolsInstall provisions the named tools (all installable ones when names is empty) via
 // install, which is injectable for tests. Returns an error if any install fails, after
 // attempting them all.
+// provenanceLabel summarizes how a provisioned tool was verified: the SHA-256 pin always
+// applies; cosign adds signed provenance when the upstream publishes it.
+func provenanceLabel(res tools.Installed) string {
+	switch {
+	case res.SignatureVerified:
+		return "sha256 + cosign verified"
+	case res.ProvenanceNote != "":
+		return "sha256 verified; " + res.ProvenanceNote
+	default:
+		return "sha256 verified"
+	}
+}
+
 func runToolsInstall(w io.Writer, names []string, install func(name string) (tools.Installed, error)) error {
 	all := len(names) == 0
 	if all {
@@ -76,7 +89,7 @@ func runToolsInstall(w io.Writer, names []string, install func(name string) (too
 			failed++
 			continue
 		}
-		_, _ = fmt.Fprintf(w, "✓ %s %s → %s (sha256 ok)\n", res.Name, res.Version, res.Path)
+		_, _ = fmt.Fprintf(w, "✓ %s %s → %s (%s)\n", res.Name, res.Version, res.Path, provenanceLabel(res))
 	}
 
 	// Semgrep isn't a downloadable binary; when installing everything, surface how to get it.

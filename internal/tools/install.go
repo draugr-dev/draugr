@@ -2,6 +2,7 @@ package tools
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -11,9 +12,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -40,12 +44,31 @@ type Asset struct {
 	BinaryInArchive string // name of the binary within the .tar.gz
 }
 
+// CosignSpec describes how to verify a tool release's provenance with cosign, for upstreams
+// that publish a keyless signature over their checksums file. It is optional and additive:
+// the SHA-256 pin remains the mandatory integrity floor; cosign proves the checksums file was
+// signed by the upstream's expected release identity. Verification uses the cosign CLI (no Go
+// sigstore dependency) and the new Sigstore bundle format.
+type CosignSpec struct {
+	// ChecksumsURL is the upstream's signed checksums file, listing each asset's SHA-256.
+	ChecksumsURL string
+	// BundleURL is the Sigstore bundle (.sigstore.json) signing ChecksumsURL.
+	BundleURL string
+	// IdentityRegexp is the required signing certificate identity (--certificate-identity-regexp).
+	IdentityRegexp string
+	// OIDCIssuer is the required OIDC issuer (--certificate-oidc-issuer).
+	OIDCIssuer string
+}
+
 // InstallSpec pins an installable tool to a version and its per-platform assets, keyed by
 // "GOOS/GOARCH" (e.g. "linux/amd64").
 type InstallSpec struct {
 	Binary  string
 	Version string
 	Assets  map[string]Asset
+	// Cosign, when set, verifies the release's provenance in addition to the SHA-256 pin.
+	// Nil for upstreams that publish no signature (e.g. gitleaks) — those stay SHA-256-only.
+	Cosign *CosignSpec
 }
 
 // installable is the pinned manifest. SHA-256 values are copied verbatim from the upstream
@@ -54,6 +77,13 @@ var installable = map[string]InstallSpec{
 	"trivy": {
 		Binary:  "trivy",
 		Version: "0.69.3",
+		// Trivy signs its checksums file with keyless cosign (new Sigstore bundle format).
+		Cosign: &CosignSpec{
+			ChecksumsURL:   "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_checksums.txt",
+			BundleURL:      "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_checksums.txt.sigstore.json",
+			IdentityRegexp: `^https://github\.com/aquasecurity/trivy/\.github/workflows/.*@refs/tags/v.*$`,
+			OIDCIssuer:     "https://token.actions.githubusercontent.com",
+		},
 		Assets: map[string]Asset{
 			"linux/amd64": {
 				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz",
@@ -110,6 +140,25 @@ type Installed struct {
 	Name    string
 	Version string
 	Path    string
+	// SignatureVerified is true when an upstream cosign signature was verified (in addition
+	// to the always-checked SHA-256 pin).
+	SignatureVerified bool
+	// ProvenanceNote summarizes the signature outcome for reporting (e.g. why it was skipped);
+	// empty when the tool has no cosign provenance configured.
+	ProvenanceNote string
+}
+
+// cosignLookPath finds the cosign CLI; overridable in tests. A missing cosign is not an error
+// — provenance verification degrades to the SHA-256 pin with a note.
+var cosignLookPath = func() (string, error) { return exec.LookPath("cosign") }
+
+// runCosignVerify runs `cosign <args>`; overridable in tests.
+var runCosignVerify = func(ctx context.Context, cosignPath string, args []string) error {
+	cmd := exec.CommandContext(ctx, cosignPath, args...) //nolint:gosec // cosignPath from LookPath; args are built from the pinned manifest
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("%w: %s", err, bytes.TrimSpace(out))
+	}
+	return nil
 }
 
 // Installable returns the names of the tools `tools install` can provision, sorted.
@@ -168,9 +217,22 @@ func Install(ctx context.Context, name, destDir string, client *http.Client) (In
 	}
 
 	sum := sha256.Sum256(data)
-	if got := hex.EncodeToString(sum[:]); got != asset.SHA256 {
+	gotSHA := hex.EncodeToString(sum[:])
+	if gotSHA != asset.SHA256 {
 		return Installed{}, fmt.Errorf("%s: checksum mismatch for %s: got %s, want %s",
-			name, asset.URL, got, asset.SHA256)
+			name, asset.URL, gotSHA, asset.SHA256)
+	}
+
+	// Optional provenance layer: verify the upstream's cosign signature over the checksums
+	// file (where published), before anything is written. The SHA-256 pin above is the
+	// mandatory floor; this adds signed-by-the-expected-identity assurance on top.
+	signatureVerified := false
+	provenanceNote := ""
+	if spec.Cosign != nil {
+		signatureVerified, provenanceNote, err = verifyCosignProvenance(ctx, client, spec.Cosign, asset.URL, gotSHA)
+		if err != nil {
+			return Installed{}, fmt.Errorf("%s: provenance verification failed: %w", name, err)
+		}
 	}
 
 	bin, err := extractFromTarGz(data, asset.BinaryInArchive)
@@ -185,7 +247,78 @@ func Install(ctx context.Context, name, destDir string, client *http.Client) (In
 	if err := writeExecutable(dest, bin); err != nil {
 		return Installed{}, err
 	}
-	return Installed{Name: name, Version: spec.Version, Path: dest}, nil
+	return Installed{
+		Name:              name,
+		Version:           spec.Version,
+		Path:              dest,
+		SignatureVerified: signatureVerified,
+		ProvenanceNote:    provenanceNote,
+	}, nil
+}
+
+// verifyCosignProvenance verifies an upstream's cosign signature over its checksums file, then
+// confirms the downloaded archive's SHA-256 is listed there. Returns (true, note) on success;
+// (false, note) with a nil error when cosign is not installed (graceful degrade to the SHA-256
+// floor); an error when cosign is present but verification fails (fail closed).
+func verifyCosignProvenance(ctx context.Context, client *http.Client, cs *CosignSpec, assetURL, wantSHA string) (bool, string, error) {
+	cosignPath, err := cosignLookPath()
+	if err != nil {
+		return false, "cosign not installed — skipped signature check", nil
+	}
+
+	checksums, err := download(ctx, client, cs.ChecksumsURL)
+	if err != nil {
+		return false, "", fmt.Errorf("download signed checksums: %w", err)
+	}
+	bundle, err := download(ctx, client, cs.BundleURL)
+	if err != nil {
+		return false, "", fmt.Errorf("download signature bundle: %w", err)
+	}
+
+	dir, err := os.MkdirTemp("", "draugr-cosign-")
+	if err != nil {
+		return false, "", err
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	checksumsPath := filepath.Join(dir, "checksums.txt")
+	bundlePath := filepath.Join(dir, "checksums.sigstore.json")
+	if err := os.WriteFile(checksumsPath, checksums, 0o600); err != nil {
+		return false, "", err
+	}
+	if err := os.WriteFile(bundlePath, bundle, 0o600); err != nil {
+		return false, "", err
+	}
+
+	args := []string{
+		"verify-blob",
+		"--bundle", bundlePath,
+		"--new-bundle-format",
+		"--certificate-identity-regexp", cs.IdentityRegexp,
+		"--certificate-oidc-issuer", cs.OIDCIssuer,
+		checksumsPath,
+	}
+	if err := runCosignVerify(ctx, cosignPath, args); err != nil {
+		return false, "", fmt.Errorf("cosign verify-blob: %w", err)
+	}
+
+	// The checksums file is now proven authentic; confirm our archive is one of its entries.
+	assetFile := path.Base(assetURL)
+	if !checksumsContain(checksums, assetFile, wantSHA) {
+		return false, "", fmt.Errorf("%s (sha256:%s) is not listed in the signed checksums", assetFile, wantSHA)
+	}
+	return true, "cosign signature verified", nil
+}
+
+// checksumsContain reports whether a "<sha256>  <filename>" checksums file lists file with sha.
+func checksumsContain(checksums []byte, file, sha string) bool {
+	sc := bufio.NewScanner(bytes.NewReader(checksums))
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) == 2 && fields[1] == file && strings.EqualFold(fields[0], sha) {
+			return true
+		}
+	}
+	return false
 }
 
 func download(ctx context.Context, client *http.Client, url string) ([]byte, error) {
