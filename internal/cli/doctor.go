@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/controllers"
+	"github.com/draugr-dev/draugr/internal/selfupdate"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -19,7 +22,8 @@ import (
 )
 
 type doctorOptions struct {
-	json bool
+	json    bool
+	offline bool
 }
 
 func newDoctorCommand() *cobra.Command {
@@ -41,10 +45,21 @@ func newDoctorCommand() *cobra.Command {
 			detect := func(ctx context.Context, t tools.Tool) tools.Status {
 				return tools.Detect(ctx, t, nil, nil)
 			}
-			return runDoctor(cmd.Context(), cmd.OutOrStdout(), builtins.Registry(), sagaPath, opts.json, detect)
+			// Best-effort update check (current vs latest), unless opted out. It never blocks or
+			// fails the command: a short timeout, errors ignored.
+			var latest func(context.Context) (string, error)
+			if !opts.offline && os.Getenv("DRAUGR_NO_UPDATE_CHECK") == "" {
+				latest = func(ctx context.Context) (string, error) {
+					ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+					defer cancel()
+					return selfupdate.LatestVersion(ctx, nil)
+				}
+			}
+			return runDoctor(cmd.Context(), cmd.OutOrStdout(), builtins.Registry(), sagaPath, opts.json, detect, latest)
 		},
 	}
 	cmd.Flags().BoolVar(&opts.json, "json", false, "output results as JSON")
+	cmd.Flags().BoolVar(&opts.offline, "offline", false, "skip the check for a newer draugr release (also DRAUGR_NO_UPDATE_CHECK=1)")
 	return cmd
 }
 
@@ -58,14 +73,20 @@ func runDoctor(
 	sagaPath string,
 	asJSON bool,
 	detect func(context.Context, tools.Tool) tools.Status,
+	latest func(context.Context) (string, error),
 ) error {
+	dv := draugrVersionReport(ctx, latest)
+	if !asJSON {
+		writeDraugrLine(w, dv)
+	}
+
 	// Descriptor check: loading validates (parse + env-resolve + schema).
 	var required []tools.Tool
 	if sagaPath != "" {
 		model, err := saga.LoadFile(sagaPath)
 		if err != nil {
 			if asJSON {
-				_ = writeDoctorJSON(w, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil)
+				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil)
 			} else {
 				_, _ = fmt.Fprintf(w, "Descriptor  ✗ invalid — %s\n", err)
 			}
@@ -91,7 +112,7 @@ func runDoctor(
 		if sagaPath != "" {
 			desc = &descriptorReport{Path: sagaPath, Valid: true}
 		}
-		if err := writeDoctorJSON(w, desc, statuses); err != nil {
+		if err := writeDoctorJSON(w, dv, desc, statuses); err != nil {
 			return err
 		}
 	} else {
@@ -201,6 +222,48 @@ type descriptorReport struct {
 	Error string `json:"error,omitempty"`
 }
 
+// draugrReport is the running-vs-latest version summary shown by doctor.
+type draugrReport struct {
+	Version         string `json:"version"`
+	Latest          string `json:"latest,omitempty"`
+	UpdateAvailable bool   `json:"updateAvailable,omitempty"`
+}
+
+// draugrVersionReport reports the running version and, when latest is non-nil and reachable,
+// the latest available. Best-effort: a failed/blocked check just omits Latest.
+func draugrVersionReport(ctx context.Context, latest func(context.Context) (string, error)) draugrReport {
+	r := draugrReport{Version: selfupdate.CurrentVersion()}
+	if latest == nil {
+		return r
+	}
+	if v, err := latest(ctx); err == nil && v != "" {
+		r.Latest = v
+		r.UpdateAvailable = v != r.Version
+	}
+	return r
+}
+
+// writeDraugrLine prints the human-readable Draugr version line.
+func writeDraugrLine(w io.Writer, r draugrReport) {
+	switch {
+	case r.Latest == "":
+		_, _ = fmt.Fprintf(w, "Draugr      %s\n\n", displayVersion(r.Version))
+	case r.UpdateAvailable:
+		_, _ = fmt.Fprintf(w, "Draugr      %s  (latest: %s — run 'draugr self-update')\n\n",
+			displayVersion(r.Version), displayVersion(r.Latest))
+	default:
+		_, _ = fmt.Fprintf(w, "Draugr      %s  (up to date)\n\n", displayVersion(r.Version))
+	}
+}
+
+// displayVersion prefixes a semver with "v"; leaves a dev build as-is.
+func displayVersion(v string) string {
+	if v == "" || v == "dev" {
+		return "dev"
+	}
+	return "v" + v
+}
+
 type toolReport struct {
 	Binary  string `json:"binary"`
 	Found   bool   `json:"found"`
@@ -209,12 +272,13 @@ type toolReport struct {
 	Hint    string `json:"hint,omitempty"`
 }
 
-func writeDoctorJSON(w io.Writer, desc *descriptorReport, statuses []tools.Status) error {
+func writeDoctorJSON(w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status) error {
 	report := struct {
+		Draugr     draugrReport      `json:"draugr"`
 		Descriptor *descriptorReport `json:"descriptor,omitempty"`
 		Tools      []toolReport      `json:"tools"`
 		Missing    int               `json:"missing"`
-	}{Descriptor: desc, Tools: make([]toolReport, 0, len(statuses))}
+	}{Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses))}
 
 	for _, st := range statuses {
 		tr := toolReport{Binary: st.Tool.Binary, Found: st.Found, Version: st.Version, Path: st.Path}

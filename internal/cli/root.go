@@ -54,6 +54,7 @@ func newRootCommand() *cobra.Command {
 	cmd.AddCommand(newValidateCommand())
 	cmd.AddCommand(newDoctorCommand())
 	cmd.AddCommand(newToolsCommand())
+	cmd.AddCommand(newSelfUpdateCommand())
 	return cmd
 }
 
