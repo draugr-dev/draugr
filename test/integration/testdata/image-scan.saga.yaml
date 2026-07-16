@@ -1,0 +1,14 @@
+# Integration fixture: scan a public image that real Trivy reliably reports vulnerabilities
+# for. Exercised by scan_e2e_test.go (build tag: integration). Debian base images carry many
+# tracked CVEs (including unfixed ones), unlike minimal Alpine bases which often scan clean.
+release:
+  name: draugr-integration
+  version: "0"
+config:
+  controllers:
+    images:
+      enabled: true
+components:
+  - name: target
+    images:
+      - image: debian:11
