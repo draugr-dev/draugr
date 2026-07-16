@@ -38,17 +38,17 @@ More controls (DAST, headers, TLS, SBOM, …) are on the roadmap. See
 [Gitleaks](https://github.com/gitleaks/gitleaks) (`secrets`); `git` for repo scans. Go 1.26+
 only to build from source.
 
-**Install from a release (recommended).** While this repo is **private**, download with the
-GitHub CLI (plain `curl` returns `404` on private assets — it needs auth):
+**Install from a release (recommended):**
 
 ```bash
-gh release download --repo draugr-dev/draugr -p 'draugr_*_linux_amd64.tar.gz'   # omit tag = latest
-tar -xzf draugr_*_linux_amd64.tar.gz draugr
+gh release download --repo draugr-dev/draugr \
+  -p "draugr_*_$(uname -s | tr A-Z a-z)_amd64.tar.gz"   # omit a tag = latest
+tar -xzf draugr_*_amd64.tar.gz draugr
 sudo mv draugr /usr/local/bin/ && draugr version
 ```
 
 Releases are cosign-signed with SBOMs — see [install & verifying downloads](docs/quickstart.md#1-install)
-(includes the `curl` recipe for once the repo is public).
+for the checksum/signature-verifying `curl` recipe.
 
 **Or build from source:**
 
@@ -90,6 +90,34 @@ draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
 ```
 
 Full walkthrough: [`docs/quickstart.md`](docs/quickstart.md).
+
+## Use in CI (GitHub Actions)
+
+Add Draugr to a repository's CI and code scanning with the first-party action. It downloads a
+cosign-verified Draugr release, runs the scan, and hands the merged SARIF to GitHub code
+scanning — one clean **Draugr** tool in the Security tab:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write   # upload SARIF to code scanning
+
+steps:
+  - uses: actions/checkout@v4
+  - id: draugr
+    uses: draugr-dev/draugr@v0.11.0     # pin a release; installs Draugr for you
+    with:
+      saga: draugr.saga.yaml
+      fail-on: warning                  # optional gate (default: error)
+  - if: always()                        # publish findings even when the gate fails
+    uses: github/codeql-action/upload-sarif@v3
+    with:
+      sarif_file: ${{ steps.draugr.outputs.sarif }}
+```
+
+The scanners each control needs (Trivy, Gitleaks, …) still have to be on the runner — install
+them alongside, or gate their presence with `draugr doctor`. See
+[Run it in CI](docs/quickstart.md#5-run-it-in-ci) for the full workflow and all inputs.
 
 ## Documentation
 

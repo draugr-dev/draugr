@@ -1,0 +1,185 @@
+name: Draugr
+description: >-
+  Run Draugr — descriptor-driven security-scan orchestration — in CI. Downloads a
+  cosign-verified Draugr release, runs `draugr scan` against your Saga, and writes a merged
+  SARIF report for GitHub code scanning.
+author: Draugr
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  saga:
+    description: Path to the Saga descriptor to scan (e.g. draugr.saga.yaml).
+    required: true
+  version:
+    description: >-
+      Draugr release version to use (with or without a leading "v"), or "latest" for the
+      newest published release. Pin a version for reproducible runs.
+    required: false
+    default: latest
+  fail-on:
+    description: >-
+      Severity that fails the gate (error, warning, note). Empty uses Draugr's default (error).
+    required: false
+    default: ""
+  fail-on-priority:
+    description: Also fail the gate on any finding at or above this priority band (P1-P4).
+    required: false
+    default: ""
+  min-priority:
+    description: List findings at or above this priority band (P1-P4) in the console output.
+    required: false
+    default: ""
+  cache-dir:
+    description: Enable content-hash caching in this directory (relative to working-directory).
+    required: false
+    default: ""
+  output:
+    description: Directory to write report.json and results.sarif (relative to working-directory).
+    required: false
+    default: draugr-out
+  working-directory:
+    description: Directory to run Draugr in.
+    required: false
+    default: "."
+  args:
+    description: Extra raw arguments appended to `draugr scan` (escape hatch).
+    required: false
+    default: ""
+  verify:
+    description: >-
+      Verify the release's cosign signature before use (installs cosign). The archive checksum
+      is always verified regardless of this setting.
+    required: false
+    default: "true"
+
+outputs:
+  sarif:
+    description: Path to the merged SARIF report (results.sarif).
+    value: ${{ steps.setup.outputs.sarif }}
+  report:
+    description: Path to the JSON report (report.json).
+    value: ${{ steps.setup.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve version, platform, and output paths
+      id: setup
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+
+        # Resolve the release tag (vX.Y.Z) to download.
+        if [ "$INPUT_VERSION" = "latest" ] || [ -z "$INPUT_VERSION" ]; then
+          tag=$(gh release view --repo draugr-dev/draugr --json tagName --jq .tagName)
+        else
+          tag="${INPUT_VERSION#v}" # strip any leading v
+          tag="v${tag}"            # then re-add exactly one
+        fi
+        echo "tag=${tag}" >>"$GITHUB_OUTPUT"
+        echo "version=${tag#v}" >>"$GITHUB_OUTPUT"
+
+        # Map the runner platform to a goreleaser asset name.
+        case "${RUNNER_OS}" in
+          Linux)   os=linux ;;
+          macOS)   os=darwin ;;
+          Windows) os=windows ;;
+          *) echo "::error::unsupported runner OS ${RUNNER_OS}"; exit 1 ;;
+        esac
+        case "${RUNNER_ARCH}" in
+          X64)   arch=amd64 ;;
+          ARM64) arch=arm64 ;;
+          *) echo "::error::unsupported runner arch ${RUNNER_ARCH}"; exit 1 ;;
+        esac
+        if [ "$os" = "windows" ]; then ext=zip; else ext=tar.gz; fi
+        echo "asset=draugr_${tag#v}_${os}_${arch}.${ext}" >>"$GITHUB_OUTPUT"
+        echo "ext=${ext}" >>"$GITHUB_OUTPUT"
+
+        # Output paths are deterministic from the inputs; emit them now so a caller's
+        # `if: always()` upload step can still find the SARIF when the gate fails the scan.
+        wd="${INPUT_WORKING_DIRECTORY%/}"
+        if [ -z "$wd" ] || [ "$wd" = "." ]; then
+          base="${INPUT_OUTPUT}"
+        else
+          base="${wd}/${INPUT_OUTPUT}"
+        fi
+        echo "sarif=${base}/results.sarif" >>"$GITHUB_OUTPUT"
+        echo "report=${base}/report.json" >>"$GITHUB_OUTPUT"
+
+    - name: Install cosign
+      if: inputs.verify == 'true'
+      # Pinned to v3 to match Draugr's signing side (release.yml); revisit with #106.
+      uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+
+    - name: Download and verify Draugr ${{ steps.setup.outputs.tag }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ steps.setup.outputs.tag }}
+        ASSET: ${{ steps.setup.outputs.asset }}
+        EXT: ${{ steps.setup.outputs.ext }}
+        VERIFY: ${{ inputs.verify }}
+      run: |
+        set -euo pipefail
+        workdir=$(mktemp -d)
+        cd "$workdir"
+
+        # Download the archive and the signed checksums from the public release.
+        gh release download "$TAG" --repo draugr-dev/draugr \
+          --pattern "$ASSET" \
+          --pattern 'checksums.txt' --pattern 'checksums.txt.pem' --pattern 'checksums.txt.sig'
+
+        if [ "$VERIFY" = "true" ]; then
+          # Verify the checksums file was signed by Draugr's release workflow (keyless cosign).
+          cosign verify-blob \
+            --certificate checksums.txt.pem \
+            --signature checksums.txt.sig \
+            --certificate-identity-regexp '^https://github\.com/draugr-dev/draugr/\.github/workflows/release\.yml@refs/tags/v.*$' \
+            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+            checksums.txt
+        fi
+
+        # Verify the downloaded archive matches the (signed) checksums — always.
+        sha256sum --ignore-missing -c checksums.txt
+
+        # Extract the draugr binary and put it on PATH for later steps.
+        bindir="${workdir}/bin"
+        mkdir -p "$bindir"
+        if [ "$EXT" = "zip" ]; then
+          unzip -o "$ASSET" draugr.exe -d "$bindir"
+        else
+          tar -xzf "$ASSET" -C "$bindir" draugr
+        fi
+        echo "$bindir" >>"$GITHUB_PATH"
+
+    - name: Run Draugr scan
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_SAGA: ${{ inputs.saga }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_FAIL_ON_PRIORITY: ${{ inputs.fail-on-priority }}
+        INPUT_MIN_PRIORITY: ${{ inputs.min-priority }}
+        INPUT_CACHE_DIR: ${{ inputs.cache-dir }}
+        INPUT_ARGS: ${{ inputs.args }}
+      run: |
+        set -euo pipefail
+        draugr version
+
+        scan_args=("$INPUT_SAGA" --output "$INPUT_OUTPUT")
+        [ -n "$INPUT_FAIL_ON" ]          && scan_args+=(--fail-on "$INPUT_FAIL_ON")
+        [ -n "$INPUT_FAIL_ON_PRIORITY" ] && scan_args+=(--fail-on-priority "$INPUT_FAIL_ON_PRIORITY")
+        [ -n "$INPUT_MIN_PRIORITY" ]     && scan_args+=(--min-priority "$INPUT_MIN_PRIORITY")
+        [ -n "$INPUT_CACHE_DIR" ]        && scan_args+=(--cache-dir "$INPUT_CACHE_DIR")
+        # shellcheck disable=SC2206  # intentional word-splitting of the raw args escape hatch
+        [ -n "$INPUT_ARGS" ]             && scan_args+=($INPUT_ARGS)
+
+        draugr scan "${scan_args[@]}"

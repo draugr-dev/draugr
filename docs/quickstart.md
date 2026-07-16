@@ -215,13 +215,65 @@ draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
 
 ## 5. Run it in CI
 
-`scan`'s exit code is the gate. A minimal GitHub Actions step:
+`scan`'s exit code is the gate. The easiest way to wire it into GitHub Actions is the
+first-party **`draugr-dev/draugr`** action, which downloads a cosign-verified Draugr release,
+runs the scan, and exposes the SARIF path for code scanning:
+
+```yaml
+name: Security
+on: [pull_request]
+permissions:
+  contents: read
+  security-events: write        # upload SARIF to code scanning
+jobs:
+  draugr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install the scanners the enabled controls need (Draugr orchestrates them; it doesn't
+      # bundle them). Example for images/sca/iac:
+      - uses: aquasecurity/setup-trivy@v0.3.1
+
+      - id: draugr
+        uses: draugr-dev/draugr@v0.11.0      # pin a release
+        with:
+          saga: draugr.saga.yaml
+          fail-on: warning                   # optional; default is `error`
+
+      - if: always()                         # publish findings even when the gate fails
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.draugr.outputs.sarif }}
+```
+
+### Action inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `saga` | — (required) | Path to the Saga descriptor to scan. |
+| `version` | `latest` | Draugr release to use (with or without a leading `v`). Pin for reproducibility. |
+| `fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note`. |
+| `fail-on-priority` | — | Also fail on any finding at or above this priority band (`P1`–`P4`). |
+| `min-priority` | — | List findings at or above this band in the console output. |
+| `cache-dir` | — | Enable content-hash caching in this directory. |
+| `output` | `draugr-out` | Directory for `report.json` and `results.sarif`. |
+| `working-directory` | `.` | Directory to run Draugr in. |
+| `args` | — | Extra raw arguments appended to `draugr scan` (escape hatch). |
+| `verify` | `true` | Cosign-verify the release signature (the checksum is always verified). |
+
+Outputs: **`sarif`** (path to `results.sarif`) and **`report`** (path to `report.json`).
+
+### Without the action
+
+If you already have `draugr` on the runner (e.g. `draugr tools install`, or a self-hosted
+image), run it directly — the exit code is the gate:
 
 ```yaml
 - name: Draugr scan
-  run: |
-    draugr scan draugr.saga.yaml -o draugr-out
+  run: draugr scan draugr.saga.yaml -o draugr-out
 - name: Upload SARIF to code scanning
+  if: always()
   uses: github/codeql-action/upload-sarif@v3
   with:
     sarif_file: draugr-out/results.sarif

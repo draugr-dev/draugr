@@ -10,7 +10,15 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **First-party GitHub Action.** Add Draugr to CI and GitHub code scanning with
+  `uses: draugr-dev/draugr@vX.Y.Z` — it downloads a cosign-verified Draugr release for the
+  runner, runs `draugr scan` against your Saga, and exposes the merged SARIF (`sarif` output)
+  for `upload-sarif`, so findings land as one clean **Draugr** tool in the Security tab.
+  Inputs cover `saga`, `version`, `fail-on`, `fail-on-priority`, `min-priority`, `cache-dir`,
+  `output`, `working-directory`, and a raw-`args` escape hatch; the release signature is
+  cosign-verified by default. Draugr's own self-scan now dogfoods this action.
 
 ## [0.11.0] - 2026-07-15
 
