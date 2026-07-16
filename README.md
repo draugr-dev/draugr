@@ -2,6 +2,11 @@
 
 > Developer-first, descriptor-driven security scanning orchestration.
 
+[![CI](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml/badge.svg)](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/draugr-dev/draugr/badge)](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)
+[![Latest release](https://img.shields.io/github/v/release/draugr-dev/draugr?sort=semver)](https://github.com/draugr-dev/draugr/releases)
+[![License](https://img.shields.io/github/license/draugr-dev/draugr)](LICENSE)
+
 **Describe your app. Draugr figures out the rest.**
 
 You declare what you *know* about your software — where the repos are, what container
@@ -133,6 +138,23 @@ glossary of Saga / Norn / Skald / the Ravens).
 - [CLI reference](docs/cli.md) — every command and flag
 - [Saga reference](docs/saga-reference.md) — the descriptor, field by field
 - [Architecture](docs/ARCHITECTURE.md) · [Plugin API](docs/plugin-api.md) · [Naming](docs/naming.md)
+
+## Security & supply chain
+
+A security tool should hold itself to what it checks. Draugr does:
+
+- **Standard output** — every finding is normalized to **SARIF 2.1.0** (OASIS), so results flow
+  into GitHub / GitLab / Azure DevOps code scanning and any SARIF-aware tool.
+- **Signed releases** — release archives' `checksums.txt` is **keyless-signed with cosign**
+  (Sigstore) into a `checksums.txt.sigstore.json` bundle; verify it before installing
+  ([recipe](docs/quickstart.md#1-install)).
+- **SBOMs** — a Syft **SBOM** is published for every release archive.
+- **Verified tooling** — `draugr tools install` fetches scanners pinned by **SHA-256** and, where
+  the upstream signs them, verifies the **cosign** signature too.
+- **We scan ourselves** — Draugr runs on its own repo every PR (dogfood self-scan), and we track
+  our supply-chain posture with the **[OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)**
+  (badge above).
+- **Report a vulnerability** — see [SECURITY.md](SECURITY.md).
 
 ## Development
 

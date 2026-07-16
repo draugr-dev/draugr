@@ -1,0 +1,46 @@
+name: Scorecard
+
+# OpenSSF Scorecard: score Draugr's own repo against supply-chain security best practices,
+# publish the results to code scanning, and (publish_results) to the OpenSSF API that backs the
+# README badge. On-brand for a security tool — we hold ourselves to what we check (#116).
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "37 4 * * 1" # weekly, Monday 04:37 UTC
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # upload the SARIF result to code scanning
+      id-token: write # publish results to the OpenSSF API (badge)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@02c5e83432fe5497fd85b873b6c9f16a8578e1d9 # v3.37.0
+        with:
+          sarif_file: results.sarif
+          category: scorecard
