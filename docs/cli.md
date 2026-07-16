@@ -28,6 +28,7 @@ report to stdout. **Exits non-zero when the verdict is `fail`.**
 | `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump |
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
+| `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
 
 ```bash
 draugr scan draugr.saga.yaml
@@ -35,7 +36,15 @@ draugr scan draugr.saga.yaml -o out/ --fail-on warning
 draugr scan draugr.saga.yaml --min-priority P2        # focus on what matters now
 draugr scan draugr.saga.yaml --fail-on-priority P1    # also block on P1 findings
 draugr scan draugr.saga.yaml --cache-dir .draugr-cache
+draugr scan draugr.saga.yaml -j 4                      # cap parallelism (or -j 1 for serial)
 ```
+
+**Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. But
+scanners like Trivy and Semgrep are themselves multi-threaded, so on a busy or small machine
+that default can oversubscribe the box and *slow the run down* — dial it down with `-j`. On a
+big CI runner you can dial it up. `-j 1` runs serially (deterministic output; handy for
+debugging). The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total
+jobs), `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence.
 
 **Priority** requires components to declare `exposure`/`criticality` (see the
 [Saga reference](saga-reference.md)); Draugr ranks each finding P1–P4 from its severity and
