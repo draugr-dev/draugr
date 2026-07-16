@@ -68,8 +68,8 @@ func TestScanImageWithRealTrivy(t *testing.T) {
 		t.Errorf("SARIF tool = %q, want the single Draugr driver", report.Tool)
 	}
 	// The whole point of the integration test: real Trivy actually found vulnerabilities in
-	// the pinned old image, and they flowed through normalization into the merged report.
+	// the image, and they flowed through normalization into the merged report.
 	if len(report.Results) == 0 {
-		t.Errorf("expected real Trivy findings for alpine:3.14, got 0 results")
+		t.Errorf("expected real Trivy findings for the fixture image, got 0 results")
 	}
 }
