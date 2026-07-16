@@ -5,13 +5,16 @@ on:
     tags:
       - "v*"
 
+# Least privilege at the top; the release job opts into the writes it needs.
 permissions:
-  contents: write # create the GitHub release and upload assets
-  id-token: write # keyless cosign signing via GitHub OIDC
+  contents: read
 
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release and upload assets
+      id-token: write # keyless cosign signing via GitHub OIDC
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
