@@ -1,5 +1,7 @@
 package plugin
 
+import "strings"
+
 // TargetKind identifies the sort of surface a scanner acts on.
 type TargetKind string
 
@@ -42,12 +44,32 @@ type ImageTarget struct {
 // Kind returns TargetImage.
 func (ImageTarget) Kind() TargetKind { return TargetImage }
 
-// Identity returns the digest when set, otherwise the ref.
+// Identity returns the digest when set, otherwise the ref. Keying on the immutable digest
+// makes the cache content-addressed: a rebuilt image under the same tag has a new digest and
+// so a new key, while an unchanged image reuses its result.
 func (t ImageTarget) Identity() string {
 	if t.Digest != "" {
 		return t.Digest
 	}
 	return t.Ref
+}
+
+// PinnedRef returns the reference a scanner should actually pull: the ref pinned to the
+// digest (e.g. "repo:tag@sha256:…") when a digest is known, so the bytes scanned match the
+// digest the result is cached under. The tag is kept for readable scanner output. Falls back
+// to the ref alone (or a repo-less digest) when either part is missing or the ref is already
+// digest-pinned.
+func (t ImageTarget) PinnedRef() string {
+	switch {
+	case t.Digest == "":
+		return t.Ref
+	case t.Ref == "":
+		return t.Digest
+	case strings.Contains(t.Ref, "@"):
+		return t.Ref
+	default:
+		return t.Ref + "@" + t.Digest
+	}
 }
 
 // HostTarget is a running endpoint. Type is "browser" or "api".

@@ -3,6 +3,7 @@ package controllers
 import (
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -30,6 +31,26 @@ func TestImagesPlan(t *testing.T) {
 		if j.Scanner != "trivy" {
 			t.Errorf("scanner = %q", j.Scanner)
 		}
+	}
+}
+
+func TestImagesPlanCarriesDigest(t *testing.T) {
+	jobs, err := NewImages().Plan(saga.Model{}, &saga.Component{Name: "backend", Images: []saga.Image{
+		{Image: "repo/a:1", Digest: "sha256:abc"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, ok := jobs[0].Target.(plugin.ImageTarget)
+	if !ok {
+		t.Fatalf("target = %T, want ImageTarget", jobs[0].Target)
+	}
+	if img.Ref != "repo/a:1" || img.Digest != "sha256:abc" {
+		t.Errorf("target = %+v, want ref+digest carried through", img)
+	}
+	// Identity is the digest, so the cache key is content-addressed.
+	if img.Identity() != "sha256:abc" {
+		t.Errorf("identity = %q, want digest", img.Identity())
 	}
 }
 

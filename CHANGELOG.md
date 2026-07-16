@@ -10,6 +10,16 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **Content-addressed image caching.** A container image can now carry an immutable
+  `digest:` alongside its `image:` tag in the Saga. With `--cache-dir`, results are keyed on
+  the digest, so a rebuilt image pushed under the same tag re-scans immediately instead of
+  serving the old result until the TTL. The `k8s-images` surveyor captures the running
+  digest of each image automatically; you can also pin `digest:` by hand. When a digest is
+  set, Draugr scans the digest-pinned reference (`repo:tag@sha256:…`) so the bytes scanned
+  match what the result is cached under, while the readable tag is kept in the report.
+
 ### Changed
 
 - **Faster high-volume scanning.** Before the concurrent scan fan-out, Draugr now pre-warms

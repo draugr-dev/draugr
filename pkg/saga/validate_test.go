@@ -42,6 +42,11 @@ func TestValidateErrors(t *testing.T) {
 			want: "hosts[0].url is required",
 		},
 		{
+			name: "malformed image digest",
+			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    images:\n     - image: repo/x:1\n       digest: notadigest\n",
+			want: "images[0].digest \"notadigest\" must be of the form algorithm:hex",
+		},
+		{
 			name: "invalid exposure",
 			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure: web\n",
 			want: "invalid exposure \"web\"",
@@ -70,6 +75,17 @@ func TestValidateAcceptsValidClassification(t *testing.T) {
 	}
 	if m.Components[0].Exposure != ExposurePublic || m.Components[0].Criticality != CriticalityCritical {
 		t.Fatalf("classification not parsed: %+v", m.Components[0])
+	}
+}
+
+func TestValidateAcceptsImageDigest(t *testing.T) {
+	yaml := "release:\n  version: '1'\ncomponents:\n  - name: a\n    images:\n     - image: repo/x:1\n       digest: sha256:9b2a4c\n"
+	m, err := Load([]byte(yaml))
+	if err != nil {
+		t.Fatalf("valid digest should load, got %v", err)
+	}
+	if got := m.Components[0].Images[0].Digest; got != "sha256:9b2a4c" {
+		t.Fatalf("digest not parsed, got %q", got)
 	}
 }
 

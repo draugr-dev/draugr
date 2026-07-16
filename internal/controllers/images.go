@@ -27,7 +27,7 @@ func (Images) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error)
 	}
 	jobs := make([]plugin.ScanJob, 0, len(comp.Images))
 	for _, img := range comp.Images {
-		target := plugin.ImageTarget{Ref: img.Image}
+		target := plugin.ImageTarget{Ref: img.Image, Digest: img.Digest}
 		jobs = append(jobs, plugin.ScanJob{
 			Scanner: trivyScanner,
 			Target:  target,

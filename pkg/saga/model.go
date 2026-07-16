@@ -92,9 +92,13 @@ type Repository struct {
 	Paths    []string `yaml:"paths,omitempty"`
 }
 
-// Image is a container image reference.
+// Image is a container image reference. Digest is the immutable content digest
+// ("sha256:…") of the image the tag pointed to; when present it makes result caching
+// content-addressed (a rebuilt image under the same tag re-scans). A surveyor can capture
+// the running digest, or you can pin it by hand for reproducible caches.
 type Image struct {
-	Image string `yaml:"image"`
+	Image  string `yaml:"image"`
+	Digest string `yaml:"digest,omitempty"`
 }
 
 // Host is a running endpoint. Type is "browser" (browser-facing UI) or "api" (programmatic);

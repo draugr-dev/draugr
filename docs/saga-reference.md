@@ -55,6 +55,7 @@ components:
         paths: ["services/web/**"]              # optional
     images:
       - image: registry.example.com/acme/web:1.0  # required
+        digest: sha256:…                          # optional — pin the immutable content digest
     hosts:
       - name: api
         url: https://api.example.com            # required
