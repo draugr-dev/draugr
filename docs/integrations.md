@@ -19,7 +19,7 @@ See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
 |---------|---------------|-------|:------:|------------|-----|
 | `images` | Container image scanning | component | ✅ | `trivy` | [doc](../internal/controllers/images.md) |
 | `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` | [doc](../internal/controllers/sca.md) |
-| `sast` | Static Application Security Testing | component | ✅ | `semgrep` | [doc](../internal/controllers/sast.md) |
+| `sast` | Static Application Security Testing | component | ✅ | `semgrep`, `gosec` | [doc](../internal/controllers/sast.md) |
 | `secrets` | Secret detection | component | ✅ | `gitleaks` | [doc](../internal/controllers/secrets.md) |
 | `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../internal/controllers/iac.md) |
 | `headers` | HTTP security headers | component | ✅ | `http-headers` (native) | [doc](../internal/controllers/headers.md) |
@@ -37,6 +37,7 @@ See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
 | `trivy-fs` | sca | Aqua Trivy (fs) | Apache-2.0 | ✅ | [doc](../internal/scanners/trivy-fs.md) |
 | `gitleaks` | secrets | Gitleaks | MIT | ✅ | [doc](../internal/scanners/gitleaks.md) |
 | `semgrep` | sast | Semgrep | LGPL-2.1 | ✅ | [doc](../internal/scanners/semgrep.md) |
+| `gosec` | sast | gosec (Go) | Apache-2.0 | ✅ | [doc](../internal/scanners/gosec.md) |
 | `trivy-config` | iac | Aqua Trivy (config) | Apache-2.0 | ✅ | [doc](../internal/scanners/trivy-config.md) |
 | `http-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../internal/scanners/http-headers.md) |
 

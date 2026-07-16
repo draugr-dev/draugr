@@ -52,6 +52,59 @@ components:
       - image: alpine:3.19
 `
 
+// doctorSagaSAST enables sast; the scanners list controls whether gosec is required.
+const doctorSagaSASTDefault = `release:
+  name: app
+  version: "1.0"
+config:
+  controllers:
+    sast:
+      enabled: true
+components:
+  - name: web
+    repositories:
+      - url: .
+`
+
+const doctorSagaSASTGosec = `release:
+  name: app
+  version: "1.0"
+config:
+  controllers:
+    sast:
+      enabled: true
+      scanners: [semgrep, gosec]
+components:
+  - name: web
+    repositories:
+      - url: .
+`
+
+// TestRunDoctorSASTScannerSelection verifies gosec is only a required tool when the sast
+// scanner set selects it — default sast (semgrep) must not demand gosec (it's opt-in).
+func TestRunDoctorSASTScannerSelection(t *testing.T) {
+	// Default sast → semgrep required, gosec not. With only semgrep+git present, doctor passes.
+	var out bytes.Buffer
+	if err := runDoctor(context.Background(), &out, builtins.Registry(),
+		writeSaga(t, doctorSagaSASTDefault), false, fakeDetect("semgrep", "git")); err != nil {
+		t.Fatalf("default sast should not require gosec: %v\n%s", err, out.String())
+	}
+	if strings.Contains(out.String(), "gosec") {
+		t.Errorf("gosec should not appear for default sast\n%s", out.String())
+	}
+
+	// Opt into gosec → now it's required; missing gosec fails the check and is listed.
+	out.Reset()
+	err := runDoctor(context.Background(), &out, builtins.Registry(),
+		writeSaga(t, doctorSagaSASTGosec), false, fakeDetect("semgrep", "git"))
+	if err == nil {
+		t.Fatalf("selecting gosec should require it (and it's missing)\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "gosec") {
+		t.Errorf("gosec should be listed when selected\n%s", out.String())
+	}
+}
+
 // fakeDetect reports the given binaries as found (others missing), without touching PATH.
 func fakeDetect(found ...string) func(context.Context, tools.Tool) tools.Status {
 	set := map[string]bool{}
@@ -116,7 +169,7 @@ func TestRunDoctorInvalidDescriptor(t *testing.T) {
 func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		"", false, fakeDetect("trivy", "gitleaks", "semgrep", "git"))
+		"", false, fakeDetect("trivy", "gitleaks", "semgrep", "gosec", "git"))
 	if err != nil {
 		t.Fatalf("runDoctor: %v", err)
 	}
@@ -124,7 +177,7 @@ func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 	if strings.Contains(s, "Descriptor") {
 		t.Errorf("no saga given → should not print a descriptor line\n%s", s)
 	}
-	for _, bin := range []string{"trivy", "gitleaks", "semgrep", "git"} {
+	for _, bin := range []string{"trivy", "gitleaks", "semgrep", "gosec", "git"} {
 		if !strings.Contains(s, bin) {
 			t.Errorf("full check should include %q\n%s", bin, s)
 		}

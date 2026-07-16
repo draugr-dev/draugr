@@ -204,8 +204,8 @@ func TestExtractFromTarGzMissingBinary(t *testing.T) {
 
 func TestInstallableAndSpec(t *testing.T) {
 	names := Installable()
-	if len(names) < 2 || names[0] != "gitleaks" || names[1] != "trivy" {
-		t.Errorf("Installable() = %v, want sorted [gitleaks trivy ...]", names)
+	if len(names) < 3 || names[0] != "gitleaks" || names[1] != "gosec" || names[2] != "trivy" {
+		t.Errorf("Installable() = %v, want sorted [gitleaks gosec trivy ...]", names)
 	}
 	spec, ok := Spec("trivy")
 	if !ok || spec.Version == "" || len(spec.Assets) == 0 {

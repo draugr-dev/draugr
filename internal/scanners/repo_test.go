@@ -15,7 +15,7 @@ func fakeCheckout(_ context.Context, _, _ string) (string, func(), error) {
 	return "/tmp/fake-checkout", func() {}, nil
 }
 
-func newFakeRepoScanner(run func(context.Context, []string) ([]byte, error)) repoScanner {
+func newFakeRepoScanner(run func(context.Context, string, []string) ([]byte, error)) repoScanner {
 	return repoScanner{
 		info:     plugin.ScannerInfo{Name: "trivy-fs", Controls: []string{"sca"}},
 		args:     func(dir string, _ plugin.Config) []string { return []string{"trivy", "fs", dir} },
@@ -25,7 +25,7 @@ func newFakeRepoScanner(run func(context.Context, []string) ([]byte, error)) rep
 }
 
 func TestRepoScannerScan(t *testing.T) {
-	s := newFakeRepoScanner(func(context.Context, []string) ([]byte, error) {
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
 		return []byte(repoSARIF), nil
 	})
 	rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "u", Revision: "r"}, nil)
@@ -38,21 +38,21 @@ func TestRepoScannerScan(t *testing.T) {
 }
 
 func TestRepoScannerNonRepoTarget(t *testing.T) {
-	s := newFakeRepoScanner(func(context.Context, []string) ([]byte, error) { return nil, nil })
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) { return nil, nil })
 	if _, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: "x"}, nil); err == nil {
 		t.Fatal("expected error for non-repository target")
 	}
 }
 
 func TestRepoScannerNoURL(t *testing.T) {
-	s := newFakeRepoScanner(func(context.Context, []string) ([]byte, error) { return nil, nil })
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) { return nil, nil })
 	if _, err := s.Scan(context.Background(), plugin.RepositoryTarget{}, nil); err == nil {
 		t.Fatal("expected error for missing url")
 	}
 }
 
 func TestRepoScannerCheckoutError(t *testing.T) {
-	s := newFakeRepoScanner(func(context.Context, []string) ([]byte, error) { return nil, nil })
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) { return nil, nil })
 	s.checkout = func(context.Context, string, string) (string, func(), error) {
 		return "", nil, errors.New("clone failed")
 	}
@@ -62,7 +62,7 @@ func TestRepoScannerCheckoutError(t *testing.T) {
 }
 
 func TestRepoScannerRunError(t *testing.T) {
-	s := newFakeRepoScanner(func(context.Context, []string) ([]byte, error) {
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
 		return nil, errors.New("exec failed")
 	})
 	if _, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "u"}, nil); err == nil {
@@ -71,7 +71,7 @@ func TestRepoScannerRunError(t *testing.T) {
 }
 
 func TestRepoScannerBadSARIF(t *testing.T) {
-	s := newFakeRepoScanner(func(context.Context, []string) ([]byte, error) {
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
 		return []byte("{not sarif"), nil
 	})
 	if _, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "u"}, nil); err == nil {

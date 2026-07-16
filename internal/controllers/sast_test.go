@@ -32,6 +32,60 @@ func TestSASTPlan(t *testing.T) {
 	}
 }
 
+func TestSASTPlanComponentScanners(t *testing.T) {
+	// A component opting into [semgrep, gosec] gets one job per repo per scanner.
+	comp := &saga.Component{
+		Name:         "backend",
+		Repositories: []saga.Repository{{URL: "https://git/a.git"}},
+		Controllers: map[string]saga.ControllerSettings{
+			"sast": {"scanners": []any{"semgrep", "gosec"}},
+		},
+	}
+	jobs, err := NewSAST().Plan(saga.Model{}, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, j := range jobs {
+		got[j.Scanner] = true
+	}
+	if len(jobs) != 2 || !got["semgrep"] || !got["gosec"] {
+		t.Fatalf("want semgrep+gosec jobs, got %+v", jobs)
+	}
+}
+
+func TestSASTPlanProjectScanners(t *testing.T) {
+	// Project-level scanners apply when the component has no override.
+	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"sast": {"scanners": []any{"gosec"}},
+	}}}
+	comp := &saga.Component{Name: "backend", Repositories: []saga.Repository{{URL: "https://git/a.git"}}}
+	jobs, err := NewSAST().Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 || jobs[0].Scanner != "gosec" {
+		t.Fatalf("want a single gosec job, got %+v", jobs)
+	}
+}
+
+func TestSASTScannersDefaultAndFallback(t *testing.T) {
+	comp := &saga.Component{Name: "c", Repositories: []saga.Repository{{URL: "u"}}}
+	// No config → default semgrep.
+	if got := sastScanners(saga.Model{}, comp); len(got) != 1 || got[0] != "semgrep" {
+		t.Errorf("default = %v, want [semgrep]", got)
+	}
+	// An empty / malformed scanners list falls back to the default rather than running nothing.
+	comp.Controllers = map[string]saga.ControllerSettings{"sast": {"scanners": []any{}}}
+	if got := sastScanners(saga.Model{}, comp); len(got) != 1 || got[0] != "semgrep" {
+		t.Errorf("empty list = %v, want fallback [semgrep]", got)
+	}
+	comp.Controllers = map[string]saga.ControllerSettings{"sast": {"scanners": "notalist"}}
+	if got := sastScanners(saga.Model{}, comp); len(got) != 1 || got[0] != "semgrep" {
+		t.Errorf("non-list = %v, want fallback [semgrep]", got)
+	}
+}
+
 func TestSASTPlanNilComponent(t *testing.T) {
 	jobs, err := NewSAST().Plan(saga.Model{}, nil)
 	if err != nil || jobs != nil {

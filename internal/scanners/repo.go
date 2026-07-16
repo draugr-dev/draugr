@@ -18,7 +18,7 @@ type repoScanner struct {
 	info     plugin.ScannerInfo
 	args     func(dir string, cfg plugin.Config) []string
 	checkout func(ctx context.Context, url, revision string) (string, func(), error)
-	run      func(ctx context.Context, argv []string) ([]byte, error)
+	run      func(ctx context.Context, dir string, argv []string) ([]byte, error)
 	// cacheVersion, when set, contributes a tool/data version to the cache key (see
 	// plugin.CacheVersioner). Nil for scanners with no dynamic version.
 	cacheVersion func(ctx context.Context) string
@@ -46,7 +46,7 @@ func (s repoScanner) Prewarm(ctx context.Context) error {
 }
 
 func newRepoScanner(info plugin.ScannerInfo, args func(string, plugin.Config) []string) repoScanner {
-	return repoScanner{info: info, args: args, checkout: git.Checkout, run: execArgv}
+	return repoScanner{info: info, args: args, checkout: git.Checkout, run: execArgvInDir}
 }
 
 // Info describes the scanner.
@@ -68,7 +68,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	}
 	defer cleanup()
 
-	out, err := s.run(ctx, s.args(dir, cfg))
+	out, err := s.run(ctx, dir, s.args(dir, cfg))
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
 	}
@@ -88,11 +88,19 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 }
 
 func execArgv(ctx context.Context, argv []string) ([]byte, error) {
+	return execArgvInDir(ctx, "", argv)
+}
+
+// execArgvInDir runs argv with the working directory set to dir (empty = inherit the current
+// directory). Some tools resolve their scan target relative to the working directory (e.g.
+// gosec loads Go packages via `./...`), so the checkout dir must be the cwd, not just an arg.
+func execArgvInDir(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("empty command")
 	}
 	// Executing the configured tool is the point; no shell (exec.CommandContext, not "sh -c")
 	// and argv is built from typed config, not user shell input.
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd.Dir = dir
 	return cmd.Output()
 }

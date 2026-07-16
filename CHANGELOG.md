@@ -10,7 +10,15 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **gosec as a second `sast` scanner.** The `sast` control can now run **gosec** — a
+  Go-specialized static analyzer — alongside (or instead of) Semgrep. Select the scanner set
+  with `controllers.sast.scanners: [semgrep, gosec]` (default `[semgrep]`); it works at the
+  project level or as a per-component override, so you can enable gosec just on your Go
+  components. `draugr tools install gosec` provisions a pinned, SHA-256-verified binary, and
+  `draugr doctor` knows about it. gosec is Go-only (it errors on non-Go repos), which is why
+  it's opt-in.
 
 ## [0.13.0] - 2026-07-15
 

@@ -64,6 +64,11 @@ func Catalog() map[string]Tool {
 			VersionArgs: []string{"--version"},
 			InstallHint: "https://semgrep.dev/docs/getting-started/",
 		},
+		"gosec": {
+			Binary:      "gosec",
+			VersionArgs: []string{"-version"},
+			InstallHint: "https://github.com/securego/gosec#installation",
+		},
 		"git": {
 			Binary:      "git",
 			VersionArgs: []string{"--version"},
