@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **SLSA build provenance for releases.** Each release now publishes signed **build provenance
+  attestations** for its archives and `checksums.txt` (GitHub `attest-build-provenance`), so you
+  can verify *where and how* a binary was built:
+  `gh attestation verify draugr_<ver>_<os>_<arch>.tar.gz --repo draugr-dev/draugr`. This is on
+  top of the existing cosign-signed checksums and SBOMs.
 
 ## [0.14.0] - 2026-07-16
 

@@ -31,6 +31,10 @@ jobs:
           results_file: results.sarif
           results_format: sarif
           publish_results: true
+          # Optional: a fine-grained PAT (Administration: read) lets Scorecard evaluate the
+          # Branch-Protection check, which the default token can't read. Falls back to the
+          # default token when the SCORECARD_TOKEN secret isn't set. See SECURITY/CONTRIBUTING.
+          repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
