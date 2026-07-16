@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.15.0] - 2026-07-16
+
 ### Added
 
 - **SLSA build provenance for releases.** Each release now publishes signed **build provenance
@@ -268,7 +272,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.15.0
 [0.14.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.14.0
 [0.13.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.13.0
 [0.12.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.12.1
