@@ -12,6 +12,15 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.12.1] - 2026-07-15
+
+### Changed
+
+- **Action metadata for the GitHub Marketplace.** Renamed the action to
+  **Draugr Security Scan** (a Marketplace name must be unique across all actions/users/orgs)
+  and shortened its description to meet the 125-character limit. No behavior or input change —
+  `uses: draugr-dev/draugr@…` is unchanged.
+
 ## [0.12.0] - 2026-07-15
 
 ### Added
@@ -219,7 +228,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.12.1
 [0.12.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.12.0
 [0.11.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.11.0
 [0.10.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.10.0

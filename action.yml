@@ -1,8 +1,5 @@
-name: Draugr
-description: >-
-  Run Draugr — descriptor-driven security-scan orchestration — in CI. Downloads a
-  cosign-verified Draugr release, runs `draugr scan` against your Saga, and writes a merged
-  SARIF report for GitHub code scanning.
+name: Draugr Security Scan
+description: Run Draugr security-scan orchestration in CI — scan your app from one descriptor, upload SARIF to code scanning.
 author: Draugr
 branding:
   icon: shield

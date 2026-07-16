@@ -236,7 +236,7 @@ jobs:
       - uses: aquasecurity/setup-trivy@v0.3.1
 
       - id: draugr
-        uses: draugr-dev/draugr@v0.11.0      # pin a release
+        uses: draugr-dev/draugr@v0.12.1      # pin a release
         with:
           saga: draugr.saga.yaml
           fail-on: warning                   # optional; default is `error`
