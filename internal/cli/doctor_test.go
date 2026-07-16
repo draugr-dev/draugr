@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -86,7 +87,7 @@ func TestRunDoctorSASTScannerSelection(t *testing.T) {
 	// Default sast → semgrep required, gosec not. With only semgrep+git present, doctor passes.
 	var out bytes.Buffer
 	if err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaSASTDefault), false, fakeDetect("semgrep", "git")); err != nil {
+		writeSaga(t, doctorSagaSASTDefault), false, fakeDetect("semgrep", "git"), nil); err != nil {
 		t.Fatalf("default sast should not require gosec: %v\n%s", err, out.String())
 	}
 	if strings.Contains(out.String(), "gosec") {
@@ -96,7 +97,7 @@ func TestRunDoctorSASTScannerSelection(t *testing.T) {
 	// Opt into gosec → now it's required; missing gosec fails the check and is listed.
 	out.Reset()
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaSASTGosec), false, fakeDetect("semgrep", "git"))
+		writeSaga(t, doctorSagaSASTGosec), false, fakeDetect("semgrep", "git"), nil)
 	if err == nil {
 		t.Fatalf("selecting gosec should require it (and it's missing)\n%s", out.String())
 	}
@@ -122,7 +123,7 @@ func fakeDetect(found ...string) func(context.Context, tools.Tool) tools.Status 
 func TestRunDoctorAllPresent(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaRepoAndImage), false, fakeDetect("trivy", "git"))
+		writeSaga(t, doctorSagaRepoAndImage), false, fakeDetect("trivy", "git"), nil)
 	if err != nil {
 		t.Fatalf("runDoctor: %v", err)
 	}
@@ -138,7 +139,7 @@ func TestRunDoctorMissingFails(t *testing.T) {
 	var out bytes.Buffer
 	// git present, trivy missing → non-zero.
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaRepoAndImage), false, fakeDetect("git"))
+		writeSaga(t, doctorSagaRepoAndImage), false, fakeDetect("git"), nil)
 	if err == nil {
 		t.Fatal("expected error when a required tool is missing")
 	}
@@ -154,7 +155,7 @@ func TestRunDoctorMissingFails(t *testing.T) {
 func TestRunDoctorInvalidDescriptor(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, invalidSaga), false, fakeDetect("trivy", "git"))
+		writeSaga(t, invalidSaga), false, fakeDetect("trivy", "git"), nil)
 	if err == nil {
 		t.Fatal("expected error for invalid descriptor")
 	}
@@ -169,7 +170,7 @@ func TestRunDoctorInvalidDescriptor(t *testing.T) {
 func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		"", false, fakeDetect("trivy", "gitleaks", "semgrep", "gosec", "git"))
+		"", false, fakeDetect("trivy", "gitleaks", "semgrep", "gosec", "git"), nil)
 	if err != nil {
 		t.Fatalf("runDoctor: %v", err)
 	}
@@ -187,7 +188,7 @@ func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 func TestRunDoctorJSON(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaRepoAndImage), true, fakeDetect("git"))
+		writeSaga(t, doctorSagaRepoAndImage), true, fakeDetect("git"), nil)
 	if err == nil {
 		t.Fatal("expected error (trivy missing)")
 	}
@@ -241,12 +242,42 @@ func TestDoctorCommandViaCobra(t *testing.T) {
 	cmd := newDoctorCommand()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
-	cmd.SetArgs([]string{writeSaga(t, doctorSagaNoControls)})
+	cmd.SetArgs([]string{"--offline", writeSaga(t, doctorSagaNoControls)}) // --offline: no network in unit tests
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
 	if !strings.Contains(out.String(), "All required tools present") {
 		t.Errorf("output = %q", out.String())
+	}
+}
+
+func TestDraugrVersionReportAndLine(t *testing.T) {
+	// latest available → update-available report + line.
+	r := draugrVersionReport(context.Background(), func(context.Context) (string, error) { return "9.9.9", nil })
+	if r.Latest != "9.9.9" || !r.UpdateAvailable {
+		t.Errorf("report = %+v, want latest 9.9.9 + update available", r)
+	}
+	var b bytes.Buffer
+	writeDraugrLine(&b, r)
+	if !strings.Contains(b.String(), "latest: v9.9.9") || !strings.Contains(b.String(), "self-update") {
+		t.Errorf("update line = %q", b.String())
+	}
+
+	// nil resolver (offline/opt-out) → no latest, plain line.
+	if r := draugrVersionReport(context.Background(), nil); r.Latest != "" {
+		t.Errorf("nil resolver should not set latest, got %+v", r)
+	}
+	// resolver error → best-effort, no latest.
+	if r := draugrVersionReport(context.Background(),
+		func(context.Context) (string, error) { return "", errors.New("x") }); r.Latest != "" {
+		t.Errorf("resolver error should omit latest, got %+v", r)
+	}
+
+	// up-to-date line.
+	b.Reset()
+	writeDraugrLine(&b, draugrReport{Version: "9.9.9", Latest: "9.9.9"})
+	if !strings.Contains(b.String(), "up to date") {
+		t.Errorf("up-to-date line = %q", b.String())
 	}
 }
 

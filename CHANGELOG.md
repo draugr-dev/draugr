@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr self-update`** — update the running binary in place to the latest release (or a
+  pinned `--version`), verified against the release's SHA-256 checksums and, when the `cosign`
+  CLI is present, its keyless signature. `--check` reports current vs latest without changing
+  anything; `-y` skips the prompt. Because it replaces the binary you're actually running, it
+  avoids the stale-copy/PATH confusion of having draugr installed in two places. (CI should
+  still pin a release.)
+- **`draugr doctor` now reports your Draugr version vs the latest available** (best-effort,
+  short timeout), nudging `self-update` when you're behind. Opt out with `--offline` or
+  `DRAUGR_NO_UPDATE_CHECK=1`; it never blocks or fails the command.
 
 ## [0.16.0] - 2026-07-16
 

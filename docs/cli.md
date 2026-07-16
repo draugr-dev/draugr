@@ -128,14 +128,19 @@ tool is missing**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--json` | `false` | Emit the report as JSON instead of a table |
+| `--offline` | `false` | Skip the check for a newer draugr release (also `DRAUGR_NO_UPDATE_CHECK=1`) |
 
 ```bash
 draugr doctor                       # check every tool Draugr can use
 draugr doctor draugr.saga.yaml      # check only what this Saga needs (+ validate it)
 draugr doctor --json draugr.saga.yaml
+draugr doctor --offline             # no network: skip the update check
 ```
 
-Provisioning the missing tools (pinned + verified) is handled by
+Doctor also reports the running Draugr version and, best-effort (unless `--offline` /
+`DRAUGR_NO_UPDATE_CHECK`), whether a newer release is available — nudging
+[`draugr self-update`](#draugr-self-update). The check has a short timeout and never blocks or
+fails the command. Provisioning missing scanner tools (pinned + verified) is handled by
 [`draugr tools install`](#draugr-tools-install-tool); doctor only reports and hints — it
 never downloads anything.
 
@@ -180,6 +185,27 @@ draugr tools list
 ```
 
 ---
+
+## `draugr self-update`
+
+Update the running `draugr` binary in place to the latest published release (or a specific
+`--version`), verified against the release's **SHA-256 checksums** (mandatory) and its keyless
+**cosign** signature (when the `cosign` CLI is present). It replaces the binary you're actually
+running (`os.Executable()`), so there's no second copy or PATH confusion.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--version` | latest | Target release to install (e.g. `0.16.0`) |
+| `--check` | — | Report current vs latest available; make no changes |
+| `-y, --yes` | — | Skip the confirmation prompt |
+
+```bash
+draugr self-update            # confirm, then update to the latest release
+draugr self-update --check    # just report current vs latest
+draugr self-update --version 0.15.0 -y
+```
+
+For CI, **pin a released version** rather than self-updating.
 
 ## `draugr version`
 
