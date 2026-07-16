@@ -1,0 +1,60 @@
+name: Integration
+
+# Integration tests exercise real external dependencies — a real Trivy binary and an
+# ephemeral kind cluster — that the unit tests stub out (see issue #39). They are heavier and
+# slower than unit tests, so they do NOT run on every PR: they run on main, on a nightly
+# schedule, on demand, and on a PR only when it carries the `ci-integration` label. Advisory
+# but visible — failures are loud, but this workflow is not a required check.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 6 * * *" # nightly at 06:23 UTC
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26"
+  TRIVY_VERSION: "0.69.3" # keep in sync with internal/tools / selfscan.yml
+
+jobs:
+  integration:
+    name: Integration (kind + real scanners)
+    # On PRs, only run when explicitly opted in with the `ci-integration` label.
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'ci-integration')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v${{ env.TRIVY_VERSION }}
+
+      - name: Create kind cluster
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
+
+      - name: Build draugr
+        run: make build
+
+      - name: Run integration tests
+        env:
+          # Exercise the real built binary in the end-to-end scan test.
+          DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
+        run: go test -tags integration -v -timeout 15m ./test/integration/...

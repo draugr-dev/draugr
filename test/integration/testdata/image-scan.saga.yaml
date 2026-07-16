@@ -1,0 +1,13 @@
+# Integration fixture: scan a deliberately old, pinned public image so real Trivy reliably
+# reports vulnerabilities. Exercised by scan_e2e_test.go (build tag: integration).
+release:
+  name: draugr-integration
+  version: "0"
+config:
+  controllers:
+    images:
+      enabled: true
+components:
+  - name: target
+    images:
+      - image: alpine:3.14

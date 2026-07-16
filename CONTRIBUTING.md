@@ -28,6 +28,22 @@ make gate    # full local gate: fmt, vet, golangci-lint, race tests + coverage, 
 
 Please run `make gate` before opening a pull request — CI runs the same checks.
 
+### Integration tests
+
+Heavier tests that exercise real external dependencies — a real Trivy binary and an ephemeral
+[kind](https://kind.sigs.k8s.io/) cluster — live in `test/integration/`, gated behind the
+`integration` build tag so the default `go test ./...` stays fast and hermetic. Run them
+locally (needs `trivy` on PATH, a reachable cluster for the k8s test, and a built binary):
+
+```bash
+make build
+DRAUGR_BIN="$PWD/bin/draugr" go test -tags integration ./test/integration/...
+```
+
+In CI they run in the dedicated **Integration** workflow — on `main`, nightly, on demand, and
+on a PR only when it carries the `ci-integration` label (add the label to run them against a
+PR). The workflow is advisory: failures are visible but it is not a required check.
+
 ## Pull requests
 
 1. **Branch** from `main` and keep PRs focused.
