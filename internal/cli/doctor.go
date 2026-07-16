@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -143,14 +144,22 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 		}
 	}
 
+	// sast lets you choose which scanners run (controllers.sast.scanners); only the selected
+	// ones are required, so an opt-in scanner like gosec isn't demanded unless it's chosen.
+	sastSelected := controllers.SASTScannerSet(*model)
+
 	for _, s := range reg.Scanners() {
 		info := s.Info()
 		serves := false
 		for _, c := range info.Controls {
-			if enabled(c) {
-				serves = true
-				break
+			if !enabled(c) {
+				continue
 			}
+			if c == "sast" && !sastSelected[info.Name] {
+				continue // sast scanner that isn't in the selected set
+			}
+			serves = true
+			break
 		}
 		if !serves {
 			continue

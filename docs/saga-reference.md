@@ -35,6 +35,17 @@ config:
       enabled: true          # absent entry ⇒ disabled; entry without `enabled` ⇒ enabled
 ```
 
+Some controls accept a **`scanners`** list to select which tools run for them (behavioral
+config; a component may override the project default). For `sast`:
+
+```yaml
+config:
+  controllers:
+    sast:
+      enabled: true
+      scanners: [semgrep, gosec]   # default: [semgrep]. gosec is Go-only — enable it on Go components.
+```
+
 > Implemented today: **`images`** (Trivy). Other controls (`sast`, `sca`, `dast`,
 > `headers`, `tls`, `infrastructure`, `threats`) are on the roadmap.
 

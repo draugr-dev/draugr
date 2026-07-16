@@ -24,6 +24,7 @@ func Registry() *engine.Registry {
 	reg.RegisterScanner(scanners.NewTrivyFS())
 	reg.RegisterScanner(scanners.NewGitleaks())
 	reg.RegisterScanner(scanners.NewSemgrep())
+	reg.RegisterScanner(scanners.NewGosec())
 	reg.RegisterScanner(scanners.NewTrivyConfig())
 	reg.RegisterScanner(scanners.NewHTTPHeaders())
 	return reg

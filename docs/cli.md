@@ -142,10 +142,10 @@ checksum-verified** — nothing is ever downloaded during a scan.
 Download **pinned** scanner binaries, verify each against a **SHA-256 recorded in Draugr**
 (sourced from the upstream checksums files), and install them into `~/.draugr/bin` — which
 Draugr **adds to `PATH` automatically**, so `scan`/`doctor` use them with no shell config. With
-no arguments, installs everything Draugr can provision (`trivy`, `gitleaks`).
+no arguments, installs everything Draugr can provision (`trivy`, `gitleaks`, `gosec`).
 
 ```bash
-draugr tools install            # trivy + gitleaks, verified, into ~/.draugr/bin
+draugr tools install            # trivy + gitleaks + gosec, verified, into ~/.draugr/bin
 draugr tools install trivy      # just one
 ```
 
