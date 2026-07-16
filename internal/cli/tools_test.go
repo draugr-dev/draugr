@@ -13,15 +13,36 @@ import (
 func TestRunToolsInstallSuccess(t *testing.T) {
 	var out bytes.Buffer
 	install := func(name string) (tools.Installed, error) {
-		return tools.Installed{Name: name, Version: "1.2.3", Path: "/home/u/.draugr/bin/" + name}, nil
+		i := tools.Installed{Name: name, Version: "1.2.3", Path: "/home/u/.draugr/bin/" + name}
+		if name == "trivy" { // trivy carries cosign provenance
+			i.SignatureVerified = true
+			i.ProvenanceNote = "cosign signature verified"
+		}
+		return i, nil
 	}
 	if err := runToolsInstall(&out, []string{"trivy", "gitleaks"}, install); err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
 	}
 	s := out.String()
-	for _, want := range []string{"✓ trivy 1.2.3", "✓ gitleaks 1.2.3", "sha256 ok"} {
+	for _, want := range []string{"✓ trivy 1.2.3", "sha256 + cosign verified", "✓ gitleaks 1.2.3", "sha256 verified"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("output missing %q\n%s", want, s)
+		}
+	}
+}
+
+func TestProvenanceLabel(t *testing.T) {
+	cases := []struct {
+		in   tools.Installed
+		want string
+	}{
+		{tools.Installed{SignatureVerified: true, ProvenanceNote: "cosign signature verified"}, "sha256 + cosign verified"},
+		{tools.Installed{ProvenanceNote: "cosign not installed — skipped signature check"}, "sha256 verified; cosign not installed — skipped signature check"},
+		{tools.Installed{}, "sha256 verified"},
+	}
+	for _, c := range cases {
+		if got := provenanceLabel(c.in); got != c.want {
+			t.Errorf("provenanceLabel(%+v) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }

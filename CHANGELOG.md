@@ -10,7 +10,16 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr tools install` now verifies upstream cosign signatures** (where the upstream
+  publishes them), on top of the mandatory SHA-256 pin. For Trivy, Draugr verifies the keyless
+  signature over the release's checksums file — checking the signing certificate identity and
+  OIDC issuer via the `cosign` CLI, then confirming the downloaded archive is listed in the
+  signed checksums — giving signed provenance, not just integrity. It degrades gracefully to
+  SHA-256-only (with a note) when `cosign` isn't installed or the upstream isn't signed (e.g.
+  gitleaks); if `cosign` is present but verification fails, the install aborts. Each installed
+  tool reports what was verified.
 
 ## [0.12.1] - 2026-07-15
 
