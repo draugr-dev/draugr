@@ -45,15 +45,18 @@ sboms:
 
 # Keyless signing of the checksums file with cosign (Sigstore, via GitHub OIDC).
 signs:
+  # Keyless cosign over checksums.txt, emitting the new Sigstore bundle
+  # (checksums.txt.sigstore.json) — one file carrying signature + certificate. Verify with:
+  #   cosign verify-blob --bundle checksums.txt.sigstore.json \
+  #     --certificate-identity-regexp '...release.yml@refs/tags/v.*' \
+  #     --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt
   - id: cosign
     cmd: cosign
-    signature: ${artifact}.sig
-    certificate: ${artifact}.pem
+    signature: ${artifact}.sigstore.json
     args:
       - sign-blob
       - --yes
-      - --output-signature=${signature}
-      - --output-certificate=${certificate}
+      - --bundle=${signature}
       - ${artifact}
     artifacts: checksum
     output: true

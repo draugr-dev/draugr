@@ -292,7 +292,6 @@ func verifyCosignProvenance(ctx context.Context, client *http.Client, cs *Cosign
 	args := []string{
 		"verify-blob",
 		"--bundle", bundlePath,
-		"--new-bundle-format",
 		"--certificate-identity-regexp", cs.IdentityRegexp,
 		"--certificate-oidc-issuer", cs.OIDCIssuer,
 		checksumsPath,

@@ -112,8 +112,7 @@ runs:
 
     - name: Install cosign
       if: inputs.verify == 'true'
-      # Pinned to v3 to match Draugr's signing side (release.yml); revisit with #106.
-      uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
     - name: Download and verify Draugr ${{ steps.setup.outputs.tag }}
       shell: bash
@@ -128,16 +127,15 @@ runs:
         workdir=$(mktemp -d)
         cd "$workdir"
 
-        # Download the archive and the signed checksums from the public release.
+        # Download the archive and the signed checksums (new Sigstore bundle) from the release.
         gh release download "$TAG" --repo draugr-dev/draugr \
           --pattern "$ASSET" \
-          --pattern 'checksums.txt' --pattern 'checksums.txt.pem' --pattern 'checksums.txt.sig'
+          --pattern 'checksums.txt' --pattern 'checksums.txt.sigstore.json'
 
         if [ "$VERIFY" = "true" ]; then
           # Verify the checksums file was signed by Draugr's release workflow (keyless cosign).
           cosign verify-blob \
-            --certificate checksums.txt.pem \
-            --signature checksums.txt.sig \
+            --bundle checksums.txt.sigstore.json \
             --certificate-identity-regexp '^https://github\.com/draugr-dev/draugr/\.github/workflows/release\.yml@refs/tags/v.*$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
             checksums.txt
