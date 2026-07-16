@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write # publish the self-scan SARIF to GitHub code scanning (#64)
 
 env:
   # These versions are the single source of truth's mirror: they MUST match the pinned
@@ -28,6 +27,9 @@ env:
 jobs:
   selfscan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # publish the self-scan SARIF to GitHub code scanning (#64)
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
