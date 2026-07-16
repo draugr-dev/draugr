@@ -105,7 +105,7 @@ permissions:
 steps:
   - uses: actions/checkout@v4
   - id: draugr
-    uses: draugr-dev/draugr@v0.12.1     # pin a release; installs Draugr for you
+    uses: draugr-dev/draugr@v0.13.0     # pin a release; installs Draugr for you
     with:
       saga: draugr.saga.yaml
       fail-on: warning                  # optional gate (default: error)
