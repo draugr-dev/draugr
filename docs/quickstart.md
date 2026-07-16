@@ -84,7 +84,7 @@ git clone https://github.com/draugr-dev/draugr.git
 cd draugr
 make build             # produces ./bin/draugr
 ./bin/draugr version
-make install-latest    # or: download & install the latest release into ~/.local/bin (needs gh)
+make install-latest    # or: download + SHA-256-verify + install the latest release into ~/.local/bin (needs curl)
 ```
 
 ### With Go

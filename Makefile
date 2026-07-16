@@ -14,18 +14,24 @@ LDFLAGS := -X $(PKG)/internal/version.Version=$(VERSION) \
 build: ## Build the draugr binary into bin/
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/draugr
 
-install-latest: ## Download & install the latest released draugr into DESTDIR (default ~/.local/bin; needs gh)
-	@command -v gh >/dev/null || { echo "install-latest needs the GitHub CLI (gh)"; exit 1; }
+install-latest: ## Download, verify (SHA-256), and install the latest released draugr into DESTDIR (default ~/.local/bin; needs curl)
+	@command -v curl >/dev/null || { echo "install-latest needs curl"; exit 1; }
 	@os=$$(go env GOOS); arch=$$(go env GOARCH); tmp=$$(mktemp -d); \
-	echo "Fetching the latest $(BINARY) release for $$os/$$arch…"; \
-	gh release download --repo $(REPO) --pattern "$(BINARY)_*_$${os}_$${arch}.tar.gz" --dir "$$tmp" \
-	  || { echo "download failed"; rm -rf "$$tmp"; exit 1; }; \
-	tar -xzf "$$tmp"/$(BINARY)_*_$${os}_$${arch}.tar.gz -C "$$tmp" $(BINARY); \
+	echo "Resolving the latest $(BINARY) release…"; \
+	tag=$$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/$(REPO)/releases/latest | sed 's#.*/tag/##'); \
+	[ -n "$$tag" ] || { echo "could not resolve the latest release"; rm -rf "$$tmp"; exit 1; }; \
+	asset="$(BINARY)_$${tag#v}_$${os}_$${arch}.tar.gz"; base="https://github.com/$(REPO)/releases/download/$$tag"; \
+	echo "Fetching $$asset ($$tag) for $$os/$$arch…"; \
+	curl -fsSL "$$base/$$asset" -o "$$tmp/$$asset" || { echo "download failed"; rm -rf "$$tmp"; exit 1; }; \
+	curl -fsSL "$$base/checksums.txt" -o "$$tmp/checksums.txt" || { echo "checksums download failed"; rm -rf "$$tmp"; exit 1; }; \
+	if command -v sha256sum >/dev/null 2>&1; then hashcmd="sha256sum"; else hashcmd="shasum -a 256"; fi; \
+	( cd "$$tmp" && grep " $$asset$$" checksums.txt | $$hashcmd -c - ) || { echo "checksum verification failed"; rm -rf "$$tmp"; exit 1; }; \
+	tar -xzf "$$tmp/$$asset" -C "$$tmp" $(BINARY); \
 	mkdir -p "$(DESTDIR)"; \
 	install -m 0755 "$$tmp/$(BINARY)" "$(DESTDIR)/$(BINARY)"; \
 	rm -rf "$$tmp"; \
 	"$(DESTDIR)/$(BINARY)" version; \
-	echo "Installed → $(DESTDIR)/$(BINARY) (ensure $(DESTDIR) is on your PATH). For signature verification see docs/quickstart.md."
+	echo "Installed → $(DESTDIR)/$(BINARY) (ensure $(DESTDIR) is on your PATH). For cosign signature verification see docs/quickstart.md."
 
 run: build ## Build and run
 	./bin/$(BINARY)
