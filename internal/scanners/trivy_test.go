@@ -39,6 +39,15 @@ func TestTrivyArgvPrefersRefThenDigest(t *testing.T) {
 	}
 }
 
+func TestTrivyArgvPinsDigest(t *testing.T) {
+	// With both a ref and a digest, Trivy should pull the digest-pinned reference so the
+	// scanned bytes match the digest the result is cached under.
+	argv, _ := trivyArgv(plugin.ImageTarget{Ref: "repo/app:1.0", Digest: "sha256:abc"}, nil)
+	if got := argv[len(argv)-1]; got != "repo/app:1.0@sha256:abc" {
+		t.Errorf("should scan the pinned ref, got %q", got)
+	}
+}
+
 func TestTrivyArgvErrors(t *testing.T) {
 	if _, err := trivyArgv(plugin.RepositoryTarget{URL: "u"}, nil); err == nil {
 		t.Error("non-image target should error")

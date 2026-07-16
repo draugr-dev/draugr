@@ -41,3 +41,22 @@ func TestImageIdentityPrefersDigest(t *testing.T) {
 		t.Errorf("identity should fall back to ref, got %q", got)
 	}
 }
+
+func TestImagePinnedRef(t *testing.T) {
+	cases := []struct {
+		name   string
+		target ImageTarget
+		want   string
+	}{
+		{"ref and digest pin together", ImageTarget{Ref: "repo/x:1.0", Digest: "sha256:abc"}, "repo/x:1.0@sha256:abc"},
+		{"ref only", ImageTarget{Ref: "repo/x:1.0"}, "repo/x:1.0"},
+		{"digest only", ImageTarget{Digest: "sha256:abc"}, "sha256:abc"},
+		{"already digest-pinned ref", ImageTarget{Ref: "repo/x@sha256:abc", Digest: "sha256:abc"}, "repo/x@sha256:abc"},
+		{"empty", ImageTarget{}, ""},
+	}
+	for _, c := range cases {
+		if got := c.target.PinnedRef(); got != c.want {
+			t.Errorf("%s: PinnedRef() = %q, want %q", c.name, got, c.want)
+		}
+	}
+}

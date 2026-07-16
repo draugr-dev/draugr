@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -115,26 +116,60 @@ func inferExposure(ctx context.Context, cs kubernetes.Interface, namespace strin
 }
 
 // collectImages returns the unique images across all containers (init + regular) of the
-// given pods, in first-seen order.
+// given pods, in first-seen order. Each image carries the immutable digest of what is
+// actually running (from the container's status), captured so result caching is
+// content-addressed — a rebuilt image under the same tag re-scans.
 func collectImages(pods []corev1.Pod) []saga.Image {
 	seen := make(map[string]bool)
 	var images []saga.Image
-	add := func(ref string) {
+	add := func(ref, digest string) {
 		if ref == "" || seen[ref] {
 			return
 		}
 		seen[ref] = true
-		images = append(images, saga.Image{Image: ref})
+		images = append(images, saga.Image{Image: ref, Digest: digest})
 	}
 	for _, pod := range pods {
+		digests := runningDigests(pod)
 		for _, c := range pod.Spec.InitContainers {
-			add(c.Image)
+			add(c.Image, digests[c.Name])
 		}
 		for _, c := range pod.Spec.Containers {
-			add(c.Image)
+			add(c.Image, digests[c.Name])
 		}
 	}
 	return images
+}
+
+// runningDigests maps a pod's container names to the content digest of the image each is
+// actually running, read from the container statuses (init + regular). Containers not yet
+// running, or whose runtime reports no digest, are simply absent from the map.
+func runningDigests(pod corev1.Pod) map[string]string {
+	digests := make(map[string]string)
+	record := func(statuses []corev1.ContainerStatus) {
+		for _, s := range statuses {
+			if d := digestFromImageID(s.ImageID); d != "" {
+				digests[s.Name] = d
+			}
+		}
+	}
+	record(pod.Status.InitContainerStatuses)
+	record(pod.Status.ContainerStatuses)
+	return digests
+}
+
+// digestFromImageID extracts the bare "algorithm:hex" digest from a Kubernetes
+// ContainerStatus.ImageID, whose form varies by runtime — e.g.
+// "docker-pullable://repo@sha256:…", "repo@sha256:…", or a bare "sha256:…". Returns ""
+// when no digest is present (e.g. an image pulled purely by tag on some runtimes).
+func digestFromImageID(imageID string) string {
+	if i := strings.LastIndex(imageID, "@"); i >= 0 {
+		return imageID[i+1:]
+	}
+	if strings.HasPrefix(imageID, "sha256:") || strings.HasPrefix(imageID, "sha512:") {
+		return imageID
+	}
+	return ""
 }
 
 // defaultClientset builds a Kubernetes client from the ambient kubeconfig (KUBECONFIG /

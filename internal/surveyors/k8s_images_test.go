@@ -31,6 +31,62 @@ func withClient(cs kubernetes.Interface) K8sImages {
 	return K8sImages{clientset: func(plugin.SurveyScope) (kubernetes.Interface, error) { return cs, nil }}
 }
 
+// podWithDigests builds a pod whose containers each have a running status carrying an
+// ImageID, so the surveyor can capture the content digest. imgToID maps container image ref
+// → ImageID (as a runtime would report it).
+func podWithDigests(ns, name string, imgToID map[string]string) *corev1.Pod {
+	var (
+		containers []corev1.Container
+		statuses   []corev1.ContainerStatus
+		i          int
+	)
+	for img, id := range imgToID {
+		cname := name + "-c" + string(rune('a'+i))
+		i++
+		containers = append(containers, corev1.Container{Name: cname, Image: img})
+		statuses = append(statuses, corev1.ContainerStatus{Name: cname, Image: img, ImageID: id})
+	}
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+		Spec:       corev1.PodSpec{Containers: containers},
+		Status:     corev1.PodStatus{ContainerStatuses: statuses},
+	}
+}
+
+func TestDigestFromImageID(t *testing.T) {
+	cases := map[string]string{
+		"docker-pullable://repo/x@sha256:abc": "sha256:abc",
+		"repo/x@sha256:def":                   "sha256:def",
+		"sha256:bare":                         "sha256:bare",
+		"repo/x:1.0":                          "", // tag only, no digest
+		"":                                    "",
+	}
+	for in, want := range cases {
+		if got := digestFromImageID(in); got != want {
+			t.Errorf("digestFromImageID(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestK8sImagesSurveyCapturesDigest(t *testing.T) {
+	cs := fake.NewSimpleClientset(
+		podWithDigests("prod", "a", map[string]string{
+			"repo/x:1": "docker-pullable://repo/x@sha256:aaa",
+		}),
+	)
+	frag, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgs := frag.Components[0].Images
+	if len(imgs) != 1 {
+		t.Fatalf("want 1 image, got %d", len(imgs))
+	}
+	if imgs[0].Image != "repo/x:1" || imgs[0].Digest != "sha256:aaa" {
+		t.Errorf("image = %+v, want ref repo/x:1 + digest sha256:aaa", imgs[0])
+	}
+}
+
 func TestK8sImagesInfo(t *testing.T) {
 	if NewK8sImages().Info().Name != "k8s-images" {
 		t.Error("wrong name")

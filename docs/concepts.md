@@ -86,7 +86,16 @@ dashboards.
 Each scan job has a cache key derived from its inputs (scanner, version, target identity,
 config). With a cache enabled (`--cache-dir`), an unchanged target is never re-scanned —
 the "cheap at scale" pillar. Cache entries have a configurable TTL because new
-vulnerabilities can affect an unchanged artifact.
+vulnerabilities can affect an unchanged artifact; the key also folds in the scanner tool and
+its vulnerability-DB version, so a DB refresh (new CVEs) invalidates stale results before the
+TTL expires.
+
+For **container images**, the target identity is the immutable **digest** when known,
+falling back to the tag otherwise. A tag is mutable — a rebuilt image pushed under the same
+tag would keep the same key and serve the old scan until the TTL. To make caching
+content-addressed (a rebuilt image re-scans immediately), give each image a `digest:` in the
+Saga: the `k8s-images` surveyor records the running digest automatically, and Draugr scans
+the digest-pinned reference so the bytes scanned match what the result is cached under.
 
 ## Verdict & exit code
 

@@ -51,10 +51,7 @@ func trivyArgv(target plugin.Target, _ plugin.Config) ([]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("trivy: unsupported target %T (want image)", target)
 	}
-	ref := img.Ref
-	if ref == "" {
-		ref = img.Digest
-	}
+	ref := img.PinnedRef()
 	if ref == "" {
 		return nil, errors.New("trivy: image target has neither ref nor digest")
 	}
