@@ -34,6 +34,7 @@ type scanOptions struct {
 	kevFile        string
 	epssFile       string
 	epssThreshold  float64
+	jobs           int
 }
 
 func newScanCommand() *cobra.Command {
@@ -57,6 +58,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog JSON: a CVE on it is escalated to critical")
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores CSV: a CVE at/above --epss-threshold is bumped one severity band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", 0.5, "EPSS probability (0-1) that triggers a severity bump")
+	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0, "max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency")
 	return cmd
 }
 
@@ -79,9 +81,16 @@ func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine
 		return err
 	}
 
+	if opts.jobs < 0 {
+		return fmt.Errorf("--jobs must be >= 0 (0 = auto, one per CPU)")
+	}
+
 	eopts := []engine.Option{engine.WithPrioritization(defaultPrioritizer(expl))}
 	if opts.cacheDir != "" {
 		eopts = append(eopts, engine.WithCache(cache.NewLocal(opts.cacheDir, opts.cacheTTL)))
+	}
+	if opts.jobs > 0 {
+		eopts = append(eopts, engine.WithConcurrency(opts.jobs))
 	}
 
 	run, runErr := engine.New(reg, eopts...).Run(ctx, *model)

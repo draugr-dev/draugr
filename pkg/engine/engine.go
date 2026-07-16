@@ -141,6 +141,9 @@ type Stats struct {
 	// Deduped counts jobs that reused an identical scan already running/completed in this run
 	// (in-run singleflight), rather than scanning or hitting the persistent cache.
 	Deduped int
+	// Concurrency is the maximum number of scan jobs run in parallel for this run (the
+	// effective value after applying WithConcurrency or the NumCPU default).
+	Concurrency int
 }
 
 // scanOutcome is the raw result of obtaining a job's report (via cache or a fresh scan),
@@ -182,7 +185,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		wg       sync.WaitGroup
 		byCtl    = make(map[string][]sarif.Report)
 		errs     []error
-		stats    = Stats{Jobs: len(planned)}
+		stats    = Stats{Jobs: len(planned), Concurrency: e.concurrency}
 		sem      = make(chan struct{}, e.concurrency)
 		sf       = &sfGroup{}
 		canceled bool

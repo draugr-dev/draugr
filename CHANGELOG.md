@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr scan -j/--jobs N`** — cap how many scan jobs run in parallel (`0` = auto, one per
+  CPU; `1` = serial). Scanners like Trivy and Semgrep are themselves multi-threaded, so on a
+  small or busy machine the default can oversubscribe and slow a run down — `-j` lets you dial
+  it in (down on a laptop, up on a big CI runner). The run's JSON `stats` now also reports the
+  effective **`concurrency`** and the **`deduped`** count (identical jobs collapsed in-run), so
+  you can see the effect and tune from evidence.
 
 ## [0.15.0] - 2026-07-16
 

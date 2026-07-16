@@ -63,9 +63,11 @@ type controlReport struct {
 }
 
 type statsInfo struct {
-	Jobs      int `json:"jobs"`
-	Scans     int `json:"scans"`
-	CacheHits int `json:"cacheHits"`
+	Jobs        int `json:"jobs"`
+	Scans       int `json:"scans"`
+	CacheHits   int `json:"cacheHits"`
+	Deduped     int `json:"deduped"`
+	Concurrency int `json:"concurrency"`
 }
 
 // RenderJSON writes a JSON evidence summary combining the run result and the verdict.
@@ -76,7 +78,13 @@ func RenderJSON(w io.Writer, release saga.Release, run engine.Result, verdict no
 	doc := jsonReport{
 		Release: releaseInfo{Name: release.Name, Version: release.Version},
 		Verdict: string(verdict.Verdict),
-		Stats:   statsInfo{Jobs: run.Stats.Jobs, Scans: run.Stats.Scans, CacheHits: run.Stats.CacheHits},
+		Stats: statsInfo{
+			Jobs:        run.Stats.Jobs,
+			Scans:       run.Stats.Scans,
+			CacheHits:   run.Stats.CacheHits,
+			Deduped:     run.Stats.Deduped,
+			Concurrency: run.Stats.Concurrency,
+		},
 	}
 	for _, oc := range verdict.Controls {
 		doc.Controls = append(doc.Controls, controlReport{

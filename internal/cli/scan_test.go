@@ -130,6 +130,26 @@ func TestRunScanInvalidMinPriority(t *testing.T) {
 	}
 }
 
+func TestRunScanNegativeJobs(t *testing.T) {
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", jobs: -3}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "--jobs must be >= 0") {
+		t.Fatalf("expected --jobs validation error, got %v", err)
+	}
+}
+
+func TestRunScanJobsSetsConcurrency(t *testing.T) {
+	var buf bytes.Buffer
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", jobs: 2}, fakeRegistry(sarif.LevelNote), &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "\"concurrency\": 2") {
+		t.Errorf("expected stats.concurrency=2 in output:\n%s", buf.String())
+	}
+}
+
 func TestRunScanInvalidFailOnPriority(t *testing.T) {
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
 		scanOptions{failOn: "error", failOnPriority: "bogus"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})

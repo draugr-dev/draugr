@@ -173,6 +173,26 @@ func TestRenderJSON(t *testing.T) {
 	}
 }
 
+func TestRenderJSONStats(t *testing.T) {
+	run := sampleRun()
+	run.Stats = engine.Stats{Jobs: 12, Scans: 9, CacheHits: 2, Deduped: 1, Concurrency: 4}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Stats map[string]int `json:"stats"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	for k, want := range map[string]int{"jobs": 12, "scans": 9, "cacheHits": 2, "deduped": 1, "concurrency": 4} {
+		if doc.Stats[k] != want {
+			t.Errorf("stats.%s = %d, want %d", k, doc.Stats[k], want)
+		}
+	}
+}
+
 func TestWriteSARIF(t *testing.T) {
 	var buf bytes.Buffer
 	if err := WriteSARIF(&buf, sampleRun()); err != nil {
