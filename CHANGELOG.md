@@ -10,6 +10,15 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **Releases now sign with the modern Sigstore bundle.** The release's `checksums.txt` is
+  signed with keyless cosign into a single `checksums.txt.sigstore.json` bundle (via
+  cosign-installer v4), replacing the separate `checksums.txt.sig` + `.pem` files. Verify with
+  `cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp … …`.
+  The self-scan, the GitHub Action, and the docs verify the new bundle; the install/quickstart
+  recipes are updated accordingly.
+
 ### Added
 
 - **`draugr tools install` now verifies upstream cosign signatures** (where the upstream

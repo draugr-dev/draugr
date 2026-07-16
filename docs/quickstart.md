@@ -50,10 +50,10 @@ per-archive SBOMs:
 
 ```bash
 gh release download --repo draugr-dev/draugr \
-  -p 'checksums.txt' -p 'checksums.txt.sig' -p 'checksums.txt.pem'
+  -p 'checksums.txt' -p 'checksums.txt.sigstore.json'
 # verify the signature came from Draugr's release workflow (needs cosign)
 cosign verify-blob \
-  --certificate checksums.txt.pem --signature checksums.txt.sig \
+  --bundle checksums.txt.sigstore.json \
   --certificate-identity-regexp '^https://github\.com/draugr-dev/draugr/\.github/workflows/release\.yml@refs/tags/v.*$' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
   checksums.txt

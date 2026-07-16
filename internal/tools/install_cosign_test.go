@@ -85,7 +85,7 @@ func TestInstallCosignVerified(t *testing.T) {
 	for _, a := range *args {
 		joined += a + " "
 	}
-	for _, want := range []string{"verify-blob", "--new-bundle-format", "--certificate-identity-regexp", "--certificate-oidc-issuer"} {
+	for _, want := range []string{"verify-blob", "--bundle", "--certificate-identity-regexp", "--certificate-oidc-issuer"} {
 		if !contains(joined, want) {
 			t.Errorf("cosign args missing %q; got %v", want, *args)
 		}
