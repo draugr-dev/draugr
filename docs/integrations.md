@@ -76,10 +76,14 @@ every rendered report is delivered to every publisher.
 |------|-------------|--------|
 | `file` | a local directory (one file per report format) | `dir` |
 | `github` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `github-pr-comment` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 
-The `github` publisher never stores a secret in the Saga — the token comes from an environment
-variable, and it no-ops outside GitHub Actions so the same Saga still runs locally. Code scanning
-is free for public repos; private repos need GitHub Advanced Security.
+The `github` and `github-pr-comment` publishers never store a secret in the Saga — the token
+comes from an environment variable, and they no-op outside their GitHub context (not in Actions,
+or no PR) so the same Saga still runs locally. `github-pr-comment` upserts one **sticky** comment
+(it updates in place on each push rather than posting a new one) and pairs with
+[`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif) for a PR security delta. Code
+scanning is free for public repos; private repos need GitHub Advanced Security.
 
 See [`examples/reporting.saga.yaml`](../examples/reporting.saga.yaml) for a multi-format,
 multi-publisher Saga and [`examples/github-actions-code-scanning.yml`](../examples/github-actions-code-scanning.yml)

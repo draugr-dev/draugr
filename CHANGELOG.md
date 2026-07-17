@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`github-pr-comment` publisher + `draugr diff --publish`.** Post a security report — or a PR's
+  **diff** (new / fixed findings) — as a **sticky pull-request comment** that updates in place on
+  each push. `draugr diff base.sarif head.sarif --publish` renders the markdown delta and comments
+  it on the PR; a Saga can also add `{ kind: github-pr-comment }` to `config.publishers`. Repo/PR
+  come from the GitHub Actions environment and the token from `$GITHUB_TOKEN` (never the Saga); it
+  no-ops off a pull request.
 
 ## [0.22.0] - 2026-07-17
 

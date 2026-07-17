@@ -41,8 +41,14 @@ func TestFilePublisherRequiresDir(t *testing.T) {
 
 func TestKinds(t *testing.T) {
 	got := Kinds()
-	if len(got) != 2 || got[0] != "file" || got[1] != "github" {
-		t.Errorf("Kinds() = %v", got)
+	want := []string{"file", "github", "github-pr-comment"}
+	if len(got) != len(want) {
+		t.Fatalf("Kinds() = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("Kinds()[%d] = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
 
