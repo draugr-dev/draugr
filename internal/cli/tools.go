@@ -6,10 +6,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/tools"
 )
 
@@ -186,12 +189,26 @@ var isTTY = func(r io.Reader) bool {
 }
 
 func runToolsList(ctx context.Context, w io.Writer) error {
+	// Map each tool binary to the controls it backs (a binary like trivy serves several).
+	controlsFor := map[string][]string{}
+	for _, s := range builtins.Registry().Scanners() {
+		info := s.Info()
+		for _, c := range info.Controls {
+			controlsFor[info.Binary] = appendUnique(controlsFor[info.Binary], c)
+		}
+	}
+
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(tw, "TOOL\tCATEGORY\tPINNED\tSOURCE\tSTATUS")
+	_, _ = fmt.Fprintln(tw, "TOOL\tCATEGORY\tCONTROLS\tPINNED\tSOURCE\tSTATUS")
 	for _, t := range tools.All() {
 		category := t.Category
 		if category == "" {
 			category = "-"
+		}
+		controls := "-"
+		if cs := controlsFor[t.Binary]; len(cs) > 0 {
+			sort.Strings(cs)
+			controls = strings.Join(cs, ",")
 		}
 		pinned, source := "-", "system PATH"
 		if spec, ok := tools.Spec(t.Binary); ok {
@@ -208,7 +225,17 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 			}
 			status = fmt.Sprintf("✓ %s (%s)", version, st.Path)
 		}
-		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", t.Binary, category, pinned, source, status)
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", t.Binary, category, controls, pinned, source, status)
 	}
 	return tw.Flush()
+}
+
+// appendUnique appends s to xs if not already present.
+func appendUnique(xs []string, s string) []string {
+	for _, x := range xs {
+		if x == s {
+			return xs
+		}
+	}
+	return append(xs, s)
 }

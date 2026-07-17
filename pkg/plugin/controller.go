@@ -29,6 +29,12 @@ type ControllerInfo struct {
 	// Name is the control name, e.g. "images", "sast", "opensource".
 	Name  string
 	Scope Scope
+	// Summary is a one-line description of what the control does, for `draugr controls`.
+	Summary string
+	// DefaultScanners lists the scanner(s) the control runs by default. Some controls accept
+	// additional opt-in scanners (see controllers.<name>.scanners); those are discovered from
+	// the registry rather than listed here.
+	DefaultScanners []string
 }
 
 // ScanJob is a unit of scan work produced by a controller's Plan.

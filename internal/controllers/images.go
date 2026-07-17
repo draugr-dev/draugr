@@ -17,7 +17,12 @@ func NewImages() plugin.Controller { return Images{} }
 
 // Info identifies the controller (component-scoped).
 func (Images) Info() plugin.ControllerInfo {
-	return plugin.ControllerInfo{Name: "images", Scope: plugin.ScopeComponent}
+	return plugin.ControllerInfo{
+		Name:            "images",
+		Scope:           plugin.ScopeComponent,
+		Summary:         "Scan container images for known OS/package vulnerabilities.",
+		DefaultScanners: []string{"trivy"},
+	}
 }
 
 // Plan produces one scan job per image declared on the component.

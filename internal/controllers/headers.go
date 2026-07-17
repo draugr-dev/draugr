@@ -17,7 +17,12 @@ func NewHeaders() plugin.Controller { return Headers{} }
 
 // Info identifies the controller (component-scoped).
 func (Headers) Info() plugin.ControllerInfo {
-	return plugin.ControllerInfo{Name: "headers", Scope: plugin.ScopeComponent}
+	return plugin.ControllerInfo{
+		Name:            "headers",
+		Scope:           plugin.ScopeComponent,
+		Summary:         "Check HTTP security headers on a component's running endpoints.",
+		DefaultScanners: []string{"http-headers"},
+	}
 }
 
 // Plan produces one scan job per host with a URL declared on the component.

@@ -18,7 +18,12 @@ func NewIAC() plugin.Controller { return IAC{} }
 
 // Info identifies the controller (component-scoped).
 func (IAC) Info() plugin.ControllerInfo {
-	return plugin.ControllerInfo{Name: "iac", Scope: plugin.ScopeComponent}
+	return plugin.ControllerInfo{
+		Name:            "iac",
+		Scope:           plugin.ScopeComponent,
+		Summary:         "Scan Infrastructure-as-Code for insecure misconfigurations.",
+		DefaultScanners: []string{"trivy-config"},
+	}
 }
 
 // Plan produces one scan job per repository declared on the component.

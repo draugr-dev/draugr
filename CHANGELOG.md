@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr controls`** — list the security controls Draugr can run: what each checks, its
+  scope, and which scanner(s) implement it (default, plus opt-in alternatives like gosec marked
+  `*`). Makes it easy to see what Draugr covers and how to enable each control.
+- **`draugr tools list` now shows a CONTROLS column** — which control(s) each tool backs (e.g.
+  `trivy` → `images,sca,iac`), so it's clear why a given scanner matters. `controls` maps
+  control → scanners; `tools list` maps tool → controls.
 
 ## [0.17.0] - 2026-07-16
 

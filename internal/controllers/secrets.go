@@ -18,7 +18,12 @@ func NewSecrets() plugin.Controller { return Secrets{} }
 
 // Info identifies the controller (component-scoped).
 func (Secrets) Info() plugin.ControllerInfo {
-	return plugin.ControllerInfo{Name: "secrets", Scope: plugin.ScopeComponent}
+	return plugin.ControllerInfo{
+		Name:            "secrets",
+		Scope:           plugin.ScopeComponent,
+		Summary:         "Detect committed secrets and credentials in a repo.",
+		DefaultScanners: []string{"gitleaks"},
+	}
 }
 
 // Plan produces one scan job per repository declared on the component.

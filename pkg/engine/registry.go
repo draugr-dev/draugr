@@ -51,3 +51,13 @@ func (r *Registry) Scanners() []plugin.Scanner {
 	sort.Slice(out, func(i, j int) bool { return out[i].Info().Name < out[j].Info().Name })
 	return out
 }
+
+// Controllers returns all registered controllers, sorted by Info().Name for stable output.
+func (r *Registry) Controllers() []plugin.Controller {
+	out := make([]plugin.Controller, 0, len(r.controllers))
+	for _, c := range r.controllers {
+		out = append(out, c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Info().Name < out[j].Info().Name })
+	return out
+}
