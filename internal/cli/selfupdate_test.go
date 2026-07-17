@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -74,6 +75,11 @@ func TestSelfUpdateAlreadyCurrent(t *testing.T) {
 }
 
 func TestSelfUpdateAbortsWithoutConfirm(t *testing.T) {
+	// Force interactive so the prompt is shown; "n" aborts.
+	orig := isTTY
+	isTTY = func(io.Reader) bool { return true }
+	t.Cleanup(func() { isTTY = orig })
+
 	var out bytes.Buffer
 	err := runSelfUpdate(context.Background(), &out, strings.NewReader("n\n"), selfUpdateOptions{version: "9.9.9"})
 	if err != nil {

@@ -37,11 +37,12 @@ const (
 	maxBinaryBytes   = 512 << 20
 )
 
-// Asset is one platform's download for an installable tool.
+// Asset is one platform's download for an installable tool. When BinaryInArchive is empty the
+// downloaded file is the binary itself (a bare release binary, e.g. cosign), not an archive.
 type Asset struct {
 	URL             string
 	SHA256          string
-	BinaryInArchive string // name of the binary within the .tar.gz
+	BinaryInArchive string // name of the binary within the .tar.gz; "" = the download is the binary
 }
 
 // CosignSpec describes how to verify a tool release's provenance with cosign, for upstreams
@@ -104,6 +105,31 @@ var installable = map[string]InstallSpec{
 				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_macOS-ARM64.tar.gz",
 				SHA256:          "a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5",
 				BinaryInArchive: "trivy",
+			},
+		},
+	},
+	"cosign": {
+		Binary:  "cosign",
+		Version: "3.1.1",
+		// cosign ships bare release binaries (no archive), so BinaryInArchive is empty. It is
+		// the tool Draugr uses to verify other tools, so it is pinned by SHA-256 (the mandatory
+		// floor) — using cosign to verify itself would be circular.
+		Assets: map[string]Asset{
+			"linux/amd64": {
+				URL:    "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-linux-amd64",
+				SHA256: "ae1ecd212663f3693ad9edf8b1a183900c9a52d3155ba6e354237f9a0f6463fc",
+			},
+			"linux/arm64": {
+				URL:    "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-linux-arm64",
+				SHA256: "2ec865872e331c32fd12b08dae15332d3f92c0aa029219589684a4903ca85d11",
+			},
+			"darwin/amd64": {
+				URL:    "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-darwin-amd64",
+				SHA256: "14d2678dfbfde18798151e86fbd91ebdadbb7424b18412a42a155dd8a2df4c7a",
+			},
+			"darwin/arm64": {
+				URL:    "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-darwin-arm64",
+				SHA256: "94b42a9e697be95675f6160ab031a9a5f1ec1e646d6f648d7b2f5cd59ececbc5",
 			},
 		},
 	},
@@ -263,9 +289,14 @@ func Install(ctx context.Context, name, destDir string, client *http.Client) (In
 		}
 	}
 
-	bin, err := extractFromTarGz(data, asset.BinaryInArchive)
-	if err != nil {
-		return Installed{}, fmt.Errorf("extract %s: %w", name, err)
+	// A bare binary (BinaryInArchive == "") is the downloaded file itself; otherwise extract it
+	// from the .tar.gz.
+	bin := data
+	if asset.BinaryInArchive != "" {
+		bin, err = extractFromTarGz(data, asset.BinaryInArchive)
+		if err != nil {
+			return Installed{}, fmt.Errorf("extract %s: %w", name, err)
+		}
 	}
 
 	if err := os.MkdirAll(destDir, 0o750); err != nil {

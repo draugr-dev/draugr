@@ -22,7 +22,19 @@ type Tool struct {
 	VersionArgs []string
 	// InstallHint tells the user how or where to install the tool when it's missing.
 	InstallHint string
+	// Category groups the tool: "scanner" (backs a control) or "utility" (supporting tool
+	// like git or cosign). Shown in `tools list`.
+	Category string
+	// Optional marks a tool whose absence should not fail `doctor` — a nice-to-have that
+	// enhances behavior (e.g. cosign for signature verification) rather than a requirement.
+	Optional bool
 }
+
+// Tool categories.
+const (
+	CategoryScanner = "scanner"
+	CategoryUtility = "utility"
+)
 
 // Status is the outcome of detecting a Tool.
 type Status struct {
@@ -53,26 +65,38 @@ func Catalog() map[string]Tool {
 			Binary:      "trivy",
 			VersionArgs: []string{"--version"},
 			InstallHint: "https://trivy.dev/latest/getting-started/installation/",
+			Category:    CategoryScanner,
 		},
 		"gitleaks": {
 			Binary:      "gitleaks",
 			VersionArgs: []string{"version"},
 			InstallHint: "https://github.com/gitleaks/gitleaks#installing",
+			Category:    CategoryScanner,
 		},
 		"semgrep": {
 			Binary:      "semgrep",
 			VersionArgs: []string{"--version"},
 			InstallHint: "https://semgrep.dev/docs/getting-started/",
+			Category:    CategoryScanner,
 		},
 		"gosec": {
 			Binary:      "gosec",
 			VersionArgs: []string{"-version"},
 			InstallHint: "https://github.com/securego/gosec#installation",
+			Category:    CategoryScanner,
+		},
+		"cosign": {
+			Binary:      "cosign",
+			VersionArgs: []string{"version"},
+			InstallHint: "https://docs.sigstore.dev/cosign/system_config/installation/",
+			Category:    CategoryUtility,
+			Optional:    true, // enhances provenance verification; not required
 		},
 		"git": {
 			Binary:      "git",
 			VersionArgs: []string{"--version"},
 			InstallHint: "https://git-scm.com/downloads",
+			Category:    CategoryUtility,
 		},
 	}
 }
