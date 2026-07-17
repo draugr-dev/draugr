@@ -27,6 +27,64 @@ func TestMarshalSARIFStructure(t *testing.T) {
 	}
 }
 
+func TestMarshalSARIFTagsRulesWithScanner(t *testing.T) {
+	r := Report{Results: []Result{
+		{Tool: "semgrep", RuleID: "rule-a", Level: LevelError, Message: "x"},
+		{Tool: "semgrep", RuleID: "rule-a", Level: LevelError, Message: "y"}, // same rule, deduped
+		{Tool: "trivy", RuleID: "CVE-1", Level: LevelWarning, Message: "z"},
+	}}
+	data, err := r.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var log struct {
+		Runs []struct {
+			Tool struct {
+				Driver struct {
+					Rules []struct {
+						ID         string `json:"id"`
+						Properties struct {
+							Tags []string `json:"tags"`
+						} `json:"properties"`
+					} `json:"rules"`
+				} `json:"driver"`
+			} `json:"tool"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(data, &log); err != nil {
+		t.Fatal(err)
+	}
+	rules := log.Runs[0].Tool.Driver.Rules
+	tagByRule := map[string][]string{}
+	for _, rule := range rules {
+		tagByRule[rule.ID] = rule.Properties.Tags
+	}
+	if len(rules) != 2 {
+		t.Errorf("expected 2 deduped rules, got %d", len(rules))
+	}
+	if got := tagByRule["rule-a"]; len(got) != 1 || got[0] != "scanner:semgrep" {
+		t.Errorf("rule-a tags = %v, want [scanner:semgrep]", got)
+	}
+	if got := tagByRule["CVE-1"]; len(got) != 1 || got[0] != "scanner:trivy" {
+		t.Errorf("CVE-1 tags = %v, want [scanner:trivy]", got)
+	}
+}
+
+func TestMarshalSARIFTagsUnionMultipleScanners(t *testing.T) {
+	// The same ruleId produced by two scanners → both tags, sorted.
+	r := Report{Results: []Result{
+		{Tool: "trivy", RuleID: "CVE-9", Level: LevelError, Message: "a"},
+		{Tool: "trivy-fs", RuleID: "CVE-9", Level: LevelError, Message: "b"},
+	}}
+	data, err := r.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"scanner:trivy"`) || !strings.Contains(string(data), `"scanner:trivy-fs"`) {
+		t.Errorf("expected both scanner tags:\n%s", data)
+	}
+}
+
 func TestSARIFRoundTrip(t *testing.T) {
 	orig := Report{Results: []Result{
 		{Tool: "trivy", RuleID: "CVE-1", Level: LevelError, Message: "boom", Location: Location{URI: "img", StartLine: 5}},

@@ -18,6 +18,9 @@ and move it under a version on release.
 
 ### Changed
 
+- **Code-scanning alerts now show which scanner found each issue.** Draugr's SARIF tags every
+  rule with `scanner:<name>` (e.g. `scanner:semgrep`, `scanner:trivy`), so a GitHub code scanning
+  alert surfaces the originating tool in its Tags — Draugr still reports as a single `Draugr` tool.
 - **The `github` publisher no-ops outside GitHub Actions** (when no repo/commit/ref/token is
   resolvable) instead of erroring, so a Saga that publishes to code scanning in CI still runs
   cleanly on a developer's machine.

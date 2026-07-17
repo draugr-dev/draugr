@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -83,8 +85,30 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		if report.Results[i].Tool == "" {
 			report.Results[i].Tool = s.info.Name
 		}
+		// Findings are reported against the temporary checkout directory; rewrite their paths
+		// to be repo-relative so downstream consumers (e.g. GitHub code scanning) can anchor
+		// them to files in the repository.
+		report.Results[i].Location.URI = repoRelPath(dir, report.Results[i].Location.URI)
 	}
 	return report, nil
+}
+
+// repoRelPath rewrites an absolute finding path that lives under the checkout dir into a path
+// relative to it. Already-relative paths, and absolute paths outside the checkout, are left
+// unchanged. A leading "file://" scheme is stripped first.
+func repoRelPath(dir, uri string) string {
+	if uri == "" {
+		return uri
+	}
+	uri = strings.TrimPrefix(uri, "file://")
+	if !filepath.IsAbs(uri) {
+		return uri
+	}
+	rel, err := filepath.Rel(dir, uri)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return uri // outside the checkout — leave it alone
+	}
+	return filepath.ToSlash(rel)
 }
 
 func execArgv(ctx context.Context, argv []string) ([]byte, error) {
