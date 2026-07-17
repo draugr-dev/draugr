@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.23.0] - 2026-07-17
+
 ### Added
 
 - **`github-pr-comment` publisher + `draugr diff --publish`.** Post a security report — or a PR's
@@ -417,7 +421,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.23.0
 [0.22.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.22.0
 [0.21.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.21.0
 [0.20.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.20.0
