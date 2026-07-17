@@ -23,26 +23,29 @@ This is the open-source core engine.
 
 🚧 **Early, and moving fast.** Working today:
 
-- **Controls:** `images` (Trivy), `sca` (Trivy fs), `secrets` (Gitleaks), `sast` (Semgrep),
-  `iac` (Trivy config). See the [integrations catalog](docs/integrations.md).
+- **Controls:** `images` (Trivy), `sca` (Trivy fs), `secrets` (Gitleaks), `sast` (Semgrep,
+  plus opt-in gosec for Go), `iac` (Trivy config), `headers` (native HTTP-header analyzer).
+  See the [integrations catalog](docs/integrations.md).
 - **Pipeline:** end-to-end `scan` (plan → scan → judge → report), content-hash caching,
-  results normalized to SARIF.
+  tunable parallelism (`-j`), results normalized to SARIF.
 - **Prioritization:** declare a component's `exposure` and `criticality` and Draugr ranks
-  every finding P1–P4 (`--min-priority` to focus, `--fail-on-priority` to gate).
+  every finding P1–P4 (`--min-priority` to focus, `--fail-on-priority` to gate);
+  optional KEV/EPSS enrichment for real-world exploitability.
 - **Discovery ("the Ravens"):** `survey` for Kubernetes images and GitHub org repositories.
-- **Preflight & tooling:** `validate` (check a Saga against the schema), `doctor` (report which
-  scanner tools are present/missing/version), and `tools install` (fetch pinned,
-  checksum-verified scanners into `~/.draugr/bin`) — catch problems, and get set up, before a scan.
+- **Preflight & tooling:** `validate` (schema-check a Saga), `doctor` (which scanner tools are
+  present/missing), `tools install` (fetch pinned, checksum- and cosign-verified scanners —
+  and cosign itself — into `~/.draugr/bin`), and `self-update` (update draugr itself, verified).
 
-More controls (DAST, headers, TLS, SBOM, …) are on the roadmap. See
+More controls (DAST, TLS, SBOM, …) are on the roadmap. See
 [`docs/concepts.md`](docs/concepts.md) for what maps to what.
 
 ## Quickstart
 
 **Requirements:** the external scanners for the controls you use —
-[Trivy](https://github.com/aquasecurity/trivy) (`images`, `sca`) and
-[Gitleaks](https://github.com/gitleaks/gitleaks) (`secrets`); `git` for repo scans. Go 1.26+
-only to build from source.
+[Trivy](https://github.com/aquasecurity/trivy) (`images`, `sca`, `iac`),
+[Gitleaks](https://github.com/gitleaks/gitleaks) (`secrets`),
+[Semgrep](https://semgrep.dev) (`sast`); `git` for repo scans. Or run
+`draugr tools install` to fetch pinned, verified copies. Go 1.26+ only to build from source.
 
 **Install from a release (recommended):**
 
@@ -53,8 +56,9 @@ tar -xzf draugr_*_amd64.tar.gz draugr
 sudo mv draugr /usr/local/bin/ && draugr version
 ```
 
-Releases are cosign-signed with SBOMs — see [install & verifying downloads](docs/quickstart.md#1-install)
-for the checksum/signature-verifying `curl` recipe.
+Releases are cosign-signed with SBOMs and SLSA build provenance — see
+[install & verifying downloads](docs/quickstart.md#1-install) for the verifying `curl` recipe.
+Once installed, update in place with **`draugr self-update`**.
 
 **Or build from source:**
 
@@ -111,7 +115,7 @@ permissions:
 steps:
   - uses: actions/checkout@v4
   - id: draugr
-    uses: draugr-dev/draugr@v0.13.0     # pin a release; installs Draugr for you
+    uses: draugr-dev/draugr@v0.16.0     # pin a release; installs Draugr for you
     with:
       saga: draugr.saga.yaml
       fail-on: warning                  # optional gate (default: error)
@@ -146,12 +150,14 @@ A security tool should hold itself to what it checks. Draugr does:
 
 - **Standard output** — every finding is normalized to **SARIF 2.1.0** (OASIS), so results flow
   into GitHub / GitLab / Azure DevOps code scanning and any SARIF-aware tool.
-- **Signed releases** — release archives' `checksums.txt` is **keyless-signed with cosign**
-  (Sigstore) into a `checksums.txt.sigstore.json` bundle; verify it before installing
+- **Signed releases + provenance** — release archives' `checksums.txt` is **keyless-signed with
+  cosign** (Sigstore) into a `checksums.txt.sigstore.json` bundle, and each release publishes
+  **SLSA build-provenance** attestations (`gh attestation verify …`); verify before installing
   ([recipe](docs/quickstart.md#1-install)).
 - **SBOMs** — a Syft **SBOM** is published for every release archive.
 - **Verified tooling** — `draugr tools install` fetches scanners pinned by **SHA-256** and, where
-  the upstream signs them, verifies the **cosign** signature too.
+  the upstream signs them, verifies the **cosign** signature too — and cosign itself is
+  installable, so verification is self-sufficient.
 - **We scan ourselves** — Draugr runs on its own repo every PR (dogfood self-scan), and we track
   our supply-chain posture with the **[OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)**
   (badge above).
