@@ -37,7 +37,7 @@ var (
 
 	cosignLookPath = func() (string, error) { return exec.LookPath("cosign") }
 	runCosign      = func(ctx context.Context, cosignPath string, args []string) error {
-		out, err := exec.CommandContext(ctx, cosignPath, args...).CombinedOutput() //nolint:gosec // cosignPath from LookPath; args built here
+		out, err := exec.CommandContext(ctx, cosignPath, args...).CombinedOutput() //nolint:gosec // cosignPath from LookPath; args built here // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command -- verifying with the cosign CLI is the point; path from LookPath, args built here
 		if err != nil {
 			return fmt.Errorf("%w: %s", err, bytes.TrimSpace(out))
 		}

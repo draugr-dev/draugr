@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"text/template"
+	"text/template" // nosem: go.lang.security.audit.xss.import-text-template.import-text-template -- intentional: renders operator-authored text templates, not HTML
 
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
