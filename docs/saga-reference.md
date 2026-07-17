@@ -63,10 +63,18 @@ config:
     - format: sarif        # any scan --format: console, markdown, html, junit, json, sarif
     - format: markdown
     - format: html
+    - format: template     # custom payload from a Go text/template
+      templateFile: ./report.tmpl   # or inline `template: "..."` (set exactly one)
+      filename: summary.txt         # optional; overrides the default output filename
   publishers:
     - kind: file           # write each report to a directory
-      dir: ./out           # → ./out/results.sarif, ./out/report.md, ./out/report.html
+      dir: ./out           # → ./out/results.sarif, ./out/report.md, ./out/report.html, ./out/summary.txt
 ```
+
+The **`template`** format renders a [Go `text/template`](https://pkg.go.dev/text/template) against
+a stable view of the scan — `.Release`, `.Verdict`, `.Pass`, `.Priorities.{P1..P4}`, `.Controls`,
+and `.Findings` (each with `.Priority .Level .Score .Control .Tool .RuleID .Message .Location`).
+Use it for a bespoke summary line, a Slack payload, or any custom text without writing code.
 
 Reports are delivered regardless of the gate verdict, so you get evidence on a FAIL too. This is
 independent of `scan --format` (stdout) and `scan -o` (which always writes `report.json` +

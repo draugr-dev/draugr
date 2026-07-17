@@ -30,7 +30,9 @@ human-readable **console** summary to stdout by default (`--format` for other fo
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
-| `--format` | `console` | stdout report format: `console`, `markdown`, `html`, `junit`, `json`, `sarif` |
+| `--format` | `console` | stdout report format: `console`, `markdown`, `html`, `junit`, `json`, `sarif`, `template` |
+| `--template` | — | inline Go `text/template` (with `--format template`) |
+| `--template-file` | — | Go `text/template` file (with `--format template`) |
 
 ```bash
 draugr scan draugr.saga.yaml
@@ -43,15 +45,19 @@ draugr scan draugr.saga.yaml --format markdown        # portable report (MR comm
 draugr scan draugr.saga.yaml --format html > report.html   # shareable browser report
 draugr scan draugr.saga.yaml --format junit > report.xml   # CI test panel
 draugr scan draugr.saga.yaml --format json | jq .     # machine-readable
+draugr scan draugr.saga.yaml --format template --template '{{.Verdict}}: P1={{.Priorities.P1}}'
 ```
 
 **Output formats (`--format`).** stdout defaults to a human **console** summary (verdict,
 priority/severity counts, "fix first"). `markdown` produces a portable report for MR comments
 or wikis; `html` is a self-contained, browser-viewable report you can publish as a build
 artifact; `junit` emits JUnit XML so CI systems (GitLab, Jenkins, Azure DevOps…) surface
-findings in their test-results panel; `json` and `sarif` are the machine formats. Regardless of
-`--format`, `--output <dir>` always writes both `report.json` and `results.sarif` for
-CI/code-scanning.
+findings in their test-results panel; `json` and `sarif` are the machine formats; `template`
+renders your own Go `text/template` (see [`config.reports`](saga-reference.md#configreports-and-configpublishers)
+for the available fields). Regardless of `--format`, `--output <dir>` always writes both
+`report.json` and `results.sarif` for CI/code-scanning. To render **multiple** formats and deliver
+them somewhere in one run, declare
+[`config.reports` / `config.publishers`](saga-reference.md#configreports-and-configpublishers) in the Saga.
 
 **Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. But
 scanners like Trivy and Semgrep are themselves multi-threaded, so on a busy or small machine

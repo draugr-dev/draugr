@@ -156,6 +156,27 @@ components:
 	}
 }
 
+func TestRunScanTemplateFormat(t *testing.T) {
+	var buf bytes.Buffer
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", format: "template", template: "verdict={{.Verdict}}"},
+		fakeRegistry(sarif.LevelNote), &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "verdict=") {
+		t.Errorf("expected template output, got %q", buf.String())
+	}
+}
+
+func TestRunScanTemplateMissingSource(t *testing.T) {
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", format: "template"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "template report requires") {
+		t.Fatalf("expected template-source error, got %v", err)
+	}
+}
+
 func TestRunScanUnknownPublisherErrors(t *testing.T) {
 	saga := `
 release:

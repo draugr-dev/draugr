@@ -61,6 +61,7 @@ Scan results render through a pluggable **Reporter** interface (`pkg/report`), s
 | `junit` | JUnit XML — surfaces findings in CI test panels (GitLab, Jenkins, Azure DevOps…) |
 | `json` | machine-readable report |
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
+| `template` | custom payload from a Go `text/template` (inline or file) — no code needed |
 
 `-o/--output <dir>` also writes `report.json` + `results.sarif`.
 
@@ -76,8 +77,8 @@ every rendered report is delivered to every publisher.
 | `file` | a local directory (one file per report format) | `dir` |
 | `github` | GitHub code scanning (SARIF upload) | 🗺️ [#58](https://github.com/draugr-dev/draugr/issues/58) |
 
-A **`template`** reporter (Go `text/template` for custom payloads) and managed/authenticated
-enterprise publishers are tracked in [#58](https://github.com/draugr-dev/draugr/issues/58).
+Managed/authenticated enterprise publishers (ServiceNow/Jira/Splunk/signed webhooks) are out of
+OSS scope — tracked on the `cloud` backlog per [#58](https://github.com/draugr-dev/draugr/issues/58).
 
 ## Utilities
 

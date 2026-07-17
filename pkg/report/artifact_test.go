@@ -3,6 +3,8 @@ package report
 import (
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 func TestBuildArtifact(t *testing.T) {
@@ -17,7 +19,7 @@ func TestBuildArtifact(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.format, func(t *testing.T) {
-			a, err := Build(tc.format, sampleData())
+			a, err := Build(saga.ReportConfig{Format: tc.format}, sampleData())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -32,7 +34,17 @@ func TestBuildArtifact(t *testing.T) {
 }
 
 func TestBuildUnknownFormat(t *testing.T) {
-	if _, err := Build("nope", sampleData()); err == nil {
+	if _, err := Build(saga.ReportConfig{Format: "nope"}, sampleData()); err == nil {
 		t.Error("expected error for unknown format")
+	}
+}
+
+func TestBuildFilenameOverride(t *testing.T) {
+	a, err := Build(saga.ReportConfig{Format: "json", Filename: "custom.json"}, sampleData())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Filename != "custom.json" {
+		t.Errorf("filename override = %q", a.Filename)
 	}
 }
