@@ -58,7 +58,7 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 
 	artifacts := make([]report.Artifact, 0, len(reports))
 	for _, r := range reports {
-		a, err := report.Build(r.Format, data)
+		a, err := report.Build(r, data)
 		if err != nil {
 			return err
 		}

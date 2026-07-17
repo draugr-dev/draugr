@@ -38,6 +38,12 @@ type ControllerSettings map[string]any
 // the reporting layer (pkg/report) when the scan runs, not here — the Saga stays a leaf.
 type ReportConfig struct {
 	Format string `yaml:"format"`
+	// Template and TemplateFile supply the Go text/template for the "template" format (set
+	// exactly one). Ignored by other formats.
+	Template     string `yaml:"template,omitempty"`
+	TemplateFile string `yaml:"templateFile,omitempty"`
+	// Filename overrides the artifact's default output filename (used by file-based publishers).
+	Filename string `yaml:"filename,omitempty"`
 }
 
 // PublisherConfig configures one destination for rendered reports. Kind selects the publisher

@@ -38,6 +38,8 @@ type scanOptions struct {
 	epssThreshold  float64
 	jobs           int
 	format         string
+	template       string
+	templateFile   string
 }
 
 func newScanCommand() *cobra.Command {
@@ -62,7 +64,9 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores CSV: a CVE at/above --epss-threshold is bumped one severity band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", 0.5, "EPSS probability (0-1) that triggers a severity bump")
 	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0, "max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency")
-	cmd.Flags().StringVar(&opts.format, "format", "console", "stdout report format: console, markdown, html, junit, json, sarif")
+	cmd.Flags().StringVar(&opts.format, "format", "console", "stdout report format: console, markdown, html, junit, json, sarif, template")
+	cmd.Flags().StringVar(&opts.template, "template", "", "inline Go text/template (with --format template)")
+	cmd.Flags().StringVar(&opts.templateFile, "template-file", "", "Go text/template file (with --format template)")
 	return cmd
 }
 
@@ -113,18 +117,30 @@ func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine
 	if format == "" {
 		format = "console"
 	}
-	reporter, err := report.For(format)
-	if err != nil {
-		return err
-	}
 	data := report.Data{
 		Release:     model.Release,
 		Run:         run,
 		Verdict:     verdict,
 		MinPriority: minPriority,
 	}
-	if err := reporter.Render(w, data); err != nil {
-		return err
+	if format == "template" {
+		art, err := report.Build(saga.ReportConfig{
+			Format: "template", Template: opts.template, TemplateFile: opts.templateFile,
+		}, data)
+		if err != nil {
+			return err
+		}
+		if _, err := w.Write(art.Bytes); err != nil {
+			return err
+		}
+	} else {
+		reporter, err := report.For(format)
+		if err != nil {
+			return err
+		}
+		if err := reporter.Render(w, data); err != nil {
+			return err
+		}
 	}
 	if opts.outputDir != "" {
 		if err := writeArtifacts(opts.outputDir, model.Release, run, verdict, minPriority); err != nil {

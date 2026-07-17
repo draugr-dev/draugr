@@ -136,7 +136,7 @@ type SurveyScope struct { Kind string; Ref string; Config Config }
 
 Renders a scan result in one format. Lives in [`pkg/report`](../pkg/report); `draugr scan
 --format` selects one. Built-in formats: `console` (default), `markdown`, `html`, `junit`,
-`json`, `sarif`.
+`json`, `sarif`, and `template` (a user-supplied Go `text/template`).
 
 ```go
 type Reporter interface {

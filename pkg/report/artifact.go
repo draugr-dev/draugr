@@ -1,6 +1,10 @@
 package report
 
-import "bytes"
+import (
+	"bytes"
+
+	"github.com/draugr-dev/draugr/pkg/saga"
+)
 
 // Artifact is a rendered report plus the metadata a publisher needs to deliver it: a default
 // filename, a MIME content type, and the bytes. It is the unit a Publisher (pkg/publish)
@@ -22,9 +26,15 @@ var formatMeta = map[string]struct{ filename, contentType string }{
 	"console":  {"report.txt", "text/plain; charset=utf-8"},
 }
 
-// Build renders Data in the given format and returns it as an Artifact ready to publish.
-func Build(format string, d Data) (Artifact, error) {
-	r, err := For(format)
+// Build renders a report as configured and returns it as an Artifact ready to publish. The
+// "template" format renders a user-supplied Go text/template (cfg.Template / cfg.TemplateFile);
+// all other formats use the built-in reporter registry. cfg.Filename overrides the default
+// output filename.
+func Build(cfg saga.ReportConfig, d Data) (Artifact, error) {
+	if cfg.Format == "template" {
+		return buildTemplate(cfg, d)
+	}
+	r, err := For(cfg.Format)
 	if err != nil {
 		return Artifact{}, err
 	}
@@ -32,10 +42,14 @@ func Build(format string, d Data) (Artifact, error) {
 	if err := r.Render(&buf, d); err != nil {
 		return Artifact{}, err
 	}
-	meta := formatMeta[format]
+	meta := formatMeta[cfg.Format]
+	filename := meta.filename
+	if cfg.Filename != "" {
+		filename = cfg.Filename
+	}
 	return Artifact{
-		Format:      format,
-		Filename:    meta.filename,
+		Format:      cfg.Format,
+		Filename:    filename,
 		ContentType: meta.contentType,
 		Bytes:       buf.Bytes(),
 	}, nil

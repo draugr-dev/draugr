@@ -12,6 +12,11 @@ and move it under a version on release.
 
 ### Added
 
+- **`template` report format — custom payloads with no code.** `--format template` (or a
+  `config.reports` entry) renders a [Go `text/template`](https://pkg.go.dev/text/template) against
+  a stable view of the scan (`.Verdict`, `.Priorities`, `.Controls`, `.Findings`, …) — for a
+  bespoke summary line, a Slack payload, or any custom text. Supply it inline (`--template` /
+  `template:`) or from a file (`--template-file` / `templateFile:`).
 - **Report publishers — declarative, multi-format, multi-destination output.** A Saga can now
   declare `config.reports` (which formats to render) and `config.publishers` (where to deliver
   them); a scan renders each report once and delivers all of them to every publisher. The first
