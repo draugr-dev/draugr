@@ -98,6 +98,13 @@ The `github` publisher requires a `sarif` report in `config.reports`. It never s
 the descriptor — the token comes from an environment variable. Code scanning is free for public
 repos; private repos need GitHub Advanced Security.
 
+The **`github-pr-comment`** publisher posts the `markdown` report as a **sticky** pull-request
+comment (updated in place on each push). It needs a `markdown` report in `config.reports`; `repo`
+and the PR number default from the GitHub Actions environment; the token comes from `$GITHUB_TOKEN`
+(or `tokenEnv`). It no-ops off a pull request. It's most useful with
+[`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif), which posts a PR **security
+delta** (new / fixed findings) as that comment.
+
 ## `components`
 
 Each component is one logical part of the app. All surface lists are optional; provide

@@ -90,11 +90,13 @@ complete, structured result set; the JSON summary can be trimmed by `--min-prior
 | `--format` | `console` | output format: `console`, `markdown`, `json` |
 | `--fail-on-new` | — | fail if a **new** finding is at or above this severity: `error`, `warning`, `note` |
 | `--fail-on-new-priority` | — | fail if a **new** finding is at or above this priority (`P1`–`P4`) |
+| `--publish` | `false` | post the diff as a sticky pull-request comment (`github-pr-comment` publisher; uses `$GITHUB_TOKEN` in CI, no-ops off a PR) |
 
 ```bash
 draugr diff base/results.sarif head/results.sarif                     # console delta
 draugr diff base/results.sarif head/results.sarif --format markdown   # MR comment
 draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
+draugr diff base/results.sarif head/results.sarif --publish           # sticky PR comment (in CI)
 ```
 
 **Differential gating.** `--fail-on-new` / `--fail-on-new-priority` fail a PR only for findings

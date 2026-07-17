@@ -56,12 +56,18 @@ type PublisherConfig struct {
 	Kind string `yaml:"kind"`
 	Dir  string `yaml:"dir,omitempty"` // file: output directory
 
-	// github: uploads the SARIF report to code scanning. Repo/Commit/Ref default to the
-	// GitHub Actions environment (GITHUB_REPOSITORY / GITHUB_SHA / GITHUB_REF).
+	// github / github-pr-comment: Repo defaults to $GITHUB_REPOSITORY; the token to $GITHUB_TOKEN
+	// (or TokenEnv). github: Commit/Ref default to $GITHUB_SHA / $GITHUB_REF.
 	Repo     string `yaml:"repo,omitempty"`
 	Commit   string `yaml:"commit,omitempty"`
 	Ref      string `yaml:"ref,omitempty"`
 	TokenEnv string `yaml:"tokenEnv,omitempty"` // env var holding the token; default GITHUB_TOKEN
+
+	// github-pr-comment: posts the markdown report as a sticky pull-request comment. PR defaults
+	// to the number parsed from $GITHUB_REF (refs/pull/<n>/merge); Marker identifies the sticky
+	// comment to update (default a Draugr marker).
+	PR     int    `yaml:"pr,omitempty"`
+	Marker string `yaml:"marker,omitempty"`
 }
 
 // Component is one logical part of an application: its repositories, images, hosts, and

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,7 +30,7 @@ func TestRunDiffReportsDelta(t *testing.T) {
 	base := writeFile(t, "base.sarif", sarifDoc("CVE-1", "warning", "img", "P3"))
 	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
 	var out bytes.Buffer
-	if err := runDiff(base, head, diffOptions{format: "console"}, &out); err != nil {
+	if err := runDiff(context.Background(), base, head, diffOptions{format: "console"}, &out); err != nil {
 		t.Fatalf("runDiff: %v", err)
 	}
 	s := out.String()
@@ -42,7 +43,7 @@ func TestRunDiffGateTrips(t *testing.T) {
 	base := writeFile(t, "base.sarif", sarifDoc("CVE-1", "warning", "img", "P3"))
 	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
 	var out bytes.Buffer
-	err := runDiff(base, head, diffOptions{format: "console", failOnNewPriority: "P2"}, &out)
+	err := runDiff(context.Background(), base, head, diffOptions{format: "console", failOnNewPriority: "P2"}, &out)
 	if err == nil {
 		t.Error("expected the differential gate to trip on a new P1")
 	}
@@ -53,7 +54,7 @@ func TestRunDiffGatePasses(t *testing.T) {
 	base := writeFile(t, "base.sarif", sarifDoc("CVE-1", "error", "img", "P1"))
 	head := writeFile(t, "head.sarif", `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Draugr"}},"results":[]}]}`)
 	var out bytes.Buffer
-	if err := runDiff(base, head, diffOptions{failOnNew: "error", failOnNewPriority: "P1"}, &out); err != nil {
+	if err := runDiff(context.Background(), base, head, diffOptions{failOnNew: "error", failOnNewPriority: "P1"}, &out); err != nil {
 		t.Errorf("gate should pass when there are no new findings: %v", err)
 	}
 	if !strings.Contains(out.String(), "1 fixed") {
@@ -63,16 +64,27 @@ func TestRunDiffGatePasses(t *testing.T) {
 
 func TestRunDiffMissingFile(t *testing.T) {
 	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
-	err := runDiff(filepath.Join(t.TempDir(), "nope.sarif"), head, diffOptions{}, &bytes.Buffer{})
+	err := runDiff(context.Background(), filepath.Join(t.TempDir(), "nope.sarif"), head, diffOptions{}, &bytes.Buffer{})
 	if err == nil {
 		t.Error("expected an error for a missing base report")
+	}
+}
+
+func TestRunDiffPublishNoopOutsideCI(t *testing.T) {
+	// --publish outside a PR context no-ops (the publisher skips), so the command still succeeds.
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("GITHUB_REF", "")
+	base := writeFile(t, "base.sarif", sarifDoc("CVE-1", "warning", "img", "P3"))
+	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
+	if err := runDiff(context.Background(), base, head, diffOptions{format: "console", publish: true}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("--publish should no-op outside CI, got %v", err)
 	}
 }
 
 func TestRunDiffBadFormat(t *testing.T) {
 	base := writeFile(t, "base.sarif", sarifDoc("CVE-1", "warning", "img", "P3"))
 	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
-	if err := runDiff(base, head, diffOptions{format: "bogus"}, &bytes.Buffer{}); err == nil {
+	if err := runDiff(context.Background(), base, head, diffOptions{format: "bogus"}, &bytes.Buffer{}); err == nil {
 		t.Error("expected an error for an unknown format")
 	}
 }
