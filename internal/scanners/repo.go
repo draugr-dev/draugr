@@ -87,10 +87,23 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		}
 		// Findings are reported against the temporary checkout directory; rewrite their paths
 		// to be repo-relative so downstream consumers (e.g. GitHub code scanning) can anchor
-		// them to files in the repository.
+		// them to files in the repository. The message can also embed the absolute path (e.g.
+		// Gitleaks: "…detected secret for file <dir>/x"); strip it there too so messages are
+		// stable across scans — otherwise `draugr diff` sees the same finding as new+fixed
+		// because the temp dir differs between the base and head scans.
 		report.Results[i].Location.URI = repoRelPath(dir, report.Results[i].Location.URI)
+		report.Results[i].Message = stripCheckoutDir(dir, report.Results[i].Message)
 	}
 	return report, nil
+}
+
+// stripCheckoutDir removes the checkout-directory prefix from any absolute paths embedded in a
+// finding message, making messages repo-relative and stable across scans (different temp dirs).
+func stripCheckoutDir(dir, msg string) string {
+	if dir == "" || msg == "" {
+		return msg
+	}
+	return strings.ReplaceAll(msg, dir+string(filepath.Separator), "")
 }
 
 // repoRelPath rewrites an absolute finding path that lives under the checkout dir into a path

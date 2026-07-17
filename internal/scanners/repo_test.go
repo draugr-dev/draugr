@@ -70,6 +70,44 @@ func TestRepoScannerRewritesAbsolutePathsToRepoRelative(t *testing.T) {
 	}
 }
 
+func TestRepoScannerStripsCheckoutDirFromMessage(t *testing.T) {
+	// Gitleaks-style: the message embeds the absolute checkout path. It must be stripped so the
+	// message is repo-relative and stable across scans (otherwise diff churns as new+fixed).
+	sarif := `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[
+		{"ruleId":"private-key","level":"error",
+		 "message":{"text":"private-key has detected secret for file /tmp/fake-checkout/app/config.pem."},
+		 "locations":[{"physicalLocation":{"artifactLocation":{"uri":"/tmp/fake-checkout/app/config.pem"},"region":{"startLine":1}}}]}
+	]}]}`
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
+		return []byte(sarif), nil
+	})
+	rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "u"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := rep.Results[0]
+	if got.Location.URI != "app/config.pem" {
+		t.Errorf("uri = %q, want app/config.pem", got.Location.URI)
+	}
+	if got.Message != "private-key has detected secret for file app/config.pem." {
+		t.Errorf("message still contains the checkout path: %q", got.Message)
+	}
+}
+
+func TestStripCheckoutDir(t *testing.T) {
+	cases := []struct{ dir, in, want string }{
+		{"/tmp/co", "secret in /tmp/co/a/b.pem found", "secret in a/b.pem found"},
+		{"/tmp/co", "no path here", "no path here"},
+		{"/tmp/co", "", ""},
+		{"", "/tmp/co/x", "/tmp/co/x"}, // empty dir → unchanged
+	}
+	for _, c := range cases {
+		if got := stripCheckoutDir(c.dir, c.in); got != c.want {
+			t.Errorf("stripCheckoutDir(%q, %q) = %q, want %q", c.dir, c.in, got, c.want)
+		}
+	}
+}
+
 func TestRepoRelPath(t *testing.T) {
 	cases := []struct{ dir, in, want string }{
 		{"/tmp/co", "/tmp/co/a/b.go", "a/b.go"},
