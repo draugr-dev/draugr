@@ -119,6 +119,33 @@ func TestExposureCriticalityValid(t *testing.T) {
 	}
 }
 
+func TestValidateReportsAndPublishers(t *testing.T) {
+	yaml := "release:\n  version: '1'\nconfig:\n  reports:\n    - format: sarif\n    - format: markdown\n  publishers:\n    - kind: file\n      dir: ./out\n"
+	m, err := Load([]byte(yaml))
+	if err != nil {
+		t.Fatalf("valid reports/publishers should load, got %v", err)
+	}
+	if len(m.Config.Reports) != 2 || m.Config.Reports[0].Format != "sarif" {
+		t.Fatalf("reports not parsed: %+v", m.Config.Reports)
+	}
+	if len(m.Config.Publishers) != 1 || m.Config.Publishers[0].Kind != "file" || m.Config.Publishers[0].Dir != "./out" {
+		t.Fatalf("publishers not parsed: %+v", m.Config.Publishers)
+	}
+}
+
+func TestValidateReportsPublishersRequireFields(t *testing.T) {
+	yaml := "release:\n  version: '1'\nconfig:\n  reports:\n    - format: ''\n  publishers:\n    - dir: ./out\n"
+	_, err := Load([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected errors for empty report format and missing publisher kind")
+	}
+	for _, want := range []string{"config.reports[0].format is required", "config.publishers[0].kind is required"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error missing %q: %v", want, err)
+		}
+	}
+}
+
 func TestValidateAggregatesMultiple(t *testing.T) {
 	// Missing version AND a duplicate component name => both reported.
 	_, err := Load([]byte("components:\n  - name: a\n  - name: a\n"))

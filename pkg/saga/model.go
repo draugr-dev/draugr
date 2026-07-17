@@ -24,10 +24,29 @@ type Release struct {
 // common "enabled" flag.
 type Config struct {
 	Controllers map[string]ControllerSettings `yaml:"controllers,omitempty"`
+	// Reports are the report formats to render on a scan (e.g. json, sarif, markdown, html).
+	// Publishers deliver every rendered report to a destination.
+	Reports []ReportConfig `yaml:"reports,omitempty"`
+	// Publishers are the destinations that rendered reports are delivered to.
+	Publishers []PublisherConfig `yaml:"publishers,omitempty"`
 }
 
 // ControllerSettings is a free-form configuration tree for one controller.
 type ControllerSettings map[string]any
+
+// ReportConfig selects one report format to render on a scan. Known formats are validated by
+// the reporting layer (pkg/report) when the scan runs, not here — the Saga stays a leaf.
+type ReportConfig struct {
+	Format string `yaml:"format"`
+}
+
+// PublisherConfig configures one destination for rendered reports. Kind selects the publisher
+// (e.g. "file"); the remaining fields are read by that publisher. Known kinds and their
+// required fields are validated by the publishing layer (pkg/publish) when the scan runs.
+type PublisherConfig struct {
+	Kind string `yaml:"kind"`
+	Dir  string `yaml:"dir,omitempty"` // file: output directory
+}
 
 // Component is one logical part of an application: its repositories, images, hosts, and
 // infrastructure, plus optional per-component controller overrides and risk classification.

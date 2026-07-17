@@ -122,6 +122,65 @@ func TestRunScanMinPriorityListsFindings(t *testing.T) {
 	}
 }
 
+func TestRunScanPublishesConfiguredReports(t *testing.T) {
+	dir := t.TempDir()
+	saga := `
+release:
+  name: app
+  version: "1.0"
+config:
+  controllers:
+    images:
+      enabled: true
+  reports:
+    - format: sarif
+    - format: markdown
+  publishers:
+    - kind: file
+      dir: ` + dir + `
+components:
+  - name: c
+    images:
+      - image: repo/x:1
+`
+	path := writeSaga(t, saga)
+	err := runScan(context.Background(), path,
+		scanOptions{failOn: "error", format: "console"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"results.sarif", "report.md"} {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+			t.Errorf("expected publisher to write %s: %v", f, err)
+		}
+	}
+}
+
+func TestRunScanUnknownPublisherErrors(t *testing.T) {
+	saga := `
+release:
+  name: app
+  version: "1.0"
+config:
+  controllers:
+    images:
+      enabled: true
+  reports:
+    - format: sarif
+  publishers:
+    - kind: bogus
+components:
+  - name: c
+    images:
+      - image: repo/x:1
+`
+	err := runScan(context.Background(), writeSaga(t, saga),
+		scanOptions{failOn: "error", format: "console"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "unknown publisher kind") {
+		t.Fatalf("expected unknown publisher error, got %v", err)
+	}
+}
+
 func TestRunScanInvalidMinPriority(t *testing.T) {
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
 		scanOptions{failOn: "error", minPriority: "bogus"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})

@@ -18,7 +18,7 @@ Start here. The docs are grouped by what you're trying to do (loosely following 
 - [CLI reference](cli.md) — every command and flag.
 - [Saga reference](saga-reference.md) — every field of `draugr.saga.yaml`.
 - [Integrations catalog](integrations.md) — controllers, scanners, and surveyors (what ships today).
-- [Plugin API](plugin-api.md) — the Scanner / Controller / Surveyor / Reporter interfaces.
+- [Plugin API](plugin-api.md) — the Scanner / Controller / Surveyor / Reporter / Publisher interfaces.
 
 ## Draugr's building blocks
 
