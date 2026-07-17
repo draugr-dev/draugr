@@ -19,7 +19,7 @@ See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
 |---------|---------------|-------|:------:|------------|-----|
 | `images` | Container image scanning | component | ✅ | `trivy` | [doc](../internal/controllers/images.md) |
 | `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` | [doc](../internal/controllers/sca.md) |
-| `sast` | Static Application Security Testing | component | ✅ | `semgrep`, `gosec` | [doc](../internal/controllers/sast.md) |
+| `sast` | Static Application Security Testing | component | ✅ | `semgrep` (default), `gosec` (opt-in) | [doc](../internal/controllers/sast.md) |
 | `secrets` | Secret detection | component | ✅ | `gitleaks` | [doc](../internal/controllers/secrets.md) |
 | `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../internal/controllers/iac.md) |
 | `headers` | HTTP security headers | component | ✅ | `http-headers` (native) | [doc](../internal/controllers/headers.md) |
@@ -45,10 +45,29 @@ See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
 
 | Surveyor | Discovers | Auth | Status | Doc |
 |----------|-----------|------|:------:|-----|
-| `k8s-images` | container images in a k8s cluster | kubeconfig | ✅ | [doc](../internal/surveyors/k8s-images.md) |
+| `k8s-images` | container images (with running digests) in a k8s cluster | kubeconfig | ✅ | [doc](../internal/surveyors/k8s-images.md) |
 | `github-org-repos` | repositories in a GitHub org | `GITHUB_TOKEN` | ✅ | [doc](../internal/surveyors/github-org-repos.md) |
 
-## Reporters & publishers
+## Reporters
 
-Pluggable reporting (Reporter/Publisher interfaces + `json`/`sarif`/`file`) is planned —
-see [#58](https://github.com/draugr-dev/draugr/issues/58) (OSS) and the enterprise managed-reporting counterpart.
+Scan results render through a pluggable **Reporter** interface (`pkg/report`), selected with
+`draugr scan --format`:
+
+| Format | Purpose |
+|--------|---------|
+| `console` | human summary on stdout (default) — verdict, P1–P4 counts, "fix first" |
+| `markdown` | portable report for MR comments, wikis, Slack |
+| `json` | machine-readable report |
+| `sarif` | SARIF 2.1.0 for code-scanning dashboards |
+
+`-o/--output <dir>` also writes `report.json` + `results.sarif`. Publishers (deliver a report to
+a destination) and more formats are tracked in [#58](https://github.com/draugr-dev/draugr/issues/58).
+
+## Utilities
+
+Not scanners, but tools Draugr provisions/uses:
+
+| Tool | Purpose | Install |
+|------|---------|:------:|
+| `cosign` | verify release/tool signatures (Sigstore) | `draugr tools install cosign` |
+| `git` | check out repositories for repo-scanning controls | system |

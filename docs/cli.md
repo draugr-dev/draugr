@@ -130,9 +130,10 @@ draugr validate draugr.saga.yaml
 Preflight the environment: report which external scanner tools are **present, missing, or of
 what version**, with an install hint for each — so a missing tool is caught up front instead
 of failing mid-scan. Given a Saga, it first **validates the descriptor**, then checks only the
-tools its enabled controls need (`trivy`, `gitleaks`, `semgrep`, plus `git` for repo scans);
-without one, it checks them all. **Exits non-zero when the descriptor is invalid or a required
-tool is missing**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
+tools its enabled controls need (`trivy`, `gitleaks`, `semgrep`, plus `git` for repo scans, and
+`gosec` only when a component opts into it); without one, it checks them all. Optional tools that
+aren't selected don't count as missing. **Exits non-zero when the descriptor is invalid or a
+required tool is missing**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
 
 | Flag | Default | Description |
 |------|---------|-------------|

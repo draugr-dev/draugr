@@ -10,7 +10,9 @@
 ## What it does
 
 Lists pods in a namespace (or all namespaces) via the Kubernetes API and returns the unique
-container images (init + regular) as a Saga component, so the descriptor writes itself.
+container images (init + regular) as a Saga component, so the descriptor writes itself. It also
+records each image's **running digest** (from the pod's container status), so result caching is
+content-addressed — a rebuilt image under the same tag re-scans.
 
 **Proposes exposure.** When surveying a *specific* namespace, it also infers the component's
 `exposure` from topology (see [prioritization](../../docs/concepts.md#prioritization-what-to-fix-first)):

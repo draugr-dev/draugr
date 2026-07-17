@@ -126,7 +126,7 @@ func runDoctor(
 		if !asJSON {
 			_, _ = fmt.Fprintf(w,
 				"\n%d required tool(s) missing. Install them (see notes above), "+
-					"or run `draugr tools install` (coming soon).\n", missing)
+					"or run `draugr tools install`.\n", missing)
 		}
 		return fmt.Errorf("%d required tool(s) not found", missing)
 	}

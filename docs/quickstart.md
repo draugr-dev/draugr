@@ -11,30 +11,27 @@ the descriptor for you.
 ## 1. Install
 
 **Requirements** — Draugr execs external scanners; install the ones for the controls you use:
-- [Trivy](https://github.com/aquasecurity/trivy) — `images` and `sca` controls.
+- [Trivy](https://github.com/aquasecurity/trivy) — `images`, `sca`, and `iac` controls.
 - [Gitleaks](https://github.com/gitleaks/gitleaks) — `secrets` control.
-- `git` — needed for any repository scan (`sca`, `secrets`).
+- [Semgrep](https://semgrep.dev) — `sast` control (default; opt-in [gosec](https://github.com/securego/gosec) for Go).
+- `git` — needed for any repository scan (`sca`, `secrets`, `sast`).
 - Go 1.26+ — only needed if you build from source.
 
-The fastest way to get the scanners is to let Draugr fetch pinned, checksum-verified copies
-into `~/.draugr/bin` (added to your `PATH` automatically):
+The fastest way to get the scanners is to let Draugr fetch pinned, verified copies into
+`~/.draugr/bin` (added to your `PATH` automatically):
 
 ```bash
-draugr tools install     # trivy + gitleaks, verified
-draugr tools list        # what's pinned and what's installed
+draugr tools install     # trivy, gitleaks, gosec, cosign — pinned + verified
+draugr tools list        # what's pinned, which controls it backs, and what's installed
 ```
 
 Prefer your own install (Homebrew, package manager, an existing copy)? That works too — run
 `draugr doctor` to confirm everything's found.
 
-> **Pre-launch note.** While `draugr-dev/draugr` is **private**, plain `curl` to a release
-> asset returns `404` — private downloads require authentication. Use the **GitHub CLI**
-> method below until the repo is public.
+### From a release (recommended)
 
-### From a release (recommended) — GitHub CLI
-
-Works while the repo is private (`gh` is authenticated). Omit the tag to get the **latest**
-release, or pass a `vX.Y.Z` to pin:
+The repo is public, so plain `curl` works; the GitHub CLI (`gh`) works too. Omit the tag to
+get the **latest** release, or pass a `vX.Y.Z` to pin:
 
 ```bash
 gh release download --repo draugr-dev/draugr -p 'draugr_*_linux_amd64.tar.gz'
@@ -42,6 +39,8 @@ tar -xzf draugr_*_linux_amd64.tar.gz draugr
 sudo mv draugr /usr/local/bin/       # or anywhere on your PATH
 draugr version
 ```
+
+Already have a draugr binary? Update it in place with `draugr self-update`.
 
 Swap `linux_amd64` for `darwin_arm64`, `darwin_amd64`, `linux_arm64`, or `windows_amd64`.
 
@@ -61,13 +60,13 @@ cosign verify-blob \
 sha256sum --ignore-missing -c checksums.txt
 ```
 
-### From a release — curl (once public)
+### From a release — curl
 
-After launch, plain `curl` works. Pick a version from the
+Plain `curl` works (public repo). Pick a version from the
 [releases page](https://github.com/draugr-dev/draugr/releases):
 
 ```bash
-VERSION=v0.2.0
+VERSION=v0.18.0
 base="https://github.com/draugr-dev/draugr/releases/download/${VERSION}"
 curl -fsSL -o draugr.tar.gz "${base}/draugr_${VERSION#v}_linux_amd64.tar.gz"
 tar -xzf draugr.tar.gz draugr
@@ -90,7 +89,7 @@ make install-latest    # or: download + SHA-256-verify + install the latest rele
 ### With Go
 
 ```bash
-go install github.com/draugr-dev/draugr/cmd/draugr@v0.2.0   # once the module is public
+go install github.com/draugr-dev/draugr/cmd/draugr@latest
 ```
 
 ## 2. Describe your app
@@ -122,7 +121,19 @@ draugr scan draugr.saga.yaml
 ```
 
 Draugr plans the work (controllers × components), runs the scanners concurrently, merges
-and deduplicates results as SARIF, judges them against a policy, and prints a JSON verdict:
+and deduplicates results as SARIF, judges them against a policy, and prints a **human console
+summary** by default (verdict, priority/severity counts, and the top findings to fix first):
+
+```text
+Draugr — PASS   (my-app 1.0)
+
+Controls:
+  images  pass  0 error  0 warning  0 note
+
+No findings. ✓
+```
+
+For a machine-readable report use `--format json` (or write artifacts with `-o out/`):
 
 ```json
 {
@@ -132,7 +143,7 @@ and deduplicates results as SARIF, judges them against a policy, and prints a JS
     { "name": "images", "verdict": "pass", "highest": "none",
       "threshold": "error", "errors": 0, "warnings": 0, "notes": 0, "total": 0 }
   ],
-  "stats": { "jobs": 1, "scans": 1, "cacheHits": 0 }
+  "stats": { "jobs": 1, "concurrency": 8, "scans": 1, "cacheHits": 0, "deduped": 0 }
 }
 ```
 

@@ -46,8 +46,10 @@ config:
       scanners: [semgrep, gosec]   # default: [semgrep]. gosec is Go-only — enable it on Go components.
 ```
 
-> Implemented today: **`images`** (Trivy). Other controls (`sast`, `sca`, `dast`,
-> `headers`, `tls`, `infrastructure`, `threats`) are on the roadmap.
+> Implemented today: **`images`** (Trivy), **`sca`** (Trivy fs), **`secrets`** (Gitleaks),
+> **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config), and **`headers`** (native
+> HTTP-header checks). Other controls (`dast`, `tls`, `infrastructure`, `threats`) are on the
+> roadmap. Run `draugr controls` for the current list and each control's scanners.
 
 ## `components`
 
