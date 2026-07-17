@@ -19,11 +19,15 @@ and move it under a version on release.
   `template:`) or from a file (`--template-file` / `templateFile:`).
 - **Report publishers — declarative, multi-format, multi-destination output.** A Saga can now
   declare `config.reports` (which formats to render) and `config.publishers` (where to deliver
-  them); a scan renders each report once and delivers all of them to every publisher. The first
-  built-in publisher is **`file`** (writes each report to a directory). Reports are delivered even
-  when the gate fails, so you always get evidence. This is the Publisher half of the pluggable
-  reporting model (#58) — the `github` publisher (SARIF → code scanning) and a `template` reporter
-  are next.
+  them); a scan renders each report once and delivers all of them to every publisher. Reports are
+  delivered even when the gate fails, so you always get evidence. Built-in publishers:
+  - **`file`** — writes each report to a directory.
+  - **`github`** — uploads the `sarif` report to GitHub **code scanning** (the Security tab).
+    Repo/commit/ref default to the GitHub Actions environment; the token is read from
+    `$GITHUB_TOKEN` (or a `tokenEnv` you name) and never stored in the Saga.
+
+  This completes the pluggable reporting model (#58): pick any report formats and deliver them
+  anywhere, no code required.
 
 ```yaml
 config:

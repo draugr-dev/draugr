@@ -47,11 +47,21 @@ type ReportConfig struct {
 }
 
 // PublisherConfig configures one destination for rendered reports. Kind selects the publisher
-// (e.g. "file"); the remaining fields are read by that publisher. Known kinds and their
-// required fields are validated by the publishing layer (pkg/publish) when the scan runs.
+// (e.g. "file", "github"); the remaining fields are read by that publisher. Known kinds and
+// their required fields are validated by the publishing layer (pkg/publish) when the scan runs.
+//
+// Secrets are never stored here: the github publisher reads its token from an environment
+// variable (TokenEnv, default GITHUB_TOKEN), not from the Saga.
 type PublisherConfig struct {
 	Kind string `yaml:"kind"`
 	Dir  string `yaml:"dir,omitempty"` // file: output directory
+
+	// github: uploads the SARIF report to code scanning. Repo/Commit/Ref default to the
+	// GitHub Actions environment (GITHUB_REPOSITORY / GITHUB_SHA / GITHUB_REF).
+	Repo     string `yaml:"repo,omitempty"`
+	Commit   string `yaml:"commit,omitempty"`
+	Ref      string `yaml:"ref,omitempty"`
+	TokenEnv string `yaml:"tokenEnv,omitempty"` // env var holding the token; default GITHUB_TOKEN
 }
 
 // Component is one logical part of an application: its repositories, images, hosts, and
