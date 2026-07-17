@@ -135,11 +135,12 @@ type SurveyScope struct { Kind string; Ref string; Config Config }
 ## Reporter
 
 Renders a scan result in one format. Lives in [`pkg/report`](../pkg/report); `draugr scan
---format` selects one. Built-in formats: `console` (default), `markdown`, `json`, `sarif`.
+--format` selects one. Built-in formats: `console` (default), `markdown`, `html`, `junit`,
+`json`, `sarif`.
 
 ```go
 type Reporter interface {
-    Format() string                      // "console", "markdown", "json", "sarif"
+    Format() string                      // "console", "markdown", "html", "junit", "json", "sarif"
     Render(w io.Writer, d Data) error
 }
 

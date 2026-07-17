@@ -57,6 +57,8 @@ Scan results render through a pluggable **Reporter** interface (`pkg/report`), s
 |--------|---------|
 | `console` | human summary on stdout (default) — verdict, P1–P4 counts, "fix first" |
 | `markdown` | portable report for MR comments, wikis, Slack |
+| `html` | self-contained HTML report (inline CSS) — a shareable, browser-viewable artifact |
+| `junit` | JUnit XML — surfaces findings in CI test panels (GitLab, Jenkins, Azure DevOps…) |
 | `json` | machine-readable report |
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
 

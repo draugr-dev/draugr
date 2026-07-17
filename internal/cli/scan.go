@@ -61,7 +61,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores CSV: a CVE at/above --epss-threshold is bumped one severity band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", 0.5, "EPSS probability (0-1) that triggers a severity bump")
 	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0, "max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency")
-	cmd.Flags().StringVar(&opts.format, "format", "console", "stdout report format: console, markdown, json, sarif")
+	cmd.Flags().StringVar(&opts.format, "format", "console", "stdout report format: console, markdown, html, junit, json, sarif")
 	return cmd
 }
 
