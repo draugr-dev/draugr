@@ -1,0 +1,7 @@
+{
+    "name": "Draugr",
+    "creator": "Draugr",
+    "description": "Scan your app from one descriptor (SAST, SCA, secrets, IaC, images) and upload prioritized results to code scanning.",
+    "iconName": "draugr",
+    "categories": ["Code Scanning"]
+}
