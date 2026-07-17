@@ -19,6 +19,11 @@ and move it under a version on release.
   come from the GitHub Actions environment and the token from `$GITHUB_TOKEN` (never the Saga); it
   no-ops off a pull request.
 
+### Security
+
+- Bumped `golang.org/x/net` (0.55.0 → 0.56.0) and `golang.org/x/text` (0.37.0 → 0.39.0) to clear
+  CVE-2026-46600 and CVE-2026-56852 in transitive dependencies.
+
 ## [0.22.0] - 2026-07-17
 
 ### Added

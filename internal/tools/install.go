@@ -208,7 +208,7 @@ var cosignLookPath = func() (string, error) { return exec.LookPath("cosign") }
 
 // runCosignVerify runs `cosign <args>`; overridable in tests.
 var runCosignVerify = func(ctx context.Context, cosignPath string, args []string) error {
-	cmd := exec.CommandContext(ctx, cosignPath, args...) //nolint:gosec // cosignPath from LookPath; args are built from the pinned manifest
+	cmd := exec.CommandContext(ctx, cosignPath, args...) //nolint:gosec // cosignPath from LookPath; args are built from the pinned manifest // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command -- verifying with the cosign CLI is the point; path from LookPath, args from the pinned manifest
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%w: %s", err, bytes.TrimSpace(out))
 	}
