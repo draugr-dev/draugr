@@ -10,7 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Report publishers — declarative, multi-format, multi-destination output.** A Saga can now
+  declare `config.reports` (which formats to render) and `config.publishers` (where to deliver
+  them); a scan renders each report once and delivers all of them to every publisher. The first
+  built-in publisher is **`file`** (writes each report to a directory). Reports are delivered even
+  when the gate fails, so you always get evidence. This is the Publisher half of the pluggable
+  reporting model (#58) — the `github` publisher (SARIF → code scanning) and a `template` reporter
+  are next.
+
+```yaml
+config:
+  reports:    [ { format: sarif }, { format: markdown }, { format: html } ]
+  publishers: [ { kind: file, dir: ./out } ]
+```
 
 ## [0.20.0] - 2026-07-17
 

@@ -19,6 +19,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
+	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -116,18 +117,23 @@ func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine
 	if err != nil {
 		return err
 	}
-	if err := reporter.Render(w, report.Data{
+	data := report.Data{
 		Release:     model.Release,
 		Run:         run,
 		Verdict:     verdict,
 		MinPriority: minPriority,
-	}); err != nil {
+	}
+	if err := reporter.Render(w, data); err != nil {
 		return err
 	}
 	if opts.outputDir != "" {
 		if err := writeArtifacts(opts.outputDir, model.Release, run, verdict, minPriority); err != nil {
 			return err
 		}
+	}
+	// Deliver configured reports to configured publishers (Saga config.reports/publishers).
+	if err := publish.Run(ctx, model.Config.Reports, model.Config.Publishers, data); err != nil {
+		return err
 	}
 
 	if verdict.Verdict == norn.Fail {

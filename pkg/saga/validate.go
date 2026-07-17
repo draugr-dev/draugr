@@ -79,5 +79,16 @@ func (m *Model) Validate() error {
 		}
 	}
 
+	for i, r := range m.Config.Reports {
+		if r.Format == "" {
+			errs = append(errs, fmt.Errorf("config.reports[%d].format is required", i))
+		}
+	}
+	for i, p := range m.Config.Publishers {
+		if p.Kind == "" {
+			errs = append(errs, fmt.Errorf("config.publishers[%d].kind is required", i))
+		}
+	}
+
 	return errors.Join(errs...)
 }

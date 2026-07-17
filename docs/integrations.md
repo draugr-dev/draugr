@@ -62,8 +62,22 @@ Scan results render through a pluggable **Reporter** interface (`pkg/report`), s
 | `json` | machine-readable report |
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
 
-`-o/--output <dir>` also writes `report.json` + `results.sarif`. Publishers (deliver a report to
-a destination) and more formats are tracked in [#58](https://github.com/draugr-dev/draugr/issues/58).
+`-o/--output <dir>` also writes `report.json` + `results.sarif`.
+
+## Publishers
+
+A **Publisher** delivers rendered reports to a destination — the "where" of reporting, separate
+from the Reporter (the "what"). Configure them in the Saga's
+[`config.reports` / `config.publishers`](saga-reference.md#configreports-and-configpublishers);
+every rendered report is delivered to every publisher.
+
+| Kind | Delivers to | Config |
+|------|-------------|--------|
+| `file` | a local directory (one file per report format) | `dir` |
+| `github` | GitHub code scanning (SARIF upload) | 🗺️ [#58](https://github.com/draugr-dev/draugr/issues/58) |
+
+A **`template`** reporter (Go `text/template` for custom payloads) and managed/authenticated
+enterprise publishers are tracked in [#58](https://github.com/draugr-dev/draugr/issues/58).
 
 ## Utilities
 

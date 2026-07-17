@@ -3,7 +3,7 @@
 Reference for the plugin interfaces as implemented in [`pkg/plugin`](../pkg/plugin) (and the
 `Reporter` in [`pkg/report`](../pkg/report)). See [`ARCHITECTURE.md`](ARCHITECTURE.md) for context.
 
-The plugin kinds — **Scanner**, **Controller**, **Surveyor**, **Reporter** — share a small set
+The plugin kinds — **Scanner**, **Controller**, **Surveyor**, **Reporter**, **Publisher** — share a small set
 of value types. Scanners are transported in-process (built-ins) or declaratively (tool adapters
 that satisfy the Scanner contract at runtime); an out-of-process gRPC transport is planned.
 
@@ -150,6 +150,29 @@ type Data struct {
     Run         engine.Result
     Verdict     norn.Result
     MinPriority string
+}
+
+// report.Build renders Data in a format and returns it as an Artifact (bytes + filename +
+// content type) — the unit a Publisher delivers.
+type Artifact struct {
+    Format      string // e.g. "sarif"
+    Filename    string // e.g. "results.sarif"
+    ContentType string // e.g. "application/sarif+json"
+    Bytes       []byte
+}
+```
+
+## Publisher
+
+Delivers rendered reports to a destination — the "where" of reporting, separate from the Reporter
+(the "what"). Lives in [`pkg/publish`](../pkg/publish); configured from the Saga's
+`config.publishers`. Built-in kind: `file` (`github` is on the roadmap). Every rendered report is
+delivered to every configured publisher, so a publisher takes only the artifacts it needs.
+
+```go
+type Publisher interface {
+    Kind() string                                          // config selector, e.g. "file"
+    Publish(ctx context.Context, artifacts []report.Artifact) error
 }
 ```
 

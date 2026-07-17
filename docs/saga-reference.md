@@ -7,7 +7,7 @@ application's security surface and the controls that must pass.
 
 ```yaml
 release: { ... }              # required
-config: { ... }               # optional — global controller configuration
+config: { ... }               # optional — controllers, reports, and publishers
 components: [ ... ]           # the app's parts
 componentsMetaSources: [ ... ] # optional — load component defs from other repos (planned)
 references: [ ... ]           # optional — links to manual/human controls
@@ -50,6 +50,32 @@ config:
 > **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config), and **`headers`** (native
 > HTTP-header checks). Other controls (`dast`, `tls`, `infrastructure`, `threats`) are on the
 > roadmap. Run `draugr controls` for the current list and each control's scanners.
+
+## `config.reports` and `config.publishers`
+
+Declare which report **formats** a scan renders and **where** they're delivered. Reports are the
+"what" (a [Reporter](plugin-api.md#reporter)); publishers are the "where" (a Publisher). Every
+rendered report is delivered to every publisher.
+
+```yaml
+config:
+  reports:
+    - format: sarif        # any scan --format: console, markdown, html, junit, json, sarif
+    - format: markdown
+    - format: html
+  publishers:
+    - kind: file           # write each report to a directory
+      dir: ./out           # → ./out/results.sarif, ./out/report.md, ./out/report.html
+```
+
+Reports are delivered regardless of the gate verdict, so you get evidence on a FAIL too. This is
+independent of `scan --format` (stdout) and `scan -o` (which always writes `report.json` +
+`results.sarif`) — use `config.publishers` when you want a declarative, multi-format,
+multi-destination setup in the Saga itself.
+
+> Built-in publisher today: **`file`**. A **`github`** publisher (SARIF → code scanning) and a
+> **`template`** reporter (custom payloads) are on the roadmap
+> ([#58](https://github.com/draugr-dev/draugr/issues/58)).
 
 ## `components`
 
