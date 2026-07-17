@@ -19,6 +19,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
+	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
@@ -35,6 +36,7 @@ type scanOptions struct {
 	epssFile       string
 	epssThreshold  float64
 	jobs           int
+	format         string
 }
 
 func newScanCommand() *cobra.Command {
@@ -59,6 +61,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores CSV: a CVE at/above --epss-threshold is bumped one severity band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", 0.5, "EPSS probability (0-1) that triggers a severity bump")
 	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0, "max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency")
+	cmd.Flags().StringVar(&opts.format, "format", "console", "stdout report format: console, markdown, json, sarif")
 	return cmd
 }
 
@@ -105,7 +108,20 @@ func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine
 	}
 	verdict := norn.Policy{FailOn: sarif.Level(opts.failOn), FailOnPriority: failOnPriority}.Evaluate(reports)
 
-	if err := skald.RenderJSON(w, model.Release, run, verdict, minPriority); err != nil {
+	format := opts.format
+	if format == "" {
+		format = "console"
+	}
+	reporter, err := report.For(format)
+	if err != nil {
+		return err
+	}
+	if err := reporter.Render(w, report.Data{
+		Release:     model.Release,
+		Run:         run,
+		Verdict:     verdict,
+		MinPriority: minPriority,
+	}); err != nil {
 		return err
 	}
 	if opts.outputDir != "" {
