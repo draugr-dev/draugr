@@ -10,7 +10,11 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Code-scanning alerts now show which scanner found each issue.** Draugr's SARIF tags every
+  rule with `scanner:<name>` (e.g. `scanner:semgrep`, `scanner:trivy`), so a GitHub code scanning
+  alert surfaces the originating tool in its Tags — Draugr still reports as a single `Draugr` tool.
 
 ## [0.21.0] - 2026-07-17
 

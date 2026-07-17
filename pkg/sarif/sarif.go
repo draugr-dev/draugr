@@ -2,6 +2,7 @@ package sarif
 
 import (
 	"encoding/json"
+	"sort"
 	"strconv"
 )
 
@@ -52,6 +53,9 @@ type sarifProperties struct {
 	// Tool is the originating scanner (e.g. "trivy", "semgrep"). Draugr reports as a single
 	// "Draugr" SARIF tool; this preserves per-finding attribution to the scanner that found it.
 	Tool string `json:"tool,omitempty"`
+	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
+	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
+	Tags []string `json:"tags,omitempty"`
 }
 
 type sarifResult struct {
@@ -100,10 +104,21 @@ const driverName = "Draugr"
 // with each result's originating scanner recorded in its property bag ("tool").
 func (r Report) MarshalSARIF() ([]byte, error) {
 	run := sarifRun{Tool: sarifTool{Driver: sarifDriver{Name: driverName}}, Results: []sarifResult{}}
+	// Track which scanner(s) produced each ruleId so the emitted rules[] can carry a
+	// "scanner:<name>" tag — the only place GitHub code scanning surfaces the underlying tool.
+	ruleScanners := map[string]map[string]bool{}
+	var ruleOrder []string
 	for _, res := range r.Results {
 		tool := res.Tool
 		if tool == "" {
 			tool = r.Tool
+		}
+		if res.RuleID != "" && tool != "" {
+			if ruleScanners[res.RuleID] == nil {
+				ruleScanners[res.RuleID] = map[string]bool{}
+				ruleOrder = append(ruleOrder, res.RuleID)
+			}
+			ruleScanners[res.RuleID][tool] = true
 		}
 		sr := sarifResult{
 			RuleID:  res.RuleID,
@@ -126,6 +141,23 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 			}
 		}
 		run.Results = append(run.Results, sr)
+	}
+	// Emit one rule per ruleId, tagged with its originating scanner(s). GitHub matches a
+	// result to its rule by ruleId and shows the rule's tags on the alert.
+	for _, id := range ruleOrder {
+		scanners := make([]string, 0, len(ruleScanners[id]))
+		for s := range ruleScanners[id] {
+			scanners = append(scanners, s)
+		}
+		sort.Strings(scanners)
+		tags := make([]string, 0, len(scanners))
+		for _, s := range scanners {
+			tags = append(tags, "scanner:"+s)
+		}
+		run.Tool.Driver.Rules = append(run.Tool.Driver.Rules, sarifRule{
+			ID:         id,
+			Properties: &sarifProperties{Tags: tags},
+		})
 	}
 	return json.MarshalIndent(sarifLog{Schema: schemaURL, Version: Version, Runs: []sarifRun{run}}, "", "  ")
 }
