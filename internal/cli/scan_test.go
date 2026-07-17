@@ -109,7 +109,7 @@ func TestRunScanMinPriorityListsFindings(t *testing.T) {
 	path := writeSaga(t, sagaWithImage)
 	// Unclassified component → treated as public/critical (C1); a note-level finding → P3.
 	err := runScan(context.Background(), path,
-		scanOptions{failOn: "error", minPriority: "P3"}, fakeRegistry(sarif.LevelNote), &buf)
+		scanOptions{failOn: "error", minPriority: "P3", format: "json"}, fakeRegistry(sarif.LevelNote), &buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestRunScanNegativeJobs(t *testing.T) {
 func TestRunScanJobsSetsConcurrency(t *testing.T) {
 	var buf bytes.Buffer
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
-		scanOptions{failOn: "error", jobs: 2}, fakeRegistry(sarif.LevelNote), &buf)
+		scanOptions{failOn: "error", jobs: 2, format: "json"}, fakeRegistry(sarif.LevelNote), &buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestRunScanWarnsOnScanError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("scan errors should not fail the gate, got %v", err)
 	}
-	if !strings.Contains(buf.String(), "\"verdict\": \"pass\"") {
+	if !strings.Contains(buf.String(), "Draugr — PASS") {
 		t.Errorf("expected pass verdict:\n%s", buf.String())
 	}
 }
@@ -234,7 +234,7 @@ func TestRunScanFail(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected fail verdict to return an error")
 	}
-	if !strings.Contains(buf.String(), "\"verdict\": \"fail\"") {
+	if !strings.Contains(buf.String(), "Draugr — FAIL") {
 		t.Errorf("report should show fail verdict:\n%s", buf.String())
 	}
 }
@@ -247,7 +247,7 @@ func TestRunScanPass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected pass, got %v", err)
 	}
-	if !strings.Contains(buf.String(), "\"verdict\": \"pass\"") {
+	if !strings.Contains(buf.String(), "Draugr — PASS") {
 		t.Errorf("report should show pass:\n%s", buf.String())
 	}
 }
@@ -300,7 +300,7 @@ func TestScanCommandViaCobra(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("scan should pass with no components: %v", err)
 	}
-	if !strings.Contains(out.String(), "\"verdict\": \"pass\"") {
-		t.Errorf("expected pass verdict:\n%s", out.String())
+	if !strings.Contains(out.String(), "Draugr — PASS") {
+		t.Errorf("expected pass verdict (console default):\n%s", out.String())
 	}
 }

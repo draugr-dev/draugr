@@ -10,7 +10,18 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Human-readable report formats, independent of GitHub/ADO.** `draugr scan --format` selects
+  the stdout format: **`console`** (a grouped summary — verdict, P1–P4 counts, "fix first"),
+  **`markdown`** (portable for GitLab/Bitbucket MR comments, wikis, Slack), plus `json` and
+  `sarif`. Built on a new pluggable **Reporter** interface (first slice of #58).
+
+### Changed
+
+- **`draugr scan` now prints the console summary by default** instead of raw JSON — the common
+  interactive/CI-log case is now readable at a glance. Use `--format json` (or `--output` for
+  `report.json` + `results.sarif`) for machine consumption. `--output` is unchanged.
 
 ## [0.18.0] - 2026-07-16
 
