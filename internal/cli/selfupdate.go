@@ -76,7 +76,9 @@ func runSelfUpdate(ctx context.Context, w io.Writer, in io.Reader, opts selfUpda
 		return nil
 	}
 
-	if !opts.yes {
+	// Prompt only when interactive; CI/pipes proceed automatically (consistent with
+	// `tools install`). -y always skips the prompt.
+	if !opts.yes && isTTY(in) {
 		_, _ = fmt.Fprintf(w, "Update draugr %s → %s? [y/N] ", cur, target)
 		if !confirmed(in) {
 			_, _ = fmt.Fprintln(w, "Aborted.")

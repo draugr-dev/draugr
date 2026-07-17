@@ -21,6 +21,20 @@ and move it under a version on release.
 - **`draugr doctor` now reports your Draugr version vs the latest available** (best-effort,
   short timeout), nudging `self-update` when you're behind. Opt out with `--offline` or
   `DRAUGR_NO_UPDATE_CHECK=1`; it never blocks or fails the command.
+- **`draugr tools install` shows an install plan and confirms interactively.** It prints the
+  plan first — tool, version, **category**, verification, destination — and asks for
+  confirmation on a TTY (`-y` to skip, `--dry-run` to only preview); CI/pipes proceed
+  automatically.
+- **cosign is now installable** (`draugr tools install cosign`) — a pinned, SHA-256-verified
+  utility. It's what Draugr uses to verify other tools' and its own releases' provenance, so
+  making it installable lets signature verification "just work" without hunting for it. Optional:
+  `doctor` reports it but never fails when absent.
+- **`draugr tools list` gained a CATEGORY column** (scanner vs utility).
+
+### Changed
+
+- **`draugr self-update` now prompts only when interactive** (consistent with `tools install`):
+  a TTY gets the prompt; CI/pipes proceed automatically. `-y` still skips it.
 
 ## [0.16.0] - 2026-07-16
 

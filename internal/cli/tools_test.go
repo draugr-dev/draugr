@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -20,7 +21,7 @@ func TestRunToolsInstallSuccess(t *testing.T) {
 		}
 		return i, nil
 	}
-	if err := runToolsInstall(&out, []string{"trivy", "gitleaks"}, install); err != nil {
+	if err := runToolsInstall(&out, nil, []string{"trivy", "gitleaks"}, toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
 	}
 	s := out.String()
@@ -47,11 +48,49 @@ func TestProvenanceLabel(t *testing.T) {
 	}
 }
 
+func TestRunToolsInstallPlanAndDryRun(t *testing.T) {
+	var out bytes.Buffer
+	called := false
+	install := func(string) (tools.Installed, error) { called = true; return tools.Installed{}, nil }
+	if err := runToolsInstall(&out, nil, []string{"trivy", "cosign"}, toolsInstallOptions{dryRun: true}, install); err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Error("--dry-run must not install anything")
+	}
+	s := out.String()
+	for _, want := range []string{"Install plan", "trivy", "cosign", "scanner", "utility", "dry run"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("plan output missing %q\n%s", want, s)
+		}
+	}
+}
+
+func TestRunToolsInstallInteractiveAbort(t *testing.T) {
+	orig := isTTY
+	isTTY = func(io.Reader) bool { return true }
+	t.Cleanup(func() { isTTY = orig })
+
+	var out bytes.Buffer
+	called := false
+	install := func(string) (tools.Installed, error) { called = true; return tools.Installed{}, nil }
+	// interactive + "n" → abort before installing.
+	if err := runToolsInstall(&out, strings.NewReader("n\n"), []string{"trivy"}, toolsInstallOptions{}, install); err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Error("a declined prompt must not install anything")
+	}
+	if !strings.Contains(out.String(), "Aborted") {
+		t.Errorf("expected abort, got:\n%s", out.String())
+	}
+}
+
 func TestRunToolsInstallSemgrepHint(t *testing.T) {
 	var out bytes.Buffer
 	called := false
 	install := func(string) (tools.Installed, error) { called = true; return tools.Installed{}, nil }
-	if err := runToolsInstall(&out, []string{"semgrep"}, install); err != nil {
+	if err := runToolsInstall(&out, nil, []string{"semgrep"}, toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
 	}
 	if called {
@@ -67,7 +106,7 @@ func TestRunToolsInstallFailure(t *testing.T) {
 	install := func(string) (tools.Installed, error) {
 		return tools.Installed{}, errors.New("boom")
 	}
-	err := runToolsInstall(&out, []string{"trivy"}, install)
+	err := runToolsInstall(&out, nil, []string{"trivy"}, toolsInstallOptions{yes: true}, install)
 	if err == nil {
 		t.Fatal("expected error when an install fails")
 	}
@@ -84,7 +123,7 @@ func TestRunToolsInstallAllInstallsInstallable(t *testing.T) {
 		return tools.Installed{Name: name, Version: "1.0.0", Path: "/x/" + name}, nil
 	}
 	// Empty names → install everything installable, then print the semgrep hint.
-	if err := runToolsInstall(&out, nil, install); err != nil {
+	if err := runToolsInstall(&out, nil, nil, toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
 	}
 	if len(got) == 0 {

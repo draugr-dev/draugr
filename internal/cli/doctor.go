@@ -102,8 +102,8 @@ func runDoctor(
 	for _, t := range required {
 		st := detect(ctx, t)
 		statuses = append(statuses, st)
-		if !st.Found {
-			missing++
+		if !st.Found && !t.Optional {
+			missing++ // optional tools (e.g. cosign) are reported but don't fail the check
 		}
 	}
 
@@ -203,6 +203,8 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 	for _, st := range statuses {
 		status, version, notes := "✓ found", st.Version, st.Path
 		switch {
+		case !st.Found && st.Tool.Optional:
+			status, notes = "– optional", "optional: "+st.Tool.InstallHint
 		case !st.Found:
 			status, notes = "✗ missing", "install: "+st.Tool.InstallHint
 		case st.Err != nil:

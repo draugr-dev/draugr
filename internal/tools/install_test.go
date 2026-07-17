@@ -91,6 +91,35 @@ func TestInstallSuccess(t *testing.T) {
 	}
 }
 
+func TestInstallBareBinary(t *testing.T) {
+	// A bare binary asset (no archive): BinaryInArchive == "" → the download IS the binary.
+	content := []byte("#!/bin/sh\necho bare\n")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(content)
+	}))
+	defer srv.Close()
+	installable["barebin"] = InstallSpec{
+		Binary:  "barebin",
+		Version: "1.0.0",
+		Assets:  map[string]Asset{platformKey(): {URL: srv.URL, SHA256: sha256Hex(content)}}, // BinaryInArchive empty
+	}
+	t.Cleanup(func() { delete(installable, "barebin") })
+
+	dest := t.TempDir()
+	got, err := Install(context.Background(), "barebin", dest, srv.Client())
+	if err != nil {
+		t.Fatalf("Install bare binary: %v", err)
+	}
+	on, err := os.ReadFile(filepath.Join(dest, "barebin")) //nolint:gosec // test temp path
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(on, content) {
+		t.Errorf("bare binary content mismatch: got %q", on)
+	}
+	_ = got
+}
+
 func TestInstallChecksumMismatch(t *testing.T) {
 	archive := makeTarGz(t, "faketool", []byte("real"))
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -204,8 +233,8 @@ func TestExtractFromTarGzMissingBinary(t *testing.T) {
 
 func TestInstallableAndSpec(t *testing.T) {
 	names := Installable()
-	if len(names) < 3 || names[0] != "gitleaks" || names[1] != "gosec" || names[2] != "trivy" {
-		t.Errorf("Installable() = %v, want sorted [gitleaks gosec trivy ...]", names)
+	if len(names) < 4 || names[0] != "cosign" || names[1] != "gitleaks" || names[2] != "gosec" || names[3] != "trivy" {
+		t.Errorf("Installable() = %v, want sorted [cosign gitleaks gosec trivy ...]", names)
 	}
 	spec, ok := Spec("trivy")
 	if !ok || spec.Version == "" || len(spec.Assets) == 0 {

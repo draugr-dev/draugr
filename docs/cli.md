@@ -153,15 +153,34 @@ checksum-verified** — nothing is ever downloaded during a scan.
 
 ### `draugr tools install [tool...]`
 
-Download **pinned** scanner binaries, verify each against a **SHA-256 recorded in Draugr**
+Download **pinned** tool binaries, verify each against a **SHA-256 recorded in Draugr**
 (sourced from the upstream checksums files), and install them into `~/.draugr/bin` — which
 Draugr **adds to `PATH` automatically**, so `scan`/`doctor` use them with no shell config. With
-no arguments, installs everything Draugr can provision (`trivy`, `gitleaks`, `gosec`).
+no arguments, installs everything Draugr can provision (`trivy`, `gitleaks`, `gosec`, `cosign`).
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-y, --yes` | — | Skip the confirmation prompt |
+| `--dry-run` | — | Print the install plan and exit |
 
 ```bash
-draugr tools install            # trivy + gitleaks + gosec, verified, into ~/.draugr/bin
+draugr tools install            # plan → confirm → install everything, into ~/.draugr/bin
 draugr tools install trivy      # just one
+draugr tools install --dry-run  # preview the plan, change nothing
+draugr tools install -y         # non-interactive
 ```
+
+**Plan + confirmation.** It first prints the plan (tool, version, **category**, verification,
+destination). When run **interactively** it asks for confirmation; **non-interactively** (CI,
+pipes) it proceeds — pass `-y` to be explicit or `--dry-run` to only preview.
+
+**Why cosign is in the toolbox.** cosign is a utility Draugr *uses* to verify the provenance of
+other tools (and its own releases, via `self-update`) — but users often don't have it installed,
+so signature verification silently falls back to SHA-256-only. Making cosign installable
+(`draugr tools install cosign`) closes that loop: install it once and signature verification
+"just works" everywhere. It's a **utility** (not a scanner for a control), pinned by SHA-256
+(using cosign to verify itself would be circular), and it's **optional** — `doctor` reports it
+but never fails because it's absent.
 
 **Provenance.** The SHA-256 pin is the mandatory integrity floor. On top of it, for upstreams
 that publish a keyless **cosign** signature over their checksums file (e.g. Trivy), Draugr also
