@@ -93,6 +93,13 @@ draugr scan draugr.saga.yaml --fail-on warning
 draugr scan draugr.saga.yaml --format markdown   # or html, junit, json, sarif
 ```
 
+Compare two scans to see what a change introduced (and gate a PR on *new* findings only):
+
+```bash
+draugr diff base/results.sarif head/results.sarif                     # new / fixed / unchanged
+draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
+```
+
 Let discovery write the descriptor for you (the Ravens):
 
 ```bash

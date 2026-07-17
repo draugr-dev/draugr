@@ -72,6 +72,36 @@ downloaded file), and only affect findings whose rule id is a CVE.
 
 ---
 
+## `draugr diff <base.sarif> <head.sarif>`
+
+Compare two scans and classify every finding as **new**, **fixed**, or **unchanged** — the
+security delta of a change, typically a PR's head vs its base branch. Inputs are the
+`results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml) writes (SARIF is the
+complete, structured result set; the JSON summary can be trimmed by `--min-priority`).
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--format` | `console` | output format: `console`, `markdown`, `json` |
+| `--fail-on-new` | — | fail if a **new** finding is at or above this severity: `error`, `warning`, `note` |
+| `--fail-on-new-priority` | — | fail if a **new** finding is at or above this priority (`P1`–`P4`) |
+
+```bash
+draugr diff base/results.sarif head/results.sarif                     # console delta
+draugr diff base/results.sarif head/results.sarif --format markdown   # MR comment
+draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
+```
+
+**Differential gating.** `--fail-on-new` / `--fail-on-new-priority` fail a PR only for findings
+it *introduces*, not the pre-existing backlog — so a gate stays adoptable where a whole-backlog
+gate would block every PR. The command exits non-zero when the gate trips. A typical CI setup
+scans `main` on push and stores `results.sarif` as an artifact, scans the PR, then diffs the two.
+
+**Finding identity.** Findings are matched on `(tool, rule, file, message)` — deliberately
+ignoring the line number (which drifts as code moves) and the severity level (a re-scored finding
+is still the same issue), so genuinely-carried-over findings aren't reported as fixed + new.
+
+---
+
 ## `draugr survey`
 
 Run discovery surveyors ("the Ravens") and materialize the results into a Saga. At least
