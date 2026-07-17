@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.19.0] - 2026-07-16
+
 ### Added
 
 - **Human-readable report formats, independent of GitHub/ADO.** `draugr scan --format` selects
@@ -333,7 +337,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.19.0
 [0.18.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.18.0
 [0.17.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.17.0
 [0.16.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.16.0
