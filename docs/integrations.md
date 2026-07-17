@@ -78,7 +78,13 @@ every rendered report is delivered to every publisher.
 | `github` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 
 The `github` publisher never stores a secret in the Saga — the token comes from an environment
-variable. Code scanning is free for public repos; private repos need GitHub Advanced Security.
+variable, and it no-ops outside GitHub Actions so the same Saga still runs locally. Code scanning
+is free for public repos; private repos need GitHub Advanced Security.
+
+See [`examples/reporting.saga.yaml`](../examples/reporting.saga.yaml) for a multi-format,
+multi-publisher Saga and [`examples/github-actions-code-scanning.yml`](../examples/github-actions-code-scanning.yml)
+for the matching workflow. Draugr dogfoods this itself in
+[`.draugr/self.saga.yaml`](../.draugr/self.saga.yaml) + the self-scan workflow.
 
 Managed/authenticated enterprise publishers (ServiceNow/Jira/Splunk/signed webhooks) are out of
 OSS scope — tracked on the `cloud` backlog per [#58](https://github.com/draugr-dev/draugr/issues/58).

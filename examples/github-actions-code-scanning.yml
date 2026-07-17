@@ -1,0 +1,31 @@
+# Example GitHub Actions workflow: scan with Draugr and publish findings to code scanning
+# using the native `github` publisher (no separate upload-sarif step).
+#
+# Copy this into .github/workflows/ and pair it with a Saga that declares the github publisher
+# (see examples/reporting.saga.yaml). The action forwards GITHUB_TOKEN to the scan, and the job
+# grants `security-events: write` so the upload is allowed. Code scanning is free for public
+# repos; private repos need GitHub Advanced Security.
+
+name: Draugr
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write # required for the github publisher to upload SARIF
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Draugr scan + publish to code scanning
+        uses: draugr-dev/draugr@v0     # pin a released version in real use
+        with:
+          saga: draugr.saga.yaml       # a Saga with a `github` publisher in config.publishers
+          fail-on: error               # optional: fail the build on error-level findings

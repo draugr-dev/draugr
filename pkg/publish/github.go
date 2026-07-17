@@ -37,6 +37,14 @@ func newGithubPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		apiURL: firstNonEmpty(os.Getenv("GITHUB_API_URL"), "https://api.github.com"),
 		client: http.DefaultClient,
 	}
+	// The github publisher targets a CI code-scanning upload. When a Saga carries it but the
+	// scan runs outside GitHub Actions with no GitHub context resolvable (e.g. a developer
+	// running the same Saga locally), skip instead of failing — there is no commit/ref to
+	// publish against. Any resolvable field (from config or env) means publishing is intended,
+	// so validate strictly.
+	if os.Getenv("GITHUB_ACTIONS") != "true" && g.repo == "" && g.commit == "" && g.ref == "" && g.token == "" {
+		return skipPublisher{kind: "github", reason: "not a GitHub Actions environment"}, nil
+	}
 	var missing []string
 	if g.repo == "" {
 		missing = append(missing, "repo (or $GITHUB_REPOSITORY)")

@@ -165,6 +165,10 @@ runs:
         INPUT_MIN_PRIORITY: ${{ inputs.min-priority }}
         INPUT_CACHE_DIR: ${{ inputs.cache-dir }}
         INPUT_ARGS: ${{ inputs.args }}
+        # Forwarded so a Saga's `github` publisher can upload SARIF to code scanning. Uploading
+        # requires the job to grant `permissions: security-events: write`. GITHUB_REPOSITORY/
+        # _SHA/_REF/_API_URL are already present in the runner environment.
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         draugr version

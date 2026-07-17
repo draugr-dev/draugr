@@ -96,7 +96,8 @@ func TestGithubPublisherConfigOverridesEnv(t *testing.T) {
 }
 
 func TestGithubPublisherMissingConfig(t *testing.T) {
-	// No env, no config → all required fields missing.
+	// In a GitHub Actions run with nothing set, all required fields are missing → error.
+	t.Setenv("GITHUB_ACTIONS", "true")
 	t.Setenv("GITHUB_REPOSITORY", "")
 	t.Setenv("GITHUB_SHA", "")
 	t.Setenv("GITHUB_REF", "")
@@ -109,6 +110,40 @@ func TestGithubPublisherMissingConfig(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error missing %q: %v", want, err)
 		}
+	}
+}
+
+func TestGithubPublisherSkipsOutsideCI(t *testing.T) {
+	// Outside GitHub Actions with nothing configured → a no-op publisher, not an error.
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("GITHUB_REPOSITORY", "")
+	t.Setenv("GITHUB_SHA", "")
+	t.Setenv("GITHUB_REF", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	p, err := For(saga.PublisherConfig{Kind: "github"})
+	if err != nil {
+		t.Fatalf("outside CI the github publisher should be a no-op, got %v", err)
+	}
+	if p.Kind() != "github" {
+		t.Errorf("kind = %q", p.Kind())
+	}
+	// Publishing does nothing (and does not require a sarif artifact).
+	if err := p.Publish(context.Background(), nil); err != nil {
+		t.Errorf("no-op publish should succeed, got %v", err)
+	}
+}
+
+func TestGithubPublisherExplicitRepoValidatesOutsideCI(t *testing.T) {
+	// An explicit repo signals intent to publish even outside Actions → strict validation.
+	// Clear all GitHub env so the assertion holds when this test itself runs inside CI.
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("GITHUB_REPOSITORY", "")
+	t.Setenv("GITHUB_SHA", "")
+	t.Setenv("GITHUB_REF", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	_, err := For(saga.PublisherConfig{Kind: "github", Repo: "acme/app"})
+	if err == nil || !strings.Contains(err.Error(), "commit") {
+		t.Fatalf("explicit repo should trigger validation, got %v", err)
 	}
 }
 
