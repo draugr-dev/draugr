@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **The GitHub Action forwards `GITHUB_TOKEN` to the scan**, so a Saga's `github` publisher can
+  upload SARIF to code scanning with no extra step (grant the job `security-events: write`). See
+  `examples/github-actions-code-scanning.yml` and `examples/reporting.saga.yaml`.
+
+### Changed
+
+- **The `github` publisher no-ops outside GitHub Actions** (when no repo/commit/ref/token is
+  resolvable) instead of erroring, so a Saga that publishes to code scanning in CI still runs
+  cleanly on a developer's machine.
 
 ## [0.21.0] - 2026-07-17
 

@@ -1,6 +1,9 @@
 # Draugr scanning itself — dogfooding (see issue #64). Run: draugr scan .draugr/self.saga.yaml
 # Only controls that apply to this Go repo are enabled today. "url: ." scans the current
 # checkout (git clone of the working directory), so CI scans the pushed commit.
+#
+# The `github` publisher uploads the SARIF to code scanning in CI. It no-ops outside GitHub
+# Actions, so this file still runs cleanly locally.
 release:
   name: draugr
   version: dev
@@ -14,6 +17,10 @@ config:
       enabled: true
     iac:
       enabled: true
+  reports:
+    - format: sarif
+  publishers:
+    - kind: github        # repo/commit/ref/token from the GitHub Actions environment
 components:
   - name: draugr
     repositories:

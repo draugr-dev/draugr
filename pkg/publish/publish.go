@@ -8,11 +8,22 @@ package publish
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
+
+// skipPublisher is a no-op Publisher: a configured publisher that has nothing to do in the
+// current environment (e.g. a github publisher run outside CI). It logs why and delivers nothing.
+type skipPublisher struct{ kind, reason string }
+
+func (p skipPublisher) Kind() string { return p.kind }
+func (p skipPublisher) Publish(context.Context, []report.Artifact) error {
+	slog.Info("publisher skipped", "kind", p.kind, "reason", p.reason)
+	return nil
+}
 
 // Publisher delivers rendered report artifacts to one destination.
 type Publisher interface {

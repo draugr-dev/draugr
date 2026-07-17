@@ -1,0 +1,45 @@
+# Example Saga — reporting: render several report formats and publish them.
+# Run it with:  draugr scan examples/reporting.saga.yaml
+#
+# `config.reports` lists the formats to render; `config.publishers` lists where to deliver them.
+# Every rendered report is delivered to every publisher. Reports are produced even when the gate
+# fails, so you always get evidence.
+
+release:
+  name: my-app
+  version: "1.0"
+
+config:
+  controllers:
+    images:
+      enabled: true
+
+  # What to render. Any scan --format works here: console, markdown, html, junit, json, sarif,
+  # and template (a Go text/template — no code needed).
+  reports:
+    - format: sarif                 # for code scanning / dashboards
+    - format: markdown              # a portable report (MR comment, wiki)
+    - format: html                  # a shareable, browser-viewable artifact
+    - format: template              # a custom payload — e.g. a one-line summary
+      template: "{{.Verdict}}: P1={{.Priorities.P1}} P2={{.Priorities.P2}}\n"
+      filename: summary.txt
+
+  # Where to deliver them.
+  publishers:
+    - kind: file                    # write each report to a directory
+      dir: ./draugr-out             # → ./draugr-out/{results.sarif,report.md,report.html,summary.txt}
+
+    - kind: github                  # upload the SARIF report to GitHub code scanning
+      # In GitHub Actions, repo/commit/ref/token are read from the environment
+      # (GITHUB_REPOSITORY / GITHUB_SHA / GITHUB_REF / GITHUB_TOKEN) — nothing to set here.
+      # Outside Actions this publisher no-ops. The token is NEVER stored in the Saga.
+      #
+      # Optional explicit overrides (e.g. running from another CI):
+      # repo: acme/my-app
+      # ref: refs/heads/main
+      # tokenEnv: GH_PAT            # name the env var that holds the token
+
+components:
+  - name: web
+    images:
+      - image: alpine:3.19
