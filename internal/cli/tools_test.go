@@ -145,7 +145,12 @@ func TestRunToolsList(t *testing.T) {
 		t.Fatalf("runToolsList: %v", err)
 	}
 	s := out.String()
-	for _, want := range []string{"TOOL", "PINNED", "trivy", "gitleaks", "semgrep", "git", "pipx"} {
+	for _, want := range []string{
+		"TOOL", "CATEGORY", "CONTROLS", "PINNED",
+		"trivy", "gitleaks", "semgrep", "git", "pipx",
+		"secrets", // gitleaks → secrets control
+		"utility", // cosign/git category
+	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("list output missing %q\n%s", want, s)
 		}

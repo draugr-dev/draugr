@@ -196,12 +196,29 @@ from your system.
 
 ### `draugr tools list`
 
-Show every scanner Draugr knows about: its pinned version, how it's obtained (managed install /
-pipx / system), and whether it's currently found (with path + version).
+Show every tool Draugr knows about: its **category** (scanner/utility), the **controls** it
+backs, its pinned version, how it's obtained (managed install / pipx / system), and whether
+it's currently found (with path + version).
 
 ```bash
 draugr tools list
 ```
+
+---
+
+## `draugr controls`
+
+List the security controls Draugr can run — what each checks, its scope, and which scanner(s)
+implement it (default, plus any opt-in alternatives marked `*`). The companion to
+`tools list`: `controls` maps **control → scanners** ("what runs this check"), while `tools
+list` maps **tool → controls** ("why this tool matters").
+
+```bash
+draugr controls
+```
+
+Enable a control in your Saga under `config.controllers.<name>` (or per component); choose a
+control's scanners with `controllers.<name>.scanners` (e.g. `sast: { scanners: [semgrep, gosec] }`).
 
 ---
 

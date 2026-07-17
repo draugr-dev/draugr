@@ -18,7 +18,12 @@ func NewSAST() plugin.Controller { return SAST{} }
 
 // Info identifies the controller (component-scoped).
 func (SAST) Info() plugin.ControllerInfo {
-	return plugin.ControllerInfo{Name: "sast", Scope: plugin.ScopeComponent}
+	return plugin.ControllerInfo{
+		Name:            "sast",
+		Scope:           plugin.ScopeComponent,
+		Summary:         "Static analysis of a repo's own source code for security bugs.",
+		DefaultScanners: []string{"semgrep"},
+	}
 }
 
 // Plan produces a scan job for each repository × each selected sast scanner. The scanner set

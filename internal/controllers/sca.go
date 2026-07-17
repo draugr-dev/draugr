@@ -17,7 +17,12 @@ func NewSCA() plugin.Controller { return SCA{} }
 
 // Info identifies the controller (component-scoped).
 func (SCA) Info() plugin.ControllerInfo {
-	return plugin.ControllerInfo{Name: "sca", Scope: plugin.ScopeComponent}
+	return plugin.ControllerInfo{
+		Name:            "sca",
+		Scope:           plugin.ScopeComponent,
+		Summary:         "Scan a repo's dependencies for known vulnerabilities (Software Composition Analysis).",
+		DefaultScanners: []string{"trivy-fs"},
+	}
 }
 
 // Plan produces one scan job per repository declared on the component.
