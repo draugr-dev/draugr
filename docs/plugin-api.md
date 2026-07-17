@@ -166,7 +166,8 @@ type Artifact struct {
 
 Delivers rendered reports to a destination — the "where" of reporting, separate from the Reporter
 (the "what"). Lives in [`pkg/publish`](../pkg/publish); configured from the Saga's
-`config.publishers`. Built-in kind: `file` (`github` is on the roadmap). Every rendered report is
+`config.publishers`. Built-in kinds: `file` and `github` (uploads the SARIF report to code
+scanning). Every rendered report is
 delivered to every configured publisher, so a publisher takes only the artifacts it needs.
 
 ```go

@@ -40,7 +40,8 @@ func TestFilePublisherRequiresDir(t *testing.T) {
 }
 
 func TestKinds(t *testing.T) {
-	if got := Kinds(); len(got) != 1 || got[0] != "file" {
+	got := Kinds()
+	if len(got) != 2 || got[0] != "file" || got[1] != "github" {
 		t.Errorf("Kinds() = %v", got)
 	}
 }

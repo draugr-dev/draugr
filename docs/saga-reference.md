@@ -81,9 +81,22 @@ independent of `scan --format` (stdout) and `scan -o` (which always writes `repo
 `results.sarif`) — use `config.publishers` when you want a declarative, multi-format,
 multi-destination setup in the Saga itself.
 
-> Built-in publisher today: **`file`**. A **`github`** publisher (SARIF → code scanning) and a
-> **`template`** reporter (custom payloads) are on the roadmap
-> ([#58](https://github.com/draugr-dev/draugr/issues/58)).
+Built-in publishers: **`file`** and **`github`** (uploads the `sarif` report to code scanning):
+
+```yaml
+config:
+  reports:
+    - format: sarif
+  publishers:
+    - kind: github         # repo/commit/ref default to the GitHub Actions env
+      # repo: owner/name   # optional overrides ($GITHUB_REPOSITORY / $GITHUB_SHA / $GITHUB_REF)
+      # ref: refs/heads/main
+      # tokenEnv: GITHUB_TOKEN   # the token is read from this env var — never the Saga
+```
+
+The `github` publisher requires a `sarif` report in `config.reports`. It never stores a secret in
+the descriptor — the token comes from an environment variable. Code scanning is free for public
+repos; private repos need GitHub Advanced Security.
 
 ## `components`
 

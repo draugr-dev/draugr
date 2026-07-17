@@ -26,7 +26,8 @@ type Publisher interface {
 // builders maps a config kind to a constructor that validates the config and returns a
 // Publisher. Registering here keeps the set of built-in publishers in one place.
 var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
-	"file": newFilePublisher,
+	"file":   newFilePublisher,
+	"github": newGithubPublisher,
 }
 
 // For resolves a configured publisher, validating its kind and required fields.

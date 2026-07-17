@@ -75,7 +75,10 @@ every rendered report is delivered to every publisher.
 | Kind | Delivers to | Config |
 |------|-------------|--------|
 | `file` | a local directory (one file per report format) | `dir` |
-| `github` | GitHub code scanning (SARIF upload) | 🗺️ [#58](https://github.com/draugr-dev/draugr/issues/58) |
+| `github` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+
+The `github` publisher never stores a secret in the Saga — the token comes from an environment
+variable. Code scanning is free for public repos; private repos need GitHub Advanced Security.
 
 Managed/authenticated enterprise publishers (ServiceNow/Jira/Splunk/signed webhooks) are out of
 OSS scope — tracked on the `cloud` backlog per [#58](https://github.com/draugr-dev/draugr/issues/58).
