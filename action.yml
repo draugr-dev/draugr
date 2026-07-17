@@ -50,6 +50,13 @@ inputs:
       is always verified regardless of this setting.
     required: false
     default: "true"
+  tools:
+    description: >-
+      Provision the external scanners Draugr's controls use before scanning: `draugr tools
+      install` for the binary tools (Trivy, Gitleaks, gosec) plus Semgrep via pipx. Set "true"
+      when the runner doesn't already have them (e.g. the code-scanning starter workflow).
+    required: false
+    default: "false"
 
 outputs:
   sarif:
@@ -153,6 +160,20 @@ runs:
           tar -xzf "$ASSET" -C "$bindir" draugr
         fi
         echo "$bindir" >>"$GITHUB_PATH"
+
+    - name: Provision scanner tools
+      if: inputs.tools == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Binary scanners (Trivy, Gitleaks, gosec) into ~/.draugr/bin, which draugr prepends to
+        # PATH for its own scanner execution.
+        draugr tools install -y
+        # Semgrep ships as a Python package, so it comes via pipx (its bin dir on PATH).
+        if ! command -v semgrep >/dev/null 2>&1; then
+          pipx install semgrep
+          echo "$HOME/.local/bin" >>"$GITHUB_PATH"
+        fi
 
     - name: Run Draugr scan
       shell: bash

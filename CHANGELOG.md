@@ -10,7 +10,12 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **The GitHub Action can provision the scanners itself** — set `tools: true` and the action runs
+  `draugr tools install` (Trivy, Gitleaks, gosec) plus Semgrep via pipx before scanning, so a
+  workflow needs no per-tool setup steps. Default `false` (unchanged for existing users). This
+  makes the upcoming code-scanning **starter workflow** a simple checkout → Draugr → upload-sarif.
 
 ## [0.23.0] - 2026-07-17
 

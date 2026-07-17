@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500" fill="none">
+  <title>Draugr</title>
+  <!-- Shield -->
+  <path d="M250 40 L430 110 V250 C430 360 350 435 250 465 C150 435 70 360 70 250 V110 Z"
+        fill="#1f6feb"/>
+  <path d="M250 80 L392 135 V250 C392 340 328 402 250 428 C172 402 108 340 108 250 V135 Z"
+        fill="#0b1f4d"/>
+  <!-- Rune-like "warding" mark -->
+  <g stroke="#7fb0ff" stroke-width="26" stroke-linecap="round" fill="none">
+    <path d="M250 150 V360"/>
+    <path d="M250 205 L322 160"/>
+    <path d="M250 260 L178 215"/>
+    <path d="M250 305 L322 350"/>
+  </g>
+</svg>
