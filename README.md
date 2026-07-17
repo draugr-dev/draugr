@@ -87,9 +87,10 @@ components:
 Scan it:
 
 ```bash
-draugr scan draugr.saga.yaml            # prints a JSON verdict; exits non-zero on fail
+draugr scan draugr.saga.yaml            # console summary; exits non-zero on fail
 draugr scan draugr.saga.yaml -o out/    # also writes out/report.json + out/results.sarif
 draugr scan draugr.saga.yaml --fail-on warning
+draugr scan draugr.saga.yaml --format markdown   # or html, junit, json, sarif
 ```
 
 Let discovery write the descriptor for you (the Ravens):
