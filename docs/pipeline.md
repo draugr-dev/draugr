@@ -14,7 +14,7 @@ produces, and how to configure it.
 ```
 
 Stages map to packages: `saga`, `engine` (plan + scan + aggregate), `norn` (judge),
-`skald` (report), `surveyor` (survey).
+`report` + `skald` (report), `surveyor` (survey).
 
 ---
 
@@ -50,8 +50,11 @@ from its inputs. You can inspect the plan without running it.
 
 **In:** scan jobs. **Out:** SARIF per control.
 
-Jobs run with **bounded concurrency** (default: number of CPUs). Each job resolves its
-scanner and runs it; every scanner normalizes output to **SARIF**. If a **cache** is
+Jobs run with **bounded concurrency** (default: number of CPUs, tunable with `-j/--jobs`).
+Before fan-out, each distinct scanner is **prewarmed** once (e.g. Trivy's vuln DB), and
+identical concurrent jobs (same scanner+target+config) are collapsed to a single scan via
+in-run **singleflight** (counted as `deduped` in stats). Each job resolves its scanner and
+runs it; every scanner normalizes output to **SARIF**. If a **cache** is
 enabled (`--cache-dir`), a job whose cache key already has a stored result is served from
 cache instead of re-scanning — unchanged targets cost nothing. Scan errors are collected
 (they don't abort the whole run) and reported alongside successful results.
@@ -74,9 +77,10 @@ The Norn decides a release's fate. See the deep-dive below.
 
 **In:** the run result + the verdict. **Out:** evidence artifacts.
 
-The Skald renders a JSON summary (release, verdict, per-control counts, run stats) and a
-**merged SARIF** document across all controls. Write them with `-o/--output` (produces
-`report.json` and `results.sarif`).
+The report stage renders through a `Reporter` (`pkg/report`): to stdout it prints a **console**
+summary by default (or `markdown`/`json`/`sarif` via `--format`). The `json`/`sarif` formats are
+backed by the Skald (release, verdict, per-control counts, run stats; and a **merged SARIF**
+across all controls). `-o/--output <dir>` additionally writes `report.json` and `results.sarif`.
 
 ## 7. Publish
 
@@ -109,8 +113,9 @@ Every finding has a SARIF **level**, ranked:
 
 ```go
 type Policy struct {
-    FailOn     sarif.Level            // default threshold (zero value ⇒ error)
-    PerControl map[string]sarif.Level // optional per-control overrides
+    FailOn         sarif.Level            // default threshold (zero value ⇒ error)
+    PerControl     map[string]sarif.Level // optional per-control overrides
+    FailOnPriority string                 // optional component-aware priority gate (e.g. "P1")
 }
 ```
 
@@ -159,5 +164,5 @@ the gate travels with the app.
 
 ### Verdict → exit code
 
-`draugr scan` prints the JSON report and **exits non-zero on `fail`**, so the Norn's
-verdict directly gates CI — no extra scripting.
+`draugr scan` prints the report (console by default; `--format markdown|json|sarif`) and
+**exits non-zero on `fail`**, so the Norn's verdict directly gates CI — no extra scripting.

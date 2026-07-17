@@ -46,7 +46,7 @@ never re-scanned.
 | **Scan** | Controllers → Scanners | Run scanners concurrently via worker pools. Each scanner emits **SARIF**. |
 | **Aggregate** | Controllers | Merge + deduplicate a control's scanner outputs into one control result. |
 | **Judge** | Norn | Evaluate results against policy → PASS / FAIL / WAIVED per control and overall. |
-| **Report** | Skald | Render evidence: merged SARIF, JSON, HTML, and compliance exports. |
+| **Report** | Reporters (`pkg/report`) + Skald | Render the run: `console` (default), `markdown`, `json`, `sarif`. Skald backs the machine formats (JSON + merged SARIF). |
 | **Publish** | Sinks | Write artifacts; push SARIF to GitHub/ADO/GitLab; post status to the control plane. |
 
 ---
@@ -113,8 +113,9 @@ Terraform/Vault/Nomad). Benefits: language-agnostic, process isolation, a versio
 contract, crash containment.
 
 ### Built-ins
-A curated set (Trivy, SonarQube, ZAP, an HTTP-headers scanner, k8s/GitHub surveyors)
-compiles into the core so `draugr` is useful out of the box.
+A curated set compiles into the core so `draugr` is useful out of the box: scanners
+`trivy`/`trivy-fs`/`trivy-config`, `gitleaks`, `semgrep`, `gosec`, and a native
+`http-headers`; surveyors `k8s-images` and `github-org-repos`.
 
 ### Distribution — "the Hoard"
 Plugins are packaged as **OCI artifacts** and pulled from a registry (the Hoard),
@@ -145,7 +146,7 @@ lossless core. Consequences:
   TTL/expiry (new CVEs can affect an unchanged artifact, so caching must be explicit and
   time-bounded). This is a first-class, monetizable capability, not an afterthought.
 - **Plan-only mode:** emit the execution plan without running — drives CI job matrices and
-  `draugr check` (preflight: are tools/creds/config present?).
+  complements `draugr doctor` (preflight: are tools/creds/config present?).
 
 ---
 
@@ -158,14 +159,24 @@ draugr/
   internal/observability/# slog logging + OpenTelemetry tracing
   internal/version/      # build metadata (ldflags-injected)
   pkg/saga/              # descriptor: schema, parse, validate, meta-sources, env subst
-  pkg/engine/            # plan, schedule, worker pools, cache
-  pkg/plugin/            # plugin SDK: interfaces, gRPC contract, tool-adapter runtime
+  pkg/engine/            # plan, schedule, bounded-concurrency scan, cache, prioritize
+  pkg/plugin/            # plugin SDK: interfaces + value types + cache keys
+  pkg/tooladapter/       # declarative exec-a-CLI-and-parse-SARIF Scanner runtime
   pkg/sarif/             # SARIF model + superset + merge/dedup
-  pkg/norn/              # policy evaluation (thresholds now; OPA/Rego later)
-  pkg/skald/             # report/evidence rendering (json, html, compliance)
-  pkg/surveyor/          # Raven framework + built-in surveyors
-  internal/controllers/  # built-in controllers
-  internal/scanners/     # built-in scanners
+  pkg/norn/              # policy evaluation (thresholds + priority gate)
+  pkg/skald/             # JSON + merged-SARIF evidence rendering
+  pkg/report/            # multi-format reporting (console, markdown, json, sarif)
+  pkg/prioritization/    # exposure × criticality × severity → P1–P4
+  pkg/exploit/           # KEV/EPSS exploitability enrichment
+  pkg/cache/             # content-hash result cache
+  pkg/surveyor/          # Raven framework/registry
+  internal/builtins/     # wires the default controllers/scanners/surveyors
+  internal/controllers/  # built-in controllers (images, sca, secrets, sast, iac, headers)
+  internal/scanners/     # built-in scanners (trivy*, gitleaks, semgrep, gosec, http-headers)
+  internal/surveyors/    # built-in surveyors (k8s-images, github-org-repos)
+  internal/tools/        # doctor detection + `tools install` provisioning
+  internal/selfupdate/   # `self-update` (verified in-place binary update)
+  internal/git/          # repository checkout for repo-scanning controls
 ```
 
 ---

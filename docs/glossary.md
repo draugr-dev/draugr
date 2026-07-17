@@ -20,8 +20,9 @@ line count, deep transitive trees), so this is where a large share of real risk 
 3. **Checks licenses** — surfaces each dependency's license so a copyleft/GPL library
    doesn't slip into a proprietary product.
 
-**In Draugr:** the **`sca`** control, backed by [Trivy](https://trivy.dev) (filesystem
-mode) and [OSV-Scanner](https://google.github.io/osv-scanner/). Roadmap: [#49](https://github.com/draugr-dev/draugr/issues/49).
+**In Draugr:** the **`sca`** control, backed by [Trivy](https://trivy.dev) (filesystem mode).
+[OSV-Scanner](https://google.github.io/osv-scanner/) as a second SCA scanner is on the roadmap:
+[#49](https://github.com/draugr-dev/draugr/issues/49).
 
 **Not to be confused with:**
 - **SAST** — analyzes *your* code, not dependencies.
@@ -33,7 +34,8 @@ mode) and [OSV-Scanner](https://google.github.io/osv-scanner/). Roadmap: [#49](h
 
 Analyzes your **own source code** (without running it) for security bugs — injection,
 unsafe APIs, hardcoded logic flaws. In Draugr: **`sast`** via
-[Semgrep](https://semgrep.dev). (Implemented today.)
+[Semgrep](https://semgrep.dev), with opt-in **[gosec](https://github.com/securego/gosec)** for
+Go components (`controllers.sast.scanners`). (Implemented today.)
 
 ## DAST — Dynamic Application Security Testing
 

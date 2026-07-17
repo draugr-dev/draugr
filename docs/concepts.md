@@ -16,16 +16,17 @@ A **controller** owns one **security control**. It plans the work for the compon
 applies to and aggregates the results. Controllers are either **project-scoped** or
 **component-scoped**.
 
-> Implemented today: **`images`**, **`sca`**, **`secrets`**, **`sast`**, **`iac`**. On the
-> roadmap: `dast`, `headers`, `tls`, `sbom`, `infrastructure`, `threats`. See the
-> [integrations catalog](integrations.md).
+> Implemented today: **`images`**, **`sca`**, **`secrets`**, **`sast`**, **`iac`**, **`headers`**.
+> On the roadmap: `dast`, `tls`, `sbom`, `infrastructure`, `threats`. See the
+> [integrations catalog](integrations.md) or run `draugr controls`.
 
 ## Scanners
 
 A **scanner** wraps a single security tool and normalizes its output to **SARIF**. Most
 tools are integrated declaratively via a *tool adapter* — describe how to invoke the tool
 and Draugr runs it and parses its SARIF. Built-in today: **Trivy** (`images`, `sca`, `iac`),
-**Gitleaks** (`secrets`), and **Semgrep** (`sast`).
+**Gitleaks** (`secrets`), **Semgrep** (`sast`, with opt-in **gosec** for Go components), and a
+**native HTTP-headers** scanner (`headers`).
 
 ## Surveyors — "the Ravens"
 
@@ -46,7 +47,9 @@ Describe ─► Plan ─► Scan ─► Aggregate ─► Judge ─► Report
 - **Aggregate** — merge and **deduplicate** each control's findings.
 - **Judge (the Norn)** — apply policy thresholds to produce a pass/fail verdict per control
   and overall. The Norns decide fate; here, a release's.
-- **Report (the Skald)** — render a JSON evidence summary and merged SARIF.
+- **Report (the Skald)** — render the run through a `Reporter`: a human summary to stdout
+  (console by default, or `markdown`), plus machine formats (`json`, `sarif`); `-o/--output`
+  writes `report.json` and `results.sarif`.
 
 ## Prioritization: what to fix first
 
