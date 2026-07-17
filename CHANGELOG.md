@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.22.0] - 2026-07-17
+
 ### Added
 
 - **The GitHub Action forwards `GITHUB_TOKEN` to the scan**, so a Saga's `github` publisher can
@@ -24,6 +28,13 @@ and move it under a version on release.
 - **The `github` publisher no-ops outside GitHub Actions** (when no repo/commit/ref/token is
   resolvable) instead of erroring, so a Saga that publishes to code scanning in CI still runs
   cleanly on a developer's machine.
+
+### Fixed
+
+- **Repository-scan findings now use repo-relative paths.** `sast`/`secrets` findings previously
+  carried absolute temp-checkout paths (`/tmp/draugr-repo-…/…`), which GitHub code scanning
+  couldn't map to files (no PR annotations, unusable Security-tab entries). Paths are now rewritten
+  to be repo-relative.
 
 ## [0.21.0] - 2026-07-17
 
@@ -394,7 +405,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.22.0
 [0.21.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.21.0
 [0.20.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.20.0
 [0.19.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.19.0
