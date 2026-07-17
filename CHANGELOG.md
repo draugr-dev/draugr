@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Two more `draugr scan --format` outputs.** `html` renders a self-contained, browser-viewable
+  report (inline CSS, no assets) you can publish as a build artifact; `junit` emits JUnit XML so
+  CI systems (GitLab, Jenkins, Azure DevOps…) surface findings in their native test-results panel
+  — one `<testsuite>` per control, one failing `<testcase>` per finding. Both plug into the same
+  Reporter interface as `console`/`markdown`/`json`/`sarif`.
 
 ## [0.19.0] - 2026-07-16
 

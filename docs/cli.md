@@ -30,7 +30,7 @@ human-readable **console** summary to stdout by default (`--format` for other fo
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
-| `--format` | `console` | stdout report format: `console`, `markdown`, `json`, `sarif` |
+| `--format` | `console` | stdout report format: `console`, `markdown`, `html`, `junit`, `json`, `sarif` |
 
 ```bash
 draugr scan draugr.saga.yaml
@@ -40,13 +40,18 @@ draugr scan draugr.saga.yaml --fail-on-priority P1    # also block on P1 finding
 draugr scan draugr.saga.yaml --cache-dir .draugr-cache
 draugr scan draugr.saga.yaml -j 4                      # cap parallelism (or -j 1 for serial)
 draugr scan draugr.saga.yaml --format markdown        # portable report (MR comment, wiki)
+draugr scan draugr.saga.yaml --format html > report.html   # shareable browser report
+draugr scan draugr.saga.yaml --format junit > report.xml   # CI test panel
 draugr scan draugr.saga.yaml --format json | jq .     # machine-readable
 ```
 
 **Output formats (`--format`).** stdout defaults to a human **console** summary (verdict,
 priority/severity counts, "fix first"). `markdown` produces a portable report for MR comments
-or wikis; `json` and `sarif` are the machine formats. Regardless of `--format`, `--output <dir>`
-always writes both `report.json` and `results.sarif` for CI/code-scanning.
+or wikis; `html` is a self-contained, browser-viewable report you can publish as a build
+artifact; `junit` emits JUnit XML so CI systems (GitLab, Jenkins, Azure DevOps…) surface
+findings in their test-results panel; `json` and `sarif` are the machine formats. Regardless of
+`--format`, `--output <dir>` always writes both `report.json` and `results.sarif` for
+CI/code-scanning.
 
 **Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. But
 scanners like Trivy and Semgrep are themselves multi-threaded, so on a busy or small machine

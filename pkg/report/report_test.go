@@ -3,6 +3,7 @@ package report
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"strings"
 	"testing"
 
@@ -32,7 +33,7 @@ func sampleData() Data {
 }
 
 func TestForAndFormats(t *testing.T) {
-	for _, f := range []string{"console", "markdown", "json", "sarif"} {
+	for _, f := range []string{"console", "markdown", "html", "junit", "json", "sarif"} {
 		r, err := For(f)
 		if err != nil || r.Format() != f {
 			t.Errorf("For(%q) = %v, %v", f, r, err)
@@ -41,7 +42,7 @@ func TestForAndFormats(t *testing.T) {
 	if _, err := For("nope"); err == nil {
 		t.Error("expected error for unknown format")
 	}
-	if got := Formats(); len(got) != 4 {
+	if got := Formats(); len(got) != 6 {
 		t.Errorf("Formats() = %v", got)
 	}
 }
@@ -73,6 +74,87 @@ func TestMarkdownRender(t *testing.T) {
 		if !strings.Contains(s, want) {
 			t.Errorf("markdown output missing %q\n%s", want, s)
 		}
+	}
+}
+
+func TestHTMLRender(t *testing.T) {
+	var b bytes.Buffer
+	if err := (htmlReporter{}).Render(&b, sampleData()); err != nil {
+		t.Fatal(err)
+	}
+	s := b.String()
+	for _, want := range []string{"<!doctype html>", "Draugr —", "FAIL", "app 1.0", "CVE-1", "gitleaks", "</html>"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("html output missing %q", want)
+		}
+	}
+	// P1 finding sorts before the P3.
+	if strings.Index(s, "CVE-1") > strings.Index(s, "CVE-2") {
+		t.Error("P1 finding should render before the P3 finding")
+	}
+}
+
+func TestHTMLEscapesFindingContent(t *testing.T) {
+	d := Data{
+		Release: saga.Release{Name: "app"},
+		Run: engine.Result{Controls: map[string]plugin.ControlResult{"images": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "R", Level: sarif.LevelError, Tool: "t", Message: "<script>alert(1)</script>"},
+		}}}}},
+		Verdict: norn.Result{Verdict: norn.Fail},
+	}
+	var b bytes.Buffer
+	if err := (htmlReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), "<script>alert(1)</script>") {
+		t.Error("html reporter must escape finding content")
+	}
+	if !strings.Contains(b.String(), "&lt;script&gt;") {
+		t.Error("expected escaped finding content")
+	}
+}
+
+func TestJUnitRender(t *testing.T) {
+	var b bytes.Buffer
+	if err := (junitReporter{}).Render(&b, sampleData()); err != nil {
+		t.Fatal(err)
+	}
+	// Must be well-formed XML.
+	var suites junitTestsuites
+	if err := xml.Unmarshal(b.Bytes(), &suites); err != nil {
+		t.Fatalf("junit output not valid XML: %v", err)
+	}
+	if suites.Name != "draugr" {
+		t.Errorf("root name = %q", suites.Name)
+	}
+	// sampleData has 3 findings across images(2) + secrets(1).
+	if suites.Tests != 3 || suites.Failures != 3 {
+		t.Errorf("tests=%d failures=%d, want 3/3", suites.Tests, suites.Failures)
+	}
+	if len(suites.Suites) != 2 {
+		t.Fatalf("want one suite per control, got %d", len(suites.Suites))
+	}
+}
+
+func TestJUnitCleanControlPasses(t *testing.T) {
+	d := Data{
+		Release: saga.Release{Name: "app"},
+		Run:     engine.Result{Controls: map[string]plugin.ControlResult{"images": {Report: sarif.Report{}}}},
+		Verdict: norn.Result{Verdict: norn.Pass, Controls: []norn.ControlOutcome{{Control: "images", Verdict: norn.Pass}}},
+	}
+	var b bytes.Buffer
+	if err := (junitReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	var suites junitTestsuites
+	if err := xml.Unmarshal(b.Bytes(), &suites); err != nil {
+		t.Fatal(err)
+	}
+	if suites.Failures != 0 || suites.Tests != 1 {
+		t.Errorf("clean control: tests=%d failures=%d, want 1/0", suites.Tests, suites.Failures)
+	}
+	if len(suites.Suites) != 1 || suites.Suites[0].TestCases[0].Failure != nil {
+		t.Error("clean control should emit one passing testcase")
 	}
 }
 

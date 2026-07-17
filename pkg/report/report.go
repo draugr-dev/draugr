@@ -1,6 +1,6 @@
 // Package report renders a scan result in a chosen format. Each format is a Reporter over a
 // common Data value, so the CLI (and, later, the branch diff) can emit console/markdown/HTML
-// for humans and JSON/SARIF for machines through one interface.
+// for humans, JUnit for CI test panels, and JSON/SARIF for machines through one interface.
 package report
 
 import (
@@ -34,6 +34,8 @@ type Reporter interface {
 var reporters = map[string]Reporter{
 	"console":  consoleReporter{},
 	"markdown": markdownReporter{},
+	"html":     htmlReporter{},
+	"junit":    junitReporter{},
 	"json":     jsonReporter{},
 	"sarif":    sarifReporter{},
 }
