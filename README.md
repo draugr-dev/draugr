@@ -32,6 +32,8 @@ This is the open-source core engine.
   every finding P1–P4 (`--min-priority` to focus, `--fail-on-priority` to gate);
   optional KEV/EPSS enrichment for real-world exploitability.
 - **Discovery ("the Ravens"):** `survey` for Kubernetes images and GitHub org repositories.
+- **Zero-config & scaffolding:** `scan .` scans the current repo with no descriptor
+  (sca/secrets/sast/iac); `init` scaffolds a stack-detected `draugr.saga.yaml` to customize.
 - **Preflight & tooling:** `validate` (schema-check a Saga), `doctor` (which scanner tools are
   present/missing), `tools install` (fetch pinned, checksum- and cosign-verified scanners —
   and cosign itself — into `~/.draugr/bin`), and `self-update` (update draugr itself, verified).
@@ -68,7 +70,14 @@ cd draugr && make build      # produces ./bin/draugr
 ./bin/draugr version
 ```
 
-Write a `draugr.saga.yaml` (see [`examples/`](examples/draugr.saga.yaml)):
+**Fastest path — zero config.** Point Draugr at a repo and go; no descriptor needed:
+
+```bash
+draugr scan .        # scans the current repo: sca, secrets, sast, iac
+draugr init          # or scaffold a draugr.saga.yaml (stack-detected) to customize
+```
+
+For full control, write a `draugr.saga.yaml` (see [`examples/`](examples/draugr.saga.yaml)):
 
 ```yaml
 release:
@@ -123,9 +132,10 @@ permissions:
 steps:
   - uses: actions/checkout@v4
   - id: draugr
-    uses: draugr-dev/draugr@v0.16.0     # pin a release; installs Draugr for you
+    uses: draugr-dev/draugr@v0.25.0     # pin a release; installs Draugr for you
     with:
       saga: draugr.saga.yaml
+      tools: true                       # provision the scanners the controls need
       fail-on: warning                  # optional gate (default: error)
   - if: always()                        # publish findings even when the gate fails
     uses: github/codeql-action/upload-sarif@v3
@@ -133,9 +143,9 @@ steps:
       sarif_file: ${{ steps.draugr.outputs.sarif }}
 ```
 
-The scanners each control needs (Trivy, Gitleaks, …) still have to be on the runner — install
-them alongside, or gate their presence with `draugr doctor`. See the
-[GitHub Action guide](docs/guides/github-action.md) for the full workflow and all inputs.
+With `tools: true` the action provisions the scanners each control needs (Trivy, Gitleaks,
+Semgrep). See the [GitHub Action guide](docs/guides/github-action.md) for the full workflow and
+all inputs.
 
 ## Documentation
 

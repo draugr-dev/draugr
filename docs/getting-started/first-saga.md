@@ -12,6 +12,10 @@ application's security surface and the controls that must pass. This page walks 
 one-component file to a classified, multi-control descriptor. For the exhaustive field list,
 see the [Saga schema](../reference/saga-schema.md).
 
+> **Shortcut:** `draugr init` scaffolds this file for you, detecting your stack (Go, a
+> Dockerfile, dependency manifests) to pre-fill sensible controls — a good starting point to
+> edit. And if you just want a scan now, `draugr scan .` needs no Saga at all.
+
 ## The smallest thing that runs
 
 A Saga needs a `release` and at least one component with an enabled control:

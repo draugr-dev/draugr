@@ -19,11 +19,40 @@ no-op when unset.
 
 ---
 
-## `draugr scan <saga.yaml>`
+## `draugr init [dir]`
+
+Scaffold a `draugr.saga.yaml` for a project (default: the current directory), detecting the
+stack to pre-fill sensible controls — Go adds `gosec` to `sast`, a `Dockerfile` adds an `images`
+stub, dependency manifests confirm `sca`. Edit it, then `draugr scan`.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-o, --output` | `draugr.saga.yaml` | Path to write (`-` for stdout) |
+| `-f, --force` | `false` | Overwrite an existing file |
+
+```bash
+draugr init                 # write draugr.saga.yaml for the current project
+draugr init -o - | less     # preview without writing
+```
+
+For an instant scan with no file at all, use zero-config `draugr scan .` (below).
+
+## `draugr scan [saga.yaml | dir]`
 
 Load a Saga, run the applicable controls, and produce a pass/fail verdict. Prints a
 human-readable **console** summary to stdout by default (`--format` for other formats).
 **Exits non-zero when the verdict is `fail`.**
+
+**Zero-config.** Point `scan` at a **directory** (or omit the argument to use the current one)
+and Draugr scans that repository with `sca`, `secrets`, `sast`, and `iac` — no Saga required.
+A one-line note is printed to stderr so machine formats on stdout stay clean. A Saga **file**
+argument runs exactly as before.
+
+```bash
+draugr scan            # zero-config: scan the current repo
+draugr scan ./service  # zero-config: scan another repo directory
+draugr scan draugr.saga.yaml   # full control from a descriptor
+```
 
 | Flag | Default | Description |
 |------|---------|-------------|

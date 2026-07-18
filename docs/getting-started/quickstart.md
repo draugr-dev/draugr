@@ -11,10 +11,27 @@ This guide takes you from zero to a security verdict, then shows how discovery c
 the descriptor for you. If you haven't installed Draugr yet, start with
 [install](install.md).
 
-**Contents:** [Describe your app](#1-describe-your-app) · [Scan](#2-scan) ·
-[Focus: what to fix first](#focus-what-to-fix-first) ·
+**Contents:** [Fastest path](#0-fastest-path-zero-config) · [Describe your app](#1-describe-your-app) ·
+[Scan](#2-scan) · [Focus: what to fix first](#focus-what-to-fix-first) ·
 [Discovery — the Ravens](#3-let-discovery-write-the-descriptor-the-ravens) ·
 [Run it in CI](#4-run-it-in-ci) · [Troubleshooting](#troubleshooting)
+
+## 0. Fastest path (zero-config)
+
+No descriptor needed — point Draugr at a repository:
+
+```bash
+draugr scan .          # scans the current repo with sca, secrets, sast, iac
+```
+
+That's the 60-second path to a verdict. When you want to pick controls, add container images
+or endpoints, or classify components for prioritization, scaffold a descriptor:
+
+```bash
+draugr init            # writes a stack-detected draugr.saga.yaml to customize
+```
+
+The rest of this guide covers that descriptor-driven flow.
 
 ## 1. Describe your app
 
