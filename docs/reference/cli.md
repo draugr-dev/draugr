@@ -1,3 +1,10 @@
+---
+title: CLI reference
+description: Every Draugr command and flag, from scan and diff to survey, doctor, and tools.
+section: Reference
+order: 10
+---
+
 # CLI reference
 
 All commands accept these **global flags**:
@@ -53,11 +60,11 @@ priority/severity counts, "fix first"). `markdown` produces a portable report fo
 or wikis; `html` is a self-contained, browser-viewable report you can publish as a build
 artifact; `junit` emits JUnit XML so CI systems (GitLab, Jenkins, Azure DevOps…) surface
 findings in their test-results panel; `json` and `sarif` are the machine formats; `template`
-renders your own Go `text/template` (see [`config.reports`](saga-reference.md#configreports-and-configpublishers)
+renders your own Go `text/template` (see [`config.reports`](saga-schema.md#configreports-and-configpublishers)
 for the available fields). Regardless of `--format`, `--output <dir>` always writes both
 `report.json` and `results.sarif` for CI/code-scanning. To render **multiple** formats and deliver
 them somewhere in one run, declare
-[`config.reports` / `config.publishers`](saga-reference.md#configreports-and-configpublishers) in the Saga.
+[`config.reports` / `config.publishers`](saga-schema.md#configreports-and-configpublishers) in the Saga.
 
 **Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. But
 scanners like Trivy and Semgrep are themselves multi-threaded, so on a busy or small machine
@@ -67,8 +74,8 @@ debugging). The run's JSON `stats` reports the effective `concurrency` alongside
 jobs), `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence.
 
 **Priority** requires components to declare `exposure`/`criticality` (see the
-[Saga reference](saga-reference.md)); Draugr ranks each finding P1–P4 from its severity and
-the component's risk. See [concepts](concepts.md#prioritization-what-to-fix-first).
+[Saga reference](saga-schema.md)); Draugr ranks each finding P1–P4 from its severity and
+the component's risk. See [concepts](../concepts/prioritization.md).
 
 **Exploitability (`--kev`/`--epss`)** raises a finding's severity by real-world signals — a
 CVE on CISA's [KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)

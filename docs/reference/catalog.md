@@ -1,8 +1,15 @@
+---
+title: Integrations catalog
+description: Every controller, scanner, surveyor, reporter, and publisher Draugr ships or plans.
+section: Reference
+order: 30
+---
+
 # Integrations catalog
 
-The single place to navigate every [**controller**](concepts.md#controllers),
-[**scanner**](concepts.md#scanners), and [**surveyor**](concepts.md#surveyors--the-ravens)
-Draugr ships or plans (new to these terms? see [concepts](concepts.md)). Each component has a
+The single place to navigate every [**controller**](../concepts/controls-and-scanners.md#controllers),
+[**scanner**](../concepts/controls-and-scanners.md#scanners), and [**surveyor**](../concepts/surveyors.md)
+Draugr ships or plans (new to these terms? see [concepts](../concepts/saga.md)). Each component has a
 **markdown doc kept next to its implementation** — what it is, which control it relates to,
 links, and license/terms.
 
@@ -10,19 +17,19 @@ links, and license/terms.
 > `internal/scanners/<name>.md`) covering: what it does · control · tool + links ·
 > **license & terms of use** · integration notes. Add a row here too.
 
-See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
+See also: [control taxonomy](../contributing/naming.md#security-controls-taxonomy) ·
 [glossary](glossary.md).
 
 ## Controllers
 
 | Control | Industry term | Scope | Status | Scanner(s) | Doc |
 |---------|---------------|-------|:------:|------------|-----|
-| `images` | Container image scanning | component | ✅ | `trivy` | [doc](../internal/controllers/images.md) |
-| `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` | [doc](../internal/controllers/sca.md) |
-| `sast` | Static Application Security Testing | component | ✅ | `semgrep` (default), `gosec` (opt-in) | [doc](../internal/controllers/sast.md) |
-| `secrets` | Secret detection | component | ✅ | `gitleaks` | [doc](../internal/controllers/secrets.md) |
-| `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../internal/controllers/iac.md) |
-| `headers` | HTTP security headers | component | ✅ | `http-headers` (native) | [doc](../internal/controllers/headers.md) |
+| `images` | Container image scanning | component | ✅ | `trivy` | [doc](../../internal/controllers/images.md) |
+| `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` | [doc](../../internal/controllers/sca.md) |
+| `sast` | Static Application Security Testing | component | ✅ | `semgrep` (default), `gosec` (opt-in) | [doc](../../internal/controllers/sast.md) |
+| `secrets` | Secret detection | component | ✅ | `gitleaks` | [doc](../../internal/controllers/secrets.md) |
+| `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../../internal/controllers/iac.md) |
+| `headers` | HTTP security headers | component | ✅ | `http-headers` (native) | [doc](../../internal/controllers/headers.md) |
 | `dast` | Dynamic Application Security Testing | component | 🗺️ [#54](https://github.com/draugr-dev/draugr/issues/54) | OWASP ZAP | — |
 | `infrastructure` | CIS benchmarks / posture | project | 🗺️ [#55](https://github.com/draugr-dev/draugr/issues/55) | kube-bench | — |
 | `tls` | TLS/certificate assessment | component | 🗺️ [#56](https://github.com/draugr-dev/draugr/issues/56) | testssl.sh | — |
@@ -33,20 +40,20 @@ See also: [control taxonomy](naming.md#security-controls-taxonomy) ·
 
 | Scanner | Control | Tool | License | Status | Doc |
 |---------|---------|------|---------|:------:|-----|
-| `trivy` | images | Aqua Trivy | Apache-2.0 | ✅ | [doc](../internal/scanners/trivy.md) |
-| `trivy-fs` | sca | Aqua Trivy (fs) | Apache-2.0 | ✅ | [doc](../internal/scanners/trivy-fs.md) |
-| `gitleaks` | secrets | Gitleaks | MIT | ✅ | [doc](../internal/scanners/gitleaks.md) |
-| `semgrep` | sast | Semgrep | LGPL-2.1 | ✅ | [doc](../internal/scanners/semgrep.md) |
-| `gosec` | sast | gosec (Go) | Apache-2.0 | ✅ | [doc](../internal/scanners/gosec.md) |
-| `trivy-config` | iac | Aqua Trivy (config) | Apache-2.0 | ✅ | [doc](../internal/scanners/trivy-config.md) |
-| `http-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../internal/scanners/http-headers.md) |
+| `trivy` | images | Aqua Trivy | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy.md) |
+| `trivy-fs` | sca | Aqua Trivy (fs) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-fs.md) |
+| `gitleaks` | secrets | Gitleaks | MIT | ✅ | [doc](../../internal/scanners/gitleaks.md) |
+| `semgrep` | sast | Semgrep | LGPL-2.1 | ✅ | [doc](../../internal/scanners/semgrep.md) |
+| `gosec` | sast | gosec (Go) | Apache-2.0 | ✅ | [doc](../../internal/scanners/gosec.md) |
+| `trivy-config` | iac | Aqua Trivy (config) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-config.md) |
+| `http-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/http-headers.md) |
 
 ## Surveyors (the Ravens)
 
 | Surveyor | Discovers | Auth | Status | Doc |
 |----------|-----------|------|:------:|-----|
-| `k8s-images` | container images (with running digests) in a k8s cluster | kubeconfig | ✅ | [doc](../internal/surveyors/k8s-images.md) |
-| `github-org-repos` | repositories in a GitHub org | `GITHUB_TOKEN` | ✅ | [doc](../internal/surveyors/github-org-repos.md) |
+| `k8s-images` | container images (with running digests) in a k8s cluster | kubeconfig | ✅ | [doc](../../internal/surveyors/k8s-images.md) |
+| `github-org-repos` | repositories in a GitHub org | `GITHUB_TOKEN` | ✅ | [doc](../../internal/surveyors/github-org-repos.md) |
 
 ## Reporters
 
@@ -69,7 +76,7 @@ Scan results render through a pluggable **Reporter** interface (`pkg/report`), s
 
 A **Publisher** delivers rendered reports to a destination — the "where" of reporting, separate
 from the Reporter (the "what"). Configure them in the Saga's
-[`config.reports` / `config.publishers`](saga-reference.md#configreports-and-configpublishers);
+[`config.reports` / `config.publishers`](saga-schema.md#configreports-and-configpublishers);
 every rendered report is delivered to every publisher.
 
 | Kind | Delivers to | Config |
@@ -85,10 +92,10 @@ or no PR) so the same Saga still runs locally. `github-pr-comment` upserts one *
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif) for a PR security delta. Code
 scanning is free for public repos; private repos need GitHub Advanced Security.
 
-See [`examples/reporting.saga.yaml`](../examples/reporting.saga.yaml) for a multi-format,
-multi-publisher Saga and [`examples/github-actions-code-scanning.yml`](../examples/github-actions-code-scanning.yml)
+See [`examples/reporting.saga.yaml`](../../examples/reporting.saga.yaml) for a multi-format,
+multi-publisher Saga and [`examples/github-actions-code-scanning.yml`](../../examples/github-actions-code-scanning.yml)
 for the matching workflow. Draugr dogfoods this itself in
-[`.draugr/self.saga.yaml`](../.draugr/self.saga.yaml) + the self-scan workflow.
+[`.draugr/self.saga.yaml`](../../.draugr/self.saga.yaml) + the self-scan workflow.
 
 Managed/authenticated enterprise publishers (ServiceNow/Jira/Splunk/signed webhooks) are out of
 OSS scope — tracked on the `cloud` backlog per [#58](https://github.com/draugr-dev/draugr/issues/58).

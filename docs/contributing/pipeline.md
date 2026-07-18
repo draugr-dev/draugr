@@ -25,7 +25,7 @@ fragments merged into one.
 
 Discovery surveyors ("the Ravens") enumerate your app's surface so you don't have to write
 the descriptor by hand. `draugr survey --k8s-images --github-org <org> -o draugr.saga.yaml`.
-Skip this stage entirely if you maintain the Saga yourself. See `concepts.md`.
+Skip this stage entirely if you maintain the Saga yourself. See the [surveyors concept](../concepts/surveyors.md).
 
 ## 1. Describe — the Saga
 
@@ -34,7 +34,7 @@ Skip this stage entirely if you maintain the Saga yourself. See `concepts.md`.
 The Saga lists your **components** (repositories, images, hosts, infrastructure) and which
 **controls** are enabled. Loading it: parses YAML, substitutes `${{ VAR }}` from the
 environment (comments are ignored), and validates (required fields, unique component
-names). See `saga-reference.md`.
+names). See the [Saga schema](../reference/saga-schema.md).
 
 ## 2. Plan
 
@@ -158,7 +158,7 @@ draugr scan draugr.saga.yaml --fail-on-priority P1 # also fail on any P1 finding
 
 The run fails if **either** gate trips. Because a finding's priority already folds in its
 component's `exposure` and `criticality`, `--fail-on-priority` gates per component without a
-per-component threshold — see [prioritization](concepts.md#prioritization-what-to-fix-first).
+per-component threshold — see [prioritization](../concepts/prioritization.md).
 Richer policy (waivers/exemptions, OPA/Rego) is planned; it'll be expressed in the Saga so
 the gate travels with the app.
 

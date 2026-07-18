@@ -11,7 +11,7 @@
 Checks out the component's repository, then runs
 `gitleaks dir <dir> --report-format sarif --report-path /dev/stdout --exit-code 0 --no-banner`
 to find leaked credentials — API keys, tokens, private keys — in the working tree. See the
-[secret-detection glossary entry](../../docs/glossary.md#secret-detection).
+[secret-detection glossary entry](../../docs/reference/glossary.md#secret-detection).
 
 `--exit-code 0` keeps the process successful even when secrets are found; findings live in
 the SARIF report, not the exit code. The [`secrets`](../controllers/secrets.md) controller

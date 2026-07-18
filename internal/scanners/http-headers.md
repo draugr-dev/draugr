@@ -23,7 +23,7 @@ checklist is **tuned by the host's `type`** so browser-only headers aren't flagg
 
 Severities: missing hardening headers → `warning`; softer recommendations and
 information-disclosure → `note`; wildcard CORS with credentials → `error`. See the
-[HTTP security headers glossary entry](../../docs/glossary.md#http-security-headers).
+[HTTP security headers glossary entry](../../docs/reference/glossary.md#http-security-headers).
 
 ## Links
 

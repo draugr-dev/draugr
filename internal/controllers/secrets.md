@@ -17,8 +17,8 @@ trusting the scanner's own level (Gitleaks, in fact, emits none).
 
 ## Links
 
-- Glossary: [Secret detection](../../docs/glossary.md#secret-detection)
-- Saga reference: [`docs/saga-reference.md`](../../docs/saga-reference.md)
+- Glossary: [Secret detection](../../docs/reference/glossary.md#secret-detection)
+- Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)
 
 ## Notes
 

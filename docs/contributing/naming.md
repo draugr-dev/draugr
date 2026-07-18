@@ -36,9 +36,9 @@ plainer phrasing (e.g. "discovery" for surveyors) where it aids first-time under
 
 Control IDs use **recognized industry terms** so Draugr is easy to learn and respected by
 security professionals. These are the values under `config.controllers.<id>` in the Saga.
-Each is defined in [`glossary.md`](glossary.md).
+Each is defined in [`glossary.md`](../reference/glossary.md).
 
-Status: ✅ shipped · 🗺️ planned. The [integrations catalog](integrations.md) tracks the
+Status: ✅ shipped · 🗺️ planned. The [integrations catalog](../reference/catalog.md) tracks the
 scanners and issue links for the planned ones.
 
 | Control ID | Industry term | What it assesses | Status |
