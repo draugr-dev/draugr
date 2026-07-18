@@ -21,6 +21,8 @@ This is the open-source core engine.
 
 ## See it in action
 
+![Draugr scanning a repository with zero config](contrib/demo/scan.gif)
+
 **[draugr-dev/draugr-demo](https://github.com/draugr-dev/draugr-demo)** is an intentionally
 vulnerable sample app wired to Draugr. Every control lights up, the findings are prioritized
 P1–P4, and results land in the repo's **Security → Code scanning** tab — a safe sandbox to see
