@@ -39,6 +39,11 @@ jobs:
       - name: Clone the demo sandbox
         run: git clone --depth 1 https://github.com/draugr-dev/draugr-demo demo
 
+      - name: Install ffmpeg (vhs dependency)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: Render the tape
         uses: charmbracelet/vhs-action@59641cdc7fadf3978db65eb8c6937ea2752f4ec3 # v2.1.0
         with:
