@@ -46,9 +46,9 @@ jobs:
           # ttyd (pinned)
           sudo curl -fsSL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 \
             -o /usr/local/bin/ttyd && sudo chmod +x /usr/local/bin/ttyd
-          # vhs (pinned)
+          # vhs (pinned) — the binary lives under a versioned dir in the tarball
           curl -fsSL https://github.com/charmbracelet/vhs/releases/download/v0.11.0/vhs_0.11.0_Linux_x86_64.tar.gz \
-            | tar -xz && sudo mv vhs /usr/local/bin/
+            | tar -xz --strip-components=1 vhs_0.11.0_Linux_x86_64/vhs && sudo mv vhs /usr/local/bin/
           vhs --version && ttyd --version && ffmpeg -version | head -1
 
       - name: Render the tape
