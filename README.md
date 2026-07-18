@@ -23,6 +23,30 @@ This is the open-source core engine.
 
 ![Draugr scanning a repository with zero config](contrib/demo/scan.gif)
 
+`draugr scan .` on the demo sandbox — no descriptor, just a prioritized verdict:
+
+```text
+Draugr — FAIL   (draugr-demo 0.0.0)
+
+Priorities:  P1 21   P2 25   P3 13   P4 0
+
+Controls:
+  sca      FAIL  8 error   9 warning   1 note
+  secrets  FAIL  1 error   0 warning   0 note
+  iac      FAIL  4 error   5 warning  12 note
+  sast     FAIL  7 error  12 warning   0 note
+
+Fix first:
+  P1  error    9.8  CVE-2019-20477    sca  app/requirements.txt:4
+  P1  error    9.8  CVE-2020-14343    sca  app/requirements.txt:4
+  P1  error    8.0  KSV-0014          iac  deploy/pod.yaml:8
+  P1  error    8.0  KSV-0118          iac  deploy/pod.yaml:6
+  P1  error    7.5  CVE-2018-1000656  sca  app/requirements.txt:2
+  …
+
+… and 49 more finding(s). Use --format json for the full report, or -o <dir> for report.json + results.sarif.
+```
+
 **[draugr-dev/draugr-demo](https://github.com/draugr-dev/draugr-demo)** is an intentionally
 vulnerable sample app wired to Draugr. Every control lights up, the findings are prioritized
 P1–P4, and results land in the repo's **Security → Code scanning** tab — a safe sandbox to see
