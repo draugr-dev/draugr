@@ -1,25 +1,26 @@
 # vhs tape for the README demo GIF of zero-config `draugr scan .`.
 # Render:  vhs contrib/demo/scan.tape   → contrib/demo/scan.gif
 #
-# Prerequisites (so the GIF shows real, prioritized findings quickly):
+# It records `draugr scan .` inside ./demo, so before rendering:
 #   - `draugr` on PATH (a release build)
-#   - the scanners installed:  draugr tools install -y   (Trivy, Gitleaks) + Semgrep via pipx
-#   - run from a findings-rich repo — the draugr-demo sandbox is ideal:
-#       git clone https://github.com/draugr-dev/draugr-demo && cd draugr-demo
-#
-# See charmbracelet/vhs for install. A CI job (charmbracelet/vhs-action) can regenerate this
-# on demand and commit contrib/demo/scan.gif.
+#   - scanners installed:  draugr tools install -y   (Trivy, Gitleaks) + Semgrep via pipx
+#   - a findings-rich repo at ./demo — the sandbox is ideal:
+#       git clone https://github.com/draugr-dev/draugr-demo demo
+# The Demo GIF workflow (.github/workflows/demo-gif.yml) does all of this and opens a PR
+# with the regenerated GIF.
 
 Output contrib/demo/scan.gif
 
 Set Shell bash
 Set FontSize 18
 Set Width 1200
-Set Height 700
+Set Height 720
 Set Theme "Dracula"
 Set Padding 20
 
-Type "draugr scan ."
-Sleep 800ms
-Enter
-Sleep 8s
+# Enter the sandbox off-camera, then record the money shot.
+Hide
+Type "cd demo" Enter
+Show
+Type "draugr scan ." Sleep 600ms Enter
+Sleep 12s

@@ -1,0 +1,64 @@
+# Render the README demo GIF (zero-config `draugr scan .`) with vhs and open a PR with it.
+# Manual — run from the Actions tab when the demo tape or CLI output changes.
+name: Demo GIF
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the GIF branch
+      pull-requests: write # open the PR
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install Draugr (latest release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download --repo draugr-dev/draugr \
+            --pattern 'draugr_*_linux_amd64.tar.gz' \
+            --pattern 'checksums.txt' --pattern 'checksums.txt.sigstore.json'
+          tar -xzf draugr_*_linux_amd64.tar.gz draugr
+          sudo mv draugr /usr/local/bin/
+          draugr version
+
+      - name: Provision scanners
+        run: |
+          set -euo pipefail
+          draugr tools install -y           # Trivy, Gitleaks (into ~/.draugr/bin, on Draugr's PATH)
+          pipx install semgrep
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Clone the demo sandbox
+        run: git clone --depth 1 https://github.com/draugr-dev/draugr-demo demo
+
+      - name: Render the tape
+        uses: charmbracelet/vhs-action@59641cdc7fadf3978db65eb8c6937ea2752f4ec3 # v2.1.0
+        with:
+          path: contrib/demo/scan.tape
+
+      - name: Open a PR with the regenerated GIF
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git add contrib/demo/scan.gif
+          if git diff --cached --quiet; then
+            echo "GIF unchanged — nothing to do."
+            exit 0
+          fi
+          git config user.name "Wilson Santos"
+          git config user.email "wilson@draugr.dev"
+          branch="demo-gif-$(git rev-parse --short HEAD)"
+          git checkout -b "$branch"
+          git commit -m "docs: regenerate demo GIF"
+          git push -u origin "$branch"
+          gh pr create --title "docs: regenerate demo GIF" \
+            --body "Auto-rendered by the Demo GIF workflow (\`contrib/demo/scan.tape\`). Review the GIF, then merge to update the README."
