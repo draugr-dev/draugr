@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Zero-config `draugr scan .`** — point `scan` at a directory (or omit the argument for the
+  current one) and Draugr scans that repository with `sca`, `secrets`, `sast`, and `iac` — no Saga
+  file required. The 60-second path from install to a verdict.
+- **`draugr init`** — scaffold a `draugr.saga.yaml` for your project, detecting the stack (Go →
+  gosec, a Dockerfile → an images stub, dependency manifests → SCA) so you start from a sensible,
+  commented descriptor. `-o -` prints to stdout; `--force` overwrites.
 
 ## [0.24.1] - 2026-07-17
 

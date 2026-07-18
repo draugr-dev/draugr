@@ -48,6 +48,7 @@ func newRootCommand() *cobra.Command {
 		"log format: json, text")
 
 	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(newInitCommand())
 	cmd.AddCommand(newScanCommand())
 	cmd.AddCommand(newDiffCommand())
 	cmd.AddCommand(newSurveyCommand())

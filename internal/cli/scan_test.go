@@ -202,6 +202,49 @@ components:
 	}
 }
 
+func TestRunScanZeroConfigDirectory(t *testing.T) {
+	// Pointing scan at a directory synthesizes a default Saga (no file needed) and scans it.
+	dir := t.TempDir()
+	var buf bytes.Buffer
+	err := runScan(context.Background(), dir, scanOptions{failOn: "error", format: "json"}, fakeRegistry(sarif.LevelNote), &buf)
+	if err != nil {
+		t.Fatalf("zero-config scan: %v", err)
+	}
+	if !strings.Contains(buf.String(), "\"verdict\"") {
+		t.Errorf("expected a JSON verdict, got:\n%s", buf.String())
+	}
+}
+
+func TestScanModelSynthesizesForDir(t *testing.T) {
+	dir := t.TempDir()
+	m, synth, err := scanModel(dir)
+	if err != nil || !synth {
+		t.Fatalf("dir should synthesize: synth=%v err=%v", synth, err)
+	}
+	for _, c := range []string{"sca", "secrets", "sast", "iac"} {
+		if _, ok := m.Config.Controllers[c]; !ok {
+			t.Errorf("synthesized Saga missing control %q", c)
+		}
+	}
+	if len(m.Components) != 1 || len(m.Components[0].Repositories) != 1 {
+		t.Fatalf("expected one component with one repository: %+v", m.Components)
+	}
+	if err := m.Validate(); err != nil {
+		t.Errorf("synthesized Saga should be valid: %v", err)
+	}
+}
+
+func TestScanModelLoadsFile(t *testing.T) {
+	path := writeSaga(t, sagaWithImage)
+	m, synth, err := scanModel(path)
+	if err != nil || synth {
+		t.Fatalf("file should load (not synthesize): synth=%v err=%v", synth, err)
+	}
+	if m.Release.Name != "app" {
+		t.Errorf("loaded wrong saga: %+v", m.Release)
+	}
+}
+
 func TestRunScanInvalidMinPriority(t *testing.T) {
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
 		scanOptions{failOn: "error", minPriority: "bogus"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})

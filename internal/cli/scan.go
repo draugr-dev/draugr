@@ -45,13 +45,20 @@ type scanOptions struct {
 func newScanCommand() *cobra.Command {
 	opts := &scanOptions{}
 	cmd := &cobra.Command{
-		Use:   "scan <saga.yaml>",
-		Short: "Scan an application described by a Saga and produce a verdict",
+		Use:   "scan [saga.yaml | dir]",
+		Short: "Scan an application described by a Saga (or a directory) and produce a verdict",
 		Long: "Load a Saga descriptor, run the applicable security controls, and produce\n" +
-			"pass/fail evidence. Exits non-zero when the policy verdict is fail.",
-		Args: cobra.ExactArgs(1),
+			"pass/fail evidence. Exits non-zero when the policy verdict is fail.\n\n" +
+			"Zero-config: point it at a directory (or omit the argument to use the current\n" +
+			"one) and Draugr scans that repository with sca, secrets, sast, and iac — no\n" +
+			"Saga required. Write a Saga (or run `draugr init`) when you need more control.",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runScan(cmd.Context(), args[0], *opts, builtins.Registry(), cmd.OutOrStdout())
+			target := ""
+			if len(args) == 1 {
+				target = args[0]
+			}
+			return runScan(cmd.Context(), target, *opts, builtins.Registry(), cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().StringVarP(&opts.outputDir, "output", "o", "", "directory to write report.json and results.sarif")
@@ -71,10 +78,16 @@ func newScanCommand() *cobra.Command {
 }
 
 // runScan executes the full pipeline: describe → plan → scan → aggregate → judge → report.
-func runScan(ctx context.Context, sagaPath string, opts scanOptions, reg *engine.Registry, w io.Writer) error {
-	model, err := loadSaga(sagaPath)
+// target is a Saga file, a directory to scan zero-config, or "" for the current directory.
+func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.Registry, w io.Writer) error {
+	model, synthesized, err := scanModel(target)
 	if err != nil {
 		return err
+	}
+	if synthesized {
+		// To stderr so it never pollutes a machine-readable stdout format (json/sarif).
+		_, _ = fmt.Fprintf(os.Stderr, "No Saga given — scanning %s with controls: sca, secrets, sast, iac.\n"+
+			"(run `draugr init` to scaffold a draugr.saga.yaml you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
 	if err != nil {
