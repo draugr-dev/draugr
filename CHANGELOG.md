@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.25.0] - 2026-07-17
+
 ### Added
 
 - **Zero-config `draugr scan .`** — point `scan` at a directory (or omit the argument for the
@@ -447,7 +451,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.24.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.25.0
 [0.24.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.24.1
 [0.24.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.24.0
 [0.23.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.23.0
