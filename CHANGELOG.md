@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.24.1] - 2026-07-17
+
 ### Fixed
 
 - **Finding messages are now repo-relative too**, not just locations. Some scanners (e.g. Gitleaks)
@@ -436,7 +440,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.24.1...HEAD
+[0.24.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.24.1
 [0.24.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.24.0
 [0.23.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.23.0
 [0.22.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.22.0
