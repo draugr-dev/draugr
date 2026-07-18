@@ -10,7 +10,15 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **The human report now speaks severity bands (critical/high/medium/low), not SARIF levels.**
+  The console/markdown/html per-control counts and the "fix first" list show severity — from the
+  CVSS score when a scanner provides one, else derived from the finding's level. The gate
+  (`--fail-on`) and machine formats (`json`/`sarif`) still use SARIF levels. See
+  [Understanding the report](docs/concepts/verdict-and-gating.md#understanding-the-report).
+- **Colored console output on a terminal.** The verdict, priorities, and severities are
+  color-coded when stdout is a TTY; set `NO_COLOR` to disable. Piped/redirected output stays plain.
 
 ## [0.25.0] - 2026-07-17
 

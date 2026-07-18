@@ -80,20 +80,38 @@ func (sarifReporter) Render(w io.Writer, d Data) error {
 type finding struct {
 	control, ruleID, tool, priority, location, message string
 	level                                              sarif.Level
+	severity                                           sarif.Severity
 	score                                              float64
 	hasScore                                           bool
+}
+
+// sevCounts tallies findings by normalized severity band.
+type sevCounts struct{ critical, high, medium, low int }
+
+func (c *sevCounts) add(s sarif.Severity) {
+	switch s {
+	case sarif.SeverityCritical:
+		c.critical++
+	case sarif.SeverityHigh:
+		c.high++
+	case sarif.SeverityMedium:
+		c.medium++
+	default:
+		c.low++
+	}
 }
 
 type summary struct {
 	verdict        norn.Verdict
 	prioritized    bool
 	p1, p2, p3, p4 int
-	findings       []finding // sorted most-urgent first
+	bands          map[string]sevCounts // per-control severity counts
+	findings       []finding            // sorted most-urgent first
 }
 
 // summarize collects priority counts and a ranked finding list from a run.
 func summarize(d Data) summary {
-	s := summary{verdict: d.Verdict.Verdict}
+	s := summary{verdict: d.Verdict.Verdict, bands: map[string]sevCounts{}}
 	names := make([]string, 0, len(d.Run.Controls))
 	for name := range d.Run.Controls {
 		names = append(names, name)
@@ -119,9 +137,13 @@ func summarize(d Data) summary {
 			if loc != "" && res.Location.StartLine > 0 {
 				loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
 			}
+			sev := res.Severity("")
+			b := s.bands[name]
+			b.add(sev)
+			s.bands[name] = b
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-				location: loc, message: res.Message, level: res.Level,
+				location: loc, message: res.Message, level: res.Level, severity: sev,
 				score: res.Score, hasScore: res.HasScore,
 			})
 		}

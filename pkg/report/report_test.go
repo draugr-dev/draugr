@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"os"
 	"strings"
 	"testing"
 
@@ -53,7 +54,7 @@ func TestConsoleRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"Draugr — FAIL", "app 1.0", "Priorities:", "P1 1", "Fix first:", "CVE-1", "trivy"} {
+	for _, want := range []string{"Draugr — FAIL", "app 1.0", "Priorities:", "P1 1", "Fix first:", "CVE-1", "critical", "1 high"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console output missing %q\n%s", want, s)
 		}
@@ -61,6 +62,48 @@ func TestConsoleRender(t *testing.T) {
 	// Most-urgent (P1) should sort before the P3.
 	if strings.Index(s, "CVE-1") > strings.Index(s, "CVE-2") {
 		t.Error("P1 finding should be listed before the P3 finding")
+	}
+}
+
+func TestConsoleSeverityBandsNoColorOnBuffer(t *testing.T) {
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, sampleData()); err != nil {
+		t.Fatal(err)
+	}
+	s := b.String()
+	// Human report speaks severity bands, not SARIF levels.
+	for _, band := range []string{"critical", "high", "medium"} {
+		if !strings.Contains(s, band) {
+			t.Errorf("expected severity band %q in output:\n%s", band, s)
+		}
+	}
+	for _, level := range []string{"error", "warning", "note"} {
+		if strings.Contains(s, level) {
+			t.Errorf("human report should not show SARIF level %q:\n%s", level, s)
+		}
+	}
+	// Writing to a plain buffer (not a TTY) must not emit ANSI escapes.
+	if strings.Contains(s, "\x1b[") {
+		t.Errorf("expected no ANSI color on a non-TTY writer:\n%q", s)
+	}
+}
+
+func TestColorizer(t *testing.T) {
+	off := colorizer{on: false}
+	if got := off.paint(cCritical, "x"); got != "x" {
+		t.Errorf("disabled colorizer changed text: %q", got)
+	}
+	on := colorizer{on: true}
+	if got := on.paint(cCritical, "x"); got != "\x1b[1;31mx\x1b[0m" {
+		t.Errorf("enabled colorizer = %q", got)
+	}
+	if got := on.paint("", "x"); got != "x" {
+		t.Errorf("empty code should not wrap: %q", got)
+	}
+	// NO_COLOR disables even for a would-be terminal path.
+	t.Setenv("NO_COLOR", "1")
+	if newColorizer(os.Stdout).on {
+		t.Error("NO_COLOR must disable color")
 	}
 }
 
