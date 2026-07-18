@@ -34,6 +34,38 @@ pipeline directly. The failure threshold is configurable (`--fail-on`, default `
 with optional per-control overrides, plus a component-aware priority gate
 (`--fail-on-priority`). The run fails if either gate trips.
 
+## Understanding the report
+
+A finding is described on **three related axes** — knowing which is which removes most confusion:
+
+| Axis | Values | What it is | Where it shows |
+|------|--------|------------|----------------|
+| **Priority** | P1 · P2 · P3 · P4 | Draugr's headline ranking: **severity × the component's exposure & criticality**. "What to fix first." | the `Priorities:` line and the order of "fix first" |
+| **Severity** | critical · high · medium · low | Normalized impact. From the **CVSS score** when a scanner provides one (`security-severity`), else derived from the finding's level (error→high, warning→medium, note→low). | the per-control counts and the "fix first" severity column |
+| **Level** | error · warning · note | The raw **SARIF** value each scanner maps into — the lowest common denominator. | the machine formats (`--format json`/`sarif`) and the gate (`--fail-on`) |
+
+So the same CVE can be **critical** severity but **P3** priority on an internal tool, or **P1** on a
+public, business-critical service. The human report (console/markdown/html) speaks **priority +
+severity**; `level` stays for the gate and machine output. The console view is **color-coded** on a
+terminal (verdict, priorities, severities) and honors `NO_COLOR`.
+
+A worked example:
+
+```text
+Draugr — FAIL   (draugr-demo 0.0.0)
+
+Priorities:  P1 21   P2 25   P3 13   P4 0
+
+Controls:
+  iac      FAIL  4 high  5 medium  12 low
+  sca      FAIL  3 critical  6 high  8 medium  1 low
+  secrets  FAIL  1 high
+
+Fix first:
+  P1  critical  9.8  CVE-2019-20477  sca  app/requirements.txt:4
+  P1  high      8.0  KSV-0014        iac  deploy/pod.yaml:8
+```
+
 ## Observability & security posture
 
 Structured logs (`log/slog`), plus OpenTelemetry traces and metrics (opt-in via `OTEL_*`).

@@ -9,24 +9,30 @@ import (
 
 // htmlReporter renders a self-contained HTML report — a single file with inline CSS, viewable
 // in any browser and shareable as a build artifact. Leads with the verdict, priority counts,
-// per-control outcomes, and the full ranked finding list.
+// per-control severity, and the full ranked finding list.
 type htmlReporter struct{}
 
 func (htmlReporter) Format() string { return "html" }
 
-// htmlView is the template model: a summary plus display-ready release/verdict strings.
+// htmlView is the template model: a summary plus display-ready strings.
 type htmlView struct {
 	Verdict        string // "PASS" | "FAIL"
 	Pass           bool
 	Release        string
 	Prioritized    bool
 	P1, P2, P3, P4 int
-	Controls       []norn.ControlOutcome
+	Controls       []htmlControl
 	Findings       []htmlFinding
 }
 
+type htmlControl struct {
+	Control                     string
+	Fail                        bool
+	Critical, High, Medium, Low int
+}
+
 type htmlFinding struct {
-	Priority, Level, Score, RuleID, Control, Tool, Location, Message string
+	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Location, Message string
 }
 
 func (htmlReporter) Render(w io.Writer, d Data) error {
@@ -36,7 +42,6 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		Pass:        s.verdict != norn.Fail,
 		Prioritized: s.prioritized,
 		P1:          s.p1, P2: s.p2, P3: s.p3, P4: s.p4,
-		Controls: d.Verdict.Controls,
 	}
 	view.Verdict = "PASS"
 	if s.verdict == norn.Fail {
@@ -48,10 +53,17 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 			view.Release += " " + d.Release.Version
 		}
 	}
+	for _, c := range d.Verdict.Controls {
+		b := s.bands[c.Control]
+		view.Controls = append(view.Controls, htmlControl{
+			Control: c.Control, Fail: c.Verdict == norn.Fail,
+			Critical: b.critical, High: b.high, Medium: b.medium, Low: b.low,
+		})
+	}
 	for _, f := range s.findings {
 		view.Findings = append(view.Findings, htmlFinding{
-			Priority: dash(f.priority), Level: string(f.level), Score: scoreStr(f),
-			RuleID: f.ruleID, Control: f.control, Tool: f.tool,
+			Priority: dash(f.priority), Severity: string(f.severity), SevClass: "sev-" + string(f.severity),
+			Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: f.tool,
 			Location: dash(f.location), Message: f.message,
 		})
 	}
@@ -80,9 +92,13 @@ const htmlDoc = `<!doctype html>
   th { font-weight: 600; }
   td.num, th.num { text-align: right; }
   code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
+  .chips span { display: inline-block; margin-right: 1rem; }
   .p1 { color: #b3261e; font-weight: 700; }
   .p2 { color: #c25e00; font-weight: 600; }
-  .chips span { display: inline-block; margin-right: 1rem; }
+  .sev-critical { color: #b3261e; font-weight: 700; }
+  .sev-high { color: #c2410c; font-weight: 600; }
+  .sev-medium { color: #b45309; }
+  .sev-low { color: #888; }
   footer { color: #888; font-size: .82rem; margin-top: 2rem; }
 </style>
 </head>
@@ -102,14 +118,15 @@ const htmlDoc = `<!doctype html>
 {{if .Controls}}
 <h2>Controls</h2>
 <table>
-<thead><tr><th>Control</th><th>Verdict</th><th class="num">Errors</th><th class="num">Warnings</th><th class="num">Notes</th></tr></thead>
+<thead><tr><th>Control</th><th>Verdict</th><th class="num">Critical</th><th class="num">High</th><th class="num">Medium</th><th class="num">Low</th></tr></thead>
 <tbody>
 {{range .Controls}}<tr>
   <td>{{.Control}}</td>
-  <td>{{if eq (printf "%s" .Verdict) "fail"}}<strong>FAIL</strong>{{else}}pass{{end}}</td>
-  <td class="num">{{.Counts.Error}}</td>
-  <td class="num">{{.Counts.Warning}}</td>
-  <td class="num">{{.Counts.Note}}</td>
+  <td>{{if .Fail}}<strong>FAIL</strong>{{else}}pass{{end}}</td>
+  <td class="num">{{.Critical}}</td>
+  <td class="num">{{.High}}</td>
+  <td class="num">{{.Medium}}</td>
+  <td class="num">{{.Low}}</td>
 </tr>{{end}}
 </tbody>
 </table>
@@ -122,7 +139,7 @@ const htmlDoc = `<!doctype html>
 <tbody>
 {{range .Findings}}<tr>
   <td>{{.Priority}}</td>
-  <td>{{.Level}}</td>
+  <td class="{{.SevClass}}">{{.Severity}}</td>
   <td class="num">{{.Score}}</td>
   <td><code>{{.RuleID}}</code></td>
   <td>{{.Control}}</td>
