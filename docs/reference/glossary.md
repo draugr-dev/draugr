@@ -1,8 +1,15 @@
+---
+title: Security glossary
+description: Plain-language definitions of the security categories Draugr orchestrates.
+section: Reference
+order: 40
+---
+
 # Security glossary
 
 Plain-language definitions of the security categories Draugr orchestrates, so the whole
 team shares the vocabulary. Each maps to a **control** (see the taxonomy in
-[`naming.md`](naming.md)).
+[`naming.md`](../contributing/naming.md)).
 
 ## SCA — Software Composition Analysis
 

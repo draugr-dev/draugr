@@ -1,3 +1,10 @@
+---
+title: Saga schema
+description: Every field of draugr.saga.yaml — release, config, components, and references.
+section: Reference
+order: 20
+---
+
 # Saga reference
 
 The **Saga** (`draugr.saga.yaml`) is Draugr's descriptor — a declarative account of an
@@ -54,7 +61,7 @@ config:
 ## `config.reports` and `config.publishers`
 
 Declare which report **formats** a scan renders and **where** they're delivered. Reports are the
-"what" (a [Reporter](plugin-api.md#reporter)); publishers are the "where" (a Publisher). Every
+"what" (a [Reporter](../contributing/plugin-api.md#reporter)); publishers are the "where" (a Publisher). Every
 rendered report is delivered to every publisher.
 
 ```yaml

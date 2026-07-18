@@ -25,7 +25,7 @@ This is the open-source core engine.
 
 - **Controls:** `images` (Trivy), `sca` (Trivy fs), `secrets` (Gitleaks), `sast` (Semgrep,
   plus opt-in gosec for Go), `iac` (Trivy config), `headers` (native HTTP-header analyzer).
-  See the [integrations catalog](docs/integrations.md).
+  See the [integrations catalog](docs/reference/catalog.md).
 - **Pipeline:** end-to-end `scan` (plan → scan → judge → report), content-hash caching,
   tunable parallelism (`-j`), results normalized to SARIF.
 - **Prioritization:** declare a component's `exposure` and `criticality` and Draugr ranks
@@ -37,7 +37,7 @@ This is the open-source core engine.
   and cosign itself — into `~/.draugr/bin`), and `self-update` (update draugr itself, verified).
 
 More controls (DAST, TLS, SBOM, …) are on the roadmap. See
-[`docs/concepts.md`](docs/concepts.md) for what maps to what.
+[controls & scanners](docs/concepts/controls-and-scanners.md) for what maps to what.
 
 ## Quickstart
 
@@ -57,7 +57,7 @@ sudo mv draugr /usr/local/bin/ && draugr version
 ```
 
 Releases are cosign-signed with SBOMs and SLSA build provenance — see
-[install & verifying downloads](docs/quickstart.md#1-install) for the verifying `curl` recipe.
+[install & verifying downloads](docs/getting-started/install.md) for the verifying `curl` recipe.
 Once installed, update in place with **`draugr self-update`**.
 
 **Or build from source:**
@@ -107,7 +107,7 @@ draugr survey --github-org my-org -o draugr.saga.yaml
 draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
 ```
 
-Full walkthrough: [`docs/quickstart.md`](docs/quickstart.md).
+Full walkthrough: [`docs/getting-started/quickstart.md`](docs/getting-started/quickstart.md).
 
 ## Use in CI (GitHub Actions)
 
@@ -134,23 +134,23 @@ steps:
 ```
 
 The scanners each control needs (Trivy, Gitleaks, …) still have to be on the runner — install
-them alongside, or gate their presence with `draugr doctor`. See
-[Run it in CI](docs/quickstart.md#5-run-it-in-ci) for the full workflow and all inputs.
+them alongside, or gate their presence with `draugr doctor`. See the
+[GitHub Action guide](docs/guides/github-action.md) for the full workflow and all inputs.
 
 ## Documentation
 
 **[Full documentation index →](docs/README.md)** (grouped by task, with a "building blocks"
 glossary of Saga / Norn / Skald / the Ravens).
 
-- [Quickstart](docs/quickstart.md) — install, first scan, first survey, CI usage
-- [Concepts](docs/concepts.md) — Saga, controllers, scanners, surveyors, the pipeline, verdicts
-- [Pipeline stages](docs/pipeline.md) — each stage in depth, incl. how the Norn (gate) works
-- [Glossary](docs/glossary.md) — security categories explained (SCA, SAST, DAST, SBOM, …)
-- [Integrations catalog](docs/integrations.md) — every controller/scanner/surveyor, with per-component docs + licenses
+- [Quickstart](docs/getting-started/quickstart.md) — install, first scan, first survey, CI usage
+- [Concepts](docs/concepts/saga.md) — Saga, controllers, scanners, surveyors, the pipeline, verdicts
+- [Pipeline stages](docs/contributing/pipeline.md) — each stage in depth, incl. how the Norn (gate) works
+- [Glossary](docs/reference/glossary.md) — security categories explained (SCA, SAST, DAST, SBOM, …)
+- [Integrations catalog](docs/reference/catalog.md) — every controller/scanner/surveyor, with per-component docs + licenses
 - [Changelog](CHANGELOG.md) — user-facing release notes
-- [CLI reference](docs/cli.md) — every command and flag
-- [Saga reference](docs/saga-reference.md) — the descriptor, field by field
-- [Architecture](docs/ARCHITECTURE.md) · [Plugin API](docs/plugin-api.md) · [Naming](docs/naming.md)
+- [CLI reference](docs/reference/cli.md) — every command and flag
+- [Saga schema](docs/reference/saga-schema.md) — the descriptor, field by field
+- [Architecture](docs/contributing/architecture.md) · [Plugin API](docs/contributing/plugin-api.md) · [Naming](docs/contributing/naming.md)
 
 ## Security & supply chain
 
@@ -161,7 +161,7 @@ A security tool should hold itself to what it checks. Draugr does:
 - **Signed releases + provenance** — release archives' `checksums.txt` is **keyless-signed with
   cosign** (Sigstore) into a `checksums.txt.sigstore.json` bundle, and each release publishes
   **SLSA build-provenance** attestations (`gh attestation verify …`); verify before installing
-  ([recipe](docs/quickstart.md#1-install)).
+  ([recipe](docs/trust-and-operations/verifying-releases.md)).
 - **SBOMs** — a Syft **SBOM** is published for every release archive.
 - **Verified tooling** — `draugr tools install` fetches scanners pinned by **SHA-256** and, where
   the upstream signs them, verifies the **cosign** signature too — and cosign itself is

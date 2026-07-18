@@ -21,8 +21,8 @@ The SAST scanners report per-rule severity, so findings are counted as reported 
 
 ## Links
 
-- Glossary: [SAST](../../docs/glossary.md#sast--static-application-security-testing)
-- Saga reference: [`docs/saga-reference.md`](../../docs/saga-reference.md)
+- Glossary: [SAST](../../docs/reference/glossary.md#sast--static-application-security-testing)
+- Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)
 
 ## Notes
 

@@ -1,7 +1,7 @@
 # Draugr — Plugin API
 
-Reference for the plugin interfaces as implemented in [`pkg/plugin`](../pkg/plugin) (and the
-`Reporter` in [`pkg/report`](../pkg/report)). See [`ARCHITECTURE.md`](ARCHITECTURE.md) for context.
+Reference for the plugin interfaces as implemented in [`pkg/plugin`](../../pkg/plugin) (and the
+`Reporter` in [`pkg/report`](../../pkg/report)). See [`architecture.md`](architecture.md) for context.
 
 The plugin kinds — **Scanner**, **Controller**, **Surveyor**, **Reporter**, **Publisher** — share a small set
 of value types. Scanners are transported in-process (built-ins) or declaratively (tool adapters
@@ -134,7 +134,7 @@ type SurveyScope struct { Kind string; Ref string; Config Config }
 
 ## Reporter
 
-Renders a scan result in one format. Lives in [`pkg/report`](../pkg/report); `draugr scan
+Renders a scan result in one format. Lives in [`pkg/report`](../../pkg/report); `draugr scan
 --format` selects one. Built-in formats: `console` (default), `markdown`, `html`, `junit`,
 `json`, `sarif`, and `template` (a user-supplied Go `text/template`).
 
@@ -165,7 +165,7 @@ type Artifact struct {
 ## Publisher
 
 Delivers rendered reports to a destination — the "where" of reporting, separate from the Reporter
-(the "what"). Lives in [`pkg/publish`](../pkg/publish); configured from the Saga's
+(the "what"). Lives in [`pkg/publish`](../../pkg/publish); configured from the Saga's
 `config.publishers`. Built-in kinds: `file`, `github` (uploads the SARIF report to code
 scanning), and `github-pr-comment` (posts the markdown report as a sticky PR comment). Every
 rendered report is delivered to every configured publisher, so a publisher takes only the

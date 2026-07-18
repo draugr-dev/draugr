@@ -15,4 +15,4 @@ repository, so the descriptor writes itself.
 ## Links
 
 - GitHub REST API (repos): https://docs.github.com/en/rest/repos/repos
-- Concepts: [the Ravens](../../docs/concepts.md#surveyors--the-ravens)
+- Concepts: [the Ravens](../../docs/concepts/surveyors.md)
