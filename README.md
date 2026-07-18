@@ -19,6 +19,14 @@ is normalized to **SARIF**.
 
 This is the open-source core engine.
 
+## See it in action
+
+**[draugr-dev/draugr-demo](https://github.com/draugr-dev/draugr-demo)** is an intentionally
+vulnerable sample app wired to Draugr. Every control lights up, the findings are prioritized
+P1–P4, and results land in the repo's **Security → Code scanning** tab — a safe sandbox to see
+exactly what Draugr delivers before pointing it at your own code. The example PRs there also show
+the **new-vs-fixed PR diff** and the sticky comment.
+
 ## Status
 
 🚧 **Early, and moving fast.** Working today:
