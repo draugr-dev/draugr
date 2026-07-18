@@ -14,7 +14,7 @@ frontmatter and is rendered by the docs site. This index and the `contributing/`
 - [Controls & scanners](concepts/controls-and-scanners.md) — controllers, scanners, SARIF, and caching.
 - [Prioritization](concepts/prioritization.md) — exposure × criticality × severity → P1–P4.
 - [Surveyors — the Ravens](concepts/surveyors.md) — discovery that writes the Saga for you.
-- [Verdict & gating](concepts/verdict-and-gating.md) — the pipeline, the Norn, and exit codes.
+- [Verdict & gating](concepts/verdict-and-gating.md) — the pipeline, the gate, and exit codes.
 
 ## Guides
 - [Use in CI with the GitHub Action](guides/github-action.md) — the first-party action and its inputs.
@@ -49,7 +49,7 @@ The recurring names, and where each is explained in depth:
 | **Saga** | the `draugr.saga.yaml` descriptor of your app | [concept](concepts/saga.md) · [schema](reference/saga-schema.md) |
 | **Controller** | owns one security control (e.g. `sca`) | [controls & scanners](concepts/controls-and-scanners.md#controllers) |
 | **Scanner** | wraps one tool, emits SARIF | [controls & scanners](concepts/controls-and-scanners.md#scanners) |
-| **Surveyors — the Ravens** | discover your app's surface | [surveyors](concepts/surveyors.md) |
-| **Norn** | the policy gate (pass/fail verdict) | [verdict & gating](concepts/verdict-and-gating.md) · [pipeline](contributing/pipeline.md#5-judge--the-norn) |
-| **Skald** | renders the evidence (JSON + SARIF) | [pipeline](contributing/pipeline.md#6-report--the-skald) |
+| **Surveyor** | discovers your app's surface | [surveyors](concepts/surveyors.md) |
+| **Gate** | applies policy to produce the pass/fail verdict | [verdict & gating](concepts/verdict-and-gating.md) |
+| **Report** | renders the run (human summary + JSON/SARIF evidence) | [verdict & gating](concepts/verdict-and-gating.md#the-pipeline) |
 | **SARIF** | the finding interchange format everything normalizes to | [controls & scanners](concepts/controls-and-scanners.md#sarif-everywhere) |
