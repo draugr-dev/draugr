@@ -70,5 +70,8 @@ jobs:
           git checkout -b "$branch"
           git commit -m "docs: regenerate demo GIF"
           git push -u origin "$branch"
+          # Best-effort: creating a PR needs the org's "Allow GitHub Actions to create pull
+          # requests" setting. If it's off, just print the compare link — the branch is pushed.
           gh pr create --title "docs: regenerate demo GIF" \
-            --body "Auto-rendered by the Demo GIF workflow (\`contrib/demo/scan.tape\`). Review the GIF, then merge to update the README."
+            --body "Auto-rendered by the Demo GIF workflow (\`contrib/demo/scan.tape\`). Review the GIF, then merge to update the README." \
+            || echo "::notice::Branch $branch pushed. Open a PR: https://github.com/draugr-dev/draugr/compare/$branch?expand=1"
