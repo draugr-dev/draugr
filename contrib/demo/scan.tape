@@ -23,4 +23,5 @@ Hide
 Type "cd demo" Enter
 Show
 Type "draugr scan ." Sleep 600ms Enter
-Sleep 12s
+Sleep 8s   # let the scan run and the verdict print (the sandbox is small)
+Sleep 5s   # hold on the final verdict so it's readable before the GIF loops
