@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Finding messages are now repo-relative too**, not just locations. Some scanners (e.g. Gitleaks)
+  embed the absolute checkout path in the message (`…detected secret for file /tmp/draugr-repo-…/x`).
+  That leaked temp path is now stripped, so messages are clean and — because they no longer vary by
+  the (per-scan) temp directory — `draugr diff` no longer reports an unchanged secret finding as
+  both new and fixed (#197).
 
 ## [0.24.0] - 2026-07-17
 
