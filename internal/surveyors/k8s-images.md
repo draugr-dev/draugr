@@ -15,7 +15,7 @@ records each image's **running digest** (from the pod's container status), so re
 content-addressed — a rebuilt image under the same tag re-scans.
 
 **Proposes exposure.** When surveying a *specific* namespace, it also infers the component's
-`exposure` from topology (see [prioritization](../../docs/concepts.md#prioritization-what-to-fix-first)):
+`exposure` from topology (see [prioritization](../../docs/concepts/prioritization.md)):
 
 | Signal in the namespace | Proposed `exposure` |
 |-------------------------|---------------------|
@@ -38,4 +38,4 @@ is never inferred (it's human-declared) — run `draugr classify` to set it.
 ## Links
 
 - client-go: https://github.com/kubernetes/client-go
-- Concepts: [the Ravens](../../docs/concepts.md#surveyors--the-ravens)
+- Concepts: [the Ravens](../../docs/concepts/surveyors.md)

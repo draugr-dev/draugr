@@ -13,7 +13,7 @@
 Checks out the component's repository, then runs
 `semgrep scan --sarif --quiet --no-error --metrics=off --config p/default <dir>` to analyze
 the project's **own source code** for security bugs (injection, unsafe APIs, etc.). See the
-[SAST glossary entry](../../docs/glossary.md#sast--static-application-security-testing).
+[SAST glossary entry](../../docs/reference/glossary.md#sast--static-application-security-testing).
 
 - `--no-error` keeps the process successful when findings exist (findings live in the SARIF
   report, not the exit code; the [`sast`](../controllers/sast.md) controller judges severity).

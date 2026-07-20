@@ -12,7 +12,7 @@
 Checks out the component's repository, then runs `trivy config --quiet --format sarif <dir>`
 to find insecure **Infrastructure as Code** — Terraform, Kubernetes manifests, Dockerfiles,
 Helm charts, CloudFormation, and more. See the
-[IaC glossary entry](../../docs/glossary.md#iac-scanning--infrastructure-as-code).
+[IaC glossary entry](../../docs/reference/glossary.md#iac-scanning--infrastructure-as-code).
 
 ## Links
 

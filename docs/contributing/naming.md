@@ -36,9 +36,9 @@ plainer phrasing (e.g. "discovery" for surveyors) where it aids first-time under
 
 Control IDs use **recognized industry terms** so Draugr is easy to learn and respected by
 security professionals. These are the values under `config.controllers.<id>` in the Saga.
-Each is defined in [`glossary.md`](glossary.md).
+Each is defined in [`glossary.md`](../reference/glossary.md).
 
-Status: ✅ shipped · 🗺️ planned. The [integrations catalog](integrations.md) tracks the
+Status: ✅ shipped · 🗺️ planned. The [integrations catalog](../reference/catalog.md) tracks the
 scanners and issue links for the planned ones.
 
 | Control ID | Industry term | What it assesses | Status |
@@ -68,16 +68,25 @@ plain (`draugr scan`, `draugr report`).
 
 | Concept | Name | Status | Rationale |
 |---------|------|--------|-----------|
-| **The descriptor / manifest** | **Saga** | ✅ | A saga *is an account of* something. `draugr.saga.yaml` = "the account of your app": where the repos are, what images it builds, what endpoints it exposes, what infra it runs on. Intuitive, ownable, on-theme. |
-| **Surveyors, collectively (the discovery subsystem)** | **the Ravens** (**Huginn & Muninn**) | ✅ | Odin's ravens, Thought & Memory, fly across the world and report back what they see — exactly what surveyors do. "The Ravens found 12 images in this cluster." |
-| **Reporting / evidence engine** | **Skald** | ✅ | A skald is the poet who records and recounts deeds. `pkg/skald` renders scan results to JSON + merged SARIF evidence (human formats live in `pkg/report`). |
-| **Policy / pass-fail gate** | **Norn** | ✅ | The Norns decide fate. `pkg/norn` decides a release's fate. "The Norns ruled: this release fails on 2 critical findings." |
+| **The descriptor / manifest** | **Saga** | ✅ | A saga *is an account of* something. `draugr.saga.yaml` = "the account of your app": where the repos are, what images it builds, what endpoints it exposes, what infra it runs on. Intuitive, ownable, on-theme. **Doc-facing:** keep the name, but introduce it as "the descriptor (your `draugr.saga.yaml`)" on first mention per page so newcomers aren't taxed. |
+| **Surveyors, collectively (the discovery subsystem)** | **the Ravens** (**Huginn & Muninn**) | ✅ | Odin's ravens, Thought & Memory, fly across the world and report back what they see — exactly what surveyors do. **Doc-facing:** lead with **Surveyor**; "the Ravens" is optional flavor. |
+| **Reporting / evidence engine** | **Skald** | ✅ | A skald is the poet who records and recounts deeds. `pkg/skald` renders scan results to JSON + merged SARIF evidence (human formats live in `pkg/report`). **Code-internal only** — user docs say "report" / "reporting". |
+| **Policy / pass-fail gate** | **Norn** | ✅ | The Norns decide fate. `pkg/norn` decides a release's fate. **Code-internal only** — user docs say "the gate" / "verdict". |
 | **Plugin marketplace / registry** | **the Hoard** | 🔶 | The treasure a draugr guards. A registry of community scanners, controllers, and surveyors. |
 | **Commercial control plane (multi-team hub)** | **cloud** (repo) / **Yggdrasil** (feature) | 💤 | The world-tree connecting the nine realms — the hub connecting all teams, scanners, and clusters. Repo is plainly `cloud`; `Yggdrasil` reserved for a user-facing feature name. |
 
 **In use today:** `draugr.saga.yaml` (descriptor), **the Ravens** (surveyors), **Skald**
 (`pkg/skald`), and **Norn** (`pkg/norn`). **the Hoard** and **Yggdrasil** stay reserved
 until the plugin registry and control plane land.
+
+**Doc-facing vs. code-internal.** `Norn` and `Skald` are **code vocabulary** (`pkg/norn`,
+`pkg/skald`) and stay out of user-facing docs — a reader shouldn't have to learn a Norse
+name to describe Draugr to a colleague. Published pages use the plain terms: **the gate** /
+**verdict** for the Norn, **report** / **reporting** for the Skald. The Norse names live only
+in the code and in these `contributing/` architecture docs (`pipeline.md`, `architecture.md`).
+`Saga` and **Surveyor** are the exceptions that stay user-facing — `Saga` because it *is* the
+descriptor's name and format, glossed as "the descriptor" on first mention; **Surveyor**
+because it already leads, with "the Ravens" as optional flavor.
 
 ---
 

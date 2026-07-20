@@ -13,5 +13,5 @@ aggregates + deduplicates findings into a per-control result with a severity sum
 
 ## Links
 
-- Glossary: [Container image scanning](../../docs/glossary.md#container-image-scanning)
-- Saga reference: [`docs/saga-reference.md`](../../docs/saga-reference.md)
+- Glossary: [Container image scanning](../../docs/reference/glossary.md#container-image-scanning)
+- Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)

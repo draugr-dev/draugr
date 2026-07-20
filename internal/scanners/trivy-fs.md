@@ -12,7 +12,7 @@
 Checks out the component's repository, then runs
 `trivy fs --quiet --scanners vuln --format sarif <dir>` to find known vulnerabilities in
 the project's dependencies (Software Composition Analysis). See the [SCA glossary
-entry](../../docs/glossary.md#sca--software-composition-analysis).
+entry](../../docs/reference/glossary.md#sca--software-composition-analysis).
 
 ## Links
 

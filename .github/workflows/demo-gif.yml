@@ -1,0 +1,77 @@
+# Render the README demo GIF (zero-config `draugr scan .`) with vhs and open a PR with it.
+# Manual — run from the Actions tab when the demo tape or CLI output changes.
+name: Demo GIF
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the GIF branch
+      pull-requests: write # open the PR
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install Draugr (latest release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download --repo draugr-dev/draugr \
+            --pattern 'draugr_*_linux_amd64.tar.gz' \
+            --pattern 'checksums.txt' --pattern 'checksums.txt.sigstore.json'
+          tar -xzf draugr_*_linux_amd64.tar.gz draugr
+          sudo mv draugr /usr/local/bin/
+          draugr version
+
+      - name: Provision scanners
+        run: |
+          set -euo pipefail
+          draugr tools install -y           # Trivy, Gitleaks (into ~/.draugr/bin, on Draugr's PATH)
+          pipx install semgrep
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Clone the demo sandbox
+        run: git clone --depth 1 https://github.com/draugr-dev/draugr-demo demo
+
+      - name: Install vhs and its dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          # ttyd (pinned)
+          sudo curl -fsSL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 \
+            -o /usr/local/bin/ttyd && sudo chmod +x /usr/local/bin/ttyd
+          # vhs (pinned) — the binary lives under a versioned dir in the tarball
+          curl -fsSL https://github.com/charmbracelet/vhs/releases/download/v0.11.0/vhs_0.11.0_Linux_x86_64.tar.gz \
+            | tar -xz --strip-components=1 vhs_0.11.0_Linux_x86_64/vhs && sudo mv vhs /usr/local/bin/
+          vhs --version && ttyd --version && ffmpeg -version | head -1
+
+      - name: Render the tape
+        run: vhs contrib/demo/scan.tape
+
+      - name: Open a PR with the regenerated GIF
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git add contrib/demo/scan.gif
+          if git diff --cached --quiet; then
+            echo "GIF unchanged — nothing to do."
+            exit 0
+          fi
+          git config user.name "Wilson Santos"
+          git config user.email "wilson@draugr.dev"
+          branch="demo-gif-$(git rev-parse --short HEAD)"
+          git checkout -b "$branch"
+          git commit -m "docs: regenerate demo GIF"
+          git push -u origin "$branch"
+          # Best-effort: creating a PR needs the org's "Allow GitHub Actions to create pull
+          # requests" setting. If it's off, just print the compare link — the branch is pushed.
+          gh pr create --title "docs: regenerate demo GIF" \
+            --body "Auto-rendered by the Demo GIF workflow (\`contrib/demo/scan.tape\`). Review the GIF, then merge to update the README." \
+            || echo "::notice::Branch $branch pushed. Open a PR: https://github.com/draugr-dev/draugr/compare/$branch?expand=1"

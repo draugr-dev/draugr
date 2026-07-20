@@ -15,8 +15,8 @@ summary. The scanner tunes its checklist by each host's `type` (`browser` — th
 
 ## Links
 
-- Glossary: [HTTP security headers](../../docs/glossary.md#http-security-headers)
-- Saga reference: [`docs/saga-reference.md`](../../docs/saga-reference.md) (`hosts:` + `type`)
+- Glossary: [HTTP security headers](../../docs/reference/glossary.md#http-security-headers)
+- Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md) (`hosts:` + `type`)
 
 ## Notes
 

@@ -35,15 +35,16 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 
 	if len(d.Verdict.Controls) > 0 {
 		_, _ = fmt.Fprintf(w, "### Controls\n\n")
-		_, _ = fmt.Fprintln(w, "| Control | Verdict | Errors | Warnings | Notes |")
-		_, _ = fmt.Fprintln(w, "|---|---|---:|---:|---:|")
+		_, _ = fmt.Fprintln(w, "| Control | Verdict | Critical | High | Medium | Low |")
+		_, _ = fmt.Fprintln(w, "|---|---|---:|---:|---:|---:|")
 		for _, c := range d.Verdict.Controls {
 			v := "pass"
 			if c.Verdict == norn.Fail {
 				v = "**FAIL**"
 			}
-			_, _ = fmt.Fprintf(w, "| %s | %s | %d | %d | %d |\n",
-				c.Control, v, c.Counts.Error, c.Counts.Warning, c.Counts.Note)
+			b := s.bands[c.Control]
+			_, _ = fmt.Fprintf(w, "| %s | %s | %d | %d | %d | %d |\n",
+				c.Control, v, b.critical, b.high, b.medium, b.low)
 		}
 		_, _ = fmt.Fprintln(w)
 	}
@@ -62,7 +63,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	}
 	for _, f := range shown {
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | `%s` | %s | %s | %s |\n",
-			dash(f.priority), f.level, scoreStr(f), f.ruleID, f.control, f.tool, dash(f.location))
+			dash(f.priority), f.severity, scoreStr(f), f.ruleID, f.control, f.tool, dash(f.location))
 	}
 	if len(s.findings) > markdownTopN {
 		_, _ = fmt.Fprintf(w, "\n_…and %d more finding(s)._\n", len(s.findings)-markdownTopN)

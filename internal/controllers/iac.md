@@ -16,8 +16,8 @@ Trivy reports per-check severity, so findings are counted as reported.
 
 ## Links
 
-- Glossary: [IaC scanning](../../docs/glossary.md#iac-scanning--infrastructure-as-code)
-- Saga reference: [`docs/saga-reference.md`](../../docs/saga-reference.md)
+- Glossary: [IaC scanning](../../docs/reference/glossary.md#iac-scanning--infrastructure-as-code)
+- Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)
 
 ## Notes
 

@@ -1,3 +1,10 @@
+---
+title: CLI reference
+description: Every Draugr command and flag, from scan and diff to survey, doctor, and tools.
+section: Reference
+order: 10
+---
+
 # CLI reference
 
 All commands accept these **global flags**:
@@ -12,11 +19,40 @@ no-op when unset.
 
 ---
 
-## `draugr scan <saga.yaml>`
+## `draugr init [dir]`
+
+Scaffold a `draugr.saga.yaml` for a project (default: the current directory), detecting the
+stack to pre-fill sensible controls — Go adds `gosec` to `sast`, a `Dockerfile` adds an `images`
+stub, dependency manifests confirm `sca`. Edit it, then `draugr scan`.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-o, --output` | `draugr.saga.yaml` | Path to write (`-` for stdout) |
+| `-f, --force` | `false` | Overwrite an existing file |
+
+```bash
+draugr init                 # write draugr.saga.yaml for the current project
+draugr init -o - | less     # preview without writing
+```
+
+For an instant scan with no file at all, use zero-config `draugr scan .` (below).
+
+## `draugr scan [saga.yaml | dir]`
 
 Load a Saga, run the applicable controls, and produce a pass/fail verdict. Prints a
 human-readable **console** summary to stdout by default (`--format` for other formats).
 **Exits non-zero when the verdict is `fail`.**
+
+**Zero-config.** Point `scan` at a **directory** (or omit the argument to use the current one)
+and Draugr scans that repository with `sca`, `secrets`, `sast`, and `iac` — no Saga required.
+A one-line note is printed to stderr so machine formats on stdout stay clean. A Saga **file**
+argument runs exactly as before.
+
+```bash
+draugr scan            # zero-config: scan the current repo
+draugr scan ./service  # zero-config: scan another repo directory
+draugr scan draugr.saga.yaml   # full control from a descriptor
+```
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -53,11 +89,11 @@ priority/severity counts, "fix first"). `markdown` produces a portable report fo
 or wikis; `html` is a self-contained, browser-viewable report you can publish as a build
 artifact; `junit` emits JUnit XML so CI systems (GitLab, Jenkins, Azure DevOps…) surface
 findings in their test-results panel; `json` and `sarif` are the machine formats; `template`
-renders your own Go `text/template` (see [`config.reports`](saga-reference.md#configreports-and-configpublishers)
+renders your own Go `text/template` (see [`config.reports`](saga-schema.md#configreports-and-configpublishers)
 for the available fields). Regardless of `--format`, `--output <dir>` always writes both
 `report.json` and `results.sarif` for CI/code-scanning. To render **multiple** formats and deliver
 them somewhere in one run, declare
-[`config.reports` / `config.publishers`](saga-reference.md#configreports-and-configpublishers) in the Saga.
+[`config.reports` / `config.publishers`](saga-schema.md#configreports-and-configpublishers) in the Saga.
 
 **Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. But
 scanners like Trivy and Semgrep are themselves multi-threaded, so on a busy or small machine
@@ -67,8 +103,8 @@ debugging). The run's JSON `stats` reports the effective `concurrency` alongside
 jobs), `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence.
 
 **Priority** requires components to declare `exposure`/`criticality` (see the
-[Saga reference](saga-reference.md)); Draugr ranks each finding P1–P4 from its severity and
-the component's risk. See [concepts](concepts.md#prioritization-what-to-fix-first).
+[Saga reference](saga-schema.md)); Draugr ranks each finding P1–P4 from its severity and
+the component's risk. See [concepts](../concepts/prioritization.md).
 
 **Exploitability (`--kev`/`--epss`)** raises a finding's severity by real-world signals — a
 CVE on CISA's [KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)

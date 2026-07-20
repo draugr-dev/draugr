@@ -12,6 +12,48 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.26.1] - 2026-07-18
+
+### Changed
+
+- **Docs now use plain, standard terms.** The user docs describe the pass/fail step as
+  **the gate** / **verdict** and the output step as **report** / **reporting**, instead of the
+  internal code names — so the vocabulary reads clearly when you describe Draugr to others.
+  No CLI, config, or file-format changes.
+
+## [0.26.0] - 2026-07-18
+
+### Changed
+
+- **The human report now speaks severity bands (critical/high/medium/low), not SARIF levels.**
+  The console/markdown/html per-control counts and the "fix first" list show severity — from the
+  CVSS score when a scanner provides one, else derived from the finding's level. The gate
+  (`--fail-on`) and machine formats (`json`/`sarif`) still use SARIF levels. See
+  [Understanding the report](docs/concepts/verdict-and-gating.md#understanding-the-report).
+- **Colored console output on a terminal.** The verdict, priorities, and severities are
+  color-coded when stdout is a TTY; set `NO_COLOR` to disable. Piped/redirected output stays plain.
+
+## [0.25.0] - 2026-07-17
+
+### Added
+
+- **Zero-config `draugr scan .`** — point `scan` at a directory (or omit the argument for the
+  current one) and Draugr scans that repository with `sca`, `secrets`, `sast`, and `iac` — no Saga
+  file required. The 60-second path from install to a verdict.
+- **`draugr init`** — scaffold a `draugr.saga.yaml` for your project, detecting the stack (Go →
+  gosec, a Dockerfile → an images stub, dependency manifests → SCA) so you start from a sensible,
+  commented descriptor. `-o -` prints to stdout; `--force` overwrites.
+
+## [0.24.1] - 2026-07-17
+
+### Fixed
+
+- **Finding messages are now repo-relative too**, not just locations. Some scanners (e.g. Gitleaks)
+  embed the absolute checkout path in the message (`…detected secret for file /tmp/draugr-repo-…/x`).
+  That leaked temp path is now stripped, so messages are clean and — because they no longer vary by
+  the (per-scan) temp directory — `draugr diff` no longer reports an unchanged secret finding as
+  both new and fixed (#197).
+
 ## [0.24.0] - 2026-07-17
 
 ### Added
@@ -430,7 +472,11 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.26.1...HEAD
+[0.26.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.26.1
+[0.26.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.26.0
+[0.25.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.25.0
+[0.24.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.24.1
 [0.24.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.24.0
 [0.23.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.23.0
 [0.22.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.22.0
