@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.27.0] - 2026-07-20
+
 ### Added
 
 - **Event-aware GitHub Action.** The first-party action has a new `mode` input (`auto` by
@@ -482,7 +486,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.26.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.27.0
 [0.26.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.26.1
 [0.26.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.26.0
 [0.25.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.25.0
