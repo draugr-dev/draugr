@@ -8,52 +8,67 @@ order: 10
 # Use in CI (GitHub Actions)
 
 Add Draugr to a repository's CI with the first-party **`draugr-dev/draugr`** action. It
-downloads a cosign-verified Draugr release, runs the scan, and hands the merged SARIF to
-GitHub code scanning — one clean **Draugr** tool in the Security tab.
+downloads a cosign-verified Draugr release, provisions the scanners, and — with its default
+**`mode: auto`** — does the right thing per event from **one** workflow and **one** Saga:
+
+- on **push**, it runs a full scan and uploads the merged SARIF to GitHub **code scanning** (the
+  Security tab), via the Saga's `github` publisher;
+- on a **pull request**, it scans the PR's base and head and posts **one sticky new/fixed
+  comment** — with the Saga's publishers suppressed, so it never double-posts alongside a code
+  scanning "GitHub Advanced Security" comment.
 
 ```yaml
 name: Security
-on: [pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 permissions:
   contents: read
-  security-events: write        # upload SARIF to code scanning
+  security-events: write        # push: upload SARIF to code scanning
+  pull-requests: write          # PRs: post the sticky diff comment
 jobs:
   draugr:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Install the scanners the enabled controls need (Draugr orchestrates them; it doesn't
-      # bundle them). Example for images/sca/iac:
-      - uses: aquasecurity/setup-trivy@v0.3.1
-
-      - id: draugr
-        uses: draugr-dev/draugr@v0.16.0      # pin a release; installs Draugr for you
+        with:
+          fetch-depth: 0          # diff mode needs the PR's base commit
+      - uses: draugr-dev/draugr@v0.27.0   # pin a release; installs Draugr for you
         with:
           saga: draugr.saga.yaml
-          fail-on: warning                   # optional; default is `error`
-
-      - if: always()                         # publish findings even when the gate fails
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ${{ steps.draugr.outputs.sarif }}
+          tools: true             # provision the scanners the controls need
+          # fail-on: error        # (scan/push) gate the build
+          # fail-on-new: error    # (diff/PR)   gate only on findings this PR introduces
 ```
 
-The scanners each control needs (Trivy, Gitleaks, …) still have to be on the runner — install
-them alongside as above, set the action's `tools: true` input to let Draugr provision them, or
-gate their presence with `draugr doctor`.
+The scanners each control needs (Trivy, Gitleaks, Semgrep, …) still have to be on the runner:
+set `tools: true` to let Draugr provision them, install them alongside (e.g.
+`aquasecurity/setup-trivy`), or gate their presence with `draugr doctor`.
 
-To publish findings without a separate `upload-sarif` step, use the native `github` publisher
-instead — see [code scanning](code-scanning.md).
+## Modes
+
+| `mode` | On | What it does | Needs |
+|---|---|---|---|
+| `auto` (default) | any | `diff` on `pull_request`, `scan` otherwise | both permissions below |
+| `scan` | push / schedule | full scan; the Saga's publishers deliver results (e.g. `github` → code scanning) | `security-events: write` |
+| `diff` | pull request | scan base + head, post one sticky new/fixed comment (publishers suppressed) | `pull-requests: write`, `fetch-depth: 0` |
+
+Prefer the single **`auto`** workflow above — it keeps code-scanning uploads off PRs, which is
+what avoids a second, overlapping PR comment. See [gate PRs on new findings](pr-diff.md) and
+[code scanning](code-scanning.md) for each mode in depth.
 
 ## Action inputs
 
 | Input | Default | Description |
 |---|---|---|
 | `saga` | — (required) | Path to the Saga descriptor to scan. |
+| `mode` | `auto` | `auto` (diff on PRs, scan otherwise), `scan`, or `diff`. |
 | `version` | `latest` | Draugr release to use (with or without a leading `v`). Pin for reproducibility. |
-| `fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note`. |
-| `fail-on-priority` | — | Also fail on any finding at or above this priority band (`P1`–`P4`). |
+| `fail-on` | `error` | (scan) Severity that fails the gate: `error`, `warning`, `note`. |
+| `fail-on-priority` | — | (scan) Also fail on any finding at or above this priority band (`P1`–`P4`). |
+| `fail-on-new` | — | (diff) Fail on a **new** finding at or above this severity. |
+| `fail-on-new-priority` | — | (diff) Fail on a **new** finding at or above this priority band. |
 | `min-priority` | — | List findings at or above this band in the console output. |
 | `cache-dir` | — | Enable content-hash caching in this directory (relative to `working-directory`). |
 | `output` | `draugr-out` | Directory for `report.json` and `results.sarif` (relative to `working-directory`). |

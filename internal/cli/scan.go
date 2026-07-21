@@ -40,6 +40,7 @@ type scanOptions struct {
 	format         string
 	template       string
 	templateFile   string
+	noPublish      bool
 }
 
 func newScanCommand() *cobra.Command {
@@ -74,6 +75,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.format, "format", "console", "stdout report format: console, markdown, html, junit, json, sarif, template")
 	cmd.Flags().StringVar(&opts.template, "template", "", "inline Go text/template (with --format template)")
 	cmd.Flags().StringVar(&opts.templateFile, "template-file", "", "Go text/template file (with --format template)")
+	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")
 	return cmd
 }
 
@@ -161,8 +163,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 	}
 	// Deliver configured reports to configured publishers (Saga config.reports/publishers).
-	if err := publish.Run(ctx, model.Config.Reports, model.Config.Publishers, data); err != nil {
-		return err
+	// --no-publish suppresses this so a caller (e.g. the diff workflow, which scans both sides
+	// of a PR) can produce artifacts without triggering side effects like a code-scanning upload.
+	if !opts.noPublish {
+		if err := publish.Run(ctx, model.Config.Reports, model.Config.Publishers, data); err != nil {
+			return err
+		}
 	}
 
 	if verdict.Verdict == norn.Fail {

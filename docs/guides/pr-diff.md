@@ -12,6 +12,35 @@ order: 30
 lets you gate a PR only on the findings it *introduces*, not the pre-existing backlog, so the
 gate stays adoptable where a whole-backlog gate would block every PR.
 
+## In CI: let the action do it
+
+On GitHub, you don't wire this up by hand. The first-party action's default **`mode: auto`**
+runs a diff on `pull_request` events — it scans the base and head for you and posts one sticky
+new/fixed comment — and a full scan on push. One workflow, one Saga:
+
+```yaml
+on: [push, pull_request]
+permissions:
+  contents: read
+  security-events: write   # push: code scanning
+  pull-requests: write     # PR: the diff comment
+jobs:
+  draugr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }        # diff needs the base commit
+      - uses: draugr-dev/draugr@v0.27.0
+        with:
+          saga: draugr.saga.yaml
+          tools: true
+          fail-on-new: error            # gate only on findings this PR introduces
+```
+
+See the [GitHub Action guide](github-action.md) for all inputs and modes. The rest of this page
+covers running `draugr diff` directly — for other CI systems, or to understand what the action
+does under the hood.
+
 ## Produce the two SARIF files
 
 `diff` consumes the `results.sarif` files that [`draugr scan -o`](../reference/cli.md#draugr-scan-sagayaml)

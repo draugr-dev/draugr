@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Event-aware GitHub Action.** The first-party action has a new `mode` input (`auto` by
+  default): on a **push** it runs a full scan and publishes to code scanning; on a **pull
+  request** it scans the base and head and posts one **sticky new/fixed comment** — from a
+  single workflow and a single Saga. Because code-scanning upload stays on push, PRs don't get a
+  second, overlapping "GitHub Advanced Security" comment next to Draugr's own. New `fail-on-new`
+  / `fail-on-new-priority` inputs gate a PR on the findings it introduces.
+- **`draugr scan --no-publish`** runs a scan without triggering the Saga's configured
+  publishers — it still writes `-o` artifacts and stdout. Used by the action's diff mode, and
+  handy anywhere you want results without side effects (like a code-scanning upload).
 
 ## [0.26.1] - 2026-07-18
 
