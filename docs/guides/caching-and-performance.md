@@ -31,6 +31,15 @@ invalidates stale results before the TTL. For **container images**, pin a `diges
 so caching is content-addressed — a rebuilt image re-scans immediately instead of serving the
 old result under a mutable tag. See [caching in depth](../concepts/controls-and-scanners.md#content-hash-caching).
 
+> **Images without a pinned digest.** If a component's `images:` entry gives only a mutable tag
+> (e.g. `python:3.8-slim`) with no `digest:`, the cache keys on that **tag**. An image rebuilt
+> and re-pushed under the same tag produces the **same key**, so the cached result is reused
+> until it goes stale — either the `--cache-ttl` expires (default `24h`) or you force a re-scan
+> (delete the cache entry, or run once without `--cache-dir`). Draugr does **not** reach out to
+> the registry to resolve a tag to its current digest. To make a rebuild invalidate the cache
+> immediately, pin the immutable `digest:` in the Saga — a discovery surveyor records the running
+> digest for you — so the key becomes content-addressed.
+
 ## Tuning parallelism
 
 By default Draugr runs up to one scan job per CPU. But scanners like Trivy and Semgrep are
