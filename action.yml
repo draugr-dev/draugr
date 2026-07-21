@@ -57,6 +57,25 @@ inputs:
       when the runner doesn't already have them (e.g. the code-scanning starter workflow).
     required: false
     default: "false"
+  mode:
+    description: >-
+      What the action does. "scan": run a full scan and let the Saga's publishers deliver
+      results (e.g. `github` → code scanning). "diff": scan the pull request's base and head and
+      upsert one sticky new/fixed comment (the Saga's publishers are suppressed so it never
+      double-posts alongside code scanning). "auto" (default): pick "diff" on pull_request events
+      and "scan" otherwise — so a single workflow does the right thing on both push and PRs.
+    required: false
+    default: auto
+  fail-on-new:
+    description: >-
+      (diff mode) Fail the gate if a new finding is at or above this severity (error, warning,
+      note). Empty does not fail on new findings.
+    required: false
+    default: ""
+  fail-on-new-priority:
+    description: (diff mode) Fail the gate if a new finding is at or above this priority band (P1-P4).
+    required: false
+    default: ""
 
 outputs:
   sarif:
@@ -76,9 +95,20 @@ runs:
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_OUTPUT: ${{ inputs.output }}
         INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        INPUT_MODE: ${{ inputs.mode }}
         GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
+
+        # Resolve the effective mode: auto → diff on a pull request, scan otherwise.
+        mode="${INPUT_MODE:-auto}"
+        if [ "$mode" = "auto" ]; then
+          case "${GITHUB_EVENT_NAME:-}" in
+            pull_request|pull_request_target) mode=diff ;;
+            *) mode=scan ;;
+          esac
+        fi
+        echo "mode=${mode}" >>"$GITHUB_OUTPUT"
 
         # Resolve the release tag (vX.Y.Z) to download.
         if [ "$INPUT_VERSION" = "latest" ] || [ -z "$INPUT_VERSION" ]; then
@@ -176,6 +206,7 @@ runs:
         fi
 
     - name: Run Draugr scan
+      if: steps.setup.outputs.mode == 'scan'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
@@ -203,3 +234,53 @@ runs:
         [ -n "$INPUT_ARGS" ]             && scan_args+=($INPUT_ARGS)
 
         draugr scan "${scan_args[@]}"
+
+    - name: Run Draugr diff
+      if: steps.setup.outputs.mode == 'diff'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_SAGA: ${{ inputs.saga }}
+        INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        INPUT_CACHE_DIR: ${{ inputs.cache-dir }}
+        INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
+        INPUT_FAIL_ON_NEW_PRIORITY: ${{ inputs.fail-on-new-priority }}
+        INPUT_ARGS: ${{ inputs.args }}
+        # base SHA of the PR; head is the current checkout. Requires the caller to check out with
+        # fetch-depth: 0 so the base commit is present.
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        # For the sticky PR comment (github-pr-comment publisher). Needs pull-requests: write.
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        draugr version
+
+        if [ -z "${BASE_SHA:-}" ]; then
+          echo "::error::diff mode requires a pull_request event (no base SHA in context)"; exit 1
+        fi
+
+        base_out="${RUNNER_TEMP}/draugr-base"
+        head_out="${RUNNER_TEMP}/draugr-head"
+        worktree="${RUNNER_TEMP}/draugr-base-src"
+        wd="${INPUT_WORKING_DIRECTORY:-.}"
+
+        # Publishers are suppressed on both sides: the diff itself posts the one comment, and this
+        # keeps a Saga's `github` publisher from also uploading to code scanning on the PR.
+        scan_common=(--no-publish)
+        [ -n "$INPUT_CACHE_DIR" ] && scan_common+=(--cache-dir "$INPUT_CACHE_DIR")
+        # shellcheck disable=SC2206  # intentional word-splitting of the raw args escape hatch
+        [ -n "$INPUT_ARGS" ] && scan_common+=($INPUT_ARGS)
+
+        # Head = current checkout (this step's working-directory).
+        draugr scan "$INPUT_SAGA" -o "$head_out" "${scan_common[@]}" || true
+
+        # Base = the PR target commit, scanned in a detached worktree.
+        git fetch --no-tags --depth 1 origin "$BASE_SHA" 2>/dev/null || true
+        git worktree add --detach "$worktree" "$BASE_SHA"
+        ( cd "$worktree/$wd" && draugr scan "$INPUT_SAGA" -o "$base_out" "${scan_common[@]}" ) || true
+        git worktree remove --force "$worktree" 2>/dev/null || true
+
+        diff_args=("$base_out/results.sarif" "$head_out/results.sarif" --publish)
+        [ -n "$INPUT_FAIL_ON_NEW" ]          && diff_args+=(--fail-on-new "$INPUT_FAIL_ON_NEW")
+        [ -n "$INPUT_FAIL_ON_NEW_PRIORITY" ] && diff_args+=(--fail-on-new-priority "$INPUT_FAIL_ON_NEW_PRIORITY")
+        draugr diff "${diff_args[@]}"

@@ -69,6 +69,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--format` | `console` | stdout report format: `console`, `markdown`, `html`, `junit`, `json`, `sarif`, `template` |
 | `--template` | — | inline Go `text/template` (with `--format template`) |
 | `--template-file` | — | Go `text/template` file (with `--format template`) |
+| `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
 
 ```bash
 draugr scan draugr.saga.yaml

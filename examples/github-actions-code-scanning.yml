@@ -1,10 +1,13 @@
-# Example GitHub Actions workflow: scan with Draugr and publish findings to code scanning
-# using the native `github` publisher (no separate upload-sarif step).
+# Example GitHub Actions workflow: one event-aware Draugr job for both push and pull requests.
+#
+# With the action's default `mode: auto`, a push runs a full scan and publishes findings to code
+# scanning (the Security tab) via the native `github` publisher; a pull request scans the base
+# and head and posts one sticky new/fixed comment (publishers suppressed, so it never
+# double-posts alongside a code-scanning "GitHub Advanced Security" comment).
 #
 # Copy this into .github/workflows/ and pair it with a Saga that declares the github publisher
-# (see examples/reporting.saga.yaml). The action forwards GITHUB_TOKEN to the scan, and the job
-# grants `security-events: write` so the upload is allowed. Code scanning is free for public
-# repos; private repos need GitHub Advanced Security.
+# (see examples/reporting.saga.yaml). Code scanning is free for public repos; private repos need
+# GitHub Advanced Security.
 
 name: Draugr
 
@@ -12,20 +15,24 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
-  security-events: write # required for the github publisher to upload SARIF
+  security-events: write # push: the github publisher uploads SARIF to code scanning
+  pull-requests: write   # PR: the sticky diff comment
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0             # so PR diff mode can reach the base commit
 
       - name: Draugr scan + publish to code scanning
-        uses: draugr-dev/draugr@v0     # pin a released version in real use
+        uses: draugr-dev/draugr@v0.27.0   # pin a released version
         with:
-          saga: draugr.saga.yaml       # a Saga with a `github` publisher in config.publishers
-          fail-on: error               # optional: fail the build on error-level findings
+          saga: draugr.saga.yaml          # a Saga with a `github` publisher in config.publishers
+          tools: true                     # provision the scanners the controls need
+          fail-on: error                  # (push) fail the build on error-level findings
+          # fail-on-new: error            # (PR)   gate only on findings this PR introduces

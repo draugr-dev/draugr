@@ -43,25 +43,35 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 permissions:
   contents: read
-  security-events: write   # required for the github publisher to upload SARIF
+  security-events: write   # push: the github publisher uploads SARIF
+  pull-requests: write     # PR: the sticky diff comment
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Draugr scan + publish to code scanning
-        uses: draugr-dev/draugr@v0     # pin a released version in real use
         with:
-          saga: draugr.saga.yaml       # a Saga with a `github` publisher in config.publishers
-          fail-on: error               # optional: fail the build on error-level findings
+          fetch-depth: 0     # so PR diff mode can reach the base commit
+      - name: Draugr scan + publish to code scanning
+        uses: draugr-dev/draugr@v0.27.0   # pin a released version
+        with:
+          saga: draugr.saga.yaml          # a Saga with a `github` publisher in config.publishers
+          tools: true
+          fail-on: error                  # optional: fail the build on error-level findings
 ```
 
 Because the publisher lives in the Saga, findings are uploaded even on a FAIL verdict, so you
 always get evidence in the Security tab. Draugr dogfoods this itself in
 [`.draugr/self.saga.yaml`](../../.draugr/self.saga.yaml) plus its self-scan workflow.
+
+> **Why the same workflow handles PRs without a duplicate comment.** With the action's default
+> `mode: auto`, code-scanning upload happens on **push**, while **pull requests** get Draugr's
+> own sticky diff comment instead (publishers suppressed). If you upload to code scanning **on
+> PRs too**, GitHub's own "GitHub Advanced Security" bot also comments — so you'd see two
+> overlapping comments. Keeping the upload to push (the default) avoids that. See
+> [gate PRs on new findings](pr-diff.md).
 
 For the plain `upload-sarif` alternative (no publisher in the Saga), see the
 [GitHub Action guide](github-action.md); for the full list of report formats and publishers,

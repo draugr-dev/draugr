@@ -156,6 +156,37 @@ components:
 	}
 }
 
+func TestRunScanNoPublishSkipsPublishers(t *testing.T) {
+	dir := t.TempDir()
+	saga := `
+release:
+  name: app
+  version: "1.0"
+config:
+  controllers:
+    images:
+      enabled: true
+  reports:
+    - format: sarif
+  publishers:
+    - kind: file
+      dir: ` + dir + `
+components:
+  - name: c
+    images:
+      - image: repo/x:1
+`
+	path := writeSaga(t, saga)
+	err := runScan(context.Background(), path,
+		scanOptions{failOn: "error", format: "console", noPublish: true}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "results.sarif")); !os.IsNotExist(err) {
+		t.Errorf("--no-publish should skip publishers; got file (err=%v)", err)
+	}
+}
+
 func TestRunScanTemplateFormat(t *testing.T) {
 	var buf bytes.Buffer
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
