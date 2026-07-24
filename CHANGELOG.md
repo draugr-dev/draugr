@@ -10,7 +10,16 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **New `dast` control — dynamic application security testing.** Point a component's `hosts:`
+  at a running (e.g. staging) endpoint and enable `dast` in your Saga to probe it for runtime
+  issues static analysis can't see: exposures, misconfigurations, information disclosure,
+  outdated libraries, default credentials. It's backed by [Nuclei](https://github.com/projectdiscovery/nuclei)
+  — a single Go binary, so nothing to run in a container — and complements the `headers` control
+  (which keeps ownership of HTTP security-header checks). Install it with
+  `draugr tools install nuclei`; `dast` is opt-in, like every component control. It runs Nuclei's
+  default (safe) template set — no active/attack scanning.
 
 ## [0.27.0] - 2026-07-20
 

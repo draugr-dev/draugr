@@ -2,6 +2,7 @@ package tools
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"compress/gzip"
@@ -187,6 +188,34 @@ var installable = map[string]InstallSpec{
 			},
 		},
 	},
+	"nuclei": {
+		Binary:  "nuclei",
+		Version: "3.11.0",
+		// Nuclei ships .zip archives (extracted by extractFromZip) and publishes no cosign
+		// signature, so it is pinned by SHA-256 only. Values from nuclei_3.11.0_checksums.txt.
+		Assets: map[string]Asset{
+			"linux/amd64": {
+				URL:             "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.0/nuclei_3.11.0_linux_amd64.zip",
+				SHA256:          "dc238d6040813e14fc30514dac5a2eb1b430c694f3ca99eee2a5097e55076283",
+				BinaryInArchive: "nuclei",
+			},
+			"linux/arm64": {
+				URL:             "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.0/nuclei_3.11.0_linux_arm64.zip",
+				SHA256:          "78401fc570ed60a48b8a659f65f6645015a8b3b3097a5e50fc6fbe106a4b108a",
+				BinaryInArchive: "nuclei",
+			},
+			"darwin/amd64": {
+				URL:             "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.0/nuclei_3.11.0_macOS_amd64.zip",
+				SHA256:          "70feaf206250e50f7ef8403f914ef6c500e0f2cab0172bedced3fbd5b0caedad",
+				BinaryInArchive: "nuclei",
+			},
+			"darwin/arm64": {
+				URL:             "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.0/nuclei_3.11.0_macOS_arm64.zip",
+				SHA256:          "e35f513943f07b78d39bcca83f0a7f2db87fafa67669334e647666df7b397467",
+				BinaryInArchive: "nuclei",
+			},
+		},
+	},
 }
 
 // Installed describes a successfully provisioned tool.
@@ -290,10 +319,10 @@ func Install(ctx context.Context, name, destDir string, client *http.Client) (In
 	}
 
 	// A bare binary (BinaryInArchive == "") is the downloaded file itself; otherwise extract it
-	// from the .tar.gz.
+	// from the archive (.tar.gz or .zip, detected by content).
 	bin := data
 	if asset.BinaryInArchive != "" {
-		bin, err = extractFromTarGz(data, asset.BinaryInArchive)
+		bin, err = extractBinary(data, asset.BinaryInArchive)
 		if err != nil {
 			return Installed{}, fmt.Errorf("extract %s: %w", name, err)
 		}
@@ -393,6 +422,40 @@ func download(ctx context.Context, client *http.Client, url string) ([]byte, err
 		return nil, fmt.Errorf("unexpected status %s", resp.Status)
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, maxDownloadBytes))
+}
+
+// zipMagic is the local-file-header signature at the start of every .zip archive ("PK\x03\x04").
+var zipMagic = []byte("PK\x03\x04")
+
+// extractBinary pulls the named binary from a downloaded archive, dispatching on the archive's
+// magic bytes: .zip archives (Nuclei) start with zipMagic; everything else is treated as .tar.gz
+// (Trivy, gitleaks, gosec). Content-based detection avoids depending on the asset's URL suffix,
+// which lets tests use bare httptest URLs.
+func extractBinary(data []byte, binary string) ([]byte, error) {
+	if bytes.HasPrefix(data, zipMagic) {
+		return extractFromZip(data, binary)
+	}
+	return extractFromTarGz(data, binary)
+}
+
+// extractFromZip returns the contents of the first file whose base name is binary.
+func extractFromZip(data []byte, binary string) ([]byte, error) {
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range zr.File {
+		if filepath.Base(f.Name) != binary {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = rc.Close() }()
+		return io.ReadAll(io.LimitReader(rc, maxBinaryBytes))
+	}
+	return nil, fmt.Errorf("%q not found in archive", binary)
 }
 
 // extractFromTarGz returns the contents of the first regular file whose base name is binary.

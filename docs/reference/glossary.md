@@ -46,9 +46,10 @@ Go components (`controllers.sast.scanners`). (Implemented today.)
 
 ## DAST — Dynamic Application Security Testing
 
-Tests a **running application** from the outside (like an attacker) — crawling endpoints
-and probing for issues (XSS, injection, misconfig). In Draugr: **`dast`** via
-[OWASP ZAP](https://www.zaproxy.org). Roadmap: [#54](https://github.com/draugr-dev/draugr/issues/54).
+Tests a **running application** from the outside (like an attacker) — probing endpoints
+for issues (exposures, misconfigurations, info disclosure, outdated libraries). In Draugr:
+**`dast`** via [Nuclei](https://github.com/projectdiscovery/nuclei) (implemented today). A
+deeper opt-in engine such as [OWASP ZAP](https://www.zaproxy.org) is a future follow-up.
 
 ## Secret detection
 

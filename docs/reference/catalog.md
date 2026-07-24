@@ -30,7 +30,7 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 | `secrets` | Secret detection | component | ✅ | `gitleaks` | [doc](../../internal/controllers/secrets.md) |
 | `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../../internal/controllers/iac.md) |
 | `headers` | HTTP security headers | component | ✅ | `http-headers` (native) | [doc](../../internal/controllers/headers.md) |
-| `dast` | Dynamic Application Security Testing | component | 🗺️ [#54](https://github.com/draugr-dev/draugr/issues/54) | OWASP ZAP | — |
+| `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
 | `infrastructure` | CIS benchmarks / posture | project | 🗺️ [#55](https://github.com/draugr-dev/draugr/issues/55) | kube-bench | — |
 | `tls` | TLS/certificate assessment | component | 🗺️ [#56](https://github.com/draugr-dev/draugr/issues/56) | testssl.sh | — |
 | `sbom` | Software Bill of Materials | component | 🗺️ [#57](https://github.com/draugr-dev/draugr/issues/57) | Syft | — |
@@ -47,6 +47,7 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 | `gosec` | sast | gosec (Go) | Apache-2.0 | ✅ | [doc](../../internal/scanners/gosec.md) |
 | `trivy-config` | iac | Aqua Trivy (config) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-config.md) |
 | `http-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/http-headers.md) |
+| `nuclei` | dast | ProjectDiscovery Nuclei | MIT | ✅ | [doc](../../internal/scanners/nuclei.md) |
 
 ## Surveyors (the Ravens)
 

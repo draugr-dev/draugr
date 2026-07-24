@@ -54,9 +54,10 @@ config:
 ```
 
 > Implemented today: **`images`** (Trivy), **`sca`** (Trivy fs), **`secrets`** (Gitleaks),
-> **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config), and **`headers`** (native
-> HTTP-header checks). Other controls (`dast`, `tls`, `infrastructure`, `threats`) are on the
-> roadmap. Run `draugr controls` for the current list and each control's scanners.
+> **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config), **`headers`** (native
+> HTTP-header checks), and **`dast`** (Nuclei). Other controls (`tls`, `infrastructure`,
+> `threats`) are on the roadmap. Run `draugr controls` for the current list and each control's
+> scanners.
 
 ## `config.reports` and `config.publishers`
 

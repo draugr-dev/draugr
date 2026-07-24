@@ -2,6 +2,7 @@ package tools
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -31,6 +32,24 @@ func makeTarGz(t *testing.T, name string, content []byte) []byte {
 		t.Fatal(err)
 	}
 	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// makeZip builds an in-memory .zip containing one file.
+func makeZip(t *testing.T, name string, content []byte) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	w, err := zw.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
 	return buf.Bytes()
@@ -231,10 +250,78 @@ func TestExtractFromTarGzMissingBinary(t *testing.T) {
 	}
 }
 
+func TestInstallZipArchive(t *testing.T) {
+	// A .zip asset (Nuclei ships zips) is detected by magic bytes and extracted.
+	content := []byte("#!/bin/sh\necho zipped\n")
+	archive := makeZip(t, "faketool", content)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(archive)
+	}))
+	defer srv.Close()
+	registerTestTool(t, "faketool", srv.URL, sha256Hex(archive), "faketool")
+
+	dest := t.TempDir()
+	if _, err := Install(context.Background(), "faketool", dest, srv.Client()); err != nil {
+		t.Fatalf("Install from zip: %v", err)
+	}
+	on, err := os.ReadFile(filepath.Join(dest, "faketool")) //nolint:gosec // test temp path
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(on, content) {
+		t.Errorf("extracted zip content mismatch: got %q", on)
+	}
+}
+
+func TestExtractFromZip(t *testing.T) {
+	archive := makeZip(t, "nested/dir/nuclei", []byte("binary-bytes"))
+	got, err := extractFromZip(archive, "nuclei")
+	if err != nil {
+		t.Fatalf("extractFromZip: %v", err)
+	}
+	if string(got) != "binary-bytes" {
+		t.Errorf("content = %q", got)
+	}
+}
+
+func TestExtractFromZipMissingBinary(t *testing.T) {
+	archive := makeZip(t, "other", []byte("x"))
+	if _, err := extractFromZip(archive, "nuclei"); err == nil {
+		t.Fatal("expected error when the binary is absent from the zip")
+	}
+}
+
+func TestExtractFromZipBadData(t *testing.T) {
+	if _, err := extractFromZip([]byte("not a zip"), "x"); err == nil {
+		t.Fatal("expected an error for non-zip data")
+	}
+}
+
+func TestExtractBinaryDispatch(t *testing.T) {
+	// gzip data → tar path; zip-magic data → zip path.
+	tgz := makeTarGz(t, "t", []byte("from-tar"))
+	if got, err := extractBinary(tgz, "t"); err != nil || string(got) != "from-tar" {
+		t.Errorf("tar dispatch: got %q err %v", got, err)
+	}
+	zp := makeZip(t, "t", []byte("from-zip"))
+	if got, err := extractBinary(zp, "t"); err != nil || string(got) != "from-zip" {
+		t.Errorf("zip dispatch: got %q err %v", got, err)
+	}
+}
+
 func TestInstallableAndSpec(t *testing.T) {
 	names := Installable()
-	if len(names) < 4 || names[0] != "cosign" || names[1] != "gitleaks" || names[2] != "gosec" || names[3] != "trivy" {
-		t.Errorf("Installable() = %v, want sorted [cosign gitleaks gosec trivy ...]", names)
+	want := []string{"cosign", "gitleaks", "gosec", "nuclei", "trivy"}
+	if len(names) < len(want) {
+		t.Fatalf("Installable() = %v, want at least %v", names, want)
+	}
+	for i, w := range want {
+		if names[i] != w {
+			t.Errorf("Installable()[%d] = %q, want %q (full: %v)", i, names[i], w, names)
+		}
+	}
+	if _, ok := Spec("nuclei"); !ok {
+		t.Error("nuclei should be installable")
 	}
 	spec, ok := Spec("trivy")
 	if !ok || spec.Version == "" || len(spec.Assets) == 0 {

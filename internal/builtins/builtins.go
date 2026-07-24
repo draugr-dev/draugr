@@ -20,6 +20,7 @@ func Registry() *engine.Registry {
 	reg.RegisterController(controllers.NewSAST())
 	reg.RegisterController(controllers.NewIAC())
 	reg.RegisterController(controllers.NewHeaders())
+	reg.RegisterController(controllers.NewDAST())
 	reg.RegisterScanner(scanners.NewTrivy())
 	reg.RegisterScanner(scanners.NewTrivyFS())
 	reg.RegisterScanner(scanners.NewGitleaks())
@@ -27,6 +28,7 @@ func Registry() *engine.Registry {
 	reg.RegisterScanner(scanners.NewGosec())
 	reg.RegisterScanner(scanners.NewTrivyConfig())
 	reg.RegisterScanner(scanners.NewHTTPHeaders())
+	reg.RegisterScanner(scanners.NewNuclei())
 	return reg
 }
 
