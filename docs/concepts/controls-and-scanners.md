@@ -16,8 +16,8 @@ A **controller** owns one **security control**. It plans the work for the compon
 applies to and aggregates the results. Controllers are either **project-scoped** or
 **component-scoped**.
 
-> Implemented today: **`images`**, **`sca`**, **`secrets`**, **`sast`**, **`iac`**, **`headers`**.
-> On the roadmap: `dast`, `tls`, `sbom`, `infrastructure`, `threats`. See the
+> Implemented today: **`images`**, **`sca`**, **`secrets`**, **`sast`**, **`iac`**, **`headers`**,
+> **`dast`**. On the roadmap: `tls`, `sbom`, `infrastructure`, `threats`. See the
 > [integrations catalog](../reference/catalog.md) or run `draugr controls`.
 
 ## Scanners

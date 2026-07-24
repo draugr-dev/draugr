@@ -49,7 +49,7 @@ scanners and issue links for the planned ones.
 | `images` | Container image scanning | OS/library vulns in container images | ✅ |
 | `iac` | Infrastructure-as-Code scanning | Misconfigurations in Terraform/K8s/Dockerfiles | ✅ |
 | `headers` | HTTP security headers | Response security headers | ✅ |
-| `dast` | Dynamic Application Security Testing | A running app/endpoint | 🗺️ |
+| `dast` | Dynamic Application Security Testing | A running app/endpoint | ✅ |
 | `tls` | TLS/certificate assessment | TLS config and certificates of endpoints | 🗺️ |
 | `threats` | Threat intelligence | Reputation of hosts/URLs (malware, phishing) | 🗺️ |
 | `infrastructure` | CIS benchmarks / posture | Cluster/runtime hardening (e.g. kube-bench) | 🗺️ |
