@@ -21,6 +21,9 @@ import (
 
 var testNow = time.Date(2026, 7, 25, 12, 0, 0, 0, time.UTC)
 
+// defaultThresholds is the zero-config expiry window (no Saga overrides).
+func defaultThresholds() expiryThresholds { return thresholdsFrom(nil) }
+
 // makeCert builds a self-signed certificate for tests. notAfter sets expiry; sigAlg and key
 // control the signature/key strength checks.
 func makeCert(t *testing.T, notAfter time.Time, sigAlg x509.SignatureAlgorithm, key any) *x509.Certificate {
@@ -213,7 +216,7 @@ func TestCertificateFindingsExpiry(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			cert := makeCert(t, c.notAfter, x509.SHA256WithRSA, rsaKey(t, 2048))
 			state := tls.ConnectionState{PeerCertificates: []*x509.Certificate{cert}}
-			got := certificateFindings("https://example.test", state, testNow)
+			got := certificateFindings("https://example.test", state, testNow, defaultThresholds())
 			if c.wantRule == "" {
 				if len(got) != 0 {
 					t.Fatalf("want no findings, got %d", len(got))
@@ -233,7 +236,7 @@ func TestCertificateFindingsWeakCrypto(t *testing.T) {
 	sha1Cert := makeCert(t, notAfter, x509.SHA1WithRSA, rsaKey(t, 2048))
 	got := certificateFindings("https://example.test", tls.ConnectionState{
 		PeerCertificates: []*x509.Certificate{sha1Cert},
-	}, testNow)
+	}, testNow, defaultThresholds())
 	if len(got) != 1 || got[0].RuleID != "tls-weak-cert-signature" {
 		t.Errorf("SHA-1 signature should be flagged, got %+v", got)
 	}
@@ -241,7 +244,7 @@ func TestCertificateFindingsWeakCrypto(t *testing.T) {
 	weakRSA := makeCert(t, notAfter, x509.SHA256WithRSA, rsaKey(t, 1024))
 	got = certificateFindings("https://example.test", tls.ConnectionState{
 		PeerCertificates: []*x509.Certificate{weakRSA},
-	}, testNow)
+	}, testNow, defaultThresholds())
 	if len(got) != 1 || got[0].RuleID != "tls-weak-key" {
 		t.Errorf("1024-bit RSA should be flagged, got %+v", got)
 	}
@@ -253,12 +256,12 @@ func TestCertificateFindingsWeakCrypto(t *testing.T) {
 	strongEC := makeCert(t, notAfter, x509.ECDSAWithSHA256, ecKey)
 	if got := certificateFindings("https://example.test", tls.ConnectionState{
 		PeerCertificates: []*x509.Certificate{strongEC},
-	}, testNow); len(got) != 0 {
+	}, testNow, defaultThresholds()); len(got) != 0 {
 		t.Errorf("P-256 ECDSA is fine, got %+v", got)
 	}
 
 	// No peer certificates → nothing to inspect, no panic.
-	if got := certificateFindings("https://example.test", tls.ConnectionState{}, testNow); got != nil {
+	if got := certificateFindings("https://example.test", tls.ConnectionState{}, testNow, defaultThresholds()); got != nil {
 		t.Errorf("want nil for no certificates, got %+v", got)
 	}
 }
@@ -305,5 +308,68 @@ func TestTLSProbeCertErrorBecomesFinding(t *testing.T) {
 	}
 	if !strings.Contains(rep.Results[0].Message, "trusted") {
 		t.Errorf("message should explain the problem: %q", rep.Results[0].Message)
+	}
+}
+
+func TestExpiryThresholdsFromConfig(t *testing.T) {
+	if got := thresholdsFrom(nil); got.errorDays != defaultExpiryErrorDays || got.warnDays != defaultExpiryWarnDays {
+		t.Errorf("defaults = %+v", got)
+	}
+	// YAML decodes whole numbers as int; JSON yields float64. Both must work.
+	if got := thresholdsFrom(plugin.Config{"expiryErrorDays": 3, "expiryWarnDays": 7}); got.errorDays != 3 || got.warnDays != 7 {
+		t.Errorf("int config = %+v", got)
+	}
+	if got := thresholdsFrom(plugin.Config{"expiryErrorDays": float64(5)}); got.errorDays != 5 {
+		t.Errorf("float config = %+v", got)
+	}
+	// A warn window below the error window would silently swallow the warning band.
+	if got := thresholdsFrom(plugin.Config{"expiryErrorDays": 20, "expiryWarnDays": 5}); got.warnDays != 20 {
+		t.Errorf("inverted windows should clamp, got %+v", got)
+	}
+	// A non-numeric value falls back rather than panicking (schema validation catches it first).
+	if got := thresholdsFrom(plugin.Config{"expiryErrorDays": "soon"}); got.errorDays != defaultExpiryErrorDays {
+		t.Errorf("bad type should fall back, got %+v", got)
+	}
+}
+
+// Tightening the windows should silence a warning that the defaults would raise.
+func TestTLSProbeHonorsConfiguredThresholds(t *testing.T) {
+	cert := makeCert(t, testNow.Add(20*24*time.Hour), x509.SHA256WithRSA, rsaKey(t, 2048))
+	state := tls.ConnectionState{PeerCertificates: []*x509.Certificate{cert}}
+	s := newTestScanner(probeFunc(state, tls.VersionTLS13))
+	host := plugin.HostTarget{URL: "https://example.test"}
+
+	// Default 30-day warn window: 20 days out is a warning.
+	rep, err := s.Scan(context.Background(), host, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(rep, "tls-cert-expiring") {
+		t.Fatalf("defaults should warn at 20 days, got %v", ruleIDs(rep))
+	}
+
+	// Tuned for automated renewal: warn at 10 days, so 20 days out is quiet.
+	rep, err = s.Scan(context.Background(), host, plugin.Config{"expiryWarnDays": 10, "expiryErrorDays": 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRule(rep, "tls-cert-expiring") {
+		t.Errorf("a 10-day warn window should not fire at 20 days, got %v", ruleIDs(rep))
+	}
+}
+
+func TestTLSProbeConfigSchemaValid(t *testing.T) {
+	schema := NewTLSProbe().Info().ConfigSchema
+	if len(schema) == 0 {
+		t.Fatal("tls-probe should declare a config schema")
+	}
+	if err := plugin.ValidateConfig(schema, plugin.Config{"expiryWarnDays": 10}); err != nil {
+		t.Errorf("valid config rejected: %v", err)
+	}
+	if err := plugin.ValidateConfig(schema, plugin.Config{"expiryWarnDays": "ten"}); err == nil {
+		t.Error("a non-integer window should be rejected")
+	}
+	if err := plugin.ValidateConfig(schema, plugin.Config{"typo": 1}); err == nil {
+		t.Error("an unknown key should be rejected")
 	}
 }

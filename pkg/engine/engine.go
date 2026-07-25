@@ -141,7 +141,7 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob) ([]plugin.
 		if scanner, ok := e.reg.Scanner(job.Scanner); ok {
 			if schema := scanner.Info().ConfigSchema; len(schema) > 0 {
 				if err := plugin.ValidateConfig(schema, job.Config); err != nil {
-					errs = append(errs, fmt.Errorf("config %s/%s: %w", label, job.Scanner, err))
+					errs = append(errs, fmt.Errorf("%s/%s: %w", label, job.Scanner, err))
 					continue
 				}
 			}

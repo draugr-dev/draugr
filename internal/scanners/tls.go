@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -36,13 +37,74 @@ type tlsProbeScanner struct {
 	now func() time.Time
 }
 
+// Default certificate-expiry windows, in days. A certificate inside errorDays is an error;
+// inside warnDays, a warning. Both are tunable per Saga — an endpoint with automated renewal
+// (Let's Encrypt, Cloudflare) legitimately sits inside a wide default window during normal
+// rotation, and a gate should fire only when renewal has actually failed.
+const (
+	defaultExpiryErrorDays = 14
+	defaultExpiryWarnDays  = 30
+)
+
+// tlsProbeConfigSchema is the JSON Schema for the probe's Saga config
+// (controllers.tls.tls-probe). additionalProperties:false rejects mistyped keys.
+const tlsProbeConfigSchema = `{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "expiryErrorDays": {
+      "type": "integer",
+      "description": "Report an error when the certificate expires within this many days. Defaults to 14."
+    },
+    "expiryWarnDays": {
+      "type": "integer",
+      "description": "Report a warning when the certificate expires within this many days. Defaults to 30. Lower it for endpoints with automated renewal so the gate only fires when renewal has failed."
+    }
+  }
+}`
+
+// expiryThresholds holds the resolved warn/error windows for certificate expiry.
+type expiryThresholds struct{ errorDays, warnDays int }
+
+// thresholdsFrom reads the expiry windows from the scanner config, falling back to the
+// defaults. A warn window below the error window is raised to it, so the two never invert.
+func thresholdsFrom(cfg plugin.Config) expiryThresholds {
+	t := expiryThresholds{errorDays: defaultExpiryErrorDays, warnDays: defaultExpiryWarnDays}
+	if v, ok := configInt(cfg, "expiryErrorDays"); ok {
+		t.errorDays = v
+	}
+	if v, ok := configInt(cfg, "expiryWarnDays"); ok {
+		t.warnDays = v
+	}
+	if t.warnDays < t.errorDays {
+		t.warnDays = t.errorDays
+	}
+	return t
+}
+
+// configInt reads an integer option. YAML decodes whole numbers as int, but JSON (and some
+// decoders) yield float64, so accept both.
+func configInt(cfg plugin.Config, key string) (int, bool) {
+	switch v := cfg[key].(type) {
+	case int:
+		return v, true
+	case int64:
+		return int(v), true
+	case float64:
+		return int(v), true
+	default:
+		return 0, false
+	}
+}
+
 // NewTLSProbe returns the native TLS configuration scanner.
 func NewTLSProbe() plugin.Scanner {
 	return tlsProbeScanner{
 		info: plugin.ScannerInfo{
-			Name:        "tls-probe",
-			Controls:    []string{"tls"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetHost},
+			Name:         "tls-probe",
+			Controls:     []string{"tls"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
+			ConfigSchema: json.RawMessage(tlsProbeConfigSchema),
 		},
 		probe: dialTLS,
 		now:   time.Now,
@@ -53,7 +115,7 @@ func NewTLSProbe() plugin.Scanner {
 func (s tlsProbeScanner) Info() plugin.ScannerInfo { return s.info }
 
 // Scan probes the host's TLS endpoint and reports certificate and protocol findings.
-func (s tlsProbeScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
+func (s tlsProbeScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	host, ok := target.(plugin.HostTarget)
 	if !ok {
 		return sarif.Report{}, fmt.Errorf("tls-probe: unsupported target %T (want host)", target)
@@ -95,7 +157,7 @@ func (s tlsProbeScanner) Scan(ctx context.Context, target plugin.Target, _ plugi
 		})
 		state = legacyState
 	}
-	results = append(results, certificateFindings(host.URL, state, s.now())...)
+	results = append(results, certificateFindings(host.URL, state, s.now(), thresholdsFrom(cfg))...)
 
 	// Deprecated protocol versions: a successful handshake pinned to TLS 1.0/1.1 means the
 	// server still accepts it.
@@ -141,7 +203,7 @@ func (s tlsProbeScanner) Scan(ctx context.Context, target plugin.Target, _ plugi
 
 // certificateFindings inspects the negotiated peer certificate: expiry window, signature
 // algorithm, and public-key strength.
-func certificateFindings(uri string, state tls.ConnectionState, now time.Time) []sarif.Result {
+func certificateFindings(uri string, state tls.ConnectionState, now time.Time, th expiryThresholds) []sarif.Result {
 	if len(state.PeerCertificates) == 0 {
 		return nil
 	}
@@ -157,7 +219,7 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time) [
 				leaf.NotAfter.UTC().Format(time.DateOnly)),
 			Location: sarif.Location{URI: uri},
 		})
-	case remaining < 14*24*time.Hour:
+	case remaining < time.Duration(th.errorDays)*24*time.Hour:
 		out = append(out, sarif.Result{
 			Tool: "tls-probe", RuleID: "tls-cert-expiring", Level: sarif.LevelError,
 			Score: 7.0, HasScore: true,
@@ -165,7 +227,7 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time) [
 				int(remaining.Hours()/24), leaf.NotAfter.UTC().Format(time.DateOnly)),
 			Location: sarif.Location{URI: uri},
 		})
-	case remaining < 30*24*time.Hour:
+	case remaining < time.Duration(th.warnDays)*24*time.Hour:
 		out = append(out, sarif.Result{
 			Tool: "tls-probe", RuleID: "tls-cert-expiring", Level: sarif.LevelWarning,
 			Score: 4.0, HasScore: true,
