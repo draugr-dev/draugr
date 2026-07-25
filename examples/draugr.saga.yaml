@@ -8,22 +8,40 @@ release:
   # stage: dev            # optional, free-form
 
 # Global controller configuration. A controller only runs when it is enabled here
-# (or enabled on a component below). Today the "images" control is implemented (Trivy).
+# (or enabled on a component below). Run `draugr controls` for the full list.
 config:
   controllers:
     images:
-      enabled: true
+      enabled: true          # container images (Trivy)
+    sca:
+      enabled: true          # dependencies (Trivy fs)
+    secrets:
+      enabled: true          # committed credentials (Gitleaks)
+    sast:
+      enabled: true          # first-party source (Semgrep)
+      # gosec:
+      #   enabled: true      # opt-in extra Go analyzer
+      # semgrep:
+      #   config: p/owasp-top-ten   # point Semgrep at your own ruleset
+    iac:
+      enabled: true          # Infrastructure-as-Code (Trivy config)
+    headers:
+      enabled: true          # HTTP security headers on hosts (native)
+    tls:
+      enabled: true          # TLS config + certificates on hosts (native)
+    # dast:
+    #   enabled: true        # runtime probing of hosts (Nuclei) — scans a live endpoint
 
 components:
   - name: web
     # Container images to assess (scanned by the images control).
     images:
       - image: alpine:3.19
-    # Source repositories (used by SAST/SCA controls — on the roadmap).
+    # Source repositories (scanned by the sca, secrets, and sast controls).
     repositories:
       - url: https://github.com/acme/web.git
         revision: main
-    # Running endpoints (used by headers/DAST/certificate controls — on the roadmap).
+    # Running endpoints (probed by the headers, tls, and dast controls).
     hosts:
       - name: api
         url: https://api.example.com

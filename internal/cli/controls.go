@@ -63,7 +63,7 @@ func runControls(w io.Writer, reg *engine.Registry) error {
 	_ = tw.Flush()
 
 	if optIn {
-		_, _ = fmt.Fprintln(w, "\n* opt-in scanner — enable via controllers.<control>.scanners in the Saga.")
+		_, _ = fmt.Fprintln(w, "\n* opt-in scanner — enable with controllers.<control>.<scanner>.enabled: true in the Saga.")
 	}
 	_, _ = fmt.Fprintln(w, "\nEnable a control under config.controllers.<name> (or per component) in your Saga.")
 	return nil
