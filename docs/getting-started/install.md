@@ -7,30 +7,9 @@ order: 10
 
 # Install
 
-Draugr is a single binary that orchestrates external scanners. Install Draugr itself, then the
-scanners for the controls you use. Once you're set up, head to the
-[quickstart](quickstart.md) for your first scan.
-
-## Requirements
-
-Draugr execs external scanners; install the ones for the controls you use:
-
-- [Trivy](https://github.com/aquasecurity/trivy) — `images`, `sca`, and `iac` controls.
-- [Gitleaks](https://github.com/gitleaks/gitleaks) — `secrets` control.
-- [Semgrep](https://semgrep.dev) — `sast` control (default; opt-in [gosec](https://github.com/securego/gosec) for Go).
-- `git` — needed for any repository scan (`sca`, `secrets`, `sast`).
-- Go 1.26+ — only needed if you build from source.
-
-The fastest way to get the scanners is to let Draugr fetch pinned, verified copies into
-`~/.draugr/bin` (added to your `PATH` automatically):
-
-```bash
-draugr tools install     # trivy, gitleaks, gosec, cosign — pinned + verified
-draugr tools list        # what's pinned, which controls it backs, and what's installed
-```
-
-Prefer your own install (Homebrew, package manager, an existing copy)? That works too — run
-`draugr doctor` to confirm everything's found.
+Draugr is a single binary that orchestrates external scanners. **Install Draugr first** (below),
+then let it fetch the scanners its controls need — see [Scanners](#scanners--the-tools-draugr-runs).
+Once you're set up, head to the [quickstart](quickstart.md) for your first scan.
 
 ## From a release (recommended)
 
@@ -89,6 +68,8 @@ To **pin** a specific release instead, set `tag=vX.Y.Z` (from the
 
 ## From source
 
+Requires Go 1.26+.
+
 ```bash
 git clone https://github.com/draugr-dev/draugr.git
 cd draugr
@@ -102,3 +83,21 @@ make install-latest    # or: download + SHA-256-verify + install the latest rele
 ```bash
 go install github.com/draugr-dev/draugr/cmd/draugr@latest
 ```
+
+## Scanners — the tools Draugr runs
+
+With Draugr installed, add the scanners for the controls you use. The fastest way is to let
+Draugr fetch pinned, verified copies into `~/.draugr/bin` (added to your `PATH` automatically):
+
+```bash
+draugr tools install     # trivy, gitleaks, gosec, cosign — pinned + verified
+draugr tools list        # what's pinned, which controls it backs, and what's installed
+```
+
+Prefer your own install (Homebrew, package manager, an existing copy)? That works too — then run
+`draugr doctor` to confirm everything's found:
+
+- [Trivy](https://github.com/aquasecurity/trivy) — `images`, `sca`, and `iac` controls.
+- [Gitleaks](https://github.com/gitleaks/gitleaks) — `secrets` control.
+- [Semgrep](https://semgrep.dev) — `sast` control (default; opt-in [gosec](https://github.com/securego/gosec) for Go).
+- `git` — needed for any repository scan (`sca`, `secrets`, `sast`).
