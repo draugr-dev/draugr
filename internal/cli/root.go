@@ -44,8 +44,8 @@ func newRootCommand() *cobra.Command {
 
 	cmd.PersistentFlags().StringVar(&opts.logLevel, "log-level", "info",
 		"log level: debug, info, warn, error")
-	cmd.PersistentFlags().StringVar(&opts.logFormat, "log-format", "json",
-		"log format: json, text")
+	cmd.PersistentFlags().StringVar(&opts.logFormat, "log-format", "console",
+		"log format: console (human-readable, colorized on a terminal), json, or text")
 
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newInitCommand())

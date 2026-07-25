@@ -12,6 +12,11 @@ and move it under a version on release.
 
 ### Added
 
+- **Human-readable, colorized logs.** Draugr now logs in a compact, legible console format by
+  default (`21:15:21 WARN  scan completed with issues error="…"`), with the level colorized when
+  you're on a terminal. Piped or redirected output stays plain text, and `NO_COLOR` is honored.
+  Structured logs are still one flag away — `--log-format json` — for CI and observability
+  pipelines.
 - **Clearer "Fix first" table.** The terminal scan summary now prints a column header and a
   **Scanner** column, so you can see at a glance which control *and* which scanner flagged each
   finding. The Markdown and HTML reports label that column **Scanner** too (previously "Tool"),
@@ -31,6 +36,8 @@ and move it under a version on release.
   config in one place per scanner.
 - **Removed** the `controllers.sast.scanners` list (superseded by per-scanner `enabled`). Sagas
   using it must migrate to the block form above.
+- **Default log format is now `console`** (human-readable) instead of `json`. If you parse
+  Draugr's logs in a pipeline, pass `--log-format json` to restore structured output.
 
 ## [0.28.0] - 2026-07-24
 

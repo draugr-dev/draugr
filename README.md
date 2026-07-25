@@ -232,8 +232,9 @@ make test    # run tests
 
 ### Observability
 
-Draugr uses [Cobra](https://github.com/spf13/cobra) for the CLI, `log/slog` for structured
-logging (`--log-level`, `--log-format json|text`), and [OpenTelemetry](https://opentelemetry.io)
+Draugr uses [Cobra](https://github.com/spf13/cobra) for the CLI, `log/slog` for
+logging (human-readable and colorized by default; `--log-format json` for structured logs in
+CI/observability pipelines), and [OpenTelemetry](https://opentelemetry.io)
 for traces and metrics. Telemetry is opt-in via the standard `OTEL_*` environment variables
 (e.g. `OTEL_EXPORTER_OTLP_ENDPOINT`) — a no-op with zero overhead when unset. Logs and spans
 never carry secrets.

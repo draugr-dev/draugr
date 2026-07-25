@@ -12,7 +12,7 @@ All commands accept these **global flags**:
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--log-level` | `info` | `debug`, `info`, `warn`, `error` |
-| `--log-format` | `json` | `json` or `text` |
+| `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` |
 
 Telemetry (traces/metrics) is opt-in via standard `OTEL_*` environment variables; it is a
 no-op when unset.
