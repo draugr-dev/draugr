@@ -73,7 +73,7 @@ Plain `curl` works (public repo). Pick a version from the
 [releases page](https://github.com/draugr-dev/draugr/releases):
 
 ```bash
-VERSION=v0.18.0
+VERSION=v0.29.0
 base="https://github.com/draugr-dev/draugr/releases/download/${VERSION}"
 curl -fsSL -o draugr.tar.gz "${base}/draugr_${VERSION#v}_linux_amd64.tar.gz"
 tar -xzf draugr.tar.gz draugr
