@@ -37,11 +37,12 @@ Controls:
   secrets  FAIL  1 high
 
 Fix first:
-  P1  critical  9.8  CVE-2019-20477    sca  app/requirements.txt:4
-  P1  critical  9.8  CVE-2020-14343    sca  app/requirements.txt:4
-  P1  high      8.0  KSV-0014          iac  deploy/pod.yaml:8
-  P1  high      8.0  KSV-0118          iac  deploy/pod.yaml:6
-  P1  high      7.5  CVE-2018-1000656  sca  app/requirements.txt:2
+  Priority  Severity  Score  Rule              Control  Scanner       Location
+  P1        critical  9.8    CVE-2019-20477    sca      trivy-fs      app/requirements.txt:4
+  P1        critical  9.8    CVE-2020-14343    sca      trivy-fs      app/requirements.txt:4
+  P1        high      8.0    KSV-0014          iac      trivy-config  deploy/pod.yaml:8
+  P1        high      8.0    KSV-0118          iac      trivy-config  deploy/pod.yaml:6
+  P1        high      7.5    CVE-2018-1000656  sca      trivy-fs      app/requirements.txt:2
   …
 
 … and 49 more finding(s). Use --format json for the full report, or -o <dir> for report.json + results.sarif.
@@ -63,7 +64,8 @@ the **new-vs-fixed PR diff** and the sticky comment.
 🚧 **Early, and moving fast.** Working today:
 
 - **Controls:** `images` (Trivy), `sca` (Trivy fs), `secrets` (Gitleaks), `sast` (Semgrep,
-  plus opt-in gosec for Go), `iac` (Trivy config), `headers` (native HTTP-header analyzer).
+  plus opt-in gosec for Go), `iac` (Trivy config), `headers` (native HTTP-header analyzer),
+  `dast` (Nuclei), `tls` (native TLS/certificate probe).
   See the [integrations catalog](docs/reference/catalog.md).
 - **Pipeline:** end-to-end `scan` (plan → scan → judge → report), content-hash caching,
   tunable parallelism (`-j`), results normalized to SARIF.
@@ -77,7 +79,7 @@ the **new-vs-fixed PR diff** and the sticky comment.
   present/missing), `tools install` (fetch pinned, checksum- and cosign-verified scanners —
   and cosign itself — into `~/.draugr/bin`), and `self-update` (update draugr itself, verified).
 
-More controls (DAST, TLS, SBOM, …) are on the roadmap. See
+More controls (SBOM, infrastructure, threat intelligence) are on the roadmap. See
 [controls & scanners](docs/concepts/controls-and-scanners.md) for what maps to what.
 
 ## Quickstart

@@ -171,7 +171,7 @@ draugr/
   pkg/cache/             # content-hash result cache
   pkg/surveyor/          # Raven framework/registry
   internal/builtins/     # wires the default controllers/scanners/surveyors
-  internal/controllers/  # built-in controllers (images, sca, secrets, sast, iac, headers)
+  internal/controllers/  # built-in controllers (images, sca, secrets, sast, iac, headers, dast, tls)
   internal/scanners/     # built-in scanners (trivy*, gitleaks, semgrep, gosec, http-headers)
   internal/surveyors/    # built-in surveyors (k8s-images, github-org-repos)
   internal/tools/        # doctor detection + `tools install` provisioning
