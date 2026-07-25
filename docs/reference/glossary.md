@@ -83,9 +83,10 @@ harden the browser against classes of attack. In Draugr: **`headers`** (native; 
 
 ## TLS / certificate assessment
 
-Evaluates an endpoint's **TLS configuration and certificates** — protocol versions, cipher
-strength, expiry, chain validity. In Draugr: **`tls`** via
-[testssl.sh](https://testssl.sh). Roadmap: [#56](https://github.com/draugr-dev/draugr/issues/56).
+Evaluates an endpoint's **TLS configuration and certificates** — protocol versions, certificate
+expiry, chain validity, and key/signature strength. In Draugr: **`tls`**, using a native probe
+(no external tool). (Implemented today.) Deeper protocol auditing via
+[testssl.sh](https://testssl.sh) is a planned opt-in.
 
 ## Threat intelligence
 

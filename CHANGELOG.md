@@ -10,7 +10,28 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **New `tls` control — TLS and certificate assessment.** Point a component's `hosts:` at an
+  endpoint and enable `tls` to catch the things that page you at 3am: a certificate that has
+  expired or is about to (14/30-day warnings), one that isn't trusted or doesn't match the
+  hostname, weak keys or SHA-1 signatures, and endpoints still accepting TLS 1.0/1.1 — or
+  refusing TLS 1.2+ entirely. It's a **native probe**, so there's no tool to install and a scan
+  takes seconds:
+
+  ```yaml
+  config:
+    controllers:
+      tls:
+        enabled: true
+  components:
+    - name: web
+      hosts:
+        - url: https://api.example.com
+  ```
+
+  Deeper protocol auditing (SSLv2/v3, cipher enumeration, protocol vulns) via testssl.sh is
+  planned as an opt-in engine.
 
 ## [0.30.0] - 2026-07-24
 
