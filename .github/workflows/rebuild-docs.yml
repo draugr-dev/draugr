@@ -1,0 +1,29 @@
+name: Rebuild docs site
+
+# Manually trigger a docs.draugr.dev rebuild (Cloudflare Pages Deploy Hook) without cutting a
+# release — e.g. after doc-only edits to `main` (the site's `next` docs track `main`), or to
+# recover a missed build. Releases already rebuild the site automatically (see release.yml).
+#
+# Setup: create a Deploy Hook in the Cloudflare Pages project and add its URL as the
+# CLOUDFLARE_PAGES_DEPLOY_HOOK repo secret. Unlike the release step (which no-ops when unset),
+# this fails loudly if the secret is missing, since a rebuild was explicitly requested.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger docs site rebuild
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "CLOUDFLARE_PAGES_DEPLOY_HOOK secret is not set" >&2
+            exit 1
+          fi
+          curl -fsS -X POST "$HOOK" && echo "docs rebuild triggered"
