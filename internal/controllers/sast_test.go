@@ -32,13 +32,13 @@ func TestSASTPlan(t *testing.T) {
 	}
 }
 
-func TestSASTPlanComponentScanners(t *testing.T) {
-	// A component opting into [semgrep, gosec] gets one job per repo per scanner.
+func TestSASTPlanGosecOptIn(t *testing.T) {
+	// A component enabling gosec gets one job per repo per scanner (semgrep default + gosec).
 	comp := &saga.Component{
 		Name:         "backend",
 		Repositories: []saga.Repository{{URL: "https://git/a.git"}},
 		Controllers: map[string]saga.ControllerSettings{
-			"sast": {"scanners": []any{"semgrep", "gosec"}},
+			"sast": {"gosec": map[string]any{"enabled": true}},
 		},
 	}
 	jobs, err := NewSAST().Plan(saga.Model{}, comp)
@@ -54,35 +54,69 @@ func TestSASTPlanComponentScanners(t *testing.T) {
 	}
 }
 
-func TestSASTPlanProjectScanners(t *testing.T) {
-	// Project-level scanners apply when the component has no override.
+func TestSASTPlanProjectGosecOptIn(t *testing.T) {
+	// Project-level gosec opt-in applies when the component has no override.
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
-		"sast": {"scanners": []any{"gosec"}},
+		"sast": {"gosec": map[string]any{"enabled": true}},
 	}}}
 	comp := &saga.Component{Name: "backend", Repositories: []saga.Repository{{URL: "https://git/a.git"}}}
 	jobs, err := NewSAST().Plan(model, comp)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(jobs) != 1 || jobs[0].Scanner != "gosec" {
-		t.Fatalf("want a single gosec job, got %+v", jobs)
+	got := map[string]bool{}
+	for _, j := range jobs {
+		got[j.Scanner] = true
+	}
+	if len(jobs) != 2 || !got["semgrep"] || !got["gosec"] {
+		t.Fatalf("want semgrep+gosec jobs, got %+v", jobs)
 	}
 }
 
-func TestSASTScannersDefaultAndFallback(t *testing.T) {
+func TestSASTPlanSemgrepConfigPassthrough(t *testing.T) {
+	// A semgrep config block flows into the job's Config.
+	comp := &saga.Component{
+		Name:         "backend",
+		Repositories: []saga.Repository{{URL: "https://git/a.git"}},
+		Controllers: map[string]saga.ControllerSettings{
+			"sast": {"semgrep": map[string]any{"config": "p/owasp-top-ten"}},
+		},
+	}
+	jobs, err := NewSAST().Plan(saga.Model{}, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 || jobs[0].Scanner != "semgrep" {
+		t.Fatalf("want a single semgrep job, got %+v", jobs)
+	}
+	if jobs[0].Config["config"] != "p/owasp-top-ten" {
+		t.Errorf("config not passed through: %+v", jobs[0].Config)
+	}
+}
+
+func TestSASTPlanDefaultConfigNil(t *testing.T) {
+	// With no config, the default semgrep job carries no config.
 	comp := &saga.Component{Name: "c", Repositories: []saga.Repository{{URL: "u"}}}
-	// No config → default semgrep.
-	if got := sastScanners(saga.Model{}, comp); len(got) != 1 || got[0] != "semgrep" {
-		t.Errorf("default = %v, want [semgrep]", got)
+	jobs, err := NewSAST().Plan(saga.Model{}, comp)
+	if err != nil {
+		t.Fatal(err)
 	}
-	// An empty / malformed scanners list falls back to the default rather than running nothing.
-	comp.Controllers = map[string]saga.ControllerSettings{"sast": {"scanners": []any{}}}
-	if got := sastScanners(saga.Model{}, comp); len(got) != 1 || got[0] != "semgrep" {
-		t.Errorf("empty list = %v, want fallback [semgrep]", got)
+	if len(jobs) != 1 || jobs[0].Scanner != "semgrep" || jobs[0].Config != nil {
+		t.Fatalf("want a single config-less semgrep job, got %+v", jobs)
 	}
-	comp.Controllers = map[string]saga.ControllerSettings{"sast": {"scanners": "notalist"}}
-	if got := sastScanners(saga.Model{}, comp); len(got) != 1 || got[0] != "semgrep" {
-		t.Errorf("non-list = %v, want fallback [semgrep]", got)
+}
+
+func TestSASTScannerSet(t *testing.T) {
+	model := saga.Model{Components: []saga.Component{
+		{Name: "a", Repositories: []saga.Repository{{URL: "u"}}},
+		{Name: "b", Repositories: []saga.Repository{{URL: "u"}},
+			Controllers: map[string]saga.ControllerSettings{
+				"sast": {"gosec": map[string]any{"enabled": true}},
+			}},
+	}}
+	set := SASTScannerSet(model)
+	if !set["semgrep"] || !set["gosec"] || len(set) != 2 {
+		t.Errorf("scanner set = %v, want {semgrep, gosec}", set)
 	}
 }
 

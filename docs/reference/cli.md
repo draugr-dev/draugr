@@ -307,8 +307,10 @@ list` maps **tool → controls** ("why this tool matters").
 draugr controls
 ```
 
-Enable a control in your Saga under `config.controllers.<name>` (or per component); choose a
-control's scanners with `controllers.<name>.scanners` (e.g. `sast: { scanners: [semgrep, gosec] }`).
+Enable a control in your Saga under `config.controllers.<name>` (or per component). A control's
+scanners are configured under their own keys — `controllers.<name>.<scanner>` — each with an
+optional `enabled` flag plus that scanner's options (e.g. `sast: { gosec: { enabled: true } }`).
+See [per-scanner config](saga-schema.md#per-scanner-config).
 
 ---
 

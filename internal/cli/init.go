@@ -103,7 +103,7 @@ func scaffoldSaga(dir, name string) string {
 	b.WriteString("    secrets:\n      enabled: true       # leaked credentials (Gitleaks)\n")
 	b.WriteString("    sast:\n      enabled: true       # code security (Semgrep)\n")
 	if isGo {
-		b.WriteString("      scanners: [semgrep, gosec]   # Go detected — gosec adds Go-specific checks\n")
+		b.WriteString("      gosec:\n        enabled: true   # Go detected — gosec adds Go-specific checks\n")
 	}
 	b.WriteString("    iac:\n      enabled: true       # IaC misconfiguration (Trivy config)\n")
 	if hasDocker {

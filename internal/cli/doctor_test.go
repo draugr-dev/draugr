@@ -74,7 +74,8 @@ config:
   controllers:
     sast:
       enabled: true
-      scanners: [semgrep, gosec]
+      gosec:
+        enabled: true
 components:
   - name: web
     repositories:
