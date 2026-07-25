@@ -41,6 +41,8 @@ type scanOptions struct {
 	template       string
 	templateFile   string
 	noPublish      bool
+	top            int
+	noTips         bool
 }
 
 func newScanCommand() *cobra.Command {
@@ -76,6 +78,8 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.template, "template", "", "inline Go text/template (with --format template)")
 	cmd.Flags().StringVar(&opts.templateFile, "template-file", "", "Go text/template file (with --format template)")
 	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")
+	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the 'Fix first' table (0 = all)")
+	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false, "suppress the console's contextual tips (also DRAUGR_NO_TIPS)")
 	return cmd
 }
 
@@ -107,6 +111,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if opts.jobs < 0 {
 		return fmt.Errorf("--jobs must be >= 0 (0 = auto, one per CPU)")
 	}
+	if opts.top < 0 {
+		return fmt.Errorf("--top must be >= 0 (0 = show all)")
+	}
 
 	eopts := []engine.Option{engine.WithPrioritization(defaultPrioritizer(expl))}
 	if opts.cacheDir != "" {
@@ -137,6 +144,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Run:         run,
 		Verdict:     verdict,
 		MinPriority: minPriority,
+		TopN:        fixFirstLimit(opts.top),
 	}
 	if format == "template" {
 		art, err := report.Build(saga.ReportConfig{
@@ -155,6 +163,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 		if err := reporter.Render(w, data); err != nil {
 			return err
+		}
+		if format == "console" {
+			printScanTips(w, model, run, opts.noTips)
 		}
 	}
 	if opts.outputDir != "" {
@@ -175,6 +186,15 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		return fmt.Errorf("policy verdict: fail")
 	}
 	return nil
+}
+
+// fixFirstLimit maps the --top flag to report.Data.TopN: 0 (show all) becomes -1, and any
+// positive value passes through. The default (10) therefore shows ten rows, as before.
+func fixFirstLimit(top int) int {
+	if top == 0 {
+		return -1
+	}
+	return top
 }
 
 // defaultPrioritizer builds the engine prioritizer from the shipped matrices and the

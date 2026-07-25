@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`scan --top N`.** Control how many findings the console "Fix first" table lists (default 10;
+  `--top 0` shows all) — handy when you want the whole list in the terminal.
+- **Contextual scan tips.** When a scan finds issues but no component sets `exposure`/`criticality`,
+  Draugr now prints a one-line tip that priorities are using severity alone and suggests
+  `draugr classify` to make P1–P4 risk-aware. Tips are advisory (never affect the verdict) and can
+  be turned off with `--no-tips` or `DRAUGR_NO_TIPS`.
 
 ## [0.29.0] - 2026-07-24
 

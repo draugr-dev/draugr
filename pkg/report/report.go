@@ -22,6 +22,9 @@ type Data struct {
 	Run         engine.Result
 	Verdict     norn.Result
 	MinPriority string
+	// TopN caps how many findings the console "Fix first" table shows: 0 uses the default,
+	// a negative value shows all, and a positive value shows that many. Ignored by other formats.
+	TopN int
 }
 
 // Reporter renders Data in one format.

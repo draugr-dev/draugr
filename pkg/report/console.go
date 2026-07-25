@@ -20,6 +20,19 @@ func (consoleReporter) Format() string { return "console" }
 
 const consoleTopN = 10
 
+// consoleFixFirstLimit resolves how many findings the "Fix first" table shows from Data.TopN:
+// 0 → the default (consoleTopN), a negative value → all (returned as -1), a positive value → n.
+func consoleFixFirstLimit(topN int) int {
+	switch {
+	case topN == 0:
+		return consoleTopN
+	case topN < 0:
+		return -1
+	default:
+		return topN
+	}
+}
+
 // ANSI SGR codes for the report's vocabulary.
 const (
 	cFail     = "1;31" // bold red
@@ -83,15 +96,16 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		return nil
 	}
 
+	limit := consoleFixFirstLimit(d.TopN)
 	shown := s.findings
-	if len(shown) > consoleTopN {
-		shown = shown[:consoleTopN]
+	if limit >= 0 && len(shown) > limit {
+		shown = shown[:limit]
 	}
 	_, _ = fmt.Fprintln(w, "Fix first:")
 	renderFixFirst(w, col, shown)
 
-	if len(s.findings) > consoleTopN {
-		_, _ = fmt.Fprintf(w, "\n… and %d more finding(s). ", len(s.findings)-consoleTopN)
+	if len(shown) < len(s.findings) {
+		_, _ = fmt.Fprintf(w, "\n… and %d more finding(s). ", len(s.findings)-len(shown))
 	} else {
 		_, _ = fmt.Fprint(w, "\n")
 	}
