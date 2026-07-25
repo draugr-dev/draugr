@@ -66,8 +66,8 @@ type is reported before the scan runs. Run `draugr controls` to see each control
 
 > Implemented today: **`images`** (Trivy), **`sca`** (Trivy fs), **`secrets`** (Gitleaks),
 > **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config), **`headers`** (native
-> HTTP-header checks), and **`dast`** (Nuclei). Other controls (`tls`, `infrastructure`,
-> `threats`) are on the roadmap. Run `draugr controls` for the current list and each control's
+> HTTP-header checks), **`dast`** (Nuclei), and **`tls`** (native TLS/certificate probe).
+> Other controls (`sbom`, `infrastructure`, `threats`) are on the roadmap. Run `draugr controls` for the current list and each control's
 > scanners.
 
 ## `config.reports` and `config.publishers`

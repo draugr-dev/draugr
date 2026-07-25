@@ -32,7 +32,7 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 | `headers` | HTTP security headers | component | ✅ | `http-headers` (native) | [doc](../../internal/controllers/headers.md) |
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
 | `infrastructure` | CIS benchmarks / posture | project | 🗺️ [#55](https://github.com/draugr-dev/draugr/issues/55) | kube-bench | — |
-| `tls` | TLS/certificate assessment | component | 🗺️ [#56](https://github.com/draugr-dev/draugr/issues/56) | testssl.sh | — |
+| `tls` | TLS/certificate assessment | component | ✅ | `tls-probe` (native) | [doc](../../internal/controllers/tls.md) |
 | `sbom` | Software Bill of Materials | component | 🗺️ [#57](https://github.com/draugr-dev/draugr/issues/57) | Syft | — |
 | `threats` | Threat intelligence | component | 🗺️ [#59](https://github.com/draugr-dev/draugr/issues/59) | URLhaus, VirusTotal | — |
 
@@ -48,6 +48,7 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 | `trivy-config` | iac | Aqua Trivy (config) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-config.md) |
 | `http-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/http-headers.md) |
 | `nuclei` | dast | ProjectDiscovery Nuclei | MIT | ✅ | [doc](../../internal/scanners/nuclei.md) |
+| `tls-probe` | tls | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/tls-probe.md) |
 
 ## Surveyors (the Ravens)
 

@@ -50,7 +50,7 @@ scanners and issue links for the planned ones.
 | `iac` | Infrastructure-as-Code scanning | Misconfigurations in Terraform/K8s/Dockerfiles | ✅ |
 | `headers` | HTTP security headers | Response security headers | ✅ |
 | `dast` | Dynamic Application Security Testing | A running app/endpoint | ✅ |
-| `tls` | TLS/certificate assessment | TLS config and certificates of endpoints | 🗺️ |
+| `tls` | TLS/certificate assessment | TLS config and certificates of endpoints | ✅ |
 | `threats` | Threat intelligence | Reputation of hosts/URLs (malware, phishing) | 🗺️ |
 | `infrastructure` | CIS benchmarks / posture | Cluster/runtime hardening (e.g. kube-bench) | 🗺️ |
 | `sbom` | Software Bill of Materials | The dependency inventory, as a shareable artifact | 🗺️ |
