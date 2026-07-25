@@ -24,16 +24,28 @@ treats the developer experience as a feature, not an afterthought.
 - **Describe *what*, not *how*.** The Saga is declarative: you describe your app's surface and
   which controls must pass; Draugr figures out which scanners to run, in what order, with
   caching and parallelism. You don't wire tools together by hand.
-- **Human-readable output first.** The default console summary leads with a verdict, the
-  priorities, and a ranked **Fix first** table — with a header and a column naming both the
-  control *and* the scanner behind each finding, so it reads at a glance. It uses color when
-  the terminal supports it and stays plain when piped. Machine formats (JSON, SARIF) are always
-  one flag away for pipelines. See [Reports & publishers](../guides/reports-and-publishers.md).
 - **One tool, one mental model.** The same descriptor and the same verdict drive a local run,
   a [GitHub Action](../guides/github-action.md), and a [PR diff](../guides/pr-diff.md). What you
   see locally is what CI enforces.
 
-## 2. A low learning curve for people new to security
+## 2. Human-readable by default
+
+Draugr's output is meant to be read by a person first. The readable, colorized presentation is
+the **default**; machine-readable formats are always available, but you opt into them — never
+the other way around.
+
+- **Readable and colorized out of the box.** The scan summary leads with a verdict, priority
+  counts, and a ranked **Fix first** table (with a header and a column naming both the control
+  *and* the scanner behind each finding). Logs render the same way —
+  `HH:MM:SS LEVEL  message key=value` — so diagnostics are legible at a glance. Color appears
+  only on an interactive terminal and honors [`NO_COLOR`](https://no-color.org); piped or
+  redirected output stays plain text.
+- **Machine formats are the opt-in.** Structured output is one flag away —
+  [`--format json` / `--format sarif`](../guides/reports-and-publishers.md) for reports,
+  `--log-format json` for logs — for CI and observability pipelines. Draugr never makes a person
+  read JSON just to see what happened.
+
+## 3. A low learning curve for people new to security
 
 You should not need to already be a security expert to get value from Draugr. Every choice that
 lowers the barrier for a newcomer — without dumbing things down for a professional — is worth
@@ -59,7 +71,8 @@ making.
 ## What this means in practice
 
 These aren't only user-facing promises; they constrain how Draugr is built. A new control or
-flag should have a sensible default and read clearly in the console before it grows knobs. A
+flag should have a sensible default and read clearly in the console before it grows knobs. New
+output is readable first — a machine format is added as an explicit option, not the default. A
 new term gets a plain-language glossary entry. Output that a newcomer can't act on is a bug,
 not a detail. When two designs are otherwise equal, the one that a person new to security can
 pick up faster wins.
