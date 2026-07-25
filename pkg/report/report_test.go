@@ -264,6 +264,40 @@ func TestConsoleTruncatesUnprioritized(t *testing.T) {
 	}
 }
 
+func TestConsoleTopN(t *testing.T) {
+	results := make([]sarif.Result, 0, 15)
+	for i := 0; i < 15; i++ {
+		results = append(results, sarif.Result{RuleID: "R", Level: sarif.LevelWarning, Tool: "t"})
+	}
+	base := Data{
+		Release: saga.Release{Name: "app"},
+		Run:     engine.Result{Controls: map[string]plugin.ControlResult{"images": {Report: sarif.Report{Results: results}}}},
+		Verdict: norn.Result{Verdict: norn.Pass},
+	}
+	render := func(topN int) string {
+		d := base
+		d.TopN = topN
+		var b bytes.Buffer
+		if err := (consoleReporter{}).Render(&b, d); err != nil {
+			t.Fatal(err)
+		}
+		return b.String()
+	}
+
+	// TopN 5 → 5 shown, "and 10 more".
+	if s := render(5); !strings.Contains(s, "and 10 more") {
+		t.Errorf("--top 5 of 15 should show 10 more:\n%s", s)
+	}
+	// TopN -1 (all) → no truncation tail.
+	if s := render(-1); strings.Contains(s, "more finding(s)") {
+		t.Errorf("--top 0/all should not truncate:\n%s", s)
+	}
+	// TopN larger than the finding count → no truncation tail.
+	if s := render(50); strings.Contains(s, "more finding(s)") {
+		t.Errorf("--top above the count should not truncate:\n%s", s)
+	}
+}
+
 func TestConsoleNoFindings(t *testing.T) {
 	d := Data{Release: saga.Release{Name: "app"}, Verdict: norn.Result{Verdict: norn.Pass}}
 	var b bytes.Buffer

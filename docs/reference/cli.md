@@ -70,6 +70,8 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--template` | — | inline Go `text/template` (with `--format template`) |
 | `--template-file` | — | Go `text/template` file (with `--format template`) |
 | `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
+| `--top` | `10` | Console: max findings to list in the "Fix first" table (`0` = all) |
+| `--no-tips` | `false` | Suppress the console's contextual tips (also `DRAUGR_NO_TIPS`) |
 
 ```bash
 draugr scan draugr.saga.yaml
