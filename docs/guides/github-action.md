@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # diff mode needs the PR's base commit
-      - uses: draugr-dev/draugr@v0.27.0   # pin a release; installs Draugr for you
+      - uses: draugr-dev/draugr@v0.29.0   # pin a release; installs Draugr for you
         with:
           saga: draugr.saga.yaml
           tools: true             # provision the scanners the controls need

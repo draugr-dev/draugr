@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }        # diff needs the base commit
-      - uses: draugr-dev/draugr@v0.27.0
+      - uses: draugr-dev/draugr@v0.29.0
         with:
           saga: draugr.saga.yaml
           tools: true

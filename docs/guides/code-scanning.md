@@ -55,7 +55,7 @@ jobs:
         with:
           fetch-depth: 0     # so PR diff mode can reach the base commit
       - name: Draugr scan + publish to code scanning
-        uses: draugr-dev/draugr@v0.27.0   # pin a released version
+        uses: draugr-dev/draugr@v0.29.0   # pin a released version
         with:
           saga: draugr.saga.yaml          # a Saga with a `github` publisher in config.publishers
           tools: true
