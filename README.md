@@ -171,7 +171,7 @@ permissions:
 steps:
   - uses: actions/checkout@v4
   - id: draugr
-    uses: draugr-dev/draugr@v0.29.0     # pin a release; installs Draugr for you
+    uses: draugr-dev/draugr@v0     # latest v0.x; pin @vX.Y.Z for reproducible CI (installs Draugr for you)
     with:
       saga: draugr.saga.yaml
       tools: true                       # provision the scanners the controls need
