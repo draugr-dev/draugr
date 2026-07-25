@@ -59,6 +59,17 @@ func TestConsoleRender(t *testing.T) {
 			t.Errorf("console output missing %q\n%s", want, s)
 		}
 	}
+	// The fix-first table carries a header (so newcomers can read it) and a Scanner column
+	// naming the tool that flagged each finding.
+	for _, want := range []string{"Scanner", "Control", "Location", "trivy", "gitleaks"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("console fix-first table missing %q\n%s", want, s)
+		}
+	}
+	// The header must precede the first finding row.
+	if strings.Index(s, "Scanner") > strings.Index(s, "CVE-1") {
+		t.Error("table header should be printed before the finding rows")
+	}
 	// Most-urgent (P1) should sort before the P3.
 	if strings.Index(s, "CVE-1") > strings.Index(s, "CVE-2") {
 		t.Error("P1 finding should be listed before the P3 finding")
@@ -113,7 +124,7 @@ func TestMarkdownRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"## Draugr — ❌ FAIL", "| Priority |", "### Controls", "### Fix first", "`CVE-1`"} {
+	for _, want := range []string{"## Draugr — ❌ FAIL", "| Priority |", "| Scanner |", "### Controls", "### Fix first", "`CVE-1`"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("markdown output missing %q\n%s", want, s)
 		}
@@ -126,7 +137,7 @@ func TestHTMLRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"<!doctype html>", "Draugr —", "FAIL", "app 1.0", "CVE-1", "gitleaks", "</html>"} {
+	for _, want := range []string{"<!doctype html>", "Draugr —", "FAIL", "app 1.0", "CVE-1", "gitleaks", "<th>Scanner</th>", "</html>"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("html output missing %q", want)
 		}

@@ -12,6 +12,10 @@ and move it under a version on release.
 
 ### Added
 
+- **Clearer "Fix first" table.** The terminal scan summary now prints a column header and a
+  **Scanner** column, so you can see at a glance which control *and* which scanner flagged each
+  finding. The Markdown and HTML reports label that column **Scanner** too (previously "Tool"),
+  for consistent vocabulary across every report.
 - **Per-scanner config in the Saga.** You can now tune a scanner from
   `controllers.<control>.<scanner>`. The first option: point Semgrep at your own ruleset with
   `controllers.sast.semgrep.config` (a registry ref such as `p/owasp-top-ten`, or a path/URL to

@@ -100,30 +100,52 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	return nil
 }
 
-// renderFixFirst prints the ranked findings as an aligned, colorized table. Columns are padded
-// from the plain text so ANSI color codes don't skew the alignment.
+// fixFirstHeader labels the ranked-findings columns. It's included in the width
+// calculation and printed dimmed so the table is self-explanatory — newcomers can see at a
+// glance which control and scanner flagged each finding.
+var fixFirstHeader = []string{"Priority", "Severity", "Score", "Rule", "Control", "Scanner", "Location"}
+
+// renderFixFirst prints the ranked findings as an aligned, colorized table with a header row.
+// Columns are padded from the plain text so ANSI color codes don't skew the alignment.
 func renderFixFirst(w io.Writer, col colorizer, fs []finding) {
-	cols := make([][]string, len(fs)) // rows of [priority, severity, score, rule, control, location]
-	for i, f := range fs {
-		cols[i] = []string{
-			dash(f.priority), string(f.severity), scoreStr(f), f.ruleID, f.control, dash(f.location),
-		}
+	// rows[0] is the header; the rest are findings, each
+	// [priority, severity, score, rule, control, scanner, location].
+	rows := make([][]string, 0, len(fs)+1)
+	rows = append(rows, fixFirstHeader)
+	for _, f := range fs {
+		rows = append(rows, []string{
+			dash(f.priority), string(f.severity), scoreStr(f), f.ruleID,
+			f.control, dash(f.tool), dash(f.location),
+		})
 	}
-	widths := make([]int, 6)
-	for _, r := range cols {
+	widths := make([]int, len(fixFirstHeader))
+	for _, r := range rows {
 		for i, cell := range r {
 			if len(cell) > widths[i] {
 				widths[i] = len(cell)
 			}
 		}
 	}
+	// The last column is never padded — nothing follows it.
+	pad := func(r []string, n int) string {
+		if n == len(widths)-1 {
+			return r[n]
+		}
+		return fmt.Sprintf("%-*s", widths[n], r[n])
+	}
+
+	h := rows[0]
+	_, _ = fmt.Fprintf(w, "  %s  %s  %s  %s  %s  %s  %s\n",
+		col.paint(cDim, pad(h, 0)), col.paint(cDim, pad(h, 1)), col.paint(cDim, pad(h, 2)),
+		col.paint(cDim, pad(h, 3)), col.paint(cDim, pad(h, 4)), col.paint(cDim, pad(h, 5)),
+		col.paint(cDim, pad(h, 6)))
+
 	for i, f := range fs {
-		r := cols[i]
-		pad := func(n int) string { return fmt.Sprintf("%-*s", widths[n], r[n]) }
-		_, _ = fmt.Fprintf(w, "  %s  %s  %s  %s  %s  %s\n",
-			col.paint(priorityColor(f.priority), pad(0)),
-			col.paint(severityColor(f.severity), pad(1)),
-			pad(2), pad(3), pad(4), r[5])
+		r := rows[i+1]
+		_, _ = fmt.Fprintf(w, "  %s  %s  %s  %s  %s  %s  %s\n",
+			col.paint(priorityColor(f.priority), pad(r, 0)),
+			col.paint(severityColor(f.severity), pad(r, 1)),
+			pad(r, 2), pad(r, 3), pad(r, 4), pad(r, 5), pad(r, 6))
 	}
 }
 
