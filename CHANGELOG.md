@@ -10,7 +10,23 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Per-scanner config in the Saga.** You can now tune a scanner from
+  `controllers.<control>.<scanner>`. The first option: point Semgrep at your own ruleset with
+  `controllers.sast.semgrep.config` (a registry ref such as `p/owasp-top-ten`, or a path/URL to
+  a rules file — defaults to `p/default`). Options are validated against each scanner's schema,
+  so a mistyped key or wrong value type is reported before the scan runs, not silently ignored.
+
+### Changed
+
+- **SAST scanner selection moved to per-scanner blocks.** Enable a scanner under its own key
+  with an `enabled` flag instead of listing names. Replace
+  `sast: { scanners: [semgrep, gosec] }` with `sast: { gosec: { enabled: true } }` (Semgrep runs
+  by default; add `semgrep: { enabled: false }` to turn it off). This unifies enablement and
+  config in one place per scanner.
+- **Removed** the `controllers.sast.scanners` list (superseded by per-scanner `enabled`). Sagas
+  using it must migrate to the block form above.
 
 ## [0.28.0] - 2026-07-24
 

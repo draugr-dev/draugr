@@ -27,7 +27,7 @@ func TestRunInitWritesFileWithDetection(t *testing.T) {
 		t.Fatalf("expected %s written: %v", out, err)
 	}
 	s := string(data)
-	for _, want := range []string{"Detected: Go", "scanners: [semgrep, gosec]", "images:", "sca:", "url: ."} {
+	for _, want := range []string{"Detected: Go", "gosec:\n        enabled: true", "images:", "sca:", "url: ."} {
 		if !strings.Contains(s, want) {
 			t.Errorf("generated Saga missing %q:\n%s", want, s)
 		}

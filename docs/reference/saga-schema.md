@@ -42,16 +42,27 @@ config:
       enabled: true          # absent entry ⇒ disabled; entry without `enabled` ⇒ enabled
 ```
 
-Some controls accept a **`scanners`** list to select which tools run for them (behavioral
-config; a component may override the project default). For `sast`:
+### Per-scanner config
+
+A control can be served by more than one scanner, and each scanner is configured under its own
+key in `controllers.<control>.<scanner>`. A scanner block holds an optional **`enabled`** flag
+plus that scanner's options. Default scanners run unless turned off with `enabled: false`; a
+non-default scanner runs only when it sets `enabled: true`. A component may override the project
+config (component keys deep-merge over project keys). For `sast`:
 
 ```yaml
 config:
   controllers:
     sast:
       enabled: true
-      scanners: [semgrep, gosec]   # default: [semgrep]. gosec is Go-only — enable it on Go components.
+      semgrep:
+        config: p/owasp-top-ten   # ruleset: a registry ref or a path/URL (default: p/default)
+      gosec:
+        enabled: true             # opt-in scanner (Go-only) — off unless enabled here
 ```
+
+Each scanner validates its options against a declared schema, so a mistyped key or wrong value
+type is reported before the scan runs. Run `draugr controls` to see each control's scanners.
 
 > Implemented today: **`images`** (Trivy), **`sca`** (Trivy fs), **`secrets`** (Gitleaks),
 > **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config), **`headers`** (native

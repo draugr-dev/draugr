@@ -26,70 +26,35 @@ func (SAST) Info() plugin.ControllerInfo {
 	}
 }
 
-// Plan produces a scan job for each repository × each selected sast scanner. The scanner set
-// is controllers.sast.scanners (default [semgrep]); e.g. a Go component can opt into gosec
-// alongside Semgrep with `scanners: [semgrep, gosec]`.
+// Plan produces a scan job for each repository × each selected sast scanner. Semgrep runs by
+// default; a component opts a non-default scanner in per scanner block, e.g. a Go component
+// enables gosec with `controllers.sast.gosec.enabled: true`.
 func (SAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {
 		return nil, nil
 	}
-	scanners := sastScanners(model, comp)
-	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(scanners))
+	selections := resolveScanners(model, comp, "sast", []string{semgrepScanner})
+	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(selections))
 	for _, repo := range comp.Repositories {
 		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths}
-		for _, scanner := range scanners {
-			jobs = append(jobs, plugin.ScanJob{Scanner: scanner, Target: target})
+		for _, sel := range selections {
+			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
 		}
 	}
 	return jobs, nil
 }
 
 // SASTScannerSet returns the set of sast scanner names the model will actually run — the union
-// of the selection across all components (each resolved against its override / the project
-// default). Used to decide which sast tools are truly required (e.g. gosec only when selected),
-// rather than every scanner that *could* serve the control.
+// of the selection across all components. Used to decide which sast tools are truly required
+// (e.g. gosec only when enabled), rather than every scanner that *could* serve the control.
 func SASTScannerSet(model saga.Model) map[string]bool {
 	set := make(map[string]bool)
 	for i := range model.Components {
-		for _, s := range sastScanners(model, &model.Components[i]) {
-			set[s] = true
+		for _, sel := range resolveScanners(model, &model.Components[i], "sast", []string{semgrepScanner}) {
+			set[sel.Name] = true
 		}
 	}
 	return set
-}
-
-// sastScanners resolves the scanners to run for a component: the component's
-// controllers.sast.scanners override, else the project-level setting, else [semgrep].
-func sastScanners(model saga.Model, comp *saga.Component) []string {
-	if s := scannersSetting(comp.Controllers); s != nil {
-		return s
-	}
-	if s := scannersSetting(model.Config.Controllers); s != nil {
-		return s
-	}
-	return []string{semgrepScanner}
-}
-
-// scannersSetting reads a controller map's sast.scanners list, or nil when unset/empty.
-func scannersSetting(controllers map[string]saga.ControllerSettings) []string {
-	settings, ok := controllers["sast"]
-	if !ok {
-		return nil
-	}
-	raw, ok := settings["scanners"].([]any)
-	if !ok {
-		return nil
-	}
-	out := make([]string, 0, len(raw))
-	for _, v := range raw {
-		if name, ok := v.(string); ok && name != "" {
-			out = append(out, name)
-		}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
 }
 
 // Aggregate merges the scan reports and summarizes findings by severity. Semgrep emits

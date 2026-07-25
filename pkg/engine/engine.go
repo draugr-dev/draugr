@@ -107,6 +107,8 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				errs = append(errs, fmt.Errorf("plan %s: %w", name, err))
 				continue
 			}
+			jobs, verrs := e.validateConfigs(name, jobs)
+			errs = append(errs, verrs...)
 			planned = appendJobs(planned, name, "", "", jobs)
 		case plugin.ScopeComponent:
 			for i := range model.Components {
@@ -119,11 +121,34 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 					errs = append(errs, fmt.Errorf("plan %s/%s: %w", name, comp.Name, err))
 					continue
 				}
+				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs)
+				errs = append(errs, verrs...)
 				planned = appendJobs(planned, name, comp.Exposure, comp.Criticality, jobs)
 			}
 		}
 	}
 	return planned, errors.Join(errs...)
+}
+
+// validateConfigs drops any job whose Config fails its scanner's declared ConfigSchema, so a
+// mistyped or ill-typed Saga option is rejected before scanning rather than silently ignored.
+// It returns the surviving jobs and one error per rejected job. Jobs for an unregistered scanner
+// pass through (the run reports the missing scanner); scanners without a schema are not checked.
+func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob) ([]plugin.ScanJob, []error) {
+	var kept []plugin.ScanJob
+	var errs []error
+	for _, job := range jobs {
+		if scanner, ok := e.reg.Scanner(job.Scanner); ok {
+			if schema := scanner.Info().ConfigSchema; len(schema) > 0 {
+				if err := plugin.ValidateConfig(schema, job.Config); err != nil {
+					errs = append(errs, fmt.Errorf("config %s/%s: %w", label, job.Scanner, err))
+					continue
+				}
+			}
+		}
+		kept = append(kept, job)
+	}
+	return kept, errs
 }
 
 // Result is the outcome of a run: one aggregated ControlResult per control, plus run
