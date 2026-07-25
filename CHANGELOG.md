@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.28.0] - 2026-07-24
+
 ### Added
 
 - **New `dast` control — dynamic application security testing.** Point a component's `hosts:`
@@ -495,7 +499,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.28.0
 [0.27.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.27.0
 [0.26.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.26.1
 [0.26.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.26.0
