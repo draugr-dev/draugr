@@ -3,7 +3,9 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      # Full-semver tags only (vX.Y.Z). This deliberately excludes the moving major tag (v0),
+      # which this workflow re-points on each release — so that move never re-triggers a release.
+      - "v*.*.*"
 
 # Least privilege at the top; the release job opts into the writes it needs.
 permissions:
@@ -55,6 +57,18 @@ jobs:
             dist/*.tar.gz
             dist/*.zip
             dist/checksums.txt
+
+      # Maintain a moving major tag (e.g. v0) pointing at this release, so docs and users can
+      # reference draugr-dev/draugr@v0 and always get the newest v0.x.y without editing a pin.
+      # The trigger above is vX.Y.Z-only, so moving v0 here never re-triggers a release; pushes
+      # made with GITHUB_TOKEN also don't trigger workflows (belt and suspenders).
+      - name: Update moving major tag
+        run: |
+          tag="${GITHUB_REF_NAME}"   # e.g. v0.29.0
+          major="${tag%%.*}"         # e.g. v0
+          git tag -f "$major" "$tag"
+          git push -f origin "refs/tags/$major"
+          echo "moved $major -> $tag"
 
       # Rebuild the docs site (draugr.dev) so its versioned docs pick up this release: the site's
       # `latest` is sourced from the newest release tag, so a fresh release needs a rebuild. This
