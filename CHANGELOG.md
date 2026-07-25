@@ -30,6 +30,10 @@ and move it under a version on release.
         - url: https://api.example.com
   ```
 
+  Certificate-expiry windows are tunable (`controllers.tls.tls-probe.expiryWarnDays` /
+  `expiryErrorDays`) — useful for endpoints with automated renewal, where the default 30-day
+  warning would otherwise trip a `--fail-on warning` gate during normal rotation.
+
   Deeper protocol auditing (SSLv2/v3, cipher enumeration, protocol vulns) via testssl.sh is
   planned as an opt-in engine.
 

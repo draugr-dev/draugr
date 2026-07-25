@@ -29,7 +29,8 @@ components:
 ```
 
 Per-scanner config uses the standard shape (`controllers.tls.<scanner>`), so the default probe
-can be turned off with `tls-probe: { enabled: false }` when an opt-in engine is added.
+can be turned off with `tls-probe: { enabled: false }` when an opt-in engine is added, and its
+certificate-expiry windows tuned — see [`tls-probe.md`](../scanners/tls-probe.md#configuration).
 
 ## Links
 

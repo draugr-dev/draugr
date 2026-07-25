@@ -23,6 +23,31 @@ provisioning, and it finishes in seconds:
 | `tls-deprecated-protocol` | error (7.0 / 6.5) | TLS 1.0 or TLS 1.1 is still accepted (deprecated by RFC 8996). |
 | `tls-no-tls13` | note (2.0) | TLS 1.3 isn't offered — a nudge, not a failure. |
 
+## Configuration
+
+Certificate-expiry windows are tunable under `controllers.tls.tls-probe`:
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `expiryErrorDays` | `14` | Report an **error** when the certificate expires within this many days. |
+| `expiryWarnDays` | `30` | Report a **warning** when it expires within this many days. |
+
+```yaml
+config:
+  controllers:
+    tls:
+      enabled: true
+      tls-probe:
+        expiryWarnDays: 10     # endpoint renews automatically — only shout if renewal failed
+        expiryErrorDays: 5
+```
+
+Endpoints with **automated renewal** (Let's Encrypt, Cloudflare) legitimately sit inside a wide
+default window during normal rotation, which would fail a `--fail-on warning` gate for a
+non-problem. Tighten the windows so the gate fires only when renewal has actually failed.
+Options are schema-validated, so a mistyped key or a non-integer value is rejected before the
+scan runs.
+
 ## License & terms
 
 Native code — no third-party tool is executed or bundled, so the scanner carries only Draugr's
