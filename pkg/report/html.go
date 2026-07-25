@@ -135,7 +135,7 @@ const htmlDoc = `<!doctype html>
 <h2>Findings</h2>
 {{if .Findings}}
 <table>
-<thead><tr><th>Priority</th><th>Severity</th><th class="num">Score</th><th>Rule</th><th>Control</th><th>Tool</th><th>Location</th><th>Message</th></tr></thead>
+<thead><tr><th>Priority</th><th>Severity</th><th class="num">Score</th><th>Rule</th><th>Control</th><th>Scanner</th><th>Location</th><th>Message</th></tr></thead>
 <tbody>
 {{range .Findings}}<tr>
   <td>{{.Priority}}</td>

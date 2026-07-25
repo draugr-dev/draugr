@@ -55,7 +55,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	}
 
 	_, _ = fmt.Fprintf(w, "### Fix first\n\n")
-	_, _ = fmt.Fprintln(w, "| Priority | Severity | Score | Rule | Control | Tool | Location |")
+	_, _ = fmt.Fprintln(w, "| Priority | Severity | Score | Rule | Control | Scanner | Location |")
 	_, _ = fmt.Fprintln(w, "|---|---|---|---|---|---|---|")
 	shown := s.findings
 	if len(shown) > markdownTopN {
