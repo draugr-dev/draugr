@@ -55,3 +55,18 @@ jobs:
             dist/*.tar.gz
             dist/*.zip
             dist/checksums.txt
+
+      # Rebuild the docs site (draugr.dev) so its versioned docs pick up this release: the site's
+      # `latest` is sourced from the newest release tag, so a fresh release needs a rebuild. This
+      # POSTs a Cloudflare Pages Deploy Hook. Configure it once: create the hook in Cloudflare and
+      # add its URL as the CLOUDFLARE_PAGES_DEPLOY_HOOK repo secret. The step no-ops (never fails
+      # the release) when the secret is absent, so forks and pre-setup releases stay green.
+      - name: Trigger docs site rebuild
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then
+            curl -fsS -X POST "$HOOK" && echo "docs rebuild triggered"
+          else
+            echo "CLOUDFLARE_PAGES_DEPLOY_HOOK not set; skipping docs rebuild"
+          fi
