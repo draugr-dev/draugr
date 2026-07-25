@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.31.0] - 2026-07-25
+
 ### Added
 
 - **New `tls` control — TLS and certificate assessment.** Point a component's `hosts:` at an
@@ -36,6 +40,14 @@ and move it under a version on release.
 
   Deeper protocol auditing (SSLv2/v3, cipher enumeration, protocol vulns) via testssl.sh is
   planned as an opt-in engine.
+
+### Fixed
+
+- **`draugr controls` pointed at a removed setting.** Its footnote told you to enable an opt-in
+  scanner via `controllers.<control>.scanners` — a list removed in 0.29.0. It now shows the
+  current form, `controllers.<control>.<scanner>.enabled: true`.
+- Config-validation errors no longer repeat the word "config"
+  (`tls/web/tls-probe: config: unknown option "…"`).
 
 ## [0.30.0] - 2026-07-24
 
@@ -569,7 +581,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.31.0
 [0.30.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.30.0
 [0.29.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.29.0
 [0.28.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.28.0
