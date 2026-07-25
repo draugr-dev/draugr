@@ -69,17 +69,21 @@ For the full verification story (cosign, SLSA provenance, SBOMs) see
 
 ## From a release — curl
 
-Plain `curl` works (public repo). Pick a version from the
-[releases page](https://github.com/draugr-dev/draugr/releases):
+Plain `curl` works (public repo). This grabs the **latest** release — nothing to pin or update:
 
 ```bash
-VERSION=v0.29.0
-base="https://github.com/draugr-dev/draugr/releases/download/${VERSION}"
-curl -fsSL -o draugr.tar.gz "${base}/draugr_${VERSION#v}_linux_amd64.tar.gz"
+# resolve the latest release tag, then download its Linux amd64 archive
+tag=$(curl -fsSL https://api.github.com/repos/draugr-dev/draugr/releases/latest \
+  | grep -oE '"tag_name": *"[^"]+"' | cut -d'"' -f4)
+base="https://github.com/draugr-dev/draugr/releases/download/${tag}"
+curl -fsSL -o draugr.tar.gz "${base}/draugr_${tag#v}_linux_amd64.tar.gz"
 tar -xzf draugr.tar.gz draugr
 sudo mv draugr /usr/local/bin/
 draugr version
 ```
+
+To **pin** a specific release instead, set `tag=vX.Y.Z` (from the
+[releases page](https://github.com/draugr-dev/draugr/releases)) and skip the lookup.
 
 (`-f` makes `curl` fail loudly on an HTTP error instead of silently saving the error page.)
 

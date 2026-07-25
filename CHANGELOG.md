@@ -12,6 +12,9 @@ and move it under a version on release.
 
 ### Added
 
+- **Pin the GitHub Action to `@v0`.** Releases now publish a moving major tag, so
+  `uses: draugr-dev/draugr@v0` always gets the newest `v0.x` release — no more editing a pinned
+  version to stay current. Pin an exact `@vX.Y.Z` when you want reproducible CI.
 - **`scan --top N`.** Control how many findings the console "Fix first" table lists (default 10;
   `--top 0` shows all) — handy when you want the whole list in the terminal.
 - **Contextual scan tips.** When a scan finds issues but no component sets `exposure`/`criticality`,

@@ -34,13 +34,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # diff mode needs the PR's base commit
-      - uses: draugr-dev/draugr@v0.29.0   # pin a release; installs Draugr for you
+      - uses: draugr-dev/draugr@v0   # latest v0.x; pin @vX.Y.Z for reproducible CI (installs Draugr for you)
         with:
           saga: draugr.saga.yaml
           tools: true             # provision the scanners the controls need
           # fail-on: error        # (scan/push) gate the build
           # fail-on-new: error    # (diff/PR)   gate only on findings this PR introduces
 ```
+
+**Versioning.** `@v0` is a moving major tag that always points at the newest `v0.x` release, so
+you get updates without editing the ref. For fully reproducible CI, pin an exact release instead
+(`draugr-dev/draugr@v0.29.0`) and bump it deliberately. (Pre-1.0, a minor bump can be breaking, so
+`@v0` means "latest, possibly-breaking".)
 
 The scanners each control needs (Trivy, Gitleaks, Semgrep, …) still have to be on the runner:
 set `tools: true` to let Draugr provision them, install them alongside (e.g.
