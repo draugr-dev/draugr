@@ -360,6 +360,23 @@ draugr version --json     # {"version":"0.31.1","commit":"30862ef","built":"…"
 
 Output goes to stdout in both forms, so `v=$(draugr version --json | jq -r .version)` works.
 
+## `draugr schema`
+
+Print the Saga JSON Schema **this build enforces** (it's embedded in the binary).
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-o, --output` | — | Write to this file instead of stdout |
+
+```bash
+draugr schema                      # print it
+draugr schema -o .saga.schema.json # pin editor validation to this exact build
+```
+
+Editors normally fetch the schema from draugr.dev, which needs network access and follows a
+published version. A local copy pins validation to the Draugr you actually have, and works
+offline — see [editor support](saga-schema.md#editor-support-autocomplete-hover-docs-validation).
+
 ## `draugr completion <shell>`
 
 Generate a shell completion script (bash, zsh, fish, powershell).
