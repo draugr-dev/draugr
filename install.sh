@@ -13,7 +13,11 @@
 # It says which of those two happened. It never installs anything it could not verify, and it
 # never uses sudo.
 #
-#   DRAUGR_VERSION=v0.36.1     install a specific release instead of the latest
+# Options go on `sh`, not on `curl` — each side of a pipeline has its own environment:
+#
+#   curl -fsSL https://draugr.dev/install.sh | DRAUGR_INSTALL_DIR=~/bin sh
+#
+#   DRAUGR_VERSION=vX.Y.Z      install a specific release instead of the latest
 #   DRAUGR_INSTALL_DIR=~/bin   install somewhere other than ~/.local/bin
 #   DRAUGR_REQUIRE_SIGNATURE=1 fail rather than continue when cosign is unavailable
 #
