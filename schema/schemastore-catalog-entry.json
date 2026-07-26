@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "The entry to submit to SchemaStore (schemastore/schemastore → src/api/json/catalog.json),",
+    "kept here so the patterns we register are reviewable and versioned alongside the schema.",
+    "Once accepted, every editor that consults SchemaStore — VS Code, JetBrains, Neovim — gets",
+    "completion, hover docs and validation for a Saga with no configuration at all.",
+    "",
+    "fileMatch is the *file type*, not one filename: Draugr loads any path you hand it, so a repo",
+    "can hold azure.saga.yaml, draugr-api.saga.yaml, or a bare .saga.yaml. draugr.saga.yaml is",
+    "only the name `draugr init` writes by default."
+  ],
+  "name": "Draugr Saga",
+  "description": "Draugr Saga — a declarative account of an application's security surface and the controls that must pass",
+  "fileMatch": [
+    "*.saga.yaml",
+    "*.saga.yml",
+    ".saga.yaml",
+    ".saga.yml"
+  ],
+  "url": "https://draugr.dev/schema/draugr.saga.schema.json"
+}

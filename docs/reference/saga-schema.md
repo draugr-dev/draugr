@@ -7,8 +7,51 @@ order: 20
 
 # Saga reference
 
-The **Saga** (`draugr.saga.yaml`) is Draugr's descriptor — a declarative account of an
-application's security surface and the controls that must pass.
+The **Saga** is Draugr's descriptor — a declarative account of an application's security surface
+and the controls that must pass.
+
+**Any `*.saga.yaml` file is a Saga.** `draugr init` writes `draugr.saga.yaml` by default, but the
+name is yours: `draugr scan azure.saga.yaml`, `payments.saga.yaml`, a bare `.saga.yaml` — Draugr
+loads whatever path you hand it, so a repo can hold several.
+
+## Editor support (autocomplete, hover docs, validation)
+
+Draugr publishes a [JSON Schema](https://draugr.dev/schema/draugr.saga.schema.json) for the Saga.
+With it, your editor completes control and field names, shows the documentation for each one on
+hover, offers the valid values for `exposure`, `criticality` and report formats, and flags typos
+as you type instead of at scan time.
+
+**Nothing to configure.** Files written by `draugr init` start with a modeline:
+
+```yaml
+# yaml-language-server: $schema=https://draugr.dev/schema/draugr.saga.schema.json
+```
+
+Any editor running the YAML language server — VS Code (with the
+[YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)),
+JetBrains IDEs, Neovim — picks it up on open. Paste that line at the top of an existing Saga to
+get the same.
+
+**Or map it once, for every Saga in the workspace.** In VS Code's `settings.json`:
+
+```json
+{
+  "yaml.schemas": {
+    "https://draugr.dev/schema/draugr.saga.schema.json": ["*.saga.yaml", "*.saga.yml"]
+  }
+}
+```
+
+JetBrains: *Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings*, with
+the same URL and a `*.saga.yaml` file-path pattern.
+
+> Registration on [SchemaStore](https://www.schemastore.org/) is in progress
+> ([#115](https://github.com/draugr-dev/draugr/issues/115)); once it lands, `*.saga.yaml` is
+> recognised automatically with neither a modeline nor a setting.
+
+To pin the schema alongside a specific Draugr version, the file also ships in the repo at
+[`schema/draugr.saga.schema.json`](https://github.com/draugr-dev/draugr/blob/main/schema/draugr.saga.schema.json)
+and can be referenced by a local path.
 
 ## Top level
 
