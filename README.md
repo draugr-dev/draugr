@@ -202,6 +202,28 @@ With `tools: true` the action provisions the scanners each control needs (Trivy,
 Semgrep). See the [GitHub Action guide](docs/guides/github-action.md) for the full workflow and
 all inputs.
 
+## Use from an AI coding assistant
+
+Ask a coding assistant *"is this safe to ship?"* and it answers either way — usually by running
+whatever scanner it can find, over a scope it invented, and reading the raw output. That answer
+has no relationship to the one your pipeline will give.
+
+`draugr mcp` serves Draugr over the [Model Context Protocol](https://modelcontextprotocol.io),
+so the assistant reads your **committed** Saga instead:
+
+```bash
+claude mcp add draugr -- draugr mcp
+```
+
+It can list the controls that exist, hand back the descriptor schema *your build* enforces,
+validate a Saga before you write it, and rank an existing report by priority. Every
+`*.saga.yaml` nearby is exposed as a resource, so the assistant reads the real scope rather than
+guessing at one.
+
+**Scanning is off by default** — it clones repositories and runs external tools. Turn it on with
+`--scan=ask` to approve each call, or `--scan=always` for a sandbox. See
+[use Draugr from an AI coding assistant](docs/guides/ai-agents-mcp.md).
+
 ## Documentation
 
 **[Full documentation index →](docs/README.md)** (grouped by task, with a "building blocks"
@@ -214,6 +236,8 @@ glossary of Saga / Norn / Skald / the Ravens).
 - [Integrations catalog](docs/reference/catalog.md) — every controller/scanner/surveyor, with per-component docs + licenses
 - [Changelog](CHANGELOG.md) — user-facing release notes
 - [CLI reference](docs/reference/cli.md) — every command and flag
+- [AI coding assistants](docs/guides/ai-agents-mcp.md) — the MCP server, its tools, and the consent model
+- [Findings in your editor](docs/guides/findings-in-your-editor.md) — SARIF as inline diagnostics
 - [Saga schema](docs/reference/saga-schema.md) — the descriptor, field by field
 - [Architecture](docs/contributing/architecture.md) · [Plugin API](docs/contributing/plugin-api.md) · [Naming](docs/contributing/naming.md)
 
