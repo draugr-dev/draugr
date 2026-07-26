@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.31.1] - 2026-07-25
+
 ### Fixed
 
 - **`draugr version` now prints to stdout** instead of stderr, so `v=$(draugr version)` captures
@@ -584,7 +588,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.31.1...HEAD
+[0.31.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.31.1
 [0.31.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.31.0
 [0.30.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.30.0
 [0.29.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.29.0
