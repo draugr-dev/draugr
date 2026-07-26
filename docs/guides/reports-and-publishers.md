@@ -66,6 +66,10 @@ Actions, or no PR) so the same Saga still runs locally. `github-pr-comment` upse
 [`draugr diff --publish`](pr-diff.md) for a PR security delta. The `github` publisher pairs
 with [code scanning](code-scanning.md).
 
+The `sarif` report is also what your editor reads — see
+[see findings in your editor](findings-in-your-editor.md) for inline diagnostics in VS Code
+and JetBrains.
+
 For the exact schema of `config.reports` / `config.publishers`, see the
 [Saga schema](../reference/saga-schema.md#configreports-and-configpublishers); for the full
 catalog of reporters and publishers, see the

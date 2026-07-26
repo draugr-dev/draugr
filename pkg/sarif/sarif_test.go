@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestMarshalSARIFStructure(t *testing.T) {
@@ -354,5 +355,192 @@ func TestMarshalSARIFSingleDraugrTool(t *testing.T) {
 	}
 	if rt["CVE-1"] != "trivy" || rt["go.xss"] != "semgrep" {
 		t.Errorf("round-trip lost the originating tool: %v", rt)
+	}
+}
+
+// Scanners publish rule metadata; Draugr's job is to relay it, not to re-author it. Losing it
+// is what leaves a reader staring at an opaque id.
+func TestFromSARIFKeepsRuleMetadata(t *testing.T) {
+	in := []byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Semgrep","rules":[
+	  {"id":"py.audit.eval","name":"EvalUse",
+	   "shortDescription":{"text":"eval() on user input"},
+	   "fullDescription":{"text":"Passing untrusted input to eval() allows code execution."},
+	   "help":{"text":"Use ast.literal_eval."},
+	   "helpUri":"https://semgrep.dev/r/py.audit.eval"}]}},
+	  "results":[{"ruleId":"py.audit.eval","level":"error","message":{"text":"eval here"}}]}]}`)
+	rep, err := FromSARIF(in)
+	if err != nil {
+		t.Fatalf("FromSARIF: %v", err)
+	}
+	got := rep.Rules["py.audit.eval"]
+	want := Rule{
+		Name:             "EvalUse",
+		ShortDescription: "eval() on user input",
+		FullDescription:  "Passing untrusted input to eval() allows code execution.",
+		Help:             "Use ast.literal_eval.",
+		HelpURI:          "https://semgrep.dev/r/py.audit.eval",
+	}
+	if got != want {
+		t.Errorf("rule = %+v, want %+v", got, want)
+	}
+}
+
+// A scanner that says nothing about its rules shouldn't leave empty husks behind.
+func TestFromSARIFRecordsNoRuleWithoutMetadata(t *testing.T) {
+	in := []byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Gitleaks","rules":[
+	  {"id":"aws-key","defaultConfiguration":{"level":"error"}}]}},
+	  "results":[{"ruleId":"aws-key","message":{"text":"key"}}]}]}`)
+	rep, err := FromSARIF(in)
+	if err != nil {
+		t.Fatalf("FromSARIF: %v", err)
+	}
+	if len(rep.Rules) != 0 {
+		t.Errorf("Rules = %v, want none", rep.Rules)
+	}
+	// The level still had to be inherited from the rule.
+	if rep.Results[0].Level != LevelError {
+		t.Errorf("level = %q, want error", rep.Results[0].Level)
+	}
+}
+
+func TestHelpURI(t *testing.T) {
+	rep := Report{Rules: map[string]Rule{"DS-0002": {HelpURI: "https://avd.aquasec.com/misconfig/ds002"}}}
+	cases := map[string]string{
+		"DS-0002":              "https://avd.aquasec.com/misconfig/ds002", // what the scanner said
+		"CVE-2021-36159":       "https://nvd.nist.gov/vuln/detail/CVE-2021-36159",
+		"GHSA-abcd-1234-wxyz":  "https://github.com/advisories/GHSA-abcd-1234-wxyz",
+		"python.lang.security": "", // nowhere honest to point
+		"":                     "",
+	}
+	for id, want := range cases {
+		if got := rep.HelpURI(id); got != want {
+			t.Errorf("HelpURI(%q) = %q, want %q", id, got, want)
+		}
+	}
+}
+
+// Merging is how a run's controls become one report; rule metadata has to survive it, and the
+// first scanner to describe a rule shouldn't be blanked by a later one that says less.
+func TestMergeUnionsRuleMetadata(t *testing.T) {
+	a := Report{
+		Results: []Result{{RuleID: "r1", Message: "a"}},
+		Rules:   map[string]Rule{"r1": {ShortDescription: "first"}},
+	}
+	b := Report{
+		Results: []Result{{RuleID: "r2", Message: "b"}},
+		Rules:   map[string]Rule{"r1": {ShortDescription: "second", HelpURI: "https://x"}, "r2": {Name: "Two"}},
+	}
+	got := Merge(a, b)
+	if d := got.Rules["r1"].ShortDescription; d != "first" {
+		t.Errorf("r1 shortDescription = %q, want the first one kept", d)
+	}
+	if u := got.Rules["r1"].HelpURI; u != "https://x" {
+		t.Errorf("r1 helpUri = %q, want the later one filled in", u)
+	}
+	if n := got.Rules["r2"].Name; n != "Two" {
+		t.Errorf("r2 name = %q, want Two", n)
+	}
+}
+
+func TestMarshalSARIFEmitsRuleMetadata(t *testing.T) {
+	rep := Report{
+		Tool:    "semgrep",
+		Results: []Result{{RuleID: "py.audit.eval", Level: LevelError, Message: "eval here", Location: Location{URI: "app/main.py", StartLine: 12}}},
+		Rules: map[string]Rule{"py.audit.eval": {
+			Name: "EvalUse", ShortDescription: "eval() on user input",
+			FullDescription: "long", Help: "Use ast.literal_eval.",
+			HelpURI: "https://semgrep.dev/r/py.audit.eval",
+		}},
+	}
+	data, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatalf("MarshalSARIF: %v", err)
+	}
+	var log struct {
+		Runs []struct {
+			Tool struct {
+				Driver struct {
+					Rules []struct {
+						ID               string                 `json:"id"`
+						Name             string                 `json:"name"`
+						ShortDescription *struct{ Text string } `json:"shortDescription"`
+						FullDescription  *struct{ Text string } `json:"fullDescription"`
+						Help             *struct{ Text string } `json:"help"`
+						HelpURI          string                 `json:"helpUri"`
+					} `json:"rules"`
+				} `json:"driver"`
+			} `json:"tool"`
+			OriginalURIBaseIDs map[string]struct {
+				Description *struct{ Text string } `json:"description"`
+			} `json:"originalUriBaseIds"`
+			Results []struct {
+				Locations []struct {
+					PhysicalLocation struct {
+						ArtifactLocation struct {
+							URI       string `json:"uri"`
+							URIBaseID string `json:"uriBaseId"`
+						} `json:"artifactLocation"`
+					} `json:"physicalLocation"`
+				} `json:"locations"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(data, &log); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rules := log.Runs[0].Tool.Driver.Rules
+	if len(rules) != 1 {
+		t.Fatalf("rules = %d, want 1", len(rules))
+	}
+	r := rules[0]
+	if r.Name != "EvalUse" || r.HelpURI != "https://semgrep.dev/r/py.audit.eval" {
+		t.Errorf("name/helpUri = %q/%q", r.Name, r.HelpURI)
+	}
+	if r.ShortDescription == nil || r.ShortDescription.Text != "eval() on user input" {
+		t.Errorf("shortDescription = %+v", r.ShortDescription)
+	}
+	if r.FullDescription == nil || r.Help == nil {
+		t.Errorf("fullDescription/help missing: %+v %+v", r.FullDescription, r.Help)
+	}
+	// A relative path needs a declared base, or a viewer can't resolve it onto a real file.
+	art := log.Runs[0].Results[0].Locations[0].PhysicalLocation.ArtifactLocation
+	if art.URIBaseID != "%SRCROOT%" {
+		t.Errorf("uriBaseId = %q, want %%SRCROOT%%", art.URIBaseID)
+	}
+	base, ok := log.Runs[0].OriginalURIBaseIDs["%SRCROOT%"]
+	if !ok || base.Description == nil || base.Description.Text == "" {
+		t.Errorf("originalURIBaseIDs = %+v, want a described %%SRCROOT%%", log.Runs[0].OriginalURIBaseIDs)
+	}
+}
+
+// An image reference or a URL already identifies its subject; joining it onto a source root
+// would be nonsense.
+func TestMarshalSARIFLeavesNonRelativeLocationsUnbased(t *testing.T) {
+	for _, uri := range []string{"library/alpine:3.18", "https://example.com/health", "/etc/passwd"} {
+		rep := Report{Results: []Result{{RuleID: "r", Level: LevelError, Location: Location{URI: uri}}}}
+		data, err := rep.MarshalSARIF()
+		if err != nil {
+			t.Fatalf("MarshalSARIF: %v", err)
+		}
+		if strings.Contains(string(data), "uriBaseId") {
+			t.Errorf("%q: got a uriBaseId, want none:\n%s", uri, data)
+		}
+	}
+}
+
+func TestClampDescription(t *testing.T) {
+	if got := clampDescription("short"); got != "short" {
+		t.Errorf("clampDescription(short) = %q", got)
+	}
+	long := strings.Repeat("é", 2000) // multi-byte: a naive cut would split a rune
+	got := clampDescription(long)
+	if len(got) > descriptionLimit {
+		t.Errorf("len = %d, want <= %d", len(got), descriptionLimit)
+	}
+	if !utf8.ValidString(got) {
+		t.Errorf("clamped text is not valid UTF-8: %q", got)
+	}
+	if !strings.HasSuffix(got, "…") {
+		t.Errorf("want an ellipsis, got %q", got[len(got)-8:])
 	}
 }

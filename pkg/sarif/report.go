@@ -80,6 +80,84 @@ func (r Result) Fingerprint() string {
 type Report struct {
 	Tool    string   `json:"tool,omitempty"`
 	Results []Result `json:"results"`
+	// Rules is the metadata the scanner published about the rules it applied, keyed by rule id.
+	// A result names its rule; the rule is what explains it. Carrying this through is what lets
+	// a reader — in a terminal, an editor, or a pull request — find out what "DS-0002" means.
+	// Not every scanner publishes it, so entries may be missing.
+	Rules map[string]Rule `json:"rules,omitempty"`
+}
+
+// Rule is what a scanner says about one of its rules, beyond the bare id. Every field is
+// optional: scanners vary widely in how much they publish, and an absent field is normal.
+type Rule struct {
+	// Name is a human-readable identifier (SARIF reportingDescriptor.name), where the id
+	// itself is opaque.
+	Name string `json:"name,omitempty"`
+	// ShortDescription is a single sentence; FullDescription is a paragraph.
+	ShortDescription string `json:"shortDescription,omitempty"`
+	FullDescription  string `json:"fullDescription,omitempty"`
+	// Help is remediation guidance, often Markdown.
+	Help string `json:"help,omitempty"`
+	// HelpURI points at the rule's documentation or advisory.
+	HelpURI string `json:"helpUri,omitempty"`
+}
+
+// empty reports whether the rule carries no information at all, in which case there's nothing
+// worth storing or emitting for it.
+func (r Rule) empty() bool {
+	return r.Name == "" && r.ShortDescription == "" && r.FullDescription == "" &&
+		r.Help == "" && r.HelpURI == ""
+}
+
+// HelpURI returns where a reader can look up ruleID: what the scanner published, or a URL
+// derived from a well-known identifier scheme when it published nothing. Empty when we can't
+// say — a wrong link is worse than none.
+func (r Report) HelpURI(ruleID string) string {
+	if u := r.Rules[ruleID].HelpURI; u != "" {
+		return u
+	}
+	return DerivedHelpURI(ruleID)
+}
+
+// DerivedHelpURI maps identifiers with a stable, publicly resolvable home to their advisory.
+// It's the fallback for scanners that publish no rule metadata; anything unrecognized gets "".
+func DerivedHelpURI(ruleID string) string {
+	switch {
+	case strings.HasPrefix(ruleID, "CVE-"):
+		return "https://nvd.nist.gov/vuln/detail/" + ruleID
+	case strings.HasPrefix(ruleID, "GHSA-"):
+		return "https://github.com/advisories/" + ruleID
+	default:
+		return ""
+	}
+}
+
+// addRule records metadata for ruleID, keeping what's already known: the first scanner to
+// describe a rule wins, and a later report missing a field never blanks it.
+func (r *Report) addRule(ruleID string, rule Rule) {
+	if ruleID == "" || rule.empty() {
+		return
+	}
+	if r.Rules == nil {
+		r.Rules = map[string]Rule{}
+	}
+	cur := r.Rules[ruleID]
+	if cur.Name == "" {
+		cur.Name = rule.Name
+	}
+	if cur.ShortDescription == "" {
+		cur.ShortDescription = rule.ShortDescription
+	}
+	if cur.FullDescription == "" {
+		cur.FullDescription = rule.FullDescription
+	}
+	if cur.Help == "" {
+		cur.Help = rule.Help
+	}
+	if cur.HelpURI == "" {
+		cur.HelpURI = rule.HelpURI
+	}
+	r.Rules[ruleID] = cur
 }
 
 // Counts tallies results by severity.
@@ -135,6 +213,9 @@ func Merge(reports ...Report) Report {
 	for _, rep := range reports {
 		if out.Tool == "" {
 			out.Tool = rep.Tool
+		}
+		for id, rule := range rep.Rules {
+			out.addRule(id, rule)
 		}
 		for _, res := range rep.Results {
 			if res.Tool == "" {

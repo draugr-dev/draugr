@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"sort"
 	"strconv"
+	"strings"
+	"unicode/utf8"
 )
 
 // Version is the SARIF specification version Draugr emits.
@@ -23,6 +25,10 @@ type sarifLog struct {
 type sarifRun struct {
 	Tool    sarifTool     `json:"tool"`
 	Results []sarifResult `json:"results"`
+	// OriginalURIBaseIDs declares what Draugr's relative result paths are relative to. Required
+	// by the SARIF spec whenever relative URI references are used; it's what lets an editor's
+	// viewer resolve a finding onto a file in the open workspace instead of asking the reader.
+	OriginalURIBaseIDs map[string]sarifArtifact `json:"originalUriBaseIds,omitempty"`
 }
 
 type sarifTool struct {
@@ -35,9 +41,34 @@ type sarifDriver struct {
 }
 
 type sarifRule struct {
-	ID                   string           `json:"id"`
+	ID   string `json:"id"`
+	Name string `json:"name,omitempty"`
+	// The descriptive fields. GitHub code scanning renders shortDescription, fullDescription and
+	// help beside a result; SARIF viewers additionally link helpUri. Draugr doesn't author these
+	// — it relays what the scanner published, which is the difference between a reader seeing
+	// "DS-0002" and seeing what DS-0002 means.
+	ShortDescription     *sarifMessage    `json:"shortDescription,omitempty"`
+	FullDescription      *sarifMessage    `json:"fullDescription,omitempty"`
+	Help                 *sarifMessage    `json:"help,omitempty"`
+	HelpURI              string           `json:"helpUri,omitempty"`
 	DefaultConfiguration *sarifRuleConfig `json:"defaultConfiguration,omitempty"`
 	Properties           *sarifProperties `json:"properties,omitempty"`
+}
+
+// text returns m's text, tolerating a nil message so callers can read optional fields inline.
+func (m *sarifMessage) text() string {
+	if m == nil {
+		return ""
+	}
+	return m.Text
+}
+
+// message wraps s as a SARIF message, or nil when there's nothing to say.
+func message(s string) *sarifMessage {
+	if s == "" {
+		return nil
+	}
+	return &sarifMessage{Text: s}
 }
 
 type sarifRuleConfig struct {
@@ -87,7 +118,11 @@ type sarifPhysical struct {
 }
 
 type sarifArtifact struct {
-	URI string `json:"uri"`
+	URI string `json:"uri,omitempty"`
+	// URIBaseID names the entry in the run's originalURIBaseIDs that URI is relative to.
+	URIBaseID string `json:"uriBaseId,omitempty"`
+	// Description explains a base id to a human reader when we can't give it a concrete uri.
+	Description *sarifMessage `json:"description,omitempty"`
 }
 
 type sarifRegion struct {
@@ -113,12 +148,14 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 		if tool == "" {
 			tool = r.Tool
 		}
-		if res.RuleID != "" && tool != "" {
+		if res.RuleID != "" {
 			if ruleScanners[res.RuleID] == nil {
 				ruleScanners[res.RuleID] = map[string]bool{}
 				ruleOrder = append(ruleOrder, res.RuleID)
 			}
-			ruleScanners[res.RuleID][tool] = true
+			if tool != "" {
+				ruleScanners[res.RuleID][tool] = true
+			}
 		}
 		sr := sarifResult{
 			RuleID:  res.RuleID,
@@ -126,9 +163,14 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 			Message: sarifMessage{Text: res.Message},
 		}
 		if res.Location.URI != "" {
-			loc := sarifLocation{PhysicalLocation: sarifPhysical{
-				ArtifactLocation: sarifArtifact{URI: res.Location.URI},
-			}}
+			art := sarifArtifact{URI: res.Location.URI}
+			// Only a repo-relative path needs a base to resolve against; an absolute URI
+			// (a container image ref, a host) already stands on its own.
+			if isRelativeURI(res.Location.URI) {
+				art.URIBaseID = uriBaseID
+				run.OriginalURIBaseIDs = originalURIBaseIDs()
+			}
+			loc := sarifLocation{PhysicalLocation: sarifPhysical{ArtifactLocation: art}}
 			if res.Location.StartLine > 0 {
 				loc.PhysicalLocation.Region = &sarifRegion{StartLine: res.Location.StartLine}
 			}
@@ -154,12 +196,64 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 		for _, s := range scanners {
 			tags = append(tags, "scanner:"+s)
 		}
-		run.Tool.Driver.Rules = append(run.Tool.Driver.Rules, sarifRule{
-			ID:         id,
-			Properties: &sarifProperties{Tags: tags},
-		})
+		rule := r.Rules[id]
+		out := sarifRule{
+			ID:               id,
+			Name:             rule.Name,
+			ShortDescription: message(clampDescription(rule.ShortDescription)),
+			FullDescription:  message(clampDescription(rule.FullDescription)),
+			Help:             message(rule.Help),
+			HelpURI:          r.HelpURI(id),
+		}
+		if len(tags) > 0 {
+			out.Properties = &sarifProperties{Tags: tags}
+		}
+		run.Tool.Driver.Rules = append(run.Tool.Driver.Rules, out)
 	}
 	return json.MarshalIndent(sarifLog{Schema: schemaURL, Version: Version, Runs: []sarifRun{run}}, "", "  ")
+}
+
+// uriBaseID names the root Draugr's relative paths are relative to. Scanners run against a
+// checkout, and finding paths are rewritten repo-relative so they stay stable across runs; this
+// tells a consumer what to join them onto. "%SRCROOT%" is the conventional spelling, and the one
+// GitHub's own documentation uses.
+const uriBaseID = "%SRCROOT%"
+
+// originalURIBaseIDs describes the base without claiming a concrete path. Draugr scans a
+// throwaway checkout, so the directory it used is meaningless to whoever reads the report later
+// — the consumer's own workspace root is the right base, and only the consumer knows it.
+func originalURIBaseIDs() map[string]sarifArtifact {
+	return map[string]sarifArtifact{
+		uriBaseID: {Description: message("The root of the scanned source tree.")},
+	}
+}
+
+// isRelativeURI reports whether uri is a path that needs a base to resolve against, as opposed
+// to something that already identifies its subject on its own.
+//
+// The test is deliberately blunt: a relative path, and no colon anywhere. A colon is what
+// separates the things that aren't source paths — a scheme ("https:", "pkg:"), an image tag
+// ("library/alpine:3.18"), a Windows drive. Source paths that contain one are rare, and the cost
+// of missing one is only that we don't declare a base for it, which is where we started.
+func isRelativeURI(uri string) bool {
+	return !strings.HasPrefix(uri, "/") && !strings.Contains(uri, ":")
+}
+
+// descriptionLimit is GitHub code scanning's documented cap on rule description length. Longer
+// text is the scanner's, not ours, so we clip rather than drop it.
+const descriptionLimit = 1024
+
+func clampDescription(s string) string {
+	if len(s) <= descriptionLimit {
+		return s
+	}
+	// Cut on a rune boundary — a description is arbitrary scanner text and may be non-ASCII.
+	const ellipsis = "…"
+	cut := descriptionLimit - len(ellipsis)
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return strings.TrimSpace(s[:cut]) + ellipsis
 }
 
 // parseSecuritySeverity reads the numeric "security-severity" score (a string per SARIF)
@@ -201,6 +295,16 @@ func FromSARIF(data []byte) (Report, error) {
 			if score, ok := parseSecuritySeverity(rule.Properties); ok {
 				ruleScore[rule.ID] = score
 			}
+			// Keep what the scanner said about the rule. It's the only description of a
+			// finding that isn't specific to one occurrence of it, and every downstream
+			// reader — terminal, editor, pull request — is better off for having it.
+			out.addRule(rule.ID, Rule{
+				Name:             rule.Name,
+				ShortDescription: rule.ShortDescription.text(),
+				FullDescription:  rule.FullDescription.text(),
+				Help:             rule.Help.text(),
+				HelpURI:          rule.HelpURI,
+			})
 		}
 		for _, sr := range run.Results {
 			// Skip results the tool reports as suppressed (e.g. Semgrep in-source `nosem`
