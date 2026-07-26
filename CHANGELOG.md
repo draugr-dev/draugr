@@ -10,7 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **`draugr version` now prints to stdout** instead of stderr, so `v=$(draugr version)` captures
+  it. It was using a Cobra helper that writes to stderr.
 
 ## [0.31.0] - 2026-07-25
 
