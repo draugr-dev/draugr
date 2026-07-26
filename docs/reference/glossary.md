@@ -13,6 +13,8 @@ team shares the vocabulary. Each maps to a **control** (see the taxonomy in
 
 ## SCA — Software Composition Analysis
 
+*Go deeper: [SCA](/learn/sca/) in Learn.*
+
 **What it is:** analysis of the **third-party / open-source dependencies** your software
 pulls in — *not* your own code. Modern apps are mostly other people's code (often 80%+ by
 line count, deep transitive trees), so this is where a large share of real risk lives.
@@ -39,12 +41,16 @@ line count, deep transitive trees), so this is where a large share of real risk 
 
 ## SAST — Static Application Security Testing
 
+*Go deeper: [SAST](/learn/sast/) in Learn.*
+
 Analyzes your **own source code** (without running it) for security bugs — injection,
 unsafe APIs, hardcoded logic flaws. In Draugr: **`sast`** via
 [Semgrep](https://semgrep.dev), with opt-in **[gosec](https://github.com/securego/gosec)** for
 Go components (`controllers.sast.scanners`). (Implemented today.)
 
 ## DAST — Dynamic Application Security Testing
+
+*Go deeper: [DAST](/learn/dast/) in Learn.*
 
 Tests a **running application** from the outside (like an attacker) — probing endpoints
 for issues (exposures, misconfigurations, info disclosure, outdated libraries). In Draugr:
@@ -53,10 +59,14 @@ deeper opt-in engine such as [OWASP ZAP](https://www.zaproxy.org) is a future fo
 
 ## Secret detection
 
+*Go deeper: [Secret detection](/learn/secret-scanning/) in Learn.*
+
 Scans code/history for **leaked credentials** — API keys, tokens, private keys. In Draugr:
 **`secrets`** via [Gitleaks](https://github.com/gitleaks/gitleaks). (Implemented today.)
 
 ## IaC scanning — Infrastructure as Code
+
+*Go deeper: [IaC scanning](/learn/iac-misconfiguration/) in Learn.*
 
 Finds **misconfigurations** in infrastructure definitions (Terraform, Kubernetes manifests,
 Dockerfiles, CloudFormation) — open security groups, privileged containers, etc. In Draugr:
@@ -64,10 +74,14 @@ Dockerfiles, CloudFormation) — open security groups, privileged containers, et
 
 ## Container image scanning
 
+*Go deeper: [Container image scanning](/learn/container-image-scanning/) in Learn.*
+
 Inspects a **built container image** for known vulns in its OS packages and bundled
 libraries. In Draugr: **`images`** via Trivy. (Implemented today.)
 
 ## SBOM — Software Bill of Materials
+
+*Go deeper: [SBOM](/learn/sbom/) in Learn.*
 
 A formal, shareable **inventory of everything in your software** (components + versions +
 licenses), in a standard format ([SPDX](https://spdx.dev/),
@@ -77,11 +91,15 @@ Roadmap: [#57](https://github.com/draugr-dev/draugr/issues/57).
 
 ## HTTP security headers
 
+*Go deeper: [HTTP security headers](/learn/http-security-headers/) in Learn.*
+
 Checks a web endpoint's **response headers** (CSP, HSTS, X-Content-Type-Options, …) that
 harden the browser against classes of attack. In Draugr: **`headers`** (native; tuned per host
 `type` — browser vs. api). (Implemented today.)
 
 ## TLS / certificate assessment
+
+*Go deeper: [TLS / certificate assessment](/learn/tls-assessment/) in Learn.*
 
 Evaluates an endpoint's **TLS configuration and certificates** — protocol versions, certificate
 expiry, chain validity, and key/signature strength. In Draugr: **`tls`**, using a native probe
@@ -90,11 +108,15 @@ expiry, chain validity, and key/signature strength. In Draugr: **`tls`**, using 
 
 ## Threat intelligence
 
+*Go deeper: [Threat intelligence](/learn/threat-intelligence/) in Learn.*
+
 Checks the **reputation** of hosts/URLs against known-bad feeds (malware, phishing,
 command-and-control). In Draugr: **`threats`** via URLhaus (+ optional VirusTotal).
 Roadmap: [#59](https://github.com/draugr-dev/draugr/issues/59).
 
 ## CIS benchmarks / posture
+
+*Go deeper: [CIS benchmarks / posture](/learn/infrastructure-cis-benchmarks/) in Learn.*
 
 Audits infrastructure/runtime against hardening baselines — e.g. the **CIS Kubernetes
 Benchmark**. In Draugr: **`infrastructure`** via
