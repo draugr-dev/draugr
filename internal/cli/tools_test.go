@@ -167,3 +167,62 @@ func TestToolsCommandWiring(t *testing.T) {
 		t.Errorf("tools command missing subcommands: %v", sub)
 	}
 }
+
+// A misspelled tool used to be rendered as a row of dashes in the install plan, followed by a
+// confirmation prompt. It's a typo — say so and stop.
+func TestToolsInstallRejectsUnknownTool(t *testing.T) {
+	var out bytes.Buffer
+	called := false
+	install := func(string) (tools.Installed, error) {
+		called = true
+		return tools.Installed{}, nil
+	}
+	err := runToolsInstall(&out, nil, []string{"notarealtool"}, toolsInstallOptions{yes: true}, install)
+	if err == nil {
+		t.Fatal("an unknown tool should be an error")
+	}
+	if called {
+		t.Error("nothing should be installed when a name is unknown")
+	}
+	if !strings.Contains(err.Error(), "installable:") {
+		t.Errorf("the error should list what can be installed: %v", err)
+	}
+	if strings.Contains(out.String(), "Install plan") {
+		t.Error("no plan should be printed for an unknown tool")
+	}
+}
+
+func TestToolsInstallSuggestsNearMiss(t *testing.T) {
+	err := runToolsInstall(&bytes.Buffer{}, nil, []string{"trivvy"}, toolsInstallOptions{yes: true},
+		func(string) (tools.Installed, error) { return tools.Installed{}, nil })
+	if err == nil || !strings.Contains(err.Error(), `did you mean "trivy"`) {
+		t.Errorf("expected a suggestion for a near-miss, got %v", err)
+	}
+}
+
+// One bad name fails the whole command: half-installing after a typo is the surprising outcome.
+func TestToolsInstallRejectsMixedValidAndInvalid(t *testing.T) {
+	installed := 0
+	err := runToolsInstall(&bytes.Buffer{}, nil, []string{"trivy", "nope"}, toolsInstallOptions{yes: true},
+		func(string) (tools.Installed, error) { installed++; return tools.Installed{}, nil })
+	if err == nil {
+		t.Fatal("a mix containing an unknown tool should fail")
+	}
+	if installed != 0 {
+		t.Errorf("installed %d tool(s); a typo should stop the whole command", installed)
+	}
+}
+
+func TestClosestName(t *testing.T) {
+	known := []string{"trivy", "gitleaks", "gosec", "cosign"}
+	if got := closestName("trivvy", known); got != "trivy" {
+		t.Errorf("closestName(trivvy) = %q", got)
+	}
+	if got := closestName("gitleak", known); got != "gitleaks" {
+		t.Errorf("closestName(gitleak) = %q", got)
+	}
+	// Nothing close enough shouldn't produce a misleading suggestion.
+	if got := closestName("kubernetes", known); got != "" {
+		t.Errorf("closestName(kubernetes) = %q, want no suggestion", got)
+	}
+}

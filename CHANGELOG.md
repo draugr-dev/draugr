@@ -12,6 +12,10 @@ and move it under a version on release.
 
 ### Fixed
 
+- **A misspelled tool name is now an error.** `draugr tools install trivvy` printed a plan with a
+  row of dashes and then asked whether to continue; it now stops, lists what can be installed,
+  and suggests the near-miss (`did you mean "trivy"?`). One bad name fails the whole command —
+  half-installing after a typo is the surprising outcome.
 - **`--min-priority` now works on every output, not just JSON.** It filtered the JSON report and
   was silently ignored by the console, Markdown, HTML and JUnit reporters — so on the default
   output the flag did nothing. The listing is filtered while the priority counts still describe

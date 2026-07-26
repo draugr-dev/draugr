@@ -89,10 +89,88 @@ func provenanceLabel(res tools.Installed) string {
 	}
 }
 
+// checkInstallable reports any names Draugr cannot provision, suggesting the closest match.
+func checkInstallable(names []string) error {
+	// Accept every tool Draugr knows, not just the binary-installable ones: semgrep is a Python
+	// package, so `tools install semgrep` legitimately prints a pipx command instead of
+	// downloading anything. Rejecting it here would break that.
+	known := tools.Installable()
+	set := make(map[string]bool, len(known))
+	for _, k := range known {
+		set[k] = true
+	}
+	for _, t := range tools.All() {
+		set[t.Binary] = true
+	}
+	var unknown []string
+	for _, n := range names {
+		if !set[n] {
+			unknown = append(unknown, n)
+		}
+	}
+	if len(unknown) == 0 {
+		return nil
+	}
+	msg := fmt.Sprintf("cannot install %s", strings.Join(quoteAll(unknown), ", "))
+	if len(unknown) == 1 {
+		if near := closestName(unknown[0], known); near != "" {
+			msg += fmt.Sprintf(" — did you mean %q?", near)
+		}
+	}
+	return fmt.Errorf("%s\ninstallable: %s", msg, strings.Join(known, ", "))
+}
+
+func quoteAll(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = fmt.Sprintf("%q", n)
+	}
+	return out
+}
+
+// closestName returns the known tool within a small edit distance of want, or "" if none is
+// close enough to be worth suggesting.
+func closestName(want string, known []string) string {
+	best, bestDist := "", 3 // suggest only for near-misses
+	for _, k := range known {
+		if d := editDistance(want, k); d < bestDist {
+			best, bestDist = k, d
+		}
+	}
+	return best
+}
+
+// editDistance is Levenshtein, enough for "did you mean" on short tool names.
+func editDistance(a, b string) int {
+	prev := make([]int, len(b)+1)
+	cur := make([]int, len(b)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i := 1; i <= len(a); i++ {
+		cur[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			cur[j] = min(min(cur[j-1]+1, prev[j]+1), prev[j-1]+cost)
+		}
+		prev, cur = cur, prev
+	}
+	return prev[len(b)]
+}
+
 func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstallOptions, install func(name string) (tools.Installed, error)) error {
 	all := len(names) == 0
 	if all {
 		names = tools.Installable()
+	}
+	// An unknown name is a typo, not a choice. Reject it up front rather than rendering a row of
+	// dashes and asking whether to proceed — and fail the whole command, since half-installing
+	// after a misspelling is the surprising outcome.
+	if err := checkInstallable(names); err != nil {
+		return err
 	}
 
 	// Show the plan before doing anything.
