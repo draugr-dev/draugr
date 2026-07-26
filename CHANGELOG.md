@@ -12,6 +12,12 @@ and move it under a version on release.
 
 ### Added
 
+- **You can finally see what Draugr is doing.** A scan used to emit essentially nothing — one
+  line at `--log-level debug`. It now narrates the run: what was planned, the **exact command**
+  handed to each scanner with its working directory, duration and exit code, cache hits, findings
+  per control, and aggregation. And a new **`--log-level trace`** relays what the scanners
+  themselves print — Draugr captures a tool's stderr and normally only summarises it, but that
+  output is usually where the real explanation is.
 - **A fuller example Saga, and the severity/level relationship documented.** `examples/draugr.saga.yaml`
   now shows what a real descriptor looks like — three components with different surfaces, risk
   classification, a pinned image digest, path-scoped repositories, a per-component control

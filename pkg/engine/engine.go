@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime"
 	"sort"
 	"sync"
@@ -126,6 +127,12 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				planned = appendJobs(planned, name, comp.Exposure, comp.Criticality, jobs)
 			}
 		}
+	}
+	slog.Debug("planned scan jobs", "jobs", len(planned), "controls", len(e.reg.controllers))
+	for _, pj := range planned {
+		slog.Debug("planned job",
+			"control", pj.Control, "scanner", pj.Job.Scanner,
+			"target", fmt.Sprintf("%v", pj.Job.Target), "target_kind", pj.Job.Target.Kind())
 	}
 	return planned, errors.Join(errs...)
 }
@@ -281,10 +288,15 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				if e.cache != nil {
 					key = effectiveKey(jobCtx, pj.Job, scanner)
 					if rep, hit := e.cache.Get(key); hit {
+						slog.DebugContext(jobCtx, "cache hit",
+							"control", pj.Control, "scanner", pj.Job.Scanner, "key", key)
 						cacheHitCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("control", pj.Control)))
 						return scanOutcome{report: rep, cached: true}, nil
 					}
 				}
+				slog.DebugContext(jobCtx, "scanning",
+					"control", pj.Control, "scanner", pj.Job.Scanner,
+					"target_kind", pj.Job.Target.Kind())
 				start := time.Now()
 				rep, err := scanner.Scan(jobCtx, pj.Job.Target, pj.Job.Config)
 				scanDuration.Record(jobCtx, time.Since(start).Seconds(),
@@ -295,6 +307,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				if e.cache != nil {
 					_ = e.cache.Put(key, rep) // cache the raw findings; priority is stamped per run
 				}
+				slog.DebugContext(jobCtx, "scan complete",
+					"control", pj.Control, "scanner", pj.Job.Scanner,
+					"findings", len(rep.Results),
+					"duration", time.Since(start).Round(time.Millisecond).String())
 				scanCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
 				return scanOutcome{report: rep}, nil
 			})
@@ -336,6 +352,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		if !ok {
 			continue
 		}
+		slog.Debug("aggregating control", "control", control, "reports", len(byCtl[control]))
+		slog.Debug("aggregating control", "control", control, "reports", len(byCtl[control]))
 		cr, err := ctrl.Aggregate(byCtl[control])
 		if err != nil {
 			errs = append(errs, fmt.Errorf("aggregate %s: %w", control, err))

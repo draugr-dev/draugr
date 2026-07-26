@@ -16,7 +16,7 @@ import (
 
 // LogOptions configures the structured logger.
 type LogOptions struct {
-	Level  string // debug | info | warn | error
+	Level  string // trace | debug | info | warn | error
 	Format string // console | json | text
 }
 
@@ -71,10 +71,16 @@ func isTerminal(w io.Writer) bool {
 // SetDefault installs l as the process-wide default slog logger.
 func SetDefault(l *slog.Logger) { slog.SetDefault(l) }
 
+// LevelTrace is below debug: it relays what Draugr's dependencies print, which is verbose and
+// only wanted when debug hasn't answered the question.
+const LevelTrace = slog.LevelDebug - 4
+
 func parseLevel(s string) (slog.Level, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "", "info":
 		return slog.LevelInfo, nil
+	case "trace":
+		return LevelTrace, nil
 	case "debug":
 		return slog.LevelDebug, nil
 	case "warn", "warning":
@@ -82,5 +88,5 @@ func parseLevel(s string) (slog.Level, error) {
 	case "error":
 		return slog.LevelError, nil
 	}
-	return 0, fmt.Errorf("unknown log level %q (want debug, info, warn, error)", s)
+	return 0, fmt.Errorf("unknown log level %q (want trace, debug, info, warn, error)", s)
 }

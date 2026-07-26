@@ -154,6 +154,8 @@ func (h *consoleHandler) paint(buf []byte, code, s string) []byte {
 // levelLabel returns a fixed-width (5-char) label so records align in a column.
 func levelLabel(l slog.Level) string {
 	switch {
+	case l < slog.LevelDebug:
+		return "TRACE"
 	case l < slog.LevelInfo:
 		return "DEBUG"
 	case l < slog.LevelWarn:

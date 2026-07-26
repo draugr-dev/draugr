@@ -2,6 +2,7 @@ package observability
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"os"
@@ -190,5 +191,28 @@ func TestColorEnabledAndIsTerminal(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 	if colorEnabled(os.Stdout) {
 		t.Error("NO_COLOR must disable color")
+	}
+}
+
+func TestTraceLevel(t *testing.T) {
+	// trace sits below debug so relaying dependency output is opt-in.
+	if LevelTrace >= slog.LevelDebug {
+		t.Errorf("LevelTrace (%v) should be below debug", LevelTrace)
+	}
+	if _, err := NewLogger(&bytes.Buffer{}, LogOptions{Level: "trace"}); err != nil {
+		t.Errorf("trace should be a valid level: %v", err)
+	}
+	var buf bytes.Buffer
+	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, false)
+	slog.New(h).Log(context.Background(), LevelTrace, "relayed")
+	if !strings.Contains(buf.String(), "TRACE") {
+		t.Errorf("trace records should be labelled TRACE: %q", buf.String())
+	}
+	// A debug-level logger must not emit trace records.
+	var quiet bytes.Buffer
+	hq := newConsoleHandler(&quiet, &slog.HandlerOptions{Level: slog.LevelDebug}, false)
+	slog.New(hq).Log(context.Background(), LevelTrace, "relayed")
+	if quiet.Len() != 0 {
+		t.Errorf("debug should not emit trace records: %q", quiet.String())
 	}
 }

@@ -11,8 +11,25 @@ All commands accept these **global flags**:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--log-level` | `info` | `debug`, `info`, `warn`, `error` |
+| `--log-level` | `info` | `trace`, `debug`, `info`, `warn`, `error` |
 | `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` |
+
+**Seeing what Draugr is doing.** `--log-level debug` narrates the run: what was planned, the
+**exact command** handed to each scanner with its working directory, duration and exit code,
+cache hits, findings per control, and aggregation.
+
+```console
+$ draugr scan . --log-level debug
+DEBUG planned job control=sca scanner=trivy-fs target_kind=repository
+DEBUG ran scanner tool tool=trivy argv="trivy fs --quiet --scanners vuln --format sarif /tmp/…" duration=43ms
+DEBUG scan complete control=sca scanner=trivy-fs findings=0 duration=50ms
+```
+
+`--log-level trace` adds what the **scanners themselves** print. Draugr captures a tool's stderr
+and normally only summarises it in an error; trace relays it verbatim, which is usually where the
+real explanation is. Verbose by design — reach for it when debug hasn't answered the question.
+
+Logs go to **stderr**, so they never pollute a machine-readable report on stdout.
 
 Telemetry (traces/metrics) is opt-in via standard `OTEL_*` environment variables; it is a
 no-op when unset.

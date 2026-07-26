@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/observability"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -137,7 +140,37 @@ func execArgvInDir(ctx context.Context, dir string, argv []string) ([]byte, erro
 	}
 	// Executing the configured tool is the point; no shell (exec.CommandContext, not "sh -c")
 	// and argv is built from typed config, not user shell input.
+	started := time.Now()
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Dir = dir
-	return cmd.Output()
+	out, err := cmd.Output()
+	logToolRun(ctx, argv, dir, started, out, err)
+	return out, err
+}
+
+// logToolRun reports what Draugr actually ran. Without it a scan is a black box: you can see
+// that a scanner failed but not the command, the directory, how long it took, or what the tool
+// itself said. At trace the tool's own stderr is relayed, which is usually where the answer is.
+func logToolRun(ctx context.Context, argv []string, dir string, started time.Time, out []byte, err error) {
+	attrs := []any{
+		"tool", argv[0],
+		"argv", strings.Join(argv, " "),
+		"duration", time.Since(started).Round(time.Millisecond).String(),
+		"stdout_bytes", len(out),
+	}
+	if dir != "" {
+		attrs = append(attrs, "dir", dir)
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		attrs = append(attrs, "exit_code", exit.ExitCode())
+		// Output() captures the tool's stderr here; it explains failures far better than we can.
+		if len(exit.Stderr) > 0 {
+			slog.Log(ctx, observability.LevelTrace, "scanner stderr",
+				"tool", argv[0], "stderr", string(exit.Stderr))
+		}
+	} else if err != nil {
+		attrs = append(attrs, "error", err.Error())
+	}
+	slog.DebugContext(ctx, "ran scanner tool", attrs...)
 }
