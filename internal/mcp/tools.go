@@ -328,10 +328,15 @@ type ScanOutput struct {
 
 // scanTool builds the scan handler over reg. It's a closure rather than a bare function because
 // the registry is the one thing a scan can't derive from its arguments.
-func scanTool(reg *engine.Registry) mcp.ToolHandlerFor[ScanInput, ScanOutput] {
-	return func(ctx context.Context, _ *mcp.CallToolRequest, in ScanInput) (*mcp.CallToolResult, ScanOutput, error) {
+func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput, ScanOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, in ScanInput) (*mcp.CallToolResult, ScanOutput, error) {
 		if in.Path == "" {
 			return nil, ScanOutput{}, fmt.Errorf("path is required")
+		}
+		if mode == ScanAsk {
+			if err := confirmScan(ctx, req, in.Path); err != nil {
+				return nil, ScanOutput{}, err
+			}
 		}
 		model, err := saga.LoadFile(in.Path)
 		if err != nil {
@@ -368,4 +373,36 @@ func collect(m map[string]sarif.Report) []sarif.Report {
 		out = append(out, m[n])
 	}
 	return out
+}
+
+// confirmScan asks the user, through the client, before doing something expensive on their
+// machine. It fails closed: if the client can't ask, or the user says no, no scan happens.
+//
+// The failure message names the way out, because "elicitation is unsupported" is meaningless to
+// someone who chose --scan=ask from a docs page and has no idea their client doesn't implement
+// it.
+func confirmScan(ctx context.Context, req *mcp.CallToolRequest, path string) error {
+	if req == nil || req.Session == nil {
+		return fmt.Errorf("scan needs approval but there is no session to ask through; " +
+			"start the server with --scan=always to run scans without asking")
+	}
+	if init := req.Session.InitializeParams(); init == nil || init.Capabilities == nil ||
+		init.Capabilities.Elicitation == nil {
+		return fmt.Errorf("scan needs your approval, but this client can't prompt for it "+
+			"(no elicitation support). Run `draugr scan %s` yourself, or restart the server "+
+			"with --scan=always to allow scans without asking", path)
+	}
+	// A schema-less form: there's nothing to fill in, so the accept/decline action is the
+	// entire answer. (The protocol has no dedicated confirmation mode.)
+	res, err := req.Session.Elicit(ctx, &mcp.ElicitParams{
+		Message: fmt.Sprintf("Draugr wants to scan %s. This clones the repositories it "+
+			"declares, runs external scanners, and uses the network.", path),
+	})
+	if err != nil {
+		return fmt.Errorf("could not ask for approval to scan: %w", err)
+	}
+	if res.Action != "accept" {
+		return fmt.Errorf("scan declined")
+	}
+	return nil
 }
