@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Image findings name the image you scanned.** They were reported at `library/python` line 1
+  — the registry path with the tag dropped, and a line number that means nothing for a
+  container image — which the console rendered as `library/python:1`, and which made two images
+  in one component impossible to tell apart. They now read `python:3.8-slim`. The stray path
+  also made SARIF consumers treat an image reference as a file in your workspace; that stops too.
 
 ## [0.36.0] - 2026-07-26
 
