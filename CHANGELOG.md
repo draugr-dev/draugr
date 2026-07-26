@@ -10,6 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`draugr validate` now takes globs, or no arguments at all.** A repo can hold one Saga per
+  service; validating them one command at a time didn't scale. `draugr validate` discovers every
+  `*.saga.yaml` beneath the current directory, `draugr validate 'svc/*/*.saga.yaml'` expands a
+  pattern, and every file is reported on its own line so one failure doesn't hide the rest. Exits
+  non-zero if any file is invalid.
+
 ### Fixed
 
 - **A misspelled tool name is now an error.** `draugr tools install trivvy` printed a plan with a

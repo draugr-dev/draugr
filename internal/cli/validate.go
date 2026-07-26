@@ -3,32 +3,138 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
+// sagaGlob is what Draugr recognises as a Saga: the file *type*, not one filename. A repo
+// commonly holds several — one per service, or per environment.
+const sagaGlob = "*.saga.yaml"
+
 func newValidateCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "validate <saga.yaml>",
-		Short: "Validate a Saga descriptor against the schema",
-		Long: "Parse a Saga descriptor, resolve ${{ VAR }} references, and check it against\n" +
+		Use:   "validate [saga.yaml | glob ...]",
+		Short: "Validate one or more Saga descriptors against the schema",
+		Long: "Parse each Saga descriptor, resolve ${{ VAR }} references, and check it against\n" +
 			"the schema — without running any scanners. Fast and dependency-free, so it fits\n" +
-			"a pre-commit hook, a CI lint step, or an editor. Exits non-zero when invalid.",
-		Args: cobra.ExactArgs(1),
+			"a pre-commit hook, a CI lint step, or an editor.\n\n" +
+			"Accepts paths and globs, and with no arguments discovers *.saga.yaml (and .yml)\n" +
+			"beneath the current directory. Reports every file, then exits non-zero if any\n" +
+			"one of them is invalid.",
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runValidate(args[0], cmd.OutOrStdout())
+			return runValidate(args, cmd.OutOrStdout())
 		},
 	}
 }
 
-// runValidate loads the Saga (which parses, substitutes env vars, and validates); a nil
-// error means the descriptor is valid.
-func runValidate(sagaPath string, w io.Writer) error {
-	if _, err := saga.LoadFile(sagaPath); err != nil {
+// runValidate validates every Saga the arguments resolve to. Each file is reported on its own
+// line so a failure in one doesn't hide the others, and the command fails if any did.
+func runValidate(args []string, w io.Writer) error {
+	paths, err := resolveSagaPaths(args)
+	if err != nil {
 		return err
 	}
-	_, _ = fmt.Fprintf(w, "✓ %s is valid\n", sagaPath)
+	if len(paths) == 0 {
+		return fmt.Errorf("no Saga files found (looked for %s); pass a path explicitly", sagaGlob)
+	}
+
+	// One file keeps the original shape: the loader's error is returned as-is, so the CLI prints
+	// it as `draugr: <problem>`. Fanning out to a per-file report only helps when there are files
+	// to tell apart.
+	if len(paths) == 1 {
+		if _, err := saga.LoadFile(paths[0]); err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(w, "✓ %s is valid\n", paths[0])
+		return nil
+	}
+
+	var failed int
+	for _, p := range paths {
+		if _, err := saga.LoadFile(p); err != nil {
+			failed++
+			// Strip the loader's own path prefix: the file is already the line's subject.
+			_, _ = fmt.Fprintf(w, "✗ %s\n    %s\n", p, strings.TrimPrefix(err.Error(), p+": "))
+			continue
+		}
+		_, _ = fmt.Fprintf(w, "✓ %s is valid\n", p)
+	}
+
+	if failed > 0 {
+		return fmt.Errorf("%d of %d Saga file(s) invalid", failed, len(paths))
+	}
+	if len(paths) > 1 {
+		_, _ = fmt.Fprintf(w, "\n%d Saga file(s) valid\n", len(paths))
+	}
 	return nil
+}
+
+// resolveSagaPaths expands arguments into a de-duplicated, ordered list of files. A literal
+// path is taken as-is (so a mistyped filename reports "not found" rather than silently matching
+// nothing); anything containing a glob metacharacter is expanded; no arguments means discover.
+func resolveSagaPaths(args []string) ([]string, error) {
+	if len(args) == 0 {
+		return discoverSagas(".")
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, arg := range args {
+		if !strings.ContainsAny(arg, "*?[") {
+			if !seen[arg] {
+				seen[arg] = true
+				out = append(out, arg)
+			}
+			continue
+		}
+		matches, err := filepath.Glob(arg)
+		if err != nil {
+			return nil, fmt.Errorf("bad pattern %q: %w", arg, err)
+		}
+		if len(matches) == 0 {
+			return nil, fmt.Errorf("no files match %q", arg)
+		}
+		sort.Strings(matches)
+		for _, m := range matches {
+			if !seen[m] {
+				seen[m] = true
+				out = append(out, m)
+			}
+		}
+	}
+	return out, nil
+}
+
+// discoverSagas walks root for *.saga.yaml / *.saga.yml, skipping directories that never hold
+// hand-written config so a large repo doesn't pay for the walk.
+func discoverSagas(root string) ([]string, error) {
+	skip := map[string]bool{".git": true, "node_modules": true, "vendor": true, "dist": true}
+	var out []string
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if skip[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		name := d.Name()
+		if strings.HasSuffix(name, ".saga.yaml") || strings.HasSuffix(name, ".saga.yml") {
+			out = append(out, filepath.Clean(path))
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(out)
+	return out, nil
 }

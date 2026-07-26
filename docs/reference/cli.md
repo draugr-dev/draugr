@@ -195,17 +195,33 @@ draugr classify draugr.saga.yaml
 
 ---
 
-## `draugr validate <saga.yaml>`
+## `draugr validate [saga.yaml | glob ...]`
 
-Parse a Saga, resolve `${{ VAR }}` references, and check it against the schema — **without
-running any scanners**. Fast and dependency-free, so it fits a pre-commit hook, a CI lint
-step, or an editor. **Exits non-zero when the descriptor is invalid.**
+Parse each Saga, resolve `${{ VAR }}` references, and check it against the schema — without
+running any scanners. Fast and dependency-free, so it suits a pre-commit hook, a CI lint step, or
+an editor. **Exits non-zero if any file is invalid.**
+
+Accepts paths and globs, and with no arguments discovers every `*.saga.yaml` (and `.yml`) beneath
+the current directory — useful in a repo holding one Saga per service. `.git`, `node_modules`,
+`vendor` and `dist` are skipped.
 
 ```bash
-draugr validate draugr.saga.yaml
+draugr validate                          # every Saga in the repo
+draugr validate draugr.saga.yaml         # one file
+draugr validate 'services/*/*.saga.yaml' # a glob (quote it, so the shell doesn't expand it first)
 ```
 
----
+Each file is reported on its own line, so one failure doesn't hide the rest:
+
+```
+✓ draugr.saga.yaml is valid
+✗ svc-b/web.saga.yaml
+    unknown field "componnets" in the top level — check the spelling, or see …
+```
+
+A pattern that matches nothing is an error rather than a silent success — otherwise a typo'd
+pattern would make a CI lint step quietly pass.
+
 
 ## `draugr doctor [saga.yaml]`
 
