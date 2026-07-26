@@ -53,7 +53,7 @@ func newScanCommand() *cobra.Command {
 		Long: "Load a Saga descriptor, run the applicable security controls, and produce\n" +
 			"pass/fail evidence. Exits non-zero when the policy verdict is fail.\n\n" +
 			"Zero-config: point it at a directory (or omit the argument to use the current\n" +
-			"one) and Draugr scans that repository with sca, secrets, sast, and iac — no\n" +
+			"one) and Draugr scans that repository with " + ZeroConfigControls("and") + " — no\n" +
 			"Saga required. Write a Saga (or run `draugr init`) when you need more control.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -92,7 +92,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	if synthesized {
 		// To stderr so it never pollutes a machine-readable stdout format (json/sarif).
-		_, _ = fmt.Fprintf(os.Stderr, "No Saga given — scanning %s with controls: sca, secrets, sast, iac.\n"+
+		_, _ = fmt.Fprintf(os.Stderr, "No Saga given — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
 			"(run `draugr init` to scaffold a draugr.saga.yaml you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)

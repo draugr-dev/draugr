@@ -10,8 +10,8 @@ import (
 )
 
 // scanModel resolves a scan target into a Saga model. An empty target means the current
-// directory. A directory target is scanned zero-config with a synthesized Saga (sca/secrets/
-// sast/iac over that repo); a file target is loaded as a Saga descriptor. Returns whether the
+// directory. A directory target is scanned zero-config with a synthesized Saga (the
+// zeroConfigControls over that repo); a file target is loaded as a Saga descriptor. Returns whether the
 // model was synthesized so the caller can note it.
 func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
 	if target == "" {
@@ -22,6 +22,28 @@ func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
 	}
 	m, err = loadSaga(target)
 	return m, false, err
+}
+
+// zeroConfigControls are the controls a zero-config scan enables: the repository-based ones,
+// which need nothing but the directory in front of them. This is the single source of truth —
+// the help text and the run notice render it rather than restating it, so adding a control here
+// can't leave stale prose behind.
+var zeroConfigControls = []string{"sca", "secrets", "sast", "iac"}
+
+// ZeroConfigControls lists those controls in a readable form, e.g. "sca, secrets, sast, and iac".
+func ZeroConfigControls(conjunction string) string {
+	switch len(zeroConfigControls) {
+	case 0:
+		return ""
+	case 1:
+		return zeroConfigControls[0]
+	}
+	head := zeroConfigControls[:len(zeroConfigControls)-1]
+	tail := zeroConfigControls[len(zeroConfigControls)-1]
+	if conjunction == "" {
+		return strings.Join(zeroConfigControls, ", ")
+	}
+	return strings.Join(head, ", ") + ", " + conjunction + " " + tail
 }
 
 // syntheticSaga builds the default zero-config Saga: one component scanning the given directory
@@ -37,12 +59,7 @@ func syntheticSaga(dir string) *saga.Model {
 	}
 	return &saga.Model{
 		Release: saga.Release{Name: name, Version: "0.0.0"},
-		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
-			"sca":     {"enabled": true},
-			"secrets": {"enabled": true},
-			"sast":    {"enabled": true},
-			"iac":     {"enabled": true},
-		}},
+		Config:  saga.Config{Controllers: zeroConfigControllers()},
 		Components: []saga.Component{{
 			Name:         name,
 			Repositories: []saga.Repository{{URL: abs}},
@@ -64,4 +81,13 @@ func loadSaga(path string) (*saga.Model, error) {
 			path, detail, path)
 	}
 	return model, nil
+}
+
+// zeroConfigControllers enables each zero-config control in a fresh settings map.
+func zeroConfigControllers() map[string]saga.ControllerSettings {
+	out := make(map[string]saga.ControllerSettings, len(zeroConfigControls))
+	for _, name := range zeroConfigControls {
+		out[name] = saga.ControllerSettings{"enabled": true}
+	}
+	return out
 }
