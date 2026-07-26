@@ -91,3 +91,4 @@ finding, its marker will sit a few lines off — commit, or re-scan, before trus
 - [Editor support for the Saga schema](../reference/saga-schema.md) — autocomplete and validation
   while you write the descriptor itself.
 - [Prioritization](../concepts/prioritization.md) — what P1–P4 mean on each finding.
+- [Use Draugr from an AI coding assistant](ai-agents-mcp.md) — the same answers, via MCP.

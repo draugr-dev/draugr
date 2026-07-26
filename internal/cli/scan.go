@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
-	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
@@ -24,6 +23,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
+
+	"github.com/draugr-dev/draugr/internal/scanpolicy"
 )
 
 type scanOptions struct {
@@ -206,12 +207,7 @@ func fixFirstLimit(top int) int {
 // exploitability (KEV/EPSS) when a source is loaded, then rank it by the component's exposure
 // and criticality.
 func defaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
-	matrices := prioritization.DefaultMatrices()
-	return func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) string {
-		sev := res.Severity(controllers.SeverityFloor(control))
-		sev = expl.Enrich(sev, res.RuleID) // nil-safe: no-op when no source
-		return string(matrices.Prioritize(exposure, criticality, sev))
-	}
+	return scanpolicy.DefaultPrioritizer(expl)
 }
 
 // loadExploitSource builds an exploitability source from the optional --kev / --epss files.
