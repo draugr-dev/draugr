@@ -12,6 +12,12 @@ and move it under a version on release.
 
 ### Added
 
+- **A fuller example Saga, and the severity/level relationship documented.** `examples/draugr.saga.yaml`
+  now shows what a real descriptor looks like — three components with different surfaces, risk
+  classification, a pinned image digest, path-scoped repositories, a per-component control
+  override, and references — since people copy an example rather than read a schema. The CLI
+  reference now also explains the two scales that appear side by side: severity bands come from
+  CVSS, `--fail-on` takes SARIF levels, and a table shows how they line up.
 - **`draugr validate` now takes globs, or no arguments at all.** A repo can hold one Saga per
   service; validating them one command at a time didn't scale. `draugr validate` discovers every
   `*.saga.yaml` beneath the current directory, `draugr validate 'svc/*/*.saga.yaml'` expands a

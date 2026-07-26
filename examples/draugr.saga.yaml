@@ -33,28 +33,55 @@ config:
     #   enabled: true        # runtime probing of hosts (Nuclei) — scans a live endpoint
 
 components:
+  # A public web app: source, the image it builds, and the endpoint it serves.
+  # exposure + criticality are what turn severities into P1–P4 — see the prioritization docs.
   - name: web
-    # Container images to assess (scanned by the images control).
-    images:
-      - image: alpine:3.19
-    # Source repositories (scanned by the sca, secrets, and sast controls).
+    exposure: public         # public | authenticated | internal | restricted
+    criticality: critical    # critical | important | supporting
+    labels:
+      team: platform         # free-form metadata, yours to use
     repositories:
       - url: https://github.com/acme/web.git
-        revision: main
-    # Running endpoints (probed by the headers, tls, and dast controls).
+        revision: main       # branch, tag, or commit
+        paths:               # optional: restrict the scan to part of the repo
+          - "services/web/**"
+    images:
+      - image: registry.example.com/acme/web:1.4.0
+        digest: sha256:3f8e4a1c9d2b5e7a0c6f8b1d4e7a9c2f5b8e1d4a7c0f3b6e9d2a5c8f1b4e7a0c
+    hosts:
+      - name: web-ui
+        url: https://app.example.com
+        type: browser        # full browser security-header suite (default)
+
+  # An internal API: no image here, and its endpoint is typed `api` so browser-only
+  # header checks don't fire.
+  - name: api
+    exposure: internal
+    criticality: important
+    repositories:
+      - url: https://github.com/acme/api.git
     hosts:
       - name: api
-        url: https://api.example.com
-        type: api            # browser | api (default browser)
-    # Infrastructure surface (used by infrastructure controls — on the roadmap).
+        url: https://api.internal.example.com
+        type: api            # skips browser-only headers
+
+  # A batch job: source only, and one control turned off just for this component.
+  - name: nightly-etl
+    exposure: restricted
+    criticality: supporting
+    repositories:
+      - url: https://github.com/acme/etl.git
+    controllers:             # per-component overrides win over config.controllers
+      tls:
+        enabled: false       # no endpoint to probe
     infrastructure:
       - kind: kubernetes
         ref: prod-cluster
 
-    # Per-component overrides (optional): enable/disable controls for just this component.
-    # controllers:
-    #   images:
-    #     enabled: true
+# Links to human-performed controls, recorded alongside the automated ones.
+references:
+  - type: ThreatModel
+    link: https://wiki.example.com/threat-models/acme
 
 # Tip: string values support environment-variable substitution, e.g.
 #   version: "${{ RELEASE_VERSION }}"
