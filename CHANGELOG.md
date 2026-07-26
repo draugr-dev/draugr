@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **`tools install` skips tools that are already installed.** Re-running no longer re-downloads
+  and re-verifies a tool that's already present at the pinned build — a repeat `install trivy`
+  went from ~3s (162 MB re-download) to 0.08s, which adds up in CI where provisioning runs on
+  every job. "Already present" means the exact bytes Draugr installed, compared by checksum, so
+  a **modified binary is replaced rather than accepted**; a changed pin also reinstalls. Use
+  `--force` to reinstall unconditionally.
 
 ## [0.32.0] - 2026-07-25
 

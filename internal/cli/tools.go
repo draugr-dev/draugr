@@ -31,6 +31,7 @@ func newToolsCommand() *cobra.Command {
 type toolsInstallOptions struct {
 	yes    bool
 	dryRun bool
+	force  bool
 }
 
 func newToolsInstallCommand() *cobra.Command {
@@ -49,13 +50,15 @@ func newToolsInstallCommand() *cobra.Command {
 				return err
 			}
 			install := func(name string) (tools.Installed, error) {
-				return tools.Install(cmd.Context(), name, dir, nil)
+				return tools.Install(cmd.Context(), name, dir, nil, opts.force)
 			}
 			return runToolsInstall(cmd.OutOrStdout(), cmd.InOrStdin(), args, *opts, install)
 		},
 	}
 	cmd.Flags().BoolVarP(&opts.yes, "yes", "y", false, "skip the confirmation prompt")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "print the install plan and exit")
+	cmd.Flags().BoolVar(&opts.force, "force", false,
+		"reinstall even when the pinned version is already present (repairs a modified binary)")
 	return cmd
 }
 
@@ -120,6 +123,10 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 		if err != nil {
 			_, _ = fmt.Fprintf(w, "✗ %s: %v\n", name, err)
 			failed++
+			continue
+		}
+		if res.AlreadyPresent {
+			_, _ = fmt.Fprintf(w, "• %s %s already installed → %s\n", res.Name, res.Version, res.Path)
 			continue
 		}
 		_, _ = fmt.Fprintf(w, "✓ %s %s → %s (%s)\n", res.Name, res.Version, res.Path, provenanceLabel(res))
