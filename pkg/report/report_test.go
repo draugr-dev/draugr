@@ -418,18 +418,66 @@ func TestFindingSummary(t *testing.T) {
 	}
 }
 
-// A wrong link is worse than none, so only identifiers with a stable public home are linked.
-func TestRuleURL(t *testing.T) {
-	cases := map[string]string{
-		"CVE-2021-36159":       "https://nvd.nist.gov/vuln/detail/CVE-2021-36159",
-		"GHSA-abcd-1234-wxyz":  "https://github.com/advisories/GHSA-abcd-1234-wxyz",
-		"DS-0002":              "",
-		"python.lang.security": "",
-		"":                     "",
+// The console links a rule id to wherever the scanner said the rule is documented — which is
+// how an id like "DS-0002", with no public advisory to derive a URL from, becomes reachable.
+func TestConsoleLinksTheScannerPublishedHelpURI(t *testing.T) {
+	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"sast": {Report: sarif.Report{
+			Results: []sarif.Result{{RuleID: "DS-0002", Level: sarif.LevelError, Message: "root user"}},
+			Rules:   map[string]sarif.Rule{"DS-0002": {HelpURI: "https://avd.aquasec.com/misconfig/ds002"}},
+		}},
+	}}}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
 	}
-	for id, want := range cases {
-		if got := ruleURL(id); got != want {
-			t.Errorf("ruleURL(%q) = %q, want %q", id, got, want)
-		}
+	// Not a terminal, so the link degrades to plain text: the id must still be there, intact.
+	if !strings.Contains(buf.String(), "DS-0002") {
+		t.Errorf("rule id missing:\n%s", buf.String())
+	}
+	if strings.Contains(buf.String(), "avd.aquasec.com") {
+		t.Errorf("url should not be written as visible text off a terminal:\n%s", buf.String())
+	}
+}
+
+// A long namespaced rule id must not push the columns after it off the screen.
+func TestShortRuleID(t *testing.T) {
+	short := "CVE-2021-36159"
+	if got := shortRuleID(short); got != short {
+		t.Errorf("shortRuleID(%q) = %q, want it untouched", short, got)
+	}
+	long := "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
+	got := shortRuleID(long)
+	if len([]rune(got)) != ruleIDWidth {
+		t.Errorf("len(%q) = %d, want %d", got, len([]rune(got)), ruleIDWidth)
+	}
+	// The tail is the specific half — that's what has to survive.
+	if !strings.HasSuffix(got, "github-actions-mutable-action-tag") {
+		t.Errorf("got %q, want the tail of the id kept", got)
+	}
+	if !strings.HasPrefix(got, "…") {
+		t.Errorf("got %q, want it marked as shortened", got)
+	}
+}
+
+// Shortening is for the table only: the machine formats keep the id whole, because that's what
+// you feed back to the scanner or search upstream with.
+func TestLongRuleIDStaysWholeInJSON(t *testing.T) {
+	long := "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
+	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"sast": {Report: sarif.Report{Results: []sarif.Result{{RuleID: long, Level: sarif.LevelError}}}},
+	}}}
+	var console, machine bytes.Buffer
+	if err := (consoleReporter{}).Render(&console, d); err != nil {
+		t.Fatalf("console: %v", err)
+	}
+	if strings.Contains(console.String(), long) {
+		t.Errorf("console should shorten the id:\n%s", console.String())
+	}
+	if err := (sarifReporter{}).Render(&machine, d); err != nil {
+		t.Fatalf("sarif: %v", err)
+	}
+	if !strings.Contains(machine.String(), long) {
+		t.Errorf("sarif must keep the whole id:\n%s", machine.String())
 	}
 }

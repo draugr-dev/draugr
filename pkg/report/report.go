@@ -83,10 +83,13 @@ func (sarifReporter) Render(w io.Writer, d Data) error {
 
 type finding struct {
 	control, ruleID, tool, priority, location, message string
-	level                                              sarif.Level
-	severity                                           sarif.Severity
-	score                                              float64
-	hasScore                                           bool
+	// helpURI is where the rule is documented: what the scanner published, or a URL derived
+	// from a well-known identifier. Empty when we have nowhere honest to point.
+	helpURI  string
+	level    sarif.Level
+	severity sarif.Severity
+	score    float64
+	hasScore bool
 }
 
 // sevCounts tallies findings by normalized severity band.
@@ -152,7 +155,8 @@ func summarize(d Data) summary {
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
 				location: loc, message: res.Message, level: res.Level, severity: sev,
-				score: res.Score, hasScore: res.HasScore,
+				helpURI: d.Run.Controls[name].Report.HelpURI(res.RuleID),
+				score:   res.Score, hasScore: res.HasScore,
 			})
 		}
 	}

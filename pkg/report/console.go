@@ -138,7 +138,7 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 	rows = append(rows, fixFirstHeader)
 	for _, f := range fs {
 		rows = append(rows, []string{
-			dash(f.priority), string(f.severity), scoreStr(f), f.ruleID,
+			dash(f.priority), string(f.severity), scoreStr(f), shortRuleID(f.ruleID),
 			f.control, dash(f.tool), dash(f.location),
 		})
 	}
@@ -169,7 +169,7 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s  %s  %s  %s  %s\n",
 			col.Paint(priorityColor(f.priority), pad(r, 0)),
 			col.Paint(severityColor(f.severity), pad(r, 1)),
-			pad(r, 2), col.Link(ruleURL(f.ruleID), pad(r, 3)), pad(r, 4), pad(r, 5), pad(r, 6))
+			pad(r, 2), col.Link(f.helpURI, pad(r, 3)), pad(r, 4), pad(r, 5), pad(r, 6))
 		// A rule id names a finding; it doesn't explain it. "DS-0002" is meaningless to anyone
 		// who doesn't already know the scanner, which is exactly the reader we care about — so
 		// the finding's own message goes underneath, dimmed so it reads as support, not noise.
@@ -177,6 +177,23 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 			_, _ = fmt.Fprintf(w, "  %s%s\n", strings.Repeat(" ", widths[0]+2), col.Paint(cDim, msg))
 		}
 	}
+}
+
+// ruleIDWidth caps the Rule column. Some scanners use long namespaced ids — Semgrep's run past
+// a hundred characters — and one of those pushes every column after it off the screen, which
+// costs the reader the location and the scanner to show a namespace they didn't need.
+const ruleIDWidth = 44
+
+// shortRuleID fits a rule id into the column by dropping the front. Namespaced ids put the
+// general part first and the specific part last ("yaml.github-actions.security.<name>"), so the
+// tail is the half worth keeping. The full id stays in the JSON and SARIF reports, and the
+// hyperlink on it still resolves.
+func shortRuleID(id string) string {
+	r := []rune(id)
+	if len(r) <= ruleIDWidth {
+		return id
+	}
+	return "…" + string(r[len(r)-(ruleIDWidth-1):])
 }
 
 // messageWidth keeps the explanation to one line. Wrapping it would compete with the table for
@@ -194,20 +211,6 @@ func findingSummary(msg string) string {
 		msg = strings.TrimSpace(msg[:messageWidth-1]) + "…"
 	}
 	return msg
-}
-
-// ruleURL returns where a reader can look a rule up, or "" when we can't say. Only identifiers
-// with a stable, publicly resolvable home qualify — a wrong link is worse than none, and the
-// message below the row already carries the explanation.
-func ruleURL(ruleID string) string {
-	switch {
-	case strings.HasPrefix(ruleID, "CVE-"):
-		return "https://nvd.nist.gov/vuln/detail/" + ruleID
-	case strings.HasPrefix(ruleID, "GHSA-"):
-		return "https://github.com/advisories/" + ruleID
-	default:
-		return ""
-	}
 }
 
 // bandsText renders per-control severity counts, omitting empty bands, each colorized.

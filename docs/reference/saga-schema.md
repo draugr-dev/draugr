@@ -48,6 +48,9 @@ of it depends on SchemaStore.
 
 **JetBrains** (IntelliJ, GoLand, PyCharm) — *Settings → Languages & Frameworks → Schemas and DTDs
 → JSON Schema Mappings*. Add a mapping with the URL above and file-path pattern `*.saga.yaml`.
+
+That covers writing the descriptor. For the scan's *findings* to appear inline on the lines
+that caused them, see [see findings in your editor](../guides/findings-in-your-editor.md).
 JetBrains also honours the `# yaml-language-server:` modeline, so either route works.
 
 **Neovim** — with `yamlls` via `nvim-lspconfig`:

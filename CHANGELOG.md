@@ -10,8 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **See your findings in your editor.** A scan's `results.sarif` now opens as inline
+  diagnostics — squiggles on the offending lines, a Problems list, click-to-line — in VS Code
+  (via Microsoft's SARIF Viewer) and JetBrains IDEs, with no Draugr-specific extension. Draugr
+  now relays each rule's description, remediation help and documentation link from the scanner
+  that published it, and declares its relative paths against `%SRCROOT%` so a viewer resolves
+  them onto files in your open workspace instead of asking you to find each one. The same
+  metadata is what GitHub code scanning shows beside an alert, so alerts get fuller too. New
+  guide: **See findings in your editor**.
+
 ### Changed
 
+- **Rule ids in the "Fix first" table link to their documentation, and no longer wreck the
+  table.** The id now links to wherever the scanner documents the rule — every scanner, not
+  just `CVE-`/`GHSA-` ids — and long namespaced ids (Semgrep's run past a hundred characters,
+  which pushed the location off the screen) are shortened from the front, keeping the specific
+  tail. The full id is unchanged in the JSON and SARIF reports.
 - **The "Fix first" table now explains each finding.** It identified findings only by their
   scanner's rule id — `DS-0002`, `KSV-0014` — which is precise and meaningless if you don't
   already know the scanner. Each row now carries the finding's own message beneath it, dimmed,

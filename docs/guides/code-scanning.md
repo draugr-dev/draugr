@@ -75,4 +75,6 @@ always get evidence in the Security tab. Draugr dogfoods this itself in
 
 For the plain `upload-sarif` alternative (no publisher in the Saga), see the
 [GitHub Action guide](github-action.md); for the full list of report formats and publishers,
-see [reports & publishers](reports-and-publishers.md).
+see [reports & publishers](reports-and-publishers.md). To get the same findings inline in
+your editor rather than on a pull request, see
+[see findings in your editor](findings-in-your-editor.md).

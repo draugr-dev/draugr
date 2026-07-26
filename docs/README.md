@@ -21,6 +21,7 @@ frontmatter and is rendered by the docs site. This index and the `contributing/`
 - [Use in CI with the GitHub Action](guides/github-action.md) — the first-party action and its inputs.
 - [Publish to GitHub code scanning](guides/code-scanning.md) — the native `github` publisher.
 - [Gate PRs on new findings](guides/pr-diff.md) — `draugr diff` and sticky PR comments.
+- [See findings in your editor](guides/findings-in-your-editor.md) — SARIF as inline diagnostics in VS Code and JetBrains.
 - [Reports & publishers](guides/reports-and-publishers.md) — render many formats, deliver anywhere.
 - [Caching & performance](guides/caching-and-performance.md) — content-hash cache and parallelism.
 - [Classify components](guides/classify-components.md) — set `exposure` and `criticality`.
