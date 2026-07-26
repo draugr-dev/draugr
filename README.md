@@ -119,7 +119,7 @@ draugr scan .        # scans the current repo: sca, secrets, sast, iac
 draugr init          # or scaffold a draugr.saga.yaml (stack-detected) to customize
 ```
 
-For full control, write a `draugr.saga.yaml` (see [`examples/`](examples/draugr.saga.yaml)):
+For full control, write a Saga — any `*.saga.yaml` file (see [`examples/`](examples/draugr.saga.yaml)):
 
 ```yaml
 release:
@@ -143,6 +143,19 @@ draugr scan draugr.saga.yaml -o out/    # also writes out/report.json + out/resu
 draugr scan draugr.saga.yaml --fail-on warning
 draugr scan draugr.saga.yaml --format markdown   # or html, junit, json, sarif
 ```
+
+**Your editor can help you write it.** Draugr publishes a
+[JSON Schema](https://draugr.dev/schema/draugr.saga.schema.json) for the Saga, so VS Code,
+JetBrains and Neovim complete field and control names, show what each one means on hover, and
+flag typos as you type. `draugr init` wires it up automatically; for an existing file, add:
+
+```yaml
+# yaml-language-server: $schema=https://draugr.dev/schema/draugr.saga.schema.json
+```
+
+`draugr schema -o .saga.schema.json` writes the copy embedded in your binary instead, if you'd
+rather validate offline or pin to exactly the version you run. See
+[editor support](docs/reference/saga-schema.md#editor-support-autocomplete-hover-docs-validation).
 
 Compare two scans to see what a change introduced (and gate a PR on *new* findings only):
 

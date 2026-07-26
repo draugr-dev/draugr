@@ -32,7 +32,11 @@ Any editor running the YAML language server — VS Code (with the
 JetBrains IDEs, Neovim — picks it up on open. Paste that line at the top of an existing Saga to
 get the same.
 
-**Or map it once, for every Saga in the workspace.** In VS Code's `settings.json`:
+**Or map it once, for every Saga in the project.** This needs no modeline in the files, and none
+of it depends on SchemaStore.
+
+**VS Code** — commit `.vscode/settings.json` so the whole team gets it automatically (requires the
+[YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)):
 
 ```json
 {
@@ -42,12 +46,32 @@ get the same.
 }
 ```
 
-JetBrains: *Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings*, with
-the same URL and a `*.saga.yaml` file-path pattern.
+**JetBrains** (IntelliJ, GoLand, PyCharm) — *Settings → Languages & Frameworks → Schemas and DTDs
+→ JSON Schema Mappings*. Add a mapping with the URL above and file-path pattern `*.saga.yaml`.
+JetBrains also honours the `# yaml-language-server:` modeline, so either route works.
 
-> Registration on [SchemaStore](https://www.schemastore.org/) is in progress
-> ([#115](https://github.com/draugr-dev/draugr/issues/115)); once it lands, `*.saga.yaml` is
-> recognised automatically with neither a modeline nor a setting.
+**Neovim** — with `yamlls` via `nvim-lspconfig`:
+
+```lua
+require('lspconfig').yamlls.setup {
+  settings = {
+    yaml = {
+      schemas = {
+        ['https://draugr.dev/schema/draugr.saga.schema.json'] = '*.saga.{yaml,yml}',
+      },
+    },
+  },
+}
+```
+
+**Anything else** — any editor speaking the
+[YAML language server](https://github.com/redhat-developer/yaml-language-server) supports both the
+modeline and a schema mapping; point it at the same URL.
+
+> [SchemaStore](https://www.schemastore.org/) registration is
+> [submitted](https://github.com/SchemaStore/schemastore/pull/6134). Once merged, `*.saga.yaml` is
+> recognised with no modeline and no setting at all. Everything above works today regardless — and
+> keeps working if you'd rather not depend on a third-party catalog.
 
 ### Matching the schema to your Draugr version
 
