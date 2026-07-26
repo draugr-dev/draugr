@@ -8,7 +8,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -110,8 +113,41 @@ func (a *Adapter) Scan(ctx context.Context, target plugin.Target, cfg plugin.Con
 
 // execRun runs the command and returns its stdout.
 func execRun(ctx context.Context, argv []string) ([]byte, error) {
+	started := time.Now()
 	// Adapters intentionally run the configured tool; no shell (exec.CommandContext, not
 	// "sh -c") and argv is built from typed config, not user shell input.
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // adapters intentionally run configured tools // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	return cmd.Output()
+	out, err := cmd.Output()
+	logToolRun(ctx, argv, "", started, out, err)
+	return out, err
 }
+
+// logToolRun reports what Draugr actually ran. Without this a scan is a black box: you can see
+// that a scanner failed but not the command, the directory, how long it took, or what the tool
+// itself said. At trace the tool's own stderr is relayed, which is usually where the answer is.
+func logToolRun(ctx context.Context, argv []string, dir string, started time.Time, out []byte, err error) {
+	attrs := []any{
+		"tool", argv[0],
+		"argv", strings.Join(argv, " "),
+		"duration", time.Since(started).Round(time.Millisecond).String(),
+		"stdout_bytes", len(out),
+	}
+	if dir != "" {
+		attrs = append(attrs, "dir", dir)
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		attrs = append(attrs, "exit_code", exit.ExitCode())
+		// Output() puts the tool's stderr here; it explains failures far better than we can.
+		if len(exit.Stderr) > 0 {
+			slog.Log(ctx, levelTrace, "scanner stderr", "tool", argv[0], "stderr", string(exit.Stderr))
+		}
+	} else if err != nil {
+		attrs = append(attrs, "error", err.Error())
+	}
+	slog.DebugContext(ctx, "ran scanner tool", attrs...)
+}
+
+// levelTrace mirrors observability.LevelTrace without importing it, keeping this package free of
+// a dependency on the CLI's logging setup.
+const levelTrace = slog.LevelDebug - 4

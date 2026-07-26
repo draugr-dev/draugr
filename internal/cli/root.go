@@ -43,7 +43,7 @@ func newRootCommand() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVar(&opts.logLevel, "log-level", "info",
-		"log level: debug, info, warn, error")
+		"log level: trace, debug, info, warn, error (trace relays scanner output)")
 	cmd.PersistentFlags().StringVar(&opts.logFormat, "log-format", "console",
 		"log format: console (human-readable, colorized on a terminal), json, or text")
 
