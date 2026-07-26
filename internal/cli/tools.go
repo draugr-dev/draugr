@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/tools"
+
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 func newToolsCommand() *cobra.Command {
@@ -191,6 +191,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 	}
 	_, _ = fmt.Fprintln(w)
 
+	col := tui.For(w)
 	var failed int
 	for _, name := range names {
 		if name == "semgrep" {
@@ -199,15 +200,18 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 		}
 		res, err := install(name)
 		if err != nil {
-			_, _ = fmt.Fprintf(w, "✗ %s: %v\n", name, err)
+			_, _ = fmt.Fprintf(w, "%s %s: %v\n", col.Paint(tui.StyleFail, "✗"), name, err)
 			failed++
 			continue
 		}
 		if res.AlreadyPresent {
-			_, _ = fmt.Fprintf(w, "• %s %s already installed → %s\n", res.Name, res.Version, res.Path)
+			_, _ = fmt.Fprintf(w, "%s %s %s already installed → %s\n",
+				col.Paint(tui.StyleMuted, "•"), res.Name, res.Version,
+				col.Paint(tui.StyleMuted, res.Path))
 			continue
 		}
-		_, _ = fmt.Fprintf(w, "✓ %s %s → %s (%s)\n", res.Name, res.Version, res.Path, provenanceLabel(res))
+		_, _ = fmt.Fprintf(w, "%s %s %s → %s %s\n", col.Paint(tui.StylePass, "✓"), res.Name, res.Version,
+			res.Path, col.Paint(tui.StyleMuted, "("+provenanceLabel(res)+")"))
 	}
 
 	// Semgrep isn't a downloadable binary; when installing everything, surface how to get it.
@@ -237,8 +241,8 @@ func writeInstallPlan(w io.Writer, names []string, all bool) {
 		return "-"
 	}
 	_, _ = fmt.Fprintln(w, "Install plan:")
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(tw, "  TOOL\tVERSION\tCATEGORY\tVERIFY\tDESTINATION")
+	col := tui.For(w)
+	table := tui.NewTable(col, "Tool", "Version", "Category", "Verify", "Destination").Indent("  ")
 	showSemgrep := all
 	for _, name := range names {
 		if name == "semgrep" {
@@ -247,31 +251,30 @@ func writeInstallPlan(w io.Writer, names []string, all bool) {
 		}
 		spec, ok := tools.Spec(name)
 		if !ok {
-			_, _ = fmt.Fprintf(tw, "  %s\t-\t%s\t-\t(not installable)\n", name, category(name))
+			table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell("-"),
+				tui.PlainCell(category(name)), tui.PlainCell("-"),
+				tui.Styled(tui.StyleMuted, "(not installable)"))
 			continue
 		}
 		verify := "sha256"
 		if spec.Cosign != nil {
 			verify = "sha256 + cosign"
 		}
-		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\n", name, spec.Version, category(name), verify, filepath.Join(dir, spec.Binary))
+		table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(spec.Version),
+			tui.PlainCell(category(name)), tui.PlainCell(verify),
+			tui.Styled(tui.StyleMuted, filepath.Join(dir, spec.Binary)))
 	}
 	if showSemgrep {
-		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\n", "semgrep", tools.SemgrepVersion(), category("semgrep"), "pypi hash", "pipx (command printed)")
+		table.Row(tui.Styled(tui.StyleAccent, "semgrep"), tui.PlainCell(tools.SemgrepVersion()),
+			tui.PlainCell(category("semgrep")), tui.PlainCell("pypi hash"),
+			tui.Styled(tui.StyleMuted, "pipx (command printed)"))
 	}
-	_ = tw.Flush()
+	table.Render(w)
 }
 
 // isTTY reports whether r is an interactive terminal — used to decide whether to prompt
 // (interactive) or proceed automatically (CI/pipes). A var so tests can force it.
-var isTTY = func(r io.Reader) bool {
-	f, ok := r.(*os.File)
-	if !ok {
-		return false
-	}
-	fi, err := f.Stat()
-	return err == nil && fi.Mode()&os.ModeCharDevice != 0
-}
+var isTTY = func(r io.Reader) bool { return tui.IsTerminal(r) }
 
 func runToolsList(ctx context.Context, w io.Writer) error {
 	// Map each tool binary to the controls it backs (a binary like trivy serves several).
@@ -283,8 +286,8 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 		}
 	}
 
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(tw, "TOOL\tCATEGORY\tCONTROLS\tPINNED\tSOURCE\tSTATUS")
+	col := tui.For(w)
+	table := tui.NewTable(col, "Tool", "Category", "Controls", "Pinned", "Source", "Status")
 	for _, t := range tools.All() {
 		category := t.Category
 		if category == "" {
@@ -302,17 +305,25 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 			pinned, source = tools.SemgrepVersion(), "pipx"
 		}
 
-		status := "✗ not found"
+		status, statusStyle := "✗ not found", tui.StyleFail
 		if st := tools.Detect(ctx, t, nil, nil); st.Found {
 			version := st.Version
 			if version == "" {
 				version = "?"
 			}
-			status = fmt.Sprintf("✓ %s (%s)", version, st.Path)
+			status, statusStyle = fmt.Sprintf("✓ %s (%s)", version, st.Path), tui.StylePass
 		}
-		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", t.Binary, category, controls, pinned, source, status)
+		table.Row(
+			tui.Styled(tui.StyleAccent, t.Binary),
+			tui.PlainCell(category),
+			tui.PlainCell(controls),
+			tui.PlainCell(pinned),
+			tui.Styled(tui.StyleMuted, source),
+			tui.Styled(statusStyle, status),
+		)
 	}
-	return tw.Flush()
+	table.Render(w)
+	return nil
 }
 
 // appendUnique appends s to xs if not already present.

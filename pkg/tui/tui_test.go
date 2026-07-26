@@ -92,3 +92,27 @@ func TestIsTerminal(t *testing.T) {
 		t.Error("nil is not a terminal")
 	}
 }
+
+// For decides from the destination: a buffer is not a terminal, so nothing is coloured.
+func TestForPicksFromTheWriter(t *testing.T) {
+	if For(&bytes.Buffer{}).Enabled() {
+		t.Error("a buffer is not a terminal")
+	}
+	if got := For(&bytes.Buffer{}).Paint(StyleFail, "x"); got != "x" {
+		t.Errorf("Paint = %q, want plain", got)
+	}
+}
+
+// Append is Paint for callers building byte buffers; the two must agree exactly, or the log
+// and the report drift apart again.
+func TestAppendMatchesPaint(t *testing.T) {
+	for _, p := range []Painter{Plain(), Colored()} {
+		for _, style := range []Style{StyleNone, StyleFail, StyleMuted} {
+			want := p.Paint(style, "hello")
+			got := string(p.Append([]byte("pre:"), style, "hello"))
+			if got != "pre:"+want {
+				t.Errorf("color=%v style=%q: Append = %q, want %q", p.Enabled(), style, got, "pre:"+want)
+			}
+		}
+	}
+}

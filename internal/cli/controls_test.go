@@ -16,7 +16,7 @@ func TestRunControls(t *testing.T) {
 	s := out.String()
 	// Header + a few known controls with their default scanners.
 	for _, want := range []string{
-		"CONTROL", "SCANNERS", "PURPOSE",
+		"Control", "Scanners", "Purpose",
 		"images", "trivy",
 		"secrets", "gitleaks",
 		"sast", "semgrep",

@@ -23,6 +23,11 @@ and move it under a version on release.
 
 ### Changed
 
+- **Every command's output now looks like it came from the same tool.** `doctor`, `tools`,
+  `controls` and `diff` share the scan report's palette and table layout: consistent Title Case
+  headers, green for pass, red for fail, dimmed supporting detail, and columns that line up
+  whether or not colour is on. Colour is still emitted only for an interactive terminal with
+  `NO_COLOR` unset, and that decision is now made in exactly one place instead of three.
 - **Rule ids in the "Fix first" table link to their documentation, and no longer wreck the
   table.** The id now links to wherever the scanner documents the rule — every scanner, not
   just `CVE-`/`GHSA-` ids — and long namespaced ids (Semgrep's run past a hundred characters,
