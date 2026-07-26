@@ -110,3 +110,8 @@ Not scanners, but tools Draugr provisions/uses:
 |------|---------|:------:|
 | `cosign` | verify release/tool signatures (Sigstore) | `draugr tools install cosign` |
 | `git` | check out repositories for repo-scanning controls | system |
+
+---
+
+**New to a category?** [Learn](/learn/) explains what each control is for and when it matters,
+independent of Draugr's implementation of it.
