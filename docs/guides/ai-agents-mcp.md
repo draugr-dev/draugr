@@ -43,21 +43,34 @@ looks like it has hung — it's waiting for a client.
 | `get_saga_schema` | The descriptor schema **this build** enforces — for writing a Saga correctly |
 | `validate_saga` | Whether a descriptor is valid, by path or by content, and why not |
 | `summarize_report` | An existing `results.sarif`, ranked by priority with a doc link per rule |
-| `scan` | A fresh scan and its verdict — **only with `--allow-scan`** |
+| `scan` | A fresh scan and its verdict — **only with `--scan=ask` or `--scan=always`** |
 
-## Scanning is off by default
+## Draugr also offers your Saga as a resource
+
+Every `*.saga.yaml` Draugr finds nearby is exposed as an MCP resource, so the assistant can read
+the descriptor without being told where it is — and so it reads the *committed* scope rather than
+inventing one. Discovery is bounded to three directories deep and skips `node_modules`, `vendor`
+and the like; it happens at startup, so a descriptor you create afterwards needs a restart.
+
+## Scanning: off, ask, or always
 
 A scan clones repositories, executes external scanners and reaches the network. That's not
-something an assistant should set off because it was curious, so the scan tool is registered
-only when you ask for it:
+something an assistant should set off because it was curious, so you choose the terms:
 
 ```bash
-draugr mcp --allow-scan
+draugr mcp                 # --scan=off (default): the tool isn't offered at all
+draugr mcp --scan=ask      # offered, and you approve each call
+draugr mcp --scan=always   # offered, and runs without asking
 ```
 
-Everything else is read-only and safe to call freely. A good default is to leave scanning off
-and let the assistant read reports your pipeline already produced — `summarize_report` answers
-"what should I fix first?" from a scan that already happened, at no cost.
+**`--scan=ask` is the one to want** — you approve the scan in front of you, rather than every
+scan for the session. It needs a client that implements MCP *elicitation*, and many don't yet.
+If yours can't prompt, the scan is refused with a message saying so; it never silently runs
+anyway. Use `--scan=always` for a sandbox or CI, where there's nobody to ask.
+
+Everything else is read-only and safe to call freely. Leaving scanning off is a good default:
+`summarize_report` answers "what should I fix first?" from a scan your pipeline already ran, at
+no cost.
 
 ## Why route through Draugr at all
 

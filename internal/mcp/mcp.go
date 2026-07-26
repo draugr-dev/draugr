@@ -20,6 +20,8 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -27,14 +29,46 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 )
 
+// ScanMode says whether, and on what terms, a client may start a scan.
+type ScanMode string
+
+// The scan modes. A scan clones repositories, executes external tools and reaches the network,
+// so the question isn't only "may it" but "who agrees to it, and when".
+const (
+	// ScanOff doesn't register the tool at all. The default: an assistant can't set off work
+	// like that because it was curious, and the read-only tools are where the value starts.
+	ScanOff ScanMode = "off"
+	// ScanAsk registers it and asks the user to approve each call, through the client. This is
+	// the mode to want — permission granted for the scan in front of you rather than for every
+	// scan this session — but it needs a client that implements elicitation, and many don't.
+	ScanAsk ScanMode = "ask"
+	// ScanAlways registers it and runs without asking. Right for a sandbox or CI, where there's
+	// nobody to ask.
+	ScanAlways ScanMode = "always"
+)
+
+// ParseScanMode validates a mode name.
+func ParseScanMode(s string) (ScanMode, error) {
+	switch ScanMode(s) {
+	case "", ScanOff:
+		return ScanOff, nil
+	case ScanAsk:
+		return ScanAsk, nil
+	case ScanAlways:
+		return ScanAlways, nil
+	}
+	return "", fmt.Errorf("unknown scan mode %q (want off, ask, or always)", s)
+}
+
 // Options configures the server's exposed surface.
 type Options struct {
-	// AllowScan registers the scan tool. Off by default: a scan clones repositories, runs
-	// external tools and reaches the network, which is not something an agent should be able
-	// to set off because it was curious.
-	AllowScan bool
+	// Scan says whether a client may start scans. The zero value is ScanOff.
+	Scan ScanMode
 	// Registry supplies the controllers and scanners. Required.
 	Registry *engine.Registry
+	// Root is the directory searched for Saga descriptors to expose as resources. Empty means
+	// the working directory.
+	Root string
 }
 
 // serverName is how Draugr identifies itself to a client.
@@ -46,12 +80,34 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	if opts.Registry == nil {
 		return nil, fmt.Errorf("mcp: registry is required")
 	}
+	// Normalize before anything reads it. The zero value has to mean off, or a caller that
+	// builds Options without naming a mode silently gets scanning — the one default that must
+	// never happen by accident.
+	mode, err := ParseScanMode(string(opts.Scan))
+	if err != nil {
+		return nil, err
+	}
+	opts.Scan = mode
 	s := mcp.NewServer(&mcp.Implementation{
 		Name:    serverName,
 		Version: version.Version,
 	}, &mcp.ServerOptions{
-		Instructions: instructions(opts.AllowScan),
+		Instructions: instructions(opts.Scan),
 	})
+
+	root := opts.Root
+	if root == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("mcp: resolve working directory: %w", err)
+		}
+		root = wd
+	}
+	// Descriptor discovery is best-effort. A server that refuses to start because one directory
+	// was unreadable is worse than one that advertises fewer resources.
+	if err := addSagaResources(s, root); err != nil {
+		slog.Warn("mcp: could not scan for Saga descriptors", "root", root, "error", err)
+	}
 
 	reg := opts.Registry
 
@@ -90,21 +146,22 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"scan that already happened rather than starting a new one.",
 	}, SummarizeReportTool)
 
-	if opts.AllowScan {
-		mcp.AddTool(s, &mcp.Tool{
-			Name: "scan",
-			Description: "Run a scan for a Saga descriptor and return the verdict with findings " +
-				"ranked by priority. This is expensive and has side effects: it clones " +
-				"repositories, executes external scanners and reaches the network. Prefer " +
-				"summarize_report when a recent report already exists.",
-		}, scanTool(reg))
+	if opts.Scan != ScanOff {
+		desc := "Run a scan for a Saga descriptor and return the verdict with findings " +
+			"ranked by priority. This is expensive and has side effects: it clones " +
+			"repositories, executes external scanners and reaches the network. Prefer " +
+			"summarize_report when a recent report already exists."
+		if opts.Scan == ScanAsk {
+			desc += " Each call asks the user to approve it first."
+		}
+		mcp.AddTool(s, &mcp.Tool{Name: "scan", Description: desc}, scanTool(reg, opts.Scan))
 	}
 	return s, nil
 }
 
 // instructions tells a client what this server is for. Clients surface it to the model, so it's
 // worth saying what Draugr adds over the model running scanners itself.
-func instructions(allowScan bool) string {
+func instructions(mode ScanMode) string {
 	s := "Draugr answers security questions about a codebase from its Saga descriptor — a " +
 		"committed, reviewed declaration of what the application is and which controls apply.\n\n" +
 		"Prefer these tools over running scanners yourself. Draugr's findings are deduplicated " +
@@ -115,10 +172,16 @@ func instructions(allowScan bool) string {
 		"The Saga is the scope. If a descriptor exists, trust it over your own guess at what " +
 		"should be scanned; if one doesn't, get_saga_schema and list_controls are what you need " +
 		"to write one."
-	if !allowScan {
+	switch mode {
+	case ScanOff:
 		s += "\n\nScanning is not enabled on this server, so these tools only read. To run a " +
-			"scan, the user must start Draugr with `draugr mcp --allow-scan`, or run " +
+			"scan, the user must restart Draugr with `draugr mcp --scan=ask`, or run " +
 			"`draugr scan` themselves."
+	case ScanAsk:
+		s += "\n\nThe scan tool asks the user to approve each call, because a scan clones " +
+			"repositories and runs external tools. Expect a pause, and don't call it " +
+			"speculatively."
+	case ScanAlways:
 	}
 	return s
 }

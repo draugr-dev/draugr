@@ -11,7 +11,7 @@ import (
 )
 
 func newMCPCommand() *cobra.Command {
-	var allowScan bool
+	var scanMode string
 
 	cmd := &cobra.Command{
 		Use:   "mcp",
@@ -23,7 +23,12 @@ func newMCPCommand() *cobra.Command {
 			"no relationship to the one your pipeline will give. Pointing it at Draugr makes them the\n" +
 			"same answer — same descriptor, same controls, same priorities.\n\n" +
 			"The tools are read-only by default. Scanning clones repositories, runs external tools\n" +
-			"and reaches the network, so it is exposed only with --allow-scan.\n\n" +
+			"and reaches the network, so it is offered only when you say so:\n\n" +
+			"  --scan=off      not offered at all (default)\n" +
+			"  --scan=ask      offered, and you approve each call — needs a client that can prompt\n" +
+			"  --scan=always   offered, and runs without asking\n\n" +
+			"Draugr also exposes every *.saga.yaml it finds nearby as a resource, so an assistant\n" +
+			"can read the descriptor without being told where it is.\n\n" +
 			"Register it with your assistant (most clients use this shape):\n\n" +
 			"  {\n" +
 			"    \"mcpServers\": {\n" +
@@ -35,9 +40,13 @@ func newMCPCommand() *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			mode, err := draugrmcp.ParseScanMode(scanMode)
+			if err != nil {
+				return err
+			}
 			srv, err := draugrmcp.NewServer(draugrmcp.Options{
-				AllowScan: allowScan,
-				Registry:  builtins.Registry(),
+				Scan:     mode,
+				Registry: builtins.Registry(),
 			})
 			if err != nil {
 				return err
@@ -48,7 +57,7 @@ func newMCPCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&allowScan, "allow-scan", false,
-		"expose the scan tool, letting the assistant start scans (clones repos, runs scanners, uses the network)")
+	cmd.Flags().StringVar(&scanMode, "scan", "off",
+		"whether the assistant may start scans: off (not offered), ask (approve each one), always (no prompt)")
 	return cmd
 }

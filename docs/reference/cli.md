@@ -382,8 +382,12 @@ Serve Draugr to AI coding assistants over the
 
 ```bash
 draugr mcp                 # read-only tools
-draugr mcp --allow-scan    # additionally expose the scan tool
+draugr mcp --scan=ask      # additionally expose scan, approving each call
+draugr mcp --scan=always   # additionally expose scan, without prompting
 ```
+
+Every `*.saga.yaml` found within three directories of the working directory is also exposed as
+an MCP **resource**, so a client can read the descriptor without a tool call.
 
 | Tool | Purpose |
 |---|---|
@@ -391,11 +395,11 @@ draugr mcp --allow-scan    # additionally expose the scan tool
 | `get_saga_schema` | The Saga schema this build enforces |
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
 | `summarize_report` | Rank an existing `results.sarif` by priority |
-| `scan` | Run a scan and return the verdict (requires `--allow-scan`) |
+| `scan` | Run a scan and return the verdict (requires `--scan=ask` or `--scan=always`) |
 
 | Flag | Default | Description |
 |---|---|---|
-| `--allow-scan` | `false` | Expose the scan tool. A scan clones repositories, runs external scanners and uses the network, so an assistant can't start one unless you allow it. |
+| `--scan` | `off` | Whether the assistant may start scans. `off` doesn't offer the tool; `ask` offers it and prompts for your approval on every call (needs a client supporting MCP elicitation — the scan is refused, not silently run, if it can't prompt); `always` offers it with no prompt, for sandboxes and CI. |
 
 The server speaks MCP, not text — run by hand in a terminal it will look like it has hung,
 because it's waiting for a client. See
