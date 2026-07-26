@@ -10,11 +10,22 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.32.0] - 2026-07-25
+
 ### Added
 
 - **`draugr version --json`.** The same build metadata as a JSON object, so scripts and CI can
   read a field instead of regexing the prose line:
   `draugr version --json | jq -r .version`.
+
+### Changed
+
+- **Installing is simpler.** The install guide now leads with a four-line `curl` recipe that
+  needs nothing but curl and resolves the latest release itself — previously it led with
+  `gh release download`, which meant installing the GitHub CLI first. `gh` remains documented
+  for those who have it.
 
 ## [0.31.1] - 2026-07-25
 
@@ -592,7 +603,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.31.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.32.0
 [0.31.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.31.1
 [0.31.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.31.0
 [0.30.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.30.0
