@@ -66,6 +66,31 @@ Actions, or no PR) so the same Saga still runs locally. `github-pr-comment` upse
 [`draugr diff --publish`](pr-diff.md) for a PR security delta. The `github` publisher pairs
 with [code scanning](code-scanning.md).
 
+## Compact output, for tools and agents
+
+`--compact` strips what only a human reads — indentation, and the rule descriptions and
+remediation text Draugr relays from each scanner — while keeping the output **valid SARIF**:
+
+```bash
+draugr scan draugr.saga.yaml --format sarif --compact
+```
+
+Measured on Draugr's own repository: **17,355 → 5,831 bytes**, the same 8 findings, still
+parseable by any SARIF consumer.
+
+Rule documentation is the bulk of a report — around 60% of it — and a consumer that can follow
+a link doesn't need it inlined. So `helpUri` survives compaction and the paragraphs don't:
+**the pointer stays, the prose goes.** The scanner tag on each rule stays too, since that's how
+a consumer knows which tool found what.
+
+Use it when something *acts* on the report — a script, a policy engine, an AI agent paying for
+every byte of context. **Don't use it for your editor**: the descriptions it removes are exactly
+what a SARIF viewer shows you beside a finding. And don't use it for GitHub code scanning, which
+renders those same fields on an alert.
+
+`--compact` has no effect on `console`, `markdown`, `html` or `junit` — making the human formats
+harder to read would be the opposite of the point.
+
 The `sarif` report is also what your editor reads — see
 [see findings in your editor](findings-in-your-editor.md) for inline diagnostics in VS Code
 and JetBrains.

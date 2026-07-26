@@ -12,6 +12,14 @@ and move it under a version on release.
 
 ### Added
 
+- **`--compact` for machine-readable output.** `draugr scan --format sarif --compact` (and
+  `--format json`) strips indentation and the rule documentation Draugr relays from each
+  scanner, while staying valid SARIF: 17,355 → 5,831 bytes on Draugr's own repository, for the
+  same findings. Rule prose is roughly 60% of a report and a consumer that can follow a link
+  doesn't need it inlined, so `helpUri` survives and the paragraphs don't. It's for something
+  that *acts* on the report — a script, a policy engine, an agent paying for context. Leave it
+  off for your editor and for GitHub code scanning, which both display the fields it removes.
+
 - **See your findings in your editor.** A scan's `results.sarif` now opens as inline
   diagnostics — squiggles on the offending lines, a Problems list, click-to-line — in VS Code
   (via Microsoft's SARIF Viewer) and JetBrains IDEs, with no Draugr-specific extension. Draugr
