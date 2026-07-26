@@ -13,8 +13,8 @@ Output contrib/demo/scan.gif
 
 Set Shell bash
 Set FontSize 18
-Set Width 1200
-Set Height 720
+Set Width 1600
+Set Height 820
 Set Theme "Dracula"
 Set Padding 20
 
@@ -23,5 +23,5 @@ Hide
 Type "cd demo" Enter
 Show
 Type "draugr scan ." Sleep 600ms Enter
-Sleep 8s   # let the scan run and the verdict print (the sandbox is small)
+Sleep 10s  # let the scan run and the verdict print (the sandbox is small)
 Sleep 5s   # hold on the final verdict so it's readable before the GIF loops
