@@ -10,7 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **An install script that verifies before it installs.**
+
+  ```bash
+  curl -fsSL https://draugr.dev/install.sh | sh
+  ```
+
+  It detects your OS and architecture, installs to `~/.local/bin` without `sudo`, and tells you
+  if that isn't on your `PATH`. It always checks the archive's SHA-256 against the release's
+  `checksums.txt`, and when cosign is available it verifies that `checksums.txt` was signed by
+  Draugr's release workflow — then says which of the two checks actually ran, rather than
+  implying more than it did. Nothing is installed if a check fails. `DRAUGR_VERSION` pins a
+  release, `DRAUGR_INSTALL_DIR` changes where it lands, and `DRAUGR_REQUIRE_SIGNATURE=1` refuses
+  to install without a verified signature — worth setting in CI.
 
 ## [0.36.1] - 2026-07-26
 

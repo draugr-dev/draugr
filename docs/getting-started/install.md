@@ -11,10 +11,44 @@ Draugr is a single binary that orchestrates external scanners. **Install Draugr 
 then let it fetch the scanners its controls need — see [Scanners](#scanners--the-tools-draugr-runs).
 Once you're set up, head to the [quickstart](quickstart.md) for your first scan.
 
-## From a release (recommended)
+## Install script (recommended)
 
-`curl` is everywhere, so this is the shortest path from nothing to a working `draugr`. It grabs
-the **latest** release — no version to look up or keep updated:
+One line, latest release, Linux and macOS:
+
+```bash
+curl -fsSL https://draugr.dev/install.sh | sh
+```
+
+It detects your OS and architecture, installs to `~/.local/bin`, and tells you if that isn't on
+your `PATH`.
+
+**It verifies before it installs, and says which checks ran.** The archive's SHA-256 is always
+checked against the release's `checksums.txt`. If [cosign](https://docs.sigstore.dev/cosign/) is
+on your `PATH`, it also verifies that `checksums.txt` was signed by Draugr's release workflow —
+which is the check that carries weight, because a host able to serve you a bad archive could
+serve a matching checksums file too. Nothing is installed if a check fails.
+
+Piping a script into a shell means trusting the host that served it. If you'd rather not, the
+script is [readable in the repo](https://github.com/draugr-dev/draugr/blob/main/install.sh) and
+the [manual steps](#from-a-release-by-hand) below do the same work.
+
+Three knobs, all optional:
+
+```bash
+DRAUGR_VERSION=vX.Y.Z          # pin a release instead of tracking the latest
+DRAUGR_INSTALL_DIR=~/bin       # install somewhere other than ~/.local/bin
+DRAUGR_REQUIRE_SIGNATURE=1     # refuse to install unless the signature verifies
+```
+
+Pick a version to pin from the [releases page](https://github.com/draugr-dev/draugr/releases).
+In CI, pin — and set `DRAUGR_REQUIRE_SIGNATURE=1`, since a build runner should not be installing
+anything it can't prove the origin of.
+
+Already have a draugr binary? Update it in place with `draugr self-update`.
+
+## From a release, by hand
+
+The same thing without the script. Grabs the **latest** release — no version to look up:
 
 ```bash
 tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
@@ -27,10 +61,12 @@ draugr version
 
 Swap `linux_amd64` for `darwin_arm64`, `darwin_amd64`, `linux_arm64`, or `windows_amd64`.
 
-To **pin** a release instead of tracking the latest, set `tag=vX.Y.Z` yourself (pick one from the
+To **pin** a release, set `tag=vX.Y.Z` yourself (pick one from the
 [releases page](https://github.com/draugr-dev/draugr/releases)) and drop the first command.
 
-Already have a draugr binary? Update it in place with `draugr self-update`.
+This path doesn't verify anything on its own — see
+[verifying releases](../trust-and-operations/verifying-releases.md) for the checksum and
+signature steps.
 
 ## From a release — GitHub CLI
 
