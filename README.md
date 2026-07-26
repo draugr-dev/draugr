@@ -93,9 +93,10 @@ More controls (SBOM, infrastructure, threat intelligence) are on the roadmap. Se
 **Install from a release (recommended):**
 
 ```bash
-gh release download --repo draugr-dev/draugr \
-  -p "draugr_*_$(uname -s | tr A-Z a-z)_amd64.tar.gz"   # omit a tag = latest
-tar -xzf draugr_*_amd64.tar.gz draugr
+tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+  https://github.com/draugr-dev/draugr/releases/latest | sed 's#.*/tag/##')
+curl -fsSL "https://github.com/draugr-dev/draugr/releases/download/${tag}/draugr_${tag#v}_$(uname -s | tr A-Z a-z)_amd64.tar.gz" \
+  | tar -xz draugr
 sudo mv draugr /usr/local/bin/ && draugr version
 ```
 

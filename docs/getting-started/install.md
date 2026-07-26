@@ -13,19 +13,36 @@ Once you're set up, head to the [quickstart](quickstart.md) for your first scan.
 
 ## From a release (recommended)
 
-The repo is public, so plain `curl` works; the GitHub CLI (`gh`) works too. Omit the tag to
-get the **latest** release, or pass a `vX.Y.Z` to pin:
+`curl` is everywhere, so this is the shortest path from nothing to a working `draugr`. It grabs
+the **latest** release — no version to look up or keep updated:
 
 ```bash
-gh release download --repo draugr-dev/draugr -p 'draugr_*_linux_amd64.tar.gz'
-tar -xzf draugr_*_linux_amd64.tar.gz draugr
+tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+  https://github.com/draugr-dev/draugr/releases/latest | sed 's#.*/tag/##')
+curl -fsSL "https://github.com/draugr-dev/draugr/releases/download/${tag}/draugr_${tag#v}_linux_amd64.tar.gz" \
+  | tar -xz draugr
 sudo mv draugr /usr/local/bin/       # or anywhere on your PATH
 draugr version
 ```
 
+Swap `linux_amd64` for `darwin_arm64`, `darwin_amd64`, `linux_arm64`, or `windows_amd64`.
+
+To **pin** a release instead of tracking the latest, set `tag=vX.Y.Z` yourself (pick one from the
+[releases page](https://github.com/draugr-dev/draugr/releases)) and drop the first command.
+
 Already have a draugr binary? Update it in place with `draugr self-update`.
 
-Swap `linux_amd64` for `darwin_arm64`, `darwin_amd64`, `linux_arm64`, or `windows_amd64`.
+## From a release — GitHub CLI
+
+If you already have [`gh`](https://cli.github.com), it handles the download and the platform
+suffix for you. Omit the tag to get the latest release, or pass a `vX.Y.Z` to pin:
+
+```bash
+gh release download --repo draugr-dev/draugr -p 'draugr_*_linux_amd64.tar.gz'
+tar -xzf draugr_*_linux_amd64.tar.gz draugr
+sudo mv draugr /usr/local/bin/
+draugr version
+```
 
 **Verify the download (recommended).** Releases ship a cosign-signed `checksums.txt` and
 per-archive SBOMs:
@@ -45,26 +62,6 @@ sha256sum --ignore-missing -c checksums.txt
 
 For the full verification story (cosign, SLSA provenance, SBOMs) see
 [verifying releases](../trust-and-operations/verifying-releases.md).
-
-## From a release — curl
-
-Plain `curl` works (public repo). This grabs the **latest** release — nothing to pin or update:
-
-```bash
-# resolve the latest release tag, then download its Linux amd64 archive
-tag=$(curl -fsSL https://api.github.com/repos/draugr-dev/draugr/releases/latest \
-  | grep -oE '"tag_name": *"[^"]+"' | cut -d'"' -f4)
-base="https://github.com/draugr-dev/draugr/releases/download/${tag}"
-curl -fsSL -o draugr.tar.gz "${base}/draugr_${tag#v}_linux_amd64.tar.gz"
-tar -xzf draugr.tar.gz draugr
-sudo mv draugr /usr/local/bin/
-draugr version
-```
-
-To **pin** a specific release instead, set `tag=vX.Y.Z` (from the
-[releases page](https://github.com/draugr-dev/draugr/releases)) and skip the lookup.
-
-(`-f` makes `curl` fail loudly on an HTTP error instead of silently saving the error page.)
 
 ## From source
 
