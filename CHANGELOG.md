@@ -10,7 +10,11 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr version --json`.** The same build metadata as a JSON object, so scripts and CI can
+  read a field instead of regexing the prose line:
+  `draugr version --json | jq -r .version`.
 
 ## [0.31.1] - 2026-07-25
 

@@ -341,6 +341,17 @@ For CI, **pin a released version** rather than self-updating.
 
 Print the version, commit, build date, and Go version.
 
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--json` | `false` | Emit the same fields as JSON, for scripts and CI |
+
+```bash
+draugr version            # draugr 0.31.1 (commit 30862ef, built …, go1.26.5)
+draugr version --json     # {"version":"0.31.1","commit":"30862ef","built":"…","go":"go1.26.5"}
+```
+
+Output goes to stdout in both forms, so `v=$(draugr version --json | jq -r .version)` works.
+
 ## `draugr completion <shell>`
 
 Generate a shell completion script (bash, zsh, fish, powershell).
