@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"os"
 	"strings"
 	"testing"
 
@@ -99,22 +98,15 @@ func TestConsoleSeverityBandsNoColorOnBuffer(t *testing.T) {
 	}
 }
 
-func TestColorizer(t *testing.T) {
-	off := colorizer{on: false}
-	if got := off.paint(cCritical, "x"); got != "x" {
-		t.Errorf("disabled colorizer changed text: %q", got)
+// Colour behaviour now lives in pkg/tui and is tested there; this only asserts the report uses
+// it — a non-TTY writer must never receive escape codes.
+func TestConsoleUsesSharedPalette(t *testing.T) {
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, sampleData()); err != nil {
+		t.Fatal(err)
 	}
-	on := colorizer{on: true}
-	if got := on.paint(cCritical, "x"); got != "\x1b[1;31mx\x1b[0m" {
-		t.Errorf("enabled colorizer = %q", got)
-	}
-	if got := on.paint("", "x"); got != "x" {
-		t.Errorf("empty code should not wrap: %q", got)
-	}
-	// NO_COLOR disables even for a would-be terminal path.
-	t.Setenv("NO_COLOR", "1")
-	if newColorizer(os.Stdout).on {
-		t.Error("NO_COLOR must disable color")
+	if strings.Contains(b.String(), "\x1b[") {
+		t.Errorf("a buffer is not a terminal; no colour expected:\n%q", b.String())
 	}
 }
 
@@ -380,6 +372,64 @@ func TestAtOrAbove(t *testing.T) {
 	for _, c := range cases {
 		if got := atOrAbove(c.got, c.want); got != c.expect {
 			t.Errorf("atOrAbove(%q,%q) = %v, want %v", c.got, c.want, got, c.expect)
+		}
+	}
+}
+
+// A rule id names a finding without explaining it — "DS-0002" is meaningless to the reader we
+// care about most. The message belongs in the table.
+func TestConsoleShowsTheFindingMessage(t *testing.T) {
+	d := Data{
+		Release: saga.Release{Name: "app"},
+		Run: engine.Result{Controls: map[string]plugin.ControlResult{"iac": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "DS-0002", Level: sarif.LevelError, Priority: "P1", Tool: "trivy-config",
+				Message: "Default Seccomp profile not set — the container runs unconfined"},
+		}}}}},
+		Verdict: norn.Result{Verdict: norn.Fail},
+	}
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if !strings.Contains(out, "Default Seccomp profile not set") {
+		t.Errorf("the finding's message should appear under its row:\n%s", out)
+	}
+	// The id is still there — it's what you search upstream with.
+	if !strings.Contains(out, "DS-0002") {
+		t.Errorf("the rule id should still be shown:\n%s", out)
+	}
+}
+
+func TestFindingSummary(t *testing.T) {
+	if got := findingSummary("  a\nb   c  "); got != "a b c" {
+		t.Errorf("newlines and runs of spaces should collapse, got %q", got)
+	}
+	if got := findingSummary(""); got != "" {
+		t.Errorf("an empty message should render nothing, got %q", got)
+	}
+	long := strings.Repeat("x", messageWidth+40)
+	got := findingSummary(long)
+	if len([]rune(got)) > messageWidth {
+		t.Errorf("summary should stay within %d chars, got %d", messageWidth, len([]rune(got)))
+	}
+	if !strings.HasSuffix(got, "…") {
+		t.Errorf("a truncated summary should say so: %q", got)
+	}
+}
+
+// A wrong link is worse than none, so only identifiers with a stable public home are linked.
+func TestRuleURL(t *testing.T) {
+	cases := map[string]string{
+		"CVE-2021-36159":       "https://nvd.nist.gov/vuln/detail/CVE-2021-36159",
+		"GHSA-abcd-1234-wxyz":  "https://github.com/advisories/GHSA-abcd-1234-wxyz",
+		"DS-0002":              "",
+		"python.lang.security": "",
+		"":                     "",
+	}
+	for id, want := range cases {
+		if got := ruleURL(id); got != want {
+			t.Errorf("ruleURL(%q) = %q, want %q", id, got, want)
 		}
 	}
 }

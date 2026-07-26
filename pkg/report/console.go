@@ -3,11 +3,11 @@ package report
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // consoleReporter renders a human-readable terminal summary: verdict, priority counts,
@@ -33,41 +33,42 @@ func consoleFixFirstLimit(topN int) int {
 	}
 }
 
-// ANSI SGR codes for the report's vocabulary.
+// The report's vocabulary maps onto the shared palette, so a "critical" here looks like a
+// "critical" everywhere else Draugr writes.
 const (
-	cFail     = "1;31" // bold red
-	cPass     = "32"   // green
-	cCritical = "1;31"
-	cHigh     = "31"
-	cMedium   = "33"
-	cLow      = "2" // dim
-	cDim      = "2"
+	cFail     = tui.StyleFail
+	cPass     = tui.StylePass
+	cCritical = tui.StyleCritical
+	cHigh     = tui.StyleHigh
+	cMedium   = tui.StyleMedium
+	cLow      = tui.StyleLow
+	cDim      = tui.StyleMuted
 )
 
 func (consoleReporter) Render(w io.Writer, d Data) error {
 	s := summarize(d)
-	col := newColorizer(w)
+	col := tui.For(w)
 
 	verdict, vcol := "PASS", cPass
 	if s.verdict == norn.Fail {
 		verdict, vcol = "FAIL", cFail
 	}
-	_, _ = fmt.Fprintf(w, "Draugr — %s", col.paint(vcol, verdict))
+	_, _ = fmt.Fprintf(w, "Draugr — %s", col.Paint(vcol, verdict))
 	if d.Release.Name != "" {
 		rel := d.Release.Name
 		if d.Release.Version != "" {
 			rel += " " + d.Release.Version
 		}
-		_, _ = fmt.Fprintf(w, "   %s", col.paint(cDim, "("+rel+")"))
+		_, _ = fmt.Fprintf(w, "   %s", col.Paint(cDim, "("+rel+")"))
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
 
 	if s.prioritized {
 		_, _ = fmt.Fprintf(w, "Priorities:  %s   %s   %s   %s\n\n",
-			col.paint(priorityColor("P1"), fmt.Sprintf("P1 %d", s.p1)),
-			col.paint(priorityColor("P2"), fmt.Sprintf("P2 %d", s.p2)),
+			col.Paint(priorityColor("P1"), fmt.Sprintf("P1 %d", s.p1)),
+			col.Paint(priorityColor("P2"), fmt.Sprintf("P2 %d", s.p2)),
 			fmt.Sprintf("P3 %d", s.p3),
-			col.paint(cDim, fmt.Sprintf("P4 %d", s.p4)))
+			col.Paint(cDim, fmt.Sprintf("P4 %d", s.p4)))
 	}
 
 	if len(d.Verdict.Controls) > 0 {
@@ -85,14 +86,14 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			}
 			_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 				fmt.Sprintf("%-*s", width, c.Control),
-				col.paint(vc, fmt.Sprintf("%-4s", v)),
+				col.Paint(vc, fmt.Sprintf("%-4s", v)),
 				bandsText(col, s.bands[c.Control]))
 		}
 		_, _ = fmt.Fprintln(w)
 	}
 
 	if len(s.findings) == 0 {
-		_, _ = fmt.Fprintln(w, col.paint(cPass, "No findings. ✓"))
+		_, _ = fmt.Fprintln(w, col.Paint(cPass, "No findings. ✓"))
 		return nil
 	}
 
@@ -118,7 +119,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	} else {
 		_, _ = fmt.Fprint(w, "\n")
 	}
-	_, _ = fmt.Fprintln(w, col.paint(cDim,
+	_, _ = fmt.Fprintln(w, col.Paint(cDim,
 		"Use --format json for the full report, or -o <dir> for report.json + results.sarif."))
 	return nil
 }
@@ -130,7 +131,7 @@ var fixFirstHeader = []string{"Priority", "Severity", "Score", "Rule", "Control"
 
 // renderFixFirst prints the ranked findings as an aligned, colorized table with a header row.
 // Columns are padded from the plain text so ANSI color codes don't skew the alignment.
-func renderFixFirst(w io.Writer, col colorizer, fs []finding) {
+func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 	// rows[0] is the header; the rest are findings, each
 	// [priority, severity, score, rule, control, scanner, location].
 	rows := make([][]string, 0, len(fs)+1)
@@ -159,41 +160,78 @@ func renderFixFirst(w io.Writer, col colorizer, fs []finding) {
 
 	h := rows[0]
 	_, _ = fmt.Fprintf(w, "  %s  %s  %s  %s  %s  %s  %s\n",
-		col.paint(cDim, pad(h, 0)), col.paint(cDim, pad(h, 1)), col.paint(cDim, pad(h, 2)),
-		col.paint(cDim, pad(h, 3)), col.paint(cDim, pad(h, 4)), col.paint(cDim, pad(h, 5)),
-		col.paint(cDim, pad(h, 6)))
+		col.Paint(cDim, pad(h, 0)), col.Paint(cDim, pad(h, 1)), col.Paint(cDim, pad(h, 2)),
+		col.Paint(cDim, pad(h, 3)), col.Paint(cDim, pad(h, 4)), col.Paint(cDim, pad(h, 5)),
+		col.Paint(cDim, pad(h, 6)))
 
 	for i, f := range fs {
 		r := rows[i+1]
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s  %s  %s  %s  %s\n",
-			col.paint(priorityColor(f.priority), pad(r, 0)),
-			col.paint(severityColor(f.severity), pad(r, 1)),
-			pad(r, 2), pad(r, 3), pad(r, 4), pad(r, 5), pad(r, 6))
+			col.Paint(priorityColor(f.priority), pad(r, 0)),
+			col.Paint(severityColor(f.severity), pad(r, 1)),
+			pad(r, 2), col.Link(ruleURL(f.ruleID), pad(r, 3)), pad(r, 4), pad(r, 5), pad(r, 6))
+		// A rule id names a finding; it doesn't explain it. "DS-0002" is meaningless to anyone
+		// who doesn't already know the scanner, which is exactly the reader we care about — so
+		// the finding's own message goes underneath, dimmed so it reads as support, not noise.
+		if msg := findingSummary(f.message); msg != "" {
+			_, _ = fmt.Fprintf(w, "  %s%s\n", strings.Repeat(" ", widths[0]+2), col.Paint(cDim, msg))
+		}
+	}
+}
+
+// messageWidth keeps the explanation to one line. Wrapping it would compete with the table for
+// the eye; a reader who needs the whole text has --format json.
+const messageWidth = 96
+
+// findingSummary condenses a finding's message to a single readable line.
+func findingSummary(msg string) string {
+	msg = strings.TrimSpace(strings.ReplaceAll(msg, "\n", " "))
+	msg = strings.Join(strings.Fields(msg), " ")
+	if msg == "" {
+		return ""
+	}
+	if len(msg) > messageWidth {
+		msg = strings.TrimSpace(msg[:messageWidth-1]) + "…"
+	}
+	return msg
+}
+
+// ruleURL returns where a reader can look a rule up, or "" when we can't say. Only identifiers
+// with a stable, publicly resolvable home qualify — a wrong link is worse than none, and the
+// message below the row already carries the explanation.
+func ruleURL(ruleID string) string {
+	switch {
+	case strings.HasPrefix(ruleID, "CVE-"):
+		return "https://nvd.nist.gov/vuln/detail/" + ruleID
+	case strings.HasPrefix(ruleID, "GHSA-"):
+		return "https://github.com/advisories/" + ruleID
+	default:
+		return ""
 	}
 }
 
 // bandsText renders per-control severity counts, omitting empty bands, each colorized.
-func bandsText(col colorizer, b sevCounts) string {
+func bandsText(col tui.Painter, b sevCounts) string {
 	var parts []string
 	if b.critical > 0 {
-		parts = append(parts, col.paint(cCritical, fmt.Sprintf("%d critical", b.critical)))
+		parts = append(parts, col.Paint(cCritical, fmt.Sprintf("%d critical", b.critical)))
 	}
 	if b.high > 0 {
-		parts = append(parts, col.paint(cHigh, fmt.Sprintf("%d high", b.high)))
+		parts = append(parts, col.Paint(cHigh, fmt.Sprintf("%d high", b.high)))
 	}
 	if b.medium > 0 {
-		parts = append(parts, col.paint(cMedium, fmt.Sprintf("%d medium", b.medium)))
+		parts = append(parts, col.Paint(cMedium, fmt.Sprintf("%d medium", b.medium)))
 	}
 	if b.low > 0 {
-		parts = append(parts, col.paint(cLow, fmt.Sprintf("%d low", b.low)))
+		parts = append(parts, col.Paint(cLow, fmt.Sprintf("%d low", b.low)))
 	}
 	if len(parts) == 0 {
-		return col.paint(cDim, "no findings")
+		return col.Paint(cDim, "no findings")
 	}
 	return strings.Join(parts, "  ")
 }
 
-func priorityColor(p string) string {
+func priorityColor(p string) tui.Style {
 	switch strings.ToUpper(p) {
 	case "P1":
 		return cFail
@@ -202,11 +240,11 @@ func priorityColor(p string) string {
 	case "P4":
 		return cDim
 	default:
-		return ""
+		return tui.StyleNone
 	}
 }
 
-func severityColor(s sarif.Severity) string {
+func severityColor(s sarif.Severity) tui.Style {
 	switch s {
 	case sarif.SeverityCritical:
 		return cCritical
@@ -217,29 +255,6 @@ func severityColor(s sarif.Severity) string {
 	default:
 		return cLow
 	}
-}
-
-// colorizer applies ANSI SGR codes when enabled.
-type colorizer struct{ on bool }
-
-// newColorizer enables color only when w is a terminal and NO_COLOR is unset.
-func newColorizer(w io.Writer) colorizer {
-	if os.Getenv("NO_COLOR") != "" {
-		return colorizer{}
-	}
-	f, ok := w.(*os.File)
-	if !ok {
-		return colorizer{}
-	}
-	fi, err := f.Stat()
-	return colorizer{on: err == nil && fi.Mode()&os.ModeCharDevice != 0}
-}
-
-func (c colorizer) paint(code, s string) string {
-	if !c.on || code == "" {
-		return s
-	}
-	return "\x1b[" + code + "m" + s + "\x1b[0m"
 }
 
 func dash(s string) string {
