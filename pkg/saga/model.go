@@ -206,8 +206,3 @@ func settingsEnabled(settings ControllerSettings) bool {
 	enabled, ok := v.(bool)
 	return ok && enabled
 }
-
-// SchemaURL is where the Saga's JSON Schema is published. Editors that speak the YAML language
-// server (VS Code, JetBrains, Neovim) pick it up from a `# yaml-language-server: $schema=…`
-// modeline, giving completion, hover docs and validation with no configuration.
-const SchemaURL = "https://draugr.dev/schema/draugr.saga.schema.json"

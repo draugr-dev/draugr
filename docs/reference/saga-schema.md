@@ -49,9 +49,32 @@ the same URL and a `*.saga.yaml` file-path pattern.
 > ([#115](https://github.com/draugr-dev/draugr/issues/115)); once it lands, `*.saga.yaml` is
 > recognised automatically with neither a modeline nor a setting.
 
-To pin the schema alongside a specific Draugr version, the file also ships in the repo at
-[`schema/draugr.saga.schema.json`](https://github.com/draugr-dev/draugr/blob/main/schema/draugr.saga.schema.json)
-and can be referenced by a local path.
+### Matching the schema to your Draugr version
+
+A schema newer than your binary will happily autocomplete fields it doesn't understand; an older
+one will flag valid fields as errors. Three ways to control which you get, loosest to strictest:
+
+| Reference | Behaviour | Use when |
+|-----------|-----------|----------|
+| `…/schema/draugr.saga.schema.json` | tracks the newest release | you keep Draugr current |
+| `…/schema/v0.33.0/draugr.saga.schema.json` | that release, forever | you pin Draugr in CI |
+| a local file from `draugr schema` | exactly your installed binary | offline, air-gapped, or strictest |
+
+**`draugr init` pins by default** — it writes the URL for its own version, so a scaffolded Saga
+is matched to the binary that created it. Change the line to the unversioned URL if you'd rather
+track latest. Every release publishes its own immutable copy, so a pin keeps resolving after
+newer versions ship.
+
+**The strongest guarantee is the binary's own copy.** Draugr embeds the schema it enforces, so
+this needs no network and cannot mismatch:
+
+```bash
+draugr schema -o .saga.schema.json
+# then in your Saga:
+# yaml-language-server: $schema=./.saga.schema.json
+```
+
+`draugr schema` with no `-o` prints to stdout, so you can diff two versions or pipe it anywhere.
 
 ## Top level
 

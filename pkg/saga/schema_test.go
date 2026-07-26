@@ -13,7 +13,7 @@ import (
 // them as hover docs and completions, which a generated schema does poorly. The cost of hand
 // authoring is drift, so this test walks the Go types and fails when a field isn't described.
 // Add a field to the model, add it to the schema.
-const schemaPath = "../../schema/draugr.saga.schema.json"
+const schemaPath = "draugr.saga.schema.json"
 
 func loadSchema(t *testing.T) map[string]any {
 	t.Helper()
@@ -153,5 +153,39 @@ func TestSchemaIdIsThePublishedURL(t *testing.T) {
 	const want = "https://draugr.dev/schema/draugr.saga.schema.json"
 	if got, _ := doc["$id"].(string); got != want {
 		t.Errorf("$id = %q, want %q — editors resolve $ref against it", got, want)
+	}
+}
+
+// A Saga should be able to name the schema for the exact Draugr that will read it, so an editor
+// doesn't autocomplete fields the installed binary rejects.
+func TestSchemaURLFor(t *testing.T) {
+	cases := map[string]string{
+		"0.33.0":  "https://draugr.dev/schema/v0.33.0/draugr.saga.schema.json",
+		"v0.33.0": "https://draugr.dev/schema/v0.33.0/draugr.saga.schema.json",
+		// Unreleased builds have no published copy; tracking latest is the only sane fallback.
+		"dev": SchemaURL,
+		"":    SchemaURL,
+		" ":   SchemaURL,
+	}
+	for in, want := range cases {
+		if got := SchemaURLFor(in); got != want {
+			t.Errorf("SchemaURLFor(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// The embedded copy is what `draugr schema` prints and what an offline setup validates against;
+// it must be the same document the site publishes.
+func TestEmbeddedSchemaMatchesFile(t *testing.T) {
+	onDisk, err := os.ReadFile(filepath.Clean(schemaPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(SchemaJSON) != string(onDisk) {
+		t.Error("the embedded schema differs from schema file on disk")
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(SchemaJSON, &doc); err != nil {
+		t.Fatalf("embedded schema is not valid JSON: %v", err)
 	}
 }
