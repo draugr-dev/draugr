@@ -189,3 +189,67 @@ func TestEmbeddedSchemaMatchesFile(t *testing.T) {
 		t.Fatalf("embedded schema is not valid JSON: %v", err)
 	}
 }
+
+// The published schema and the loader are two validators over the same document. If they ever
+// disagree, an editor contradicts the CLI — which is worse than either being lenient alone. This
+// asserts they reject the same things, for the cases people actually hit.
+func TestLoaderRejectsWhatTheSchemaRejects(t *testing.T) {
+	cases := map[string]string{
+		"unknown field at the root": `
+release: {name: a, version: "1"}
+bogus: true`,
+		"unknown field in release": `
+release: {name: a, version: "1", bogusField: x}`,
+		"unknown field in a component": `
+release: {name: a, version: "1"}
+components:
+  - name: web
+    repositores: []`,
+		"unknown field in a repository": `
+release: {name: a, version: "1"}
+components:
+  - name: web
+    repositories:
+      - url: .
+        branch: main`,
+	}
+	for name, doc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// additionalProperties:false in the schema — the loader must agree.
+			if _, err := Load([]byte(doc)); err == nil {
+				t.Error("the loader accepted a document the schema rejects")
+			}
+		})
+	}
+}
+
+// …and conversely, that strictness must not reach into scanner options, which are deliberately
+// open: each scanner validates its own block against its ConfigSchema when the scan is planned.
+func TestScannerOptionsStayFreeForm(t *testing.T) {
+	doc := `
+release: {name: a, version: "1"}
+config:
+  controllers:
+    sast:
+      enabled: true
+      semgrep:
+        config: p/owasp-top-ten
+        someFutureOption: 42
+`
+	if _, err := Load([]byte(doc)); err != nil {
+		t.Errorf("scanner options should not be constrained by the model: %v", err)
+	}
+}
+
+// The error has to tell a reader which part of their file is wrong.
+func TestUnknownFieldErrorNamesTheSection(t *testing.T) {
+	_, err := Load([]byte("release: {name: a, version: \"1\", bogusField: x}"))
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	for _, want := range []string{`"bogusField"`, "release"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should mention %s: %v", want, err)
+		}
+	}
+}
