@@ -49,3 +49,18 @@ tag would keep the same key and serve the old scan until the TTL. To make cachin
 content-addressed (a rebuilt image re-scans immediately), give each image a `digest:` in the
 Saga: the `k8s-images` surveyor records the running digest automatically, and Draugr scans
 the digest-pinned reference so the bytes scanned match what the result is cached under.
+
+## Going deeper
+
+The **Learn** section explains the security categories themselves — what each control is for,
+independent of Draugr:
+
+- [The security controls landscape](/learn/security-controls-landscape/) — how the categories
+  fit together, and which ones a given app actually needs
+- [SCA](/learn/sca/) · [SAST](/learn/sast/) · [Secret scanning](/learn/secret-scanning/) ·
+  [IaC misconfiguration](/learn/iac-misconfiguration/) ·
+  [Container image scanning](/learn/container-image-scanning/) ·
+  [DAST](/learn/dast/) · [TLS assessment](/learn/tls-assessment/) ·
+  [HTTP security headers](/learn/http-security-headers/)
+- [SARIF](/learn/sarif/) — the interchange format everything here normalizes to
+- [Shift-left / DevSecOps](/learn/shift-left-devsecops/) — why this runs in CI at all
