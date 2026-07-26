@@ -1,6 +1,7 @@
 package saga
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"regexp"
@@ -27,8 +28,8 @@ func Load(data []byte) (*Model, error) {
 
 	var m Model
 	if root.Kind != 0 { // empty document decodes to the zero Model
-		if err := root.Decode(&m); err != nil {
-			return nil, fmt.Errorf("parse saga: %w", err)
+		if err := decodeStrict(&root, &m); err != nil {
+			return nil, err
 		}
 	}
 	if err := m.Validate(); err != nil {
@@ -36,6 +37,44 @@ func Load(data []byte) (*Model, error) {
 	}
 	return &m, nil
 }
+
+// decodeStrict decodes the substituted document into a Model, rejecting keys the model doesn't
+// define. Unknown keys are almost always typos, and a silently ignored `repositores:` disables a
+// whole surface without a word. It also keeps the CLI honest with the published JSON Schema,
+// which sets additionalProperties:false — an editor flagging what `draugr validate` accepts is
+// worse than either being strict alone.
+//
+// Scanner options stay free-form: they live in ControllerSettings (a map), which strict decoding
+// doesn't constrain — each scanner validates its own block against its ConfigSchema at plan time.
+func decodeStrict(root *yaml.Node, m *Model) error {
+	// KnownFields lives on the Decoder, not on Node.Decode, so round-trip the substituted tree.
+	substituted, err := yaml.Marshal(root)
+	if err != nil {
+		return fmt.Errorf("parse saga: %w", err)
+	}
+	dec := yaml.NewDecoder(bytes.NewReader(substituted))
+	dec.KnownFields(true)
+	if err := dec.Decode(m); err != nil {
+		return fmt.Errorf("parse saga: %w", unknownFieldHint(err))
+	}
+	return nil
+}
+
+// unknownFieldHint rewrites yaml.v3's "field X not found in type saga.Y" into something a reader
+// can act on, naming the Saga section rather than a Go type.
+func unknownFieldHint(err error) error {
+	msg := err.Error()
+	match := unknownField.FindStringSubmatch(msg)
+	if match == nil {
+		return err
+	}
+	field, goType := match[1], match[2]
+	section := strings.TrimPrefix(strings.ToLower(goType), "saga.")
+	return fmt.Errorf("unknown field %q in %s — check the spelling, or see "+
+		"https://draugr.dev/docs/latest/reference/saga-schema/", field, section)
+}
+
+var unknownField = regexp.MustCompile(`field (\S+) not found in type (\S+)`)
 
 // LoadFile reads and parses a Saga descriptor from a file path.
 func LoadFile(path string) (*Model, error) {
