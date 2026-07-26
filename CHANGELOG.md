@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **`--min-priority` now works on every output, not just JSON.** It filtered the JSON report and
+  was silently ignored by the console, Markdown, HTML and JUnit reporters — so on the default
+  output the flag did nothing. The listing is filtered while the priority counts still describe
+  the whole run, and the heading says what was hidden
+  (`Fix first (P2 and above; 13 lower-priority finding(s) hidden):`) so a short list next to
+  large counts isn't a puzzle.
 
 ## [0.33.0] - 2026-07-26
 

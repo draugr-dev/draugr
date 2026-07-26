@@ -308,3 +308,78 @@ func TestConsoleNoFindings(t *testing.T) {
 		t.Errorf("expected a clean PASS summary, got:\n%s", b.String())
 	}
 }
+
+// --min-priority used to filter only the JSON report, so the default console output silently
+// ignored it. Every human format must honour it now.
+func minPriorityData(band string) Data {
+	results := []sarif.Result{
+		{RuleID: "CVE-P1", Level: sarif.LevelError, Priority: "P1", Tool: "trivy"},
+		{RuleID: "CVE-P2", Level: sarif.LevelError, Priority: "P2", Tool: "trivy"},
+		{RuleID: "CVE-P3", Level: sarif.LevelWarning, Priority: "P3", Tool: "trivy"},
+		{RuleID: "CVE-P4", Level: sarif.LevelNote, Priority: "P4", Tool: "trivy"},
+	}
+	return Data{
+		Release:     saga.Release{Name: "app"},
+		Run:         engine.Result{Controls: map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: results}}}},
+		Verdict:     norn.Result{Verdict: norn.Fail},
+		MinPriority: band,
+	}
+}
+
+func TestMinPriorityFiltersEveryHumanFormat(t *testing.T) {
+	for _, format := range []string{"console", "markdown", "html", "junit"} {
+		t.Run(format, func(t *testing.T) {
+			r, err := For(format)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var b bytes.Buffer
+			if err := r.Render(&b, minPriorityData("P2")); err != nil {
+				t.Fatal(err)
+			}
+			out := b.String()
+			for _, want := range []string{"CVE-P1", "CVE-P2"} {
+				if !strings.Contains(out, want) {
+					t.Errorf("%s: %s should be listed at --min-priority P2", format, want)
+				}
+			}
+			for _, unwanted := range []string{"CVE-P3", "CVE-P4"} {
+				if strings.Contains(out, unwanted) {
+					t.Errorf("%s: %s is below P2 and should be filtered out", format, unwanted)
+				}
+			}
+		})
+	}
+}
+
+// The counts describe the whole run even when the listing is filtered — otherwise you lose sight
+// of the backlog you chose not to look at. The output has to say so.
+func TestMinPriorityKeepsCountsAndExplainsItself(t *testing.T) {
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, minPriorityData("P2")); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if !strings.Contains(out, "P3 1") || !strings.Contains(out, "P4 1") {
+		t.Errorf("priority counts should still describe the whole run:\n%s", out)
+	}
+	if !strings.Contains(out, "P2 and above") || !strings.Contains(out, "hidden") {
+		t.Errorf("the filtered listing should say what it filtered:\n%s", out)
+	}
+}
+
+func TestAtOrAbove(t *testing.T) {
+	cases := []struct {
+		got, want string
+		expect    bool
+	}{
+		{"P1", "P2", true}, {"P2", "P2", true}, {"P3", "P2", false},
+		{"p1", "p2", true}, // case-insensitive, like the CLI flag
+		{"", "P2", false},  // unprioritized findings have no band to compare
+	}
+	for _, c := range cases {
+		if got := atOrAbove(c.got, c.want); got != c.expect {
+			t.Errorf("atOrAbove(%q,%q) = %v, want %v", c.got, c.want, got, c.expect)
+		}
+	}
+}

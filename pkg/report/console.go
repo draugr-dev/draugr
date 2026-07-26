@@ -101,7 +101,16 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	if limit >= 0 && len(shown) > limit {
 		shown = shown[:limit]
 	}
-	_, _ = fmt.Fprintln(w, "Fix first:")
+	heading := "Fix first:"
+	if s.minPriority != "" {
+		// Say what was filtered, or the short list reads as a contradiction of the counts above.
+		heading = fmt.Sprintf("Fix first (%s and above", strings.ToUpper(s.minPriority))
+		if s.hidden > 0 {
+			heading += fmt.Sprintf("; %d lower-priority finding(s) hidden", s.hidden)
+		}
+		heading += "):"
+	}
+	_, _ = fmt.Fprintln(w, heading)
 	renderFixFirst(w, col, shown)
 
 	if len(shown) < len(s.findings) {

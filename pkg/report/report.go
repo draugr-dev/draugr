@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -105,6 +106,10 @@ func (c *sevCounts) add(s sarif.Severity) {
 }
 
 type summary struct {
+	// minPriority is the band the listing was filtered to, and hidden how many findings that
+	// removed — reported so a short list next to large counts isn't mystifying.
+	minPriority    string
+	hidden         int
 	verdict        norn.Verdict
 	prioritized    bool
 	p1, p2, p3, p4 int
@@ -152,7 +157,31 @@ func summarize(d Data) summary {
 		}
 	}
 	sortFindings(s.findings)
+	// --min-priority narrows the listing, not the counts: you still see that 13 P3s exist while
+	// working on the P1s. This matches the JSON report, so every format answers alike.
+	if d.MinPriority != "" {
+		s.minPriority = d.MinPriority
+		kept := s.findings[:0]
+		for _, f := range s.findings {
+			if atOrAbove(f.priority, d.MinPriority) {
+				kept = append(kept, f)
+			}
+		}
+		s.hidden = len(s.findings) - len(kept)
+		s.findings = kept
+	}
 	return s
+}
+
+// atOrAbove reports whether a finding's priority is at least the requested band. An unprioritized
+// finding has no band to compare, so a priority filter excludes it rather than guessing.
+func atOrAbove(got, want string) bool {
+	order := map[string]int{"P1": 4, "P2": 3, "P3": 2, "P4": 1}
+	g, ok := order[strings.ToUpper(got)]
+	if !ok {
+		return false
+	}
+	return g >= order[strings.ToUpper(want)]
 }
 
 // sortFindings orders most-urgent first: by priority, then numeric score, then SARIF level.
