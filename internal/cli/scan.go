@@ -43,6 +43,7 @@ type scanOptions struct {
 	noPublish      bool
 	top            int
 	noTips         bool
+	compact        bool
 }
 
 func newScanCommand() *cobra.Command {
@@ -80,6 +81,8 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")
 	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the 'Fix first' table (0 = all)")
 	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false, "suppress the console's contextual tips (also DRAUGR_NO_TIPS)")
+	cmd.Flags().BoolVar(&opts.compact, "compact", false,
+		"strip indentation and rule documentation from json/sarif output, for a consumer that acts on the report rather than reads it")
 	return cmd
 }
 
@@ -145,6 +148,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Verdict:     verdict,
 		MinPriority: minPriority,
 		TopN:        fixFirstLimit(opts.top),
+		Compact:     opts.compact,
 	}
 	if format == "template" {
 		art, err := report.Build(saga.ReportConfig{

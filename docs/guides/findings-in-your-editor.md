@@ -71,6 +71,13 @@ The rule id in the same table is a **hyperlink** to the rule's documentation whe
 scanner published one (and to NVD or GitHub Advisories for `CVE-`/`GHSA-` ids). Terminals
 without hyperlink support show the id as ordinary text, so nothing is lost.
 
+## One flag to avoid here
+
+`draugr scan --compact` strips rule descriptions and remediation text from the SARIF to save
+bytes for scripts and agents. Those are exactly the fields a viewer shows you beside a finding,
+so leave it off when producing SARIF for your editor. See
+[compact output](reports-and-publishers.md#compact-output-for-tools-and-agents).
+
 ## A caveat worth knowing
 
 Repository scans run against a **clean checkout of the committed revision**, not your working

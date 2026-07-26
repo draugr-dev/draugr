@@ -544,3 +544,61 @@ func TestClampDescription(t *testing.T) {
 		t.Errorf("want an ellipsis, got %q", got[len(got)-8:])
 	}
 }
+
+// Compact is for a consumer that acts on the report rather than reads it: the prose goes, the
+// pointer stays, and what's left is still valid SARIF with every finding intact.
+func TestMarshalCompactDropsProseKeepsPointer(t *testing.T) {
+	rep := Report{
+		Tool: "semgrep",
+		Results: []Result{
+			{RuleID: "py.audit.eval", Level: LevelError, Message: "eval here",
+				Location: Location{URI: "app/main.py", StartLine: 12}},
+			{RuleID: "CVE-2021-1", Level: LevelWarning, Message: "old dep",
+				Location: Location{URI: "go.mod", StartLine: 1}},
+		},
+		Rules: map[string]Rule{"py.audit.eval": {
+			Name: "EvalUse", ShortDescription: "eval() on user input",
+			FullDescription: strings.Repeat("prose ", 200), Help: strings.Repeat("remedy ", 200),
+			HelpURI: "https://semgrep.dev/r/py.audit.eval",
+		}},
+	}
+	full, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatalf("MarshalSARIF: %v", err)
+	}
+	lean, err := rep.MarshalSARIFWith(MarshalOptions{Compact: true})
+	if err != nil {
+		t.Fatalf("compact: %v", err)
+	}
+	if len(lean) >= len(full) {
+		t.Errorf("compact (%d) should be smaller than full (%d)", len(lean), len(full))
+	}
+	s := string(lean)
+	for _, gone := range []string{"prose", "remedy", "shortDescription", "EvalUse"} {
+		if strings.Contains(s, gone) {
+			t.Errorf("compact output still carries %q", gone)
+		}
+	}
+	// The pointer survives — a reader that can follow a link doesn't need the paragraphs.
+	if !strings.Contains(s, "https://semgrep.dev/r/py.audit.eval") {
+		t.Error("compact dropped helpUri; it's the whole reason the prose can go")
+	}
+	if strings.Contains(s, "\n") {
+		t.Error("compact output should not be indented")
+	}
+	// Still SARIF, still every finding, and the derived helpUri still derived.
+	back, err := FromSARIF(lean)
+	if err != nil {
+		t.Fatalf("compact output no longer parses as SARIF: %v", err)
+	}
+	if len(back.Results) != len(rep.Results) {
+		t.Errorf("results = %d, want %d", len(back.Results), len(rep.Results))
+	}
+	if !strings.Contains(s, "https://nvd.nist.gov/vuln/detail/CVE-2021-1") {
+		t.Error("compact should keep the derived advisory link too")
+	}
+	// The scanner tag is how a consumer knows which tool found it — not prose, keep it.
+	if !strings.Contains(s, "scanner:semgrep") {
+		t.Error("compact dropped the scanner tag")
+	}
+}

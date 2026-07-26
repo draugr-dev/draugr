@@ -26,6 +26,10 @@ type Data struct {
 	// TopN caps how many findings the console "Fix first" table shows: 0 uses the default,
 	// a negative value shows all, and a positive value shows that many. Ignored by other formats.
 	TopN int
+	// Compact strips what only a human reads — indentation and relayed rule prose — from the
+	// machine formats (json, sarif), for a consumer that acts on the report rather than reads
+	// it. The human formats ignore it: making those harder to read is the opposite of the point.
+	Compact bool
 }
 
 // Reporter renders Data in one format.
@@ -69,14 +73,18 @@ type jsonReporter struct{}
 
 func (jsonReporter) Format() string { return "json" }
 func (jsonReporter) Render(w io.Writer, d Data) error {
-	return skald.RenderJSON(w, d.Release, d.Run, d.Verdict, d.MinPriority)
+	return skald.RenderJSONWith(w, d.Release, d.Run, d.Verdict, d.MinPriority, d.marshalOptions())
 }
 
 type sarifReporter struct{}
 
 func (sarifReporter) Format() string { return "sarif" }
 func (sarifReporter) Render(w io.Writer, d Data) error {
-	return skald.WriteSARIF(w, d.Run)
+	return skald.WriteSARIFWith(w, d.Run, d.marshalOptions())
+}
+
+func (d Data) marshalOptions() sarif.MarshalOptions {
+	return sarif.MarshalOptions{Compact: d.Compact}
 }
 
 // --- shared summary used by the human reporters ---

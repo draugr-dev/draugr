@@ -75,6 +75,11 @@ type statsInfo struct {
 // "P2"), a ranked `findings` list of findings at or above that band is included; priority
 // counts are always included when the run was prioritized.
 func RenderJSON(w io.Writer, release saga.Release, run engine.Result, verdict norn.Result, minPriority string) error {
+	return RenderJSONWith(w, release, run, verdict, minPriority, sarif.MarshalOptions{})
+}
+
+// RenderJSONWith is RenderJSON with marshalling options; Compact drops the indentation.
+func RenderJSONWith(w io.Writer, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, opts sarif.MarshalOptions) error {
 	doc := jsonReport{
 		Release: releaseInfo{Name: release.Name, Version: release.Version},
 		Verdict: string(verdict.Verdict),
@@ -104,7 +109,9 @@ func RenderJSON(w io.Writer, release saga.Release, run engine.Result, verdict no
 	doc.Priorities, doc.Findings = summarizePriorities(run, minPriority)
 
 	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
+	if !opts.Compact {
+		enc.SetIndent("", "  ")
+	}
 	return enc.Encode(doc)
 }
 
@@ -201,7 +208,12 @@ func MergedSARIF(run engine.Result) sarif.Report {
 
 // WriteSARIF writes the merged run results as SARIF 2.1.0 JSON.
 func WriteSARIF(w io.Writer, run engine.Result) error {
-	data, err := MergedSARIF(run).MarshalSARIF()
+	return WriteSARIFWith(w, run, sarif.MarshalOptions{})
+}
+
+// WriteSARIFWith is WriteSARIF with marshalling options.
+func WriteSARIFWith(w io.Writer, run engine.Result, opts sarif.MarshalOptions) error {
+	data, err := MergedSARIF(run).MarshalSARIFWith(opts)
 	if err != nil {
 		return err
 	}

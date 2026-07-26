@@ -481,3 +481,39 @@ func TestLongRuleIDStaysWholeInJSON(t *testing.T) {
 		t.Errorf("sarif must keep the whole id:\n%s", machine.String())
 	}
 }
+
+// Compact reaches the machine formats and leaves the human ones alone — making those harder to
+// read would be the opposite of the point.
+func TestCompactAffectsOnlyTheMachineFormats(t *testing.T) {
+	base := sampleData()
+	compact := sampleData()
+	compact.Compact = true
+
+	for _, format := range []string{"json", "sarif"} {
+		var full, lean bytes.Buffer
+		if err := reporters[format].Render(&full, base); err != nil {
+			t.Fatalf("%s: %v", format, err)
+		}
+		if err := reporters[format].Render(&lean, compact); err != nil {
+			t.Fatalf("%s compact: %v", format, err)
+		}
+		if lean.Len() >= full.Len() {
+			t.Errorf("%s: compact (%d) not smaller than full (%d)", format, lean.Len(), full.Len())
+		}
+		if !json.Valid(lean.Bytes()) {
+			t.Errorf("%s: compact output is not valid JSON", format)
+		}
+	}
+	for _, format := range []string{"console", "markdown"} {
+		var full, lean bytes.Buffer
+		if err := reporters[format].Render(&full, base); err != nil {
+			t.Fatalf("%s: %v", format, err)
+		}
+		if err := reporters[format].Render(&lean, compact); err != nil {
+			t.Fatalf("%s compact: %v", format, err)
+		}
+		if full.String() != lean.String() {
+			t.Errorf("%s should ignore --compact", format)
+		}
+	}
+}
