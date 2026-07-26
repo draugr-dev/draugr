@@ -10,7 +10,16 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr mcp` — Draugr for AI coding assistants.** Serves Draugr over the Model Context
+  Protocol, so an assistant asked "is this safe to ship?" answers from your Saga instead of
+  improvising a scan over a scope it invented. It can list the controls that exist, hand back
+  the descriptor schema *this build* enforces, validate a Saga before you write it, and rank an
+  existing report by priority. **Scanning is off by default** — it clones repositories, runs
+  external scanners and uses the network, so it's exposed only with `--allow-scan`. Register it
+  with `claude mcp add draugr -- draugr mcp`, or the equivalent for your client. New guide:
+  **Use Draugr from an AI coding assistant**.
 
 ## [0.35.0] - 2026-07-26
 

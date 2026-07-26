@@ -375,6 +375,35 @@ See [per-scanner config](saga-schema.md#per-scanner-config).
 
 ---
 
+## `draugr mcp`
+
+Serve Draugr to AI coding assistants over the
+[Model Context Protocol](https://modelcontextprotocol.io), on stdin/stdout.
+
+```bash
+draugr mcp                 # read-only tools
+draugr mcp --allow-scan    # additionally expose the scan tool
+```
+
+| Tool | Purpose |
+|---|---|
+| `list_controls` | Which controls exist, what each checks, which scanner backs it |
+| `get_saga_schema` | The Saga schema this build enforces |
+| `validate_saga` | Validate a descriptor, by `path` or by `content` |
+| `summarize_report` | Rank an existing `results.sarif` by priority |
+| `scan` | Run a scan and return the verdict (requires `--allow-scan`) |
+
+| Flag | Default | Description |
+|---|---|---|
+| `--allow-scan` | `false` | Expose the scan tool. A scan clones repositories, runs external scanners and uses the network, so an assistant can't start one unless you allow it. |
+
+The server speaks MCP, not text — run by hand in a terminal it will look like it has hung,
+because it's waiting for a client. See
+[use Draugr from an AI coding assistant](../guides/ai-agents-mcp.md) for client setup and why
+routing through Draugr beats letting the assistant run scanners itself.
+
+---
+
 ## `draugr self-update`
 
 Update the running `draugr` binary in place to the latest published release (or a specific
