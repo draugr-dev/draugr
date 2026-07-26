@@ -10,6 +10,32 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **Your editor now understands a Saga.** Draugr publishes a
+  [JSON Schema](https://draugr.dev/schema/draugr.saga.schema.json) for `*.saga.yaml`, so VS Code,
+  JetBrains and Neovim complete control and field names, offer the valid `exposure`,
+  `criticality` and report-format values, show what each field means on hover, and flag typos as
+  you type instead of at scan time. `draugr init` writes the `# yaml-language-server: $schema=…`
+  line for you; paste it into an existing Saga, or map `*.saga.yaml` once in your editor
+  settings — see [editor support](https://draugr.dev/docs/latest/reference/saga-schema/).
+- **Pin the schema to your Draugr version.** Every release publishes an immutable copy at
+  `…/schema/vX.Y.Z/draugr.saga.schema.json`, and `draugr init` pins to its own version, so an
+  editor validates against the same rules your installed binary applies. The unversioned URL
+  still tracks the newest release.
+- **`draugr schema`** prints the schema embedded in the binary (`-o` writes it to a file). It
+  needs no network and cannot disagree with the build you're running — the option to reach for
+  when you're offline, air-gapped, or want validation pinned exactly.
+
+### Fixed
+
+- **A typo in a Saga is now an error, not a shrug.** Unknown fields were silently ignored, so
+  `repositores:` disabled a whole surface without a word — and your editor flagged it while the
+  CLI accepted it, since the published schema was already strict. Both now agree:
+  `unknown field "bogusField" in release`. Scanner options are unaffected:
+  `controllers.<control>.<scanner>` stays free-form, validated against that scanner's own schema
+  when the scan is planned.
+
 ### Changed
 
 - **`tools install` skips tools that are already installed.** Re-running no longer re-downloads
