@@ -32,17 +32,28 @@ Piping a script into a shell means trusting the host that served it. If you'd ra
 script is [readable in the repo](https://github.com/draugr-dev/draugr/blob/main/install.sh) and
 the [manual steps](#from-a-release-by-hand) below do the same work.
 
-Three knobs, all optional:
+Three knobs, all optional. **They go on `sh`, not on `curl`** — in a pipeline each side gets
+its own environment, so `DRAUGR_INSTALL_DIR=~/bin curl … | sh` sets the variable on the download
+and the script never sees it:
 
 ```bash
-DRAUGR_VERSION=vX.Y.Z          # pin a release instead of tracking the latest
-DRAUGR_INSTALL_DIR=~/bin       # install somewhere other than ~/.local/bin
-DRAUGR_REQUIRE_SIGNATURE=1     # refuse to install unless the signature verifies
+curl -fsSL https://draugr.dev/install.sh | DRAUGR_INSTALL_DIR=~/bin sh
 ```
 
+| Variable | Effect |
+| --- | --- |
+| `DRAUGR_VERSION` | Pin a release (`vX.Y.Z`) instead of tracking the latest |
+| `DRAUGR_INSTALL_DIR` | Install somewhere other than `~/.local/bin` |
+| `DRAUGR_REQUIRE_SIGNATURE` | Set to `1` to refuse to install unless the signature verifies |
+
 Pick a version to pin from the [releases page](https://github.com/draugr-dev/draugr/releases).
-In CI, pin — and set `DRAUGR_REQUIRE_SIGNATURE=1`, since a build runner should not be installing
-anything it can't prove the origin of.
+In CI, pin the version **and** require the signature — a build runner shouldn't install anything
+it can't prove the origin of:
+
+```bash
+curl -fsSL https://draugr.dev/install.sh \
+  | DRAUGR_VERSION=vX.Y.Z DRAUGR_REQUIRE_SIGNATURE=1 sh
+```
 
 Already have a draugr binary? Update it in place with `draugr self-update`.
 
