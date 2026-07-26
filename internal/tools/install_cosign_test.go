@@ -70,7 +70,7 @@ func TestInstallCosignVerified(t *testing.T) {
 	srv, _ := cosignTestServer(t, true)
 	args := stubCosign(t, true, nil)
 
-	got, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client())
+	got, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client(), false)
 	if err != nil {
 		t.Fatalf("Install: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestInstallCosignSkippedWhenAbsent(t *testing.T) {
 	srv, _ := cosignTestServer(t, true)
 	stubCosign(t, false, nil) // cosign not installed
 
-	got, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client())
+	got, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client(), false)
 	if err != nil {
 		t.Fatalf("Install should succeed on the SHA-256 floor when cosign is absent: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestInstallCosignVerifyFails(t *testing.T) {
 	stubCosign(t, true, os.ErrPermission) // cosign present but verification fails
 
 	dest := t.TempDir()
-	if _, err := Install(context.Background(), "faketool", dest, srv.Client()); err == nil {
+	if _, err := Install(context.Background(), "faketool", dest, srv.Client(), false); err == nil {
 		t.Fatal("expected a hard error when cosign verification fails")
 	}
 	if _, err := os.Stat(filepath.Join(dest, "faketool")); !os.IsNotExist(err) {
@@ -125,7 +125,7 @@ func TestInstallCosignChecksumNotListed(t *testing.T) {
 	srv, _ := cosignTestServer(t, false) // signature verifies, but the archive isn't listed
 	stubCosign(t, true, nil)
 
-	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client()); err == nil {
+	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client(), false); err == nil {
 		t.Fatal("expected an error when the archive is not in the signed checksums")
 	}
 }
@@ -136,7 +136,7 @@ func TestInstallCosignChecksumsDownloadError(t *testing.T) {
 	cs := installable["faketool"].Cosign
 	cs.ChecksumsURL = srv.URL + "/missing-checksums" // 404
 
-	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client()); err == nil {
+	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client(), false); err == nil {
 		t.Fatal("expected an error when the signed checksums cannot be downloaded")
 	}
 }
@@ -147,7 +147,7 @@ func TestInstallCosignBundleDownloadError(t *testing.T) {
 	cs := installable["faketool"].Cosign
 	cs.BundleURL = srv.URL + "/missing-bundle" // 404
 
-	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client()); err == nil {
+	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client(), false); err == nil {
 		t.Fatal("expected an error when the signature bundle cannot be downloaded")
 	}
 }

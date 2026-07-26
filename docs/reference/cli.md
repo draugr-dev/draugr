@@ -254,6 +254,7 @@ no arguments, installs everything Draugr can provision (`trivy`, `gitleaks`, `go
 |------|---------|-------------|
 | `-y, --yes` | — | Skip the confirmation prompt |
 | `--dry-run` | — | Print the install plan and exit |
+| `--force` | `false` | Reinstall even when the pinned build is already present |
 
 ```bash
 draugr tools install            # plan → confirm → install everything, into ~/.draugr/bin
@@ -261,6 +262,13 @@ draugr tools install trivy      # just one
 draugr tools install --dry-run  # preview the plan, change nothing
 draugr tools install -y         # non-interactive
 ```
+
+**Already-installed tools are skipped.** Re-running is cheap: a tool already present at the
+pinned build is left alone (`• trivy 0.69.3 already installed → …`) instead of being downloaded
+and verified again — which matters in CI, where provisioning runs on every job. "Already present"
+means the exact bytes Draugr installed: it compares the binary's checksum against what it
+recorded, so a **modified binary is replaced**, not accepted. A changed pin also reinstalls.
+Use `--force` to reinstall unconditionally.
 
 **Plan + confirmation.** It first prints the plan (tool, version, **category**, verification,
 destination). When run **interactively** it asks for confirmation; **non-interactively** (CI,

@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -229,6 +230,8 @@ type Installed struct {
 	// ProvenanceNote summarizes the signature outcome for reporting (e.g. why it was skipped);
 	// empty when the tool has no cosign provenance configured.
 	ProvenanceNote string
+	// AlreadyPresent is true when the pinned build was already installed and left untouched.
+	AlreadyPresent bool
 }
 
 // cosignLookPath finds the cosign CLI; overridable in tests. A missing cosign is not an error
@@ -281,7 +284,9 @@ func platformKey() string { return runtime.GOOS + "/" + runtime.GOARCH }
 // Install downloads the pinned build of name, verifies its SHA-256, extracts the binary, and
 // installs it into destDir with an executable bit. client may be nil (a default is used). The
 // download is verified before anything is written, and the binary is placed atomically.
-func Install(ctx context.Context, name, destDir string, client *http.Client) (Installed, error) {
+// Install provisions a pinned tool into destDir. A tool already present at exactly the pinned
+// build is left alone unless force is set — see the install manifest below.
+func Install(ctx context.Context, name, destDir string, client *http.Client, force bool) (Installed, error) {
 	spec, ok := installable[name]
 	if !ok {
 		return Installed{}, fmt.Errorf("unknown tool %q (installable: %v)", name, Installable())
@@ -290,6 +295,17 @@ func Install(ctx context.Context, name, destDir string, client *http.Client) (In
 	if !ok {
 		return Installed{}, fmt.Errorf("%s: no pinned build for %s", name, platformKey())
 	}
+	if !force {
+		if dest, ok := alreadyInstalled(destDir, name, spec, asset); ok {
+			return Installed{
+				Name:           name,
+				Version:        spec.Version,
+				Path:           dest,
+				AlreadyPresent: true,
+			}, nil
+		}
+	}
+
 	if client == nil {
 		client = &http.Client{Timeout: 3 * time.Minute}
 	}
@@ -335,6 +351,12 @@ func Install(ctx context.Context, name, destDir string, client *http.Client) (In
 	if err := writeExecutable(dest, bin); err != nil {
 		return Installed{}, err
 	}
+	binSum := sha256.Sum256(bin)
+	recordInstall(destDir, name, installRecord{
+		Version:      spec.Version,
+		AssetSHA256:  asset.SHA256,
+		BinarySHA256: hex.EncodeToString(binSum[:]),
+	})
 	return Installed{
 		Name:              name,
 		Version:           spec.Version,
@@ -504,4 +526,76 @@ func writeExecutable(dest string, data []byte) error {
 		return err
 	}
 	return os.Rename(tmpName, dest)
+}
+
+// --- install manifest -------------------------------------------------------------------
+//
+// Re-provisioning is common: CI runs `tools install` on every job. Downloading and verifying a
+// tool that is already present at the pinned version is pure waste (a 162 MB re-download for
+// trivy), so we record what we installed and skip when it's still intact.
+//
+// The record holds the *binary's* checksum, not just a version string. The pinned SHA-256
+// covers the upstream archive, so it can't be compared against an extracted binary — but we can
+// compare against what we ourselves wrote. That way "already installed" can never quietly accept
+// a binary that has been modified since: a mismatch reinstalls.
+
+// manifestName is the record of provisioned tools, kept alongside the binaries.
+const manifestName = ".draugr-tools.json"
+
+// installRecord is what we know about a tool we installed into this directory.
+type installRecord struct {
+	Version      string `json:"version"`
+	AssetSHA256  string `json:"assetSha256"`
+	BinarySHA256 string `json:"binarySha256"`
+}
+
+func manifestPath(destDir string) string { return filepath.Join(destDir, manifestName) }
+
+func loadManifest(destDir string) map[string]installRecord {
+	out := map[string]installRecord{}
+	data, err := os.ReadFile(manifestPath(destDir)) //nolint:gosec // path is ours, under destDir
+	if err != nil {
+		return out
+	}
+	_ = json.Unmarshal(data, &out) // a corrupt manifest just means we reinstall
+	return out
+}
+
+func recordInstall(destDir, name string, rec installRecord) {
+	m := loadManifest(destDir)
+	m[name] = rec
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return
+	}
+	// Best-effort: failing to record costs a redundant download next time, nothing worse.
+	_ = os.WriteFile(manifestPath(destDir), data, 0o600)
+}
+
+// fileSHA256 hashes a file on disk, streaming so a large binary doesn't land in memory.
+func fileSHA256(path string) (string, error) {
+	f, err := os.Open(path) //nolint:gosec // path is ours, under destDir
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = f.Close() }()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// alreadyInstalled reports whether the tool is present at exactly the pinned build, unmodified.
+func alreadyInstalled(destDir, name string, spec InstallSpec, asset Asset) (string, bool) {
+	rec, ok := loadManifest(destDir)[name]
+	if !ok || rec.Version != spec.Version || rec.AssetSHA256 != asset.SHA256 {
+		return "", false
+	}
+	dest := filepath.Join(destDir, spec.Binary)
+	got, err := fileSHA256(dest)
+	if err != nil || got != rec.BinarySHA256 {
+		return "", false
+	}
+	return dest, true
 }

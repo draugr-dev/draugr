@@ -82,7 +82,7 @@ func TestInstallSuccess(t *testing.T) {
 	registerTestTool(t, "faketool", srv.URL, sha256Hex(archive), "faketool")
 
 	dest := t.TempDir()
-	got, err := Install(context.Background(), "faketool", dest, srv.Client())
+	got, err := Install(context.Background(), "faketool", dest, srv.Client(), false)
 	if err != nil {
 		t.Fatalf("Install: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestInstallBareBinary(t *testing.T) {
 	t.Cleanup(func() { delete(installable, "barebin") })
 
 	dest := t.TempDir()
-	got, err := Install(context.Background(), "barebin", dest, srv.Client())
+	got, err := Install(context.Background(), "barebin", dest, srv.Client(), false)
 	if err != nil {
 		t.Fatalf("Install bare binary: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestInstallChecksumMismatch(t *testing.T) {
 	registerTestTool(t, "faketool", srv.URL, sha256Hex([]byte("something else")), "faketool")
 
 	dest := t.TempDir()
-	if _, err := Install(context.Background(), "faketool", dest, srv.Client()); err == nil {
+	if _, err := Install(context.Background(), "faketool", dest, srv.Client(), false); err == nil {
 		t.Fatal("expected checksum mismatch error")
 	}
 	if _, err := os.Stat(filepath.Join(dest, "faketool")); !os.IsNotExist(err) {
@@ -164,7 +164,7 @@ func TestInstallHTTPError(t *testing.T) {
 	defer srv.Close()
 	registerTestTool(t, "faketool", srv.URL, "irrelevant", "faketool")
 
-	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client()); err == nil {
+	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client(), false); err == nil {
 		t.Fatal("expected error on HTTP 404")
 	}
 }
@@ -178,7 +178,7 @@ func TestInstallDefaultClient(t *testing.T) {
 	registerTestTool(t, "faketool", srv.URL, sha256Hex(archive), "faketool")
 
 	// nil client exercises the default-client branch.
-	if _, err := Install(context.Background(), "faketool", t.TempDir(), nil); err != nil {
+	if _, err := Install(context.Background(), "faketool", t.TempDir(), nil, false); err != nil {
 		t.Fatalf("Install with default client: %v", err)
 	}
 }
@@ -196,7 +196,7 @@ func TestInstallDestDirError(t *testing.T) {
 	if err := os.WriteFile(destAsFile, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Install(context.Background(), "faketool", destAsFile, srv.Client()); err == nil {
+	if _, err := Install(context.Background(), "faketool", destAsFile, srv.Client(), false); err == nil {
 		t.Fatal("expected error when destDir is not a directory")
 	}
 }
@@ -207,7 +207,7 @@ func TestInstallDownloadError(t *testing.T) {
 	srv.Close() // now connections are refused
 	registerTestTool(t, "faketool", url, "irrelevant", "faketool")
 
-	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client()); err == nil {
+	if _, err := Install(context.Background(), "faketool", t.TempDir(), srv.Client(), false); err == nil {
 		t.Fatal("expected a download error against a closed server")
 	}
 }
@@ -230,7 +230,7 @@ func TestWriteExecutableError(t *testing.T) {
 }
 
 func TestInstallUnknownTool(t *testing.T) {
-	if _, err := Install(context.Background(), "nope", t.TempDir(), nil); err == nil {
+	if _, err := Install(context.Background(), "nope", t.TempDir(), nil, false); err == nil {
 		t.Fatal("expected error for unknown tool")
 	}
 }
@@ -238,7 +238,7 @@ func TestInstallUnknownTool(t *testing.T) {
 func TestInstallUnsupportedPlatform(t *testing.T) {
 	installable["noplatform"] = InstallSpec{Binary: "noplatform", Version: "1.0.0", Assets: map[string]Asset{}}
 	t.Cleanup(func() { delete(installable, "noplatform") })
-	if _, err := Install(context.Background(), "noplatform", t.TempDir(), nil); err == nil {
+	if _, err := Install(context.Background(), "noplatform", t.TempDir(), nil, false); err == nil {
 		t.Fatal("expected error for unsupported platform")
 	}
 }
@@ -261,7 +261,7 @@ func TestInstallZipArchive(t *testing.T) {
 	registerTestTool(t, "faketool", srv.URL, sha256Hex(archive), "faketool")
 
 	dest := t.TempDir()
-	if _, err := Install(context.Background(), "faketool", dest, srv.Client()); err != nil {
+	if _, err := Install(context.Background(), "faketool", dest, srv.Client(), false); err != nil {
 		t.Fatalf("Install from zip: %v", err)
 	}
 	on, err := os.ReadFile(filepath.Join(dest, "faketool")) //nolint:gosec // test temp path
@@ -349,5 +349,139 @@ func TestBinDir(t *testing.T) {
 	}
 	if want := filepath.Join("/tmp/draugr-home-test", ".draugr", "bin"); dir != want {
 		t.Errorf("BinDir = %q, want %q", dir, want)
+	}
+}
+
+// Re-provisioning is the common case in CI. A tool already present at the pinned build must not
+// be downloaded again — but "already present" has to mean the exact bytes we installed, or a
+// modified binary would be silently accepted.
+func TestInstallSkipsWhenAlreadyPresent(t *testing.T) {
+	content := []byte("#!/bin/sh\necho fake-tool\n")
+	archive := makeTarGz(t, "faketool", content)
+	var downloads int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		downloads++
+		_, _ = w.Write(archive)
+	}))
+	defer srv.Close()
+	registerTestTool(t, "faketool", srv.URL, sha256Hex(archive), "faketool")
+	dest := t.TempDir()
+
+	first, err := Install(context.Background(), "faketool", dest, srv.Client(), false)
+	if err != nil {
+		t.Fatalf("first install: %v", err)
+	}
+	if first.AlreadyPresent {
+		t.Error("a fresh install should not report AlreadyPresent")
+	}
+
+	second, err := Install(context.Background(), "faketool", dest, srv.Client(), false)
+	if err != nil {
+		t.Fatalf("second install: %v", err)
+	}
+	if !second.AlreadyPresent {
+		t.Error("the second install should have been skipped")
+	}
+	if downloads != 1 {
+		t.Errorf("downloaded %d times, want 1", downloads)
+	}
+	if second.Path != first.Path || second.Version != first.Version {
+		t.Errorf("skip should still report the install: %+v", second)
+	}
+}
+
+func TestInstallForceReinstalls(t *testing.T) {
+	archive := makeTarGz(t, "faketool", []byte("x"))
+	var downloads int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		downloads++
+		_, _ = w.Write(archive)
+	}))
+	defer srv.Close()
+	registerTestTool(t, "faketool", srv.URL, sha256Hex(archive), "faketool")
+	dest := t.TempDir()
+
+	if _, err := Install(context.Background(), "faketool", dest, srv.Client(), false); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Install(context.Background(), "faketool", dest, srv.Client(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.AlreadyPresent {
+		t.Error("--force should reinstall, not skip")
+	}
+	if downloads != 2 {
+		t.Errorf("downloaded %d times, want 2", downloads)
+	}
+}
+
+// The security-relevant case: if the installed binary has been modified, "already installed"
+// must not accept it — Draugr repairs it instead.
+func TestInstallReplacesModifiedBinary(t *testing.T) {
+	content := []byte("#!/bin/sh\necho fake-tool\n")
+	archive := makeTarGz(t, "faketool", content)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(archive)
+	}))
+	defer srv.Close()
+	registerTestTool(t, "faketool", srv.URL, sha256Hex(archive), "faketool")
+	dest := t.TempDir()
+
+	if _, err := Install(context.Background(), "faketool", dest, srv.Client(), false); err != nil {
+		t.Fatal(err)
+	}
+	binPath := filepath.Join(dest, "faketool")
+	if err := os.WriteFile(binPath, []byte("#!/bin/sh\nrm -rf /\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Install(context.Background(), "faketool", dest, srv.Client(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.AlreadyPresent {
+		t.Fatal("a modified binary must not count as already installed")
+	}
+	on, err := os.ReadFile(binPath) //nolint:gosec // test reads a file under t.TempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(on, content) {
+		t.Error("the modified binary should have been replaced with the pinned build")
+	}
+}
+
+// A pin bump must not be masked by a previous install of the older build.
+func TestInstallReinstallsWhenPinChanges(t *testing.T) {
+	first := makeTarGz(t, "faketool", []byte("v1"))
+	srv1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(first)
+	}))
+	defer srv1.Close()
+	registerTestTool(t, "faketool", srv1.URL, sha256Hex(first), "faketool")
+	dest := t.TempDir()
+	if _, err := Install(context.Background(), "faketool", dest, srv1.Client(), false); err != nil {
+		t.Fatal(err)
+	}
+
+	// Same tool name, new upstream build: the recorded asset checksum no longer matches.
+	second := makeTarGz(t, "faketool", []byte("v2"))
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(second)
+	}))
+	defer srv2.Close()
+	registerTestTool(t, "faketool", srv2.URL, sha256Hex(second), "faketool")
+
+	got, err := Install(context.Background(), "faketool", dest, srv2.Client(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.AlreadyPresent {
+		t.Fatal("a changed pin must reinstall")
+	}
+	on, _ := os.ReadFile(filepath.Join(dest, "faketool")) //nolint:gosec // test file under t.TempDir()
+	if string(on) != "v2" {
+		t.Errorf("installed content = %q, want the new build", on)
 	}
 }
