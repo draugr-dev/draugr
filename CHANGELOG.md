@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **The "Fix first" table now explains each finding.** It identified findings only by their
+  scanner's rule id — `DS-0002`, `KSV-0014` — which is precise and meaningless if you don't
+  already know the scanner. Each row now carries the finding's own message beneath it, dimmed,
+  and rule ids with a stable public home (CVE, GHSA) become clickable links to the advisory in
+  terminals that support them, costing no width in ones that don't.
 
 ## [0.34.0] - 2026-07-26
 
