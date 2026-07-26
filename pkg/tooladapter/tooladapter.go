@@ -35,6 +35,10 @@ type Config struct {
 	// Prewarm, when set, warms shared tool state once before a run's fan-out (see
 	// plugin.Prewarmer). Optional.
 	Prewarm func(ctx context.Context) error
+	// Refine, when set, adjusts the parsed report before it is returned. Tools describe a
+	// finding's location in their own terms, which aren't always meaningful outside the tool;
+	// this is where a scanner restates them in the target's terms. Optional.
+	Refine func(target plugin.Target, report sarif.Report) sarif.Report
 }
 
 // Adapter is a Scanner backed by an external tool.
@@ -107,6 +111,9 @@ func (a *Adapter) Scan(ctx context.Context, target plugin.Target, cfg plugin.Con
 		if report.Results[i].Tool == "" {
 			report.Results[i].Tool = a.cfg.Name
 		}
+	}
+	if a.cfg.Refine != nil {
+		report = a.cfg.Refine(target, report)
 	}
 	return report, nil
 }

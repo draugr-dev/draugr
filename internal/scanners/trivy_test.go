@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 func TestTrivyInfo(t *testing.T) {
@@ -76,6 +78,42 @@ func TestTrivyFSArgs(t *testing.T) {
 	for i := range want {
 		if argv[i] != want[i] {
 			t.Fatalf("argv[%d] = %q, want %q", i, argv[i], want[i])
+		}
+	}
+}
+
+// Trivy names an image finding after the registry path with the tag dropped, at line 1. That
+// isn't where the finding is, and it makes two images in one component indistinguishable.
+func TestTrivyImageLocationsUseTheScannedReference(t *testing.T) {
+	in := sarif.Report{Results: []sarif.Result{
+		{RuleID: "CVE-1", Location: sarif.Location{URI: "library/python", StartLine: 1}},
+		{RuleID: "CVE-2", Location: sarif.Location{URI: "library/python", StartLine: 1}},
+	}}
+	got := trivyImageLocations(plugin.ImageTarget{Ref: "python:3.8-slim"}, in)
+	for _, res := range got.Results {
+		if res.Location.URI != "python:3.8-slim" {
+			t.Errorf("uri = %q, want the image we scanned", res.Location.URI)
+		}
+		// A line number is meaningless for an image, and renders as "python:3.8-slim:1".
+		if res.Location.StartLine != 0 {
+			t.Errorf("startLine = %d, want none", res.Location.StartLine)
+		}
+	}
+
+	// A digest-pinned target reports the pinned reference, so the finding names exactly what
+	// was pulled.
+	pinned := trivyImageLocations(
+		plugin.ImageTarget{Ref: "python:3.8-slim", Digest: "sha256:abc"},
+		sarif.Report{Results: []sarif.Result{{Location: sarif.Location{URI: "library/python"}}}})
+	if got := pinned.Results[0].Location.URI; got != "python:3.8-slim@sha256:abc" {
+		t.Errorf("uri = %q, want the pinned reference", got)
+	}
+
+	// Anything that isn't an image target, or has no reference to report, is left alone.
+	untouched := sarif.Report{Results: []sarif.Result{{Location: sarif.Location{URI: "a/b.go", StartLine: 7}}}}
+	for _, target := range []plugin.Target{plugin.RepositoryTarget{URL: "."}, plugin.ImageTarget{}} {
+		if got := trivyImageLocations(target, untouched); got.Results[0].Location.URI != "a/b.go" {
+			t.Errorf("%T: location was rewritten to %q", target, got.Results[0].Location.URI)
 		}
 	}
 }
