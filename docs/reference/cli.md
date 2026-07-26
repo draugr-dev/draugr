@@ -105,6 +105,23 @@ big CI runner you can dial it up. `-j 1` runs serially (deterministic output; ha
 debugging). The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total
 jobs), `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence.
 
+**Two scales, and which one gates.** The console reports **severity bands** (critical / high /
+medium / low), derived from a finding's CVSS score where the scanner supplies one. `--fail-on`
+takes **SARIF levels** (`error` / `warning` / `note`), which is what scanners emit and what the
+gate evaluates. They line up like this:
+
+| Severity band | From CVSS | SARIF level | `--fail-on error` | `--fail-on warning` |
+|---------------|-----------|-------------|:-----------------:|:-------------------:|
+| critical | 9.0–10.0 | `error` | fails | fails |
+| high | 7.0–8.9 | `error` | fails | fails |
+| medium | 4.0–6.9 | `warning` | — | fails |
+| low | 0.1–3.9 | `note` | — | — |
+
+A finding with no CVSS score keeps whatever level its scanner assigned; a control may also apply
+a **floor** (a leaked secret is never reported as low, however the scanner scored it). To gate on
+business risk instead of raw severity, use `--fail-on-priority` — it accounts for the
+component's exposure and criticality, which a bare severity cannot.
+
 **Priority** requires components to declare `exposure`/`criticality` (see the
 [Saga reference](saga-schema.md)); Draugr ranks each finding P1–P4 from its severity and
 the component's risk. See [concepts](../concepts/prioritization.md).
