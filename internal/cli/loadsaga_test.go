@@ -37,3 +37,32 @@ func TestLoadSagaInvalidHasContextAndHint(t *testing.T) {
 		t.Errorf("expected indented detail, got: %s", msg)
 	}
 }
+
+// The zero-config control list appears in the scan help and the run notice. Both must render it
+// from syntheticSaga's actual set — hard-coded copies drifted from reality twice before.
+func TestZeroConfigControlsMatchSyntheticSaga(t *testing.T) {
+	model := syntheticSaga(t.TempDir())
+	for name := range model.Config.Controllers {
+		if !strings.Contains(ZeroConfigControls("and"), name) {
+			t.Errorf("control %q is enabled zero-config but missing from the rendered list %q",
+				name, ZeroConfigControls("and"))
+		}
+	}
+	if got := len(model.Config.Controllers); got != len(zeroConfigControls) {
+		t.Errorf("synthesized saga enables %d controls, the list names %d", got, len(zeroConfigControls))
+	}
+	// The help text uses the "and" form; the run notice uses the plain list.
+	if got := ZeroConfigControls("and"); got != "sca, secrets, sast, and iac" {
+		t.Errorf("conjunction form = %q", got)
+	}
+	if got := ZeroConfigControls(""); got != "sca, secrets, sast, iac" {
+		t.Errorf("plain form = %q", got)
+	}
+}
+
+func TestScanHelpRendersTheDerivedControls(t *testing.T) {
+	long := newScanCommand().Long
+	if !strings.Contains(long, ZeroConfigControls("and")) {
+		t.Errorf("scan help should render the derived control list, got:\n%s", long)
+	}
+}
