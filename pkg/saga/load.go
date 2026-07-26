@@ -70,6 +70,10 @@ func unknownFieldHint(err error) error {
 	}
 	field, goType := match[1], match[2]
 	section := strings.TrimPrefix(strings.ToLower(goType), "saga.")
+	if section == "model" {
+		// The root document isn't a named section to a reader; "model" is our Go type.
+		section = "the top level"
+	}
 	return fmt.Errorf("unknown field %q in %s — check the spelling, or see "+
 		"https://draugr.dev/docs/latest/reference/saga-schema/", field, section)
 }
