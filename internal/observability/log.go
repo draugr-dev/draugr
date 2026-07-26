@@ -10,8 +10,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"strings"
+
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // LogOptions configures the structured logger.
@@ -37,7 +38,7 @@ func NewLogger(w io.Writer, opts LogOptions) (*slog.Logger, error) {
 	var h slog.Handler
 	switch strings.ToLower(strings.TrimSpace(opts.Format)) {
 	case "", "console":
-		h = newConsoleHandler(w, handlerOpts, colorEnabled(w))
+		h = newConsoleHandler(w, handlerOpts, tui.ColorEnabled(w))
 	case "json":
 		h = slog.NewJSONHandler(w, handlerOpts)
 	case "text":
@@ -46,26 +47,6 @@ func NewLogger(w io.Writer, opts LogOptions) (*slog.Logger, error) {
 		return nil, fmt.Errorf("unknown log format %q (want console, json, or text)", opts.Format)
 	}
 	return slog.New(h), nil
-}
-
-// colorEnabled reports whether ANSI color should be written to w: only when w is an
-// interactive terminal and NO_COLOR is unset (https://no-color.org). Mirrors the console
-// reporter's rule so color behaves consistently across Draugr.
-func colorEnabled(w io.Writer) bool {
-	if os.Getenv("NO_COLOR") != "" {
-		return false
-	}
-	return isTerminal(w)
-}
-
-// isTerminal reports whether w is a character device (an interactive terminal).
-func isTerminal(w io.Writer) bool {
-	f, ok := w.(*os.File)
-	if !ok {
-		return false
-	}
-	fi, err := f.Stat()
-	return err == nil && fi.Mode()&os.ModeCharDevice != 0
 }
 
 // SetDefault installs l as the process-wide default slog logger.

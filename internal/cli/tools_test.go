@@ -146,7 +146,7 @@ func TestRunToolsList(t *testing.T) {
 	}
 	s := out.String()
 	for _, want := range []string{
-		"TOOL", "CATEGORY", "CONTROLS", "PINNED",
+		"Tool", "Category", "Controls", "Pinned",
 		"trivy", "gitleaks", "semgrep", "git", "pipx",
 		"secrets", // gitleaks → secrets control
 		"utility", // cosign/git category

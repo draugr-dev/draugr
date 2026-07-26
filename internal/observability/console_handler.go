@@ -7,16 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-)
 
-// ANSI SGR codes for the console handler. Kept local so observability carries no dependency on
-// the report package (whose colorizer is unexported); the same vocabulary is used across both.
-const (
-	ansiReset  = "\x1b[0m"
-	ansiDim    = "\x1b[2m"    // timestamps and attribute keys
-	ansiRed    = "\x1b[1;31m" // error
-	ansiYellow = "\x1b[33m"   // warn
-	ansiGreen  = "\x1b[32m"   // info
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // consoleHandler renders log records as compact, human-readable lines:
@@ -30,15 +22,19 @@ type consoleHandler struct {
 	opts         slog.HandlerOptions
 	mu           *sync.Mutex
 	w            io.Writer
-	color        bool
+	paint        tui.Painter
 	groupPrefix  string
 	preformatted []byte // attributes accumulated via WithAttrs, already rendered
 }
 
 // newConsoleHandler builds a consoleHandler writing to w. color is decided by the caller (see
-// colorEnabled) so it stays testable without a real terminal.
+// tui.ColorEnabled) so it stays testable without a real terminal.
 func newConsoleHandler(w io.Writer, opts *slog.HandlerOptions, color bool) *consoleHandler {
-	h := &consoleHandler{mu: &sync.Mutex{}, w: w, color: color}
+	painter := tui.Plain()
+	if color {
+		painter = tui.Colored()
+	}
+	h := &consoleHandler{mu: &sync.Mutex{}, w: w, paint: painter}
 	if opts != nil {
 		h.opts = *opts
 	}
@@ -57,10 +53,10 @@ func (h *consoleHandler) Handle(_ context.Context, r slog.Record) error {
 	buf := make([]byte, 0, 128)
 
 	if !r.Time.IsZero() {
-		buf = h.paint(buf, ansiDim, r.Time.Format("15:04:05"))
+		buf = h.paint.Append(buf, tui.StyleMuted, r.Time.Format("15:04:05"))
 		buf = append(buf, ' ')
 	}
-	buf = h.paint(buf, levelColor(r.Level), levelLabel(r.Level))
+	buf = h.paint.Append(buf, levelColor(r.Level), levelLabel(r.Level))
 	buf = append(buf, ' ', ' ')
 	buf = append(buf, r.Message...)
 
@@ -104,7 +100,7 @@ func (h *consoleHandler) clone() *consoleHandler {
 		opts:         h.opts,
 		mu:           h.mu,
 		w:            h.w,
-		color:        h.color,
+		paint:        h.paint,
 		groupPrefix:  h.groupPrefix,
 		preformatted: pf,
 	}
@@ -132,23 +128,12 @@ func (h *consoleHandler) appendAttr(buf []byte, a slog.Attr, prefix string) []by
 		return buf
 	}
 	buf = append(buf, ' ')
-	buf = h.paint(buf, ansiDim, prefix+a.Key+"=")
+	buf = h.paint.Append(buf, tui.StyleMuted, prefix+a.Key+"=")
 	val := a.Value.String()
 	if strings.ContainsAny(val, " \t\n\"") {
 		val = strconv.Quote(val)
 	}
 	return append(buf, val...)
-}
-
-// paint appends s to buf, wrapped in the ANSI code when color is on and code is non-empty;
-// otherwise it appends s unchanged.
-func (h *consoleHandler) paint(buf []byte, code, s string) []byte {
-	if !h.color || code == "" {
-		return append(buf, s...)
-	}
-	buf = append(buf, code...)
-	buf = append(buf, s...)
-	return append(buf, ansiReset...)
 }
 
 // levelLabel returns a fixed-width (5-char) label so records align in a column.
@@ -167,15 +152,17 @@ func levelLabel(l slog.Level) string {
 	}
 }
 
-func levelColor(l slog.Level) string {
+// levelColor maps a log level onto the shared palette, so a warning in the log reads the same
+// as a warning anywhere else Draugr writes.
+func levelColor(l slog.Level) tui.Style {
 	switch {
 	case l < slog.LevelInfo:
-		return ansiDim
+		return tui.StyleMuted
 	case l < slog.LevelWarn:
-		return ansiGreen
+		return tui.StylePass
 	case l < slog.LevelError:
-		return ansiYellow
+		return tui.StyleMedium
 	default:
-		return ansiRed
+		return tui.StyleFail
 	}
 }

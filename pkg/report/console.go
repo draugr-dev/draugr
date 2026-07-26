@@ -129,54 +129,24 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 // glance which control and scanner flagged each finding.
 var fixFirstHeader = []string{"Priority", "Severity", "Score", "Rule", "Control", "Scanner", "Location"}
 
-// renderFixFirst prints the ranked findings as an aligned, colorized table with a header row.
-// Columns are padded from the plain text so ANSI color codes don't skew the alignment.
+// renderFixFirst prints the ranked findings as an aligned table with a header row, each
+// finding's own message on a dimmed line beneath it.
 func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
-	// rows[0] is the header; the rest are findings, each
-	// [priority, severity, score, rule, control, scanner, location].
-	rows := make([][]string, 0, len(fs)+1)
-	rows = append(rows, fixFirstHeader)
+	t := tui.NewTable(col, fixFirstHeader...).Indent("  ")
 	for _, f := range fs {
-		rows = append(rows, []string{
-			dash(f.priority), string(f.severity), scoreStr(f), shortRuleID(f.ruleID),
-			f.control, dash(f.tool), dash(f.location),
-		})
+		t.RowWithNote(findingSummary(f.message),
+			tui.Styled(priorityColor(f.priority), dash(f.priority)),
+			tui.Styled(severityColor(f.severity), string(f.severity)),
+			tui.PlainCell(scoreStr(f)),
+			// A rule id names a finding; it doesn't explain it. The link is where a reader
+			// finds out what it means, and it costs no width.
+			tui.Cell{Text: shortRuleID(f.ruleID), URL: f.helpURI},
+			tui.PlainCell(f.control),
+			tui.PlainCell(dash(f.tool)),
+			tui.PlainCell(dash(f.location)),
+		)
 	}
-	widths := make([]int, len(fixFirstHeader))
-	for _, r := range rows {
-		for i, cell := range r {
-			if len(cell) > widths[i] {
-				widths[i] = len(cell)
-			}
-		}
-	}
-	// The last column is never padded — nothing follows it.
-	pad := func(r []string, n int) string {
-		if n == len(widths)-1 {
-			return r[n]
-		}
-		return fmt.Sprintf("%-*s", widths[n], r[n])
-	}
-
-	h := rows[0]
-	_, _ = fmt.Fprintf(w, "  %s  %s  %s  %s  %s  %s  %s\n",
-		col.Paint(cDim, pad(h, 0)), col.Paint(cDim, pad(h, 1)), col.Paint(cDim, pad(h, 2)),
-		col.Paint(cDim, pad(h, 3)), col.Paint(cDim, pad(h, 4)), col.Paint(cDim, pad(h, 5)),
-		col.Paint(cDim, pad(h, 6)))
-
-	for i, f := range fs {
-		r := rows[i+1]
-		_, _ = fmt.Fprintf(w, "  %s  %s  %s  %s  %s  %s  %s\n",
-			col.Paint(priorityColor(f.priority), pad(r, 0)),
-			col.Paint(severityColor(f.severity), pad(r, 1)),
-			pad(r, 2), col.Link(f.helpURI, pad(r, 3)), pad(r, 4), pad(r, 5), pad(r, 6))
-		// A rule id names a finding; it doesn't explain it. "DS-0002" is meaningless to anyone
-		// who doesn't already know the scanner, which is exactly the reader we care about — so
-		// the finding's own message goes underneath, dimmed so it reads as support, not noise.
-		if msg := findingSummary(f.message); msg != "" {
-			_, _ = fmt.Fprintf(w, "  %s%s\n", strings.Repeat(" ", widths[0]+2), col.Paint(cDim, msg))
-		}
-	}
+	t.Render(w)
 }
 
 // ruleIDWidth caps the Rule column. Some scanners use long namespaced ids — Semgrep's run past

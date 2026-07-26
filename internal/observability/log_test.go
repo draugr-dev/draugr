@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 func TestNewLoggerJSON(t *testing.T) {
@@ -104,11 +106,13 @@ func TestConsoleHandlerColorWhenEnabled(t *testing.T) {
 	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}, true)
 	slog.New(h).Error("boom", "code", 7)
 	s := buf.String()
-	if !strings.Contains(s, "\x1b[") || !strings.Contains(s, ansiReset) {
+	if !strings.Contains(s, "\x1b[") || !strings.Contains(s, "\x1b[0m") {
 		t.Errorf("expected ANSI color with color enabled: %q", s)
 	}
-	if !strings.Contains(s, ansiRed) {
-		t.Errorf("error level should be red: %q", s)
+	// The level takes its colour from the shared palette, so an error in the log looks like a
+	// failure everywhere else Draugr writes.
+	if !strings.Contains(s, "\x1b["+string(tui.StyleFail)+"m") {
+		t.Errorf("error level should use the shared fail style: %q", s)
 	}
 	// With color on, the dimmed key is reset before the value, so "code=" and "7" are not
 	// contiguous — assert them separately.
@@ -172,10 +176,10 @@ func TestNewLoggerConsoleExplicit(t *testing.T) {
 
 func TestColorEnabledAndIsTerminal(t *testing.T) {
 	// A plain buffer is not a terminal, so color is off.
-	if isTerminal(&bytes.Buffer{}) {
+	if tui.IsTerminal(&bytes.Buffer{}) {
 		t.Error("bytes.Buffer should not be a terminal")
 	}
-	if colorEnabled(&bytes.Buffer{}) {
+	if tui.ColorEnabled(&bytes.Buffer{}) {
 		t.Error("color should be off for a non-terminal writer")
 	}
 	// An os.Pipe is an *os.File but not a character device.
@@ -184,12 +188,12 @@ func TestColorEnabledAndIsTerminal(t *testing.T) {
 		t.Fatalf("os.Pipe: %v", err)
 	}
 	defer func() { _ = r.Close(); _ = w.Close() }()
-	if isTerminal(w) {
+	if tui.IsTerminal(w) {
 		t.Error("a pipe is not a character device")
 	}
 	// NO_COLOR forces color off even for a terminal-like writer.
 	t.Setenv("NO_COLOR", "1")
-	if colorEnabled(os.Stdout) {
+	if tui.ColorEnabled(os.Stdout) {
 		t.Error("NO_COLOR must disable color")
 	}
 }

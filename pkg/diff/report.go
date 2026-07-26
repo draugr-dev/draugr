@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"text/tabwriter"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
+
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // Formats lists the diff output formats, sorted.
@@ -53,7 +54,15 @@ func dash(s string) string {
 // --- console ---
 
 func renderConsole(w io.Writer, r Result) error {
-	_, _ = fmt.Fprintf(w, "Draugr diff — %s\n", headline(r))
+	col := tui.For(w)
+
+	// A diff's headline is its verdict: new findings are the thing to act on, and a clean
+	// diff deserves to look clean.
+	headlineStyle := tui.StylePass
+	if len(r.New) > 0 {
+		headlineStyle = tui.StyleFail
+	}
+	_, _ = fmt.Fprintf(w, "Draugr diff — %s\n", col.Paint(headlineStyle, headline(r)))
 
 	np, fp := countPriorities(r.New), countPriorities(r.Fixed)
 	if np != (PriorityCounts{}) || fp != (PriorityCounts{}) {
@@ -63,28 +72,37 @@ func renderConsole(w io.Writer, r Result) error {
 	_, _ = fmt.Fprintln(w)
 
 	if len(r.New) == 0 && len(r.Fixed) == 0 {
-		_, _ = fmt.Fprintln(w, "No change in the finding footprint. ✓")
+		_, _ = fmt.Fprintln(w, col.Paint(tui.StylePass, "No change in the finding footprint. ✓"))
 		return nil
 	}
 
 	if len(r.New) > 0 {
 		_, _ = fmt.Fprintf(w, "New (%d):\n", len(r.New))
-		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-		for _, f := range r.New {
-			_, _ = fmt.Fprintf(tw, "  + %s\t%s\t%s\t%s\n", dash(f.Priority), f.Level, f.RuleID, loc(f.Location.URI, f.Location.StartLine))
-		}
-		_ = tw.Flush()
+		renderDiffFindings(w, col, "+", tui.StyleFail, r.New)
 		_, _ = fmt.Fprintln(w)
 	}
 	if len(r.Fixed) > 0 {
 		_, _ = fmt.Fprintf(w, "Fixed (%d):\n", len(r.Fixed))
-		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-		for _, f := range r.Fixed {
-			_, _ = fmt.Fprintf(tw, "  - %s\t%s\t%s\t%s\n", dash(f.Priority), f.Level, f.RuleID, loc(f.Location.URI, f.Location.StartLine))
-		}
-		_ = tw.Flush()
+		renderDiffFindings(w, col, "-", tui.StylePass, r.Fixed)
 	}
 	return nil
+}
+
+// renderDiffFindings lists findings under a sign, using the same table the scan report uses so
+// a diff and a scan read alike.
+func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Style, fs []sarif.Result) {
+	t := tui.NewTable(col).Indent("  ")
+	for _, f := range fs {
+		t.Row(
+			// The sign and the priority travel together — both answer "what is this finding
+			// in this diff" — so they share a cell and the spacing stays tight.
+			tui.Styled(style, sign+" "+dash(f.Priority)),
+			tui.PlainCell(string(f.Level)),
+			tui.PlainCell(f.RuleID),
+			tui.Styled(tui.StyleMuted, loc(f.Location.URI, f.Location.StartLine)),
+		)
+	}
+	t.Render(w)
 }
 
 // --- markdown ---

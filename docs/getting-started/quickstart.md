@@ -184,6 +184,13 @@ runs the scan, and exposes the SARIF path for code scanning. See the
 [GitHub Action guide](../guides/github-action.md) for the full workflow and all inputs, and
 [code scanning](../guides/code-scanning.md) for publishing findings to the Security tab.
 
+## 5. See the findings in your editor
+
+CI tells you at the end; your editor tells you while you're writing. `draugr scan -o out`
+writes `out/results.sarif`, which VS Code and JetBrains read as inline diagnostics — squiggles
+on the offending lines, and click-to-line from a Problems list — with no Draugr-specific
+extension. See [see findings in your editor](../guides/findings-in-your-editor.md).
+
 ## Troubleshooting
 
 - **Not sure what's installed?** — run `draugr doctor draugr.saga.yaml` for a preflight: it

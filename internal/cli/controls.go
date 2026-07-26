@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/pkg/engine"
+
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 func newControlsCommand() *cobra.Command {
@@ -36,8 +37,8 @@ func runControls(w io.Writer, reg *engine.Registry) error {
 		}
 	}
 
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(tw, "CONTROL\tSCOPE\tSCANNERS\tPURPOSE")
+	col := tui.For(w)
+	t := tui.NewTable(col, "Control", "Scope", "Scanners", "Purpose")
 	optIn := false
 	for _, ctrl := range reg.Controllers() {
 		info := ctrl.Info()
@@ -58,13 +59,20 @@ func runControls(w io.Writer, reg *engine.Registry) error {
 		if scanners == "" {
 			scanners = "-"
 		}
-		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", info.Name, info.Scope, scanners, info.Summary)
+		t.Row(
+			tui.Styled(tui.StyleAccent, info.Name),
+			tui.PlainCell(string(info.Scope)),
+			tui.PlainCell(scanners),
+			tui.Styled(tui.StyleMuted, info.Summary),
+		)
 	}
-	_ = tw.Flush()
+	t.Render(w)
 
 	if optIn {
-		_, _ = fmt.Fprintln(w, "\n* opt-in scanner — enable with controllers.<control>.<scanner>.enabled: true in the Saga.")
+		_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
+			"* opt-in scanner — enable with controllers.<control>.<scanner>.enabled: true in the Saga."))
 	}
-	_, _ = fmt.Fprintln(w, "\nEnable a control under config.controllers.<name> (or per component) in your Saga.")
+	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
+		"Enable a control under config.controllers.<name> (or per component) in your Saga."))
 	return nil
 }

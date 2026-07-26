@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"sort"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -19,6 +18,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
+
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 type doctorOptions struct {
@@ -88,7 +89,8 @@ func runDoctor(
 			if asJSON {
 				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil)
 			} else {
-				_, _ = fmt.Fprintf(w, "Descriptor  ✗ invalid — %s\n", err)
+				col := tui.For(w)
+				_, _ = fmt.Fprintf(w, "Descriptor  %s — %s\n", col.Paint(tui.StyleFail, "✗ invalid"), err)
 			}
 			return fmt.Errorf("invalid descriptor: %w", err)
 		}
@@ -117,21 +119,23 @@ func runDoctor(
 		}
 	} else {
 		if sagaPath != "" {
-			_, _ = fmt.Fprintf(w, "Descriptor  ✓ valid (%s)\n\n", sagaPath)
+			col := tui.For(w)
+			_, _ = fmt.Fprintf(w, "Descriptor  %s %s\n\n",
+				col.Paint(tui.StylePass, "✓ valid"), col.Paint(tui.StyleMuted, "("+sagaPath+")"))
 		}
 		writeDoctorTable(w, statuses)
 	}
 
 	if missing > 0 {
 		if !asJSON {
-			_, _ = fmt.Fprintf(w,
-				"\n%d required tool(s) missing. Install them (see notes above), "+
-					"or run `draugr tools install`.\n", missing)
+			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleFail,
+				fmt.Sprintf("%d required tool(s) missing. Install them (see notes above), "+
+					"or run `draugr tools install`.", missing)))
 		}
 		return fmt.Errorf("%d required tool(s) not found", missing)
 	}
 	if !asJSON {
-		_, _ = fmt.Fprintln(w, "\nAll required tools present.")
+		_, _ = fmt.Fprintln(w, "\n"+tui.For(w).Paint(tui.StylePass, "All required tools present."))
 	}
 	return nil
 }
@@ -198,24 +202,31 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 }
 
 func writeDoctorTable(w io.Writer, statuses []tools.Status) {
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(tw, "TOOL\tSTATUS\tVERSION\tNOTES")
+	col := tui.For(w)
+	t := tui.NewTable(col, "Tool", "Status", "Version", "Notes")
 	for _, st := range statuses {
 		status, version, notes := "✓ found", st.Version, st.Path
+		style := tui.StylePass
 		switch {
 		case !st.Found && st.Tool.Optional:
-			status, notes = "– optional", "optional: "+st.Tool.InstallHint
+			// Optional tools aren't a problem, so they mustn't read as one.
+			status, notes, style = "– optional", "optional: "+st.Tool.InstallHint, tui.StyleMuted
 		case !st.Found:
-			status, notes = "✗ missing", "install: "+st.Tool.InstallHint
+			status, notes, style = "✗ missing", "install: "+st.Tool.InstallHint, tui.StyleFail
 		case st.Err != nil:
 			version, notes = "?", fmt.Sprintf("%s (version check failed)", st.Path)
 		}
 		if version == "" {
 			version = "-"
 		}
-		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", st.Tool.Binary, status, version, notes)
+		t.Row(
+			tui.PlainCell(st.Tool.Binary),
+			tui.Styled(style, status),
+			tui.PlainCell(version),
+			tui.Styled(tui.StyleMuted, notes),
+		)
 	}
-	_ = tw.Flush()
+	t.Render(w)
 }
 
 type descriptorReport struct {
@@ -251,10 +262,13 @@ func writeDraugrLine(w io.Writer, r draugrReport) {
 	case r.Latest == "":
 		_, _ = fmt.Fprintf(w, "Draugr      %s\n\n", displayVersion(r.Version))
 	case r.UpdateAvailable:
-		_, _ = fmt.Fprintf(w, "Draugr      %s  (latest: %s — run 'draugr self-update')\n\n",
-			displayVersion(r.Version), displayVersion(r.Latest))
+		col := tui.For(w)
+		_, _ = fmt.Fprintf(w, "Draugr      %s  %s\n\n", displayVersion(r.Version),
+			col.Paint(tui.StyleAccent, fmt.Sprintf("(latest: %s — run 'draugr self-update')",
+				displayVersion(r.Latest))))
 	default:
-		_, _ = fmt.Fprintf(w, "Draugr      %s  (up to date)\n\n", displayVersion(r.Version))
+		_, _ = fmt.Fprintf(w, "Draugr      %s  %s\n\n", displayVersion(r.Version),
+			tui.For(w).Paint(tui.StyleMuted, "(up to date)"))
 	}
 }
 

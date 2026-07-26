@@ -50,6 +50,10 @@ func For(w io.Writer) Painter { return Painter{color: ColorEnabled(w)} }
 // destination isn't known yet.
 func Plain() Painter { return Painter{} }
 
+// Colored returns a Painter for a caller that has already decided, such as one whose colour
+// setting comes from configuration rather than from inspecting the writer.
+func Colored() Painter { return Painter{color: true} }
+
 // Enabled reports whether this painter emits colour, so callers can skip work that only matters
 // when coloured.
 func (p Painter) Enabled() bool { return p.color }
@@ -60,6 +64,19 @@ func (p Painter) Paint(style Style, s string) string {
 		return s
 	}
 	return "\x1b[" + string(style) + "m" + s + "\x1b[0m"
+}
+
+// Append is Paint for a caller building a byte buffer — the log handler writes a line per
+// record, and going through strings would allocate on every one.
+func (p Painter) Append(buf []byte, style Style, s string) []byte {
+	if !p.color || style == StyleNone {
+		return append(buf, s...)
+	}
+	buf = append(buf, "\x1b["...)
+	buf = append(buf, style...)
+	buf = append(buf, 'm')
+	buf = append(buf, s...)
+	return append(buf, "\x1b[0m"...)
 }
 
 // Link renders text as an OSC 8 terminal hyperlink to url. Terminals that support it show the
