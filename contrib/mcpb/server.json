@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "dev.draugr/draugr",
+  "title": "Draugr",
+  "description": "Answers what to fix first, from your committed security descriptor rather than an invented scope.",
+  "version": "0.39.0",
+  "websiteUrl": "https://draugr.dev",
+  "repository": {
+    "url": "https://github.com/draugr-dev/draugr",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/draugr-dev/draugr/releases/download/v0.39.0/draugr-0.39.0.mcpb",
+      "version": "0.39.0",
+      "fileSha256": "db88503c281226dbe08dd86ca9285ba1f432017aa82f743aef126bef497067f6",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
