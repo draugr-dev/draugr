@@ -163,6 +163,11 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob) ([]plugin.
 type Result struct {
 	Controls map[string]plugin.ControlResult
 	Stats    Stats
+	// ScanErrors records, per control, what stopped it completing — a missing scanner binary, a
+	// tool that exited badly, a plan that couldn't be built. A control listed here checked less
+	// than it was asked to, so its absence of findings is not evidence of absence, and callers
+	// that treat an empty report as "clean" would be wrong.
+	ScanErrors map[string][]string
 }
 
 // Stats summarizes execution, including cache effectiveness.
@@ -216,6 +221,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		mu       sync.Mutex
 		wg       sync.WaitGroup
 		byCtl    = make(map[string][]sarif.Report)
+		ctlErrs  = make(map[string][]string)
 		errs     []error
 		stats    = Stats{Jobs: len(planned), Concurrency: e.concurrency}
 		sem      = make(chan struct{}, e.concurrency)
@@ -226,6 +232,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		// Runs before any worker goroutine starts; the concurrent appends below are
 		// mutex-guarded, so this is not a data race.
 		errs = append(errs, planErr) // nosem: trailofbits.go.racy-append-to-slice.racy-append-to-slice
+		// Planning failures aren't attributable to one control, but they still mean the run is
+		// incomplete, so they need somewhere to be reported from.
+		ctlErrs[planningPseudoControl] = append(ctlErrs[planningPseudoControl], planErr.Error()) // nosem: trailofbits.go.racy-append-to-slice.racy-append-to-slice
 	}
 
 	// Warm shared scanner state (e.g. Trivy's vuln DB) once per distinct scanner, before the
@@ -274,6 +283,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				span.SetStatus(codes.Error, "scanner not found")
 				mu.Lock()
 				errs = append(errs, err)
+				ctlErrs[pj.Control] = append(ctlErrs[pj.Control], err.Error())
 				mu.Unlock()
 				return
 			}
@@ -320,6 +330,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				if !shared { // record the underlying error once, not once per collapsed job
 					mu.Lock()
 					errs = append(errs, fmt.Errorf("scan %s/%s: %w", pj.Control, pj.Job.Scanner, scanErr))
+					ctlErrs[pj.Control] = append(ctlErrs[pj.Control],
+						fmt.Sprintf("%s: %v", pj.Job.Scanner, scanErr))
 					mu.Unlock()
 				}
 				return
@@ -347,6 +359,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	}
 
 	res := Result{Controls: make(map[string]plugin.ControlResult), Stats: stats}
+	if len(ctlErrs) > 0 {
+		res.ScanErrors = ctlErrs
+	}
 	for _, control := range sortedReportKeys(byCtl) {
 		ctrl, ok := e.reg.Controller(control)
 		if !ok {
@@ -357,6 +372,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		cr, err := ctrl.Aggregate(byCtl[control])
 		if err != nil {
 			errs = append(errs, fmt.Errorf("aggregate %s: %w", control, err))
+			ctlErrs[control] = append(ctlErrs[control], "aggregate: "+err.Error())
 			continue
 		}
 		res.Controls[control] = cr
@@ -404,3 +420,7 @@ func sortedReportKeys(m map[string][]sarif.Report) []string {
 	sort.Strings(keys)
 	return keys
 }
+
+// planningPseudoControl is where a planning failure is reported, since it belongs to the run
+// rather than to any one control.
+const planningPseudoControl = "(planning)"

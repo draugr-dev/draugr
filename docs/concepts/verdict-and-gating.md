@@ -35,6 +35,28 @@ pipeline directly. The failure threshold is configurable (`--fail-on`, default `
 with optional per-control overrides, plus a component-aware priority gate
 (`--fail-on-priority`). The run fails if either gate trips.
 
+### A control that couldn't run is not a pass
+
+If a scanner is missing, exits badly, or a control can't be planned, that control **checked
+less than it was asked to** — so an empty report from it isn't evidence of anything. Draugr
+fails the run and says which control it was:
+
+```
+Controls:
+  sca  ERROR  did not run
+       trivy-fs: exec: "trivy": executable file not found in $PATH
+
+draugr: scan incomplete: sca could not run (use --allow-scan-errors to accept partial results)
+```
+
+This matters most in CI, where a scanner failing to provision is the common failure and a
+warning in the log goes unread. A green build from a check that never ran is the one outcome a
+gate must not produce.
+
+Pass `--allow-scan-errors` for best-effort scanning — the run then passes on findings alone.
+The errored control is still reported either way; the flag buys a passing exit code, not
+silence.
+
 ## Understanding the report
 
 A finding is described on **three related axes** — knowing which is which removes most confusion:

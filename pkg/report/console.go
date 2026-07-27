@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -71,7 +72,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			col.Paint(cDim, fmt.Sprintf("P4 %d", s.p4)))
 	}
 
-	if len(d.Verdict.Controls) > 0 {
+	// Controls that errored are listed alongside the ones that ran. Previously a control whose
+	// scanner was missing simply wasn't in Verdict.Controls, so it vanished from the report —
+	// the output got shorter precisely when something had gone wrong.
+	errored := d.Run.ScanErrors
+	if len(d.Verdict.Controls) > 0 || len(errored) > 0 {
 		_, _ = fmt.Fprintln(w, "Controls:")
 		width := 0
 		for _, c := range d.Verdict.Controls {
@@ -79,20 +84,49 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				width = len(c.Control)
 			}
 		}
+		for name := range errored {
+			if len(name) > width {
+				width = len(name)
+			}
+		}
 		for _, c := range d.Verdict.Controls {
 			v, vc := "pass", cDim
 			if c.Verdict == norn.Fail {
 				v, vc = "FAIL", cFail
 			}
+			if _, bad := errored[c.Control]; bad {
+				// It produced findings *and* something failed: what it did report is partial.
+				v, vc = "ERROR", cFail
+			}
 			_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 				fmt.Sprintf("%-*s", width, c.Control),
-				col.Paint(vc, fmt.Sprintf("%-4s", v)),
+				col.Paint(vc, fmt.Sprintf("%-5s", v)),
 				bandsText(col, s.bands[c.Control]))
+		}
+		// Controls that produced nothing at all have no verdict entry, so they're listed here.
+		for _, name := range erroredOnly(d) {
+			_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
+				fmt.Sprintf("%-*s", width, name),
+				col.Paint(cFail, fmt.Sprintf("%-5s", "ERROR")),
+				col.Paint(cDim, "did not run"))
+		}
+		for _, name := range sortedKeys(errored) {
+			for _, msg := range errored[name] {
+				_, _ = fmt.Fprintf(w, "  %s%s\n", strings.Repeat(" ", width+2),
+					col.Paint(cDim, findingSummary(msg)))
+			}
 		}
 		_, _ = fmt.Fprintln(w)
 	}
 
 	if len(s.findings) == 0 {
+		// "No findings ✓" after a control that didn't run would be the same false reassurance
+		// the ERROR row exists to prevent.
+		if len(errored) > 0 {
+			_, _ = fmt.Fprintln(w, col.Paint(cDim,
+				"No findings from the controls that ran — see the errors above."))
+			return nil
+		}
 		_, _ = fmt.Fprintln(w, col.Paint(cPass, "No findings. ✓"))
 		return nil
 	}
@@ -242,4 +276,31 @@ func scoreStr(f finding) string {
 		return fmt.Sprintf("%.1f", f.score)
 	}
 	return "-"
+}
+
+// erroredOnly names controls that failed without producing any report at all, so they have no
+// entry in the verdict to hang an ERROR on.
+func erroredOnly(d Data) []string {
+	seen := make(map[string]bool, len(d.Verdict.Controls))
+	for _, c := range d.Verdict.Controls {
+		seen[c.Control] = true
+	}
+	var out []string
+	for name := range d.Run.ScanErrors {
+		if !seen[name] {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// sortedKeys orders map keys so the report is stable run to run.
+func sortedKeys(m map[string][]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

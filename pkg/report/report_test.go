@@ -517,3 +517,51 @@ func TestCompactAffectsOnlyTheMachineFormats(t *testing.T) {
 		}
 	}
 }
+
+// A control that couldn't run must appear in the report. It used to vanish, so the output got
+// shorter exactly when something had gone wrong.
+func TestConsoleNamesControlsThatCouldNotRun(t *testing.T) {
+	d := Data{
+		Run: engine.Result{
+			Controls:   map[string]plugin.ControlResult{},
+			ScanErrors: map[string][]string{"sca": {`trivy-fs: exec: "trivy": executable file not found`}},
+		},
+		Verdict: norn.Result{Verdict: norn.Fail},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{"Controls:", "sca", "ERROR", "did not run", "executable file not found"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	// The reassuring line is the whole problem: it must not appear when a control didn't run.
+	if strings.Contains(out, "No findings. ✓") {
+		t.Errorf("a scan that didn't run must not report a clean tick:\n%s", out)
+	}
+}
+
+// A control that produced findings *and* errored is partial, not merely failing.
+func TestConsoleMarksPartialControlsAsError(t *testing.T) {
+	d := Data{
+		Run: engine.Result{
+			Controls: map[string]plugin.ControlResult{"sast": {Report: sarif.Report{
+				Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelError, Message: "m"}},
+			}}},
+			ScanErrors: map[string][]string{"sast": {"gosec: exit status 2"}},
+		},
+		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+			{Control: "sast", Verdict: norn.Fail},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if !strings.Contains(buf.String(), "ERROR") {
+		t.Errorf("a control with findings and an error should read ERROR, not FAIL:\n%s", buf.String())
+	}
+}

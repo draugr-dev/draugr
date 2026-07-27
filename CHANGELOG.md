@@ -10,7 +10,35 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **A control that couldn't run no longer passes the gate.** If a scanner binary is missing, a
+  tool exits badly, or a control can't be planned, `draugr scan` now fails and names it:
+
+  ```
+  Controls:
+    sca  ERROR  did not run
+         trivy-fs: exec: "trivy": executable file not found in $PATH
+
+  draugr: scan incomplete: sca could not run (use --allow-scan-errors to accept partial results)
+  ```
+
+  Previously this logged a warning and reported `PASS` with exit 0 — a green build from a check
+  that never ran, which is exactly what happens in CI when scanner provisioning fails and the
+  warning scrolls past unread. An empty report from a scanner that didn't run isn't evidence of
+  anything, and the gate now says so.
+
+  **This can newly fail pipelines that were silently passing.** That's the point, but if you
+  want best-effort scanning, `--allow-scan-errors` restores the old exit code. The errored
+  control is reported either way — the flag buys a passing exit code, not silence.
+
+### Fixed
+
+- **Controls that error are no longer missing from the report.** A control whose scan failed was
+  absent from the `Controls:` block entirely, so the output got *shorter* precisely when
+  something had gone wrong. It now appears as `ERROR`, with the reason underneath — including
+  when it produced some findings before failing, where the results are partial rather than
+  complete.
 
 ## [0.37.0] - 2026-07-26
 

@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -291,5 +292,53 @@ func TestWithConcurrencySerialStillCompletes(t *testing.T) {
 	}
 	if sc.calls() != 2 {
 		t.Errorf("all jobs should run even serially, got %d calls", sc.calls())
+	}
+}
+
+// A scan that couldn't run has to be attributable, or the report can't name it and the gate
+// can't distinguish "clean" from "unchecked".
+func TestRunAttributesScanErrorsToTheirControl(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "sca", scope: plugin.ScopeComponent, scanner: "broken"})
+	reg.RegisterScanner(&fakeScanner{name: "broken", fail: true})
+
+	res, err := New(reg).Run(context.Background(), saga.Model{
+		Release: saga.Release{Name: "app", Version: "1"},
+		Components: []saga.Component{
+			{Name: "c", Controllers: map[string]saga.ControllerSettings{"sca": {}}},
+		},
+	})
+	if err == nil {
+		t.Fatal("want an error from a failed scan")
+	}
+	msgs, ok := res.ScanErrors["sca"]
+	if !ok {
+		t.Fatalf("ScanErrors = %v, want an entry for sca", res.ScanErrors)
+	}
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "boom") {
+		t.Errorf("ScanErrors[sca] = %v, want the underlying error", msgs)
+	}
+	// The control produced no result at all, which is exactly why it has to be reported.
+	if _, present := res.Controls["sca"]; present {
+		t.Error("a control whose only scan failed should have no result")
+	}
+}
+
+// A run where everything worked must not claim otherwise.
+func TestRunReportsNoScanErrorsOnSuccess(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "sca", scope: plugin.ScopeComponent, scanner: "ok"})
+	reg.RegisterScanner(&fakeScanner{name: "ok"})
+	res, err := New(reg).Run(context.Background(), saga.Model{
+		Release: saga.Release{Name: "app", Version: "1"},
+		Components: []saga.Component{
+			{Name: "c", Controllers: map[string]saga.ControllerSettings{"sca": {}}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(res.ScanErrors) != 0 {
+		t.Errorf("ScanErrors = %v, want none", res.ScanErrors)
 	}
 }
