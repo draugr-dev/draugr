@@ -12,6 +12,12 @@ and move it under a version on release.
 
 ### Added
 
+- **Releases now carry an MCP Bundle (`.mcpb`).** A one-step install of Draugr's MCP server for
+  clients that support bundles, and the packaging the MCP Registry requires for a tool
+  distributed as a native binary. It's assembled from the release's own published archives, so
+  the binaries inside are bit-for-bit the ones covered by `checksums.txt`, and it carries its own
+  SHA-256. One bundle covers macOS (universal), Linux amd64 and Windows amd64.
+
 - **`check_tools` over MCP.** An assistant can now ask which external scanners are present and,
   when one is missing, gets the exact command that fixes it — narrowed to what your descriptor
   actually needs. This matters more since a control that can't run stopped reporting a pass: an
