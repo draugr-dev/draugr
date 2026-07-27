@@ -17,7 +17,17 @@ priorities your CI gate uses.
 
 ## Register it
 
-Most clients use this shape. Point `command` at your `draugr` binary:
+Draugr is published in the [MCP Registry](https://registry.modelcontextprotocol.io) as
+**`dev.draugr/draugr`**, under a namespace authenticated by DNS on `draugr.dev`. Clients that
+read the registry can find and install it from there, bundle and all — no separate download.
+
+If you already have `draugr` installed, registering it directly is simpler. For **Claude Code**:
+
+```bash
+claude mcp add draugr -- draugr mcp
+```
+
+Most other clients take this shape. Point `command` at your `draugr` binary:
 
 ```json
 {
