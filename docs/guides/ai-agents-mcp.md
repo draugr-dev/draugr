@@ -45,6 +45,36 @@ looks like it has hung — it's waiting for a client.
 | `summarize_report` | An existing `results.sarif`, ranked by priority with a doc link per rule |
 | `scan` | A fresh scan and its verdict — **only with `--scan=ask` or `--scan=always`** |
 
+## What it looks like
+
+Draugr's own repository, scanned by its own CI, asked through an assistant with the server
+registered:
+
+> **Using the draugr MCP tools, summarize the last scan and tell me what to fix first.**
+
+> **8 findings: 2 P1 (high), 6 P2 (medium).**
+>
+> Fix first, in order:
+>
+> 1. **P1 — grpc CVE** (`go.mod`): `google.golang.org/grpc` v1.81.1 → 1.82.1.
+>    GHSA-hrxh-6v49-42gf. One-line dependency bump, real vulnerability, highest score (8).
+>    Do this now.
+> 2. **P1 — private key in `test/integration/repo_scan_test.go:100`.** Likely a test fixture
+>    rather than a live secret, but verify: if it's a real key, rotate it; if it's a fixture,
+>    add a gitleaks allowlist entry so it stops masking real hits.
+> 3. **P2 — 5× unpinned GitHub Actions tags.** These are starter workflows you ship to users,
+>    so pinning to full commit SHAs is also documentation-by-example. Cheap batch cleanup.
+> 4. **P2 — possible nil deref on an error path.** Lowest priority; needs a code read to
+>    confirm it isn't a false positive.
+
+Nothing in that ordering came from the model's judgement about severity. The priorities, the
+scores and the advisory link came from Draugr; the assistant added the part it's good at —
+grouping the batch job together, noticing that a fixture secret masks real hits, and flagging
+which finding needs a human to confirm.
+
+That division is the point. Detection and ranking are reproducible and come from the scan;
+judgement about what to do sits with the reader, human or otherwise.
+
 ## Draugr also offers your Saga as a resource
 
 Every `*.saga.yaml` Draugr finds nearby is exposed as an MCP resource, so the assistant can read
