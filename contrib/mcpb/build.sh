@@ -71,6 +71,10 @@ else:
 [ -n "$tools" ] || { echo "could not read the tool list from the binary" >&2; exit 1; }
 echo "  $(python3 -c "import json,sys; print(', '.join(t['name'] for t in json.loads(sys.argv[1])))" "$tools")"
 
+# Copied in rather than referenced by URL: a bundle a client installed months ago should still
+# have its icon, and an .mcpb is meant to be self-contained.
+cp "$HERE/icon.png" "$work/bundle/icon.png"
+
 echo "▶ writing the manifest"
 python3 - "$HERE/manifest.json.tmpl" "$VERSION" "$tools" > "$work/bundle/manifest.json" <<'PYEOF'
 import json, sys

@@ -74,6 +74,13 @@ type Options struct {
 // serverName is how Draugr identifies itself to a client.
 const serverName = "draugr"
 
+// iconURL is the mark a client shows beside the server. Served from draugr.dev rather than
+// embedded as a data URI: the icon is cosmetic, and inlining base64 into every initialize
+// response to save one cacheable request is the wrong trade. The domain matters — clients are
+// told to check an icon comes from the same origin as the server, and draugr.dev is what the
+// dev.draugr namespace authenticates against.
+const iconURL = "https://draugr.dev/brand/draugr-mark.png"
+
 // NewServer builds the MCP server. Tools are registered here rather than discovered so the
 // exposed surface is a deliberate, reviewable list.
 func NewServer(opts Options) (*mcp.Server, error) {
@@ -91,6 +98,11 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	s := mcp.NewServer(&mcp.Implementation{
 		Name:    serverName,
 		Version: version.Version,
+		Icons: []mcp.Icon{{
+			Source:   iconURL,
+			MIMEType: "image/png",
+			Sizes:    []string{"512x512"},
+		}},
 	}, &mcp.ServerOptions{
 		Instructions: instructions(opts.Scan),
 	})

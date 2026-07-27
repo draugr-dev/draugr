@@ -10,7 +10,12 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **The MCP server now carries Draugr's icon.** Clients that show an icon beside a connected
+  server will display the mark instead of a placeholder. It travels three ways so it shows up
+  however you installed: in the protocol handshake, in the registry listing, and inside the
+  `.mcpb` bundle itself — the bundled copy means the icon still works on an offline install.
 
 ## [0.39.0] - 2026-07-27
 

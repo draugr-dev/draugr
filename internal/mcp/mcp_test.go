@@ -656,3 +656,40 @@ func TestCheckToolsIgnoresOptionalTools(t *testing.T) {
 		}
 	}
 }
+
+func TestServerAdvertisesItsIcon(t *testing.T) {
+	srv, err := NewServer(Options{Registry: builtins.Registry(), Root: t.TempDir()})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	ctx := context.Background()
+	clientT, serverT := mcp.NewInMemoryTransports()
+	if _, err := srv.Connect(ctx, serverT, nil); err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	sess, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1"}, nil).
+		Connect(ctx, clientT, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	info := sess.InitializeResult().ServerInfo
+	if len(info.Icons) != 1 {
+		t.Fatalf("want exactly one icon, got %d", len(info.Icons))
+	}
+	icon := info.Icons[0]
+	if icon.Source != iconURL {
+		t.Errorf("icon source = %q, want %q", icon.Source, iconURL)
+	}
+	// A client is only required to render png and jpeg, so an svg-only icon would show up in
+	// some clients and not others. Declaring the type keeps that decision explicit.
+	if icon.MIMEType != "image/png" {
+		t.Errorf("icon mime type = %q, want image/png", icon.MIMEType)
+	}
+	// Clients are told to check an icon is served from the same origin as the server. The
+	// dev.draugr namespace authenticates against draugr.dev, so anywhere else fails that check.
+	if !strings.HasPrefix(icon.Source, "https://draugr.dev/") {
+		t.Errorf("icon must be served from draugr.dev over https, got %q", icon.Source)
+	}
+}

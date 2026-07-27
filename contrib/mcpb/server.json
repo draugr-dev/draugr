@@ -5,6 +5,15 @@
   "description": "Answers what to fix first, from your committed security descriptor rather than an invented scope.",
   "version": "0.39.0",
   "websiteUrl": "https://draugr.dev",
+  "icons": [
+    {
+      "src": "https://draugr.dev/brand/draugr-mark.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "512x512"
+      ]
+    }
+  ],
   "repository": {
     "url": "https://github.com/draugr-dev/draugr",
     "source": "github"
