@@ -129,24 +129,49 @@ Wait for propagation, then confirm the registry will see what you see:
 dig +short TXT draugr.dev | grep MCPv1
 ```
 
-**4. Log in and publish.**
+**4. Install `mcp-publisher`.**
 
 ```bash
-PRIVATE_KEY="$(openssl pkey -in key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
-mcp-publisher login dns --domain draugr.dev --private-key "$PRIVATE_KEY"
-mcp-publisher publish                          # from this directory
+# Linux / macOS — pre-built binary
+curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
+  | tar xz mcp-publisher && sudo mv mcp-publisher /usr/local/bin/
+
+# or, on macOS
+brew install mcp-publisher
 ```
 
-`--private-key` wants the hex-encoded key, not the path to `key.pem`.
+Check it works: `mcp-publisher --version`.
 
-The publisher CLI lives in
-[modelcontextprotocol/registry](https://github.com/modelcontextprotocol/registry) under
-`cmd/publisher`. Check its current flags before running — the tool and the registry are both
-young and move.
+**5. Log in and publish — from `contrib/mcpb/`.**
+
+The CLI reads `./server.json` from the working directory, so the directory matters:
+
+```bash
+cd contrib/mcpb                                # where server.json lives
+
+PRIVATE_KEY="$(openssl pkey -in /path/to/key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
+mcp-publisher login dns --domain draugr.dev --private-key "$PRIVATE_KEY"
+
+mcp-publisher validate                         # schema check, no network write
+mcp-publisher publish
+```
+
+Two notes:
+
+- `--private-key` takes the **hex-encoded key**, not a path to `key.pem`. The command above
+  extracts it; point it wherever you stored the key.
+- `validate` first. It's free, and it catches a malformed entry before the registry does.
+
+You can also pass an explicit path — `mcp-publisher publish ./contrib/mcpb/server.json` — if
+you'd rather not change directory.
+
+The publisher lives in
+[modelcontextprotocol/registry](https://github.com/modelcontextprotocol/registry). Its flags
+move; `mcp-publisher <command> --help` is the authority over this file.
 
 ### Publishing again later
 
-Steps 1–3 are one-off. Subsequent publishes are step 4 alone, after
+Steps 1–4 are one-off. Subsequent publishes are step 5 alone, after
 `update-server-json.sh <version>`.
 
 ### Not every release needs republishing
