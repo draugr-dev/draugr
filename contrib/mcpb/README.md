@@ -65,12 +65,31 @@ GitHub account.
 There is no key to find: **you generate one**, publish the public half in DNS, and sign with the
 private half.
 
-**1. Generate an Ed25519 keypair.** Keep `key.pem` — losing it means you can't publish updates
-without changing the DNS record.
+**1. Generate an Ed25519 keypair.**
 
 ```bash
 openssl genpkey -algorithm Ed25519 -out key.pem
+chmod 600 key.pem
 ```
+
+**Where to keep it.** Whoever holds this key can publish anything under `dev.draugr/*` — it is
+the identity, so treat it like a signing key rather than a config file.
+
+- **Put it in your password manager** as a secure note or attached file. That's the whole
+  requirement for a one-person publish: it survives a laptop dying, and it isn't sitting in a
+  directory that a backup or a sync client will quietly copy somewhere.
+- **Don't leave it in the repo checkout.** `*.pem` is gitignored, so it won't be committed —
+  but gitignore doesn't protect it from a `tar` of the directory or a cloud-synced home folder.
+  Generate it in a temp dir, store it, delete the file.
+- **Don't put it in a repository secret** unless publishing moves to CI. It isn't needed there
+  today, and a secret that nothing consumes is just a copy waiting to leak.
+- **Losing it is recoverable, and cheap:** generate a new keypair, replace the apex TXT record,
+  delete the old one. Nothing published becomes invalid. So prefer losing it to spreading it.
+- **A leak is the expensive direction** — someone could publish a package under our name. If
+  that happens, rotate the TXT record immediately; that alone invalidates the old key.
+
+When publishing eventually moves into CI, use Google KMS or Azure Key Vault instead — the
+publisher supports both, and then no private key exists outside the vault at all.
 
 > On macOS the system `openssl` is LibreSSL and has no Ed25519 in `genpkey`. Use
 > `brew install openssl@3` and call it explicitly, or use the ECDSA P-384 variant in the
@@ -83,8 +102,18 @@ PUBLIC_KEY="$(openssl pkey -in key.pem -pubout -outform DER | tail -c 32 | base6
 echo "draugr.dev. IN TXT \"v=MCPv1; k=ed25519; p=${PUBLIC_KEY}\""
 ```
 
-**3. Add it in DNS — at the apex.** Our DNS is at Squarespace. Add a `TXT` record on
-`draugr.dev` itself (host `@`), value `v=MCPv1; k=ed25519; p=…`.
+**3. Add it in DNS — at the apex.** `draugr.dev` is served by Cloudflare
+(`dig +short NS draugr.dev` to confirm). Cloudflare dashboard → the `draugr.dev` zone →
+**DNS → Records → Add record**:
+
+| Field | Value |
+|---|---|
+| Type | `TXT` |
+| Name | `@` — Cloudflare displays this as `draugr.dev` |
+| Content | `v=MCPv1; k=ed25519; p=…` |
+| TTL | Auto |
+
+A TXT record is metadata, so there's no proxy setting to worry about.
 
 > **This is the step that goes wrong.** The record must be on the **apex**, not under a
 > selector like `_mcp-registry.draugr.dev`. MCP DNS auth follows SPF-style placement, not
