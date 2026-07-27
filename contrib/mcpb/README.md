@@ -40,3 +40,37 @@ smoke test: a binary that can't start can't answer, and the build stops.
 
 It downloads that release's published archives rather than rebuilding, so the binaries inside
 are bit-for-bit the ones already covered by `checksums.txt` and its cosign signature.
+
+## Listing in the MCP Registry
+
+`server.json` is the registry entry. It names one specific bundle URL and its SHA-256, so it
+must be refreshed for each release we publish:
+
+```bash
+./contrib/mcpb/update-server-json.sh 0.39.0
+```
+
+The hash is read from the release's own `.mcpb.sha256` rather than recomputed, so the entry
+can't certify a bundle that differs from the published one. Getting this wrong means a client
+refuses the download — correct behaviour, and miserable to debug.
+
+### Namespace
+
+`dev.draugr/draugr`. We own `draugr.dev`, so the namespace is authenticated by **DNS**, not by
+GitHub. That keeps the identity tied to the domain rather than to an account.
+
+### Publishing
+
+```bash
+mcp-publisher login dns --domain draugr.dev --private-key <key>
+mcp-publisher publish                         # from this directory
+```
+
+The publisher CLI is in [modelcontextprotocol/registry](https://github.com/modelcontextprotocol/registry).
+Check its current flags before running — the tool and the registry are both young and move.
+
+### Not every release needs republishing
+
+The registry entry points at a fixed version. Refresh it when the MCP surface changes — a new
+tool, a changed transport, a fix in the server — not for releases that don't affect it. Each
+republish asks every client to re-download 60 MB.
