@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`check_tools` over MCP.** An assistant can now ask which external scanners are present and,
+  when one is missing, gets the exact command that fixes it — narrowed to what your descriptor
+  actually needs. This matters more since a control that can't run stopped reporting a pass: an
+  assistant that hits a missing scanner should be able to say what's wrong rather than guess.
+
+  **There is deliberately no install tool.** Installing binaries is a write to your machine, and
+  your client already has a permission model for running commands that is stronger than anything
+  this server could offer. Draugr reports the command; you approve it where you approve
+  everything else.
 
 ## [0.38.0] - 2026-07-26
 

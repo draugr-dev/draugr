@@ -139,6 +139,14 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	}, ValidateSagaTool)
 
 	mcp.AddTool(s, &mcp.Tool{
+		Name: "check_tools",
+		Description: "Report which external scanners Draugr can find on this machine, and what " +
+			"to run if any are missing. Call this when a scan fails or before suggesting one: a " +
+			"control whose scanner is absent cannot run, and Draugr reports that as a failure " +
+			"rather than a pass. This only looks — it will not install anything.",
+	}, CheckToolsTool)
+
+	mcp.AddTool(s, &mcp.Tool{
 		Name: "summarize_report",
 		Description: "Read an existing Draugr report (results.sarif or report.json) and return " +
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
@@ -169,6 +177,10 @@ func instructions(mode ScanMode) string {
 		"component's declared exposure and criticality — organizational context that isn't " +
 		"inferable from source code. Scanner output read directly has none of that, and costs " +
 		"far more context to read.\n\n" +
+		"This server only reads. If check_tools reports something missing, give the user the " +
+		"command it returns — do not try to make the server install it, and don't quietly work " +
+		"around a missing scanner by running one yourself: the point is that the descriptor " +
+		"decides what gets checked.\n\n" +
 		"The Saga is the scope. If a descriptor exists, trust it over your own guess at what " +
 		"should be scanned; if one doesn't, get_saga_schema and list_controls are what you need " +
 		"to write one."

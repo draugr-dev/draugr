@@ -591,3 +591,68 @@ func connectWith(t *testing.T, opts Options, copts *mcp.ClientOptions) *mcp.Clie
 	t.Cleanup(func() { _ = sess.Close() })
 	return sess
 }
+
+func TestCheckToolsIsAlwaysAvailable(t *testing.T) {
+	// Diagnosing the machine is read-only, so it's offered regardless of the scan mode — an
+	// assistant on a read-only server still needs to explain why a scan would fail.
+	for _, mode := range []ScanMode{ScanOff, ScanAsk, ScanAlways} {
+		if !toolNames(t, Options{Registry: builtins.Registry(), Scan: mode, Root: t.TempDir()})["check_tools"] {
+			t.Errorf("scan=%q: check_tools missing", mode)
+		}
+	}
+}
+
+// The point of the tool: name what's missing and what fixes it, without doing the fixing.
+func TestCheckToolsReportsWhatIsMissing(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "t.saga.yaml")
+	if err := os.WriteFile(path, []byte(
+		"release:\n  name: app\n  version: \"1\"\ncomponents:\n  - name: c\n    repositories:\n"+
+			"      - url: .\nconfig:\n  controllers:\n    sca:\n      enabled: true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// An empty PATH makes every scanner missing, which is the case worth getting right.
+	t.Setenv("PATH", dir)
+
+	_, out, err := CheckToolsTool(context.Background(), nil, CheckToolsInput{Path: path})
+	if err != nil {
+		t.Fatalf("CheckToolsTool: %v", err)
+	}
+	if out.Ready {
+		t.Error("nothing is installed; ready should be false")
+	}
+	if len(out.Missing) == 0 {
+		t.Fatal("want the missing tools named")
+	}
+	// The remedy has to be a command someone can run, not a description of one.
+	if !strings.HasPrefix(out.Remedy, "draugr tools install ") {
+		t.Errorf("remedy = %q, want a runnable command", out.Remedy)
+	}
+	// Scoped to the descriptor: a Saga enabling only sca shouldn't demand semgrep.
+	for _, tool := range out.Tools {
+		if tool.Name == "semgrep" {
+			t.Errorf("sca-only Saga should not require semgrep: %+v", out.Tools)
+		}
+	}
+	// It must say it won't install, or an assistant will try to make it.
+	if !strings.Contains(out.Note, "will not install") {
+		t.Errorf("note should say Draugr won't install for you: %q", out.Note)
+	}
+}
+
+// A missing *optional* tool is not a problem and must not be reported as one.
+func TestCheckToolsIgnoresOptionalTools(t *testing.T) {
+	_, out, err := CheckToolsTool(context.Background(), nil, CheckToolsInput{})
+	if err != nil {
+		t.Fatalf("CheckToolsTool: %v", err)
+	}
+	for _, tool := range out.Tools {
+		if tool.Optional && !tool.Installed {
+			for _, m := range out.Missing {
+				if m == tool.Name {
+					t.Errorf("optional tool %q listed as missing", tool.Name)
+				}
+			}
+		}
+	}
+}
