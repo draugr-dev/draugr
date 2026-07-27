@@ -395,6 +395,7 @@ an MCP **resource**, so a client can read the descriptor without a tool call.
 | `list_controls` | Which controls exist, what each checks, which scanner backs it |
 | `get_saga_schema` | The Saga schema this build enforces |
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
+| `check_tools` | Report which scanners are installed and what to run if any are missing |
 | `summarize_report` | Rank an existing `results.sarif` by priority |
 | `scan` | Run a scan and return the verdict (requires `--scan=ask` or `--scan=always`) |
 

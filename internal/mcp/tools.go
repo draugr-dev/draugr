@@ -10,7 +10,9 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -405,4 +407,116 @@ func confirmScan(ctx context.Context, req *mcp.CallToolRequest, path string) err
 		return fmt.Errorf("scan declined")
 	}
 	return nil
+}
+
+// --- check_tools ---
+
+// CheckToolsInput optionally narrows the check to what one descriptor actually needs.
+type CheckToolsInput struct {
+	Path string `json:"path,omitempty" jsonschema:"path to a Saga descriptor; without it, every tool Draugr knows about is checked"`
+}
+
+// ToolStatus is one external tool Draugr would execute.
+type ToolStatus struct {
+	Name      string `json:"name"`
+	Installed bool   `json:"installed"`
+	Version   string `json:"version,omitempty"`
+	Path      string `json:"path,omitempty"`
+	Category  string `json:"category,omitempty" jsonschema:"scanner (backs a control) or utility (supporting, e.g. git)"`
+	Optional  bool   `json:"optional,omitempty" jsonschema:"absence of an optional tool is not a problem"`
+	// Install is the command a person would run. Draugr will not run it for you.
+	Install string `json:"install,omitempty"`
+}
+
+// CheckToolsOutput is the answer to "can Draugr actually scan here?".
+type CheckToolsOutput struct {
+	Ready   bool         `json:"ready" jsonschema:"true when nothing required is missing"`
+	Tools   []ToolStatus `json:"tools"`
+	Missing []string     `json:"missing,omitempty" jsonschema:"required tools that are absent"`
+	// Remedy is the single command that installs everything missing.
+	Remedy string `json:"remedy,omitempty"`
+	Note   string `json:"note"`
+}
+
+// CheckToolsTool reports which external scanners are present.
+//
+// This exists because of what Draugr does when one is missing: the control can't run, and a
+// scan that can't run is not a pass. An assistant that hits that needs to say what's wrong and
+// what fixes it — which is a question about the machine, and answering it is free.
+//
+// It deliberately stops there. Draugr will not install anything on a user's behalf over MCP:
+// that's a write to their machine, and their client already has a permission model for running
+// commands which is stronger than anything this server could offer. Report the command; let the
+// person approve it where they already approve such things.
+func CheckToolsTool(ctx context.Context, _ *mcp.CallToolRequest, in CheckToolsInput) (*mcp.CallToolResult, CheckToolsOutput, error) {
+	required := tools.All()
+	if in.Path != "" {
+		model, err := saga.LoadFile(in.Path)
+		if err != nil {
+			return nil, CheckToolsOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
+		}
+		required = requiredFor(model)
+	}
+
+	out := CheckToolsOutput{Ready: true}
+	for _, t := range required {
+		st := tools.Detect(ctx, t, nil, nil)
+		s := ToolStatus{
+			Name: t.Binary, Installed: st.Found, Version: st.Version,
+			Path: st.Path, Category: t.Category, Optional: t.Optional,
+		}
+		if !st.Found {
+			s.Install = t.InstallHint
+			if !t.Optional {
+				out.Ready = false
+				out.Missing = append(out.Missing, t.Binary)
+			}
+		}
+		out.Tools = append(out.Tools, s)
+	}
+	sort.Strings(out.Missing)
+
+	switch {
+	case len(out.Missing) > 0:
+		out.Remedy = "draugr tools install " + strings.Join(out.Missing, " ")
+		out.Note = "Controls backed by a missing scanner cannot run, and a scan that cannot run " +
+			"reports a failure rather than a pass. Draugr will not install these for you — run " +
+			"the remedy command, or ask the user to."
+	default:
+		out.Note = "Everything required is present."
+	}
+	return nil, out, nil
+}
+
+// requiredFor returns the tools the controls enabled anywhere in the model would execute. It
+// mirrors `draugr doctor`: no point reporting kube-bench missing when nothing asks for it.
+func requiredFor(model *saga.Model) []tools.Tool {
+	enabled := func(control string) bool {
+		if model.Config.ControllerEnabled(control) {
+			return true
+		}
+		for i := range model.Components {
+			if model.Components[i].ControllerEnabled(control, model.Config) {
+				return true
+			}
+		}
+		return false
+	}
+	need := map[string]bool{}
+	for _, s := range builtins.Registry().Scanners() {
+		info := s.Info()
+		for _, c := range info.Controls {
+			if enabled(c) && info.Binary != "" {
+				need[info.Binary] = true
+			}
+		}
+	}
+	var out []tools.Tool
+	for _, t := range tools.All() {
+		// git is needed by any repository-scoped control, and utilities are cheap to report.
+		if need[t.Binary] || t.Category == tools.CategoryUtility {
+			out = append(out, t)
+		}
+	}
+	return out
 }

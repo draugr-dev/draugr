@@ -42,6 +42,7 @@ looks like it has hung — it's waiting for a client.
 | `list_controls` | Which controls exist, what each checks, which scanner backs it |
 | `get_saga_schema` | The descriptor schema **this build** enforces — for writing a Saga correctly |
 | `validate_saga` | Whether a descriptor is valid, by path or by content, and why not |
+| `check_tools` | Which scanners are present, what's missing, and the command that fixes it |
 | `summarize_report` | An existing `results.sarif`, ranked by priority with a doc link per rule |
 | `scan` | A fresh scan and its verdict — **only with `--scan=ask` or `--scan=always`** |
 
@@ -74,6 +75,28 @@ which finding needs a human to confirm.
 
 That division is the point. Detection and ranking are reproducible and come from the scan;
 judgement about what to do sits with the reader, human or otherwise.
+
+## It diagnoses; it doesn't install
+
+`check_tools` reports which external scanners are on the machine and, when something's missing,
+the exact command that fixes it:
+
+```json
+{
+  "ready": false,
+  "missing": ["trivy"],
+  "remedy": "draugr tools install trivy"
+}
+```
+
+Given a descriptor it narrows to what that descriptor actually needs, so a Saga enabling only
+`sca` doesn't demand Semgrep.
+
+**There is no install tool, deliberately.** Installing binaries is a write to your machine, and
+your assistant's client already has a permission model for running commands — one you already
+understand and have already configured. Routing the same action through this server would
+replace that with a weaker path of our own making. So Draugr reports the command; you approve it
+where you approve everything else.
 
 ## Draugr also offers your Saga as a resource
 
