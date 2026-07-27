@@ -56,3 +56,5 @@ The recurring names, and where each is explained in depth:
 | **Gate** | applies policy to produce the pass/fail verdict | [verdict & gating](concepts/verdict-and-gating.md) |
 | **Report** | renders the run (human summary + JSON/SARIF evidence) | [verdict & gating](concepts/verdict-and-gating.md#the-pipeline) |
 | **SARIF** | the finding interchange format everything normalizes to | [controls & scanners](concepts/controls-and-scanners.md#sarif-everywhere) |
+
+<!-- CI path filter verified 2026-07-27: this docs-only change should skip the Go jobs. -->
