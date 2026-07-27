@@ -71,6 +71,26 @@ jobs:
           echo "moved $major -> $tag"
 
       # Rebuild the docs site (draugr.dev) so its versioned docs pick up this release: the site's
+      # Build the MCP Bundle and attach it to the release. It has to run after GoReleaser,
+      # because it assembles the published archives rather than rebuilding — so the binaries in
+      # the bundle are bit-for-bit the ones people already verify against checksums.txt.
+      #
+      # Non-fatal on purpose: a bundle is packaging for one distribution channel, and a failure
+      # here should not leave a tagged release half-published. If it fails, run
+      # `contrib/mcpb/build.sh <version>` afterwards and upload the result.
+      - name: Build and attach the MCP Bundle
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          ./contrib/mcpb/build.sh "$version" "$RUNNER_TEMP"
+          gh release upload "$GITHUB_REF_NAME" \
+            "$RUNNER_TEMP/draugr-$version.mcpb" \
+            "$RUNNER_TEMP/draugr-$version.mcpb.sha256" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
       # `latest` is sourced from the newest release tag, so a fresh release needs a rebuild. This
       # POSTs a Cloudflare Pages Deploy Hook. Configure it once: create the hook in Cloudflare and
       # add its URL as the CLOUDFLARE_PAGES_DEPLOY_HOOK repo secret. The step no-ops (never fails
