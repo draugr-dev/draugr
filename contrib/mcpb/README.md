@@ -67,9 +67,13 @@ private half.
 
 **1. Generate an Ed25519 keypair.**
 
+> On macOS the system `openssl` is LibreSSL and has no Ed25519 in `genpkey` — it fails with
+> `Algorithm Ed25519 not found`. Install `openssl@3` and call it by full path, or use the
+> ECDSA P-384 variant in the
+> [registry's authentication guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/authentication.mdx).
+
 ```bash
-openssl genpkey -algorithm Ed25519 -out key.pem
-chmod 600 key.pem
+openssl genpkey -algorithm Ed25519 -out key.pem && chmod 600 key.pem
 ```
 
 **Where to keep it.** Whoever holds this key can publish anything under `dev.draugr/*` — it is
@@ -90,10 +94,6 @@ the identity, so treat it like a signing key rather than a config file.
 
 When publishing eventually moves into CI, use Google KMS or Azure Key Vault instead — the
 publisher supports both, and then no private key exists outside the vault at all.
-
-> On macOS the system `openssl` is LibreSSL and has no Ed25519 in `genpkey`. Use
-> `brew install openssl@3` and call it explicitly, or use the ECDSA P-384 variant in the
-> [registry's authentication guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/authentication.mdx).
 
 **2. Derive the TXT record.**
 
@@ -129,41 +129,59 @@ Wait for propagation, then confirm the registry will see what you see:
 dig +short TXT draugr.dev | grep MCPv1
 ```
 
-**4. Install `mcp-publisher`.**
+**4. Install `mcp-publisher`.** Pick one.
+
+Linux, or macOS without Homebrew:
 
 ```bash
-# Linux / macOS — pre-built binary
-curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
-  | tar xz mcp-publisher && sudo mv mcp-publisher /usr/local/bin/
+curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher && sudo mv mcp-publisher /usr/local/bin/
+```
 
-# or, on macOS
+macOS with Homebrew:
+
+```bash
 brew install mcp-publisher
 ```
 
-Check it works: `mcp-publisher --version`.
-
-**5. Log in and publish — from `contrib/mcpb/`.**
-
-The CLI reads `./server.json` from the working directory, so the directory matters:
+Either way, check it:
 
 ```bash
-cd contrib/mcpb                                # where server.json lives
+mcp-publisher --version
+```
 
-PRIVATE_KEY="$(openssl pkey -in /path/to/key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
+**5. Log in.** `--private-key` takes the hex-encoded key, not a path — this reads it out of
+wherever you stored `key.pem`, so change that path:
+
+```bash
+PRIVATE_KEY="$(openssl pkey -in ~/key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
+```
+
+```bash
 mcp-publisher login dns --domain draugr.dev --private-key "$PRIVATE_KEY"
+```
 
-mcp-publisher validate                         # schema check, no network write
+**6. Validate, then publish.** The CLI defaults to `./server.json`, so run these from
+`contrib/mcpb/`:
+
+```bash
+mcp-publisher validate
+```
+
+```bash
 mcp-publisher publish
 ```
 
-Two notes:
+Validating first is free and catches a malformed entry locally rather than as a rejection.
 
-- `--private-key` takes the **hex-encoded key**, not a path to `key.pem`. The command above
-  extracts it; point it wherever you stored the key.
-- `validate` first. It's free, and it catches a malformed entry before the registry does.
+From anywhere else, pass the path instead:
 
-You can also pass an explicit path — `mcp-publisher publish ./contrib/mcpb/server.json` — if
-you'd rather not change directory.
+```bash
+mcp-publisher validate contrib/mcpb/server.json
+```
+
+```bash
+mcp-publisher publish contrib/mcpb/server.json
+```
 
 The publisher lives in
 [modelcontextprotocol/registry](https://github.com/modelcontextprotocol/registry). Its flags
@@ -171,8 +189,7 @@ move; `mcp-publisher <command> --help` is the authority over this file.
 
 ### Publishing again later
 
-Steps 1–4 are one-off. Subsequent publishes are step 5 alone, after
-`update-server-json.sh <version>`.
+Steps 1–4 are one-off. A later publish is `update-server-json.sh <version>`, then steps 5 and 6.
 
 ### Not every release needs republishing
 

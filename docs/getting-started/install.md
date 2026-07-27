@@ -117,9 +117,15 @@ Requires Go 1.26+.
 ```bash
 git clone https://github.com/draugr-dev/draugr.git
 cd draugr
-make build             # produces ./bin/draugr
+make build
 ./bin/draugr version
-make install-latest    # or: download + SHA-256-verify + install the latest release into ~/.local/bin (needs curl)
+```
+
+`make build` produces `./bin/draugr`. To install a verified release into `~/.local/bin` instead
+of building, from the same checkout:
+
+```bash
+make install-latest
 ```
 
 ## With Go
