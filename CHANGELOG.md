@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.40.0] - 2026-07-27
+
 ### Added
 
 - **The MCP server now carries Draugr's icon.** Clients that show an icon beside a connected
@@ -822,7 +826,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.39.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.40.0...HEAD
+[0.40.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.40.0
 [0.39.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.39.0
 [0.38.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.38.0
 [0.37.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.37.0
