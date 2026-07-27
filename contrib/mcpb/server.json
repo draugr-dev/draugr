@@ -3,7 +3,7 @@
   "name": "dev.draugr/draugr",
   "title": "Draugr",
   "description": "Answers what to fix first, from your committed security descriptor rather than an invented scope.",
-  "version": "0.39.0",
+  "version": "0.40.0",
   "websiteUrl": "https://draugr.dev",
   "icons": [
     {
@@ -21,9 +21,9 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/draugr-dev/draugr/releases/download/v0.39.0/draugr-0.39.0.mcpb",
-      "version": "0.39.0",
-      "fileSha256": "db88503c281226dbe08dd86ca9285ba1f432017aa82f743aef126bef497067f6",
+      "identifier": "https://github.com/draugr-dev/draugr/releases/download/v0.40.0/draugr-0.40.0.mcpb",
+      "version": "0.40.0",
+      "fileSha256": "0766a8594a2346b3f11f597f5ed12c21c4613e9d41b3e18aeae46201279be1a4",
       "transport": {
         "type": "stdio"
       }
