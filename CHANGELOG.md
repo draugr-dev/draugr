@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.37.0] - 2026-07-26
+
 ### Added
 
 - **An install script that verifies before it installs.**
@@ -25,6 +29,13 @@ and move it under a version on release.
   implying more than it did. Nothing is installed if a check fails. `DRAUGR_VERSION` pins a
   release, `DRAUGR_INSTALL_DIR` changes where it lands, and `DRAUGR_REQUIRE_SIGNATURE=1` refuses
   to install without a verified signature — worth setting in CI.
+
+### Changed
+
+- **The MCP guide shows what an assistant actually gets back.** It listed the five tools and
+  never showed a result — now it carries a real session against Draugr's own scan, which also
+  makes the division of labour visible: priorities and scores come from the scan, while the
+  assistant contributes the grouping and the judgement about which findings need a human.
 
 ## [0.36.1] - 2026-07-26
 
@@ -754,7 +765,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.36.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.37.0...HEAD
+[0.37.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.37.0
 [0.36.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.36.1
 [0.36.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.36.0
 [0.35.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.35.0
