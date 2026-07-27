@@ -1,0 +1,44 @@
+{
+  "manifest_version": "0.3",
+  "name": "draugr",
+  "display_name": "Draugr",
+  "version": "__VERSION__",
+  "description": "Security scanning orchestration. Answers what should I fix first from your committed Saga descriptor, not from a scope invented on the spot.",
+  "long_description": "Draugr runs the security controls your application's descriptor declares, normalizes every scanner to one schema, and ranks findings by the component's exposure and criticality. Over MCP it exposes the read-only half of that: which controls exist, the descriptor schema this build enforces, whether a Saga is valid, which scanners are installed, and an existing scan ranked by priority. Scanning is not offered unless the operator enables it.",
+  "author": {
+    "name": "Draugr",
+    "url": "https://draugr.dev"
+  },
+  "homepage": "https://draugr.dev",
+  "documentation": "https://draugr.dev/docs/latest/guides/ai-agents-mcp/",
+  "support": "https://github.com/draugr-dev/draugr/issues",
+  "license": "Apache-2.0",
+  "keywords": ["security", "sast", "sca", "sarif", "devsecops", "vulnerability"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/draugr-dev/draugr"
+  },
+  "server": {
+    "type": "binary",
+    "entry_point": "server/draugr-linux-amd64",
+    "mcp_config": {
+      "command": "${__dirname}/server/draugr-linux-amd64",
+      "args": ["mcp"],
+      "env": {},
+      "platform_overrides": {
+        "darwin": {
+          "command": "${__dirname}/server/draugr-darwin",
+          "args": ["mcp"]
+        },
+        "win32": {
+          "command": "${__dirname}/server/draugr.exe",
+          "args": ["mcp"]
+        }
+      }
+    }
+  },
+  "tools": __TOOLS__,
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"]
+  }
+}
