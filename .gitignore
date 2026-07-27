@@ -14,3 +14,8 @@ coverage.*
 *.swp
 .idea/
 .vscode/
+
+# Signing key for MCP Registry publishing. Generated locally, never committed —
+# whoever holds it can publish under our namespace.
+key.pem
+*.pem
