@@ -3,11 +3,15 @@ name: Self-scan
 # Dogfood: run the latest released Draugr against this repo (see issue #64).
 # Uses a stable release (not a source build) — the way real users consume Draugr.
 
+# Not a required check, so unlike ci.yml this can be skipped outright with paths-ignore —
+# there's no protection rule waiting on a result that never arrives.
 on:
   push:
     branches: [main]
+    paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
   pull_request:
     branches: [main]
+    paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
   workflow_dispatch:
 
 permissions:
