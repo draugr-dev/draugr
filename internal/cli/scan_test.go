@@ -312,17 +312,41 @@ func TestRunScanInvalidFailOnPriority(t *testing.T) {
 	}
 }
 
-func TestRunScanWarnsOnScanError(t *testing.T) {
-	// A scanner error is surfaced (logged) but does not by itself fail the gate: no findings
-	// means the verdict passes.
+func TestRunScanFailsWhenAControlCouldNotRun(t *testing.T) {
+	// A control that couldn't run didn't find nothing — it found out nothing. Reporting that as
+	// a pass makes the gate a false negative precisely where it matters, so it fails by default.
 	var buf bytes.Buffer
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
 		scanOptions{failOn: "error"}, failingRegistry(), &buf)
+	if err == nil {
+		t.Fatal("a scan that could not run should not pass the gate")
+	}
+	if !strings.Contains(err.Error(), "scan incomplete") {
+		t.Errorf("the error should say the scan was incomplete, not that a policy failed: %v", err)
+	}
+	// And it must say how to opt out, or the only way past it is guesswork.
+	if !strings.Contains(err.Error(), "--allow-scan-errors") {
+		t.Errorf("the error should name the opt-out: %v", err)
+	}
+	if !strings.Contains(buf.String(), "ERROR") {
+		t.Errorf("the report should name the control that failed:\n%s", buf.String())
+	}
+}
+
+func TestRunScanAllowsIncompleteScansOnRequest(t *testing.T) {
+	// Best-effort scanning stays available — but the report still says a control errored, so
+	// the opt-out buys a passing exit code, not silence.
+	var buf bytes.Buffer
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", allowScanErrors: true}, failingRegistry(), &buf)
 	if err != nil {
-		t.Fatalf("scan errors should not fail the gate, got %v", err)
+		t.Fatalf("--allow-scan-errors should not fail the gate, got %v", err)
 	}
 	if !strings.Contains(buf.String(), "Draugr — PASS") {
 		t.Errorf("expected pass verdict:\n%s", buf.String())
+	}
+	if !strings.Contains(buf.String(), "ERROR") {
+		t.Errorf("the errored control should still be named:\n%s", buf.String())
 	}
 }
 

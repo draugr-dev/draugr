@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,23 +29,24 @@ import (
 )
 
 type scanOptions struct {
-	outputDir      string
-	failOn         string
-	failOnPriority string
-	cacheDir       string
-	cacheTTL       time.Duration
-	minPriority    string
-	kevFile        string
-	epssFile       string
-	epssThreshold  float64
-	jobs           int
-	format         string
-	template       string
-	templateFile   string
-	noPublish      bool
-	top            int
-	noTips         bool
-	compact        bool
+	outputDir       string
+	failOn          string
+	failOnPriority  string
+	cacheDir        string
+	cacheTTL        time.Duration
+	minPriority     string
+	kevFile         string
+	epssFile        string
+	epssThreshold   float64
+	jobs            int
+	format          string
+	template        string
+	templateFile    string
+	noPublish       bool
+	top             int
+	noTips          bool
+	allowScanErrors bool
+	compact         bool
 }
 
 func newScanCommand() *cobra.Command {
@@ -82,6 +84,8 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")
 	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the 'Fix first' table (0 = all)")
 	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false, "suppress the console's contextual tips (also DRAUGR_NO_TIPS)")
+	cmd.Flags().BoolVar(&opts.allowScanErrors, "allow-scan-errors", false,
+		"treat a control that couldn't run as a warning rather than a failure (best-effort scanning)")
 	cmd.Flags().BoolVar(&opts.compact, "compact", false,
 		"strip indentation and rule documentation from json/sarif output, for a consumer that acts on the report rather than reads it")
 	return cmd
@@ -129,7 +133,6 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 
 	run, runErr := engine.New(reg, eopts...).Run(ctx, *model)
 	if runErr != nil {
-		// Scan/plan issues are surfaced but do not by themselves fail the gate.
 		slog.Warn("scan completed with issues", "error", runErr)
 	}
 
@@ -138,6 +141,13 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		reports[name] = cr.Report
 	}
 	verdict := norn.Policy{FailOn: sarif.Level(opts.failOn), FailOnPriority: failOnPriority}.Evaluate(reports)
+	// A control that couldn't run didn't find nothing — it found out nothing. Reporting that as
+	// a pass makes the gate a false negative exactly when it matters: in CI, where a scanner
+	// failing to provision is the common case and the warning scrolls past unread.
+	incomplete := len(run.ScanErrors) > 0 && !opts.allowScanErrors
+	if incomplete {
+		verdict.Verdict = norn.Fail
+	}
 
 	format := opts.format
 	if format == "" {
@@ -187,6 +197,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 	}
 
+	if incomplete {
+		// Distinct from a policy failure: nothing was necessarily found, the scan just didn't
+		// finish. Saying so is the difference between a bug report and a shrug.
+		return fmt.Errorf("scan incomplete: %s could not run "+
+			"(use --allow-scan-errors to accept partial results)", strings.Join(erroredControls(run), ", "))
+	}
 	if verdict.Verdict == norn.Fail {
 		return fmt.Errorf("policy verdict: fail")
 	}
@@ -275,4 +291,14 @@ func writeArtifacts(dir string, release saga.Release, run engine.Result, verdict
 	}
 	defer func() { _ = sarifFile.Close() }()
 	return skald.WriteSARIF(sarifFile, run)
+}
+
+// erroredControls names the controls that couldn't run, in a stable order.
+func erroredControls(run engine.Result) []string {
+	names := make([]string, 0, len(run.ScanErrors))
+	for name := range run.ScanErrors {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

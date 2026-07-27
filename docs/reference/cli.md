@@ -89,6 +89,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
 | `--top` | `10` | Console: max findings to list in the "Fix first" table (`0` = all) |
 | `--no-tips` | `false` | Suppress the console's contextual tips (also `DRAUGR_NO_TIPS`) |
+| `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything |
 | `--compact` | `false` | Strip indentation and rule documentation from `json`/`sarif` output. For a consumer that acts on the report rather than reads it — see [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
 
 ```bash
