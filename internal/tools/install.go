@@ -189,6 +189,39 @@ var installable = map[string]InstallSpec{
 			},
 		},
 	},
+	"syft": {
+		Binary:  "syft",
+		Version: "1.49.0",
+		// SHA-256 only, though Syft does sign. It publishes the older cosign cert+signature
+		// pair (checksums.txt.pem / .sig) rather than a Sigstore bundle, and CosignSpec models
+		// the bundle format — so install-time verification cannot be expressed here yet.
+		//
+		// The values below were still checked before being copied: cosign verify-blob against
+		// syft_1.49.0_checksums.txt with the anchore/syft identity returned "Verified OK", so
+		// these hashes come from a file provably signed by Syft's release workflow.
+		Assets: map[string]Asset{
+			"linux/amd64": {
+				URL:             "https://github.com/anchore/syft/releases/download/v1.49.0/syft_1.49.0_linux_amd64.tar.gz",
+				SHA256:          "7aa2f03ee92739cf643279ba3990548b9925d4e22cae13f46831ee62821147fe",
+				BinaryInArchive: "syft",
+			},
+			"linux/arm64": {
+				URL:             "https://github.com/anchore/syft/releases/download/v1.49.0/syft_1.49.0_linux_arm64.tar.gz",
+				SHA256:          "c7c32de183c32368de197edba75e8dba7632915f7761bacd55149a9ca7fe0fa4",
+				BinaryInArchive: "syft",
+			},
+			"darwin/amd64": {
+				URL:             "https://github.com/anchore/syft/releases/download/v1.49.0/syft_1.49.0_darwin_amd64.tar.gz",
+				SHA256:          "a18ba5c48a4e75d0d87cae7b36b93bdfc04ddd5ea69b87bec9f7cd9431a8cdb9",
+				BinaryInArchive: "syft",
+			},
+			"darwin/arm64": {
+				URL:             "https://github.com/anchore/syft/releases/download/v1.49.0/syft_1.49.0_darwin_arm64.tar.gz",
+				SHA256:          "4d137302fb3e049cb1b124b1cbd840a77280dc9f50a45a5a4389250a2228b3cb",
+				BinaryInArchive: "syft",
+			},
+		},
+	},
 	"nuclei": {
 		Binary:  "nuclei",
 		Version: "3.11.0",

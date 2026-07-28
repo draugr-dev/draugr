@@ -171,7 +171,7 @@ func TestRunDoctorInvalidDescriptor(t *testing.T) {
 func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		"", false, fakeDetect("trivy", "gitleaks", "semgrep", "gosec", "git"), nil)
+		"", false, fakeDetect("trivy", "gitleaks", "semgrep", "gosec", "git", "nuclei", "syft"), nil)
 	if err != nil {
 		t.Fatalf("runDoctor: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 	if strings.Contains(s, "Descriptor") {
 		t.Errorf("no saga given → should not print a descriptor line\n%s", s)
 	}
-	for _, bin := range []string{"trivy", "gitleaks", "semgrep", "gosec", "git"} {
+	for _, bin := range []string{"trivy", "gitleaks", "semgrep", "gosec", "git", "nuclei", "syft"} {
 		if !strings.Contains(s, bin) {
 			t.Errorf("full check should include %q\n%s", bin, s)
 		}
@@ -288,4 +288,42 @@ func binaries(ts []tools.Tool) []string {
 		out[i] = t.Binary
 	}
 	return out
+}
+
+func TestRequiredToolsIncludesSyftOnlyWhenSBOMIsEnabled(t *testing.T) {
+	// SBOM generation is not a control, so no scanner declares syft. Without the explicit hook
+	// a Saga could ask for SBOMs and doctor would report a ready environment.
+	reg := builtins.Registry()
+
+	off := &saga.Model{Release: saga.Release{Name: "a", Version: "1"}}
+	for _, tl := range requiredTools(reg, off) {
+		if tl.Binary == "syft" {
+			t.Error("syft should not be required when config.sbom is absent")
+		}
+	}
+
+	on := &saga.Model{
+		Release: saga.Release{Name: "a", Version: "1"},
+		Config:  saga.Config{SBOM: &saga.SBOMConfig{Enabled: true}},
+	}
+	var found bool
+	for _, tl := range requiredTools(reg, on) {
+		if tl.Binary == "syft" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("syft should be required when config.sbom is enabled")
+	}
+
+	// enabled:false is a deliberate off switch, not a request.
+	paused := &saga.Model{
+		Release: saga.Release{Name: "a", Version: "1"},
+		Config:  saga.Config{SBOM: &saga.SBOMConfig{Enabled: false}},
+	}
+	for _, tl := range requiredTools(reg, paused) {
+		if tl.Binary == "syft" {
+			t.Error("syft should not be required when sbom is explicitly disabled")
+		}
+	}
 }

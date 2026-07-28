@@ -85,6 +85,20 @@ func Catalog() map[string]Tool {
 			InstallHint: "https://github.com/securego/gosec#installation",
 			Category:    CategoryScanner,
 		},
+		"nuclei": {
+			Binary:      "nuclei",
+			VersionArgs: []string{"-version"},
+			InstallHint: "https://docs.projectdiscovery.io/tools/nuclei/install",
+			Category:    CategoryScanner,
+		},
+		"syft": {
+			Binary:      "syft",
+			VersionArgs: []string{"version"},
+			InstallHint: "https://github.com/anchore/syft#installation",
+			// Not a scanner: syft backs no control. It generates the SBOM evidence a Saga asks
+			// for with config.sbom, so it is only required when that is switched on.
+			Category: CategoryUtility,
+		},
 		"cosign": {
 			Binary:      "cosign",
 			VersionArgs: []string{"version"},
