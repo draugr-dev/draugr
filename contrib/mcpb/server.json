@@ -3,7 +3,7 @@
   "name": "dev.draugr/draugr",
   "title": "Draugr",
   "description": "Security scanning for AI agents: SAST, SCA, secrets, IaC, DAST, ranked by real risk.",
-  "version": "0.41.0",
+  "version": "0.42.0",
   "websiteUrl": "https://draugr.dev",
   "icons": [
     {
@@ -21,9 +21,9 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/draugr-dev/draugr/releases/download/v0.41.0/draugr-0.41.0.mcpb",
-      "version": "0.41.0",
-      "fileSha256": "5c8409ff1225ae2bd0acd160fa9e622a27c5a1ae2c1f0b076e2bfc0e22944b8b",
+      "identifier": "https://github.com/draugr-dev/draugr/releases/download/v0.42.0/draugr-0.42.0.mcpb",
+      "version": "0.42.0",
+      "fileSha256": "59e6e20fd7f470e44af3f83b6248f3af325160c1390488a0c2462191321f9dc7",
       "transport": {
         "type": "stdio"
       }
