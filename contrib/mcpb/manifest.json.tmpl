@@ -3,8 +3,8 @@
   "name": "draugr",
   "display_name": "Draugr",
   "version": "__VERSION__",
-  "description": "Security scanning orchestration. Answers what should I fix first from your committed Saga descriptor, not from a scope invented on the spot.",
-  "long_description": "Draugr runs the security controls your application's descriptor declares, normalizes every scanner to one schema, and ranks findings by the component's exposure and criticality. Over MCP it exposes the read-only half of that: which controls exist, the descriptor schema this build enforces, whether a Saga is valid, which scanners are installed, and an existing scan ranked by priority. Scanning is not offered unless the operator enables it.",
+  "description": "Security scanning for AI agents: SAST, SCA, secrets, IaC, DAST, ranked by real risk.",
+  "long_description": "Ask a coding assistant whether a change is safe to ship and it will answer either way \u2014 usually by running whatever scanner it can find over a scope it invented. Draugr gives it the same answer your pipeline would give, because it reads the same committed descriptor and applies the same controls: SAST, SCA, secrets, IaC and DAST, deduplicated across tools, normalized to SARIF, and ranked P1-P4 by the component's declared exposure and criticality rather than by raw severity. Over MCP it serves the read-only half: which controls exist, the descriptor schema this build enforces, whether a descriptor is valid, which scanners are installed and what to run if one is missing, and an existing report ranked by priority. It installs nothing and scans nothing unless the operator turns scanning on.",
   "author": {
     "name": "Draugr",
     "url": "https://draugr.dev"
