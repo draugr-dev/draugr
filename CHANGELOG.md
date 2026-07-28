@@ -10,7 +10,30 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Software Bills of Materials, via [Syft](https://github.com/anchore/syft).** Turn it on with
+  `config.sbom` in your Saga and every scan also produces an inventory of each repository and
+  image — SPDX JSON by default, CycloneDX JSON if you prefer:
+
+  ```yaml
+  config:
+    sbom:
+      enabled: true
+      format: spdx-json      # or cyclonedx-json
+  ```
+
+  The documents land beside your other artifacts with `-o`, and go to any publisher you have
+  configured. `draugr tools install syft` fetches the tool.
+
+  **An SBOM is not a control, and won't appear as one.** Every row in the `Controls:` table
+  means "we checked this, and here is the verdict". An SBOM finds nothing — it's an inventory —
+  so a row there would always read "pass" without ever having looked. It's reported on its own
+  line instead, and never affects whether your scan passes.
+
+  What it *will* do is fail the scan if it was asked for and couldn't run, the same as a missing
+  scanner: you asked for an inventory and didn't get one, and silence would let you believe you
+  had it. `--allow-scan-errors` accepts the partial result.
 
 ## [0.40.1] - 2026-07-28
 

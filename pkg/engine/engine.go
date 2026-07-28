@@ -23,6 +23,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/sbom"
 )
 
 // Engine plans and runs scans against a registry of controllers and scanners.
@@ -31,6 +32,7 @@ type Engine struct {
 	concurrency int
 	cache       cache.Cache
 	prioritize  Prioritizer
+	sbomGen     sbom.Generator
 }
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
@@ -61,6 +63,13 @@ func WithCache(c cache.Cache) Option {
 // applied per run (never cached), since it depends on the component's current classification.
 func WithPrioritization(p Prioritizer) Option {
 	return func(e *Engine) { e.prioritize = p }
+}
+
+// WithSBOM supplies the generator used when a Saga enables config.sbom. Injected rather than
+// imported so pkg/engine stays free of a concrete tool, exactly as it does for scanners. Nil
+// (the default) means a Saga asking for SBOMs gets an error rather than silence.
+func WithSBOM(g sbom.Generator) Option {
+	return func(e *Engine) { e.sbomGen = g }
 }
 
 // New creates an Engine over the given registry. By default it runs up to NumCPU jobs
@@ -163,6 +172,9 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob) ([]plugin.
 type Result struct {
 	Controls map[string]plugin.ControlResult
 	Stats    Stats
+	// SBOMs are the Software Bills of Materials produced when the Saga enables config.sbom.
+	// Evidence rather than judgement: they carry no findings and never affect the verdict.
+	SBOMs []sbom.Document
 	// ScanErrors records, per control, what stopped it completing — a missing scanner binary, a
 	// tool that exited badly, a plan that couldn't be built. A control listed here checked less
 	// than it was asked to, so its absence of findings is not evidence of absence, and callers
@@ -358,7 +370,15 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		errs = append(errs, ctx.Err())
 	}
 
-	res := Result{Controls: make(map[string]plugin.ControlResult), Stats: stats}
+	// Evidence, after the controls: an SBOM describes what a component contains rather than
+	// judging it, so it never reaches the verdict. A failure is still recorded, because
+	// "you asked for an inventory and did not get one" must not pass quietly.
+	docs, sbomErrs := e.generateSBOMs(ctx, model)
+	if len(sbomErrs) > 0 {
+		ctlErrs[sbomPseudoControl] = append(ctlErrs[sbomPseudoControl], sbomErrs...)
+	}
+
+	res := Result{Controls: make(map[string]plugin.ControlResult), Stats: stats, SBOMs: docs}
 	if len(ctlErrs) > 0 {
 		res.ScanErrors = ctlErrs
 	}
@@ -424,3 +444,60 @@ func sortedReportKeys(m map[string][]sarif.Report) []string {
 // planningPseudoControl is where a planning failure is reported, since it belongs to the run
 // rather than to any one control.
 const planningPseudoControl = "(planning)"
+
+// sbomPseudoControl is where SBOM generation failures are reported. SBOMs are evidence, not a
+// control, but a failure still has to land somewhere a caller will look — and it makes the run
+// incomplete for the same reason a missing scanner does: you asked for something, and silence
+// would let you believe you got it.
+const sbomPseudoControl = "(sbom)"
+
+// generateSBOMs takes one inventory per distinct repository and image in the model.
+//
+// Deduplicated by target identity: several controls scan the same repository, and an SBOM of it
+// is the same document however many controls touched it. Ordered by component then target so a
+// run is reproducible and two runs diff cleanly.
+func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Document, []string) {
+	cfg := model.Config.SBOM
+	if cfg == nil || !cfg.Enabled {
+		return nil, nil
+	}
+	if e.sbomGen == nil {
+		return nil, []string{"sbom generation is enabled but no generator is configured"}
+	}
+
+	ctx, span := tracer.Start(ctx, "engine.sbom")
+	defer span.End()
+
+	var docs []sbom.Document
+	var errs []string
+	seen := make(map[string]bool)
+
+	for i := range model.Components {
+		comp := &model.Components[i]
+		var targets []plugin.Target
+		for _, r := range comp.Repositories {
+			targets = append(targets, plugin.RepositoryTarget{URL: r.URL, Revision: r.Revision})
+		}
+		for _, img := range comp.Images {
+			targets = append(targets, plugin.ImageTarget{Ref: img.Image, Digest: img.Digest})
+		}
+		for _, t := range targets {
+			if ctx.Err() != nil {
+				errs = append(errs, ctx.Err().Error())
+				return docs, errs
+			}
+			if seen[t.Identity()] {
+				continue
+			}
+			seen[t.Identity()] = true
+			doc, err := e.sbomGen.Generate(ctx, comp.Name, t, cfg.Format)
+			if err != nil {
+				errs = append(errs, err.Error())
+				continue
+			}
+			docs = append(docs, doc)
+		}
+	}
+	slog.DebugContext(ctx, "generated SBOMs", "documents", len(docs), "errors", len(errs))
+	return docs, errs
+}

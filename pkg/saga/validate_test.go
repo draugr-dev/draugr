@@ -157,3 +157,41 @@ func TestValidateAggregatesMultiple(t *testing.T) {
 		t.Fatalf("expected aggregated errors, got: %v", msg)
 	}
 }
+
+func TestValidateSBOMFormat(t *testing.T) {
+	base := func(f SBOMFormat) *Model {
+		return &Model{
+			Release: Release{Name: "x", Version: "1"},
+			Config:  Config{SBOM: &SBOMConfig{Enabled: true, Format: f}},
+		}
+	}
+	for _, f := range SBOMFormats {
+		if err := base(f).Validate(); err != nil {
+			t.Errorf("format %q should validate: %v", f, err)
+		}
+	}
+	// Empty means "the default", which callers resolve — it must not be rejected here.
+	if err := base("").Validate(); err != nil {
+		t.Errorf("an unset format should validate: %v", err)
+	}
+	err := base("spdx-tag-value").Validate()
+	if err == nil {
+		t.Fatal("want an error for an unsupported format")
+	}
+	// Naming the alternatives is the difference between a fixable error and a search.
+	for _, want := range []string{"spdx-json", "cyclonedx-json"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should name %q: %v", want, err)
+		}
+	}
+}
+
+func TestSBOMConfigRoundTripsThroughLoad(t *testing.T) {
+	m, err := Load([]byte("release:\n  name: x\n  version: \"1\"\nconfig:\n  sbom:\n    enabled: true\n    format: cyclonedx-json\n"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if m.Config.SBOM == nil || !m.Config.SBOM.Enabled || m.Config.SBOM.Format != SBOMCycloneDXJSON {
+		t.Errorf("sbom config = %+v", m.Config.SBOM)
+	}
+}

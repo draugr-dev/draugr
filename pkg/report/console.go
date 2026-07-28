@@ -119,6 +119,14 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
+	// Evidence, not a control — so a line rather than a row in the table above, where every
+	// entry means "checked, and here is the verdict". Printed before the early returns below,
+	// because a clean scan still produced the inventory and should say so.
+	if n := len(d.Run.SBOMs); n > 0 {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim,
+			fmt.Sprintf("SBOM: %s (%s)", plural(n, "document"), d.Run.SBOMs[0].Format)))
+	}
+
 	if len(s.findings) == 0 {
 		// "No findings ✓" after a control that didn't run would be the same false reassurance
 		// the ERROR row exists to prevent.
@@ -303,4 +311,13 @@ func sortedKeys(m map[string][]string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// plural renders a count with its noun, pluralized the simple way. Only used for the SBOM
+// summary line, where "1 documents" would look like a bug in the tool.
+func plural(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }

@@ -77,6 +77,10 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 		}
 		artifacts = append(artifacts, a)
 	}
+	// SBOMs are already rendered by the time a run finishes, so they are appended rather than
+	// built from data. That is also why "sbom" is not a --format: a run produces one document
+	// per target, and a format that writes N files has no sensible meaning on stdout.
+	artifacts = append(artifacts, report.SBOMArtifacts(data.Run.SBOMs)...)
 
 	var firstErr error
 	for _, cfg := range publishers {

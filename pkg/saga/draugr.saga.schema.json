@@ -2,39 +2,62 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://draugr.dev/schema/draugr.saga.schema.json",
   "title": "Draugr Saga",
-  "description": "The draugr.saga.yaml descriptor — a declarative account of an application's security surface and the controls that must pass. See https://draugr.dev/docs/latest/reference/saga-schema/",
+  "description": "The draugr.saga.yaml descriptor \u2014 a declarative account of an application's security surface and the controls that must pass. See https://draugr.dev/docs/latest/reference/saga-schema/",
   "type": "object",
-  "required": ["release"],
+  "required": [
+    "release"
+  ],
   "additionalProperties": false,
   "properties": {
-    "release": { "$ref": "#/$defs/release" },
-    "config": { "$ref": "#/$defs/config" },
+    "release": {
+      "$ref": "#/$defs/release"
+    },
+    "config": {
+      "$ref": "#/$defs/config"
+    },
     "components": {
       "type": "array",
       "description": "The app's parts. Each component declares the surfaces it exposes; Draugr plans scans per surface.",
-      "items": { "$ref": "#/$defs/component" }
+      "items": {
+        "$ref": "#/$defs/component"
+      }
     },
     "componentsMetaSources": {
       "type": "array",
       "description": "Load component definitions from other repositories (schema accepted today; resolution is on the roadmap).",
-      "items": { "$ref": "#/$defs/metaSource" }
+      "items": {
+        "$ref": "#/$defs/metaSource"
+      }
     },
     "references": {
       "type": "array",
-      "description": "Links to manual or human-performed controls (threat model, architecture diagram, …).",
-      "items": { "$ref": "#/$defs/reference" }
+      "description": "Links to manual or human-performed controls (threat model, architecture diagram, \u2026).",
+      "items": {
+        "$ref": "#/$defs/reference"
+      }
     }
   },
   "$defs": {
     "release": {
       "type": "object",
       "description": "Identifies what is being assessed.",
-      "required": ["version"],
+      "required": [
+        "version"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string", "description": "Release or application name." },
-        "version": { "type": "string", "description": "Release version. Supports ${{ ENV_VAR }} substitution." },
-        "stage": { "type": "string", "description": "Free-form stage label, e.g. dev, staging, prod." }
+        "name": {
+          "type": "string",
+          "description": "Release or application name."
+        },
+        "version": {
+          "type": "string",
+          "description": "Release version. Supports ${{ ENV_VAR }} substitution."
+        },
+        "stage": {
+          "type": "string",
+          "description": "Free-form stage label, e.g. dev, staging, prod."
+        }
       }
     },
     "config": {
@@ -42,37 +65,74 @@
       "description": "Project-wide configuration: which controls run, and what is reported where.",
       "additionalProperties": false,
       "properties": {
-        "controllers": { "$ref": "#/$defs/controllers" },
+        "controllers": {
+          "$ref": "#/$defs/controllers"
+        },
         "reports": {
           "type": "array",
           "description": "Report formats to render for every scan.",
-          "items": { "$ref": "#/$defs/reportConfig" }
+          "items": {
+            "$ref": "#/$defs/reportConfig"
+          }
         },
         "publishers": {
           "type": "array",
           "description": "Where rendered reports are delivered. Every report goes to every publisher.",
-          "items": { "$ref": "#/$defs/publisherConfig" }
+          "items": {
+            "$ref": "#/$defs/publisherConfig"
+          }
+        },
+        "sbom": {
+          "$ref": "#/$defs/sbomConfig"
         }
       }
     },
     "controllers": {
       "type": "object",
       "description": "Security controls, keyed by name. A control runs only when enabled here (or on a component). Each scanner is configured under its own key inside the control.",
-      "propertyNames": { "$ref": "#/$defs/controlName" },
-      "additionalProperties": { "$ref": "#/$defs/controllerSettings" }
+      "propertyNames": {
+        "$ref": "#/$defs/controlName"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/controllerSettings"
+      }
     },
     "controlName": {
       "description": "A control Draugr implements today. Other names are ignored.",
       "type": "string",
       "anyOf": [
-        { "const": "images", "description": "Container image vulnerabilities (Trivy)." },
-        { "const": "sca", "description": "Dependency vulnerabilities — Software Composition Analysis (Trivy fs)." },
-        { "const": "sast", "description": "Static analysis of first-party source (Semgrep; opt-in gosec)." },
-        { "const": "secrets", "description": "Committed credentials (Gitleaks)." },
-        { "const": "iac", "description": "Infrastructure-as-Code misconfiguration (Trivy config)." },
-        { "const": "headers", "description": "HTTP security headers on running endpoints (native)." },
-        { "const": "dast", "description": "Runtime probing of running endpoints (Nuclei)." },
-        { "const": "tls", "description": "TLS configuration and certificates on running endpoints (native)." }
+        {
+          "const": "images",
+          "description": "Container image vulnerabilities (Trivy)."
+        },
+        {
+          "const": "sca",
+          "description": "Dependency vulnerabilities \u2014 Software Composition Analysis (Trivy fs)."
+        },
+        {
+          "const": "sast",
+          "description": "Static analysis of first-party source (Semgrep; opt-in gosec)."
+        },
+        {
+          "const": "secrets",
+          "description": "Committed credentials (Gitleaks)."
+        },
+        {
+          "const": "iac",
+          "description": "Infrastructure-as-Code misconfiguration (Trivy config)."
+        },
+        {
+          "const": "headers",
+          "description": "HTTP security headers on running endpoints (native)."
+        },
+        {
+          "const": "dast",
+          "description": "Runtime probing of running endpoints (Nuclei)."
+        },
+        {
+          "const": "tls",
+          "description": "TLS configuration and certificates on running endpoints (native)."
+        }
       ]
     },
     "controllerSettings": {
@@ -97,60 +157,165 @@
     },
     "reportConfig": {
       "type": "object",
-      "required": ["format"],
+      "required": [
+        "format"
+      ],
       "additionalProperties": false,
       "properties": {
         "format": {
           "type": "string",
           "description": "Report format to render.",
-          "enum": ["console", "markdown", "html", "junit", "json", "sarif", "template"]
+          "enum": [
+            "console",
+            "markdown",
+            "html",
+            "junit",
+            "json",
+            "sarif",
+            "template"
+          ]
         },
-        "template": { "type": "string", "description": "Inline Go text/template (format: template). Set exactly one of template / templateFile." },
-        "templateFile": { "type": "string", "description": "Path to a Go text/template (format: template)." },
-        "filename": { "type": "string", "description": "Override the artifact's default output filename." }
+        "template": {
+          "type": "string",
+          "description": "Inline Go text/template (format: template). Set exactly one of template / templateFile."
+        },
+        "templateFile": {
+          "type": "string",
+          "description": "Path to a Go text/template (format: template)."
+        },
+        "filename": {
+          "type": "string",
+          "description": "Override the artifact's default output filename."
+        }
       }
     },
     "publisherConfig": {
       "type": "object",
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "additionalProperties": false,
       "properties": {
         "kind": {
           "type": "string",
           "description": "Where to deliver reports.",
           "anyOf": [
-            { "const": "file", "description": "Write each report into a directory." },
-            { "const": "github", "description": "Upload the SARIF report to GitHub code scanning." },
-            { "const": "github-pr-comment", "description": "Post the Markdown report as a sticky pull-request comment." }
+            {
+              "const": "file",
+              "description": "Write each report into a directory."
+            },
+            {
+              "const": "github",
+              "description": "Upload the SARIF report to GitHub code scanning."
+            },
+            {
+              "const": "github-pr-comment",
+              "description": "Post the Markdown report as a sticky pull-request comment."
+            }
           ]
         },
-        "dir": { "type": "string", "description": "file: output directory." },
-        "repo": { "type": "string", "description": "github: owner/name. Defaults to $GITHUB_REPOSITORY." },
-        "commit": { "type": "string", "description": "github: commit SHA. Defaults to $GITHUB_SHA." },
-        "ref": { "type": "string", "description": "github: git ref. Defaults to $GITHUB_REF." },
-        "tokenEnv": { "type": "string", "description": "Environment variable holding the token (default GITHUB_TOKEN). The token itself is never stored in the Saga." },
-        "pr": { "type": "integer", "description": "github-pr-comment: pull-request number. Defaults to the CI environment." },
-        "marker": { "type": "string", "description": "github-pr-comment: hidden marker identifying the sticky comment to update." }
+        "dir": {
+          "type": "string",
+          "description": "file: output directory."
+        },
+        "repo": {
+          "type": "string",
+          "description": "github: owner/name. Defaults to $GITHUB_REPOSITORY."
+        },
+        "commit": {
+          "type": "string",
+          "description": "github: commit SHA. Defaults to $GITHUB_SHA."
+        },
+        "ref": {
+          "type": "string",
+          "description": "github: git ref. Defaults to $GITHUB_REF."
+        },
+        "tokenEnv": {
+          "type": "string",
+          "description": "Environment variable holding the token (default GITHUB_TOKEN). The token itself is never stored in the Saga."
+        },
+        "pr": {
+          "type": "integer",
+          "description": "github-pr-comment: pull-request number. Defaults to the CI environment."
+        },
+        "marker": {
+          "type": "string",
+          "description": "github-pr-comment: hidden marker identifying the sticky comment to update."
+        }
+      }
+    },
+    "sbomConfig": {
+      "type": "object",
+      "description": "Software Bill of Materials generation. Evidence rather than a control: an SBOM is an inventory of what a component contains, so it finds nothing and never affects the verdict. One document is produced per distinct repository and image. Requires the syft tool.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Generate an SBOM for every repository and image in the project."
+        },
+        "format": {
+          "type": "string",
+          "description": "SBOM document format. Defaults to spdx-json.",
+          "enum": [
+            "spdx-json",
+            "cyclonedx-json"
+          ]
+        }
       }
     },
     "component": {
       "type": "object",
-      "description": "One logical part of the app. All surface lists are optional — declare what applies.",
-      "required": ["name"],
+      "description": "One logical part of the app. All surface lists are optional \u2014 declare what applies.",
+      "required": [
+        "name"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string", "description": "Unique component name." },
+        "name": {
+          "type": "string",
+          "description": "Unique component name."
+        },
         "labels": {
           "type": "object",
           "description": "Free-form key/value metadata, e.g. team or tier.",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
-        "exposure": { "$ref": "#/$defs/exposure" },
-        "criticality": { "$ref": "#/$defs/criticality" },
-        "repositories": { "type": "array", "description": "Source repositories — scanned by sca, secrets, and sast.", "items": { "$ref": "#/$defs/repository" } },
-        "images": { "type": "array", "description": "Container images — scanned by the images control.", "items": { "$ref": "#/$defs/image" } },
-        "hosts": { "type": "array", "description": "Running endpoints — probed by headers, tls, and dast.", "items": { "$ref": "#/$defs/host" } },
-        "infrastructure": { "type": "array", "description": "Infrastructure this component runs on.", "items": { "$ref": "#/$defs/infrastructure" } },
+        "exposure": {
+          "$ref": "#/$defs/exposure"
+        },
+        "criticality": {
+          "$ref": "#/$defs/criticality"
+        },
+        "repositories": {
+          "type": "array",
+          "description": "Source repositories \u2014 scanned by sca, secrets, and sast.",
+          "items": {
+            "$ref": "#/$defs/repository"
+          }
+        },
+        "images": {
+          "type": "array",
+          "description": "Container images \u2014 scanned by the images control.",
+          "items": {
+            "$ref": "#/$defs/image"
+          }
+        },
+        "hosts": {
+          "type": "array",
+          "description": "Running endpoints \u2014 probed by headers, tls, and dast.",
+          "items": {
+            "$ref": "#/$defs/host"
+          }
+        },
+        "infrastructure": {
+          "type": "array",
+          "description": "Infrastructure this component runs on.",
+          "items": {
+            "$ref": "#/$defs/infrastructure"
+          }
+        },
         "controllers": {
           "$ref": "#/$defs/controllers",
           "description": "Per-component control overrides. Same shape as config.controllers; component settings win."
@@ -159,85 +324,171 @@
     },
     "exposure": {
       "type": "string",
-      "description": "How reachable this component is — the likelihood axis of risk prioritization.",
+      "description": "How reachable this component is \u2014 the likelihood axis of risk prioritization.",
       "anyOf": [
-        { "const": "public", "description": "Internet-facing, no authentication." },
-        { "const": "authenticated", "description": "Internet-facing, behind authentication." },
-        { "const": "internal", "description": "Reachable within the environment." },
-        { "const": "restricted", "description": "Namespace- or network-policy-scoped." }
+        {
+          "const": "public",
+          "description": "Internet-facing, no authentication."
+        },
+        {
+          "const": "authenticated",
+          "description": "Internet-facing, behind authentication."
+        },
+        {
+          "const": "internal",
+          "description": "Reachable within the environment."
+        },
+        {
+          "const": "restricted",
+          "description": "Namespace- or network-policy-scoped."
+        }
       ]
     },
     "criticality": {
       "type": "string",
-      "description": "Business impact if this component fails — the impact axis of risk prioritization.",
+      "description": "Business impact if this component fails \u2014 the impact axis of risk prioritization.",
       "anyOf": [
-        { "const": "critical", "description": "Failure causes an outage or data loss." },
-        { "const": "important", "description": "Degraded functionality, no immediate outage." },
-        { "const": "supporting", "description": "Limited operational impact." }
+        {
+          "const": "critical",
+          "description": "Failure causes an outage or data loss."
+        },
+        {
+          "const": "important",
+          "description": "Degraded functionality, no immediate outage."
+        },
+        {
+          "const": "supporting",
+          "description": "Limited operational impact."
+        }
       ]
     },
     "repository": {
       "type": "object",
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "additionalProperties": false,
       "properties": {
-        "url": { "type": "string", "description": "Repository URL, or a local path such as `.`" },
-        "revision": { "type": "string", "description": "Branch, tag, or commit to scan." },
-        "paths": { "type": "array", "description": "Restrict the scan to these path globs.", "items": { "type": "string" } }
+        "url": {
+          "type": "string",
+          "description": "Repository URL, or a local path such as `.`"
+        },
+        "revision": {
+          "type": "string",
+          "description": "Branch, tag, or commit to scan."
+        },
+        "paths": {
+          "type": "array",
+          "description": "Restrict the scan to these path globs.",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "image": {
       "type": "object",
-      "required": ["image"],
+      "required": [
+        "image"
+      ],
       "additionalProperties": false,
       "properties": {
-        "image": { "type": "string", "description": "Image reference, e.g. registry.example.com/acme/web:1.0" },
-        "digest": { "type": "string", "description": "Pin the immutable content digest, e.g. sha256:…" }
+        "image": {
+          "type": "string",
+          "description": "Image reference, e.g. registry.example.com/acme/web:1.0"
+        },
+        "digest": {
+          "type": "string",
+          "description": "Pin the immutable content digest, e.g. sha256:\u2026"
+        }
       }
     },
     "host": {
       "type": "object",
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string", "description": "Label for this endpoint." },
-        "url": { "type": "string", "description": "Endpoint URL. Must be https:// for the tls control." },
+        "name": {
+          "type": "string",
+          "description": "Label for this endpoint."
+        },
+        "url": {
+          "type": "string",
+          "description": "Endpoint URL. Must be https:// for the tls control."
+        },
         "type": {
           "type": "string",
           "description": "Tunes which header checks apply.",
           "anyOf": [
-            { "const": "browser", "description": "Served to browsers — full security-header suite (default)." },
-            { "const": "api", "description": "API endpoint — skips browser-only headers." }
+            {
+              "const": "browser",
+              "description": "Served to browsers \u2014 full security-header suite (default)."
+            },
+            {
+              "const": "api",
+              "description": "API endpoint \u2014 skips browser-only headers."
+            }
           ]
         }
       }
     },
     "infrastructure": {
       "type": "object",
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "additionalProperties": false,
       "properties": {
-        "kind": { "type": "string", "description": "Infrastructure type, e.g. kubernetes." },
-        "ref": { "type": "string", "description": "Identifier, e.g. a cluster name." }
+        "kind": {
+          "type": "string",
+          "description": "Infrastructure type, e.g. kubernetes."
+        },
+        "ref": {
+          "type": "string",
+          "description": "Identifier, e.g. a cluster name."
+        }
       }
     },
     "metaSource": {
       "type": "object",
-      "required": ["repoUrl", "path"],
+      "required": [
+        "repoUrl",
+        "path"
+      ],
       "additionalProperties": false,
       "properties": {
-        "repoUrl": { "type": "string", "description": "Repository holding component definitions." },
-        "path": { "type": "string", "description": "Path within that repo; supports globs." },
-        "revision": { "type": "string", "description": "Branch, tag, or commit." }
+        "repoUrl": {
+          "type": "string",
+          "description": "Repository holding component definitions."
+        },
+        "path": {
+          "type": "string",
+          "description": "Path within that repo; supports globs."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Branch, tag, or commit."
+        }
       }
     },
     "reference": {
       "type": "object",
-      "required": ["type", "link"],
+      "required": [
+        "type",
+        "link"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "type": "string", "description": "Kind of reference, e.g. ThreatModel." },
-        "link": { "type": "string", "description": "URL to the document." }
+        "type": {
+          "type": "string",
+          "description": "Kind of reference, e.g. ThreatModel."
+        },
+        "link": {
+          "type": "string",
+          "description": "URL to the document."
+        }
       }
     }
   }

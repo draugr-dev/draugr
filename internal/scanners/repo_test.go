@@ -1,17 +1,10 @@
 package scanners
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"log/slog"
-	"os"
-	"os/exec"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/draugr-dev/draugr/internal/observability"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
@@ -182,44 +175,5 @@ func TestExecArgv(t *testing.T) {
 	}
 	if _, err := execArgv(context.Background(), nil); err == nil {
 		t.Fatal("empty argv should error")
-	}
-}
-
-// A scan used to be a black box: you could see that a tool failed but not what was run, where,
-// for how long, or what the tool itself said. These assert the record that answers that.
-func TestLogToolRunRecordsTheCommand(t *testing.T) {
-	var buf bytes.Buffer
-	prev := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
-	defer slog.SetDefault(prev)
-
-	logToolRun(context.Background(), []string{"trivy", "fs", "--quiet", "/src"}, "/work",
-		time.Now().Add(-50*time.Millisecond), []byte("output"), nil)
-
-	out := buf.String()
-	for _, want := range []string{`tool=trivy`, `argv="trivy fs --quiet /src"`, `dir=/work`, "stdout_bytes=6", "duration="} {
-		if !strings.Contains(out, want) {
-			t.Errorf("debug record missing %s\n%s", want, out)
-		}
-	}
-}
-
-// The tool's own stderr is usually where the answer is, so trace must relay it — and debug must
-// not, since it's verbose.
-func TestLogToolRunRelaysStderrAtTraceOnly(t *testing.T) {
-	run := func(level slog.Level) string {
-		var buf bytes.Buffer
-		prev := slog.Default()
-		slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: level})))
-		defer slog.SetDefault(prev)
-		err := &exec.ExitError{ProcessState: &os.ProcessState{}, Stderr: []byte("boom: bad flag")}
-		logToolRun(context.Background(), []string{"gitleaks", "dir", "."}, "", time.Now(), nil, err)
-		return buf.String()
-	}
-	if got := run(observability.LevelTrace); !strings.Contains(got, "boom: bad flag") {
-		t.Errorf("trace should relay the tool's stderr:\n%s", got)
-	}
-	if got := run(slog.LevelDebug); strings.Contains(got, "boom: bad flag") {
-		t.Errorf("debug should not include the tool's full stderr:\n%s", got)
 	}
 }

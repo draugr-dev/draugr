@@ -86,8 +86,12 @@ libraries. In Draugr: **`images`** via Trivy. (Implemented today.)
 A formal, shareable **inventory of everything in your software** (components + versions +
 licenses), in a standard format ([SPDX](https://spdx.dev/),
 [CycloneDX](https://cyclonedx.org/)). Foundation for SCA, incident response ("am I affected
-by X?"), and compliance. In Draugr: **`sbom`** via [Syft](https://github.com/anchore/syft).
-Roadmap: [#57](https://github.com/draugr-dev/draugr/issues/57).
+by X?"), and compliance. In Draugr: `config.sbom` via
+[Syft](https://github.com/anchore/syft). (Implemented today.)
+
+Note that it is **not** a control. A control checks something and returns a verdict; an SBOM
+is an inventory and has no verdict to give. Draugr treats it as evidence: generated during a
+scan, written alongside the other artifacts, and never part of pass or fail.
 
 ## HTTP security headers
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/controllers"
+	"github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/selfupdate"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -195,6 +196,12 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 				add("git")
 			}
 		}
+	}
+
+	// SBOM generation is not a control, so no scanner declares it — it is required by the
+	// Saga's config.sbom block instead.
+	if s := model.Config.SBOM; s != nil && s.Enabled {
+		add(sbom.Binary)
 	}
 
 	sort.Slice(out, func(i, j int) bool { return out[i].Binary < out[j].Binary })

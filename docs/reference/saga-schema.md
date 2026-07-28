@@ -220,6 +220,49 @@ and the PR number default from the GitHub Actions environment; the token comes f
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif), which posts a PR **security
 delta** (new / fixed findings) as that comment.
 
+## SBOM generation
+
+```yaml
+config:
+  sbom:
+    enabled: true
+    format: spdx-json      # or cyclonedx-json; defaults to spdx-json
+```
+
+Produces one [Software Bill of Materials](glossary.md#sbom--software-bill-of-materials) per
+distinct repository and image in the Saga — an inventory of what each one contains. Requires
+[Syft](https://github.com/anchore/syft) (`draugr tools install syft`).
+
+**It is not a control, and this is deliberate.** Every control checks something and returns a
+verdict the gate acts on. An SBOM finds nothing, so it has no verdict to give; a control row
+that always reads "pass" without having looked is exactly the meaningless green Draugr exists
+to remove. So SBOMs are evidence: they never appear in the `Controls:` table and never affect
+pass or fail. The console reports them on their own line:
+
+```
+Controls:
+  secrets  FAIL   1 high
+
+SBOM: 2 documents (spdx-json)
+```
+
+**Where the documents go.** `-o <dir>` writes them beside `report.json` and `results.sarif`,
+and any configured publisher delivers them alongside your reports — including with no
+`config.reports` at all, if the inventory is the only output you want. Filenames are
+`sbom-<component>-<target>.spdx.json` (or `.cdx.json`), with the target slugged so two images
+in one component can't collide.
+
+There is no `--format sbom`: a run produces one document per target, and a format that writes
+several files has no meaning on stdout.
+
+**If Syft is missing, the scan fails.** Generation errors are reported under `(sbom)` and make
+the run incomplete, exactly as a missing scanner does — you asked for an inventory and didn't
+get one, and silence would let you believe you had it. `--allow-scan-errors` accepts the
+partial result if that's what you want; the error is still reported either way.
+
+Deduplicated by target: several controls scan the same repository, and its inventory is one
+document however many touched it. The same image referenced by two components is likewise one.
+
 ## `components`
 
 Each component is one logical part of the app. All surface lists are optional; provide

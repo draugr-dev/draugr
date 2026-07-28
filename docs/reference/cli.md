@@ -73,7 +73,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-o, --output` | — | Directory to write `report.json` and `results.sarif` |
+| `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
 | `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`) |
@@ -113,7 +113,8 @@ artifact; `junit` emits JUnit XML so CI systems (GitLab, Jenkins, Azure DevOps�
 findings in their test-results panel; `json` and `sarif` are the machine formats; `template`
 renders your own Go `text/template` (see [`config.reports`](saga-schema.md#configreports-and-configpublishers)
 for the available fields). Regardless of `--format`, `--output <dir>` always writes both
-`report.json` and `results.sarif` for CI/code-scanning. To render **multiple** formats and deliver
+`report.json` and `results.sarif` for CI/code-scanning — plus one SBOM per target when the Saga
+sets [`config.sbom`](saga-schema.md#sbom-generation). To render **multiple** formats and deliver
 them somewhere in one run, declare
 [`config.reports` / `config.publishers`](saga-schema.md#configreports-and-configpublishers) in the Saga.
 

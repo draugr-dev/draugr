@@ -2,16 +2,12 @@ package scanners
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log/slog"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/draugr-dev/draugr/internal/git"
-	"github.com/draugr-dev/draugr/internal/observability"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -127,50 +123,13 @@ func repoRelPath(dir, uri string) string {
 	return filepath.ToSlash(rel)
 }
 
+// execArgv and execArgvInDir are thin aliases for toolexec.Run, kept so scanner call sites read
+// the way they always have. The implementation moved to internal/toolexec when SBOM generation
+// needed the same "run it and say what you ran" behaviour without being a scanner.
 func execArgv(ctx context.Context, argv []string) ([]byte, error) {
-	return execArgvInDir(ctx, "", argv)
+	return toolexec.Run(ctx, "", argv)
 }
 
-// execArgvInDir runs argv with the working directory set to dir (empty = inherit the current
-// directory). Some tools resolve their scan target relative to the working directory (e.g.
-// gosec loads Go packages via `./...`), so the checkout dir must be the cwd, not just an arg.
 func execArgvInDir(ctx context.Context, dir string, argv []string) ([]byte, error) {
-	if len(argv) == 0 {
-		return nil, errors.New("empty command")
-	}
-	// Executing the configured tool is the point; no shell (exec.CommandContext, not "sh -c")
-	// and argv is built from typed config, not user shell input.
-	started := time.Now()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	logToolRun(ctx, argv, dir, started, out, err)
-	return out, err
-}
-
-// logToolRun reports what Draugr actually ran. Without it a scan is a black box: you can see
-// that a scanner failed but not the command, the directory, how long it took, or what the tool
-// itself said. At trace the tool's own stderr is relayed, which is usually where the answer is.
-func logToolRun(ctx context.Context, argv []string, dir string, started time.Time, out []byte, err error) {
-	attrs := []any{
-		"tool", argv[0],
-		"argv", strings.Join(argv, " "),
-		"duration", time.Since(started).Round(time.Millisecond).String(),
-		"stdout_bytes", len(out),
-	}
-	if dir != "" {
-		attrs = append(attrs, "dir", dir)
-	}
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
-		attrs = append(attrs, "exit_code", exit.ExitCode())
-		// Output() captures the tool's stderr here; it explains failures far better than we can.
-		if len(exit.Stderr) > 0 {
-			slog.Log(ctx, observability.LevelTrace, "scanner stderr",
-				"tool", argv[0], "stderr", string(exit.Stderr))
-		}
-	} else if err != nil {
-		attrs = append(attrs, "error", err.Error())
-	}
-	slog.DebugContext(ctx, "ran scanner tool", attrs...)
+	return toolexec.Run(ctx, dir, argv)
 }
