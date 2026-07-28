@@ -10,7 +10,11 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Draugr's own scan now uses `config.exclude` instead of scanner-specific ignore files.** Its
+  `.semgrepignore` and `.gitleaks.toml` are gone; both exclusions live in its Saga, with reasons.
+  Nothing changes for your scans — this is us using what we shipped.
 
 ## [0.42.0] - 2026-07-28
 
