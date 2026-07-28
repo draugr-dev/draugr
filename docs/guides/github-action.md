@@ -76,13 +76,15 @@ what avoids a second, overlapping PR comment. See [gate PRs on new findings](pr-
 | `fail-on-new-priority` | — | (diff) Fail on a **new** finding at or above this priority band. |
 | `min-priority` | — | List findings at or above this band in the console output. |
 | `cache-dir` | — | Enable content-hash caching in this directory (relative to `working-directory`). |
-| `output` | `draugr-out` | Directory for `report.json` and `results.sarif` (relative to `working-directory`). |
+| `output` | `draugr-out` | Directory for `report.json`, `results.sarif` and any SBOMs (relative to `working-directory`). Written in both scan and diff mode. |
 | `working-directory` | `.` | Directory to run Draugr in. |
 | `args` | — | Extra raw arguments appended to `draugr scan` (escape hatch). |
 | `verify` | `true` | Cosign-verify the release signature (the checksum is always verified). |
 | `tools` | `false` | Provision the external scanners (Trivy, Gitleaks, gosec via `draugr tools install`, Semgrep via pipx) before scanning. Set `true` when the runner doesn't already have them. |
 
-Outputs: **`sarif`** (path to `results.sarif`) and **`report`** (path to `report.json`).
+Outputs: **`sarif`** (path to `results.sarif`) and **`report`** (path to `report.json`). Both
+point inside `output` and are written on pull requests too, so an `if: always()` upload step
+finds them whichever mode the action ran in.
 
 ## Without the action
 

@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **The GitHub Action now writes its artifacts on pull requests.** On a PR the action runs in
+  diff mode, and diff mode wrote both scans to a temporary directory that vanished with the
+  runner — so `output` was ignored, an uploaded `draugr-out/` artifact was always empty, and the
+  `sarif` and `report` step outputs named files that had never been written. The head scan (the
+  one describing the code under review) now goes where `output` says, on every event. Only the
+  base scan stays throwaway.
 
 ## [0.41.0] - 2026-07-28
 
