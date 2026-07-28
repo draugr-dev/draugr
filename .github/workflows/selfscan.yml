@@ -60,7 +60,15 @@ jobs:
 
       - name: Draugr self-scan
         id: draugr
-        continue-on-error: true # non-blocking for now; tighten with fail-on later
+        # This step blocks. It used to be continue-on-error, which meant the check was green
+        # whatever the scan found — a gate that cannot fail is indistinguishable from one that
+        # passed, which is the failure mode Draugr exists to prevent. It was hiding a reachable
+        # CVE in a dependency for as long as the advisory had been public.
+        #
+        # Gating on P1 rather than on any finding: P1 is "high or critical severity, weighted by
+        # the component's exposure and criticality", which is the bar we ask users to hold. A
+        # gate that trips on every medium gets switched off, and then protects nothing.
+        #
         # Dogfood our own first-party action (the local checkout, so PRs test action changes
         # before they ship). The action downloads + cosign-verifies the latest release and
         # runs the scan, replacing the hand-rolled download+verify+run steps above.
@@ -72,6 +80,7 @@ jobs:
         with:
           saga: .draugr/self.saga.yaml
           output: draugr-out
+          fail-on-priority: P1
 
       - name: Upload evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
