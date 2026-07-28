@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.40.1] - 2026-07-28
+
 ### Changed
 
 - **Draugr's own dogfood scan now gates its CI.** It ran on every pull request before, but as a
@@ -845,7 +849,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.40.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.40.1...HEAD
+[0.40.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.40.1
 [0.40.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.40.0
 [0.39.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.39.0
 [0.38.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.38.0

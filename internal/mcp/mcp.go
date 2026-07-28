@@ -1,9 +1,9 @@
 // Package mcp exposes Draugr to AI coding agents over the Model Context Protocol.
 //
-// The reason this exists is narrower than "agents are popular". An agent asked "is this safe to
-// ship?" will answer the question one way or another: if Draugr isn't callable it will improvise
-// — shell out to whatever scanner it can find, invent a scope, and read raw tool output in its
-// own context window. That improvised answer has no recorded scope, no organizational risk
+// The reason this exists is narrower than "agents are popular". An agent asked to check a change
+// for security problems will do it one way or another: if Draugr isn't callable it improvises —
+// shells out to whatever scanner it can find, picks its own scope, and reads raw tool output in
+// its own context window. That improvised answer has no recorded scope, no organizational risk
 // context, and no relationship to what CI will decide. Being callable is what makes the agent's
 // answer and the pipeline's answer the same answer.
 //

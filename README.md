@@ -208,8 +208,8 @@ all inputs.
 
 ## Use from an AI coding assistant
 
-Ask a coding assistant *"is this safe to ship?"* and it answers either way — usually by running
-whatever scanner it can find, over a scope it invented, and reading the raw output. That answer
+Ask an assistant to check a change for security problems and it will — by running whatever
+scanner it can find, over a scope it chose for itself, and reading the raw output. That answer
 has no relationship to the one your pipeline will give.
 
 `draugr mcp` serves Draugr over the [Model Context Protocol](https://modelcontextprotocol.io),
