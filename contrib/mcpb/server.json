@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "dev.draugr/draugr",
   "title": "Draugr",
-  "description": "Answers what to fix first, from your committed security descriptor rather than an invented scope.",
-  "version": "0.40.0",
+  "description": "Security scanning for AI agents: SAST, SCA, secrets, IaC, DAST, ranked by real risk.",
+  "version": "0.40.1",
   "websiteUrl": "https://draugr.dev",
   "icons": [
     {
@@ -21,9 +21,9 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/draugr-dev/draugr/releases/download/v0.40.0/draugr-0.40.0.mcpb",
-      "version": "0.40.0",
-      "fileSha256": "0766a8594a2346b3f11f597f5ed12c21c4613e9d41b3e18aeae46201279be1a4",
+      "identifier": "https://github.com/draugr-dev/draugr/releases/download/v0.40.1/draugr-0.40.1.mcpb",
+      "version": "0.40.1",
+      "fileSha256": "e9b089e05947a95085ad056fc7f220e1c4a6bf7e1f067eae98cb2cd64eda61c3",
       "transport": {
         "type": "stdio"
       }
