@@ -242,6 +242,7 @@ runs:
       env:
         INPUT_SAGA: ${{ inputs.saga }}
         INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        INPUT_OUTPUT: ${{ inputs.output }}
         INPUT_CACHE_DIR: ${{ inputs.cache-dir }}
         INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
         INPUT_FAIL_ON_NEW_PRIORITY: ${{ inputs.fail-on-new-priority }}
@@ -259,8 +260,13 @@ runs:
           echo "::error::diff mode requires a pull_request event (no base SHA in context)"; exit 1
         fi
 
+        # The head scan describes the code under review, so it goes where `output` says and
+        # where the `sarif` / `report` step outputs already point. It used to land in a temp
+        # directory that was deleted with the runner: the artifact a caller uploaded was empty
+        # on every pull request, and outputs.sarif named a file that had never been written.
+        # Only the base scan is genuinely throwaway.
         base_out="${RUNNER_TEMP}/draugr-base"
-        head_out="${RUNNER_TEMP}/draugr-head"
+        head_out="${INPUT_OUTPUT}"
         worktree="${RUNNER_TEMP}/draugr-base-src"
         wd="${INPUT_WORKING_DIRECTORY:-.}"
 
