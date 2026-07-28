@@ -141,6 +141,12 @@ func summarize(d Data) summary {
 	for _, name := range names {
 		rep := d.Run.Controls[name].Report
 		for _, res := range rep.Results {
+			// Suppressed by a Saga exclusion: still in the report, deliberately not in the
+			// list of things to fix. The count is reported separately so the reader knows
+			// findings were set aside rather than never found.
+			if res.Suppressed() {
+				continue
+			}
 			if res.Priority != "" {
 				s.prioritized = true
 				switch prioritization.Priority(res.Priority) {

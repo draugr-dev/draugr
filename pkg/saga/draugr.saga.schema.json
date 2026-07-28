@@ -84,6 +84,13 @@
         },
         "sbom": {
           "$ref": "#/$defs/sbomConfig"
+        },
+        "exclude": {
+          "type": "array",
+          "description": "Findings to suppress, each with a stated reason. A suppressed finding is still reported \u2014 marked, with its justification \u2014 it just stops counting toward the verdict.",
+          "items": {
+            "$ref": "#/$defs/excludeRule"
+          }
         }
       }
     },
@@ -241,6 +248,37 @@
         "marker": {
           "type": "string",
           "description": "github-pr-comment: hidden marker identifying the sticky comment to update."
+        }
+      }
+    },
+    "excludeRule": {
+      "type": "object",
+      "description": "One exclusion. Set paths, rules, or both; when both are set a finding must match both.",
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "paths": {
+          "type": "array",
+          "description": "Location patterns. A pattern ending in '/' matches everything beneath that directory; otherwise it is a glob against the whole location.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "rules": {
+          "type": "array",
+          "description": "Rule ids to suppress, matched exactly.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why this exclusion exists. Required: an exclusion without a reason is indistinguishable from an oversight."
         }
       }
     },

@@ -131,3 +131,30 @@ func TestPriorityGateDisabledByDefault(t *testing.T) {
 		t.Errorf("highestPriority = %q, want P1", res.Controls[0].HighestPriority)
 	}
 }
+
+func TestVerdictIgnoresSuppressedFindings(t *testing.T) {
+	// The end of the chain: an excluded finding must not fail the build, on level or priority.
+	rep := sarif.Report{Results: []sarif.Result{{
+		RuleID: "private-key", Level: sarif.LevelError, Priority: "P1",
+		Suppression: &sarif.Suppression{Kind: "external", Justification: "fixture"},
+	}}}
+	p := Policy{FailOn: sarif.LevelError, FailOnPriority: "P1"}
+	res := p.Evaluate(map[string]sarif.Report{"secrets": rep})
+	if res.Verdict != Pass {
+		t.Errorf("verdict = %v, want Pass — the only finding is suppressed", res.Verdict)
+	}
+	if res.Controls[0].HighestPriority != "" {
+		t.Errorf("HighestPriority = %q, want empty", res.Controls[0].HighestPriority)
+	}
+}
+
+func TestVerdictStillFailsOnAnUnsuppressedFinding(t *testing.T) {
+	rep := sarif.Report{Results: []sarif.Result{
+		{RuleID: "a", Level: sarif.LevelError, Suppression: &sarif.Suppression{Kind: "external", Justification: "x"}},
+		{RuleID: "b", Level: sarif.LevelError},
+	}}
+	res := Policy{FailOn: sarif.LevelError}.Evaluate(map[string]sarif.Report{"sca": rep})
+	if res.Verdict != Fail {
+		t.Error("an unsuppressed error must still fail the gate")
+	}
+}

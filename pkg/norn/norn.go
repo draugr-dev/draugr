@@ -105,6 +105,9 @@ func highestPriority(r sarif.Report) string {
 	best := ""
 	bestRank := 0
 	for _, res := range r.Results {
+		if res.Suppressed() {
+			continue // excluded by the Saga: reported, but not something to gate on
+		}
 		if rank := prioritization.Priority(res.Priority).Rank(); rank > bestRank {
 			bestRank, best = rank, res.Priority
 		}

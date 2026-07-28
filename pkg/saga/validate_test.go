@@ -197,3 +197,58 @@ func TestSBOMConfigRoundTripsThroughLoad(t *testing.T) {
 		t.Errorf("sbom config = %+v", m.Config.SBOM)
 	}
 }
+
+func TestExcludeRuleMatching(t *testing.T) {
+	cases := []struct {
+		name        string
+		rule        ExcludeRule
+		uri, ruleID string
+		want        bool
+	}{
+		{"directory prefix", ExcludeRule{Paths: []string{"examples/"}}, "examples/a/b.yml", "any", true},
+		{"directory prefix misses sibling", ExcludeRule{Paths: []string{"examples/"}}, "examplesx/b.yml", "any", false},
+		{"exact path", ExcludeRule{Paths: []string{"test/fixture.go"}}, "test/fixture.go", "any", true},
+		{"glob", ExcludeRule{Paths: []string{"*.md"}}, "README.md", "any", true},
+		{"glob does not cross directories", ExcludeRule{Paths: []string{"*.md"}}, "docs/README.md", "any", false},
+		{"rule only", ExcludeRule{Rules: []string{"private-key"}}, "anywhere.go", "private-key", true},
+		{"rule only misses others", ExcludeRule{Rules: []string{"private-key"}}, "anywhere.go", "aws-key", false},
+		// Both set is an AND. The alternative would silently widen "ignore this rule in the
+		// fixture" into "ignore this rule everywhere", which is the dangerous reading.
+		{"both must match", ExcludeRule{Paths: []string{"test/f.go"}, Rules: []string{"k"}}, "test/f.go", "k", true},
+		{"both: wrong path", ExcludeRule{Paths: []string{"test/f.go"}, Rules: []string{"k"}}, "src/f.go", "k", false},
+		{"both: wrong rule", ExcludeRule{Paths: []string{"test/f.go"}, Rules: []string{"k"}}, "test/f.go", "j", false},
+		{"empty rule matches nothing", ExcludeRule{}, "a", "b", false},
+		// An image finding has no file path. A path rule must not sweep it up by accident.
+		{"no location", ExcludeRule{Paths: []string{"*"}}, "", "k", false},
+	}
+	for _, c := range cases {
+		if got := c.rule.Matches(c.uri, c.ruleID); got != c.want {
+			t.Errorf("%s: Matches(%q, %q) = %v, want %v", c.name, c.uri, c.ruleID, got, c.want)
+		}
+	}
+}
+
+func TestValidateExclude(t *testing.T) {
+	base := func(e ExcludeRule) *Model {
+		return &Model{Release: Release{Name: "x", Version: "1"}, Config: Config{Exclude: []ExcludeRule{e}}}
+	}
+	if err := base(ExcludeRule{Paths: []string{"examples/"}, Reason: "templates"}).Validate(); err != nil {
+		t.Errorf("a well-formed exclusion should validate: %v", err)
+	}
+	// A reason is what makes an exclusion reviewable rather than an oversight.
+	err := base(ExcludeRule{Paths: []string{"examples/"}}).Validate()
+	if err == nil || !strings.Contains(err.Error(), "reason is required") {
+		t.Errorf("want a missing-reason error, got %v", err)
+	}
+	if err := base(ExcludeRule{Paths: []string{"x"}, Reason: "   "}).Validate(); err == nil {
+		t.Error("whitespace is not a reason")
+	}
+	// Neither selector would match everything.
+	err = base(ExcludeRule{Reason: "because"}).Validate()
+	if err == nil || !strings.Contains(err.Error(), "suppress everything") {
+		t.Errorf("want a no-selector error, got %v", err)
+	}
+	if err := base(ExcludeRule{Paths: []string{""}, Reason: "r"}).Validate(); err == nil {
+		t.Error("an empty path should be rejected")
+	}
+}

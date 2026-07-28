@@ -220,6 +220,53 @@ and the PR number default from the GitHub Actions environment; the token comes f
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif), which posts a PR **security
 delta** (new / fixed findings) as that comment.
 
+## `config.exclude`
+
+```yaml
+config:
+  exclude:
+    - paths: ["test/integration/repo_scan_test.go"]
+      rules: ["private-key"]
+      reason: >-
+        The integration test writes a throwaway key so the secrets control has something real
+        to find. The material is fake and was never valid anywhere.
+```
+
+Every real repository has paths that aren't the application — fixtures, examples, generated
+code, vendored trees — and rules that don't apply to them. Saying so in the Saga means one
+syntax for every scanner, in the file that already describes your scope, rather than learning
+each tool's own ignore format.
+
+**A suppressed finding is reported, not deleted.** It stays in the SARIF marked with its
+justification (`suppressions[].kind: external`), so GitHub code scanning files it as
+closed-as-suppressed and an auditor can see exactly what was set aside and why. It stops
+counting: no summary, no verdict, no fix-first row. The console says how many:
+
+```
+5 findings suppressed by config.exclude
+```
+
+That line is the point. An exclusion that left no trace would read exactly like a finding that
+was never there.
+
+| Field | Meaning |
+|-------|---------|
+| `paths` | Location patterns. A pattern ending in `/` matches everything beneath that directory; otherwise it's a glob against the whole location, so `*.md` and `test/fixture.go` both work. |
+| `rules` | Rule ids, matched exactly. |
+| `reason` | **Required.** Why this exclusion exists. |
+
+**When both `paths` and `rules` are set, a finding must match both.** That's the narrow reading —
+"this rule, in this place" — and the safe one: the alternative would quietly widen *ignore the
+fixture's fake key* into *ignore that rule everywhere*.
+
+**A reason is required** because an exclusion without one is indistinguishable from an oversight
+six months later, and a reviewer has nothing to judge. It's the cheapest guard against a scanner
+being quietly defanged. An entry with neither `paths` nor `rules` is rejected too — it would
+suppress every finding in the project.
+
+Findings a scanner suppressed itself (a Semgrep `nosem` comment, say) keep their own reason and
+aren't re-attributed to your Saga.
+
 ## SBOM generation
 
 ```yaml

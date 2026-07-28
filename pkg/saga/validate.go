@@ -84,6 +84,25 @@ func (m *Model) Validate() error {
 			errs = append(errs, fmt.Errorf("config.reports[%d].format is required", i))
 		}
 	}
+	for i, e := range m.Config.Exclude {
+		where := fmt.Sprintf("config.exclude[%d]", i)
+		// Without a reason an exclusion is indistinguishable from an oversight six months on,
+		// and a reviewer has nothing to judge. It is the cheapest guard against a scanner
+		// being quietly defanged.
+		if strings.TrimSpace(e.Reason) == "" {
+			errs = append(errs, fmt.Errorf("%s: reason is required — say why this is excluded", where))
+		}
+		// Neither selector set would match every finding in the project.
+		if len(e.Paths) == 0 && len(e.Rules) == 0 {
+			errs = append(errs, fmt.Errorf("%s: set paths, rules, or both — an exclusion with neither would suppress everything", where))
+		}
+		for j, p := range e.Paths {
+			if strings.TrimSpace(p) == "" {
+				errs = append(errs, fmt.Errorf("%s: paths[%d] is empty", where, j))
+			}
+		}
+	}
+
 	if s := m.Config.SBOM; s != nil && s.Format != "" && !s.Format.Valid() {
 		errs = append(errs, fmt.Errorf("config.sbom.format %q is not a known format (want one of %v)", s.Format, SBOMFormats))
 	}

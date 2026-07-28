@@ -122,6 +122,14 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// Evidence, not a control — so a line rather than a row in the table above, where every
 	// entry means "checked, and here is the verdict". Printed before the early returns below,
 	// because a clean scan still produced the inventory and should say so.
+	// Silent suppression is the thing to avoid: an excluded finding that leaves no trace reads
+	// exactly like one that was never found. The count says otherwise, and each reason travels
+	// in the SARIF next to the result it justifies.
+	if n := d.Run.Suppressed; n > 0 {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim,
+			fmt.Sprintf("%s suppressed by config.exclude", plural(n, "finding"))))
+	}
+
 	if n := len(d.Run.SBOMs); n > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim,
 			fmt.Sprintf("SBOM: %s (%s)", plural(n, "document"), d.Run.SBOMs[0].Format)))
