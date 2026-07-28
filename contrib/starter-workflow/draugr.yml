@@ -34,7 +34,7 @@ jobs:
 
       - name: Run Draugr
         id: draugr
-        uses: draugr-dev/draugr@REPLACE_WITH_RELEASE_SHA # vX.Y.Z
+        uses: draugr-dev/draugr@c1f1194fb22cbef6fd581009d41907fcaeaacf72 # v0.40.1
         with:
           saga: draugr.saga.yaml
           tools: true # provision the scanners the Saga's controls use
