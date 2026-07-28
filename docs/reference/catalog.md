@@ -33,8 +33,13 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
 | `infrastructure` | CIS benchmarks / posture | project | 🗺️ [#55](https://github.com/draugr-dev/draugr/issues/55) | kube-bench | — |
 | `tls` | TLS/certificate assessment | component | ✅ | `tls-probe` (native) | [doc](../../internal/controllers/tls.md) |
-| `sbom` | Software Bill of Materials | component | 🗺️ [#57](https://github.com/draugr-dev/draugr/issues/57) | Syft | — |
 | `threats` | Threat intelligence | component | 🗺️ [#59](https://github.com/draugr-dev/draugr/issues/59) | URLhaus, VirusTotal | — |
+
+**SBOM generation is not in this table on purpose.** Every control above checks something and
+returns a verdict that feeds the gate. An SBOM is an inventory — it finds nothing, so it has no
+verdict to give, and a row here would always read "pass" without ever having looked. It is
+configured separately as `config.sbom` and travels as evidence. See
+[the Saga reference](saga-schema.md#sbom-generation).
 
 ## Scanners
 
@@ -110,6 +115,7 @@ Not scanners, but tools Draugr provisions/uses:
 |------|---------|:------:|
 | `cosign` | verify release/tool signatures (Sigstore) | `draugr tools install cosign` |
 | `git` | check out repositories for repo-scanning controls | system |
+| `syft` | generate SBOMs when a Saga sets `config.sbom` | `draugr tools install syft` |
 
 ---
 
