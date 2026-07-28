@@ -1,0 +1,146 @@
+package controllers
+
+import (
+	"slices"
+	"sort"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
+)
+
+const (
+	trivyLicenseScanner = "trivy-license"
+	licensesControl     = "licenses"
+	// denyKey and warnKey name SPDX ids the project will not accept, or wants flagged. They
+	// override whatever category Trivy assigned.
+	denyKey = "deny"
+	warnKey = "warn"
+)
+
+// Licenses reports dependency licences that carry an obligation.
+//
+// A separate control rather than part of `sca`, deliberately. Licence risk is not a
+// vulnerability: the exposure is legal and commercial, the policy is owned by different people,
+// and it changes on a different cadence. Keeping it separate is also what lets
+// `config.gate.controls` hold it to its own threshold — "fail on a forbidden licence but only
+// warn on a medium CVE" is a reasonable position that one shared threshold cannot express.
+type Licenses struct{}
+
+// NewLicenses returns the licenses controller.
+func NewLicenses() plugin.Controller { return Licenses{} }
+
+// Info identifies the controller (component-scoped).
+func (Licenses) Info() plugin.ControllerInfo {
+	return plugin.ControllerInfo{
+		Name:            licensesControl,
+		Scope:           plugin.ScopeComponent,
+		Summary:         "Report dependency licences that carry an obligation (copyleft, forbidden, unidentified).",
+		DefaultScanners: []string{trivyLicenseScanner},
+	}
+}
+
+// Plan produces one scan job per repository, carrying the resolved licence policy.
+func (Licenses) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+	if comp == nil {
+		return nil, nil
+	}
+	cfg := licensePolicy(model, comp)
+	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories))
+	for _, repo := range comp.Repositories {
+		jobs = append(jobs, plugin.ScanJob{
+			Scanner: trivyLicenseScanner,
+			Target:  plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths},
+			Config:  cfg,
+		})
+	}
+	return jobs, nil
+}
+
+// Aggregate merges the scan reports and summarizes findings by severity.
+func (Licenses) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) {
+	merged := sarif.Merge(reports...)
+	counts := merged.Counts()
+	return plugin.ControlResult{
+		Control: licensesControl,
+		Report:  merged,
+		Summary: plugin.Summary{
+			Errors:   counts.Error,
+			Warnings: counts.Warning,
+			Notes:    counts.Note,
+		},
+	}, nil
+}
+
+// licensePolicy resolves deny/warn for a component: the **union** of the project's lists and the
+// component's.
+//
+// Union, not override, and this is the one place the licences control deliberately departs from
+// how every other controller merges settings. The general rule is deep-merge with the component
+// winning — which replaces a list outright. Applied here, a component that added one denied
+// licence would silently discard the organisation's:
+//
+//	config.controllers.licenses.deny:  [GPL-3.0-only, AGPL-3.0-only]   # the org's policy
+//	components[0].controllers.licenses.deny: [Sleepycat]               # would drop both
+//
+// A component quietly opting out of an organisation's licence policy is precisely the failure a
+// licence gate exists to prevent, and it would be invisible in review. So a component can only
+// **tighten**. Loosening has exactly one route — `config.exclude`, which requires a reason and
+// leaves the finding in the report, suppressed and auditable, rather than deleted.
+func licensePolicy(model saga.Model, comp *saga.Component) plugin.Config {
+	deny := unionSetting(model.Config.Controllers, comp, denyKey)
+	warn := unionSetting(model.Config.Controllers, comp, warnKey)
+	if len(deny) == 0 && len(warn) == 0 {
+		return nil
+	}
+	cfg := plugin.Config{}
+	if len(deny) > 0 {
+		cfg[denyKey] = deny
+	}
+	if len(warn) > 0 {
+		cfg[warnKey] = warn
+	}
+	return cfg
+}
+
+// unionSetting collects a string list from the project and component blocks for the licenses
+// control, deduplicated and sorted so a scan is reproducible and its cache key is stable.
+func unionSetting(project map[string]saga.ControllerSettings, comp *saga.Component, key string) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(settings saga.ControllerSettings) {
+		for _, v := range settingStrings(settings, key) {
+			if v != "" && !seen[v] {
+				seen[v] = true
+				out = append(out, v)
+			}
+		}
+	}
+	add(project[licensesControl])
+	if comp != nil {
+		add(comp.Controllers[licensesControl])
+	}
+	sort.Strings(out)
+	return out
+}
+
+// settingStrings reads a list of strings from a controller settings block, tolerating the []any
+// that YAML decoding produces.
+func settingStrings(settings saga.ControllerSettings, key string) []string {
+	if settings == nil {
+		return nil
+	}
+	switch v := settings[key].(type) {
+	case []string:
+		return slices.Clone(v)
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
+}

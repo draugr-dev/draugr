@@ -12,6 +12,35 @@ and move it under a version on release.
 
 ### Added
 
+- **Dependency licence compliance.** A new `licenses` control reports the licences in your
+  dependency tree that carry an obligation:
+
+  ```yaml
+  config:
+    controllers:
+      licenses:
+        enabled: true
+        deny: ["AGPL-3.0-only", "GPL-3.0-only"]   # → error, whatever Trivy called it
+        warn: ["MPL-2.0"]
+  ```
+
+  **It reports problems, not an inventory.** Copyleft, forbidden and unidentified licences are
+  findings; permissive ones aren't. On Draugr's own repository that's the difference between 77
+  rows saying "MIT is fine" and none at all. The inventory question is what `config.sbom`
+  answers, with a licence per package.
+
+  Findings land on the line where the dependency is declared, so they show up on the right row in
+  your editor rather than at the top of `go.mod`. Each one explains the obligation — when
+  copyleft actually bites, and when it doesn't — rather than only naming the licence.
+
+  A separate control from `sca` on purpose: licence risk isn't a vulnerability, and
+  `config.gate.controls` can now hold it to its own threshold. Fail the build on a forbidden
+  licence while medium CVEs stay a warning.
+
+  Project and component `deny`/`warn` lists **union** rather than override, so a component can
+  tighten the organisation's policy but never silently drop it. Loosening goes through
+  `config.exclude`, which requires a reason.
+
 - **Per-control gate thresholds.** One threshold never served every control — licence policy is
   owned by legal and vulnerability policy by security, and *"fail on a forbidden licence but only
   warn on a medium CVE"* was unsayable:
