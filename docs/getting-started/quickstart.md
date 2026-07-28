@@ -58,9 +58,10 @@ component). See [write your first Saga](first-saga.md) for a gentle walkthrough,
 
 > **Tip — turn on editor support first.** A Saga written with schema-backed completion is
 > quicker and harder to get wrong: your editor offers the valid control names, `exposure` and
-> `criticality` values, and flags typos immediately. `draugr init` adds the `$schema` line for
-> you; see [editor support](../reference/saga-schema.md#editor-support-autocomplete-hover-docs-validation)
-> for VS Code, JetBrains and Neovim setup.
+> `criticality` values, and flags typos immediately. Most editors need no setup — `*.saga.yaml` is
+> registered with SchemaStore — and `draugr init` writes a `$schema` line for the ones that aren't
+> covered; see [editor support](../reference/saga-schema.md#editor-support-autocomplete-hover-docs-validation)
+> for VS Code, JetBrains and Neovim.
 
 ## 2. Scan
 

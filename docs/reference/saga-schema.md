@@ -21,19 +21,27 @@ With it, your editor completes control and field names, shows the documentation 
 hover, offers the valid values for `exposure`, `criticality` and report formats, and flags typos
 as you type instead of at scan time.
 
-**Nothing to configure.** Files written by `draugr init` start with a modeline:
+**In most editors, nothing to configure.** The Saga is registered with
+[SchemaStore](https://www.schemastore.org/), the catalog that VS Code's
+[YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) and
+JetBrains IDEs consult by default. Any file named `*.saga.yaml`, `*.saga.yml` or `.saga.yaml` is
+recognised the moment you open it — no modeline, no setting, nothing committed to the repo.
+
+Editors cache that catalog and some ship a snapshot inside the extension, so a copy older than the
+registration won't have it yet. Both routes below work regardless, and keep working if you'd
+rather not depend on a third-party catalog at all.
+
+**A modeline in the file.** `draugr init` writes one at the top:
 
 ```yaml
 # yaml-language-server: $schema=https://draugr.dev/schema/draugr.saga.schema.json
 ```
 
-Any editor running the YAML language server — VS Code (with the
-[YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)),
-JetBrains IDEs, Neovim — picks it up on open. Paste that line at the top of an existing Saga to
-get the same.
+Any editor running the YAML language server picks it up on open, catalog or not — VS Code,
+JetBrains, Neovim. Paste that line at the top of an existing Saga to get the same.
 
-**Or map it once, for every Saga in the project.** This needs no modeline in the files, and none
-of it depends on SchemaStore.
+**Or map it once, for every Saga in the project.** No modeline in the files. This is also the
+route for filenames the catalog doesn't match, and for pinning a version across a repo.
 
 **VS Code** — commit `.vscode/settings.json` so the whole team gets it automatically (requires the
 [YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)):
@@ -49,11 +57,8 @@ of it depends on SchemaStore.
 **JetBrains** (IntelliJ, GoLand, PyCharm) — *Settings → Languages & Frameworks → Schemas and DTDs
 → JSON Schema Mappings*. Add a mapping with the URL above and file-path pattern `*.saga.yaml`.
 
-That covers writing the descriptor. For the scan's *findings* to appear inline on the lines
-that caused them, see [see findings in your editor](../guides/findings-in-your-editor.md).
-JetBrains also honours the `# yaml-language-server:` modeline, so either route works.
-
-**Neovim** — with `yamlls` via `nvim-lspconfig`:
+**Neovim** — `yamlls` may not have SchemaStore enabled depending on how you configure it, so
+mapping it explicitly is the dependable route, via `nvim-lspconfig`:
 
 ```lua
 require('lspconfig').yamlls.setup {
@@ -71,10 +76,8 @@ require('lspconfig').yamlls.setup {
 [YAML language server](https://github.com/redhat-developer/yaml-language-server) supports both the
 modeline and a schema mapping; point it at the same URL.
 
-> [SchemaStore](https://www.schemastore.org/) registration is
-> [submitted](https://github.com/SchemaStore/schemastore/pull/6134). Once merged, `*.saga.yaml` is
-> recognised with no modeline and no setting at all. Everything above works today regardless — and
-> keeps working if you'd rather not depend on a third-party catalog.
+That covers *writing* the descriptor. For the scan's **findings** to appear inline on the lines
+that caused them, see [findings in your editor](../guides/findings-in-your-editor.md).
 
 ### Matching the schema to your Draugr version
 

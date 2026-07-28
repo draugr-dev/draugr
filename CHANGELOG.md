@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Saga files now validate in your editor with no setup.** The Saga schema is registered with
+  [SchemaStore](https://www.schemastore.org/), which VS Code's YAML extension and JetBrains IDEs
+  consult by default — open any `*.saga.yaml` and you get completion, hover docs and typo
+  warnings without a modeline or a settings entry. The modeline `draugr init` writes still works,
+  and still matters for editors that don't use the catalog.
 
 ## [0.40.0] - 2026-07-27
 
