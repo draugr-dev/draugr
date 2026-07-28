@@ -18,10 +18,10 @@ func newMCPCommand() *cobra.Command {
 		Short: "Serve Draugr to AI coding agents over the Model Context Protocol",
 		Long: "Serve Draugr over MCP on stdin/stdout, so an AI coding assistant can ask it what\n" +
 			"controls exist, how to write a Saga, whether one is valid, and what a scan found.\n\n" +
-			"Without this, an assistant asked \"is this safe to ship?\" improvises: it runs whatever\n" +
-			"scanner it can find over a scope it invented, and reads the raw output. That answer has\n" +
-			"no relationship to the one your pipeline will give. Pointing it at Draugr makes them the\n" +
-			"same answer — same descriptor, same controls, same priorities.\n\n" +
+			"Without this, an assistant asked to check a change for security problems improvises: it\n" +
+			"runs whatever scanner it can find over a scope it chose, and reads the raw output. That\n" +
+			"answer has no relationship to the one your pipeline will give. Pointing it at Draugr\n" +
+			"makes them the same answer — same descriptor, same controls, same priorities.\n\n" +
 			"The tools are read-only by default. Scanning clones repositories, runs external tools\n" +
 			"and reaches the network, so it is offered only when you say so:\n\n" +
 			"  --scan=off      not offered at all (default)\n" +
