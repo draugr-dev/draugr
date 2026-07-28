@@ -10,6 +10,12 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **Draugr's own dogfood scan now gates its CI.** It ran on every pull request before, but as a
+  non-blocking step — so the check stayed green whatever the scan found. It now fails the build
+  on a P1. Nothing changes for your scans; this is us holding ourselves to what we ask of you.
+
 ### Fixed
 
 - **Updated gRPC to 1.82.1**, picking up the fix for

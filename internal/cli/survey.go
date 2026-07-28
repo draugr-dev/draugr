@@ -57,6 +57,10 @@ func runSurvey(ctx context.Context, opts surveyOptions, reg *surveyor.Registry, 
 		return fmt.Errorf("no surveyors selected (use --k8s-images or --github-org)")
 	}
 
+	// Run always returns the fragments it did gather alongside a joined error, so a survey that
+	// lost one source is still worth writing out. Reading frag after err is the contract here,
+	// not an oversight — which is what the rule below would otherwise flag.
+	// nosemgrep: trailofbits.go.invalid-usage-of-modified-variable.invalid-usage-of-modified-variable
 	frag, err := reg.Run(ctx, requests)
 	if err != nil {
 		slog.Warn("survey completed with issues", "error", err)
