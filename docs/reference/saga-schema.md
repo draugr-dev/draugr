@@ -226,12 +226,27 @@ delta** (new / fixed findings) as that comment.
 config:
   sbom:
     enabled: true
-    format: spdx-json      # or cyclonedx-json; defaults to spdx-json
+    format: spdx-json      # defaults to spdx-json
 ```
 
 Produces one [Software Bill of Materials](glossary.md#sbom--software-bill-of-materials) per
 distinct repository and image in the Saga — an inventory of what each one contains. Requires
 [Syft](https://github.com/anchore/syft) (`draugr tools install syft`).
+
+**Choosing a format.** Both open specifications, each in both of its standard encodings — pick
+whichever the thing consuming the document reads:
+
+| `format` | Written as | Media type |
+|----------|------------|------------|
+| `spdx-json` (default) | `sbom-<component>-<target>.spdx.json` | `application/spdx+json` |
+| `spdx-tag-value` | `sbom-<component>-<target>.spdx` | `text/spdx` |
+| `cyclonedx-json` | `sbom-<component>-<target>.cdx.json` | `application/vnd.cyclonedx+json` |
+| `cyclonedx-xml` | `sbom-<component>-<target>.cdx.xml` | `application/vnd.cyclonedx+xml` |
+
+Syft can emit more — its own `syft-json`, GitHub's dependency-snapshot format, a bare PURL list
+— but those are either vendor-specific or not an SBOM, so Draugr doesn't offer them. Every
+document it produces is one a third party can read. An unsupported value is rejected when the
+Saga loads, naming the four, rather than failing after the scan has run.
 
 **It is not a control, and this is deliberate.** Every control checks something and returns a
 verdict the gate acts on. An SBOM finds nothing, so it has no verdict to give; a control row
@@ -249,8 +264,8 @@ SBOM: 2 documents (spdx-json)
 **Where the documents go.** `-o <dir>` writes them beside `report.json` and `results.sarif`,
 and any configured publisher delivers them alongside your reports — including with no
 `config.reports` at all, if the inventory is the only output you want. Filenames are
-`sbom-<component>-<target>.spdx.json` (or `.cdx.json`), with the target slugged so two images
-in one component can't collide.
+`sbom-<component>-<target>` plus the suffix for the format, with the target slugged so two
+images in one component can't collide.
 
 There is no `--format sbom`: a run produces one document per target, and a format that writes
 several files has no meaning on stdout.

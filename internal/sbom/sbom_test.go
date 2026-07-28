@@ -105,11 +105,13 @@ func TestGenerateDefaultsToSPDX(t *testing.T) {
 
 func TestGenerateRejectsAnUnknownFormat(t *testing.T) {
 	_, err := newTestGenerator(&recorder{}).Generate(context.Background(), "c",
-		plugin.ImageTarget{Ref: "alpine:3"}, "spdx-tag-value")
+		plugin.ImageTarget{Ref: "alpine:3"}, "syft-json")
 	if err == nil {
 		t.Fatal("want an error for an unsupported format")
 	}
-	// The message has to name the alternatives; "unknown format" alone leaves the reader guessing.
+	// syft-json is a real Syft format, deliberately not offered: it is vendor-specific rather
+	// than an interchange standard. Rejecting it has to be explicit, not an accident of typos.
+	// The message must name the alternatives, or the reader is left guessing.
 	for _, want := range []string{"spdx-json", "cyclonedx-json"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error should name %q: %v", want, err)
