@@ -36,6 +36,8 @@ frontmatter and is rendered by the docs site. This index and the `contributing/`
 ## Trust & operations
 - [Verifying releases](trust-and-operations/verifying-releases.md) — cosign, SLSA provenance, SBOMs.
 - [Updating Draugr & tools](trust-and-operations/updating.md) — `self-update` and `tools install`.
+- [Scope and disclaimer](trust-and-operations/disclaimer.md) — what a passing verdict does and
+  doesn't mean, why licence findings aren't legal advice, and whose terms the scanners carry.
 
 ## Contributing
 - [Architecture](contributing/architecture.md) — package layout and design.

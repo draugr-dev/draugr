@@ -239,6 +239,11 @@ components:
 
 Reports dependency licences that carry an obligation. Requires Trivy.
 
+> **Not legal advice.** Licence interpretation depends on facts Draugr can't know — whether you
+> distribute, how you link, which jurisdiction applies. Findings are a starting point for a
+> conversation, not a determination. See
+> [scope and disclaimer](../trust-and-operations/disclaimer.md).
+
 **It reports problems, not inventory.** By default the level follows Trivy's own classification:
 
 | Trivy category | Level | |
