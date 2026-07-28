@@ -24,9 +24,11 @@ func newRootCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "draugr",
-		Short: "Developer-first, descriptor-driven security scanning orchestration",
-		Long: "Draugr — describe your app, and Draugr figures out which security controls\n" +
-			"apply, runs the right scanners, and produces pass/fail evidence.",
+		Short: "Developer-first, descriptor-driven security and compliance qualification",
+		Long: "Draugr — describe your app, and Draugr figures out which checks apply, runs\n" +
+			"the right tools, and produces a pass/fail verdict with evidence.\n\n" +
+			"Security controls (SAST, SCA, secrets, IaC, DAST, TLS, headers) and compliance\n" +
+			"evidence (SBOMs) from the same descriptor and the same gate.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {

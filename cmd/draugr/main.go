@@ -1,5 +1,5 @@
-// Command draugr is the Draugr CLI: developer-first, descriptor-driven security
-// scanning orchestration. See docs/ARCHITECTURE.md.
+// Command draugr is the Draugr CLI: developer-first, descriptor-driven security and
+// compliance qualification. See docs/ARCHITECTURE.md.
 package main
 
 import (

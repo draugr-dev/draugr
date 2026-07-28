@@ -1,6 +1,6 @@
 # Draugr
 
-> Developer-first, descriptor-driven security scanning orchestration.
+> Developer-first, descriptor-driven security and compliance qualification.
 
 [![CI](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml/badge.svg)](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/draugr-dev/draugr/badge)](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)
@@ -12,10 +12,14 @@
 
 You declare what you *know* about your software — where the repos are, what container
 images it builds, what endpoints it exposes, what infrastructure it runs on — in a single
-descriptor (`draugr.saga.yaml`). Draugr infers which security controls apply, runs the
-right scanner for each, and produces pass/fail evidence you can trust. Swap scanners
-freely — use the tools you already pay for, or Draugr's open-source defaults. Every result
-is normalized to **SARIF**.
+descriptor (`draugr.saga.yaml`). Draugr infers which checks apply, runs the right tool for
+each, and produces pass/fail evidence you can trust. Swap scanners freely — use the tools
+you already pay for, or Draugr's open-source defaults. Every finding is normalized to
+**SARIF**.
+
+Both questions asked before a release ships, from the same descriptor and the same gate:
+the **security** one — SAST, SCA, secrets, IaC, DAST, TLS, headers — and the **compliance**
+one, starting with a Software Bill of Materials of everything you actually ship.
 
 This is the open-source core engine.
 
