@@ -249,6 +249,17 @@ glossary of Saga / Norn / Skald / the Ravens).
 - [Saga schema](docs/reference/saga-schema.md) — the descriptor, field by field
 - [Architecture](docs/contributing/architecture.md) · [Plugin API](docs/contributing/plugin-api.md) · [Naming](docs/contributing/naming.md)
 
+## What Draugr doesn't promise
+
+A passing verdict means the controls you configured found nothing they were looking for. It is
+not a statement that your software is secure — it's silent about anything your descriptor doesn't
+declare, controls you didn't enable, and whatever the underlying scanners miss. Licence findings
+are information, not legal advice. Draugr is provided under Apache-2.0 **without warranty**.
+
+The details, including whose terms the bundled scanners carry and your responsibility for
+authorisation when scanning live endpoints:
+[scope and disclaimer](docs/trust-and-operations/disclaimer.md).
+
 ## Security & supply chain
 
 A security tool should hold itself to what it checks. Draugr does:
