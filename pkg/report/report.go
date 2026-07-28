@@ -6,6 +6,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -138,7 +139,8 @@ func summarize(d Data) summary {
 	sort.Strings(names)
 
 	for _, name := range names {
-		for _, res := range d.Run.Controls[name].Report.Results {
+		rep := d.Run.Controls[name].Report
+		for _, res := range rep.Results {
 			if res.Priority != "" {
 				s.prioritized = true
 				switch prioritization.Priority(res.Priority) {
@@ -162,8 +164,9 @@ func summarize(d Data) summary {
 			s.bands[name] = b
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-				location: loc, message: res.Message, level: res.Level, severity: sev,
-				helpURI: d.Run.Controls[name].Report.HelpURI(res.RuleID),
+				location: loc, message: readableMessage(res.Message, rep.Rules[res.RuleID]),
+				level: res.Level, severity: sev,
+				helpURI: rep.HelpURI(res.RuleID),
 				score:   res.Score, hasScore: res.HasScore,
 			})
 		}
@@ -221,4 +224,30 @@ func levelRank(l sarif.Level) int {
 	default:
 		return 0
 	}
+}
+
+// fieldDump matches the opening of a message that is a list of fields rather than a sentence —
+// "Package: Flask", "Vulnerability CVE-…". Trivy writes its finding messages this way.
+var fieldDump = regexp.MustCompile(`^[A-Z][A-Za-z ]{0,30}:[ \t]`)
+
+// readableMessage picks the text a person can act on.
+//
+// Most scanners write a sentence. Trivy writes a multi-line field dump — package, installed
+// version, severity, fixed version, link — every one of which Draugr already shows in its own
+// column, and which is long enough that the clamp cuts it off before the part explaining what
+// the vulnerability actually is. The advisory title lives in the rule's shortDescription
+// instead: "python-flask: Denial of Service via crafted JSON file".
+//
+// Detected structurally rather than by scanner name, so any tool that dumps fields gets the
+// same treatment: several lines, the first of which opens "Word: ". A scanner whose message is
+// already prose is left alone, which matters because some publish a shortDescription that is
+// only the rule id restated.
+func readableMessage(msg string, rule sarif.Rule) string {
+	if rule.ShortDescription == "" {
+		return msg
+	}
+	if !strings.Contains(msg, "\n") || !fieldDump.MatchString(msg) {
+		return msg
+	}
+	return rule.ShortDescription
 }

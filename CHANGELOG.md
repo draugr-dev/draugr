@@ -12,6 +12,17 @@ and move it under a version on release.
 
 ### Fixed
 
+- **Dependency findings say what the vulnerability is.** A `sca` row used to read
+  `Package: Flask Installed Version: 0.12.2 Vulnerability CVE-…` — every field of which Draugr
+  already shows in its own column, and long enough that the line was cut off before reaching the
+  part that explains anything. It now shows the advisory title:
+  `PyYAML: command execution through python/object/apply constructor in FullLoader`. Findings
+  from scanners that already write a sentence are untouched.
+
+- **Long rule ids no longer look corrupted.** A shortened id cut mid-word
+  (`…ction-tag.github-actions-mutable-action-tag`), which reads like something went wrong. It
+  now cuts on a separator: `…github-actions-mutable-action-tag`.
+
 - **The GitHub Action now writes its artifacts on pull requests.** On a PR the action runs in
   diff mode, and diff mode wrote both scans to a temporary directory that vanished with the
   runner — so `output` was ignored, an uploaded `draugr-out/` artifact was always empty, and the

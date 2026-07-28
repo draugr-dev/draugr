@@ -200,12 +200,24 @@ const ruleIDWidth = 44
 // general part first and the specific part last ("yaml.github-actions.security.<name>"), so the
 // tail is the half worth keeping. The full id stays in the JSON and SARIF reports, and the
 // hyperlink on it still resolves.
+//
+// It cuts on a dot where one fits. Cutting purely by width lands mid-word and the result reads
+// as corruption rather than truncation — "…ction-tag.github-actions-mutable-action-tag" invites
+// the reader to wonder what went wrong, where "…github-actions-mutable-action-tag" plainly says
+// there is more in front.
 func shortRuleID(id string) string {
 	r := []rune(id)
 	if len(r) <= ruleIDWidth {
 		return id
 	}
-	return "…" + string(r[len(r)-(ruleIDWidth-1):])
+	cut := len(r) - (ruleIDWidth - 1) // the widest tail that fits after the ellipsis
+	if dot := strings.IndexRune(string(r[cut:]), '.'); dot >= 0 {
+		// A dot inside the visible tail; start just after it so the fragment is whole segments.
+		if tail := string(r[cut:])[dot+1:]; tail != "" {
+			return "…" + tail
+		}
+	}
+	return "…" + string(r[cut:])
 }
 
 // messageWidth keeps the explanation to one line. Wrapping it would compete with the table for
