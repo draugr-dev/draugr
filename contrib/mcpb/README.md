@@ -43,16 +43,24 @@ are bit-for-bit the ones already covered by `checksums.txt` and its cosign signa
 
 ## Listing in the MCP Registry
 
-`server.json` is the registry entry. It names one specific bundle URL and its SHA-256, so it
-must be refreshed for each release we publish:
+**The release workflow publishes this automatically.** Everything below is the manual path — for
+the first-time setup, and for the times CI can't do it.
+
+`server.json.tmpl` is the committed source: the namespace, the description, the icon, everything
+a person decides. Three fields are placeholders because they belong to a release rather than to
+us — the version, the bundle URL, and its SHA-256. Committing those would mean committing a
+value that is wrong the moment the next version ships, and a stale hash is a download the client
+correctly refuses.
+
+Render them for a released version:
 
 ```bash
-./contrib/mcpb/update-server-json.sh 0.39.0
+./contrib/mcpb/render-server-json.sh 0.42.0
 ```
 
-The hash is read from the release's own `.mcpb.sha256` rather than recomputed, so the entry
-can't certify a bundle that differs from the published one. Getting this wrong means a client
-refuses the download — correct behaviour, and miserable to debug.
+That writes `contrib/mcpb/server.json` (gitignored). The hash is read from the release's own
+`.mcpb.sha256` rather than recomputed, so the entry can't certify a bundle that differs from the
+published one.
 
 ### Namespace
 
@@ -189,7 +197,12 @@ move; `mcp-publisher <command> --help` is the authority over this file.
 
 ### Publishing again later
 
-Steps 1–4 are one-off. A later publish is `update-server-json.sh <version>`, then steps 5 and 6.
+**Normally you don't.** The `publish-mcp` job in `.github/workflows/release.yml` renders and
+publishes on every tag, gated behind the `mcp-registry` environment so it waits for a reviewer.
+It needs one secret, `MCP_PUBLISHER_DNS_KEY` — the same hex key as step 5, set as an
+*environment* secret so only that job can read it.
+
+By hand, when you need to: `render-server-json.sh <version>`, then steps 5 and 6.
 
 ### Not every release needs republishing
 
