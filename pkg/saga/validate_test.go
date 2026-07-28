@@ -252,3 +252,64 @@ func TestValidateExclude(t *testing.T) {
 		t.Error("an empty path should be rejected")
 	}
 }
+
+func TestExcludeRuleWildcards(t *testing.T) {
+	// A compound licence id: the package itself contains slashes, which is exactly why `*` has
+	// to cross separators here.
+	const lic = "license/GPL-3.0-only/github.com/somelib/thing"
+
+	cases := []struct {
+		pattern string
+		ruleID  string
+		want    bool
+	}{
+		{"license/GPL-3.0-only/*", lic, true}, // this licence, any package
+		{"license/*", lic, true},              // every licence finding
+		{lic, lic, true},                      // exact, no wildcard
+		{"license/MIT/*", lic, false},         // different licence
+		{"license/GPL-3.0-only/github.com/somelib/thing", lic, true},
+		{"*/somelib/*", lic, true},     // wildcard on both sides
+		{"license/*/thing", lic, true}, // suffix anchored
+		{"license/*/other", lic, false},
+		// Existing exact ids keep working — no scanner emits a literal `*`.
+		{"private-key", "private-key", true},
+		{"private-key", "aws-key", false},
+		{"CVE-2019-*", "CVE-2019-20477", true},
+		{"CVE-2020-*", "CVE-2019-20477", false},
+		// A bare wildcard matches anything, which is why the suppression count exists.
+		{"*", "anything-at-all", true},
+		// Empty pattern must not match a non-empty id.
+		{"", "x", false},
+	}
+	for _, c := range cases {
+		got := ExcludeRule{Rules: []string{c.pattern}}.Matches("any/path", c.ruleID)
+		if got != c.want {
+			t.Errorf("pattern %q vs %q = %v, want %v", c.pattern, c.ruleID, got, c.want)
+		}
+	}
+}
+
+func TestExcludeRuleWildcardDoesNotOverreach(t *testing.T) {
+	// The suffix must actually be present, not merely implied by the prefix matching.
+	if (ExcludeRule{Rules: []string{"license/*/GPL-3.0-only"}}).Matches("p", "license/foo/GPL-3.0-only-extra") {
+		t.Error("a trailing wildcard segment must anchor at the end")
+	}
+	// Overlapping literal segments must consume in order.
+	if !(ExcludeRule{Rules: []string{"a*b*c"}}).Matches("p", "a-b-c") {
+		t.Error("multiple wildcards should match in order")
+	}
+	if (ExcludeRule{Rules: []string{"a*b*c"}}).Matches("p", "a-c-b") {
+		t.Error("segments out of order should not match")
+	}
+}
+
+func TestExcludeRulePathsStillUsePathSemantics(t *testing.T) {
+	// Paths are paths: `*` stops at a separator, so `*.md` does not sweep up every markdown
+	// file in the tree. Only rule ids get the cross-separator wildcard.
+	if (ExcludeRule{Paths: []string{"*.md"}}).Matches("docs/README.md", "r") {
+		t.Error("a path glob should not cross directory separators")
+	}
+	if !(ExcludeRule{Paths: []string{"*.md"}}).Matches("README.md", "r") {
+		t.Error("a path glob should still match in the top level")
+	}
+}

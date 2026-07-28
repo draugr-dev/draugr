@@ -10,6 +10,16 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`config.exclude` rules accept wildcards.** `rules: ["CVE-2019-*"]` suppresses a family of
+  findings without listing each one. `*` matches any run of characters including `/`, so
+  compound rule ids work too; a pattern with no `*` still matches exactly, as before.
+
+  Safe because it is loud: a suppressed finding is not deleted, so a pattern that matched more
+  than you meant shows up in the `N findings suppressed by config.exclude` count, with every one
+  of them in the SARIF carrying your reason.
+
 ### Changed
 
 - **Draugr's own scan now uses `config.exclude` instead of scanner-specific ignore files.** Its
