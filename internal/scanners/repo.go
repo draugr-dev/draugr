@@ -19,7 +19,9 @@ type repoScanner struct {
 	info     plugin.ScannerInfo
 	args     func(dir string, cfg plugin.Config) []string
 	checkout func(ctx context.Context, url, revision string) (string, func(), error)
-	run      func(ctx context.Context, dir string, argv []string) ([]byte, error)
+	// parse decodes the tool's output. Nil means the tool emits SARIF.
+	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
+	run   func(ctx context.Context, dir string, argv []string) ([]byte, error)
 	// cacheVersion, when set, contributes a tool/data version to the cache key (see
 	// plugin.CacheVersioner). Nil for scanners with no dynamic version.
 	cacheVersion func(ctx context.Context) string
@@ -50,6 +52,20 @@ func newRepoScanner(info plugin.ScannerInfo, args func(string, plugin.Config) []
 	return repoScanner{info: info, args: args, checkout: git.Checkout, run: execArgvInDir}
 }
 
+// newRepoScannerWithParser is newRepoScanner for a tool that doesn't speak SARIF. Everything
+// else — checkout, argv, path rewriting, tool stamping — is identical; only the decoding
+// differs. parse receives the checkout directory as well as the output, because a tool that
+// reports a package rather than a location may need to look in the tree to find one.
+func newRepoScannerWithParser(
+	info plugin.ScannerInfo,
+	args func(string, plugin.Config) []string,
+	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error),
+) repoScanner {
+	s := newRepoScanner(info, args)
+	s.parse = parse
+	return s
+}
+
 // Info describes the scanner.
 func (s repoScanner) Info() plugin.ScannerInfo { return s.info }
 
@@ -73,9 +89,9 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
 	}
-	report, err := sarif.FromSARIF(out)
+	report, err := s.decode(out, dir, cfg)
 	if err != nil {
-		return sarif.Report{}, fmt.Errorf("parse %s SARIF: %w", s.info.Name, err)
+		return sarif.Report{}, err
 	}
 	if report.Tool == "" {
 		report.Tool = s.info.Name
@@ -92,6 +108,23 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		// because the temp dir differs between the base and head scans.
 		report.Results[i].Location.URI = repoRelPath(dir, report.Results[i].Location.URI)
 		report.Results[i].Message = stripCheckoutDir(dir, report.Results[i].Message)
+	}
+	return report, nil
+}
+
+// decode turns the tool's output into a report, via SARIF unless the scanner supplied its own
+// parser.
+func (s repoScanner) decode(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
+	if s.parse != nil {
+		report, err := s.parse(out, dir, cfg)
+		if err != nil {
+			return sarif.Report{}, fmt.Errorf("parse %s output: %w", s.info.Name, err)
+		}
+		return report, nil
+	}
+	report, err := sarif.FromSARIF(out)
+	if err != nil {
+		return sarif.Report{}, fmt.Errorf("parse %s SARIF: %w", s.info.Name, err)
 	}
 	return report, nil
 }

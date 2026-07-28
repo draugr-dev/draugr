@@ -220,6 +220,107 @@ and the PR number default from the GitHub Actions environment; the token comes f
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif), which posts a PR **security
 delta** (new / fixed findings) as that comment.
 
+## Licence policy (`controllers.licenses`)
+
+```yaml
+config:
+  controllers:
+    licenses:
+      enabled: true
+      deny: ["AGPL-3.0-only", "GPL-3.0-only"]   # → error, whatever category Trivy assigned
+      warn: ["MPL-2.0"]                          # → warning
+
+components:
+  - name: shipped-cli          # distributed to customers, so stricter
+    controllers:
+      licenses:
+        deny: ["LGPL-3.0-only"]
+```
+
+Reports dependency licences that carry an obligation. Requires Trivy.
+
+**It reports problems, not inventory.** By default the level follows Trivy's own classification:
+
+| Trivy category | Level | |
+|---|---|---|
+| `forbidden` | error | generally incompatible with shipping proprietary software |
+| `restricted` | warning | copyleft — GPL, LGPL |
+| `reciprocal` | note | file-level copyleft — MPL, EPL |
+| `unknown` | note | Trivy couldn't identify it |
+| `notice`, `permissive`, `unencumbered` | *not reported* | |
+
+Permissive licences aren't findings, they're inventory — every dependency has one, and listing
+them buries the few that matter under dozens that don't. On Draugr's own repository that's 77
+licences, of which zero carry an obligation. The inventory question is what
+[`config.sbom`](#sbom-generation) answers, with a licence per package.
+
+`restricted` is a **warning** rather than an error because whether copyleft matters depends on
+whether you distribute — which the Saga doesn't say. If you ship binaries to customers, raise it:
+`deny: ["GPL-3.0-only"]`.
+
+**`deny` and `warn` name SPDX ids and beat the category**, because whether a licence is acceptable
+depends on what you do with your software. Trivy can't know that; you always do.
+
+**Gate it separately from vulnerabilities** with [`config.gate`](#configgate) — licence policy is
+usually owned by different people than security policy:
+
+```yaml
+config:
+  gate:
+    controls:
+      licenses: error      # a denied licence fails the build…
+  # …while --fail-on stays wherever you had it for everything else
+```
+
+### How project and component settings combine
+
+This differs from every other controller, deliberately, and it's the one thing worth reading
+twice.
+
+Elsewhere, a component's block **deep-merges over** the project's and the component wins — so a
+component setting a list *replaces* the project's list. For `deny` and `warn`, the two **union**
+instead. A component can add restrictions; it cannot remove them:
+
+```yaml
+config:
+  controllers:
+    licenses:
+      deny: ["GPL-3.0-only", "AGPL-3.0-only"]   # the organisation's policy
+
+components:
+  - name: web
+    controllers:
+      licenses:
+        deny: ["Sleepycat"]      # web denies all three, not just Sleepycat
+```
+
+Under the usual rule, `web` would have silently dropped both organisation-wide denials — a
+component opting out of company licence policy, invisible in review. That's the failure a licence
+gate exists to prevent, so **components can only tighten**.
+
+There is exactly one way to loosen, and it requires a reason:
+
+```yaml
+config:
+  exclude:
+    - rules: ["license/GPL-2.0-only/*"]
+      reason: "Legal reviewed 2026-07; we link dynamically and don't distribute."
+```
+
+Which is the point — an exemption you have to justify, that stays in the report marked and
+auditable, is a different thing from a list entry nobody has to explain.
+
+### Rule ids
+
+`license/<spdx-id>/<package>`, e.g. `license/GPL-3.0-only/github.com/somelib/thing`. Licence
+first so the common exemption is `license/GPL-3.0-only/*`; the full id when you mean one
+dependency. Package names contain slashes, which is why `rules` patterns match `*` across
+separators.
+
+Findings resolve onto the line where the dependency is declared, so they land on the right row in
+your editor. `go.mod` and `requirements.txt` resolve cleanly; nested lockfiles may not, and a
+finding whose line can't be determined still points at the file.
+
 ## `config.gate`
 
 ```yaml

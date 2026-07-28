@@ -33,7 +33,12 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
 | `infrastructure` | CIS benchmarks / posture | project | 🗺️ [#55](https://github.com/draugr-dev/draugr/issues/55) | kube-bench | — |
 | `tls` | TLS/certificate assessment | component | ✅ | `tls-probe` (native) | [doc](../../internal/controllers/tls.md) |
+| `licenses` | Dependency licence compliance | component | ✅ | `trivy-license` | — |
 | `threats` | Threat intelligence | component | 🗺️ [#59](https://github.com/draugr-dev/draugr/issues/59) | URLhaus, VirusTotal | — |
+
+`licenses` is a control rather than part of `sca` because licence risk isn't a vulnerability —
+the exposure is legal, the policy is owned by different people, and
+[`config.gate`](saga-schema.md#configgate) can then hold it to its own threshold.
 
 **SBOM generation is not in this table on purpose.** Every control above checks something and
 returns a verdict that feeds the gate. An SBOM is an inventory — it finds nothing, so it has no
