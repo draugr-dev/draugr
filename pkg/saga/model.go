@@ -29,7 +29,39 @@ type Config struct {
 	Reports []ReportConfig `yaml:"reports,omitempty"`
 	// Publishers are the destinations that rendered reports are delivered to.
 	Publishers []PublisherConfig `yaml:"publishers,omitempty"`
+	// SBOM turns on Software Bill of Materials generation for this project's repositories and
+	// images. It is evidence rather than a control: an SBOM is an inventory, it finds nothing,
+	// and it never affects the verdict.
+	SBOM *SBOMConfig `yaml:"sbom,omitempty"`
 }
+
+// SBOMConfig turns on SBOM generation and chooses the document format.
+type SBOMConfig struct {
+	// Enabled generates one SBOM per distinct repository and image in the project.
+	Enabled bool `yaml:"enabled"`
+	// Format is the document format. Empty means SBOMSPDXJSON.
+	Format SBOMFormat `yaml:"format,omitempty"`
+}
+
+// SBOMFormat is the document format for a generated SBOM. Both supported formats are open
+// specifications that downstream tooling already reads.
+type SBOMFormat string
+
+// The SBOM document formats Draugr can emit.
+const (
+	// SBOMSPDXJSON is the default: the ISO standard (ISO/IEC 5962), and what Draugr's own
+	// releases publish.
+	SBOMSPDXJSON SBOMFormat = "spdx-json"
+	// SBOMCycloneDXJSON is the OWASP format, common in security tooling.
+	SBOMCycloneDXJSON SBOMFormat = "cyclonedx-json"
+)
+
+// SBOMFormats lists the valid SBOM document formats.
+var SBOMFormats = []SBOMFormat{SBOMSPDXJSON, SBOMCycloneDXJSON}
+
+// Valid reports whether f is a known SBOM format. The empty value is not valid here; it means
+// "the default" to callers, which resolve it before use.
+func (f SBOMFormat) Valid() bool { return slices.Contains(SBOMFormats, f) }
 
 // ControllerSettings is a free-form configuration tree for one controller.
 type ControllerSettings map[string]any

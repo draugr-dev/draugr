@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 // recorder captures what Generate asked to run, so the argv is asserted exactly rather than
@@ -38,7 +39,7 @@ func TestGenerateRepositoryChecksOutAndScansTheTree(t *testing.T) {
 	g := newTestGenerator(r)
 
 	doc, err := g.Generate(context.Background(), "web",
-		plugin.RepositoryTarget{URL: "https://git/x", Revision: "abc"}, FormatSPDXJSON)
+		plugin.RepositoryTarget{URL: "https://git/x", Revision: "abc"}, saga.SBOMSPDXJSON)
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -49,7 +50,7 @@ func TestGenerateRepositoryChecksOutAndScansTheTree(t *testing.T) {
 	if strings.Join(r.argv, " ") != strings.Join(want, " ") {
 		t.Errorf("argv  = %v\nwant  = %v", r.argv, want)
 	}
-	if doc.Component != "web" || doc.Target != "https://git/x" || doc.Format != FormatSPDXJSON {
+	if doc.Component != "web" || doc.Target != "https://git/x" || doc.Format != saga.SBOMSPDXJSON {
 		t.Errorf("provenance wrong: %+v", doc)
 	}
 	if string(doc.Bytes) != `{"spdxVersion":"SPDX-2.3"}` {
@@ -64,7 +65,7 @@ func TestGenerateImageDoesNotCheckOut(t *testing.T) {
 	g := newTestGenerator(r)
 
 	doc, err := g.Generate(context.Background(), "api",
-		plugin.ImageTarget{Ref: "python:3.8-slim", Digest: "sha256:abc"}, FormatCycloneDXJSON)
+		plugin.ImageTarget{Ref: "python:3.8-slim", Digest: "sha256:abc"}, saga.SBOMCycloneDXJSON)
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -89,8 +90,8 @@ func TestGenerateDefaultsToSPDX(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
-	if doc.Format != FormatSPDXJSON {
-		t.Errorf("format = %q, want %q", doc.Format, FormatSPDXJSON)
+	if doc.Format != saga.SBOMSPDXJSON {
+		t.Errorf("format = %q, want %q", doc.Format, saga.SBOMSPDXJSON)
 	}
 	if !strings.Contains(strings.Join(r.argv, " "), "-o spdx-json") {
 		t.Errorf("argv should request spdx-json: %v", r.argv)
@@ -160,8 +161,8 @@ func TestGenerateReportsACheckoutFailure(t *testing.T) {
 
 func TestArtifactFilenames(t *testing.T) {
 	docs := []Document{
-		{Component: "web", Target: "https://github.com/acme/web", Format: FormatSPDXJSON, Bytes: []byte("a")},
-		{Component: "API Gateway", Target: "python:3.8-slim@sha256:abc", Format: FormatCycloneDXJSON, Bytes: []byte("b")},
+		{Component: "web", Target: "https://github.com/acme/web", Format: saga.SBOMSPDXJSON, Bytes: []byte("a")},
+		{Component: "API Gateway", Target: "python:3.8-slim@sha256:abc", Format: saga.SBOMCycloneDXJSON, Bytes: []byte("b")},
 	}
 	arts := Artifacts(docs)
 	if len(arts) != 2 {
@@ -185,8 +186,8 @@ func TestArtifactFilenamesDoNotCollideAcrossImages(t *testing.T) {
 	// Two images in one component is ordinary. If the slug dropped tags, both would land on the
 	// same filename and the second would silently overwrite the first.
 	arts := Artifacts([]Document{
-		{Component: "api", Target: "python:3.8-slim", Format: FormatSPDXJSON},
-		{Component: "api", Target: "python:3.12-slim", Format: FormatSPDXJSON},
+		{Component: "api", Target: "python:3.8-slim", Format: saga.SBOMSPDXJSON},
+		{Component: "api", Target: "python:3.12-slim", Format: saga.SBOMSPDXJSON},
 	})
 	if arts[0].Filename == arts[1].Filename {
 		t.Fatalf("both images produced %q", arts[0].Filename)
@@ -199,16 +200,19 @@ func TestArtifactsEmpty(t *testing.T) {
 	}
 }
 
-func TestValidFormat(t *testing.T) {
-	for _, f := range []string{"", FormatSPDXJSON, FormatCycloneDXJSON} {
-		if !ValidFormat(f) {
+func TestFormatVocabularyIsShared(t *testing.T) {
+	// The format vocabulary lives in pkg/saga next to exposure and criticality, so the Saga's
+	// validation and the generator can never disagree about what is accepted.
+	for _, f := range saga.SBOMFormats {
+		if !f.Valid() {
 			t.Errorf("%q should be valid", f)
 		}
-	}
-	for _, f := range []string{"spdx", "json", "cyclonedx", "SPDX-JSON"} {
-		if ValidFormat(f) {
-			t.Errorf("%q should not be valid", f)
+		if extensions[f] == "" {
+			t.Errorf("%q has no file extension mapped", f)
 		}
+	}
+	if saga.SBOMFormat("").Valid() {
+		t.Error("the empty format is not itself valid; Generate resolves it to the default")
 	}
 }
 

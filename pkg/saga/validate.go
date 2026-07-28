@@ -84,6 +84,9 @@ func (m *Model) Validate() error {
 			errs = append(errs, fmt.Errorf("config.reports[%d].format is required", i))
 		}
 	}
+	if s := m.Config.SBOM; s != nil && s.Format != "" && !s.Format.Valid() {
+		errs = append(errs, fmt.Errorf("config.sbom.format %q is not a known format (want one of %v)", s.Format, SBOMFormats))
+	}
 	for i, p := range m.Config.Publishers {
 		if p.Kind == "" {
 			errs = append(errs, fmt.Errorf("config.publishers[%d].kind is required", i))

@@ -16,26 +16,11 @@ import (
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/report"
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// The SBOM formats Draugr can emit. Both are open specifications that downstream tooling
-// (vulnerability scanners, VEX processors, procurement review) already reads.
-const (
-	// FormatSPDXJSON is the default. It matches what Draugr's own releases publish, and it is
-	// the ISO standard (ISO/IEC 5962).
-	FormatSPDXJSON = "spdx-json"
-	// FormatCycloneDXJSON is the OWASP format, common in security tooling.
-	FormatCycloneDXJSON = "cyclonedx-json"
-)
-
-// Formats lists the supported SBOM formats, for validation messages and docs.
-func Formats() []string { return []string{FormatSPDXJSON, FormatCycloneDXJSON} }
-
-// ValidFormat reports whether f is a format Draugr can emit. The empty string is valid and
-// means "the default".
-func ValidFormat(f string) bool {
-	return f == "" || f == FormatSPDXJSON || f == FormatCycloneDXJSON
-}
+// DefaultFormat is used when a Saga enables SBOM generation without naming a format.
+const DefaultFormat = saga.SBOMSPDXJSON
 
 // Document is one generated SBOM: the bytes, plus enough provenance to name the file and to
 // know what it actually describes.
@@ -44,8 +29,8 @@ type Document struct {
 	Component string
 	// Target is the repository URL or image reference the SBOM was taken from.
 	Target string
-	// Format is the SBOM format the bytes are in (see FormatSPDXJSON, FormatCycloneDXJSON).
-	Format string
+	// Format is the SBOM format the bytes are in.
+	Format saga.SBOMFormat
 	// Bytes is the SBOM document itself.
 	Bytes []byte
 }
@@ -72,25 +57,25 @@ const Binary = "syft"
 
 // argv builds Syft's command line for a source it can already reach:
 //
-//	syft scan <src> -o <format> -q
+//		syft scan <src> -o <format> -q
 //
-//   - "scan" is the explicit subcommand; Syft's bare-argument form is deprecated.
-//   - -q silences the progress UI so stdout is only the document.
+//	  - "scan" is the explicit subcommand; Syft's bare-argument form is deprecated.
+//	  - -q silences the progress UI so stdout is only the document.
 //
 // The source is a directory path (prefixed dir: so Syft can't misread a path as an image
 // reference) or an image reference.
-func argv(src, format string) []string {
-	return []string{Binary, "scan", src, "-o", format, "-q"}
+func argv(src string, format saga.SBOMFormat) []string {
+	return []string{Binary, "scan", src, "-o", string(format), "-q"}
 }
 
 // Generate produces an SBOM for one target. Repositories are checked out first; images are
 // handed to Syft by reference, which reads the registry directly and needs no local copy.
-func (g *Generator) Generate(ctx context.Context, component string, t plugin.Target, format string) (Document, error) {
+func (g *Generator) Generate(ctx context.Context, component string, t plugin.Target, format saga.SBOMFormat) (Document, error) {
 	if format == "" {
-		format = FormatSPDXJSON
+		format = DefaultFormat
 	}
-	if !ValidFormat(format) {
-		return Document{}, fmt.Errorf("unknown sbom format %q (want %s)", format, strings.Join(Formats(), " or "))
+	if !format.Valid() {
+		return Document{}, fmt.Errorf("unknown sbom format %q (want one of %v)", format, saga.SBOMFormats)
 	}
 
 	var src, label string
@@ -124,9 +109,9 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 }
 
 // extensions maps a format to the file suffix its consumers expect.
-var extensions = map[string]string{
-	FormatSPDXJSON:      "spdx.json",
-	FormatCycloneDXJSON: "cdx.json",
+var extensions = map[saga.SBOMFormat]string{
+	saga.SBOMSPDXJSON:      "spdx.json",
+	saga.SBOMCycloneDXJSON: "cdx.json",
 }
 
 // Artifacts converts documents into the unit publishers deliver (pkg/report.Artifact), so SBOMs
