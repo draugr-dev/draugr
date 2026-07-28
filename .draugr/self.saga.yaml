@@ -17,6 +17,32 @@ config:
       enabled: true
     iac:
       enabled: true
+  # Replaces a .semgrepignore and a .gitleaks.toml: two files, two syntaxes, two discovery
+  # rules. Worth knowing why that mattered — .semgrepignore *replaces* Semgrep's built-in
+  # ignore list rather than extending it, so the first version of ours silently un-ignored
+  # every _test.go in the repo. One place, one syntax, and the reason travels with the rule.
+  exclude:
+    - paths:
+        - "examples/"
+        - "contrib/starter-workflow/"
+      rules:
+        - "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
+      reason: >-
+        Workflow templates people copy. Pinning a starter workflow to a commit SHA makes it
+        unreadable and stale on the next action release, and GitHub's own starter workflows use
+        major tags for the same reason. Our real workflows, under .github/workflows/, are
+        SHA-pinned and still scanned. Scoped to this one rule so a genuine problem in an example
+        still surfaces.
+
+    - paths:
+        - "test/integration/repo_scan_test.go"
+      rules:
+        - "private-key"
+      reason: >-
+        The integration test writes a throwaway RSA key into a temporary repo so the secrets
+        control has something real to find; a test asserting it finds nothing asserts nothing.
+        The key material is fake and was never valid anywhere.
+
   reports:
     - format: sarif
   publishers:
