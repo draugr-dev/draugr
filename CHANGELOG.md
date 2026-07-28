@@ -10,6 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Updated gRPC to 1.82.1**, picking up the fix for
+  [GO-2026-6061](https://pkg.go.dev/vuln/GO-2026-6061) — vulnerabilities in gRPC's xDS RBAC
+  authorization engine and HTTP/2 transport server. It reached Draugr as an indirect dependency
+  of the OpenTelemetry exporter, and the vulnerable code was reachable from telemetry startup.
+
 ### Added
 
 - **Saga files now validate in your editor with no setup.** The Saga schema is registered with
