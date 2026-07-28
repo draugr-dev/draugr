@@ -19,3 +19,4 @@ coverage.*
 # whoever holds it can publish under our namespace.
 key.pem
 *.pem
+contrib/mcpb/server.json

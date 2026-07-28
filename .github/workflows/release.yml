@@ -104,3 +104,55 @@ jobs:
           else
             echo "CLOUDFLARE_PAGES_DEPLOY_HOOK not set; skipping docs rebuild"
           fi
+
+  # Publish the server to the MCP Registry once the release exists, so the listing always names a
+  # bundle that is actually downloadable.
+  #
+  # Gated behind the `mcp-registry` environment for one reason: the DNS key below is what proves
+  # anything published under `dev.draugr` is ours, and an environment secret is readable only by a
+  # job that declares the environment — a repository secret is readable by every workflow in the
+  # repo. Add required reviewers to that environment and each publish waits for a click.
+  #
+  # DNS namespaces have no keyless option. The registry's own CI guide only documents
+  # `login github-oidc` and a PAT, and both authenticate `io.github.*` namespaces, not a domain.
+  publish-mcp:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    environment: mcp-registry
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Publish to the MCP Registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MCP_PUBLISHER_DNS_KEY: ${{ secrets.MCP_PUBLISHER_DNS_KEY }}
+        run: |
+          set -euo pipefail
+          # Absent on a fork, and before the secret is configured. Skipping keeps those green:
+          # the release itself succeeded, and a listing is one distribution channel.
+          if [ -z "${MCP_PUBLISHER_DNS_KEY:-}" ]; then
+            echo "MCP_PUBLISHER_DNS_KEY not set; skipping the registry publish"
+            exit 0
+          fi
+          version="${GITHUB_REF_NAME#v}"
+
+          os=$(uname -s | tr '[:upper:]' '[:lower:]')
+          arch=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_${os}_${arch}.tar.gz" \
+            | tar xz mcp-publisher
+
+          # Renders version, bundle URL and SHA-256 from the release that just published. The
+          # hash comes from the release's own .mcpb.sha256, so the listing cannot advertise a
+          # digest that differs from the artifact.
+          ./contrib/mcpb/render-server-json.sh "$version"
+
+          cd contrib/mcpb
+          # mcp-publisher takes the key as a flag and offers no env-var form, so it is briefly
+          # visible to `ps` on this runner. Acceptable here — the runner is ephemeral and
+          # single-tenant — but it is why the secret is environment-scoped rather than
+          # repo-wide, and why it should be rotated if a job on this runner is ever suspect.
+          "$GITHUB_WORKSPACE/mcp-publisher" login dns \
+            --domain draugr.dev --private-key "$MCP_PUBLISHER_DNS_KEY"
+          "$GITHUB_WORKSPACE/mcp-publisher" publish
