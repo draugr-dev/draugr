@@ -33,6 +33,9 @@ type Config struct {
 	Reports []ReportConfig `yaml:"reports,omitempty"`
 	// Publishers are the destinations that rendered reports are delivered to.
 	Publishers []PublisherConfig `yaml:"publishers,omitempty"`
+	// Gate tunes the pass/fail thresholds. Policy belongs in the descriptor rather than in a
+	// flag every pipeline has to remember to pass.
+	Gate *GateConfig `yaml:"gate,omitempty"`
 	// Exclude suppresses findings that match, with a stated reason. Suppressed findings are
 	// still reported — they just stop counting toward the verdict.
 	Exclude []ExcludeRule `yaml:"exclude,omitempty"`
@@ -41,6 +44,21 @@ type Config struct {
 	// and it never affects the verdict.
 	SBOM *SBOMConfig `yaml:"sbom,omitempty"`
 }
+
+// GateConfig tunes which findings fail the build.
+type GateConfig struct {
+	// Controls sets a per-control severity threshold, overriding --fail-on for that control
+	// only. Values are SARIF levels: error, warning, note.
+	//
+	// This exists because one threshold cannot serve every control. Licence policy is owned by
+	// legal and vulnerability policy by security; "fail the build on a forbidden licence but
+	// only warn on a medium CVE" is a reasonable position that a single global threshold makes
+	// unsayable.
+	Controls map[string]string `yaml:"controls,omitempty"`
+}
+
+// GateLevels lists the severity thresholds a gate may be set to, most to least severe.
+var GateLevels = []string{"error", "warning", "note"}
 
 // ExcludeRule suppresses findings that match it. Every real repository has paths that are not
 // the application — fixtures, examples, generated code — and rules that do not apply to them.

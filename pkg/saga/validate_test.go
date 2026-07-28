@@ -313,3 +313,26 @@ func TestExcludeRulePathsStillUsePathSemantics(t *testing.T) {
 		t.Error("a path glob should still match in the top level")
 	}
 }
+
+func TestValidateGateControls(t *testing.T) {
+	base := func(controls map[string]string) *Model {
+		return &Model{Release: Release{Name: "x", Version: "1"}, Config: Config{Gate: &GateConfig{Controls: controls}}}
+	}
+	if err := base(map[string]string{"licenses": "error", "sast": "note"}).Validate(); err != nil {
+		t.Errorf("valid thresholds should pass: %v", err)
+	}
+	err := base(map[string]string{"licenses": "critical"}).Validate()
+	if err == nil {
+		t.Fatal("want an error for a level that isn't a SARIF threshold")
+	}
+	// "critical" is a severity, not a level — an easy and silent mistake to make, so the
+	// message has to name the real options.
+	for _, want := range []string{"error", "warning", "note"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should name %q: %v", want, err)
+		}
+	}
+	if !strings.Contains(err.Error(), "licenses") {
+		t.Errorf("error should name the offending control: %v", err)
+	}
+}

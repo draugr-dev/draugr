@@ -144,7 +144,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	for name, cr := range run.Controls {
 		reports[name] = cr.Report
 	}
-	verdict := norn.Policy{FailOn: sarif.Level(opts.failOn), FailOnPriority: failOnPriority}.Evaluate(reports)
+	verdict := norn.Policy{
+		FailOn:         sarif.Level(opts.failOn),
+		PerControl:     perControlThresholds(model.Config.Gate),
+		FailOnPriority: failOnPriority,
+	}.Evaluate(reports)
 	// A control that couldn't run didn't find nothing — it found out nothing. Reporting that as
 	// a pass makes the gate a false negative exactly when it matters: in CI, where a scanner
 	// failing to provision is the common case and the warning scrolls past unread.
@@ -316,4 +320,17 @@ func erroredControls(run engine.Result) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// perControlThresholds converts the Saga's gate block into the norn policy's per-control map.
+// Nil when unset, which leaves every control on --fail-on.
+func perControlThresholds(g *saga.GateConfig) map[string]sarif.Level {
+	if g == nil || len(g.Controls) == 0 {
+		return nil
+	}
+	out := make(map[string]sarif.Level, len(g.Controls))
+	for control, level := range g.Controls {
+		out[control] = sarif.Level(level)
+	}
+	return out
 }

@@ -3,6 +3,7 @@ package saga
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -82,6 +83,14 @@ func (m *Model) Validate() error {
 	for i, r := range m.Config.Reports {
 		if r.Format == "" {
 			errs = append(errs, fmt.Errorf("config.reports[%d].format is required", i))
+		}
+	}
+	if g := m.Config.Gate; g != nil {
+		for control, level := range g.Controls {
+			if !slices.Contains(GateLevels, level) {
+				errs = append(errs, fmt.Errorf("config.gate.controls[%q] = %q is not a threshold (want one of %v)",
+					control, level, GateLevels))
+			}
 		}
 	}
 	for i, e := range m.Config.Exclude {

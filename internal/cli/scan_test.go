@@ -516,3 +516,16 @@ func TestWriteArtifactsWritesSBOMs(t *testing.T) {
 		}
 	}
 }
+
+func TestPerControlThresholds(t *testing.T) {
+	if got := perControlThresholds(nil); got != nil {
+		t.Errorf("no gate block should leave every control on --fail-on, got %v", got)
+	}
+	if got := perControlThresholds(&saga.GateConfig{}); got != nil {
+		t.Errorf("an empty gate block is the same as none, got %v", got)
+	}
+	got := perControlThresholds(&saga.GateConfig{Controls: map[string]string{"licenses": "error", "sast": "note"}})
+	if len(got) != 2 || got["licenses"] != sarif.LevelError || got["sast"] != sarif.LevelNote {
+		t.Errorf("perControlThresholds = %v", got)
+	}
+}

@@ -220,6 +220,27 @@ and the PR number default from the GitHub Actions environment; the token comes f
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif), which posts a PR **security
 delta** (new / fixed findings) as that comment.
 
+## `config.gate`
+
+```yaml
+config:
+  gate:
+    controls:
+      licenses: error      # this control fails the build on an error…
+      sast: note           # …this one fails on anything at all
+```
+
+Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-saga) for the named
+control only. Values are SARIF levels: `error`, `warning`, `note`.
+
+One threshold can't serve every control. Licence policy is owned by legal and vulnerability
+policy by security; *"fail the build on a forbidden licence but only warn on a medium CVE"* is a
+reasonable position that a single global threshold makes unsayable.
+
+It lives in the Saga rather than in a flag because it's **policy** — it should be reviewed in a
+pull request and applied identically by every pipeline, not remembered by whoever wrote the
+workflow. Resolution order is per-control setting → `--fail-on` → `error`.
+
 ## `config.exclude`
 
 ```yaml

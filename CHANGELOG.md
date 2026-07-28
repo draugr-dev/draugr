@@ -12,6 +12,22 @@ and move it under a version on release.
 
 ### Added
 
+- **Per-control gate thresholds.** One threshold never served every control — licence policy is
+  owned by legal and vulnerability policy by security, and *"fail on a forbidden licence but only
+  warn on a medium CVE"* was unsayable:
+
+  ```yaml
+  config:
+    gate:
+      controls:
+        licenses: error
+        sast: note
+  ```
+
+  Overrides `--fail-on` for the named control only. In the Saga rather than a flag because it's
+  policy: reviewed in a pull request, and applied identically by every pipeline instead of
+  remembered by whoever wrote the workflow.
+
 - **`config.exclude` rules accept wildcards.** `rules: ["CVE-2019-*"]` suppresses a family of
   findings without listing each one. `*` matches any run of characters including `/`, so
   compound rule ids work too; a pattern with no `*` still matches exactly, as before.

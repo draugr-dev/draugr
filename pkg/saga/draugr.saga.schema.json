@@ -91,6 +91,9 @@
           "items": {
             "$ref": "#/$defs/excludeRule"
           }
+        },
+        "gate": {
+          "$ref": "#/$defs/gateConfig"
         }
       }
     },
@@ -279,6 +282,25 @@
           "type": "string",
           "minLength": 1,
           "description": "Why this exclusion exists. Required: an exclusion without a reason is indistinguishable from an oversight."
+        }
+      }
+    },
+    "gateConfig": {
+      "type": "object",
+      "description": "Pass/fail thresholds. Policy belongs in the descriptor rather than in a flag every pipeline has to remember.",
+      "additionalProperties": false,
+      "properties": {
+        "controls": {
+          "type": "object",
+          "description": "Per-control severity threshold, overriding --fail-on for that control only.",
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning",
+              "note"
+            ]
+          }
         }
       }
     },
