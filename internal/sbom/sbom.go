@@ -1,45 +1,29 @@
-// Package sbom generates Software Bills of Materials for the things a Saga describes.
+// Package sbom generates Software Bills of Materials by shelling out to Syft.
 //
-// An SBOM is deliberately *not* a control. A control answers "did this check find anything?",
-// and its verdict feeds the gate. An SBOM finds nothing — it is an inventory. Modelling it as a
-// control would put a row in the results table that always reads "pass" without ever having
-// looked, which is exactly the meaningless green Draugr exists to remove. So SBOMs travel as
-// evidence: produced during a run, attached to the output, and never consulted for the verdict.
+// The document type and the Generator contract live in pkg/sbom; this package is the Syft
+// implementation, kept internal so it can use internal/git and internal/toolexec.
 package sbom
 
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
-	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	pkgsbom "github.com/draugr-dev/draugr/pkg/sbom"
 )
-
-// DefaultFormat is used when a Saga enables SBOM generation without naming a format.
-const DefaultFormat = saga.SBOMSPDXJSON
-
-// Document is one generated SBOM: the bytes, plus enough provenance to name the file and to
-// know what it actually describes.
-type Document struct {
-	// Component is the Saga component the target belongs to.
-	Component string
-	// Target is the repository URL or image reference the SBOM was taken from.
-	Target string
-	// Format is the SBOM format the bytes are in.
-	Format saga.SBOMFormat
-	// Bytes is the SBOM document itself.
-	Bytes []byte
-}
 
 // runner executes a command and returns its stdout. Injectable so tests don't need Syft.
 type runner func(ctx context.Context, dir string, argv []string) ([]byte, error)
 
 // checkouter clones a repository and returns its path plus a cleanup. Injectable for tests.
 type checkouter func(ctx context.Context, url, revision string) (string, func(), error)
+
+// Generator implements pkgsbom.Generator by shelling out to Syft. The zero value is not
+// usable; use New.
+var _ pkgsbom.Generator = (*Generator)(nil)
 
 // Generator produces SBOMs. The zero value is not usable; use New.
 type Generator struct {
@@ -70,12 +54,12 @@ func argv(src string, format saga.SBOMFormat) []string {
 
 // Generate produces an SBOM for one target. Repositories are checked out first; images are
 // handed to Syft by reference, which reads the registry directly and needs no local copy.
-func (g *Generator) Generate(ctx context.Context, component string, t plugin.Target, format saga.SBOMFormat) (Document, error) {
+func (g *Generator) Generate(ctx context.Context, component string, t plugin.Target, format saga.SBOMFormat) (pkgsbom.Document, error) {
 	if format == "" {
-		format = DefaultFormat
+		format = pkgsbom.DefaultFormat
 	}
 	if !format.Valid() {
-		return Document{}, fmt.Errorf("unknown sbom format %q (want one of %v)", format, saga.SBOMFormats)
+		return pkgsbom.Document{}, fmt.Errorf("unknown sbom format %q (want one of %v)", format, saga.SBOMFormats)
 	}
 
 	var src, label string
@@ -83,7 +67,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 	case plugin.RepositoryTarget:
 		dir, cleanup, err := g.checkout(ctx, target.URL, target.Revision)
 		if err != nil {
-			return Document{}, fmt.Errorf("checkout %s: %w", target.URL, err)
+			return pkgsbom.Document{}, fmt.Errorf("checkout %s: %w", target.URL, err)
 		}
 		defer cleanup()
 		// dir: disambiguates a local path from an image reference — Syft guesses otherwise,
@@ -95,62 +79,15 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 	default:
 		// Hosts and infrastructure have no package inventory to take. Returning an error rather
 		// than an empty document keeps "we produced nothing" from looking like a valid SBOM.
-		return Document{}, fmt.Errorf("sbom: no inventory to take from a %s target", t.Kind())
+		return pkgsbom.Document{}, fmt.Errorf("sbom: no inventory to take from a %s target", t.Kind())
 	}
 
 	out, err := g.run(ctx, "", argv(src, format))
 	if err != nil {
-		return Document{}, fmt.Errorf("syft %s: %w", label, err)
+		return pkgsbom.Document{}, fmt.Errorf("syft %s: %w", label, err)
 	}
 	if len(out) == 0 {
-		return Document{}, fmt.Errorf("syft %s: produced an empty document", label)
+		return pkgsbom.Document{}, fmt.Errorf("syft %s: produced an empty document", label)
 	}
-	return Document{Component: component, Target: label, Format: format, Bytes: out}, nil
-}
-
-// extensions maps a format to the file suffix its consumers expect.
-var extensions = map[saga.SBOMFormat]string{
-	saga.SBOMSPDXJSON:      "spdx.json",
-	saga.SBOMCycloneDXJSON: "cdx.json",
-}
-
-// Artifacts converts documents into the unit publishers deliver (pkg/report.Artifact), so SBOMs
-// travel the same path as every other output rather than needing their own delivery mechanism.
-func Artifacts(docs []Document) []report.Artifact {
-	arts := make([]report.Artifact, 0, len(docs))
-	for _, d := range docs {
-		ext := extensions[d.Format]
-		if ext == "" {
-			ext = "json"
-		}
-		arts = append(arts, report.Artifact{
-			Format:      "sbom",
-			Filename:    fmt.Sprintf("sbom-%s-%s.%s", slug(d.Component), slug(d.Target), ext),
-			ContentType: "application/json",
-			Bytes:       d.Bytes,
-		})
-	}
-	return arts
-}
-
-// slug makes a filesystem-safe fragment out of a component name or a target reference. Registry
-// paths, tags and digests all carry characters that are awkward or illegal in filenames, and two
-// images in one component must not collapse onto the same name — so every unsafe run becomes a
-// single dash rather than being dropped.
-func slug(s string) string {
-	var b strings.Builder
-	lastDash := false
-	for _, r := range strings.ToLower(s) {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-			b.WriteRune(r)
-			lastDash = false
-		default:
-			if !lastDash && b.Len() > 0 {
-				b.WriteByte('-')
-				lastDash = true
-			}
-		}
-	}
-	return strings.Trim(b.String(), "-")
+	return pkgsbom.Document{Component: component, Target: label, Format: format, Bytes: out}, nil
 }
