@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.42.0] - 2026-07-28
+
 ### Added
 
 - **Exclude findings in the Saga, with a reason.** One syntax for every scanner, in the file that
@@ -920,7 +924,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.41.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.42.0...HEAD
+[0.42.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.42.0
 [0.41.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.41.0
 [0.40.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.40.1
 [0.40.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.40.0
