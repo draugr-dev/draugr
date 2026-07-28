@@ -54,7 +54,11 @@ type ExcludeRule struct {
 	// that directory; otherwise it is a glob (path.Match) against the whole location, so
 	// "*.md" and "test/fixture.go" both work.
 	Paths []string `yaml:"paths,omitempty"`
-	// Rules matches the finding's rule id exactly.
+	// Rules matches the finding's rule id. `*` is a wildcard for any run of characters,
+	// including separators — a rule id is an opaque string rather than a path, and the ids that
+	// most need matching are compound (`license/GPL-3.0-only/github.com/somelib/thing`), so a
+	// wildcard that stopped at `/` could not express "this licence, any package". A pattern
+	// with no `*` matches exactly. There is no escape for a literal `*`; no scanner emits one.
 	Rules []string `yaml:"rules,omitempty"`
 	// Reason is why this exclusion exists. Required.
 	Reason string `yaml:"reason"`
@@ -72,10 +76,47 @@ func (e ExcludeRule) Matches(uri, ruleID string) bool {
 	if len(e.Paths) > 0 && !matchesAnyPath(e.Paths, uri) {
 		return false
 	}
-	if len(e.Rules) > 0 && !slices.Contains(e.Rules, ruleID) {
+	if len(e.Rules) > 0 && !matchesAnyRule(e.Rules, ruleID) {
 		return false
 	}
 	return true
+}
+
+// matchesAnyRule reports whether ruleID is covered by any of the patterns, treating `*` as any
+// run of characters. Deliberately not path.Match, which is right for the Paths field — those
+// really are paths — but wrong here: package names contain slashes, so segment-wise globbing
+// could not express the common case.
+func matchesAnyRule(patterns []string, ruleID string) bool {
+	for _, p := range patterns {
+		if wildcardMatch(p, ruleID) {
+			return true
+		}
+	}
+	return false
+}
+
+// wildcardMatch reports whether s matches pattern, where `*` matches any run of characters.
+// Written out rather than compiled to a regexp: the patterns come from a Saga, and a regexp
+// built from user input is a denial-of-service waiting to be discovered.
+func wildcardMatch(pattern, s string) bool {
+	parts := strings.Split(pattern, "*")
+	if len(parts) == 1 {
+		return pattern == s // no wildcard: exact match
+	}
+	// The first and last segments are anchored; everything between may float.
+	if !strings.HasPrefix(s, parts[0]) {
+		return false
+	}
+	s = s[len(parts[0]):]
+	last := parts[len(parts)-1]
+	for _, mid := range parts[1 : len(parts)-1] {
+		i := strings.Index(s, mid)
+		if i < 0 {
+			return false
+		}
+		s = s[i+len(mid):]
+	}
+	return strings.HasSuffix(s, last) && len(s) >= len(last)
 }
 
 // matchesAnyPath reports whether uri is covered by any of the patterns.

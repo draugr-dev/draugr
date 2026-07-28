@@ -252,8 +252,18 @@ was never there.
 | Field | Meaning |
 |-------|---------|
 | `paths` | Location patterns. A pattern ending in `/` matches everything beneath that directory; otherwise it's a glob against the whole location, so `*.md` and `test/fixture.go` both work. |
-| `rules` | Rule ids, matched exactly. |
+| `rules` | Rule ids. `*` matches any run of characters, **including `/`** — so `CVE-2019-*` and `license/GPL-3.0-only/*` both work. A pattern with no `*` matches exactly. |
 | `reason` | **Required.** Why this exclusion exists. |
+
+**`paths` and `rules` glob differently, on purpose.** In `paths`, `*` stops at a directory
+separator, so `*.md` matches `README.md` but not `docs/README.md` — they really are paths. In
+`rules` it doesn't, because a rule id is an opaque string and the compound ones are the ones
+worth matching: a package name contains slashes, so a wildcard that stopped at `/` couldn't
+express "this rule, whichever package".
+
+A wide pattern is safe to use because it is **loud**. Nothing is deleted, so `rules: ["*"]`
+reports `N findings suppressed by config.exclude` and every one of them sits in the SARIF with
+your justification. An exclusion that swallowed more than you meant shows up in the count.
 
 **When both `paths` and `rules` are set, a finding must match both.** That's the narrow reading —
 "this rule, in this place" — and the safe one: the alternative would quietly widen *ignore the
