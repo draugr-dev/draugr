@@ -10,9 +10,11 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/sbom"
 )
 
 // --- fakes ---
@@ -480,5 +482,37 @@ func TestScanCommandViaCobra(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "Draugr — PASS") {
 		t.Errorf("expected pass verdict (console default):\n%s", out.String())
+	}
+}
+
+func TestWriteArtifactsWritesSBOMs(t *testing.T) {
+	// -o is the path most CI jobs use; an SBOM reachable only through a configured publisher
+	// would be missing from exactly the evidence bundle people archive.
+	dir := t.TempDir()
+	run := engine.Result{SBOMs: []sbom.Document{
+		{Component: "web", Target: "https://git/web", Format: saga.SBOMSPDXJSON, Bytes: []byte(`{"spdxVersion":"SPDX-2.3"}`)},
+		{Component: "api", Target: "api:1", Format: saga.SBOMCycloneDXJSON, Bytes: []byte(`{"bomFormat":"CycloneDX"}`)},
+	}}
+	if err := writeArtifacts(dir, saga.Release{Name: "app", Version: "1"}, run, norn.Result{Verdict: norn.Pass}, ""); err != nil {
+		t.Fatalf("writeArtifacts: %v", err)
+	}
+	for name, want := range map[string]string{
+		"sbom-web-https-git-web.spdx.json": `"spdxVersion"`,
+		"sbom-api-api-1.cdx.json":          `"bomFormat"`,
+	} {
+		b, err := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec // test-controlled path under t.TempDir
+		if err != nil {
+			t.Errorf("expected %s: %v", name, err)
+			continue
+		}
+		if !strings.Contains(string(b), want) {
+			t.Errorf("%s does not contain %s: %s", name, want, b)
+		}
+	}
+	// The usual artifacts still land alongside them.
+	for _, f := range []string{"report.json", "results.sarif"} {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+			t.Errorf("expected %s: %v", f, err)
+		}
 	}
 }

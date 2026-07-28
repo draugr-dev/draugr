@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
@@ -123,7 +124,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		return fmt.Errorf("--top must be >= 0 (0 = show all)")
 	}
 
-	eopts := []engine.Option{engine.WithPrioritization(defaultPrioritizer(expl))}
+	eopts := []engine.Option{
+		engine.WithPrioritization(defaultPrioritizer(expl)),
+		engine.WithSBOM(sbomgen.New()),
+	}
 	if opts.cacheDir != "" {
 		eopts = append(eopts, engine.WithCache(cache.NewLocal(opts.cacheDir, opts.cacheTTL)))
 	}
@@ -290,7 +294,18 @@ func writeArtifacts(dir string, release saga.Release, run engine.Result, verdict
 		return err
 	}
 	defer func() { _ = sarifFile.Close() }()
-	return skald.WriteSARIF(sarifFile, run)
+	if err := skald.WriteSARIF(sarifFile, run); err != nil {
+		return err
+	}
+
+	// SBOMs are evidence of the run and belong with the rest of it, so -o writes them too
+	// rather than making them reachable only through a configured publisher.
+	for _, a := range report.SBOMArtifacts(run.SBOMs) {
+		if err := os.WriteFile(filepath.Join(dir, a.Filename), a.Bytes, 0o600); err != nil {
+			return fmt.Errorf("write %s: %w", a.Filename, err)
+		}
+	}
+	return nil
 }
 
 // erroredControls names the controls that couldn't run, in a stable order.

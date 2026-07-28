@@ -1,8 +1,12 @@
 package report
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sbom"
 )
@@ -71,5 +75,59 @@ func TestEveryFormatHasAFileExtension(t *testing.T) {
 		if extensions[f] == "" {
 			t.Errorf("format %q has no file extension mapped", f)
 		}
+	}
+}
+
+func TestConsoleReportsSBOMsWithoutMakingThemAControl(t *testing.T) {
+	d := Data{
+		Release: saga.Release{Name: "app", Version: "1"},
+		Run: engine.Result{SBOMs: []sbom.Document{
+			{Component: "web", Target: "https://git/web", Format: saga.SBOMSPDXJSON},
+			{Component: "api", Target: "api:1", Format: saga.SBOMSPDXJSON},
+		}},
+		Verdict: norn.Result{Verdict: norn.Pass},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "SBOM: 2 documents (spdx-json)") {
+		t.Errorf("want the SBOM summary line:\n%s", out)
+	}
+	// It must not appear in the Controls table: every row there means "checked, and here is the
+	// verdict", and an inventory has no verdict to give.
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "SBOM") && (strings.Contains(line, "pass") || strings.Contains(line, "FAIL")) {
+			t.Errorf("SBOM should not be rendered as a control row: %q", line)
+		}
+	}
+}
+
+func TestConsoleReportsSBOMsOnACleanRun(t *testing.T) {
+	// The early return for "no findings" must not swallow the evidence line — a clean scan
+	// still produced the inventory.
+	d := Data{
+		Release: saga.Release{Name: "app", Version: "1"},
+		Run:     engine.Result{SBOMs: []sbom.Document{{Component: "web", Target: "r", Format: saga.SBOMSPDXJSON}}},
+		Verdict: norn.Result{Verdict: norn.Pass},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if !strings.Contains(buf.String(), "SBOM: 1 document (spdx-json)") {
+		t.Errorf("want a singular summary line on a clean run:\n%s", buf.String())
+	}
+}
+
+func TestConsoleOmitsTheSBOMLineWhenThereAreNone(t *testing.T) {
+	var buf bytes.Buffer
+	d := Data{Release: saga.Release{Name: "app", Version: "1"}, Verdict: norn.Result{Verdict: norn.Pass}}
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if strings.Contains(buf.String(), "SBOM") {
+		t.Errorf("no SBOMs means no line at all:\n%s", buf.String())
 	}
 }

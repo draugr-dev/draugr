@@ -12,6 +12,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/sbom"
 )
 
 func sampleData() report.Data {
@@ -111,5 +112,49 @@ func TestRunPublisherErrorSurfaced(t *testing.T) {
 	)
 	if err == nil {
 		t.Error("expected a publish error when the output dir can't be created")
+	}
+}
+
+func TestRunDeliversSBOMsAlongsideReports(t *testing.T) {
+	// SBOMs are produced during the run rather than rendered from Data, so they are appended to
+	// the artifact list rather than built. A publisher must see them the same as anything else.
+	dir := t.TempDir()
+	d := sampleData()
+	d.Run.SBOMs = []sbom.Document{
+		{Component: "web", Target: "https://git/web", Format: saga.SBOMSPDXJSON, Bytes: []byte(`{"spdxVersion":"SPDX-2.3"}`)},
+		{Component: "api", Target: "api:1", Format: saga.SBOMCycloneDXJSON, Bytes: []byte(`{"bomFormat":"CycloneDX"}`)},
+	}
+
+	err := Run(context.Background(),
+		[]saga.ReportConfig{{Format: "sarif"}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		d,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{
+		"results.sarif",
+		"sbom-web-https-git-web.spdx.json",
+		"sbom-api-api-1.cdx.json",
+	} {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+			t.Errorf("expected %s to be written: %v", f, err)
+		}
+	}
+}
+
+func TestRunDeliversSBOMsEvenWithNoReportsConfigured(t *testing.T) {
+	// Enabling config.sbom without config.reports is a reasonable thing to want: the inventory
+	// is the output. It must not require an unrelated report format to be configured too.
+	dir := t.TempDir()
+	d := sampleData()
+	d.Run.SBOMs = []sbom.Document{{Component: "web", Target: "r", Format: saga.SBOMSPDXJSON, Bytes: []byte("{}")}}
+
+	if err := Run(context.Background(), nil, []saga.PublisherConfig{{Kind: "file", Dir: dir}}, d); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "sbom-web-r.spdx.json")); err != nil {
+		t.Errorf("expected the SBOM to be written: %v", err)
 	}
 }
