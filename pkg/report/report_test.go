@@ -448,8 +448,8 @@ func TestShortRuleID(t *testing.T) {
 	}
 	long := "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
 	got := shortRuleID(long)
-	if len([]rune(got)) != ruleIDWidth {
-		t.Errorf("len(%q) = %d, want %d", got, len([]rune(got)), ruleIDWidth)
+	if len([]rune(got)) > ruleIDWidth {
+		t.Errorf("len(%q) = %d, want at most %d", got, len([]rune(got)), ruleIDWidth)
 	}
 	// The tail is the specific half — that's what has to survive.
 	if !strings.HasSuffix(got, "github-actions-mutable-action-tag") {
@@ -457,6 +457,36 @@ func TestShortRuleID(t *testing.T) {
 	}
 	if !strings.HasPrefix(got, "…") {
 		t.Errorf("got %q, want it marked as shortened", got)
+	}
+	// The whole point: cut on a separator, not mid-word. "…ction-tag.github-…" reads as
+	// corruption; a whole segment reads as truncation.
+	if got != "…github-actions-mutable-action-tag" {
+		t.Errorf("got %q, want the cut on a dot boundary", got)
+	}
+}
+
+func TestShortRuleIDFallsBackWhenNoSeparatorFits(t *testing.T) {
+	// A single long unsegmented id has no dot to cut on. Trimming by width is then the only
+	// option, and is still better than pushing every later column off the screen.
+	long := strings.Repeat("x", 80)
+	got := shortRuleID(long)
+	if len([]rune(got)) != ruleIDWidth {
+		t.Errorf("len(%q) = %d, want exactly %d", got, len([]rune(got)), ruleIDWidth)
+	}
+	if !strings.HasPrefix(got, "…") {
+		t.Errorf("got %q, want it marked as shortened", got)
+	}
+}
+
+func TestShortRuleIDKeepsAWholeSegmentEvenWhenTwoWouldNotFit(t *testing.T) {
+	// The dot search runs inside the visible tail, so a boundary just past the cut is used
+	// rather than one before it — otherwise the result would exceed the column.
+	got := shortRuleID("a.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccccccccccccc")
+	if len([]rune(got)) > ruleIDWidth {
+		t.Errorf("len(%q) = %d, want at most %d", got, len([]rune(got)), ruleIDWidth)
+	}
+	if strings.Contains(strings.TrimPrefix(got, "…"), "b") {
+		t.Errorf("got %q, want a clean segment boundary", got)
 	}
 }
 
@@ -563,5 +593,48 @@ func TestConsoleMarksPartialControlsAsError(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "ERROR") {
 		t.Errorf("a control with findings and an error should read ERROR, not FAIL:\n%s", buf.String())
+	}
+}
+
+func TestReadableMessagePrefersTheAdvisoryOverAFieldDump(t *testing.T) {
+	// Trivy's message repeats what Draugr already shows in its own columns, and is long enough
+	// that the clamp cuts it before the part saying what the vulnerability is.
+	dump := "Package: Flask\nInstalled Version: 0.12.2\nVulnerability CVE-2018-1000656\n" +
+		"Severity: HIGH\nFixed Version: 0.12.3\nLink: [CVE-2018-1000656](https://avd.aquasec.com/nvd/cve-2018-1000656)"
+	rule := sarif.Rule{ShortDescription: "python-flask: Denial of Service via crafted JSON file"}
+	if got := readableMessage(dump, rule); got != rule.ShortDescription {
+		t.Errorf("readableMessage = %q, want the advisory title", got)
+	}
+}
+
+func TestReadableMessageLeavesProseAlone(t *testing.T) {
+	// Semgrep and Gitleaks write a sentence. Some scanners publish a shortDescription that only
+	// restates the rule id, so preferring it unconditionally would make things worse.
+	for _, msg := range []string{
+		"GitHub Actions step uses a mutable tag or branch reference.",
+		"private-key has detected secret for file test/fixture.go.",
+	} {
+		rule := sarif.Rule{ShortDescription: "Semgrep Finding: yaml.github-actions.security.x"}
+		if got := readableMessage(msg, rule); got != msg {
+			t.Errorf("readableMessage(%q) = %q, want it untouched", msg, got)
+		}
+	}
+}
+
+func TestReadableMessageKeepsTheDumpWhenThereIsNoAlternative(t *testing.T) {
+	// A field dump is poor, but it is what the scanner said. Blanking it would be worse.
+	dump := "Package: Flask\nInstalled Version: 0.12.2"
+	if got := readableMessage(dump, sarif.Rule{}); got != dump {
+		t.Errorf("readableMessage = %q, want the original when no shortDescription exists", got)
+	}
+}
+
+func TestReadableMessageIgnoresASingleLineColon(t *testing.T) {
+	// "Note: something happened" is prose, not a field dump. The multi-line requirement is what
+	// separates them.
+	msg := "Warning: the certificate expires in 3 days."
+	rule := sarif.Rule{ShortDescription: "something else entirely"}
+	if got := readableMessage(msg, rule); got != msg {
+		t.Errorf("readableMessage = %q, want the original", got)
 	}
 }
