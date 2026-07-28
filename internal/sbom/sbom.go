@@ -39,17 +39,28 @@ func New() *Generator {
 // Binary is the tool Generate requires on PATH.
 const Binary = "syft"
 
-// argv builds Syft's command line for a source it can already reach:
+// argv builds Syft's command line:
 //
-//		syft scan <src> -o <format> -q
+//		syft scan <src> -o <format> -q [--source-name <name>]
 //
 //	  - "scan" is the explicit subcommand; Syft's bare-argument form is deprecated.
 //	  - -q silences the progress UI so stdout is only the document.
+//	  - --source-name overrides what the document calls the thing it describes.
 //
 // The source is a directory path (prefixed dir: so Syft can't misread a path as an image
 // reference) or an image reference.
-func argv(src string, format saga.SBOMFormat) []string {
-	return []string{Binary, "scan", src, "-o", string(format), "-q"}
+//
+// name matters more than it looks for repositories. Left alone, Syft names the document after
+// the path it scanned — which for us is a temporary clone, so the document would read
+// "/tmp/draugr-repo-1956481920": meaningless to a consumer, and different on every run, so two
+// SBOMs of the same commit would never compare equal. Images already carry a stable reference
+// and are left as Syft found them.
+func argv(src string, format saga.SBOMFormat, name string) []string {
+	a := []string{Binary, "scan", src, "-o", string(format), "-q"}
+	if name != "" {
+		a = append(a, "--source-name", name)
+	}
+	return a
 }
 
 // Generate produces an SBOM for one target. Repositories are checked out first; images are
@@ -62,7 +73,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		return pkgsbom.Document{}, fmt.Errorf("unknown sbom format %q (want one of %v)", format, saga.SBOMFormats)
 	}
 
-	var src, label string
+	var src, label, sourceName string
 	switch target := t.(type) {
 	case plugin.RepositoryTarget:
 		dir, cleanup, err := g.checkout(ctx, target.URL, target.Revision)
@@ -72,7 +83,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		defer cleanup()
 		// dir: disambiguates a local path from an image reference — Syft guesses otherwise,
 		// and a directory named like a registry path is not a hypothetical we want to debug.
-		src, label = "dir:"+dir, target.URL
+		src, label, sourceName = "dir:"+dir, target.URL, target.URL
 	case plugin.ImageTarget:
 		src = target.PinnedRef()
 		label = src
@@ -82,7 +93,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		return pkgsbom.Document{}, fmt.Errorf("sbom: no inventory to take from a %s target", t.Kind())
 	}
 
-	out, err := g.run(ctx, "", argv(src, format))
+	out, err := g.run(ctx, "", argv(src, format, sourceName))
 	if err != nil {
 		return pkgsbom.Document{}, fmt.Errorf("syft %s: %w", label, err)
 	}

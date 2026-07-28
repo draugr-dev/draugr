@@ -46,7 +46,10 @@ func TestGenerateRepositoryChecksOutAndScansTheTree(t *testing.T) {
 	if r.checkout != 1 {
 		t.Errorf("checkouts = %d, want 1", r.checkout)
 	}
-	want := []string{"syft", "scan", "dir:/tmp/checkout", "-o", "spdx-json", "-q"}
+	// --source-name is the difference between a document that names the repository and one that
+	// names a temporary directory nobody will ever see again.
+	want := []string{"syft", "scan", "dir:/tmp/checkout", "-o", "spdx-json", "-q",
+		"--source-name", "https://git/x"}
 	if strings.Join(r.argv, " ") != strings.Join(want, " ") {
 		t.Errorf("argv  = %v\nwant  = %v", r.argv, want)
 	}
@@ -74,6 +77,8 @@ func TestGenerateImageDoesNotCheckOut(t *testing.T) {
 	}
 	// The digest is pinned so the inventory describes the bytes we named, not whatever the tag
 	// points at by the time Syft resolves it.
+	// No --source-name for an image: the reference is already stable and meaningful, so
+	// overriding it would only risk disagreeing with what Syft resolved.
 	want := []string{"syft", "scan", "python:3.8-slim@sha256:abc", "-o", "cyclonedx-json", "-q"}
 	if strings.Join(r.argv, " ") != strings.Join(want, " ") {
 		t.Errorf("argv  = %v\nwant  = %v", r.argv, want)
