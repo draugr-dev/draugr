@@ -90,19 +90,22 @@ More controls (SBOM, infrastructure, threat intelligence) are on the roadmap. Se
 [Semgrep](https://semgrep.dev) (`sast`); `git` for repo scans. Or run
 `draugr tools install` to fetch pinned, verified copies. Go 1.26+ only to build from source.
 
-**Install from a release (recommended):**
+**Install (recommended):**
 
 ```bash
-tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
-  https://github.com/draugr-dev/draugr/releases/latest | sed 's#.*/tag/##')
-curl -fsSL "https://github.com/draugr-dev/draugr/releases/download/${tag}/draugr_${tag#v}_$(uname -s | tr A-Z a-z)_amd64.tar.gz" \
-  | tar -xz draugr
-sudo mv draugr /usr/local/bin/ && draugr version
+curl -fsSL https://draugr.dev/install.sh | sh
 ```
 
-Releases are cosign-signed with SBOMs and SLSA build provenance — see
-[install & verifying downloads](docs/getting-started/install.md) for the verifying `curl` recipe.
-Once installed, update in place with **`draugr self-update`**.
+Detects your OS and architecture and installs to `~/.local/bin` — no `sudo`. It **verifies before
+it installs and says which checks ran**: the archive's SHA-256 against the release's
+`checksums.txt` always, plus the cosign signature on `checksums.txt` when
+[cosign](https://docs.sigstore.dev/cosign/) is on your `PATH`. Nothing is installed if a check
+fails.
+
+Piping a script into a shell means trusting the host that served it. The script is
+[readable in the repo](install.sh), and
+[install & verifying downloads](docs/getting-started/install.md) has the manual steps, the
+`DRAUGR_*` knobs, and Homebrew. Once installed, update in place with **`draugr self-update`**.
 
 **Or build from source:**
 
@@ -144,10 +147,11 @@ draugr scan draugr.saga.yaml --fail-on warning
 draugr scan draugr.saga.yaml --format markdown   # or html, junit, json, sarif
 ```
 
-**Your editor can help you write it.** Draugr publishes a
-[JSON Schema](https://draugr.dev/schema/draugr.saga.schema.json) for the Saga, so VS Code,
-JetBrains and Neovim complete field and control names, show what each one means on hover, and
-flag typos as you type. `draugr init` wires it up automatically; for an existing file, add:
+**Your editor already knows this file.** Draugr's
+[JSON Schema](https://draugr.dev/schema/draugr.saga.schema.json) is registered with
+[SchemaStore](https://www.schemastore.org/), which VS Code's YAML extension and JetBrains IDEs
+consult by default — so any `*.saga.yaml` gets completion, hover docs and typo warnings on open,
+with nothing to configure. For an editor that doesn't use the catalog, `draugr init` also writes:
 
 ```yaml
 # yaml-language-server: $schema=https://draugr.dev/schema/draugr.saga.schema.json
