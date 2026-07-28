@@ -7,7 +7,9 @@ import (
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
 )
 
@@ -183,5 +185,42 @@ func TestSBOMArtifactsSurviveAnUnmappedFormat(t *testing.T) {
 	}
 	if len(arts[0].Bytes) == 0 {
 		t.Error("the document must still carry its bytes")
+	}
+}
+
+func TestConsoleReportsSuppressionsAndKeepsThemOutOfFixFirst(t *testing.T) {
+	// An excluded finding that left no trace would read exactly like one that was never found.
+	// The count is what makes the difference visible.
+	rep := sarif.Report{Tool: "gitleaks", Results: []sarif.Result{
+		{RuleID: "private-key", Level: sarif.LevelError, Message: "fake key",
+			Location:    sarif.Location{URI: "test/fixture.go", StartLine: 1},
+			Suppression: &sarif.Suppression{Kind: "external", Justification: "deliberate fixture"}},
+	}}
+	d := Data{
+		Release: saga.Release{Name: "app", Version: "1"},
+		Run:     engine.Result{Controls: map[string]plugin.ControlResult{"secrets": {Control: "secrets", Report: rep}}, Suppressed: 1},
+		Verdict: norn.Result{Verdict: norn.Pass},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "1 finding suppressed by config.exclude") {
+		t.Errorf("want the suppression count:\n%s", out)
+	}
+	if strings.Contains(out, "private-key") {
+		t.Errorf("a suppressed finding must not appear in the fix-first list:\n%s", out)
+	}
+}
+
+func TestConsoleSaysNothingWhenNothingWasSuppressed(t *testing.T) {
+	var buf bytes.Buffer
+	d := Data{Release: saga.Release{Name: "a", Version: "1"}, Verdict: norn.Result{Verdict: norn.Pass}}
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if strings.Contains(buf.String(), "suppressed") {
+		t.Errorf("no exclusions means no line:\n%s", buf.String())
 	}
 }

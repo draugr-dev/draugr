@@ -172,6 +172,9 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob) ([]plugin.
 type Result struct {
 	Controls map[string]plugin.ControlResult
 	Stats    Stats
+	// Suppressed counts findings a config.exclude rule matched. They are still present in the
+	// reports, marked with their justification — this is how many stopped counting.
+	Suppressed int
 	// SBOMs are the Software Bills of Materials produced when the Saga enables config.sbom.
 	// Evidence rather than judgement: they carry no findings and never affect the verdict.
 	SBOMs []sbom.Document
@@ -397,6 +400,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		}
 		res.Controls[control] = cr
 	}
+
+	// Exclusions apply after aggregation, to what every consumer will see. Doing it here rather
+	// than per scanner means one syntax covers every tool, including ones added later — and it
+	// is what makes suppress-rather-than-delete possible at all: a finding a scanner never
+	// produced cannot be marked.
+	res.Suppressed = applyExclusions(res.Controls, model.Config.Exclude)
 	return res, errors.Join(errs...)
 }
 
@@ -444,6 +453,42 @@ func sortedReportKeys(m map[string][]sarif.Report) []string {
 // planningPseudoControl is where a planning failure is reported, since it belongs to the run
 // rather than to any one control.
 const planningPseudoControl = "(planning)"
+
+// applyExclusions marks findings matched by a Saga exclusion and returns how many. The finding
+// stays in the report carrying its justification, so an exclusion is auditable rather than a
+// hole; Counts skips suppressed results, so the summary and the verdict simply stop seeing it.
+//
+// Summaries are recomputed afterwards because a controller built them from the unsuppressed
+// report during Aggregate.
+func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.ExcludeRule) int {
+	if len(rules) == 0 {
+		return 0
+	}
+	total := 0
+	for name, cr := range controls {
+		n := 0
+		for i := range cr.Report.Results {
+			res := &cr.Report.Results[i]
+			if res.Suppressed() {
+				continue // already suppressed upstream; leave the original reason intact
+			}
+			for _, rule := range rules {
+				if rule.Matches(res.Location.URI, res.RuleID) {
+					res.Suppression = &sarif.Suppression{Kind: "external", Justification: rule.Reason}
+					n++
+					break
+				}
+			}
+		}
+		if n > 0 {
+			counts := cr.Report.Counts()
+			cr.Summary = plugin.Summary{Errors: counts.Error, Warnings: counts.Warning, Notes: counts.Note}
+			controls[name] = cr
+			total += n
+		}
+	}
+	return total
+}
 
 // sbomPseudoControl is where SBOM generation failures are reported. SBOMs are evidence, not a
 // control, but a failure still has to land somewhere a caller will look — and it makes the run

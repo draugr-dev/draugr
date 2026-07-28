@@ -10,6 +10,28 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **Exclude findings in the Saga, with a reason.** One syntax for every scanner, in the file that
+  already describes your scope:
+
+  ```yaml
+  config:
+    exclude:
+      - paths: ["test/integration/repo_scan_test.go"]
+        rules: ["private-key"]
+        reason: "Deliberate test fixture; the key material is fake."
+  ```
+
+  **The finding is suppressed, not deleted.** It stays in the SARIF marked with your
+  justification, so GitHub code scanning files it as closed-as-suppressed and anyone auditing can
+  see what was set aside and why. It stops counting toward the summary, the verdict and the
+  fix-first list, and the console reports how many were suppressed — because an exclusion that
+  left no trace would read exactly like a finding that was never there.
+
+  A `reason` is required. When both `paths` and `rules` are given, a finding has to match both,
+  so "ignore this rule in the fixture" can't quietly become "ignore this rule everywhere".
+
 ### Fixed
 
 - **Dependency findings say what the vulnerability is.** A `sca` row used to read

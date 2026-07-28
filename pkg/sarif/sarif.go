@@ -102,6 +102,10 @@ type sarifResult struct {
 // in-source `nosem` comments). A result with any suppression is not an active finding.
 type sarifSuppression struct {
 	Kind string `json:"kind"`
+	// Justification is why. SARIF makes it optional; Draugr always writes one for the
+	// suppressions it creates, because an exclusion without a stated reason is how a scanner
+	// gets quietly defanged.
+	Justification string `json:"justification,omitempty"`
 }
 
 type sarifMessage struct {
@@ -180,6 +184,12 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			RuleID:  res.RuleID,
 			Level:   string(res.Level),
 			Message: sarifMessage{Text: res.Message},
+		}
+		// A suppressed finding is still emitted, marked. Deleting it would leave no trace that
+		// anything was excluded; this way the evidence survives and only the verdict changes.
+		// GitHub code scanning reads this and files the alert as closed-as-suppressed.
+		if s := res.Suppression; s != nil {
+			sr.Suppressions = []sarifSuppression{{Kind: s.Kind, Justification: s.Justification}}
 		}
 		if res.Location.URI != "" {
 			art := sarifArtifact{URI: res.Location.URI}

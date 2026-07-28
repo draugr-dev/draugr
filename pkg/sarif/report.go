@@ -62,7 +62,24 @@ type Result struct {
 	// Priority is the computed action band (P1–P4) for this finding, stamped by the engine
 	// from the component's risk classification. Empty when prioritization is not configured.
 	Priority string `json:"priority,omitempty"`
+	// Suppression is set when a Saga exclusion matched this finding. A suppressed result is
+	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
+	// Nil for an active finding.
+	Suppression *Suppression `json:"suppression,omitempty"`
 }
+
+// Suppression records that a finding was excluded, and why.
+type Suppression struct {
+	// Kind is the SARIF suppression kind. Draugr writes "external": the decision came from the
+	// Saga, not from an annotation in the source.
+	Kind string `json:"kind"`
+	// Justification is the reason the Saga gave. Required by Draugr even though SARIF allows
+	// it to be absent.
+	Justification string `json:"justification"`
+}
+
+// Suppressed reports whether this finding was excluded by a Saga rule.
+func (r Result) Suppressed() bool { return r.Suppression != nil }
 
 // Fingerprint is a stable identifier for deduplication: two results with the same
 // fingerprint are considered the same finding.
@@ -175,6 +192,11 @@ func (c Counts) Total() int { return c.Error + c.Warning + c.Note + c.None }
 func (r Report) Counts() Counts {
 	var c Counts
 	for _, res := range r.Results {
+		// A suppressed finding is evidence, not a count. Including it here would put it back
+		// into the verdict through the summary, which is the whole thing an exclusion prevents.
+		if res.Suppressed() {
+			continue
+		}
 		switch res.Level {
 		case LevelError:
 			c.Error++
@@ -193,6 +215,12 @@ func (r Report) Counts() Counts {
 func (r Report) Highest() Level {
 	highest := LevelNone
 	for _, res := range r.Results {
+		// Suppressed findings are reported but not judged. Missing this is how a Saga
+		// exclusion appears to work — the count drops to zero — while the gate still fails on
+		// the finding it was supposed to set aside.
+		if res.Suppressed() {
+			continue
+		}
 		if res.Level.Rank() > highest.Rank() {
 			highest = res.Level
 		}

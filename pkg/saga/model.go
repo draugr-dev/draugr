@@ -1,6 +1,10 @@
 package saga
 
-import "slices"
+import (
+	"path"
+	"slices"
+	"strings"
+)
 
 // Model is a parsed Saga descriptor — the declarative account of an application's
 // security surface plus the controller configuration that drives a scan.
@@ -29,10 +33,71 @@ type Config struct {
 	Reports []ReportConfig `yaml:"reports,omitempty"`
 	// Publishers are the destinations that rendered reports are delivered to.
 	Publishers []PublisherConfig `yaml:"publishers,omitempty"`
+	// Exclude suppresses findings that match, with a stated reason. Suppressed findings are
+	// still reported — they just stop counting toward the verdict.
+	Exclude []ExcludeRule `yaml:"exclude,omitempty"`
 	// SBOM turns on Software Bill of Materials generation for this project's repositories and
 	// images. It is evidence rather than a control: an SBOM is an inventory, it finds nothing,
 	// and it never affects the verdict.
 	SBOM *SBOMConfig `yaml:"sbom,omitempty"`
+}
+
+// ExcludeRule suppresses findings that match it. Every real repository has paths that are not
+// the application — fixtures, examples, generated code — and rules that do not apply to them.
+//
+// Two properties are deliberate. A reason is **required**, so the why is in the diff where a
+// reviewer sees it rather than in someone's memory. And a matched finding is *suppressed*, not
+// deleted: it stays in the report marked with its justification, so an exclusion is auditable
+// and cannot become a blind spot nobody can see.
+type ExcludeRule struct {
+	// Paths matches the finding's location. A pattern ending in "/" matches everything beneath
+	// that directory; otherwise it is a glob (path.Match) against the whole location, so
+	// "*.md" and "test/fixture.go" both work.
+	Paths []string `yaml:"paths,omitempty"`
+	// Rules matches the finding's rule id exactly.
+	Rules []string `yaml:"rules,omitempty"`
+	// Reason is why this exclusion exists. Required.
+	Reason string `yaml:"reason"`
+}
+
+// Matches reports whether a finding at uri with rule id ruleID falls under this exclusion.
+//
+// When both selectors are set they must both match. That is the narrow reading — "this rule, in
+// this place" — and it is the safe one: the alternative would silently widen "ignore the test
+// fixture's fake key" into "ignore that rule everywhere".
+func (e ExcludeRule) Matches(uri, ruleID string) bool {
+	if len(e.Paths) == 0 && len(e.Rules) == 0 {
+		return false // an empty rule would suppress everything; Validate rejects it too
+	}
+	if len(e.Paths) > 0 && !matchesAnyPath(e.Paths, uri) {
+		return false
+	}
+	if len(e.Rules) > 0 && !slices.Contains(e.Rules, ruleID) {
+		return false
+	}
+	return true
+}
+
+// matchesAnyPath reports whether uri is covered by any of the patterns.
+func matchesAnyPath(patterns []string, uri string) bool {
+	if uri == "" {
+		return false // nothing to match against; excluding it would be a guess
+	}
+	for _, p := range patterns {
+		if strings.HasSuffix(p, "/") {
+			if strings.HasPrefix(uri, p) {
+				return true
+			}
+			continue
+		}
+		if p == uri {
+			return true
+		}
+		if ok, err := path.Match(p, uri); err == nil && ok {
+			return true
+		}
+	}
+	return false
 }
 
 // SBOMConfig turns on SBOM generation and chooses the document format.
