@@ -28,8 +28,14 @@ func TestArtifactFilenames(t *testing.T) {
 		if a.Filename != want[i] {
 			t.Errorf("filename[%d] = %q, want %q", i, a.Filename, want[i])
 		}
-		if a.Format != "sbom" || a.ContentType != "application/json" {
-			t.Errorf("artifact[%d] metadata wrong: %+v", i, a)
+		if a.Format != "sbom" {
+			t.Errorf("artifact[%d] format = %q, want sbom", i, a.Format)
+		}
+	}
+	// Each format claims its own media type rather than a blanket application/json.
+	for i, want := range []string{"application/spdx+json", "application/vnd.cyclonedx+json"} {
+		if arts[i].ContentType != want {
+			t.Errorf("contentType[%d] = %q, want %q", i, arts[i].ContentType, want)
 		}
 	}
 }
@@ -72,8 +78,18 @@ func TestEveryFormatHasAFileExtension(t *testing.T) {
 	// A format the Saga accepts but that has no extension here would silently produce
 	// "sbom-x-y.json" — readable, but not what a consumer keying on the suffix expects.
 	for _, f := range saga.SBOMFormats {
-		if extensions[f] == "" {
-			t.Errorf("format %q has no file extension mapped", f)
+		meta, ok := sbomMeta[f]
+		if !ok {
+			t.Errorf("format %q has no file extension or media type mapped", f)
+			continue
+		}
+		// An XML or tag-value document labelled application/json would be a lie the moment a
+		// publisher acts on the media type.
+		if meta.ext == "" || meta.contentType == "" {
+			t.Errorf("format %q has an incomplete mapping: %+v", f, meta)
+		}
+		if strings.HasSuffix(string(f), "-xml") && !strings.Contains(meta.contentType, "xml") {
+			t.Errorf("format %q should not claim %q", f, meta.contentType)
 		}
 	}
 }
@@ -129,5 +145,43 @@ func TestConsoleOmitsTheSBOMLineWhenThereAreNone(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), "SBOM") {
 		t.Errorf("no SBOMs means no line at all:\n%s", buf.String())
+	}
+}
+
+func TestSBOMArtifactsCoverEveryEncoding(t *testing.T) {
+	// The point of offering four formats is that a consumer picks one. Each has to produce a
+	// distinct, recognisable filename — two of them are not JSON at all.
+	docs := []sbom.Document{
+		{Component: "c", Target: "t", Format: saga.SBOMSPDXJSON},
+		{Component: "c", Target: "t", Format: saga.SBOMSPDXTagValue},
+		{Component: "c", Target: "t", Format: saga.SBOMCycloneDXJSON},
+		{Component: "c", Target: "t", Format: saga.SBOMCycloneDXXML},
+	}
+	want := []string{"sbom-c-t.spdx.json", "sbom-c-t.spdx", "sbom-c-t.cdx.json", "sbom-c-t.cdx.xml"}
+	arts := SBOMArtifacts(docs)
+	for i, a := range arts {
+		if a.Filename != want[i] {
+			t.Errorf("filename[%d] = %q, want %q", i, a.Filename, want[i])
+		}
+	}
+	// Same component and target in four formats must not collide on disk.
+	seen := map[string]bool{}
+	for _, a := range arts {
+		if seen[a.Filename] {
+			t.Errorf("duplicate filename %q", a.Filename)
+		}
+		seen[a.Filename] = true
+	}
+}
+
+func TestSBOMArtifactsSurviveAnUnmappedFormat(t *testing.T) {
+	// Unreachable through the Saga, which validates first. If it ever happens, writing the
+	// document with a dull suffix beats dropping evidence on the floor.
+	arts := SBOMArtifacts([]sbom.Document{{Component: "c", Target: "t", Format: "future-format", Bytes: []byte("x")}})
+	if len(arts) != 1 || arts[0].Filename != "sbom-c-t.sbom" {
+		t.Errorf("artifact = %+v, want a written document with a fallback suffix", arts)
+	}
+	if len(arts[0].Bytes) == 0 {
+		t.Error("the document must still carry its bytes")
 	}
 }

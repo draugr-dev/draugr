@@ -14,14 +14,18 @@ and move it under a version on release.
 
 - **Software Bills of Materials, via [Syft](https://github.com/anchore/syft).** Turn it on with
   `config.sbom` in your Saga and every scan also produces an inventory of each repository and
-  image — SPDX JSON by default, CycloneDX JSON if you prefer:
+  image:
 
   ```yaml
   config:
     sbom:
       enabled: true
-      format: spdx-json      # or cyclonedx-json
+      format: spdx-json      # defaults to spdx-json
   ```
+
+  Four formats, both open specifications in both of their standard encodings — `spdx-json`,
+  `spdx-tag-value`, `cyclonedx-json`, `cyclonedx-xml` — so you can hand the document to whatever
+  reads it. An unsupported value is rejected when the Saga loads, not after the scan has run.
 
   The documents land beside your other artifacts with `-o`, and go to any publisher you have
   configured. `draugr tools install syft` fetches the tool.

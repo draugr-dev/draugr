@@ -255,10 +255,12 @@
         },
         "format": {
           "type": "string",
-          "description": "SBOM document format. Defaults to spdx-json.",
+          "description": "SBOM document format. Defaults to spdx-json. SPDX and CycloneDX are each offered in both of their standard encodings; pick whichever your consumer reads.",
           "enum": [
             "spdx-json",
-            "cyclonedx-json"
+            "spdx-tag-value",
+            "cyclonedx-json",
+            "cyclonedx-xml"
           ]
         }
       }

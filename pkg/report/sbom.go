@@ -8,10 +8,14 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sbom"
 )
 
-// extensions maps a format to the file suffix its consumers expect.
-var extensions = map[saga.SBOMFormat]string{
-	saga.SBOMSPDXJSON:      "spdx.json",
-	saga.SBOMCycloneDXJSON: "cdx.json",
+// sbomMeta maps a format to the file suffix and media type its consumers expect, mirroring
+// formatMeta for reports. Not every SBOM is JSON — labelling an XML or tag-value document
+// application/json would be wrong the moment a publisher does anything with the media type.
+var sbomMeta = map[saga.SBOMFormat]struct{ ext, contentType string }{
+	saga.SBOMSPDXJSON:      {"spdx.json", "application/spdx+json"},
+	saga.SBOMSPDXTagValue:  {"spdx", "text/spdx; charset=utf-8"},
+	saga.SBOMCycloneDXJSON: {"cdx.json", "application/vnd.cyclonedx+json"},
+	saga.SBOMCycloneDXXML:  {"cdx.xml", "application/vnd.cyclonedx+xml"},
 }
 
 // SBOMArtifacts converts SBOM documents into the unit publishers deliver, so SBOMs travel the
@@ -19,14 +23,17 @@ var extensions = map[saga.SBOMFormat]string{
 func SBOMArtifacts(docs []sbom.Document) []Artifact {
 	arts := make([]Artifact, 0, len(docs))
 	for _, d := range docs {
-		ext := extensions[d.Format]
-		if ext == "" {
-			ext = "json"
+		meta, ok := sbomMeta[d.Format]
+		if !ok {
+			// Unreachable via the Saga, which validates the format at load time. A document
+			// still gets written rather than dropped: losing evidence would be worse than an
+			// imprecise suffix.
+			meta = struct{ ext, contentType string }{"sbom", "application/octet-stream"}
 		}
 		arts = append(arts, Artifact{
 			Format:      "sbom",
-			Filename:    fmt.Sprintf("sbom-%s-%s.%s", slug(d.Component), slug(d.Target), ext),
-			ContentType: "application/json",
+			Filename:    fmt.Sprintf("sbom-%s-%s.%s", slug(d.Component), slug(d.Target), meta.ext),
+			ContentType: meta.contentType,
 			Bytes:       d.Bytes,
 		})
 	}

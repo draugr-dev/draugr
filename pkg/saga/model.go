@@ -47,17 +47,28 @@ type SBOMConfig struct {
 // specifications that downstream tooling already reads.
 type SBOMFormat string
 
-// The SBOM document formats Draugr can emit.
+// The SBOM document formats Draugr can emit: the two open specifications, each in both of its
+// standard encodings. Which one you want is decided by whatever consumes the document, so the
+// choice is yours rather than ours.
+//
+// Syft can emit more (its own syft-json, GitHub's dependency-snapshot format, a bare PURL list),
+// but those are either vendor-specific or not an SBOM. Keeping this list to the interchange
+// formats means every document Draugr produces is one a third party can read.
 const (
-	// SBOMSPDXJSON is the default: the ISO standard (ISO/IEC 5962), and what Draugr's own
-	// releases publish.
+	// SBOMSPDXJSON is the default: SPDX in JSON, the ISO standard (ISO/IEC 5962), and what
+	// Draugr's own releases publish.
 	SBOMSPDXJSON SBOMFormat = "spdx-json"
-	// SBOMCycloneDXJSON is the OWASP format, common in security tooling.
+	// SBOMSPDXTagValue is SPDX in its original tag-value encoding, still required by some
+	// compliance tooling.
+	SBOMSPDXTagValue SBOMFormat = "spdx-tag-value"
+	// SBOMCycloneDXJSON is the OWASP format in JSON, common in security tooling.
 	SBOMCycloneDXJSON SBOMFormat = "cyclonedx-json"
+	// SBOMCycloneDXXML is CycloneDX in XML, which some enterprise tooling still expects.
+	SBOMCycloneDXXML SBOMFormat = "cyclonedx-xml"
 )
 
 // SBOMFormats lists the valid SBOM document formats.
-var SBOMFormats = []SBOMFormat{SBOMSPDXJSON, SBOMCycloneDXJSON}
+var SBOMFormats = []SBOMFormat{SBOMSPDXJSON, SBOMSPDXTagValue, SBOMCycloneDXJSON, SBOMCycloneDXXML}
 
 // Valid reports whether f is a known SBOM format. The empty value is not valid here; it means
 // "the default" to callers, which resolve it before use.

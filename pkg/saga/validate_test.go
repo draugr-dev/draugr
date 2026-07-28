@@ -174,7 +174,9 @@ func TestValidateSBOMFormat(t *testing.T) {
 	if err := base("").Validate(); err != nil {
 		t.Errorf("an unset format should validate: %v", err)
 	}
-	err := base("spdx-tag-value").Validate()
+	// syft-json is a real Syft format we deliberately don't offer — vendor-specific rather than
+	// an interchange standard — so it has to be rejected, not quietly passed through to Syft.
+	err := base("syft-json").Validate()
 	if err == nil {
 		t.Fatal("want an error for an unsupported format")
 	}
