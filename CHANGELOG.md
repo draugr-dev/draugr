@@ -12,6 +12,19 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`--min-priority` now works with `--format sarif`.** It was silently ignored: the output was
+  byte-identical with and without the flag, so the machine consumer with the strongest reason to
+  ask for "just the P1s" was the one it didn't serve — and the one least able to notice. On
+  Draugr's demo repository, `--format sarif --compact --min-priority p1` is now **61% smaller**
+  (11.7 KB against 30.1 KB), because the rules the omitted findings referenced leave with them.
+
+  It narrows what a run **shows**, never what it **records**. `results.sarif` under `-o` and
+  everything sent to a publisher stay complete, and a run that had to ignore the flag says so.
+  The reason is one asymmetry worth knowing: GitHub code scanning resolves any alert missing
+  from an upload as fixed, so a filtered report published there would quietly close real
+  findings — and `results.sarif` is also what `draugr diff` compares against, where a
+  short baseline makes the next delta wrong.
+
 - **The same scan now produces the same report, byte for byte.** Controls were listed in whatever
   order Go's map iteration happened to yield, so two runs of an unchanged repository printed the
   `Controls:` block differently and wrote different `report.json`, markdown and HTML — enough to

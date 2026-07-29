@@ -25,7 +25,7 @@ inputs:
     required: false
     default: ""
   min-priority:
-    description: List findings at or above this priority band (P1-P4) in the console output.
+    description: List findings at or above this priority band (P1-P4) in the printed output. Artifacts and code-scanning uploads stay complete.
     required: false
     default: ""
   cache-dir:
