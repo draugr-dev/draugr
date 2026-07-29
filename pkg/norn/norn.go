@@ -6,6 +6,8 @@
 package norn
 
 import (
+	"sort"
+
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -61,11 +63,21 @@ type Result struct {
 }
 
 // Evaluate judges each control's report against the policy and combines them. The overall
-// verdict is Fail if any control fails. Controls are reported in the given order (sort
-// upstream for determinism if needed).
+// verdict is Fail if any control fails.
+//
+// Controls come back in **alphabetical order**, not the order the map happened to yield. Go
+// randomizes map iteration, so without sorting here the same scan prints its Controls block —
+// and writes its report.json, markdown and HTML — in a different order each run. That makes two
+// runs of an unchanged repository diff against each other, which is the opposite of what an
+// artifact offered as evidence is for, and it contradicts the promise that the same input gives
+// the same answer.
+//
+// Alphabetical rather than, say, worst-first: it is stable as controls are added, and it matches
+// how the catalog and the docs list them.
 func (p Policy) Evaluate(reports map[string]sarif.Report) Result {
 	res := Result{Verdict: Pass}
-	for control, report := range reports {
+	for _, control := range sortedControls(reports) {
+		report := reports[control]
 		threshold := p.thresholdFor(control)
 		highest := report.Highest()
 		highestPrio := highestPriority(report)
@@ -89,6 +101,16 @@ func (p Policy) Evaluate(reports map[string]sarif.Report) Result {
 		res.Controls = append(res.Controls, outcome)
 	}
 	return res
+}
+
+// sortedControls orders control names so a run is reproducible.
+func sortedControls(reports map[string]sarif.Report) []string {
+	names := make([]string, 0, len(reports))
+	for name := range reports {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // priorityFails reports whether a control's most-urgent priority trips the priority gate.

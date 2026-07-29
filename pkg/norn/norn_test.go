@@ -1,6 +1,7 @@
 package norn
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -156,5 +157,32 @@ func TestVerdictStillFailsOnAnUnsuppressedFinding(t *testing.T) {
 	res := Policy{FailOn: sarif.LevelError}.Evaluate(map[string]sarif.Report{"sca": rep})
 	if res.Verdict != Fail {
 		t.Error("an unsuppressed error must still fail the gate")
+	}
+}
+
+// Go randomizes map iteration, so Evaluate used to return controls in a different order on
+// different runs — which reached the console, report.json, and the markdown and HTML reports,
+// making two scans of an unchanged repository diff against each other.
+//
+// Asserted directly rather than by evaluating twice and comparing: with a handful of controls,
+// two runs collide by chance often enough that such a test would pass most of the time and fail
+// mysteriously the rest.
+func TestEvaluateOrdersControlsAlphabetically(t *testing.T) {
+	reports := map[string]sarif.Report{
+		"secrets":  {},
+		"iac":      {},
+		"sca":      {},
+		"licenses": {},
+		"sast":     {},
+	}
+	res := Policy{FailOn: sarif.LevelError}.Evaluate(reports)
+
+	got := make([]string, 0, len(res.Controls))
+	for _, c := range res.Controls {
+		got = append(got, c.Control)
+	}
+	want := []string{"iac", "licenses", "sast", "sca", "secrets"}
+	if !slices.Equal(got, want) {
+		t.Errorf("control order = %v, want %v", got, want)
 	}
 }
