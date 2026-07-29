@@ -159,8 +159,9 @@ jobs:
 
   # Re-record the README GIF against the release that was just published. Invoked here rather
   # than triggered by `release: published` in demo-gif.yml, because GoReleaser publishes the
-  # release using GITHUB_TOKEN and GitHub does not raise workflow-starting events for anything
-  # GITHUB_TOKEN did. Verified the hard way on v0.43.0: the release trigger produced no run.
+  # release using GITHUB_TOKEN, and GitHub does not raise workflow-starting events for anything
+  # GITHUB_TOKEN did — so a `release` trigger would never fire. A reusable-workflow call is a
+  # direct invocation rather than an event, and is not subject to that rule.
   #
   # It opens a pull request rather than committing, so a bad render is caught before it reaches
   # the README, and it no-ops when the GIF is byte-identical.

@@ -23,9 +23,10 @@ config:
     licenses:
       enabled: true
   # Replaces a .semgrepignore and a .gitleaks.toml: two files, two syntaxes, two discovery
-  # rules. Worth knowing why that mattered — .semgrepignore *replaces* Semgrep's built-in
-  # ignore list rather than extending it, so the first version of ours silently un-ignored
-  # every _test.go in the repo. One place, one syntax, and the reason travels with the rule.
+  # rules. Worth knowing why that matters — a .semgrepignore *replaces* Semgrep's built-in
+  # ignore list rather than extending it, so any file using one has to restate the defaults or
+  # quietly un-ignore every _test.go. One place, one syntax, and the reason travels with the
+  # rule.
   exclude:
     - paths:
         - "examples/"
