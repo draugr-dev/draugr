@@ -8,13 +8,13 @@ import (
 )
 
 // Every controller, scanner and surveyor ships a colocated `.md` beside its code, and a row in
-// the integrations catalog linking to it. That convention is written down in the contributing
-// docs, and writing it down was not enough: the `licenses` control shipped with its Saga
-// reference but no `internal/controllers/licenses.md`, so the catalog's Doc column was a dash
-// and the scanner table had no `trivy-license` row at all. Nothing failed, and the gap reached
-// the published site.
+// the integrations catalog linking to it.
 //
-// It's mechanically checkable, so it's checked here rather than left to a reviewer noticing.
+// The requirement is easy to satisfy and easy to overlook: a plugin with no documentation still
+// compiles, still passes its own tests, and still runs. Nothing about it looks wrong until
+// someone goes looking for the docs. The website generates its documentation from this
+// repository, so a gap here becomes a gap there. It is mechanically checkable, so it is checked
+// rather than left to a reviewer remembering.
 //
 // The catalog assertion matters as much as the file one: a doc nothing links to is a doc nobody
 // finds, and the catalog is the page the website, the README and the disclaimer all point at.
