@@ -10,7 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Findings read properly in your editor and on pull requests.** Trivy writes its finding
+  message as a field dump whose first line is a filename, and a SARIF viewer shows the first
+  line — so a Kubernetes manifest with fourteen misconfigurations produced fourteen rows in the
+  Problems panel all reading `Artifact: deploy/pod.yaml`, with the one distinguishing fact five
+  lines down.
+
+  Messages are now normalized where a scanner's output is decoded rather than where the terminal
+  renders it, so the advisory title (`Image user should not be 'root'`) reaches every consumer:
+  the SARIF you open in VS Code or JetBrains, GitHub code-scanning annotations, and MCP clients.
+  On the demo repository that is 39 of 56 findings. The scanner's full detail is unchanged and
+  still travels on the rule, which is what a viewer shows beside a selected finding.
+
+  Terminal output is unaffected — it already showed the title.
 
 ## [0.43.0] - 2026-07-28
 

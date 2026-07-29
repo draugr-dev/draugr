@@ -602,3 +602,71 @@ func TestMarshalCompactDropsProseKeepsPointer(t *testing.T) {
 		t.Error("compact dropped the scanner tag")
 	}
 }
+
+// Trivy's message repeats what every consumer already shows in its own column, and its first
+// line is a filename — so an editor's Problems panel lists a manifest's findings as N identical
+// rows. The advisory title is on the rule; prefer it.
+func TestReadableMessagePrefersTheAdvisoryOverAFieldDump(t *testing.T) {
+	dump := "Package: Flask\nInstalled Version: 0.12.2\nVulnerability CVE-2018-1000656\n" +
+		"Severity: HIGH\nFixed Version: 0.12.3\nLink: [CVE-2018-1000656](https://avd.aquasec.com/nvd/cve-2018-1000656)"
+	const summary = "python-flask: Denial of Service via crafted JSON file"
+	if got := readableMessage(dump, summary); got != summary {
+		t.Errorf("readableMessage = %q, want the advisory title", got)
+	}
+}
+
+// Semgrep and Gitleaks write sentences. Some scanners publish a shortDescription that only
+// restates the rule id, so preferring it unconditionally would make things worse.
+func TestReadableMessageLeavesProseAlone(t *testing.T) {
+	for _, msg := range []string{
+		"GitHub Actions step uses a mutable tag or branch reference.",
+		"private-key has detected secret for file test/fixture.go.",
+	} {
+		if got := readableMessage(msg, "Semgrep Finding: yaml.github-actions.security.x"); got != msg {
+			t.Errorf("readableMessage(%q) = %q, want it untouched", msg, got)
+		}
+	}
+}
+
+// A field dump is poor, but it is what the scanner said. Blanking it would be worse.
+func TestReadableMessageKeepsTheDumpWhenThereIsNoAlternative(t *testing.T) {
+	dump := "Package: Flask\nInstalled Version: 0.12.2"
+	if got := readableMessage(dump, ""); got != dump {
+		t.Errorf("readableMessage = %q, want the original when the rule has no summary", got)
+	}
+}
+
+// "Warning: the certificate expires" is prose, not a field dump. Requiring several lines is
+// what separates them.
+func TestReadableMessageIgnoresASingleLineColon(t *testing.T) {
+	msg := "Warning: the certificate expires in 3 days."
+	if got := readableMessage(msg, "something else entirely"); got != msg {
+		t.Errorf("readableMessage = %q, want the original", got)
+	}
+}
+
+// The whole point of normalizing at the decode boundary rather than in the console renderer:
+// a machine consumer reads the same readable text a person does. This is the case that
+// regressed unnoticed for as long as only the terminal was checked.
+func TestFromSARIFRewritesFieldDumpMessages(t *testing.T) {
+	const raw = `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Trivy","rules":[
+      {"id":"DS-0002","shortDescription":{"text":"Image user should not be 'root'"}}]}},
+      "results":[{"ruleId":"DS-0002","level":"error",
+        "message":{"text":"Artifact: app/Dockerfile\nType: dockerfile\nVulnerability DS-0002\nSeverity: HIGH"},
+        "locations":[{"physicalLocation":{"artifactLocation":{"uri":"app/Dockerfile"},
+          "region":{"startLine":1}}}]}]}]}`
+	rep, err := FromSARIF([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 1 {
+		t.Fatalf("want 1 result, got %d", len(rep.Results))
+	}
+	if got := rep.Results[0].Message; got != "Image user should not be 'root'" {
+		t.Errorf("decoded message = %q, want the rule's summary", got)
+	}
+	// The scanner's own detail has to survive somewhere a viewer can show it.
+	if rep.Rules["DS-0002"].ShortDescription == "" {
+		t.Error("the rule description should still be carried")
+	}
+}
