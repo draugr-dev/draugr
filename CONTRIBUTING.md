@@ -45,6 +45,9 @@ sandbox and needs Trivy, Gitleaks and Semgrep on PATH). The GIF re-renders itsel
 release — you don't need to run vhs locally, though `gh workflow run 'Demo GIF'` will do it on
 demand.
 
+Two blog posts on the website quote console output as well. They live in a different repository,
+so no test here can catch them; the golden's failure message names them so they don't get missed.
+
 ### Integration tests
 
 Heavier tests that exercise real external dependencies — a real Trivy binary and an ephemeral
