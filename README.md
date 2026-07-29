@@ -32,24 +32,27 @@ This is the open-source core engine.
 ```text
 Draugr — FAIL   (draugr-demo 0.0.0)
 
-Priorities:  P1 21   P2 25   P3 13   P4 0
+Priorities:  P1 21   P2 22   P3 13   P4 0
 
 Controls:
-  iac      FAIL  4 high  5 medium  12 low
-  sast     FAIL  7 high  12 medium
-  sca      FAIL  3 critical  6 high  8 medium  1 low
-  secrets  FAIL  1 high
+  secrets  FAIL   1 high
+  iac      FAIL   4 high  5 medium  12 low
+  sast     FAIL   7 high  9 medium
+  sca      FAIL   3 critical  6 high  8 medium  1 low
 
 Fix first:
-  Priority  Severity  Score  Rule              Control  Scanner       Location
-  P1        critical  9.8    CVE-2019-20477    sca      trivy-fs      app/requirements.txt:4
-  P1        critical  9.8    CVE-2020-14343    sca      trivy-fs      app/requirements.txt:4
-  P1        high      8.0    KSV-0014          iac      trivy-config  deploy/pod.yaml:8
-  P1        high      8.0    KSV-0118          iac      trivy-config  deploy/pod.yaml:6
-  P1        high      7.5    CVE-2018-1000656  sca      trivy-fs      app/requirements.txt:2
+  Priority  Severity  Score  Rule            Control  Scanner  Location
+  P1        critical  9.8    CVE-2019-20477  sca      Trivy    app/requirements.txt:4
+            PyYAML: command execution through python/object/apply constructor in FullLoader
+  P1        critical  9.8    CVE-2020-14343  sca      Trivy    app/requirements.txt:4
+            PyYAML: incomplete fix for CVE-2020-1747
+  P1        high      8.0    DS-0002         iac      Trivy    app/Dockerfile:1
+            Image user should not be 'root'
+  P1        high      8.0    KSV-0014        iac      Trivy    deploy/pod.yaml:8
+            Root file system is not read-only
   …
 
-… and 49 more finding(s). Use --format json for the full report, or -o <dir> for report.json + results.sarif.
+… and 46 more finding(s). Use --format json for the full report, or -o <dir> for report.json + results.sarif.
 ```
 
 On a terminal the verdict, priorities, and severities are color-coded (disable with `NO_COLOR`).
