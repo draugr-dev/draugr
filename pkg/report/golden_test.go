@@ -75,7 +75,10 @@ func goldenMismatch(path string) string {
 		"  2. make examples          # real output from the demo sandbox, to paste into docs\n" +
 		"  3. update the examples in README.md, docs/getting-started/quickstart.md,\n" +
 		"     docs/concepts/verdict-and-gating.md, docs/contributing/{architecture,naming,plugin-api}.md\n" +
-		"  4. re-record the demo GIF: gh workflow run 'Demo GIF' --repo draugr-dev/draugr\n"
+		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
+		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
+		"     (grep for 'Draugr — ' there; they are a separate repo, so nothing else will catch them)\n" +
+		"  5. re-record the demo GIF: gh workflow run 'Demo GIF' --repo draugr-dev/draugr\n"
 }
 
 // goldenFullData exercises every element of the frame at once: a failing verdict with a release,
