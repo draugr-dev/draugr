@@ -17,6 +17,11 @@ config:
       enabled: true
     iac:
       enabled: true
+    # Draugr is Apache-2.0 and distributed as a binary, so a copyleft dependency would be a real
+    # problem for us rather than a hypothetical one. It reports nothing today — every dependency
+    # in the tree is permissive — which is exactly the state worth having a gate protect.
+    licenses:
+      enabled: true
   # Replaces a .semgrepignore and a .gitleaks.toml: two files, two syntaxes, two discovery
   # rules. Worth knowing why that mattered — .semgrepignore *replaces* Semgrep's built-in
   # ignore list rather than extending it, so the first version of ours silently un-ignored
