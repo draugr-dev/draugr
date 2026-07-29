@@ -33,7 +33,7 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
 | `infrastructure` | CIS benchmarks / posture | project | 🗺️ [#55](https://github.com/draugr-dev/draugr/issues/55) | kube-bench | — |
 | `tls` | TLS/certificate assessment | component | ✅ | `tls-probe` (native) | [doc](../../internal/controllers/tls.md) |
-| `licenses` | Dependency licence compliance | component | ✅ | `trivy-license` | — |
+| `licenses` | Dependency licence compliance | component | ✅ | `trivy-license` | [doc](../../internal/controllers/licenses.md) |
 | `threats` | Threat intelligence | component | 🗺️ [#59](https://github.com/draugr-dev/draugr/issues/59) | URLhaus, VirusTotal | — |
 
 `licenses` is a control rather than part of `sca` because licence risk isn't a vulnerability —
@@ -56,6 +56,7 @@ configured separately as `config.sbom` and travels as evidence. See
 | `semgrep` | sast | Semgrep | LGPL-2.1 | ✅ | [doc](../../internal/scanners/semgrep.md) |
 | `gosec` | sast | gosec (Go) | Apache-2.0 | ✅ | [doc](../../internal/scanners/gosec.md) |
 | `trivy-config` | iac | Aqua Trivy (config) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-config.md) |
+| `trivy-license` | licenses | Aqua Trivy (licence) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-license.md) |
 | `http-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/http-headers.md) |
 | `nuclei` | dast | ProjectDiscovery Nuclei | MIT | ✅ | [doc](../../internal/scanners/nuclei.md) |
 | `tls-probe` | tls | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/tls-probe.md) |
