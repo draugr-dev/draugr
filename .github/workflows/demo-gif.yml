@@ -1,18 +1,22 @@
 # Render the README demo GIF (zero-config `draugr scan .`) with vhs and open a PR with it.
 #
-# Runs after every published release, and on demand from the Actions tab. Release is the right
-# trigger rather than a push to main: the job records the *latest release*, which is what a
-# reader who follows the README will install, so rendering on merge would produce a GIF of the
-# previous version — stale the moment it landed. Anything that changes the output therefore
-# reaches the GIF one release later, which is also when it reaches users.
+# Runs after every release, and on demand from the Actions tab. Release is the right moment
+# rather than a push to main: the job records the *latest release*, which is what a reader who
+# follows the README will install, so rendering on merge would produce a GIF of the previous
+# version — stale the moment it landed. Anything that changes the output therefore reaches the
+# GIF one release later, which is also when it reaches users.
+#
+# Called by release.yml rather than triggered by `release: published`. GoReleaser creates the
+# release with GITHUB_TOKEN, and GitHub deliberately does not start workflow runs from events
+# raised by GITHUB_TOKEN — so a `release` trigger here would never fire. `workflow_call` is a
+# direct invocation, not an event, so it is not subject to that rule.
 #
 # The console layout is pinned separately by pkg/report/golden_test.go, and the numbers quoted
 # in the docs are refreshed with `make examples`.
 name: Demo GIF
 
 on:
-  release:
-    types: [published]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
