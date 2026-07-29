@@ -70,6 +70,9 @@ PR). The workflow is advisory: failures are visible but it is not a required che
 2. **Add tests** for new behavior; keep coverage healthy for the packages you change.
 3. **Update docs** in the same PR when behavior changes (the colocated `.md` for an
    integration, plus `docs/` and the `CHANGELOG.md` `[Unreleased]` section where user-facing).
+   Registering a controller, scanner or surveyor without its colocated `.md` and a linking row
+   in [`docs/reference/catalog.md`](docs/reference/catalog.md) fails
+   `TestEveryPluginHasColocatedDocs` — a doc nothing links to is a doc nobody finds.
 4. **Green CI** — build, lint, tests, and the vulnerability scan must pass.
 5. Write clear commit messages describing the *why*, not just the *what*.
 
