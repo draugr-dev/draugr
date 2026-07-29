@@ -1,11 +1,12 @@
 # vhs tape for the README demo GIF of zero-config `draugr scan .`.
 # Render:  vhs contrib/demo/scan.tape   → contrib/demo/scan.gif
 #
-# It records `draugr scan .` inside ./demo, so before rendering:
+# It records `draugr scan .` inside ./draugr-demo, so before rendering:
 #   - `draugr` on PATH (a release build)
 #   - scanners installed:  draugr tools install -y   (Trivy, Gitleaks) + Semgrep via pipx
-#   - a findings-rich repo at ./demo — the sandbox is ideal:
-#       git clone https://github.com/draugr-dev/draugr-demo demo
+#   - a findings-rich repo at ./draugr-demo — the sandbox is ideal:
+#       git clone https://github.com/draugr-dev/draugr-demo draugr-demo
+#     The directory name is the release name in the output, so it has to match the docs.
 # The Demo GIF workflow (.github/workflows/demo-gif.yml) does all of this and opens a PR
 # with the regenerated GIF.
 
@@ -18,10 +19,23 @@ Set Height 820
 Set Theme "Dracula"
 Set Padding 20
 
-# Enter the sandbox off-camera, then record the money shot.
+# Enter the sandbox off-camera and warm Trivy's vulnerability database with a throwaway scan.
+#
+# The warm-up is not cosmetic. Trivy downloads its database on first use, and on a cold CI
+# runner that download is most of the elapsed time — so the recording captured a progress bar
+# and cut off before the verdict ever printed. The GIF should show the product, not a one-time
+# download, and every scan after a machine's first looks like this one.
 Hide
-Type "cd demo" Enter
+Type "cd draugr-demo" Enter
+Type "draugr scan . >/dev/null 2>&1" Enter
+Wait@120s /\$ $/
+Type "clear" Enter
 Show
+
 Type "draugr scan ." Sleep 600ms Enter
-Sleep 10s  # let the scan run and the verdict print (the sandbox is small)
-Sleep 5s   # hold on the final verdict so it's readable before the GIF loops
+
+# Wait for the verdict rather than guessing at a duration. A fixed sleep is a bet on how fast
+# the runner is that day, and losing it produces a GIF of nothing — which is exactly what
+# happened. The regex matches the summary line the scan ends on.
+Wait+Screen@120s /and \d+ more finding/
+Sleep 4s  # hold on the verdict so it is readable before the GIF loops

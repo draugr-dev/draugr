@@ -1,12 +1,28 @@
 # Render the README demo GIF (zero-config `draugr scan .`) with vhs and open a PR with it.
-# Manual — run from the Actions tab when the demo tape or CLI output changes.
+#
+# Runs after every published release, and on demand from the Actions tab. Release is the right
+# trigger rather than a push to main: the job records the *latest release*, which is what a
+# reader who follows the README will install, so rendering on merge would produce a GIF of the
+# previous version — stale the moment it landed. Anything that changes the output therefore
+# reaches the GIF one release later, which is also when it reaches users.
+#
+# The console layout is pinned separately by pkg/report/golden_test.go, and the numbers quoted
+# in the docs are refreshed with `make examples`.
 name: Demo GIF
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# One render at a time. Two releases close together would otherwise open two PRs whose branches
+# both claim to hold the current GIF.
+concurrency:
+  group: demo-gif
+  cancel-in-progress: false
 
 jobs:
   render:
@@ -15,7 +31,11 @@ jobs:
       contents: write # push the GIF branch
       pull-requests: write # open the PR
     steps:
+      # main, not the release tag: the branch this pushes has to merge into main, and the tape
+      # to render is the current one. Only the *binary* being recorded comes from the release.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
 
       - name: Install Draugr (latest release)
         env:
@@ -37,7 +57,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Clone the demo sandbox
-        run: git clone --depth 1 https://github.com/draugr-dev/draugr-demo demo
+        run: git clone --depth 1 https://github.com/draugr-dev/draugr-demo draugr-demo
 
       - name: Install vhs and its dependencies
         run: |
