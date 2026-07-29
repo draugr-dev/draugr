@@ -69,6 +69,20 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 		return nil
 	}
 
+	// A publisher delivers the record, so it gets the whole record. --min-priority narrows what
+	// this invocation shows you; it must not narrow what is filed.
+	//
+	// This matters most for code scanning, where GitHub resolves any alert absent from an upload
+	// as fixed — so publishing a filtered report would quietly close real findings, and the
+	// filtering would be invisible in the place it did the damage. Said out loud rather than
+	// dropped silently, because a flag that does nothing is the thing this exists to prevent.
+	if data.MinPriority != "" {
+		slog.Info("publishers ignore --min-priority",
+			"reason", "an upload missing findings resolves them as fixed",
+			"minPriority", data.MinPriority)
+		data.MinPriority = ""
+	}
+
 	artifacts := make([]report.Artifact, 0, len(reports))
 	for _, r := range reports {
 		a, err := report.Build(r, data)

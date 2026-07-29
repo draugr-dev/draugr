@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -156,5 +157,58 @@ func TestRunDeliversSBOMsEvenWithNoReportsConfigured(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "sbom-web-r.spdx.json")); err != nil {
 		t.Errorf("expected the SBOM to be written: %v", err)
+	}
+}
+
+// A publisher delivers the record, so it gets the whole record. GitHub code scanning resolves
+// any alert absent from an upload as fixed — so if --min-priority reached a publisher, running
+// a scan with the flag would quietly close every finding below the band, in the one place the
+// filtering is invisible.
+//
+// This is the guard for that. It asserts on delivered bytes rather than on the flag, because the
+// flag being cleared is an implementation detail and the alerts being closed is the harm.
+func TestPublishersIgnoreMinPriority(t *testing.T) {
+	data := sampleData()
+	data.Run.Controls["images"] = plugin.ControlResult{
+		Control: "images",
+		Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+			{RuleID: "CVE-P1", Level: sarif.LevelError, Priority: "P1", Tool: "trivy"},
+			{RuleID: "CVE-P4", Level: sarif.LevelNote, Priority: "P4", Tool: "trivy"},
+		}},
+	}
+	data.MinPriority = "P1"
+
+	dir := t.TempDir()
+	if err := Run(context.Background(),
+		[]saga.ReportConfig{{Format: "sarif"}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		data,
+	); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "results.sarif")) //nolint:gosec // a fixed name under t.TempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"CVE-P1", "CVE-P4"} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("published SARIF is missing %s — a filtered upload resolves it as fixed:\n%s", want, got)
+		}
+	}
+}
+
+// Run takes Data by value, but a caller reusing it afterwards must still see its own flag.
+func TestRunDoesNotClearTheCallersMinPriority(t *testing.T) {
+	data := sampleData()
+	data.MinPriority = "P2"
+	if err := Run(context.Background(),
+		[]saga.ReportConfig{{Format: "json"}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: t.TempDir()}},
+		data,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if data.MinPriority != "P2" {
+		t.Errorf("Run mutated the caller's Data: MinPriority = %q", data.MinPriority)
 	}
 }

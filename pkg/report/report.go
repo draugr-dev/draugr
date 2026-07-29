@@ -11,6 +11,7 @@ import (
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -80,7 +81,36 @@ type sarifReporter struct{}
 
 func (sarifReporter) Format() string { return "sarif" }
 func (sarifReporter) Render(w io.Writer, d Data) error {
-	return skald.WriteSARIFWith(w, d.Run, d.marshalOptions())
+	return skald.WriteSARIFWith(w, filterByPriority(d.Run, d.MinPriority), d.marshalOptions())
+}
+
+// filterByPriority drops findings below the requested band, returning a copy so the caller's
+// run is untouched — the same Data is rendered in several formats and delivered to publishers.
+//
+// Findings the scanner never prioritized are kept. An empty Priority means prioritization did
+// not run for that finding, not that it ranked low, and silently dropping it would be the worst
+// reading of an unset field.
+//
+// Only the results need filtering: the emitted rules[] is derived from the results that remain,
+// so a rule nobody matched leaves with them. That is where most of the size saving comes from —
+// on Draugr's demo repository, filtering to P1 takes the compact SARIF from 82 KB to 32 KB.
+func filterByPriority(run engine.Result, minPriority string) engine.Result {
+	if minPriority == "" {
+		return run
+	}
+	out := run
+	out.Controls = make(map[string]plugin.ControlResult, len(run.Controls))
+	for name, cr := range run.Controls {
+		kept := make([]sarif.Result, 0, len(cr.Report.Results))
+		for _, res := range cr.Report.Results {
+			if res.Priority == "" || atOrAbove(res.Priority, minPriority) {
+				kept = append(kept, res)
+			}
+		}
+		cr.Report.Results = kept
+		out.Controls[name] = cr
+	}
+	return out
 }
 
 func (d Data) marshalOptions() sarif.MarshalOptions {

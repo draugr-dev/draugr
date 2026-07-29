@@ -76,7 +76,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
 | `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
-| `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`) |
+| `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
 | `--kev` | — | CISA KEV catalog JSON; a CVE on it is escalated to critical |
 | `--epss` | — | FIRST EPSS scores CSV; a CVE at/above `--epss-threshold` is bumped one band |
 | `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump |
@@ -152,14 +152,37 @@ CVE on CISA's [KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities
 threshold (predicted likely) is bumped one band. Both are optional, offline (bring your own
 downloaded file), and only affect findings whose rule id is a CVE.
 
+### What `--min-priority` narrows
+
+`--min-priority` decides what a **run shows you**. It never decides what a run **records**:
+
+| Output | Narrowed by `--min-priority`? |
+|---|---|
+| Console, markdown, HTML, JUnit | **Yes** — with a note saying how many were hidden |
+| `--format json` / `--format sarif` on **stdout** | **Yes** |
+| `-o <dir>/report.json` | Its **findings list** only. The priority counts always describe the whole run, so you can still see the backlog you chose not to read |
+| `-o <dir>/results.sarif` | **No** — always complete |
+| Configured publishers, including `github` code scanning | **No** — always complete, and the run logs that it ignored the flag |
+
+The split exists because of one asymmetry: **GitHub code scanning resolves any alert missing
+from an upload as fixed.** A filtered report published there would quietly close real findings,
+in the one place the filtering is invisible. The same reasoning protects `results.sarif`: it
+feeds [`draugr diff`](#draugr-diff-basesarif-headsarif) and the
+[GitHub Action's](../guides/github-action.md) SARIF upload, and a baseline missing findings makes
+the next scan's delta wrong.
+
+So the flag is for reading — a terminal, or an agent asking for the short list. On `draugr-demo`,
+`--format sarif --compact --min-priority p1` is 61% smaller than the full report (11.7 KB against
+30.1 KB) because the rules the omitted findings referenced leave with them.
+
 ---
 
 ## `draugr diff <base.sarif> <head.sarif>`
 
 Compare two scans and classify every finding as **new**, **fixed**, or **unchanged** — the
 security delta of a change, typically a PR's head vs its base branch. Inputs are the
-`results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml) writes (SARIF is the
-complete, structured result set; the JSON summary can be trimmed by `--min-priority`).
+`results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml) writes, which are always
+complete regardless of `--min-priority`.
 
 | Flag | Default | Description |
 |------|---------|-------------|

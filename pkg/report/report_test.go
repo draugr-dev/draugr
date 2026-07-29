@@ -595,3 +595,61 @@ func TestConsoleMarksPartialControlsAsError(t *testing.T) {
 		t.Errorf("a control with findings and an error should read ERROR, not FAIL:\n%s", buf.String())
 	}
 }
+
+// --min-priority used to be silently ignored by --format sarif: byte-identical output with and
+// without the flag. The machine consumer with the strongest reason to ask for "just the P1s" was
+// the one it didn't serve, and the one least able to notice.
+func TestSARIFHonoursMinPriority(t *testing.T) {
+	d := minPriorityData("P2")
+	var full, filtered bytes.Buffer
+	if err := (sarifReporter{}).Render(&full, Data{Release: d.Release, Run: d.Run, Verdict: d.Verdict}); err != nil {
+		t.Fatal(err)
+	}
+	if err := (sarifReporter{}).Render(&filtered, d); err != nil {
+		t.Fatal(err)
+	}
+	if full.Len() == filtered.Len() {
+		t.Fatalf("filtered SARIF is the same size as unfiltered (%d bytes) — the flag did nothing", full.Len())
+	}
+	out := filtered.String()
+	for _, want := range []string{"CVE-P1", "CVE-P2"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("%s is at or above P2 and should be in the SARIF", want)
+		}
+	}
+	for _, unwanted := range []string{"CVE-P3", "CVE-P4"} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("%s is below P2 and should have been filtered out", unwanted)
+		}
+	}
+}
+
+// A finding with no priority was never ranked — prioritization did not run for it. Dropping it
+// would read an unset field as "low", which is the worst available interpretation.
+func TestSARIFKeepsUnprioritizedFindings(t *testing.T) {
+	d := minPriorityData("P1")
+	d.Run.Controls["sca"] = plugin.ControlResult{Report: sarif.Report{Results: []sarif.Result{
+		{RuleID: "NO-PRIORITY", Level: sarif.LevelWarning, Tool: "trivy"},
+	}}}
+	var b bytes.Buffer
+	if err := (sarifReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "NO-PRIORITY") {
+		t.Errorf("an unprioritized finding should survive --min-priority:\n%s", b.String())
+	}
+}
+
+// Filtering must not mutate the run: the same Data renders in several formats and then goes to
+// publishers, so a destructive filter would silently truncate everything rendered after it.
+func TestSARIFFilterLeavesTheRunIntact(t *testing.T) {
+	d := minPriorityData("P1")
+	before := len(d.Run.Controls["sca"].Report.Results)
+	var b bytes.Buffer
+	if err := (sarifReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	if after := len(d.Run.Controls["sca"].Report.Results); after != before {
+		t.Errorf("rendering filtered SARIF mutated the run: %d results before, %d after", before, after)
+	}
+}
