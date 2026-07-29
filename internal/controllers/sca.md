@@ -3,7 +3,7 @@
 - **Industry term:** Software Composition Analysis
 - **Scope:** component
 - **Status:** ✅ implemented (dependency vulnerabilities)
-- **Scanners:** [`trivy-fs`](../scanners/trivy-fs.md) (license findings planned — [#120](https://github.com/draugr-dev/draugr/issues/120))
+- **Scanners:** [`trivy-fs`](../scanners/trivy-fs.md)
 - **Resource:** a component's `repositories:`
 
 ## What it does
@@ -19,4 +19,6 @@ result with a severity summary.
 
 ## Notes
 
-- Dependency **vulnerabilities** today; **license** findings are a follow-up ([#120](https://github.com/draugr-dev/draugr/issues/120)).
+- Dependency **vulnerabilities** only. Licence findings are the [`licenses`](licenses.md)
+  control, deliberately separate: licence risk is legal rather than technical, a different
+  team owns the policy, and `config.gate.controls` can hold it to its own threshold.
