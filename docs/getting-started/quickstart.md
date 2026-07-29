@@ -77,7 +77,7 @@ summary** by default (verdict, priority/severity counts, and the top findings to
 Draugr — PASS   (my-app 1.0)
 
 Controls:
-  images  pass  0 error  0 warning  0 note
+  images  pass   no findings
 
 No findings. ✓
 ```
