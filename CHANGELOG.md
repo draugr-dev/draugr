@@ -12,6 +12,12 @@ and move it under a version on release.
 
 ### Fixed
 
+- **The same scan now produces the same report, byte for byte.** Controls were listed in whatever
+  order Go's map iteration happened to yield, so two runs of an unchanged repository printed the
+  `Controls:` block differently and wrote different `report.json`, markdown and HTML — enough to
+  make the artifacts diff against each other when nothing had changed. They are now always
+  alphabetical.
+
 - **Findings read properly in your editor and on pull requests.** Trivy writes its finding
   message as a field dump whose first line is a filename, and a SARIF viewer shows the first
   line — so a Kubernetes manifest with fourteen misconfigurations produced fourteen rows in the
