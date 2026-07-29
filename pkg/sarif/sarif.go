@@ -2,6 +2,7 @@ package sarif
 
 import (
 	"encoding/json"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -320,12 +321,18 @@ func FromSARIF(data []byte) (Report, error) {
 		// Rules also carry a numeric "security-severity" (CVSS-style) that results inherit
 		// by ruleId, the way many tools (e.g. Trivy) express severity.
 		ruleScore := make(map[string]float64, len(run.Tool.Driver.Rules))
+		// And a one-line summary, used to rescue results whose message is a field dump
+		// rather than a sentence. See readableMessage.
+		ruleSummary := make(map[string]string, len(run.Tool.Driver.Rules))
 		for _, rule := range run.Tool.Driver.Rules {
 			if rule.DefaultConfiguration != nil && rule.DefaultConfiguration.Level != "" {
 				ruleLevel[rule.ID] = Level(rule.DefaultConfiguration.Level)
 			}
 			if score, ok := parseSecuritySeverity(rule.Properties); ok {
 				ruleScore[rule.ID] = score
+			}
+			if sum := rule.ShortDescription.text(); sum != "" {
+				ruleSummary[rule.ID] = sum
 			}
 			// Keep what the scanner said about the rule. It's the only description of a
 			// finding that isn't specific to one occurrence of it, and every downstream
@@ -366,7 +373,7 @@ func FromSARIF(data []byte) (Report, error) {
 				Tool:    tool,
 				RuleID:  sr.RuleID,
 				Level:   level,
-				Message: sr.Message.Text,
+				Message: readableMessage(sr.Message.Text, ruleSummary[sr.RuleID]),
 			}
 			if len(sr.Locations) > 0 {
 				res.Location.URI = sr.Locations[0].PhysicalLocation.ArtifactLocation.URI
@@ -387,4 +394,37 @@ func FromSARIF(data []byte) (Report, error) {
 		}
 	}
 	return out, nil
+}
+
+// fieldDump matches the opening of a message that is a list of fields rather than a sentence —
+// "Package: Flask", "Artifact: app/Dockerfile". Trivy writes its finding messages this way.
+var fieldDump = regexp.MustCompile(`^[A-Z][A-Za-z ]{0,30}:[ \t]`)
+
+// readableMessage picks the text a reader can act on, given the rule's one-line summary.
+//
+// Most scanners write a sentence. Trivy writes a multi-line field dump — artifact, package,
+// installed version, severity, fixed version, link. Every consumer suffers for it differently:
+// a terminal has those fields in its own columns already and clamps the line before reaching
+// the part that says what is wrong, and an editor's Problems panel shows the *first* line, so a
+// manifest with fourteen findings becomes fourteen rows reading "Artifact: deploy/pod.yaml".
+// The advisory title lives in the rule's shortDescription instead: "python-flask: Denial of
+// Service via crafted JSON file".
+//
+// Applied here, at the point a tool's SARIF becomes Draugr's model, so every downstream reader
+// gets it — the terminal, the SARIF handed to an editor, code-scanning annotations, and MCP
+// clients. Nothing is lost by preferring the summary: the scanner's own detail survives on the
+// rule as FullDescription and Help, which is what a viewer shows beside a selected finding.
+//
+// Detected structurally rather than by scanner name, so any tool that dumps fields gets the
+// same treatment: several lines, the first of which opens "Word: ". A message that is already
+// prose is left alone, which matters because some scanners publish a shortDescription that only
+// restates the rule id.
+func readableMessage(msg, summary string) string {
+	if summary == "" {
+		return msg
+	}
+	if !strings.Contains(msg, "\n") || !fieldDump.MatchString(msg) {
+		return msg
+	}
+	return summary
 }
