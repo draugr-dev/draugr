@@ -28,6 +28,23 @@ make gate    # full local gate: fmt, vet, golangci-lint, race tests + coverage, 
 
 Please run `make gate` before opening a pull request — CI runs the same checks.
 
+### Changing what `draugr scan` prints
+
+The console layout is quoted in the README, in several documents under `docs/`, and re-recorded
+in the demo GIF. None of those notice when it changes, so it is pinned by a golden test:
+
+```bash
+go test ./pkg/report -run TestConsoleGolden          # fails if the layout moved
+go test ./pkg/report -update                         # accept the new layout
+make examples                                        # real output from the demo sandbox
+```
+
+If the golden fails, the failure lists the documents to refresh; `make examples` prints a real
+scan of [`draugr-demo`](https://github.com/draugr-dev/draugr-demo) to paste from (it clones the
+sandbox and needs Trivy, Gitleaks and Semgrep on PATH). The GIF re-renders itself after every
+release — you don't need to run vhs locally, though `gh workflow run 'Demo GIF'` will do it on
+demand.
+
 ### Integration tests
 
 Heavier tests that exercise real external dependencies — a real Trivy binary and an ephemeral

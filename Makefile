@@ -9,7 +9,7 @@ LDFLAGS := -X $(PKG)/internal/version.Version=$(VERSION) \
            -X $(PKG)/internal/version.Commit=$(COMMIT) \
            -X $(PKG)/internal/version.Date=$(DATE)
 
-.PHONY: build run test vet fmt tidy clean gate install-latest
+.PHONY: build run test vet fmt tidy clean gate install-latest examples
 
 build: ## Build the draugr binary into bin/
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/draugr
@@ -50,6 +50,9 @@ tidy: ## Tidy module dependencies
 
 gate: ## Run the full local quality gate (fmt, vet, lint, race tests, vulncheck)
 	./scripts/gate.sh
+
+examples: build ## Print real scan output from the demo sandbox, to refresh the examples in README/docs
+	@./scripts/examples.sh
 
 clean: ## Remove build artifacts
 	rm -rf bin

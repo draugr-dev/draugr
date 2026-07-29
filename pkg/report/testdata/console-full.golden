@@ -1,0 +1,30 @@
+Draugr — FAIL   (draugr-demo 0.0.0)
+
+Priorities:  P1 3   P2 2   P3 2   P4 1
+
+Controls:
+  iac       FAIL   1 high  1 medium
+  licenses  pass   1 medium
+  sast      FAIL   1 high
+  sca       FAIL   1 critical  2 high  1 low
+  dast      ERROR  did not run
+            nuclei: executable file not found in $PATH
+
+2 findings suppressed by config.exclude
+
+SBOM: 2 documents (spdx-json)
+
+Fix first:
+  Priority  Severity  Score  Rule                                    Control  Scanner  Location
+  P1        critical  9.8    CVE-2019-20477                          sca      trivy    app/requirements.txt:4
+            PyYAML: command execution through python/object/apply constructor in FullLoader
+  P1        high      8.6    CVE-2019-10906                          sca      trivy    app/requirements.txt:5
+            python-jinja2: str.format_map allows sandbox escape
+  P1        high      8.0    DS-0002                                 iac      trivy    app/Dockerfile:1
+            Image user should not be 'root'
+  P2        high      7.5    CVE-2018-1000656                        sca      trivy    app/requirements.txt:2
+            python-flask: Denial of Service via crafted JSON file
+  P2        high      -      …tainted-sql-string.tainted-sql-string  sast     semgrep  app/main.py:42
+            Detected user input flowing into a raw SQL string
+
+… and 3 more finding(s). Use --format json for the full report, or -o <dir> for report.json + results.sarif.
