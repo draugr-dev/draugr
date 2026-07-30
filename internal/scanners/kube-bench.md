@@ -113,7 +113,37 @@ ambient kubeconfig points at, read-only, and means the same thing from anywhere.
 checks in `cis-1.9`.
 
 Covering the rest means running kube-bench inside the cluster as a Job — Draugr creating
-something in the system it is scanning. That is a different contract and is not done here.
+something in the system it is scanning. That is a different contract, and is
+[`kube-bench-job`](kube-bench-job.md) rather than this scanner.
+
+### What section 5 is worth, stated plainly
+
+The count is the flattering way to describe this mode. In `cis-1.12`:
+
+| | |
+|---|---|
+| checks in section 5 | 34 |
+| **scored** | **0** — every one is `(Manual)` |
+| carrying an audit command | 11 |
+
+So 23 of them are prompts for a human with nothing behind them, and none of the 34 counts toward
+a compliance score. Both unscored `FAIL` and `WARN` map to a SARIF warning, which is why this
+mode's output is a list of warnings rather than a verdict: it is telling you what to review, not
+what it measured.
+
+Two consequences worth being direct about:
+
+- **A clean section 5 is not a clean benchmark.** The scored checks are in sections 1–4.
+- **It is slow at scale.** Every check is a `kubectl` subprocess and most pass
+  `--all-namespaces`. Against a 78-namespace managed cluster — where each invocation also
+  re-runs a cloud auth plugin — a full pass takes tens of minutes.
+
+`mode: job` is the answer to both where a privileged pod is permitted. Where it is not — a
+namespace enforcing the restricted Pod Security Standard will reject it — this mode is what runs,
+and 11 automated advisory checks beat nothing. Implementing the section natively against the
+Kubernetes API would fix the speed, drop the `kubectl` dependency, and make more of the 34
+decidable than a shell pipeline can:
+[#389](https://github.com/draugr-dev/draugr/issues/389).
 
 ## Mapping
 

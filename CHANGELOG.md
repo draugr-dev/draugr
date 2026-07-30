@@ -10,6 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **The docs now say what the default `infrastructure` scan is worth.** Its section of the CIS
+  benchmark is the advisory one: none of its 34 checks are scored and only 11 carry an audit
+  command, so a clean result there is a list of things to review rather than a measured pass.
+  The scored checks are the node and control-plane ones, which `mode: job` reaches.
+
 ### Fixed
 
 - **The `infrastructure` control now audits a managed cluster against its own CIS benchmark.**
