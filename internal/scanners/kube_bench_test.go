@@ -25,12 +25,18 @@ func TestKubeBenchInfo(t *testing.T) {
 	}
 }
 
-// withClusterVersion swaps the cluster lookup for a fixed answer.
+// withClusterVersion swaps the cluster lookup for a fixed vanilla-distribution answer.
 func withClusterVersion(t *testing.T, version string, err error) {
 	t.Helper()
-	prev := clusterVersion
-	clusterVersion = func(string) (string, error) { return version, err }
-	t.Cleanup(func() { clusterVersion = prev })
+	withClusterFacts(t, clusterFacts{Version: version}, err)
+}
+
+// withClusterFacts swaps the cluster lookup for a fixed answer, platform included.
+func withClusterFacts(t *testing.T, facts clusterFacts, err error) {
+	t.Helper()
+	prev := detectCluster
+	detectCluster = func(string) (clusterFacts, error) { return facts, err }
+	t.Cleanup(func() { detectCluster = prev })
 }
 
 func argvString(argv []string) string { return strings.Join(argv, " ") }
@@ -39,11 +45,11 @@ func argvString(argv []string) string { return strings.Join(argv, " ") }
 // in CI, and on a node. See defaultKubeBenchTargets.
 func TestKubeBenchArgvDefaults(t *testing.T) {
 	withClusterVersion(t, "1.34", nil)
-	argv, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := argvString(argv), "kube-bench run --json --targets policies --version 1.34"; got != want {
+	if got, want := argvString(plan.argv), "kube-bench run --json --targets policies --version 1.34"; got != want {
 		t.Errorf("argv = %q, want %q", got, want)
 	}
 }
@@ -53,12 +59,12 @@ func TestKubeBenchArgvDefaults(t *testing.T) {
 // benchmark sixteen minor versions stale, and it under-reports. Draugr tells it the version.
 func TestKubeBenchArgvPassesTheDetectedClusterVersion(t *testing.T) {
 	withClusterVersion(t, "1.29", nil)
-	argv, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
+	plan, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(argvString(argv), "--version 1.29") {
-		t.Errorf("argv %q should carry the detected version", argvString(argv))
+	if !strings.Contains(argvString(plan.argv), "--version 1.29") {
+		t.Errorf("argv %q should carry the detected version", argvString(plan.argv))
 	}
 }
 
@@ -81,13 +87,13 @@ func TestKubeBenchArgvRefusesToGuessTheVersion(t *testing.T) {
 // that no Kubernetes version maps to — so it must not be overridden by detection.
 func TestKubeBenchArgvExplicitBenchmarkWins(t *testing.T) {
 	withClusterVersion(t, "1.34", errors.New("should not be consulted"))
-	argv, err := kubeBenchArgv(plugin.InfraTarget{}, plugin.Config{
+	plan, err := kubeBenchArgv(plugin.InfraTarget{}, plugin.Config{
 		"targets": "policies", "benchmark": "gke-1.6.0", "configDir": "/opt/cfg",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := argvString(argv)
+	got := argvString(plan.argv)
 	for _, want := range []string{"--benchmark gke-1.6.0", "--config-dir /opt/cfg"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("argv %q missing %q", got, want)
@@ -102,12 +108,12 @@ func TestKubeBenchArgvExplicitBenchmarkWins(t *testing.T) {
 // reach at plan time.
 func TestKubeBenchArgvExplicitVersionSkipsDetection(t *testing.T) {
 	withClusterVersion(t, "", errors.New("should not be consulted"))
-	argv, err := kubeBenchArgv(plugin.InfraTarget{}, plugin.Config{"version": "1.31"})
+	plan, err := kubeBenchArgv(plugin.InfraTarget{}, plugin.Config{"version": "1.31"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(argvString(argv), "--version 1.31") {
-		t.Errorf("argv = %q", argvString(argv))
+	if !strings.Contains(argvString(plan.argv), "--version 1.31") {
+		t.Errorf("argv = %q", argvString(plan.argv))
 	}
 }
 
@@ -453,5 +459,133 @@ func TestDetectCurrentKubeContextWithoutAConfig(t *testing.T) {
 	t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "does-not-exist"))
 	if got := detectCurrentKubeContext(); got != "" {
 		t.Errorf("detectCurrentKubeContext = %q, want empty", got)
+	}
+}
+
+// The version strings are real ones from each provider, because the parse is the whole
+// mechanism: a platform Draugr fails to recognize is a cluster audited against the wrong
+// benchmark, and one it recognizes wrongly is the same thing with more confidence.
+func TestPlatformFrom(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name, gitVersion, want string
+	}{
+		{"eks", "v1.30.4-eks-a737599", "eks"},
+		{"gke", "v1.29.7-gke.1104000", "gke"},
+		{"aks", "v1.27.6+aks1", "aks"},
+		{"k3s", "v1.28.5+k3s1", "k3s"},
+		{"rke2", "v1.27.6+rke2r1", "rke2r"},
+		{"aliyun", "v1.18.8-aliyun.1", "aliyun"},
+
+		// A vanilla cluster must stay vanilla. kind and kubeadm report a bare version, and a
+		// release candidate parses exactly like a platform suffix would — "rc" is a token in the
+		// same position as "eks". Treating it as a platform would send the scan looking for a
+		// benchmark that does not exist.
+		{"kind", "v1.34.0", ""},
+		{"release candidate", "v1.31.0-rc.1", ""},
+		{"unknown distribution", "v1.30.1-acme.4", ""},
+		{"empty", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := platformFrom(tc.gitVersion); got != tc.want {
+				t.Errorf("platformFrom(%q) = %q, want %q", tc.gitVersion, got, tc.want)
+			}
+		})
+	}
+}
+
+// The bug: kube-bench only consults its platform detection when neither --benchmark nor
+// --version is set (cmd/common.go, getBenchmarkVersion). Supplying --version to avoid the stale
+// 1.18 fallback therefore forced every managed cluster onto the generic cis-* benchmark, which
+// is not a subset of the provider one — it fails a cluster for control-plane settings that are
+// not the customer's to make, and skips the provider checks that are.
+func TestKubeBenchArgvLetsAManagedClusterPickItsOwnBenchmark(t *testing.T) {
+	withClusterFacts(t, clusterFacts{Version: "1.30", Platform: "eks"}, nil)
+
+	plan, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := argvString(plan.argv)
+	for _, unwanted := range []string{"--version", "--benchmark"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("argv %q must not carry %s on a managed cluster: it suppresses kube-bench's platform benchmark", got, unwanted)
+		}
+	}
+	if plan.platform != "eks" {
+		t.Errorf("plan.platform = %q, want %q — without it the output cannot be checked", plan.platform, "eks")
+	}
+}
+
+// A vanilla cluster keeps the behaviour that made --version necessary in the first place.
+func TestKubeBenchArgvStillPinsTheVersionForAVanillaCluster(t *testing.T) {
+	withClusterFacts(t, clusterFacts{Version: "1.34"}, nil)
+
+	plan, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(argvString(plan.argv), "--version 1.34") {
+		t.Errorf("argv = %q, want the detected version pinned", argvString(plan.argv))
+	}
+	if plan.platform != "" {
+		t.Errorf("plan.platform = %q, want empty: there is no platform expectation to check", plan.platform)
+	}
+}
+
+func benchDoc(version string) kubeBenchDoc {
+	return kubeBenchDoc{Controls: []kubeBenchControl{{Version: version}}}
+}
+
+// Withholding the flags hands the choice to a tool that has its own fallback: when kube-bench
+// cannot detect the cluster it assumes Kubernetes 1.18, audits against cis-1.6, and reports the
+// result as though it were the one asked for. The input is therefore not the guarantee — this
+// is.
+func TestVerifyBenchmark(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name, benchmark, platform string
+		wantErr                   bool
+	}{
+		{name: "matching platform benchmark", benchmark: "eks-1.8.0", platform: "eks"},
+		{name: "k3s uses a compound prefix", benchmark: "k3s-cis-1.9", platform: "k3s"},
+		{name: "rke2 is not rke", benchmark: "rke2-cis-1.8", platform: "rke2r"},
+
+		// The failure this exists for: the scan ran, produced findings, and audited the wrong
+		// standard.
+		{name: "stale default on a managed cluster", benchmark: "cis-1.6", platform: "eks", wantErr: true},
+		{name: "wrong provider", benchmark: "gke-1.9.0", platform: "eks", wantErr: true},
+		{name: "rke benchmark on an rke2 cluster", benchmark: "rke-cis-1.7", platform: "rke2r", wantErr: true},
+
+		// Nothing was withheld, so there is no expectation to hold the tool to.
+		{name: "vanilla cluster", benchmark: "cis-1.9", platform: ""},
+		{name: "unknown platform", benchmark: "cis-1.9", platform: "acme"},
+		{name: "tool reported no benchmark", benchmark: "", platform: "eks"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := verifyBenchmark(benchDoc(tc.benchmark), tc.platform)
+			if tc.wantErr && err == nil {
+				t.Fatalf("verifyBenchmark(%q, %q) = nil, want an error", tc.benchmark, tc.platform)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("verifyBenchmark(%q, %q) = %v, want nil", tc.benchmark, tc.platform, err)
+			}
+			if tc.wantErr && !strings.Contains(err.Error(), "benchmark") {
+				t.Errorf("the error should point at the setting that resolves it, got: %v", err)
+			}
+		})
+	}
+}
+
+// An empty document is a decode that found nothing, not a benchmark mismatch. Reporting it as
+// the wrong standard would send the reader after the wrong problem.
+func TestVerifyBenchmarkIgnoresAnEmptyDocument(t *testing.T) {
+	t.Parallel()
+	if err := verifyBenchmark(kubeBenchDoc{}, "eks"); err != nil {
+		t.Errorf("verifyBenchmark on an empty document = %v, want nil", err)
 	}
 }

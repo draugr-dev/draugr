@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"k8s.io/client-go/kubernetes"
@@ -71,16 +72,23 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	}
 	defer cleanup()
 
-	argv, err := kubeBenchArgv(target, cfg)
+	plan, err := kubeBenchArgv(target, cfg)
 	if err != nil {
 		return sarif.Report{}, err
 	}
 
-	out, err := s.run(ctx, argv, env)
+	out, err := s.run(ctx, plan.argv, env)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("run %s: %w", kubeBenchScannerName, err)
 	}
-	return parseKubeBench(out, kubeBenchScannerName, clusterLabel(kubeContext(target, cfg)))
+	doc, err := decodeKubeBench(out)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	if err := verifyBenchmark(doc, plan.platform); err != nil {
+		return sarif.Report{}, err
+	}
+	return reportFromKubeBench(doc, kubeBenchScannerName, clusterLabel(kubeContext(target, cfg))), nil
 }
 
 // kubeContextEnv writes a kubeconfig whose current context is the one being audited, and returns
@@ -130,7 +138,7 @@ const (
 	// version; otherwise let the version decide.
 	benchmarkKey = "benchmark"
 	// versionKey pins the Kubernetes version kube-bench maps to a benchmark (e.g. "1.34").
-	// Unset means Draugr asks the cluster — see clusterVersion.
+	// Unset means Draugr asks the cluster — see detectClusterFacts.
 	versionKey = "version"
 	// contextKey names the kubeconfig context to audit. Unset means the component's
 	// infrastructure `ref`, and only then the kubeconfig's current context.
@@ -176,10 +184,30 @@ const defaultKubeBenchTargets = "policies"
 // version rather than letting the tool guess. It asks the cluster, and passes --version so
 // kube-bench applies its own mapping — which stays correct as kube-bench adds benchmarks,
 // whereas a table copied into Draugr would not.
-func kubeBenchArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
+//
+// That holds for a vanilla distribution and breaks for a managed one, because of how kube-bench
+// chooses (cmd/common.go, getBenchmarkVersion):
+//
+//	if isEmpty(benchmarkVersion) && isEmpty(kubeVersion) && !isEmpty(platform.Name) {
+//	    benchmarkVersion = getPlatformBenchmarkVersion(platform)
+//	}
+//
+// The platform benchmarks — eks-*, gke-*, aks-*, ack-*, and the k3s/RKE ones — are reachable
+// only when *neither* flag is set. Supplying --version to avoid one wrong answer therefore
+// guarantees a different one: every managed cluster falls through to generic cis-*.
+//
+// The provider benchmarks are not subsets of it. They drop the control-plane checks that are not
+// the customer's to make, and add provider-specific ones the generic benchmark has never heard
+// of, so the mismatch both fails a cluster for what it cannot fix and skips what it can.
+//
+// So the flag is supplied only where it helps: a vanilla cluster gets --version, a recognized
+// platform gets neither flag and kube-bench's own mapping. What makes that safe is not trusting
+// it — verifyBenchmark checks the benchmark the tool reports having used.
+func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, error) {
 	targets := stringSetting(cfg, targetsKey, defaultKubeBenchTargets)
 	kubeCtx := kubeContext(target, cfg)
-	argv := []string{"kube-bench", "run", "--json", "--targets", targets}
+	plan := kubeBenchPlan{argv: []string{"kube-bench", "run", "--json", "--targets", targets}}
+	argv := plan.argv
 
 	switch benchmark := stringSetting(cfg, benchmarkKey, ""); {
 	case benchmark != "":
@@ -187,25 +215,42 @@ func kubeBenchArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 		// (gke-*, rke2-*, eks-*) that no Kubernetes version maps to.
 		argv = append(argv, "--benchmark", benchmark)
 	default:
-		version := stringSetting(cfg, versionKey, "")
-		if version == "" {
-			detected, err := clusterVersion(kubeCtx)
-			if err != nil {
-				return nil, fmt.Errorf(
-					"kube-bench: cannot determine the cluster's Kubernetes version, and kube-bench "+
-						"would silently audit against a stale benchmark instead of saying so: %w. "+
-						"Set controllers.infrastructure.version (e.g. \"1.34\") or .benchmark "+
-						"(e.g. \"cis-1.12\")", err)
-			}
-			version = detected
+		if version := stringSetting(cfg, versionKey, ""); version != "" {
+			argv = append(argv, "--version", version)
+			break
 		}
-		argv = append(argv, "--version", version)
+		facts, err := detectCluster(kubeCtx)
+		if err != nil {
+			return kubeBenchPlan{}, fmt.Errorf(
+				"kube-bench: cannot determine the cluster's Kubernetes version, and kube-bench "+
+					"would silently audit against a stale benchmark instead of saying so: %w. "+
+					"Set controllers.infrastructure.version (e.g. \"1.34\") or .benchmark "+
+					"(e.g. \"cis-1.12\")", err)
+		}
+		if facts.Platform != "" {
+			// Deliberately neither flag: this is the only way kube-bench will select the
+			// platform's own benchmark.
+			plan.platform = facts.Platform
+			break
+		}
+		argv = append(argv, "--version", facts.Version)
 	}
 
 	if dir := stringSetting(cfg, configDirKey, ""); dir != "" {
 		argv = append(argv, "--config-dir", dir)
 	}
-	return argv, nil
+	plan.argv = argv
+	return plan, nil
+}
+
+// kubeBenchPlan is how the scan will run, and what it therefore expects back.
+//
+// platform carries the distribution Draugr detected, and is empty whenever the benchmark was
+// pinned by configuration or the cluster is vanilla — in both of those cases the benchmark is
+// already determined and there is nothing for the output check to disagree with.
+type kubeBenchPlan struct {
+	argv     []string
+	platform string
 }
 
 // currentKubeContext reports the kubeconfig's current context. Injectable for tests.
@@ -255,8 +300,16 @@ func kubeContext(target plugin.Target, cfg plugin.Config) string {
 	return ""
 }
 
-// clusterVersion reports a cluster's Kubernetes version as major.minor. Injectable for tests.
-var clusterVersion = detectClusterVersion
+// clusterFacts is what a cluster reports about itself that decides which benchmark applies.
+type clusterFacts struct {
+	// Version is the Kubernetes version as major.minor, e.g. "1.34".
+	Version string
+	// Platform names the managed distribution — "eks", "gke" — or is empty for a vanilla one.
+	Platform string
+}
+
+// detectCluster reads the facts that decide the benchmark. Injectable for tests.
+var detectCluster = detectClusterFacts
 
 // clientForContext builds a Kubernetes client for a named context, the same way the k8s-images
 // surveyor reaches one. An empty context means the kubeconfig's current one.
@@ -270,17 +323,91 @@ func clientForContext(kubeCtx string) (kubernetes.Interface, error) {
 	return kubernetes.NewForConfig(restCfg)
 }
 
-// detectClusterVersion asks the named context's cluster which Kubernetes version it runs.
-func detectClusterVersion(kubeCtx string) (string, error) {
+// detectClusterFacts asks the named context's cluster what decides its benchmark.
+func detectClusterFacts(kubeCtx string) (clusterFacts, error) {
 	client, err := clientForContext(kubeCtx)
 	if err != nil {
-		return "", err
+		return clusterFacts{}, err
 	}
 	info, err := client.Discovery().ServerVersion()
 	if err != nil {
-		return "", err
+		return clusterFacts{}, err
 	}
-	return majorMinor(info.Major, info.Minor, info.GitVersion)
+	version, err := majorMinor(info.Major, info.Minor, info.GitVersion)
+	if err != nil {
+		return clusterFacts{}, err
+	}
+	return clusterFacts{Version: version, Platform: platformFrom(info.GitVersion)}, nil
+}
+
+// gitVersionPlatformRE is kube-bench's own expression (cmd/util.go, getPlatformInfoFromVersion),
+// copied rather than approximated: the aim is to reach the same conclusion the tool would, so a
+// looser pattern that finds a platform kube-bench will not is worse than no pattern.
+var gitVersionPlatformRE = regexp.MustCompile(`v(\d+\.\d+)\.\d+[-+](\w+)(?:[.\-+]*)\w+`)
+
+// platformBenchmarkPrefix maps a distribution to the benchmark family kube-bench selects for it.
+// The keys are the platform names kube-bench's own parser yields; the values are read from the
+// directory names in its cfg/ tree, because that is what it reports having used.
+//
+// OpenShift is absent deliberately: kube-bench identifies it by running `oc`, not from the
+// version string, so Draugr cannot reach the same conclusion here. AKS and RKE are listed
+// because their version strings carry the token when they carry it at all — kube-bench's extra
+// in-cluster detection for those two is a fallback for the clusters that do not, and one this
+// scanner has no way to reproduce from outside.
+var platformBenchmarkPrefix = map[string]string{
+	"eks":     "eks-",
+	"gke":     "gke-",
+	"aks":     "aks-",
+	"k3s":     "k3s-cis-",
+	"rancher": "rke-cis-",
+	"rke2r":   "rke2-cis-",
+	"aliyun":  "ack-",
+	"vmware":  "tkgi-",
+}
+
+// platformFrom names the managed distribution a GitVersion belongs to, or "" for a vanilla one.
+//
+// A build suffix is not automatically a platform: v1.31.0-rc.1 parses just as cleanly as
+// v1.30.4-eks-a737599. Only suffixes kube-bench maps to a benchmark count, so a release
+// candidate stays vanilla instead of sending the scan looking for an "rc" benchmark.
+func platformFrom(gitVersion string) string {
+	subs := gitVersionPlatformRE.FindStringSubmatch(gitVersion)
+	if len(subs) < 3 {
+		return ""
+	}
+	if _, ok := platformBenchmarkPrefix[subs[2]]; !ok {
+		return ""
+	}
+	return subs[2]
+}
+
+// verifyBenchmark checks that kube-bench audited against the benchmark the cluster called for.
+//
+// Draugr selects the benchmark by withholding flags — the only way to reach a platform config —
+// which means the choice is made inside a tool that has its own detection and its own fallback.
+// When that detection fails, kube-bench does not stop: it assumes Kubernetes 1.18 and audits
+// against cis-1.6, a benchmark for Kubernetes 1.16, and reports the result as though it were the
+// one asked for.
+//
+// So the input is not the guarantee — the output is. kube-bench states the benchmark it used in
+// every control it emits, and a run that used the wrong one is a failed scan rather than a
+// finding-free pass.
+func verifyBenchmark(doc kubeBenchDoc, platform string) error {
+	want, ok := platformBenchmarkPrefix[platform]
+	if !ok || len(doc.Controls) == 0 {
+		return nil
+	}
+	for _, ctl := range doc.Controls {
+		if ctl.Version == "" || strings.HasPrefix(ctl.Version, want) {
+			continue
+		}
+		return fmt.Errorf(
+			"kube-bench audited against %q, but this is a %s cluster and its benchmark starts with %q. "+
+				"The result would describe the wrong standard. Set controllers.infrastructure.benchmark "+
+				"to the config you want (see `kube-bench --help` for the names it ships)",
+			ctl.Version, platform, want)
+	}
+	return nil
 }
 
 // majorMinor renders the version kube-bench maps against.
@@ -310,17 +437,21 @@ func stringSetting(cfg plugin.Config, key, fallback string) string {
 
 // kubeBenchDoc is the slice of kube-bench's JSON this scanner reads.
 type kubeBenchDoc struct {
-	Controls []struct {
-		ID       string `json:"id"`
-		Text     string `json:"text"`
-		NodeType string `json:"node_type"`
-		Version  string `json:"version"`
-		Tests    []struct {
-			Section string             `json:"section"`
-			Desc    string             `json:"desc"`
-			Results []kubeBenchFinding `json:"results"`
-		} `json:"tests"`
-	} `json:"Controls"`
+	Controls []kubeBenchControl `json:"Controls"`
+}
+
+// kubeBenchControl is one benchmark run. Version is the benchmark kube-bench actually applied —
+// the field verifyBenchmark holds it to.
+type kubeBenchControl struct {
+	ID       string `json:"id"`
+	Text     string `json:"text"`
+	NodeType string `json:"node_type"`
+	Version  string `json:"version"`
+	Tests    []struct {
+		Section string             `json:"section"`
+		Desc    string             `json:"desc"`
+		Results []kubeBenchFinding `json:"results"`
+	} `json:"tests"`
 }
 
 type kubeBenchFinding struct {
@@ -354,11 +485,25 @@ type kubeBenchFinding struct {
 // checked, and a report listing three hundred passing checks buries the dozen that failed —
 // the same reasoning that keeps permissive licences out of the licences control.
 func parseKubeBench(out []byte, tool, location string) (sarif.Report, error) {
+	doc, err := decodeKubeBench(out)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	return reportFromKubeBench(doc, tool, location), nil
+}
+
+// decodeKubeBench reads the tool's JSON. Separate from rendering so a caller that has an
+// expectation about the benchmark can check it before turning the output into findings — a
+// report built from the wrong benchmark is worth nothing, so it should never be built.
+func decodeKubeBench(out []byte) (kubeBenchDoc, error) {
 	var doc kubeBenchDoc
 	if err := json.Unmarshal(out, &doc); err != nil {
-		return sarif.Report{}, fmt.Errorf("decode kube-bench json: %w", err)
+		return kubeBenchDoc{}, fmt.Errorf("decode kube-bench json: %w", err)
 	}
+	return doc, nil
+}
 
+func reportFromKubeBench(doc kubeBenchDoc, tool, location string) sarif.Report {
 	report := sarif.Report{Tool: tool, Rules: map[string]sarif.Rule{}}
 	for _, ctl := range doc.Controls {
 		for _, test := range ctl.Tests {
@@ -384,7 +529,7 @@ func parseKubeBench(out []byte, tool, location string) (sarif.Report, error) {
 			}
 		}
 	}
-	return report, nil
+	return report
 }
 
 // kubeBenchLevel maps a check's status to a SARIF level.

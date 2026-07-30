@@ -91,10 +91,16 @@ config:
 Settings pass through to the scanner. Project-level settings apply to every component; a
 component may override them.
 
-**You should not normally need `version`.** Draugr asks the cluster and tells kube-bench, because
-kube-bench cannot detect it from outside a node and quietly assumes an old one if left to guess —
-see the [scanner doc](../scanners/kube-bench.md). Use `benchmark` for a platform whose benchmark
-is not derived from a Kubernetes version (`gke-*`, `eks-*`, `rke2-*`).
+**You should not normally need either.** Draugr asks the cluster what it is and picks
+accordingly: a vanilla cluster gets its Kubernetes version supplied, because kube-bench cannot
+detect it from outside a node and quietly assumes an old one if left to guess; a managed one
+(EKS, GKE, AKS, k3s, RKE2, ACK) gets its provider benchmark, which kube-bench will only select
+when no version is supplied. Whichever it picks, the benchmark the tool reports having used is
+checked against the cluster before any finding is produced.
+
+Set `benchmark` to pin a config directly — for OpenShift, which is identifiable only by running
+`oc`, or for any distribution Draugr does not recognize. See the
+[scanner doc](../scanners/kube-bench.md) for how the choice is made.
 
 ## Links
 

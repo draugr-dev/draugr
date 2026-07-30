@@ -10,7 +10,26 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **The `infrastructure` control now audits a managed cluster against its own CIS benchmark.**
+  EKS, GKE, AKS, k3s, RKE2 and ACK clusters were being measured against the generic `cis-*`
+  benchmark instead of the provider one.
+
+  The two are not variations on each other — they do not even share check numbers. The generic
+  benchmark's policy checks are section 5; on EKS and GKE they are section 4. So a report cited
+  rule ids that do not exist in the benchmark for that cluster, failed it for control-plane
+  settings a managed provider does not expose, and skipped the provider checks that were the
+  point.
+
+  Nothing to change in your descriptor: Draugr reads the distribution from the version the
+  cluster already reports. A vanilla cluster is unaffected. `benchmark` still pins a config
+  directly — needed for OpenShift, which is identifiable only by running `oc`.
+
+  A scan whose benchmark does not match the cluster now **fails** rather than reporting.
+  Selecting a provider benchmark means letting kube-bench choose, and kube-bench falls back to a
+  benchmark for Kubernetes 1.16 when its own detection fails, so the result is checked rather
+  than assumed.
 
 ## [0.46.1] - 2026-07-30
 
