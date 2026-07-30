@@ -15,9 +15,16 @@ Output contrib/demo/scan.gif
 Set Shell bash
 Set FontSize 18
 Set Width 1600
-Set Height 820
+Set Height 1150
 Set Theme "Dracula"
 Set Padding 20
+
+# The height has to fit the entire scan output. vhs records a fixed viewport rather than a
+# scrolling terminal, so anything past the bottom edge is never captured — including the summary
+# line the Wait below matches on, which makes a height that is merely close fail as a timeout
+# rather than as a cropped image. At font size 18 a row is about 22px, and the zero-config run
+# currently prints 39 rows including the prompts. Leave headroom: the output grows as controls
+# are added.
 
 # Enter the sandbox off-camera. The scanner databases are warmed by the workflow before vhs
 # starts — Trivy downloads its database on first use, and on a cold runner that download
