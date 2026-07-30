@@ -12,12 +12,16 @@ import (
 const (
 	kubeBenchScanner      = "kube-bench"
 	kubeBenchJobScanner   = "kube-bench-job"
+	k8sPoliciesScanner    = "k8s-policies"
 	infrastructureControl = "infrastructure"
 	kubernetesPlatform    = "kubernetes"
 	// modeKey chooses how the benchmark is run: read-only through the API (the default), or
 	// inside the cluster as a Job.
 	modeKey = "mode"
 	modeJob = "job"
+	// modeAPI reads the policies section through the Kubernetes API instead of exec'ing
+	// kube-bench. Opt-in while its coverage of the section grows.
+	modeAPI = "api"
 )
 
 // Infrastructure assesses the platform a component runs on against the CIS Kubernetes
@@ -73,10 +77,15 @@ func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.Sca
 // run schedules a privileged Job on a node. Effects are declared per scanner, so separating them
 // is what lets the read-only path run unguarded while the other one has to be accepted first.
 func scannerFor(cfg plugin.Config) string {
-	if mode, _ := cfg[modeKey].(string); strings.EqualFold(strings.TrimSpace(mode), modeJob) {
+	mode, _ := cfg[modeKey].(string)
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case modeJob:
 		return kubeBenchJobScanner
+	case modeAPI:
+		return k8sPoliciesScanner
+	default:
+		return kubeBenchScanner
 	}
-	return kubeBenchScanner
 }
 
 // infraConfig resolves the control's settings for a component: the project's, with the

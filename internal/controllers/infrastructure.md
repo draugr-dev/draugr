@@ -53,6 +53,14 @@ and only one half is reachable the way Draugr runs:
 | 5 — policies | RBAC, service accounts, Pod Security Standards, network policies, secrets | ✅ via the Kubernetes API — the default |
 | 1–4 — master, node, etcd, controlplane | API server manifests, kubelet config, etcd data-dir permissions | ✅ via `mode: job`, which runs in the cluster |
 
+`mode` picks how section 5 is read:
+
+| `mode` | Scanner | |
+|---|---|---|
+| unset | [`kube-bench`](../scanners/kube-bench.md) | execs kube-bench, which shells out to `kubectl` per check |
+| `api` | [`k8s-policies`](../scanners/k8s-policies.md) | reads the same section through the Kubernetes API — no `kubectl`, seconds rather than minutes, partial coverage stated in the report |
+| `job` | [`kube-bench-job`](../scanners/kube-bench-job.md) | the whole benchmark, from inside the cluster |
+
 By default this control runs section 5: **35 of the 130 checks in `cis-1.9`**, read-only, from
 wherever Draugr runs. They are the checks that describe how the cluster is configured for the workloads on
 it, rather than how its nodes were installed.
