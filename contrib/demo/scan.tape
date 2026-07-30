@@ -19,17 +19,14 @@ Set Height 820
 Set Theme "Dracula"
 Set Padding 20
 
-# Enter the sandbox off-camera and warm Trivy's vulnerability database with a throwaway scan.
-#
-# The warm-up is not cosmetic. Trivy downloads its database on first use, and on a cold CI
-# runner that download dominates the elapsed time — enough to fill the recording with a progress
-# bar and run out of frames before the verdict prints. The GIF should show the product, not a
-# one-time download, and every scan after a machine's first looks like this one.
+# Enter the sandbox off-camera. The scanner databases are warmed by the workflow before vhs
+# starts — Trivy downloads its database on first use, and on a cold runner that download
+# dominates the elapsed time, enough to fill the recording with a progress bar and run out of
+# frames before the verdict prints. Warming it is setup, not something to record: doing it here
+# meant detecting when a hidden command had finished, which is guesswork about a shell prompt
+# rather than about Draugr.
 Hide
 Type "cd draugr-demo" Enter
-Type "draugr scan . >/dev/null 2>&1" Enter
-Wait@120s /\$ $/
-Type "clear" Enter
 Show
 
 Type "draugr scan ." Sleep 600ms Enter

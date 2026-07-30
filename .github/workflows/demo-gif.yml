@@ -63,6 +63,13 @@ jobs:
       - name: Clone the demo sandbox
         run: git clone --depth 1 https://github.com/draugr-dev/draugr-demo draugr-demo
 
+      # Off-camera, and before vhs starts. Trivy downloads its vulnerability database on first
+      # use; on a cold runner that download takes longer than the scan and would be most of what
+      # the recording shows. Every scan after a machine's first looks like the one we record.
+      - name: Warm the scanner databases
+        working-directory: draugr-demo
+        run: draugr scan . >/dev/null 2>&1 || true
+
       - name: Install vhs and its dependencies
         run: |
           set -euo pipefail
