@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.45.0] - 2026-07-30
+
 ### Added
 
 - **Scanners declare what they do to a target beyond reading it, and Draugr acts on it.** Most
@@ -1161,7 +1165,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.44.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.45.0...HEAD
+[0.45.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.45.0
 [0.44.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.44.0
 [0.43.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.43.0
 [0.42.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.42.0
