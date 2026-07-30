@@ -99,6 +99,12 @@ benchmark does.
 - Integration mode: **exec**. `kube-bench` and `kubectl` must both be on `PATH`, and the
   kubeconfig must reach the cluster. `draugr tools install` does not yet provide kube-bench —
   [#386](https://github.com/draugr-dev/draugr/issues/386).
+- **The kubectl requirement is kube-bench's, not Draugr's.** Its section 5 checks are shell
+  scripts that invoke kubectl; exec'ing the tool means exec'ing kubectl. Implementing those
+  checks natively against the Kubernetes API is
+  [#389](https://github.com/draugr-dev/draugr/issues/389).
+- Running the node-level sections needs kube-bench inside the cluster as a Job —
+  [#388](https://github.com/draugr-dev/draugr/issues/388).
 - Findings are located at the cluster (`kubernetes/<ref>`), not a file — that is what was
   assessed.
 - kube-bench ships its own `cfg/` benchmark definitions and looks for them in

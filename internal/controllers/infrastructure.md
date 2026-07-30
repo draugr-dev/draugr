@@ -54,7 +54,10 @@ Draugr runs. They are the checks that describe how the cluster is configured for
 it, rather than how its nodes were installed.
 
 The other 95 need kube-bench running inside the cluster as a Job, which is a different contract:
-Draugr would be creating something in the system it is scanning. That is out of scope here.
+Draugr would be creating something in the system it is scanning. Tracked as
+[#388](https://github.com/draugr-dev/draugr/issues/388), sequenced after the effects framework
+([#384](https://github.com/draugr-dev/draugr/issues/384)) so that consent is a declared property
+rather than a flag invented for one scanner.
 
 ## Configuration
 
