@@ -17,7 +17,7 @@ applies to and aggregates the results. Controllers are either **project-scoped**
 **component-scoped**.
 
 > Implemented today: **`images`**, **`sca`**, **`licenses`**, **`secrets`**, **`sast`**,
-> **`iac`**, **`headers`**, **`dast`**, **`tls`**. On the roadmap: `infrastructure`, `threats`.
+> **`iac`**, **`headers`**, **`dast`**, **`tls`**, **`infrastructure`**. On the roadmap: `threats`.
 > See the [integrations catalog](../reference/catalog.md) or run `draugr controls`.
 >
 > **An SBOM is not a control.** Every row in the controls table means "checked, and here is the
@@ -32,10 +32,12 @@ tools are integrated declaratively via a *tool adapter* — describe how to invo
 and Draugr runs it and parses its SARIF. Built-in today: **Trivy** in four modes —
 `trivy` (`images`), `trivy-fs` (`sca`), `trivy-config` (`iac`) and `trivy-license` (`licenses`) —
 **Gitleaks** (`secrets`), **Semgrep** (`sast`, with opt-in **gosec** for Go components),
-**Nuclei** (`dast`), and native scanners for `headers` and `tls` that need no external tool.
+**Nuclei** (`dast`), **kube-bench** (`infrastructure`), and native scanners for `headers` and
+`tls` that need no external tool.
 
-`trivy-license` is the one that does not consume SARIF: Trivy reports licences only in its JSON
-output, so that scanner does the conversion itself.
+`trivy-license` and `kube-bench` are the two that do not consume SARIF — Trivy reports licences
+only in its JSON output, and kube-bench has no SARIF mode at all — so those scanners do the
+conversion themselves.
 
 ## SARIF everywhere
 

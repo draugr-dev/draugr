@@ -10,7 +10,38 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **A new `infrastructure` control**, auditing a Kubernetes cluster against the
+  [CIS Kubernetes Benchmark](https://www.cisecurity.org/benchmark/kubernetes) via
+  [kube-bench](https://github.com/aquasecurity/kube-bench). A cluster is a component like any
+  other — one with no code of its own:
+
+  ```yaml
+  components:
+    - name: prod-cluster
+      exposure: public
+      criticality: critical
+      infrastructure:
+        - kind: kubernetes
+          ref: prod-eu-west-1
+  ```
+
+  **It runs the benchmark's policies section** — RBAC, service accounts, Pod Security Standards,
+  network policies, secrets usage: 35 of the 130 checks in `cis-1.9`, read-only, through the
+  Kubernetes API. Those are the checks describing how a cluster is configured for the workloads
+  on it, and they mean the same thing whether you run them from a laptop or from CI.
+
+  The rest of the benchmark reads a node's own filesystem, so it needs kube-bench running inside
+  the cluster. Draugr does not do that, and would rather cover a quarter of the benchmark
+  honestly than report on files it never saw.
+
+  A failing scored check is an error; a `WARN` is a warning, because in CIS terms it means
+  "requires a manual check" rather than "this is broken". Passing checks are not reported —
+  three hundred green rows bury the dozen that matter.
+
+  Needs `kube-bench` and `kubectl` on `PATH`. Point `configDir` at kube-bench's `cfg/` directory
+  if it is not installed at `/etc/kube-bench/cfg`.
 
 ## [0.44.0] - 2026-07-30
 

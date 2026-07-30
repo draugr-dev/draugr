@@ -26,9 +26,15 @@ type Config struct {
 	TargetKinds []plugin.TargetKind
 	// Argv builds the command line (argv[0] is the executable) for a target and config.
 	Argv func(target plugin.Target, cfg plugin.Config) ([]string, error)
-	// Run executes argv and returns the tool's SARIF output. Optional; defaults to
-	// executing the command and capturing stdout.
+	// Run executes argv and returns the tool's output. Optional; defaults to executing the
+	// command and capturing stdout. Draugr's built-in scanners pass a shared implementation
+	// that puts the tool's own first line of stderr into the error — `exit status 1` on its own
+	// tells a reader nothing, and that string is what reaches the terminal and the report.
 	Run func(ctx context.Context, argv []string) ([]byte, error)
+	// Parse decodes the tool's output. Optional — nil means the tool emits SARIF, which most
+	// do. A tool that reports in its own JSON supplies the conversion here rather than needing
+	// a scanner type of its own.
+	Parse func(out []byte, target plugin.Target, cfg plugin.Config) (sarif.Report, error)
 	// CacheVersion, when set, contributes a tool/data version to the cache key (see
 	// plugin.CacheVersioner). Optional.
 	CacheVersion func(ctx context.Context) string
@@ -84,8 +90,8 @@ func (a *Adapter) Prewarm(ctx context.Context) error {
 	return a.cfg.Prewarm(ctx)
 }
 
-// Scan builds and runs the command for target, then parses its SARIF output. The tool
-// name is backfilled onto the report and its results when the tool omits it.
+// Scan builds and runs the command for target, then decodes its output. The tool name is
+// backfilled onto the report and its results when the tool omits it.
 func (a *Adapter) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	argv, err := a.cfg.Argv(target, cfg)
 	if err != nil {
@@ -100,9 +106,9 @@ func (a *Adapter) Scan(ctx context.Context, target plugin.Target, cfg plugin.Con
 		return sarif.Report{}, fmt.Errorf("run %s: %w", a.cfg.Name, err)
 	}
 
-	report, err := sarif.FromSARIF(out)
+	report, err := a.decode(out, target, cfg)
 	if err != nil {
-		return sarif.Report{}, fmt.Errorf("parse %s SARIF: %w", a.cfg.Name, err)
+		return sarif.Report{}, err
 	}
 	if report.Tool == "" {
 		report.Tool = a.cfg.Name
@@ -158,3 +164,20 @@ func logToolRun(ctx context.Context, argv []string, dir string, started time.Tim
 // levelTrace mirrors observability.LevelTrace without importing it, keeping this package free of
 // a dependency on the CLI's logging setup.
 const levelTrace = slog.LevelDebug - 4
+
+// decode turns the tool's output into a report, via SARIF unless the adapter was given its own
+// parser. Mirrors how repository scanners handle a tool that doesn't speak SARIF.
+func (a *Adapter) decode(out []byte, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+	if a.cfg.Parse != nil {
+		report, err := a.cfg.Parse(out, target, cfg)
+		if err != nil {
+			return sarif.Report{}, fmt.Errorf("parse %s output: %w", a.cfg.Name, err)
+		}
+		return report, nil
+	}
+	report, err := sarif.FromSARIF(out)
+	if err != nil {
+		return sarif.Report{}, fmt.Errorf("parse %s SARIF: %w", a.cfg.Name, err)
+	}
+	return report, nil
+}

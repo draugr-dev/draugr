@@ -3,9 +3,11 @@ package tooladapter
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 const sampleSARIF = `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"trivy"}},` +
@@ -121,5 +123,93 @@ func TestAdapterPrewarm(t *testing.T) {
 	a := New(Config{Name: "trivy", Argv: imageArgv, Prewarm: func(context.Context) error { called = true; return nil }})
 	if err := a.Prewarm(context.Background()); err != nil || !called {
 		t.Errorf("Prewarm should invoke the hook (called=%v, err=%v)", called, err)
+	}
+}
+
+// Most tools emit SARIF; some report in their own JSON. The Parse hook is how the second kind
+// gets a scanner without needing a scanner type of its own.
+func TestAdapterUsesTheConfiguredParser(t *testing.T) {
+	a := New(Config{
+		Name:        "custom",
+		TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+		Argv: func(plugin.Target, plugin.Config) ([]string, error) {
+			return []string{"custom", "run"}, nil
+		},
+		Run: func(context.Context, []string) ([]byte, error) {
+			return []byte(`{"whatever": true}`), nil // not SARIF; FromSARIF would find no results
+		},
+		Parse: func(_ []byte, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
+			return sarif.Report{Results: []sarif.Result{
+				{RuleID: "custom/1", Level: sarif.LevelError, Location: sarif.Location{URI: target.Identity()}},
+			}}, nil
+		},
+	})
+	rep, err := a.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes", Ref: "prod"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 1 || rep.Results[0].RuleID != "custom/1" {
+		t.Fatalf("the configured parser should have produced the report, got %+v", rep.Results)
+	}
+	if got := rep.Results[0].Location.URI; got != "kubernetes/prod" {
+		t.Errorf("the parser should see the target: location = %q", got)
+	}
+	// The adapter still backfills the tool name the parser left unset.
+	if rep.Results[0].Tool != "custom" {
+		t.Errorf("tool = %q, want custom", rep.Results[0].Tool)
+	}
+}
+
+// A parser that fails should say which tool's output it choked on — the caller has several.
+func TestAdapterReportsParserFailures(t *testing.T) {
+	a := New(Config{
+		Name:        "custom",
+		TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+		Argv:        func(plugin.Target, plugin.Config) ([]string, error) { return []string{"custom"}, nil },
+		Run:         func(context.Context, []string) ([]byte, error) { return []byte("{}"), nil },
+		Parse: func([]byte, plugin.Target, plugin.Config) (sarif.Report, error) {
+			return sarif.Report{}, errors.New("bad shape")
+		},
+	})
+	_, err := a.Scan(context.Background(), plugin.InfraTarget{}, nil)
+	if err == nil {
+		t.Fatal("expected the parser error to surface")
+	}
+	if !strings.Contains(err.Error(), "custom") || !strings.Contains(err.Error(), "bad shape") {
+		t.Errorf("error should name the tool and the cause, got: %v", err)
+	}
+}
+
+// The default Run path — used by any adapter that does not supply its own. Draugr's built-in
+// scanners inject a shared implementation, so without this nothing would exercise it.
+func TestAdapterDefaultRunExecutesTheTool(t *testing.T) {
+	a := New(Config{
+		Name:        "echo",
+		TargetKinds: []plugin.TargetKind{plugin.TargetHost},
+		Argv: func(plugin.Target, plugin.Config) ([]string, error) {
+			return []string{"printf", "%s", sampleSARIF}, nil
+		},
+	})
+	rep, err := a.Scan(context.Background(), plugin.HostTarget{URL: "https://example.test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 1 || rep.Results[0].RuleID != "CVE-1" {
+		t.Errorf("want the tool's SARIF parsed, got %+v", rep.Results)
+	}
+}
+
+func TestAdapterDefaultRunReportsAFailingTool(t *testing.T) {
+	a := New(Config{
+		Name:        "false",
+		TargetKinds: []plugin.TargetKind{plugin.TargetHost},
+		Argv:        func(plugin.Target, plugin.Config) ([]string, error) { return []string{"false"}, nil },
+	})
+	_, err := a.Scan(context.Background(), plugin.HostTarget{URL: "https://example.test"}, nil)
+	if err == nil {
+		t.Fatal("a tool that exits non-zero should surface as an error")
+	}
+	if !strings.Contains(err.Error(), "false") {
+		t.Errorf("the error should name the tool, got: %v", err)
 	}
 }

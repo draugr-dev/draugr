@@ -144,9 +144,21 @@ Roadmap: [#59](https://github.com/draugr-dev/draugr/issues/59).
 
 *Go deeper: [CIS benchmarks / posture](/learn/infrastructure-cis-benchmarks/) in Learn.*
 
-Audits infrastructure/runtime against hardening baselines — e.g. the **CIS Kubernetes
-Benchmark**. In Draugr: **`infrastructure`** via
-[kube-bench](https://github.com/aquasecurity/kube-bench). Roadmap: [#55](https://github.com/draugr-dev/draugr/issues/55).
+Audits infrastructure and runtime against hardening baselines — e.g. the **CIS Kubernetes
+Benchmark**, a published set of checks covering how a cluster is installed and how it is
+configured for the workloads on it.
+
+Unlike the other controls this one assesses a *platform* rather than an artifact, which is why
+its findings are located at a cluster rather than a file, and why a cluster can sensibly be a
+component with no code of its own.
+
+In Draugr: the **`infrastructure`** control via
+[kube-bench](https://github.com/aquasecurity/kube-bench). (Implemented today.) It runs the
+benchmark's **policies** section — RBAC, service accounts, Pod Security Standards, network
+policies, secrets usage — which is what a scan can assess through the Kubernetes API from
+outside the cluster. The sections covering node and control-plane configuration are read from a
+node's own filesystem, so they need kube-bench running inside the cluster; that is not something
+Draugr does.
 
 ---
 
