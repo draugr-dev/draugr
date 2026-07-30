@@ -28,6 +28,9 @@ fi
 echo "▶ go test (race + coverage)"
 go test -race -covermode=atomic -coverprofile=coverage.out ./...
 
+echo "▶ changelog-guard"
+./scripts/changelog-guard.sh
+
 echo "▶ govulncheck"
 if command -v govulncheck >/dev/null 2>&1; then
 	govulncheck ./...

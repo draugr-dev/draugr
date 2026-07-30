@@ -63,6 +63,14 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           check-latest: true
+      # Deliberately not gated on the code filter: a CHANGELOG-only pull request is exactly the
+      # case this guards, and tags have to be present because each released section is compared
+      # against its own tag.
+      - name: Released CHANGELOG sections are unchanged
+        run: |
+          git fetch --tags --force --quiet
+          ./scripts/changelog-guard.sh
+
       - name: Verify formatting
         if: needs.changes.outputs.code == 'true'
         run: |

@@ -88,6 +88,19 @@ and move it under a version on release.
   Needs `kube-bench` and `kubectl` on `PATH`. Point `configDir` at kube-bench's `cfg/` directory
   if it is not installed at `/etc/kube-bench/cfg`.
 
+### Fixed
+
+- **`draugr doctor` no longer says a scan will work when it will not.** A scanner needing a tool
+  Draugr does not package was skipped silently, so enabling the `infrastructure` control and
+  running `doctor` reported *"All required tools present"* against an empty table — from the one
+  command whose job is answering "will a scan work?".
+
+  It now checks every binary a registered scanner declares, packaged or not, and scanners can
+  declare more than one. That second part matters for tools that shell out in turn: kube-bench's
+  CIS checks invoke `kubectl`, so a machine with kube-bench and no kubectl used to fail at scan
+  time, after a preflight that said everything was fine. Both now appear in `doctor` and
+  `tools list`.
+
 ## [0.44.0] - 2026-07-30
 
 ### Added
@@ -113,17 +126,6 @@ and move it under a version on release.
   since controls run in parallel.
 
 ### Fixed
-
-- **`draugr doctor` no longer says a scan will work when it will not.** A scanner needing a tool
-  Draugr does not package was skipped silently, so enabling the `infrastructure` control and
-  running `doctor` reported *"All required tools present"* against an empty table — from the one
-  command whose job is answering "will a scan work?".
-
-  It now checks every binary a registered scanner declares, packaged or not, and scanners can
-  declare more than one. That second part matters for tools that shell out in turn: kube-bench's
-  CIS checks invoke `kubectl`, so a machine with kube-bench and no kubectl used to fail at scan
-  time, after a preflight that said everything was fine. Both now appear in `doctor` and
-  `tools list`.
 
 - **A failed scanner now says what it said.** A control whose tool exited badly reported
   `run nuclei: exit status 1`, which tells you nothing you can act on — and that line is what
