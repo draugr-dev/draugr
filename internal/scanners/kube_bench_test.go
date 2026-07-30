@@ -589,3 +589,68 @@ func TestVerifyBenchmarkIgnoresAnEmptyDocument(t *testing.T) {
 		t.Errorf("verifyBenchmark on an empty document = %v, want nil", err)
 	}
 }
+
+// The end-to-end version of the guard: a managed cluster, kube-bench falling back to the
+// benchmark it uses when its own detection fails, and a scan that must not return findings.
+//
+// The unit test covers the comparison; this covers the wiring, which is where a check like this
+// usually dies — computed correctly, then never consulted on the path that matters.
+func TestKubeBenchScanRefusesTheWrongBenchmark(t *testing.T) {
+	withClusterFacts(t, clusterFacts{Version: "1.30", Platform: "eks"}, nil)
+
+	stale := []byte(`{"Controls":[{"id":"5","version":"cis-1.6","text":"Kubernetes Policies","tests":[
+		{"section":"5.1","desc":"RBAC","results":[
+			{"test_number":"5.1.1","test_desc":"Ensure that the cluster-admin role is only used where required","status":"FAIL","scored":true}
+		]}
+	]}]}`)
+
+	s := kubeBenchScanner{
+		info: plugin.ScannerInfo{Name: kubeBenchScannerName},
+		run: func(_ context.Context, argv, _ []string) ([]byte, error) {
+			if strings.Contains(strings.Join(argv, " "), "--version") {
+				t.Errorf("argv %v must not pin a version on a managed cluster", argv)
+			}
+			return stale, nil
+		},
+	}
+
+	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	if err == nil {
+		t.Fatalf("a scan against the wrong benchmark must fail, got %d findings", len(rep.Results))
+	}
+	if len(rep.Results) != 0 {
+		t.Errorf("no findings should be built from the wrong benchmark, got %d", len(rep.Results))
+	}
+	for _, want := range []string{"cis-1.6", "eks", "benchmark"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error should name %q so the reader can act on it, got: %v", want, err)
+		}
+	}
+}
+
+// The matching case has to work too, or the guard is just a way to fail every managed scan.
+func TestKubeBenchScanAcceptsThePlatformBenchmark(t *testing.T) {
+	withClusterFacts(t, clusterFacts{Version: "1.30", Platform: "eks"}, nil)
+
+	out := []byte(`{"Controls":[{"id":"4","version":"eks-1.8.0","text":"Kubernetes Policies","tests":[
+		{"section":"4.1","desc":"RBAC","results":[
+			{"test_number":"4.1.1","test_desc":"Ensure that the cluster-admin role is only used where required","status":"FAIL","scored":true}
+		]}
+	]}]}`)
+
+	s := kubeBenchScanner{
+		info: plugin.ScannerInfo{Name: kubeBenchScannerName},
+		run:  func(context.Context, []string, []string) ([]byte, error) { return out, nil },
+	}
+
+	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 1 {
+		t.Fatalf("want the one finding, got %d", len(rep.Results))
+	}
+	if got := rep.Results[0].RuleID; got != "cis/4.1.1" {
+		t.Errorf("rule id = %q, want the EKS benchmark's own numbering", got)
+	}
+}
