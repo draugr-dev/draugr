@@ -87,10 +87,17 @@ const (
 // Defaults for the in-cluster run.
 const (
 	defaultJobNamespace = "default"
-	// defaultKubeBenchImage is pinned rather than :latest. An unpinned image is a scan whose
-	// result can change without anything in the descriptor changing, which is the opposite of
-	// what a compliance report is for.
-	defaultKubeBenchImage = "docker.io/aquasec/kube-bench:v0.15.6"
+	// defaultKubeBenchImage is pinned by digest, and the digest is the part that matters.
+	//
+	// A tag is a mutable pointer: v0.15.6 can be repushed to different content, and a scan whose
+	// result can change with nothing in the descriptor changing is the opposite of what a
+	// compliance report is for. The digest makes the pull reproducible and lets the runtime
+	// reject content that does not match — the same guarantee `draugr tools install` gets from
+	// verifying a checksum before it puts a binary on your PATH.
+	//
+	// The tag is kept alongside it for readability: @sha256:… alone says nothing about which
+	// version is running, and a reader of the descriptor should be able to tell.
+	defaultKubeBenchImage = "docker.io/aquasec/kube-bench:v0.15.6@sha256:861900910eec45b54a97e4a2af81b16fae7203d768f7f8e7de3b7456807870f5"
 	// defaultJobTargets are the sections worth running in-cluster: the ones that read a node's
 	// own filesystem and cannot be answered any other way. `policies` is deliberately absent —
 	// the read-only scanner already covers it without creating anything.

@@ -71,15 +71,23 @@ config:
     infrastructure:
       mode: job
       namespace: default              # where the Job is created
-      image: docker.io/aquasec/kube-bench:v0.15.6
+      image: docker.io/aquasec/kube-bench:v0.15.6@sha256:8619009…
       targets: master,node,etcd,controlplane
       nodeSelector: node-role.kubernetes.io/control-plane=
       timeout: 5m
 ```
 
-The image is **pinned by default**. An unpinned image is a scan whose result can change with
-nothing in the descriptor changing, which is the opposite of what a compliance report is for.
-Override it for a private registry or an air-gapped mirror.
+The image is **pinned by digest** by default, and the digest is the part that matters. A tag is a
+mutable pointer — `v0.15.6` can be repushed to different content — so a tag alone leaves you with
+a scan whose result can change while nothing in the descriptor does. The digest makes the pull
+reproducible and lets the runtime reject content that does not match, which is the same guarantee
+`draugr tools install` gets from verifying a checksum before putting a binary on your `PATH`.
+
+The tag is kept alongside it for readability: `@sha256:…` on its own says nothing about which
+version is running, and someone reading the descriptor should be able to tell.
+
+Override it for a private registry or an air-gapped mirror. If you do, pin yours by digest too —
+this is the one setting where a convenient value quietly weakens the report.
 
 ## Cleanup
 

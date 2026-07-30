@@ -34,6 +34,10 @@ and move it under a version on release.
   first, and says exactly what it would do if they are not. Nothing is installed locally; the
   image carries the tool.
 
+  The image is pinned **by digest**, not just by tag: a tag can be repushed, and a compliance
+  result that changes while the descriptor does not is worth nothing. Override `image` for a
+  private registry or air-gapped mirror — and pin yours by digest too.
+
   The Job mounts host paths **read-only** and asks for no RBAC, because these checks read the
   filesystem rather than the API. It is still a privileged pod, and a namespace enforcing the
   restricted Pod Security Standard will reject it — which is that standard working as intended.

@@ -98,10 +98,15 @@ func TestKubeBenchJobSpec(t *testing.T) {
 			t.Errorf("mount %q is writable", m.Name)
 		}
 	}
-	// Pinned, not :latest — an unpinned image is a scan whose result can change with nothing in
-	// the descriptor changing.
-	if img := pod.Containers[0].Image; !strings.Contains(img, ":v") {
-		t.Errorf("image %q is not pinned to a version", img)
+	// Pinned by digest. A tag is a mutable pointer — v0.15.6 can be repushed — so a tag alone
+	// is a scan whose result can change with nothing in the descriptor changing.
+	img := pod.Containers[0].Image
+	if !strings.Contains(img, "@sha256:") {
+		t.Errorf("image %q is not pinned by digest", img)
+	}
+	// The tag stays for readability: a digest alone says nothing about which version is running.
+	if !strings.Contains(img, ":v") {
+		t.Errorf("image %q should carry a readable version alongside the digest", img)
 	}
 	// The default targets are the sections that can only be answered from inside the cluster.
 	args := strings.Join(pod.Containers[0].Args, " ")
