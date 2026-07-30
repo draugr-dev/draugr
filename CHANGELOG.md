@@ -43,7 +43,8 @@ and move it under a version on release.
   **`ref` selects the cluster.** It is matched against a kubeconfig context, and both the version
   lookup and the `kubectl` calls kube-bench makes are pointed at it — so a report cannot name one
   cluster while describing whichever one your terminal happened to be pointed at. Set `context`
-  where the kubeconfig's name for a cluster differs from yours.
+  where the kubeconfig's name for a cluster differs from yours. Omit `ref` and Draugr uses the
+  current context, naming it in the findings so the report still says what it examined.
 
   **Draugr tells kube-bench which benchmark to use.** kube-bench picks one from the Kubernetes
   version, which it reads from the node it runs on — and from outside a node it cannot, so it
