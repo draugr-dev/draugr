@@ -11,8 +11,13 @@ import (
 
 const (
 	kubeBenchScanner      = "kube-bench"
+	kubeBenchJobScanner   = "kube-bench-job"
 	infrastructureControl = "infrastructure"
 	kubernetesPlatform    = "kubernetes"
+	// modeKey chooses how the benchmark is run: read-only through the API (the default), or
+	// inside the cluster as a Job.
+	modeKey = "mode"
+	modeJob = "job"
 )
 
 // Infrastructure assesses the platform a component runs on against the CIS Kubernetes
@@ -53,12 +58,25 @@ func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.Sca
 			continue
 		}
 		jobs = append(jobs, plugin.ScanJob{
-			Scanner: kubeBenchScanner,
+			Scanner: scannerFor(cfg),
 			Target:  plugin.InfraTarget{Platform: kubernetesPlatform, Ref: infra.Ref},
 			Config:  cfg,
 		})
 	}
 	return jobs, nil
+}
+
+// scannerFor picks how the benchmark runs.
+//
+// Two scanners rather than one with a flag, because the difference is not an implementation
+// detail: the default reads the cluster through its API and creates nothing, while the in-cluster
+// run schedules a privileged Job on a node. Effects are declared per scanner, so separating them
+// is what lets the read-only path run unguarded while the other one has to be accepted first.
+func scannerFor(cfg plugin.Config) string {
+	if mode, _ := cfg[modeKey].(string); strings.EqualFold(strings.TrimSpace(mode), modeJob) {
+		return kubeBenchJobScanner
+	}
+	return kubeBenchScanner
 }
 
 // infraConfig resolves the control's settings for a component: the project's, with the

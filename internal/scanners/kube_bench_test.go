@@ -118,7 +118,7 @@ func TestParseKubeBench(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rep, err := parseKubeBench(raw, "kubernetes/prod")
+	rep, err := parseKubeBench(raw, kubeBenchScannerName, "kubernetes/prod")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestParseKubeBench(t *testing.T) {
 func TestParseKubeBenchAllPassing(t *testing.T) {
 	raw := []byte(`{"Controls":[{"id":"5","text":"Policies","tests":[{"section":"5.1",
 	  "results":[{"test_number":"5.1.1","test_desc":"ok","status":"PASS","scored":true}]}]}]}`)
-	rep, err := parseKubeBench(raw, "kubernetes/prod")
+	rep, err := parseKubeBench(raw, kubeBenchScannerName, "kubernetes/prod")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestParseKubeBenchAllPassing(t *testing.T) {
 }
 
 func TestParseKubeBenchRejectsGarbage(t *testing.T) {
-	if _, err := parseKubeBench([]byte("not json"), "kubernetes/prod"); err == nil {
+	if _, err := parseKubeBench([]byte("not json"), kubeBenchScannerName, "kubernetes/prod"); err == nil {
 		t.Error("expected an error decoding non-JSON output")
 	}
 }
@@ -425,5 +425,33 @@ func TestKubeBenchScanLabelsAnUnnamedCluster(t *testing.T) {
 	}
 	if got := rep.Results[0].Location.URI; got != "kubernetes/kind-local" {
 		t.Errorf("location = %q, want the cluster actually audited", got)
+	}
+}
+
+// A kubeconfig that cannot be read is a different failure from a context that is not in it, and
+// the scan should say which rather than reporting a missing context that might well be there.
+func TestKubeContextEnvReportsAnUnreadableKubeconfig(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config")
+	if err := os.WriteFile(path, []byte("\tthis: is: not: yaml\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("KUBECONFIG", path)
+	_, cleanup, err := kubeContextEnv("prod")
+	defer cleanup()
+	if err == nil {
+		t.Fatal("expected an error for an unreadable kubeconfig")
+	}
+	if !strings.Contains(err.Error(), "kubeconfig") {
+		t.Errorf("the error should name what it could not read, got: %v", err)
+	}
+}
+
+// With no kubeconfig there is no current context, and the label falls back to the bare platform
+// rather than inventing one.
+func TestDetectCurrentKubeContextWithoutAConfig(t *testing.T) {
+	t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "does-not-exist"))
+	if got := detectCurrentKubeContext(); got != "" {
+		t.Errorf("detectCurrentKubeContext = %q, want empty", got)
 	}
 }

@@ -10,7 +10,36 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **The `infrastructure` control can now audit the rest of the CIS Benchmark**, by running
+  kube-bench inside the cluster:
+
+  ```yaml
+  config:
+    allowEffects: [mutate, privilege]
+    controllers:
+      infrastructure:
+        enabled: true
+        mode: job
+  ```
+
+  The default stays read-only and covers section 5 — RBAC, service accounts, Pod Security
+  Standards — which is what can be answered through the Kubernetes API. Sections 1 to 4 read a
+  node's own filesystem: API server manifests, kubelet configuration, etcd permissions. Those are
+  **95 of the 130 checks in `cis-1.9`**, and the only way to reach them is from a pod on the node.
+
+  So `mode: job` creates a short-lived Job, waits for it, reads its output, and deletes it —
+  including when the scan fails or is cancelled. It needs `mutate` and `privilege` accepted
+  first, and says exactly what it would do if they are not. Nothing is installed locally; the
+  image carries the tool.
+
+  The Job mounts host paths **read-only** and asks for no RBAC, because these checks read the
+  filesystem rather than the API. It is still a privileged pod, and a namespace enforcing the
+  restricted Pod Security Standard will reject it — which is that standard working as intended.
+
+  On a managed cluster (GKE, EKS, AKS) the control plane is not yours and cannot be inspected by
+  any tool, so `targets: node` is the useful setting there.
 
 ## [0.45.0] - 2026-07-30
 
