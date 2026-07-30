@@ -113,6 +113,23 @@ func filterByPriority(run engine.Result, minPriority string) engine.Result {
 	return out
 }
 
+// erroredControls names controls that failed without producing any report at all, so they have
+// no verdict entry to hang an ERROR on. Sorted, so a report is reproducible.
+func erroredControls(d Data) []string {
+	seen := make(map[string]bool, len(d.Verdict.Controls))
+	for _, c := range d.Verdict.Controls {
+		seen[c.Control] = true
+	}
+	var out []string
+	for name := range d.Run.ScanErrors {
+		if !seen[name] {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 func (d Data) marshalOptions() sarif.MarshalOptions {
 	return sarif.MarshalOptions{Compact: d.Compact}
 }
@@ -156,11 +173,31 @@ type summary struct {
 	p1, p2, p3, p4 int
 	bands          map[string]sevCounts // per-control severity counts
 	findings       []finding            // sorted most-urgent first
+
+	// What the run could not do, and what it set aside. A report that omits these describes a
+	// thinner run rather than a broken one — and a reader cannot tell the difference, which is
+	// the reading that matters: a control whose scanner never ran found nothing because it
+	// looked at nothing.
+	scanErrors map[string][]string // per control, what stopped it completing
+	errored    []string            // controls that produced no report at all, so have no verdict row
+	suppressed int                 // findings a config.exclude rule matched
+	sboms      int                 // SBOM documents produced
+	sbomFormat string
 }
 
 // summarize collects priority counts and a ranked finding list from a run.
 func summarize(d Data) summary {
-	s := summary{verdict: d.Verdict.Verdict, bands: map[string]sevCounts{}}
+	s := summary{
+		verdict:    d.Verdict.Verdict,
+		bands:      map[string]sevCounts{},
+		scanErrors: d.Run.ScanErrors,
+		errored:    erroredControls(d),
+		suppressed: d.Run.Suppressed,
+		sboms:      len(d.Run.SBOMs),
+	}
+	if s.sboms > 0 {
+		s.sbomFormat = string(d.Run.SBOMs[0].Format)
+	}
 	names := make([]string, 0, len(d.Run.Controls))
 	for name := range d.Run.Controls {
 		names = append(names, name)

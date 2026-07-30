@@ -12,6 +12,19 @@ and move it under a version on release.
 
 ### Fixed
 
+- **The HTML and Markdown reports now say what the run couldn't do.** A control whose scanner
+  failed was missing from both entirely — so a report you sent to someone listed the controls
+  that worked and gave no sign the others had been asked for. They now carry an `ERROR` row and
+  the reason, as the console already did.
+
+  Both also report the suppression count and any SBOMs, and say when the finding list was
+  narrowed by `--min-priority` — HTML filtered silently before, showing 21 of 56 findings beside
+  priority counts that still read 56.
+
+  While there: rule ids in the HTML report link to their documentation, dark mode is legible
+  (the page asked the browser for it without styling for it), and there are print styles for
+  saving to PDF.
+
 - **`--min-priority` now works with `--format sarif`.** It was silently ignored: the output was
   byte-identical with and without the flag, so the machine consumer with the strongest reason to
   ask for "just the P1s" was the one it didn't serve — and the one least able to notice. On

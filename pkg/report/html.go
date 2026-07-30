@@ -3,6 +3,7 @@ package report
 import (
 	"html/template"
 	"io"
+	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/norn"
 )
@@ -23,16 +24,32 @@ type htmlView struct {
 	P1, P2, P3, P4 int
 	Controls       []htmlControl
 	Findings       []htmlFinding
+	// Errors, Suppressed and SBOM describe what the run couldn't do and what it set aside. A
+	// shared report that omits them describes a thinner run rather than a broken one, and the
+	// reader has no way to tell which they are looking at.
+	Errors      []htmlError
+	Suppressed  int
+	SBOMCount   int
+	SBOMFormat  string
+	MinPriority string // set when the listing was filtered, so the page can say so
+	Hidden      int
 }
+
+type htmlError struct{ Control, Message string }
 
 type htmlControl struct {
 	Control                     string
 	Fail                        bool
+	Errored                     bool // its scanner failed: whatever it reported is partial
+	NoReport                    bool // it produced nothing at all, so has no counts to show
 	Critical, High, Medium, Low int
 }
 
 type htmlFinding struct {
 	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Location, Message string
+	// HelpURI documents the rule. Rendered as a link because this is the one format where a
+	// link costs nothing, and a rule id names a finding without explaining it.
+	HelpURI string
 }
 
 func (htmlReporter) Render(w io.Writer, d Data) error {
@@ -42,6 +59,16 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		Pass:        s.verdict != norn.Fail,
 		Prioritized: s.prioritized,
 		P1:          s.p1, P2: s.p2, P3: s.p3, P4: s.p4,
+		Suppressed:  s.suppressed,
+		SBOMCount:   s.sboms,
+		SBOMFormat:  s.sbomFormat,
+		MinPriority: strings.ToUpper(s.minPriority),
+		Hidden:      s.hidden,
+	}
+	for _, name := range sortedKeys(s.scanErrors) {
+		for _, msg := range s.scanErrors[name] {
+			view.Errors = append(view.Errors, htmlError{Control: name, Message: findingSummary(msg)})
+		}
 	}
 	view.Verdict = "PASS"
 	if s.verdict == norn.Fail {
@@ -55,16 +82,22 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	}
 	for _, c := range d.Verdict.Controls {
 		b := s.bands[c.Control]
+		_, bad := s.scanErrors[c.Control]
 		view.Controls = append(view.Controls, htmlControl{
-			Control: c.Control, Fail: c.Verdict == norn.Fail,
+			Control: c.Control, Fail: c.Verdict == norn.Fail, Errored: bad,
 			Critical: b.critical, High: b.high, Medium: b.medium, Low: b.low,
 		})
+	}
+	// Controls that produced no report at all have no verdict entry. Omitting them is how a
+	// run that could not check something reads as a run that checked it and found nothing.
+	for _, name := range s.errored {
+		view.Controls = append(view.Controls, htmlControl{Control: name, Errored: true, NoReport: true})
 	}
 	for _, f := range s.findings {
 		view.Findings = append(view.Findings, htmlFinding{
 			Priority: dash(f.priority), Severity: string(f.severity), SevClass: "sev-" + string(f.severity),
 			Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: f.tool,
-			Location: dash(f.location), Message: f.message,
+			Location: dash(f.location), Message: f.message, HelpURI: f.helpURI,
 		})
 	}
 	return htmlTemplate.Execute(w, view)
@@ -99,7 +132,28 @@ const htmlDoc = `<!doctype html>
   .sev-high { color: #c2410c; font-weight: 600; }
   .sev-medium { color: #b45309; }
   .sev-low { color: #888; }
-  footer { color: #888; font-size: .82rem; margin-top: 2rem; }
+  .err { color: #b3261e; font-weight: 700; }
+  .errors { border-left: 3px solid #b3261e; padding: .1rem 0 .1rem .8rem; margin: 0 0 1.5rem; }
+  .errors li { margin: .2rem 0; }
+  .note { color: #555; font-size: .88rem; margin: -.5rem 0 1.25rem; }
+  a { color: inherit; }
+  footer { color: #888; font-size: .82rem; margin-top: 2rem; border-top: 1px solid #8883; padding-top: .6rem; }
+  /* The page declares color-scheme: light dark, so the browser paints dark chrome in dark mode.
+     These keep the text legible against it — greys tuned for white are unreadable on near-black. */
+  @media (prefers-color-scheme: dark) {
+    .rel, .note { color: #aaa; }
+    .sev-low { color: #999; }
+    .sev-medium { color: #e0a458; }
+    .sev-high { color: #ff9e6d; }
+    .sev-critical, .p1, .err { color: #ff6b6b; }
+    .p2 { color: #ffa94d; }
+    .errors { border-left-color: #ff6b6b; }
+  }
+  @media print {
+    body { max-width: none; }
+    tr { break-inside: avoid; }
+    a::after { content: " (" attr(href) ")"; font-size: .8em; color: #555; }
+  }
 </style>
 </head>
 <body>
@@ -118,21 +172,32 @@ const htmlDoc = `<!doctype html>
 {{if .Controls}}
 <h2>Controls</h2>
 <table>
-<thead><tr><th>Control</th><th>Verdict</th><th class="num">Critical</th><th class="num">High</th><th class="num">Medium</th><th class="num">Low</th></tr></thead>
+<thead><tr><th scope="col">Control</th><th scope="col">Verdict</th><th class="num">Critical</th><th class="num">High</th><th class="num">Medium</th><th class="num">Low</th></tr></thead>
 <tbody>
 {{range .Controls}}<tr>
   <td>{{.Control}}</td>
-  <td>{{if .Fail}}<strong>FAIL</strong>{{else}}pass{{end}}</td>
-  <td class="num">{{.Critical}}</td>
+  <td>{{if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<strong>FAIL</strong>{{else}}pass{{end}}</td>
+  {{if .NoReport}}<td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>
+  {{else}}<td class="num">{{.Critical}}</td>
   <td class="num">{{.High}}</td>
   <td class="num">{{.Medium}}</td>
-  <td class="num">{{.Low}}</td>
+  <td class="num">{{.Low}}</td>{{end}}
 </tr>{{end}}
 </tbody>
 </table>
 {{end}}
 
-<h2>Findings</h2>
+{{if .Errors}}
+<ul class="errors">
+{{range .Errors}}<li><span class="err">{{.Control}}</span> — {{.Message}}</li>{{end}}
+</ul>
+{{end}}
+
+{{if .Suppressed}}<p class="note">{{.Suppressed}} finding(s) suppressed by <code>config.exclude</code> — reported, not deleted; each carries the reason it was set aside.</p>{{end}}
+{{if .SBOMCount}}<p class="note">SBOM: {{.SBOMCount}} document(s) ({{.SBOMFormat}}).</p>{{end}}
+
+<h2>Findings{{if .MinPriority}} — {{.MinPriority}} and above{{end}}</h2>
+{{if .MinPriority}}<p class="note">The counts above describe the whole run{{if .Hidden}}; {{.Hidden}} lower-priority finding(s) are not listed{{end}}.</p>{{end}}
 {{if .Findings}}
 <table>
 <thead><tr><th>Priority</th><th>Severity</th><th class="num">Score</th><th>Rule</th><th>Control</th><th>Scanner</th><th>Location</th><th>Message</th></tr></thead>
@@ -141,7 +206,7 @@ const htmlDoc = `<!doctype html>
   <td>{{.Priority}}</td>
   <td class="{{.SevClass}}">{{.Severity}}</td>
   <td class="num">{{.Score}}</td>
-  <td><code>{{.RuleID}}</code></td>
+  <td><code>{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</code></td>
   <td>{{.Control}}</td>
   <td>{{.Tool}}</td>
   <td><code>{{.Location}}</code></td>
@@ -149,6 +214,8 @@ const htmlDoc = `<!doctype html>
 </tr>{{end}}
 </tbody>
 </table>
+{{else if .Errors}}
+<p>No findings from the controls that ran — see the errors above.</p>
 {{else}}
 <p>No findings. ✓</p>
 {{end}}
