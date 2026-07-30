@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.46.2] - 2026-07-30
+
 ### Changed
 
 - **The docs now say what the default `infrastructure` scan is worth.** Its section of the CIS
@@ -1248,7 +1252,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.46.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.46.2...HEAD
+[0.46.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.2
 [0.46.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.1
 [0.46.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.0
 [0.45.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.45.0
