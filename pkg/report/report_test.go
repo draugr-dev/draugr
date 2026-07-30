@@ -130,7 +130,7 @@ func TestHTMLRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"<!doctype html>", "Draugr —", "FAIL", "app 1.0", "CVE-1", "gitleaks", "<th>Scanner</th>", "</html>"} {
+	for _, want := range []string{"<!doctype html>", "Draugr —", "FAIL", "app 1.0", "CVE-1", "gitleaks", ">Scanner</th>", "</html>"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("html output missing %q", want)
 		}

@@ -10,6 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **The HTML report carries its own data, and you can search it.** Two download links —
+  `results.sarif` (the complete report) and `findings.tsv` (every finding, ready for a
+  spreadsheet) — so the file someone emailed you is enough to work from. Tab-separated rather
+  than comma-separated: finding messages are full of commas, and TSV needs no escaping and opens
+  on a double-click.
+
+  A search box and per-priority, per-severity and per-control toggles narrow the table as you
+  type. Both are **progressive enhancement**: with JavaScript disabled the page still renders the
+  complete table and both downloads, and the toolbar stays hidden rather than showing controls
+  that do nothing.
+
+  Findings now show their message on its own line beneath the row, so it has room to be read
+  instead of being squeezed into an eighth column. Suppressed findings get their own section with
+  the reason each was set aside, and the footer records when the scan ran, which version produced
+  it, and the run's statistics.
+
 ### Fixed
 
 - **The HTML and Markdown reports now say what the run couldn't do.** A control whose scanner

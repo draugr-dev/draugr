@@ -8,6 +8,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -31,6 +32,12 @@ type Data struct {
 	// machine formats (json, sarif), for a consumer that acts on the report rather than reads
 	// it. The human formats ignore it: making those harder to read is the opposite of the point.
 	Compact bool
+	// Generated and Version stamp a report with when it ran and what produced it. A report
+	// offered as evidence has to answer both; a reader who cannot tell whether they are looking
+	// at today's scan or last quarter's has nothing they can rely on. Zero values are omitted,
+	// so a caller that does not set them still renders a valid report.
+	Generated time.Time
+	Version   string
 }
 
 // Reporter renders Data in one format.
@@ -113,6 +120,15 @@ func filterByPriority(run engine.Result, minPriority string) engine.Result {
 	return out
 }
 
+// locationOf renders a finding's location as path:line, or just the path when the scanner gave
+// no line.
+func locationOf(res sarif.Result) string {
+	if res.Location.URI != "" && res.Location.StartLine > 0 {
+		return fmt.Sprintf("%s:%d", res.Location.URI, res.Location.StartLine)
+	}
+	return res.Location.URI
+}
+
 // erroredControls names controls that failed without producing any report at all, so they have
 // no verdict entry to hang an ERROR on. Sorted, so a report is reproducible.
 func erroredControls(d Data) []string {
@@ -140,11 +156,13 @@ type finding struct {
 	control, ruleID, tool, priority, location, message string
 	// helpURI is where the rule is documented: what the scanner published, or a URL derived
 	// from a well-known identifier. Empty when we have nowhere honest to point.
-	helpURI  string
-	level    sarif.Level
-	severity sarif.Severity
-	score    float64
-	hasScore bool
+	helpURI string
+	// justification is why a suppressed finding was set aside. Empty for an active finding.
+	justification string
+	level         sarif.Level
+	severity      sarif.Severity
+	score         float64
+	hasScore      bool
 }
 
 // sevCounts tallies findings by normalized severity band.
@@ -181,7 +199,11 @@ type summary struct {
 	scanErrors map[string][]string // per control, what stopped it completing
 	errored    []string            // controls that produced no report at all, so have no verdict row
 	suppressed int                 // findings a config.exclude rule matched
-	sboms      int                 // SBOM documents produced
+	// excluded lists those findings with the reason each was set aside. The count alone answers
+	// "was anything hidden"; an auditor's question is "who decided this was acceptable, and
+	// when", which needs the reason next to the finding.
+	excluded   []finding
+	sboms      int // SBOM documents produced
 	sbomFormat string
 }
 
@@ -211,6 +233,13 @@ func summarize(d Data) summary {
 			// list of things to fix. The count is reported separately so the reader knows
 			// findings were set aside rather than never found.
 			if res.Suppressed() {
+				s.excluded = append(s.excluded, finding{
+					control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
+					location: locationOf(res), message: res.Message,
+					severity:      res.Severity(""),
+					justification: res.Suppression.Justification,
+					helpURI:       rep.HelpURI(res.RuleID),
+				})
 				continue
 			}
 			if res.Priority != "" {
@@ -226,10 +255,7 @@ func summarize(d Data) summary {
 					s.p4++
 				}
 			}
-			loc := res.Location.URI
-			if loc != "" && res.Location.StartLine > 0 {
-				loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
-			}
+			loc := locationOf(res)
 			sev := res.Severity("")
 			b := s.bands[name]
 			b.add(sev)

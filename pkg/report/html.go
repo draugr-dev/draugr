@@ -3,6 +3,7 @@ package report
 import (
 	"html/template"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -33,7 +34,23 @@ type htmlView struct {
 	SBOMFormat  string
 	MinPriority string // set when the listing was filtered, so the page can say so
 	Hidden      int
+	// Excluded are the findings a config.exclude rule set aside, each with the reason given.
+	// The count alone answers "was anything hidden"; an auditor asks who decided it was
+	// acceptable, which needs the reason next to the finding.
+	Excluded []htmlFinding
+	// Facets are the distinct values the filter controls offer, so the toolbar only ever shows
+	// options that match something.
+	Priorities, Severities, ControlNames []string
+	// SARIFHref and TSVHref are data: URIs — downloads that work with no JavaScript and under
+	// any content-security policy.
+	SARIFHref, TSVHref template.URL
+	SARIFTooBig        bool
+	Generated, Version string
+	Stats              htmlStats
+	HasStats           bool
 }
+
+type htmlStats struct{ Jobs, Scans, CacheHits, Deduped, Concurrency int }
 
 type htmlError struct{ Control, Message string }
 
@@ -50,6 +67,11 @@ type htmlFinding struct {
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
 	// link costs nothing, and a rule id names a finding without explaining it.
 	HelpURI string
+	// Justification is why the finding was set aside. Only set for suppressed findings.
+	Justification string
+	// Search is the lower-cased haystack the filter box matches against, precomputed so the
+	// page does not rebuild it per keystroke.
+	Search string
 }
 
 func (htmlReporter) Render(w io.Writer, d Data) error {
@@ -69,6 +91,18 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		for _, msg := range s.scanErrors[name] {
 			view.Errors = append(view.Errors, htmlError{Control: name, Message: findingSummary(msg)})
 		}
+	}
+	view.SARIFHref, view.SARIFTooBig = buildSARIFDownload(d)
+	view.TSVHref = buildTSVDownload(s)
+	if !d.Generated.IsZero() {
+		view.Generated = d.Generated.UTC().Format("2006-01-02 15:04:05 UTC")
+	}
+	view.Version = d.Version
+	st := d.Run.Stats
+	view.Stats = htmlStats{st.Jobs, st.Scans, st.CacheHits, st.Deduped, st.Concurrency}
+	view.HasStats = st.Jobs > 0
+	for _, f := range s.excluded {
+		view.Excluded = append(view.Excluded, toHTMLFinding(f))
 	}
 	view.Verdict = "PASS"
 	if s.verdict == norn.Fail {
@@ -93,14 +127,47 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	for _, name := range s.errored {
 		view.Controls = append(view.Controls, htmlControl{Control: name, Errored: true, NoReport: true})
 	}
+	seenPrio, seenSev, seenCtl := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, f := range s.findings {
-		view.Findings = append(view.Findings, htmlFinding{
-			Priority: dash(f.priority), Severity: string(f.severity), SevClass: "sev-" + string(f.severity),
-			Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: f.tool,
-			Location: dash(f.location), Message: f.message, HelpURI: f.helpURI,
-		})
+		hf := toHTMLFinding(f)
+		view.Findings = append(view.Findings, hf)
+		// Facets are collected from the findings actually listed, so the toolbar never offers a
+		// filter that matches nothing.
+		addFacet(seenPrio, &view.Priorities, hf.Priority)
+		addFacet(seenSev, &view.Severities, hf.Severity)
+		addFacet(seenCtl, &view.ControlNames, hf.Control)
 	}
+	sort.Strings(view.Priorities)
+	sort.Strings(view.ControlNames)
+	view.Severities = orderSeverities(view.Severities)
 	return htmlTemplate.Execute(w, view)
+}
+
+func toHTMLFinding(f finding) htmlFinding {
+	return htmlFinding{
+		Priority: dash(f.priority), Severity: string(f.severity), SevClass: "sev-" + string(f.severity),
+		Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: dash(f.tool),
+		Location: dash(f.location), Message: f.message, HelpURI: f.helpURI,
+		Justification: f.justification,
+		Search: strings.ToLower(strings.Join(
+			[]string{f.ruleID, f.control, f.tool, f.location, f.message, f.priority, string(f.severity)}, " ")),
+	}
+}
+
+func addFacet(seen map[string]bool, out *[]string, v string) {
+	if v == "" || v == "-" || seen[v] {
+		return
+	}
+	seen[v] = true
+	*out = append(*out, v)
+}
+
+// orderSeverities sorts by how bad rather than alphabetically, so the filter row reads the way
+// the table does.
+func orderSeverities(got []string) []string {
+	rank := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
+	sort.Slice(got, func(i, j int) bool { return rank[got[i]] < rank[got[j]] })
+	return got
 }
 
 // htmlTemplate is parsed once at package init; html/template escapes all interpolated values.
@@ -148,8 +215,22 @@ const htmlDoc = `<!doctype html>
     .sev-critical, .p1, .err { color: #ff6b6b; }
     .p2 { color: #ffa94d; }
     .errors { border-left-color: #ff6b6b; }
+    .count, tr.msg td, .just, .empty { color: #aaa; }
   }
+  .bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin: 0 0 .75rem; }
+  .bar input[type=search] { flex: 1 1 16rem; font: inherit; padding: .35rem .6rem; border: 1px solid #8886; border-radius: .35rem; background: transparent; color: inherit; }
+  .facets { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin: 0 0 1rem; font-size: .86rem; }
+  .facets label { cursor: pointer; user-select: none; white-space: nowrap; }
+  .count { color: #666; font-size: .86rem; white-space: nowrap; }
+  .dl a { display: inline-block; padding: .3rem .7rem; border: 1px solid #8886; border-radius: .35rem; text-decoration: none; font-size: .86rem; }
+  .dl a:hover { border-color: #888; }
+  tr.msg td { border-bottom: 1px solid #8883; padding-top: 0; color: #444; }
+  tr.meta td { border-bottom: 0; padding-bottom: .15rem; }
+  tr.hide { display: none; }
+  .just { color: #555; font-style: italic; }
+  .empty { color: #666; font-style: italic; }
   @media print {
+    .bar, .facets, .dl { display: none; }
     body { max-width: none; }
     tr { break-inside: avoid; }
     a::after { content: " (" attr(href) ")"; font-size: .8em; color: #555; }
@@ -198,11 +279,34 @@ const htmlDoc = `<!doctype html>
 
 <h2>Findings{{if .MinPriority}} — {{.MinPriority}} and above{{end}}</h2>
 {{if .MinPriority}}<p class="note">The counts above describe the whole run{{if .Hidden}}; {{.Hidden}} lower-priority finding(s) are not listed{{end}}.</p>{{end}}
+
+<p class="dl">
+  {{if .SARIFHref}}<a href="{{.SARIFHref}}" download="results.sarif">⬇ SARIF</a>{{end}}
+  {{if .TSVHref}}<a href="{{.TSVHref}}" download="findings.tsv">⬇ TSV (spreadsheet)</a>{{end}}
+  {{if .SARIFTooBig}}<span class="note">SARIF too large to embed — re-run with <code>-o &lt;dir&gt;</code>.</span>{{end}}
+</p>
+
+<div id="tools" hidden>
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search rule, message, file, control…" aria-label="Search findings">
+    <span class="count" id="count"></span>
+  </div>
+  <div class="facets" id="facets">
+    {{range .Priorities}}<label><input type="checkbox" class="f" data-k="p" value="{{.}}" checked> {{.}}</label>{{end}}
+    {{if .Priorities}}<span aria-hidden="true">·</span>{{end}}
+    {{range .Severities}}<label><input type="checkbox" class="f" data-k="s" value="{{.}}" checked> {{.}}</label>{{end}}
+    {{if .Severities}}<span aria-hidden="true">·</span>{{end}}
+    {{range .ControlNames}}<label><input type="checkbox" class="f" data-k="c" value="{{.}}" checked> {{.}}</label>{{end}}
+  </div>
+</div>
 {{if .Findings}}
-<table>
-<thead><tr><th>Priority</th><th>Severity</th><th class="num">Score</th><th>Rule</th><th>Control</th><th>Scanner</th><th>Location</th><th>Message</th></tr></thead>
-<tbody>
-{{range .Findings}}<tr>
+<table id="findings">
+<thead><tr>
+  <th scope="col">Priority</th><th scope="col">Severity</th><th scope="col" class="num">Score</th>
+  <th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Location</th>
+</tr></thead>
+{{range .Findings}}<tbody class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-q="{{.Search}}">
+<tr class="meta">
   <td>{{.Priority}}</td>
   <td class="{{.SevClass}}">{{.Severity}}</td>
   <td class="num">{{.Score}}</td>
@@ -210,17 +314,88 @@ const htmlDoc = `<!doctype html>
   <td>{{.Control}}</td>
   <td>{{.Tool}}</td>
   <td><code>{{.Location}}</code></td>
-  <td>{{.Message}}</td>
-</tr>{{end}}
-</tbody>
+</tr>
+<tr class="msg"><td colspan="7">{{.Message}}</td></tr>
+</tbody>{{end}}
 </table>
+<p class="empty" id="none" hidden>No findings match this filter.</p>
 {{else if .Errors}}
 <p>No findings from the controls that ran — see the errors above.</p>
 {{else}}
 <p>No findings. ✓</p>
 {{end}}
 
-<footer>Generated by Draugr.</footer>
+{{if .Excluded}}
+<h2>Suppressed</h2>
+<p class="note">Excluded by <code>config.exclude</code>. Reported rather than deleted, so the decision is visible and reviewable.</p>
+<table>
+<thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Location</th></tr></thead>
+{{range .Excluded}}<tbody>
+<tr class="meta">
+  <td class="{{.SevClass}}">{{.Severity}}</td>
+  <td><code>{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</code></td>
+  <td>{{.Control}}</td>
+  <td><code>{{.Location}}</code></td>
+</tr>
+<tr class="msg"><td colspan="4">{{.Message}}<br><span class="just">Reason: {{.Justification}}</span></td></tr>
+</tbody>{{end}}
+</table>
+{{end}}
+
+<footer>
+  Generated by Draugr{{if .Version}} {{.Version}}{{end}}{{if .Generated}} · {{.Generated}}{{end}}.
+  {{if .HasStats}}<br>{{.Stats.Scans}} scan(s) across {{.Stats.Jobs}} job(s){{if .Stats.CacheHits}}, {{.Stats.CacheHits}} from cache{{end}}{{if .Stats.Deduped}}, {{.Stats.Deduped}} deduplicated{{end}}, up to {{.Stats.Concurrency}} in parallel.{{end}}
+  <br>A passing verdict means the controls you configured found nothing they were looking for; it is not a guarantee of security.
+</footer>
+<script>
+// Progressive enhancement, and deliberately so: everything above renders complete without this.
+// The toolbar starts hidden and is revealed here, so a reader with scripts disabled — or an
+// email client or artifact viewer that strips them — sees the full table rather than dead
+// controls that do nothing.
+(function () {
+  var tools = document.getElementById("tools");
+  var rows = Array.prototype.slice.call(document.querySelectorAll("tbody.f"));
+  if (!tools || !rows.length) return;
+  tools.hidden = false;
+
+  var q = document.getElementById("q");
+  var count = document.getElementById("count");
+  var none = document.getElementById("none");
+  var boxes = Array.prototype.slice.call(document.querySelectorAll("input.f"));
+
+  // A facet with nothing ticked means "no constraint" rather than "match nothing" — unticking
+  // every priority to be shown an empty table is nobody's intent.
+  function allowed(kind) {
+    var on = boxes.filter(function (b) { return b.dataset.k === kind && b.checked; });
+    var all = boxes.filter(function (b) { return b.dataset.k === kind; });
+    if (!all.length || !on.length) return null;
+    return on.map(function (b) { return b.value; });
+  }
+
+  function apply() {
+    var needle = (q.value || "").trim().toLowerCase();
+    var p = allowed("p"), s = allowed("s"), c = allowed("c");
+    var shown = 0;
+    rows.forEach(function (row) {
+      var d = row.dataset;
+      var ok = (!p || p.indexOf(d.p) >= 0) &&
+               (!s || s.indexOf(d.s) >= 0) &&
+               (!c || c.indexOf(d.c) >= 0) &&
+               (!needle || d.q.indexOf(needle) >= 0);
+      row.classList.toggle("hide", !ok);
+      if (ok) shown++;
+    });
+    count.textContent = shown === rows.length
+      ? shown + " finding(s)"
+      : "showing " + shown + " of " + rows.length;
+    none.hidden = shown > 0;
+  }
+
+  q.addEventListener("input", apply);
+  boxes.forEach(function (b) { b.addEventListener("change", apply); });
+  apply();
+})();
+</script>
 </body>
 </html>
 `

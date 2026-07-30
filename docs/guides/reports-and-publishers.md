@@ -21,7 +21,7 @@ Scan results render through a pluggable **Reporter**, selected on the CLI with
 |--------|---------|
 | `console` | human summary on stdout (default) — verdict, P1–P4 counts, "fix first" |
 | `markdown` | portable report for MR comments, wikis, Slack |
-| `html` | self-contained HTML report (inline CSS) — a shareable, browser-viewable artifact |
+| `html` | self-contained HTML report — searchable, filterable, and carrying its own SARIF and TSV downloads. See [below](#the-html-report) |
 | `junit` | JUnit XML — surfaces findings in CI test panels (GitLab, Jenkins, Azure DevOps…) |
 | `json` | machine-readable report |
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
@@ -99,3 +99,32 @@ For the exact schema of `config.reports` / `config.publishers`, see the
 [Saga schema](../reference/saga-schema.md#configreports-and-configpublishers); for the full
 catalog of reporters and publishers, see the
 [integrations catalog](../reference/catalog.md#reporters).
+
+## The HTML report
+
+One file, no external assets — safe to email, attach to a build, or open from disk.
+
+**It carries its own data.** The report embeds the full SARIF and a tab-separated export of every
+finding, offered as ordinary download links:
+
+- `results.sarif` — the complete report, for another tool or a code-scanning upload.
+- `findings.tsv` — one row per finding, ready for a spreadsheet. Tab-separated rather than
+  comma-separated because finding messages contain commas constantly: CSV would need quoting that
+  spreadsheet importers handle inconsistently, and several locales expect `;` as the delimiter.
+  Nothing in a finding contains a tab, so TSV needs no escaping and opens on a double-click.
+
+The TSV covers **every** finding including suppressed ones, each marked with the reason it was
+set aside — the download is the record, and you can filter in the spreadsheet.
+
+**Search and filtering** are progressive enhancement. The page renders complete without
+JavaScript: the full table, both downloads, and every section. The script only reveals a search
+box and per-priority, per-severity and per-control toggles, so a reader whose viewer strips
+scripts sees the whole report rather than controls that do nothing.
+
+**Suppressed findings get their own section**, each with its justification, because "who decided
+this was acceptable, and when" is the question the report exists to answer.
+
+The footer records when the scan ran, which version produced it, and the run's statistics.
+
+A very large scan can produce more SARIF than is sensible to inline; past 8 MiB the report says
+so and points at `-o` instead.
