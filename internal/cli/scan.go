@@ -15,6 +15,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
+	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
@@ -168,6 +169,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		MinPriority: minPriority,
 		TopN:        fixFirstLimit(opts.top),
 		Compact:     opts.compact,
+		// Stamped so a rendered report can say when it ran and what produced it. A report
+		// offered as evidence has to answer both, and only the CLI knows either.
+		Generated: time.Now(),
+		Version:   version.Version,
 	}
 	if format == "template" {
 		art, err := report.Build(saga.ReportConfig{
