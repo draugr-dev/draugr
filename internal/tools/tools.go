@@ -112,6 +112,18 @@ func Catalog() map[string]Tool {
 			InstallHint: "https://git-scm.com/downloads",
 			Category:    CategoryUtility,
 		},
+		"kube-bench": {
+			Binary:      "kube-bench",
+			VersionArgs: []string{"version"},
+			InstallHint: "https://github.com/aquasecurity/kube-bench/releases — extract both the binary and its cfg/ directory",
+			Category:    CategoryScanner,
+		},
+		"kubectl": {
+			Binary:      "kubectl",
+			VersionArgs: []string{"version", "--client"},
+			InstallHint: "https://kubernetes.io/docs/tasks/tools/",
+			Category:    CategoryUtility,
+		},
 	}
 }
 

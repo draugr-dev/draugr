@@ -35,10 +35,13 @@ type kubeBenchScanner struct {
 func NewKubeBench() plugin.Scanner {
 	return kubeBenchScanner{
 		info: plugin.ScannerInfo{
-			Name:        kubeBenchScannerName,
-			Binary:      "kube-bench",
-			Controls:    []string{"infrastructure"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+			Name:   kubeBenchScannerName,
+			Binary: "kube-bench",
+			// Its CIS policy checks are shell scripts that invoke kubectl; without it the tool
+			// runs and reports every check as failed.
+			AlsoRequires: []string{"kubectl"},
+			Controls:     []string{"infrastructure"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetInfra},
 		},
 		run: func(ctx context.Context, argv, env []string) ([]byte, error) {
 			return toolexec.RunWithEnv(ctx, "", argv, env)

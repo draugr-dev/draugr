@@ -160,14 +160,24 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 	catalog := tools.Catalog()
 	seen := map[string]bool{}
 	var out []tools.Tool
+	// A binary the catalog does not describe is still checked. Skipping it silently is how
+	// `doctor` came to report "all required tools present" for a control whose scanner was not
+	// installed at all — the one command whose job is answering "will a scan work?" answering
+	// yes because it had never heard of the tool.
 	add := func(binary string) {
 		if binary == "" || seen[binary] {
 			return
 		}
+		seen[binary] = true
 		if t, ok := catalog[binary]; ok {
-			seen[binary] = true
 			out = append(out, t)
+			return
 		}
+		out = append(out, tools.Tool{
+			Binary:      binary,
+			Category:    tools.CategoryScanner,
+			InstallHint: "required by a registered scanner; not in Draugr's tool catalog",
+		})
 	}
 
 	// sast lets you choose which scanners run (controllers.sast.scanners); only the selected
@@ -191,6 +201,9 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 			continue
 		}
 		add(info.Binary)
+		for _, extra := range info.AlsoRequires {
+			add(extra)
+		}
 		for _, tk := range info.TargetKinds {
 			if tk == plugin.TargetRepository {
 				add("git")
