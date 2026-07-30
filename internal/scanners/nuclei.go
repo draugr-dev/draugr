@@ -36,6 +36,16 @@ func NewNuclei() plugin.Scanner {
 			Binary:      "nuclei",
 			Controls:    []string{"dast"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetHost},
+			// Declared rather than gated. A dynamic scanner exists to send traffic, so asking
+			// per run for permission to do the thing the control is for would train people to
+			// agree without reading. Stating it is still worth doing: probing a host you do not
+			// own is unlawful in many jurisdictions, and until now nothing in the tool said so —
+			// only the scope and disclaimer, which nobody reads mid-scan.
+			Effects: []plugin.Effect{{
+				Kind: plugin.EffectNetwork,
+				Detail: "sends probe traffic to the endpoint, which is lawful only against " +
+					"systems you own or have written permission to test",
+			}},
 		},
 		run: execArgv,
 	}

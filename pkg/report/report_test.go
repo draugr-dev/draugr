@@ -744,3 +744,35 @@ func TestEveryHumanFormatSaysItFiltered(t *testing.T) {
 		})
 	}
 }
+
+// What a run did to its targets belongs where the verdict is read. A scan that probed a live
+// endpoint is a thing that happened, and the report is where someone looks to find out what
+// happened — not only the docs describing the control.
+func TestConsoleReportsWhatTheRunDid(t *testing.T) {
+	d := sampleData()
+	d.Run.Effects = []plugin.Effect{{
+		Kind:   plugin.EffectNetwork,
+		Detail: "sends probe traffic to the endpoint",
+	}}
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	for _, want := range []string{"network", "sends probe traffic to the endpoint"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("console should report %q:\n%s", want, out)
+		}
+	}
+}
+
+// A read-only run says nothing, so the line means something when it appears.
+func TestConsoleSaysNothingWhenTheRunOnlyRead(t *testing.T) {
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, sampleData()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), "network") {
+		t.Errorf("a read-only run should not mention effects:\n%s", b.String())
+	}
+}

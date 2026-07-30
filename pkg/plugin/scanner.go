@@ -50,4 +50,50 @@ type ScannerInfo struct {
 	TargetKinds []TargetKind
 	// ConfigSchema is a JSON Schema for Config; it drives validation and the config wizard.
 	ConfigSchema json.RawMessage
+	// Effects declare what this scanner does to a target beyond reading it. Empty — the common
+	// case — means it reads an artifact and nothing else.
+	//
+	// Draugr surfaces these before a scan runs and records them in the report afterwards, and
+	// refuses to run a scanner whose effects have not been acknowledged. A scanner that omits an
+	// effect it has is worse than one that overstates: the point is that nothing consequential
+	// happens to a target without the operator having agreed to it.
+	Effects []Effect
+}
+
+// EffectKind categorises what a scanner does beyond reading its target.
+type EffectKind string
+
+// The kinds of effect a scanner can declare.
+//
+// The distinction that matters is the **target**. Fetching a vulnerability database from a
+// vendor is a network call, but it is not a consequence for the thing being scanned, and it is
+// not an effect. Sending traffic to the customer's endpoint is.
+const (
+	// EffectNetwork sends traffic to the target rather than reading an artifact. Probing a host
+	// you do not own is unlawful in many jurisdictions, which is why it is worth stating even
+	// though it changes nothing.
+	EffectNetwork EffectKind = "network"
+	// EffectMutate creates or changes something that outlives the scan.
+	EffectMutate EffectKind = "mutate"
+	// EffectPrivilege needs access beyond what reading the target requires.
+	EffectPrivilege EffectKind = "privilege"
+)
+
+// RequiresConsent reports whether an effect must be acknowledged before a scanner runs.
+//
+// Mutating a target or asking for elevated access is a decision someone should make on purpose.
+// Network traffic is declared and recorded but not gated: the controls that send it exist to
+// send it, and demanding consent per run for the thing the control is *for* trains people to
+// agree without reading. The obligation it carries — that you are entitled to probe the host —
+// is set out in the scope and disclaimer.
+func (k EffectKind) RequiresConsent() bool {
+	return k == EffectMutate || k == EffectPrivilege
+}
+
+// Effect is something a scanner does to a target beyond reading it.
+type Effect struct {
+	Kind EffectKind
+	// Detail is one line, addressed to whoever has to approve it: what will happen, in terms of
+	// the target rather than the implementation.
+	Detail string
 }

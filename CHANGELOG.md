@@ -12,6 +12,39 @@ and move it under a version on release.
 
 ### Added
 
+- **Scanners declare what they do to a target beyond reading it, and Draugr acts on it.** Most
+  read an artifact and nothing else. A few do more, and now say so — before a scan, during it,
+  and in the report.
+
+  `draugr controls` lists them:
+
+  ```
+  Scanners that do more than read:
+    Scanner  Effect   What happens
+    nuclei   network  sends probe traffic to the endpoint, which is lawful only against
+                      systems you own or have written permission to test
+  ```
+
+  **An effect that changes a target, or needs elevated access, does not run until accepted:**
+
+  ```yaml
+  config:
+    allowEffects: [mutate]
+  ```
+
+  or `--allow-effects` for a single run. A scanner whose effect has not been accepted stops the
+  run *before* it does anything, and says what it would have done.
+
+  **Sending traffic is declared, not gated.** A dynamic scanner exists to send traffic, and
+  demanding consent per run for the thing the control is *for* teaches people to accept without
+  reading. `dast` now states it instead — until now nothing in the tool mentioned that probing a
+  host is lawful only against systems you are entitled to test; only the scope and disclaimer
+  did, which nobody reads mid-scan.
+
+  What a run actually did is recorded in the report, so the evidence describes what happened
+  rather than what was configured. Only scans that really executed count — a cache hit means the
+  traffic was not sent that time.
+
 - **A new `infrastructure` control**, auditing a Kubernetes cluster against the
   [CIS Kubernetes Benchmark](https://www.cisecurity.org/benchmark/kubernetes) via
   [kube-bench](https://github.com/aquasecurity/kube-bench). A cluster is a component like any

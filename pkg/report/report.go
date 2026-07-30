@@ -198,7 +198,11 @@ type summary struct {
 	// looked at nothing.
 	scanErrors map[string][]string // per control, what stopped it completing
 	errored    []string            // controls that produced no report at all, so have no verdict row
-	suppressed int                 // findings a config.exclude rule matched
+	// effects are what the run did to its targets beyond reading them. Recorded because a scan
+	// that sent traffic to a live endpoint is a thing that happened, and a report is where you
+	// look to find out what happened.
+	effects    []plugin.Effect
+	suppressed int // findings a config.exclude rule matched
 	// excluded lists those findings with the reason each was set aside. The count alone answers
 	// "was anything hidden"; an auditor's question is "who decided this was acceptable, and
 	// when", which needs the reason next to the finding.
@@ -213,6 +217,7 @@ func summarize(d Data) summary {
 		verdict:    d.Verdict.Verdict,
 		bands:      map[string]sevCounts{},
 		scanErrors: d.Run.ScanErrors,
+		effects:    d.Run.Effects,
 		errored:    erroredControls(d),
 		suppressed: d.Run.Suppressed,
 		sboms:      len(d.Run.SBOMs),
