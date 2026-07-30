@@ -28,6 +28,17 @@ make gate    # full local gate: fmt, vet, golangci-lint, race tests + coverage, 
 
 Please run `make gate` before opening a pull request — CI runs the same checks.
 
+### Editing the CHANGELOG
+
+New entries go under `## [Unreleased]`. Released sections are a record of what shipped — once a
+version is tagged, editing its notes rewrites history that release notes and the published site
+already quote.
+
+`make changelog-guard` (part of `make gate`, and a CI check) compares each released section
+against its own tag and fails if one has moved. The failure it exists for is aim rather than
+malice: an entry meant for `[Unreleased]` landing one section lower produces a perfectly valid
+CHANGELOG describing a fix in a release that does not contain it.
+
 ### Changing what `draugr scan` prints
 
 The console layout is quoted in the README, in several documents under `docs/`, and re-recorded
