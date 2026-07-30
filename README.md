@@ -70,15 +70,21 @@ the **new-vs-fixed PR diff** and the sticky comment.
 
 🚧 **Early, and moving fast.** Working today:
 
-- **Controls:** `images` (Trivy), `sca` (Trivy fs), `secrets` (Gitleaks), `sast` (Semgrep,
-  plus opt-in gosec for Go), `iac` (Trivy config), `headers` (native HTTP-header analyzer),
-  `dast` (Nuclei), `tls` (native TLS/certificate probe).
+- **Controls:** `images` (Trivy), `sca` (Trivy fs), `licenses` (Trivy licence scanner),
+  `secrets` (Gitleaks), `sast` (Semgrep, plus opt-in gosec for Go), `iac` (Trivy config),
+  `headers` (native HTTP-header analyzer), `dast` (Nuclei), `tls` (native TLS/certificate probe).
   See the [integrations catalog](docs/reference/catalog.md).
 - **Pipeline:** end-to-end `scan` (plan → scan → judge → report), content-hash caching,
   tunable parallelism (`-j`), results normalized to SARIF.
 - **Prioritization:** declare a component's `exposure` and `criticality` and Draugr ranks
   every finding P1–P4 (`--min-priority` to focus, `--fail-on-priority` to gate);
   optional KEV/EPSS enrichment for real-world exploitability.
+- **Policy:** `config.gate.controls` holds each control to its own threshold, and
+  `config.exclude` suppresses a finding **with a required reason** — it stays in the report,
+  marked, rather than disappearing.
+- **Evidence:** `config.sbom` emits an SBOM per repository and image (SPDX or CycloneDX, via
+  Syft); reports render as console, Markdown, HTML, JUnit, JSON or SARIF. The HTML report is
+  self-contained and carries its own SARIF and TSV downloads.
 - **Discovery ("the Ravens"):** `survey` for Kubernetes images and GitHub org repositories.
 - **Zero-config & scaffolding:** `scan .` scans the current repo with no descriptor
   (sca/secrets/sast/iac); `init` scaffolds a stack-detected `draugr.saga.yaml` to customize.
@@ -86,8 +92,9 @@ the **new-vs-fixed PR diff** and the sticky comment.
   present/missing), `tools install` (fetch pinned, checksum- and cosign-verified scanners —
   and cosign itself — into `~/.draugr/bin`), and `self-update` (update draugr itself, verified).
 
-More controls (SBOM, infrastructure, threat intelligence) are on the roadmap. See
-[controls & scanners](docs/concepts/controls-and-scanners.md) for what maps to what.
+More controls — `infrastructure` (CIS benchmarks) and `threats` (threat intelligence) — are on
+the roadmap. See [controls & scanners](docs/concepts/controls-and-scanners.md) for what maps to
+what.
 
 ## Quickstart
 
@@ -249,6 +256,7 @@ glossary of Saga / Norn / Skald / the Ravens).
 - [CLI reference](docs/reference/cli.md) — every command and flag
 - [AI coding assistants](docs/guides/ai-agents-mcp.md) — the MCP server, its tools, and the consent model
 - [Findings in your editor](docs/guides/findings-in-your-editor.md) — SARIF as inline diagnostics
+- [Reports & publishers](docs/guides/reports-and-publishers.md) — every output format and where it can go
 - [Saga schema](docs/reference/saga-schema.md) — the descriptor, field by field
 - [Architecture](docs/contributing/architecture.md) · [Plugin API](docs/contributing/plugin-api.md) · [Naming](docs/contributing/naming.md)
 

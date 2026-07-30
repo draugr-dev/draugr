@@ -16,17 +16,26 @@ A **controller** owns one **security control**. It plans the work for the compon
 applies to and aggregates the results. Controllers are either **project-scoped** or
 **component-scoped**.
 
-> Implemented today: **`images`**, **`sca`**, **`secrets`**, **`sast`**, **`iac`**, **`headers`**,
-> **`dast`**, **`tls`**. On the roadmap: `sbom`, `infrastructure`, `threats`. See the
-> [integrations catalog](../reference/catalog.md) or run `draugr controls`.
+> Implemented today: **`images`**, **`sca`**, **`licenses`**, **`secrets`**, **`sast`**,
+> **`iac`**, **`headers`**, **`dast`**, **`tls`**. On the roadmap: `infrastructure`, `threats`.
+> See the [integrations catalog](../reference/catalog.md) or run `draugr controls`.
+>
+> **An SBOM is not a control.** Every row in the controls table means "checked, and here is the
+> verdict"; an inventory has no verdict to give, so one would always read `pass` without having
+> looked for anything. `config.sbom` produces it as evidence instead — written alongside the
+> other artifacts and never part of pass or fail.
 
 ## Scanners
 
 A **scanner** wraps a single security tool and normalizes its output to **SARIF**. Most
 tools are integrated declaratively via a *tool adapter* — describe how to invoke the tool
-and Draugr runs it and parses its SARIF. Built-in today: **Trivy** (`images`, `sca`, `iac`),
-**Gitleaks** (`secrets`), **Semgrep** (`sast`, with opt-in **gosec** for Go components), and a
-**native HTTP-headers** scanner (`headers`).
+and Draugr runs it and parses its SARIF. Built-in today: **Trivy** in four modes —
+`trivy` (`images`), `trivy-fs` (`sca`), `trivy-config` (`iac`) and `trivy-license` (`licenses`) —
+**Gitleaks** (`secrets`), **Semgrep** (`sast`, with opt-in **gosec** for Go components),
+**Nuclei** (`dast`), and native scanners for `headers` and `tls` that need no external tool.
+
+`trivy-license` is the one that does not consume SARIF: Trivy reports licences only in its JSON
+output, so that scanner does the conversion itself.
 
 ## SARIF everywhere
 
