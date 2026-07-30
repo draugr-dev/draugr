@@ -11,7 +11,10 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/tools"
+	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 const doctorSagaRepoAndImage = `release:
@@ -171,7 +174,8 @@ func TestRunDoctorInvalidDescriptor(t *testing.T) {
 func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		"", false, fakeDetect("trivy", "gitleaks", "semgrep", "gosec", "git", "nuclei", "syft"), nil)
+		"", false, fakeDetect("trivy", "gitleaks", "semgrep", "gosec", "git", "nuclei", "syft",
+			"kube-bench", "kubectl"), nil)
 	if err != nil {
 		t.Fatalf("runDoctor: %v", err)
 	}
@@ -179,7 +183,8 @@ func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 	if strings.Contains(s, "Descriptor") {
 		t.Errorf("no saga given → should not print a descriptor line\n%s", s)
 	}
-	for _, bin := range []string{"trivy", "gitleaks", "semgrep", "gosec", "git", "nuclei", "syft"} {
+	for _, bin := range []string{"trivy", "gitleaks", "semgrep", "gosec", "git", "nuclei", "syft",
+		"kube-bench", "kubectl"} {
 		if !strings.Contains(s, bin) {
 			t.Errorf("full check should include %q\n%s", bin, s)
 		}
@@ -326,4 +331,76 @@ func TestRequiredToolsIncludesSyftOnlyWhenSBOMIsEnabled(t *testing.T) {
 			t.Error("syft should not be required when sbom is explicitly disabled")
 		}
 	}
+}
+
+const doctorSagaInfrastructure = `release: {name: platform, version: "1.0"}
+config:
+  controllers:
+    infrastructure: {enabled: true}
+components:
+  - name: cluster
+    infrastructure: [{kind: kubernetes, ref: prod}]
+`
+
+// Some tools shell out in turn. kube-bench's CIS policy checks are scripts that invoke kubectl,
+// so a machine with kube-bench and no kubectl fails at scan time — after a preflight that said
+// everything was fine.
+func TestRequiredToolsIncludesASecondaryBinary(t *testing.T) {
+	model, err := saga.LoadFile(writeSaga(t, doctorSagaInfrastructure))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := binaries(requiredTools(builtins.Registry(), model))
+	if !slices.Equal(got, []string{"kube-bench", "kubectl"}) {
+		t.Errorf("infrastructure required = %v, want [kube-bench kubectl]", got)
+	}
+}
+
+// A scanner needing a tool the catalog has never heard of used to vanish from the check
+// entirely, so `doctor` reported "all required tools present" for a control that could not run.
+// The one command whose job is answering "will a scan work?" answered yes because it did not
+// recognise the name.
+func TestRequiredToolsKeepsBinariesTheCatalogDoesNotKnow(t *testing.T) {
+	reg := engine.NewRegistry()
+	reg.RegisterController(unknownToolController{})
+	reg.RegisterScanner(unknownToolScanner{})
+
+	model, err := saga.LoadFile(writeSaga(t, doctorSagaRepoAndImage))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := binaries(requiredTools(reg, model))
+	if !slices.Contains(got, "some-future-tool") {
+		t.Errorf("a scanner's binary should be checked even when Draugr does not package it: %v", got)
+	}
+}
+
+// unknownToolScanner needs a binary that is deliberately not in the tool catalog.
+type unknownToolScanner struct{}
+
+func (unknownToolScanner) Info() plugin.ScannerInfo {
+	return plugin.ScannerInfo{
+		Name:        "future",
+		Binary:      "some-future-tool",
+		Controls:    []string{"images"},
+		TargetKinds: []plugin.TargetKind{plugin.TargetImage},
+	}
+}
+
+func (unknownToolScanner) Scan(context.Context, plugin.Target, plugin.Config) (sarif.Report, error) {
+	return sarif.Report{}, nil
+}
+
+type unknownToolController struct{}
+
+func (unknownToolController) Info() plugin.ControllerInfo {
+	return plugin.ControllerInfo{Name: "images", Scope: plugin.ScopeComponent, DefaultScanners: []string{"future"}}
+}
+
+func (unknownToolController) Plan(saga.Model, *saga.Component) ([]plugin.ScanJob, error) {
+	return nil, nil
+}
+
+func (unknownToolController) Aggregate([]sarif.Report) (plugin.ControlResult, error) {
+	return plugin.ControlResult{Control: "images"}, nil
 }

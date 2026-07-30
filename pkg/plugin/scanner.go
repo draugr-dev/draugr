@@ -42,6 +42,13 @@ type ScannerInfo struct {
 	// Binary is the external executable the scanner shells out to, e.g. "trivy". Empty for
 	// scanners that need no external tool. Used by `draugr doctor` to check availability.
 	Binary string
+	// AlsoRequires names further executables that must be present for the scanner to work.
+	//
+	// Some tools shell out in turn: kube-bench's CIS policy checks are scripts that invoke
+	// kubectl, so a machine with kube-bench and no kubectl fails at scan time rather than at
+	// `draugr doctor`. Declaring the whole requirement is what lets the preflight check be
+	// worth running.
+	AlsoRequires []string
 	// Version is the scanner/plugin version; it participates in the cache key.
 	Version string
 	// Controls are the security controls this scanner can serve, e.g. ["images"].

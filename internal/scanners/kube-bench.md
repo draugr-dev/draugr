@@ -97,7 +97,8 @@ benchmark does.
 ## Notes
 
 - Integration mode: **exec**. `kube-bench` and `kubectl` must both be on `PATH`, and the
-  kubeconfig must reach the cluster. `draugr tools install` does not yet provide kube-bench —
+  kubeconfig must reach the cluster. Both are declared, so `draugr doctor` reports either as
+  missing before a scan rather than after. `draugr tools install` does not yet fetch them —
   [#386](https://github.com/draugr-dev/draugr/issues/386).
 - **The kubectl requirement is kube-bench's, not Draugr's.** Its section 5 checks are shell
   scripts that invoke kubectl; exec'ing the tool means exec'ing kubectl. Implementing those

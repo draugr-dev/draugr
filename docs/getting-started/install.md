@@ -147,7 +147,17 @@ draugr tools list        # what's pinned, which controls it backs, and what's in
 Prefer your own install (Homebrew, package manager, an existing copy)? That works too — then run
 `draugr doctor` to confirm everything's found:
 
-- [Trivy](https://github.com/aquasecurity/trivy) — `images`, `sca`, and `iac` controls.
+- [Trivy](https://github.com/aquasecurity/trivy) — `images`, `sca`, `iac` and `licenses` controls.
 - [Gitleaks](https://github.com/gitleaks/gitleaks) — `secrets` control.
 - [Semgrep](https://semgrep.dev) — `sast` control (default; opt-in [gosec](https://github.com/securego/gosec) for Go).
-- `git` — needed for any repository scan (`sca`, `secrets`, `sast`).
+- [Nuclei](https://github.com/projectdiscovery/nuclei) — `dast` control.
+- [kube-bench](https://github.com/aquasecurity/kube-bench) — `infrastructure` control. Needs
+  `kubectl` as well: its CIS checks are scripts that invoke it. Not fetched by
+  `draugr tools install` yet, and it needs its `cfg/` directory as well as the binary —
+  [#386](https://github.com/draugr-dev/draugr/issues/386).
+- [Syft](https://github.com/anchore/syft) — SBOM generation (`config.sbom`), which is not a
+  control.
+- `git` — needed for any repository scan (`sca`, `secrets`, `sast`, `licenses`).
+
+`headers` and `tls` are native and need nothing installed. `draugr doctor` reports which of these
+*your* Saga requires, so the list you have to care about is usually shorter than this one.
