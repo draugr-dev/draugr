@@ -99,10 +99,17 @@ the **new-vs-fixed PR diff** and the sticky comment.
 ## Quickstart
 
 **Requirements:** the external scanners for the controls you use —
-[Trivy](https://github.com/aquasecurity/trivy) (`images`, `sca`, `iac`),
+[Trivy](https://github.com/aquasecurity/trivy) (`images`, `sca`, `iac`, `licenses`),
 [Gitleaks](https://github.com/gitleaks/gitleaks) (`secrets`),
-[Semgrep](https://semgrep.dev) (`sast`); `git` for repo scans. Or run
-`draugr tools install` to fetch pinned, verified copies. Go 1.26+ only to build from source.
+[Semgrep](https://semgrep.dev) (`sast`),
+[Nuclei](https://github.com/projectdiscovery/nuclei) (`dast`),
+[kube-bench](https://github.com/aquasecurity/kube-bench) with `kubectl` (`infrastructure`);
+`git` for repo scans, and [Syft](https://github.com/anchore/syft) for `config.sbom`. `headers`
+and `tls` need no external tool.
+
+`draugr doctor` tells you which of these your Saga actually needs and whether they are present;
+`draugr tools install` fetches pinned, verified copies of the ones Draugr packages. Go 1.26+ only
+to build from source.
 
 **Install (recommended):**
 
