@@ -15,7 +15,7 @@ Output contrib/demo/scan.gif
 Set Shell bash
 Set FontSize 18
 Set Width 1600
-Set Height 1150
+Set Height 1000
 Set Theme "Dracula"
 Set Padding 20
 
@@ -23,8 +23,8 @@ Set Padding 20
 # scrolling terminal, so anything past the bottom edge is never captured — including the summary
 # line the Wait below matches on, which makes a height that is merely close fail as a timeout
 # rather than as a cropped image. At font size 18 a row is about 22px, and the zero-config run
-# currently prints 39 rows including the prompts. Leave headroom: the output grows as controls
-# are added.
+# currently prints 38 rows including the prompt. Leave headroom — the output grows as controls
+# are added — but not so much that the GIF ends on a band of empty terminal.
 
 # Enter the sandbox off-camera. The scanner databases are warmed by the workflow before vhs
 # starts — Trivy downloads its database on first use, and on a cold runner that download
@@ -34,6 +34,9 @@ Set Padding 20
 # rather than about Draugr.
 Hide
 Type "cd draugr-demo" Enter
+# Clear before recording resumes. Hide stops the capture, not the terminal: without this the
+# navigation the reader did not need to see is still on screen when Show brings it back.
+Type "clear" Enter
 Show
 
 Type "draugr scan ." Sleep 600ms Enter
