@@ -11,7 +11,7 @@
 Runs
 
 ```
-kube-bench run --json --targets policies [--benchmark <version>]
+kube-bench run --json --targets policies --version <cluster version> [--config-dir <dir>]
 ```
 
 and converts the result to SARIF.
@@ -19,6 +19,28 @@ and converts the result to SARIF.
 **JSON rather than SARIF**: kube-bench has no SARIF output, so the conversion is ours. This is
 the second such scanner after [`trivy-license`](trivy-license.md), and the reason
 `tooladapter.Config` has a `Parse` hook.
+
+## Draugr supplies the Kubernetes version
+
+kube-bench maps a Kubernetes version to a CIS benchmark, and detects that version by reading the
+kubelet on the node it runs on. Off a node it cannot — and it does not say so. It falls back to
+**1.18** and audits against **cis-1.6**, a benchmark for Kubernetes 1.16.
+
+Measured against a v1.34 cluster:
+
+| | benchmark used | findings |
+|---|---|---|
+| kube-bench detecting for itself | `cis-1.6` | 24 |
+| version supplied by Draugr | `cis-1.12` | 29 |
+
+A compliance report against the wrong standard is worse than no report, and this one arrives
+quietly. So Draugr asks the cluster for its version — the same ambient kubeconfig the
+`k8s-images` surveyor uses — and passes `--version`, letting kube-bench apply its own mapping.
+Its mapping stays correct as it adds benchmarks; a table copied into Draugr would drift.
+
+If the version cannot be determined, the scan **fails** rather than falling back. Set `version`
+or `benchmark` to override. An explicit `benchmark` also covers the platform configs
+(`gke-*`, `eks-*`, `rke2-*`) that no Kubernetes version maps to.
 
 ## Why only `policies`
 

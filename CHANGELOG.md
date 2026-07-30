@@ -40,6 +40,12 @@ and move it under a version on release.
   "requires a manual check" rather than "this is broken". Passing checks are not reported —
   three hundred green rows bury the dozen that matter.
 
+  **Draugr tells kube-bench which benchmark to use.** kube-bench picks one from the Kubernetes
+  version, which it reads from the node it runs on — and from outside a node it cannot, so it
+  quietly assumes 1.18 and audits against a benchmark for Kubernetes 1.16. On a v1.34 cluster
+  that is 24 findings where the right benchmark reports 29. Draugr asks the cluster instead, and
+  fails the scan rather than guessing if it cannot reach it.
+
   Needs `kube-bench` and `kubectl` on `PATH`. Point `configDir` at kube-bench's `cfg/` directory
   if it is not installed at `/etc/kube-bench/cfg`.
 

@@ -55,12 +55,18 @@ config:
   controllers:
     infrastructure:
       enabled: true
-      benchmark: cis-1.9   # optional; kube-bench detects the version otherwise
-      configDir: /etc/kube-bench/cfg   # optional; where kube-bench's benchmark definitions live
+      version: "1.34"                  # optional; Draugr asks the cluster otherwise
+      benchmark: gke-1.6.0             # optional; names a benchmark config directly
+      configDir: /etc/kube-bench/cfg   # optional; where kube-bench's definitions live
 ```
 
 Settings pass through to the scanner. Project-level settings apply to every component; a
 component may override them.
+
+**You should not normally need `version`.** Draugr asks the cluster and tells kube-bench, because
+kube-bench cannot detect it from outside a node and quietly assumes an old one if left to guess —
+see the [scanner doc](../scanners/kube-bench.md). Use `benchmark` for a platform whose benchmark
+is not derived from a Kubernetes version (`gke-*`, `eks-*`, `rke2-*`).
 
 ## Links
 

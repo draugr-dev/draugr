@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tooladapter"
@@ -34,9 +37,13 @@ func NewKubeBench() plugin.Scanner {
 const (
 	// targetsKey selects which CIS sections to run, comma-separated.
 	targetsKey = "targets"
-	// benchmarkKey pins the CIS benchmark version (e.g. "cis-1.9"). Unset lets kube-bench
-	// detect it from the cluster.
+	// benchmarkKey pins the benchmark config directly (e.g. "cis-1.9", "gke-1.6.0",
+	// "rke2-cis-1.7"). Use it for a platform whose benchmark is not derived from the Kubernetes
+	// version; otherwise let the version decide.
 	benchmarkKey = "benchmark"
+	// versionKey pins the Kubernetes version kube-bench maps to a benchmark (e.g. "1.34").
+	// Unset means Draugr asks the cluster — see clusterVersion.
+	versionKey = "version"
 	// configDirKey points at kube-bench's own `cfg/` tree of benchmark definitions. kube-bench
 	// looks in /etc/kube-bench/cfg by default, which is right when it was installed from a
 	// package and wrong when someone put the binary on PATH and left the cfg beside it — a
@@ -65,17 +72,75 @@ const (
 // Deliberately out of scope here.
 const defaultKubeBenchTargets = "policies"
 
-// kubeBenchArgv builds `kube-bench run --json --targets <sections> [--benchmark <version>]`.
+// kubeBenchArgv builds the command line, and its main job is making sure kube-bench audits
+// against the right benchmark.
+//
+// kube-bench maps a Kubernetes version to a CIS benchmark, and detects that version by reading
+// the kubelet on the node it runs on. Off a node it cannot, and it does not say so: it falls
+// back to a default of 1.18 and audits against cis-1.6 — a benchmark for Kubernetes 1.16. On a
+// 1.34 cluster that silently reports 24 findings where the right benchmark reports 29, and every
+// one of the differences is a check the older benchmark had never heard of.
+//
+// A compliance report against the wrong standard is worse than no report, so Draugr supplies the
+// version rather than letting the tool guess. It asks the cluster, and passes --version so
+// kube-bench applies its own mapping — which stays correct as kube-bench adds benchmarks,
+// whereas a table copied into Draugr would not.
 func kubeBenchArgv(_ plugin.Target, cfg plugin.Config) ([]string, error) {
 	targets := stringSetting(cfg, targetsKey, defaultKubeBenchTargets)
 	argv := []string{"kube-bench", "run", "--json", "--targets", targets}
-	if benchmark := stringSetting(cfg, benchmarkKey, ""); benchmark != "" {
+
+	switch benchmark := stringSetting(cfg, benchmarkKey, ""); {
+	case benchmark != "":
+		// An explicit benchmark names a config directly, including the platform ones
+		// (gke-*, rke2-*, eks-*) that no Kubernetes version maps to.
 		argv = append(argv, "--benchmark", benchmark)
+	default:
+		version := stringSetting(cfg, versionKey, "")
+		if version == "" {
+			detected, err := clusterVersion()
+			if err != nil {
+				return nil, fmt.Errorf(
+					"kube-bench: cannot determine the cluster's Kubernetes version, and kube-bench "+
+						"would silently audit against a stale benchmark instead of saying so: %w. "+
+						"Set controllers.infrastructure.version (e.g. \"1.34\") or .benchmark "+
+						"(e.g. \"cis-1.12\")", err)
+			}
+			version = detected
+		}
+		argv = append(argv, "--version", version)
 	}
+
 	if dir := stringSetting(cfg, configDirKey, ""); dir != "" {
 		argv = append(argv, "--config-dir", dir)
 	}
 	return argv, nil
+}
+
+// clusterVersion reports the cluster's Kubernetes version as major.minor. Injectable for tests.
+var clusterVersion = detectClusterVersion
+
+// detectClusterVersion asks the cluster named by the ambient kubeconfig, the same way the
+// k8s-images surveyor reaches one.
+func detectClusterVersion() (string, error) {
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	restCfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{}).ClientConfig()
+	if err != nil {
+		return "", fmt.Errorf("kubeconfig: %w", err)
+	}
+	client, err := kubernetes.NewForConfig(restCfg)
+	if err != nil {
+		return "", err
+	}
+	info, err := client.Discovery().ServerVersion()
+	if err != nil {
+		return "", err
+	}
+	// Major/Minor come back as "1" and "34", sometimes with a "+" on managed clusters.
+	minor := strings.TrimRight(info.Minor, "+")
+	if info.Major == "" || minor == "" {
+		return "", fmt.Errorf("server reported an unusable version %q", info.GitVersion)
+	}
+	return info.Major + "." + minor, nil
 }
 
 // stringSetting reads a string from a plugin.Config, falling back to a default.

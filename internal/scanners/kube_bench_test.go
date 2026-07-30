@@ -1,7 +1,9 @@
 package scanners
 
 import (
+	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -21,52 +23,90 @@ func TestKubeBenchInfo(t *testing.T) {
 	}
 }
 
+// withClusterVersion swaps the cluster lookup for a fixed answer.
+func withClusterVersion(t *testing.T, version string, err error) {
+	t.Helper()
+	prev := clusterVersion
+	clusterVersion = func() (string, error) { return version, err }
+	t.Cleanup(func() { clusterVersion = prev })
+}
+
+func argvString(argv []string) string { return strings.Join(argv, " ") }
+
 // The default matters more than most: it is what makes a scan mean the same thing on a laptop,
 // in CI, and on a node. See defaultKubeBenchTargets.
-func TestKubeBenchArgvDefaultsToTheClusterWideSection(t *testing.T) {
+func TestKubeBenchArgvDefaults(t *testing.T) {
+	withClusterVersion(t, "1.34", nil)
 	argv, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"kube-bench", "run", "--json", "--targets", "policies"}
-	if len(argv) != len(want) {
-		t.Fatalf("argv = %v, want %v", argv, want)
+	if got, want := argvString(argv), "kube-bench run --json --targets policies --version 1.34"; got != want {
+		t.Errorf("argv = %q, want %q", got, want)
 	}
-	for i := range want {
-		if argv[i] != want[i] {
-			t.Errorf("argv = %v, want %v", argv, want)
-			break
+}
+
+// The bug this guards: kube-bench cannot read the kubelet off a node, so it falls back to
+// Kubernetes 1.18 and audits against cis-1.6 without a word. On a 1.34 cluster that is a
+// benchmark sixteen minor versions stale, and it under-reports. Draugr tells it the version.
+func TestKubeBenchArgvPassesTheDetectedClusterVersion(t *testing.T) {
+	withClusterVersion(t, "1.29", nil)
+	argv, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(argvString(argv), "--version 1.29") {
+		t.Errorf("argv %q should carry the detected version", argvString(argv))
+	}
+}
+
+// Guessing is what produced the stale-benchmark bug. If the version cannot be established, say
+// so rather than letting kube-bench pick one.
+func TestKubeBenchArgvRefusesToGuessTheVersion(t *testing.T) {
+	withClusterVersion(t, "", errors.New("no kubeconfig"))
+	_, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
+	if err == nil {
+		t.Fatal("expected an error when the cluster version cannot be determined")
+	}
+	for _, want := range []string{"version", "benchmark"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error should name the settings that resolve it, got: %v", err)
 		}
 	}
 }
 
-func TestKubeBenchArgvHonoursConfig(t *testing.T) {
+// An explicit benchmark names a config directly — including the platform ones (gke-*, rke2-*)
+// that no Kubernetes version maps to — so it must not be overridden by detection.
+func TestKubeBenchArgvExplicitBenchmarkWins(t *testing.T) {
+	withClusterVersion(t, "1.34", errors.New("should not be consulted"))
 	argv, err := kubeBenchArgv(plugin.InfraTarget{}, plugin.Config{
-		"targets": "master,node", "benchmark": "cis-1.9",
+		"targets": "policies", "benchmark": "gke-1.6.0", "configDir": "/opt/cfg",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := ""
-	for _, a := range argv {
-		got += a + " "
-	}
-	for _, want := range []string{"--targets master,node", "--benchmark cis-1.9"} {
-		if !contains(got, want) {
+	got := argvString(argv)
+	for _, want := range []string{"--benchmark gke-1.6.0", "--config-dir /opt/cfg"} {
+		if !strings.Contains(got, want) {
 			t.Errorf("argv %q missing %q", got, want)
 		}
 	}
+	if strings.Contains(got, "--version") {
+		t.Errorf("an explicit benchmark should not also pass --version: %q", got)
+	}
 }
 
-func contains(hay, needle string) bool { return len(hay) >= len(needle) && indexOf(hay, needle) >= 0 }
-
-func indexOf(hay, needle string) int {
-	for i := 0; i+len(needle) <= len(hay); i++ {
-		if hay[i:i+len(needle)] == needle {
-			return i
-		}
+// A pinned version skips the cluster lookup, for an air-gapped run or a cluster Draugr cannot
+// reach at plan time.
+func TestKubeBenchArgvExplicitVersionSkipsDetection(t *testing.T) {
+	withClusterVersion(t, "", errors.New("should not be consulted"))
+	argv, err := kubeBenchArgv(plugin.InfraTarget{}, plugin.Config{"version": "1.31"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	return -1
+	if !strings.Contains(argvString(argv), "--version 1.31") {
+		t.Errorf("argv = %q", argvString(argv))
+	}
 }
 
 // Parsed from real kube-bench output rather than hand-written JSON, so the field names and
