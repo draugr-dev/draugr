@@ -196,6 +196,12 @@ type Stats struct {
 	// Concurrency is the maximum number of scan jobs run in parallel for this run (the
 	// effective value after applying WithConcurrency or the NumCPU default).
 	Concurrency int
+	// Duration is wall-clock for the whole run, and ByControl is how long each control's jobs
+	// took summed across them. Reported because "why is this slow" is a question a job count
+	// cannot answer: with concurrency the parts do not add up to the whole, and the control
+	// worth attention is the slowest one rather than the one with the most jobs.
+	Duration  time.Duration
+	ByControl map[string]time.Duration
 }
 
 // scanOutcome is the raw result of obtaining a job's report (via cache or a fresh scan),
@@ -238,7 +244,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		byCtl    = make(map[string][]sarif.Report)
 		ctlErrs  = make(map[string][]string)
 		errs     []error
-		stats    = Stats{Jobs: len(planned), Concurrency: e.concurrency}
+		stats    = Stats{Jobs: len(planned), Concurrency: e.concurrency, ByControl: map[string]time.Duration{}}
+		runStart = time.Now()
 		sem      = make(chan struct{}, e.concurrency)
 		sf       = &sfGroup{}
 		canceled bool
@@ -285,6 +292,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			defer wg.Done()
 			defer func() { <-sem }()
 
+			jobStart := time.Now()
 			jobCtx, span := tracer.Start(ctx, "engine.scan", trace.WithAttributes(
 				attribute.String("control", pj.Control),
 				attribute.String("scanner", pj.Job.Scanner),
@@ -345,17 +353,21 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				if !shared { // record the underlying error once, not once per collapsed job
 					mu.Lock()
 					errs = append(errs, fmt.Errorf("scan %s/%s: %w", pj.Control, pj.Job.Scanner, scanErr))
-					ctlErrs[pj.Control] = append(ctlErrs[pj.Control],
-						fmt.Sprintf("%s: %v", pj.Job.Scanner, scanErr))
+					// No scanner prefix: the scanner already names itself when it wraps the
+					// failure ("run nuclei: …"), and adding it again reads as a stutter in
+					// the one line a reader scans to find out what broke.
+					ctlErrs[pj.Control] = append(ctlErrs[pj.Control], scanErr.Error())
 					mu.Unlock()
 				}
 				return
 			}
 			res := out.(scanOutcome)
 			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
+			jobTook := time.Since(jobStart)
 			recordFindings(jobCtx, pj.Control, res.report)
 			report := e.stampPriority(res.report, pj)
 			mu.Lock()
+			stats.ByControl[pj.Control] += jobTook
 			byCtl[pj.Control] = append(byCtl[pj.Control], report)
 			switch {
 			case shared:
@@ -381,6 +393,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		ctlErrs[sbomPseudoControl] = append(ctlErrs[sbomPseudoControl], sbomErrs...)
 	}
 
+	stats.Duration = time.Since(runStart)
 	res := Result{Controls: make(map[string]plugin.ControlResult), Stats: stats, SBOMs: docs}
 	if len(ctlErrs) > 0 {
 		res.ScanErrors = ctlErrs

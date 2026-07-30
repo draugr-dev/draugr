@@ -5,7 +5,9 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 )
 
@@ -46,11 +48,18 @@ type htmlView struct {
 	SARIFHref, TSVHref template.URL
 	SARIFTooBig        bool
 	Generated, Version string
-	Stats              htmlStats
-	HasStats           bool
+	Duration           string
+	// Slowest names the controls that took longest, worst first. A job count says nothing about
+	// where the time went; with concurrency the parts do not sum to the whole, and the control
+	// worth looking at is the slow one.
+	Slowest   []htmlTiming
+	CacheHits int
 }
 
-type htmlStats struct{ Jobs, Scans, CacheHits, Deduped, Concurrency int }
+type htmlTiming struct {
+	Control, Duration string
+	Pct               int // share of the summed control time, for the bar
+}
 
 type htmlError struct{ Control, Message string }
 
@@ -98,9 +107,8 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		view.Generated = d.Generated.UTC().Format("2006-01-02 15:04:05 UTC")
 	}
 	view.Version = d.Version
-	st := d.Run.Stats
-	view.Stats = htmlStats{st.Jobs, st.Scans, st.CacheHits, st.Deduped, st.Concurrency}
-	view.HasStats = st.Jobs > 0
+	view.Duration, view.Slowest = timings(d.Run.Stats)
+	view.CacheHits = d.Run.Stats.CacheHits
 	for _, f := range s.excluded {
 		view.Excluded = append(view.Excluded, toHTMLFinding(f))
 	}
@@ -141,6 +149,46 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	sort.Strings(view.ControlNames)
 	view.Severities = orderSeverities(view.Severities)
 	return htmlTemplate.Execute(w, view)
+}
+
+// timings renders the run's wall-clock and a worst-first control breakdown.
+//
+// Percentages are of the summed control time rather than of wall-clock: controls run in
+// parallel, so shares of the elapsed time would add up to well over 100 and read as a bug.
+func timings(st engine.Stats) (total string, slowest []htmlTiming) {
+	if st.Duration <= 0 {
+		return "", nil
+	}
+	var sum time.Duration
+	for _, d := range st.ByControl {
+		sum += d
+	}
+	for name, d := range st.ByControl {
+		t := htmlTiming{Control: name, Duration: humanDuration(d)}
+		if sum > 0 {
+			t.Pct = int(float64(d) / float64(sum) * 100)
+		}
+		slowest = append(slowest, t)
+	}
+	sort.Slice(slowest, func(i, j int) bool {
+		if slowest[i].Pct != slowest[j].Pct {
+			return slowest[i].Pct > slowest[j].Pct
+		}
+		return slowest[i].Control < slowest[j].Control // stable when two tie
+	})
+	return humanDuration(st.Duration), slowest
+}
+
+// humanDuration rounds to something a reader can compare at a glance rather than to nanoseconds.
+func humanDuration(d time.Duration) string {
+	switch {
+	case d >= time.Minute:
+		return d.Round(time.Second).String()
+	case d >= time.Second:
+		return d.Round(100 * time.Millisecond).String()
+	default:
+		return d.Round(time.Millisecond).String()
+	}
 }
 
 func toHTMLFinding(f finding) htmlFinding {
@@ -192,6 +240,8 @@ const htmlDoc = `<!doctype html>
   th { font-weight: 600; }
   td.num, th.num { text-align: right; }
   code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
+  code.cmd { background: #8881; border: 1px solid #8883; border-radius: .3rem; padding: .08rem .35rem; white-space: nowrap; }
+  pre.cmd { background: #8881; border: 1px solid #8883; border-radius: .4rem; padding: .5rem .7rem; overflow-x: auto; font-size: .86rem; margin: .4rem 0 0; }
   .chips span { display: inline-block; margin-right: 1rem; }
   .p1 { color: #b3261e; font-weight: 700; }
   .p2 { color: #c25e00; font-weight: 600; }
@@ -217,6 +267,9 @@ const htmlDoc = `<!doctype html>
     .errors { border-left-color: #ff6b6b; }
     .count, tr.msg td, .just, .empty { color: #aaa; }
   }
+  .nav { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0 0 1.5rem; font-size: .88rem; }
+  .nav a { text-decoration: none; border-bottom: 1px solid #8886; padding-bottom: .1rem; }
+  .nav a:hover { border-bottom-color: currentColor; }
   .bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin: 0 0 .75rem; }
   .bar input[type=search] { flex: 1 1 16rem; font: inherit; padding: .35rem .6rem; border: 1px solid #8886; border-radius: .35rem; background: transparent; color: inherit; }
   .facets { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin: 0 0 1rem; font-size: .86rem; }
@@ -226,11 +279,13 @@ const htmlDoc = `<!doctype html>
   .dl a:hover { border-color: #888; }
   tr.msg td { border-bottom: 1px solid #8883; padding-top: 0; color: #444; }
   tr.meta td { border-bottom: 0; padding-bottom: .15rem; }
-  tr.hide { display: none; }
+  .hide { display: none; }
   .just { color: #555; font-style: italic; }
+  .bar-track { display: inline-block; width: 8rem; height: .55rem; background: #8883; border-radius: .3rem; overflow: hidden; vertical-align: middle; margin-right: .4rem; }
+  .bar-fill { display: block; height: 100%; background: #6b7fd7; }
   .empty { color: #666; font-style: italic; }
   @media print {
-    .bar, .facets, .dl { display: none; }
+    .bar, .facets, .dl, .nav { display: none; }
     body { max-width: none; }
     tr { break-inside: avoid; }
     a::after { content: " (" attr(href) ")"; font-size: .8em; color: #555; }
@@ -241,17 +296,30 @@ const htmlDoc = `<!doctype html>
 <h1>Draugr — <span class="verdict {{if .Pass}}pass{{else}}fail{{end}}">{{.Verdict}}</span></h1>
 {{if .Release}}<p class="rel">{{.Release}}</p>{{end}}
 
+<nav class="nav">
+  {{if .Controls}}<a href="#controls">Controls</a>{{end}}
+  {{if .Errors}}<a href="#errors" class="err">Errors</a>{{end}}
+  <a href="#findings-h">Findings</a>
+  {{if .Excluded}}<a href="#suppressed">Suppressed</a>{{end}}
+  {{if .Slowest}}<a href="#timing">Timing</a>{{end}}
+  <a href="#about">About this report</a>
+</nav>
+
 {{if .Prioritized}}
+<h2>Findings by priority</h2>
 <p class="chips">
   <span class="p1">P1 {{.P1}}</span>
   <span class="p2">P2 {{.P2}}</span>
   <span>P3 {{.P3}}</span>
   <span>P4 {{.P4}}</span>
 </p>
+<p class="note">Priority combines how severe a finding is with how exposed and how business-critical
+the component is — so the same issue ranks differently on a public API than on an internal tool.
+<strong>P1</strong> is act now, <strong>P4</strong> is track it. Counts cover the whole run.</p>
 {{end}}
 
 {{if .Controls}}
-<h2>Controls</h2>
+<h2 id="controls">Controls</h2>
 <table>
 <thead><tr><th scope="col">Control</th><th scope="col">Verdict</th><th class="num">Critical</th><th class="num">High</th><th class="num">Medium</th><th class="num">Low</th></tr></thead>
 <tbody>
@@ -269,21 +337,26 @@ const htmlDoc = `<!doctype html>
 {{end}}
 
 {{if .Errors}}
+<h3 id="errors" class="err">Controls that could not run</h3>
+<p class="note">These checks were requested and did not complete, so this report says nothing
+about what they would have found. For everything the tool printed, re-run with the
+<code class="cmd">--log-level trace</code> flag:</p>
+<pre class="cmd">draugr scan &lt;saga.yaml&gt; --log-level trace</pre>
 <ul class="errors">
-{{range .Errors}}<li><span class="err">{{.Control}}</span> — {{.Message}}</li>{{end}}
+{{range .Errors}}<li><strong>{{.Control}}</strong> — {{.Message}}</li>{{end}}
 </ul>
 {{end}}
 
-{{if .Suppressed}}<p class="note">{{.Suppressed}} finding(s) suppressed by <code>config.exclude</code> — reported, not deleted; each carries the reason it was set aside.</p>{{end}}
+{{if .Suppressed}}<p class="note">{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code> — reported, not deleted; each carries the reason it was set aside.</p>{{end}}
 {{if .SBOMCount}}<p class="note">SBOM: {{.SBOMCount}} document(s) ({{.SBOMFormat}}).</p>{{end}}
 
-<h2>Findings{{if .MinPriority}} — {{.MinPriority}} and above{{end}}</h2>
+<h2 id="findings-h">Findings{{if .MinPriority}} — {{.MinPriority}} and above{{end}}</h2>
 {{if .MinPriority}}<p class="note">The counts above describe the whole run{{if .Hidden}}; {{.Hidden}} lower-priority finding(s) are not listed{{end}}.</p>{{end}}
 
 <p class="dl">
   {{if .SARIFHref}}<a href="{{.SARIFHref}}" download="results.sarif">⬇ SARIF</a>{{end}}
-  {{if .TSVHref}}<a href="{{.TSVHref}}" download="findings.tsv">⬇ TSV (spreadsheet)</a>{{end}}
-  {{if .SARIFTooBig}}<span class="note">SARIF too large to embed — re-run with <code>-o &lt;dir&gt;</code>.</span>{{end}}
+  {{if .TSVHref}}<a href="{{.TSVHref}}" download="findings.tsv">⬇ TSV</a>{{end}}
+  {{if .SARIFTooBig}}<span class="note">SARIF too large to embed — re-run with <code class="cmd">-o &lt;dir&gt;</code>.</span>{{end}}
 </p>
 
 <div id="tools" hidden>
@@ -326,8 +399,8 @@ const htmlDoc = `<!doctype html>
 {{end}}
 
 {{if .Excluded}}
-<h2>Suppressed</h2>
-<p class="note">Excluded by <code>config.exclude</code>. Reported rather than deleted, so the decision is visible and reviewable.</p>
+<h2 id="suppressed">Suppressed</h2>
+<p class="note">Excluded by <code class="cmd">config.exclude</code>. Reported rather than deleted, so the decision is visible and reviewable.</p>
 <table>
 <thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Location</th></tr></thead>
 {{range .Excluded}}<tbody>
@@ -342,9 +415,25 @@ const htmlDoc = `<!doctype html>
 </table>
 {{end}}
 
-<footer>
-  Generated by Draugr{{if .Version}} {{.Version}}{{end}}{{if .Generated}} · {{.Generated}}{{end}}.
-  {{if .HasStats}}<br>{{.Stats.Scans}} scan(s) across {{.Stats.Jobs}} job(s){{if .Stats.CacheHits}}, {{.Stats.CacheHits}} from cache{{end}}{{if .Stats.Deduped}}, {{.Stats.Deduped}} deduplicated{{end}}, up to {{.Stats.Concurrency}} in parallel.{{end}}
+{{if .Slowest}}
+<h2 id="timing">Where the time went</h2>
+<p class="note">Time spent per control, worst first. Controls run in parallel, so these sum to
+more than the elapsed time — the shares are of the total work, not of the wall clock.</p>
+<table>
+<thead><tr><th scope="col">Control</th><th scope="col" class="num">Time</th><th scope="col">Share</th></tr></thead>
+<tbody>
+{{range .Slowest}}<tr>
+  <td>{{.Control}}</td>
+  <td class="num">{{.Duration}}</td>
+  <td><span class="bar-track"><span class="bar-fill" style="width:{{.Pct}}%"></span></span> {{.Pct}}%</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
+
+<footer id="about">
+  Generated by <strong>Draugr</strong>{{if .Version}} {{.Version}}{{end}}{{if .Generated}} · {{.Generated}}{{end}}.
+  {{if .Duration}}<br>Completed in {{.Duration}}{{if .CacheHits}} ({{.CacheHits}} result(s) from cache){{end}}.{{end}}
   <br>A passing verdict means the controls you configured found nothing they were looking for; it is not a guarantee of security.
 </footer>
 <script>

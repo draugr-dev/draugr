@@ -28,7 +28,18 @@ and move it under a version on release.
   the reason each was set aside, and the footer records when the scan ran, which version produced
   it, and the run's statistics.
 
+  Instead of a job count, the footer reports how long the run took and a per-control breakdown of
+  where the time went — worst first, with shares of total work rather than of the wall clock,
+  since controls run in parallel.
+
 ### Fixed
+
+- **A failed scanner now says what it said.** A control whose tool exited badly reported
+  `run nuclei: exit status 1`, which tells you nothing you can act on — and that line is what
+  reaches the terminal, the HTML report and the pull-request comment. The tool's own first line
+  of output now travels with it:
+  `run nuclei: exit status 1: [FTL] Could not run nuclei: no templates provided for scan`.
+  `--log-level trace` still relays everything it printed.
 
 - **The HTML and Markdown reports now say what the run couldn't do.** A control whose scanner
   failed was missing from both entirely — so a report you sent to someone listed the controls

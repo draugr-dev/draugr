@@ -25,9 +25,24 @@ DEBUG ran scanner tool tool=trivy argv="trivy fs --quiet --scanners vuln --forma
 DEBUG scan complete control=sca scanner=trivy-fs findings=0 duration=50ms
 ```
 
-`--log-level trace` adds what the **scanners themselves** print. Draugr captures a tool's stderr
-and normally only summarises it in an error; trace relays it verbatim, which is usually where the
-real explanation is. Verbose by design — reach for it when debug hasn't answered the question.
+**When a control fails.** A control whose scanner exits badly is reported as an error rather than
+a pass, and the error carries the tool's own first line of output:
+
+```
+Controls:
+  dast  ERROR  did not run
+        nuclei: run nuclei: exit status 1: could not read templates: no such file or directory
+```
+
+That one line is usually enough. When it isn't, `--log-level trace` relays everything the
+scanner printed, verbatim, along with the exact argv Draugr ran:
+
+```bash
+draugr scan . --log-level trace 2>trace.log
+```
+
+Verbose by design — reach for it when the summarised line hasn't answered the question. Logs go
+to stderr, so `2>trace.log` keeps them out of a report on stdout.
 
 Logs go to **stderr**, so they never pollute a machine-readable report on stdout.
 
