@@ -24,6 +24,14 @@ components:
         ref: prod-eu-west-1
 ```
 
+**`ref` selects the cluster, it does not merely name it.** It is matched against a kubeconfig
+context, and both Draugr's version lookup and the `kubectl` calls kube-bench makes are pointed at
+that context. Findings are labelled with it, so if it did not also select the cluster a report
+would name one cluster and describe another — the worst way for a compliance artifact to be
+wrong, because it looks right. A `ref` with no matching context fails the scan.
+
+Where an organisation's name for a cluster is not its kubeconfig context name, set `context`.
+
 Two components on the same cluster produce two jobs with the same target, which the engine
 collapses — the shared case costs one scan, not two.
 
@@ -46,7 +54,10 @@ Draugr runs. They are the checks that describe how the cluster is configured for
 it, rather than how its nodes were installed.
 
 The other 95 need kube-bench running inside the cluster as a Job, which is a different contract:
-Draugr would be creating something in the system it is scanning. That is out of scope here.
+Draugr would be creating something in the system it is scanning. Tracked as
+[#388](https://github.com/draugr-dev/draugr/issues/388), sequenced after the effects framework
+([#384](https://github.com/draugr-dev/draugr/issues/384)) so that consent is a declared property
+rather than a flag invented for one scanner.
 
 ## Configuration
 
@@ -55,12 +66,19 @@ config:
   controllers:
     infrastructure:
       enabled: true
-      benchmark: cis-1.9   # optional; kube-bench detects the version otherwise
-      configDir: /etc/kube-bench/cfg   # optional; where kube-bench's benchmark definitions live
+      context: arn:aws:eks:...         # optional; defaults to the component's `ref`
+      version: "1.34"                  # optional; Draugr asks the cluster otherwise
+      benchmark: gke-1.6.0             # optional; names a benchmark config directly
+      configDir: /etc/kube-bench/cfg   # optional; where kube-bench's definitions live
 ```
 
 Settings pass through to the scanner. Project-level settings apply to every component; a
 component may override them.
+
+**You should not normally need `version`.** Draugr asks the cluster and tells kube-bench, because
+kube-bench cannot detect it from outside a node and quietly assumes an old one if left to guess —
+see the [scanner doc](../scanners/kube-bench.md). Use `benchmark` for a platform whose benchmark
+is not derived from a Kubernetes version (`gke-*`, `eks-*`, `rke2-*`).
 
 ## Links
 

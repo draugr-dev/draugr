@@ -11,7 +11,7 @@
 Runs
 
 ```
-kube-bench run --json --targets policies [--benchmark <version>]
+kube-bench run --json --targets policies --version <cluster version> [--config-dir <dir>]
 ```
 
 and converts the result to SARIF.
@@ -19,6 +19,39 @@ and converts the result to SARIF.
 **JSON rather than SARIF**: kube-bench has no SARIF output, so the conversion is ours. This is
 the second such scanner after [`trivy-license`](trivy-license.md), and the reason
 `tooladapter.Config` has a `Parse` hook.
+
+## Draugr points it at the right cluster
+
+kube-bench has no cluster flag: every `policies` check shells out to `kubectl`, which takes its
+cluster from the environment. Left alone it would audit whatever context the machine happens to
+have selected.
+
+So the scanner resolves the context — the component's `ref`, or an explicit `context` setting —
+copies the kubeconfig with that context made current, and points the tool at the copy through
+`KUBECONFIG`. A copy rather than `kubectl config use-context`, which would change the operator's
+own default as a side effect of running a scan. The temporary file is removed afterwards.
+
+## Draugr supplies the Kubernetes version
+
+kube-bench maps a Kubernetes version to a CIS benchmark, and detects that version by reading the
+kubelet on the node it runs on. Off a node it cannot — and it does not say so. It falls back to
+**1.18** and audits against **cis-1.6**, a benchmark for Kubernetes 1.16.
+
+Measured against a v1.34 cluster:
+
+| | benchmark used | findings |
+|---|---|---|
+| kube-bench detecting for itself | `cis-1.6` | 24 |
+| version supplied by Draugr | `cis-1.12` | 29 |
+
+A compliance report against the wrong standard is worse than no report, and this one arrives
+quietly. So Draugr asks the cluster for its version — the same ambient kubeconfig the
+`k8s-images` surveyor uses — and passes `--version`, letting kube-bench apply its own mapping.
+Its mapping stays correct as it adds benchmarks; a table copied into Draugr would drift.
+
+If the version cannot be determined, the scan **fails** rather than falling back. Set `version`
+or `benchmark` to override. An explicit `benchmark` also covers the platform configs
+(`gke-*`, `eks-*`, `rke2-*`) that no Kubernetes version maps to.
 
 ## Why only `policies`
 
@@ -66,6 +99,12 @@ benchmark does.
 - Integration mode: **exec**. `kube-bench` and `kubectl` must both be on `PATH`, and the
   kubeconfig must reach the cluster. `draugr tools install` does not yet provide kube-bench —
   [#386](https://github.com/draugr-dev/draugr/issues/386).
+- **The kubectl requirement is kube-bench's, not Draugr's.** Its section 5 checks are shell
+  scripts that invoke kubectl; exec'ing the tool means exec'ing kubectl. Implementing those
+  checks natively against the Kubernetes API is
+  [#389](https://github.com/draugr-dev/draugr/issues/389).
+- Running the node-level sections needs kube-bench inside the cluster as a Job —
+  [#388](https://github.com/draugr-dev/draugr/issues/388).
 - Findings are located at the cluster (`kubernetes/<ref>`), not a file — that is what was
   assessed.
 - kube-bench ships its own `cfg/` benchmark definitions and looks for them in
