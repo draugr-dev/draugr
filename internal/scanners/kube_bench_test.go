@@ -118,7 +118,7 @@ func TestParseKubeBench(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rep, err := parseKubeBench(raw, plugin.InfraTarget{Platform: "kubernetes", Ref: "prod"}, nil)
+	rep, err := parseKubeBench(raw, "kubernetes/prod")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestParseKubeBench(t *testing.T) {
 func TestParseKubeBenchAllPassing(t *testing.T) {
 	raw := []byte(`{"Controls":[{"id":"5","text":"Policies","tests":[{"section":"5.1",
 	  "results":[{"test_number":"5.1.1","test_desc":"ok","status":"PASS","scored":true}]}]}]}`)
-	rep, err := parseKubeBench(raw, plugin.InfraTarget{}, nil)
+	rep, err := parseKubeBench(raw, "kubernetes/prod")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestParseKubeBenchAllPassing(t *testing.T) {
 }
 
 func TestParseKubeBenchRejectsGarbage(t *testing.T) {
-	if _, err := parseKubeBench([]byte("not json"), plugin.InfraTarget{}, nil); err == nil {
+	if _, err := parseKubeBench([]byte("not json"), "kubernetes/prod"); err == nil {
 		t.Error("expected an error decoding non-JSON output")
 	}
 }
@@ -373,5 +373,57 @@ func TestMajorMinor(t *testing.T) {
 		if err != nil || got != tc.want {
 			t.Errorf("majorMinor(%q,%q) = %q,%v want %q", tc.major, tc.minor, got, err, tc.want)
 		}
+	}
+}
+
+// withCurrentContext swaps the ambient-context lookup for a fixed answer.
+func withCurrentContext(t *testing.T, name string) {
+	t.Helper()
+	prev := currentKubeContext
+	currentKubeContext = func() string { return name }
+	t.Cleanup(func() { currentKubeContext = prev })
+}
+
+// `ref` is optional in the schema, so falling back to the ambient context is a reachable
+// default. The label has to follow it: a compliance report reading "kubernetes/" says nothing
+// about what was examined.
+func TestClusterLabelNamesTheAmbientContext(t *testing.T) {
+	withCurrentContext(t, "kind-local")
+	if got := clusterLabel(""); got != "kubernetes/kind-local" {
+		t.Errorf("clusterLabel(\"\") = %q, want the ambient context named", got)
+	}
+	if got := clusterLabel("prod-eu-west-1"); got != "kubernetes/prod-eu-west-1" {
+		t.Errorf("clusterLabel = %q", got)
+	}
+}
+
+// No ref, and no current context either — an in-cluster service account, say. There is nothing
+// honest to name, and a trailing slash is not a name.
+func TestClusterLabelWithNothingToName(t *testing.T) {
+	withCurrentContext(t, "")
+	if got := clusterLabel(""); got != "kubernetes" {
+		t.Errorf("clusterLabel = %q, want a bare platform name", got)
+	}
+}
+
+// End to end: a component that declares a cluster without naming it still produces findings that
+// say which cluster they are about.
+func TestKubeBenchScanLabelsAnUnnamedCluster(t *testing.T) {
+	withClusterVersion(t, "1.34", nil)
+	withCurrentContext(t, "kind-local")
+	raw, err := os.ReadFile("testdata/kube-bench.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := kubeBenchScanner{
+		info: plugin.ScannerInfo{Name: kubeBenchScannerName},
+		run:  func(context.Context, []string, []string) ([]byte, error) { return raw, nil },
+	}
+	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rep.Results[0].Location.URI; got != "kubernetes/kind-local" {
+		t.Errorf("location = %q, want the cluster actually audited", got)
 	}
 }

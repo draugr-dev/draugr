@@ -77,7 +77,7 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("run %s: %w", kubeBenchScannerName, err)
 	}
-	return parseKubeBench(out, target, cfg)
+	return parseKubeBench(out, clusterLabel(kubeContext(target, cfg)))
 }
 
 // kubeContextEnv writes a kubeconfig whose current context is the one being audited, and returns
@@ -205,6 +205,34 @@ func kubeBenchArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 	return argv, nil
 }
 
+// currentKubeContext reports the kubeconfig's current context. Injectable for tests.
+var currentKubeContext = detectCurrentKubeContext
+
+func detectCurrentKubeContext() string {
+	raw, err := clientcmd.NewDefaultClientConfigLoadingRules().Load()
+	if err != nil {
+		return ""
+	}
+	return raw.CurrentContext
+}
+
+// clusterLabel names the cluster a finding is about.
+//
+// Normally that is the context being audited. When the Saga declares infrastructure without a
+// `ref` — which the schema allows — Draugr falls back to the ambient context, and the label has
+// to follow: a report reading `kubernetes/` says nothing about what was examined, and "which
+// cluster is this about" is the first question asked of a compliance artifact. So the ambient
+// context is resolved and named, rather than left blank.
+func clusterLabel(kubeCtx string) string {
+	if kubeCtx == "" {
+		kubeCtx = currentKubeContext()
+	}
+	if kubeCtx == "" {
+		return "kubernetes"
+	}
+	return "kubernetes/" + kubeCtx
+}
+
 // kubeContext decides which cluster this scan is about.
 //
 // The Saga's `ref` names the concrete instance, so it is the natural answer — and it has to be
@@ -313,14 +341,10 @@ type kubeBenchFinding struct {
 // Only FAIL and WARN become findings. PASS and INFO are the benchmark confirming what it
 // checked, and a report listing three hundred passing checks buries the dozen that failed —
 // the same reasoning that keeps permissive licences out of the licences control.
-func parseKubeBench(out []byte, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
+func parseKubeBench(out []byte, location string) (sarif.Report, error) {
 	var doc kubeBenchDoc
 	if err := json.Unmarshal(out, &doc); err != nil {
 		return sarif.Report{}, fmt.Errorf("decode kube-bench json: %w", err)
-	}
-	location := "cluster"
-	if t, ok := target.(plugin.InfraTarget); ok && t.Identity() != "" {
-		location = t.Identity()
 	}
 
 	report := sarif.Report{Tool: kubeBenchScannerName, Rules: map[string]sarif.Rule{}}

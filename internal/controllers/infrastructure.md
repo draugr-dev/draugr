@@ -32,6 +32,10 @@ wrong, because it looks right. A `ref` with no matching context fails the scan.
 
 Where an organisation's name for a cluster is not its kubeconfig context name, set `context`.
 
+`ref` is optional. Without it Draugr audits the kubeconfig's current context — and labels the
+findings with **that** context's name, not a blank, so the report still says which cluster it
+examined.
+
 Two components on the same cluster produce two jobs with the same target, which the engine
 collapses — the shared case costs one scan, not two.
 
