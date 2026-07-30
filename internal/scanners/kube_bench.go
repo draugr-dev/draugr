@@ -1,36 +1,121 @@
 package scanners
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/draugr-dev/draugr/internal/toolexec"
+
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
-	"github.com/draugr-dev/draugr/pkg/tooladapter"
 )
 
 // kubeBenchScannerName identifies the scanner behind the "infrastructure" control.
 const kubeBenchScannerName = "kube-bench"
 
-// NewKubeBench returns a Scanner that audits a Kubernetes cluster against the CIS Kubernetes
-// Benchmark. It serves the "infrastructure" control.
+// kubeBenchScanner audits a Kubernetes cluster against the CIS Kubernetes Benchmark.
 //
-// kube-bench emits its own JSON rather than SARIF, so the conversion is ours — the second such
-// scanner, after trivy-license.
+// Written directly rather than through tooladapter, which covers a tool that takes an argv and
+// answers in SARIF. kube-bench needs three things beyond that: its own argv, its own JSON
+// conversion, and a per-scan environment with a lifecycle — a kubeconfig written to disk so the
+// kubectl it invokes talks to the cluster the Saga named, then removed. The third is what tips
+// it; a hook returning a value plus a cleanup function is worse than a Scan method.
+type kubeBenchScanner struct {
+	info plugin.ScannerInfo
+	run  func(ctx context.Context, argv, env []string) ([]byte, error)
+}
+
+// NewKubeBench returns a Scanner for the "infrastructure" control.
 func NewKubeBench() plugin.Scanner {
-	return tooladapter.New(tooladapter.Config{
-		Name:        kubeBenchScannerName,
-		Binary:      "kube-bench",
-		Controls:    []string{"infrastructure"},
-		TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
-		Argv:        kubeBenchArgv,
-		Run:         execArgv,
-		Parse:       parseKubeBench,
-	})
+	return kubeBenchScanner{
+		info: plugin.ScannerInfo{
+			Name:        kubeBenchScannerName,
+			Binary:      "kube-bench",
+			Controls:    []string{"infrastructure"},
+			TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+		},
+		run: func(ctx context.Context, argv, env []string) ([]byte, error) {
+			return toolexec.RunWithEnv(ctx, "", argv, env)
+		},
+	}
+}
+
+// Info describes the scanner.
+func (s kubeBenchScanner) Info() plugin.ScannerInfo { return s.info }
+
+// Scan audits the cluster the target names and converts kube-bench's JSON to SARIF.
+func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+	if _, ok := target.(plugin.InfraTarget); !ok {
+		return sarif.Report{}, fmt.Errorf("kube-bench: unsupported target %T (want infrastructure)", target)
+	}
+	// Resolve the cluster before anything talks to it. A context that does not exist is a typo
+	// or a missing kubeconfig entry, and saying so beats the version lookup failing first and
+	// blaming the wrong thing.
+	//
+	// kube-bench shells out to kubectl for every policies check, and kubectl reads its cluster
+	// from the environment. Without this the scan audits whatever context the machine has
+	// selected while labelling the findings with the one the Saga declared — a report naming one
+	// cluster and describing another.
+	env, cleanup, err := kubeContextEnv(kubeContext(target, cfg))
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	defer cleanup()
+
+	argv, err := kubeBenchArgv(target, cfg)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+
+	out, err := s.run(ctx, argv, env)
+	if err != nil {
+		return sarif.Report{}, fmt.Errorf("run %s: %w", kubeBenchScannerName, err)
+	}
+	return parseKubeBench(out, target, cfg)
+}
+
+// kubeContextEnv writes a kubeconfig whose current context is the one being audited, and returns
+// the environment pointing kubectl at it.
+//
+// A copy rather than `kubectl config use-context`, which would change the operator's own default
+// as a side effect of running a scan. An empty context means the ambient config is already right,
+// so nothing is written.
+func kubeContextEnv(kubeCtx string) (env []string, cleanup func(), err error) {
+	noop := func() {}
+	if kubeCtx == "" {
+		return nil, noop, nil
+	}
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	raw, err := rules.Load()
+	if err != nil {
+		return nil, noop, fmt.Errorf("kube-bench: read kubeconfig: %w", err)
+	}
+	if _, ok := raw.Contexts[kubeCtx]; !ok {
+		return nil, noop, fmt.Errorf(
+			"kube-bench: no kubeconfig context named %q — the component's infrastructure `ref` "+
+				"selects the cluster to audit, so it has to match a context (or set "+
+				"controllers.infrastructure.context)", kubeCtx)
+	}
+	raw.CurrentContext = kubeCtx
+
+	f, err := os.CreateTemp("", "draugr-kubeconfig-*.yaml")
+	if err != nil {
+		return nil, noop, err
+	}
+	path := f.Name()
+	_ = f.Close()
+	cleanup = func() { _ = os.Remove(path) }
+	if err := clientcmd.WriteToFile(*raw, path); err != nil {
+		cleanup()
+		return nil, noop, fmt.Errorf("kube-bench: write kubeconfig: %w", err)
+	}
+	return []string{"KUBECONFIG=" + path}, cleanup, nil
 }
 
 // Config keys. Both are optional; the defaults are the safe reading.
@@ -44,6 +129,9 @@ const (
 	// versionKey pins the Kubernetes version kube-bench maps to a benchmark (e.g. "1.34").
 	// Unset means Draugr asks the cluster — see clusterVersion.
 	versionKey = "version"
+	// contextKey names the kubeconfig context to audit. Unset means the component's
+	// infrastructure `ref`, and only then the kubeconfig's current context.
+	contextKey = "context"
 	// configDirKey points at kube-bench's own `cfg/` tree of benchmark definitions. kube-bench
 	// looks in /etc/kube-bench/cfg by default, which is right when it was installed from a
 	// package and wrong when someone put the binary on PATH and left the cfg beside it — a
@@ -85,8 +173,9 @@ const defaultKubeBenchTargets = "policies"
 // version rather than letting the tool guess. It asks the cluster, and passes --version so
 // kube-bench applies its own mapping — which stays correct as kube-bench adds benchmarks,
 // whereas a table copied into Draugr would not.
-func kubeBenchArgv(_ plugin.Target, cfg plugin.Config) ([]string, error) {
+func kubeBenchArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 	targets := stringSetting(cfg, targetsKey, defaultKubeBenchTargets)
+	kubeCtx := kubeContext(target, cfg)
 	argv := []string{"kube-bench", "run", "--json", "--targets", targets}
 
 	switch benchmark := stringSetting(cfg, benchmarkKey, ""); {
@@ -97,7 +186,7 @@ func kubeBenchArgv(_ plugin.Target, cfg plugin.Config) ([]string, error) {
 	default:
 		version := stringSetting(cfg, versionKey, "")
 		if version == "" {
-			detected, err := clusterVersion()
+			detected, err := clusterVersion(kubeCtx)
 			if err != nil {
 				return nil, fmt.Errorf(
 					"kube-bench: cannot determine the cluster's Kubernetes version, and kube-bench "+
@@ -116,14 +205,34 @@ func kubeBenchArgv(_ plugin.Target, cfg plugin.Config) ([]string, error) {
 	return argv, nil
 }
 
-// clusterVersion reports the cluster's Kubernetes version as major.minor. Injectable for tests.
+// kubeContext decides which cluster this scan is about.
+//
+// The Saga's `ref` names the concrete instance, so it is the natural answer — and it has to be
+// used, not merely displayed. Findings are labelled with it; if the scan actually audited
+// whatever context the machine happened to have selected, the report would name one cluster and
+// describe another. Mislabelled evidence is worse than none.
+//
+// An explicit `context` setting wins, for the case where the kubeconfig's name for a cluster is
+// not the name the organisation uses for it.
+func kubeContext(target plugin.Target, cfg plugin.Config) string {
+	if ctx := stringSetting(cfg, contextKey, ""); ctx != "" {
+		return ctx
+	}
+	if t, ok := target.(plugin.InfraTarget); ok {
+		return t.Ref
+	}
+	return ""
+}
+
+// clusterVersion reports a cluster's Kubernetes version as major.minor. Injectable for tests.
 var clusterVersion = detectClusterVersion
 
-// detectClusterVersion asks the cluster named by the ambient kubeconfig, the same way the
-// k8s-images surveyor reaches one.
-func detectClusterVersion() (string, error) {
+// detectClusterVersion asks the named context's cluster, the same way the k8s-images surveyor
+// reaches one. An empty context means the kubeconfig's current one.
+func detectClusterVersion(kubeCtx string) (string, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	restCfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{}).ClientConfig()
+	overrides := &clientcmd.ConfigOverrides{CurrentContext: kubeCtx}
+	restCfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
 	if err != nil {
 		return "", fmt.Errorf("kubeconfig: %w", err)
 	}
@@ -135,12 +244,21 @@ func detectClusterVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Major/Minor come back as "1" and "34", sometimes with a "+" on managed clusters.
-	minor := strings.TrimRight(info.Minor, "+")
-	if info.Major == "" || minor == "" {
-		return "", fmt.Errorf("server reported an unusable version %q", info.GitVersion)
+	return majorMinor(info.Major, info.Minor, info.GitVersion)
+}
+
+// majorMinor renders the version kube-bench maps against.
+//
+// Managed clusters report a minor with a trailing "+" — GKE and EKS both do, meaning "1.30 plus
+// vendor patches". kube-bench's version_mapping has no "30+" key, so leaving it on means no
+// benchmark matches and the tool falls back to the stale default this whole path exists to
+// avoid.
+func majorMinor(major, minor, gitVersion string) (string, error) {
+	minor = strings.TrimRight(minor, "+")
+	if major == "" || minor == "" {
+		return "", fmt.Errorf("server reported an unusable version %q", gitVersion)
 	}
-	return info.Major + "." + minor, nil
+	return major + "." + minor, nil
 }
 
 // stringSetting reads a string from a plugin.Config, falling back to a default.

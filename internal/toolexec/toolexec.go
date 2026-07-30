@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -26,12 +27,25 @@ import (
 // No shell is involved — exec.CommandContext, not "sh -c" — and argv is built from typed config
 // by the caller, never from user shell input.
 func Run(ctx context.Context, dir string, argv []string) ([]byte, error) {
+	return RunWithEnv(ctx, dir, argv, nil)
+}
+
+// RunWithEnv is Run with extra environment variables layered over the parent's, each "K=V".
+//
+// A tool that shells out to another tool cannot be told which context to work in through argv —
+// kube-bench invokes kubectl itself, and kubectl takes its cluster from the environment. This is
+// how a scanner points such a tool at the right target rather than whatever the machine happens
+// to be configured for.
+func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("empty command")
 	}
 	started := time.Now()
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Dir = dir
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	out, err := cmd.Output()
 	log(ctx, argv, dir, started, out, err)
 	return out, explain(err)

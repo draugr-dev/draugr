@@ -20,6 +20,17 @@ and converts the result to SARIF.
 the second such scanner after [`trivy-license`](trivy-license.md), and the reason
 `tooladapter.Config` has a `Parse` hook.
 
+## Draugr points it at the right cluster
+
+kube-bench has no cluster flag: every `policies` check shells out to `kubectl`, which takes its
+cluster from the environment. Left alone it would audit whatever context the machine happens to
+have selected.
+
+So the scanner resolves the context — the component's `ref`, or an explicit `context` setting —
+copies the kubeconfig with that context made current, and points the tool at the copy through
+`KUBECONFIG`. A copy rather than `kubectl config use-context`, which would change the operator's
+own default as a side effect of running a scan. The temporary file is removed afterwards.
+
 ## Draugr supplies the Kubernetes version
 
 kube-bench maps a Kubernetes version to a CIS benchmark, and detects that version by reading the

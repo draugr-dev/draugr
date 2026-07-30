@@ -24,6 +24,14 @@ components:
         ref: prod-eu-west-1
 ```
 
+**`ref` selects the cluster, it does not merely name it.** It is matched against a kubeconfig
+context, and both Draugr's version lookup and the `kubectl` calls kube-bench makes are pointed at
+that context. Findings are labelled with it, so if it did not also select the cluster a report
+would name one cluster and describe another — the worst way for a compliance artifact to be
+wrong, because it looks right. A `ref` with no matching context fails the scan.
+
+Where an organisation's name for a cluster is not its kubeconfig context name, set `context`.
+
 Two components on the same cluster produce two jobs with the same target, which the engine
 collapses — the shared case costs one scan, not two.
 
@@ -55,6 +63,7 @@ config:
   controllers:
     infrastructure:
       enabled: true
+      context: arn:aws:eks:...         # optional; defaults to the component's `ref`
       version: "1.34"                  # optional; Draugr asks the cluster otherwise
       benchmark: gke-1.6.0             # optional; names a benchmark config directly
       configDir: /etc/kube-bench/cfg   # optional; where kube-bench's definitions live

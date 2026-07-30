@@ -1,8 +1,10 @@
 package scanners
 
 import (
+	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -27,7 +29,7 @@ func TestKubeBenchInfo(t *testing.T) {
 func withClusterVersion(t *testing.T, version string, err error) {
 	t.Helper()
 	prev := clusterVersion
-	clusterVersion = func() (string, error) { return version, err }
+	clusterVersion = func(string) (string, error) { return version, err }
 	t.Cleanup(func() { clusterVersion = prev })
 }
 
@@ -187,6 +189,189 @@ func TestKubeBenchLevel(t *testing.T) {
 		if ok != tc.report || got != tc.want {
 			t.Errorf("kubeBenchLevel(%q, scored=%v) = %q,%v want %q,%v",
 				tc.status, tc.scored, got, ok, tc.want, tc.report)
+		}
+	}
+}
+
+// The Saga's `ref` names the cluster to audit, and findings are labelled with it. If it did not
+// also select the cluster, a scan would name one cluster and describe another — which is the
+// worst way for a compliance report to be wrong, because it looks right.
+func TestKubeContextComesFromTheDeclaredRef(t *testing.T) {
+	got := kubeContext(plugin.InfraTarget{Platform: "kubernetes", Ref: "prod-eu-west-1"}, nil)
+	if got != "prod-eu-west-1" {
+		t.Errorf("kubeContext = %q, want the declared ref", got)
+	}
+}
+
+// An organisation's name for a cluster is not always its kubeconfig context name.
+func TestKubeContextSettingOverridesTheRef(t *testing.T) {
+	got := kubeContext(plugin.InfraTarget{Ref: "prod-eu-west-1"}, plugin.Config{"context": "arn:aws:eks:..."})
+	if got != "arn:aws:eks:..." {
+		t.Errorf("kubeContext = %q, want the explicit setting", got)
+	}
+}
+
+// No ref and no setting means the ambient kubeconfig is already pointed where the operator wants.
+func TestKubeContextEmptyMeansAmbient(t *testing.T) {
+	if got := kubeContext(plugin.InfraTarget{Platform: "kubernetes"}, nil); got != "" {
+		t.Errorf("kubeContext = %q, want empty", got)
+	}
+	env, cleanup, err := kubeContextEnv("")
+	defer cleanup()
+	if err != nil || env != nil {
+		t.Errorf("an empty context should write nothing: env=%v err=%v", env, err)
+	}
+}
+
+// Naming a context that does not exist is a typo or a missing kubeconfig entry, and either way
+// the scan would otherwise silently audit the wrong cluster.
+func TestKubeContextEnvRejectsAnUnknownContext(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config")
+	if err := os.WriteFile(path, []byte(`apiVersion: v1
+kind: Config
+current-context: real
+contexts:
+- name: real
+  context: {cluster: c, user: u}
+clusters:
+- name: c
+  cluster: {server: https://example.invalid}
+users:
+- name: u
+  user: {}
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("KUBECONFIG", path)
+
+	if _, cleanup, err := kubeContextEnv("typo"); err == nil {
+		cleanup()
+		t.Fatal("expected an error for a context that is not in the kubeconfig")
+	} else if !strings.Contains(err.Error(), "typo") {
+		t.Errorf("the error should name the missing context, got: %v", err)
+	}
+
+	env, cleanup, err := kubeContextEnv("real")
+	defer cleanup()
+	if err != nil {
+		t.Fatalf("a known context should resolve: %v", err)
+	}
+	if len(env) != 1 || !strings.HasPrefix(env[0], "KUBECONFIG=") {
+		t.Fatalf("env = %v, want a KUBECONFIG override", env)
+	}
+	// The written config selects the requested context, and the operator's own file is untouched.
+	//nolint:gosec // the path came from kubeContextEnv, which just created it under t.TempDir
+	written, err := os.ReadFile(strings.TrimPrefix(env[0], "KUBECONFIG="))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(written), "current-context: real") {
+		t.Errorf("the temporary kubeconfig should select the requested context:\n%s", written)
+	}
+	orig, _ := os.ReadFile(path) //nolint:gosec // a path this test wrote under t.TempDir
+	if !strings.Contains(string(orig), "current-context: real") {
+		t.Error("the operator's own kubeconfig must not be modified")
+	}
+}
+
+func TestKubeBenchRejectsNonInfraTargets(t *testing.T) {
+	_, err := NewKubeBench().Scan(context.Background(), plugin.HostTarget{URL: "https://x"}, nil)
+	if err == nil || !strings.Contains(err.Error(), "unsupported target") {
+		t.Errorf("want an unsupported-target error, got %v", err)
+	}
+}
+
+// The whole path: argv built with the detected version, env pointing at the declared cluster,
+// output parsed.
+func TestKubeBenchScan(t *testing.T) {
+	withClusterVersion(t, "1.34", nil)
+	raw, err := os.ReadFile("testdata/kube-bench.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotArgv []string
+	s := kubeBenchScanner{
+		info: plugin.ScannerInfo{Name: kubeBenchScannerName},
+		run: func(_ context.Context, argv, _ []string) ([]byte, error) {
+			gotArgv = argv
+			return raw, nil
+		},
+	}
+	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(gotArgv, " "), "--version 1.34") {
+		t.Errorf("argv = %v", gotArgv)
+	}
+	if len(rep.Results) != 2 {
+		t.Errorf("want the fixture's 2 findings, got %d", len(rep.Results))
+	}
+}
+
+// The registered scanner is what the engine actually gets; the tests above exercise an injected
+// one, so this checks the wiring rather than the logic.
+func TestNewKubeBenchIsWired(t *testing.T) {
+	s, ok := NewKubeBench().(kubeBenchScanner)
+	if !ok {
+		t.Fatalf("unexpected scanner type %T", NewKubeBench())
+	}
+	if s.run == nil {
+		t.Error("the registered scanner has no exec function")
+	}
+}
+
+// A tool that fails should surface as an error naming it, not as an empty report.
+func TestKubeBenchScanReportsToolFailure(t *testing.T) {
+	withClusterVersion(t, "1.34", nil)
+	s := kubeBenchScanner{
+		info: plugin.ScannerInfo{Name: kubeBenchScannerName},
+		run: func(context.Context, []string, []string) ([]byte, error) {
+			return nil, errors.New("exit status 1: kubectl not found")
+		},
+	}
+	_, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	if err == nil || !strings.Contains(err.Error(), "kube-bench") {
+		t.Errorf("want an error naming the scanner, got %v", err)
+	}
+}
+
+// Output the tool did produce but Draugr cannot read is a different failure from the tool
+// failing, and should say so.
+func TestKubeBenchScanReportsUnreadableOutput(t *testing.T) {
+	withClusterVersion(t, "1.34", nil)
+	s := kubeBenchScanner{
+		info: plugin.ScannerInfo{Name: kubeBenchScannerName},
+		run:  func(context.Context, []string, []string) ([]byte, error) { return []byte("not json"), nil },
+	}
+	if _, err := s.Scan(context.Background(), plugin.InfraTarget{}, nil); err == nil {
+		t.Error("expected a decode error")
+	}
+}
+
+// GKE and EKS report a minor version with a trailing "+" — "1.30+" meaning vendor patches on top
+// of 1.30. kube-bench's version_mapping has no "30+" key, so passing it through would match no
+// benchmark and drop the tool back to the stale default this whole path exists to avoid.
+func TestMajorMinor(t *testing.T) {
+	for _, tc := range []struct {
+		major, minor, want string
+		wantErr            bool
+	}{
+		{major: "1", minor: "34", want: "1.34"},
+		{major: "1", minor: "30+", want: "1.30"}, // managed clusters
+		{major: "1", minor: "", wantErr: true},
+		{major: "", minor: "34", wantErr: true},
+	} {
+		got, err := majorMinor(tc.major, tc.minor, "v"+tc.major+"."+tc.minor+".0")
+		if tc.wantErr {
+			if err == nil {
+				t.Errorf("majorMinor(%q,%q) = %q, want an error", tc.major, tc.minor, got)
+			}
+			continue
+		}
+		if err != nil || got != tc.want {
+			t.Errorf("majorMinor(%q,%q) = %q,%v want %q", tc.major, tc.minor, got, err, tc.want)
 		}
 	}
 }
