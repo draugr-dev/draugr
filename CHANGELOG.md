@@ -10,7 +10,49 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **The HTML report carries its own data, and you can search it.** Two download links —
+  `results.sarif` (the complete report) and `findings.tsv` (every finding, ready for a
+  spreadsheet) — so the file someone emailed you is enough to work from. Tab-separated rather
+  than comma-separated: finding messages are full of commas, and TSV needs no escaping and opens
+  on a double-click.
+
+  A search box and per-priority, per-severity and per-control toggles narrow the table as you
+  type. Both are **progressive enhancement**: with JavaScript disabled the page still renders the
+  complete table and both downloads, and the toolbar stays hidden rather than showing controls
+  that do nothing.
+
+  Findings now show their message on its own line beneath the row, so it has room to be read
+  instead of being squeezed into an eighth column. Suppressed findings get their own section with
+  the reason each was set aside, and the footer records when the scan ran, which version produced
+  it, and the run's statistics.
+
+  Instead of a job count, the footer reports how long the run took and a per-control breakdown of
+  where the time went — worst first, with shares of total work rather than of the wall clock,
+  since controls run in parallel.
+
 ### Fixed
+
+- **A failed scanner now says what it said.** A control whose tool exited badly reported
+  `run nuclei: exit status 1`, which tells you nothing you can act on — and that line is what
+  reaches the terminal, the HTML report and the pull-request comment. The tool's own first line
+  of output now travels with it:
+  `run nuclei: exit status 1: [FTL] Could not run nuclei: no templates provided for scan`.
+  `--log-level trace` still relays everything it printed.
+
+- **The HTML and Markdown reports now say what the run couldn't do.** A control whose scanner
+  failed was missing from both entirely — so a report you sent to someone listed the controls
+  that worked and gave no sign the others had been asked for. They now carry an `ERROR` row and
+  the reason, as the console already did.
+
+  Both also report the suppression count and any SBOMs, and say when the finding list was
+  narrowed by `--min-priority` — HTML filtered silently before, showing 21 of 56 findings beside
+  priority counts that still read 56.
+
+  While there: rule ids in the HTML report link to their documentation, dark mode is legible
+  (the page asked the browser for it without styling for it), and there are print styles for
+  saving to PDF.
 
 - **`--min-priority` now works with `--format sarif`.** It was silently ignored: the output was
   byte-identical with and without the flag, so the machine consumer with the strongest reason to

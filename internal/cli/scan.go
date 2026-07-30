@@ -15,6 +15,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
+	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
@@ -168,6 +169,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		MinPriority: minPriority,
 		TopN:        fixFirstLimit(opts.top),
 		Compact:     opts.compact,
+		// Stamped so a rendered report can say when it ran and what produced it. A report
+		// offered as evidence has to answer both, and only the CLI knows either.
+		Generated: time.Now(),
+		Version:   reportVersion(),
 	}
 	if format == "template" {
 		art, err := report.Build(saga.ReportConfig{
@@ -278,6 +283,15 @@ func validatePriority(flag, v string) (string, error) {
 	default:
 		return "", fmt.Errorf("invalid %s %q (want one of P1, P2, P3, P4)", flag, v)
 	}
+}
+
+// reportVersion labels a rendered report. version.Version is "dev" for anything not built from
+// a release tag, which reads in a report footer as though "dev" were the version number.
+func reportVersion() string {
+	if version.Version == "" || version.Version == "dev" {
+		return "(development build)"
+	}
+	return "v" + strings.TrimPrefix(version.Version, "v")
 }
 
 func writeArtifacts(dir string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string) error {

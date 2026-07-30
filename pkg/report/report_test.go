@@ -12,6 +12,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/sbom"
 )
 
 func sampleData() Data {
@@ -129,7 +130,7 @@ func TestHTMLRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"<!doctype html>", "Draugr —", "FAIL", "app 1.0", "CVE-1", "gitleaks", "<th>Scanner</th>", "</html>"} {
+	for _, want := range []string{"<!doctype html>", "Draugr —", "FAIL", "app 1.0", "CVE-1", "gitleaks", ">Scanner</th>", "</html>"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("html output missing %q", want)
 		}
@@ -651,5 +652,95 @@ func TestSARIFFilterLeavesTheRunIntact(t *testing.T) {
 	}
 	if after := len(d.Run.Controls["sca"].Report.Results); after != before {
 		t.Errorf("rendering filtered SARIF mutated the run: %d results before, %d after", before, after)
+	}
+}
+
+// erroredRunData is a run where one control reported findings and another could not run at all.
+// The second is the dangerous case: with no verdict entry, a reporter that only walks
+// Verdict.Controls omits it, and the report describes a thinner run rather than a broken one.
+func erroredRunData() Data {
+	return Data{
+		Release: saga.Release{Name: "app", Version: "1.0"},
+		Run: engine.Result{
+			Controls: map[string]plugin.ControlResult{
+				"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+					{RuleID: "CVE-1", Level: sarif.LevelError, Priority: "P1", Tool: "trivy"},
+				}}},
+			},
+			ScanErrors: map[string][]string{"dast": {"nuclei: executable file not found in $PATH"}},
+			Suppressed: 3,
+			SBOMs:      []sbom.Document{{Format: "spdx-json"}},
+		},
+		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+			{Control: "sca", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1}},
+		}},
+	}
+}
+
+// A control whose scanner never ran found nothing because it looked at nothing. Every format a
+// person reads has to say so — this held for the console and for neither other format, and a
+// shared HTML or markdown report is the one most likely to be handed to someone else as a
+// record of what was checked.
+func TestEveryHumanFormatReportsAControlThatCouldNotRun(t *testing.T) {
+	for _, format := range []string{"console", "markdown", "html"} {
+		t.Run(format, func(t *testing.T) {
+			r, err := For(format)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var b bytes.Buffer
+			if err := r.Render(&b, erroredRunData()); err != nil {
+				t.Fatal(err)
+			}
+			out := b.String()
+			if !strings.Contains(out, "dast") {
+				t.Errorf("%s: the control that failed is missing entirely:\n%s", format, out)
+			}
+			if !strings.Contains(out, "ERROR") {
+				t.Errorf("%s: nothing marks the run as incomplete:\n%s", format, out)
+			}
+			if !strings.Contains(out, "nuclei") {
+				t.Errorf("%s: the reason the control failed is not reported:\n%s", format, out)
+			}
+		})
+	}
+}
+
+// An excluded finding that leaves no trace reads exactly like one that was never made, which is
+// what suppress-rather-than-delete exists to prevent.
+func TestEveryHumanFormatReportsSuppressions(t *testing.T) {
+	for _, format := range []string{"console", "markdown", "html"} {
+		t.Run(format, func(t *testing.T) {
+			r, _ := For(format)
+			var b bytes.Buffer
+			if err := r.Render(&b, erroredRunData()); err != nil {
+				t.Fatal(err)
+			}
+			if out := b.String(); !strings.Contains(out, "3 findings suppressed") &&
+				!strings.Contains(out, "3 finding(s) suppressed") {
+				t.Errorf("%s: the suppression count is not reported:\n%s", format, out)
+			}
+		})
+	}
+}
+
+// Filtering the listing without saying so leaves the counts and the table openly contradicting
+// each other, and the reader to notice.
+func TestEveryHumanFormatSaysItFiltered(t *testing.T) {
+	for _, format := range []string{"console", "markdown", "html"} {
+		t.Run(format, func(t *testing.T) {
+			r, _ := For(format)
+			var b bytes.Buffer
+			if err := r.Render(&b, minPriorityData("P2")); err != nil {
+				t.Fatal(err)
+			}
+			out := b.String()
+			if !strings.Contains(out, "P2 and above") {
+				t.Errorf("%s: does not say the listing was filtered:\n%s", format, out)
+			}
+			if !strings.Contains(out, "hidden") && !strings.Contains(out, "not listed") {
+				t.Errorf("%s: does not say how many were left out:\n%s", format, out)
+			}
+		})
 	}
 }

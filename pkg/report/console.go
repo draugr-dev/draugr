@@ -104,7 +104,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				bandsText(col, s.bands[c.Control]))
 		}
 		// Controls that produced nothing at all have no verdict entry, so they're listed here.
-		for _, name := range erroredOnly(d) {
+		for _, name := range s.errored {
 			_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 				fmt.Sprintf("%-*s", width, name),
 				col.Paint(cFail, fmt.Sprintf("%-5s", "ERROR")),
@@ -304,23 +304,6 @@ func scoreStr(f finding) string {
 		return fmt.Sprintf("%.1f", f.score)
 	}
 	return "-"
-}
-
-// erroredOnly names controls that failed without producing any report at all, so they have no
-// entry in the verdict to hang an ERROR on.
-func erroredOnly(d Data) []string {
-	seen := make(map[string]bool, len(d.Verdict.Controls))
-	for _, c := range d.Verdict.Controls {
-		seen[c.Control] = true
-	}
-	var out []string
-	for name := range d.Run.ScanErrors {
-		if !seen[name] {
-			out = append(out, name)
-		}
-	}
-	sort.Strings(out)
-	return out
 }
 
 // sortedKeys orders map keys so the report is stable run to run.
