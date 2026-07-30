@@ -130,6 +130,15 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			fmt.Sprintf("%s suppressed by config.exclude", plural(n, "finding"))))
 	}
 
+	// What the run did, not just what it found. A scan that probed a live endpoint should say so
+	// where the verdict is read, rather than only in the docs that describe the control.
+	for _, e := range s.effects {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, fmt.Sprintf("%s: %s", e.Kind, e.Detail)))
+	}
+	if len(s.effects) > 0 {
+		_, _ = fmt.Fprintln(w)
+	}
+
 	if n := len(d.Run.SBOMs); n > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim,
 			fmt.Sprintf("SBOM: %s (%s)", plural(n, "document"), d.Run.SBOMs[0].Format)))

@@ -37,6 +37,7 @@ type scanOptions struct {
 	cacheDir        string
 	cacheTTL        time.Duration
 	minPriority     string
+	allowEffects    []string
 	kevFile         string
 	epssFile        string
 	epssThreshold   float64
@@ -76,6 +77,8 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "list findings at or above this priority band (P1-P4)")
+	cmd.Flags().StringSliceVar(&opts.allowEffects, "allow-effects", nil,
+		"accept scanner effects for this run (mutate, privilege); config.allowEffects is the reviewed equivalent")
 	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog JSON: a CVE on it is escalated to critical")
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores CSV: a CVE at/above --epss-threshold is bumped one severity band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", 0.5, "EPSS probability (0-1) that triggers a severity bump")
@@ -134,6 +137,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	if opts.jobs > 0 {
 		eopts = append(eopts, engine.WithConcurrency(opts.jobs))
+	}
+	if len(opts.allowEffects) > 0 {
+		eopts = append(eopts, engine.WithAllowedEffects(opts.allowEffects))
 	}
 
 	run, runErr := engine.New(reg, eopts...).Run(ctx, *model)

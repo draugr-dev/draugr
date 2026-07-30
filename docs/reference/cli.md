@@ -92,6 +92,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
+| `--allow-effects` | — | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent — see [below](#scanners-that-do-more-than-read) |
 | `--kev` | — | CISA KEV catalog JSON; a CVE on it is escalated to critical |
 | `--epss` | — | FIRST EPSS scores CSV; a CVE at/above `--epss-threshold` is bumped one band |
 | `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump |
@@ -166,6 +167,39 @@ CVE on CISA's [KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities
 (confirmed exploited) becomes critical; a CVE at/above the [EPSS](https://www.first.org/epss/)
 threshold (predicted likely) is bumped one band. Both are optional, offline (bring your own
 downloaded file), and only affect findings whose rule id is a CVE.
+
+### Scanners that do more than read
+
+Most scanners read an artifact and nothing else. A few do more, and say so: they declare an
+**effect**, which Draugr shows before a scan, enforces during one, and records afterwards.
+
+| Effect | Meaning |
+|---|---|
+| `network` | Sends traffic to the target rather than reading an artifact |
+| `mutate` | Creates or changes something that outlives the scan |
+| `privilege` | Needs access beyond what reading the target requires |
+
+Run `draugr controls` to see which scanners declare what.
+
+**`mutate` and `privilege` do not run until accepted.** Changing a target, or asking for elevated
+access, is a decision someone should make on purpose:
+
+```yaml
+config:
+  allowEffects: [mutate]
+```
+
+or `--allow-effects mutate` for a single run. A scanner whose effect has not been accepted stops
+the run *before* it does anything, and the refusal says what it would have done.
+
+**`network` is declared, not gated.** A dynamic scanner exists to send traffic; requiring consent
+per run for the thing the control is *for* teaches people to accept without reading. It is stated
+and recorded instead — and the obligation it carries, that you are entitled to probe the host, is
+in the [scope and disclaimer](../trust-and-operations/disclaimer.md).
+
+What a run actually did appears in the report, so evidence describes what happened rather than
+what was configured. Only scans that really executed count: a cache hit means the traffic was not
+sent this time.
 
 ### What `--min-priority` narrows
 

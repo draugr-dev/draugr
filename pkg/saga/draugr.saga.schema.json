@@ -94,6 +94,19 @@
         },
         "gate": {
           "$ref": "#/$defs/gateConfig"
+        },
+        "allowEffects": {
+          "type": "array",
+          "description": "Scanner effects the project accepts. A scanner that does more to a target than read it declares an effect; kinds that require consent (\"mutate\", \"privilege\") will not run unless listed here or allowed with --allow-effects.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "network",
+              "mutate",
+              "privilege"
+            ]
+          },
+          "uniqueItems": true
         }
       }
     },

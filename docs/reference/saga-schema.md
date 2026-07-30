@@ -326,6 +326,22 @@ Findings resolve onto the line where the dependency is declared, so they land on
 your editor. `go.mod` and `requirements.txt` resolve cleanly; nested lockfiles may not, and a
 finding whose line can't be determined still points at the file.
 
+## `config.allowEffects`
+
+Scanner effects this project accepts. A scanner that does more to a target than read it declares
+an effect; the kinds that require consent (`mutate`, `privilege`) will not run unless listed here.
+
+```yaml
+config:
+  allowEffects: [mutate]
+```
+
+In the descriptor rather than only a flag because it is a decision about what may be done to your
+systems: reviewed in a pull request, and applied identically by every pipeline instead of
+remembered by whoever wrote the workflow. `--allow-effects` does the same for a single run.
+
+See [scanners that do more than read](cli.md#scanners-that-do-more-than-read).
+
 ## `config.gate`
 
 ```yaml

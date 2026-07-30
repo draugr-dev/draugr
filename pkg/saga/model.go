@@ -43,6 +43,13 @@ type Config struct {
 	// images. It is evidence rather than a control: an SBOM is an inventory, it finds nothing,
 	// and it never affects the verdict.
 	SBOM *SBOMConfig `yaml:"sbom,omitempty"`
+	// AllowEffects acknowledges scanner effects that would otherwise stop a run — the kinds a
+	// scanner declares when it does more to a target than read it ("mutate", "privilege").
+	//
+	// In the descriptor rather than only a flag, because it is a decision about what may be
+	// done to your systems: reviewed in a pull request, and applied identically by every
+	// pipeline instead of remembered by whoever wrote the workflow.
+	AllowEffects []string `yaml:"allowEffects,omitempty"`
 }
 
 // GateConfig tunes which findings fail the build.

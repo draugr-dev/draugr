@@ -72,7 +72,44 @@ func runControls(w io.Writer, reg *engine.Registry) error {
 		_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
 			"* opt-in scanner — enable with controllers.<control>.<scanner>.enabled: true in the Saga."))
 	}
+	writeEffects(w, col, reg)
 	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
 		"Enable a control under config.controllers.<name> (or per component) in your Saga."))
 	return nil
+}
+
+// writeEffects lists the scanners that do more to a target than read it.
+//
+// Before a scan rather than during one: which controls send traffic, need elevated access, or
+// create something is a question to answer while choosing what to enable. A scanner that only
+// reads an artifact says nothing here, so the list stays short enough to read.
+func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry) {
+	type row struct{ scanner, kind, detail string }
+	var rows []row
+	needsConsent := false
+	for _, s := range reg.Scanners() {
+		info := s.Info()
+		for _, e := range info.Effects {
+			rows = append(rows, row{info.Name, string(e.Kind), e.Detail})
+			needsConsent = needsConsent || e.Kind.RequiresConsent()
+		}
+	}
+	if len(rows) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleAccent, "Scanners that do more than read:"))
+	t := tui.NewTable(col, "Scanner", "Effect", "What happens").Indent("  ")
+	for _, r := range rows {
+		t.Row(
+			tui.PlainCell(r.scanner),
+			tui.Styled(tui.StyleMedium, r.kind),
+			tui.Styled(tui.StyleMuted, r.detail),
+		)
+	}
+	t.Render(w)
+	if needsConsent {
+		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
+			"Effects marked mutate or privilege do not run until accepted — list them under\n"+
+				"config.allowEffects in your Saga, or pass --allow-effects."))
+	}
 }

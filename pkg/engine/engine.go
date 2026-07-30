@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +34,8 @@ type Engine struct {
 	cache       cache.Cache
 	prioritize  Prioritizer
 	sbomGen     sbom.Generator
+	// allowEffects are scanner effects accepted for this invocation, layered over the Saga's.
+	allowEffects []string
 }
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
@@ -72,6 +75,12 @@ func WithSBOM(g sbom.Generator) Option {
 	return func(e *Engine) { e.sbomGen = g }
 }
 
+// WithAllowedEffects accepts scanner effects for this invocation, on top of whatever the Saga
+// accepts. Backs the --allow-effects flag.
+func WithAllowedEffects(kinds []string) Option {
+	return func(e *Engine) { e.allowEffects = kinds }
+}
+
 // New creates an Engine over the given registry. By default it runs up to NumCPU jobs
 // concurrently.
 func New(reg *Registry, opts ...Option) *Engine {
@@ -104,6 +113,7 @@ type PlannedJob struct {
 func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 	var planned []PlannedJob
 	var errs []error
+	allowed := allowedEffects(model.Config.AllowEffects, e.allowEffects)
 
 	for _, name := range sortedControllerNames(e.reg.controllers) {
 		ctrl := e.reg.controllers[name]
@@ -117,7 +127,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				errs = append(errs, fmt.Errorf("plan %s: %w", name, err))
 				continue
 			}
-			jobs, verrs := e.validateConfigs(name, jobs)
+			jobs, verrs := e.validateConfigs(name, jobs, allowed)
 			errs = append(errs, verrs...)
 			planned = appendJobs(planned, name, "", "", jobs)
 		case plugin.ScopeComponent:
@@ -131,7 +141,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 					errs = append(errs, fmt.Errorf("plan %s/%s: %w", name, comp.Name, err))
 					continue
 				}
-				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs)
+				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs, allowed)
 				errs = append(errs, verrs...)
 				planned = appendJobs(planned, name, comp.Exposure, comp.Criticality, jobs)
 			}
@@ -150,21 +160,80 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 // mistyped or ill-typed Saga option is rejected before scanning rather than silently ignored.
 // It returns the surviving jobs and one error per rejected job. Jobs for an unregistered scanner
 // pass through (the run reports the missing scanner); scanners without a schema are not checked.
-func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob) ([]plugin.ScanJob, []error) {
+func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob, allowed map[plugin.EffectKind]bool) ([]plugin.ScanJob, []error) {
 	var kept []plugin.ScanJob
 	var errs []error
 	for _, job := range jobs {
 		if scanner, ok := e.reg.Scanner(job.Scanner); ok {
-			if schema := scanner.Info().ConfigSchema; len(schema) > 0 {
+			info := scanner.Info()
+			if schema := info.ConfigSchema; len(schema) > 0 {
 				if err := plugin.ValidateConfig(schema, job.Config); err != nil {
 					errs = append(errs, fmt.Errorf("%s/%s: %w", label, job.Scanner, err))
 					continue
 				}
 			}
+			if err := consentFor(info, allowed); err != nil {
+				errs = append(errs, fmt.Errorf("%s/%s: %w", label, job.Scanner, err))
+				continue
+			}
 		}
 		kept = append(kept, job)
 	}
 	return kept, errs
+}
+
+// consentFor refuses a scanner whose declared effects have not been accepted.
+//
+// Checked while planning, so a run that is not permitted to do what it would do stops before it
+// checks out a repository or reaches a cluster — and the message says what the scanner would
+// have done rather than only that it was blocked, because a refusal nobody can act on is its own
+// kind of dead end.
+func consentFor(info plugin.ScannerInfo, allowed map[plugin.EffectKind]bool) error {
+	for _, effect := range info.Effects {
+		if !effect.Kind.RequiresConsent() || allowed[effect.Kind] {
+			continue
+		}
+		return fmt.Errorf(
+			"this scanner has a %q effect that has not been accepted: %s. Add %q to "+
+				"config.allowEffects in your Saga, or pass --allow-effects %s",
+			effect.Kind, effect.Detail, effect.Kind, effect.Kind)
+	}
+	return nil
+}
+
+// dedupeEffects collapses the same effect reported by several jobs, in a stable order.
+func dedupeEffects(all []plugin.Effect) []plugin.Effect {
+	if len(all) == 0 {
+		return nil
+	}
+	seen := make(map[plugin.Effect]bool, len(all))
+	out := make([]plugin.Effect, 0, len(all))
+	for _, e := range all {
+		if !seen[e] {
+			seen[e] = true
+			out = append(out, e)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Kind != out[j].Kind {
+			return out[i].Kind < out[j].Kind
+		}
+		return out[i].Detail < out[j].Detail
+	})
+	return out
+}
+
+// allowedEffects merges what the descriptor accepts with what this invocation was told to allow.
+func allowedEffects(fromSaga, fromFlag []string) map[plugin.EffectKind]bool {
+	allowed := make(map[plugin.EffectKind]bool, len(fromSaga)+len(fromFlag))
+	for _, list := range [][]string{fromSaga, fromFlag} {
+		for _, k := range list {
+			if k = strings.ToLower(strings.TrimSpace(k)); k != "" {
+				allowed[plugin.EffectKind(k)] = true
+			}
+		}
+	}
+	return allowed
 }
 
 // Result is the outcome of a run: one aggregated ControlResult per control, plus run
@@ -175,6 +244,10 @@ type Result struct {
 	// Suppressed counts findings a config.exclude rule matched. They are still present in the
 	// reports, marked with their justification — this is how many stopped counting.
 	Suppressed int
+	// Effects records what this run did to its targets beyond reading them, deduplicated. Only
+	// scans that actually executed count: a cache hit means the traffic was not sent this time,
+	// and a record of effects has to describe what happened rather than what was configured.
+	Effects []plugin.Effect
 	// SBOMs are the Software Bills of Materials produced when the Saga enables config.sbom.
 	// Evidence rather than judgement: they carry no findings and never affect the verdict.
 	SBOMs []sbom.Document
@@ -245,6 +318,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		ctlErrs  = make(map[string][]string)
 		errs     []error
 		stats    = Stats{Jobs: len(planned), Concurrency: e.concurrency, ByControl: map[string]time.Duration{}}
+		effects  []plugin.Effect
 		runStart = time.Now()
 		sem      = make(chan struct{}, e.concurrency)
 		sf       = &sfGroup{}
@@ -368,6 +442,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			report := e.stampPriority(res.report, pj)
 			mu.Lock()
 			stats.ByControl[pj.Control] += jobTook
+			if !res.cached {
+				effects = append(effects, scanner.Info().Effects...)
+			}
 			byCtl[pj.Control] = append(byCtl[pj.Control], report)
 			switch {
 			case shared:
@@ -394,7 +471,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	}
 
 	stats.Duration = time.Since(runStart)
-	res := Result{Controls: make(map[string]plugin.ControlResult), Stats: stats, SBOMs: docs}
+	res := Result{
+		Controls: make(map[string]plugin.ControlResult),
+		Stats:    stats,
+		Effects:  dedupeEffects(effects),
+		SBOMs:    docs,
+	}
 	if len(ctlErrs) > 0 {
 		res.ScanErrors = ctlErrs
 	}
