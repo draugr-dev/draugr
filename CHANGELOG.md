@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.46.1] - 2026-07-30
+
 ### Fixed
 
 - **The integrations catalog now lists `kubectl` among the utilities**, which the `kube-bench`
@@ -21,6 +25,12 @@ and move it under a version on release.
 
 - **Surveyors are called surveyors.** The docs previously introduced them as "Surveyors (the
   Ravens)" — two names for one thing. Nothing about how they work has changed.
+- **The Saga and Surveyors concept pages now explain their subjects.** The descriptor page makes
+  the case for a descriptor, walks the anatomy field by field, covers the two risk axes no
+  scanner can infer, and states plainly that an excluded finding stays in the report marked
+  suppressed. The surveyors page covers what `--merge` preserves, why the running digest is
+  recorded, and what discovery cannot do for you — `criticality` is a judgement, and a proposed
+  `exposure` is a proposal.
 
 ## [0.46.0] - 2026-07-30
 
@@ -1212,7 +1222,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.46.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.46.1...HEAD
+[0.46.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.1
 [0.46.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.0
 [0.45.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.45.0
 [0.44.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.44.0
