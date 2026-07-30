@@ -11,10 +11,11 @@
 Runs
 
 ```
-kube-bench run --json --targets policies --version <cluster version> [--config-dir <dir>]
+kube-bench run --json --targets policies [--version <cluster version>] [--config-dir <dir>]
 ```
 
-and converts the result to SARIF.
+and converts the result to SARIF. `--version` is supplied for a vanilla cluster and deliberately
+withheld for a managed one — see [choosing the benchmark](#draugr-chooses-the-benchmark).
 
 **JSON rather than SARIF**: kube-bench has no SARIF output, so the conversion is ours. This is
 the second such scanner after [`trivy-license`](trivy-license.md), and the reason
@@ -31,7 +32,7 @@ copies the kubeconfig with that context made current, and points the tool at the
 `KUBECONFIG`. A copy rather than `kubectl config use-context`, which would change the operator's
 own default as a side effect of running a scan. The temporary file is removed afterwards.
 
-## Draugr supplies the Kubernetes version
+## Draugr chooses the benchmark
 
 kube-bench maps a Kubernetes version to a CIS benchmark, and detects that version by reading the
 kubelet on the node it runs on. Off a node it cannot — and it does not say so. It falls back to
@@ -50,8 +51,53 @@ quietly. So Draugr asks the cluster for its version — the same ambient kubecon
 Its mapping stays correct as it adds benchmarks; a table copied into Draugr would drift.
 
 If the version cannot be determined, the scan **fails** rather than falling back. Set `version`
-or `benchmark` to override. An explicit `benchmark` also covers the platform configs
-(`gke-*`, `eks-*`, `rke2-*`) that no Kubernetes version maps to.
+or `benchmark` to override.
+
+### On a managed cluster, supplying the version is the wrong move
+
+kube-bench chooses like this ([`cmd/common.go`](https://github.com/aquasecurity/kube-bench/blob/main/cmd/common.go), `getBenchmarkVersion`):
+
+```go
+if isEmpty(benchmarkVersion) && isEmpty(kubeVersion) && !isEmpty(platform.Name) {
+    benchmarkVersion = getPlatformBenchmarkVersion(platform)
+}
+```
+
+The provider benchmarks — `eks-*`, `gke-*`, `aks-*`, `ack-*`, and the k3s and RKE ones — are
+reachable **only when neither flag is set**. Passing `--version` to fix one wrong answer
+therefore guarantees a different one: every managed cluster falls through to generic `cis-*`.
+
+And that is not a near-miss. The provider benchmarks are not subsets: they drop the
+control-plane checks that are not the customer's to make — and are unanswerable on a managed
+control plane anyway — and add provider-specific ones the generic benchmark has never heard of.
+The mismatch fails a cluster for what it cannot fix while skipping what it can.
+
+So Draugr reads the platform out of the same `GitVersion` it already fetched
+(`v1.30.4-eks-a737599` → `eks`) using kube-bench's own expression, and then:
+
+| cluster | flags passed | benchmark chosen by |
+|---|---|---|
+| vanilla (`v1.34.0`) | `--version 1.34` | kube-bench's version mapping |
+| recognized platform | *neither* | kube-bench's platform mapping |
+| `benchmark` set | `--benchmark <value>` | you |
+| `version` set | `--version <value>` | kube-bench's version mapping |
+
+A build suffix is not automatically a platform. `v1.31.0-rc.1` parses exactly like
+`v1.30.4-eks-a737599`, so only suffixes kube-bench actually maps count — a release candidate
+stays vanilla rather than sending the scan after an `rc` benchmark.
+
+OpenShift is not detected here. kube-bench identifies it by running `oc`, not from the version
+string, so this scanner cannot reach the same conclusion; set `benchmark` for it.
+
+### The output is the guarantee, not the input
+
+Withholding the flags hands the choice to a tool that has its own fallback — the same 1.18
+fallback described above. So Draugr does not assume it worked: kube-bench states the benchmark
+it used in every control it emits, and the scan **fails** if that does not match the platform
+detected.
+
+A run that audited the wrong standard is a failed scan, not a finding-free pass. The error names
+the benchmark used, the platform expected, and the setting that resolves it.
 
 ## Why only `policies`
 
