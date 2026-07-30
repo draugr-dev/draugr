@@ -95,5 +95,5 @@ release:
 - [Quickstart](quickstart.md) — scan the Saga and read the verdict.
 - [Saga schema](../reference/saga-schema.md) — every field, including `config.reports`,
   `config.publishers`, and `references`.
-- [Let discovery write it for you](../concepts/surveyors.md) — the Ravens can generate the
+- [Let discovery write it for you](../concepts/surveyors.md) — surveyors can generate the
   descriptor from a cluster or GitHub org.

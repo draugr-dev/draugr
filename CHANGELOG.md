@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **The integrations catalog now lists `kubectl` among the utilities**, which the `kube-bench`
+  scanner needs — its `policies` checks shell out to it. A test now holds the catalog's tool
+  table to the registry `draugr doctor` checks, so a tool a scan requires cannot be missing from
+  the page you read to find out what to install.
+
+### Changed
+
+- **Surveyors are called surveyors.** The docs previously introduced them as "Surveyors (the
+  Ravens)" — two names for one thing. Nothing about how they work has changed.
 
 ## [0.46.0] - 2026-07-30
 

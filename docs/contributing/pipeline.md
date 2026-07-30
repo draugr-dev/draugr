@@ -6,7 +6,7 @@ produces, and how to configure it.
 
 ```
         ┌──────────┐
-        │  Survey  │  (optional) the Ravens discover surface → Saga fragments
+        │  Survey  │  (optional) surveyors discover surface → Saga fragments
         └────┬─────┘
              ▼
   Describe ─► Plan ─► Scan ─► Aggregate ─► Judge ─► Report ─► Publish
@@ -18,12 +18,12 @@ Stages map to packages: `saga`, `engine` (plan + scan + aggregate), `norn` (judg
 
 ---
 
-## 0. Survey (optional) — *the Ravens*
+## 0. Survey (optional)
 
 **In:** a scope (a Kubernetes cluster/namespace, a GitHub org). **Out:** a Saga, or
 fragments merged into one.
 
-Discovery surveyors ("the Ravens") enumerate your app's surface so you don't have to write
+Discovery surveyors enumerate your app's surface so you don't have to write
 the descriptor by hand. `draugr survey --k8s-images --github-org <org> -o draugr.saga.yaml`.
 Skip this stage entirely if you maintain the Saga yourself. See the [surveyors concept](../concepts/surveyors.md).
 

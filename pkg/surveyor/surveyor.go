@@ -1,7 +1,5 @@
-// Package surveyor is the Raven framework: discovery plugins that inspect an environment
+// Package surveyor is the discovery framework: plugins that inspect an environment
 // and return Saga fragments, which are merged so the descriptor can write itself.
-//
-// Odin's ravens, Huginn and Muninn, fly the world and report back what they see.
 package surveyor
 
 import (

@@ -1,4 +1,4 @@
-// Package surveyors holds Draugr's built-in surveyors ("the Ravens").
+// Package surveyors holds Draugr's built-in surveyors.
 package surveyors
 
 import (

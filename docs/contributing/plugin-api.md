@@ -111,7 +111,7 @@ type ControlResult struct {
 type Summary struct { Errors, Warnings, Notes int }
 ```
 
-## Surveyor ("Raven")
+## Surveyor
 
 Discovers surface and contributes Saga fragments so the descriptor writes itself.
 

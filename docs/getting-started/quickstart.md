@@ -13,7 +13,7 @@ the descriptor for you. If you haven't installed Draugr yet, start with
 
 **Contents:** [Fastest path](#0-fastest-path-zero-config) · [Describe your app](#1-describe-your-app) ·
 [Scan](#2-scan) · [Focus: what to fix first](#focus-what-to-fix-first) ·
-[Discovery — the Ravens](#3-let-discovery-write-the-descriptor-the-ravens) ·
+[Discovery](#3-let-discovery-write-the-descriptor) ·
 [Run it in CI](#4-run-it-in-ci) · [Troubleshooting](#troubleshooting)
 
 ## 0. Fastest path (zero-config)
@@ -162,7 +162,7 @@ exposure and criticality. It composes with the level gate (`--fail-on`): the run
 *either* trips. Each control also reports its `highestPriority` as evidence. See
 [prioritization](../concepts/prioritization.md) for how the bands are computed.
 
-## 3. Let discovery write the descriptor (the Ravens)
+## 3. Let discovery write the descriptor
 
 Instead of hand-writing components, point a surveyor at your environment:
 
@@ -175,7 +175,7 @@ draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
 ```
 
 `--merge` blends discovered components into an existing Saga instead of overwriting it. See
-the [Ravens](../concepts/surveyors.md) for what each surveyor discovers.
+the [surveyors reference](../concepts/surveyors.md) for what each one discovers.
 
 ## 4. Run it in CI
 

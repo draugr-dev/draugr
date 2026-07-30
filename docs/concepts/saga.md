@@ -18,4 +18,4 @@ and which **controls** must pass. You write what you know; Draugr does the rest.
 From the Saga, Draugr resolves which [controls and scanners](controls-and-scanners.md) apply,
 ranks findings by [priority](prioritization.md), and produces a
 [verdict](verdict-and-gating.md). If you'd rather not hand-write the descriptor, the
-[Ravens](surveyors.md) can discover your surface and write it for you.
+[Surveyors](surveyors.md) can discover your surface and write it for you.

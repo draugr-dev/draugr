@@ -17,7 +17,7 @@ Companion: [`plugin-api.md`](plugin-api.md) (interface sketches), [`naming.md`](
 ## 1. One-paragraph model
 
 A developer writes a **Saga** (`draugr.saga.yaml`) describing their app's surface —
-repos, images, endpoints, infrastructure. Optionally, **Surveyors ("the Ravens")**
+repos, images, endpoints, infrastructure. Optionally, **Surveyors**
 discover that surface and write the Saga for them. The **engine** builds an execution
 plan (which **Controllers** apply to which components), runs the relevant **Scanners**
 concurrently, and normalizes every result to **SARIF**. The **Norn** evaluates results
@@ -31,7 +31,7 @@ never re-scanned.
 
 ```
         ┌──────────┐
-        │  Survey  │  (optional) Ravens discover surface → Saga fragments
+        │  Survey  │  (optional) surveyors discover surface → Saga fragments
         └────┬─────┘
              ▼
   Describe ─► Plan ─► Scan ─► Aggregate ─► Judge ─► Report ─► Publish
@@ -169,7 +169,7 @@ draugr/
   pkg/prioritization/    # exposure × criticality × severity → P1–P4
   pkg/exploit/           # KEV/EPSS exploitability enrichment
   pkg/cache/             # content-hash result cache
-  pkg/surveyor/          # Raven framework/registry
+  pkg/surveyor/          # surveyor framework/registry
   internal/builtins/     # wires the default controllers/scanners/surveyors
   internal/controllers/  # built-in controllers (images, sca, secrets, sast, iac, headers, dast, tls)
   internal/scanners/     # built-in scanners (trivy*, gitleaks, semgrep, gosec, http-headers)
