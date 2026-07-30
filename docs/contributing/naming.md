@@ -53,7 +53,7 @@ scanners and issue links for the planned ones.
 | `dast` | Dynamic Application Security Testing | A running app/endpoint | ✅ |
 | `tls` | TLS/certificate assessment | TLS config and certificates of endpoints | ✅ |
 | `threats` | Threat intelligence | Reputation of hosts/URLs (malware, phishing) | 🗺️ |
-| `infrastructure` | CIS benchmarks / posture | Cluster/runtime hardening (e.g. kube-bench) | 🗺️ |
+| `infrastructure` | CIS benchmarks / posture | Cluster hardening and policy (e.g. kube-bench) | ✅ |
 
 **`sbom` is deliberately not on this list.** An SBOM is an inventory, and every row above means
 "checked, and here is the verdict" — a control that never looks for anything would always read

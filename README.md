@@ -72,7 +72,8 @@ the **new-vs-fixed PR diff** and the sticky comment.
 
 - **Controls:** `images` (Trivy), `sca` (Trivy fs), `licenses` (Trivy licence scanner),
   `secrets` (Gitleaks), `sast` (Semgrep, plus opt-in gosec for Go), `iac` (Trivy config),
-  `headers` (native HTTP-header analyzer), `dast` (Nuclei), `tls` (native TLS/certificate probe).
+  `headers` (native HTTP-header analyzer), `dast` (Nuclei), `tls` (native TLS/certificate probe),
+  `infrastructure` (kube-bench, CIS Kubernetes Benchmark).
   See the [integrations catalog](docs/reference/catalog.md).
 - **Pipeline:** end-to-end `scan` (plan → scan → judge → report), content-hash caching,
   tunable parallelism (`-j`), results normalized to SARIF.
@@ -92,9 +93,8 @@ the **new-vs-fixed PR diff** and the sticky comment.
   present/missing), `tools install` (fetch pinned, checksum- and cosign-verified scanners —
   and cosign itself — into `~/.draugr/bin`), and `self-update` (update draugr itself, verified).
 
-More controls — `infrastructure` (CIS benchmarks) and `threats` (threat intelligence) — are on
-the roadmap. See [controls & scanners](docs/concepts/controls-and-scanners.md) for what maps to
-what.
+`threats` (threat intelligence) is on the roadmap. See
+[controls & scanners](docs/concepts/controls-and-scanners.md) for what maps to what.
 
 ## Quickstart
 

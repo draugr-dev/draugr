@@ -18,6 +18,7 @@ func NewTrivy() plugin.Scanner {
 		Controls:     []string{"images"},
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
 		Argv:         trivyArgv,
+		Run:          execArgv,
 		CacheVersion: sharedTrivyVersion.cacheVersion,
 		Prewarm:      sharedTrivyDB.warm,
 		Refine:       trivyImageLocations,
