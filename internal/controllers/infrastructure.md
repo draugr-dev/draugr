@@ -57,6 +57,12 @@ By default this control runs section 5: **35 of the 130 checks in `cis-1.9`**, r
 wherever Draugr runs. They are the checks that describe how the cluster is configured for the workloads on
 it, rather than how its nodes were installed.
 
+**Read that count with its caveat.** Section 5 is the benchmark's advisory section: in `cis-1.12`
+none of its 34 checks are scored, and only 11 carry an audit command — the rest are prompts for a
+human to go and look. So the default mode reports a small number of automated findings alongside
+a list of things to review, and a cluster it calls clean has not been measured against the
+scored parts of the benchmark. Those live in sections 1–4, and `mode: job` is how you reach them.
+
 The other 95 read a node's own filesystem, and are available through
 [`mode: job`](../scanners/kube-bench-job.md) — which runs kube-bench inside the cluster and is a
 different contract: Draugr creates something in the system it is scanning. It declares `mutate`
