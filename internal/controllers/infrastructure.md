@@ -50,18 +50,30 @@ and only one half is reachable the way Draugr runs:
 
 | CIS sections | What they inspect | Reachable? |
 |---|---|---|
-| 5 — policies | RBAC, service accounts, Pod Security Standards, network policies, secrets | ✅ via the Kubernetes API |
-| 1–4 — master, node, etcd, controlplane | API server manifests, kubelet config, etcd data-dir permissions | ❌ node-local files |
+| 5 — policies | RBAC, service accounts, Pod Security Standards, network policies, secrets | ✅ via the Kubernetes API — the default |
+| 1–4 — master, node, etcd, controlplane | API server manifests, kubelet config, etcd data-dir permissions | ✅ via `mode: job`, which runs in the cluster |
 
-This control runs section 5: **35 of the 130 checks in `cis-1.9`**, read-only, from wherever
-Draugr runs. They are the checks that describe how the cluster is configured for the workloads on
+By default this control runs section 5: **35 of the 130 checks in `cis-1.9`**, read-only, from
+wherever Draugr runs. They are the checks that describe how the cluster is configured for the workloads on
 it, rather than how its nodes were installed.
 
-The other 95 need kube-bench running inside the cluster as a Job, which is a different contract:
-Draugr would be creating something in the system it is scanning. Tracked as
-[#388](https://github.com/draugr-dev/draugr/issues/388), sequenced after the effects framework
-([#384](https://github.com/draugr-dev/draugr/issues/384)) so that consent is a declared property
-rather than a flag invented for one scanner.
+The other 95 read a node's own filesystem, and are available through
+[`mode: job`](../scanners/kube-bench-job.md) — which runs kube-bench inside the cluster and is a
+different contract: Draugr creates something in the system it is scanning. It declares `mutate`
+and `privilege` effects, so it does not run until those are accepted:
+
+```yaml
+config:
+  allowEffects: [mutate, privilege]
+  controllers:
+    infrastructure:
+      enabled: true
+      mode: job
+```
+
+Two scanners rather than one with a flag, because the difference is not an implementation detail
+and effects are declared per scanner. Keeping them apart is what lets the read-only default run
+unguarded.
 
 ## Configuration
 

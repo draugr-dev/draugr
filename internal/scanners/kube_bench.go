@@ -80,7 +80,7 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("run %s: %w", kubeBenchScannerName, err)
 	}
-	return parseKubeBench(out, clusterLabel(kubeContext(target, cfg)))
+	return parseKubeBench(out, kubeBenchScannerName, clusterLabel(kubeContext(target, cfg)))
 }
 
 // kubeContextEnv writes a kubeconfig whose current context is the one being audited, and returns
@@ -258,16 +258,21 @@ func kubeContext(target plugin.Target, cfg plugin.Config) string {
 // clusterVersion reports a cluster's Kubernetes version as major.minor. Injectable for tests.
 var clusterVersion = detectClusterVersion
 
-// detectClusterVersion asks the named context's cluster, the same way the k8s-images surveyor
-// reaches one. An empty context means the kubeconfig's current one.
-func detectClusterVersion(kubeCtx string) (string, error) {
+// clientForContext builds a Kubernetes client for a named context, the same way the k8s-images
+// surveyor reaches one. An empty context means the kubeconfig's current one.
+func clientForContext(kubeCtx string) (kubernetes.Interface, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{CurrentContext: kubeCtx}
 	restCfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
 	if err != nil {
-		return "", fmt.Errorf("kubeconfig: %w", err)
+		return nil, fmt.Errorf("kubeconfig: %w", err)
 	}
-	client, err := kubernetes.NewForConfig(restCfg)
+	return kubernetes.NewForConfig(restCfg)
+}
+
+// detectClusterVersion asks the named context's cluster which Kubernetes version it runs.
+func detectClusterVersion(kubeCtx string) (string, error) {
+	client, err := clientForContext(kubeCtx)
 	if err != nil {
 		return "", err
 	}
@@ -341,16 +346,20 @@ type kubeBenchFinding struct {
 
 // parseKubeBench converts kube-bench's JSON into a report.
 //
+// The tool name is a parameter because two scanners share this format — the read-only one and
+// the in-cluster Job — and a finding should name the scanner that actually produced it. The
+// report's Scanner column is how a reader tells a section-5 finding from a section-4 one.
+//
 // Only FAIL and WARN become findings. PASS and INFO are the benchmark confirming what it
 // checked, and a report listing three hundred passing checks buries the dozen that failed —
 // the same reasoning that keeps permissive licences out of the licences control.
-func parseKubeBench(out []byte, location string) (sarif.Report, error) {
+func parseKubeBench(out []byte, tool, location string) (sarif.Report, error) {
 	var doc kubeBenchDoc
 	if err := json.Unmarshal(out, &doc); err != nil {
 		return sarif.Report{}, fmt.Errorf("decode kube-bench json: %w", err)
 	}
 
-	report := sarif.Report{Tool: kubeBenchScannerName, Rules: map[string]sarif.Rule{}}
+	report := sarif.Report{Tool: tool, Rules: map[string]sarif.Rule{}}
 	for _, ctl := range doc.Controls {
 		for _, test := range ctl.Tests {
 			for _, res := range test.Results {
@@ -360,7 +369,7 @@ func parseKubeBench(out []byte, location string) (sarif.Report, error) {
 				}
 				ruleID := "cis/" + res.TestNumber
 				report.Results = append(report.Results, sarif.Result{
-					Tool:     kubeBenchScannerName,
+					Tool:     tool,
 					RuleID:   ruleID,
 					Level:    level,
 					Message:  res.TestDesc,
