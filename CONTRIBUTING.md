@@ -37,7 +37,28 @@ already quote.
 `make changelog-guard` (part of `make gate`, and a CI check) compares each released section
 against its own tag and fails if one has moved. The failure it exists for is aim rather than
 malice: an entry meant for `[Unreleased]` landing one section lower produces a perfectly valid
-CHANGELOG describing a fix in a release that does not contain it.
+CHANGELOG describing a fix in a release that does not contain it. It reports how many sections it
+checked, because a guard that silently checks nothing is worse than no guard.
+
+#### On the file's size
+
+It grows, and that is fine for now. Two things make it worth leaving alone:
+
+- **The file ships inside every release archive**, next to the binary, and those archives are
+  checksummed with the checksums file signed by cosign. Someone with only a verified tarball —
+  air-gapped, or in a regulated environment — has the whole history offline and tamper-evident.
+  GitHub's release notes are editable after publication through the API, leave no trace in git,
+  and are covered by no signature. Splitting the file trades that away unless the archive ships
+  too.
+- There is no industry standard to follow. Rust keeps one ~10,000-line file; Kubernetes splits
+  per minor version; esbuild splits per year; Go and TypeScript keep none at all and rely on
+  release pages. [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), which this file
+  follows, prescribes one file and is silent on archives.
+
+Revisit at roughly **3,000 lines**, or the first year boundary. When splitting, put older entries
+in `CHANGELOG-ARCHIVE.md` — the guard already looks for that name, so archived sections keep being
+checked rather than quietly dropping out of the check as they age — and add the archive to the
+release archive so the signed artifact still carries the whole record.
 
 ### Changing what `draugr scan` prints
 
