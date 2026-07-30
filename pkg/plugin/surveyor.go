@@ -7,7 +7,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// Surveyor (one of "the Ravens") discovers an application's surface and returns a Saga
+// Surveyor discovers an application's surface and returns a Saga
 // fragment, so the descriptor can write itself. Implementations must honor ctx
 // cancellation.
 type Surveyor interface {

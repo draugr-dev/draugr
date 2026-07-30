@@ -86,7 +86,7 @@ the **new-vs-fixed PR diff** and the sticky comment.
 - **Evidence:** `config.sbom` emits an SBOM per repository and image (SPDX or CycloneDX, via
   Syft); reports render as console, Markdown, HTML, JUnit, JSON or SARIF. The HTML report is
   self-contained and carries its own SARIF and TSV downloads.
-- **Discovery ("the Ravens"):** `survey` for Kubernetes images and GitHub org repositories.
+- **Discovery:** `survey` for Kubernetes images and GitHub org repositories.
 - **Zero-config & scaffolding:** `scan .` scans the current repo with no descriptor
   (sca/secrets/sast/iac); `init` scaffolds a stack-detected `draugr.saga.yaml` to customize.
 - **Preflight & tooling:** `validate` (schema-check a Saga), `doctor` (which scanner tools are
@@ -189,7 +189,7 @@ draugr diff base/results.sarif head/results.sarif                     # new / fi
 draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
 ```
 
-Let discovery write the descriptor for you (the Ravens):
+Let discovery write the descriptor for you:
 
 ```bash
 draugr survey --github-org my-org -o draugr.saga.yaml
@@ -252,7 +252,7 @@ guessing at one.
 ## Documentation
 
 **[Full documentation index →](docs/README.md)** (grouped by task, with a "building blocks"
-glossary of Saga / Norn / Skald / the Ravens).
+glossary of Saga / Norn / Skald).
 
 - [Quickstart](docs/getting-started/quickstart.md) — install, first scan, first survey, CI usage
 - [Concepts](docs/concepts/saga.md) — Saga, controllers, scanners, surveyors, the pipeline, verdicts

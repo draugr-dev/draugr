@@ -14,7 +14,7 @@ frontmatter and is rendered by the docs site. This index and the `contributing/`
 - [The Saga](concepts/saga.md) — the `draugr.saga.yaml` descriptor.
 - [Controls & scanners](concepts/controls-and-scanners.md) — controllers, scanners, SARIF, and caching.
 - [Prioritization](concepts/prioritization.md) — exposure × criticality × severity → P1–P4.
-- [Surveyors — the Ravens](concepts/surveyors.md) — discovery that writes the Saga for you.
+- [Surveyors](concepts/surveyors.md) — discovery that writes the Saga for you.
 - [Verdict & gating](concepts/verdict-and-gating.md) — the pipeline, the gate, and exit codes.
 
 ## Guides

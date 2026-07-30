@@ -1,4 +1,4 @@
-# Surveyor: `k8s-images` (the Ravens)
+# Surveyor: `k8s-images`
 
 - **Discovers:** unique container images running in a Kubernetes cluster/namespace
 - **Status:** ✅ implemented
@@ -38,4 +38,4 @@ is never inferred (it's human-declared) — run `draugr classify` to set it.
 ## Links
 
 - client-go: https://github.com/kubernetes/client-go
-- Concepts: [the Ravens](../../docs/concepts/surveyors.md)
+- Concepts: [surveyors](../../docs/concepts/surveyors.md)

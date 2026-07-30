@@ -344,7 +344,7 @@ type Reference struct {
 	Link string `yaml:"link"`
 }
 
-// Fragment is a partial Saga contributed by a Surveyor (one of "the Ravens"). The engine
+// Fragment is a partial Saga contributed by a Surveyor. The engine
 // merges fragments into the Model.
 type Fragment struct {
 	Components []Component `yaml:"components,omitempty"`

@@ -63,7 +63,7 @@ configured separately as `config.sbom` and travels as evidence. See
 | `nuclei` | dast | ProjectDiscovery Nuclei | MIT | ✅ | [doc](../../internal/scanners/nuclei.md) |
 | `tls-probe` | tls | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/tls-probe.md) |
 
-## Surveyors (the Ravens)
+## Surveyors
 
 | Surveyor | Discovers | Auth | Status | Doc |
 |----------|-----------|------|:------:|-----|
@@ -123,6 +123,7 @@ Not scanners, but tools Draugr provisions/uses:
 |------|---------|:------:|
 | `cosign` | verify release/tool signatures (Sigstore) | `draugr tools install cosign` |
 | `git` | check out repositories for repo-scanning controls | system |
+| `kubectl` | required by the `kube-bench` scanner, whose `policies` checks shell out to it | system |
 | `syft` | generate SBOMs when a Saga sets `config.sbom` | `draugr tools install syft` |
 
 ---

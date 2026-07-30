@@ -260,7 +260,7 @@ is still the same issue), so genuinely-carried-over findings aren't reported as 
 
 ## `draugr survey`
 
-Run discovery surveyors ("the Ravens") and materialize the results into a Saga. At least
+Run discovery surveyors and materialize the results into a Saga. At least
 one surveyor must be selected.
 
 | Flag | Default | Description |

@@ -39,8 +39,7 @@ func Registry() *engine.Registry {
 	return reg
 }
 
-// SurveyorRegistry returns a surveyor.Registry populated with the built-in surveyors
-// (the Ravens).
+// SurveyorRegistry returns a surveyor.Registry populated with the built-in surveyors.
 func SurveyorRegistry() *surveyor.Registry {
 	reg := surveyor.NewRegistry()
 	reg.Register(dsurveyors.NewK8sImages())

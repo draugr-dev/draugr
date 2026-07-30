@@ -1,4 +1,4 @@
-# Surveyor: `github-org-repos` (the Ravens)
+# Surveyor: `github-org-repos`
 
 - **Discovers:** repositories in a GitHub organization
 - **Status:** ✅ implemented
@@ -15,4 +15,4 @@ repository, so the descriptor writes itself.
 ## Links
 
 - GitHub REST API (repos): https://docs.github.com/en/rest/repos/repos
-- Concepts: [the Ravens](../../docs/concepts/surveyors.md)
+- Concepts: [surveyors](../../docs/concepts/surveyors.md)

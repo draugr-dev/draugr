@@ -75,24 +75,28 @@ plain (`draugr scan`, `draugr report`).
 | Concept | Name | Status | Rationale |
 |---------|------|--------|-----------|
 | **The descriptor / manifest** | **Saga** | ✅ | A saga *is an account of* something. `draugr.saga.yaml` = "the account of your app": where the repos are, what images it builds, what endpoints it exposes, what infra it runs on. Intuitive, ownable, on-theme. **Doc-facing:** keep the name, but introduce it as "the descriptor (your `draugr.saga.yaml`)" on first mention per page so newcomers aren't taxed. |
-| **Surveyors, collectively (the discovery subsystem)** | **the Ravens** (**Huginn & Muninn**) | ✅ | Odin's ravens, Thought & Memory, fly across the world and report back what they see — exactly what surveyors do. **Doc-facing:** lead with **Surveyor**; "the Ravens" is optional flavor. |
+| **Surveyors, collectively (the discovery subsystem)** | **Surveyor** (plain) | ✅ | Deliberately unnamed. "The Ravens" (Odin's Huginn & Muninn, who fly the world and report back) was a good fit for what surveyors do, but it was carried alongside the plain term rather than instead of it — every page said "Surveyors (the Ravens)", which is two names for one thing and a tax on the reader for no gain. **Doc-facing:** **Surveyor**, everywhere. |
 | **Reporting / evidence engine** | **Skald** | ✅ | A skald is the poet who records and recounts deeds. `pkg/skald` renders scan results to JSON + merged SARIF evidence (human formats live in `pkg/report`). **Code-internal only** — user docs say "report" / "reporting". |
 | **Policy / pass-fail gate** | **Norn** | ✅ | The Norns decide fate. `pkg/norn` decides a release's fate. **Code-internal only** — user docs say "the gate" / "verdict". |
 | **Plugin marketplace / registry** | **the Hoard** | 🔶 | The treasure a draugr guards. A registry of community scanners, controllers, and surveyors. |
 | **Commercial control plane (multi-team hub)** | **cloud** (repo) / **Yggdrasil** (feature) | 💤 | The world-tree connecting the nine realms — the hub connecting all teams, scanners, and clusters. Repo is plainly `cloud`; `Yggdrasil` reserved for a user-facing feature name. |
 
-**In use today:** `draugr.saga.yaml` (descriptor), **the Ravens** (surveyors), **Skald**
-(`pkg/skald`), and **Norn** (`pkg/norn`). **the Hoard** and **Yggdrasil** stay reserved
-until the plugin registry and control plane land.
+**In use today:** `draugr.saga.yaml` (descriptor), **Skald** (`pkg/skald`), and **Norn**
+(`pkg/norn`). **the Hoard** and **Yggdrasil** stay reserved until the plugin registry and
+control plane land.
 
 **Doc-facing vs. code-internal.** `Norn` and `Skald` are **code vocabulary** (`pkg/norn`,
 `pkg/skald`) and stay out of user-facing docs — a reader shouldn't have to learn a Norse
 name to describe Draugr to a colleague. Published pages use the plain terms: **the gate** /
 **verdict** for the Norn, **report** / **reporting** for the Skald. The Norse names live only
 in the code and in these `contributing/` architecture docs (`pipeline.md`, `architecture.md`).
-`Saga` and **Surveyor** are the exceptions that stay user-facing — `Saga` because it *is* the
-descriptor's name and format, glossed as "the descriptor" on first mention; **Surveyor**
-because it already leads, with "the Ravens" as optional flavor.
+`Saga` is the exception that stays user-facing, because it *is* the descriptor's name and
+format — glossed as "the descriptor" on first mention.
+
+The test a candidate name has to pass: **does it replace a plain term, or sit next to one?**
+A name that replaces (`Saga`, for the thing whose file extension is `.saga.yaml`) earns its
+place. A name that sits alongside the plain term leaves the reader carrying both, and the
+plain one is what they'll say to a colleague anyway.
 
 ---
 

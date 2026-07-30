@@ -31,7 +31,7 @@ func newSurveyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "survey",
 		Short: "Discover an application's surface and write it to a Saga",
-		Long: "Run discovery surveyors (\"the Ravens\") and materialize the results into a\n" +
+		Long: "Run discovery surveyors and materialize the results into a\n" +
 			"Saga descriptor. With --merge, discovered components are merged into an existing\n" +
 			"Saga at --output.",
 		Args: cobra.NoArgs,
