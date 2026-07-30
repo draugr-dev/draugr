@@ -44,7 +44,8 @@ scanners and issue links for the planned ones.
 | Control ID | Industry term | What it assesses | Status |
 |------------|---------------|------------------|:------:|
 | `sast` | Static Application Security Testing | Your own source code | ✅ |
-| `sca` | Software Composition Analysis | Third-party/OSS dependencies (vulns + licenses) | ✅ |
+| `sca` | Software Composition Analysis | Known vulnerabilities in third-party/OSS dependencies | ✅ |
+| `licenses` | Licence compliance | Dependency licences that carry an obligation | ✅ |
 | `secrets` | Secret detection | Leaked credentials/keys in code | ✅ |
 | `images` | Container image scanning | OS/library vulns in container images | ✅ |
 | `iac` | Infrastructure-as-Code scanning | Misconfigurations in Terraform/K8s/Dockerfiles | ✅ |
@@ -53,10 +54,15 @@ scanners and issue links for the planned ones.
 | `tls` | TLS/certificate assessment | TLS config and certificates of endpoints | ✅ |
 | `threats` | Threat intelligence | Reputation of hosts/URLs (malware, phishing) | 🗺️ |
 | `infrastructure` | CIS benchmarks / posture | Cluster/runtime hardening (e.g. kube-bench) | 🗺️ |
-| `sbom` | Software Bill of Materials | The dependency inventory, as a shareable artifact | 🗺️ |
 
-History: `sca` was formerly `opensource`, and `tls` was `certificates`; renamed to the
-standard terms. `images` maps to the Saga's `images:` resource.
+**`sbom` is deliberately not on this list.** An SBOM is an inventory, and every row above means
+"checked, and here is the verdict" — a control that never looks for anything would always read
+`pass`. It ships as evidence under `config.sbom` instead, and never affects the verdict.
+
+History: `sca` was formerly `opensource`, and `tls` was `certificates`; renamed to the standard
+terms. Licence findings were once part of `sca` and are now the separate `licenses` control,
+because licence risk is legal rather than technical and warrants its own gate threshold.
+`images` maps to the Saga's `images:` resource.
 
 ---
 

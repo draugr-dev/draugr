@@ -88,8 +88,10 @@ across all controls). `-o/--output <dir>` additionally writes `report.json` and 
 
 Because results are SARIF, they push straight into GitHub / Azure DevOps / GitLab security
 dashboards. The `scan` command's **exit code** is itself a publish channel: non-zero on a
-`fail` verdict gates a CI pipeline directly. *(Native publish sinks, e.g. uploading SARIF
-to GitHub code scanning, are on the roadmap.)*
+`fail` verdict gates a CI pipeline directly. Configured publishers deliver the rendered reports
+to where they are read — `file` writes them to a directory, `github` uploads the SARIF to code
+scanning, and `github-pr-comment` posts a `draugr diff` as a sticky pull-request comment. See
+[reports & publishers](../guides/reports-and-publishers.md).
 
 ---
 
