@@ -94,7 +94,7 @@ That creates nothing — the API server answers and discards it — but submitti
 Being refused is expected rather than exceptional, so the check is left undecided and reported
 for manual review like any other this scanner cannot settle.
 
-**20 of 34 decided, against the 11 kube-bench automates** . Nine of those nine-past-parity are ones
+**20 of 34 decided, against the 11 kube-bench automates.** The nine past parity are ones
 kube-bench leaves manual, and they are decidable here for the reason this scanner exists: they
 are questions about a pod spec, and correlating pod specs is what a `kubectl | jq | xargs`
 pipeline is worst at. They cost nothing extra — the same single listing already answers the
