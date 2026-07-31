@@ -10,6 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`draugr survey` now enables the controls the discovered surface can be checked with**, so a
+  descriptor written by discovery scans something. Repositories imply `sca`, `secrets`, `sast`
+  and `iac`; images imply `images`; hosts imply `headers` and `tls`; infrastructure implies
+  `infrastructure`.
+
+  A surveyed descriptor previously enabled nothing, so its first scan reported `PASS` having run
+  no control — not what "the descriptor writes itself" should mean.
+
+  **`dast` is never enabled this way.** The other host controls read a response; `dast` sends
+  attack traffic at a live service, and enabling that because a survey noticed the service exists
+  is not a decision discovery gets to make for you.
+
+  A control already in the descriptor is left exactly as it is, including one set to
+  `enabled: false` — `--merge` runs against a file people edit, and a survey that switched
+  something back on would be worse than the problem it solves.
+
 ### Fixed
 
 - **A scan that checked nothing no longer reports `PASS`.** A descriptor enabling no control — or
