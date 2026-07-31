@@ -89,7 +89,8 @@ the **new-vs-fixed PR diff** and the sticky comment.
   self-contained and carries its own SARIF and TSV downloads.
 - **Discovery:** `survey` for Kubernetes images, the cluster itself, and GitHub org repositories
   — and the descriptor it writes enables the controls for what it found.
-- **Zero-config & scaffolding:** `scan .` scans the current repo with no descriptor
+- **Zero-config & scaffolding:** `scan .` uses the `draugr.saga.yaml` there, or scans the repo
+  with sensible defaults when there is none
   (sca/secrets/sast/iac); `init` scaffolds a stack-detected `draugr.saga.yaml` to customize.
 - **Preflight & tooling:** `validate` (schema-check a Saga), `doctor` (which scanner tools are
   present/missing), `tools install` (fetch pinned, checksum- and cosign-verified scanners —

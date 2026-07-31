@@ -75,8 +75,15 @@ Load a Saga, run the applicable controls, and produce a pass/fail verdict. Print
 human-readable **console** summary to stdout by default (`--format` for other formats).
 **Exits non-zero when the verdict is `fail`.**
 
-**Zero-config.** Point `scan` at a **directory** (or omit the argument to use the current one)
-and Draugr scans that repository with `sca`, `secrets`, `sast`, and `iac` — no Saga required.
+**A descriptor in the directory wins.** Point `scan` at a directory — or omit the argument — and
+it uses the `draugr.saga.yaml` there if one exists. Everything that file declares applies:
+the controls chosen, the components, and the exposure and criticality that drive prioritization.
+
+If the descriptor cannot be read, the scan **fails**. It does not fall back to zero-config: the
+reason a descriptor was skipped has to be reported, or a broken file produces a green scan.
+
+**Zero-config.** A directory with no `draugr.saga.yaml` is scanned with `sca`, `secrets`, `sast`
+and `iac` — no Saga required.
 A one-line note is printed to stderr so machine formats on stdout stay clean. A Saga **file**
 argument runs exactly as before.
 
