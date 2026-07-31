@@ -3,15 +3,14 @@ name: Self-scan
 # Dogfood: run the latest released Draugr against this repo (see issue #64).
 # Uses a stable release (not a source build) — the way real users consume Draugr.
 
-# Not a required check, so unlike ci.yml this can be skipped outright with paths-ignore —
-# there's no protection rule waiting on a result that never arrives.
+# A required check, so the job always runs and skips its *steps* on a documentation-only change.
+# paths-ignore would skip the job outright, and a required check that never runs leaves the pull
+# request waiting forever on a status that will not arrive.
 on:
   push:
     branches: [main]
-    paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
   pull_request:
     branches: [main]
-    paths-ignore: ["**/*.md", "docs/**", "LICENSE"]
   workflow_dispatch:
 
 permissions:
@@ -29,7 +28,39 @@ env:
   SEMGREP_VERSION: "1.169.0"
 
 jobs:
+  # Mirrors ci.yml: one cheap job decides whether there is anything to scan, and the scan job
+  # reports either way so the required check always resolves.
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Need the base commit to diff against; a shallow clone has only the tip.
+          fetch-depth: 0
+      - id: filter
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then
+            # A push to main, or anything without a PR base: assume code and scan.
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Anything that is not documentation is treated as code. Erring this way means a new
+          # kind of file gets scanned rather than silently skipped — which is the whole point of
+          # a gate.
+          if git diff --name-only "$base" HEAD \
+             | grep -qvE '^(docs/|LICENSE$|.*\.md$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Only documentation changed — the self-scan will report without running."
+          fi
+
   selfscan:
+    needs: changes
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,13 +69,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.changes.outputs.code == 'true'
 
       - name: Install Trivy
+        if: needs.changes.outputs.code == 'true'
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: v${{ env.TRIVY_VERSION }}
 
       - name: Install Gitleaks
+        if: needs.changes.outputs.code == 'true'
         run: |
           set -euo pipefail
           tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
@@ -55,12 +89,14 @@ jobs:
           gitleaks version
 
       - name: Install Semgrep
+        if: needs.changes.outputs.code == 'true'
         run: |
           set -euo pipefail
           pipx install "semgrep==${SEMGREP_VERSION}"
           semgrep --version
 
       - name: Draugr self-scan
+        if: needs.changes.outputs.code == 'true'
         id: draugr
         # This step blocks. It used to be continue-on-error, which meant the check was green
         # whatever the scan found — a gate that cannot fail is indistinguishable from one that
@@ -82,9 +118,17 @@ jobs:
         with:
           saga: .draugr/self.saga.yaml
           output: draugr-out
+          # P1 only. The gate blocks on what the risk model says is urgent for this repository,
+          # not on every warning a scanner can produce — a required check that fails on
+          # everything is one people learn to route around.
+          #
+          # To accept a P1 that cannot be fixed now, add a `config.exclude` entry with a reason
+          # to .draugr/self.saga.yaml in the same pull request. The finding stays in the report
+          # marked suppressed, so the decision is visible afterwards rather than invisible.
           fail-on-priority: P1
 
       - name: Upload evidence
+        if: needs.changes.outputs.code == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: draugr-selfscan
