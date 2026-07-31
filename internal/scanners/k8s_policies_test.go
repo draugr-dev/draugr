@@ -7,6 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	authzv1 "k8s.io/api/authorization/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8stesting "k8s.io/client-go/testing"
+
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -172,9 +176,21 @@ func TestK8sPoliciesReportsEveryCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Three decided and passing, so 31 manual prompts remain.
-	if want := len(cisPolicies) - 3; len(rep.Results) != want {
-		t.Fatalf("got %d results, want %d — every undecided check must still be reported", len(rep.Results), want)
+	// Derived, not hardcoded: the count moves every time a check becomes decidable, and a test
+	// that had to be edited alongside would be edited to match rather than to check.
+	decided, err := evaluatePolicies(context.Background(), client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	passing := 0
+	for _, v := range decided {
+		if v.Compliant {
+			passing++
+		}
+	}
+	if want := len(cisPolicies) - passing; len(rep.Results) != want {
+		t.Fatalf("got %d results, want %d (%d checks, %d decided and passing) — every undecided check must still be reported",
+			len(rep.Results), want, len(cisPolicies), passing)
 	}
 	for _, r := range rep.Results {
 		if !strings.Contains(r.Message, "requires manual review") {
@@ -306,5 +322,166 @@ func TestEveryDecidedCheckIsInTheCatalogue(t *testing.T) {
 		if _, ok := cisPolicyByID[id]; !ok {
 			t.Errorf("check %q is evaluated but missing from the catalogue, so its verdict is discarded", id)
 		}
+	}
+}
+
+func pod(ns, name string, mutate func(*corev1.Pod)) corev1.Pod {
+	p := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+		Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}},
+	}
+	if mutate != nil {
+		mutate(&p)
+	}
+	return p
+}
+
+// 5.2.2 through 5.2.6, all answered from one pod listing.
+func TestEvaluatePodSecurity(t *testing.T) {
+	t.Parallel()
+
+	sc := func(f func(*corev1.SecurityContext)) *corev1.SecurityContext {
+		s := &corev1.SecurityContext{}
+		f(s)
+		return s
+	}
+
+	pods := []corev1.Pod{
+		pod("clean", "ok", nil),
+		pod("ns", "privileged", func(p *corev1.Pod) {
+			p.Spec.Containers[0].SecurityContext = sc(func(s *corev1.SecurityContext) { s.Privileged = boolPtr(true) })
+		}),
+		pod("ns", "hostpid", func(p *corev1.Pod) { p.Spec.HostPID = true }),
+		pod("ns", "hostipc", func(p *corev1.Pod) { p.Spec.HostIPC = true }),
+		pod("ns", "hostnet", func(p *corev1.Pod) { p.Spec.HostNetwork = true }),
+		pod("ns", "escalation", func(p *corev1.Pod) {
+			p.Spec.Containers[0].SecurityContext = sc(func(s *corev1.SecurityContext) { s.AllowPrivilegeEscalation = boolPtr(true) })
+		}),
+	}
+
+	got := evaluatePodSecurity(pods, nil)
+	for id, want := range map[string]string{
+		"5.2.2": "privileged", "5.2.3": "hostpid", "5.2.4": "hostipc",
+		"5.2.5": "hostnet", "5.2.6": "escalation",
+	} {
+		v := got[id]
+		if v.Compliant {
+			t.Errorf("%s should have found %q", id, want)
+			continue
+		}
+		if !strings.Contains(v.Detail, want) {
+			t.Errorf("%s detail should name the pod %q, got %q", id, want, v.Detail)
+		}
+	}
+
+	clean := evaluatePodSecurity([]corev1.Pod{pod("clean", "ok", nil)}, nil)
+	for _, id := range []string{"5.2.2", "5.2.3", "5.2.4", "5.2.5", "5.2.6"} {
+		if !clean[id].Compliant {
+			t.Errorf("%s should pass on a clean pod, got %q", id, clean[id].Detail)
+		}
+	}
+}
+
+// An init container runs with the same privileges and can do the same damage in the seconds it
+// is alive, so a check reading only spec.containers would pass a pod that mounts the host as
+// root before the workload starts.
+func TestPodSecurityCoversInitContainers(t *testing.T) {
+	t.Parallel()
+
+	p := pod("ns", "sneaky", func(p *corev1.Pod) {
+		p.Spec.InitContainers = []corev1.Container{{
+			Name:            "setup",
+			SecurityContext: &corev1.SecurityContext{Privileged: boolPtr(true)},
+		}}
+	})
+	v := evaluatePodSecurity([]corev1.Pod{p}, nil)["5.2.2"]
+	if v.Compliant {
+		t.Fatal("a privileged init container is still a privileged container")
+	}
+	if !strings.Contains(v.Detail, "setup") {
+		t.Errorf("detail should name the init container, got %q", v.Detail)
+	}
+}
+
+// 5.1.6. Either the pod or its service account can decline the token, and the pod wins where
+// both speak — which is how Kubernetes resolves it. Reading only one would flag a correctly
+// hardened workload.
+func TestPodMountsToken(t *testing.T) {
+	t.Parallel()
+
+	accounts := map[string]bool{
+		"ns/hardened": false,
+		"ns/opted-in": true,
+	}
+
+	for _, tc := range []struct {
+		name string
+		pod  corev1.Pod
+		want bool
+	}{
+		{"nothing set anywhere", pod("ns", "p", nil), true},
+		{"pod declines", pod("ns", "p", func(p *corev1.Pod) {
+			p.Spec.AutomountServiceAccountToken = boolPtr(false)
+		}), false},
+		{"service account declines", pod("ns", "p", func(p *corev1.Pod) {
+			p.Spec.ServiceAccountName = "hardened"
+		}), false},
+		{"pod overrides a declining service account", pod("ns", "p", func(p *corev1.Pod) {
+			p.Spec.ServiceAccountName = "hardened"
+			p.Spec.AutomountServiceAccountToken = boolPtr(true)
+		}), true},
+		{"pod overrides an accepting service account", pod("ns", "p", func(p *corev1.Pod) {
+			p.Spec.ServiceAccountName = "opted-in"
+			p.Spec.AutomountServiceAccountToken = boolPtr(false)
+		}), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := podMountsToken(&tc.pod, accounts); got != tc.want {
+				t.Errorf("podMountsToken = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// 5.1.2 and 5.1.4 ask the authorizer, and a deliberately read-only credential is not allowed to.
+// Being refused must leave the check undecided — reported for review like any other the scanner
+// cannot settle — rather than failing a scan it was never promised the permission for.
+func TestBroadAccessUndecidedWhenTheAuthorizerRefuses(t *testing.T) {
+	t.Parallel()
+
+	client := fake.NewSimpleClientset()
+	client.PrependReactor("create", "subjectaccessreviews", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("subjectaccessreviews.authorization.k8s.io is forbidden")
+	})
+
+	got := evaluateBroadAccess(context.Background(), client)
+	for _, id := range []string{"5.1.2", "5.1.4"} {
+		if _, decided := got[id]; decided {
+			t.Errorf("%s should be left undecided when the authorizer cannot be asked", id)
+		}
+	}
+}
+
+// And when it can be asked, a yes is a finding naming what everyone can do.
+func TestBroadAccessReportsWhatEveryoneCanDo(t *testing.T) {
+	t.Parallel()
+
+	client := fake.NewSimpleClientset()
+	client.PrependReactor("create", "subjectaccessreviews", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		review := action.(k8stesting.CreateAction).GetObject().(*authzv1.SubjectAccessReview)
+		allowed := review.Spec.ResourceAttributes.Resource == "secrets"
+		return true, &authzv1.SubjectAccessReview{Status: authzv1.SubjectAccessReviewStatus{Allowed: allowed}}, nil
+	})
+
+	got := evaluateBroadAccess(context.Background(), client)
+	if got["5.1.2"].Compliant {
+		t.Error("5.1.2 should fail when every authenticated user can read secrets")
+	}
+	if !strings.Contains(got["5.1.2"].Detail, "read secrets") {
+		t.Errorf("5.1.2 detail should say what is allowed, got %q", got["5.1.2"].Detail)
+	}
+	if !got["5.1.4"].Compliant {
+		t.Errorf("5.1.4 should pass when pod creation is denied, got %q", got["5.1.4"].Detail)
 	}
 }

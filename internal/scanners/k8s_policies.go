@@ -3,9 +3,11 @@ package scanners
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
+	authzv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -112,6 +114,16 @@ func evaluatePolicies(ctx context.Context, client kubernetes.Interface) (map[str
 		return nil, fmt.Errorf("list serviceaccounts: %w", err)
 	}
 	out["5.1.5"] = checkDefaultServiceAccounts(accounts.Items)
+
+	pods, err := client.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("list pods: %w", err)
+	}
+	maps.Copy(out, evaluatePodSecurity(pods.Items, accounts.Items))
+
+	// Last, and never fatal: these ask the authorizer, which a read-only credential may not be
+	// allowed to do. Whatever it cannot answer stays undecided and is reported for review.
+	maps.Copy(out, evaluateBroadAccess(ctx, client))
 
 	return out, nil
 }
@@ -241,4 +253,182 @@ func policiesReport(decided map[string]policyVerdict, location string) sarif.Rep
 		}
 	}
 	return report
+}
+
+// evaluatePodSecurity implements 5.1.6 and 5.2.2 through 5.2.6 from a single Pod listing.
+//
+// kube-bench answers each of these by listing pods and then running `kubectl get pod` once more
+// per pod, per check — six passes over every workload in the cluster. They are all questions
+// about a pod spec, so one List answers all of them.
+//
+// A running pod is evidence, not policy. CIS asks whether admission *prevents* these settings,
+// and a cluster with none of them today may simply not have been asked yet. Reporting what is
+// actually running is the same thing kube-bench reports, and is the answerable half: 5.2.1 —
+// whether a policy mechanism is in place — stays a manual check.
+func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) map[string]policyVerdict {
+	automountByAccount := map[string]bool{}
+	for _, sa := range accounts {
+		if sa.AutomountServiceAccountToken != nil {
+			automountByAccount[sa.Namespace+"/"+sa.Name] = *sa.AutomountServiceAccountToken
+		}
+	}
+
+	var tokens, privileged, hostPID, hostIPC, hostNet, escalation []string
+	for i := range pods {
+		pod := &pods[i]
+		where := pod.Namespace + "/" + pod.Name
+
+		if podMountsToken(pod, automountByAccount) {
+			tokens = append(tokens, where)
+		}
+		if pod.Spec.HostPID {
+			hostPID = append(hostPID, where)
+		}
+		if pod.Spec.HostIPC {
+			hostIPC = append(hostIPC, where)
+		}
+		if pod.Spec.HostNetwork {
+			hostNet = append(hostNet, where)
+		}
+		for _, c := range allContainers(pod) {
+			sc := c.SecurityContext
+			if sc == nil {
+				continue
+			}
+			if sc.Privileged != nil && *sc.Privileged {
+				privileged = append(privileged, where+"/"+c.Name)
+			}
+			if sc.AllowPrivilegeEscalation != nil && *sc.AllowPrivilegeEscalation {
+				escalation = append(escalation, where+"/"+c.Name)
+			}
+		}
+	}
+
+	return map[string]policyVerdict{
+		"5.1.6": verdictFrom(tokens, "mounting a service account token without needing one"),
+		"5.2.2": verdictFrom(privileged, "running privileged"),
+		"5.2.3": verdictFrom(hostPID, "sharing the host PID namespace"),
+		"5.2.4": verdictFrom(hostIPC, "sharing the host IPC namespace"),
+		"5.2.5": verdictFrom(hostNet, "sharing the host network namespace"),
+		"5.2.6": verdictFrom(escalation, "allowing privilege escalation"),
+	}
+}
+
+// podMountsToken implements 5.1.6.
+//
+// A pod is handed API credentials unless something says otherwise, and either the pod or its
+// service account can say so. The pod wins where both speak, which is how Kubernetes resolves it
+// — reading only one of the two would mark a correctly hardened workload as a finding.
+func podMountsToken(pod *corev1.Pod, automountByAccount map[string]bool) bool {
+	if pod.Spec.AutomountServiceAccountToken != nil {
+		return *pod.Spec.AutomountServiceAccountToken
+	}
+	name := pod.Spec.ServiceAccountName
+	if name == "" {
+		name = "default"
+	}
+	if mounts, set := automountByAccount[pod.Namespace+"/"+name]; set {
+		return mounts
+	}
+	// Neither said anything, and the default is to mount.
+	return true
+}
+
+// allContainers returns every container in a pod, init and ephemeral included.
+//
+// An init container runs with the same privileges and can do the same damage in the seconds it
+// is alive; a check that only looked at spec.containers would pass a pod that mounts the host
+// filesystem as root before the workload ever starts.
+func allContainers(pod *corev1.Pod) []corev1.Container {
+	out := make([]corev1.Container, 0, len(pod.Spec.Containers)+len(pod.Spec.InitContainers))
+	out = append(out, pod.Spec.Containers...)
+	out = append(out, pod.Spec.InitContainers...)
+	for _, e := range pod.Spec.EphemeralContainers {
+		out = append(out, corev1.Container(e.EphemeralContainerCommon))
+	}
+	return out
+}
+
+// verdictFrom turns a list of offenders into a verdict, or a pass when there are none.
+func verdictFrom(offenders []string, doing string) policyVerdict {
+	if len(offenders) == 0 {
+		return policyVerdict{Compliant: true}
+	}
+	sort.Strings(offenders)
+	return policyVerdict{Detail: fmt.Sprintf("%d %s: %s", len(offenders), doing, summarize(offenders))}
+}
+
+// evaluateBroadAccess implements 5.1.2 and 5.1.4 by asking the cluster's own authorizer.
+//
+// These two are not role scans. The benchmark asks whether *everyone* can read secrets or create
+// pods, and the honest way to answer is to ask the authorizer rather than reassemble its decision
+// from roles and bindings — RBAC is additive across bindings, aggregated ClusterRoles resolve at
+// runtime, and a webhook authorizer can grant what no Role mentions. A reimplementation would
+// disagree with the cluster in exactly the cases that matter.
+//
+// So Draugr asks the same question kube-bench does — `can-i ... --as=system:authenticated` — via
+// a SubjectAccessReview. Every authenticated identity holds that group, so a yes means any
+// account that can log in can do this.
+//
+// A SubjectAccessReview creates nothing: it is a query the API server answers and discards. But
+// submitting one requires the `create` verb on `subjectaccessreviews`, which a deliberately
+// read-only credential will not have — so being refused is expected, not exceptional. The check
+// is then left undecided and reported for manual review, which is the same answer a reader gets
+// for every check this scanner cannot settle. Failing the scan over a permission it was never
+// promised would turn a partial answer into no answer.
+func evaluateBroadAccess(ctx context.Context, client kubernetes.Interface) map[string]policyVerdict {
+	out := map[string]policyVerdict{}
+
+	type query struct {
+		id       string
+		verbs    []string
+		resource string
+		phrase   string
+	}
+	for _, q := range []query{
+		{"5.1.2", []string{"get", "list", "watch"}, "secrets", "read secrets"},
+		{"5.1.4", []string{"create"}, "pods", "create pods"},
+	} {
+		var allowed []string
+		undecided := false
+		for _, verb := range q.verbs {
+			ok, err := allowedForAllAuthenticated(ctx, client, verb, q.resource)
+			if err != nil {
+				undecided = true
+				break
+			}
+			if ok {
+				allowed = append(allowed, verb)
+			}
+		}
+		if undecided {
+			continue
+		}
+		if len(allowed) == 0 {
+			out[q.id] = policyVerdict{Compliant: true}
+			continue
+		}
+		out[q.id] = policyVerdict{Detail: fmt.Sprintf(
+			"every authenticated user can %s (%s)", q.phrase, strings.Join(allowed, ", "))}
+	}
+	return out
+}
+
+// allowedForAllAuthenticated asks whether the system:authenticated group holds a permission
+// across all namespaces.
+func allowedForAllAuthenticated(ctx context.Context, client kubernetes.Interface, verb, resource string) (bool, error) {
+	review := &authzv1.SubjectAccessReview{
+		Spec: authzv1.SubjectAccessReviewSpec{
+			Groups: []string{"system:authenticated"},
+			ResourceAttributes: &authzv1.ResourceAttributes{
+				Verb:     verb,
+				Resource: resource,
+			},
+		},
+	}
+	result, err := client.AuthorizationV1().SubjectAccessReviews().Create(ctx, review, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	return result.Status.Allowed, nil
 }
