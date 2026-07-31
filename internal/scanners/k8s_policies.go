@@ -304,7 +304,12 @@ func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) ma
 		}
 	}
 
-	var tokens, privileged, hostPID, hostIPC, hostNet, escalation []string
+	var (
+		tokens, privileged, hostPID, hostIPC, hostNet, escalation []string
+		rootUser, netRaw, capabilities, hostProcess               []string
+		hostPath, hostPorts, seccomp, noSecurityContext           []string
+		defaultNamespace                                          []string
+	)
 	for i := range pods {
 		pod := &pods[i]
 		where := pod.Namespace + "/" + pod.Name
@@ -321,16 +326,58 @@ func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) ma
 		if pod.Spec.HostNetwork {
 			hostNet = append(hostNet, where)
 		}
+		// 5.6.4. The default namespace has no boundary of its own: anything landing there shares
+		// a namespace with everything else that was never given one.
+		if pod.Namespace == "default" {
+			defaultNamespace = append(defaultNamespace, where)
+		}
+		if !podSetsSeccomp(pod) {
+			seccomp = append(seccomp, where)
+		}
 		for _, c := range allContainers(pod) {
+			at := where + "/" + c.Name
 			sc := c.SecurityContext
+
+			// 5.6.3. A container with no securityContext at all has accepted every default,
+			// which is the state the rest of these checks exist to move you off.
+			if sc == nil && pod.Spec.SecurityContext == nil {
+				noSecurityContext = append(noSecurityContext, at)
+			}
+			// 5.2.12. A host port binds the node's network namespace whatever the pod says.
+			for _, port := range c.Ports {
+				if port.HostPort != 0 {
+					hostPorts = append(hostPorts, at)
+					break
+				}
+			}
 			if sc == nil {
 				continue
 			}
 			if sc.Privileged != nil && *sc.Privileged {
-				privileged = append(privileged, where+"/"+c.Name)
+				privileged = append(privileged, at)
 			}
 			if sc.AllowPrivilegeEscalation != nil && *sc.AllowPrivilegeEscalation {
-				escalation = append(escalation, where+"/"+c.Name)
+				escalation = append(escalation, at)
+			}
+			if runsAsRoot(pod, &c) {
+				rootUser = append(rootUser, at)
+			}
+			if sc.WindowsOptions != nil && sc.WindowsOptions.HostProcess != nil && *sc.WindowsOptions.HostProcess {
+				hostProcess = append(hostProcess, at)
+			}
+			if sc.Capabilities != nil {
+				for _, add := range sc.Capabilities.Add {
+					if add == "NET_RAW" || add == "ALL" {
+						netRaw = append(netRaw, at)
+					}
+					capabilities = append(capabilities, at)
+					break
+				}
+			}
+		}
+		for _, v := range pod.Spec.Volumes {
+			if v.HostPath != nil {
+				hostPath = append(hostPath, where+" ("+v.Name+")")
 			}
 		}
 	}
@@ -342,7 +389,69 @@ func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) ma
 		"5.2.4": verdictFrom(hostIPC, "sharing the host IPC namespace"),
 		"5.2.5": verdictFrom(hostNet, "sharing the host network namespace"),
 		"5.2.6": verdictFrom(escalation, "allowing privilege escalation"),
+
+		"5.2.7":  verdictFrom(rootUser, "able to run as root"),
+		"5.2.8":  verdictFrom(netRaw, "granted NET_RAW"),
+		"5.2.9":  verdictFrom(capabilities, "adding capabilities"),
+		"5.2.10": verdictFrom(hostProcess, "running as a Windows HostProcess container"),
+		"5.2.11": verdictFrom(hostPath, "mounting a hostPath volume"),
+		"5.2.12": verdictFrom(hostPorts, "binding a host port"),
+		"5.6.2":  verdictFrom(seccomp, "without a seccomp profile"),
+		"5.6.3":  verdictFrom(noSecurityContext, "with no securityContext at all"),
+		"5.6.4":  verdictFrom(defaultNamespace, "in the default namespace"),
 	}
+}
+
+// runsAsRoot implements 5.2.7.
+//
+// A container runs as root unless something says otherwise, and either the pod or the container
+// can say it — the container wins where both do, which is how Kubernetes resolves it. runAsNonRoot
+// is the explicit answer; a non-zero runAsUser is the implicit one. Silence means root.
+func runsAsRoot(pod *corev1.Pod, c *corev1.Container) bool {
+	nonRoot := func(sc *corev1.SecurityContext) (bool, bool) {
+		if sc == nil {
+			return false, false
+		}
+		if sc.RunAsNonRoot != nil {
+			return *sc.RunAsNonRoot, true
+		}
+		if sc.RunAsUser != nil {
+			return *sc.RunAsUser != 0, true
+		}
+		return false, false
+	}
+	if ok, set := nonRoot(c.SecurityContext); set {
+		return !ok
+	}
+	if ps := pod.Spec.SecurityContext; ps != nil {
+		if ps.RunAsNonRoot != nil {
+			return !*ps.RunAsNonRoot
+		}
+		if ps.RunAsUser != nil {
+			return *ps.RunAsUser == 0
+		}
+	}
+	return true
+}
+
+// podSetsSeccomp implements 5.6.2.
+//
+// A profile on the pod covers every container; one on a container covers only itself. Anything
+// other than Unconfined counts — the benchmark asks that a profile be chosen, and RuntimeDefault
+// is the choice it recommends.
+func podSetsSeccomp(pod *corev1.Pod) bool {
+	confined := func(p *corev1.SeccompProfile) bool {
+		return p != nil && p.Type != corev1.SeccompProfileTypeUnconfined
+	}
+	if pod.Spec.SecurityContext != nil && confined(pod.Spec.SecurityContext.SeccompProfile) {
+		return true
+	}
+	for _, c := range allContainers(pod) {
+		if c.SecurityContext == nil || !confined(c.SecurityContext.SeccompProfile) {
+			return false
+		}
+	}
+	return len(allContainers(pod)) > 0
 }
 
 // podMountsToken implements 5.1.6.

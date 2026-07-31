@@ -12,6 +12,19 @@ and move it under a version on release.
 
 ### Added
 
+- **The native CIS reader decides 20 of the 34 policies checks**, up from 11 — nine past what
+  kube-bench automates. Added: root containers, the NET_RAW capability, capabilities generally,
+  Windows HostProcess containers, hostPath volumes, host ports, seccomp profiles, whether a
+  securityContext was applied at all, and use of the default namespace.
+
+  All nine are questions about a pod spec, so they cost nothing extra: the same single listing
+  already answered the others. kube-bench leaves them manual because correlating pod specs is
+  what a `kubectl | jq | xargs` pipeline is worst at.
+
+  The 14 still reported for review are honestly manual — whether an admission control mechanism
+  is in place, whether the CNI supports NetworkPolicy, whether secrets belong in an external
+  store. Those are questions about intent, not cluster state.
+
 - **A managed cluster's report now says which part of its benchmark went unassessed.** Every
   managed benchmark ships a **Managed Services** section — 33 checks on GKE, 12 on EKS, 13 on AKS
   — covering what the cloud provider controls rather than what the cluster does. Draugr evaluates
