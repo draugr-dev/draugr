@@ -168,10 +168,10 @@ Instead of hand-writing components, point a surveyor at your environment:
 
 ```bash
 # Repositories in a GitHub org (token via --? no: GITHUB_TOKEN env or scope config)
-GITHUB_TOKEN=*** draugr survey --github-org my-org -o draugr.saga.yaml
+GITHUB_TOKEN=*** draugr survey github repos --org my-org -o draugr.saga.yaml
 
 # Unique container images running in a Kubernetes namespace (uses your kubeconfig)
-draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
+draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
 ```
 
 `--merge` blends discovered components into an existing Saga instead of overwriting it. See
