@@ -138,7 +138,7 @@ Two consequences worth being direct about:
   `--all-namespaces`. Against a 78-namespace managed cluster — where each invocation also
   re-runs a cloud auth plugin — a full pass takes tens of minutes.
 
-`mode: job` is the answer to both where a privileged pod is permitted. Where it is not — a
+`kubeBenchJob` is the answer to both where a privileged pod is permitted. Where it is not — a
 namespace enforcing the restricted Pod Security Standard will reject it — this mode is what runs,
 and 11 automated advisory checks beat nothing. Implementing the section natively against the
 Kubernetes API would fix the speed, drop the `kubectl` dependency, and make more of the 34

@@ -10,6 +10,35 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **The `infrastructure` control selects scanners the way every other control does**, with a
+  per-scanner block instead of a `mode` setting:
+
+  ```yaml
+  config:
+    controllers:
+      infrastructure:
+        enabled: true
+        kubeBench: { enabled: false }    # section 5 by exec'ing kube-bench (the default)
+        k8sPolicies: { enabled: true }   # section 5 through the Kubernetes API
+        kubeBenchJob: { enabled: true }  # sections 1-4, from inside the cluster
+  ```
+
+  `mode` conflated two separate choices — which sections you want, and how section 5 is read —
+  and it had no way to express the node sections *without* section 5. It also sat awkwardly with
+  consent: effects are declared per scanner, so accepting `mutate` and `privilege` should mean
+  accepting them for a scanner you named, not for a preset that implies one.
+
+  **`mode` is removed rather than deprecated**, and a descriptor still using it fails at load
+  naming the replacement. A setting that is read by nothing changes the scan without changing the
+  verdict, which is the failure the whole control exists to refuse.
+
+- **Scanner keys in a descriptor are camelCase**, like every other field: `kubeBenchJob`,
+  `k8sPolicies`, `tlsProbe`. Scanner *names* are unchanged in reports and `draugr controls`. A
+  hyphenated key is now an error at load — previously it matched no scanner and silently ran one
+  fewer than asked for.
+
 ### Fixed
 
 - **`mode: job` now covers the whole benchmark.** It ran the node and control-plane sections and

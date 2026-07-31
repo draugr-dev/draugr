@@ -51,21 +51,33 @@ and only one half is reachable the way Draugr runs:
 | CIS sections | What they inspect | Reachable? |
 |---|---|---|
 | 5 — policies | RBAC, service accounts, Pod Security Standards, network policies, secrets | ✅ via the Kubernetes API — the default |
-| 1–4 — master, node, etcd, controlplane | API server manifests, kubelet config, etcd data-dir permissions | ✅ via `mode: job`, which runs in the cluster |
+| 1–4 — master, node, etcd, controlplane | API server manifests, kubelet config, etcd data-dir permissions | ✅ via `kubeBenchJob`, which runs in the cluster |
 
-`mode` picks how section 5 is read:
+Scanners are selected per scanner, the same way every other control does it. Each runs unless
+turned off; a non-default runs only when turned on:
 
-| `mode` | Scanner | |
+| Key | Scanner | |
 |---|---|---|
-| unset | [`kube-bench`](../scanners/kube-bench.md) | execs kube-bench, which shells out to `kubectl` per check |
-| `api` | [`k8s-policies`](../scanners/k8s-policies.md) | reads the same section through the Kubernetes API — no `kubectl`, seconds rather than minutes, partial coverage stated in the report |
-| `job` | [`kube-bench-job`](../scanners/kube-bench-job.md) **+** [`k8s-policies`](../scanners/k8s-policies.md) | the whole benchmark: the node sections from inside the cluster, section 5 through the API |
+| `kubeBench` | [`kube-bench`](../scanners/kube-bench.md) | section 5 by exec'ing kube-bench — **the default** |
+| `k8sPolicies` | [`k8s-policies`](../scanners/k8s-policies.md) | section 5 through the Kubernetes API: no `kubectl`, about a second on a cluster of eighty namespaces |
+| `kubeBenchJob` | [`kube-bench-job`](../scanners/kube-bench-job.md) | sections 1–4, from a privileged Job inside the cluster |
 
-`job` plans two scans because the benchmark splits in two and neither half is optional. The Job
-covers what can only be read from a node's own filesystem; it does not run `policies`, and
-running it there would shell out to `kubectl` once per pod inside a Job that has a timeout. The
-native reader covers that section alongside it, creating nothing and taking about a second on a
-cluster of eighty namespaces.
+Enabling the Job does **not** replace the section-5 scanner. The Job does not run `policies`, so
+a component that swapped one for the other would report a pass on half a benchmark; the default
+keeps running alongside it.
+
+On a large cluster, prefer the native reader for section 5 — the exec'd one shells out to
+`kubectl` per check and takes tens of minutes where the API takes about a second:
+
+```yaml
+config:
+  controllers:
+    infrastructure:
+      enabled: true
+      kubeBench: { enabled: false }
+      k8sPolicies: { enabled: true }
+      kubeBenchJob: { enabled: true }
+```
 
 By default this control runs section 5: **35 of the 130 checks in `cis-1.9`**, read-only, from
 wherever Draugr runs. They are the checks that describe how the cluster is configured for the workloads on
@@ -75,10 +87,10 @@ it, rather than how its nodes were installed.
 none of its 34 checks are scored, and only 11 carry an audit command — the rest are prompts for a
 human to go and look. So the default mode reports a small number of automated findings alongside
 a list of things to review, and a cluster it calls clean has not been measured against the
-scored parts of the benchmark. Those live in sections 1–4, and `mode: job` is how you reach them.
+scored parts of the benchmark. Those live in sections 1–4, and `kubeBenchJob` is how you reach them.
 
 The other 95 read a node's own filesystem, and are available through
-[`mode: job`](../scanners/kube-bench-job.md) — which runs kube-bench inside the cluster and is a
+[`kubeBenchJob`](../scanners/kube-bench-job.md) — which runs kube-bench inside the cluster and is a
 different contract: Draugr creates something in the system it is scanning. It declares `mutate`
 and `privilege` effects, so it does not run until those are accepted:
 
@@ -88,7 +100,8 @@ config:
   controllers:
     infrastructure:
       enabled: true
-      mode: job
+      kubeBenchJob:
+        enabled: true
 ```
 
 Two scanners rather than one with a flag, because the difference is not an implementation detail

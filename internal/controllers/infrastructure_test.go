@@ -137,49 +137,14 @@ func TestInfrastructureAggregateEmpty(t *testing.T) {
 	}
 }
 
-// mode picks the scanner, and the three differ in what they are allowed to do: the default and
-// the native reader only read, while the Job schedules a privileged pod. Effects are declared per
-// scanner, so choosing the wrong one here silently changes what a scan is permitted to do.
-func TestScannersForMode(t *testing.T) {
+// Selecting the Job must not replace the section-5 scanner: the Job does not run policies, so a
+// component that enabled it and got only the Job would report a pass on half a benchmark. The
+// default scanner keeps running alongside it, which is what makes the whole benchmark reachable
+// from one component.
+func TestPlanKeepsThePoliciesScannerWhenTheJobIsEnabled(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []struct {
-		name string
-		cfg  plugin.Config
-		want []string
-	}{
-		{"unset defaults to read-only kube-bench", nil, []string{"kube-bench"}},
-		{"empty config", plugin.Config{}, []string{"kube-bench"}},
-		{"api", plugin.Config{"mode": "api"}, []string{"k8s-policies"}},
-
-		// The Job covers sections 1-4 and does not run policies. Planning it alone left the
-		// whole of section 5 unexamined while the control still reported a pass.
-		{"job covers both halves", plugin.Config{"mode": "job"}, []string{"kube-bench-job", "k8s-policies"}},
-
-		// Operators type what they type; the mode is a word, not a token.
-		{"case and padding", plugin.Config{"mode": "  JOB "}, []string{"kube-bench-job", "k8s-policies"}},
-
-		// An unrecognized mode must not silently select something. Falling back to the
-		// read-only default is the safe direction: it cannot create anything.
-		{"unknown", plugin.Config{"mode": "sidecar"}, []string{"kube-bench"}},
-		{"wrong type", plugin.Config{"mode": 42}, []string{"kube-bench"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got := scannersFor(tc.cfg)
-			if !slices.Equal(got, tc.want) {
-				t.Errorf("scannersFor(%v) = %v, want %v", tc.cfg, got, tc.want)
-			}
-		})
-	}
-}
-
-// The whole benchmark for one cluster means two scan jobs against the same target, and both must
-// reach the planner — a scanner dropped here is a section nobody notices is missing.
-func TestPlanCoversBothHalvesInJobMode(t *testing.T) {
-	t.Parallel()
-
-	comp := k8sComponent(saga.ControllerSettings{"mode": "job"})
+	comp := k8sComponent(saga.ControllerSettings{"kubeBenchJob": map[string]any{"enabled": true}})
 	jobs, err := Infrastructure{}.Plan(saga.Model{}, comp)
 	if err != nil {
 		t.Fatal(err)
@@ -192,9 +157,70 @@ func TestPlanCoversBothHalvesInJobMode(t *testing.T) {
 	for _, j := range jobs {
 		byScanner[j.Scanner]++
 	}
-	for _, want := range []string{"kube-bench-job", "k8s-policies"} {
+	for _, want := range []string{"kube-bench-job", "kube-bench"} {
 		if byScanner[want] != 2 {
 			t.Errorf("scanner %q planned %d times, want 2", want, byScanner[want])
 		}
 	}
+}
+
+// Scanner blocks are keyed by a camelCase descriptor key, not by the scanner's own name — the
+// two differ for every hyphenated scanner. Getting this wrong is silent: the block matches
+// nothing and the scanner simply does not run.
+func TestInfrastructureScannerSelection(t *testing.T) {
+	t.Parallel()
+
+	block := func(enabled bool) map[string]any { return map[string]any{"enabled": enabled} }
+
+	for _, tc := range []struct {
+		name     string
+		settings saga.ControllerSettings
+		want     []string
+	}{
+		{"default reads the policies section", nil, []string{"kube-bench"}},
+		{"job runs alongside the default", saga.ControllerSettings{"kubeBenchJob": block(true)}, []string{"kube-bench", "kube-bench-job"}},
+		{"native reader opted in", saga.ControllerSettings{"k8sPolicies": block(true)}, []string{"kube-bench", "k8s-policies"}},
+
+		// The question this design had to answer: the node sections without section 5.
+		{"node sections only", saga.ControllerSettings{
+			"kubeBench":    block(false),
+			"kubeBenchJob": block(true),
+		}, []string{"kube-bench-job"}},
+
+		// Native section 5 plus the node sections, which is the fast whole benchmark.
+		{"native policies plus the job", saga.ControllerSettings{
+			"kubeBench":    block(false),
+			"kubeBenchJob": block(true),
+			"k8sPolicies":  block(true),
+		}, []string{"k8s-policies", "kube-bench-job"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			jobs, err := Infrastructure{}.Plan(saga.Model{}, k8sComponent(tc.settings))
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := map[string]bool{}
+			for _, j := range jobs {
+				got[j.Scanner] = true
+			}
+			if len(got) != len(tc.want) {
+				t.Fatalf("planned %v, want exactly %v", keysOf(got), tc.want)
+			}
+			for _, w := range tc.want {
+				if !got[w] {
+					t.Errorf("scanner %q was not planned; got %v", w, keysOf(got))
+				}
+			}
+		})
+	}
+}
+
+func keysOf(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	slices.Sort(out)
+	return out
 }

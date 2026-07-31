@@ -15,13 +15,6 @@ const (
 	k8sPoliciesScanner    = "k8s-policies"
 	infrastructureControl = "infrastructure"
 	kubernetesPlatform    = "kubernetes"
-	// modeKey chooses how the benchmark is run: read-only through the API (the default), or
-	// inside the cluster as a Job.
-	modeKey = "mode"
-	modeJob = "job"
-	// modeAPI reads the policies section through the Kubernetes API instead of exec'ing
-	// kube-bench. Opt-in while its coverage of the section grows.
-	modeAPI = "api"
 )
 
 // Infrastructure assesses the platform a component runs on against the CIS Kubernetes
@@ -55,49 +48,25 @@ func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.Sca
 	if comp == nil {
 		return nil, nil
 	}
-	cfg := infraConfig(model, comp)
+	// Control-level settings apply to every scanner the control runs: `context` names the
+	// cluster, not a tool, and repeating it per scanner would be a way to get them out of step.
+	// A scanner block overlays them, so a per-scanner value still wins.
+	shared := infraConfig(model, comp)
+	selections := resolveScanners(model, comp, infrastructureControl, []string{kubeBenchScanner})
 	var jobs []plugin.ScanJob
 	for _, infra := range comp.Infrastructure {
 		if !strings.EqualFold(infra.Kind, kubernetesPlatform) {
 			continue
 		}
-		for _, scanner := range scannersFor(cfg) {
+		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{
-				Scanner: scanner,
+				Scanner: sel.Name,
 				Target:  plugin.InfraTarget{Platform: kubernetesPlatform, Ref: infra.Ref},
-				Config:  cfg,
+				Config:  withShared(shared, sel.Config),
 			})
 		}
 	}
 	return jobs, nil
-}
-
-// scannersFor picks how the benchmark runs.
-//
-// Separate scanners rather than one with a flag, because the difference is not an implementation
-// detail: reading the cluster through its API creates nothing, while the in-cluster run schedules
-// a privileged Job on a node. Effects are declared per scanner, so separating them is what lets
-// the read-only paths run unguarded while the other one has to be accepted first.
-//
-// `job` plans two, because the benchmark splits in two and neither half is optional. The Job
-// covers the sections that read a node's own filesystem and cannot be answered any other way;
-// it does not run `policies`, and running it there would shell out to kubectl once per pod
-// inside a Job that has a timeout. So the native reader covers that section alongside it —
-// which creates nothing, needs no privilege beyond read, and takes about a second on a cluster
-// of eighty namespaces.
-//
-// Asking for the benchmark and receiving half of it, with a pass on the half that ran, is the
-// same silence this control exists to refuse.
-func scannersFor(cfg plugin.Config) []string {
-	mode, _ := cfg[modeKey].(string)
-	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case modeJob:
-		return []string{kubeBenchJobScanner, k8sPoliciesScanner}
-	case modeAPI:
-		return []string{k8sPoliciesScanner}
-	default:
-		return []string{kubeBenchScanner}
-	}
 }
 
 // infraConfig resolves the control's settings for a component: the project's, with the
@@ -133,4 +102,15 @@ func (Infrastructure) Aggregate(reports []sarif.Report) (plugin.ControlResult, e
 			Notes:    counts.Note,
 		},
 	}, nil
+}
+
+// withShared layers a scanner's own block over the control's settings.
+func withShared(shared, block plugin.Config) plugin.Config {
+	if len(shared) == 0 && len(block) == 0 {
+		return nil
+	}
+	cfg := plugin.Config{}
+	maps.Copy(cfg, shared)
+	maps.Copy(cfg, block)
+	return cfg
 }

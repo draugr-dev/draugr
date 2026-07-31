@@ -15,7 +15,7 @@ Creates a short-lived Job in the cluster, waits for it, reads its output, and de
 kube-bench run --json --targets master,node,etcd,controlplane
 ```
 
-Selected with `mode: job` on the control. The default scanner,
+Selected with `kubeBenchJob: { enabled: true }` on the control. The default scanner,
 [`kube-bench`](kube-bench.md), stays read-only and covers section 5.
 
 ## Why a separate scanner rather than a mode
@@ -39,7 +39,8 @@ config:
   controllers:
     infrastructure:
       enabled: true
-      mode: job
+      kubeBenchJob:
+        enabled: true
 ```
 
 Without that, the run stops before it creates anything and says what it would have done.
@@ -69,7 +70,8 @@ permits it.
 config:
   controllers:
     infrastructure:
-      mode: job
+      kubeBenchJob:
+        enabled: true
       namespace: default              # where the Job is created
       image: docker.io/aquasec/kube-bench:v0.15.6@sha256:8619009…
       targets: master,node,etcd,controlplane

@@ -9,14 +9,15 @@
 ## What it does
 
 Evaluates the CIS Kubernetes Benchmark's **policies** section against a live cluster using
-`client-go`, as an alternative to [`kube-bench`](kube-bench.md). Opt in with:
+`client-go`, as an alternative to [`kube-bench`](kube-bench.md). Opt in with a scanner block:
 
 ```yaml
 config:
   controllers:
     infrastructure:
       enabled: true
-      mode: api
+      kubeBench: { enabled: false }   # stop exec'ing kube-bench for this section
+      k8sPolicies: { enabled: true }
 ```
 
 ## Why not just run kube-bench
