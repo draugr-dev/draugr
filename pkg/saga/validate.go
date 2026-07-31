@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 )
 
 // validDigest reports whether s is an OCI content digest of the form "algorithm:hex"
@@ -104,6 +105,16 @@ func (m *Model) Validate() error {
 		// being quietly defanged.
 		if strings.TrimSpace(e.Reason) == "" {
 			errs = append(errs, fmt.Errorf("%s: reason is required — say why this is excluded", where))
+		}
+		// A date that does not parse is worse than no date: the exclusion would keep suppressing
+		// forever while the descriptor claims it lapses, which is the belief this field exists
+		// to make true.
+		if e.Expires != "" {
+			if _, err := time.Parse(expiresLayout, e.Expires); err != nil {
+				errs = append(errs, fmt.Errorf(
+					"%s: expires must be a date as YYYY-MM-DD, got %q — an unreadable date would "+
+						"suppress indefinitely while claiming not to", where, e.Expires))
+			}
 		}
 		// Neither selector set would match every finding in the project.
 		if len(e.Paths) == 0 && len(e.Rules) == 0 {

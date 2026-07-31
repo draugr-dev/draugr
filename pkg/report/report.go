@@ -377,3 +377,21 @@ func (p provenanceLine) Label() string {
 	}
 	return p.Tool + " " + p.Version
 }
+
+// unattributedSuppressions counts suppressed findings whose exclusion named nobody.
+//
+// "Who decided this was acceptable" is half of what an auditor asks of a suppression, and a
+// blank is an answer worth seeing: an exclusion with no owner is one nobody can be asked about.
+// Counted rather than rejected, so existing descriptors keep working and the gap is visible
+// instead of enforced.
+func unattributedSuppressions(d Data) int {
+	n := 0
+	for _, cr := range d.Run.Controls {
+		for _, res := range cr.Report.Results {
+			if res.Suppressed() && res.Suppression.AcceptedBy == "" {
+				n++
+			}
+		}
+	}
+	return n
+}

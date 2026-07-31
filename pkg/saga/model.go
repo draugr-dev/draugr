@@ -4,6 +4,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"time"
 )
 
 // Model is a parsed Saga descriptor — the declarative account of an application's
@@ -87,6 +88,42 @@ type ExcludeRule struct {
 	Rules []string `yaml:"rules,omitempty"`
 	// Reason is why this exclusion exists. Required.
 	Reason string `yaml:"reason"`
+	// AcceptedBy names who decided this finding was acceptable.
+	//
+	// The question an auditor asks of a suppression is not whether the scanner ran — it is who
+	// decided, and when. `reason` answers why; without this the who lives in prose if it is
+	// recorded at all, and a name buried in a sentence cannot be reported on. Optional, and a
+	// suppression without one is reported as unattributed rather than rejected.
+	AcceptedBy string `yaml:"acceptedBy,omitempty"`
+	// Expires is the date this exclusion stops applying, as YYYY-MM-DD.
+	//
+	// An exclusion accepted "until the upstream fix lands" has nothing that brings the finding
+	// back, so the temporary ones become permanent by default — which is how a suppression
+	// mechanism decays into a way of never seeing something again. Past this date the exclusion
+	// no longer suppresses and the finding returns, with the report saying it lapsed rather than
+	// silently producing a finding that used to be accepted.
+	Expires string `yaml:"expires,omitempty"`
+}
+
+// expiresLayout is the date format Expires uses: a plain calendar date, because an exclusion
+// lapses on a day rather than at an instant, and a timezone here would be a decision nobody
+// wants to make about a governance record.
+const expiresLayout = "2006-01-02"
+
+// ExpiredOn reports whether this exclusion has lapsed as of the given day.
+//
+// Compared by date rather than by instant: an exclusion set to expire on the 14th applies
+// throughout the 14th and stops on the 15th, which is what a reader of the descriptor expects
+// from a date with no time on it.
+func (e ExcludeRule) ExpiredOn(now time.Time) bool {
+	if e.Expires == "" {
+		return false
+	}
+	d, err := time.Parse(expiresLayout, e.Expires)
+	if err != nil {
+		return false // Validate rejects an unparseable date; never silently drop the suppression
+	}
+	return now.Truncate(24 * time.Hour).After(d)
 }
 
 // Matches reports whether a finding at uri with rule id ruleID falls under this exclusion.

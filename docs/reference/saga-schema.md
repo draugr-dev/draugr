@@ -376,6 +376,13 @@ config:
       reason: >-
         The integration test writes a throwaway key so the secrets control has something real
         to find. The material is fake and was never valid anywhere.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
+    # A risk accepted for now rather than forever.
+    - rules: ["CVE-2026-12345"]
+      reason: "Upstream fix lands in v2.4. Reachable only from the offline importer."
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+      expires: 2026-08-14
 ```
 
 Every real repository has paths that aren't the application — fixtures, examples, generated
@@ -400,6 +407,34 @@ was never there.
 | `paths` | Location patterns. A pattern ending in `/` matches everything beneath that directory; otherwise it's a glob against the whole location, so `*.md` and `test/fixture.go` both work. |
 | `rules` | Rule ids. `*` matches any run of characters, **including `/`** — so `CVE-2019-*` and `license/GPL-3.0-only/*` both work. A pattern with no `*` matches exactly. |
 | `reason` | **Required.** Why this exclusion exists. |
+| `acceptedBy` | Who decided this was acceptable. Optional; a suppression without one is reported as **unattributed**. |
+| `expires` | The date it stops applying (`YYYY-MM-DD`). Past it the finding returns and the report says the exclusion lapsed. |
+
+**Who, why, and until when.** The question asked of a suppression is not whether the scanner ran
+— it is who decided this was acceptable, and when. `reason` answers why; the other two answer the
+rest, and they are separate fields rather than prose because a name buried in a sentence cannot
+be reported on.
+
+`acceptedBy` is optional so existing descriptors keep working, and the console says how many
+suppressions have nobody attached:
+
+```
+5 findings suppressed by config.exclude (2 unattributed)
+```
+
+**An expiry is enforced, not advisory.** On the day after `expires` the exclusion stops
+suppressing and the finding comes back — with the report saying the exclusion lapsed, so a
+finding that used to be accepted does not simply reappear unexplained:
+
+```
+1 exclusion expired and no longer suppressing:
+  expired 2026-08-14, accepted by Wilson Santos — Upstream fix lands in v2.4…
+```
+
+An exclusion accepted "until the upstream fix lands" otherwise has nothing that brings the
+finding back, which is how a suppression mechanism decays into a way of never seeing something
+again. A date that cannot be parsed is rejected at load: it would suppress indefinitely while the
+descriptor claims otherwise.
 
 **`paths` and `rules` glob differently, on purpose.** In `paths`, `*` stops at a directory
 separator, so `*.md` matches `README.md` but not `docs/README.md` — they really are paths. In

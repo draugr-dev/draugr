@@ -2,6 +2,7 @@ package engine
 
 import (
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -24,9 +25,9 @@ func TestApplyExclusionsSuppressesRatherThanDeletes(t *testing.T) {
 		sarif.Result{RuleID: "private-key", Level: sarif.LevelError, Location: sarif.Location{URI: "test/fixture.go"}},
 		sarif.Result{RuleID: "aws-key", Level: sarif.LevelError, Location: sarif.Location{URI: "src/real.go"}},
 	)
-	n := applyExclusions(ctrls, []saga.ExcludeRule{
+	n, _ := applyExclusions(ctrls, []saga.ExcludeRule{
 		{Paths: []string{"test/fixture.go"}, Rules: []string{"private-key"}, Reason: "deliberate test fixture"},
-	})
+	}, time.Now())
 	if n != 1 {
 		t.Fatalf("suppressed = %d, want 1", n)
 	}
@@ -58,7 +59,7 @@ func TestApplyExclusionsRemovesTheFindingFromTheVerdict(t *testing.T) {
 	if got := ctrls["sca"].Summary.Errors; got != 1 {
 		t.Fatalf("precondition: errors = %d, want 1", got)
 	}
-	applyExclusions(ctrls, []saga.ExcludeRule{{Paths: []string{"test/"}, Reason: "fixtures"}})
+	applyExclusions(ctrls, []saga.ExcludeRule{{Paths: []string{"test/"}, Reason: "fixtures"}}, time.Now())
 	sum := ctrls["sca"].Summary
 	if sum.Errors != 0 {
 		t.Errorf("errors = %d, want 0 after suppression", sum.Errors)
@@ -73,7 +74,7 @@ func TestApplyExclusionsRemovesTheFindingFromTheVerdict(t *testing.T) {
 
 func TestApplyExclusionsNoRulesIsANoop(t *testing.T) {
 	ctrls := controlsWith(sarif.Result{RuleID: "k", Level: sarif.LevelError, Location: sarif.Location{URI: "a.go"}})
-	if n := applyExclusions(ctrls, nil); n != 0 {
+	if n, _ := applyExclusions(ctrls, nil, time.Now()); n != 0 {
 		t.Errorf("suppressed = %d, want 0", n)
 	}
 	if ctrls["sca"].Report.Results[0].Suppressed() {
@@ -88,7 +89,7 @@ func TestApplyExclusionsLeavesAnUpstreamSuppressionAlone(t *testing.T) {
 		RuleID: "k", Level: sarif.LevelError, Location: sarif.Location{URI: "a.go"},
 		Suppression: &sarif.Suppression{Kind: "inSource", Justification: "nosem comment"},
 	})
-	if n := applyExclusions(ctrls, []saga.ExcludeRule{{Paths: []string{"*.go"}, Reason: "ours"}}); n != 0 {
+	if n, _ := applyExclusions(ctrls, []saga.ExcludeRule{{Paths: []string{"*.go"}, Reason: "ours"}}, time.Now()); n != 0 {
 		t.Errorf("suppressed = %d, want 0 — it was already suppressed", n)
 	}
 	if got := ctrls["sca"].Report.Results[0].Suppression.Justification; got != "nosem comment" {
@@ -100,10 +101,10 @@ func TestApplyExclusionsFirstMatchWins(t *testing.T) {
 	// Two rules can cover the same finding. It is suppressed once, with the first reason, so
 	// the count matches the number of findings rather than the number of matches.
 	ctrls := controlsWith(sarif.Result{RuleID: "k", Level: sarif.LevelError, Location: sarif.Location{URI: "test/f.go"}})
-	n := applyExclusions(ctrls, []saga.ExcludeRule{
+	n, _ := applyExclusions(ctrls, []saga.ExcludeRule{
 		{Paths: []string{"test/"}, Reason: "first"},
 		{Rules: []string{"k"}, Reason: "second"},
-	})
+	}, time.Now())
 	if n != 1 {
 		t.Errorf("suppressed = %d, want 1", n)
 	}
@@ -123,9 +124,9 @@ func TestApplyExclusionsCountsWhatABroadGlobSwallowed(t *testing.T) {
 		sarif.Result{RuleID: "license/GPL-3.0-only/c", Level: sarif.LevelError, Location: sarif.Location{URI: "go.mod"}},
 		sarif.Result{RuleID: "CVE-2019-1", Level: sarif.LevelError, Location: sarif.Location{URI: "go.mod"}},
 	)
-	n := applyExclusions(ctrls, []saga.ExcludeRule{
+	n, _ := applyExclusions(ctrls, []saga.ExcludeRule{
 		{Rules: []string{"license/*"}, Reason: "licence policy handled out of band"},
-	})
+	}, time.Now())
 	if n != 3 {
 		t.Fatalf("suppressed = %d, want all three licence findings", n)
 	}
@@ -152,9 +153,9 @@ func TestApplyExclusionsGlobMatchesAcrossSeparators(t *testing.T) {
 		RuleID: "license/GPL-3.0-only/github.com/somelib/thing",
 		Level:  sarif.LevelWarning, Location: sarif.Location{URI: "go.mod"},
 	})
-	if n := applyExclusions(ctrls, []saga.ExcludeRule{
+	if n, _ := applyExclusions(ctrls, []saga.ExcludeRule{
 		{Rules: []string{"license/GPL-3.0-only/*"}, Reason: "legal reviewed; we don't distribute"},
-	}); n != 1 {
+	}, time.Now()); n != 1 {
 		t.Errorf("suppressed = %d, want the compound id matched", n)
 	}
 }
