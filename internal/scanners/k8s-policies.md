@@ -148,6 +148,33 @@ checks with no flag to change it, and the in-cluster Job reads a node filesystem
 namespace at all. Both **refuse** a scoped component rather than quietly auditing everything and
 reporting it under a component that asked for three namespaces.
 
+## The section this scanner does not read
+
+Every managed benchmark ships a **Managed Services** section covering what the *provider*
+controls rather than what the cluster does — image registry scanning, IAM, key management, node
+metadata, cluster networking, logging, storage:
+
+| benchmark | checks |
+|---|---|
+| `gke-1.9.0` | 33 |
+| `eks-1.8.0` | 12 |
+| `aks-1.8` | 13 |
+
+Draugr evaluates none of it: reading those settings needs the cloud provider's own API, not the
+Kubernetes one. That is a defensible gap. Leaving it unmentioned is not — a reader of the report
+has no way to know the section exists, so the benchmark looks smaller than it is and a clean
+result looks more complete than it is.
+
+So a managed cluster gets one finding naming the section, its benchmark and its size. **One,
+rather than one per check**, unlike the policies section: there the checks share a section this
+scanner partly evaluates, so listing them individually is what keeps coverage honest. Here
+nothing in the section is evaluated, and saying so once is unambiguous where fifty-eight
+identical "review this yourself" entries would bury the findings that came from an actual
+assessment.
+
+The counts are held to kube-bench's own definitions by `TestManagedServicesCountsMatchKubeBench`
+— a number that drifts understates the very thing it exists to disclose.
+
 ## Interpreting a finding
 
 Rule ids are `cis/<check number>` — the same ids [`kube-bench`](kube-bench.md) emits, so an

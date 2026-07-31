@@ -3,6 +3,7 @@ package scanners
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -585,5 +586,49 @@ func TestScannersThatCannotScopeRefuse(t *testing.T) {
 	// And an unscoped component is unaffected.
 	if err := refuseNamespaceScope(kubeBenchScannerName, nil); err != nil {
 		t.Errorf("an unscoped component must still be scannable: %v", err)
+	}
+}
+
+// Every managed benchmark carries a section covering what the provider controls, and Draugr
+// evaluates none of it. That gap is defensible; leaving it unmentioned is not — a reader has no
+// way to know the section exists, so the benchmark looks smaller than it is.
+func TestManagedServicesFinding(t *testing.T) {
+	t.Parallel()
+
+	for platform, want := range map[string]string{
+		"gke": "gke-1.9.0", "eks": "eks-1.8.0", "aks": "aks-1.8",
+	} {
+		res, rule, ok := managedServicesFinding(platform, "kubernetes/x")
+		if !ok {
+			t.Errorf("%s should report its managed-services section", platform)
+			continue
+		}
+		if !strings.Contains(res.Message, want) {
+			t.Errorf("%s message should name the benchmark, got %q", platform, res.Message)
+		}
+		// The number is the disclosure: "some of it" is not an answer anyone can act on.
+		if !strings.Contains(res.Message, fmt.Sprint(managedServicesByPlatform[platform].Checks)) {
+			t.Errorf("%s message should say how many checks, got %q", platform, res.Message)
+		}
+		if rule.Name == "" || res.RuleID != managedServicesRuleID {
+			t.Errorf("%s: rule id = %q", platform, res.RuleID)
+		}
+	}
+
+	// A vanilla cluster's benchmark has no such section, so there is nothing to disclose.
+	if _, _, ok := managedServicesFinding("", "kubernetes/x"); ok {
+		t.Error("a vanilla cluster has no managed-services section")
+	}
+	if _, _, ok := managedServicesFinding("k3s", "kubernetes/x"); ok {
+		t.Error("k3s ships no managed-services section")
+	}
+}
+
+// The rule id stays out of the cis/<number> space: it is a statement about a section, not one of
+// the benchmark's checks, and a check number would make it look like one.
+func TestManagedServicesRuleIDIsNotACheckNumber(t *testing.T) {
+	t.Parallel()
+	if regexp.MustCompile(`^cis/\d`).MatchString(managedServicesRuleID) {
+		t.Errorf("rule id %q reads as a benchmark check", managedServicesRuleID)
 	}
 }

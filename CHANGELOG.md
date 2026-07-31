@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **A managed cluster's report now says which part of its benchmark went unassessed.** Every
+  managed benchmark ships a **Managed Services** section — 33 checks on GKE, 12 on EKS, 13 on AKS
+  — covering what the cloud provider controls rather than what the cluster does. Draugr evaluates
+  none of it, and previously said nothing, so the benchmark looked smaller than it is and a clean
+  result looked more complete than it is.
+
+  One finding names the section, its benchmark and its size, rather than one per check: nothing
+  in it is evaluated, so saying that once is clearer than fifty-eight identical prompts burying
+  the findings that came from an actual assessment.
 
 ## [0.49.0] - 2026-07-31
 
