@@ -88,7 +88,12 @@ func TestSingleflightCollapsesIdenticalJobs(t *testing.T) {
 	sc := &prewarmScanner{name: "s"}
 	reg.RegisterScanner(sc)
 
-	// Two components, identical target → one scan, one deduped.
+	// Two components, identical target → one scan, and two findings.
+	//
+	// The scan is shared because the work is identical; the findings are not, because the
+	// components are not. Each carries its own component's exposure and criticality, so the same
+	// flaw can be P1 for one and P4 for the other — collapsing them would keep whichever merged
+	// first and silently drop the other.
 	res, err := New(reg).Run(context.Background(), model())
 	if err != nil {
 		t.Fatal(err)
@@ -100,9 +105,9 @@ func TestSingleflightCollapsesIdenticalJobs(t *testing.T) {
 	if res.Stats.Scans != 1 || res.Stats.Deduped != 1 {
 		t.Errorf("stats = %+v, want Scans=1 Deduped=1", res.Stats)
 	}
-	// Both components still get the finding recorded under the control.
-	if got := res.Controls["images"].Report.Counts().Warning; got != 1 {
-		t.Errorf("merged warnings = %d (deduped by fingerprint), want 1", got)
+	// One per component: the saving is in the scanning, not in the reporting.
+	if got := res.Controls["images"].Report.Counts().Warning; got != 2 {
+		t.Errorf("merged warnings = %d, want one per component", got)
 	}
 }
 

@@ -81,15 +81,18 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	} else {
 		_, _ = fmt.Fprintf(w, "### Fix first\n\n")
 	}
-	_, _ = fmt.Fprintln(w, "| Priority | Severity | Score | Rule | Control | Scanner | Location |")
-	_, _ = fmt.Fprintln(w, "|---|---|---|---|---|---|---|")
+	// Component before Location: a path answers "where inside", and with more than one component
+	// the reader needs "which one" first — two components can carry the same path.
+	_, _ = fmt.Fprintln(w, "| Priority | Severity | Score | Rule | Control | Scanner | Component | Location |")
+	_, _ = fmt.Fprintln(w, "|---|---|---|---|---|---|---|---|")
 	shown := s.findings
 	if len(shown) > markdownTopN {
 		shown = shown[:markdownTopN]
 	}
 	for _, f := range shown {
-		_, _ = fmt.Fprintf(w, "| %s | %s | %s | `%s` | %s | %s | %s |\n",
-			dash(f.priority), f.severity, scoreStr(f), f.ruleID, f.control, f.tool, dash(f.location))
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s | `%s` | %s | %s | %s | %s |\n",
+			dash(f.priority), f.severity, scoreStr(f), f.ruleID, f.control, f.tool,
+			dash(f.component), dash(f.location))
 	}
 	if len(s.findings) > markdownTopN {
 		_, _ = fmt.Fprintf(w, "\n_…and %d more finding(s)._\n", len(s.findings)-markdownTopN)

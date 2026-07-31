@@ -77,7 +77,7 @@ type htmlControl struct {
 }
 
 type htmlFinding struct {
-	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Location, Message string
+	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Component, Location, Message string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
 	// link costs nothing, and a rule id names a finding without explaining it.
 	HelpURI string
@@ -201,7 +201,8 @@ func toHTMLFinding(f finding) htmlFinding {
 	return htmlFinding{
 		Priority: dash(f.priority), Severity: string(f.severity), SevClass: "sev-" + string(f.severity),
 		Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: dash(f.tool),
-		Location: dash(f.location), Message: f.message, HelpURI: f.helpURI,
+		Component: dash(f.component),
+		Location:  dash(f.location), Message: f.message, HelpURI: f.helpURI,
 		Justification: f.justification,
 		Search: strings.ToLower(strings.Join(
 			[]string{f.ruleID, f.control, f.tool, f.location, f.message, f.priority, string(f.severity)}, " ")),
@@ -391,7 +392,7 @@ about what they would have found. For everything the tool printed, re-run with t
 <table id="findings">
 <thead><tr>
   <th scope="col">Priority</th><th scope="col">Severity</th><th scope="col" class="num">Score</th>
-  <th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Location</th>
+  <th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Component</th><th scope="col">Location</th>
 </tr></thead>
 {{range .Findings}}<tbody class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-q="{{.Search}}">
 <tr class="meta">
@@ -401,9 +402,10 @@ about what they would have found. For everything the tool printed, re-run with t
   <td><code>{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</code></td>
   <td>{{.Control}}</td>
   <td>{{.Tool}}</td>
+  <td>{{.Component}}</td>
   <td><code>{{.Location}}</code></td>
 </tr>
-<tr class="msg"><td colspan="7">{{.Message}}</td></tr>
+<tr class="msg"><td colspan="8">{{.Message}}</td></tr>
 </tbody>{{end}}
 </table>
 <p class="empty" id="none" hidden>No findings match this filter.</p>
@@ -423,6 +425,7 @@ about what they would have found. For everything the tool printed, re-run with t
   <td class="{{.SevClass}}">{{.Severity}}</td>
   <td><code>{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</code></td>
   <td>{{.Control}}</td>
+  <td>{{.Component}}</td>
   <td><code>{{.Location}}</code></td>
 </tr>
 <tr class="msg"><td colspan="4">{{.Message}}<br><span class="just">Reason: {{.Justification}}</span></td></tr>

@@ -111,3 +111,14 @@ one that matters, because somebody is exploiting it today.
 [Vulnerability prioritization](/learn/vulnerability-prioritization/) ·
 [CVE, CVSS and severity](/learn/cve-cvss-and-severity/) ·
 [`scan` flags](../reference/cli.md#draugr-scan-sagayaml--dir)
+
+## The component is part of the finding
+
+A finding records which component it came from, and that is what makes its band checkable. The
+band is computed from that component's declared `exposure` and `criticality`, so a report showing
+`P1` without naming the component would state a conclusion and withhold its premise.
+
+It also means the same flaw in two components is **two findings**. A library shared by a
+public, business-critical service and an internal tool is one vulnerability and two different
+risks — and reporting it once would keep whichever was merged first, which can be the one that
+does not matter.

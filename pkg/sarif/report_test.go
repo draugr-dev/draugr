@@ -174,3 +174,33 @@ func TestProvenanceDescribe(t *testing.T) {
 		t.Error("fields should render in the order the scanner gave them")
 	}
 }
+
+// Two components sharing a repository hit the same flaw at the same line, and it is not the same
+// finding: each carries its own component's exposure and criticality, so one can be P1 and the
+// other P4. Collapsing them kept whichever merged first and discarded the other — which could be
+// the urgent one, and contradicts the claim that context decides priority.
+func TestFingerprintSeparatesComponents(t *testing.T) {
+	t.Parallel()
+
+	base := Result{Tool: "gitleaks", RuleID: "github-pat", Level: LevelError,
+		Message: "token", Location: Location{URI: "config.txt", StartLine: 1}}
+	payments := base
+	payments.Component = "payments"
+	internal := base
+	internal.Component = "internal-tool"
+
+	if payments.Fingerprint() == internal.Fingerprint() {
+		t.Fatal("the same flaw in two components is two findings, not one")
+	}
+
+	merged := Merge(Report{Tool: "gitleaks", Results: []Result{payments, internal}})
+	if len(merged.Results) != 2 {
+		t.Errorf("merge kept %d of 2 findings", len(merged.Results))
+	}
+
+	// Within one component it is still one finding — this must not become a way to duplicate.
+	twice := Merge(Report{Tool: "gitleaks", Results: []Result{payments, payments}})
+	if len(twice.Results) != 1 {
+		t.Errorf("the same finding in the same component is one, got %d", len(twice.Results))
+	}
+}

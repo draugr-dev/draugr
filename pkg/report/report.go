@@ -154,6 +154,9 @@ func (d Data) marshalOptions() sarif.MarshalOptions {
 
 type finding struct {
 	control, ruleID, tool, priority, location, message string
+	// component is which part of the application the finding belongs to, empty for a
+	// project-scoped control. A location alone is ambiguous once a descriptor has more than one.
+	component string
 	// helpURI is where the rule is documented: what the scanner published, or a URL derived
 	// from a well-known identifier. Empty when we have nowhere honest to point.
 	helpURI string
@@ -240,7 +243,8 @@ func summarize(d Data) summary {
 			if res.Suppressed() {
 				s.excluded = append(s.excluded, finding{
 					control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-					location: locationOf(res), message: res.Message,
+					component: res.Component,
+					location:  locationOf(res), message: res.Message,
 					severity:      res.Severity(""),
 					justification: res.Suppression.Justification,
 					helpURI:       rep.HelpURI(res.RuleID),
@@ -267,7 +271,8 @@ func summarize(d Data) summary {
 			s.bands[name] = b
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-				location: loc, message: res.Message,
+				component: res.Component,
+				location:  loc, message: res.Message,
 				level: res.Level, severity: sev,
 				helpURI: rep.HelpURI(res.RuleID),
 				score:   res.Score, hasScore: res.HasScore,
