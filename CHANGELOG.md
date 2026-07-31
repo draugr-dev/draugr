@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.50.0] - 2026-07-31
+
 ### Added
 
 - **The native CIS reader decides 20 of the 34 policies checks**, up from 11 — nine past what
@@ -1528,7 +1532,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.49.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.50.0...HEAD
+[0.50.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.50.0
 [0.49.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.49.0
 [0.48.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.48.0
 [0.47.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.47.1
