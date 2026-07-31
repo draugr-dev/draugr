@@ -12,6 +12,19 @@ and move it under a version on release.
 
 ### Added
 
+- **The native CIS reader now decides 11 of the 34 checks in the policies section**, up from 3 —
+  the same count kube-bench automates. Added: broad access to secrets and to pod creation,
+  service account token mounting, and the five pod-security checks (privileged containers,
+  host PID/IPC/network namespaces, and privilege escalation).
+
+  The six pod-security questions are answered from **one** listing rather than a `kubectl` call
+  per pod per check: on a cluster of 8,393 pods that is 8.6 seconds.
+
+  Access to secrets and to pod creation are asked of the cluster's own authorizer rather than
+  reassembled from roles and bindings, so the answer matches what the cluster would actually
+  allow. That query needs a permission a read-only credential may not have; where it is refused
+  the check is reported for manual review rather than failing the scan.
+
 - **The CIS catalogue is now checked against kube-bench's own benchmark definitions.** The
   `k8s-policies` scanner reports every check in the section so that partial coverage cannot read
   as a clean result — a guarantee only as good as the list, which is hand-maintained against a

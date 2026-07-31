@@ -35,6 +35,10 @@ Against a shared cluster of 78 namespaces a single pass takes tens of minutes. A
 that is the queries; it is process startup and, on a managed cluster, a fresh credential
 exchange per invocation. The same questions are a handful of `List` calls.
 
+Six of these checks are questions about a pod spec, and kube-bench asks each one separately: list
+every pod, then `kubectl get pod` again per pod, per check. Measured against a cluster of 8,393
+pods, answering all six from a single listing takes **8.6 seconds**.
+
 Speed is the visible reason. Two others matter more:
 
 - **A check written in Go can decide things a shell pipeline cannot.** CIS marks all 34 checks in
@@ -58,9 +62,32 @@ answer and changes nothing else.
 | Check | | |
 |---|---|---|
 | `5.1.1` | Cluster-admin role is only used where required | **decided** |
+| `5.1.2` | Minimize access to secrets | **decided** ¹ |
 | `5.1.3` | Wildcards in Roles and ClusterRoles | **decided** |
+| `5.1.4` | Minimize access to create pods | **decided** ¹ |
 | `5.1.5` | Default service accounts are not actively used | **decided** |
-| the other 31 | | reported for manual review |
+| `5.1.6` | Service account tokens only mounted where necessary | **decided** |
+| `5.2.2` | Admission of privileged containers | **decided** |
+| `5.2.3` | Containers sharing the host PID namespace | **decided** |
+| `5.2.4` | Containers sharing the host IPC namespace | **decided** |
+| `5.2.5` | Containers sharing the host network namespace | **decided** |
+| `5.2.6` | Containers with allowPrivilegeEscalation | **decided** |
+| the other 23 | | reported for manual review |
+
+¹ These two ask the cluster's own authorizer rather than reassembling its decision from roles and
+bindings — RBAC is additive across bindings, aggregated ClusterRoles resolve at runtime, and a
+webhook authorizer can grant what no Role mentions, so a reimplementation would disagree with the
+cluster in exactly the cases that matter. Draugr submits the same query kube-bench does
+(`can-i … --as=system:authenticated`) as a **SubjectAccessReview**.
+
+That creates nothing — the API server answers and discards it — but submitting one needs the
+`create` verb on `subjectaccessreviews`, which a deliberately read-only credential will not have.
+Being refused is expected rather than exceptional, so the check is left undecided and reported
+for manual review like any other this scanner cannot settle.
+
+**11 of 34 decided, which is what kube-bench automates too** — the difference is that these are
+answered in one pass of API calls rather than a subprocess per check and, for the pod-security
+ones, a `kubectl` call per pod.
 
 The catalogue is pinned to `cis-1.12`, deliberately: the section is renumbered between revisions,
 and silently tracking "the latest" would change what a rule id means underneath an exclusion
