@@ -7,6 +7,7 @@ package sarif
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -102,6 +103,53 @@ type Report struct {
 	// a reader — in a terminal, an editor, or a pull request — find out what "DS-0002" means.
 	// Not every scanner publishes it, so entries may be missing.
 	Rules map[string]Rule `json:"rules,omitempty"`
+	// Provenance is what the scanners said about the run itself, as opposed to what they found:
+	// which standard was applied, how much of it could be decided, what the scan was scoped to.
+	//
+	// A finding answers "what is wrong". Evidence also has to answer "what was measured, and
+	// against what" — and that was not recorded anywhere, so a compliance report could not say
+	// which benchmark produced it. One entry per tool run; see Provenance.
+	Provenance []Provenance `json:"provenance,omitempty"`
+}
+
+// Provenance is one scanner's account of a run it performed.
+//
+// A slice on Report rather than a map of fields, because a control can be served by more than
+// one scanner and each has its own answer — two scanners auditing a cluster apply two different
+// benchmarks. Flattening them into one map keeps whichever was written last, silently, which is
+// the failure this type exists to prevent.
+type Provenance struct {
+	// Tool is the scanner that produced this account.
+	Tool string `json:"tool"`
+	// Version is the scanner's version as the engine resolved it — the same value that goes into
+	// its cache key, so the evidence and the cache cannot disagree about what ran. Empty when the
+	// scanner does not report one.
+	Version string `json:"version,omitempty"`
+	// Fields are the scanner's own statements about the run, in the order it considers useful.
+	//
+	// Untyped, because the interesting ones are domain knowledge — "benchmark", "coverage",
+	// "scope" — and this package is the finding currency for every scanner Draugr will ever
+	// have. It should not learn what a CIS benchmark is to carry the fact that one was applied.
+	Fields []Field `json:"fields,omitempty"`
+}
+
+// Field is one statement in a Provenance entry.
+//
+// A slice of pairs rather than a map: rendering needs a stable order, and alphabetical is the
+// wrong one — it puts "coverage" before "benchmark". The scanner knows which matters most to a
+// reader, so it decides.
+type Field struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// Describe returns the fields as "key value" pairs, for a reporter with one line to spend.
+func (p Provenance) Describe() string {
+	parts := make([]string, 0, len(p.Fields))
+	for _, f := range p.Fields {
+		parts = append(parts, f.Key+" "+f.Value)
+	}
+	return strings.Join(parts, " · ")
 }
 
 // Rule is what a scanner says about one of its rules, beyond the bare id. Every field is
@@ -245,6 +293,7 @@ func Merge(reports ...Report) Report {
 		for id, rule := range rep.Rules {
 			out.addRule(id, rule)
 		}
+		out.addProvenance(rep.Provenance)
 		for _, res := range rep.Results {
 			if res.Tool == "" {
 				res.Tool = rep.Tool
@@ -258,4 +307,24 @@ func Merge(reports ...Report) Report {
 		}
 	}
 	return out
+}
+
+// addProvenance appends entries that are not already present.
+//
+// Appends rather than replaces, because two scanners serving one control each have their own
+// account and both belong in the evidence. Deduplicated so that merging a report with itself —
+// which aggregation does — does not double every entry.
+func (r *Report) addProvenance(entries []Provenance) {
+	for _, p := range entries {
+		if len(p.Fields) == 0 && p.Version == "" {
+			continue // nothing said
+		}
+		if slices.ContainsFunc(r.Provenance, func(existing Provenance) bool {
+			return existing.Tool == p.Tool && existing.Version == p.Version &&
+				slices.Equal(existing.Fields, p.Fields)
+		}) {
+			continue
+		}
+		r.Provenance = append(r.Provenance, p)
+	}
 }

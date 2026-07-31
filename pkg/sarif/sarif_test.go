@@ -670,3 +670,39 @@ func TestFromSARIFRewritesFieldDumpMessages(t *testing.T) {
 		t.Error("the rule description should still be carried")
 	}
 }
+
+// SARIF has a run-level property bag for exactly this, so the benchmark a report was measured
+// against travels to any consumer that reads SARIF — not only to Draugr's own reporters.
+func TestSARIFCarriesProvenance(t *testing.T) {
+	r := Report{Tool: "k8s-policies", Provenance: []Provenance{{
+		Tool: "k8s-policies", Version: "0.50.0",
+		Fields: []Field{{Key: "benchmark", Value: "cis-1.12"}},
+	}}}
+	b, err := r.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	run := doc["runs"].([]any)[0].(map[string]any)
+	props, ok := run["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("no run properties: %s", b)
+	}
+	t.Logf("run.properties = %v", props)
+	if props["draugr/provenance"] == nil {
+		t.Error("provenance missing from the property bag")
+	}
+}
+
+// Every scan that says nothing must not emit an empty bag.
+func TestSARIFOmitsEmptyProvenance(t *testing.T) {
+	b, _ := Report{Tool: "x"}.MarshalSARIF()
+	var doc map[string]any
+	_ = json.Unmarshal(b, &doc)
+	if _, has := doc["runs"].([]any)[0].(map[string]any)["properties"]; has {
+		t.Error("a run with nothing to say must not carry an empty property bag")
+	}
+}

@@ -30,6 +30,46 @@ type sarifRun struct {
 	// by the SARIF spec whenever relative URI references are used; it's what lets an editor's
 	// viewer resolve a finding onto a file in the open workspace instead of asking the reader.
 	OriginalURIBaseIDs map[string]sarifArtifact `json:"originalUriBaseIds,omitempty"`
+	// Properties carries what the scanners said about the run itself. SARIF defines a property
+	// bag on a run for exactly this, so the benchmark a report was measured against travels to
+	// any consumer that reads SARIF rather than only to Draugr's own reporters.
+	Properties *sarifRunProperties `json:"properties,omitempty"`
+}
+
+// sarifRunProperties is Draugr's run-level property bag.
+type sarifRunProperties struct {
+	Provenance []sarifProvenance `json:"draugr/provenance,omitempty"`
+}
+
+// sarifProvenance mirrors Provenance in the property bag. Written as an object per tool rather
+// than flattened, for the same reason the type is a slice: two scanners have two answers.
+type sarifProvenance struct {
+	Tool    string            `json:"tool"`
+	Version string            `json:"version,omitempty"`
+	Fields  map[string]string `json:"fields,omitempty"`
+}
+
+// runProperties renders provenance into the bag, or nil when there is nothing to say.
+//
+// The fields become an object here, unlike the ordered slice they are internally: JSON object
+// keys have no order a consumer can rely on, so pretending otherwise would be a promise the
+// format cannot keep. Order is a rendering concern, and this is not the rendering.
+func runProperties(entries []Provenance) *sarifRunProperties {
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]sarifProvenance, 0, len(entries))
+	for _, p := range entries {
+		sp := sarifProvenance{Tool: p.Tool, Version: p.Version}
+		if len(p.Fields) > 0 {
+			sp.Fields = make(map[string]string, len(p.Fields))
+			for _, f := range p.Fields {
+				sp.Fields[f.Key] = f.Value
+			}
+		}
+		out = append(out, sp)
+	}
+	return &sarifRunProperties{Provenance: out}
 }
 
 type sarifTool struct {
@@ -163,6 +203,7 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 // MarshalSARIFWith is MarshalSARIF with explicit options.
 func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 	run := sarifRun{Tool: sarifTool{Driver: sarifDriver{Name: driverName}}, Results: []sarifResult{}}
+	run.Properties = runProperties(r.Provenance)
 	// Track which scanner(s) produced each ruleId so the emitted rules[] can carry a
 	// "scanner:<name>" tag — the only place GitHub code scanning surfaces the underlying tool.
 	ruleScanners := map[string]map[string]bool{}
