@@ -174,9 +174,15 @@ func digestFromImageID(imageID string) string {
 
 // defaultClientset builds a Kubernetes client from the ambient kubeconfig (KUBECONFIG /
 // ~/.kube/config / in-cluster).
-func defaultClientset(_ plugin.SurveyScope) (kubernetes.Interface, error) {
+// defaultClientset builds a client for the scope's kubeconfig context, or the ambient one.
+//
+// The override is what makes `--context` mean something. Reading the flag and then connecting to
+// whatever the machine happens to have selected would survey one cluster while the operator
+// named another — and write a descriptor labelled with the name they gave.
+func defaultClientset(scope plugin.SurveyScope) (kubernetes.Interface, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, &clientcmd.ConfigOverrides{}).ClientConfig()
+	overrides := &clientcmd.ConfigOverrides{CurrentContext: scopeContext(scope)}
+	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
 	if err != nil {
 		return nil, err
 	}

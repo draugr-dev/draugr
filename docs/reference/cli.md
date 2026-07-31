@@ -268,9 +268,11 @@ belong to:
 | Command | Discovers | Options |
 |---|---|---|
 | `draugr survey k8s images` | unique container images running in a cluster, with their digests | `--namespace` |
+| `draugr survey k8s cluster` | the cluster itself, as an `infrastructure` component | `--namespace` |
 | `draugr survey github repos` | repositories in a GitHub organization | `--org` |
 
-Shared by all of them: `-o, --output` (default stdout), `--merge`, `--name`, `--version`.
+Shared by all of them: `-o, --output` (default stdout), `--merge`, `--name`, `--version`. The
+`k8s` group also takes `--context`, which selects the cluster for both of its surveyors.
 
 Auth: the GitHub surveyor uses `GITHUB_TOKEN` (or a token in scope config); the Kubernetes
 surveyors use your ambient kubeconfig (`KUBECONFIG` / `~/.kube/config` / in-cluster).

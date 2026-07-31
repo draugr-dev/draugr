@@ -219,3 +219,98 @@ func TestSurveyGitHubReposRequiresAnOrg(t *testing.T) {
 		t.Errorf("want an error naming --org, got: %v", err)
 	}
 }
+
+// --context says which cluster, so it belongs to the group rather than to one surveyor:
+// otherwise surveying one cluster two ways means setting it twice, and getting it wrong once
+// means two components describing different clusters under one name.
+func TestSurveyK8sGroupSharesTheContextFlag(t *testing.T) {
+	t.Parallel()
+
+	var k8s *cobra.Command
+	for _, c := range newSurveyCommand().Commands() {
+		if c.Name() == "k8s" {
+			k8s = c
+		}
+	}
+	if k8s == nil {
+		t.Fatal("expected a k8s group")
+	}
+	if k8s.PersistentFlags().Lookup("context") == nil {
+		t.Error("--context should be shared by every k8s surveyor")
+	}
+
+	subs := map[string]*cobra.Command{}
+	for _, c := range k8s.Commands() {
+		subs[c.Name()] = c
+	}
+	for _, want := range []string{"images", "cluster"} {
+		sub, ok := subs[want]
+		if !ok {
+			t.Errorf("expected `k8s %s`", want)
+			continue
+		}
+		if sub.InheritedFlags().Lookup("context") == nil {
+			t.Errorf("`k8s %s` should inherit --context", want)
+		}
+		// Both take --namespace, but they mean different things: for images it narrows what is
+		// listed, for cluster it declares what the component owns.
+		if sub.Flags().Lookup("namespace") == nil {
+			t.Errorf("`k8s %s` should take --namespace", want)
+		}
+	}
+}
+
+// The surveyor a subcommand runs is the one its name promises — the whole point of splitting
+// k8s-cluster out of k8s-images.
+func TestSurveyK8sClusterRunsTheClusterSurveyor(t *testing.T) {
+	t.Parallel()
+
+	reg := surveyor.NewRegistry()
+	var got []surveyor.Request
+	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
+		Name:           "prod",
+		Infrastructure: []saga.Infrastructure{{Kind: "kubernetes", Ref: "prod"}},
+	}})
+
+	var buf bytes.Buffer
+	got = []surveyor.Request{{Surveyor: "k8s-cluster", Scope: plugin.SurveyScope{Ref: "team-a"}}}
+	if err := runSurvey(context.Background(), surveyOptions{version: "1.0"}, got, reg, &buf); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "infrastructure") || !strings.Contains(out, "kubernetes") {
+		t.Errorf("expected an infrastructure component:\n%s", out)
+	}
+	if strings.Contains(out, "images:") {
+		t.Error("the cluster surveyor must not emit images — that is the other surveyor's job")
+	}
+}
+
+// A surveyor that cannot reach its source must fail, not write an empty descriptor. An empty
+// Saga is the worst outcome: it looks like a successful survey of an application with nothing
+// in it, and the next scan passes for the same reason.
+func TestSurveyFailsWhenTheSourceIsUnreachable(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"k8s images", []string{"k8s", "images"}},
+		{"k8s cluster", []string{"k8s", "cluster"}},
+		{"k8s cluster scoped", []string{"k8s", "cluster", "--namespace", "team-a", "--context", "nope"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// A kubeconfig that does not exist, so the outcome does not depend on whatever
+			// cluster the machine running the tests happens to be pointed at.
+			t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "absent.yaml"))
+
+			cmd := newSurveyCommand()
+			var out bytes.Buffer
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			cmd.SetArgs(tc.args)
+			if err := cmd.Execute(); err == nil {
+				t.Fatalf("want an error rather than an empty Saga; wrote %q", out.String())
+			}
+		})
+	}
+}
