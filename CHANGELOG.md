@@ -10,6 +10,18 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Documentation that the last few releases had quietly falsified.** The glossary still said
+  Draugr could not run the benchmark inside a cluster, which stopped being true in 0.46.0; the
+  README described the `infrastructure` control as kube-bench and discovery as images-and-repos
+  only. Same-PR doc discipline keeps the pages next to a change correct — it does not catch a
+  page elsewhere the change made wrong.
+
+  A test now holds the integrations catalog to the registry on the claim most likely to rot:
+  which scanner a control runs **by default**. That one is written once in a table nobody
+  revisits and read by everyone deciding what a scan does.
+
 ### Added
 
 - **`draugr survey` now enables the controls the discovered surface can be checked with**, so a

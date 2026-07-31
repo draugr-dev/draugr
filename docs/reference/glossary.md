@@ -152,13 +152,20 @@ Unlike the other controls this one assesses a *platform* rather than an artifact
 its findings are located at a cluster rather than a file, and why a cluster can sensibly be a
 component with no code of its own.
 
-In Draugr: the **`infrastructure`** control via
-[kube-bench](https://github.com/aquasecurity/kube-bench). (Implemented today.) It runs the
+In Draugr: the **`infrastructure`** control. (Implemented today.) By default it reads the
 benchmark's **policies** section — RBAC, service accounts, Pod Security Standards, network
-policies, secrets usage — which is what a scan can assess through the Kubernetes API from
-outside the cluster. The sections covering node and control-plane configuration are read from a
-node's own filesystem, so they need kube-bench running inside the cluster; that is not something
-Draugr does.
+policies, secrets usage — straight from the Kubernetes API, which needs no tool installed and
+takes seconds on a large cluster.
+
+That section is the benchmark's *advisory* one: CIS marks every check in it manual, so a clean
+result there is a list of things to review rather than a measured pass. The **scored** checks
+cover how the nodes and control plane were installed, are read from a node's own filesystem, and
+need kube-bench running inside the cluster — which
+[`kubeBenchJob`](catalog.md) does, as a short-lived privileged Job that runs only once its
+effects are accepted in the descriptor.
+
+A component can also declare the **namespaces** it owns, so a team on a shared cluster is
+assessed on its own workloads rather than everybody's.
 
 ---
 
