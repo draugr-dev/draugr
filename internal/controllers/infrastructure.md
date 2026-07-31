@@ -59,7 +59,13 @@ and only one half is reachable the way Draugr runs:
 |---|---|---|
 | unset | [`kube-bench`](../scanners/kube-bench.md) | execs kube-bench, which shells out to `kubectl` per check |
 | `api` | [`k8s-policies`](../scanners/k8s-policies.md) | reads the same section through the Kubernetes API — no `kubectl`, seconds rather than minutes, partial coverage stated in the report |
-| `job` | [`kube-bench-job`](../scanners/kube-bench-job.md) | the whole benchmark, from inside the cluster |
+| `job` | [`kube-bench-job`](../scanners/kube-bench-job.md) **+** [`k8s-policies`](../scanners/k8s-policies.md) | the whole benchmark: the node sections from inside the cluster, section 5 through the API |
+
+`job` plans two scans because the benchmark splits in two and neither half is optional. The Job
+covers what can only be read from a node's own filesystem; it does not run `policies`, and
+running it there would shell out to `kubectl` once per pod inside a Job that has a timeout. The
+native reader covers that section alongside it, creating nothing and taking about a second on a
+cluster of eighty namespaces.
 
 By default this control runs section 5: **35 of the 130 checks in `cis-1.9`**, read-only, from
 wherever Draugr runs. They are the checks that describe how the cluster is configured for the workloads on
