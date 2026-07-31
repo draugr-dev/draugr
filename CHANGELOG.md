@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.47.0] - 2026-07-30
+
 ### Changed
 
 - **The `infrastructure` control selects scanners the way every other control does**, with a
@@ -1317,7 +1321,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.46.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.47.0...HEAD
+[0.47.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.47.0
 [0.46.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.2
 [0.46.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.1
 [0.46.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.0
