@@ -70,7 +70,7 @@ func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.Sca
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{
 				Scanner: sel.Name,
-				Target:  plugin.InfraTarget{Platform: kubernetesPlatform, Ref: infra.Ref},
+				Target:  plugin.InfraTarget{Platform: kubernetesPlatform, Ref: infra.Ref, Namespaces: infra.Namespaces},
 				Config:  withShared(shared, sel.Config),
 			})
 		}

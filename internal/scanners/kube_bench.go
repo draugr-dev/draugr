@@ -56,8 +56,12 @@ func (s kubeBenchScanner) Info() plugin.ScannerInfo { return s.info }
 
 // Scan audits the cluster the target names and converts kube-bench's JSON to SARIF.
 func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
-	if _, ok := target.(plugin.InfraTarget); !ok {
+	infra, ok := target.(plugin.InfraTarget)
+	if !ok {
 		return sarif.Report{}, fmt.Errorf("kube-bench: unsupported target %T (want infrastructure)", target)
+	}
+	if err := refuseNamespaceScope(kubeBenchScannerName, infra.Namespaces); err != nil {
+		return sarif.Report{}, err
 	}
 	// Resolve the cluster before anything talks to it. A context that does not exist is a typo
 	// or a missing kubeconfig entry, and saying so beats the version lookup failing first and
@@ -596,4 +600,26 @@ func kubeBenchLevel(status string, scored bool) (sarif.Level, bool) {
 	default: // PASS, INFO
 		return "", false
 	}
+}
+
+// refuseNamespaceScope stops a scanner that cannot honour a declared namespace scope.
+//
+// kube-bench's checks are shell pipelines with the scope written into them — `kubectl get pods
+// --all-namespaces`, and no flag to change it. So a component that declares `namespaces:` and is
+// audited by kube-bench gets the whole cluster, reported against a component that claims to own
+// three of its eighty namespaces.
+//
+// That is the worst available outcome: not a missing feature but a wrong one, where the report
+// looks scoped, the rule ids look scoped, and the findings are somebody else's. Refusing is the
+// only honest answer, and the error names the scanner that can do it.
+func refuseNamespaceScope(scanner string, namespaces []string) error {
+	if len(namespaces) == 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"%s cannot audit a namespace scope: its checks query every namespace and offer no way to "+
+			"narrow that, so it would report the whole cluster against a component that declared "+
+			"%d namespace(s). Use the k8sPolicies scanner, which is the default and reads the "+
+			"Kubernetes API directly, or remove `namespaces` from the component's infrastructure entry",
+		scanner, len(namespaces))
 }

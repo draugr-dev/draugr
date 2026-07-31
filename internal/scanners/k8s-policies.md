@@ -111,6 +111,43 @@ benchmark revision is discovered**, rather than some later scan quietly covering
 Nothing here writes a check for us. It makes shipping an out-of-date catalogue impossible to do
 without noticing, which is the part that can be automated.
 
+## Scoping to the namespaces you own
+
+On a shared cluster the cluster is not the unit anyone owns:
+
+```yaml
+infrastructure:
+  - kind: kubernetes
+    ref: prod-cluster
+    namespaces: [team-a, team-a-jobs]
+```
+
+Most of what this section examines is namespace-scoped — default service accounts, token
+mounting, and all five pod-security checks. A team owning three namespaces of eighty otherwise
+receives seventy-seven namespaces' worth of findings it cannot act on, and a number that will
+never reach zero is a number people stop reading. It also fixes what the component's `exposure`
+and `criticality` mean, which otherwise assert a risk classification over everybody else's
+workloads.
+
+**Scoping changes what is read, not what is kept.** Namespaced resources are listed per namespace
+rather than cluster-wide and filtered afterwards — the distinction matters, because a credential
+scoped to a few namespaces cannot perform the cluster-wide list at all, so filtering after the
+fact would work only for people who did not need the feature.
+
+Cluster-scoped checks still run and are still reported: a namespace owner is affected by a
+cluster-admin binding even though they cannot remove it. Where the credential cannot read those
+objects, those checks fall back to manual review rather than failing the run — a scoped audit is
+usually run by a scoped credential, and the namespaced half is still worth having.
+
+The scope is part of the finding's location (`kubernetes/prod-cluster[team-a,team-a-jobs]`) and
+part of the cache key. The same rule id against the same cluster means something different
+depending on how much of it was examined.
+
+**Only this scanner can honour a scope.** kube-bench writes `--all-namespaces` into its own
+checks with no flag to change it, and the in-cluster Job reads a node filesystem that has no
+namespace at all. Both **refuse** a scoped component rather than quietly auditing everything and
+reporting it under a component that asked for three namespaces.
+
 ## Interpreting a finding
 
 Rule ids are `cis/<check number>` — the same ids [`kube-bench`](kube-bench.md) emits, so an
