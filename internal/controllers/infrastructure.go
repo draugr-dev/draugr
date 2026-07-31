@@ -61,30 +61,42 @@ func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.Sca
 		if !strings.EqualFold(infra.Kind, kubernetesPlatform) {
 			continue
 		}
-		jobs = append(jobs, plugin.ScanJob{
-			Scanner: scannerFor(cfg),
-			Target:  plugin.InfraTarget{Platform: kubernetesPlatform, Ref: infra.Ref},
-			Config:  cfg,
-		})
+		for _, scanner := range scannersFor(cfg) {
+			jobs = append(jobs, plugin.ScanJob{
+				Scanner: scanner,
+				Target:  plugin.InfraTarget{Platform: kubernetesPlatform, Ref: infra.Ref},
+				Config:  cfg,
+			})
+		}
 	}
 	return jobs, nil
 }
 
-// scannerFor picks how the benchmark runs.
+// scannersFor picks how the benchmark runs.
 //
-// Two scanners rather than one with a flag, because the difference is not an implementation
-// detail: the default reads the cluster through its API and creates nothing, while the in-cluster
-// run schedules a privileged Job on a node. Effects are declared per scanner, so separating them
-// is what lets the read-only path run unguarded while the other one has to be accepted first.
-func scannerFor(cfg plugin.Config) string {
+// Separate scanners rather than one with a flag, because the difference is not an implementation
+// detail: reading the cluster through its API creates nothing, while the in-cluster run schedules
+// a privileged Job on a node. Effects are declared per scanner, so separating them is what lets
+// the read-only paths run unguarded while the other one has to be accepted first.
+//
+// `job` plans two, because the benchmark splits in two and neither half is optional. The Job
+// covers the sections that read a node's own filesystem and cannot be answered any other way;
+// it does not run `policies`, and running it there would shell out to kubectl once per pod
+// inside a Job that has a timeout. So the native reader covers that section alongside it —
+// which creates nothing, needs no privilege beyond read, and takes about a second on a cluster
+// of eighty namespaces.
+//
+// Asking for the benchmark and receiving half of it, with a pass on the half that ran, is the
+// same silence this control exists to refuse.
+func scannersFor(cfg plugin.Config) []string {
 	mode, _ := cfg[modeKey].(string)
 	switch strings.ToLower(strings.TrimSpace(mode)) {
 	case modeJob:
-		return kubeBenchJobScanner
+		return []string{kubeBenchJobScanner, k8sPoliciesScanner}
 	case modeAPI:
-		return k8sPoliciesScanner
+		return []string{k8sPoliciesScanner}
 	default:
-		return kubeBenchScanner
+		return []string{kubeBenchScanner}
 	}
 }
 

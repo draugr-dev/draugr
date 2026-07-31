@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -139,32 +140,61 @@ func TestInfrastructureAggregateEmpty(t *testing.T) {
 // mode picks the scanner, and the three differ in what they are allowed to do: the default and
 // the native reader only read, while the Job schedules a privileged pod. Effects are declared per
 // scanner, so choosing the wrong one here silently changes what a scan is permitted to do.
-func TestScannerForMode(t *testing.T) {
+func TestScannersForMode(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
 		name string
 		cfg  plugin.Config
-		want string
+		want []string
 	}{
-		{"unset defaults to read-only kube-bench", nil, "kube-bench"},
-		{"empty config", plugin.Config{}, "kube-bench"},
-		{"job", plugin.Config{"mode": "job"}, "kube-bench-job"},
-		{"api", plugin.Config{"mode": "api"}, "k8s-policies"},
+		{"unset defaults to read-only kube-bench", nil, []string{"kube-bench"}},
+		{"empty config", plugin.Config{}, []string{"kube-bench"}},
+		{"api", plugin.Config{"mode": "api"}, []string{"k8s-policies"}},
+
+		// The Job covers sections 1-4 and does not run policies. Planning it alone left the
+		// whole of section 5 unexamined while the control still reported a pass.
+		{"job covers both halves", plugin.Config{"mode": "job"}, []string{"kube-bench-job", "k8s-policies"}},
 
 		// Operators type what they type; the mode is a word, not a token.
-		{"case and padding", plugin.Config{"mode": "  JOB "}, "kube-bench-job"},
+		{"case and padding", plugin.Config{"mode": "  JOB "}, []string{"kube-bench-job", "k8s-policies"}},
 
 		// An unrecognized mode must not silently select something. Falling back to the
 		// read-only default is the safe direction: it cannot create anything.
-		{"unknown", plugin.Config{"mode": "sidecar"}, "kube-bench"},
-		{"wrong type", plugin.Config{"mode": 42}, "kube-bench"},
+		{"unknown", plugin.Config{"mode": "sidecar"}, []string{"kube-bench"}},
+		{"wrong type", plugin.Config{"mode": 42}, []string{"kube-bench"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := scannerFor(tc.cfg); got != tc.want {
-				t.Errorf("scannerFor(%v) = %q, want %q", tc.cfg, got, tc.want)
+			got := scannersFor(tc.cfg)
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("scannersFor(%v) = %v, want %v", tc.cfg, got, tc.want)
 			}
 		})
+	}
+}
+
+// The whole benchmark for one cluster means two scan jobs against the same target, and both must
+// reach the planner — a scanner dropped here is a section nobody notices is missing.
+func TestPlanCoversBothHalvesInJobMode(t *testing.T) {
+	t.Parallel()
+
+	comp := k8sComponent(saga.ControllerSettings{"mode": "job"})
+	jobs, err := Infrastructure{}.Plan(saga.Model{}, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two clusters on the component, two scanners each.
+	if len(jobs) != 4 {
+		t.Fatalf("got %d jobs, want 4 (2 clusters x 2 scanners)", len(jobs))
+	}
+	byScanner := map[string]int{}
+	for _, j := range jobs {
+		byScanner[j.Scanner]++
+	}
+	for _, want := range []string{"kube-bench-job", "k8s-policies"} {
+		if byScanner[want] != 2 {
+			t.Errorf("scanner %q planned %d times, want 2", want, byScanner[want])
+		}
 	}
 }

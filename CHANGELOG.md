@@ -10,6 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`mode: job` now covers the whole benchmark.** It ran the node and control-plane sections and
+  silently omitted section 5 — RBAC, service accounts, Pod Security Standards, network policies —
+  because a component plans one scanner and the Job does not request that section. The control
+  reported a pass on the half it ran.
+
+  It now plans the native reader alongside the Job, so one descriptor gets the complete
+  benchmark. Nothing extra is created: that scanner only reads, and finishes in about a second on
+  a cluster of eighty namespaces.
+
 ### Added
 
 - **`mode: api` reads the CIS policies section through the Kubernetes API**, instead of running
