@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.47.1] - 2026-07-30
+
 ### Fixed
 
 - **AKS clusters are now audited against the AKS benchmark.** GKE and EKS put their distribution
@@ -1336,7 +1340,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.47.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.47.1...HEAD
+[0.47.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.47.1
 [0.47.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.47.0
 [0.46.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.2
 [0.46.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.1
