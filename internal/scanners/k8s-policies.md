@@ -64,8 +64,25 @@ answer and changes nothing else.
 
 The catalogue is pinned to `cis-1.12`, deliberately: the section is renumbered between revisions,
 and silently tracking "the latest" would change what a rule id means underneath an exclusion
-someone wrote against it. `TestCISCatalogueMatchesKubeBench` diffs the catalogue against
-kube-bench's own config in the integration suite, so a revision cannot pass unnoticed.
+someone wrote against it.
+
+### The catalogue cannot quietly go out of date
+
+A hand-maintained list of a benchmark someone else revises drifts, and drifts silently in both
+directions. A check added upstream and missing here is never reported at all, so a scan covers
+less than the benchmark and says nothing about it. A check retired upstream but left here is
+reported forever, sending a reader after a requirement that no longer exists.
+
+`TestCISCatalogueMatchesKubeBench` diffs the catalogue against kube-bench's own definitions and
+fails on either, naming the check. It runs in the integration suite, which fetches those
+definitions at a pinned commit — the tag is verified against it, because a benchmark that changed
+under a stable tag is precisely what the check exists to notice.
+
+The pin is kept in step with the image the in-cluster Job runs, so **bumping kube-bench is when a
+benchmark revision is discovered**, rather than some later scan quietly covering the wrong thing.
+
+Nothing here writes a check for us. It makes shipping an out-of-date catalogue impossible to do
+without noticing, which is the part that can be automated.
 
 ## Interpreting a finding
 
