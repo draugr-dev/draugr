@@ -115,7 +115,7 @@ func TestCISCatalogueMatchesKubeBench(t *testing.T) {
 func decidedCheckCount(t *testing.T) int {
 	t.Helper()
 	// evaluatePolicies against an empty cluster still reports which checks it implements.
-	decided, err := evaluatePolicies(t.Context(), fake.NewSimpleClientset())
+	decided, err := evaluatePolicies(t.Context(), fake.NewSimpleClientset(), nil)
 	if err != nil {
 		t.Fatalf("evaluate: %v", err)
 	}

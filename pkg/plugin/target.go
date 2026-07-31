@@ -1,6 +1,9 @@
 package plugin
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // TargetKind identifies the sort of surface a scanner acts on.
 type TargetKind string
@@ -90,10 +93,25 @@ func (t HostTarget) Identity() string { return t.URL }
 type InfraTarget struct {
 	Platform string
 	Ref      string
+	// Namespaces narrows the audit to part of the cluster. Empty means all of it.
+	Namespaces []string
 }
 
 // Kind returns TargetInfra.
 func (InfraTarget) Kind() TargetKind { return TargetInfra }
 
 // Identity returns the platform and ref, e.g. "kubernetes/prod".
-func (t InfraTarget) Identity() string { return t.Platform + "/" + t.Ref }
+// Identity names what was assessed, and therefore what a cached result may be reused for.
+//
+// The namespaces belong in it: two components auditing the same cluster with different scopes
+// are asking different questions, and a cache keyed on the cluster alone would answer the second
+// with the first one's findings.
+func (t InfraTarget) Identity() string {
+	id := t.Platform + "/" + t.Ref
+	if len(t.Namespaces) == 0 {
+		return id
+	}
+	ns := slices.Clone(t.Namespaces)
+	slices.Sort(ns)
+	return id + "[" + strings.Join(ns, ",") + "]"
+}

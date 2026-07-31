@@ -10,7 +10,34 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **A component can declare the namespaces it owns**, so a shared cluster stops reporting
+  everybody's findings to everybody:
+
+  ```yaml
+  infrastructure:
+    - kind: kubernetes
+      ref: prod-cluster
+      namespaces: [team-a, team-a-jobs]
+  ```
+
+  Most CIS policy checks are namespace-scoped, so a team owning three namespaces of eighty was
+  receiving seventy-seven namespaces' worth of findings it could not act on. It also fixes what
+  the component's `exposure` and `criticality` mean, which otherwise asserted a risk
+  classification over everybody else's workloads.
+
+  Scoping changes what is **read**, not what is kept: namespaced resources are listed per
+  namespace, so a credential with access to only those namespaces can run the scan. Cluster-wide
+  checks still run and are still reported — you are affected by a cluster-admin binding you
+  cannot remove — and fall back to manual review where that credential cannot read them.
+
+  The scope appears in the finding's location and in the cache key, because the same check
+  against the same cluster means something different depending on how much of it was examined.
+
+  Only the `k8sPolicies` scanner can honour a scope. `kubeBench` writes `--all-namespaces` into
+  its own checks, and the in-cluster Job reads a node filesystem that has no namespace, so both
+  **refuse** a scoped component rather than auditing everything and reporting it as if scoped.
 
 ## [0.48.0] - 2026-07-31
 

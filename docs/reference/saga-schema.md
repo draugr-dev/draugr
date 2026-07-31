@@ -506,6 +506,7 @@ components:
     infrastructure:
       - kind: kubernetes                        # e.g. kubernetes
         ref: prod-cluster
+        namespaces: [team-a, team-a-jobs]       # optional — the namespaces this component owns
     controllers:              # optional per-component overrides (same shape as config.controllers)
       images:
         enabled: true

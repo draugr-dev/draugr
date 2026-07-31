@@ -107,6 +107,14 @@ const (
 
 // Scan creates the Job, waits for it, collects its output, and removes it.
 func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+	if infra, ok := target.(plugin.InfraTarget); ok {
+		// The Job reads a node's filesystem, which has no namespace. Honouring a scope is not
+		// merely unimplemented here — it is meaningless, and silently ignoring it would report
+		// node-wide findings against a component that asked for three namespaces.
+		if err := refuseNamespaceScope(kubeBenchJobScannerName, infra.Namespaces); err != nil {
+			return sarif.Report{}, err
+		}
+	}
 	if _, ok := target.(plugin.InfraTarget); !ok {
 		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want infrastructure)",
 			kubeBenchJobScannerName, target)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -71,11 +72,12 @@ func (s k8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target, cfg 
 		return sarif.Report{}, fmt.Errorf("%s: %w", k8sPoliciesScannerName, err)
 	}
 
-	decided, err := evaluatePolicies(ctx, client)
+	infra, _ := target.(plugin.InfraTarget)
+	decided, err := evaluatePolicies(ctx, client, infra.Namespaces)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", k8sPoliciesScannerName, err)
 	}
-	return policiesReport(decided, clusterLabel(kubeCtx)), nil
+	return policiesReport(decided, clusterScopeLabel(kubeCtx, infra.Namespaces)), nil
 }
 
 // policyVerdict is the outcome of a check this scanner implements.
@@ -90,40 +92,58 @@ type policyVerdict struct {
 //
 // One List per resource kind, reused across checks. kube-bench re-queries per check and, for the
 // pod-security ones, per pod; the cost of that is the whole reason this exists.
-func evaluatePolicies(ctx context.Context, client kubernetes.Interface) (map[string]policyVerdict, error) {
+func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespaces []string) (map[string]policyVerdict, error) {
 	out := map[string]policyVerdict{}
+	scoped := len(namespaces) > 0
 
+	// Cluster-scoped reads. When the audit is scoped, the credential running it may be scoped
+	// too — a team with read on its own namespaces and nothing else is the normal case, and the
+	// one this feature exists for. So being refused here leaves the check undecided rather than
+	// failing the run: the namespaced checks are still worth having, and a check reported for
+	// manual review is an honest answer where an aborted scan is none.
+	//
+	// Unscoped, the same refusal is a real failure. Nothing was asked to be narrowed, so a
+	// cluster-wide audit that cannot read cluster-wide objects has not audited the cluster.
 	crbs, err := client.RbacV1().ClusterRoleBindings().List(ctx, metav1.ListOptions{})
-	if err != nil {
+	switch {
+	case err == nil:
+		out["5.1.1"] = checkClusterAdminBindings(crbs.Items)
+	case !scoped:
 		return nil, fmt.Errorf("list clusterrolebindings: %w", err)
 	}
-	out["5.1.1"] = checkClusterAdminBindings(crbs.Items)
 
-	roles, err := client.RbacV1().Roles(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	clusterRoles, err := client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
+	if err != nil && !scoped {
+		return nil, fmt.Errorf("list clusterroles: %w", err)
+	}
+
+	roles, err := listNamespaced(namespaces, func(ns string) (*rbacv1.RoleList, error) {
+		return client.RbacV1().Roles(ns).List(ctx, metav1.ListOptions{})
+	}, func(l *rbacv1.RoleList) []rbacv1.Role { return l.Items })
 	if err != nil {
 		return nil, fmt.Errorf("list roles: %w", err)
 	}
-	clusterRoles, err := client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("list clusterroles: %w", err)
-	}
-	out["5.1.3"] = checkWildcardRules(roles.Items, clusterRoles.Items)
+	out["5.1.3"] = checkWildcardRules(roles, clusterRoles.Items)
 
-	accounts, err := client.CoreV1().ServiceAccounts(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	accounts, err := listNamespaced(namespaces, func(ns string) (*corev1.ServiceAccountList, error) {
+		return client.CoreV1().ServiceAccounts(ns).List(ctx, metav1.ListOptions{})
+	}, func(l *corev1.ServiceAccountList) []corev1.ServiceAccount { return l.Items })
 	if err != nil {
 		return nil, fmt.Errorf("list serviceaccounts: %w", err)
 	}
-	out["5.1.5"] = checkDefaultServiceAccounts(accounts.Items)
+	out["5.1.5"] = checkDefaultServiceAccounts(accounts)
 
-	pods, err := client.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	pods, err := listNamespaced(namespaces, func(ns string) (*corev1.PodList, error) {
+		return client.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
+	}, func(l *corev1.PodList) []corev1.Pod { return l.Items })
 	if err != nil {
 		return nil, fmt.Errorf("list pods: %w", err)
 	}
-	maps.Copy(out, evaluatePodSecurity(pods.Items, accounts.Items))
+	maps.Copy(out, evaluatePodSecurity(pods, accounts))
 
 	// Last, and never fatal: these ask the authorizer, which a read-only credential may not be
 	// allowed to do. Whatever it cannot answer stays undecided and is reported for review.
-	maps.Copy(out, evaluateBroadAccess(ctx, client))
+	maps.Copy(out, evaluateBroadAccess(ctx, client, namespaces))
 
 	return out, nil
 }
@@ -376,7 +396,7 @@ func verdictFrom(offenders []string, doing string) policyVerdict {
 // is then left undecided and reported for manual review, which is the same answer a reader gets
 // for every check this scanner cannot settle. Failing the scan over a permission it was never
 // promised would turn a partial answer into no answer.
-func evaluateBroadAccess(ctx context.Context, client kubernetes.Interface) map[string]policyVerdict {
+func evaluateBroadAccess(ctx context.Context, client kubernetes.Interface, namespaces []string) map[string]policyVerdict {
 	out := map[string]policyVerdict{}
 
 	type query struct {
@@ -392,7 +412,10 @@ func evaluateBroadAccess(ctx context.Context, client kubernetes.Interface) map[s
 		var allowed []string
 		undecided := false
 		for _, verb := range q.verbs {
-			ok, err := allowedForAllAuthenticated(ctx, client, verb, q.resource)
+			// Scoped, the question becomes "can everyone do this *here*", which is the one a
+			// namespace owner can act on — and the only one they are likely to be permitted to
+			// ask. Unscoped it stays cluster-wide, as before.
+			ok, err := allowedForAllAuthenticated(ctx, client, verb, q.resource, namespaces)
 			if err != nil {
 				undecided = true
 				break
@@ -416,19 +439,77 @@ func evaluateBroadAccess(ctx context.Context, client kubernetes.Interface) map[s
 
 // allowedForAllAuthenticated asks whether the system:authenticated group holds a permission
 // across all namespaces.
-func allowedForAllAuthenticated(ctx context.Context, client kubernetes.Interface, verb, resource string) (bool, error) {
-	review := &authzv1.SubjectAccessReview{
-		Spec: authzv1.SubjectAccessReviewSpec{
-			Groups: []string{"system:authenticated"},
-			ResourceAttributes: &authzv1.ResourceAttributes{
-				Verb:     verb,
-				Resource: resource,
+func allowedForAllAuthenticated(ctx context.Context, client kubernetes.Interface, verb, resource string, namespaces []string) (bool, error) {
+	// Unscoped means every namespace, which an empty Namespace already expresses.
+	scopes := namespaces
+	if len(scopes) == 0 {
+		scopes = []string{""}
+	}
+	for _, ns := range scopes {
+		review := &authzv1.SubjectAccessReview{
+			Spec: authzv1.SubjectAccessReviewSpec{
+				Groups: []string{"system:authenticated"},
+				ResourceAttributes: &authzv1.ResourceAttributes{
+					Verb:      verb,
+					Resource:  resource,
+					Namespace: ns,
+				},
 			},
-		},
+		}
+		result, err := client.AuthorizationV1().SubjectAccessReviews().Create(ctx, review, metav1.CreateOptions{})
+		if err != nil {
+			return false, err
+		}
+		// Allowed anywhere in scope is a finding: the check asks whether the permission is held
+		// too widely, and one namespace where it is holds the answer.
+		if result.Status.Allowed {
+			return true, nil
+		}
 	}
-	result, err := client.AuthorizationV1().SubjectAccessReviews().Create(ctx, review, metav1.CreateOptions{})
-	if err != nil {
-		return false, err
+	return false, nil
+}
+
+// listNamespaced lists a namespaced resource across the audit's scope.
+//
+// An empty scope means the whole cluster, which is one call against all namespaces. A scope
+// means one call per namespace rather than a cluster-wide list filtered afterwards — the
+// difference matters, because a credential scoped to a few namespaces cannot perform the
+// cluster-wide list at all. Filtering after the fact would work only for people who did not need
+// the feature.
+func listNamespaced[L any, T any](
+	namespaces []string,
+	list func(ns string) (L, error),
+	items func(L) []T,
+) ([]T, error) {
+	if len(namespaces) == 0 {
+		l, err := list(metav1.NamespaceAll)
+		if err != nil {
+			return nil, err
+		}
+		return items(l), nil
 	}
-	return result.Status.Allowed, nil
+	var out []T
+	for _, ns := range namespaces {
+		l, err := list(ns)
+		if err != nil {
+			return nil, fmt.Errorf("namespace %q: %w", ns, err)
+		}
+		out = append(out, items(l)...)
+	}
+	return out, nil
+}
+
+// clusterScopeLabel names what was assessed, scope included.
+//
+// A finding located at the cluster when only part of it was examined overstates the evidence:
+// the same rule id against `kubernetes/prod` means something different depending on whether
+// seventy-seven other namespaces were looked at.
+func clusterScopeLabel(kubeCtx string, namespaces []string) string {
+	label := clusterLabel(kubeCtx)
+	if len(namespaces) == 0 {
+		return label
+	}
+	ns := slices.Clone(namespaces)
+	slices.Sort(ns)
+	return label + "[" + strings.Join(ns, ",") + "]"
 }

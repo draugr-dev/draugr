@@ -523,6 +523,15 @@
         "ref": {
           "type": "string",
           "description": "Identifier, e.g. a cluster name."
+        },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the k8sPolicies scanner can honour a scope; the others refuse rather than silently report the whole cluster."
         }
       }
     },

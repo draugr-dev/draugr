@@ -329,6 +329,18 @@ type Host struct {
 type Infrastructure struct {
 	Kind string `yaml:"kind"`
 	Ref  string `yaml:"ref,omitempty"`
+	// Namespaces narrows the audit to the namespaces this component owns. Empty means the whole
+	// cluster.
+	//
+	// On a shared cluster the cluster is not the unit anyone owns. Most of what the benchmark's
+	// policies section examines is namespace-scoped, so a team owning three namespaces of eighty
+	// otherwise receives seventy-seven namespaces' worth of findings it cannot act on — and a
+	// number that will never reach zero is a number people stop reading.
+	//
+	// It also fixes what the component's risk classification means. `exposure` and `criticality`
+	// describe a component, so declaring them against a whole shared cluster asserts them on
+	// everybody else's workloads too.
+	Namespaces []string `yaml:"namespaces,omitempty"`
 }
 
 // MetaSource points at a Saga fragment kept close to a component's source.

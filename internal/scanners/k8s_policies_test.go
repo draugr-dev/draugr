@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -178,7 +179,7 @@ func TestK8sPoliciesReportsEveryCheck(t *testing.T) {
 
 	// Derived, not hardcoded: the count moves every time a check becomes decidable, and a test
 	// that had to be edited alongside would be edited to match rather than to check.
-	decided, err := evaluatePolicies(context.Background(), client)
+	decided, err := evaluatePolicies(context.Background(), client, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +312,7 @@ func TestCISCatalogueIsWellFormed(t *testing.T) {
 func TestEveryDecidedCheckIsInTheCatalogue(t *testing.T) {
 	t.Parallel()
 
-	decided, err := evaluatePolicies(context.Background(), fake.NewSimpleClientset())
+	decided, err := evaluatePolicies(context.Background(), fake.NewSimpleClientset(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +456,7 @@ func TestBroadAccessUndecidedWhenTheAuthorizerRefuses(t *testing.T) {
 		return true, nil, errors.New("subjectaccessreviews.authorization.k8s.io is forbidden")
 	})
 
-	got := evaluateBroadAccess(context.Background(), client)
+	got := evaluateBroadAccess(context.Background(), client, nil)
 	for _, id := range []string{"5.1.2", "5.1.4"} {
 		if _, decided := got[id]; decided {
 			t.Errorf("%s should be left undecided when the authorizer cannot be asked", id)
@@ -474,7 +475,7 @@ func TestBroadAccessReportsWhatEveryoneCanDo(t *testing.T) {
 		return true, &authzv1.SubjectAccessReview{Status: authzv1.SubjectAccessReviewStatus{Allowed: allowed}}, nil
 	})
 
-	got := evaluateBroadAccess(context.Background(), client)
+	got := evaluateBroadAccess(context.Background(), client, nil)
 	if got["5.1.2"].Compliant {
 		t.Error("5.1.2 should fail when every authenticated user can read secrets")
 	}
@@ -483,5 +484,106 @@ func TestBroadAccessReportsWhatEveryoneCanDo(t *testing.T) {
 	}
 	if !got["5.1.4"].Compliant {
 		t.Errorf("5.1.4 should pass when pod creation is denied, got %q", got["5.1.4"].Detail)
+	}
+}
+
+// Scoping has to change what is read, not filter what was read. A team that owns three
+// namespaces of eighty very likely cannot list pods cluster-wide at all, so a cluster-wide list
+// filtered afterwards would work only for the people who did not need the feature.
+func TestScopedListingQueriesOnlyItsNamespaces(t *testing.T) {
+	t.Parallel()
+
+	client := fake.NewSimpleClientset(
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "mine", Namespace: "team-a"}},
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "theirs", Namespace: "other"}},
+	)
+	var asked []string
+	client.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		ns := action.GetNamespace()
+		if ns == "" {
+			t.Errorf("a scoped audit must not list across all namespaces")
+		}
+		asked = append(asked, ns)
+		return false, nil, nil // fall through to the tracker
+	})
+
+	if _, err := evaluatePolicies(context.Background(), client, []string{"team-a"}); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(asked, []string{"team-a"}) {
+		t.Errorf("namespaces queried = %v, want [team-a]", asked)
+	}
+}
+
+// A scoped audit is usually run by a scoped credential, so a refused cluster-wide read must
+// leave that check undecided rather than abort a run whose namespaced half is perfectly good.
+// Unscoped, the same refusal means the cluster was not audited, and must fail.
+func TestClusterWideRefusalDependsOnScope(t *testing.T) {
+	t.Parallel()
+
+	newClient := func() *fake.Clientset {
+		c := fake.NewSimpleClientset()
+		c.PrependReactor("list", "clusterrolebindings", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, errors.New("clusterrolebindings is forbidden")
+		})
+		return c
+	}
+
+	scoped, err := evaluatePolicies(context.Background(), newClient(), []string{"team-a"})
+	if err != nil {
+		t.Fatalf("a scoped audit must survive being denied a cluster-wide read: %v", err)
+	}
+	if _, decided := scoped["5.1.1"]; decided {
+		t.Error("5.1.1 should be undecided when its objects could not be read")
+	}
+
+	if _, err := evaluatePolicies(context.Background(), newClient(), nil); err == nil {
+		t.Error("an unscoped audit that cannot read cluster-wide objects has not audited the cluster")
+	}
+}
+
+// The location has to carry the scope. The same rule id against the same cluster means something
+// different depending on whether seventy-seven other namespaces were examined.
+func TestClusterScopeLabel(t *testing.T) {
+	t.Parallel()
+
+	if got := clusterScopeLabel("prod", nil); got != "kubernetes/prod" {
+		t.Errorf("unscoped label = %q", got)
+	}
+	// Sorted, so the same scope written in a different order is the same identity.
+	got := clusterScopeLabel("prod", []string{"team-b", "team-a"})
+	if want := "kubernetes/prod[team-a,team-b]"; got != want {
+		t.Errorf("scoped label = %q, want %q", got, want)
+	}
+}
+
+// The half that keeps this honest. kube-bench writes --all-namespaces into its own checks, so a
+// scoped component audited by it would get the whole cluster reported against a component
+// claiming three namespaces — a wrong answer wearing the right label.
+func TestScannersThatCannotScopeRefuse(t *testing.T) {
+	t.Parallel()
+
+	target := plugin.InfraTarget{Platform: "kubernetes", Ref: "prod", Namespaces: []string{"team-a"}}
+
+	kb := kubeBenchScanner{
+		info: plugin.ScannerInfo{Name: kubeBenchScannerName},
+		run: func(context.Context, []string, []string) ([]byte, error) {
+			t.Error("kube-bench must not run against a scoped component")
+			return nil, nil
+		},
+	}
+	_, err := kb.Scan(context.Background(), target, nil)
+	if err == nil {
+		t.Fatal("want a refusal")
+	}
+	for _, want := range []string{"namespace", "k8sPolicies"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error should mention %q so the reader knows what to use, got: %v", want, err)
+		}
+	}
+
+	// And an unscoped component is unaffected.
+	if err := refuseNamespaceScope(kubeBenchScannerName, nil); err != nil {
+		t.Errorf("an unscoped component must still be scannable: %v", err)
 	}
 }
