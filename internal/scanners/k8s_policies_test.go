@@ -632,3 +632,125 @@ func TestManagedServicesRuleIDIsNotACheckNumber(t *testing.T) {
 		t.Errorf("rule id %q reads as a benchmark check", managedServicesRuleID)
 	}
 }
+
+// 5.2.7. A container runs as root unless something says otherwise, and either the pod or the
+// container can say it — the container winning where both do, as Kubernetes resolves it. Reading
+// only one side would clear a workload that is still root, or flag one that is not.
+func TestRunsAsRoot(t *testing.T) {
+	t.Parallel()
+
+	i64 := func(n int64) *int64 { return &n }
+	podWith := func(ps *corev1.PodSecurityContext) *corev1.Pod {
+		return &corev1.Pod{Spec: corev1.PodSpec{SecurityContext: ps}}
+	}
+
+	for _, tc := range []struct {
+		name string
+		pod  *corev1.PodSecurityContext
+		c    *corev1.SecurityContext
+		want bool
+	}{
+		{"nothing set anywhere", nil, nil, true},
+		{"container says non-root", nil, &corev1.SecurityContext{RunAsNonRoot: boolPtr(true)}, false},
+		{"container runs as uid 0", nil, &corev1.SecurityContext{RunAsUser: i64(0)}, true},
+		{"container runs as uid 1000", nil, &corev1.SecurityContext{RunAsUser: i64(1000)}, false},
+		{"pod says non-root", &corev1.PodSecurityContext{RunAsNonRoot: boolPtr(true)}, nil, false},
+		{"container overrides the pod", &corev1.PodSecurityContext{RunAsNonRoot: boolPtr(true)},
+			&corev1.SecurityContext{RunAsNonRoot: boolPtr(false)}, true},
+		{"pod uid inherited", &corev1.PodSecurityContext{RunAsUser: i64(1000)}, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := corev1.Container{Name: "app", SecurityContext: tc.c}
+			if got := runsAsRoot(podWith(tc.pod), &c); got != tc.want {
+				t.Errorf("runsAsRoot = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// 5.6.2. A profile on the pod covers every container; one on a container covers only itself, so
+// a pod is only confined when every container is. Unconfined is a choice, but not this one.
+func TestPodSetsSeccomp(t *testing.T) {
+	t.Parallel()
+
+	profile := func(k corev1.SeccompProfileType) *corev1.SeccompProfile { return &corev1.SeccompProfile{Type: k} }
+	two := []corev1.Container{{Name: "a"}, {Name: "b"}}
+
+	for _, tc := range []struct {
+		name string
+		pod  corev1.Pod
+		want bool
+	}{
+		{"nothing set", corev1.Pod{Spec: corev1.PodSpec{Containers: two}}, false},
+		{"pod-level profile covers all", corev1.Pod{Spec: corev1.PodSpec{
+			Containers:      two,
+			SecurityContext: &corev1.PodSecurityContext{SeccompProfile: profile(corev1.SeccompProfileTypeRuntimeDefault)},
+		}}, true},
+		{"pod-level unconfined does not count", corev1.Pod{Spec: corev1.PodSpec{
+			Containers:      two,
+			SecurityContext: &corev1.PodSecurityContext{SeccompProfile: profile(corev1.SeccompProfileTypeUnconfined)},
+		}}, false},
+		{"one container covered is not enough", corev1.Pod{Spec: corev1.PodSpec{Containers: []corev1.Container{
+			{Name: "a", SecurityContext: &corev1.SecurityContext{SeccompProfile: profile(corev1.SeccompProfileTypeRuntimeDefault)}},
+			{Name: "b"},
+		}}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := podSetsSeccomp(&tc.pod); got != tc.want {
+				t.Errorf("podSetsSeccomp = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// The rest of the nine, each from the same single pod listing.
+func TestEvaluatePodSecurityCoversTheRemainingChecks(t *testing.T) {
+	t.Parallel()
+
+	pods := []corev1.Pod{
+		pod("ns", "netraw", func(p *corev1.Pod) {
+			p.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+				Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"NET_RAW"}}}
+		}),
+		pod("ns", "hostpath", func(p *corev1.Pod) {
+			p.Spec.Volumes = []corev1.Volume{{Name: "root", VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{Path: "/"}}}}
+		}),
+		pod("ns", "hostport", func(p *corev1.Pod) {
+			p.Spec.Containers[0].Ports = []corev1.ContainerPort{{HostPort: 8080}}
+		}),
+		pod("ns", "winhost", func(p *corev1.Pod) {
+			p.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+				WindowsOptions: &corev1.WindowsSecurityContextOptions{HostProcess: boolPtr(true)}}
+		}),
+		pod("default", "wrong-namespace", nil),
+	}
+
+	got := evaluatePodSecurity(pods, nil)
+	for id, want := range map[string]string{
+		"5.2.8": "netraw", "5.2.9": "netraw", "5.2.10": "winhost",
+		"5.2.11": "hostpath", "5.2.12": "hostport", "5.6.4": "wrong-namespace",
+	} {
+		v := got[id]
+		if v.Compliant {
+			t.Errorf("%s should have found %q", id, want)
+			continue
+		}
+		if !strings.Contains(v.Detail, want) {
+			t.Errorf("%s should name %q, got %q", id, want, v.Detail)
+		}
+	}
+	// A capability that is not NET_RAW still counts for 5.2.9 and not for 5.2.8.
+	only := evaluatePodSecurity([]corev1.Pod{pod("ns", "chown", func(p *corev1.Pod) {
+		p.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+			Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"CHOWN"}}}
+	})}, nil)
+	if only["5.2.8"].Compliant != true {
+		t.Error("CHOWN is not NET_RAW")
+	}
+	if only["5.2.9"].Compliant {
+		t.Error("CHOWN is a capability, so 5.2.9 applies")
+	}
+}

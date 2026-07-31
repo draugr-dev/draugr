@@ -72,7 +72,16 @@ answer and changes nothing else.
 | `5.2.4` | Containers sharing the host IPC namespace | **decided** |
 | `5.2.5` | Containers sharing the host network namespace | **decided** |
 | `5.2.6` | Containers with allowPrivilegeEscalation | **decided** |
-| the other 23 | | reported for manual review |
+| `5.2.7` | Admission of root containers | **decided** |
+| `5.2.8` | Containers with the NET_RAW capability | **decided** |
+| `5.2.9` | Containers with capabilities assigned | **decided** |
+| `5.2.10` | Windows HostProcess containers | **decided** |
+| `5.2.11` | HostPath volumes | **decided** |
+| `5.2.12` | Containers using host ports | **decided** |
+| `5.6.2` | A seccomp profile is set | **decided** |
+| `5.6.3` | SecurityContext applied to pods and containers | **decided** |
+| `5.6.4` | The default namespace is not used | **decided** |
+| the other 14 | | reported for manual review |
 
 ¹ These two ask the cluster's own authorizer rather than reassembling its decision from roles and
 bindings — RBAC is additive across bindings, aggregated ClusterRoles resolve at runtime, and a
@@ -85,9 +94,15 @@ That creates nothing — the API server answers and discards it — but submitti
 Being refused is expected rather than exceptional, so the check is left undecided and reported
 for manual review like any other this scanner cannot settle.
 
-**11 of 34 decided, which is what kube-bench automates too** — the difference is that these are
-answered in one pass of API calls rather than a subprocess per check and, for the pod-security
-ones, a `kubectl` call per pod.
+**20 of 34 decided, against the 11 kube-bench automates** . Nine of those nine-past-parity are ones
+kube-bench leaves manual, and they are decidable here for the reason this scanner exists: they
+are questions about a pod spec, and correlating pod specs is what a `kubectl | jq | xargs`
+pipeline is worst at. They cost nothing extra — the same single listing already answers the
+others.
+
+The 14 that remain manual are honestly manual: whether an admission control mechanism is in
+*place*, whether the CNI *supports* NetworkPolicy, whether secrets belong in an external store.
+Those are questions about intent and architecture, not cluster state.
 
 The catalogue is pinned to `cis-1.12`, deliberately: the section is renumbered between revisions,
 and silently tracking "the latest" would change what a rule id means underneath an exclusion
