@@ -25,6 +25,11 @@ concurrency:
 env:
   GO_VERSION: "1.26"
   TRIVY_VERSION: "0.69.3" # keep in sync with internal/tools / selfscan.yml
+  # The kube-bench release whose benchmark definitions the CIS catalogue is checked against.
+  # Keep in sync with defaultKubeBenchImage in internal/scanners/kube_bench_job.go, so that
+  # bumping the image is when a benchmark revision is discovered rather than later.
+  KUBE_BENCH_VERSION: "v0.15.6"
+  KUBE_BENCH_COMMIT: "92e522b9ac82d4253e8b7582de1e75f5dae1f4b5"
 
 jobs:
   integration:
@@ -50,6 +55,20 @@ jobs:
       - name: Create kind cluster
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
 
+      - name: Fetch kube-bench's benchmark definitions
+        # Read, never executed — these are the YAML files the CIS catalogue is diffed against.
+        # The tag is verified against a commit because a tag can be repushed, and a benchmark
+        # that changed under a stable tag is exactly what this checkout exists to detect.
+        run: |
+          git clone --quiet --depth 1 --branch "$KUBE_BENCH_VERSION" \
+            https://github.com/aquasecurity/kube-bench "$RUNNER_TEMP/kube-bench"
+          actual=$(git -C "$RUNNER_TEMP/kube-bench" rev-parse HEAD)
+          if [ "$actual" != "$KUBE_BENCH_COMMIT" ]; then
+            echo "::error::$KUBE_BENCH_VERSION resolves to $actual, expected $KUBE_BENCH_COMMIT" >&2
+            exit 1
+          fi
+          echo "KUBE_BENCH_CFG=$RUNNER_TEMP/kube-bench/cfg" >> "$GITHUB_ENV"
+
       - name: Build draugr
         run: make build
 
@@ -57,4 +76,7 @@ jobs:
         env:
           # Exercise the real built binary in the end-to-end scan test.
           DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
-        run: go test -tags integration -v -timeout 15m ./test/integration/...
+        # internal/scanners carries the CIS catalogue drift check, which needs the definitions
+        # fetched above. It is listed explicitly because ./test/integration/... would not reach it,
+        # and a drift guard that never runs is the failure it was written to prevent.
+        run: go test -tags integration -v -timeout 15m ./test/integration/... ./internal/scanners/...

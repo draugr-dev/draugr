@@ -10,7 +10,15 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **The CIS catalogue is now checked against kube-bench's own benchmark definitions.** The
+  `k8s-policies` scanner reports every check in the section so that partial coverage cannot read
+  as a clean result — a guarantee only as good as the list, which is hand-maintained against a
+  benchmark someone else revises. A check added upstream and missing here would never be
+  reported; one retired upstream but left here would be reported forever. The check fails on
+  either, naming it, and runs against definitions fetched at a verified commit that is kept in
+  step with the kube-bench image, so bumping the tool is when a revision is discovered.
 
 ## [0.47.1] - 2026-07-30
 
