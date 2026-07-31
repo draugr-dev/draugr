@@ -18,9 +18,14 @@ and move it under a version on release.
   signalled it: with no platform detected there was no expectation for the output check to
   disagree with.
 
-  Draugr now does what kube-bench does for this case and reads a node's labels and provider ID,
-  fetching a single node and only when the version string came back bare. If reading nodes is
-  denied, the platform is simply not detected and the version decides, as before.
+  Draugr now reads a node for the label AKS puts on its own nodes, fetching a single node and
+  only when the version string came back bare. If reading nodes is denied, the platform is simply
+  not detected and the version decides, as before.
+
+  A cluster you manage yourself on Azure VMs is not affected: the `azure://` provider ID is
+  deliberately not treated as a signal, because RKE2, RKE and kubeadm all carry it when the Azure
+  cloud provider is configured. Distributions that stamp their own version — RKE2 among them —
+  are resolved before any node is read.
 
 ## [0.47.0] - 2026-07-30
 

@@ -365,12 +365,22 @@ func platformFromNodes(ctx context.Context, client kubernetes.Interface) string 
 		// leaves the version-string path to decide exactly as it did before.
 		return ""
 	}
-	node := nodes.Items[0]
-	// The same two signals kube-bench uses, so the conclusion matches the tool's.
-	if _, ok := node.Labels["kubernetes.azure.com/cluster"]; ok {
-		return "aks"
-	}
-	if strings.HasPrefix(node.Spec.ProviderID, "azure://") {
+	// The label AKS puts on its own nodes, and deliberately not the azure:// provider ID that
+	// kube-bench also accepts.
+	//
+	// A provider ID says which cloud the VM is on, not who runs the control plane. RKE2, RKE and
+	// kubeadm all set it when the Azure cloud provider is configured, so accepting it would call
+	// a self-managed cluster AKS and audit it against a benchmark written for a control plane
+	// nobody can see — dropping the very checks a self-managed cluster most needs.
+	//
+	// kube-bench can afford the looser signal because it only reaches this check from inside the
+	// cluster, having already tested for RKE. Reading a node from outside gives no such context,
+	// so the signal has to carry the distinction on its own.
+	//
+	// Erring this way is also the cheaper mistake. A missed AKS cluster falls back to the version
+	// string and behaves as it did before; a self-managed cluster wrongly called AKS gets a scan
+	// that fails with an error about the wrong thing.
+	if _, ok := nodes.Items[0].Labels["kubernetes.azure.com/cluster"]; ok {
 		return "aks"
 	}
 	return ""

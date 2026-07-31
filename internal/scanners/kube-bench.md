@@ -102,9 +102,18 @@ answer a yes/no question), and only when the version string came back bare.
 If reading nodes is denied, the platform is simply not detected and the version string decides,
 exactly as before. A permission Draugr may not have is not a reason to fail a scan it can run.
 
-A provider ID alone is not proof of a managed service — a cluster you built yourself on cloud VMs
-has one too. Only the Azure signals are used, matching kube-bench, because AKS is the only
-distribution whose benchmark is otherwise unreachable from outside.
+Only the `kubernetes.azure.com/cluster` label counts — **not** the `azure://` provider ID that
+kube-bench also accepts. A provider ID says which cloud the VM is on, not who runs the control
+plane: RKE2, RKE and kubeadm all set it when the Azure cloud provider is configured, and calling
+one of those AKS would audit it against a benchmark written for a control plane nobody can see,
+dropping the checks a self-managed cluster most needs.
+
+kube-bench can afford the looser signal because it only reaches that check from inside the
+cluster, having already tested for RKE. A node read from outside carries no such context.
+
+Distributions that stamp their own version are unaffected either way — RKE2 reports
+`v1.27.6+rke2r1`, so it is resolved before any node is fetched. Node inspection is a fallback,
+never an override.
 
 OpenShift is still not detected here. kube-bench identifies it by running `oc`, not from any API
 object, so this scanner cannot reach the same conclusion; set `benchmark` for it.
