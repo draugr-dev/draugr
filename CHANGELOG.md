@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.48.0] - 2026-07-31
+
 ### Changed
 
 - **The `infrastructure` control now reads section 5 through the Kubernetes API by default**,
@@ -1379,7 +1383,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.47.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.48.0...HEAD
+[0.48.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.48.0
 [0.47.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.47.1
 [0.47.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.47.0
 [0.46.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.46.2
