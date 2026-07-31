@@ -86,8 +86,28 @@ A build suffix is not automatically a platform. `v1.31.0-rc.1` parses exactly li
 `v1.30.4-eks-a737599`, so only suffixes kube-bench actually maps count — a release candidate
 stays vanilla rather than sending the scan after an `rc` benchmark.
 
-OpenShift is not detected here. kube-bench identifies it by running `oc`, not from the version
-string, so this scanner cannot reach the same conclusion; set `benchmark` for it.
+### AKS does not announce itself in the version string
+
+GKE and EKS stamp their version (`v1.29.7-gke.1104000`), so a regex is enough. A real AKS cluster
+reports a bare **`v1.34.2`** — indistinguishable from kubeadm — and was therefore audited against
+the generic benchmark, with nothing to signal it: no detected platform means no expectation, so
+the output check had nothing to disagree with.
+
+kube-bench knows this and looks at a node instead, for a `kubernetes.azure.com/cluster` label or
+an `azure://` provider ID. It only does so along its in-cluster path, because that is where it
+happens to build a client — the check itself is an ordinary `List`. So Draugr does the same,
+fetching **one** node (a two-hundred-node cluster should not pay for two hundred objects to
+answer a yes/no question), and only when the version string came back bare.
+
+If reading nodes is denied, the platform is simply not detected and the version string decides,
+exactly as before. A permission Draugr may not have is not a reason to fail a scan it can run.
+
+A provider ID alone is not proof of a managed service — a cluster you built yourself on cloud VMs
+has one too. Only the Azure signals are used, matching kube-bench, because AKS is the only
+distribution whose benchmark is otherwise unreachable from outside.
+
+OpenShift is still not detected here. kube-bench identifies it by running `oc`, not from any API
+object, so this scanner cannot reach the same conclusion; set `benchmark` for it.
 
 ### The output is the guarantee, not the input
 

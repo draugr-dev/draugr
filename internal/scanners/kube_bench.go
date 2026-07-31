@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -337,7 +338,42 @@ func detectClusterFacts(kubeCtx string) (clusterFacts, error) {
 	if err != nil {
 		return clusterFacts{}, err
 	}
-	return clusterFacts{Version: version, Platform: platformFrom(info.GitVersion)}, nil
+	platform := platformFrom(info.GitVersion)
+	if platform == "" {
+		platform = platformFromNodes(context.Background(), client)
+	}
+	return clusterFacts{Version: version, Platform: platform}, nil
+}
+
+// platformFromNodes identifies a distribution that does not stamp itself into the version string.
+//
+// AKS is the case this exists for. GKE and EKS both report a version like v1.29.7-gke.1104000,
+// so a regex is enough; a real AKS cluster reports a bare v1.34.2 and is indistinguishable from
+// kubeadm by version alone. kube-bench knows this and looks at a node instead — but only along
+// its in-cluster path, because that is where it happens to build a client. The check itself is an
+// ordinary List, so there is no reason it cannot run from a laptop.
+//
+// Without it, AKS is audited against the generic benchmark and nothing says so: no platform means
+// no expectation, so verifyBenchmark has nothing to disagree with. Silence, again, is the failure.
+//
+// One node is enough, and one is all that is fetched — a cluster with two hundred nodes should
+// not pay for two hundred objects to answer a yes/no question.
+func platformFromNodes(ctx context.Context, client kubernetes.Interface) string {
+	nodes, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{Limit: 1})
+	if err != nil || len(nodes.Items) == 0 {
+		// Not fatal. Reading nodes may be denied on a shared cluster, and a missed platform
+		// leaves the version-string path to decide exactly as it did before.
+		return ""
+	}
+	node := nodes.Items[0]
+	// The same two signals kube-bench uses, so the conclusion matches the tool's.
+	if _, ok := node.Labels["kubernetes.azure.com/cluster"]; ok {
+		return "aks"
+	}
+	if strings.HasPrefix(node.Spec.ProviderID, "azure://") {
+		return "aks"
+	}
+	return ""
 }
 
 // gitVersionPlatformRE is kube-bench's own expression (cmd/util.go, getPlatformInfoFromVersion),
