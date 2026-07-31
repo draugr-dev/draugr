@@ -121,3 +121,47 @@ func decidedCheckCount(t *testing.T) int {
 	}
 	return len(decided)
 }
+
+// TestManagedServicesCountsMatchKubeBench holds the counts Draugr reports to the benchmarks they
+// describe.
+//
+// The finding tells a reader how much of their benchmark went unassessed. A number that drifts
+// understates or overstates exactly the thing it exists to disclose, and it is the kind of number
+// nobody re-derives once written.
+func TestManagedServicesCountsMatchKubeBench(t *testing.T) {
+	cfgDir := os.Getenv(kubeBenchCfgEnv)
+	if cfgDir == "" {
+		t.Skipf("%s is not set — point it at kube-bench's cfg/ directory to check the counts", kubeBenchCfgEnv)
+	}
+	if len(managedServicesByPlatform) == 0 {
+		t.Fatal("no platform is described, so this checks nothing")
+	}
+
+	for platform, section := range managedServicesByPlatform {
+		path := filepath.Join(cfgDir, section.Benchmark, "managedservices.yaml")
+		raw, err := os.ReadFile(filepath.Clean(path))
+		if err != nil {
+			t.Errorf("%s: read %s: %v", platform, path, err)
+			continue
+		}
+		var doc struct {
+			Groups []struct {
+				Checks []struct {
+					ID string `yaml:"id"`
+				} `yaml:"checks"`
+			} `yaml:"groups"`
+		}
+		if err := yaml.Unmarshal(raw, &doc); err != nil {
+			t.Errorf("%s: parse %s: %v", platform, path, err)
+			continue
+		}
+		got := 0
+		for _, g := range doc.Groups {
+			got += len(g.Checks)
+		}
+		if got != section.Checks {
+			t.Errorf("%s: %s has %d managed-services checks, Draugr reports %d",
+				platform, section.Benchmark, got, section.Checks)
+		}
+	}
+}

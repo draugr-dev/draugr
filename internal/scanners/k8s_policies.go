@@ -77,7 +77,18 @@ func (s k8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target, cfg 
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", k8sPoliciesScannerName, err)
 	}
-	return policiesReport(decided, clusterScopeLabel(kubeCtx, infra.Namespaces)), nil
+	report := policiesReport(decided, clusterScopeLabel(kubeCtx, infra.Namespaces))
+
+	// A managed cluster has a section of its benchmark that this scanner does not read. Say so,
+	// rather than letting the report imply the benchmark is only what was assessed. Detection
+	// failing is not fatal: the policies findings stand on their own.
+	if facts, err := detectCluster(kubeCtx); err == nil {
+		if res, rule, ok := managedServicesFinding(facts.Platform, clusterScopeLabel(kubeCtx, infra.Namespaces)); ok {
+			report.Results = append(report.Results, res)
+			report.Rules[managedServicesRuleID] = rule
+		}
+	}
+	return report, nil
 }
 
 // policyVerdict is the outcome of a check this scanner implements.
@@ -512,4 +523,63 @@ func clusterScopeLabel(kubeCtx string, namespaces []string) string {
 	ns := slices.Clone(namespaces)
 	slices.Sort(ns)
 	return label + "[" + strings.Join(ns, ",") + "]"
+}
+
+// managedServices describes the section of a provider's benchmark that covers what the provider
+// controls rather than what the cluster does — image registry scanning, IAM, key management,
+// node metadata, cluster networking, logging, storage.
+//
+// Every managed benchmark ships one, and Draugr evaluates none of it. That is a defensible gap;
+// leaving it unmentioned is not. A reader of a report has no way to know the section exists, so
+// the benchmark looks smaller than it is and a clean result looks more complete than it is.
+//
+// Reported as one finding rather than one per check, unlike the policies section. There the
+// checks share a section Draugr partly evaluates, so listing them individually is what keeps
+// coverage honest. Here nothing in the section is evaluated, and saying that once — with the
+// benchmark named and the count given — is unambiguous where fifty-eight identical "review this
+// yourself" entries would bury the findings that came from an actual assessment.
+type managedServices struct {
+	// Benchmark is the kube-bench config the section belongs to.
+	Benchmark string
+	// Checks is how many it contains. Held to kube-bench's own definitions by
+	// TestManagedServicesCountsMatchKubeBench.
+	Checks int
+}
+
+var managedServicesByPlatform = map[string]managedServices{
+	"gke": {Benchmark: "gke-1.9.0", Checks: 33},
+	"eks": {Benchmark: "eks-1.8.0", Checks: 12},
+	"aks": {Benchmark: "aks-1.8", Checks: 13},
+}
+
+// managedServicesRuleID is the rule the gap is reported under.
+//
+// Outside the cis/<number> space on purpose: it is not one of the benchmark's checks, it is a
+// statement about a section of it, and giving it a check number would make it look like one.
+const managedServicesRuleID = "cis/managed-services"
+
+// managedServicesFinding reports the section a managed cluster has and Draugr does not read.
+func managedServicesFinding(platform, location string) (sarif.Result, sarif.Rule, bool) {
+	section, ok := managedServicesByPlatform[platform]
+	if !ok {
+		return sarif.Result{}, sarif.Rule{}, false
+	}
+	return sarif.Result{
+			Tool:   k8sPoliciesScannerName,
+			RuleID: managedServicesRuleID,
+			Level:  sarif.LevelWarning,
+			Message: fmt.Sprintf(
+				"The %s benchmark has a Managed Services section of %d checks — the parts of the "+
+					"cluster your provider controls, not the cluster itself. Draugr does not "+
+					"evaluate it; review those checks against the benchmark.",
+				section.Benchmark, section.Checks),
+			Location: sarif.Location{URI: location},
+		}, sarif.Rule{
+			Name:             "Managed Services (not evaluated)",
+			ShortDescription: "The provider-controlled section of the benchmark is not assessed by Draugr.",
+			FullDescription: "Covers image registry scanning, IAM, key management, node metadata, " +
+				"cluster networking, logging and storage as the provider exposes them. Reading it " +
+				"needs the cloud provider's own API rather than the Kubernetes one.",
+			HelpURI: "https://www.cisecurity.org/benchmark/kubernetes",
+		}, true
 }
