@@ -10,6 +10,20 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A scan that checked nothing no longer reports `PASS`.** A descriptor enabling no control — or
+  none whose surface its components carry — produced no findings, no failures and a pass:
+  output identical to a spotless application.
+
+  The wrong reading was the likelier one. A descriptor reaches that state by being unfinished, or
+  by being generated with `draugr survey`, which describes a surface without enabling anything to
+  check it. It is now reported the same way a control that could not run is, because it is the
+  same failure one level up — the gate answered without having looked.
+
+  A descriptor that asks only for an SBOM is unaffected: it enables no control by design and
+  still produces the evidence it was asked for.
+
 ### Added
 
 - **`draugr survey k8s cluster`** writes the cluster itself as an `infrastructure` component, so

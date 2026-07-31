@@ -342,3 +342,51 @@ func TestRunReportsNoScanErrorsOnSuccess(t *testing.T) {
 		t.Errorf("ScanErrors = %v, want none", res.ScanErrors)
 	}
 }
+
+// The hole this closes: a descriptor that enables no control produced no findings, no failures,
+// and a PASS — identical output to a spotless application. The wrong reading is far more likely,
+// since a descriptor reaches that state by being unfinished or by being generated from discovery.
+func TestRunReportsThatNothingWasChecked(t *testing.T) {
+	t.Parallel()
+
+	model := saga.Model{
+		Release:    saga.Release{Name: "app", Version: "1.0"},
+		Components: []saga.Component{{Name: "web", Repositories: []saga.Repository{{URL: "https://example.test/x.git"}}}},
+	}
+	res, err := New(NewRegistry()).Run(context.Background(), model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs := res.ScanErrors["(planning)"]
+	if len(msgs) == 0 {
+		t.Fatal("a run that checked nothing must report it, not pass silently")
+	}
+	// The message has to say what to do; "nothing ran" alone leaves the reader guessing whether
+	// it is their descriptor or a broken install.
+	joined := strings.Join(msgs, " ")
+	for _, want := range []string{"no controls ran", "config.controllers"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("message should mention %q, got %q", want, joined)
+		}
+	}
+}
+
+// A descriptor that asks only for an SBOM enables no control and plans no job, but it does
+// produce the evidence it was asked for — so it has done what it said, and must not be reported
+// as having checked nothing.
+func TestRunDoesNotComplainAboutAnSBOMOnlyDescriptor(t *testing.T) {
+	t.Parallel()
+
+	model := saga.Model{
+		Release:    saga.Release{Name: "app", Version: "1.0"},
+		Config:     saga.Config{SBOM: &saga.SBOMConfig{Enabled: true}},
+		Components: []saga.Component{{Name: "web", Repositories: []saga.Repository{{URL: "https://example.test/x.git"}}}},
+	}
+	res, err := New(NewRegistry(), WithSBOM(&fakeSBOM{})).Run(context.Background(), model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msgs := res.ScanErrors["(planning)"]; len(msgs) > 0 {
+		t.Errorf("an SBOM-only descriptor did what it asked; got %v", msgs)
+	}
+}
