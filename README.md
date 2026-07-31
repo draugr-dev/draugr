@@ -73,7 +73,8 @@ the **new-vs-fixed PR diff** and the sticky comment.
 - **Controls:** `images` (Trivy), `sca` (Trivy fs), `licenses` (Trivy licence scanner),
   `secrets` (Gitleaks), `sast` (Semgrep, plus opt-in gosec for Go), `iac` (Trivy config),
   `headers` (native HTTP-header analyzer), `dast` (Nuclei), `tls` (native TLS/certificate probe),
-  `infrastructure` (kube-bench, CIS Kubernetes Benchmark).
+  `infrastructure` (CIS Kubernetes Benchmark — read through the Kubernetes API by default, with
+  kube-bench and an in-cluster Job available for the node sections).
   See the [integrations catalog](docs/reference/catalog.md).
 - **Pipeline:** end-to-end `scan` (plan → scan → judge → report), content-hash caching,
   tunable parallelism (`-j`), results normalized to SARIF.
@@ -86,7 +87,8 @@ the **new-vs-fixed PR diff** and the sticky comment.
 - **Evidence:** `config.sbom` emits an SBOM per repository and image (SPDX or CycloneDX, via
   Syft); reports render as console, Markdown, HTML, JUnit, JSON or SARIF. The HTML report is
   self-contained and carries its own SARIF and TSV downloads.
-- **Discovery:** `survey` for Kubernetes images and GitHub org repositories.
+- **Discovery:** `survey` for Kubernetes images, the cluster itself, and GitHub org repositories
+  — and the descriptor it writes enables the controls for what it found.
 - **Zero-config & scaffolding:** `scan .` scans the current repo with no descriptor
   (sca/secrets/sast/iac); `init` scaffolds a stack-detected `draugr.saga.yaml` to customize.
 - **Preflight & tooling:** `validate` (schema-check a Saga), `doctor` (which scanner tools are

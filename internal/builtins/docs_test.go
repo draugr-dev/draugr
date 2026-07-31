@@ -3,6 +3,7 @@ package builtins
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -68,4 +69,72 @@ func readCatalog(t *testing.T) string {
 		t.Fatalf("read %s: %v", catalogPath, err)
 	}
 	return string(b)
+}
+
+// TestCatalogNamesTheRealDefaultScanner holds the published catalog to the registry on the one
+// claim most likely to rot: which scanner a control runs by default.
+//
+// Same-PR doc discipline keeps the pages *next to* a change correct. It does not catch a page
+// elsewhere that the change quietly falsified — and "the default is X" is exactly that kind of
+// claim, written once in a table nobody revisits and read by everyone deciding what a scan does.
+// The catalog said kube-bench was the infrastructure default for a release after it stopped
+// being true.
+//
+// Only controls with more than one scanner are checked. Where there is one, "default" is not a
+// claim anyone can get wrong.
+func TestCatalogNamesTheRealDefaultScanner(t *testing.T) {
+	t.Parallel()
+
+	doc := readCatalog(t)
+
+	reg := Registry()
+	scannersFor := map[string][]string{}
+	for _, s := range reg.Scanners() {
+		for _, control := range s.Info().Controls {
+			scannersFor[control] = append(scannersFor[control], s.Info().Name)
+		}
+	}
+
+	checked := 0
+	for _, c := range reg.Controllers() {
+		info := c.Info()
+		if len(info.DefaultScanners) == 0 || len(scannersFor[info.Name]) < 2 {
+			continue
+		}
+		row, ok := catalogRow(doc, info.Name)
+		if !ok {
+			t.Errorf("control %q has no row in %s", info.Name, catalogPath)
+			continue
+		}
+		checked++
+		for _, want := range info.DefaultScanners {
+			if !strings.Contains(row, "`"+want+"` (default)") {
+				t.Errorf("%s runs %q by default, but the catalog row does not say so:\n  %s",
+					info.Name, want, strings.TrimSpace(row))
+			}
+		}
+		// And nothing else may claim to be the default.
+		for _, other := range scannersFor[info.Name] {
+			if slices.Contains(info.DefaultScanners, other) {
+				continue
+			}
+			if strings.Contains(row, "`"+other+"` (default)") {
+				t.Errorf("the catalog calls %q the default for %s, but it is not:\n  %s",
+					other, info.Name, strings.TrimSpace(row))
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no multi-scanner control was checked — a guard that checks nothing is worse than no guard")
+	}
+}
+
+// catalogRow returns the controllers-table row for a control.
+func catalogRow(doc, control string) (string, bool) {
+	for _, line := range strings.Split(doc, "\n") {
+		if strings.HasPrefix(line, "| `"+control+"` |") {
+			return line, true
+		}
+	}
+	return "", false
 }
