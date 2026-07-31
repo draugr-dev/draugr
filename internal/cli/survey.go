@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -233,6 +234,10 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		return err
 	}
 	surveyor.Apply(&model, frag)
+	if added := enableControlsForSurface(&model); len(added) > 0 {
+		// To stderr, so a descriptor written to stdout stays a descriptor.
+		slog.Info("enabled controls for the discovered surface", "controls", strings.Join(added, ", "))
+	}
 
 	out, err := yaml.Marshal(&model)
 	if err != nil {
@@ -261,4 +266,73 @@ func baseModel(opts surveyOptions) (saga.Model, error) {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// controlsForSurface maps a discovered surface to the controls that can act on it.
+//
+// A descriptor written by discovery used to enable nothing, so its first scan reported PASS
+// having run no control. Discovery's promise is that the descriptor writes itself, and a
+// descriptor that checks nothing has not written itself — it has written a shape.
+//
+// `dast` is deliberately absent from the host list. The passive host controls read a response;
+// dast sends attack traffic at a live service, and turning that on because a survey noticed the
+// service exists is not a decision discovery gets to make on someone's behalf. Enable it
+// yourself, having decided.
+var controlsForSurface = map[string][]string{
+	"repositories":   {"sca", "secrets", "sast", "iac"},
+	"images":         {"images"},
+	"hosts":          {"headers", "tls"},
+	"infrastructure": {"infrastructure"},
+}
+
+// enableControlsForSurface turns on the controls the discovered components can be checked with.
+//
+// Only controls the descriptor says nothing about are touched. A control someone set — including
+// one they set to `enabled: false` — is left exactly as it is, because `--merge` runs against a
+// descriptor people edit, and a survey that re-enabled something you had switched off would be a
+// worse failure than the one this fixes.
+//
+// Returns the controls it added, so the command can say what it did rather than changing the
+// descriptor silently.
+func enableControlsForSurface(model *saga.Model) []string {
+	wanted := map[string]bool{}
+	for i := range model.Components {
+		c := &model.Components[i]
+		for surface, controls := range controlsForSurface {
+			if !componentHasSurface(c, surface) {
+				continue
+			}
+			for _, name := range controls {
+				wanted[name] = true
+			}
+		}
+	}
+
+	var added []string
+	for name := range wanted {
+		if _, configured := model.Config.Controllers[name]; configured {
+			continue
+		}
+		if model.Config.Controllers == nil {
+			model.Config.Controllers = map[string]saga.ControllerSettings{}
+		}
+		model.Config.Controllers[name] = saga.ControllerSettings{"enabled": true}
+		added = append(added, name)
+	}
+	sort.Strings(added)
+	return added
+}
+
+func componentHasSurface(c *saga.Component, surface string) bool {
+	switch surface {
+	case "repositories":
+		return len(c.Repositories) > 0
+	case "images":
+		return len(c.Images) > 0
+	case "hosts":
+		return len(c.Hosts) > 0
+	case "infrastructure":
+		return len(c.Infrastructure) > 0
+	}
+	return false
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -312,5 +313,99 @@ func TestSurveyFailsWhenTheSourceIsUnreachable(t *testing.T) {
 				t.Fatalf("want an error rather than an empty Saga; wrote %q", out.String())
 			}
 		})
+	}
+}
+
+// Discovery's promise is that the descriptor writes itself. One that enables no control has not
+// written itself — it has written a shape, and its first scan reports PASS having checked
+// nothing.
+func TestEnableControlsForSurface(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		comp saga.Component
+		want []string
+	}{
+		{"repositories", saga.Component{Repositories: []saga.Repository{{URL: "u"}}}, []string{"iac", "sast", "sca", "secrets"}},
+		{"images", saga.Component{Images: []saga.Image{{Image: "nginx:1"}}}, []string{"images"}},
+		{"infrastructure", saga.Component{Infrastructure: []saga.Infrastructure{{Kind: "kubernetes"}}}, []string{"infrastructure"}},
+
+		// Passive host controls only. dast sends attack traffic at a live service, and enabling
+		// that because a survey noticed the service exists is not discovery's decision to make.
+		{"hosts", saga.Component{Hosts: []saga.Host{{URL: "https://x.test"}}}, []string{"headers", "tls"}},
+
+		{"nothing discovered", saga.Component{Name: "empty"}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := &saga.Model{Components: []saga.Component{tc.comp}}
+			got := enableControlsForSurface(m)
+			if !slices.Equal(got, tc.want) {
+				t.Fatalf("enabled %v, want %v", got, tc.want)
+			}
+			for _, name := range tc.want {
+				if m.Config.Controllers[name] == nil {
+					t.Errorf("%s should be present in the descriptor", name)
+				}
+			}
+			if tc.name == "hosts" && m.Config.Controllers["dast"] != nil {
+				t.Error("dast must not be enabled by discovery")
+			}
+		})
+	}
+}
+
+// --merge runs against a descriptor people edit. A survey that re-enabled something switched off
+// by hand would be a worse failure than the one this fixes.
+func TestEnableControlsLeavesConfiguredControlsAlone(t *testing.T) {
+	t.Parallel()
+
+	m := &saga.Model{
+		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+			"sca":     {"enabled": false},
+			"secrets": {"enabled": true, "someOption": "kept"},
+		}},
+		Components: []saga.Component{{Repositories: []saga.Repository{{URL: "u"}}}},
+	}
+	added := enableControlsForSurface(m)
+
+	if slices.Contains(added, "sca") || slices.Contains(added, "secrets") {
+		t.Errorf("a configured control must be left alone, added %v", added)
+	}
+	if enabled, _ := m.Config.Controllers["sca"]["enabled"].(bool); enabled {
+		t.Error("a control switched off by hand must stay off")
+	}
+	if m.Config.Controllers["secrets"]["someOption"] != "kept" {
+		t.Error("an existing control's options must survive")
+	}
+	// The ones nobody mentioned are still filled in.
+	if !slices.Equal(added, []string{"iac", "sast"}) {
+		t.Errorf("added = %v, want [iac sast]", added)
+	}
+}
+
+// The end the feature exists for: a descriptor produced entirely by discovery scans something.
+func TestSurveyOutputIsScannable(t *testing.T) {
+	t.Parallel()
+
+	reg := surveyor.NewRegistry()
+	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
+		Name:           "prod",
+		Infrastructure: []saga.Infrastructure{{Kind: "kubernetes", Ref: "prod"}},
+	}})
+
+	var buf bytes.Buffer
+	err := runSurvey(context.Background(), surveyOptions{version: "1.0"},
+		[]surveyor.Request{{Surveyor: "k8s-cluster"}}, reg, &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := saga.Load(buf.Bytes())
+	if err != nil {
+		t.Fatalf("survey output is not a valid Saga: %v", err)
+	}
+	if !m.Config.ControllerEnabled("infrastructure") {
+		t.Errorf("a surveyed cluster should be scannable without hand-editing:\n%s", buf.String())
 	}
 }

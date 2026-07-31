@@ -282,6 +282,20 @@ draugr survey github repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
 ```
 
+**The output is scannable as written.** Discovery enables the controls the surface it found can
+be checked with — repositories imply `sca`, `secrets`, `sast` and `iac`; images imply `images`;
+hosts imply `headers` and `tls`; infrastructure implies `infrastructure`. A descriptor that
+describes an application but enables nothing would report `PASS` on its first scan having checked
+nothing, which is not what "the descriptor writes itself" should mean.
+
+`dast` is deliberately never enabled this way: the other host controls read a response, while
+`dast` sends attack traffic at a live service, and that is not a decision discovery makes on your
+behalf.
+
+**A control you have already configured is never touched** — including one set to
+`enabled: false`. `--merge` runs against a descriptor people edit, and a survey that switched
+something back on would be worse than the problem it solves.
+
 **Run several with `--merge`**, which folds each survey into the Saga already at `--output` —
 the same flag used to add discovery to a descriptor you maintain by hand.
 
