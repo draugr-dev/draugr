@@ -58,25 +58,30 @@ turned off; a non-default runs only when turned on:
 
 | Key | Scanner | |
 |---|---|---|
-| `kubeBench` | [`kube-bench`](../scanners/kube-bench.md) | section 5 by exec'ing kube-bench — **the default** |
-| `k8sPolicies` | [`k8s-policies`](../scanners/k8s-policies.md) | section 5 through the Kubernetes API: no `kubectl`, about a second on a cluster of eighty namespaces |
+| `k8sPolicies` | [`k8s-policies`](../scanners/k8s-policies.md) | section 5 through the Kubernetes API — **the default**. No `kubectl`, nothing to install, seconds on a large cluster |
+| `kubeBench` | [`kube-bench`](../scanners/kube-bench.md) | section 5 by exec'ing kube-bench. Same 11 checks decided; the reference the native reader is checked against |
 | `kubeBenchJob` | [`kube-bench-job`](../scanners/kube-bench-job.md) | sections 1–4, from a privileged Job inside the cluster |
 
 Enabling the Job does **not** replace the section-5 scanner. The Job does not run `policies`, so
 a component that swapped one for the other would report a pass on half a benchmark; the default
 keeps running alongside it.
 
-On a large cluster, prefer the native reader for section 5 — the exec'd one shells out to
-`kubectl` per check and takes tens of minutes where the API takes about a second:
+The whole benchmark, which is what most people want:
 
 ```yaml
 config:
   controllers:
     infrastructure:
       enabled: true
-      kubeBench: { enabled: false }
-      k8sPolicies: { enabled: true }
-      kubeBenchJob: { enabled: true }
+      kubeBenchJob: { enabled: true }   # the node sections; the default covers section 5
+```
+
+To have kube-bench itself be the thing that ran — as a cross-check, or because a report naming
+the tool matters to an auditor — swap the section-5 scanner:
+
+```yaml
+      k8sPolicies: { enabled: false }
+      kubeBench: { enabled: true }
 ```
 
 By default this control runs section 5: **35 of the 130 checks in `cis-1.9`**, read-only, from
