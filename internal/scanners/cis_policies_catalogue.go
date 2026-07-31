@@ -12,6 +12,10 @@ package scanners
 // That makes coverage additive rather than a trade. Moving a check from manual to decided is a
 // strictly better answer for that check and changes nothing about the others.
 
+// cisCatalogueVersion is the benchmark revision the catalogue describes. Reported in a scan's
+// provenance, so the evidence names the standard it was measured against.
+const cisCatalogueVersion = "cis-1.12"
+
 // cisPolicyCheck is one check in the benchmark's policies section.
 type cisPolicyCheck struct {
 	// ID is the CIS check number, e.g. "5.1.1". It becomes the rule id, so an exclusion written

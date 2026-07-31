@@ -776,3 +776,57 @@ func TestConsoleSaysNothingWhenTheRunOnlyRead(t *testing.T) {
 		t.Errorf("a read-only run should not mention effects:\n%s", b.String())
 	}
 }
+
+// A finding answers "what is wrong". Evidence also has to answer "what was measured, and against
+// what" — and for a compliance control that is the question asked first.
+func TestProvenanceLines(t *testing.T) {
+	t.Parallel()
+
+	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"infrastructure": {Report: sarif.Report{Provenance: []sarif.Provenance{
+			{Tool: "kube-bench-job", Version: "0.15.6", Fields: []sarif.Field{{Key: "benchmark", Value: "gke-1.9.0"}}},
+			{Tool: "k8s-policies", Fields: []sarif.Field{{Key: "coverage", Value: "20 of 34"}}},
+		}}},
+		"sca": {Report: sarif.Report{Provenance: []sarif.Provenance{{Tool: "trivy", Version: "0.69.3"}}}},
+	}}}
+
+	got := provenanceLines(d)
+	if len(got) != 3 {
+		t.Fatalf("want an entry per scanner account, got %d: %+v", len(got), got)
+	}
+	// Control order is deterministic, or two runs of the same scan render differently.
+	if got[0].Control != "infrastructure" || got[2].Control != "sca" {
+		t.Errorf("controls should be ordered, got %q then %q", got[0].Control, got[2].Control)
+	}
+	if got[0].Label() != "kube-bench-job 0.15.6" {
+		t.Errorf("Label = %q", got[0].Label())
+	}
+	// A scanner that reported no version is named without one rather than as "unknown".
+	if got[1].Label() != "k8s-policies" {
+		t.Errorf("Label without a version = %q", got[1].Label())
+	}
+	// A version alone is still worth reporting: it answers "what produced this".
+	if got[2].Detail != "" || got[2].Label() != "trivy 0.69.3" {
+		t.Errorf("version-only entry = %+v", got[2])
+	}
+}
+
+// Nothing to say means nothing rendered — not an empty heading on every report.
+func TestProvenanceOmittedWhenThereIsNone(t *testing.T) {
+	t.Parallel()
+
+	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{}},
+	}}}
+	if got := provenanceLines(d); len(got) != 0 {
+		t.Errorf("want nothing, got %+v", got)
+	}
+
+	var buf bytes.Buffer
+	if err := (markdownReporter{}).Render(&buf, d); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "Measured against") {
+		t.Errorf("an empty section should not be rendered:\n%s", buf.String())
+	}
+}

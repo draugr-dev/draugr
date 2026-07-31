@@ -27,6 +27,11 @@ type htmlView struct {
 	P1, P2, P3, P4 int
 	Controls       []htmlControl
 	Findings       []htmlFinding
+	// Provenance is what each scanner said about its own run — the standard applied, how much of
+	// it was decided, what it was scoped to. A shared HTML report is the copy that reaches
+	// someone who did not run the scan, so it is the one that most needs to say what was
+	// measured rather than only what was found.
+	Provenance []provenanceLine
 	// Errors, Suppressed and SBOM describe what the run couldn't do and what it set aside. A
 	// shared report that omits them describes a thinner run rather than a broken one, and the
 	// reader has no way to tell which they are looking at.
@@ -87,6 +92,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	s := summarize(d)
 
 	view := htmlView{
+		Provenance:  provenanceLines(d),
 		Pass:        s.verdict != norn.Fail,
 		Prioritized: s.prioritized,
 		P1:          s.p1, P2: s.p2, P3: s.p3, P4: s.p4,
@@ -334,6 +340,15 @@ the component is — so the same issue ranks differently on a public API than on
 </tr>{{end}}
 </tbody>
 </table>
+{{if .Provenance}}
+<h3 class="sub">Measured against</h3>
+<table class="provenance">
+<thead><tr><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Run</th></tr></thead>
+<tbody>
+{{range .Provenance}}<tr><td>{{.Control}}</td><td>{{.Label}}</td><td>{{.Detail}}</td></tr>{{end}}
+</tbody>
+</table>
+{{end}}
 {{end}}
 
 {{if .Errors}}

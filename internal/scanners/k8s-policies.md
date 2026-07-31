@@ -190,6 +190,20 @@ assessment.
 The counts are held to kube-bench's own definitions by `TestManagedServicesCountsMatchKubeBench`
 — a number that drifts understates the very thing it exists to disclose.
 
+## What the report says about the run
+
+The scanner records what it measured and against what, which travels in `--format json`,
+`markdown`, `html` and SARIF's own run property bag:
+
+```
+Measured against
+- infrastructure — k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope team-a
+```
+
+The coverage figure is the one a reader cannot otherwise get. Counting manual-review findings by
+hand is the only alternative, and a clean report gives no hint that fourteen of the section's
+checks were never decided by anything.
+
 ## Interpreting a finding
 
 Rule ids are `cis/<check number>` — the same ids [`kube-bench`](kube-bench.md) emits, so an

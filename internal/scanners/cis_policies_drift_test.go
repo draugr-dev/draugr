@@ -14,7 +14,7 @@ import (
 )
 
 // cisCatalogueBenchmark is the benchmark revision the catalogue is pinned to.
-const cisCatalogueBenchmark = "cis-1.12"
+const cisCatalogueBenchmark = cisCatalogueVersion
 
 // kubeBenchCfgEnv points at kube-bench's own cfg/ tree.
 const kubeBenchCfgEnv = "KUBE_BENCH_CFG"

@@ -555,6 +555,16 @@ func decodeKubeBench(out []byte) (kubeBenchDoc, error) {
 
 func reportFromKubeBench(doc kubeBenchDoc, tool, location string) sarif.Report {
 	report := sarif.Report{Tool: tool, Rules: map[string]sarif.Rule{}}
+	// The benchmark kube-bench reports having used, which is the thing verifyBenchmark checks and
+	// the thing a reader of the evidence needs: a report that does not name the standard it
+	// applied cannot be defended, and the standard is chosen from the cluster rather than stated
+	// in the descriptor.
+	if len(doc.Controls) > 0 && doc.Controls[0].Version != "" {
+		report.Provenance = []sarif.Provenance{{
+			Tool:   tool,
+			Fields: []sarif.Field{{Key: "benchmark", Value: doc.Controls[0].Version}},
+		}}
+	}
 	for _, ctl := range doc.Controls {
 		for _, test := range ctl.Tests {
 			for _, res := range test.Results {

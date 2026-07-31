@@ -58,6 +58,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		}
 		_, _ = fmt.Fprintln(w)
 		writeScanErrors(w, s)
+		writeProvenance(w, d)
 	}
 
 	writeEvidenceNotes(w, s)
@@ -120,4 +121,25 @@ func writeEvidenceNotes(w io.Writer, s summary) {
 	if s.sboms > 0 {
 		_, _ = fmt.Fprintf(w, "_SBOM: %s (%s)._\n\n", plural(s.sboms, "document"), s.sbomFormat)
 	}
+}
+
+// writeProvenance records what each scanner measured, and against what.
+//
+// Under the controls table rather than beside a finding: it describes the run, not any one
+// result, and a reader checking "is this the right standard" is asking about the whole control.
+func writeProvenance(w io.Writer, d Data) {
+	lines := provenanceLines(d)
+	if len(lines) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "**Measured against**")
+	_, _ = fmt.Fprintln(w)
+	for _, l := range lines {
+		if l.Detail == "" {
+			_, _ = fmt.Fprintf(w, "- `%s` — %s\n", l.Control, l.Label())
+			continue
+		}
+		_, _ = fmt.Fprintf(w, "- `%s` — %s: %s\n", l.Control, l.Label(), l.Detail)
+	}
+	_, _ = fmt.Fprintln(w)
 }
