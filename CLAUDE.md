@@ -106,8 +106,8 @@ explanation. Knowing which one you're writing prevents most documentation proble
 
 ## Changing what `draugr scan` prints
 
-The console layout is quoted in the README, several files under `docs/`, the demo GIF, and posts
-on the website. None of them notice when it changes, so it's pinned by a golden test:
+The console layout is quoted in the README, several files under `docs/`, the demo screenshot,
+and posts on the website. None of them notice when it changes, so it's pinned by a golden test:
 
 ```bash
 go test ./pkg/report -run TestConsoleGolden   # fails if the layout moved
@@ -137,6 +137,7 @@ it costs us.
   used in `.draugr/self.saga.yaml` until a release containing it exists, so dogfooding a new
   feature is always two pull requests, either side of a release.
 - **[`draugr-demo`](https://github.com/draugr-dev/draugr-demo)** is a deliberately vulnerable
-  sandbox used by the docs examples and the demo GIF. Its findings are the point; don't fix them.
+  sandbox used by the docs examples and the demo screenshot. Its findings are the point; don't
+  fix them.
 - Security issues in Draugr itself go through [SECURITY.md](SECURITY.md), privately — not a
   public issue.
