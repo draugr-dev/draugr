@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -32,6 +34,7 @@ type toolsInstallOptions struct {
 	yes    bool
 	dryRun bool
 	force  bool
+	saga   string
 }
 
 func newToolsInstallCommand() *cobra.Command {
@@ -41,8 +44,9 @@ func newToolsInstallCommand() *cobra.Command {
 		Short: "Download pinned, checksum-verified tools into ~/.draugr/bin",
 		Long: "Download pinned scanner/utility binaries, verify each against a SHA-256 recorded in\n" +
 			"Draugr, and install them into ~/.draugr/bin (which Draugr adds to PATH automatically).\n" +
-			"With no arguments, installs every tool Draugr can provision. Prints the plan first;\n" +
-			"when run interactively it asks for confirmation. Never downloads without being asked.",
+			"With no arguments, installs every tool Draugr can provision; with --saga, only the\n" +
+			"tools that descriptor's scan will actually run. Prints the plan first; when run\n" +
+			"interactively it asks for confirmation. Never downloads without being asked.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, err := tools.BinDir()
@@ -52,14 +56,111 @@ func newToolsInstallCommand() *cobra.Command {
 			install := func(name string) (tools.Installed, error) {
 				return tools.Install(cmd.Context(), name, dir, nil, opts.force)
 			}
-			return runToolsInstall(cmd.OutOrStdout(), cmd.InOrStdin(), args, *opts, install)
+			names, err := installNames(cmd.OutOrStdout(), args, *opts)
+			if err != nil {
+				return err
+			}
+			return runToolsInstall(cmd.OutOrStdout(), cmd.InOrStdin(), names, *opts, install)
 		},
 	}
 	cmd.Flags().BoolVarP(&opts.yes, "yes", "y", false, "skip the confirmation prompt")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "print the install plan and exit")
 	cmd.Flags().BoolVar(&opts.force, "force", false,
 		"reinstall even when the pinned version is already present (repairs a modified binary)")
+	cmd.Flags().StringVar(&opts.saga, "saga", "",
+		"install only the tools this descriptor's scan will run")
 	return cmd
+}
+
+// installNames decides what to install: the tools named, everything, or what a descriptor needs.
+//
+// Installing the whole catalogue is a poor default on a security tool — every binary put on PATH
+// is one more thing to trust, patch and explain — but it is the existing behaviour and changing
+// it silently would provision less than a pipeline expects. So --saga is opt-in, and the case for
+// it is made where it is relevant rather than in the docs.
+func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]string, error) {
+	if opts.saga == "" {
+		if len(args) == 0 {
+			noteDescriptorInWorkingDir(w)
+		}
+		return args, nil
+	}
+	if len(args) > 0 {
+		return nil, fmt.Errorf(
+			"--saga and an explicit tool list ask for different things: one installs what %s needs, "+
+				"the other installs %s. Pick one", opts.saga, strings.Join(quoteAll(args), ", "))
+	}
+
+	model, err := loadSaga(opts.saga)
+	if err != nil {
+		return nil, err
+	}
+	required := requiredTools(builtins.Registry(), model)
+
+	var names, unprovisionable []string
+	installable := tools.Installable()
+	for _, t := range required {
+		if slices.Contains(installable, t.Binary) {
+			names = appendUnique(names, t.Binary)
+			continue
+		}
+		unprovisionable = appendUnique(unprovisionable, t.Binary)
+	}
+	sort.Strings(names)
+
+	// The gap is the interesting part. Installing three of five and reporting success leaves
+	// someone one failed scan away from discovering the other two.
+	if len(unprovisionable) > 0 {
+		sort.Strings(unprovisionable)
+		_, _ = fmt.Fprintf(w, "%s needs %s, which Draugr cannot provision — install %s separately (`draugr doctor %s` says where from).\n\n",
+			opts.saga, strings.Join(quoteAll(unprovisionable), ", "),
+			pluralThem(len(unprovisionable)), opts.saga)
+	}
+	if len(names) == 0 {
+		_, _ = fmt.Fprintf(w, "Nothing to install: %s needs no tool Draugr provisions.\n", opts.saga)
+	}
+	return names, nil
+}
+
+func pluralThem(n int) string {
+	if n == 1 {
+		return "it"
+	}
+	return "them"
+}
+
+// noteDescriptorInWorkingDir points out --saga when a descriptor is sitting right there.
+//
+// Deliberately a note rather than a default. Inferring the descriptor from the working directory
+// would mean a CI job running `tools install -y` in a repo that happens to contain one suddenly
+// provisions a smaller set — and it may then be handed a different Saga to scan. Installing less
+// than before, silently, is how a mystery failure appears in somebody else's pipeline.
+func noteDescriptorInWorkingDir(w io.Writer) {
+	const descriptor = "draugr.saga.yaml"
+	if _, err := os.Stat(descriptor); err != nil {
+		return
+	}
+	model, err := loadSaga(descriptor)
+	if err != nil {
+		return // not our problem here; scan and doctor will say so properly
+	}
+	// Count only what --saga would actually install. Counting tools Draugr cannot provision
+	// would promise a number the flag does not deliver.
+	installable := tools.Installable()
+	needed := 0
+	for _, t := range requiredTools(builtins.Registry(), model) {
+		if slices.Contains(installable, t.Binary) {
+			needed++
+		}
+	}
+	// Defensive: no saving means nothing worth saying. Not reachable through any descriptor
+	// today, because cosign and gosec are never *required* by a control — cosign verifies
+	// downloads and gosec is opt-in — so a Saga cannot demand the whole catalogue.
+	if needed >= len(installable) {
+		return
+	}
+	_, _ = fmt.Fprintf(w, "Note: `--saga %s` would install %d of these %d tools — the ones that descriptor's scan runs.\n\n",
+		descriptor, needed, len(installable))
 }
 
 func newToolsListCommand() *cobra.Command {

@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -224,5 +228,130 @@ func TestClosestName(t *testing.T) {
 	// Nothing close enough shouldn't produce a misleading suggestion.
 	if got := closestName("kubernetes", known); got != "" {
 		t.Errorf("closestName(kubernetes) = %q, want no suggestion", got)
+	}
+}
+
+const toolsSagaTwoControls = `release: {name: t, version: "1.0"}
+config:
+  controllers:
+    sca: {enabled: true}
+    secrets: {enabled: true}
+components:
+  - name: c
+    repositories: [{url: "https://example.com/x.git"}]
+`
+
+// The point of the flag: install what this project runs, not the catalogue. On a security tool
+// every binary put on PATH is one more thing to trust and patch, so the smaller set is the
+// defensible one.
+func TestInstallNamesFromSaga(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	got, err := installNames(&out, nil, toolsInstallOptions{saga: writeSaga(t, toolsSagaTwoControls)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got, []string{"gitleaks", "trivy"}) {
+		t.Errorf("names = %v, want [gitleaks trivy]", got)
+	}
+	if len(got) >= len(tools.Installable()) {
+		t.Error("a scoped install that installs everything has done nothing")
+	}
+	// git is needed and cannot be provisioned. Installing the rest and reporting success would
+	// leave someone one failed scan away from finding that out.
+	if !strings.Contains(out.String(), "git") || !strings.Contains(out.String(), "cannot provision") {
+		t.Errorf("the gap should be reported, got %q", out.String())
+	}
+}
+
+// Without the flag nothing changes — a pipeline that provisions the catalogue keeps doing so.
+func TestInstallNamesWithoutSagaIsUnchanged(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	got, err := installNames(&out, nil, toolsInstallOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Errorf("names = %v, want none — an empty list means the whole catalogue downstream", got)
+	}
+
+	named, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(named, []string{"trivy"}) {
+		t.Errorf("explicit names should pass through, got %v", named)
+	}
+}
+
+// Two ways of saying what to install, pointing at different sets. Guessing which one was meant
+// is how you install the wrong thing quietly.
+func TestInstallNamesRejectsSagaWithExplicitTools(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	_, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{saga: writeSaga(t, toolsSagaTwoControls)})
+	if err == nil {
+		t.Fatal("want an error")
+	}
+	if !strings.Contains(err.Error(), "trivy") {
+		t.Errorf("the error should name what was asked for, got: %v", err)
+	}
+}
+
+func TestInstallNamesReportsABadSaga(t *testing.T) {
+	t.Parallel()
+	var out bytes.Buffer
+	if _, err := installNames(&out, nil, toolsInstallOptions{saga: "/nonexistent/saga.yaml"}); err == nil {
+		t.Error("an unreadable descriptor must fail rather than installing everything")
+	}
+}
+
+// The note is the compromise that lets the default stay as it was: behaviour unchanged, the
+// better option surfaced where it is relevant. Its number has to match what --saga would
+// actually install, or it promises a saving the flag does not deliver.
+func TestNoteDescriptorInWorkingDir(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	var out bytes.Buffer
+	noteDescriptorInWorkingDir(&out)
+	if out.String() != "" {
+		t.Errorf("no descriptor here, so nothing to note; got %q", out.String())
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte(toolsSagaTwoControls), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	noteDescriptorInWorkingDir(&out)
+	// Two of the catalogue, not three: git is needed but cannot be provisioned, and counting it
+	// would advertise a saving --saga does not make.
+	want := fmt.Sprintf("would install 2 of these %d tools", len(tools.Installable()))
+	if !strings.Contains(out.String(), want) {
+		t.Errorf("note = %q, want it to contain %q", out.String(), want)
+	}
+
+	// An unreadable descriptor is scan's problem to report, not a reason to fail provisioning.
+	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte("{{not yaml"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	noteDescriptorInWorkingDir(&out)
+	if out.String() != "" {
+		t.Errorf("a broken descriptor should be left to scan and doctor, got %q", out.String())
+	}
+}
+
+func TestPluralThem(t *testing.T) {
+	t.Parallel()
+	if got := pluralThem(1); got != "it" {
+		t.Errorf("pluralThem(1) = %q", got)
+	}
+	if got := pluralThem(2); got != "them" {
+		t.Errorf("pluralThem(2) = %q", got)
 	}
 }
