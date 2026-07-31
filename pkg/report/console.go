@@ -116,6 +116,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 					col.Paint(cDim, findingSummary(msg)))
 			}
 		}
+		writeMeasuredAgainst(w, col, d, width)
 		_, _ = fmt.Fprintln(w)
 	}
 
@@ -161,16 +162,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	if limit >= 0 && len(shown) > limit {
 		shown = shown[:limit]
 	}
-	heading := "Fix first:"
-	if s.minPriority != "" {
-		// Say what was filtered, or the short list reads as a contradiction of the counts above.
-		heading = fmt.Sprintf("Fix first (%s and above", strings.ToUpper(s.minPriority))
-		if s.hidden > 0 {
-			heading += fmt.Sprintf("; %d lower-priority finding(s) hidden", s.hidden)
-		}
-		heading += "):"
-	}
-	_, _ = fmt.Fprintln(w, heading)
+	_, _ = fmt.Fprintln(w, fixFirstHeading(s, len(shown), len(s.findings)))
 	renderFixFirst(w, col, shown)
 
 	if len(shown) < len(s.findings) {
@@ -183,27 +175,95 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	return nil
 }
 
+// fixFirstHeading names what the table below it actually contains.
+//
+// "Fix first" describes a shortlist, and the default is one — ten of however many, worst first.
+// With --top 0 the same words sit above every finding in the run, where they stop being a
+// recommendation and become a label, and the reader loses the thing the default was telling
+// them: that these few are where to start.
+//
+// Both headings say the order is meaningful, because that is true either way and is not obvious
+// from a table that otherwise looks like any other scanner's dump.
+func fixFirstHeading(s summary, shown, total int) string {
+	filter := ""
+	if s.minPriority != "" {
+		// Say what was filtered, or a short list reads as a contradiction of the counts above.
+		filter = fmt.Sprintf(", %s and above", strings.ToUpper(s.minPriority))
+		if s.hidden > 0 {
+			filter += fmt.Sprintf("; %d lower-priority finding(s) hidden", s.hidden)
+		}
+	}
+	if shown < total {
+		return fmt.Sprintf("Fix first (top %d of %d, by priority%s):", shown, total, filter)
+	}
+	if total == 1 {
+		return fmt.Sprintf("The finding (by priority%s):", filter)
+	}
+	return fmt.Sprintf("All %d findings, by priority%s:", total, filter)
+}
+
 // fixFirstHeader labels the ranked-findings columns. It's included in the width
 // calculation and printed dimmed so the table is self-explanatory — newcomers can see at a
 // glance which control and scanner flagged each finding.
-var fixFirstHeader = []string{"Priority", "Severity", "Score", "Rule", "Control", "Scanner", "Location"}
+// Component sits before Location because a path answers "where inside" and, once a descriptor
+// has more than one component, the reader needs "which one" first — two components can carry the
+// same path. Omitted entirely when nothing has one, so a single-component project keeps the
+// narrower frame it had.
+var fixFirstHeader = []string{"Priority", "Severity", "Score", "Rule", "Control", "Scanner", "Component", "Location"}
+
+// fixFirstHeaderNoComponent is the frame for a run where no finding has a component: a
+// project-scoped control, or a zero-config scan. An always-present column of dashes costs width
+// and tells the reader nothing.
+var fixFirstHeaderNoComponent = []string{"Priority", "Severity", "Score", "Rule", "Control", "Scanner", "Location"}
+
+// manyComponents reports whether the findings span more than one component.
+//
+// One component repeats the same value on every row and answers a question nobody has — the
+// release header already says what was scanned. The column earns its width only when it
+// distinguishes findings from each other, which is the case that prompted it: several components
+// with paths that look alike.
+func manyComponents(fs []finding) bool {
+	seen := ""
+	for _, f := range fs {
+		if f.component == "" {
+			continue
+		}
+		if seen == "" {
+			seen = f.component
+			continue
+		}
+		if f.component != seen {
+			return true
+		}
+	}
+	return false
+}
 
 // renderFixFirst prints the ranked findings as an aligned table with a header row, each
 // finding's own message on a dimmed line beneath it.
 func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
-	t := tui.NewTable(col, fixFirstHeader...).Indent("  ")
+	withComponent := manyComponents(fs)
+	header := fixFirstHeaderNoComponent
+	if withComponent {
+		header = fixFirstHeader
+	}
+	t := tui.NewTable(col, header...).Indent("  ")
 	for _, f := range fs {
-		t.RowWithNote(findingSummary(f.message),
+		cells := []tui.Cell{
 			tui.Styled(priorityColor(f.priority), dash(f.priority)),
 			tui.Styled(severityColor(f.severity), string(f.severity)),
 			tui.PlainCell(scoreStr(f)),
 			// A rule id names a finding; it doesn't explain it. The link is where a reader
 			// finds out what it means, and it costs no width.
-			tui.Cell{Text: shortRuleID(f.ruleID), URL: f.helpURI},
+			{Text: shortRuleID(f.ruleID), URL: f.helpURI},
 			tui.PlainCell(f.control),
 			tui.PlainCell(dash(f.tool)),
-			tui.PlainCell(dash(f.location)),
-		)
+		}
+		if withComponent {
+			cells = append(cells, tui.PlainCell(dash(f.component)))
+		}
+		cells = append(cells, tui.PlainCell(dash(f.location)))
+		t.RowWithNote(findingSummary(f.message), cells...)
 	}
 	t.Render(w)
 }
@@ -332,4 +392,27 @@ func plural(n int, noun string) string {
 		return "1 " + noun
 	}
 	return fmt.Sprintf("%d %ss", n, noun)
+}
+
+// writeMeasuredAgainst records what each scanner measured and against what, under the controls it
+// describes.
+//
+// A fact about the run rather than about any finding, and for a compliance control it is the
+// first thing asked of the evidence: a report that does not name the standard it applied cannot
+// be defended. Aligned to the controls block above it, because it is a continuation of that list
+// rather than a new one.
+func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
+	lines := provenanceLines(d)
+	if len(lines) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Measured against:")
+	for _, l := range lines {
+		text := l.Label()
+		if l.Detail != "" {
+			text += " — " + l.Detail
+		}
+		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, l.Control), col.Paint(cDim, text))
+	}
 }

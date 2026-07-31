@@ -54,7 +54,9 @@ func TestConsoleRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"Draugr — FAIL", "app 1.0", "Priorities:", "P1 1", "Fix first:", "CVE-1", "critical", "1 high"} {
+	// "by priority" rather than "Fix first:": the heading now says whether the table is a
+	// shortlist or the whole set, and this fixture is small enough to be the whole set.
+	for _, want := range []string{"Draugr — FAIL", "app 1.0", "Priorities:", "P1 1", "by priority", "CVE-1", "critical", "1 high"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console output missing %q\n%s", want, s)
 		}
