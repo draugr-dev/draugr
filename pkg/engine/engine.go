@@ -101,8 +101,12 @@ func defaultConcurrency() int {
 // PlannedJob is a scan job tagged with the control that produced it and the risk
 // classification of the component it targets (empty for project-scoped controls).
 type PlannedJob struct {
-	Control     string
-	Job         plugin.ScanJob
+	Control string
+	Job     plugin.ScanJob
+	// Component names the part of the application being scanned, empty for a project-scoped
+	// control. Carried alongside the classification rather than derived from it: exposure and
+	// criticality say what a component is worth, and a reader also has to know which one it was.
+	Component   string
 	Exposure    saga.Exposure
 	Criticality saga.Criticality
 }
@@ -129,7 +133,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			}
 			jobs, verrs := e.validateConfigs(name, jobs, allowed)
 			errs = append(errs, verrs...)
-			planned = appendJobs(planned, name, "", "", jobs)
+			planned = appendJobs(planned, name, "", "", "", jobs)
 		case plugin.ScopeComponent:
 			for i := range model.Components {
 				comp := &model.Components[i]
@@ -143,7 +147,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				}
 				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs, allowed)
 				errs = append(errs, verrs...)
-				planned = appendJobs(planned, name, comp.Exposure, comp.Criticality, jobs)
+				planned = appendJobs(planned, name, comp.Name, comp.Exposure, comp.Criticality, jobs)
 			}
 		}
 	}
@@ -502,7 +506,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
 			jobTook := time.Since(jobStart)
 			recordFindings(jobCtx, pj.Control, res.report)
-			report := e.stampPriority(res.report, pj)
+			report := e.stampJobFields(res.report, pj)
 			mu.Lock()
 			stats.ByControl[pj.Control] += jobTook
 			if !res.cached {
@@ -567,25 +571,34 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	return res, errors.Join(errs...)
 }
 
-func appendJobs(dst []PlannedJob, control string, exposure saga.Exposure, criticality saga.Criticality, jobs []plugin.ScanJob) []PlannedJob {
+func appendJobs(dst []PlannedJob, control, component string, exposure saga.Exposure, criticality saga.Criticality, jobs []plugin.ScanJob) []PlannedJob {
 	for _, j := range jobs {
-		dst = append(dst, PlannedJob{Control: control, Job: j, Exposure: exposure, Criticality: criticality})
+		dst = append(dst, PlannedJob{
+			Control: control, Job: j, Component: component,
+			Exposure: exposure, Criticality: criticality,
+		})
 	}
 	return dst
 }
 
-// stampPriority returns a copy of report with each finding's Priority set from the injected
-// Prioritizer. It copies the results slice so a cached report is never mutated (priority is
-// per-run, since classification can differ between jobs sharing a cache key).
-func (e *Engine) stampPriority(report sarif.Report, pj PlannedJob) sarif.Report {
-	if e.prioritize == nil || len(report.Results) == 0 {
+// stampJobFields returns a copy of report with the per-run facts about the job that produced it:
+// which component it belongs to, and the priority band its classification earns.
+//
+// Both are per-run rather than cached, and for the same reason — two jobs can share a cache key
+// while belonging to different components with different classifications, so the cached findings
+// must never be mutated. The slice is copied for that.
+func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report {
+	if len(report.Results) == 0 {
 		return report
 	}
 	out := report
 	out.Results = make([]sarif.Result, len(report.Results))
 	copy(out.Results, report.Results)
 	for i := range out.Results {
-		out.Results[i].Priority = e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
+		out.Results[i].Component = pj.Component
+		if e.prioritize != nil {
+			out.Results[i].Priority = e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
+		}
 	}
 	return out
 }

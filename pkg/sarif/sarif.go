@@ -125,6 +125,10 @@ type sarifProperties struct {
 	// Tool is the originating scanner (e.g. "trivy", "semgrep"). Draugr reports as a single
 	// "Draugr" SARIF tool; this preserves per-finding attribution to the scanner that found it.
 	Tool string `json:"tool,omitempty"`
+	// Component is the part of the application the finding belongs to. A location alone is
+	// ambiguous once a descriptor has more than one component, and it is what makes the priority
+	// checkable — the band comes from that component's declared classification.
+	Component string `json:"component,omitempty"`
 	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
 	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
 	Tags []string `json:"tags,omitempty"`
@@ -248,7 +252,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			sr.Locations = append(sr.Locations, loc)
 		}
 		if tool != "" || res.HasScore || res.Priority != "" {
-			sr.Properties = &sarifProperties{Tool: tool, Priority: res.Priority}
+			sr.Properties = &sarifProperties{Tool: tool, Priority: res.Priority, Component: res.Component}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
 			}

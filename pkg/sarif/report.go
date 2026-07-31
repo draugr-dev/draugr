@@ -63,6 +63,16 @@ type Result struct {
 	// Priority is the computed action band (P1–P4) for this finding, stamped by the engine
 	// from the component's risk classification. Empty when prioritization is not configured.
 	Priority string `json:"priority,omitempty"`
+	// Component names the part of the application this finding belongs to, stamped by the engine
+	// from the component whose scan produced it. Empty for a project-scoped control, which has
+	// no one component to attribute to.
+	//
+	// A location alone is ambiguous the moment a descriptor has two components: three components
+	// have three go.mod files, and two can carry the same path. It is also what makes the
+	// priority checkable — the band is computed from the component's declared exposure and
+	// criticality, so a report showing the band without naming the component states a conclusion
+	// and withholds its premise.
+	Component string `json:"component,omitempty"`
 	// Suppression is set when a Saga exclusion matched this finding. A suppressed result is
 	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
 	// Nil for an active finding.
@@ -88,6 +98,13 @@ func (r Result) Fingerprint() string {
 	sum := sha256.Sum256([]byte(strings.Join([]string{
 		r.Tool, r.RuleID, string(r.Level), r.Message,
 		r.Location.URI, strconv.Itoa(r.Location.StartLine),
+		// The component is part of the identity, not decoration. Two components sharing a
+		// repository produce the same flaw at the same line, and it is not the same finding:
+		// each carries its component's exposure and criticality, so one can be P1 and the other
+		// P4. Collapsing them keeps whichever merged first and silently discards the other —
+		// which can be the urgent one, and contradicts the whole claim that context decides
+		// priority.
+		r.Component,
 	}, "\x00")))
 	return hex.EncodeToString(sum[:])
 }

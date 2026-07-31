@@ -468,3 +468,28 @@ func TestRecordProvenanceAugmentsWhatTheScannerSaid(t *testing.T) {
 		t.Errorf("the scanner's fields must survive: %+v", r.Provenance[0].Fields)
 	}
 }
+
+// A finding has to say which component it belongs to. A location alone is ambiguous the moment a
+// descriptor has two, and it is what makes the priority checkable — the band is computed from
+// that component's declared classification.
+func TestFindingsCarryTheirComponent(t *testing.T) {
+	t.Parallel()
+
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterScanner(&fakeScanner{name: "s"})
+
+	res, err := New(reg).Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	results := res.Controls["images"].Report.Results
+	if len(results) == 0 {
+		t.Fatal("expected findings")
+	}
+	for _, r := range results {
+		if r.Component == "" {
+			t.Errorf("finding %q has no component", r.RuleID)
+		}
+	}
+}
