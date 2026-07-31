@@ -127,8 +127,30 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// exactly like one that was never found. The count says otherwise, and each reason travels
 	// in the SARIF next to the result it justifies.
 	if n := d.Run.Suppressed; n > 0 {
-		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim,
-			fmt.Sprintf("%s suppressed by config.exclude", plural(n, "finding"))))
+		line := fmt.Sprintf("%s suppressed by config.exclude", plural(n, "finding"))
+		if u := unattributedSuppressions(d); u > 0 {
+			// An exclusion with no acceptedBy is one nobody can be asked about. Saying how many
+			// is what turns "we suppressed some things" into a number someone can act on.
+			line += fmt.Sprintf(" (%d unattributed)", u)
+		}
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
+	}
+
+	// An exclusion past its date stops suppressing, and says so. A finding that used to be
+	// accepted reappearing with no explanation is the confusing half of expiry; this is the
+	// other half.
+	if lapsed := d.Run.LapsedExclusions; len(lapsed) > 0 {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cFail,
+			fmt.Sprintf("%s expired and no longer suppressing:", plural(len(lapsed), "exclusion"))))
+		for _, e := range lapsed {
+			who := e.AcceptedBy
+			if who == "" {
+				who = "unattributed"
+			}
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
+				fmt.Sprintf("expired %s, accepted by %s — %s", e.Expires, who, findingSummary(e.Reason))))
+		}
+		_, _ = fmt.Fprintln(w)
 	}
 
 	// What the run did, not just what it found. A scan that probed a live endpoint should say so

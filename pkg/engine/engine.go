@@ -248,6 +248,10 @@ type Result struct {
 	// Suppressed counts findings a config.exclude rule matched. They are still present in the
 	// reports, marked with their justification — this is how many stopped counting.
 	Suppressed int
+	// LapsedExclusions are exclusions past their expiry date, which no longer suppress anything.
+	// Reported so a finding that used to be accepted does not simply reappear with nothing to
+	// say why.
+	LapsedExclusions []saga.ExcludeRule
 	// Effects records what this run did to its targets beyond reading them, deduplicated. Only
 	// scans that actually executed count: a cache hit means the traffic was not sent this time,
 	// and a record of effects has to describe what happened rather than what was configured.
@@ -567,7 +571,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// than per scanner means one syntax covers every tool, including ones added later — and it
 	// is what makes suppress-rather-than-delete possible at all: a finding a scanner never
 	// produced cannot be marked.
-	res.Suppressed = applyExclusions(res.Controls, model.Config.Exclude)
+	res.Suppressed, res.LapsedExclusions = applyExclusions(res.Controls, model.Config.Exclude, time.Now())
 	return res, errors.Join(errs...)
 }
 
@@ -636,10 +640,24 @@ const planningPseudoControl = "(planning)"
 //
 // Summaries are recomputed afterwards because a controller built them from the unsuppressed
 // report during Aggregate.
-func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.ExcludeRule) int {
+func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.ExcludeRule, now time.Time) (suppressed int, lapsed []saga.ExcludeRule) {
 	if len(rules) == 0 {
-		return 0
+		return 0, nil
 	}
+	// An expired exclusion stops suppressing, and is reported as having lapsed. Dropping it
+	// silently would produce a finding that used to be accepted with nothing to say why it came
+	// back; keeping it would let "until the upstream fix lands" mean forever, which is how a
+	// suppression mechanism decays into a way of never seeing something again.
+	active := make([]saga.ExcludeRule, 0, len(rules))
+	for _, r := range rules {
+		if r.ExpiredOn(now) {
+			lapsed = append(lapsed, r)
+			continue
+		}
+		active = append(active, r)
+	}
+	rules = active
+
 	total := 0
 	for name, cr := range controls {
 		n := 0
@@ -650,7 +668,10 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 			}
 			for _, rule := range rules {
 				if rule.Matches(res.Location.URI, res.RuleID) {
-					res.Suppression = &sarif.Suppression{Kind: "external", Justification: rule.Reason}
+					res.Suppression = &sarif.Suppression{
+						Kind: "external", Justification: rule.Reason,
+						AcceptedBy: rule.AcceptedBy, Expires: rule.Expires,
+					}
 					n++
 					break
 				}
@@ -663,7 +684,7 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 			total += n
 		}
 	}
-	return total
+	return total, lapsed
 }
 
 // sbomPseudoControl is where SBOM generation failures are reported. SBOMs are evidence, not a

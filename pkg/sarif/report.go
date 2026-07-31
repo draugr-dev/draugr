@@ -87,6 +87,12 @@ type Suppression struct {
 	// Justification is the reason the Saga gave. Required by Draugr even though SARIF allows
 	// it to be absent.
 	Justification string `json:"justification"`
+	// AcceptedBy is who decided this was acceptable, when the exclusion said. Empty means the
+	// suppression is unattributed — reported as such, because "who decided" is half the question
+	// an auditor is asking and a blank is an answer worth seeing.
+	AcceptedBy string `json:"acceptedBy,omitempty"`
+	// Expires is when the acceptance lapses, as YYYY-MM-DD. Empty means it does not.
+	Expires string `json:"expires,omitempty"`
 }
 
 // Suppressed reports whether this finding was excluded by a Saga rule.
