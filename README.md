@@ -25,7 +25,7 @@ This is the open-source core engine.
 
 ## See it in action
 
-![Draugr scanning a repository with zero config](contrib/demo/scan.gif)
+![Draugr scanning a repository with zero config](contrib/demo/scan.png)
 
 `draugr scan .` on the demo sandbox — no descriptor, just a prioritized verdict:
 
