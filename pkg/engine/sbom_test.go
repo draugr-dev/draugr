@@ -53,8 +53,14 @@ func TestSBOMDisabledDoesNothing(t *testing.T) {
 	if len(f.calls) != 0 {
 		t.Errorf("generator was called %d times with SBOM disabled", len(f.calls))
 	}
-	if len(res.SBOMs) != 0 || res.ScanErrors != nil {
-		t.Errorf("want a clean run, got SBOMs=%d errors=%v", len(res.SBOMs), res.ScanErrors)
+	if len(res.SBOMs) != 0 {
+		t.Errorf("want no SBOMs, got %d", len(res.SBOMs))
+	}
+	// With SBOM off and no control enabled, this run does nothing at all — which is reported
+	// rather than passing quietly. The exemption only covers a descriptor that asks for
+	// evidence; this one asks for neither.
+	if len(res.ScanErrors) == 0 {
+		t.Error("a run that neither scans nor produces evidence should say so")
 	}
 }
 

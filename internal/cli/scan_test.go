@@ -235,11 +235,34 @@ components:
 	}
 }
 
+// A controller for one of the controls zero-config enables, so the synthesized Saga actually
+// plans work. fakeRegistry serves `images`, which zero-config does not enable — with only that
+// registered, this test was scanning nothing and calling it a pass.
+type fakeRepoController struct{}
+
+func (fakeRepoController) Info() plugin.ControllerInfo {
+	return plugin.ControllerInfo{Name: "sca", Scope: plugin.ScopeComponent}
+}
+func (fakeRepoController) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+	if comp == nil {
+		return nil, nil
+	}
+	return []plugin.ScanJob{{Scanner: "fake", Target: plugin.RepositoryTarget{URL: comp.Name}}}, nil
+}
+func (fakeRepoController) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) {
+	m := sarif.Merge(reports...)
+	c := m.Counts()
+	return plugin.ControlResult{Control: "sca", Report: m,
+		Summary: plugin.Summary{Errors: c.Error, Warnings: c.Warning, Notes: c.Note}}, nil
+}
+
 func TestRunScanZeroConfigDirectory(t *testing.T) {
 	// Pointing scan at a directory synthesizes a default Saga (no file needed) and scans it.
 	dir := t.TempDir()
+	reg := fakeRegistry(sarif.LevelNote)
+	reg.RegisterController(fakeRepoController{})
 	var buf bytes.Buffer
-	err := runScan(context.Background(), dir, scanOptions{failOn: "error", format: "json"}, fakeRegistry(sarif.LevelNote), &buf)
+	err := runScan(context.Background(), dir, scanOptions{failOn: "error", format: "json"}, reg, &buf)
 	if err != nil {
 		t.Fatalf("zero-config scan: %v", err)
 	}
@@ -470,18 +493,20 @@ func TestRunScanLoadError(t *testing.T) {
 }
 
 func TestScanCommandViaCobra(t *testing.T) {
-	// No components → no jobs → pass, using the real built-in registry (no external tools run).
+	// No components → no jobs → nothing was checked, which must not read as a pass. A descriptor
+	// that scans nothing is far more often unfinished than genuinely empty, and the output for
+	// the two used to be identical.
 	path := writeSaga(t, "release:\n  name: app\n  version: \"1.0\"\n")
 	cmd := newRootCommand()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetArgs([]string{"scan", path})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("scan should pass with no components: %v", err)
+	if err := cmd.Execute(); err == nil {
+		t.Fatalf("a scan that checked nothing must not succeed:\n%s", out.String())
 	}
-	if !strings.Contains(out.String(), "Draugr — PASS") {
-		t.Errorf("expected pass verdict (console default):\n%s", out.String())
+	if !strings.Contains(out.String(), "no controls ran") {
+		t.Errorf("the output should say nothing was checked:\n%s", out.String())
 	}
 }
 

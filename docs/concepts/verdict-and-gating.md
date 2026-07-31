@@ -35,6 +35,20 @@ pipeline directly. The failure threshold is configurable (`--fail-on`, default `
 with optional per-control overrides, plus a component-aware priority gate
 (`--fail-on-priority`). The run fails if either gate trips.
 
+### A scan that checked nothing is not a pass
+
+A descriptor that enables no control, or none whose surface its components carry, plans no work.
+Every stage after that behaves exactly as it would for a spotless application — no findings, no
+failures, `PASS` — and the two are indistinguishable in the output.
+
+The wrong reading is the likelier one: a descriptor reaches that state by being unfinished, or by
+being generated with [`draugr survey`](../reference/cli.md#draugr-survey), which describes a
+surface without enabling anything to check it. So the run reports that nothing ran, and the
+verdict fails.
+
+A descriptor that asks only for an SBOM is exempt — it enables no control by design, and still
+produces the evidence it was asked for.
+
 ### A control that couldn't run is not a pass
 
 If a scanner is missing, exits badly, or a control can't be planned, that control **checked
