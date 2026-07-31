@@ -18,10 +18,34 @@ func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
 		target = "."
 	}
 	if info, statErr := os.Stat(target); statErr == nil && info.IsDir() {
+		// A directory holding a descriptor is not a directory to scan zero-config. Everything
+		// in that file — the controls chosen, the components declared, the exposure and
+		// criticality that drive prioritization — would otherwise be discarded in favour of
+		// four defaults, and nothing in the output would say so.
+		//
+		// Deliberately not a fallback: if the descriptor is there but unreadable, that is an
+		// error. Falling back would reproduce the bug this exists to fix, with an extra step —
+		// the reason a descriptor was skipped has to be reported, never shrugged at.
+		if path := descriptorIn(target); path != "" {
+			m, err = loadSaga(path)
+			return m, false, err
+		}
 		return syntheticSaga(target), true, nil
 	}
 	m, err = loadSaga(target)
 	return m, false, err
+}
+
+// DescriptorName is the file `draugr init` writes and `scan` looks for in a directory.
+const DescriptorName = "draugr.saga.yaml"
+
+// descriptorIn returns the descriptor in dir, or "" when there is none.
+func descriptorIn(dir string) string {
+	path := filepath.Join(dir, DescriptorName)
+	if info, err := os.Stat(path); err == nil && !info.IsDir() {
+		return path
+	}
+	return ""
 }
 
 // zeroConfigControls are the controls a zero-config scan enables: the repository-based ones,

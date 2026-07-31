@@ -105,8 +105,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	if synthesized {
 		// To stderr so it never pollutes a machine-readable stdout format (json/sarif).
-		_, _ = fmt.Fprintf(os.Stderr, "No Saga given — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
-			"(run `draugr init` to scaffold a draugr.saga.yaml you can customize)\n\n", model.Components[0].Repositories[0].URL)
+		// Only reachable when the directory has no descriptor, so suggesting one is safe here —
+		// it used to print over a descriptor that was sitting right there, telling the reader to
+		// create the file they already had.
+		_, _ = fmt.Fprintf(os.Stderr, "No "+DescriptorName+" here — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
+			"(run `draugr init` to scaffold one you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
 	if err != nil {

@@ -554,3 +554,78 @@ func TestPerControlThresholds(t *testing.T) {
 		t.Errorf("perControlThresholds = %v", got)
 	}
 }
+
+// A directory holding a descriptor is not a directory to scan zero-config. Ignoring it discarded
+// the controls chosen, the components declared, and the exposure and criticality that drive
+// prioritization — silently, and while telling the reader to create the file they already had.
+func TestScanUsesTheDescriptorInTheDirectory(t *testing.T) {
+	dir := t.TempDir()
+	saga := "release:\n  name: real\n  version: \"2.0\"\nconfig:\n  controllers:\n    images: {enabled: true}\n" +
+		"components:\n  - name: web\n    images: [{image: \"nginx:1\"}]\n"
+	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte(saga), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	m, synthesized, err := scanModel(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if synthesized {
+		t.Fatal("a directory with a descriptor must not be scanned zero-config")
+	}
+	if m.Release.Name != "real" {
+		t.Errorf("release = %q, want the descriptor's", m.Release.Name)
+	}
+	// The controls it declares, not the zero-config four.
+	if !m.Config.ControllerEnabled("images") || m.Config.ControllerEnabled("sca") {
+		t.Errorf("controls came from the wrong place: %+v", m.Config.Controllers)
+	}
+}
+
+// The reason a descriptor was skipped has to be reported. Falling back to zero-config would
+// reproduce the bug with an extra step: a broken descriptor and a green scan.
+func TestABrokenDescriptorFailsRatherThanFallingBack(t *testing.T) {
+	dir := t.TempDir()
+	// The typo that surfaced this: a misspelled component key.
+	broken := "release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - namfe: web\n"
+	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte(broken), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, synthesized, err := scanModel(dir)
+	if err == nil {
+		t.Fatal("a descriptor that cannot be read must fail the scan")
+	}
+	if synthesized {
+		t.Error("falling back to zero-config would hide the reason it was skipped")
+	}
+	if !strings.Contains(err.Error(), "namfe") {
+		t.Errorf("the error should name the problem, got: %v", err)
+	}
+}
+
+// Zero-config still applies where there is nothing to honour — that is what it is for.
+func TestScanStaysZeroConfigWithoutADescriptor(t *testing.T) {
+	dir := t.TempDir()
+	m, synthesized, err := scanModel(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !synthesized {
+		t.Fatal("a bare directory should still be scanned zero-config")
+	}
+	if !m.Config.ControllerEnabled("sca") {
+		t.Errorf("zero-config controls missing: %+v", m.Config.Controllers)
+	}
+}
+
+// A directory named the same as the descriptor is not a descriptor.
+func TestADirectoryNamedLikeTheDescriptorIsIgnored(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "draugr.saga.yaml"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if _, synthesized, err := scanModel(dir); err != nil || !synthesized {
+		t.Errorf("want zero-config, got synthesized=%v err=%v", synthesized, err)
+	}
+}
