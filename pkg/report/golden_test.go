@@ -20,7 +20,8 @@ import (
 //	go test ./pkg/report -update
 var update = flag.Bool("update", false, "rewrite the console golden files")
 
-// The console layout is copied by hand into six documents and re-recorded into the demo GIF, and
+// The console layout is copied by hand into six documents and recaptured in the demo screenshot,
+// and
 // none of those notice when it changes. The assertions elsewhere in this package check that
 // particular strings are present, which is the wrong shape for a *layout*: column widths, blank
 // lines and ordering are exactly what a reader compares against their own terminal, and exactly
@@ -80,7 +81,8 @@ func goldenMismatch(path string) string {
 		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
 		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
 		"     (grep for 'Draugr — ' there; they are a separate repo, so nothing else will catch them)\n" +
-		"  5. re-record the demo GIF: gh workflow run 'Demo GIF' --repo draugr-dev/draugr\n"
+		"  5. recapture the demo screenshot:\n" +
+		"     gh workflow run 'Demo screenshot' --repo draugr-dev/draugr\n"
 }
 
 // goldenFullData exercises every element of the frame at once: a failing verdict with a release,

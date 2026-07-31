@@ -1,10 +1,10 @@
-# Render the README demo GIF (zero-config `draugr scan .`) with vhs and open a PR with it.
+# Render the README demo screenshot (zero-config `draugr scan .`) with vhs and open a PR with it.
 #
 # Runs after every release, and on demand from the Actions tab. Release is the right moment
-# rather than a push to main: the job records the *latest release*, which is what a reader who
-# follows the README will install, so rendering on merge would produce a GIF of the previous
+# rather than a push to main: the job captures the *latest release*, which is what a reader who
+# follows the README will install, so rendering on merge would produce an image of the previous
 # version — stale the moment it landed. Anything that changes the output therefore reaches the
-# GIF one release later, which is also when it reaches users.
+# screenshot one release later, which is also when it reaches users.
 #
 # Called by release.yml rather than triggered by `release: published`. GoReleaser creates the
 # release with GITHUB_TOKEN, and GitHub deliberately does not start workflow runs from events
@@ -13,7 +13,7 @@
 #
 # The console layout is pinned separately by pkg/report/golden_test.go, and the numbers quoted
 # in the docs are refreshed with `make examples`.
-name: Demo GIF
+name: Demo screenshot
 
 on:
   workflow_call:
@@ -23,20 +23,20 @@ permissions:
   contents: read
 
 # One render at a time. Two releases close together would otherwise open two PRs whose branches
-# both claim to hold the current GIF.
+# both claim to hold the current screenshot.
 concurrency:
-  group: demo-gif
+  group: demo-screenshot
   cancel-in-progress: false
 
 jobs:
   render:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # push the GIF branch
+      contents: write # push the screenshot branch
       pull-requests: write # open the PR
     steps:
       # main, not the release tag: the branch this pushes has to merge into main, and the tape
-      # to render is the current one. Only the *binary* being recorded comes from the release.
+      # to render is the current one. Only the *binary* being captured comes from the release.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
@@ -64,8 +64,9 @@ jobs:
         run: git clone --depth 1 https://github.com/draugr-dev/draugr-demo draugr-demo
 
       # Off-camera, and before vhs starts. Trivy downloads its vulnerability database on first
-      # use; on a cold runner that download takes longer than the scan and would be most of what
-      # the recording shows. Every scan after a machine's first looks like the one we record.
+      # use; on a cold runner that download takes longer than the scan, and a progress bar left
+      # on screen is what the shot would catch. Every scan after a machine's first looks like the
+      # one we capture.
       - name: Warm the scanner databases
         working-directory: draugr-demo
         run: draugr scan . >/dev/null 2>&1 || true
@@ -82,27 +83,53 @@ jobs:
             | tar -xz --strip-components=1 vhs_0.11.0_Linux_x86_64/vhs && sudo mv vhs /usr/local/bin/
           vhs --version && ttyd --version && ffmpeg -version | head -1
 
+      # vhs exits 0 whether or not it wrote the screenshot, so the render is only as good as the
+      # check after it. Without one, an upstream regression in `Screenshot` would show up as a
+      # green run that opened no PR — indistinguishable from "the output didn't change".
       - name: Render the tape
-        run: vhs contrib/demo/scan.tape
+        run: |
+          set -euo pipefail
+          rm -f contrib/demo/scan.png
+          vhs contrib/demo/scan.tape
+          test -s contrib/demo/scan.png \
+            || { echo "::error::vhs produced no screenshot at contrib/demo/scan.png"; exit 1; }
+          file contrib/demo/scan.png
 
-      - name: Open a PR with the regenerated GIF
+      # Terminal output is flat colour — a few dozen distinct values across the whole frame — so
+      # a palette costs nothing visible and roughly halves the file. This image is the first
+      # thing the README and the home page load.
+      - name: Reduce the palette
+        run: |
+          set -euo pipefail
+          before=$(stat -c%s contrib/demo/scan.png)
+          ffmpeg -loglevel error -y -i contrib/demo/scan.png -vf palettegen=max_colors=64 /tmp/palette.png
+          ffmpeg -loglevel error -y -i contrib/demo/scan.png -i /tmp/palette.png \
+            -lavfi paletteuse=dither=none -pix_fmt pal8 /tmp/scan.png
+          # Only keep it if it actually helped; a palette can lose to the original.
+          after=$(stat -c%s /tmp/scan.png)
+          if [ "$after" -lt "$before" ]; then
+            mv /tmp/scan.png contrib/demo/scan.png
+          fi
+          echo "$before -> $(stat -c%s contrib/demo/scan.png) bytes"
+
+      - name: Open a PR with the regenerated screenshot
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git add contrib/demo/scan.gif
+          git add contrib/demo/scan.png
           if git diff --cached --quiet; then
-            echo "GIF unchanged — nothing to do."
+            echo "Screenshot unchanged — nothing to do."
             exit 0
           fi
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"
-          branch="demo-gif-$(git rev-parse --short HEAD)"
+          branch="demo-screenshot-$(git rev-parse --short HEAD)"
           git checkout -b "$branch"
-          git commit -m "docs: regenerate demo GIF"
+          git commit -m "docs: regenerate demo screenshot"
           git push -u origin "$branch"
           # Best-effort: creating a PR needs the org's "Allow GitHub Actions to create pull
           # requests" setting. If it's off, just print the compare link — the branch is pushed.
-          gh pr create --title "docs: regenerate demo GIF" \
-            --body "Auto-rendered by the Demo GIF workflow (\`contrib/demo/scan.tape\`). Review the GIF, then merge to update the README." \
+          gh pr create --title "docs: regenerate demo screenshot" \
+            --body "Auto-rendered by the Demo screenshot workflow (\`contrib/demo/scan.tape\`). Review the image, then merge to update the README. The home page on draugr.dev carries the same image and is updated separately." \
             || echo "::notice::Branch $branch pushed. Open a PR: https://github.com/draugr-dev/draugr/compare/$branch?expand=1"

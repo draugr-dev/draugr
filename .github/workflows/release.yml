@@ -157,17 +157,17 @@ jobs:
             --domain draugr.dev --private-key "$MCP_PUBLISHER_DNS_KEY"
           "$GITHUB_WORKSPACE/mcp-publisher" publish
 
-  # Re-record the README GIF against the release that was just published. Invoked here rather
-  # than triggered by `release: published` in demo-gif.yml, because GoReleaser publishes the
+  # Recapture the README screenshot against the release that was just published. Invoked here
+  # rather than triggered by `release: published` in demo-screenshot.yml, because GoReleaser publishes the
   # release using GITHUB_TOKEN, and GitHub does not raise workflow-starting events for anything
   # GITHUB_TOKEN did — so a `release` trigger would never fire. A reusable-workflow call is a
   # direct invocation rather than an event, and is not subject to that rule.
   #
   # It opens a pull request rather than committing, so a bad render is caught before it reaches
-  # the README, and it no-ops when the GIF is byte-identical.
-  demo-gif:
+  # the README, and it no-ops when the image is byte-identical.
+  demo-screenshot:
     needs: goreleaser
     permissions:
-      contents: write # push the GIF branch
+      contents: write # push the screenshot branch
       pull-requests: write # open the PR
-    uses: ./.github/workflows/demo-gif.yml
+    uses: ./.github/workflows/demo-screenshot.yml
