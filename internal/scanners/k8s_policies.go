@@ -77,7 +77,7 @@ func (s k8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target, cfg 
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", k8sPoliciesScannerName, err)
 	}
-	report := policiesReport(decided, clusterScopeLabel(kubeCtx, infra.Namespaces))
+	report := policiesReport(decided, clusterScopeLabel(kubeCtx, infra.Namespaces), infra.Namespaces)
 
 	// A managed cluster has a section of its benchmark that this scanner does not read. Say so,
 	// rather than letting the report imply the benchmark is only what was assessed. Detection
@@ -252,8 +252,23 @@ func summarize(items []string) string {
 
 // policiesReport renders the whole section: a verdict where there is one, a manual prompt
 // everywhere else.
-func policiesReport(decided map[string]policyVerdict, location string) sarif.Report {
+func policiesReport(decided map[string]policyVerdict, location string, namespaces []string) sarif.Report {
 	report := sarif.Report{Tool: k8sPoliciesScannerName, Rules: map[string]sarif.Rule{}}
+
+	// What was measured, against what, and how much of it could be settled. The coverage figure
+	// is the one a reader cannot otherwise get: counting manual-review findings by hand is the
+	// only alternative, and a clean report gives no hint that two thirds of the section was never
+	// decided.
+	fields := []sarif.Field{
+		{Key: "benchmark", Value: cisCatalogueVersion},
+		{Key: "coverage", Value: fmt.Sprintf("%d of %d checks decided", len(decided), len(cisPolicies))},
+	}
+	if len(namespaces) > 0 {
+		ns := slices.Clone(namespaces)
+		slices.Sort(ns)
+		fields = append(fields, sarif.Field{Key: "scope", Value: strings.Join(ns, ", ")})
+	}
+	report.Provenance = []sarif.Provenance{{Tool: k8sPoliciesScannerName, Fields: fields}}
 
 	for _, check := range cisPolicies {
 		ruleID := "cis/" + check.ID

@@ -328,3 +328,47 @@ func levelRank(l sarif.Level) int {
 		return 0
 	}
 }
+
+// provenanceLine is one scanner's account of one control's run, ready to render.
+type provenanceLine struct {
+	Control string
+	Tool    string
+	Version string
+	Detail  string
+}
+
+// provenanceLines collects what each scanner said about the run, in control order.
+//
+// A finding answers "what is wrong". Evidence also has to answer "what was measured, and against
+// what" — and for a compliance control that second question is the one an auditor asks first. The
+// benchmark is chosen from the cluster rather than stated in the descriptor, so without this the
+// report gives no way to know which standard produced it.
+func provenanceLines(d Data) []provenanceLine {
+	names := make([]string, 0, len(d.Run.Controls))
+	for name := range d.Run.Controls {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var out []provenanceLine
+	for _, name := range names {
+		for _, p := range d.Run.Controls[name].Report.Provenance {
+			detail := p.Describe()
+			if detail == "" && p.Version == "" {
+				continue
+			}
+			out = append(out, provenanceLine{
+				Control: name, Tool: p.Tool, Version: p.Version, Detail: detail,
+			})
+		}
+	}
+	return out
+}
+
+// Label renders the tool and version as one string, the version omitted when unknown.
+func (p provenanceLine) Label() string {
+	if p.Version == "" {
+		return p.Tool
+	}
+	return p.Tool + " " + p.Version
+}

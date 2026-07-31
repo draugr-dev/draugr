@@ -12,6 +12,22 @@ and move it under a version on release.
 
 ### Added
 
+- **A report now says what it measured and against what.** The `infrastructure` scanners record
+  the benchmark applied, how much of it could be decided, and the namespaces in scope:
+
+  ```
+  Measured against
+  - infrastructure — k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided
+  ```
+
+  Which standard was used is chosen from the cluster rather than stated in the descriptor, so
+  until now nothing in the evidence recorded it — the first question an auditor asks had no answer
+  in the artifact. The coverage figure is the other one a reader could not get: counting
+  manual-review findings by hand was the only alternative.
+
+  Rendered in `markdown`, `html` and `json`, and carried in SARIF's run property bag so it reaches
+  consumers that read SARIF rather than only Draugr's reporters. Console follows.
+
 - **A report can now carry what a scanner says about the run**, not only what it found — which
   benchmark was applied, how much of it could be decided, what the scan was scoped to. It travels
   in `--format json` and in SARIF's own run property bag, so it reaches any consumer that reads
