@@ -12,6 +12,22 @@ and move it under a version on release.
 
 ### Added
 
+- **`draugr tools install --saga <descriptor>`** installs only the tools that descriptor's scan
+  will run, instead of everything Draugr can provision. It resolves them exactly as
+  `draugr doctor` does, so the command that tells you what you need and the one that installs it
+  cannot disagree.
+
+  A project running `sca` and `secrets` was getting `gosec` — a Go-only scanner it never enables.
+  On a security tool that matters beyond disk: every binary on `PATH` is one more thing to trust,
+  keep patched and explain.
+
+  Where a descriptor needs something Draugr cannot provision — `kubectl`, `git`, semgrep via pipx
+  — the plan names it rather than installing the rest and reporting success.
+
+  Behaviour without the flag is unchanged. Where a descriptor is present in the working directory
+  the plan points out what `--saga` would save, rather than quietly provisioning a smaller set
+  that a pipeline may not expect.
+
 - **A component can declare the namespaces it owns**, so a shared cluster stops reporting
   everybody's findings to everybody:
 

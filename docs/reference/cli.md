@@ -380,12 +380,34 @@ no arguments, installs everything Draugr can provision (`trivy`, `gitleaks`, `go
 | `-y, --yes` | — | Skip the confirmation prompt |
 | `--dry-run` | — | Print the install plan and exit |
 | `--force` | `false` | Reinstall even when the pinned build is already present |
+| `--saga` | — | Install only the tools that descriptor's scan will run |
 
 ```bash
 draugr tools install            # plan → confirm → install everything, into ~/.draugr/bin
 draugr tools install trivy      # just one
 draugr tools install --dry-run  # preview the plan, change nothing
 draugr tools install -y         # non-interactive
+draugr tools install --saga draugr.saga.yaml   # only what this project's scan runs
+```
+
+**`--saga` installs what a descriptor needs**, resolved the same way
+[`draugr doctor`](#draugr-doctor-sagayaml) decides what to check: the enabled controls, and the
+scanners those controls will actually select. The two cannot disagree, because they share the
+resolution.
+
+On a security tool the smaller set is the defensible one — every binary on `PATH` is one more
+thing to trust, keep patched and explain. Where a descriptor needs something Draugr cannot
+provision (`kubectl`, `git`, semgrep via pipx) the plan **names it** rather than installing the
+rest and reporting success.
+
+The descriptor is not inferred from the working directory, even though `scan` does so. A CI job
+running `tools install -y` in a repo that happens to contain one would suddenly provision less,
+and may then be handed a different Saga to scan; installing less than before, silently, surfaces
+as a mystery failure elsewhere. Instead, when a descriptor is sitting there, the plan says so:
+
+```
+Note: `--saga draugr.saga.yaml` would install 2 of these 6 tools — the ones that
+descriptor's scan runs.
 ```
 
 **Already-installed tools are skipped.** Re-running is cheap: a tool already present at the
