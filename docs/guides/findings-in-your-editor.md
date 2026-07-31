@@ -62,7 +62,7 @@ extensions, so a quickfix-list converter is a short script — the fields you wa
 
 ## From the terminal
 
-The `Location` column in the **Fix first** table prints `path:line`. VS Code's integrated
+The `Location` column in the console's ranked findings table prints `path:line`. VS Code's integrated
 terminal, JetBrains' terminal and most modern terminal emulators detect that pattern and make
 it clickable, opening the file at the line — provided you run `draugr` from the repository root,
 since the paths are relative to it.

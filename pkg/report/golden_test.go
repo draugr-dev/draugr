@@ -73,8 +73,10 @@ func goldenMismatch(path string) string {
 		"If the change is intended, regenerate and refresh what copies this layout:\n" +
 		"  1. go test ./pkg/report -update\n" +
 		"  2. make examples          # real output from the demo sandbox, to paste into docs\n" +
-		"  3. update the examples in README.md, docs/getting-started/quickstart.md,\n" +
-		"     docs/concepts/verdict-and-gating.md, docs/contributing/{architecture,naming,plugin-api}.md\n" +
+		"  3. update what quotes or describes the layout:\n" +
+		"     README.md, docs/concepts/verdict-and-gating.md (pasted output),\n" +
+		"     docs/reference/cli.md, docs/concepts/principles.md,\n" +
+		"     docs/guides/findings-in-your-editor.md (described, not pasted)\n" +
 		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
 		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
 		"     (grep for 'Draugr — ' there; they are a separate repo, so nothing else will catch them)\n" +
@@ -83,25 +85,30 @@ func goldenMismatch(path string) string {
 
 // goldenFullData exercises every element of the frame at once: a failing verdict with a release,
 // priority counts, controls spanning all four severity bands, a control that errored, the
-// suppression and SBOM evidence lines, a rule id long enough to be shortened, and more findings
-// than the table shows.
+// suppression and SBOM evidence lines, a rule id long enough to be shortened, more findings than
+// the table shows, findings attributed to two different components, and a scanner's account of
+// what it measured.
+//
+// Every element, because an element the fixture omits is an element the golden does not pin —
+// and the layout is copied into six documents, two blog posts and a recorded GIF that nothing
+// else checks.
 func goldenFullData() Data {
 	sca := []sarif.Result{
 		{RuleID: "CVE-2019-20477", Level: sarif.LevelError, Score: 9.8, HasScore: true, Priority: "P1",
-			Tool: "trivy", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 4},
+			Tool: "trivy", Component: "payments", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 4},
 			Message: "PyYAML: command execution through python/object/apply constructor in FullLoader"},
 		{RuleID: "CVE-2019-10906", Level: sarif.LevelError, Score: 8.6, HasScore: true, Priority: "P1",
-			Tool: "trivy", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5},
+			Tool: "trivy", Component: "payments", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5},
 			Message: "python-jinja2: str.format_map allows sandbox escape"},
 		{RuleID: "CVE-2018-1000656", Level: sarif.LevelWarning, Score: 7.5, HasScore: true, Priority: "P2",
-			Tool: "trivy", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 2},
+			Tool: "trivy", Component: "internal-tool", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 2},
 			Message: "python-flask: Denial of Service via crafted JSON file"},
 		{RuleID: "CVE-2020-28493", Level: sarif.LevelNote, Priority: "P4", Tool: "trivy",
 			Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5}, Message: "jinja2: ReDoS"},
 	}
 	iac := []sarif.Result{
 		{RuleID: "DS-0002", Level: sarif.LevelError, Score: 8.0, HasScore: true, Priority: "P1",
-			Tool: "trivy", Location: sarif.Location{URI: "app/Dockerfile", StartLine: 1},
+			Tool: "trivy", Component: "payments", Location: sarif.Location{URI: "app/Dockerfile", StartLine: 1},
 			Message: "Image user should not be 'root'"},
 		{RuleID: "KSV-0014", Level: sarif.LevelWarning, Score: 5.5, HasScore: true, Priority: "P3",
 			Tool: "trivy", Location: sarif.Location{URI: "deploy/pod.yaml", StartLine: 8},
@@ -120,10 +127,13 @@ func goldenFullData() Data {
 	}
 	run := engine.Result{
 		Controls: map[string]plugin.ControlResult{
-			"sca":      {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: sca}},
-			"iac":      {Control: "iac", Report: sarif.Report{Tool: "trivy", Results: iac}},
-			"sast":     {Control: "sast", Report: sarif.Report{Tool: "semgrep", Results: sast}},
-			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: licenses}},
+			"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: sca}},
+			"iac": {Control: "iac", Report: sarif.Report{Tool: "trivy", Results: iac,
+				Provenance: []sarif.Provenance{{Tool: "trivy", Version: "0.69.3"}}}},
+			"sast": {Control: "sast", Report: sarif.Report{Tool: "semgrep", Results: sast}},
+			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: licenses,
+				Provenance: []sarif.Provenance{{Tool: "trivy-license", Version: "0.69.3",
+					Fields: []sarif.Field{{Key: "policy", Value: "deny copyleft"}}}}}},
 		},
 		ScanErrors: map[string][]string{"dast": {"nuclei: executable file not found in $PATH"}},
 		Suppressed: 2,

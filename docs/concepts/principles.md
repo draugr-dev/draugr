@@ -35,7 +35,7 @@ the **default**; machine-readable formats are always available, but you opt into
 the other way around.
 
 - **Readable and colorized out of the box.** The scan summary leads with a verdict, priority
-  counts, and a ranked **Fix first** table (with a header and a column naming both the control
+  counts, and a ranked table of what to fix first (with a header and a column naming both the control
   *and* the scanner behind each finding). Logs render the same way —
   `HH:MM:SS LEVEL  message key=value` — so diagnostics are legible at a glance. Color appears
   only on an interactive terminal and honors [`NO_COLOR`](https://no-color.org); piped or

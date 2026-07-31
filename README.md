@@ -40,7 +40,7 @@ Controls:
   sast     FAIL   7 high  9 medium
   sca      FAIL   3 critical  6 high  8 medium  1 low
 
-Fix first:
+Fix first (top 10 of 56, by priority):
   Priority  Severity  Score  Rule            Control  Scanner  Location
   P1        critical  9.8    CVE-2019-20477  sca      Trivy    app/requirements.txt:4
             PyYAML: command execution through python/object/apply constructor in FullLoader

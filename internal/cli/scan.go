@@ -87,7 +87,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.template, "template", "", "inline Go text/template (with --format template)")
 	cmd.Flags().StringVar(&opts.templateFile, "template-file", "", "Go text/template file (with --format template)")
 	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")
-	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the 'Fix first' table (0 = all)")
+	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the ranked table (0 = all)")
 	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false, "suppress the console's contextual tips (also DRAUGR_NO_TIPS)")
 	cmd.Flags().BoolVar(&opts.allowScanErrors, "allow-scan-errors", false,
 		"treat a control that couldn't run as a warning rather than a failure (best-effort scanning)")
