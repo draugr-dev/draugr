@@ -44,6 +44,7 @@ func Registry() *engine.Registry {
 func SurveyorRegistry() *surveyor.Registry {
 	reg := surveyor.NewRegistry()
 	reg.Register(dsurveyors.NewK8sImages())
+	reg.Register(dsurveyors.NewK8sCluster())
 	reg.Register(dsurveyors.NewGitHubOrgRepos())
 	return reg
 }

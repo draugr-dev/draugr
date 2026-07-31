@@ -82,6 +82,17 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 
+	// --context belongs to the group: it says which cluster, which both surveyors need. A
+	// surveyor-specific option would mean setting it twice to survey one cluster two ways.
+	var kubeContext string
+	scopeFor := func(ref string) plugin.SurveyScope {
+		scope := plugin.SurveyScope{Ref: ref}
+		if kubeContext != "" {
+			scope.Config = plugin.Config{"context": kubeContext}
+		}
+		return scope
+	}
+
 	var namespace string
 	images := &cobra.Command{
 		Use:   "images",
@@ -94,13 +105,36 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSurvey(cmd.Context(), *opts, []surveyor.Request{{
 				Surveyor: "k8s-images",
-				Scope:    plugin.SurveyScope{Ref: namespace},
+				Scope:    scopeFor(namespace),
 			}}, builtins.SurveyorRegistry(), cmd.OutOrStdout())
 		},
 	}
 	images.Flags().StringVar(&namespace, "namespace", "", "limit discovery to one namespace (default all)")
 
-	cmd.AddCommand(images)
+	var clusterNamespace string
+	cluster := &cobra.Command{
+		Use:   "cluster",
+		Short: "Discover the cluster itself, as infrastructure to audit",
+		Long: "Write the cluster as an `infrastructure` component, so the CIS benchmark controls\n" +
+			"apply to it. Separate from `k8s images`: those are the application, this is what it\n" +
+			"runs on, and they will differ in criticality.\n\n" +
+			"With --namespace, the component owns that namespace rather than the whole cluster.\n" +
+			"exposure and criticality are left unset — they are judgements no cluster holds; run\n" +
+			"`draugr classify` for those.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runSurvey(cmd.Context(), *opts, []surveyor.Request{{
+				Surveyor: "k8s-cluster",
+				Scope:    scopeFor(clusterNamespace),
+			}}, builtins.SurveyorRegistry(), cmd.OutOrStdout())
+		},
+	}
+	cluster.Flags().StringVar(&clusterNamespace, "namespace", "",
+		"the component owns this namespace rather than the whole cluster")
+
+	cmd.PersistentFlags().StringVar(&kubeContext, "context", "",
+		"kubeconfig context to survey (default the current one)")
+	cmd.AddCommand(images, cluster)
 	return cmd
 }
 

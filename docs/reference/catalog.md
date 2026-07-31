@@ -31,7 +31,7 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 | `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../../internal/controllers/iac.md) |
 | `headers` | HTTP security headers | component | ✅ | `http-headers` (native) | [doc](../../internal/controllers/headers.md) |
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
-| `infrastructure` | CIS benchmarks / posture | component | ✅ | `kube-bench` (default), `kube-bench-job` and `k8s-policies` (opt-in) | [doc](../../internal/controllers/infrastructure.md) |
+| `infrastructure` | CIS benchmarks / posture | component | ✅ | `k8s-policies` (default), `kube-bench` and `kube-bench-job` (opt-in) | [doc](../../internal/controllers/infrastructure.md) |
 | `tls` | TLS/certificate assessment | component | ✅ | `tls-probe` (native) | [doc](../../internal/controllers/tls.md) |
 | `licenses` | Dependency licence compliance | component | ✅ | `trivy-license` | [doc](../../internal/controllers/licenses.md) |
 | `threats` | Threat intelligence | component | 🗺️ [#59](https://github.com/draugr-dev/draugr/issues/59) | URLhaus, VirusTotal | — |
@@ -69,6 +69,7 @@ configured separately as `config.sbom` and travels as evidence. See
 | Surveyor | Discovers | Auth | Status | Doc |
 |----------|-----------|------|:------:|-----|
 | `k8s-images` | container images (with running digests) in a k8s cluster | kubeconfig | ✅ | [doc](../../internal/surveyors/k8s-images.md) |
+| `k8s-cluster` | the cluster itself, as an `infrastructure` component | kubeconfig | ✅ | [doc](../../internal/surveyors/k8s-cluster.md) |
 | `github-org-repos` | repositories in a GitHub org | `GITHUB_TOKEN` | ✅ | [doc](../../internal/surveyors/github-org-repos.md) |
 
 ## Reporters

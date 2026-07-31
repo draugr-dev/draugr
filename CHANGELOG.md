@@ -10,6 +10,23 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`draugr survey k8s cluster`** writes the cluster itself as an `infrastructure` component, so
+  the CIS benchmark controls apply to it without hand-writing the entry.
+
+  A separate surveyor from `k8s images` rather than an option on it: a surveyor named for images
+  that also emitted an infrastructure component would surprise anyone reading the command that
+  produced the descriptor. They also describe different things — the images are the application,
+  the cluster is what it runs on — and those differ in criticality often enough that one
+  component would assert a single classification over both.
+
+  `--namespace` makes the component own that namespace rather than the whole cluster, so a scoped
+  survey produces a scoped component instead of one you narrow by hand afterwards.
+
+- **`--context` on `draugr survey k8s`** selects which cluster to survey, for both of its
+  surveyors, instead of relying on whatever the kubeconfig currently points at.
+
 ### Changed
 
 - **`draugr survey` now has a subcommand per surveyor** instead of a flag per surveyor:

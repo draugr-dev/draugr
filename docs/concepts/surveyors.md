@@ -25,6 +25,7 @@ produces the components, so the descriptor starts complete and stays that way by
 | Command | Discovers | Auth |
 |---|---|---|
 | `draugr survey k8s images` | Unique container images running in a cluster or namespace, with their digests | Ambient kubeconfig (`KUBECONFIG`, `~/.kube/config`, or in-cluster) |
+| `draugr survey k8s cluster` | The cluster itself, as an `infrastructure` component to audit | Ambient kubeconfig |
 | `draugr survey github repos` | Repositories in a GitHub organization | `GITHUB_TOKEN`, or a token in scope config |
 
 Each surveyor is a subcommand, so its options live with it — `--namespace` belongs to
@@ -33,7 +34,15 @@ Each surveyor is a subcommand, so its options live with it — `--namespace` bel
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
+draugr survey k8s cluster --context prod --merge -o draugr.saga.yaml
 ```
+
+`k8s images` and `k8s cluster` read the same cluster but describe different things, and are
+deliberately separate: the images are the application, the cluster is what it runs on, and they
+will differ in criticality. A surveyor named for images that also emitted an infrastructure
+component would surprise anyone reading the command that produced the descriptor.
+
+`--context` selects which cluster, for both.
 
 `draugr survey` on its own lists the surveyors rather than guessing what you meant to discover.
 
