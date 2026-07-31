@@ -678,7 +678,10 @@ func TestPlatformFromNodes(t *testing.T) {
 		want string
 	}{
 		{"aks label", node(map[string]string{"kubernetes.azure.com/cluster": "mc_rg_cluster_region"}, ""), "aks"},
-		{"azure provider id", node(nil, "azure:///subscriptions/abc/resourceGroups/rg/providers/x"), "aks"},
+		// Deliberately not AKS: RKE2, RKE and kubeadm all carry this when the Azure cloud
+		// provider is configured. The provider ID says which cloud the VM is on, not who runs
+		// the control plane.
+		{"azure provider id without the label", node(nil, "azure:///subscriptions/abc/resourceGroups/rg/providers/x"), ""},
 
 		// A cluster on someone else's cloud is not automatically that cloud's managed service.
 		{"gce provider id", node(nil, "gce://project/zone/instance"), ""},
@@ -702,5 +705,27 @@ func TestPlatformFromNodesToleratesNoNodes(t *testing.T) {
 	t.Parallel()
 	if got := platformFromNodes(context.Background(), fake.NewSimpleClientset()); got != "" {
 		t.Errorf("platformFromNodes with no readable nodes = %q, want empty", got)
+	}
+}
+
+// The ordering that protects every distribution which stamps its own version: node inspection is
+// a fallback, not an override. An RKE2 cluster on Azure VMs carries an azure:// provider ID and
+// is emphatically not AKS — auditing it against the AKS benchmark would drop the control-plane
+// checks that are the whole point of running the benchmark on a cluster you manage yourself.
+func TestVersionStringWinsOverNodeInspection(t *testing.T) {
+	t.Parallel()
+
+	// RKE2 announces itself, so this never reaches the node.
+	if got := platformFrom("v1.27.6+rke2r1"); got != "rke2r" {
+		t.Fatalf("platformFrom = %q, want rke2r", got)
+	}
+
+	// And if it did reach the node, an Azure VM must still not read as AKS.
+	azureVM := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: "rke2-worker"},
+		Spec:       corev1.NodeSpec{ProviderID: "azure:///subscriptions/abc/resourceGroups/rg/providers/x"},
+	}
+	if got := platformFromNodes(context.Background(), fake.NewSimpleClientset(azureVM)); got != "" {
+		t.Errorf("a self-managed cluster on Azure VMs read as %q; only AKS's own node label should count", got)
 	}
 }
