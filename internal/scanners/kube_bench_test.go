@@ -8,6 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
+
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -652,5 +656,51 @@ func TestKubeBenchScanAcceptsThePlatformBenchmark(t *testing.T) {
 	}
 	if got := rep.Results[0].RuleID; got != "cis/4.1.1" {
 		t.Errorf("rule id = %q, want the EKS benchmark's own numbering", got)
+	}
+}
+
+// AKS is the distribution that does not announce itself. GKE and EKS stamp the version string;
+// a real AKS cluster reports a bare v1.34.2 and is indistinguishable from kubeadm by version
+// alone, so it was audited against the generic benchmark with nothing to signal it.
+func TestPlatformFromNodes(t *testing.T) {
+	t.Parallel()
+
+	node := func(labels map[string]string, providerID string) *corev1.Node {
+		return &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: "n1", Labels: labels},
+			Spec:       corev1.NodeSpec{ProviderID: providerID},
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		node *corev1.Node
+		want string
+	}{
+		{"aks label", node(map[string]string{"kubernetes.azure.com/cluster": "mc_rg_cluster_region"}, ""), "aks"},
+		{"azure provider id", node(nil, "azure:///subscriptions/abc/resourceGroups/rg/providers/x"), "aks"},
+
+		// A cluster on someone else's cloud is not automatically that cloud's managed service.
+		{"gce provider id", node(nil, "gce://project/zone/instance"), ""},
+		{"aws provider id", node(nil, "aws:///us-east-1a/i-0abc"), ""},
+		{"bare node", node(nil, ""), ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			client := fake.NewSimpleClientset(tc.node)
+			if got := platformFromNodes(context.Background(), client); got != tc.want {
+				t.Errorf("platformFromNodes = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// Reading nodes can be denied on a shared cluster. That must not fail the scan: a missed platform
+// leaves the version string to decide exactly as it did before, which is the pre-existing
+// behaviour rather than a new failure.
+func TestPlatformFromNodesToleratesNoNodes(t *testing.T) {
+	t.Parallel()
+	if got := platformFromNodes(context.Background(), fake.NewSimpleClientset()); got != "" {
+		t.Errorf("platformFromNodes with no readable nodes = %q, want empty", got)
 	}
 }

@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **AKS clusters are now audited against the AKS benchmark.** GKE and EKS put their distribution
+  in the reported Kubernetes version; AKS does not — a real AKS cluster reports a bare `v1.34.2`,
+  so it was treated as vanilla and measured against the generic `cis-*` benchmark. Nothing
+  signalled it: with no platform detected there was no expectation for the output check to
+  disagree with.
+
+  Draugr now does what kube-bench does for this case and reads a node's labels and provider ID,
+  fetching a single node and only when the version string came back bare. If reading nodes is
+  denied, the platform is simply not detected and the version decides, as before.
 
 ## [0.47.0] - 2026-07-30
 
