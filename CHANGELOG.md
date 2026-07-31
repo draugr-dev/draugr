@@ -10,7 +10,20 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **A report can now carry what a scanner says about the run**, not only what it found — which
+  benchmark was applied, how much of it could be decided, what the scan was scoped to. It travels
+  in `--format json` and in SARIF's own run property bag, so it reaches any consumer that reads
+  SARIF rather than only Draugr's reporters.
+
+  Nothing renders it yet; the scanners that will fill it in, and the human-facing formats, follow.
+  This is the plumbing.
+
+- **Every report records the version of the scanner that produced it**, filled in by the engine
+  so a scanner cannot forget. Where caching resolved a live version — Trivy folds in its
+  vulnerability-DB version — that is the one recorded, so the evidence and the cache key cannot
+  disagree about what ran.
 
 ## [0.50.0] - 2026-07-31
 

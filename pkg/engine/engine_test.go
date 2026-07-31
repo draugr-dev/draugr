@@ -16,13 +16,16 @@ import (
 // --- fakes ---
 
 type fakeScanner struct {
-	name string
-	fail bool
-	mu   sync.Mutex
-	call int
+	name    string
+	version string
+	fail    bool
+	mu      sync.Mutex
+	call    int
 }
 
-func (f *fakeScanner) Info() plugin.ScannerInfo { return plugin.ScannerInfo{Name: f.name} }
+func (f *fakeScanner) Info() plugin.ScannerInfo {
+	return plugin.ScannerInfo{Name: f.name, Version: f.version}
+}
 
 func (f *fakeScanner) Scan(_ context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
 	f.mu.Lock()
@@ -388,5 +391,80 @@ func TestRunDoesNotComplainAboutAnSBOMOnlyDescriptor(t *testing.T) {
 	}
 	if msgs := res.ScanErrors["(planning)"]; len(msgs) > 0 {
 		t.Errorf("an SBOM-only descriptor did what it asked; got %v", msgs)
+	}
+}
+
+// Every report should say what produced it, without each scanner having to remember. A scanner
+// written later by someone who never read this file still gets provenance.
+func TestEngineStampsProvenanceOnEveryReport(t *testing.T) {
+	t.Parallel()
+
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterScanner(&fakeScanner{name: "s", version: "1.2.3"})
+
+	res, err := New(reg).Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := res.Controls["images"].Report.Provenance
+	if len(got) != 1 {
+		t.Fatalf("want one account of the scan, got %+v", got)
+	}
+	if got[0].Tool != "s" || got[0].Version != "1.2.3" {
+		t.Errorf("provenance = %+v, want the scanner and its version", got[0])
+	}
+}
+
+// The scanner with the best version information is the one whose version is not static: Trivy
+// reports its vulnerability-DB version through CacheVersion. Caching resolves that anyway, so
+// provenance reuses it rather than probing again or reporting nothing.
+func TestProvenanceUsesTheResolvedVersionWhenCaching(t *testing.T) {
+	t.Parallel()
+
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterScanner(&versionedScanner{name: "s", version: "db@1"})
+
+	res, err := New(reg, WithCache(cache.NewMemory())).Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := res.Controls["images"].Report.Provenance
+	if len(got) != 1 || got[0].Version != "db@1" {
+		t.Errorf("provenance = %+v, want the version the cache resolved", got)
+	}
+}
+
+// A scanner reporting no version has nothing to say, and an entry saying nothing is noise in
+// every report that renders it.
+func TestNoProvenanceForAScannerWithNoVersion(t *testing.T) {
+	t.Parallel()
+
+	var r sarif.Report
+	recordProvenance(&r, "quiet", "")
+	if len(r.Provenance) != 0 {
+		t.Errorf("want no entry, got %+v", r.Provenance)
+	}
+}
+
+// A scanner that described its own run keeps what it said and gains the version it did not know.
+func TestRecordProvenanceAugmentsWhatTheScannerSaid(t *testing.T) {
+	t.Parallel()
+
+	r := sarif.Report{Provenance: []sarif.Provenance{{
+		Tool:   "kube-bench",
+		Fields: []sarif.Field{{Key: "benchmark", Value: "gke-1.9.0"}},
+	}}}
+	recordProvenance(&r, "kube-bench", "0.15.6")
+
+	if len(r.Provenance) != 1 {
+		t.Fatalf("the scanner's own entry should be augmented, not duplicated: %+v", r.Provenance)
+	}
+	if r.Provenance[0].Version != "0.15.6" {
+		t.Errorf("version = %q, want it filled in", r.Provenance[0].Version)
+	}
+	if len(r.Provenance[0].Fields) != 1 {
+		t.Errorf("the scanner's fields must survive: %+v", r.Provenance[0].Fields)
 	}
 }

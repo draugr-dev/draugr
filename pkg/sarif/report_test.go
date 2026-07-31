@@ -2,6 +2,7 @@ package sarif
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -121,5 +122,55 @@ func TestSuppressionSurvivesAMarshalRoundTrip(t *testing.T) {
 	sup := doc.Runs[0].Results[0].Suppressions
 	if len(sup) != 1 || sup[0].Kind != "external" || sup[0].Justification != "deliberate test fixture" {
 		t.Errorf("suppressions = %+v, want the kind and justification", sup)
+	}
+}
+
+// Two scanners serving one control each have their own account, and both belong in the evidence.
+// Flattening them would keep whichever was written last — the failure this type exists to stop.
+func TestMergeKeepsEveryScannersProvenance(t *testing.T) {
+	t.Parallel()
+
+	a := Report{Tool: "kube-bench-job", Provenance: []Provenance{{
+		Tool: "kube-bench-job", Version: "0.15.6",
+		Fields: []Field{{Key: "benchmark", Value: "gke-1.9.0"}},
+	}}}
+	b := Report{Tool: "k8s-policies", Provenance: []Provenance{{
+		Tool:   "k8s-policies",
+		Fields: []Field{{Key: "benchmark", Value: "cis-1.12"}, {Key: "coverage", Value: "20 of 34 decided"}},
+	}}}
+
+	got := Merge(a, b)
+	if len(got.Provenance) != 2 {
+		t.Fatalf("want both accounts, got %d: %+v", len(got.Provenance), got.Provenance)
+	}
+
+	// Merging is not idempotent by accident: aggregation merges repeatedly, and a report merged
+	// with itself must not double its own history.
+	twice := Merge(got, got)
+	if len(twice.Provenance) != 2 {
+		t.Errorf("re-merging duplicated provenance: %+v", twice.Provenance)
+	}
+}
+
+// An entry saying nothing is noise in every report that renders it.
+func TestMergeDropsEmptyProvenance(t *testing.T) {
+	t.Parallel()
+	got := Merge(Report{Tool: "x", Provenance: []Provenance{{Tool: "x"}}})
+	if len(got.Provenance) != 0 {
+		t.Errorf("an entry with no version and no fields says nothing: %+v", got.Provenance)
+	}
+}
+
+// Describe is what a reporter with one line to spend renders.
+func TestProvenanceDescribe(t *testing.T) {
+	t.Parallel()
+	p := Provenance{Fields: []Field{{Key: "benchmark", Value: "cis-1.12"}, {Key: "coverage", Value: "20 of 34"}}}
+	if got, want := p.Describe(), "benchmark cis-1.12 · coverage 20 of 34"; got != want {
+		t.Errorf("Describe() = %q, want %q", got, want)
+	}
+	// Order is the scanner's choice, not alphabetical — "coverage" must not sort ahead of
+	// "benchmark".
+	if strings.Index(p.Describe(), "benchmark") > strings.Index(p.Describe(), "coverage") {
+		t.Error("fields should render in the order the scanner gave them")
 	}
 }
