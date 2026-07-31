@@ -10,17 +10,9 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-### Fixed
+_Nothing yet._
 
-- **Documentation that the last few releases had quietly falsified.** The glossary still said
-  Draugr could not run the benchmark inside a cluster, which stopped being true in 0.46.0; the
-  README described the `infrastructure` control as kube-bench and discovery as images-and-repos
-  only. Same-PR doc discipline keeps the pages next to a change correct — it does not catch a
-  page elsewhere the change made wrong.
-
-  A test now holds the integrations catalog to the registry on the claim most likely to rot:
-  which scanner a control runs **by default**. That one is written once in a table nobody
-  revisits and read by everyone deciding what a scan does.
+## [0.49.0] - 2026-07-31
 
 ### Added
 
@@ -40,22 +32,6 @@ and move it under a version on release.
   `enabled: false` — `--merge` runs against a file people edit, and a survey that switched
   something back on would be worse than the problem it solves.
 
-### Fixed
-
-- **A scan that checked nothing no longer reports `PASS`.** A descriptor enabling no control — or
-  none whose surface its components carry — produced no findings, no failures and a pass:
-  output identical to a spotless application.
-
-  The wrong reading was the likelier one. A descriptor reaches that state by being unfinished, or
-  by being generated with `draugr survey`, which describes a surface without enabling anything to
-  check it. It is now reported the same way a control that could not run is, because it is the
-  same failure one level up — the gate answered without having looked.
-
-  A descriptor that asks only for an SBOM is unaffected: it enables no control by design and
-  still produces the evidence it was asked for.
-
-### Added
-
 - **`draugr survey k8s cluster`** writes the cluster itself as an `infrastructure` component, so
   the CIS benchmark controls apply to it without hand-writing the entry.
 
@@ -70,28 +46,6 @@ and move it under a version on release.
 
 - **`--context` on `draugr survey k8s`** selects which cluster to survey, for both of its
   surveyors, instead of relying on whatever the kubeconfig currently points at.
-
-### Changed
-
-- **`draugr survey` now has a subcommand per surveyor** instead of a flag per surveyor:
-
-  ```bash
-  draugr survey k8s images --namespace prod -o draugr.saga.yaml
-  draugr survey github repos --org acme --merge -o draugr.saga.yaml
-  ```
-
-  The old flags were related to each other in ways nothing expressed —
-  `draugr survey --github-org acme --k8s-namespace prod` was accepted in silence, with the
-  namespace applied to nothing and no warning that it had been. Each surveyor's options now sit
-  on its own command, where an option that does not belong is rejected rather than ignored.
-
-  Running several surveyors at once still works through `--merge`, which folds each survey into
-  the Saga already at `--output`.
-
-  `--k8s-images`, `--k8s-namespace` and `--github-org` now **error**, naming the subcommand that
-  replaced them. A flag left behind to be ignored is the defect this change exists to fix.
-
-### Added
 
 - **`draugr tools install --saga <descriptor>`** installs only the tools that descriptor's scan
   will run, instead of everything Draugr can provision. It resolves them exactly as
@@ -135,6 +89,50 @@ and move it under a version on release.
   Only the `k8sPolicies` scanner can honour a scope. `kubeBench` writes `--all-namespaces` into
   its own checks, and the in-cluster Job reads a node filesystem that has no namespace, so both
   **refuse** a scoped component rather than auditing everything and reporting it as if scoped.
+
+### Changed
+
+- **`draugr survey` now has a subcommand per surveyor** instead of a flag per surveyor:
+
+  ```bash
+  draugr survey k8s images --namespace prod -o draugr.saga.yaml
+  draugr survey github repos --org acme --merge -o draugr.saga.yaml
+  ```
+
+  The old flags were related to each other in ways nothing expressed —
+  `draugr survey --github-org acme --k8s-namespace prod` was accepted in silence, with the
+  namespace applied to nothing and no warning that it had been. Each surveyor's options now sit
+  on its own command, where an option that does not belong is rejected rather than ignored.
+
+  Running several surveyors at once still works through `--merge`, which folds each survey into
+  the Saga already at `--output`.
+
+  `--k8s-images`, `--k8s-namespace` and `--github-org` now **error**, naming the subcommand that
+  replaced them. A flag left behind to be ignored is the defect this change exists to fix.
+
+### Fixed
+
+- **Documentation that the last few releases had quietly falsified.** The glossary still said
+  Draugr could not run the benchmark inside a cluster, which stopped being true in 0.46.0; the
+  README described the `infrastructure` control as kube-bench and discovery as images-and-repos
+  only. Same-PR doc discipline keeps the pages next to a change correct — it does not catch a
+  page elsewhere the change made wrong.
+
+  A test now holds the integrations catalog to the registry on the claim most likely to rot:
+  which scanner a control runs **by default**. That one is written once in a table nobody
+  revisits and read by everyone deciding what a scan does.
+
+- **A scan that checked nothing no longer reports `PASS`.** A descriptor enabling no control — or
+  none whose surface its components carry — produced no findings, no failures and a pass:
+  output identical to a spotless application.
+
+  The wrong reading was the likelier one. A descriptor reaches that state by being unfinished, or
+  by being generated with `draugr survey`, which describes a surface without enabling anything to
+  check it. It is now reported the same way a control that could not run is, because it is the
+  same failure one level up — the gate answered without having looked.
+
+  A descriptor that asks only for an SBOM is unaffected: it enables no control by design and
+  still produces the evidence it was asked for.
 
 ## [0.48.0] - 2026-07-31
 
@@ -1507,7 +1505,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.48.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.49.0...HEAD
+[0.49.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.49.0
 [0.48.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.48.0
 [0.47.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.47.1
 [0.47.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.47.0
