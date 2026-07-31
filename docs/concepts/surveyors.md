@@ -22,17 +22,20 @@ produces the components, so the descriptor starts complete and stays that way by
 
 ## Built-in surveyors
 
-| Surveyor | Discovers | Auth |
+| Command | Discovers | Auth |
 |---|---|---|
-| `k8s-images` | Unique container images running in a cluster or namespace, with their digests | Ambient kubeconfig (`KUBECONFIG`, `~/.kube/config`, or in-cluster) |
-| `github-org-repos` | Repositories in a GitHub organization | `GITHUB_TOKEN`, or a token in scope config |
+| `draugr survey k8s images` | Unique container images running in a cluster or namespace, with their digests | Ambient kubeconfig (`KUBECONFIG`, `~/.kube/config`, or in-cluster) |
+| `draugr survey github repos` | Repositories in a GitHub organization | `GITHUB_TOKEN`, or a token in scope config |
+
+Each surveyor is a subcommand, so its options live with it — `--namespace` belongs to
+`k8s images` and cannot be handed to `github repos` to be quietly ignored.
 
 ```bash
-draugr survey --github-org my-org -o draugr.saga.yaml
-draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
+draugr survey github repos --org my-org -o draugr.saga.yaml
+draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
 ```
 
-At least one surveyor must be selected — `survey` will not guess what you meant to discover.
+`draugr survey` on its own lists the surveyors rather than guessing what you meant to discover.
 
 ## Merging, not overwriting
 

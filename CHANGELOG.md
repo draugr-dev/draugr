@@ -10,6 +10,26 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **`draugr survey` now has a subcommand per surveyor** instead of a flag per surveyor:
+
+  ```bash
+  draugr survey k8s images --namespace prod -o draugr.saga.yaml
+  draugr survey github repos --org acme --merge -o draugr.saga.yaml
+  ```
+
+  The old flags were related to each other in ways nothing expressed —
+  `draugr survey --github-org acme --k8s-namespace prod` was accepted in silence, with the
+  namespace applied to nothing and no warning that it had been. Each surveyor's options now sit
+  on its own command, where an option that does not belong is rejected rather than ignored.
+
+  Running several surveyors at once still works through `--merge`, which folds each survey into
+  the Saga already at `--output`.
+
+  `--k8s-images`, `--k8s-namespace` and `--github-org` now **error**, naming the subcommand that
+  replaced them. A flag left behind to be ignored is the defect this change exists to fix.
+
 ### Added
 
 - **`draugr tools install --saga <descriptor>`** installs only the tools that descriptor's scan

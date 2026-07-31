@@ -260,30 +260,45 @@ is still the same issue), so genuinely-carried-over findings aren't reported as 
 
 ## `draugr survey`
 
-Run discovery surveyors and materialize the results into a Saga. At least
-one surveyor must be selected.
+Discover what an application is made of and write it into a Saga descriptor.
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--k8s-images` | `false` | Discover container images in a Kubernetes cluster |
-| `--k8s-namespace` | all | Namespace for `--k8s-images` |
-| `--github-org` | — | Discover repositories in this GitHub org |
-| `-o, --output` | stdout | Write the Saga here |
-| `--merge` | `false` | Merge into the existing Saga at `--output` |
-| `--name` | — | Release name for a newly created Saga |
-| `--version` | `0.0.0` | Release version for a newly created Saga |
+**Each surveyor is its own subcommand**, so a surveyor's options sit with the surveyor they
+belong to:
+
+| Command | Discovers | Options |
+|---|---|---|
+| `draugr survey k8s images` | unique container images running in a cluster, with their digests | `--namespace` |
+| `draugr survey github repos` | repositories in a GitHub organization | `--org` |
+
+Shared by all of them: `-o, --output` (default stdout), `--merge`, `--name`, `--version`.
 
 Auth: the GitHub surveyor uses `GITHUB_TOKEN` (or a token in scope config); the Kubernetes
-surveyor uses your ambient kubeconfig (`KUBECONFIG` / `~/.kube/config` / in-cluster).
+surveyors use your ambient kubeconfig (`KUBECONFIG` / `~/.kube/config` / in-cluster).
 
 ```bash
-draugr survey --github-org my-org -o draugr.saga.yaml
-draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
+draugr survey github repos --org my-org -o draugr.saga.yaml
+draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
 ```
 
-When scoped to a specific namespace, `--k8s-images` also **proposes each component's
-`exposure`** from topology (Ingress/external Service → `public`, NetworkPolicy → `restricted`,
-else `internal`) — review it, then set `criticality` with [`draugr classify`](#draugr-classify-sagayaml).
+**Run several with `--merge`**, which folds each survey into the Saga already at `--output` —
+the same flag used to add discovery to a descriptor you maintain by hand.
+
+When scoped to a specific namespace, `k8s images` also **proposes each component's `exposure`**
+from topology (Ingress/external Service → `public`, NetworkPolicy → `restricted`, else
+`internal`) — review it, then set `criticality` with [`draugr classify`](#draugr-classify-sagayaml).
+
+### Why subcommands
+
+The previous `--k8s-images` / `--k8s-namespace` / `--github-org` flags were related to each other
+in ways nothing expressed. `--k8s-namespace` meant something only alongside `--k8s-images`, so
+
+```bash
+draugr survey --github-org acme --k8s-namespace prod   # namespace applied to nothing
+```
+
+was accepted in silence. Each surveyor's options now live on its own command, where an option
+that does not belong is rejected rather than ignored. The old flags **error**, naming the
+subcommand that replaced them.
 
 ---
 

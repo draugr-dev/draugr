@@ -192,8 +192,8 @@ draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
 Let discovery write the descriptor for you:
 
 ```bash
-draugr survey --github-org my-org -o draugr.saga.yaml
-draugr survey --k8s-images --k8s-namespace prod --merge -o draugr.saga.yaml
+draugr survey github repos --org my-org -o draugr.saga.yaml
+draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
 ```
 
 Full walkthrough: [`docs/getting-started/quickstart.md`](docs/getting-started/quickstart.md).
