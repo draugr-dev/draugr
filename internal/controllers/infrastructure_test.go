@@ -135,3 +135,36 @@ func TestInfrastructureAggregateEmpty(t *testing.T) {
 		t.Errorf("empty aggregate should be clean, got %+v", res.Summary)
 	}
 }
+
+// mode picks the scanner, and the three differ in what they are allowed to do: the default and
+// the native reader only read, while the Job schedules a privileged pod. Effects are declared per
+// scanner, so choosing the wrong one here silently changes what a scan is permitted to do.
+func TestScannerForMode(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		cfg  plugin.Config
+		want string
+	}{
+		{"unset defaults to read-only kube-bench", nil, "kube-bench"},
+		{"empty config", plugin.Config{}, "kube-bench"},
+		{"job", plugin.Config{"mode": "job"}, "kube-bench-job"},
+		{"api", plugin.Config{"mode": "api"}, "k8s-policies"},
+
+		// Operators type what they type; the mode is a word, not a token.
+		{"case and padding", plugin.Config{"mode": "  JOB "}, "kube-bench-job"},
+
+		// An unrecognized mode must not silently select something. Falling back to the
+		// read-only default is the safe direction: it cannot create anything.
+		{"unknown", plugin.Config{"mode": "sidecar"}, "kube-bench"},
+		{"wrong type", plugin.Config{"mode": 42}, "kube-bench"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := scannerFor(tc.cfg); got != tc.want {
+				t.Errorf("scannerFor(%v) = %q, want %q", tc.cfg, got, tc.want)
+			}
+		})
+	}
+}

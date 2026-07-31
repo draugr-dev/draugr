@@ -10,7 +10,32 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`mode: api` reads the CIS policies section through the Kubernetes API**, instead of running
+  kube-bench:
+
+  ```yaml
+  config:
+    controllers:
+      infrastructure:
+        enabled: true
+        mode: api
+  ```
+
+  kube-bench answers this section with a shell pipeline per check, and for the pod-security ones
+  a `kubectl` call per pod. On a shared cluster of 78 namespaces a pass takes tens of minutes,
+  almost none of it spent on the queries. The same questions are a handful of API calls, and
+  nothing needs `kubectl` installed.
+
+  **Coverage is stated, not implied.** Every check in the section is reported: three are decided
+  from the cluster's actual state, and the rest are reported as needing manual review — which is
+  what CIS says about them and what kube-bench reports too. So a check that is not yet
+  implemented can never read as a clean result, and implementing one only ever replaces a prompt
+  with an answer.
+
+  Rule ids are unchanged (`cis/5.1.1`), so an exclusion written against the default scanner keeps
+  working when you switch.
 
 ## [0.46.2] - 2026-07-30
 

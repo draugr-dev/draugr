@@ -31,7 +31,7 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 | `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../../internal/controllers/iac.md) |
 | `headers` | HTTP security headers | component | ✅ | `http-headers` (native) | [doc](../../internal/controllers/headers.md) |
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
-| `infrastructure` | CIS benchmarks / posture | component | ✅ | `kube-bench` (default), `kube-bench-job` (opt-in) | [doc](../../internal/controllers/infrastructure.md) |
+| `infrastructure` | CIS benchmarks / posture | component | ✅ | `kube-bench` (default), `kube-bench-job` and `k8s-policies` (opt-in) | [doc](../../internal/controllers/infrastructure.md) |
 | `tls` | TLS/certificate assessment | component | ✅ | `tls-probe` (native) | [doc](../../internal/controllers/tls.md) |
 | `licenses` | Dependency licence compliance | component | ✅ | `trivy-license` | [doc](../../internal/controllers/licenses.md) |
 | `threats` | Threat intelligence | component | 🗺️ [#59](https://github.com/draugr-dev/draugr/issues/59) | URLhaus, VirusTotal | — |
@@ -59,6 +59,7 @@ configured separately as `config.sbom` and travels as evidence. See
 | `trivy-license` | licenses | Aqua Trivy (licence) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-license.md) |
 | `kube-bench` | infrastructure | Aqua kube-bench | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench.md) |
 | `kube-bench-job` | infrastructure | Aqua kube-bench (in-cluster Job) | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench-job.md) |
+| `k8s-policies` | infrastructure | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/k8s-policies.md) |
 | `http-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/http-headers.md) |
 | `nuclei` | dast | ProjectDiscovery Nuclei | MIT | ✅ | [doc](../../internal/scanners/nuclei.md) |
 | `tls-probe` | tls | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/tls-probe.md) |

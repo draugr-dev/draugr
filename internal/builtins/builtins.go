@@ -32,6 +32,7 @@ func Registry() *engine.Registry {
 	reg.RegisterScanner(scanners.NewTrivyConfig())
 	reg.RegisterScanner(scanners.NewKubeBench())
 	reg.RegisterScanner(scanners.NewKubeBenchJob())
+	reg.RegisterScanner(scanners.NewK8sPolicies())
 	reg.RegisterScanner(scanners.NewHTTPHeaders())
 	reg.RegisterScanner(scanners.NewNuclei())
 	reg.RegisterScanner(scanners.NewTrivyLicense())
