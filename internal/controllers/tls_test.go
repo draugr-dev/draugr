@@ -57,7 +57,7 @@ func TestTLSPlanRespectsScannerConfig(t *testing.T) {
 		Name:  "web",
 		Hosts: []saga.Host{{Name: "api", URL: "https://api.example.test"}},
 		Controllers: map[string]saga.ControllerSettings{
-			"tls": {tlsProbeScanner: map[string]any{"enabled": false}},
+			"tls": {configKeyFor(tlsProbeScanner): map[string]any{"enabled": false}},
 		},
 	}
 	jobs, err := NewTLS().Plan(saga.Model{}, comp)
@@ -71,7 +71,7 @@ func TestTLSPlanRespectsScannerConfig(t *testing.T) {
 
 func TestTLSAggregate(t *testing.T) {
 	reports := []sarif.Report{
-		{Tool: "tls-probe", Results: []sarif.Result{
+		{Tool: "tlsProbe", Results: []sarif.Result{
 			{RuleID: "tls-cert-expired", Level: sarif.LevelError},
 			{RuleID: "tls-cert-expiring", Level: sarif.LevelWarning},
 			{RuleID: "tls-no-tls13", Level: sarif.LevelNote},

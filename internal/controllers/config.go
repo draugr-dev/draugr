@@ -40,32 +40,41 @@ func resolveScanners(model saga.Model, comp *saga.Component, control string, def
 		}
 	}
 
-	defaultSet := make(map[string]bool, len(defaults))
+	// Blocks are keyed by the descriptor's camelCase key; defaults are given as scanner names.
+	defaultKeys := make(map[string]bool, len(defaults))
 	for _, d := range defaults {
-		defaultSet[d] = true
+		defaultKeys[configKeyFor(d)] = true
 	}
 
 	var out []scannerSelection
 	// Default scanners first, in the given order; included unless explicitly disabled.
 	for _, d := range defaults {
-		if flag, ok := enabledFlag(merged[d]); ok && !flag {
+		blk := merged[configKeyFor(d)]
+		if flag, ok := enabledFlag(blk); ok && !flag {
 			continue
 		}
-		out = append(out, scannerSelection{Name: d, Config: configFromBlock(merged[d])})
+		out = append(out, scannerSelection{Name: d, Config: configFromBlock(blk)})
 	}
 	// Extra (non-default) scanners, sorted; included only when explicitly enabled.
 	extra := make([]string, 0, len(merged))
-	for name, blk := range merged {
-		if defaultSet[name] {
+	for key, blk := range merged {
+		if defaultKeys[key] {
 			continue
 		}
-		if flag, ok := enabledFlag(blk); ok && flag {
+		name, ok := scannerNameFor(key)
+		if !ok {
+			// A hyphenated key. Validate() rejects these at load, so reaching here means the
+			// descriptor bypassed validation; skipping silently is what that guard exists to
+			// prevent, but erroring is not this function's contract.
+			continue
+		}
+		if flag, enabled := enabledFlag(blk); enabled && flag {
 			extra = append(extra, name)
 		}
 	}
 	sort.Strings(extra)
 	for _, name := range extra {
-		out = append(out, scannerSelection{Name: name, Config: configFromBlock(merged[name])})
+		out = append(out, scannerSelection{Name: name, Config: configFromBlock(merged[configKeyFor(name)])})
 	}
 	return out
 }
@@ -139,4 +148,56 @@ func deepMerge(dst, src map[string]any) map[string]any {
 		out[k] = v
 	}
 	return out
+}
+
+// scannerConfigKey is the camelCase key a scanner is configured under in the descriptor.
+//
+// Scanner names are identifiers that appear in reports, `draugr controls` and rule output, and
+// several of them are hyphenated. Descriptor fields are camelCase, without exception — so the
+// two diverge for any scanner whose name has more than one word, and the descriptor keeps its
+// own convention rather than borrowing the report's.
+//
+// Single-word scanners (semgrep, gosec, trivy, nuclei) need no entry: key and name are equal.
+var scannerConfigKey = map[string]string{
+	"kube-bench":     "kubeBench",
+	"kube-bench-job": "kubeBenchJob",
+	"k8s-policies":   "k8sPolicies",
+	"tls-probe":      "tlsProbe",
+	"http-headers":   "httpHeaders",
+	"trivy-fs":       "trivyFs",
+	"trivy-config":   "trivyConfig",
+	"trivy-license":  "trivyLicense",
+}
+
+// scannerForConfigKey inverts scannerConfigKey.
+var scannerForConfigKey = func() map[string]string {
+	m := make(map[string]string, len(scannerConfigKey))
+	for name, key := range scannerConfigKey {
+		m[key] = name
+	}
+	return m
+}()
+
+// configKeyFor returns the descriptor key a scanner is configured under.
+func configKeyFor(scanner string) string {
+	if key, ok := scannerConfigKey[scanner]; ok {
+		return key
+	}
+	return scanner
+}
+
+// scannerNameFor resolves a descriptor key to a scanner name, reporting whether it is known.
+//
+// A hyphenated key is rejected rather than quietly accepted. The failure it guards against is
+// silent: an unrecognized block is simply not selected, so `kube-bench-job: { enabled: true }`
+// would produce a scan that ran one fewer scanner and said nothing about it. Someone asking for
+// the node sections would get a pass on a benchmark half of which never ran.
+func scannerNameFor(key string) (string, bool) {
+	if name, ok := scannerForConfigKey[key]; ok {
+		return name, true
+	}
+	if _, hyphenated := scannerConfigKey[key]; hyphenated {
+		return "", false
+	}
+	return key, true
 }

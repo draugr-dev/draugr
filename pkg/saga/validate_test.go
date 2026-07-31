@@ -336,3 +336,74 @@ func TestValidateGateControls(t *testing.T) {
 		t.Errorf("error should name the offending control: %v", err)
 	}
 }
+
+// A descriptor key that matches nothing is the quiet kind of wrong: the scan runs, reports a
+// verdict, and does less than its author asked for. Both of these used to do exactly that.
+func TestValidateRejectsUnusableControllerKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		settings ControllerSettings
+		want     []string
+	}{
+		{
+			name:     "hyphenated scanner key",
+			settings: ControllerSettings{"kube-bench-job": map[string]any{"enabled": true}},
+			want:     []string{"camelCase", "kubeBenchJob"},
+		},
+		{
+			name:     "removed mode setting",
+			settings: ControllerSettings{"mode": "job"},
+			want:     []string{"was removed", "kubeBenchJob"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := &Model{
+				Release: Release{Version: "1.0"},
+				Config:  Config{Controllers: map[string]ControllerSettings{"infrastructure": tc.settings}},
+			}
+			err := m.Validate()
+			if err == nil {
+				t.Fatal("want an error")
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(err.Error(), w) {
+					t.Errorf("error should mention %q, got: %v", w, err)
+				}
+			}
+		})
+	}
+}
+
+// The convention applies to a component's own controller block too, or half the descriptor is
+// unchecked.
+func TestValidateChecksComponentControllerKeys(t *testing.T) {
+	t.Parallel()
+	m := &Model{
+		Release: Release{Version: "1.0"},
+		Components: []Component{{
+			Name:        "web",
+			Controllers: map[string]ControllerSettings{"tls": {"tls-probe": map[string]any{"enabled": false}}},
+		}},
+	}
+	err := m.Validate()
+	if err == nil || !strings.Contains(err.Error(), "tlsProbe") {
+		t.Errorf("want an error naming tlsProbe, got: %v", err)
+	}
+}
+
+// camelCase keys are the point; they must not be flagged.
+func TestValidateAcceptsCamelCaseControllerKeys(t *testing.T) {
+	t.Parallel()
+	m := &Model{
+		Release: Release{Version: "1.0"},
+		Config: Config{Controllers: map[string]ControllerSettings{
+			"infrastructure": {"enabled": true, "kubeBenchJob": map[string]any{"enabled": true}},
+		}},
+	}
+	if err := m.Validate(); err != nil {
+		t.Errorf("camelCase keys should validate, got: %v", err)
+	}
+}

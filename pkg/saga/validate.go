@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 )
 
@@ -40,8 +41,11 @@ func (m *Model) Validate() error {
 		errs = append(errs, errors.New("release.version is required"))
 	}
 
+	errs = append(errs, validateControllerKeys("", m.Config.Controllers)...)
+
 	seen := map[string]bool{}
 	for i, c := range m.Components {
+		errs = append(errs, validateControllerKeys(fmt.Sprintf("components[%d].", i), c.Controllers)...)
 		where := fmt.Sprintf("components[%d]", i)
 		if c.Name == "" {
 			errs = append(errs, fmt.Errorf("%s: name is required", where))
@@ -122,4 +126,59 @@ func (m *Model) Validate() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// camelCaseKey converts a hyphenated key to the camelCase form the descriptor uses, so the error
+// can name the replacement instead of only rejecting what was written.
+func camelCaseKey(key string) string {
+	parts := strings.Split(key, "-")
+	for i := 1; i < len(parts); i++ {
+		if parts[i] == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+	}
+	return strings.Join(parts, "")
+}
+
+// removedControllerKeys are settings that no longer exist, and what replaced them.
+//
+// A removed key is not inert: it is read by nothing and changes nothing, so a descriptor asking
+// for behaviour it no longer has scans differently than its author believes and reports a pass
+// either way. Naming the replacement costs one line here and saves the reader from discovering
+// it by comparing two reports.
+var removedControllerKeys = map[string]map[string]string{
+	"infrastructure": {
+		"mode": "per-scanner blocks: `kubeBenchJob: { enabled: true }` for the node sections, " +
+			"`k8sPolicies: { enabled: true }` to read section 5 through the Kubernetes API",
+	},
+}
+
+// validateControllerKeys rejects descriptor keys that do not follow the schema's convention.
+//
+// Every field in a Saga is camelCase. Controller settings are a free-form tree, so nothing in the
+// type system holds them to it, and a hyphenated key does not fail — it is simply never matched.
+// A scanner block written as `kube-bench-job: { enabled: true }` selects no scanner and produces
+// a scan that ran one fewer than asked for, reporting a pass on a benchmark half of which never
+// ran. Silence is the failure mode; this makes it an error at load, before any work is done.
+func validateControllerKeys(where string, controllers map[string]ControllerSettings) []error {
+	var errs []error
+	for control, settings := range controllers {
+		for key := range settings {
+			if replacement, gone := removedControllerKeys[control][key]; gone {
+				errs = append(errs, fmt.Errorf(
+					"%scontrollers.%s.%s was removed. Use %s",
+					where, control, key, replacement))
+				continue
+			}
+			if !strings.Contains(key, "-") {
+				continue
+			}
+			errs = append(errs, fmt.Errorf(
+				"%scontrollers.%s.%s: descriptor keys are camelCase — use %q",
+				where, control, key, camelCaseKey(key)))
+		}
+	}
+	sort.Slice(errs, func(i, j int) bool { return errs[i].Error() < errs[j].Error() })
+	return errs
 }
