@@ -10,9 +10,18 @@ import (
 )
 
 const (
-	kubeBenchScanner      = "kube-bench"
-	kubeBenchJobScanner   = "kube-bench-job"
-	k8sPoliciesScanner    = "k8s-policies"
+	kubeBenchScanner    = "kube-bench"
+	kubeBenchJobScanner = "kube-bench-job"
+	k8sPoliciesScanner  = "k8s-policies"
+
+	// The default reads the policies section through the Kubernetes API rather than exec'ing
+	// kube-bench. Both answer the same 11 of the section's 34 checks, so the choice costs no
+	// coverage; what differs is that one needs no kubectl, creates nothing, and asks the API a
+	// handful of questions where the other runs a subprocess per check and, for the pod-security
+	// ones, per pod. On a cluster of eight thousand pods that is seconds against tens of minutes.
+	//
+	// kube-bench stays available as `kubeBench: { enabled: true }` — it is the reference the
+	// native reader is checked against, and the thing to reach for if the two ever disagree.
 	infrastructureControl = "infrastructure"
 	kubernetesPlatform    = "kubernetes"
 )
@@ -35,7 +44,7 @@ func (Infrastructure) Info() plugin.ControllerInfo {
 		Name:            infrastructureControl,
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Audit a Kubernetes cluster against the CIS Kubernetes Benchmark.",
-		DefaultScanners: []string{kubeBenchScanner},
+		DefaultScanners: []string{k8sPoliciesScanner},
 	}
 }
 
@@ -52,7 +61,7 @@ func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.Sca
 	// cluster, not a tool, and repeating it per scanner would be a way to get them out of step.
 	// A scanner block overlays them, so a per-scanner value still wins.
 	shared := infraConfig(model, comp)
-	selections := resolveScanners(model, comp, infrastructureControl, []string{kubeBenchScanner})
+	selections := resolveScanners(model, comp, infrastructureControl, []string{k8sPoliciesScanner})
 	var jobs []plugin.ScanJob
 	for _, infra := range comp.Infrastructure {
 		if !strings.EqualFold(infra.Kind, kubernetesPlatform) {

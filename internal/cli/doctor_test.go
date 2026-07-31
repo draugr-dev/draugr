@@ -252,7 +252,9 @@ func TestDoctorCommandViaCobra(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if !strings.Contains(out.String(), "All required tools present") {
+	// Nothing is enabled, so nothing is required — which must not read the same as having
+	// checked a list of tools and found them all.
+	if !strings.Contains(out.String(), "No external tools required") {
 		t.Errorf("output = %q", out.String())
 	}
 }
@@ -336,6 +338,19 @@ func TestRequiredToolsIncludesSyftOnlyWhenSBOMIsEnabled(t *testing.T) {
 const doctorSagaInfrastructure = `release: {name: platform, version: "1.0"}
 config:
   controllers:
+    infrastructure:
+      enabled: true
+      kubeBench: {enabled: true}
+components:
+  - name: cluster
+    infrastructure: [{kind: kubernetes, ref: prod}]
+`
+
+// The same control with its default scanner, which reads the Kubernetes API and shells out to
+// nothing.
+const doctorSagaInfrastructureDefault = `release: {name: platform, version: "1.0"}
+config:
+  controllers:
     infrastructure: {enabled: true}
 components:
   - name: cluster
@@ -353,6 +368,20 @@ func TestRequiredToolsIncludesASecondaryBinary(t *testing.T) {
 	got := binaries(requiredTools(builtins.Registry(), model))
 	if !slices.Equal(got, []string{"kube-bench", "kubectl"}) {
 		t.Errorf("infrastructure required = %v, want [kube-bench kubectl]", got)
+	}
+}
+
+// The other half of the same idea: a control requires the scanners it will run, not every one
+// that could serve it. The default here needs no binary at all, so demanding kube-bench and
+// kubectl would send someone to install tools the scan never uses — and report a control as
+// unable to run when it can.
+func TestRequiredToolsFollowsScannerSelection(t *testing.T) {
+	model, err := saga.LoadFile(writeSaga(t, doctorSagaInfrastructureDefault))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := binaries(requiredTools(builtins.Registry(), model)); len(got) != 0 {
+		t.Errorf("infrastructure required = %v, want none — the default scanner execs nothing", got)
 	}
 }
 

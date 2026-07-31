@@ -10,6 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **The `infrastructure` control now reads section 5 through the Kubernetes API by default**,
+  instead of exec'ing kube-bench. Both decide the same 11 of the section's 34 checks, so this
+  costs no coverage — what changes is that a default scan needs neither `kube-bench` nor
+  `kubectl` installed, creates nothing, and finishes in seconds on a cluster where the exec'd
+  path took tens of minutes.
+
+  `kubeBench: { enabled: true }` restores the previous behaviour, and remains the reference the
+  native reader is checked against.
+
+- **`draugr doctor` asks only for the tools a scan will actually use.** A control served by
+  several scanners was reporting every tool any of them might need, so a project would be sent to
+  install something its scan never runs — and a control it could run perfectly well would be
+  reported as unable to. It now follows the same scanner selection `Plan` does, for every control
+  rather than just `sast`. Where nothing is required it says so, instead of reporting an empty
+  table as everything being present.
+
 ### Added
 
 - **The native CIS reader now decides 11 of the 34 checks in the policies section**, up from 3 —

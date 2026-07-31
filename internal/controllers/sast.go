@@ -44,13 +44,26 @@ func (SAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, erro
 	return jobs, nil
 }
 
-// SASTScannerSet returns the set of sast scanner names the model will actually run — the union
-// of the selection across all components. Used to decide which sast tools are truly required
-// (e.g. gosec only when enabled), rather than every scanner that *could* serve the control.
-func SASTScannerSet(model saga.Model) map[string]bool {
+// SelectedScanners returns the scanner names a control will actually run for this model — the
+// union of the selection across every component.
+//
+// This is what a control *requires*, as opposed to every scanner that could serve it. Those
+// differ wherever a control has more than one scanner: `sast` demanding gosec from a project that
+// never enabled it, or `infrastructure` demanding kube-bench and kubectl when the default reads
+// the API and needs neither. Either way the report is a list of tools to go and install that the
+// scan would not have used — and, worse, a missing one reads as a control that cannot run.
+//
+// defaults must be the controller's own DefaultScanners, so the answer matches what Plan will do.
+func SelectedScanners(model saga.Model, control string, defaults []string) map[string]bool {
 	set := make(map[string]bool)
+	if len(model.Components) == 0 {
+		for _, sel := range resolveScanners(model, nil, control, defaults) {
+			set[sel.Name] = true
+		}
+		return set
+	}
 	for i := range model.Components {
-		for _, sel := range resolveScanners(model, &model.Components[i], "sast", []string{semgrepScanner}) {
+		for _, sel := range resolveScanners(model, &model.Components[i], control, defaults) {
 			set[sel.Name] = true
 		}
 	}

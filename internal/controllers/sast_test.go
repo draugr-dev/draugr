@@ -114,7 +114,7 @@ func TestSASTScannerSet(t *testing.T) {
 				"sast": {"gosec": map[string]any{"enabled": true}},
 			}},
 	}}
-	set := SASTScannerSet(model)
+	set := SelectedScanners(model, "sast", []string{semgrepScanner})
 	if !set["semgrep"] || !set["gosec"] || len(set) != 2 {
 		t.Errorf("scanner set = %v, want {semgrep, gosec}", set)
 	}

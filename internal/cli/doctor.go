@@ -136,7 +136,17 @@ func runDoctor(
 		return fmt.Errorf("%d required tool(s) not found", missing)
 	}
 	if !asJSON {
-		_, _ = fmt.Fprintln(w, "\n"+tui.For(w).Paint(tui.StylePass, "All required tools present."))
+		// "All required tools present" over an empty table is ambiguous: it reads the same
+		// whether nothing was needed or nothing was checked. The two are worth telling apart,
+		// because the second is a bug and looks exactly like the first.
+		msg := "All required tools present."
+		if len(required) == 0 {
+			// Deliberately not "…because everything runs natively": this is also the answer when
+			// no control is enabled at all, and claiming otherwise would describe a scan that
+			// was never planned.
+			msg = "No external tools required."
+		}
+		_, _ = fmt.Fprintln(w, "\n"+tui.For(w).Paint(tui.StylePass, msg))
 	}
 	return nil
 }
@@ -180,9 +190,17 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 		})
 	}
 
-	// sast lets you choose which scanners run (controllers.sast.scanners); only the selected
-	// ones are required, so an opt-in scanner like gosec isn't demanded unless it's chosen.
-	sastSelected := controllers.SASTScannerSet(*model)
+	// A control served by several scanners only requires the ones it will actually run. Asking
+	// for the rest sends someone to install a tool the scan would never have used, and reports a
+	// control as unable to run when it can.
+	selected := map[string]map[string]bool{}
+	for _, c := range reg.Controllers() {
+		ci := c.Info()
+		if len(ci.DefaultScanners) == 0 {
+			continue
+		}
+		selected[ci.Name] = controllers.SelectedScanners(*model, ci.Name, ci.DefaultScanners)
+	}
 
 	for _, s := range reg.Scanners() {
 		info := s.Info()
@@ -191,8 +209,8 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 			if !enabled(c) {
 				continue
 			}
-			if c == "sast" && !sastSelected[info.Name] {
-				continue // sast scanner that isn't in the selected set
+			if set, selectable := selected[c]; selectable && !set[info.Name] {
+				continue // a scanner this control will not run for this model
 			}
 			serves = true
 			break
