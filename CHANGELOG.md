@@ -10,7 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr tools install kube-bench`** fetches the binary and its `cfg/` tree together — 276
+  benchmark definitions the tool cannot run without. The scanner then points `--config-dir` at
+  them, so the install is usable rather than merely complete.
+
+  Installing the binary alone was the common mistake and did not look like one: every run exited
+  with `config file is missing 'target_mapping' section`, naming an internal structure rather
+  than the directory nobody copied.
+
+### Fixed
+
+- **A tool whose data is missing is no longer reported as already installed.** `tools install`
+  compared versions and stopped there, so kube-bench with a current binary and no benchmarks was
+  skipped by the very command that would have fixed it.
 
 ## [0.54.0] - 2026-08-01
 

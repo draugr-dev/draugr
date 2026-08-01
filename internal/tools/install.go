@@ -12,12 +12,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -45,6 +47,13 @@ type Asset struct {
 	URL             string
 	SHA256          string
 	BinaryInArchive string // name of the binary within the .tar.gz; "" = the download is the binary
+	// DataInArchive is a directory prefix inside the archive to extract alongside the binary,
+	// e.g. "cfg/" for kube-bench's benchmark definitions.
+	//
+	// Some tools are not one file. kube-bench without its cfg/ tree exits complaining about a
+	// missing "target_mapping" section, which names an internal structure rather than the 276
+	// files nobody copied — so installing the binary alone is a half-install that looks whole.
+	DataInArchive string
 }
 
 // CosignSpec describes how to verify a tool release's provenance with cosign, for upstreams
@@ -72,6 +81,9 @@ type InstallSpec struct {
 	// Cosign, when set, verifies the release's provenance in addition to the SHA-256 pin.
 	// Nil for upstreams that publish no signature (e.g. gitleaks) — those stay SHA-256-only.
 	Cosign *CosignSpec
+	// DataDir is where Asset.DataInArchive is written, relative to Draugr's own directory.
+	// Namespaced by tool so a second tool with data files does not collide with the first.
+	DataDir string
 }
 
 // installable is the pinned manifest. SHA-256 values are copied verbatim from the upstream
@@ -135,6 +147,32 @@ var installable = map[string]InstallSpec{
 			},
 		},
 	},
+	// kube-bench is the alternative infrastructure scanner: the native reader is the default,
+	// and this exists for anyone who wants the upstream tool's own answers. Its release carries
+	// the binary and a 276-file cfg/ tree of benchmark definitions — installing one without the
+	// other produces a tool that cannot run.
+	//
+	// SHA-256 only: kube-bench publishes a checksums file and no signature over it.
+	"kube-bench": {
+		Binary:  "kube-bench",
+		Version: "0.15.6",
+		DataDir: "kube-bench",
+		Assets: map[string]Asset{
+			"linux/amd64": {
+				URL:             "https://github.com/aquasecurity/kube-bench/releases/download/v0.15.6/kube-bench_0.15.6_linux_amd64.tar.gz",
+				SHA256:          "783882d23a13837ffd9d2a3dc713d86bed121802f51c93465f47add4dae9eb23",
+				BinaryInArchive: "kube-bench",
+				DataInArchive:   "cfg/",
+			},
+			"linux/arm64": {
+				URL:             "https://github.com/aquasecurity/kube-bench/releases/download/v0.15.6/kube-bench_0.15.6_linux_arm64.tar.gz",
+				SHA256:          "69a3870f5ce3578429de8d5d771b7703a062eec64b8d7e6d014b15350fcb4a35",
+				BinaryInArchive: "kube-bench",
+				DataInArchive:   "cfg/",
+			},
+		},
+	},
+
 	"gosec": {
 		Binary:  "gosec",
 		Version: "2.28.0",
@@ -312,6 +350,32 @@ func BinDir() (string, error) {
 	return filepath.Join(home, ".draugr", "bin"), nil
 }
 
+// DataRoot is where tools that need more than a binary keep it, one directory per tool.
+//
+// Beside bin/ rather than inside it: a directory of YAML on PATH is confusing, and a tool's data
+// has a different lifetime from its binary — reinstalling one should not silently orphan the
+// other somewhere a reader has to guess at.
+func DataRoot() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".draugr", "data"), nil
+}
+
+// DataDirFor returns where a tool's supporting files live, or "" when it has none.
+func DataDirFor(name string) string {
+	spec, ok := installable[name]
+	if !ok || spec.DataDir == "" {
+		return ""
+	}
+	root, err := DataRoot()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(root, spec.DataDir)
+}
+
 func platformKey() string { return runtime.GOOS + "/" + runtime.GOARCH }
 
 // Install downloads the pinned build of name, verifies its SHA-256, extracts the binary, and
@@ -384,6 +448,22 @@ func Install(ctx context.Context, name, destDir string, client *http.Client, for
 	if err := writeExecutable(dest, bin); err != nil {
 		return Installed{}, err
 	}
+	// The data tree, if this tool is more than a binary. After the binary so a failure here
+	// leaves an installed tool that doctor will report as missing its data — which is true, and
+	// better than a rolled-back install that reports nothing at all.
+	if asset.DataInArchive != "" && spec.DataDir != "" {
+		root, err := DataRoot()
+		if err != nil {
+			return Installed{}, err
+		}
+		dataDir := filepath.Join(root, spec.DataDir)
+		n, err := extractTree(data, asset.DataInArchive, dataDir)
+		if err != nil {
+			return Installed{}, fmt.Errorf("extract %s data: %w", name, err)
+		}
+		slog.Debug("installed tool data", "tool", name, "files", n, "dir", dataDir)
+	}
+
 	binSum := sha256.Sum256(bin)
 	recordInstall(destDir, name, installRecord{
 		Version:      spec.Version,
@@ -631,4 +711,64 @@ func alreadyInstalled(destDir, name string, spec InstallSpec, asset Asset) (stri
 		return "", false
 	}
 	return dest, true
+}
+
+// extractTree writes every file under prefix in a .tar.gz to dest, preserving the layout below
+// prefix, and returns how many it wrote.
+//
+// The directory is cleared first: a stale file from an older release left beside new ones is a
+// benchmark definition nobody chose, and kube-bench would happily read it.
+func extractTree(data []byte, prefix, dest string) (int, error) {
+	gz, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = gz.Close() }()
+
+	if err := os.RemoveAll(dest); err != nil {
+		return 0, err
+	}
+	if err := os.MkdirAll(dest, 0o750); err != nil {
+		return 0, err
+	}
+
+	written := 0
+	tr := tar.NewReader(gz)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return written, err
+		}
+		if hdr.Typeflag != tar.TypeReg || !strings.HasPrefix(hdr.Name, prefix) {
+			continue
+		}
+		rel := strings.TrimPrefix(hdr.Name, prefix)
+		// Refuse rather than sanitise. Joining a cleaned path would neutralise `..` and write
+		// the file somewhere harmless, which is safe and quiet — and quiet is wrong here. An
+		// archive is untrusted input even when its checksum matched: the pin proves it is the
+		// file upstream published, not that the file is well-behaved, and a traversal attempt in
+		// a signed release is something someone needs to hear about rather than have tidied away.
+		if rel == "" || filepath.IsAbs(rel) || slices.Contains(strings.Split(rel, "/"), "..") {
+			return written, fmt.Errorf("archive entry %q is not a safe relative path", hdr.Name)
+		}
+		target := filepath.Join(dest, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+			return written, err
+		}
+		body, err := io.ReadAll(io.LimitReader(tr, maxBinaryBytes))
+		if err != nil {
+			return written, err
+		}
+		if err := os.WriteFile(target, body, 0o600); err != nil {
+			return written, err
+		}
+		written++
+	}
+	if written == 0 {
+		return 0, fmt.Errorf("no files under %q in the archive", prefix)
+	}
+	return written, nil
 }

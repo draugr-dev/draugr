@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/toolexec"
 
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -241,11 +243,36 @@ func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, erro
 		argv = append(argv, "--version", facts.Version)
 	}
 
-	if dir := stringSetting(cfg, configDirKey, ""); dir != "" {
+	switch dir := stringSetting(cfg, configDirKey, ""); {
+	case dir != "":
 		argv = append(argv, "--config-dir", dir)
+	default:
+		// Point at the tree `draugr tools install` fetched, when there is one. Without this the
+		// install is useless: kube-bench searches /etc/kube-bench/cfg and its own directory, and
+		// finds nothing we put under ~/.draugr.
+		//
+		// Only when the descriptor said nothing, and only when the directory exists — a system
+		// install with its own cfg keeps working exactly as before, and an explicit setting
+		// always wins.
+		if provisioned := provisionedKubeBenchCfg(); provisioned != "" {
+			argv = append(argv, "--config-dir", provisioned)
+		}
 	}
 	plan.argv = argv
 	return plan, nil
+}
+
+// provisionedKubeBenchCfg returns the cfg directory `draugr tools install` wrote, or "" if there
+// is none. A var so a test can answer without arranging a home directory.
+var provisionedKubeBenchCfg = func() string {
+	dir := tools.DataDirFor("kube-bench")
+	if dir == "" {
+		return ""
+	}
+	if _, err := os.Stat(filepath.Join(dir, "config.yaml")); err != nil {
+		return ""
+	}
+	return dir
 }
 
 // kubeBenchPlan is how the scan will run, and what it therefore expects back.

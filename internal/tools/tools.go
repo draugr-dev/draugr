@@ -157,14 +157,14 @@ func Catalog() map[string]Tool {
 			// configuration is missing is to start a benchmark, and doctor must not run a scan
 			// to find out whether a scan would work. These are its own default search paths.
 			DataFiles: []string{
-				"{bindir}/cfg/config.yaml", // a tarball extract, the commonest install
+				"~/.draugr/data/kube-bench/config.yaml", // what `draugr tools install` writes
+				"{bindir}/cfg/config.yaml",              // a tarball extract, the commonest by hand
 				"/etc/kube-bench/cfg/config.yaml",
 				"/usr/local/share/kube-bench/cfg/config.yaml",
 				"/opt/kube-bench/cfg/config.yaml",
-				"~/.draugr/cfg/config.yaml",
 				"./cfg/config.yaml",
 			},
-			DataHint: "download the matching cfg/ tree from the kube-bench release and put it in /etc/kube-bench/cfg",
+			DataHint: "run `draugr tools install kube-bench`, which fetches the binary and its cfg/ tree together",
 		},
 		"kubectl": {
 			Binary:      "kubectl",

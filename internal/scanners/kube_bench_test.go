@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -49,6 +50,9 @@ func argvString(argv []string) string { return strings.Join(argv, " ") }
 // in CI, and on a node. See defaultKubeBenchTargets.
 func TestKubeBenchArgvDefaults(t *testing.T) {
 	withClusterVersion(t, "1.34", nil)
+	// Stubbed absent, or the argv depends on whether the developer has run
+	// `draugr tools install kube-bench` — which is a fact about the machine, not the default.
+	withoutProvisionedCfg(t)
 	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -728,4 +732,65 @@ func TestVersionStringWinsOverNodeInspection(t *testing.T) {
 	if got := platformFromNodes(context.Background(), fake.NewSimpleClientset(azureVM)); got != "" {
 		t.Errorf("a self-managed cluster on Azure VMs read as %q; only AKS's own node label should count", got)
 	}
+}
+
+func TestKubeBenchUsesTheProvisionedConfigDir(t *testing.T) {
+	// Without this the install is useless: kube-bench searches /etc/kube-bench/cfg and its own
+	// directory, and finds nothing Draugr put under ~/.draugr.
+	orig := provisionedKubeBenchCfg
+	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
+	provisionedKubeBenchCfg = func() string { return "/somewhere/data/kube-bench" }
+
+	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"},
+		plugin.Config{"benchmark": "cis-1.12"})
+	if err != nil {
+		t.Fatalf("kubeBenchArgv: %v", err)
+	}
+	if !slices.Contains(plan.argv, "--config-dir") ||
+		!slices.Contains(plan.argv, "/somewhere/data/kube-bench") {
+		t.Errorf("argv should point at the provisioned tree: %v", plan.argv)
+	}
+}
+
+func TestKubeBenchPrefersAnExplicitConfigDir(t *testing.T) {
+	// A descriptor that says where the benchmarks are always wins; provisioning is the fallback.
+	orig := provisionedKubeBenchCfg
+	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
+	provisionedKubeBenchCfg = func() string { return "/provisioned" }
+
+	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"}, plugin.Config{"configDir": "/mine", "benchmark": "cis-1.12"})
+	if err != nil {
+		t.Fatalf("kubeBenchArgv: %v", err)
+	}
+	if slices.Contains(plan.argv, "/provisioned") {
+		t.Errorf("the explicit setting should win: %v", plan.argv)
+	}
+	if !slices.Contains(plan.argv, "/mine") {
+		t.Errorf("missing the explicit dir: %v", plan.argv)
+	}
+}
+
+func TestKubeBenchLeavesTheSearchAloneWhenNothingIsProvisioned(t *testing.T) {
+	// A system install with its own cfg keeps working exactly as before.
+	orig := provisionedKubeBenchCfg
+	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
+	provisionedKubeBenchCfg = func() string { return "" }
+
+	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"},
+		plugin.Config{"benchmark": "cis-1.12"})
+	if err != nil {
+		t.Fatalf("kubeBenchArgv: %v", err)
+	}
+	if slices.Contains(plan.argv, "--config-dir") {
+		t.Errorf("nothing to point at, so nothing should be passed: %v", plan.argv)
+	}
+}
+
+// withoutProvisionedCfg pretends `draugr tools install` has not fetched kube-bench's benchmarks,
+// so a test asserting argv is not answering a question about the machine it runs on.
+func withoutProvisionedCfg(t *testing.T) {
+	t.Helper()
+	orig := provisionedKubeBenchCfg
+	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
+	provisionedKubeBenchCfg = func() string { return "" }
 }

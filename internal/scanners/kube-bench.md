@@ -193,6 +193,22 @@ which is the same reasoning that keeps permissive licences out of the `licenses`
 Rule ids are `cis/<check number>`, e.g. `cis/5.1.1`, so a `config.exclude` rule reads the way the
 benchmark does.
 
+## Installation
+
+`draugr tools install kube-bench` fetches the binary **and its `cfg/` tree together** — 276
+benchmark definitions that kube-bench cannot run without. The binary goes to `~/.draugr/bin`, the
+definitions to `~/.draugr/data/kube-bench`, and the scanner passes `--config-dir` at that tree so
+kube-bench does not have to find it.
+
+Installing the binary alone is the common mistake and does not look like one: every run then
+exits with `config file is missing 'target_mapping' section`, which names an internal structure
+rather than the directory nobody copied. `draugr doctor` reports the difference before a scan —
+present-but-empty shows as `✗ no data`.
+
+An explicit `configDir` in the descriptor always wins, and a system install with its own `cfg/`
+keeps working as before: Draugr only supplies the flag when it has a tree of its own and the
+descriptor said nothing.
+
 ## Links
 
 - kube-bench: https://github.com/aquasecurity/kube-bench
