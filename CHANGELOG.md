@@ -10,6 +10,20 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`draugr diff` names the component a finding belongs to.** Neither table read it, so two
+  components sharing a dependency produced rows identical in every visible column — correctly
+  counted as two, and indistinguishable to a reader:
+
+  ```
+  | Priority | Severity | Rule | Tool | Component | Location |
+  ```
+
+  This is the pull-request comment: one PR touches one service in a monorepo, and the first
+  question is whether the finding is yours. Shown only when a finding has a component, so a
+  single-component project is not given a column repeating itself.
+
 ### Added
 
 - **`draugr doctor` sees kube-bench's missing benchmark configuration.** kube-bench ships its

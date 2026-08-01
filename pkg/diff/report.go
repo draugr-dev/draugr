@@ -76,33 +76,58 @@ func renderConsole(w io.Writer, r Result) error {
 		return nil
 	}
 
+	withComponent := anyComponent(r.New, r.Fixed)
 	if len(r.New) > 0 {
 		_, _ = fmt.Fprintf(w, "New (%d):\n", len(r.New))
-		renderDiffFindings(w, col, "+", tui.StyleFail, r.New)
+		renderDiffFindings(w, col, "+", tui.StyleFail, r.New, withComponent)
 		_, _ = fmt.Fprintln(w)
 	}
 	if len(r.Fixed) > 0 {
 		_, _ = fmt.Fprintf(w, "Fixed (%d):\n", len(r.Fixed))
-		renderDiffFindings(w, col, "-", tui.StylePass, r.Fixed)
+		renderDiffFindings(w, col, "-", tui.StylePass, r.Fixed, withComponent)
 	}
 	return nil
 }
 
 // renderDiffFindings lists findings under a sign, using the same table the scan report uses so
 // a diff and a scan read alike.
-func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Style, fs []sarif.Result) {
+func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Style, fs []sarif.Result, showComponent bool) {
 	t := tui.NewTable(col).Indent("  ")
 	for _, f := range fs {
-		t.Row(
+		cells := []tui.Cell{
 			// The sign and the priority travel together — both answer "what is this finding
 			// in this diff" — so they share a cell and the spacing stays tight.
 			tui.Styled(style, sign+" "+dash(f.Priority)),
 			tui.PlainCell(string(f.Level)),
 			tui.PlainCell(f.RuleID),
-			tui.Styled(tui.StyleMuted, loc(f.Location.URI, f.Location.StartLine)),
-		)
+		}
+		if showComponent {
+			cells = append(cells, tui.PlainCell(dash(f.Component)))
+		}
+		cells = append(cells, tui.Styled(tui.StyleMuted, loc(f.Location.URI, f.Location.StartLine)))
+		t.Row(cells...)
 	}
 	t.Render(w)
+}
+
+// anyComponent reports whether any finding in either list names one.
+//
+// Shown only when there is something to say. A single-component project would get a column
+// repeating itself, which is the rule the scan report already follows.
+//
+// It matters most here: a pull-request comment is the multi-component case — one PR touches one
+// service in a monorepo, and the first question is whether the finding is yours. Without it two
+// components sharing a dependency produce rows identical in every visible column, and a reviewer
+// reasonably reads the second as the tool repeating itself.
+func anyComponent(lists ...[]sarif.Result) bool {
+	for _, fs := range lists {
+		for _, f := range fs {
+			if f.Component != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // --- markdown ---
@@ -115,24 +140,37 @@ func renderMarkdown(w io.Writer, r Result) error {
 		return nil
 	}
 
+	withComponent := anyComponent(r.New, r.Fixed)
 	if len(r.New) > 0 {
 		_, _ = fmt.Fprintf(w, "### 🔺 New (%d)\n\n", len(r.New))
-		mdTable(w, r.New)
+		mdTable(w, r.New, withComponent)
 		_, _ = fmt.Fprintln(w)
 	}
 	if len(r.Fixed) > 0 {
 		_, _ = fmt.Fprintf(w, "### ✅ Fixed (%d)\n\n", len(r.Fixed))
-		mdTable(w, r.Fixed)
+		mdTable(w, r.Fixed, withComponent)
 	}
 	return nil
 }
 
-func mdTable(w io.Writer, rs []sarif.Result) {
-	_, _ = fmt.Fprintln(w, "| Priority | Severity | Rule | Tool | Location |")
-	_, _ = fmt.Fprintln(w, "|---|---|---|---|---|")
+func mdTable(w io.Writer, rs []sarif.Result, showComponent bool) {
+	// Component before Location, as in the scan report: a path answers "where inside", and the
+	// reader of a monorepo pull request needs "which one" first.
+	if showComponent {
+		_, _ = fmt.Fprintln(w, "| Priority | Severity | Rule | Tool | Component | Location |")
+		_, _ = fmt.Fprintln(w, "|---|---|---|---|---|---|")
+	} else {
+		_, _ = fmt.Fprintln(w, "| Priority | Severity | Rule | Tool | Location |")
+		_, _ = fmt.Fprintln(w, "|---|---|---|---|---|")
+	}
 	for _, f := range rs {
-		_, _ = fmt.Fprintf(w, "| %s | %s | `%s` | %s | %s |\n",
-			dash(f.Priority), f.Level, f.RuleID, dash(f.Tool), loc(f.Location.URI, f.Location.StartLine))
+		component := ""
+		if showComponent {
+			component = " " + dash(f.Component) + " |"
+		}
+		_, _ = fmt.Fprintf(w, "| %s | %s | `%s` | %s |%s %s |\n",
+			dash(f.Priority), f.Level, f.RuleID, dash(f.Tool), component,
+			loc(f.Location.URI, f.Location.StartLine))
 	}
 }
 
