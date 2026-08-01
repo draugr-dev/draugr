@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
@@ -54,6 +55,17 @@ func (g GitHubOrgRepos) Survey(ctx context.Context, scope plugin.SurveyScope) (s
 	repos, err := g.fetch(ctx, org, token)
 	if err != nil {
 		return saga.Fragment{}, err
+	}
+
+	// Unauthenticated, GitHub answers with the org's public repositories and nothing else. The
+	// descriptor that results is syntactically fine, every control is enabled, and the scan that
+	// follows passes or fails on real findings — while every private repository, which is where
+	// the interesting code usually is, is simply not in it. Nobody reviewing that output has a
+	// reason to suspect a gap, so the survey has to say so itself.
+	if token == "" {
+		slog.Warn("surveyed GitHub without a token — public repositories only; "+
+			"private ones are not in this descriptor. Set GITHUB_TOKEN to include them",
+			"org", org, "repositories", len(repos))
 	}
 
 	frag := saga.Fragment{}
