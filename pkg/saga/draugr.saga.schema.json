@@ -464,9 +464,18 @@
         },
         "paths": {
           "type": "array",
-          "description": "Restrict the scan to these path globs.",
+          "description": "Restrict the scan to these directories. Files at the repository root are always included — manifests and scanner configuration live there.",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "ignore": {
+          "type": "array",
+          "description": "Remove matching paths from the scan, applied after `paths`. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment, `**` across them.",
+          "items": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }

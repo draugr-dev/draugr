@@ -35,7 +35,7 @@ func runGit(t *testing.T, dir string, args ...string) []byte {
 
 func TestCheckoutDefaultBranch(t *testing.T) {
 	src, _ := initRepo(t)
-	dir, cleanup, err := Checkout(context.Background(), src, "")
+	dir, cleanup, err := Checkout(context.Background(), src, "", Scope{})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestCheckoutDefaultBranch(t *testing.T) {
 
 func TestCheckoutRevision(t *testing.T) {
 	src, sha := initRepo(t)
-	dir, cleanup, err := Checkout(context.Background(), src, sha)
+	dir, cleanup, err := Checkout(context.Background(), src, sha, Scope{})
 	if err != nil {
 		t.Fatalf("checkout revision: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestCheckoutRevision(t *testing.T) {
 }
 
 func TestCheckoutBadURL(t *testing.T) {
-	_, _, err := Checkout(context.Background(), filepath.Join(t.TempDir(), "does-not-exist"), "")
+	_, _, err := Checkout(context.Background(), filepath.Join(t.TempDir(), "does-not-exist"), "", Scope{})
 	if err == nil {
 		t.Fatal("expected clone error for missing repo")
 	}
@@ -71,7 +71,7 @@ func TestCheckoutBadURL(t *testing.T) {
 
 func TestCheckoutBadRevision(t *testing.T) {
 	src, _ := initRepo(t)
-	_, _, err := Checkout(context.Background(), src, "no-such-rev")
+	_, _, err := Checkout(context.Background(), src, "no-such-rev", Scope{})
 	if err == nil {
 		t.Fatal("expected checkout error for bad revision")
 	}

@@ -337,11 +337,21 @@ func (e Exposure) Valid() bool { return slices.Contains(Exposures, e) }
 // not valid here; callers decide how to treat unset criticality.
 func (c Criticality) Valid() bool { return slices.Contains(Criticalities, c) }
 
-// Repository is a source repository at a revision, optionally scoped to paths.
+// Repository is a source repository at a revision, optionally scoped to part of its tree.
 type Repository struct {
-	URL      string   `yaml:"url"`
-	Revision string   `yaml:"revision,omitempty"`
-	Paths    []string `yaml:"paths,omitempty"`
+	URL      string `yaml:"url"`
+	Revision string `yaml:"revision,omitempty"`
+	// Paths restricts the scan to these directories. Empty scans the whole repository.
+	//
+	// Files at the repository root are always included regardless: manifests and the scanners'
+	// own configuration live there, and a tool that cannot see go.mod or .trivyignore does not
+	// fail — it reports less against a tree it did not fully understand, which is
+	// indistinguishable from a clean scan.
+	Paths []string `yaml:"paths,omitempty"`
+	// Ignore removes matching paths from the scan, applied after Paths so it can carve out of
+	// one. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment,
+	// `**` across them.
+	Ignore []string `yaml:"ignore,omitempty"`
 }
 
 // Image is a container image reference. Digest is the immutable content digest

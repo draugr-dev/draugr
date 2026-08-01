@@ -18,7 +18,7 @@ import (
 type repoScanner struct {
 	info     plugin.ScannerInfo
 	args     func(dir string, cfg plugin.Config) []string
-	checkout func(ctx context.Context, url, revision string) (string, func(), error)
+	checkout func(ctx context.Context, url, revision string, scope git.Scope) (string, func(), error)
 	// parse decodes the tool's output. Nil means the tool emits SARIF.
 	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 	run   func(ctx context.Context, dir string, argv []string) ([]byte, error)
@@ -79,7 +79,8 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		return sarif.Report{}, fmt.Errorf("%s: repository target has no url", s.info.Name)
 	}
 
-	dir, cleanup, err := s.checkout(ctx, repo.URL, repo.Revision)
+	dir, cleanup, err := s.checkout(ctx, repo.URL, repo.Revision,
+		git.Scope{Paths: repo.Paths, Ignore: repo.Ignore})
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", s.info.Name, err)
 	}

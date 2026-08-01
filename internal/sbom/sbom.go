@@ -19,7 +19,7 @@ import (
 type runner func(ctx context.Context, dir string, argv []string) ([]byte, error)
 
 // checkouter clones a repository and returns its path plus a cleanup. Injectable for tests.
-type checkouter func(ctx context.Context, url, revision string) (string, func(), error)
+type checkouter func(ctx context.Context, url, revision string, scope git.Scope) (string, func(), error)
 
 // Generator implements pkgsbom.Generator by shelling out to Syft. The zero value is not
 // usable; use New.
@@ -76,7 +76,8 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 	var src, label, sourceName string
 	switch target := t.(type) {
 	case plugin.RepositoryTarget:
-		dir, cleanup, err := g.checkout(ctx, target.URL, target.Revision)
+		dir, cleanup, err := g.checkout(ctx, target.URL, target.Revision,
+			git.Scope{Paths: target.Paths, Ignore: target.Ignore})
 		if err != nil {
 			return pkgsbom.Document{}, fmt.Errorf("checkout %s: %w", target.URL, err)
 		}

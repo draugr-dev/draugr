@@ -36,7 +36,7 @@ func (SAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, erro
 	selections := resolveScanners(model, comp, "sast", []string{semgrepScanner})
 	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(selections))
 	for _, repo := range comp.Repositories {
-		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths}
+		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths, Ignore: repo.Ignore}
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
 		}

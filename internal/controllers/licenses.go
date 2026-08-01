@@ -50,7 +50,7 @@ func (Licenses) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, 
 	for _, repo := range comp.Repositories {
 		jobs = append(jobs, plugin.ScanJob{
 			Scanner: trivyLicenseScanner,
-			Target:  plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths},
+			Target:  plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths, Ignore: repo.Ignore},
 			Config:  cfg,
 		})
 	}

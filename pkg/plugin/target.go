@@ -25,18 +25,41 @@ type Target interface {
 	Identity() string
 }
 
-// RepositoryTarget is a source repository at a revision, optionally scoped to paths.
+// RepositoryTarget is a source repository at a revision, optionally scoped to part of its tree.
 type RepositoryTarget struct {
 	URL      string
 	Revision string
-	Paths    []string
+	// Paths restricts the scan to these directories; the repository root is always included.
+	Paths []string
+	// Ignore removes matching paths, applied after Paths.
+	Ignore []string
 }
 
 // Kind returns TargetRepository.
 func (RepositoryTarget) Kind() TargetKind { return TargetRepository }
 
-// Identity returns the URL and revision, e.g. "https://git/x@1.0".
-func (t RepositoryTarget) Identity() string { return t.URL + "@" + t.Revision }
+// Identity returns the URL, revision and scope, e.g. "https://git/x@1.0".
+//
+// The scope belongs in the identity because it changes what is scanned. Two components pointing
+// at different subtrees of one repository are two different scans; leaving the scope out gave
+// them the same identity, so they shared a cache entry and collapsed into a single run whose
+// findings both then received.
+func (t RepositoryTarget) Identity() string {
+	id := t.URL + "@" + t.Revision
+	if s := scopeKey(t.Paths, t.Ignore); s != "" {
+		id += "#" + s
+	}
+	return id
+}
+
+// scopeKey renders a repository scope for an identity. Empty when nothing is restricted, so an
+// unscoped target keeps the identity it always had.
+func scopeKey(paths, ignore []string) string {
+	if len(paths) == 0 && len(ignore) == 0 {
+		return ""
+	}
+	return "paths=" + strings.Join(paths, ",") + ";ignore=" + strings.Join(ignore, ",")
+}
 
 // ImageTarget is a container image. Identity prefers the immutable digest.
 type ImageTarget struct {
