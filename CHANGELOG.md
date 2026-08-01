@@ -22,6 +22,25 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`draugr tools install` no longer plans work it will not do.** The plan listed every named
+  tool whether or not it was already installed at the pinned version — six rows for one
+  download — and presence was only discovered afterwards, inside the install loop. It is now
+  resolved first and shown:
+
+  ```
+  Install plan:
+    Tool      Version  Category  Verify  Destination
+    trivy     0.69.3   scanner   —       already at 0.69.3
+    cosign    3.1.1    utility   sha256  ~/.draugr/bin/cosign
+
+  1 tool to install, 6 already current.
+  ```
+
+  A run with nothing to do says so and **does not prompt**: a confirmation that gates no action
+  teaches people to answer it without reading, on the command where reading matters most. And
+  the Semgrep instruction only appears when Semgrep is actually missing — being told to install
+  something you already have reads as a failure.
+
 - **`draugr survey` says what it wrote.** It produced a descriptor and reported nothing — no
   path, no counts, no account of what it discovered — so the only evidence a survey had worked
   was the absence of an error. With `-o .saga.yaml` the file is not even visible to `ls`:

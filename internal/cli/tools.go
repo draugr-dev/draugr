@@ -274,8 +274,17 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 		return err
 	}
 
-	// Show the plan before doing anything.
-	writeInstallPlan(w, names, all)
+	// Show the plan before doing anything, with what is already satisfied marked as such.
+	//
+	// planned, not names: semgrep is not in Installable() — it is a Python package, not a
+	// download — so a bulk install adds it to the plan without it ever being in the list. Asking
+	// only about names would leave the one tool most likely to be present unchecked.
+	planned := names
+	if all && !slices.Contains(planned, "semgrep") {
+		planned = append(append([]string{}, planned...), "semgrep")
+	}
+	have := present(context.Background(), planned, opts.force)
+	writeInstallPlan(w, names, all, have)
 
 	if opts.dryRun {
 		_, _ = fmt.Fprintln(w, "\n(dry run — nothing installed)")
@@ -283,6 +292,12 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 	}
 	// Confirm only when interactive (a TTY); non-interactive runs (CI, pipes) proceed so
 	// existing automation isn't broken. -y always skips the prompt.
+	// Nothing to decide when nothing will be downloaded. A confirmation that gates no action
+	// teaches people to answer it without reading, on the one command where reading matters.
+	if len(have) == len(planned) {
+		_, _ = fmt.Fprintln(w, "\nEverything is already current.")
+		return nil
+	}
 	if !opts.yes && isTTY(in) {
 		_, _ = fmt.Fprint(w, "\nProceed? [y/N] ")
 		if !confirmed(in) {
@@ -296,7 +311,11 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 	var failed int
 	for _, name := range names {
 		if name == "semgrep" {
-			printSemgrepHint(w)
+			// Only when it is actually absent. An instruction to install something you already
+			// have reads as a failure, and the natural response is to run the command again.
+			if _, ok := have["semgrep"]; !ok {
+				printSemgrepHint(w)
+			}
 			continue
 		}
 		res, err := install(name)
@@ -315,8 +334,9 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 			res.Path, col.Paint(tui.StyleMuted, "("+provenanceLabel(res)+")"))
 	}
 
-	// Semgrep isn't a downloadable binary; when installing everything, surface how to get it.
-	if all {
+	// Semgrep isn't a downloadable binary; when installing everything, surface how to get it —
+	// unless it is already here, in which case there is nothing to surface.
+	if _, ok := have["semgrep"]; all && !ok {
 		printSemgrepHint(w)
 	}
 
@@ -332,7 +352,45 @@ func printSemgrepHint(w io.Writer) {
 }
 
 // writeInstallPlan prints what `tools install` will do, before doing it.
-func writeInstallPlan(w io.Writer, names []string, all bool) {
+// present reports which of names are already installed at the pinned version.
+//
+// Resolved before the plan is rendered rather than discovered inside the install loop. The plan
+// is the moment someone decides whether to let a security tool write to their machine, and it
+// was describing work it would not do — six rows for one download.
+// detectTool resolves one tool. A var so a test can decide what is installed without arranging
+// binaries on PATH.
+var detectTool = func(ctx context.Context, t tools.Tool) tools.Status {
+	return tools.Detect(ctx, t, nil, nil)
+}
+
+func present(ctx context.Context, names []string, force bool) map[string]string {
+	found := map[string]string{}
+	if force {
+		return found // --force reinstalls regardless, so nothing counts as satisfied
+	}
+	catalog := tools.Catalog()
+	for _, name := range names {
+		t, ok := catalog[name]
+		if !ok {
+			continue
+		}
+		st := detectTool(ctx, t)
+		if !st.Found {
+			continue
+		}
+		// A different version is still work to do, so only the pinned one counts.
+		if spec, ok := tools.Spec(name); ok && st.Version != spec.Version {
+			continue
+		}
+		if name == "semgrep" && st.Version != tools.SemgrepVersion() {
+			continue
+		}
+		found[name] = st.Version
+	}
+	return found
+}
+
+func writeInstallPlan(w io.Writer, names []string, all bool, have map[string]string) {
 	dir, _ := tools.BinDir()
 	catalog := tools.Catalog()
 	category := func(name string) string {
@@ -344,6 +402,12 @@ func writeInstallPlan(w io.Writer, names []string, all bool) {
 	_, _ = fmt.Fprintln(w, "Install plan:")
 	col := tui.For(w)
 	table := tui.NewTable(col, "Tool", "Version", "Category", "Verify", "Destination").Indent("  ")
+
+	// A satisfied tool keeps its row. Dropping it would read as forgetting it, and "nothing to
+	// do" is information — but it says so, and it is not counted as work.
+	satisfied := func(name string) bool { _, ok := have[name]; return ok }
+	todo := 0
+
 	showSemgrep := all
 	for _, name := range names {
 		if name == "semgrep" {
@@ -357,6 +421,13 @@ func writeInstallPlan(w io.Writer, names []string, all bool) {
 				tui.Styled(tui.StyleMuted, "(not installable)"))
 			continue
 		}
+		if satisfied(name) {
+			table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(spec.Version),
+				tui.PlainCell(category(name)), tui.PlainCell("—"),
+				tui.Styled(tui.StyleMuted, "already at "+have[name]))
+			continue
+		}
+		todo++
 		verify := "sha256"
 		if spec.Cosign != nil {
 			verify = "sha256 + cosign"
@@ -366,11 +437,22 @@ func writeInstallPlan(w io.Writer, names []string, all bool) {
 			tui.Styled(tui.StyleMuted, filepath.Join(dir, spec.Binary)))
 	}
 	if showSemgrep {
-		table.Row(tui.Styled(tui.StyleAccent, "semgrep"), tui.PlainCell(tools.SemgrepVersion()),
-			tui.PlainCell(category("semgrep")), tui.PlainCell("pypi hash"),
-			tui.Styled(tui.StyleMuted, "pipx (command printed)"))
+		if satisfied("semgrep") {
+			table.Row(tui.Styled(tui.StyleMuted, "semgrep"), tui.PlainCell(tools.SemgrepVersion()),
+				tui.PlainCell(category("semgrep")), tui.PlainCell("—"),
+				tui.Styled(tui.StyleMuted, "already at "+have["semgrep"]))
+		} else {
+			todo++
+			table.Row(tui.Styled(tui.StyleAccent, "semgrep"), tui.PlainCell(tools.SemgrepVersion()),
+				tui.PlainCell(category("semgrep")), tui.PlainCell("pypi hash"),
+				tui.Styled(tui.StyleMuted, "pipx (command printed)"))
+		}
 	}
 	table.Render(w)
+
+	if n := len(have); n > 0 {
+		_, _ = fmt.Fprintf(w, "\n%s to install, %d already current.\n", plural(todo, "tool"), n)
+	}
 }
 
 // isTTY reports whether r is an interactive terminal — used to decide whether to prompt
