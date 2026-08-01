@@ -43,8 +43,10 @@ components:
     repositories:
       - url: https://github.com/acme/web.git
         revision: main       # branch, tag, or commit
-        paths:               # optional: restrict the scan to part of the repo
-          - "services/web/**"
+        paths:               # optional: scan only these directories
+          - services/web     #   root files (go.mod, Dockerfile, .trivyignore) come too
+        ignore:              # optional: remove these, applied after paths
+          - "**/testdata/**"
     images:
       - image: registry.example.com/acme/web:1.4.0
         digest: sha256:3f8e4a1c9d2b5e7a0c6f8b1d4e7a9c2f5b8e1d4a7c0f3b6e9d2a5c8f1b4e7a0c

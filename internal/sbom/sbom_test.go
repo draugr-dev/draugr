@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
@@ -25,7 +26,7 @@ func (r *recorder) run(_ context.Context, dir string, argv []string) ([]byte, er
 	return r.out, r.err
 }
 
-func (r *recorder) fakeCheckout(_ context.Context, _, _ string) (string, func(), error) {
+func (r *recorder) fakeCheckout(_ context.Context, _, _ string, _ git.Scope) (string, func(), error) {
 	r.checkout++
 	return "/tmp/checkout", func() {}, nil
 }
@@ -156,7 +157,7 @@ func TestGenerateRejectsAnEmptyDocument(t *testing.T) {
 func TestGenerateReportsACheckoutFailure(t *testing.T) {
 	g := &Generator{
 		run: (&recorder{}).run,
-		checkout: func(context.Context, string, string) (string, func(), error) {
+		checkout: func(context.Context, string, string, git.Scope) (string, func(), error) {
 			return "", nil, errors.New("no such host")
 		},
 	}

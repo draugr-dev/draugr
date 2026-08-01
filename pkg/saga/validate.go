@@ -69,6 +69,7 @@ func (m *Model) Validate() error {
 			if r.URL == "" {
 				errs = append(errs, fmt.Errorf("%s: repositories[%d].url is required", where, j))
 			}
+			errs = append(errs, validateRepoScope(fmt.Sprintf("%s: repositories[%d]", where, j), r)...)
 		}
 		for j, img := range c.Images {
 			if img.Image == "" {
@@ -172,6 +173,35 @@ var removedControllerKeys = map[string]map[string]string{
 // A scanner block written as `kube-bench-job: { enabled: true }` selects no scanner and produces
 // a scan that ran one fewer than asked for, reporting a pass on a benchmark half of which never
 // ran. Silence is the failure mode; this makes it an error at load, before any work is done.
+// validateRepoScope rejects scope entries that cannot mean what they appear to.
+//
+// Caught at load rather than at scan time: a pattern that matches nothing narrows the scan
+// silently, and the run that follows reports fewer findings against a tree it never looked at.
+// That is the same shape as a clean result, which is why it has to be an error and not a
+// smaller report.
+func validateRepoScope(where string, r Repository) []error {
+	var errs []error
+	check := func(field string, values []string) {
+		for i, v := range values {
+			at := fmt.Sprintf("%s.%s[%d]", where, field, i)
+			t := strings.TrimSpace(v)
+			switch {
+			case t == "":
+				errs = append(errs, fmt.Errorf("%s is empty", at))
+			case strings.HasPrefix(t, "/"):
+				errs = append(errs, fmt.Errorf(
+					"%s is absolute (%q) — scope is relative to the repository root", at, v))
+			case t == ".." || strings.HasPrefix(t, "../") || strings.Contains(t, "/../"):
+				errs = append(errs, fmt.Errorf(
+					"%s escapes the repository (%q)", at, v))
+			}
+		}
+	}
+	check("paths", r.Paths)
+	check("ignore", r.Ignore)
+	return errs
+}
+
 func validateControllerKeys(where string, controllers map[string]ControllerSettings) []error {
 	var errs []error
 	for control, settings := range controllers {

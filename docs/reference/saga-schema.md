@@ -366,6 +366,50 @@ It lives in the Saga rather than in a flag because it's **policy** — it should
 pull request and applied identically by every pipeline, not remembered by whoever wrote the
 workflow. Resolution order is per-control setting → `--fail-on` → `error`.
 
+
+## Scoping a repository
+
+A monorepo holds more than one component, and a component is rarely the whole tree. `paths` and
+`ignore` narrow what a scan looks at.
+
+```yaml
+repositories:
+  - url: https://github.com/acme/monorepo.git
+    revision: main
+    paths:
+      - services/web        # only this subtree…
+    ignore:
+      - "**/testdata/**"    # …minus the fixtures inside it
+      - vendor/
+```
+
+**`paths` selects directories.** `services/web` and `services/web/**` mean the same thing; a
+trailing `/**` is accepted because it reads naturally. Draugr checks out only those directories,
+so a large repository is also cheaper to scan — the rest is never fetched.
+
+**Files at the repository root are always included**, whatever `paths` says. `go.mod`,
+`package.json`, `Dockerfile`, `.trivyignore`, `.semgrepignore` and their kin live there, and they
+are how a scanner knows what it is looking at. A tool that cannot find the manifest does not
+fail — it reports fewer findings against a tree it did not understand, and that is
+indistinguishable from a clean scan.
+
+**`ignore` removes paths, and runs last** — so it can carve out of a subtree `paths` selected.
+The patterns are gitignore-shaped: a trailing `/` matches a directory and everything beneath it,
+`*` matches within one path segment, `**` matches across segments. A bare name like `vendor`
+means the directory and its contents.
+
+Both are relative to the repository root; an absolute path or one containing `..` is rejected
+when the descriptor loads.
+
+**Scope is part of a target's identity.** Two components pointing at different subtrees of the
+same repository are two different scans, cached separately, and their findings stay apart.
+
+> `ignore` here is not the same tool as `config.exclude`, below. `ignore` narrows what is
+> **scanned** — the files never reach the tool, and nothing is reported about them. `exclude`
+> narrows what is **counted**: the finding is still made, still in the report, marked suppressed
+> with the reason someone gave. Use `ignore` for code that is not yours to answer for, like a
+> vendored tree. Use `exclude` for a finding you have looked at and accepted.
+
 ## `config.exclude`
 
 ```yaml
@@ -530,7 +574,8 @@ components:
     repositories:
       - url: https://github.com/acme/web.git   # required
         revision: main                          # optional
-        paths: ["services/web/**"]              # optional
+        paths: ["services/web"]                 # optional — scan only this subtree
+        ignore: ["**/testdata/**"]              # optional — remove these from the scan
     images:
       - image: registry.example.com/acme/web:1.0  # required
         digest: sha256:…                          # optional — pin the immutable content digest

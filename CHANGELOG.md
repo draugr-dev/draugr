@@ -10,7 +10,39 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`ignore` on a repository removes paths from a scan.** Gitignore-shaped, applied after
+  `paths`, so it can carve fixtures out of a subtree you selected:
+
+  ```yaml
+  repositories:
+    - url: https://github.com/acme/monorepo.git
+      paths: [services/web]
+      ignore: ["**/testdata/**", vendor/]
+  ```
+
+  Not the same tool as `config.exclude`: `ignore` narrows what is **scanned**, so nothing is
+  reported about those files at all. `exclude` narrows what is **counted** — the finding is still
+  made and still in the report, marked suppressed with the reason someone gave. Use `ignore` for
+  code that is not yours to answer for; use `exclude` for a finding you have looked at.
+
 ### Fixed
+
+- **`paths` on a repository now scopes the scan.** It was accepted, documented and carried into
+  the scan target, and no scanner ever read it — every repository control scanned the whole tree.
+  A monorepo scoped to one service reported findings against a component that does not own the
+  code.
+
+  Draugr now checks out only the selected directories, so a large repository is cheaper to scan
+  as well. **Files at the repository root always come with them**, whatever `paths` says:
+  `go.mod`, `package.json`, `Dockerfile`, `.trivyignore` and their kin are how a scanner knows
+  what it is looking at, and a tool that cannot find the manifest reports less rather than
+  failing.
+
+  **Scope is now part of a target's identity.** Two components on different subtrees of one
+  repository previously shared a cache entry and collapsed into a single scan whose findings both
+  received.
 
 - **A publishing failure no longer hides the gate's verdict.** A run that both failed its gate
   and could not deliver its reports named only the publisher — so a red build read as "fix your

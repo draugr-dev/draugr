@@ -5,13 +5,14 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
 const repoSARIF = `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":""}},` +
 	`"results":[{"ruleId":"CVE-1","level":"error","message":{"text":"vuln"}}]}]}`
 
-func fakeCheckout(_ context.Context, _, _ string) (string, func(), error) {
+func fakeCheckout(_ context.Context, _, _ string, _ git.Scope) (string, func(), error) {
 	return "/tmp/fake-checkout", func() {}, nil
 }
 
@@ -139,7 +140,7 @@ func TestRepoScannerNoURL(t *testing.T) {
 
 func TestRepoScannerCheckoutError(t *testing.T) {
 	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) { return nil, nil })
-	s.checkout = func(context.Context, string, string) (string, func(), error) {
+	s.checkout = func(context.Context, string, string, git.Scope) (string, func(), error) {
 		return "", nil, errors.New("clone failed")
 	}
 	if _, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "u"}, nil); err == nil {
