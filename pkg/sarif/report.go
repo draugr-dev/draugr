@@ -188,13 +188,48 @@ type Rule struct {
 	Help string `json:"help,omitempty"`
 	// HelpURI points at the rule's documentation or advisory.
 	HelpURI string `json:"helpUri,omitempty"`
+	// Taxa are the shared classifications this rule implements — a CIS benchmark control, a
+	// CWE. Empty when the scanner claims none.
+	//
+	// This is what makes two tools' findings recognisable as being about the same thing, and it
+	// is deliberately not the rule id. An id belongs to whoever emitted it: `draugr/cis/5.1.1`
+	// and `kube-bench/cis/5.1.1` are two tools' accounts, and collapsing them into one id — as
+	// they were — makes provenance unrecoverable. A taxon is the vocabulary both are speaking,
+	// so the correspondence is stated rather than inferred from a string collision.
+	//
+	// SARIF models exactly this with `taxonomies` and `taxa`, so a consumer that has never heard
+	// of Draugr can group by CIS control, and a third-party scanner can participate by emitting
+	// the same references.
+	Taxa []Taxon `json:"taxa,omitempty"`
+}
+
+// Taxon is a classification a rule implements, in some published taxonomy.
+type Taxon struct {
+	// Taxonomy names the scheme, e.g. "CIS-Kubernetes" or "CWE".
+	Taxonomy string `json:"taxonomy"`
+	// ID is the identifier within it, e.g. "5.1.1" or "79".
+	ID string `json:"id"`
+	// Name is a short human label, when the scanner supplies one.
+	Name string `json:"name,omitempty"`
+	// Version is the taxonomy revision the id belongs to, e.g. "cis-1.12". A check number means
+	// a different thing between benchmark revisions, so an id without one is ambiguous.
+	Version string `json:"version,omitempty"`
+}
+
+// Key renders a taxon as a stable correlation key: two observations carrying the same key are
+// about the same underlying check, whichever tool reported them.
+func (t Taxon) Key() string {
+	if t.Version == "" {
+		return t.Taxonomy + "/" + t.ID
+	}
+	return t.Taxonomy + "@" + t.Version + "/" + t.ID
 }
 
 // empty reports whether the rule carries no information at all, in which case there's nothing
 // worth storing or emitting for it.
 func (r Rule) empty() bool {
 	return r.Name == "" && r.ShortDescription == "" && r.FullDescription == "" &&
-		r.Help == "" && r.HelpURI == ""
+		r.Help == "" && r.HelpURI == "" && len(r.Taxa) == 0
 }
 
 // HelpURI returns where a reader can look up ruleID: what the scanner published, or a URL
@@ -244,6 +279,9 @@ func (r *Report) addRule(ruleID string, rule Rule) {
 	}
 	if cur.HelpURI == "" {
 		cur.HelpURI = rule.HelpURI
+	}
+	if len(cur.Taxa) == 0 {
+		cur.Taxa = rule.Taxa
 	}
 	r.Rules[ruleID] = cur
 }

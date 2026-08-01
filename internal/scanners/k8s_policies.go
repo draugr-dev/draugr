@@ -104,6 +104,11 @@ type policyVerdict struct {
 // rather than in an id two emitters collide on.
 const draugrCISRulePrefix = "draugr/cis/"
 
+// cisKubernetesTaxonomy names the published scheme both CIS scanners classify against. Shared
+// with kube-bench deliberately: it is the correspondence, and two spellings of it would be two
+// taxonomies that never line up.
+const cisKubernetesTaxonomy = "CIS-Kubernetes"
+
 // evaluatePolicies runs the implemented checks and returns their verdicts by rule id.
 //
 // One List per resource kind, reused across checks. kube-bench re-queries per check and, for the
@@ -305,6 +310,15 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 			ShortDescription: check.Title,
 			FullDescription:  check.Remediation,
 			HelpURI:          "https://www.cisecurity.org/benchmark/kubernetes",
+			// The benchmark control this check implements. Rule ids are namespaced per scanner,
+			// so this is what still says "kube-bench's 5.1.1 and ours are the same control" —
+			// stated in a published vocabulary rather than inferred from two ids colliding.
+			Taxa: []sarif.Taxon{{
+				Taxonomy: cisKubernetesTaxonomy,
+				ID:       check.ID,
+				Name:     check.Title,
+				Version:  cisCatalogueVersion,
+			}},
 		}
 	}
 	return report

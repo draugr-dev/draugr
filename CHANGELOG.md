@@ -30,6 +30,19 @@ and move it under a version on release.
 
 ### Added
 
+- **SARIF output declares the classifications a rule implements.** Both CIS scanners now reference
+  the benchmark control their checks cover, using SARIF's own `taxonomies` and `taxa`:
+
+  ```json
+  "taxonomies": [{"name": "CIS-Kubernetes", "version": "cis-1.12",
+                  "taxa": [{"id": "5.1.1", "name": "Minimize wildcard use"}]}]
+  ```
+
+  Namespacing the rule ids removed the accidental correspondence between the two scanners; this
+  puts it back where it belongs. A consumer that has never heard of Draugr can group findings by
+  the control they implement, from a published vocabulary rather than from two ids colliding —
+  and a third-party scanner can join in by referencing the same taxon.
+
 - **A scan reports exclusions that matched nothing.** An exclusion doing nothing reads exactly
   like one that is working — usually a typo, a rule id that moved, or a finding someone fixed and
   forgot to stop excusing. In every case the descriptor claims a decision it is not making:
