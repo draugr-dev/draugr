@@ -22,6 +22,24 @@ and move it under a version on release.
 
 ### Fixed
 
+- **An identical failure is reported once, with a count.** A control with two jobs that failed
+  the same way printed the same sentence twice — and two identical lines invite the reader to
+  look for the difference between them, which there isn't:
+
+  ```
+  sast  ERROR  did not run
+        run semgrep: exec: "semgrep": executable file not found in $PATH (2 jobs)
+  ```
+
+  Collapsed when rendering, not when recording: each entry belongs to a real job, and the SARIF
+  and JSON report keep them all.
+
+- **`--log-level trace` relays a tool's stdout as well as its stderr.** It only ever showed
+  stderr, and only on a non-zero exit — but our scanners are deliberately configured not to fail
+  on findings, so success is the normal path, and a tool that produced an empty report because it
+  was misconfigured looked exactly like one that found nothing. Long streams are trimmed with a
+  note saying how much was left out.
+
 - **`draugr mcp --scan=ask` can ask again.** The approval request went out without a
   `requestedSchema`, which the protocol requires for a form — so a spec-conformant client
   rejected it and the mode failed before it could prompt. Nothing was ever scanned without

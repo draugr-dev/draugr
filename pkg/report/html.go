@@ -103,7 +103,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		Hidden:      s.hidden,
 	}
 	for _, name := range sortedKeys(s.scanErrors) {
-		for _, msg := range s.scanErrors[name] {
+		for _, msg := range dedupeMessages(s.scanErrors[name]) {
 			view.Errors = append(view.Errors, htmlError{Control: name, Message: findingSummary(msg)})
 		}
 	}

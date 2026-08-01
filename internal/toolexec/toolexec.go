@@ -133,5 +133,28 @@ func log(ctx context.Context, argv []string, dir string, started time.Time, out 
 	} else if err != nil {
 		attrs = append(attrs, "error", err.Error())
 	}
+	// Stdout too, and on success as well as failure. Not every tool explains itself on stderr,
+	// and ours are deliberately configured not to fail on findings (--exit-code 0, -no-fail) —
+	// so err == nil is the normal path, and a tool that produced an empty report because it was
+	// misconfigured looked exactly like one that found nothing. Trace is the level where a
+	// reader has asked for everything; holding half of it back is what sent them to reproduce
+	// the run by hand.
+	if len(out) > 0 {
+		slog.Log(ctx, observability.LevelTrace, "tool stdout",
+			"tool", argv[0], "stdout", clampForLog(string(out)))
+	}
 	slog.DebugContext(ctx, "ran external tool", attrs...)
+}
+
+// maxTraceOutput bounds a relayed stream. A SARIF report can be megabytes, and a log line that
+// large is not read by anyone — it is scrolled past, or it makes the file too big to open.
+const maxTraceOutput = 4000
+
+// clampForLog trims a relayed stream to something a person can read, saying what was left out.
+func clampForLog(s string) string {
+	if len(s) <= maxTraceOutput {
+		return s
+	}
+	return s[:maxTraceOutput] + fmt.Sprintf("… (%d bytes truncated; use -o <dir> for the full report)",
+		len(s)-maxTraceOutput)
 }
