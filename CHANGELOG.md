@@ -22,6 +22,11 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`draugr mcp --scan=ask` can ask again.** The approval request went out without a
+  `requestedSchema`, which the protocol requires for a form — so a spec-conformant client
+  rejected it and the mode failed before it could prompt. Nothing was ever scanned without
+  consent; the consent could not be requested at all.
+
 - **`draugr survey` says what it wrote.** It produced a descriptor and reported nothing — no
   path, no counts, no account of what it discovered — so the only evidence a survey had worked
   was the absence of an error. With `-o .saga.yaml` the file is not even visible to `ls`:
