@@ -25,37 +25,9 @@ This is the open-source core engine.
 
 ## See it in action
 
-![Draugr scanning a repository with zero config](contrib/demo/scan.png)
+![Terminal output from `draugr scan .`: a FAIL verdict, counts across priorities P1 to P4, a per-control table of severities, and a ranked fix-first list giving each finding's priority, severity, score, rule, control, scanner and file location.](contrib/demo/scan.png)
 
-`draugr scan .` on the demo sandbox — no descriptor, just a prioritized verdict:
-
-```text
-Draugr — FAIL   (draugr-demo 0.0.0)
-
-Priorities:  P1 21   P2 22   P3 13   P4 0
-
-Controls:
-  secrets  FAIL   1 high
-  iac      FAIL   4 high  5 medium  12 low
-  sast     FAIL   7 high  9 medium
-  sca      FAIL   3 critical  6 high  8 medium  1 low
-
-Fix first (top 10 of 56, by priority):
-  Priority  Severity  Score  Rule            Control  Scanner  Location
-  P1        critical  9.8    CVE-2019-20477  sca      Trivy    app/requirements.txt:4
-            PyYAML: command execution through python/object/apply constructor in FullLoader
-  P1        critical  9.8    CVE-2020-14343  sca      Trivy    app/requirements.txt:4
-            PyYAML: incomplete fix for CVE-2020-1747
-  P1        high      8.0    DS-0002         iac      Trivy    app/Dockerfile:1
-            Image user should not be 'root'
-  P1        high      8.0    KSV-0014        iac      Trivy    deploy/pod.yaml:8
-            Root file system is not read-only
-  …
-
-… and 46 more finding(s). Use --format json for the full report, or -o <dir> for report.json + results.sarif.
-```
-
-On a terminal the verdict, priorities, and severities are color-coded (disable with `NO_COLOR`).
+The verdict, priorities and severities are color-coded on a terminal (disable with `NO_COLOR`).
 Findings are ranked by **priority (P1–P4)** = severity × the component's exposure & criticality;
 **severity** (critical/high/medium/low) comes from the CVSS score when a scanner provides one,
 else from the finding's level. The gate and `--format json`/`sarif` still use SARIF levels.

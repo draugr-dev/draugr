@@ -106,8 +106,9 @@ explanation. Knowing which one you're writing prevents most documentation proble
 
 ## Changing what `draugr scan` prints
 
-The console layout is quoted in the README, several files under `docs/`, the demo screenshot,
-and posts on the website. None of them notice when it changes, so it's pinned by a golden test:
+The console layout is quoted in several files under `docs/`, in the demo screenshot the README
+shows, and in posts on the website. None of them notice when it changes, so it's pinned by a
+golden test:
 
 ```bash
 go test ./pkg/report -run TestConsoleGolden   # fails if the layout moved
