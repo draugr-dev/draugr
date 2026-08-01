@@ -38,6 +38,32 @@ type Data struct {
 	// so a caller that does not set them still renders a valid report.
 	Generated time.Time
 	Version   string
+	// Components breaks the verdict down by the part of the application it belongs to, when
+	// there is more than one. Optional: a caller that does not compute it renders as before.
+	Components []ComponentVerdict
+	// UnattributedFindings counts findings that belong to no component — a project-scoped
+	// control like `infrastructure` produces them. Reported alongside the component breakdown,
+	// because a breakdown that silently omits them makes the parts look like the whole.
+	UnattributedFindings int
+}
+
+// ComponentVerdict is one component's outcome, judged by the same policy as the run.
+//
+// The unit a team owns, and the unit exposure and criticality are declared on — so the unit
+// someone is actually deciding about. The controls table answers "is the project shippable",
+// which is a different and usually less useful question than "is my service".
+type ComponentVerdict struct {
+	Name string
+	// Verdict is the run's policy applied to this component's findings alone. Computed by
+	// running the same norn.Policy rather than re-deciding, so the parts cannot disagree with
+	// the whole about what failing means.
+	Verdict norn.Verdict
+	// Controls names the controls that failed for this component, in order.
+	Controls []string
+	// Priorities counts this component's findings by band, highest first (P1…P4).
+	Priorities [4]int
+	// Findings is the total, suppressed ones excluded — the same rule the counts follow.
+	Findings int
 }
 
 // Reporter renders Data in one format.

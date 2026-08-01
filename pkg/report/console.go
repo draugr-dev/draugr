@@ -128,6 +128,8 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
+	writeComponents(w, col, d)
+
 	// Evidence, not a control — so a line rather than a row in the table above, where every
 	// entry means "checked, and here is the verdict". Printed before the early returns below,
 	// because a clean scan still produced the inventory and should say so.
@@ -374,6 +376,69 @@ func wrapMessage(msg string, width int) []string {
 
 // maxMessageLines bounds how much of one failure the summary will show.
 const maxMessageLines = 3
+
+// writeComponents breaks the verdict down by the part of the application it belongs to.
+//
+// The controls table answers "is the project shippable". A component is the unit a team owns and
+// the unit exposure and criticality are declared on, so it is the unit someone is deciding
+// about — and with several of them, "sca FAIL" says the project has a problem and stops.
+//
+// The clean ones are the point as much as the failing ones: PASS against a named component is
+// what someone can take back to their team, and reading it off a truncated findings table by eye
+// was the alternative.
+func writeComponents(w io.Writer, col tui.Painter, d Data) {
+	if len(d.Components) == 0 {
+		return
+	}
+	width := 0
+	for _, c := range d.Components {
+		width = max(width, len(c.Name))
+	}
+
+	_, _ = fmt.Fprintln(w, "Components:")
+	for _, c := range d.Components {
+		verdict, style := "pass", cPass
+		if c.Verdict == norn.Fail {
+			verdict, style = "FAIL", cFail
+		}
+		detail := col.Paint(cDim, "no findings")
+		if c.Findings > 0 {
+			detail = componentBands(col, c.Priorities)
+			if len(c.Controls) > 0 {
+				detail += "  " + col.Paint(cDim, strings.Join(c.Controls, ", "))
+			}
+		}
+		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
+			fmt.Sprintf("%-*s", width, c.Name),
+			col.Paint(style, fmt.Sprintf("%-5s", verdict)),
+			detail)
+	}
+	if d.UnattributedFindings > 0 {
+		// Project-scoped controls produce these. Omitting them silently would make the parts
+		// look like the whole.
+		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
+			fmt.Sprintf("%s not tied to a component (project-wide controls)",
+				plural(d.UnattributedFindings, "finding"))))
+	}
+	_, _ = fmt.Fprintln(w)
+}
+
+// componentBands renders a component's P1–P4 counts, omitting empty ones.
+func componentBands(col tui.Painter, p [4]int) string {
+	labels := [4]string{"P1", "P2", "P3", "P4"}
+	styles := [4]tui.Style{cFail, tui.StyleAccent, tui.StyleNone, cDim}
+	var parts []string
+	for i, n := range p {
+		if n == 0 {
+			continue
+		}
+		parts = append(parts, col.Paint(styles[i], fmt.Sprintf("%s %d", labels[i], n)))
+	}
+	if len(parts) == 0 {
+		return col.Paint(cDim, "no priorities set")
+	}
+	return strings.Join(parts, "  ")
+}
 
 // bandsText renders per-control severity counts, omitting empty bands, each colorized.
 func bandsText(col tui.Painter, b sevCounts) string {

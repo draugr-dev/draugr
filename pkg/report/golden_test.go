@@ -153,6 +153,15 @@ func goldenFullData() Data {
 		Run:     run,
 		Verdict: verdict,
 		TopN:    5, // fewer than the findings above, so the truncation line is pinned too
+		// A failing component, a clean one, and findings belonging to neither — the three states
+		// the breakdown has to render, including the clean row, which is the one a reader takes
+		// back to their team.
+		Components: []ComponentVerdict{
+			{Name: "payments", Verdict: norn.Fail, Controls: []string{"sca", "secrets"},
+				Priorities: [4]int{3, 2, 1, 0}, Findings: 6},
+			{Name: "internal-tool", Verdict: norn.Pass},
+		},
+		UnattributedFindings: 2,
 	}
 }
 

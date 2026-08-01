@@ -868,3 +868,34 @@ func TestDedupeMessagesOnNothing(t *testing.T) {
 		t.Errorf("got %q, want empty", got)
 	}
 }
+
+func TestConsoleOmitsTheComponentBlockWhenThereIsNothingToTellApart(t *testing.T) {
+	// One component repeats what the headline already said, and a block that always appears is
+	// one nobody reads.
+	var b bytes.Buffer
+	d := goldenCleanData()
+	if err := (consoleReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), "Components:") {
+		t.Errorf("no breakdown without components to compare:\n%s", b.String())
+	}
+}
+
+func TestMarkdownRendersTheComponentTable(t *testing.T) {
+	var b bytes.Buffer
+	if err := (markdownReporter{}).Render(&b, goldenFullData()); err != nil {
+		t.Fatal(err)
+	}
+	got := b.String()
+	for _, want := range []string{
+		"### Components",
+		"| payments | **FAIL** | 3 | 2 | 1 | 0 | sca, secrets |",
+		"| internal-tool | pass | 0 | 0 | 0 | 0 | - |",
+		"2 findings not tied to a component",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+}

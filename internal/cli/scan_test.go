@@ -752,3 +752,76 @@ func TestSplitScanErrorsKeepsSBOMWaivable(t *testing.T) {
 		t.Errorf("waived = %v, want (sbom) and sca", waived)
 	}
 }
+
+func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
+	// Not a second implementation of the gate. Reproducing "what counts as failing" in the
+	// reporter is how the parts come to disagree with the whole — a component reading PASS
+	// under a headline that says FAIL.
+	policy := norn.Policy{FailOn: sarif.LevelError}
+	model := &saga.Model{Components: []saga.Component{{Name: "payments"}, {Name: "internal-tool"}}}
+	reports := map[string]sarif.Report{
+		"sca": {Tool: "trivy", Results: []sarif.Result{
+			{RuleID: "CVE-1", Level: sarif.LevelError, Component: "payments", Priority: "P1"},
+			{RuleID: "CVE-2", Level: sarif.LevelNote, Component: "internal-tool", Priority: "P4"},
+		}},
+		"infrastructure": {Tool: "k8s-policies", Results: []sarif.Result{
+			{RuleID: "cis/5.1.1", Level: sarif.LevelWarning}, // project-scoped: no component
+		}},
+	}
+	got, unattributed := componentVerdicts(policy, model, reports)
+	if len(got) != 2 {
+		t.Fatalf("want a row per declared component, got %d", len(got))
+	}
+	if got[0].Name != "payments" || got[0].Verdict != norn.Fail {
+		t.Errorf("the failing component should lead: %+v", got[0])
+	}
+	if got[0].Priorities[0] != 1 || !slices.Equal(got[0].Controls, []string{"sca"}) {
+		t.Errorf("payments: %+v", got[0])
+	}
+	if got[1].Name != "internal-tool" || got[1].Verdict != norn.Pass {
+		t.Errorf("a component below the threshold passes: %+v", got[1])
+	}
+	if unattributed != 1 {
+		t.Errorf("unattributed = %d, want the project-scoped finding counted", unattributed)
+	}
+}
+
+func TestComponentVerdictsIncludeAComponentWithNoFindings(t *testing.T) {
+	// Building the list from the findings drops exactly the component a reader most wants to
+	// see — the clean one they can take back to their team.
+	policy := norn.Policy{FailOn: sarif.LevelError}
+	model := &saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "quiet"}}}
+	reports := map[string]sarif.Report{"sca": {Results: []sarif.Result{
+		{RuleID: "x", Level: sarif.LevelError, Component: "a"},
+	}}}
+	got, _ := componentVerdicts(policy, model, reports)
+	if len(got) != 2 {
+		t.Fatalf("got %d rows, want both components", len(got))
+	}
+	quiet := got[1]
+	if quiet.Name != "quiet" || quiet.Verdict != norn.Pass || quiet.Findings != 0 {
+		t.Errorf("the clean component should be present and passing: %+v", quiet)
+	}
+}
+
+func TestComponentVerdictsSkipSuppressedFindings(t *testing.T) {
+	// The counts skip these, so the breakdown must too, or the parts and the whole disagree.
+	policy := norn.Policy{FailOn: sarif.LevelError}
+	model := &saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "b"}}}
+	reports := map[string]sarif.Report{"sca": {Results: []sarif.Result{
+		{RuleID: "x", Level: sarif.LevelError, Component: "a",
+			Suppression: &sarif.Suppression{Kind: "external", Justification: "accepted"}},
+	}}}
+	got, _ := componentVerdicts(policy, model, reports)
+	if got[0].Findings != 0 || got[0].Verdict != norn.Pass {
+		t.Errorf("a suppressed finding must not fail its component: %+v", got[0])
+	}
+}
+
+func TestComponentVerdictsAreAbsentForOneComponent(t *testing.T) {
+	policy := norn.Policy{FailOn: sarif.LevelError}
+	model := &saga.Model{Components: []saga.Component{{Name: "only"}}}
+	if got, _ := componentVerdicts(policy, model, nil); got != nil {
+		t.Errorf("nothing to tell apart: %+v", got)
+	}
+}
