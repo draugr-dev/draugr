@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -677,5 +678,77 @@ func TestAlsoPublishWrapsBothSoEitherCanBeMatched(t *testing.T) {
 	err := alsoPublish(outcome, pub)
 	if !errors.Is(err, outcome) || !errors.Is(err, pub) {
 		t.Errorf("both causes should be reachable with errors.Is: %v", err)
+	}
+}
+
+func TestRunScanAllowScanErrorsCannotPassAScanThatDidNothing(t *testing.T) {
+	// The hole #439 closed, reopened by the flag the error message itself recommended: a
+	// descriptor enabling no control produced (planning) "no controls ran", and
+	// --allow-scan-errors turned that into a green PASS over a scan that checked nothing.
+	saga := `
+release:
+  name: app
+  version: "1.0"
+components:
+  - name: c
+    repositories:
+      - url: https://github.com/acme/x.git
+`
+	path := writeSaga(t, saga)
+	for _, allow := range []bool{false, true} {
+		err := runScan(context.Background(), path,
+			scanOptions{failOn: "error", format: "console", allowScanErrors: allow},
+			fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+		if err == nil {
+			t.Fatalf("allowScanErrors=%v: a scan that ran no control must not pass", allow)
+		}
+		if !strings.Contains(err.Error(), "scan incomplete") {
+			t.Errorf("allowScanErrors=%v: got %v", allow, err)
+		}
+	}
+}
+
+func TestRunScanStillOffersTheFlagForARealScannerFailure(t *testing.T) {
+	// The flag has to keep working for what it is actually for, and keep being suggested there.
+	saga := `
+release:
+  name: app
+  version: "1.0"
+config:
+  controllers:
+    images:
+      enabled: true
+components:
+  - name: c
+    images:
+      - image: repo/x:1
+`
+	path := writeSaga(t, saga)
+	reg := failingRegistry()
+	err := runScan(context.Background(), path,
+		scanOptions{failOn: "error", format: "console"}, reg, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "--allow-scan-errors to accept partial") {
+		t.Fatalf("a failed scanner should still point at the flag, got %v", err)
+	}
+	if err := runScan(context.Background(), path,
+		scanOptions{failOn: "error", format: "console", allowScanErrors: true},
+		reg, &bytes.Buffer{}); err != nil {
+		t.Errorf("the flag should still accept a failed scanner, got %v", err)
+	}
+}
+
+func TestSplitScanErrorsKeepsSBOMWaivable(t *testing.T) {
+	// A missing SBOM is missing evidence, not a missing check: the controls ran and their
+	// verdict still means something, so the flag continues to accept it.
+	unwaived, waived := splitScanErrors(map[string][]string{
+		"(planning)": {"no controls ran"},
+		"(sbom)":     {"syft failed"},
+		"sca":        {"trivy failed"},
+	})
+	if !slices.Equal(unwaived, []string{"(planning)"}) {
+		t.Errorf("unwaived = %v, want only (planning)", unwaived)
+	}
+	if !slices.Equal(waived, []string{"(sbom)", "sca"}) {
+		t.Errorf("waived = %v, want (sbom) and sca", waived)
 	}
 }

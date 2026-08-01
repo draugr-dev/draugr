@@ -112,8 +112,16 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		}
 		for _, name := range sortedKeys(errored) {
 			for _, msg := range errored[name] {
-				_, _ = fmt.Fprintf(w, "  %s%s\n", strings.Repeat(" ", width+2),
-					col.Paint(cDim, findingSummary(msg)))
+				// Wrapped rather than clamped. The one-line clamp is right for a tool's own
+				// stderr, which can be a usage screen — but these are also Draugr's own
+				// sentences, and the clamp cut them at the clause that said what to do.
+				for i, line := range wrapMessage(msg, messageWidth) {
+					prefix := strings.Repeat(" ", width+2)
+					if i > 0 {
+						prefix += "  "
+					}
+					_, _ = fmt.Fprintf(w, "  %s%s\n", prefix, col.Paint(cDim, line))
+				}
 			}
 		}
 		writeMeasuredAgainst(w, col, d, width)
@@ -335,6 +343,37 @@ func findingSummary(msg string) string {
 	}
 	return msg
 }
+
+// wrapMessage folds a message onto lines of at most width, breaking on spaces.
+//
+// Capped at three lines: a scanner that fails by printing its whole usage screen would otherwise
+// bury the report under it, and past three lines a reader wants --log-level trace rather than
+// more of the same in a summary.
+func wrapMessage(msg string, width int) []string {
+	msg = strings.Join(strings.Fields(strings.ReplaceAll(msg, "\n", " ")), " ")
+	if msg == "" {
+		return nil
+	}
+	var lines []string
+	for len(msg) > width {
+		cut := strings.LastIndex(msg[:width], " ")
+		if cut <= 0 {
+			cut = width // one unbroken token, e.g. a path: split it rather than overflow
+		}
+		lines = append(lines, strings.TrimSpace(msg[:cut]))
+		msg = strings.TrimSpace(msg[cut:])
+		if len(lines) == maxMessageLines-1 {
+			break
+		}
+	}
+	if len(msg) > width {
+		msg = strings.TrimSpace(msg[:width-1]) + "…"
+	}
+	return append(lines, msg)
+}
+
+// maxMessageLines bounds how much of one failure the summary will show.
+const maxMessageLines = 3
 
 // bandsText renders per-control severity counts, omitting empty bands, each colorized.
 func bandsText(col tui.Painter, b sevCounts) string {

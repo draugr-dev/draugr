@@ -10,7 +10,37 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`ignore` on a repository removes paths from a scan.** Gitignore-shaped, applied after
+  `paths`, so it can carve fixtures out of a subtree you selected:
+
+  ```yaml
+  repositories:
+    - url: https://github.com/acme/monorepo.git
+      paths: [services/web]
+      ignore: ["**/testdata/**", vendor/]
+  ```
+
+  Not the same tool as `config.exclude`: `ignore` narrows what is **scanned**, so nothing is
+  reported about those files at all. `exclude` narrows what is **counted** — the finding is still
+  made and still in the report, marked suppressed with the reason someone gave. Use `ignore` for
+  code that is not yours to answer for; use `exclude` for a finding you have looked at.
+
 ### Fixed
+
+- **`--allow-scan-errors` can no longer pass a scan that ran nothing.** A descriptor enabling no
+  control reported `no controls ran` and failed, as it should — and the flag the error message
+  recommended turned that into a green **PASS** over a scan that had checked nothing.
+
+  The flag accepts a *scanner* that failed, when other controls did run and you choose to proceed
+  on those. A planning failure is not a scanner, so there is no partial result to accept. It now
+  says so instead of offering the flag. A failed SBOM stays waivable: that is missing evidence,
+  not a missing check.
+
+- **A failure's explanation is wrapped rather than cut.** The one-line clamp is right for a
+  tool's own stderr, which can be a usage screen, but it was also truncating Draugr's own
+  sentences at the clause that said what to do.
 
 - **`dast` works.** The Nuclei template download never ran: the prewarm passed `-duc` alongside
   `-update-templates`, and on that command `-duc` disables the update itself. Nuclei exits 0
@@ -33,25 +63,6 @@ and move it under a version on release.
 - **A scanner's prewarm failure is now logged.** It was recorded as a trace span event and
   nowhere else, so the only thing a user ever saw was whatever the scanner said later about a
   consequence of it.
-
-### Added
-
-- **`ignore` on a repository removes paths from a scan.** Gitignore-shaped, applied after
-  `paths`, so it can carve fixtures out of a subtree you selected:
-
-  ```yaml
-  repositories:
-    - url: https://github.com/acme/monorepo.git
-      paths: [services/web]
-      ignore: ["**/testdata/**", vendor/]
-  ```
-
-  Not the same tool as `config.exclude`: `ignore` narrows what is **scanned**, so nothing is
-  reported about those files at all. `exclude` narrows what is **counted** — the finding is still
-  made and still in the report, marked suppressed with the reason someone gave. Use `ignore` for
-  code that is not yours to answer for; use `exclude` for a finding you have looked at.
-
-### Fixed
 
 - **`paths` on a repository now scopes the scan.** It was accepted, documented and carried into
   the scan target, and no scanner ever read it — every repository control scanned the whole tree.

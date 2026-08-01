@@ -162,7 +162,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// A control that couldn't run didn't find nothing — it found out nothing. Reporting that as
 	// a pass makes the gate a false negative exactly when it matters: in CI, where a scanner
 	// failing to provision is the common case and the warning scrolls past unread.
-	incomplete := len(run.ScanErrors) > 0 && !opts.allowScanErrors
+	unwaived, waived := splitScanErrors(run.ScanErrors)
+	incomplete := len(unwaived) > 0 || (len(waived) > 0 && !opts.allowScanErrors)
 	if incomplete {
 		verdict.Verdict = norn.Fail
 	}
@@ -226,9 +227,18 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if incomplete {
 		// Distinct from a policy failure: nothing was necessarily found, the scan just didn't
 		// finish. Saying so is the difference between a bug report and a shrug.
+		//
+		// The flag is only offered when it would actually help. Recommending it for a planning
+		// failure sent readers to a green PASS over a scan that had checked nothing — the flag
+		// accepts a scanner that failed, and there was no scanner.
+		if len(unwaived) > 0 {
+			return alsoPublish(fmt.Errorf("scan incomplete: %s could not run — "+
+				"--allow-scan-errors accepts a scanner that failed; it cannot accept a scan "+
+				"that had nothing to do", strings.Join(unwaived, ", ")), publishErr)
+		}
 		return alsoPublish(fmt.Errorf("scan incomplete: %s could not run "+
 			"(use --allow-scan-errors to accept partial results)",
-			strings.Join(erroredControls(run), ", ")), publishErr)
+			strings.Join(waived, ", ")), publishErr)
 	}
 	if verdict.Verdict == norn.Fail {
 		return alsoPublish(fmt.Errorf("policy verdict: fail"), publishErr)
@@ -353,16 +363,6 @@ func writeArtifacts(dir string, release saga.Release, run engine.Result, verdict
 	return nil
 }
 
-// erroredControls names the controls that couldn't run, in a stable order.
-func erroredControls(run engine.Result) []string {
-	names := make([]string, 0, len(run.ScanErrors))
-	for name := range run.ScanErrors {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
 // perControlThresholds converts the Saga's gate block into the norn policy's per-control map.
 // Nil when unset, which leaves every control on --fail-on.
 func perControlThresholds(g *saga.GateConfig) map[string]sarif.Level {
@@ -374,4 +374,19 @@ func perControlThresholds(g *saga.GateConfig) map[string]sarif.Level {
 		out[control] = sarif.Level(level)
 	}
 	return out
+}
+
+// splitScanErrors separates failures --allow-scan-errors cannot accept from those it can.
+// Both lists are sorted, so the message is stable between runs.
+func splitScanErrors(scanErrors map[string][]string) (unwaived, waived []string) {
+	for control := range scanErrors {
+		if engine.Waivable(control) {
+			waived = append(waived, control)
+		} else {
+			unwaived = append(unwaived, control)
+		}
+	}
+	sort.Strings(unwaived)
+	sort.Strings(waived)
+	return unwaived, waived
 }
