@@ -1,0 +1,14 @@
+<pre class="term"><span class="t-prompt">$</span> draugr scan .
+Draugr — <span class="t-crit">FAIL</span>   <span class="t-dim">(draugr-demo 1.0)</span>
+
+Priorities:  <span class="t-crit">P1 71</span>   <span class="t-warn">P2 111</span>   P3 90   <span class="t-dim">P4 0</span>
+
+Controls:
+  iac      <span class="t-crit">FAIL </span>  <span class="t-high">4 high</span>  <span class="t-warn">5 medium</span>  <span class="t-dim">12 low</span>
+  images   <span class="t-crit">FAIL </span>  <span class="t-crit">9 critical</span>  <span class="t-high">41 high</span>  <span class="t-warn">89 medium</span>  <span class="t-dim">77 low</span>
+  sast     <span class="t-crit">FAIL </span>  <span class="t-high">7 high</span>  <span class="t-warn">9 medium</span>
+  sca      <span class="t-crit">FAIL </span>  <span class="t-crit">3 critical</span>  <span class="t-high">6 high</span>  <span class="t-warn">8 medium</span>  <span class="t-dim">1 low</span>
+  secrets  <span class="t-crit">FAIL </span>  <span class="t-high">1 high</span>
+
+<span class="t-prompt">$</span> echo $?
+1</pre>
