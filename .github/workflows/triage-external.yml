@@ -1,0 +1,42 @@
+# Label anything opened from outside the org, so it can be found without remembering to look.
+#
+# A public project's first external issue arrives among a hundred of the maintainers' own, and it
+# is the one that most rewards a fast reply — someone spent their time on a tool they do not have
+# to use. A filter over authors finds them, but only if you think to run it. A label puts them in
+# every list, every project view and every notification without anyone deciding to go looking.
+#
+# `author_association` comes from the event payload, so no token beyond the default is needed and
+# no org membership is read. OWNER, MEMBER and COLLABORATOR are inside; CONTRIBUTOR (has landed a
+# commit before) and NONE are not. A first-time contributor who has never had a PR merged is
+# FIRST_TIME_CONTRIBUTOR or FIRST_TIMER, which are also outside.
+name: Triage external
+
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request_target:
+    types: [opened, reopened]
+
+# pull_request_target runs with the base repository's token, so this must not check out or run
+# anything from the fork. It reads one field of the event and adds a label; nothing else.
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    # The association is on both event payloads under the same name.
+    if: >-
+      !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+                github.event.issue.author_association || github.event.pull_request.author_association)
+    steps:
+      - name: Mark it external
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          ASSOCIATION: ${{ github.event.issue.author_association || github.event.pull_request.author_association }}
+        run: |
+          set -euo pipefail
+          echo "author_association=$ASSOCIATION → external"
+          gh issue edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --add-label external
