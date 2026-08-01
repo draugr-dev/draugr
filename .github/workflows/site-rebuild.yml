@@ -1,0 +1,48 @@
+# Rebuild draugr.dev when the demo assets change.
+#
+# The site fetches the home page's terminal block from this repository's `main` at build time,
+# rather than keeping a copy — a second copy is a copy that goes stale. That leaves one ordering
+# problem, which release.yml cannot solve on its own: the render job runs *after* GoReleaser, and
+# the pull request it opens waits for a human. So the rebuild that release.yml triggers happens
+# minutes before the new block exists, and the site shows the previous release's numbers until
+# something else rebuilds it.
+#
+# Nothing announced that. The page was correct-looking and one release out of date, which is the
+# failure this whole arrangement was meant to remove.
+#
+# So the assets landing is its own trigger. Between the two, the site is rebuilt when the docs
+# change (release) and again when the demo output changes (here), and neither depends on the
+# other's timing.
+name: Site rebuild
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - contrib/demo/scan.html
+      - contrib/demo/scan.png
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One rebuild at a time; a second push while one is queued should replace it, not follow it.
+concurrency:
+  group: site-rebuild
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      # No-ops rather than failing when the secret is absent, so forks stay green — the same
+      # treatment release.yml gives it.
+      - name: Trigger the site rebuild
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then
+            curl -fsS -X POST "$HOOK" && echo "site rebuild triggered"
+          else
+            echo "CLOUDFLARE_PAGES_DEPLOY_HOOK not set; skipping"
+          fi

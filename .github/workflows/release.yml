@@ -91,6 +91,11 @@ jobs:
             "$RUNNER_TEMP/draugr-$version.mcpb.sha256" \
             --repo "$GITHUB_REPOSITORY" --clobber
 
+      # This covers the docs, which come from the tag. It does *not* cover the demo assets: the
+      # render job below runs after this, and its pull request waits for a human, so the block
+      # the home page shows is still the previous release's when this fires. site-rebuild.yml
+      # triggers again when those assets land.
+      #
       # `latest` is sourced from the newest release tag, so a fresh release needs a rebuild. This
       # POSTs a Cloudflare Pages Deploy Hook. Configure it once: create the hook in Cloudflare and
       # add its URL as the CLOUDFLARE_PAGES_DEPLOY_HOOK repo secret. The step no-ops (never fails
