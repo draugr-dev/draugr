@@ -10,7 +10,39 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.51.0] - 2026-07-31
+
 ### Added
+
+- **An exclusion can record who accepted it and when it lapses.** `acceptedBy` names the person
+  to go back to; `expires` is a date after which the exclusion stops applying, the finding
+  returns, and the report says the exclusion lapsed:
+
+  ```yaml
+  config:
+    exclude:
+      - rules: ["CVE-2026-1234"]
+        reason: "no fixed release yet; not reachable from our entry points"
+        acceptedBy: "a.reviewer"
+        expires: "2026-09-30"
+  ```
+
+  Both are optional and existing descriptors keep working. Suppressions with nobody attached are
+  counted in the report, because an exclusion nobody can be asked about is worth knowing about.
+  An unparseable date is rejected when the descriptor loads rather than ignored — suppressing
+  indefinitely while the descriptor says otherwise is worse than having no date.
+
+- **The console names the component a finding came from**, when there is more than one to tell
+  apart. A path alone does not say which part of the application it is relative to, and two
+  components can carry the same one.
+
+- **"Fix first" now says how much of the run it is showing** — `Fix first (top 10 of 56, by
+  priority)` — so the heading stays true under `--top 0`, where the same words previously sat
+  above every finding in the run.
+
+- **The console shows what each control measured**, under the controls it describes.
 
 - **A report now says what it measured and against what.** The `infrastructure` scanners record
   the benchmark applied, how much of it could be decided, and the namespaces in scope:
@@ -40,6 +72,26 @@ and move it under a version on release.
   so a scanner cannot forget. Where caching resolved a live version — Trivy folds in its
   vulnerability-DB version — that is the one recorded, so the evidence and the cache key cannot
   disagree about what ran.
+
+### Fixed
+
+- **`draugr scan <dir>` uses the descriptor in that directory.** It previously ran zero-config
+  even with a `draugr.saga.yaml` present, discarding the controls, components, exposure and
+  criticality the file declared, and then suggesting `draugr init` to scaffold a file the reader
+  already had. Nothing in the output distinguished a project scanned as intended from one whose
+  configuration had been ignored.
+
+  A descriptor that cannot be read now fails the scan instead of falling back — falling back
+  would reproduce the same problem with an extra step. Zero-config still applies to a directory
+  with no descriptor.
+
+  **This changes what an existing command does:** a pipeline running `draugr scan .` in a repo
+  that has a descriptor will now honour it, which may enable more controls than the run used to.
+
+- **Two components sharing a repository no longer collapse into one finding.** A finding's
+  identity did not include its component, so the same issue reached from two components was
+  deduplicated down to one — and which one survived was arbitrary, so a P1 on a public,
+  business-critical component could be discarded in favour of the same issue on an internal tool.
 
 ## [0.50.0] - 2026-07-31
 
@@ -1561,7 +1613,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.50.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.51.0...HEAD
+[0.51.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.51.0
 [0.50.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.50.0
 [0.49.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.49.0
 [0.48.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.48.0
