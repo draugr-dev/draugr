@@ -71,6 +71,13 @@ jobs:
           git fetch --tags --force --quiet
           ./scripts/changelog-guard.sh
 
+      # Not gated on the code filter, for the same reason as the CHANGELOG guard above: the
+      # files this protects are documentation, so a docs-only pull request is precisely the one
+      # that needs checking. It also cannot see issue bodies, which are equally public — those
+      # stay a human's job.
+      - name: No commercial framing in tracked files
+        run: ./scripts/check-public-scope.sh
+
       - name: Verify formatting
         if: needs.changes.outputs.code == 'true'
         run: |
