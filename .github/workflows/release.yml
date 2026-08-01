@@ -176,3 +176,8 @@ jobs:
       contents: write # push the assets branch
       pull-requests: write # open the PR
     uses: ./.github/workflows/demo-assets.yml
+    # Not the screenshot. It is the slow, fragile half — ttyd, ffmpeg, vhs, a viewport sized to
+    # the output — and its subject is the console layout, which a release does not necessarily
+    # change. It re-renders when pkg/report does, or on demand.
+    with:
+      screenshot: false
