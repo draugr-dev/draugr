@@ -10,7 +10,16 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **A publishing failure no longer hides the gate's verdict.** A run that both failed its gate
+  and could not deliver its reports named only the publisher — so a red build read as "fix your
+  token" when what actually happened is that it should not ship. The verdict leads and the
+  publishing failure follows it:
+
+  ```
+  draugr: policy verdict: fail (publishing also failed: github publisher missing: $GITHUB_TOKEN)
+  ```
 
 ## [0.51.0] - 2026-07-31
 
