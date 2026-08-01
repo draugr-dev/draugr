@@ -23,16 +23,17 @@
 Set Shell bash
 Set FontSize 18
 Set Width 1600
-Set Height 1000
+Set Height 880
 Set Theme "Dracula"
 Set Padding 20
 
 # The height has to fit the entire scan output. vhs renders a fixed viewport rather than a
 # scrolling terminal, so anything past the bottom edge is never captured — including the summary
 # line the Wait below matches on, which makes a height that is merely close fail as a timeout
-# rather than as a cropped image. At font size 18 a row is about 22px, and the zero-config run
-# currently prints 38 rows including the prompt. Leave headroom — the output grows as controls
-# are added — but not so much that the image ends on a band of empty terminal.
+# rather than as a cropped image. At font size 18 a row is about 22px, and the sandbox scan
+# currently prints 36 rows including the prompt. Leave headroom — the output grows as controls
+# are added — but not so much that the image ends on a band of empty terminal, which is dead
+# weight in a still where it was merely the tail of a recording before.
 
 # Enter the sandbox off-camera. The scanner databases are warmed by the workflow before vhs
 # starts — Trivy downloads its database on first use, and on a cold runner that download
@@ -54,6 +55,11 @@ Type "draugr scan ." Sleep 600ms Enter
 # summary line the scan ends on, so the still is taken when the output is complete rather than
 # when a timer happened to elapse.
 Wait+Screen@120s /and \d+ more finding/
+
+# Let the frame settle before capturing. Wait returns as soon as the pattern appears, which can
+# be mid-repaint — the cursor has been caught parked on an earlier row, drawn over the output.
+# A recording moved past that in the next frame; a still keeps it.
+Sleep 500ms
 
 Screenshot contrib/demo/scan.png
 
