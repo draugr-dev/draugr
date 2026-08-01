@@ -8,10 +8,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -311,7 +313,7 @@ func TestExtractBinaryDispatch(t *testing.T) {
 
 func TestInstallableAndSpec(t *testing.T) {
 	names := Installable()
-	want := []string{"cosign", "gitleaks", "gosec", "nuclei", "syft", "trivy"}
+	want := []string{"cosign", "gitleaks", "gosec", "kube-bench", "nuclei", "syft", "trivy"}
 	if len(names) < len(want) {
 		t.Fatalf("Installable() = %v, want at least %v", names, want)
 	}
@@ -483,5 +485,116 @@ func TestInstallReinstallsWhenPinChanges(t *testing.T) {
 	on, _ := os.ReadFile(filepath.Join(dest, "faketool")) //nolint:gosec // test file under t.TempDir()
 	if string(on) != "v2" {
 		t.Errorf("installed content = %q, want the new build", on)
+	}
+}
+
+// tarGz builds an archive from a path→contents map, for testing extraction.
+func tarGz(t *testing.T, files map[string]string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	for name, body := range files {
+		if err := tw.WriteHeader(&tar.Header{
+			Name: name, Mode: 0o600, Size: int64(len(body)), Typeflag: tar.TypeReg,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tw.Write([]byte(body)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, c := range []io.Closer{tw, gz} {
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return buf.Bytes()
+}
+
+func TestExtractTreeWritesTheWholeSubtree(t *testing.T) {
+	// kube-bench's cfg/ is 276 files across per-benchmark directories; the layout below the
+	// prefix is what kube-bench resolves against, so it has to survive.
+	archive := tarGz(t, map[string]string{
+		"kube-bench":               "binary",
+		"cfg/config.yaml":          "root",
+		"cfg/cis-1.12/master.yaml": "master",
+		"cfg/cis-1.12/node.yaml":   "node",
+		"README.md":                "not ours",
+	})
+	dest := filepath.Join(t.TempDir(), "cfg")
+	n, err := extractTree(archive, "cfg/", dest)
+	if err != nil {
+		t.Fatalf("extractTree: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("wrote %d files, want 3", n)
+	}
+	//nolint:gosec // dest is this test's own temp directory
+	if b, err := os.ReadFile(filepath.Join(dest, "cis-1.12", "master.yaml")); err != nil || string(b) != "master" {
+		t.Errorf("nested layout not preserved: %v %q", err, b)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "README.md")); err == nil {
+		t.Error("only the prefix should be extracted")
+	}
+}
+
+func TestExtractTreeClearsWhatWasThere(t *testing.T) {
+	// A definition left over from an older release is a benchmark nobody chose, and kube-bench
+	// would read it as happily as the new ones.
+	dest := t.TempDir()
+	stale := filepath.Join(dest, "cis-1.0", "old.yaml")
+	if err := os.MkdirAll(filepath.Dir(stale), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stale, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := extractTree(tarGz(t, map[string]string{"cfg/config.yaml": "new"}), "cfg/", dest); err != nil {
+		t.Fatalf("extractTree: %v", err)
+	}
+	if _, err := os.Stat(stale); err == nil {
+		t.Error("the previous tree should be gone")
+	}
+}
+
+func TestExtractTreeRefusesAnEscapingEntry(t *testing.T) {
+	// A matching checksum proves the archive is the one upstream published, not that it is
+	// well-behaved.
+	dest := filepath.Join(t.TempDir(), "cfg")
+	_, err := extractTree(tarGz(t, map[string]string{"cfg/../../escaped.yaml": "x"}), "cfg/", dest)
+	if err == nil {
+		t.Fatal("expected a refusal")
+	}
+	if !strings.Contains(err.Error(), "not a safe relative path") {
+		t.Errorf("the error should say why: %v", err)
+	}
+}
+
+func TestExtractTreeReportsAnEmptyPrefix(t *testing.T) {
+	// Silently writing nothing would leave a tool installed and unusable, reported as installed.
+	if _, err := extractTree(tarGz(t, map[string]string{"other/x": "y"}), "cfg/", t.TempDir()); err == nil {
+		t.Error("expected an error when the prefix matches nothing")
+	}
+}
+
+func TestKubeBenchSpecCarriesItsData(t *testing.T) {
+	spec, ok := Spec("kube-bench")
+	if !ok {
+		t.Fatal("kube-bench should be installable")
+	}
+	if spec.DataDir == "" {
+		t.Error("it needs somewhere for cfg/ to go")
+	}
+	for platform, asset := range spec.Assets {
+		if asset.DataInArchive == "" {
+			t.Errorf("%s: the binary alone is a half-install", platform)
+		}
+	}
+	if DataDirFor("kube-bench") == "" {
+		t.Error("DataDirFor should resolve it")
+	}
+	if DataDirFor("trivy") != "" {
+		t.Error("a tool with no data should resolve to nothing")
 	}
 }

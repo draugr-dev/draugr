@@ -378,6 +378,12 @@ func present(ctx context.Context, names []string, force bool) map[string]string 
 		if !st.Found {
 			continue
 		}
+		// A current binary whose data is missing is not current. kube-bench at the pinned
+		// version with no cfg/ tree cannot run, and reporting it as satisfied is how an install
+		// that would have fixed it gets skipped — which is this same mistake one layer up.
+		if st.DataChecked && !st.DataFound {
+			continue
+		}
 		// A different version is still work to do, so only the pinned one counts.
 		if spec, ok := tools.Spec(name); ok && st.Version != spec.Version {
 			continue
