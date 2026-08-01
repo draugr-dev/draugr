@@ -273,6 +273,23 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 		{Key: "benchmark", Value: cisCatalogueVersion},
 		{Key: "coverage", Value: fmt.Sprintf("%d of %d checks decided", len(decided), len(cisPolicies))},
 	}
+
+	// The same coverage figure, structured. The sentence above is for a person; this is what lets
+	// a consumer tell "checked and clean" from "never examined" — which is the difference between
+	// a scanner dissenting and a scanner being silent, and the two mean opposite things.
+	//
+	// The catalogue's order, not the map's, so a report does not differ from itself between runs.
+	for _, check := range cisPolicies {
+		if _, settled := decided[check.ID]; !settled {
+			continue
+		}
+		report.Decided = append(report.Decided, sarif.Taxon{
+			Taxonomy: cisKubernetesTaxonomy,
+			ID:       check.ID,
+			Name:     check.Title,
+			Version:  cisCatalogueVersion,
+		})
+	}
 	if len(namespaces) > 0 {
 		ns := slices.Clone(namespaces)
 		slices.Sort(ns)

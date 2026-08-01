@@ -133,6 +133,17 @@ type Report struct {
 	// against what" — and that was not recorded anywhere, so a compliance report could not say
 	// which benchmark produced it. One entry per tool run; see Provenance.
 	Provenance []Provenance `json:"provenance,omitempty"`
+	// Decided are the classifications this run reached a verdict on, whether or not a finding
+	// resulted. A taxon here with no finding means the scanner looked and found nothing wrong.
+	//
+	// The distinction this exists for: a scanner that reports nothing about a control has either
+	// examined it and been satisfied, or never examined it at all, and those mean opposite
+	// things. Without this, a report that says "1 of 2 scanners found it" is guessing that the
+	// other dissented — when far more often the other simply does not check that control.
+	//
+	// "Decided" rather than "examined" on purpose: a check a scanner looked at and could not
+	// settle — a CIS control that requires human judgement — is not a dissent either.
+	Decided []Taxon `json:"decided,omitempty"`
 }
 
 // Provenance is one scanner's account of a run it performed.
@@ -355,6 +366,7 @@ func Merge(reports ...Report) Report {
 			out.addRule(id, rule)
 		}
 		out.addProvenance(rep.Provenance)
+		out.addDecided(rep.Decided)
 		for _, res := range rep.Results {
 			if res.Tool == "" {
 				res.Tool = rep.Tool
@@ -387,5 +399,24 @@ func (r *Report) addProvenance(entries []Provenance) {
 			continue
 		}
 		r.Provenance = append(r.Provenance, p)
+	}
+}
+
+// addDecided unions what each report settled, so a merged report knows which classifications
+// were reached by any scanner and by which.
+//
+// Deduplicated on the taxon key rather than the whole value: two scanners naming the same control
+// may label it differently, and the label is not what makes it the same control.
+func (r *Report) addDecided(taxa []Taxon) {
+	for _, t := range taxa {
+		if t.Taxonomy == "" || t.ID == "" {
+			continue
+		}
+		if slices.ContainsFunc(r.Decided, func(existing Taxon) bool {
+			return existing.Key() == t.Key()
+		}) {
+			continue
+		}
+		r.Decided = append(r.Decided, t)
 	}
 }

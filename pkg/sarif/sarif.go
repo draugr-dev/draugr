@@ -43,6 +43,10 @@ type sarifRun struct {
 // sarifRunProperties is Draugr's run-level property bag.
 type sarifRunProperties struct {
 	Provenance []sarifProvenance `json:"draugr/provenance,omitempty"`
+	// Decided lists the classifications this run reached a verdict on, so a consumer can tell a
+	// control that was checked and found clean from one nobody examined. SARIF has no field for
+	// it; the property bag is where a producer puts what the schema does not model.
+	Decided []sarifDecidedTaxon `json:"decided,omitempty"`
 }
 
 // sarifProvenance mirrors Provenance in the property bag. Written as an object per tool rather
@@ -58,8 +62,8 @@ type sarifProvenance struct {
 // The fields become an object here, unlike the ordered slice they are internally: JSON object
 // keys have no order a consumer can rely on, so pretending otherwise would be a promise the
 // format cannot keep. Order is a rendering concern, and this is not the rendering.
-func runProperties(entries []Provenance) *sarifRunProperties {
-	if len(entries) == 0 {
+func runProperties(entries []Provenance, decided []Taxon) *sarifRunProperties {
+	if len(entries) == 0 && len(decided) == 0 {
 		return nil
 	}
 	out := make([]sarifProvenance, 0, len(entries))
@@ -73,7 +77,13 @@ func runProperties(entries []Provenance) *sarifRunProperties {
 		}
 		out = append(out, sp)
 	}
-	return &sarifRunProperties{Provenance: out}
+	props := &sarifRunProperties{Provenance: out}
+	for _, t := range decided {
+		props.Decided = append(props.Decided, sarifDecidedTaxon{
+			Taxonomy: t.Taxonomy, ID: t.ID, Version: t.Version,
+		})
+	}
+	return props
 }
 
 type sarifTool struct {
@@ -103,6 +113,13 @@ type sarifRule struct {
 }
 
 // sarifTaxonomy is one classification scheme and the taxa within it that this run references.
+// sarifDecidedTaxon is one classification a run settled, with the scanner that settled it.
+type sarifDecidedTaxon struct {
+	Taxonomy string `json:"taxonomy"`
+	ID       string `json:"id"`
+	Version  string `json:"version,omitempty"`
+}
+
 type sarifTaxonomy struct {
 	Name            string       `json:"name"`
 	Version         string       `json:"version,omitempty"`
@@ -262,7 +279,7 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 // MarshalSARIFWith is MarshalSARIF with explicit options.
 func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 	run := sarifRun{Tool: sarifTool{Driver: sarifDriver{Name: driverName}}, Results: []sarifResult{}}
-	run.Properties = runProperties(r.Provenance)
+	run.Properties = runProperties(r.Provenance, r.Decided)
 	// Track which scanner(s) produced each ruleId so the emitted rules[] can carry a
 	// "scanner:<name>" tag — the only place GitHub code scanning surfaces the underlying tool.
 	ruleScanners := map[string]map[string]bool{}
