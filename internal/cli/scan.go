@@ -157,11 +157,13 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	for name, cr := range run.Controls {
 		reports[name] = cr.Report
 	}
-	verdict := norn.Policy{
+	policy := norn.Policy{
 		FailOn:         sarif.Level(opts.failOn),
 		PerControl:     perControlThresholds(model.Config.Gate),
 		FailOnPriority: failOnPriority,
-	}.Evaluate(reports)
+	}
+	verdict := policy.Evaluate(reports)
+	components, unattributed := componentVerdicts(policy, model, reports)
 	// A control that couldn't run didn't find nothing — it found out nothing. Reporting that as
 	// a pass makes the gate a false negative exactly when it matters: in CI, where a scanner
 	// failing to provision is the common case and the warning scrolls past unread.
@@ -176,12 +178,14 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		format = "console"
 	}
 	data := report.Data{
-		Release:     model.Release,
-		Run:         run,
-		Verdict:     verdict,
-		MinPriority: minPriority,
-		TopN:        fixFirstLimit(opts.top),
-		Compact:     opts.compact,
+		Release:              model.Release,
+		Run:                  run,
+		Verdict:              verdict,
+		MinPriority:          minPriority,
+		TopN:                 fixFirstLimit(opts.top),
+		Compact:              opts.compact,
+		Components:           components,
+		UnattributedFindings: unattributed,
 		// Stamped so a rendered report can say when it ran and what produced it. A report
 		// offered as evidence has to answer both, and only the CLI knows either.
 		Generated: time.Now(),
@@ -392,4 +396,92 @@ func splitScanErrors(scanErrors map[string][]string) (unwaived, waived []string)
 	sort.Strings(unwaived)
 	sort.Strings(waived)
 	return unwaived, waived
+}
+
+// componentVerdicts judges each component on its own findings, and counts those belonging to
+// none.
+//
+// The same policy, re-run over a partition of the same findings — not a second implementation of
+// the gate. Reproducing "what counts as failing" in the reporter is how the parts come to
+// disagree with the whole, and the disagreement would surface as a component reading PASS under
+// a headline that says FAIL.
+//
+// Findings with no component come from project-scoped controls (infrastructure). They are
+// counted rather than assigned: a breakdown that quietly omits them makes the parts look like
+// the whole.
+func componentVerdicts(policy norn.Policy, model *saga.Model, reports map[string]sarif.Report) ([]report.ComponentVerdict, int) {
+	if model == nil || len(model.Components) < 2 {
+		// One component repeats what the headline already said. The breakdown exists to tell
+		// components apart, and there is nothing to tell apart.
+		return nil, 0
+	}
+	byComponent := map[string]map[string]sarif.Report{}
+	unattributed := 0
+
+	for control, rep := range reports {
+		for _, res := range rep.Results {
+			if res.Suppressed() {
+				continue // the counts skip these, so the breakdown must too
+			}
+			if res.Component == "" {
+				unattributed++
+				continue
+			}
+			if byComponent[res.Component] == nil {
+				byComponent[res.Component] = map[string]sarif.Report{}
+			}
+			r := byComponent[res.Component][control]
+			r.Tool = rep.Tool
+			r.Results = append(r.Results, res)
+			byComponent[res.Component][control] = r
+		}
+	}
+	// Every declared component gets a row, including the ones with nothing against them. A
+	// clean component is the answer someone can take back to their team, and building the list
+	// from the findings would have dropped exactly those.
+	out := make([]report.ComponentVerdict, 0, len(model.Components))
+	names := make([]string, 0, len(model.Components))
+	for _, c := range model.Components {
+		names = append(names, c.Name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		res := policy.Evaluate(byComponent[name])
+		cv := report.ComponentVerdict{Name: name, Verdict: res.Verdict}
+		for _, c := range res.Controls {
+			if c.Verdict == norn.Fail {
+				cv.Controls = append(cv.Controls, c.Control)
+			}
+		}
+		for _, rep := range byComponent[name] {
+			for _, r := range rep.Results {
+				cv.Findings++
+				if band := priorityBand(r.Priority); band >= 0 {
+					cv.Priorities[band]++
+				}
+			}
+		}
+		out = append(out, cv)
+	}
+	// Failing first: the reader is looking for what stops them shipping, and an alphabetical
+	// list buries it behind whatever happens to start with an early letter.
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].Verdict == norn.Fail && out[j].Verdict != norn.Fail
+	})
+	return out, unattributed
+}
+
+// priorityBand maps a priority label to its index, or -1 when unset.
+func priorityBand(p string) int {
+	switch p {
+	case "P1":
+		return 0
+	case "P2":
+		return 1
+	case "P3":
+		return 2
+	case "P4":
+		return 3
+	}
+	return -1
 }

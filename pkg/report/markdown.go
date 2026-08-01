@@ -61,6 +61,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		writeProvenance(w, d)
 	}
 
+	writeComponentTable(w, d)
 	writeEvidenceNotes(w, s)
 
 	if len(s.findings) == 0 {
@@ -145,4 +146,32 @@ func writeProvenance(w io.Writer, d Data) {
 		_, _ = fmt.Fprintf(w, "- `%s` — %s: %s\n", l.Control, l.Label(), l.Detail)
 	}
 	_, _ = fmt.Fprintln(w)
+}
+
+// writeComponentTable breaks the verdict down by component, when there is more than one.
+//
+// The controls table says whether the project is shippable. A reviewer reading this in a merge
+// request owns one part of it, and that is the question they are actually asking.
+func writeComponentTable(w io.Writer, d Data) {
+	if len(d.Components) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "### Components")
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "| Component | Verdict | P1 | P2 | P3 | P4 | Failing controls |")
+	_, _ = fmt.Fprintln(w, "|---|---|---:|---:|---:|---:|---|")
+	for _, c := range d.Components {
+		v := "pass"
+		if c.Verdict == norn.Fail {
+			v = "**FAIL**"
+		}
+		_, _ = fmt.Fprintf(w, "| %s | %s | %d | %d | %d | %d | %s |\n",
+			c.Name, v, c.Priorities[0], c.Priorities[1], c.Priorities[2], c.Priorities[3],
+			dash(strings.Join(c.Controls, ", ")))
+	}
+	_, _ = fmt.Fprintln(w)
+	if d.UnattributedFindings > 0 {
+		_, _ = fmt.Fprintf(w, "_%s not tied to a component (project-wide controls)._\n\n",
+			plural(d.UnattributedFindings, "finding"))
+	}
 }

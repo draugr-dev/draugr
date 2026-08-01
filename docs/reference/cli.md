@@ -97,6 +97,11 @@ because a prompt in CI would hang the pipeline. Name the file to skip the questi
 draugr scan ./web.saga.yaml
 ```
 
+**With more than one component, the report breaks the verdict down by component** — each judged
+by the same policy as the run, so the parts cannot disagree with the whole. Components with
+nothing against them are listed as passing, and findings from project-wide controls (which belong
+to no component) are counted separately.
+
 **A surface with no control enabled is called out.** If a component declares repositories,
 images, hosts or infrastructure and nothing is enabled to check them, the scan says so — that
 combination reads as a clean pass over something nobody looked at. A note rather than a failure,
