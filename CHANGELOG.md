@@ -10,6 +10,36 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.54.0] - 2026-08-01
+
+### Added
+
+- **`draugr doctor` sees kube-bench's missing benchmark configuration.** kube-bench ships its
+  benchmarks as a `cfg/` tree beside the binary and people install the binary alone; every run
+  then dies with `config file is missing 'target_mapping' section`, which names an internal
+  structure rather than the directory nobody copied. Doctor checks the paths kube-bench itself
+  searches, including beside the binary where a tarball extract leaves it.
+
+- **The report says which component passed and which failed**, when there is more than one:
+
+  ```
+  Components:
+    payments       FAIL   P1 10  P2 8  P3 1  sca, secrets
+    internal-tool  pass   no findings
+  ```
+
+  The controls table answers "is the project shippable". A component is the unit a team owns and
+  the unit `exposure` and `criticality` are declared on, so it is the unit someone is deciding
+  about — and with five components, `sca FAIL` said the project had a problem and stopped there.
+
+  Each component is judged by **the same policy as the run**, re-applied to its own findings, so
+  the parts cannot disagree with the whole about what failing means. Clean components are listed
+  too: a `pass` against a named component is the answer someone takes back to their team.
+  Findings from project-wide controls belong to no component and are counted separately rather
+  than quietly left out. Also in the markdown report.
+
 ### Fixed
 
 - **`acceptedBy` reaches the report.** The field was parsed, validated, and used to count
@@ -38,32 +68,6 @@ and move it under a version on release.
   This is the pull-request comment: one PR touches one service in a monorepo, and the first
   question is whether the finding is yours. Shown only when a finding has a component, so a
   single-component project is not given a column repeating itself.
-
-### Added
-
-- **`draugr doctor` sees kube-bench's missing benchmark configuration.** kube-bench ships its
-  benchmarks as a `cfg/` tree beside the binary and people install the binary alone; every run
-  then dies with `config file is missing 'target_mapping' section`, which names an internal
-  structure rather than the directory nobody copied. Doctor checks the paths kube-bench itself
-  searches, including beside the binary where a tarball extract leaves it.
-
-- **The report says which component passed and which failed**, when there is more than one:
-
-  ```
-  Components:
-    payments       FAIL   P1 10  P2 8  P3 1  sca, secrets
-    internal-tool  pass   no findings
-  ```
-
-  The controls table answers "is the project shippable". A component is the unit a team owns and
-  the unit `exposure` and `criticality` are declared on, so it is the unit someone is deciding
-  about — and with five components, `sca FAIL` said the project had a problem and stopped there.
-
-  Each component is judged by **the same policy as the run**, re-applied to its own findings, so
-  the parts cannot disagree with the whole about what failing means. Clean components are listed
-  too: a `pass` against a named component is the answer someone takes back to their team.
-  Findings from project-wide controls belong to no component and are counted separately rather
-  than quietly left out. Also in the markdown report.
 
 ## [0.53.0] - 2026-08-01
 
@@ -1841,7 +1845,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.53.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.54.0...HEAD
+[0.54.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.54.0
 [0.53.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.53.0
 [0.52.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.52.0
 [0.51.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.51.0
