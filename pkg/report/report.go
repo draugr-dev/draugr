@@ -395,3 +395,29 @@ func unattributedSuppressions(d Data) int {
 	}
 	return n
 }
+
+// dedupeMessages collapses identical failures, noting how many jobs hit each.
+//
+// The engine records one entry per job, which is right: each belongs to a real job and the SARIF
+// and the JSON report should keep them. In a summary it reads differently — two components whose
+// scanner binary is missing produce the same sentence twice, and two identical lines invite the
+// reader to look for the difference between them. There isn't one: the message is the same
+// missing binary either way, and the duplicate carries nothing about which job it came from.
+func dedupeMessages(msgs []string) []string {
+	seen := map[string]int{}
+	order := make([]string, 0, len(msgs))
+	for _, m := range msgs {
+		if _, ok := seen[m]; !ok {
+			order = append(order, m)
+		}
+		seen[m]++
+	}
+	out := make([]string, 0, len(order))
+	for _, m := range order {
+		if n := seen[m]; n > 1 {
+			m = fmt.Sprintf("%s (%d jobs)", m, n)
+		}
+		out = append(out, m)
+	}
+	return out
+}

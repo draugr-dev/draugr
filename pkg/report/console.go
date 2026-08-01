@@ -111,7 +111,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				col.Paint(cDim, "did not run"))
 		}
 		for _, name := range sortedKeys(errored) {
-			for _, msg := range errored[name] {
+			for _, msg := range dedupeMessages(errored[name]) {
 				// Wrapped rather than clamped. The one-line clamp is right for a tool's own
 				// stderr, which can be a usage screen — but these are also Draugr's own
 				// sentences, and the clamp cut them at the clause that said what to do.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"slices"
 	"strings"
 	"testing"
 
@@ -830,5 +831,40 @@ func TestProvenanceOmittedWhenThereIsNone(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), "Measured against") {
 		t.Errorf("an empty section should not be rendered:\n%s", buf.String())
+	}
+}
+
+func TestDedupeMessagesCollapsesIdenticalFailures(t *testing.T) {
+	// Two components whose scanner binary is missing produce the same sentence twice. Two
+	// identical lines invite the reader to look for the difference between them, and there is
+	// none — the duplicate says nothing about which job it came from.
+	got := dedupeMessages([]string{
+		`run semgrep: exec: "semgrep": executable file not found in $PATH`,
+		`run semgrep: exec: "semgrep": executable file not found in $PATH`,
+		"trivy: connection refused",
+	})
+	want := []string{
+		`run semgrep: exec: "semgrep": executable file not found in $PATH (2 jobs)`,
+		"trivy: connection refused",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestDedupeMessagesKeepsDistinctFailuresAndOrder(t *testing.T) {
+	// Different failures are different information, and first-seen order keeps the list stable
+	// between runs.
+	in := []string{"c failed", "a failed", "b failed", "a failed"}
+	got := dedupeMessages(in)
+	want := []string{"c failed", "a failed (2 jobs)", "b failed"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestDedupeMessagesOnNothing(t *testing.T) {
+	if got := dedupeMessages(nil); len(got) != 0 {
+		t.Errorf("got %q, want empty", got)
 	}
 }

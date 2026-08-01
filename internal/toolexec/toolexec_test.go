@@ -236,3 +236,61 @@ func TestRunCombinedSurfacesAFailure(t *testing.T) {
 		t.Error("expected the non-zero exit to surface")
 	}
 }
+
+func TestLogRelaysStdoutAtTrace(t *testing.T) {
+	// Not every tool explains itself on stderr, and ours are configured not to fail on findings
+	// — so err == nil is the normal path, and a tool that produced nothing useful looked
+	// identical to one that found nothing.
+	var buf bytes.Buffer
+	restore := captureLogs(t, &buf, observability.LevelTrace)
+	defer restore()
+
+	// The marker is assembled by the command rather than written in it: argv is logged at debug,
+	// so anything typed into the command appears whether stdout was relayed or not.
+	if _, err := Run(context.Background(), "", []string{"sh", "-c", `printf "REPORT%s" 42`}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !strings.Contains(buf.String(), "REPORT42") {
+		t.Errorf("stdout should be relayed at trace:\n%s", buf.String())
+	}
+}
+
+func TestLogDoesNotRelayStdoutAboveTrace(t *testing.T) {
+	// A scanner's stdout is its whole report. At debug it must stay a byte count.
+	var buf bytes.Buffer
+	restore := captureLogs(t, &buf, slog.LevelDebug)
+	defer restore()
+
+	if _, err := Run(context.Background(), "", []string{"sh", "-c", `printf "REPORT%s" 42`}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if strings.Contains(buf.String(), "REPORT42") {
+		t.Errorf("debug should say how much, not what:\n%s", buf.String())
+	}
+	if !strings.Contains(buf.String(), "stdout_bytes") {
+		t.Errorf("the byte count should still be there:\n%s", buf.String())
+	}
+}
+
+func TestClampForLogTrimsAHugeReport(t *testing.T) {
+	// A SARIF report can be megabytes; a log line that large is scrolled past, or makes the file
+	// too big to open.
+	got := clampForLog(strings.Repeat("x", maxTraceOutput+500))
+	if len(got) >= maxTraceOutput+500 {
+		t.Errorf("not trimmed: %d bytes", len(got))
+	}
+	if !strings.Contains(got, "500 bytes truncated") {
+		t.Errorf("it should say what was left out: %q", got[len(got)-80:])
+	}
+	if short := clampForLog("small"); short != "small" {
+		t.Errorf("a short stream should pass through, got %q", short)
+	}
+}
+
+// captureLogs redirects slog to buf at the given level, restoring the previous default.
+func captureLogs(t *testing.T, buf *bytes.Buffer, level slog.Level) func() {
+	t.Helper()
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: level})))
+	return func() { slog.SetDefault(prev) }
+}
