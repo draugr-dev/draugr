@@ -132,11 +132,14 @@ jobs:
         run: |
           set -uo pipefail
           # The scan is expected to exit non-zero — the sandbox fails its gate, which is the
-          # point of the block. Capture the code rather than letting it end the step.
+          # point of the block. `set +e` is load-bearing: the runner's default shell is
+          # `bash -e`, so without it the step dies on that exit code before reading it.
+          set +e
           script -qec "draugr scan . 2>/dev/null" /dev/null > /tmp/scan.ansi
           code=$?
           set -e
-          echo "scan exited $code"
+          echo "scan exited $code, captured $(wc -c < /tmp/scan.ansi) bytes"
+          head -3 /tmp/scan.ansi | cat -v
           cd "$GITHUB_WORKSPACE"
           go run ./contrib/demo/ansi2html \
             -command "draugr scan ." -stop-at "Fix first" -exit "$code" \
