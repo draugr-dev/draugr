@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -174,5 +176,81 @@ func TestDetectSkipsTheDataProbeWhenNoneIsDeclared(t *testing.T) {
 	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/trivy", nil }, run)
 	if st.DataChecked {
 		t.Error("a tool with no data files must not be probed for any")
+	}
+}
+
+func TestDetectFindsDataOnDisk(t *testing.T) {
+	// kube-bench only admits its cfg/ is missing by attempting a benchmark, and doctor must not
+	// run a scan to find out whether a scan would work.
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(cfg, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tool := Tool{
+		Binary:      "kube-bench",
+		VersionArgs: []string{"version"},
+		DataFiles:   []string{filepath.Join(dir, "nope.yaml"), cfg},
+	}
+	run := func(context.Context, []string) ([]byte, error) { return []byte("0.15.6"), nil }
+	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/kb", nil }, run)
+	if !st.DataChecked || !st.DataFound {
+		t.Fatalf("checked=%v found=%v — the second path exists", st.DataChecked, st.DataFound)
+	}
+	if st.DataDetail != cfg {
+		t.Errorf("detail = %q, want the path that matched", st.DataDetail)
+	}
+}
+
+func TestDetectReportsDataMissingOnDisk(t *testing.T) {
+	tool := Tool{
+		Binary:      "kube-bench",
+		VersionArgs: []string{"version"},
+		DataFiles:   []string{filepath.Join(t.TempDir(), "absent.yaml")},
+	}
+	run := func(context.Context, []string) ([]byte, error) { return []byte("0.15.6"), nil }
+	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/kb", nil }, run)
+	if !st.DataChecked || st.DataFound {
+		t.Errorf("checked=%v found=%v — nothing is there", st.DataChecked, st.DataFound)
+	}
+}
+
+func TestExpandHomeResolvesATilde(t *testing.T) {
+	// A catalog entry names a path under the user's home without knowing whose home it is.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home directory here")
+	}
+	if got := expandHome("~/x/y"); got != filepath.Join(home, "x", "y") {
+		t.Errorf("got %q", got)
+	}
+	if got := expandHome("/etc/absolute"); got != "/etc/absolute" {
+		t.Errorf("an absolute path is left alone, got %q", got)
+	}
+}
+
+func TestDetectFindsDataBesideTheBinary(t *testing.T) {
+	// A tarball extract leaves cfg/ next to the binary. A fixed list of system paths would miss
+	// the commonest install and report a working tool as broken.
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "kube-bench")
+	if err := os.WriteFile(bin, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "cfg"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "cfg", "config.yaml"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tool := Tool{
+		Binary:      "kube-bench",
+		VersionArgs: []string{"version"},
+		DataFiles:   []string{"/nowhere/config.yaml", "{bindir}/cfg/config.yaml"},
+	}
+	run := func(context.Context, []string) ([]byte, error) { return []byte("0.15.6"), nil }
+	st := Detect(context.Background(), tool, func(string) (string, error) { return bin, nil }, run)
+	if !st.DataFound {
+		t.Errorf("cfg beside the binary should count: %+v", st)
 	}
 }

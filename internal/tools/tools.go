@@ -9,9 +9,12 @@ package tools
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // Tool describes an external executable a scanner shells out to.
@@ -29,12 +32,16 @@ type Tool struct {
 	// enhances behavior (e.g. cosign for signature verification) rather than a requirement.
 	Optional bool
 	// DataArgs probes for data the tool needs beyond its own binary — Nuclei's template set,
-	// kube-bench's benchmark configuration. Empty means the binary is all there is.
+	// for instance. Empty means the binary is all there is.
 	//
 	// Being on PATH is not the same as being able to run. A tool whose data is missing fails at
 	// scan time with a message about a symptom, and `doctor` exists to answer "is this going to
 	// fail" before the scan rather than after it.
 	DataArgs []string
+	// DataFiles are paths that must exist for the tool to work, tried in order. Used where the
+	// tool cannot be asked cheaply: kube-bench only reveals a missing `cfg/` by attempting a
+	// benchmark, and doctor must not run a scan to find out whether a scan would work.
+	DataFiles []string
 	// DataOK reads DataArgs' output and reports whether the data is there, plus a short
 	// description for the report. Required when DataArgs is set.
 	DataOK func(out []byte) (ok bool, detail string)
@@ -141,6 +148,23 @@ func Catalog() map[string]Tool {
 			VersionArgs: []string{"version"},
 			InstallHint: "https://github.com/aquasecurity/kube-bench/releases — extract both the binary and its cfg/ directory",
 			Category:    CategoryScanner,
+			// kube-bench ships its benchmarks as a cfg/ tree beside the binary, and people
+			// install the binary alone. Without it every run dies with "config file is missing
+			// 'target_mapping' section", which names an internal structure rather than the
+			// directory nobody copied.
+			//
+			// Checked on disk rather than by asking: the only way to make kube-bench admit the
+			// configuration is missing is to start a benchmark, and doctor must not run a scan
+			// to find out whether a scan would work. These are its own default search paths.
+			DataFiles: []string{
+				"{bindir}/cfg/config.yaml", // a tarball extract, the commonest install
+				"/etc/kube-bench/cfg/config.yaml",
+				"/usr/local/share/kube-bench/cfg/config.yaml",
+				"/opt/kube-bench/cfg/config.yaml",
+				"~/.draugr/cfg/config.yaml",
+				"./cfg/config.yaml",
+			},
+			DataHint: "download the matching cfg/ tree from the kube-bench release and put it in /etc/kube-bench/cfg",
 		},
 		"kubectl": {
 			Binary:      "kubectl",
@@ -191,14 +215,45 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 	}
 	st.Version = semverRE.FindString(string(out))
 
-	if len(t.DataArgs) > 0 && t.DataOK != nil {
+	switch {
+	case len(t.DataArgs) > 0 && t.DataOK != nil:
 		st.DataChecked = true
 		dataOut, dataErr := run(ctx, append([]string{t.Binary}, t.DataArgs...))
 		if dataErr == nil {
 			st.DataFound, st.DataDetail = t.DataOK(dataOut)
 		}
+	case len(t.DataFiles) > 0:
+		st.DataChecked = true
+		for _, p := range t.DataFiles {
+			// {bindir} is where a tarball extract leaves the data — beside the binary — which is
+			// the commonest install and the one a fixed list of system paths would miss.
+			expanded := expandHome(strings.ReplaceAll(p, "{bindir}", filepath.Dir(st.Path)))
+			if fileExists(expanded) {
+				st.DataFound, st.DataDetail = true, expanded
+				break
+			}
+		}
 	}
 	return st
+}
+
+// fileExists reports whether path is a readable file or directory.
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// expandHome resolves a leading ~ so a catalog entry can name a path under the user's home
+// without the catalog knowing whose home it is.
+func expandHome(path string) string {
+	if !strings.HasPrefix(path, "~/") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	return filepath.Join(home, path[2:])
 }
 
 // defaultRun runs the version probe, capturing stdout and stderr (some tools print their
