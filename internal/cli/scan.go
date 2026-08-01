@@ -213,22 +213,40 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// Deliver configured reports to configured publishers (Saga config.reports/publishers).
 	// --no-publish suppresses this so a caller (e.g. the diff workflow, which scans both sides
 	// of a PR) can produce artifacts without triggering side effects like a code-scanning upload.
+	//
+	// Held rather than returned: a run that both failed its gate and could not publish is two
+	// facts, and the gate is the one the command exists to report. Returning here named the
+	// publisher as the outcome and never mentioned the verdict, which sends a reader to fix a
+	// token when what actually happened is that the build should not ship.
+	var publishErr error
 	if !opts.noPublish {
-		if err := publish.Run(ctx, model.Config.Reports, model.Config.Publishers, data); err != nil {
-			return err
-		}
+		publishErr = publish.Run(ctx, model.Config.Reports, model.Config.Publishers, data)
 	}
 
 	if incomplete {
 		// Distinct from a policy failure: nothing was necessarily found, the scan just didn't
 		// finish. Saying so is the difference between a bug report and a shrug.
-		return fmt.Errorf("scan incomplete: %s could not run "+
-			"(use --allow-scan-errors to accept partial results)", strings.Join(erroredControls(run), ", "))
+		return alsoPublish(fmt.Errorf("scan incomplete: %s could not run "+
+			"(use --allow-scan-errors to accept partial results)",
+			strings.Join(erroredControls(run), ", ")), publishErr)
 	}
 	if verdict.Verdict == norn.Fail {
-		return fmt.Errorf("policy verdict: fail")
+		return alsoPublish(fmt.Errorf("policy verdict: fail"), publishErr)
 	}
-	return nil
+	return publishErr
+}
+
+// alsoPublish folds a publishing failure into the run's outcome without displacing it.
+//
+// Both are worth knowing and only one can be the exit message, so the run's own outcome leads:
+// a gate that failed is what the reader has to act on, and a publisher that could not deliver
+// the evidence is the second sentence rather than the first. When the run itself was fine, the
+// publishing failure is the outcome and stands alone.
+func alsoPublish(outcome, publishErr error) error {
+	if publishErr == nil {
+		return outcome
+	}
+	return fmt.Errorf("%w (publishing also failed: %w)", outcome, publishErr)
 }
 
 // fixFirstLimit maps the --top flag to report.Data.TopN: 0 (show all) becomes -1, and any

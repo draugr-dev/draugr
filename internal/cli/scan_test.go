@@ -629,3 +629,53 @@ func TestADirectoryNamedLikeTheDescriptorIsIgnored(t *testing.T) {
 		t.Errorf("want zero-config, got synthesized=%v err=%v", synthesized, err)
 	}
 }
+
+func TestRunScanReportsTheVerdictAheadOfAPublisherFailure(t *testing.T) {
+	// A run that both failed its gate and could not publish is two facts, and only one can be
+	// the exit message. Naming the publisher sends a reader to fix a token when what actually
+	// happened is that the build should not ship — so the verdict leads and the publisher
+	// follows it, rather than replacing it.
+	saga := `
+release:
+  name: app
+  version: "1.0"
+config:
+  controllers:
+    images:
+      enabled: true
+  reports:
+    - format: sarif
+  publishers:
+    - kind: bogus
+components:
+  - name: c
+    images:
+      - image: repo/x:1
+`
+	err := runScan(context.Background(), writeSaga(t, saga),
+		scanOptions{failOn: "error", format: "console"}, fakeRegistry(sarif.LevelError), &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("expected an error: the gate failed and the publisher failed")
+	}
+	if !strings.Contains(err.Error(), "policy verdict: fail") {
+		t.Errorf("the verdict must lead the message, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "unknown publisher kind") {
+		t.Errorf("the publishing failure must survive in the message, got %v", err)
+	}
+}
+
+func TestAlsoPublishKeepsTheOutcomeAloneWhenPublishingWorked(t *testing.T) {
+	outcome := errors.New("policy verdict: fail")
+	if got := alsoPublish(outcome, nil); got != outcome {
+		t.Errorf("got %v, want the outcome unchanged", got)
+	}
+}
+
+func TestAlsoPublishWrapsBothSoEitherCanBeMatched(t *testing.T) {
+	outcome, pub := errors.New("scan incomplete"), errors.New("no token")
+	err := alsoPublish(outcome, pub)
+	if !errors.Is(err, outcome) || !errors.Is(err, pub) {
+		t.Errorf("both causes should be reachable with errors.Is: %v", err)
+	}
+}
