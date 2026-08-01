@@ -151,6 +151,20 @@ type sarifSuppression struct {
 	// suppressions it creates, because an exclusion without a stated reason is how a scanner
 	// gets quietly defanged.
 	Justification string `json:"justification,omitempty"`
+	// Properties carries who accepted the suppression and when it lapses.
+	//
+	// SARIF has no field for either, and the spec's property bag is where a producer puts what
+	// the schema does not model. They go here rather than being folded into the justification
+	// text because a consumer should be able to read "who" as a value — the whole reason the
+	// descriptor records it is so a report can be filtered and audited by it, and a name inside
+	// a sentence cannot be.
+	Properties *sarifSuppressionProperties `json:"properties,omitempty"`
+}
+
+// sarifSuppressionProperties holds Draugr's suppression metadata in SARIF's property bag.
+type sarifSuppressionProperties struct {
+	AcceptedBy string `json:"acceptedBy,omitempty"`
+	Expires    string `json:"expires,omitempty"`
 }
 
 type sarifMessage struct {
@@ -235,7 +249,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// anything was excluded; this way the evidence survives and only the verdict changes.
 		// GitHub code scanning reads this and files the alert as closed-as-suppressed.
 		if s := res.Suppression; s != nil {
-			sr.Suppressions = []sarifSuppression{{Kind: s.Kind, Justification: s.Justification}}
+			sup := sarifSuppression{Kind: s.Kind, Justification: s.Justification}
+			if s.AcceptedBy != "" || s.Expires != "" {
+				sup.Properties = &sarifSuppressionProperties{AcceptedBy: s.AcceptedBy, Expires: s.Expires}
+			}
+			sr.Suppressions = []sarifSuppression{sup}
 		}
 		if res.Location.URI != "" {
 			art := sarifArtifact{URI: res.Location.URI}

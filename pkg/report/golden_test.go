@@ -134,13 +134,16 @@ func goldenFullData() Data {
 			"iac": {Control: "iac", Report: sarif.Report{Tool: "trivy", Results: iac,
 				Provenance: []sarif.Provenance{{Tool: "trivy", Version: "0.69.3"}}}},
 			"sast": {Control: "sast", Report: sarif.Report{Tool: "semgrep", Results: sast}},
-			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: licenses,
+			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: suppressedLicences(licenses),
 				Provenance: []sarif.Provenance{{Tool: "trivy-license", Version: "0.69.3",
 					Fields: []sarif.Field{{Key: "policy", Value: "deny copyleft"}}}}}},
 		},
 		ScanErrors: map[string][]string{"dast": {"nuclei: executable file not found in $PATH"}},
 		Suppressed: 2,
-		SBOMs:      []sbom.Document{{Format: "spdx-json"}, {Format: "spdx-json"}},
+		// One suppression signed and one not, because the line renders them differently and an
+		// element the fixture omits is an element the golden does not pin. This is the account
+		// of who decided what, which is the half of a suppression an auditor comes for.
+		SBOMs: []sbom.Document{{Format: "spdx-json"}, {Format: "spdx-json"}},
 	}
 	verdict := norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
 		{Control: "iac", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1, Warning: 1}},
@@ -177,4 +180,18 @@ func goldenCleanData() Data {
 			{Control: "images", Verdict: norn.Pass},
 		}},
 	}
+}
+
+// suppressedLicences appends the two set-aside findings the Suppressed count refers to: one
+// signed, one not, because the line renders them differently and an element the fixture omits is
+// an element the golden does not pin.
+func suppressedLicences(base []sarif.Result) []sarif.Result {
+	return append(append([]sarif.Result{}, base...),
+		sarif.Result{RuleID: "license/GPL-3.0-only/x", Level: sarif.LevelWarning,
+			Location: sarif.Location{URI: "go.mod"},
+			Suppression: &sarif.Suppression{Kind: "external",
+				Justification: "legal reviewed; we do not distribute", AcceptedBy: "a.reviewer"}},
+		sarif.Result{RuleID: "license/GPL-3.0-only/y", Level: sarif.LevelWarning,
+			Location:    sarif.Location{URI: "go.mod"},
+			Suppression: &sarif.Suppression{Kind: "external", Justification: "same package tree"}})
 }

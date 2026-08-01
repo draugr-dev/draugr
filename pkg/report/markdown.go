@@ -62,7 +62,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	}
 
 	writeComponentTable(w, d)
-	writeEvidenceNotes(w, s)
+	writeEvidenceNotes(w, d, s)
 
 	if len(s.findings) == 0 {
 		if len(s.scanErrors) > 0 {
@@ -118,9 +118,9 @@ func writeScanErrors(w io.Writer, s summary) {
 
 // writeEvidenceNotes records what the run set aside and what it produced alongside the findings.
 // A suppression that leaves no trace reads exactly like a finding that was never made.
-func writeEvidenceNotes(w io.Writer, s summary) {
-	if s.suppressed > 0 {
-		_, _ = fmt.Fprintf(w, "_%s suppressed by `config.exclude`._\n\n", plural(s.suppressed, "finding"))
+func writeEvidenceNotes(w io.Writer, d Data, s summary) {
+	if line := suppressionLine(d); line != "" {
+		_, _ = fmt.Fprintf(w, "**%s**\n\n", line)
 	}
 	if s.sboms > 0 {
 		_, _ = fmt.Fprintf(w, "_SBOM: %s (%s)._\n\n", plural(s.sboms, "document"), s.sbomFormat)

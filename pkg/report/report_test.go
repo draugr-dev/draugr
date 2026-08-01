@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -897,5 +898,60 @@ func TestMarkdownRendersTheComponentTable(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
+	}
+}
+
+// suppressedBy builds a report whose findings were set aside, some with a name against them.
+func suppressedBy(names ...string) Data {
+	var results []sarif.Result
+	for i, n := range names {
+		results = append(results, sarif.Result{
+			RuleID: fmt.Sprintf("CVE-%d", i), Level: sarif.LevelError,
+			Suppression: &sarif.Suppression{Kind: "external", Justification: "accepted", AcceptedBy: n},
+		})
+	}
+	return Data{
+		Run: engine.Result{
+			Suppressed: len(names),
+			Controls:   map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: results}}},
+		},
+	}
+}
+
+func TestSuppressionLineNamesWhoAccepted(t *testing.T) {
+	// The name is the point of recording it. A count of unattributed says *that* there is a gap;
+	// it does not say who to ask about the rest, which is the question an auditor arrives with.
+	got := suppressionLine(suppressedBy("a.reviewer", "a.reviewer", "b.owner", ""))
+	want := "4 findings suppressed by config.exclude — 2 accepted by a.reviewer, 1 accepted by b.owner, 1 unattributed"
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestSuppressionLineWithNobodyNamed(t *testing.T) {
+	got := suppressionLine(suppressedBy("", ""))
+	want := "2 findings suppressed by config.exclude — 2 unattributed"
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestSuppressionLineIsAbsentWithNothingSuppressed(t *testing.T) {
+	if got := suppressionLine(Data{}); got != "" {
+		t.Errorf("got %q, want empty", got)
+	}
+}
+
+func TestSuppressionLineOrdersAcceptorsStably(t *testing.T) {
+	// Map iteration would reorder this between runs, and a report offered as evidence should
+	// not differ from itself.
+	first := suppressionLine(suppressedBy("z.last", "a.first"))
+	for range 5 {
+		if got := suppressionLine(suppressedBy("z.last", "a.first")); got != first {
+			t.Fatalf("unstable order:\n%s\n%s", first, got)
+		}
+	}
+	if !strings.Contains(first, "a.first, 1 accepted by z.last") {
+		t.Errorf("expected alphabetical: %q", first)
 	}
 }

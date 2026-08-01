@@ -12,6 +12,21 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`acceptedBy` reaches the report.** The field was parsed, validated, and used to count
+  unattributed suppressions — and the name itself appeared nowhere: not the console, not the
+  markdown report, not even SARIF. The point of recording who accepted a finding is that a reader
+  months later can ask them, and there was nobody to ask:
+
+  ```
+  2 findings suppressed by config.exclude — 1 accepted by a.reviewer, 1 unattributed
+  ```
+
+  In every human format, and in SARIF's suppression property bag (with `expires`) so a consumer
+  can filter on it rather than parse it out of a sentence.
+
+- **The suppression line is no longer greyed out.** It is the one line saying part of the report
+  was set aside, and dimming put it below the reading threshold of the thing it qualifies.
+
 - **`draugr diff` names the component a finding belongs to.** Neither table read it, so two
   components sharing a dependency produced rows identical in every visible column — correctly
   counted as two, and indistinguishable to a reader:
