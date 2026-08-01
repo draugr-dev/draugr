@@ -39,7 +39,21 @@ config:
       # ref: refs/heads/main
       # tokenEnv: GH_PAT            # name the env var that holds the token
 
+# Two components, because the reports this example is about only earn their shape with more than
+# one: the console gains a per-component verdict, the markdown report a component table, and a
+# pull-request comment can say which service a new finding belongs to. With one component every
+# one of those repeats the headline.
 components:
   - name: web
+    exposure: public
+    criticality: important
     images:
       - image: alpine:3.19
+
+  - name: batch
+    # The same finding ranks lower here — nothing external reaches it. Exposure and criticality
+    # are the inputs that turn severity into priority.
+    exposure: internal
+    criticality: supporting
+    images:
+      - image: alpine:3.18
