@@ -28,6 +28,9 @@ fi
 echo "▶ go test (race + coverage)"
 go test -race -covermode=atomic -coverprofile=coverage.out ./...
 
+echo "▶ public-scope"
+./scripts/check-public-scope.sh
+
 echo "▶ changelog-guard"
 ./scripts/changelog-guard.sh
 

@@ -114,8 +114,9 @@ multi-publisher Saga and [`examples/github-actions-code-scanning.yml`](../../exa
 for the matching workflow. Draugr dogfoods this itself in
 [`.draugr/self.saga.yaml`](../../.draugr/self.saga.yaml) + the self-scan workflow.
 
-Managed/authenticated enterprise publishers (ServiceNow/Jira/Splunk/signed webhooks) are out of
-OSS scope — tracked on the `cloud` backlog per [#58](https://github.com/draugr-dev/draugr/issues/58).
+Publishers that need managed credentials or an authenticated integration (ServiceNow, Jira,
+Splunk, signed webhooks) are out of scope here: each needs secret handling and a service to
+hold it, which is not what a CLI that runs in your pipeline should be doing.
 
 ## Utilities
 

@@ -120,6 +120,21 @@ If the golden fails, its message lists everything that needs refreshing. Please 
 rather than only regenerating the golden — a stale example in the docs costs a reader more than
 it costs us.
 
+## What this repository says about Draugr
+
+It describes the tool, not the business around it. World-readable, so a roadmap that names a
+commercial tier reads as a list of things deliberately withheld — and a reader deciding whether
+to adopt an open-source scanner is not helped by knowing which capability is reserved.
+
+Out-of-scope is stated by the **technical reason** it is out of scope: what the capability would
+need that a CLI running in someone's pipeline should not have — a service holding secrets, memory
+of previous runs, knowledge of other teams. That reason is true, useful, and survives any change
+to how the project is funded.
+
+Third-party commercial facts are fine and sometimes necessary: Semgrep's commercial edition,
+VirusTotal's non-commercial terms. `make public-scope` (in `make gate`) checks tracked files.
+**It cannot see issue bodies**, which are equally public — screen those by hand.
+
 ## Conventions
 
 - **Markdown:** write issue references as full URLs
