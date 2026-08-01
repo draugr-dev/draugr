@@ -222,9 +222,14 @@ jobs:
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"
           branch="demo-assets-$(git rev-parse --short HEAD)"
-          git checkout -b "$branch"
+          git checkout -B "$branch"
           git commit -m "docs: regenerate the demo assets"
-          git push -u origin "$branch"
+          # Force, because the branch name is derived from the commit being rendered and a second
+          # run at the same commit is normal — a transient download failure, or asking for the
+          # screenshot after a fragment-only pass. The branch is this workflow's own throwaway and
+          # nothing else writes to it, so the newest render simply supersedes the last. Without
+          # this the push is rejected and a successful render is thrown away at the final step.
+          git push -u --force origin "$branch"
           # Best-effort: creating a PR needs the org's "Allow GitHub Actions to create pull
           # requests" setting. If it's off, just print the compare link — the branch is pushed.
           gh pr create --title "docs: regenerate the demo assets" \
