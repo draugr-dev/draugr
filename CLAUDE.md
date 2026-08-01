@@ -122,8 +122,8 @@ it costs us.
 
 ## What this repository says about Draugr
 
-It describes the tool, not the business around it. World-readable, so a roadmap that names a
-commercial tier reads as a list of things deliberately withheld — and a reader deciding whether
+It describes the tool, not the business around it. World-readable, so a roadmap that names what
+is sold elsewhere reads as a list of things deliberately withheld — and a reader deciding whether
 to adopt an open-source scanner is not helped by knowing which capability is reserved.
 
 Out-of-scope is stated by the **technical reason** it is out of scope: what the capability would
