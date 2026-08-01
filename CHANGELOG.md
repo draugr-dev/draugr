@@ -10,6 +10,30 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`dast` works.** The Nuclei template download never ran: the prewarm passed `-duc` alongside
+  `-update-templates`, and on that command `-duc` disables the update itself. Nuclei exits 0
+  either way, so nothing noticed — every `dast` run then failed with Nuclei's own
+  `no templates provided for scan`, which reads like a mistake in your descriptor.
+
+  The flag is gone, and the download is now verified rather than assumed: Draugr asks Nuclei what
+  template set it has afterwards, because an exit code that is 0 on both outcomes cannot answer
+  that. If there is still no template set, the control's error says so instead of relaying the
+  symptom.
+
+- **`draugr doctor` reports a tool that is installed but cannot run.** Being on PATH is not the
+  same as being able to work — Nuclei needs its template set — so doctor now probes for a tool's
+  data and fails when it is missing, with how to get it:
+
+  ```
+  nuclei  ✗ no data  3.11.0  run `nuclei -update-templates`
+  ```
+
+- **A scanner's prewarm failure is now logged.** It was recorded as a trace span event and
+  nowhere else, so the only thing a user ever saw was whatever the scanner said later about a
+  consequence of it.
+
 ### Added
 
 - **`ignore` on a repository removes paths from a scan.** Gitignore-shaped, applied after

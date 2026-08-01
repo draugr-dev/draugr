@@ -185,3 +185,54 @@ func TestRunWithEnvKeepsTheParentEnvironment(t *testing.T) {
 		t.Errorf("child env = %q, want inherited-added", out)
 	}
 }
+
+func TestRunCombinedReadsStderrToo(t *testing.T) {
+	// The case it exists for: a tool asked a question that answers on stderr. Nuclei prints
+	// `-templates-version` entirely there and nothing to stdout, so reading stdout alone
+	// reported no templates however many were installed.
+	out, err := RunCombined(context.Background(), "", []string{"sh", "-c", "echo answer >&2"})
+	if err != nil {
+		t.Fatalf("RunCombined: %v", err)
+	}
+	if !strings.Contains(string(out), "answer") {
+		t.Errorf("stderr should be in the output, got %q", out)
+	}
+}
+
+func TestRunDoesNotReadStderr(t *testing.T) {
+	// The reason RunCombined is separate: a scanner's stdout is a report to be parsed, and
+	// folding stderr into it would corrupt the parse for every tool that logs while it works.
+	out, err := Run(context.Background(), "", []string{"sh", "-c", "echo noise >&2; echo report"})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if strings.Contains(string(out), "noise") {
+		t.Errorf("stderr must not reach a parsed report: %q", out)
+	}
+	if !strings.Contains(string(out), "report") {
+		t.Errorf("stdout missing: %q", out)
+	}
+}
+
+func TestRunCombinedRejectsAnEmptyCommand(t *testing.T) {
+	if _, err := RunCombined(context.Background(), "", nil); err == nil {
+		t.Error("expected an error for an empty command")
+	}
+}
+
+func TestRunCombinedUsesTheWorkingDirectory(t *testing.T) {
+	dir := t.TempDir()
+	out, err := RunCombined(context.Background(), dir, []string{"pwd"})
+	if err != nil {
+		t.Fatalf("RunCombined: %v", err)
+	}
+	if got := strings.TrimSpace(string(out)); !strings.HasSuffix(got, filepath.Base(dir)) {
+		t.Errorf("ran in %q, want %q", got, dir)
+	}
+}
+
+func TestRunCombinedSurfacesAFailure(t *testing.T) {
+	if _, err := RunCombined(context.Background(), "", []string{"sh", "-c", "exit 3"}); err == nil {
+		t.Error("expected the non-zero exit to surface")
+	}
+}
