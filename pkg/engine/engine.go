@@ -640,6 +640,19 @@ func sbomRequested(model saga.Model) bool {
 // rather than to any one control.
 const planningPseudoControl = "(planning)"
 
+// Waivable reports whether a failure under this control name is one --allow-scan-errors can
+// accept.
+//
+// The flag means "a scanner could not run and I accept a partial result" — the reader has other
+// controls that did run and is choosing to proceed on those. A planning failure is not a
+// scanner: it is the run saying there was nothing to do at all, so there is no partial result to
+// accept. Treating the two alike turns the flag into "pass anyway", and a PASS that means "we
+// did not look" is the worst thing this tool can print.
+//
+// (sbom) stays waivable on purpose. A missing SBOM is missing evidence, not a missing check —
+// the controls still ran and their verdict still means something.
+func Waivable(control string) bool { return control != planningPseudoControl }
+
 // applyExclusions marks findings matched by a Saga exclusion and returns how many. The finding
 // stays in the report carrying its justification, so an exclusion is auditable rather than a
 // hole; Counts skips suppressed results, so the summary and the verdict simply stop seeing it.
