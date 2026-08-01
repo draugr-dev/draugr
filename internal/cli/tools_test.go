@@ -16,6 +16,9 @@ import (
 )
 
 func TestRunToolsInstallSuccess(t *testing.T) {
+	// Stubbed absent: these assert what happens when there is work to do, and without a
+	// stub they ask the machine the tests run on.
+	stubDetect(t, map[string]string{})
 	var out bytes.Buffer
 	install := func(name string) (tools.Installed, error) {
 		i := tools.Installed{Name: name, Version: "1.2.3", Path: "/home/u/.draugr/bin/" + name}
@@ -71,6 +74,9 @@ func TestRunToolsInstallPlanAndDryRun(t *testing.T) {
 }
 
 func TestRunToolsInstallInteractiveAbort(t *testing.T) {
+	// Stubbed absent: these assert what happens when there is work to do, and without a
+	// stub they ask the machine the tests run on.
+	stubDetect(t, map[string]string{})
 	orig := isTTY
 	isTTY = func(io.Reader) bool { return true }
 	t.Cleanup(func() { isTTY = orig })
@@ -91,6 +97,10 @@ func TestRunToolsInstallInteractiveAbort(t *testing.T) {
 }
 
 func TestRunToolsInstallSemgrepHint(t *testing.T) {
+	// Stubbed absent. Without this the test asks the machine it runs on, and passes or fails
+	// depending on whether the developer happens to have semgrep — which is how it read as a
+	// regression the first time the installer learned to check.
+	stubDetect(t, map[string]string{})
 	var out bytes.Buffer
 	called := false
 	install := func(string) (tools.Installed, error) { called = true; return tools.Installed{}, nil }
@@ -106,6 +116,9 @@ func TestRunToolsInstallSemgrepHint(t *testing.T) {
 }
 
 func TestRunToolsInstallFailure(t *testing.T) {
+	// Stubbed absent: these assert what happens when there is work to do, and without a
+	// stub they ask the machine the tests run on.
+	stubDetect(t, map[string]string{})
 	var out bytes.Buffer
 	install := func(string) (tools.Installed, error) {
 		return tools.Installed{}, errors.New("boom")
@@ -120,6 +133,9 @@ func TestRunToolsInstallFailure(t *testing.T) {
 }
 
 func TestRunToolsInstallAllInstallsInstallable(t *testing.T) {
+	// Stubbed absent: this asserts the bulk install reaches every installable tool, which it
+	// only does when there is something to install.
+	stubDetect(t, map[string]string{})
 	var out bytes.Buffer
 	var got []string
 	install := func(name string) (tools.Installed, error) {
@@ -353,5 +369,90 @@ func TestPluralThem(t *testing.T) {
 	}
 	if got := pluralThem(2); got != "them" {
 		t.Errorf("pluralThem(2) = %q", got)
+	}
+}
+
+// stubDetect makes presence deterministic without arranging binaries on PATH.
+func stubDetect(t *testing.T, found map[string]string) {
+	t.Helper()
+	prior := detectTool
+	t.Cleanup(func() { detectTool = prior })
+	detectTool = func(_ context.Context, tool tools.Tool) tools.Status {
+		v, ok := found[tool.Binary]
+		return tools.Status{Tool: tool, Found: ok, Version: v, Path: "/somewhere/" + tool.Binary}
+	}
+}
+
+func TestInstallPlanMarksWhatIsAlreadyThere(t *testing.T) {
+	// The plan is the moment someone decides whether to let a security tool write to their
+	// machine, and it was describing work it would not do — six rows for one download.
+	stubDetect(t, map[string]string{"trivy": "0.69.3"})
+	var out bytes.Buffer
+	names := []string{"trivy", "gitleaks"}
+	writeInstallPlan(&out, names, false, present(context.Background(), names, false))
+
+	got := out.String()
+	if !strings.Contains(got, "already at 0.69.3") {
+		t.Errorf("a satisfied tool should say so:\n%s", got)
+	}
+	if !strings.Contains(got, "1 tool to install, 1 already current") {
+		t.Errorf("the summary should count the real work:\n%s", got)
+	}
+}
+
+func TestPresentIgnoresAWrongVersion(t *testing.T) {
+	stubDetect(t, map[string]string{"trivy": "0.1.0"})
+	if have := present(context.Background(), []string{"trivy"}, false); len(have) != 0 {
+		t.Errorf("an old version is still work to do: %v", have)
+	}
+}
+
+func TestPresentIgnoresEverythingUnderForce(t *testing.T) {
+	stubDetect(t, map[string]string{"trivy": "0.69.3"})
+	if have := present(context.Background(), []string{"trivy"}, true); len(have) != 0 {
+		t.Errorf("--force reinstalls regardless: %v", have)
+	}
+}
+
+func TestInstallAsksNothingWhenEverythingIsCurrent(t *testing.T) {
+	// A confirmation that gates no action teaches people to answer without reading, on the one
+	// command where reading matters.
+	current := map[string]string{"semgrep": tools.SemgrepVersion()}
+	for _, name := range tools.Installable() {
+		if spec, ok := tools.Spec(name); ok {
+			current[spec.Binary] = spec.Version
+		}
+	}
+	stubDetect(t, current)
+
+	var out bytes.Buffer
+	installed := 0
+	err := runToolsInstall(&out, strings.NewReader(""), nil, toolsInstallOptions{},
+		func(string) (tools.Installed, error) { installed++; return tools.Installed{}, nil })
+	if err != nil {
+		t.Fatalf("runToolsInstall: %v", err)
+	}
+	if installed != 0 {
+		t.Errorf("nothing should have been installed, ran %d", installed)
+	}
+	got := out.String()
+	if !strings.Contains(got, "Everything is already current") {
+		t.Errorf("it should say so plainly:\n%s", got)
+	}
+	if strings.Contains(got, "Proceed?") {
+		t.Error("a prompt that gates nothing must not be shown")
+	}
+	if strings.Contains(got, "pipx install") {
+		t.Error("semgrep is present; telling the user to install it reads as a failure")
+	}
+}
+
+func TestInstallStillPrintsTheSemgrepHintWhenAbsent(t *testing.T) {
+	stubDetect(t, map[string]string{})
+	var out bytes.Buffer
+	_ = runToolsInstall(&out, strings.NewReader(""), []string{"semgrep"}, toolsInstallOptions{},
+		func(string) (tools.Installed, error) { return tools.Installed{}, nil })
+	if !strings.Contains(out.String(), "pipx install") {
+		t.Errorf("an absent semgrep still needs its instruction:\n%s", out.String())
 	}
 }
