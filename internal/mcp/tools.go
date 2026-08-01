@@ -394,11 +394,22 @@ func confirmScan(ctx context.Context, req *mcp.CallToolRequest, path string) err
 			"(no elicitation support). Run `draugr scan %s` yourself, or restart the server "+
 			"with --scan=always to allow scans without asking", path)
 	}
-	// A schema-less form: there's nothing to fill in, so the accept/decline action is the
-	// entire answer. (The protocol has no dedicated confirmation mode.)
+	// A form with nothing in it: there is nothing to fill in, so accept and decline are the
+	// whole answer. The protocol has no dedicated confirmation mode, and an empty object schema
+	// is how that intent is expressed within one that does exist.
+	//
+	// The schema is not optional even when it asks for nothing. RequestedSchema has no
+	// omitempty, so leaving it unset put `"requestedSchema": null` on the wire, and a client
+	// holding to the spec rejects the request — which made --scan=ask fail before it could ask,
+	// with the error pointing at a handshake rather than at anything a reader could act on.
 	res, err := req.Session.Elicit(ctx, &mcp.ElicitParams{
+		Mode: "form",
 		Message: fmt.Sprintf("Draugr wants to scan %s. This clones the repositories it "+
 			"declares, runs external scanners, and uses the network.", path),
+		RequestedSchema: map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("could not ask for approval to scan: %w", err)

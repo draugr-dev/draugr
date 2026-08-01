@@ -504,11 +504,16 @@ func TestAskModeHonoursTheAnswer(t *testing.T) {
 	}{{"accept", false}, {"decline", true}, {"cancel", true}} {
 		t.Run(tc.action, func(t *testing.T) {
 			var asked string
+			var sent *mcp.ElicitParams
 			sess := connectWith(t,
 				Options{Registry: builtins.Registry(), Scan: ScanAsk, Root: dir},
 				&mcp.ClientOptions{
 					ElicitationHandler: func(_ context.Context, req *mcp.ElicitRequest) (*mcp.ElicitResult, error) {
 						asked = req.Params.Message
+						// Captured, not asserted here: this runs on the client's goroutine, and
+						// a t.Fatal on it kills that goroutine mid-RPC, so the call never gets
+						// an answer and the test deadlocks instead of failing.
+						sent = req.Params
 						return &mcp.ElicitResult{Action: tc.action}, nil
 					},
 				})
@@ -521,6 +526,7 @@ func TestAskModeHonoursTheAnswer(t *testing.T) {
 			if res.IsError != tc.wantErr {
 				t.Errorf("action %q: IsError=%v, want %v (%+v)", tc.action, res.IsError, tc.wantErr, res.Content)
 			}
+			assertWellFormedElicit(t, sent)
 			// The user has to be told what they're agreeing to.
 			if !strings.Contains(asked, path) || !strings.Contains(asked, "clones") {
 				t.Errorf("prompt should name the target and the cost, got %q", asked)
@@ -691,5 +697,41 @@ func TestServerAdvertisesItsIcon(t *testing.T) {
 	// dev.draugr namespace authenticates against draugr.dev, so anywhere else fails that check.
 	if !strings.HasPrefix(icon.Source, "https://draugr.dev/") {
 		t.Errorf("icon must be served from draugr.dev over https, got %q", icon.Source)
+	}
+}
+
+// assertWellFormedElicit checks the request we send, not only the reply we get back.
+//
+// The Go SDK's client allows a nil schema and returns early, so the in-memory transport these
+// tests use accepts a request the protocol does not — and a handler that answers without reading
+// the question cannot tell the difference. That gap shipped --scan=ask in a state where the
+// approval never reached the user: the client rejected the request as malformed, and the mode
+// was unusable from the documentation's first example.
+func assertWellFormedElicit(t *testing.T, p *mcp.ElicitParams) {
+	t.Helper()
+	if p == nil {
+		t.Fatal("no elicitation was sent")
+	}
+	if p.Mode != "form" {
+		t.Errorf("mode = %q, want %q — inference is not something to rely on across clients", p.Mode, "form")
+	}
+	if p.RequestedSchema == nil {
+		t.Fatal("requestedSchema is nil — it has no omitempty, so this reaches the client as " +
+			"`\"requestedSchema\": null` and a spec-conformant client rejects the request")
+	}
+	// Round-trip it the way the wire does, so the assertion is about what is sent.
+	raw, err := json.Marshal(p.RequestedSchema)
+	if err != nil {
+		t.Fatalf("marshal requestedSchema: %v", err)
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatalf("requestedSchema is not a JSON object: %v", err)
+	}
+	if schema["type"] != "object" {
+		t.Errorf("requestedSchema.type = %v, want \"object\" — the spec allows no other root", schema["type"])
+	}
+	if _, ok := schema["properties"]; !ok {
+		t.Error("requestedSchema has no properties key; an empty object is how \"nothing to fill in\" is said")
 	}
 }
