@@ -62,8 +62,9 @@ release archive so the signed artifact still carries the whole record.
 
 ### Changing what `draugr scan` prints
 
-The console layout is quoted in several documents under `docs/`, and recaptured in the demo
-screenshot the README shows. None of those notice when it changes, so it is pinned by a golden test:
+The console layout is quoted in several documents under `docs/`, and captured verbatim into the
+demo screenshot the README shows and the terminal fragment the website's home page carries.
+None of those notice when it changes, so it is pinned by a golden test:
 
 ```bash
 go test ./pkg/report -run TestConsoleGolden          # fails if the layout moved
@@ -73,9 +74,9 @@ make examples                                        # real output from the demo
 
 If the golden fails, the failure lists the documents to refresh; `make examples` prints a real
 scan of [`draugr-demo`](https://github.com/draugr-dev/draugr-demo) to paste from (it clones the
-sandbox and needs Trivy, Gitleaks and Semgrep on PATH). The screenshot re-renders itself after every
-release — you don't need to run vhs locally, though `gh workflow run 'Demo screenshot'` will do
-it on demand.
+sandbox and needs Trivy, Gitleaks and Semgrep on PATH). The demo assets re-render themselves
+after every release — you don't need to run vhs locally, though
+`gh workflow run 'Demo assets'` will do it on demand.
 
 Two blog posts on the website quote console output as well. They live in a different repository,
 so no test here can catch them; the golden's failure message names them so they don't get missed.

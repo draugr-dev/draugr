@@ -13,8 +13,8 @@
 #   - a findings-rich repo at ./draugr-demo — the sandbox is ideal:
 #       git clone https://github.com/draugr-dev/draugr-demo draugr-demo
 #     The directory name is the release name in the output, so it has to match the docs.
-# The Demo screenshot workflow (.github/workflows/demo-screenshot.yml) does all of this and
-# opens a PR with the regenerated image.
+# The Demo assets workflow (.github/workflows/demo-assets.yml) does all of this and opens a PR
+# with the regenerated image, alongside the terminal fragment the website's home page carries.
 #
 # There is deliberately no `Output`. vhs writes a recording only when asked for one, and a
 # screenshot does not need the frames to be encoded — so the GIF pass, which is the slowest part

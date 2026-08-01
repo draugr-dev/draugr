@@ -1,4 +1,5 @@
-# Render the README demo screenshot (zero-config `draugr scan .`) with vhs and open a PR with it.
+# Render the demo assets — the README screenshot and the home page's terminal fragment — from a
+# real scan of the sandbox, and open a PR with them.
 #
 # Runs after every release, and on demand from the Actions tab. Release is the right moment
 # rather than a push to main: the job captures the *latest release*, which is what a reader who
@@ -13,7 +14,7 @@
 #
 # The console layout is pinned separately by pkg/report/golden_test.go, and the numbers quoted
 # in the docs are refreshed with `make examples`.
-name: Demo screenshot
+name: Demo assets
 
 on:
   workflow_call:
@@ -23,9 +24,9 @@ permissions:
   contents: read
 
 # One render at a time. Two releases close together would otherwise open two PRs whose branches
-# both claim to hold the current screenshot.
+# both claim to hold the current assets.
 concurrency:
-  group: demo-screenshot
+  group: demo-assets
   cancel-in-progress: false
 
 jobs:
@@ -40,6 +41,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
+
+      # For contrib/demo/ansi2html, which turns the captured scan into the home page's fragment.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26"
 
       - name: Install Draugr (latest release)
         env:
@@ -112,24 +118,55 @@ jobs:
           fi
           echo "$before -> $(stat -c%s contrib/demo/scan.png) bytes"
 
-      - name: Open a PR with the regenerated screenshot
+      # The home page shows a short terminal block rather than the whole screenshot: a visitor
+      # gives it three seconds, and the shape of the answer — one command, five controls, one
+      # verdict, a non-zero exit — is what has to land in them. As text it stays crisp at any
+      # zoom, can be selected and indexed, and costs a kilobyte instead of two hundred.
+      #
+      # Generated, not written. The block it replaces was maintained by hand and drifted until it
+      # showed a different scan from the image beside it; nothing catches that but a person
+      # noticing. A PTY is needed because Draugr colours output only for a terminal — piping the
+      # scan straight to a file would capture it plain, and the fragment would be grey.
+      - name: Capture the terminal fragment
+        working-directory: draugr-demo
+        run: |
+          set -uo pipefail
+          # The scan is expected to exit non-zero — the sandbox fails its gate, which is the
+          # point of the block. Capture the code rather than letting it end the step.
+          script -qec "draugr scan . 2>/dev/null" /dev/null > /tmp/scan.ansi
+          code=$?
+          set -e
+          echo "scan exited $code"
+          cd "$GITHUB_WORKSPACE"
+          go run ./contrib/demo/ansi2html \
+            -command "draugr scan ." -stop-at "Fix first" -exit "$code" \
+            < /tmp/scan.ansi > contrib/demo/scan.html
+          # The cut is a line prefix, so rewording that heading would stop it happening and the
+          # fragment would quietly grow into the wall of findings it exists to avoid.
+          size=$(stat -c%s contrib/demo/scan.html)
+          echo "fragment is $size bytes"
+          [ "$size" -gt 200 ] && [ "$size" -lt 4000 ] || {
+            echo "::error::fragment is $size bytes — expected the verdict and control table only." \
+                 "Did the 'Fix first' heading change?"; exit 1; }
+
+      - name: Open a PR with the regenerated assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git add contrib/demo/scan.png
+          git add contrib/demo/scan.png contrib/demo/scan.html
           if git diff --cached --quiet; then
-            echo "Screenshot unchanged — nothing to do."
+            echo "Assets unchanged — nothing to do."
             exit 0
           fi
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"
-          branch="demo-screenshot-$(git rev-parse --short HEAD)"
+          branch="demo-assets-$(git rev-parse --short HEAD)"
           git checkout -b "$branch"
-          git commit -m "docs: regenerate demo screenshot"
+          git commit -m "docs: regenerate the demo assets"
           git push -u origin "$branch"
           # Best-effort: creating a PR needs the org's "Allow GitHub Actions to create pull
           # requests" setting. If it's off, just print the compare link — the branch is pushed.
-          gh pr create --title "docs: regenerate demo screenshot" \
-            --body "Auto-rendered by the Demo screenshot workflow (\`contrib/demo/scan.tape\`). Review the image, then merge to update the README. The home page on draugr.dev carries the same image and is updated separately." \
+          gh pr create --title "docs: regenerate the demo assets" \
+            --body "Auto-rendered by the Demo assets workflow: \`scan.png\` from \`contrib/demo/scan.tape\` for the README, and \`scan.html\` — the verdict and control table as text — for the home page, which pulls it at build time." \
             || echo "::notice::Branch $branch pushed. Open a PR: https://github.com/draugr-dev/draugr/compare/$branch?expand=1"
