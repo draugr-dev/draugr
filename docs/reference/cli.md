@@ -97,6 +97,11 @@ because a prompt in CI would hang the pipeline. Name the file to skip the questi
 draugr scan ./web.saga.yaml
 ```
 
+**A surface with no control enabled is called out.** If a component declares repositories,
+images, hosts or infrastructure and nothing is enabled to check them, the scan says so — that
+combination reads as a clean pass over something nobody looked at. A note rather than a failure,
+since the choice may be deliberate; `--no-tips` or `DRAUGR_NO_TIPS=1` silences it.
+
 **Zero-config.** A directory with no descriptor is scanned with `sca`, `secrets`, `sast`
 and `iac` — no Saga required.
 A one-line note is printed to stderr so machine formats on stdout stay clean. A Saga **file**

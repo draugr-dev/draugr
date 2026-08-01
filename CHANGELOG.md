@@ -10,6 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **A scan says when part of your descriptor has nothing checking it.** A component declaring a
+  `hosts:` entry with the host controls off was scanned for everything *except* the thing it
+  exposes to the internet, and reported a clean pass over it:
+
+  ```
+  Note: nothing checks part of what this descriptor declares.
+        web declares hosts, and headers, tls are not enabled
+        svc declares images, and images is not enabled
+        Run `draugr controls` to see what each control does.
+  ```
+
+  A note, not a failure — the choice may be deliberate. It appears whether or not the run found
+  anything, because an empty report over an unchecked surface is exactly when a reader concludes
+  there is nothing to find. Partial cover counts as cover, and `--no-tips` / `DRAUGR_NO_TIPS=1`
+  silences it.
+
 ### Changed
 
 - **`draugr scan <dir>` finds any `*.saga.yaml`**, not only `draugr.saga.yaml` — `web.saga.yaml`,
