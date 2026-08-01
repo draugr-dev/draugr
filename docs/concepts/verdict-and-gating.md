@@ -89,23 +89,33 @@ terminal (verdict, priorities, severities) and honors `NO_COLOR`.
 A worked example:
 
 ```text
-Draugr — FAIL   (draugr-demo 0.0.0)
+Draugr — FAIL   (draugr-demo 1.0)
 
-Priorities:  P1 21   P2 22   P3 13   P4 0
+Priorities:  P1 67   P2 102   P3 82   P4 18
 
 Controls:
-  secrets  FAIL   1 high
   iac      FAIL   4 high  5 medium  12 low
-  sast     FAIL   7 high  9 medium
+  images   FAIL   9 critical  40 high  90 medium  77 low
+  sast     FAIL   7 high  6 medium
   sca      FAIL   3 critical  6 high  8 medium  1 low
+  secrets  FAIL   1 high
 
-Fix first (top 10 of 256, by priority):
+Components:
+  api       FAIL   P1 67  P2 102  P3 79  iac, images, sast, sca, secrets
+  platform  FAIL   P3 3  P4 18  iac
+
+Fix first (top 10 of 269, by priority):
   Priority  Severity  Score  Rule            Control  Scanner  Location
   P1        critical  9.8    CVE-2019-20477  sca      Trivy    app/requirements.txt:4
             PyYAML: command execution through python/object/apply constructor in FullLoader
   P1        high      8.0    KSV-0014        iac      Trivy    deploy/pod.yaml:8
             Root file system is not read-only
 ```
+
+The **Components** block is where the classification pays off. `api` and `platform` share the
+`iac` control and the same rules, and the same findings land at P1/P2 on one and P3/P4 on the
+other — because one is internet-facing and business-important and the other is neither. Severity
+did not change; the consequence of it did.
 
 ## Observability & security posture
 
