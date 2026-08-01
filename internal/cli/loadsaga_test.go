@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -64,5 +67,106 @@ func TestScanHelpRendersTheDerivedControls(t *testing.T) {
 	long := newScanCommand().Long
 	if !strings.Contains(long, ZeroConfigControls("and")) {
 		t.Errorf("scan help should render the derived control list, got:\n%s", long)
+	}
+}
+
+// writeDescriptors creates a directory holding each named file as a minimal valid descriptor.
+func writeDescriptors(t *testing.T, names ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for i, name := range names {
+		body := fmt.Sprintf("release:\n  name: app-%d\n  version: \"1.0\"\ncomponents:\n  - name: c\n", i)
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func TestScanModelFindsAnyNamedDescriptor(t *testing.T) {
+	// Our SchemaStore entry claims all of these, so an editor already validates them. A scan
+	// that ignored three of the four would contradict our own editor integration.
+	for _, name := range []string{"draugr.saga.yaml", "web.saga.yaml", ".saga.yaml", "api.saga.yml"} {
+		t.Run(name, func(t *testing.T) {
+			dir := writeDescriptors(t, name)
+			m, synthesized, err := scanModel(dir)
+			if err != nil {
+				t.Fatalf("scanModel: %v", err)
+			}
+			if synthesized {
+				t.Errorf("%s was ignored — the scan fell back to zero-config", name)
+			}
+			if m.Release.Name != "app-0" {
+				t.Errorf("loaded the wrong file: %q", m.Release.Name)
+			}
+		})
+	}
+}
+
+func TestScanModelRefusesTwoDescriptorsWithNobodyToAsk(t *testing.T) {
+	// Picking one would produce a verdict about something the reader did not ask about, and
+	// nothing in the output would say which.
+	orig := chooser
+	t.Cleanup(func() { chooser = orig })
+	chooser = func([]string) (string, bool) { return "", false } // no terminal
+
+	dir := writeDescriptors(t, "web.saga.yaml", "api.saga.yaml")
+	_, _, err := scanModel(dir)
+	if err == nil {
+		t.Fatal("expected a refusal, not a guess")
+	}
+	for _, want := range []string{"web.saga.yaml", "api.saga.yaml", "draugr scan"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error should name %q and how to resolve it: %v", want, err)
+		}
+	}
+}
+
+func TestScanModelUsesAnInteractiveChoice(t *testing.T) {
+	orig := chooser
+	t.Cleanup(func() { chooser = orig })
+	dir := writeDescriptors(t, "web.saga.yaml", "api.saga.yaml")
+	chooser = func(found []string) (string, bool) {
+		if len(found) != 2 {
+			t.Errorf("the chooser should see both: %v", found)
+		}
+		return filepath.Join(dir, "web.saga.yaml"), true
+	}
+	m, synthesized, err := scanModel(dir)
+	if err != nil || synthesized {
+		t.Fatalf("scanModel: err=%v synthesized=%v", err, synthesized)
+	}
+	if m.Release.Name == "" {
+		t.Error("the chosen descriptor should have been loaded")
+	}
+}
+
+func TestScanModelStillFallsBackWithNoDescriptor(t *testing.T) {
+	_, synthesized, err := scanModel(t.TempDir())
+	if err != nil {
+		t.Fatalf("scanModel: %v", err)
+	}
+	if !synthesized {
+		t.Error("an empty directory is what zero-config is for")
+	}
+}
+
+func TestDescriptorsInIgnoresDirectoriesAndOtherFiles(t *testing.T) {
+	dir := writeDescriptors(t, "web.saga.yaml")
+	for _, name := range []string{"notes.yaml", "saga.yaml", "README.md"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A directory that happens to end in the suffix is not a descriptor.
+	if err := os.Mkdir(filepath.Join(dir, "old.saga.yaml"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	found, err := descriptorsIn(dir)
+	if err != nil {
+		t.Fatalf("descriptorsIn: %v", err)
+	}
+	if len(found) != 1 || filepath.Base(found[0]) != "web.saga.yaml" {
+		t.Errorf("found %v, want only web.saga.yaml", found)
 	}
 }

@@ -10,7 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **`draugr scan <dir>` finds any `*.saga.yaml`**, not only `draugr.saga.yaml` — `web.saga.yaml`,
+  `.saga.yaml` and the `.yml` spellings all count. These are the names our editor integration
+  already validates, so a scan that ignored three of the four was contradicting it.
+
+  **A directory with more than one stops the scan.** Two descriptors are two different accounts
+  of what the project is, so Draugr does not choose: on a terminal it asks, and anywhere else it
+  lists them and stops. Naming the file skips the question.
+
+### Fixed
+
+- **A prompt is no longer printed when stdin is `/dev/null`.** It is a character device, so the
+  terminal check said yes to it — and it is exactly what a script redirects from when it means
+  there is nobody here. Affected the `tools install` confirmation too.
 
 ## [0.52.0] - 2026-07-31
 

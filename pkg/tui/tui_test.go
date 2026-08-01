@@ -116,3 +116,31 @@ func TestAppendMatchesPaint(t *testing.T) {
 		}
 	}
 }
+
+func TestIsTerminalRejectsTheNullDevice(t *testing.T) {
+	// /dev/null is a character device, so the mode test alone says yes — and it is exactly what
+	// a script redirects stdin from when it means there is nobody here. Prompting into that
+	// prints a question nothing can answer, then acts on the answer it invents.
+	null, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Skipf("no %s on this platform: %v", os.DevNull, err)
+	}
+	defer func() { _ = null.Close() }()
+	if IsTerminal(null) {
+		t.Error("the null device is not somebody to ask")
+	}
+}
+
+func TestIsTerminalRejectsAFileAndANonFile(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	if IsTerminal(f) {
+		t.Error("a regular file is not a terminal")
+	}
+	if IsTerminal("not a file") {
+		t.Error("a non-file is not a terminal")
+	}
+}

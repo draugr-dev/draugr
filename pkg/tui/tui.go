@@ -110,7 +110,26 @@ func IsTerminal(v any) bool {
 		return false
 	}
 	fi, err := f.Stat()
-	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+	if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
+		return false
+	}
+	return !isDevNull(fi)
+}
+
+// isDevNull reports whether fi is the null device.
+//
+// The character-device test alone says yes to /dev/null, which is what a script redirects stdin
+// from when it means "there is nobody here". Believing it prints a prompt into a log where
+// nothing can answer, and the run then proceeds on an answer it invented — for the reader, a
+// question they never saw deciding something on their behalf.
+func isDevNull(fi os.FileInfo) bool {
+	null, err := os.Open(os.DevNull)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = null.Close() }()
+	ni, err := null.Stat()
+	return err == nil && os.SameFile(fi, ni)
 }
 
 // Pad left-aligns s to width, measured on the unstyled text. Padding must be computed before
