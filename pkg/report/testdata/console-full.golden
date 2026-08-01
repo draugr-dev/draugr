@@ -19,7 +19,7 @@ Components:
   internal-tool  pass   no findings
   2 findings not tied to a component (project-wide controls)
 
-2 findings suppressed by config.exclude
+2 findings suppressed by config.exclude — 1 accepted by a.reviewer, 1 unattributed
 
 SBOM: 2 documents (spdx-json)
 

@@ -136,14 +136,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// Silent suppression is the thing to avoid: an excluded finding that leaves no trace reads
 	// exactly like one that was never found. The count says otherwise, and each reason travels
 	// in the SARIF next to the result it justifies.
-	if n := d.Run.Suppressed; n > 0 {
-		line := fmt.Sprintf("%s suppressed by config.exclude", plural(n, "finding"))
-		if u := unattributedSuppressions(d); u > 0 {
-			// An exclusion with no acceptedBy is one nobody can be asked about. Saying how many
-			// is what turns "we suppressed some things" into a number someone can act on.
-			line += fmt.Sprintf(" (%d unattributed)", u)
-		}
-		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
+	if line := suppressionLine(d); line != "" {
+		// Not dimmed. This is the one line saying part of the report was set aside, and greying
+		// it out put it below the reading threshold of the thing it qualifies — a reader
+		// skimming a clean-looking report was the failure mode.
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent, line))
 	}
 
 	// An exclusion past its date stops suppressing, and says so. A finding that used to be

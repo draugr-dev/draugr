@@ -404,24 +404,6 @@ func (p provenanceLine) Label() string {
 	return p.Tool + " " + p.Version
 }
 
-// unattributedSuppressions counts suppressed findings whose exclusion named nobody.
-//
-// "Who decided this was acceptable" is half of what an auditor asks of a suppression, and a
-// blank is an answer worth seeing: an exclusion with no owner is one nobody can be asked about.
-// Counted rather than rejected, so existing descriptors keep working and the gap is visible
-// instead of enforced.
-func unattributedSuppressions(d Data) int {
-	n := 0
-	for _, cr := range d.Run.Controls {
-		for _, res := range cr.Report.Results {
-			if res.Suppressed() && res.Suppression.AcceptedBy == "" {
-				n++
-			}
-		}
-	}
-	return n
-}
-
 // dedupeMessages collapses identical failures, noting how many jobs hit each.
 //
 // The engine records one entry per job, which is right: each belongs to a real job and the SARIF
@@ -446,4 +428,57 @@ func dedupeMessages(msgs []string) []string {
 		out = append(out, m)
 	}
 	return out
+}
+
+// suppressionAttribution summarises who accepted the suppressed findings.
+//
+// Returns the acceptors in a stable order with their counts, and how many nobody claimed.
+//
+// The name is the point of recording it. A count of unattributed suppressions says *that* there
+// is a gap; it does not say who to ask about the rest, which is the question an auditor actually
+// arrives with — and until this, the name reached no report at all: not the console, not the
+// markdown, not even SARIF.
+func suppressionAttribution(d Data) (acceptors []string, counts map[string]int, unattributed int) {
+	counts = map[string]int{}
+	for _, cr := range d.Run.Controls {
+		for _, res := range cr.Report.Results {
+			if !res.Suppressed() {
+				continue
+			}
+			if by := res.Suppression.AcceptedBy; by != "" {
+				if _, seen := counts[by]; !seen {
+					acceptors = append(acceptors, by)
+				}
+				counts[by]++
+				continue
+			}
+			unattributed++
+		}
+	}
+	sort.Strings(acceptors)
+	return acceptors, counts, unattributed
+}
+
+// suppressionLine renders the one-line account of what was set aside and by whom.
+func suppressionLine(d Data) string {
+	n := d.Run.Suppressed
+	if n == 0 {
+		return ""
+	}
+	line := fmt.Sprintf("%s suppressed by config.exclude", plural(n, "finding"))
+	acceptors, counts, unattributed := suppressionAttribution(d)
+
+	var parts []string
+	for _, who := range acceptors {
+		parts = append(parts, fmt.Sprintf("%d accepted by %s", counts[who], who))
+	}
+	if unattributed > 0 {
+		// A blank is an answer worth seeing: an exclusion nobody signed is one nobody can be
+		// asked about.
+		parts = append(parts, fmt.Sprintf("%d unattributed", unattributed))
+	}
+	if len(parts) > 0 {
+		line += " — " + strings.Join(parts, ", ")
+	}
+	return line
 }
