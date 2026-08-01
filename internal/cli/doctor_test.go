@@ -433,3 +433,35 @@ func (unknownToolController) Plan(saga.Model, *saga.Component) ([]plugin.ScanJob
 func (unknownToolController) Aggregate([]sarif.Report) (plugin.ControlResult, error) {
 	return plugin.ControlResult{Control: "images"}, nil
 }
+
+func TestDoctorWithoutADescriptorReportsRatherThanFails(t *testing.T) {
+	// Nothing has been selected, so nothing is required. Treating the whole catalogue as
+	// required told a clean machine it was missing seven tools it may never need — kube-bench
+	// most clearly, since the default infrastructure scanner is native and needs no binary.
+	var out bytes.Buffer
+	if err := runDoctor(context.Background(), &out, builtins.Registry(),
+		"", false, fakeDetect(), nil); err != nil {
+		t.Fatalf("an inventory should not fail: %v\n%s", err, out.String())
+	}
+	got := out.String()
+	if !strings.Contains(got, "Which you need depends on your descriptor") {
+		t.Errorf("it should say what would answer the question:\n%s", got)
+	}
+	if strings.Contains(got, "required tool(s) missing") {
+		t.Errorf("nothing is required without a descriptor:\n%s", got)
+	}
+}
+
+func TestDoctorWithADescriptorStillFailsOnWhatItNeeds(t *testing.T) {
+	// The question that does have an answer: these tools were selected by this descriptor, and
+	// they are not here.
+	var out bytes.Buffer
+	err := runDoctor(context.Background(), &out, builtins.Registry(),
+		writeSaga(t, doctorSagaSASTDefault), false, fakeDetect("git"), nil)
+	if err == nil {
+		t.Fatalf("a descriptor whose tools are absent should fail\n%s", out.String())
+	}
+	if !strings.Contains(err.Error(), "required tool(s) not found") {
+		t.Errorf("got %v", err)
+	}
+}

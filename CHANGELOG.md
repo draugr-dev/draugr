@@ -22,6 +22,16 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`draugr doctor` with no descriptor reports rather than fails.** It treated the whole tool
+  catalogue as required, so a clean machine was told it was missing seven tools it may never
+  need — kube-bench most clearly, since the default infrastructure scanner is native Go and
+  needs no binary at all.
+
+  Nothing has been selected without a descriptor, so nothing is required. It now lists what is
+  present, says which tools are absent, and points at `draugr doctor <saga>` — the same question
+  with an answer. **`draugr doctor <saga>` is unchanged** and still fails on anything that
+  descriptor needs.
+
 - **A tool whose data is missing is no longer reported as already installed.** `tools install`
   compared versions and stopped there, so kube-bench with a current binary and no benchmarks was
   skipped by the very command that would have fixed it.

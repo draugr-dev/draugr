@@ -415,9 +415,18 @@ Preflight the environment: report which external scanner tools are **present, mi
 what version**, with an install hint for each — so a missing tool is caught up front instead
 of failing mid-scan. Given a Saga, it first **validates the descriptor**, then checks only the
 tools its enabled controls need (`trivy`, `gitleaks`, `semgrep`, plus `git` for repo scans, and
-`gosec` only when a component opts into it); without one, it checks them all. Optional tools that
-aren't selected don't count as missing. **Exits non-zero when the descriptor is invalid or a
+`gosec` only when a component opts into it). **Exits non-zero when the descriptor is invalid or a
 required tool is missing**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
+
+**Without a Saga it is an inventory, not a verdict.** It lists every tool Draugr can use and
+which are present, and exits zero — nothing has been selected, so nothing is required. Several
+entries are alternatives nobody needs by default: the `infrastructure` control's default scanner
+reads the Kubernetes API directly and needs no binary, so `kube-bench` being absent is not a
+problem to solve. Pass a descriptor to ask the question that has an answer.
+
+A tool is also reported as unusable when it is installed but its supporting data is not —
+`kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates. Being on PATH is not
+the same as being able to run.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -425,7 +434,7 @@ required tool is missing**, so it gates CI: `draugr doctor saga.yaml && draugr s
 | `--offline` | `false` | Skip the check for a newer draugr release (also `DRAUGR_NO_UPDATE_CHECK=1`) |
 
 ```bash
-draugr doctor                       # check every tool Draugr can use
+draugr doctor                       # inventory: what Draugr can use, and what you have
 draugr doctor draugr.saga.yaml      # check only what this Saga needs (+ validate it)
 draugr doctor --json draugr.saga.yaml
 draugr doctor --offline             # no network: skip the update check
