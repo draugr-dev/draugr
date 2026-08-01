@@ -5,10 +5,20 @@
 # to use. A filter over authors finds them, but only if you think to run it. A label puts them in
 # every list, every project view and every notification without anyone deciding to go looking.
 #
-# `author_association` comes from the event payload, so no token beyond the default is needed and
-# no org membership is read. OWNER, MEMBER and COLLABORATOR are inside; CONTRIBUTOR (has landed a
-# commit before) and NONE are not. A first-time contributor who has never had a PR merged is
-# FIRST_TIME_CONTRIBUTOR or FIRST_TIMER, which are also outside.
+# `author_association` is the first signal: OWNER, MEMBER and COLLABORATOR are inside;
+# CONTRIBUTOR, FIRST_TIME_CONTRIBUTOR, FIRST_TIMER and NONE are not.
+#
+# It is not sufficient on its own. GitHub computes it from **public** org membership, so a
+# maintainer whose membership is private comes through as CONTRIBUTOR — they have commits — and
+# every issue they file gets tagged as coming from outside. That is worse than missing the label:
+# the one view meant to surface strangers fills with the maintainers' own work, and a label that
+# is usually wrong is a label nobody reads.
+#
+# Hence the explicit list below. Crude, and honest about being crude: it needs an edit when the
+# team changes, and the failure mode then is visible and harmless. The alternative is a token
+# that can read private org membership, which is a secret to hold and rotate for a label.
+#
+# Making org membership public would remove the need for the list entirely.
 name: Triage external
 
 on:
@@ -23,10 +33,14 @@ permissions:
   issues: write
   pull-requests: write
 
+# Maintainers, by login. See the note above on why author_association cannot answer this alone.
+env:
+  INSIDERS: '["wils0ns", "filipecesar"]'
+
 jobs:
   label:
     runs-on: ubuntu-latest
-    # The association is on both event payloads under the same name.
+    # Both event payloads carry these fields under the same names.
     if: >-
       !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
                 github.event.issue.author_association || github.event.pull_request.author_association)
@@ -36,7 +50,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
           ASSOCIATION: ${{ github.event.issue.author_association || github.event.pull_request.author_association }}
+          AUTHOR: ${{ github.event.issue.user.login || github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
-          echo "author_association=$ASSOCIATION → external"
+          if echo "$INSIDERS" | jq -e --arg a "$AUTHOR" 'index($a)' >/dev/null; then
+            echo "$AUTHOR is a maintainer (author_association=$ASSOCIATION, private org membership)"
+            exit 0
+          fi
+          echo "$AUTHOR: author_association=$ASSOCIATION → external"
           gh issue edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --add-label external
