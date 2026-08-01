@@ -10,7 +10,37 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **CIS rule ids are namespaced by the scanner that emitted them** — `draugr/cis/5.1.1` and
+  `kube-bench/cis/5.1.1`. Both scanners audit the same benchmark with the same numbering, so a
+  bare `cis/5.1.1` was an id two tools both claimed. Inside Draugr the Scanner column told them
+  apart; in SARIF, in GitHub code scanning and in an editor the rule id *is* the identity — and
+  the collision also let one tool's description and `helpUri` attach to the other's finding.
+
+  **This changes exclusion rules.** A `config.exclude` naming `cis/5.1.1` no longer matches. To
+  excuse a check whichever scanner reports it — the more accurate thing to write in any case —
+  glob the namespace:
+
+  ```yaml
+  exclude:
+    - rules: ["*/cis/5.1.1"]
+      reason: "wildcard roles are how our operator works; accepted"
+  ```
+
 ### Added
+
+- **A scan reports exclusions that matched nothing.** An exclusion doing nothing reads exactly
+  like one that is working — usually a typo, a rule id that moved, or a finding someone fixed and
+  forgot to stop excusing. In every case the descriptor claims a decision it is not making:
+
+  ```
+  1 exclusion matched nothing in this run:
+    rules cis/5.1.1 — written before the ids were namespaced
+  ```
+
+  An expired exclusion is still reported as lapsed rather than unmatched: it was withdrawn before
+  matching was attempted, and saying both would describe two different things happening.
 
 - **`draugr tools install kube-bench`** fetches the binary and its `cfg/` tree together — 276
   benchmark definitions the tool cannot run without. The scanner then points `--config-dir` at

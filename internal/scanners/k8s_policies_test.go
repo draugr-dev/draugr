@@ -218,13 +218,13 @@ func TestK8sPoliciesDecidesWhatItCan(t *testing.T) {
 	for _, r := range rep.Results {
 		found[r.RuleID] = r.Message
 	}
-	if msg := found["cis/5.1.1"]; !strings.Contains(msg, "ci-admin") {
+	if msg := found["draugr/cis/5.1.1"]; !strings.Contains(msg, "ci-admin") {
 		t.Errorf("5.1.1 should name the offending binding, got %q", msg)
 	}
-	if msg := found["cis/5.1.5"]; !strings.Contains(msg, "payments") {
+	if msg := found["draugr/cis/5.1.5"]; !strings.Contains(msg, "payments") {
 		t.Errorf("5.1.5 should name the namespace, got %q", msg)
 	}
-	if msg := found["cis/5.1.1"]; strings.Contains(msg, "manual review") {
+	if msg := found["draugr/cis/5.1.1"]; strings.Contains(msg, "manual review") {
 		t.Error("a decided check must not also ask for manual review")
 	}
 }
@@ -240,7 +240,7 @@ func TestK8sPoliciesRuleIDsMatchKubeBench(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, r := range rep.Results {
-		if !strings.HasPrefix(r.RuleID, "cis/5.") {
+		if !strings.HasPrefix(r.RuleID, "draugr/cis/5.") {
 			t.Errorf("rule id %q should use the benchmark's own numbering", r.RuleID)
 		}
 	}

@@ -29,7 +29,7 @@ func TestExpiredExclusionStopsSuppressing(t *testing.T) {
 	now, _ := time.Parse("2006-01-02", "2026-09-01")
 
 	ctrls := excludeFixture()
-	n, lapsed := applyExclusions(ctrls, []saga.ExcludeRule{rule}, now)
+	n, lapsed, _ := applyExclusions(ctrls, []saga.ExcludeRule{rule}, now)
 	if n != 0 {
 		t.Errorf("an expired exclusion suppressed %d finding(s)", n)
 	}
@@ -45,7 +45,7 @@ func TestExpiredExclusionStopsSuppressing(t *testing.T) {
 	// Before the date it still applies, and carries who accepted it.
 	before, _ := time.Parse("2006-01-02", "2026-08-01")
 	ctrls = excludeFixture()
-	n, lapsed = applyExclusions(ctrls, []saga.ExcludeRule{rule}, before)
+	n, lapsed, _ = applyExclusions(ctrls, []saga.ExcludeRule{rule}, before)
 	if n != 1 || len(lapsed) != 0 {
 		t.Fatalf("suppressed=%d lapsed=%d, want 1 and 0", n, len(lapsed))
 	}
@@ -61,7 +61,7 @@ func TestUnattributedSuppressionIsStillRecorded(t *testing.T) {
 	t.Parallel()
 
 	ctrls := excludeFixture()
-	n, _ := applyExclusions(ctrls,
+	n, _, _ := applyExclusions(ctrls,
 		[]saga.ExcludeRule{{Rules: []string{"CVE-1"}, Reason: "fixture"}}, time.Now())
 	if n != 1 {
 		t.Fatalf("suppressed %d, want 1", n)

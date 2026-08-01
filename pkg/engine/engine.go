@@ -252,6 +252,10 @@ type Result struct {
 	// Reported so a finding that used to be accepted does not simply reappear with nothing to
 	// say why.
 	LapsedExclusions []saga.ExcludeRule
+	// UnmatchedExclusions are rules that matched no finding in this run. Reported because an
+	// exclusion doing nothing is indistinguishable from one that is working: it is usually a
+	// typo, a rule id that moved, or a finding someone already fixed and forgot to stop excusing.
+	UnmatchedExclusions []saga.ExcludeRule
 	// Effects records what this run did to its targets beyond reading them, deduplicated. Only
 	// scans that actually executed count: a cache hit means the traffic was not sent this time,
 	// and a record of effects has to describe what happened rather than what was configured.
@@ -577,7 +581,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// than per scanner means one syntax covers every tool, including ones added later — and it
 	// is what makes suppress-rather-than-delete possible at all: a finding a scanner never
 	// produced cannot be marked.
-	res.Suppressed, res.LapsedExclusions = applyExclusions(res.Controls, model.Config.Exclude, time.Now())
+	res.Suppressed, res.LapsedExclusions, res.UnmatchedExclusions =
+		applyExclusions(res.Controls, model.Config.Exclude, time.Now())
 	return res, errors.Join(errs...)
 }
 
@@ -659,9 +664,9 @@ func Waivable(control string) bool { return control != planningPseudoControl }
 //
 // Summaries are recomputed afterwards because a controller built them from the unsuppressed
 // report during Aggregate.
-func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.ExcludeRule, now time.Time) (suppressed int, lapsed []saga.ExcludeRule) {
+func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.ExcludeRule, now time.Time) (suppressed int, lapsed, unmatched []saga.ExcludeRule) {
 	if len(rules) == 0 {
-		return 0, nil
+		return 0, nil, nil
 	}
 	// An expired exclusion stops suppressing, and is reported as having lapsed. Dropping it
 	// silently would produce a finding that used to be accepted with nothing to say why it came
@@ -677,6 +682,11 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 	}
 	rules = active
 
+	// An exclusion that matches nothing is doing nothing, and looks identical to one that is
+	// working. That is worth saying on its own — a rule kept after the finding it excused was
+	// fixed is stale, and a rule that never matched is usually a typo or an id that moved.
+	matched := make([]bool, len(rules))
+
 	total := 0
 	for name, cr := range controls {
 		n := 0
@@ -685,8 +695,9 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 			if res.Suppressed() {
 				continue // already suppressed upstream; leave the original reason intact
 			}
-			for _, rule := range rules {
+			for ri, rule := range rules {
 				if rule.Matches(res.Location.URI, res.RuleID) {
+					matched[ri] = true
 					res.Suppression = &sarif.Suppression{
 						Kind: "external", Justification: rule.Reason,
 						AcceptedBy: rule.AcceptedBy, Expires: rule.Expires,
@@ -703,7 +714,12 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 			total += n
 		}
 	}
-	return total, lapsed
+	for i, ok := range matched {
+		if !ok {
+			unmatched = append(unmatched, rules[i])
+		}
+	}
+	return total, lapsed, unmatched
 }
 
 // sbomPseudoControl is where SBOM generation failures are reported. SBOMs are evidence, not a

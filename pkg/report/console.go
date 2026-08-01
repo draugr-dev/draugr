@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -156,6 +157,18 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			}
 			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
 				fmt.Sprintf("expired %s, accepted by %s — %s", e.Expires, who, findingSummary(e.Reason))))
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+
+	// An exclusion that matched nothing is doing nothing, and reads exactly like one that is
+	// working. Usually a typo, a rule id that moved, or a finding someone fixed and forgot to
+	// stop excusing — and in every case the descriptor claims a decision it is not making.
+	if unmatched := d.Run.UnmatchedExclusions; len(unmatched) > 0 {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent,
+			fmt.Sprintf("%s matched nothing in this run:", plural(len(unmatched), "exclusion"))))
+		for _, e := range unmatched {
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, excludeSummary(e)))
 		}
 		_, _ = fmt.Fprintln(w)
 	}
@@ -435,6 +448,18 @@ func componentBands(col tui.Painter, p [4]int) string {
 		return col.Paint(cDim, "no priorities set")
 	}
 	return strings.Join(parts, "  ")
+}
+
+// excludeSummary describes an exclusion by what it selects, so a reader can find it in the Saga.
+func excludeSummary(e saga.ExcludeRule) string {
+	var parts []string
+	if len(e.Rules) > 0 {
+		parts = append(parts, "rules "+strings.Join(e.Rules, ", "))
+	}
+	if len(e.Paths) > 0 {
+		parts = append(parts, "paths "+strings.Join(e.Paths, ", "))
+	}
+	return strings.Join(parts, "; ") + " — " + findingSummary(e.Reason)
 }
 
 // bandsText renders per-control severity counts, omitting empty bands, each colorized.

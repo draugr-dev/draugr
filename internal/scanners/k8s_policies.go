@@ -99,6 +99,11 @@ type policyVerdict struct {
 	Detail string
 }
 
+// draugrCISRulePrefix namespaces this scanner's CIS rule ids. The shared benchmark numbering is
+// what makes two tools' findings correlatable, and that correspondence belongs in SARIF taxa
+// rather than in an id two emitters collide on.
+const draugrCISRulePrefix = "draugr/cis/"
+
 // evaluatePolicies runs the implemented checks and returns their verdicts by rule id.
 //
 // One List per resource kind, reused across checks. kube-bench re-queries per check and, for the
@@ -271,7 +276,11 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 	report.Provenance = []sarif.Provenance{{Tool: k8sPoliciesScannerName, Fields: fields}}
 
 	for _, check := range cisPolicies {
-		ruleID := "cis/" + check.ID
+		// Namespaced by emitter. kube-bench audits the same benchmark and numbers its checks
+		// identically, so a bare "cis/5.1.1" is a rule id two tools both claim — and the Scanner
+		// column only disambiguates them inside Draugr's own console. In SARIF, in GitHub code
+		// scanning and in an editor, the rule id *is* the identity.
+		ruleID := draugrCISRulePrefix + check.ID
 		verdict, implemented := decided[check.ID]
 		if implemented && verdict.Compliant {
 			// A passing check is not a finding, for the same reason a clean dependency is not

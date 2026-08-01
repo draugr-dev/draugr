@@ -206,8 +206,23 @@ checks were never decided by anything.
 
 ## Interpreting a finding
 
-Rule ids are `cis/<check number>` — the same ids [`kube-bench`](kube-bench.md) emits, so an
-existing `config.exclude` rule keeps working when you switch modes.
+Rule ids are `draugr/cis/<check number>`, namespaced by the scanner that emitted them.
+[`kube-bench`](kube-bench.md) audits the same benchmark with the same numbering, and a bare
+`cis/5.1.1` would be an id two tools both claim — which is a real collision outside Draugr's own
+console, where the rule id *is* the finding's identity: in SARIF, in GitHub code scanning, in an
+editor.
+
+**To exclude a check whichever scanner reports it**, glob the namespace:
+
+```yaml
+config:
+  exclude:
+    - rules: ["*/cis/5.1.1"]
+      reason: "wildcard roles are how our operator works; accepted"
+```
+
+That is the more accurate thing to write in any case: it excuses the *check*, rather than one
+tool's opinion of it.
 
 Everything is reported at **warning**. That matches the benchmark: no check in this section is
 scored, so none of them can say a cluster is out of compliance — they say it needs looking at.

@@ -145,22 +145,22 @@ func TestParseKubeBench(t *testing.T) {
 	for _, r := range rep.Results {
 		byRule[r.RuleID] = r
 	}
-	if got := byRule["cis/4.1.1"].Level; got != sarif.LevelError {
+	if got := byRule["kube-bench/cis/4.1.1"].Level; got != sarif.LevelError {
 		t.Errorf("scored FAIL level = %q, want error", got)
 	}
-	if got := byRule["cis/4.1.3"].Level; got != sarif.LevelWarning {
+	if got := byRule["kube-bench/cis/4.1.3"].Level; got != sarif.LevelWarning {
 		t.Errorf("WARN level = %q, want warning", got)
 	}
-	if _, ok := byRule["cis/4.1.2"]; ok {
+	if _, ok := byRule["kube-bench/cis/4.1.2"]; ok {
 		t.Error("a passing check should not be reported as a finding")
 	}
-	if got := byRule["cis/4.1.1"].Location.URI; got != "kubernetes/prod" {
+	if got := byRule["kube-bench/cis/4.1.1"].Location.URI; got != "kubernetes/prod" {
 		t.Errorf("location = %q, want the cluster it audited", got)
 	}
-	if rep.Rules["cis/4.1.1"].ShortDescription == "" || rep.Rules["cis/4.1.1"].HelpURI == "" {
-		t.Errorf("rule metadata is missing: %+v", rep.Rules["cis/4.1.1"])
+	if rep.Rules["kube-bench/cis/4.1.1"].ShortDescription == "" || rep.Rules["kube-bench/cis/4.1.1"].HelpURI == "" {
+		t.Errorf("rule metadata is missing: %+v", rep.Rules["kube-bench/cis/4.1.1"])
 	}
-	if rep.Rules["cis/4.1.1"].FullDescription == "" {
+	if rep.Rules["kube-bench/cis/4.1.1"].FullDescription == "" {
 		t.Error("kube-bench supplies remediation text; it should reach the rule")
 	}
 }
@@ -658,7 +658,7 @@ func TestKubeBenchScanAcceptsThePlatformBenchmark(t *testing.T) {
 	if len(rep.Results) != 1 {
 		t.Fatalf("want the one finding, got %d", len(rep.Results))
 	}
-	if got := rep.Results[0].RuleID; got != "cis/4.1.1" {
+	if got := rep.Results[0].RuleID; got != "kube-bench/cis/4.1.1" {
 		t.Errorf("rule id = %q, want the EKS benchmark's own numbering", got)
 	}
 }
