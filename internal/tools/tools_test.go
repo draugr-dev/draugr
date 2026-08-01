@@ -111,3 +111,68 @@ func TestCatalogAndAll(t *testing.T) {
 		}
 	}
 }
+
+func TestNucleiTemplatesOK(t *testing.T) {
+	// Nuclei exits 0 whether or not it has templates, printing the same line with the version
+	// blank when it has none. The blank is the only signal there is.
+	cases := []struct {
+		name, out  string
+		wantOK     bool
+		wantDetail string
+	}{
+		{
+			name:       "installed",
+			out:        "[INF] Public nuclei-templates version: v10.4.6 (/home/u/nuclei-templates)\n",
+			wantOK:     true,
+			wantDetail: "v10.4.6 (/home/u/nuclei-templates)",
+		},
+		{
+			name:       "absent",
+			out:        "[INF] Public nuclei-templates version:  (/home/u/nuclei-templates)\n",
+			wantOK:     false,
+			wantDetail: "/home/u/nuclei-templates",
+		},
+		{name: "unrecognised output", out: "something else entirely"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ok, detail := NucleiTemplatesOK([]byte(c.out))
+			if ok != c.wantOK || detail != c.wantDetail {
+				t.Errorf("got (%v, %q), want (%v, %q)", ok, detail, c.wantOK, c.wantDetail)
+			}
+		})
+	}
+}
+
+func TestDetectProbesForAToolsData(t *testing.T) {
+	// Being on PATH is not the same as being able to run: Nuclei without templates exits
+	// non-zero at scan time complaining about the descriptor.
+	tool := Tool{
+		Binary:      "nuclei",
+		VersionArgs: []string{"-version"},
+		DataArgs:    []string{"-templates-version"},
+		DataOK:      NucleiTemplatesOK,
+	}
+	run := func(_ context.Context, argv []string) ([]byte, error) {
+		if argv[1] == "-templates-version" {
+			return []byte("Public nuclei-templates version:  (/t)\n"), nil
+		}
+		return []byte("3.11.0"), nil
+	}
+	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/nuclei", nil }, run)
+	if !st.Found {
+		t.Fatal("the binary is there")
+	}
+	if !st.DataChecked || st.DataFound {
+		t.Errorf("data should be checked and absent, got checked=%v found=%v", st.DataChecked, st.DataFound)
+	}
+}
+
+func TestDetectSkipsTheDataProbeWhenNoneIsDeclared(t *testing.T) {
+	tool := Tool{Binary: "trivy", VersionArgs: []string{"--version"}}
+	run := func(context.Context, []string) ([]byte, error) { return []byte("0.69.3"), nil }
+	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/trivy", nil }, run)
+	if st.DataChecked {
+		t.Error("a tool with no data files must not be probed for any")
+	}
+}

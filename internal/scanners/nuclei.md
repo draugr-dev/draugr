@@ -21,7 +21,9 @@ nuclei -u <url> -jsonl -silent -nc -duc -etags headers
   Nuclei's SARIF export, whose severity mapping, location, and missing CWE don't fit Draugr's
   model).
 - `-silent -nc` suppress the banner/progress and ANSI colors so stdout is clean JSONL.
-- `-duc` disables the update-check network call, keeping runs deterministic.
+- `-duc` disables the update-check network call, keeping runs deterministic. **Only on the
+  scan.** On `nuclei -update-templates` the same flag disables the update itself — the command
+  exits 0, downloads nothing, and leaves you with an engine and no templates.
 - `-etags headers` **excludes header-tagged templates** so the native
   [`headers`](../controllers/headers.md) control owns HTTP security-header findings — `dast`
   covers what `headers` doesn't (exposures, misconfigurations, info disclosure, outdated
@@ -33,6 +35,26 @@ Each finding maps to a SARIF result: `template-id` → rule id; `matched-at` (fa
 both the SARIF level and a numeric score together, so severity counts and risk prioritization
 agree: critical → error (9.5), high → error (8), medium → warning (5), low → note (2), info →
 note (1), unknown → note (no score).
+
+## Templates
+
+Nuclei is a template engine and ships without templates. Draugr downloads the community set once
+per run, before the concurrent fan-out, so parallel host scans don't each cold-start it — and
+then asks Nuclei what it has, because `-update-templates` exits 0 whether or not it fetched
+anything. A run that ends with no template set fails the control and says so, rather than letting
+Nuclei report the downstream symptom ("no templates provided for scan"), which reads like a
+descriptor error and sends the reader to the wrong place.
+
+`draugr doctor` reports the same thing before a scan: Nuclei on PATH with no templates is listed
+as `✗ no data`, since it will fail a scan exactly as surely as a missing binary.
+
+To fetch them by hand — useful on an air-gapped runner, or to see why an automatic fetch failed:
+
+```bash
+nuclei -update-templates      # not -duc; that cancels it
+nuclei -templates-version     # a blank version means none are installed
+```
+
 
 ## Links
 

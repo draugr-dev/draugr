@@ -28,6 +28,18 @@ type Tool struct {
 	// Optional marks a tool whose absence should not fail `doctor` — a nice-to-have that
 	// enhances behavior (e.g. cosign for signature verification) rather than a requirement.
 	Optional bool
+	// DataArgs probes for data the tool needs beyond its own binary — Nuclei's template set,
+	// kube-bench's benchmark configuration. Empty means the binary is all there is.
+	//
+	// Being on PATH is not the same as being able to run. A tool whose data is missing fails at
+	// scan time with a message about a symptom, and `doctor` exists to answer "is this going to
+	// fail" before the scan rather than after it.
+	DataArgs []string
+	// DataOK reads DataArgs' output and reports whether the data is there, plus a short
+	// description for the report. Required when DataArgs is set.
+	DataOK func(out []byte) (ok bool, detail string)
+	// DataHint tells the user how to obtain the data when it is missing.
+	DataHint string
 }
 
 // Tool categories.
@@ -44,6 +56,12 @@ type Status struct {
 	Version string
 	// Err is set when the tool was found but the version probe failed (non-fatal).
 	Err error
+	// DataFound reports whether the tool's supporting data is present. Meaningless unless the
+	// tool declares DataArgs; DataChecked says whether it was asked.
+	DataChecked bool
+	DataFound   bool
+	// DataDetail describes what was found, e.g. a template-set version.
+	DataDetail string
 }
 
 // LookPathFunc resolves a binary name to a path (defaults to exec.LookPath).
@@ -90,6 +108,12 @@ func Catalog() map[string]Tool {
 			VersionArgs: []string{"-version"},
 			InstallHint: "https://docs.projectdiscovery.io/tools/nuclei/install",
 			Category:    CategoryScanner,
+			// Nuclei is a template engine with no templates of its own. Installed but empty, it
+			// exits non-zero with "no templates provided for scan", which reads like a mistake in
+			// the descriptor rather than a missing download.
+			DataArgs: []string{"-templates-version"},
+			DataOK:   NucleiTemplatesOK,
+			DataHint: "run `nuclei -update-templates`",
 		},
 		"syft": {
 			Binary:      "syft",
@@ -166,6 +190,14 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 		return st
 	}
 	st.Version = semverRE.FindString(string(out))
+
+	if len(t.DataArgs) > 0 && t.DataOK != nil {
+		st.DataChecked = true
+		dataOut, dataErr := run(ctx, append([]string{t.Binary}, t.DataArgs...))
+		if dataErr == nil {
+			st.DataFound, st.DataDetail = t.DataOK(dataOut)
+		}
+	}
 	return st
 }
 
@@ -176,4 +208,27 @@ func defaultRun(ctx context.Context, argv []string) ([]byte, error) {
 	// catalog above, not user input.
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // version probe of a catalog-defined tool // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	return cmd.CombinedOutput()
+}
+
+// nucleiTemplatesVersionRE reads `nuclei -templates-version`, which prints
+//
+//	[INF] Public nuclei-templates version: v10.4.6 (/home/you/nuclei-templates)
+//
+// and, with no templates installed, prints the same line with the version blank — and exits 0
+// either way. The blank is the signal; the exit code says nothing.
+var nucleiTemplatesVersionRE = regexp.MustCompile(`nuclei-templates version:\s*(\S+)?\s*\(([^)]*)\)`)
+
+// NucleiTemplatesOK reports whether Nuclei has a template set, and which. Exported because the
+// scanner checks the same thing after asking Nuclei to download one — the tool exits 0 either
+// way, so the answer has to come from the same place `doctor` gets it.
+func NucleiTemplatesOK(out []byte) (bool, string) {
+	m := nucleiTemplatesVersionRE.FindSubmatch(out)
+	if m == nil {
+		return false, ""
+	}
+	version, dir := string(m[1]), string(m[2])
+	if version == "" {
+		return false, dir
+	}
+	return true, version + " (" + dir + ")"
 }

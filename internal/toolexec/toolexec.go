@@ -30,6 +30,25 @@ func Run(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	return RunWithEnv(ctx, dir, argv, nil)
 }
 
+// RunCombined is Run capturing stderr alongside stdout.
+//
+// For a tool asked a question rather than told to scan. Several write their answer to stderr —
+// `nuclei -templates-version` prints its whole reply there and nothing at all to stdout — so a
+// caller reading only stdout gets an empty string and concludes the wrong thing. Keeping this
+// separate from Run is deliberate: a scanner's stdout is a report to be parsed, and folding
+// stderr into it would corrupt the parse for every tool that logs while it works.
+func RunCombined(ctx context.Context, dir string, argv []string) ([]byte, error) {
+	if len(argv) == 0 {
+		return nil, errors.New("empty command")
+	}
+	started := time.Now()
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	log(ctx, argv, dir, started, out, err)
+	return out, explain(err)
+}
+
 // RunWithEnv is Run with extra environment variables layered over the parent's, each "K=V".
 //
 // A tool that shells out to another tool cannot be told which context to work in through argv —
