@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -21,8 +22,9 @@ const excludedNucleiTags = "headers"
 // nucleiScanner runs ProjectDiscovery Nuclei against a running endpoint (a component's host) and
 // converts its JSONL output to SARIF. It serves the "dast" control. run is injectable for tests.
 type nucleiScanner struct {
-	info plugin.ScannerInfo
-	run  func(ctx context.Context, argv []string) ([]byte, error)
+	info      plugin.ScannerInfo
+	run       func(ctx context.Context, argv []string) ([]byte, error)
+	templates *nucleiTemplateWarmer
 }
 
 // NewNuclei returns a Scanner that runs Nuclei for the "dast" control. Nuclei is a single Go
@@ -47,7 +49,8 @@ func NewNuclei() plugin.Scanner {
 					"systems you own or have written permission to test",
 			}},
 		},
-		run: execArgv,
+		run:       execArgv,
+		templates: sharedNucleiTemplates,
 	}
 }
 
@@ -57,7 +60,7 @@ func (s nucleiScanner) Info() plugin.ScannerInfo { return s.info }
 // Prewarm downloads Nuclei's template set once before a run's concurrent fan-out, so parallel
 // host scans don't each cold-start the download (implements plugin.Prewarmer). Best-effort: a
 // failure is non-fatal (a real problem resurfaces at scan time).
-func (s nucleiScanner) Prewarm(ctx context.Context) error { return sharedNucleiTemplates.warm(ctx) }
+func (s nucleiScanner) Prewarm(ctx context.Context) error { return s.templates.warm(ctx) }
 
 // nucleiArgv builds the command line for a host URL:
 //
@@ -87,6 +90,14 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 	}
 	if host.URL == "" {
 		return sarif.Report{}, errors.New("nuclei: host target has no url")
+	}
+	// If the template set could not be obtained, say that rather than letting Nuclei report the
+	// symptom. Its own message — "no templates provided for scan" — reads like a mistake in the
+	// descriptor, and sends the reader to the wrong place entirely.
+	if s.templates != nil {
+		if err := s.templates.templatesErr(); err != nil {
+			return sarif.Report{}, fmt.Errorf("nuclei has no templates: %w", err)
+		}
 	}
 	out, err := s.run(ctx, nucleiArgv(host.URL))
 	if err != nil {
@@ -197,14 +208,39 @@ type nucleiTemplateWarmer struct {
 	run  func(ctx context.Context, argv []string) ([]byte, error)
 }
 
-// warm runs `nuclei -update-templates -duc` at most once and returns any error (best-effort:
-// callers treat failure as non-fatal).
+// warm downloads the template set at most once, and checks that it is actually there.
+//
+// No -duc here, though the scan invocation uses it and should. On a scan it disables the update
+// check, which is what keeps a run deterministic. On `-update-templates` it disables the update
+// itself: the command exits 0, downloads nothing, and leaves the directory as it found it. The
+// result was a control that could never run — Nuclei is a template engine, and with no templates
+// it fails with "no templates provided for scan", which reads like a descriptor mistake.
+//
+// The exit code is checked and then disbelieved. Nuclei exits 0 whether or not it fetched
+// anything, so the only honest confirmation is to ask afterwards what it has.
 func (w *nucleiTemplateWarmer) warm(ctx context.Context) error {
 	w.once.Do(func() {
-		_, w.err = w.run(ctx, []string{"nuclei", "-update-templates", "-duc"})
+		if _, err := w.run(ctx, []string{"nuclei", "-update-templates"}); err != nil {
+			w.err = fmt.Errorf("download nuclei templates: %w", err)
+			return
+		}
+		out, err := w.run(ctx, []string{"nuclei", "-templates-version"})
+		if err != nil {
+			w.err = fmt.Errorf("check nuclei templates: %w", err)
+			return
+		}
+		if ok, _ := tools.NucleiTemplatesOK(out); !ok {
+			w.err = errors.New("nuclei reported no template set after -update-templates — " +
+				"dast cannot run without one; try `nuclei -update-templates` by hand to see why")
+		}
 	})
 	return w.err
 }
 
+// templatesErr returns the reason the template set is unavailable, if it is.
+func (w *nucleiTemplateWarmer) templatesErr() error { return w.err }
+
 // sharedNucleiTemplates warms the template set once per process for the Nuclei scanner.
-var sharedNucleiTemplates = &nucleiTemplateWarmer{run: execArgv}
+// Combined output, not stdout: `nuclei -templates-version` prints its answer entirely to
+// stderr, so reading stdout alone reports no templates however many are installed.
+var sharedNucleiTemplates = &nucleiTemplateWarmer{run: execArgvCombined}

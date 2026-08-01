@@ -3,6 +3,8 @@ package scanners
 import (
 	"context"
 	"errors"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -179,40 +181,135 @@ func TestNucleiScanErrors(t *testing.T) {
 	}
 }
 
-func TestNucleiPrewarmOnce(t *testing.T) {
-	calls := 0
+// templatesPresent is what `nuclei -templates-version` prints when a template set is installed.
+const templatesPresent = "[INF] Public nuclei-templates version: v10.4.6 (/home/u/nuclei-templates)\n"
+
+// templatesAbsent is the same line with the version blank — what it prints when there are none.
+// Nuclei exits 0 for both, which is why the warm step cannot trust the exit code.
+const templatesAbsent = "[INF] Public nuclei-templates version:  (/home/u/nuclei-templates)\n"
+
+func TestNucleiPrewarmDownloadsThenVerifies(t *testing.T) {
+	// -duc is right on a scan and was wrong here: on `-update-templates` it disables the update
+	// itself, so the command exited 0 having downloaded nothing and dast could never run.
+	var argvs [][]string
 	w := &nucleiTemplateWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
-		calls++
-		if len(argv) < 2 || argv[1] != "-update-templates" {
-			t.Errorf("unexpected warm argv: %v", argv)
-		}
-		return nil, nil
+		argvs = append(argvs, argv)
+		return []byte(templatesPresent), nil
 	}}
 	if err := w.warm(context.Background()); err != nil {
 		t.Fatalf("warm: %v", err)
 	}
-	if err := w.warm(context.Background()); err != nil {
-		t.Fatalf("warm (2nd): %v", err)
+	want := [][]string{{"nuclei", "-update-templates"}, {"nuclei", "-templates-version"}}
+	if !reflect.DeepEqual(argvs, want) {
+		t.Errorf("argv = %v, want %v", argvs, want)
 	}
-	if calls != 1 {
-		t.Errorf("warm ran %d times, want 1 (memoized)", calls)
+	for _, argv := range argvs {
+		if slices.Contains(argv, "-duc") {
+			t.Errorf("-duc cancels the update it is attached to: %v", argv)
+		}
+	}
+}
+
+func TestNucleiPrewarmIsMemoized(t *testing.T) {
+	calls := 0
+	w := &nucleiTemplateWarmer{run: func(context.Context, []string) ([]byte, error) {
+		calls++
+		return []byte(templatesPresent), nil
+	}}
+	for range 3 {
+		if err := w.warm(context.Background()); err != nil {
+			t.Fatalf("warm: %v", err)
+		}
+	}
+	if calls != 2 {
+		t.Errorf("ran %d commands, want 2 (download + verify, once)", calls)
+	}
+}
+
+func TestNucleiPrewarmFailsWhenNothingWasDownloaded(t *testing.T) {
+	// The check that would have caught this shipping: Nuclei exits 0 whether or not it fetched
+	// anything, so the only honest confirmation is to ask afterwards what it has.
+	w := &nucleiTemplateWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
+		if argv[1] == "-templates-version" {
+			return []byte(templatesAbsent), nil
+		}
+		return nil, nil
+	}}
+	err := w.warm(context.Background())
+	if err == nil {
+		t.Fatal("expected an error: a successful exit with no templates is the bug")
+	}
+	if !strings.Contains(err.Error(), "no template set") {
+		t.Errorf("the error should name the cause, got %v", err)
+	}
+}
+
+func TestNucleiPrewarmReportsADownloadFailure(t *testing.T) {
+	w := &nucleiTemplateWarmer{run: func(context.Context, []string) ([]byte, error) {
+		return nil, errors.New("no route to host")
+	}}
+	if err := w.warm(context.Background()); err == nil ||
+		!strings.Contains(err.Error(), "download nuclei templates") {
+		t.Errorf("want a download error, got %v", err)
+	}
+}
+
+func TestNucleiPrewarmReportsAFailedCheck(t *testing.T) {
+	w := &nucleiTemplateWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
+		if argv[1] == "-templates-version" {
+			return nil, errors.New("exec failed")
+		}
+		return nil, nil
+	}}
+	if err := w.warm(context.Background()); err == nil ||
+		!strings.Contains(err.Error(), "check nuclei templates") {
+		t.Errorf("want a check error, got %v", err)
+	}
+}
+
+func TestNucleiScanReportsTheMissingTemplatesRatherThanTheSymptom(t *testing.T) {
+	// Nuclei's own message is "no templates provided for scan", which reads as a mistake in the
+	// descriptor and sends the reader to the wrong place entirely.
+	warmer := &nucleiTemplateWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
+		if argv[1] == "-templates-version" {
+			return []byte(templatesAbsent), nil
+		}
+		return nil, nil
+	}}
+	_ = warmer.warm(context.Background())
+
+	ran := false
+	s := nucleiScanner{
+		info: plugin.ScannerInfo{Name: "nuclei"},
+		run: func(context.Context, []string) ([]byte, error) {
+			ran = true
+			return nil, nil
+		},
+		templates: warmer,
+	}
+	_, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://x"}, nil)
+	if err == nil || !strings.Contains(err.Error(), "no templates") {
+		t.Fatalf("want the template failure, got %v", err)
+	}
+	if ran {
+		t.Error("the scan should not run at all without templates")
 	}
 }
 
 func TestNucleiPrewarmDelegates(t *testing.T) {
-	// The scanner's Prewarm delegates to a warmer; verify it runs the injected command once
-	// without touching the real binary by swapping the shared warmer for a fake.
+	// The scanner's Prewarm delegates to a warmer; verify it runs without touching the real
+	// binary by swapping the shared warmer for a fake.
 	calls := 0
 	orig := sharedNucleiTemplates
 	t.Cleanup(func() { sharedNucleiTemplates = orig })
 	sharedNucleiTemplates = &nucleiTemplateWarmer{run: func(context.Context, []string) ([]byte, error) {
 		calls++
-		return nil, nil
+		return []byte(templatesPresent), nil
 	}}
 	if err := NewNuclei().(plugin.Prewarmer).Prewarm(context.Background()); err != nil {
 		t.Fatalf("Prewarm: %v", err)
 	}
-	if calls != 1 {
-		t.Errorf("Prewarm ran the warmer %d times, want 1", calls)
+	if calls != 2 {
+		t.Errorf("Prewarm ran %d commands, want 2 (download + verify)", calls)
 	}
 }

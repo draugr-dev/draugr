@@ -108,6 +108,12 @@ func runDoctor(
 		if !st.Found && !t.Optional {
 			missing++ // optional tools (e.g. cosign) are reported but don't fail the check
 		}
+		// A tool present but missing its data cannot run either, and this is the whole reason
+		// doctor exists: to answer "is a scan going to fail for something absent" before the
+		// scan, rather than leaving the tool to complain about a symptom afterwards.
+		if st.Found && st.DataChecked && !st.DataFound && !t.Optional {
+			missing++
+		}
 	}
 
 	if asJSON {
@@ -253,6 +259,12 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 			status, notes, style = "✗ missing", "install: "+st.Tool.InstallHint, tui.StyleFail
 		case st.Err != nil:
 			version, notes = "?", fmt.Sprintf("%s (version check failed)", st.Path)
+		case st.DataChecked && !st.DataFound:
+			// Found, runnable, and useless. Reported as a failure rather than a note, because it
+			// fails a scan exactly as surely as the binary being absent.
+			status, notes, style = "✗ no data", st.Tool.DataHint, tui.StyleFail
+		case st.DataChecked && st.DataDetail != "":
+			notes = st.Path + " · " + st.DataDetail
 		}
 		if version == "" {
 			version = "-"

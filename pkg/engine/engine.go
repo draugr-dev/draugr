@@ -407,6 +407,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		if sc, ok := e.reg.Scanner(name); ok {
 			if pw, ok := sc.(plugin.Prewarmer); ok {
 				if err := pw.Prewarm(ctx); err != nil {
+					// A span event is for someone already reading traces because they suspect
+					// this. Anyone else gets whatever the scanner says later about a symptom of
+					// it, which is how a template set that never downloaded surfaced as a
+					// complaint about the descriptor.
+					slog.WarnContext(ctx, "scanner prewarm failed",
+						"scanner", name, "error", err.Error())
 					runSpan.AddEvent("prewarm failed", trace.WithAttributes(
 						attribute.String("scanner", name), attribute.String("error", err.Error())))
 				}

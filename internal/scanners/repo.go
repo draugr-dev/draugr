@@ -167,3 +167,9 @@ func execArgv(ctx context.Context, argv []string) ([]byte, error) {
 func execArgvInDir(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	return toolexec.Run(ctx, dir, argv)
 }
+
+// execArgvCombined runs a tool and reads both streams, for a command whose answer is a message
+// rather than a report — several tools write those to stderr.
+func execArgvCombined(ctx context.Context, argv []string) ([]byte, error) {
+	return toolexec.RunCombined(ctx, "", argv)
+}
