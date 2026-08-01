@@ -62,8 +62,8 @@ release archive so the signed artifact still carries the whole record.
 
 ### Changing what `draugr scan` prints
 
-The console layout is quoted in the README, in several documents under `docs/`, and recaptured
-in the demo screenshot. None of those notice when it changes, so it is pinned by a golden test:
+The console layout is quoted in several documents under `docs/`, and recaptured in the demo
+screenshot the README shows. None of those notice when it changes, so it is pinned by a golden test:
 
 ```bash
 go test ./pkg/report -run TestConsoleGolden          # fails if the layout moved

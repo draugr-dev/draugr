@@ -20,9 +20,8 @@ import (
 //	go test ./pkg/report -update
 var update = flag.Bool("update", false, "rewrite the console golden files")
 
-// The console layout is copied by hand into six documents and recaptured in the demo screenshot,
-// and
-// none of those notice when it changes. The assertions elsewhere in this package check that
+// The console layout is copied by hand into four documents and recaptured in the demo
+// screenshot, and none of those notice when it changes. The assertions elsewhere in this package check that
 // particular strings are present, which is the wrong shape for a *layout*: column widths, blank
 // lines and ordering are exactly what a reader compares against their own terminal, and exactly
 // what a `strings.Contains` check cannot see.
@@ -75,9 +74,10 @@ func goldenMismatch(path string) string {
 		"  1. go test ./pkg/report -update\n" +
 		"  2. make examples          # real output from the demo sandbox, to paste into docs\n" +
 		"  3. update what quotes or describes the layout:\n" +
-		"     README.md, docs/concepts/verdict-and-gating.md (pasted output),\n" +
+		"     docs/concepts/verdict-and-gating.md (pasted output),\n" +
 		"     docs/reference/cli.md, docs/concepts/principles.md,\n" +
 		"     docs/guides/findings-in-your-editor.md (described, not pasted)\n" +
+		"     the README shows the layout only as the demo screenshot — step 5 covers it\n" +
 		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
 		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
 		"     (grep for 'Draugr — ' there; they are a separate repo, so nothing else will catch them)\n" +
