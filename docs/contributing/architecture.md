@@ -144,7 +144,8 @@ lossless core. Consequences:
   version + effective config)`. Target identity is a repo commit, an image *digest*, or a
   normalized endpoint config. Cache hit → skip the scan, reuse the SARIF. Configurable
   TTL/expiry (new CVEs can affect an unchanged artifact, so caching must be explicit and
-  time-bounded). This is a first-class, monetizable capability, not an afterthought.
+  time-bounded). First-class, not an afterthought: at any real scale the cost of a scan is
+  what decides whether it runs on every change or once a week.
 - **Plan-only mode:** emit the execution plan without running — drives CI job matrices and
   complements `draugr doctor` (preflight: are tools/creds/config present?).
 
@@ -183,8 +184,10 @@ draugr/
 
 ## 8. Deliberately deferred
 
-- **Control plane** (`cloud`): history, trends, multi-team governance, RBAC/SSO, evidence
-  store. Consumes the same engine + SARIF; not part of the OSS core.
+- **Anything that keeps state between runs:** history, trends, an evidence store, and the
+  multi-team governance those enable. Draugr is a single run producing a verdict and its
+  evidence; remembering previous runs is a different shape of program, and one this one is
+  designed to feed rather than become. `--format sarif` and the publishers are that seam.
 - **Norn policy language:** start with simple declarative thresholds; adopt OPA/Rego when
   policies outgrow them.
 - **Waivers/exemptions:** first-class model for accepted risk (with expiry + audit trail).

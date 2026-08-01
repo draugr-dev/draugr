@@ -79,11 +79,9 @@ plain (`draugr scan`, `draugr report`).
 | **Reporting / evidence engine** | **Skald** | ✅ | A skald is the poet who records and recounts deeds. `pkg/skald` renders scan results to JSON + merged SARIF evidence (human formats live in `pkg/report`). **Code-internal only** — user docs say "report" / "reporting". |
 | **Policy / pass-fail gate** | **Norn** | ✅ | The Norns decide fate. `pkg/norn` decides a release's fate. **Code-internal only** — user docs say "the gate" / "verdict". |
 | **Plugin marketplace / registry** | **the Hoard** | 🔶 | The treasure a draugr guards. A registry of community scanners, controllers, and surveyors. |
-| **Commercial control plane (multi-team hub)** | **cloud** (repo) / **Yggdrasil** (feature) | 💤 | The world-tree connecting the nine realms — the hub connecting all teams, scanners, and clusters. Repo is plainly `cloud`; `Yggdrasil` reserved for a user-facing feature name. |
 
 **In use today:** `draugr.saga.yaml` (descriptor), **Skald** (`pkg/skald`), and **Norn**
-(`pkg/norn`). **the Hoard** and **Yggdrasil** stay reserved until the plugin registry and
-control plane land.
+(`pkg/norn`). **the Hoard** stays reserved until the plugin registry lands.
 
 **Doc-facing vs. code-internal.** `Norn` and `Skald` are **code vocabulary** (`pkg/norn`,
 `pkg/skald`) and stay out of user-facing docs — a reader shouldn't have to learn a Norse
