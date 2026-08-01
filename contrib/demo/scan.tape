@@ -23,7 +23,7 @@
 Set Shell bash
 Set FontSize 18
 Set Width 1600
-Set Height 880
+Set Height 1020
 Set Theme "Dracula"
 Set Padding 20
 
@@ -31,9 +31,12 @@ Set Padding 20
 # scrolling terminal, so anything past the bottom edge is never captured — including the summary
 # line the Wait below matches on, which makes a height that is merely close fail as a timeout
 # rather than as a cropped image. At font size 18 a row is about 22px, and the sandbox scan
-# currently prints 36 rows including the prompt. Leave headroom — the output grows as controls
-# are added — but not so much that the image ends on a band of empty terminal, which is dead
-# weight in a still where it was merely the tail of a recording before.
+# currently prints 41 rows including the prompt — 942px, so 1020 leaves about three rows spare.
+#
+# Check this when the output grows. It has already failed once exactly as described above: a
+# second component added four rows, the summary line moved below the fold, and the render died
+# on a 120-second Wait for text that was never going to appear. The height is not cosmetic —
+# it decides whether the tape completes at all.
 
 # Enter the sandbox off-camera. The scanner databases are warmed by the workflow before vhs
 # starts — Trivy downloads its database on first use, and on a cold runner that download

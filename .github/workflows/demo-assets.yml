@@ -1,5 +1,19 @@
-# Render the demo assets — the README screenshot and the home page's terminal fragment — from a
-# real scan of the sandbox, and open a PR with them.
+# Regenerate the demo assets from a real scan of the sandbox, and open a pull request with them.
+#
+# Two assets, deliberately on different schedules.
+#
+# The **terminal fragment** the home page carries is cheap: capture a scan through a PTY, convert
+# the escape codes, done in seconds. It runs every release, so the page always quotes the version
+# a reader would install.
+#
+# The **README screenshot** is not cheap. It needs ttyd, ffmpeg and vhs installed, a headless
+# terminal driven through a tape, a viewport sized to the output, and a palette pass — and its
+# failure modes are slow and opaque (a Wait that times out on a line pushed below the fold). It
+# runs when the console layout changes or when someone asks, not on every release.
+#
+# What that trades: between layout changes the screenshot's numbers drift behind the fragment's,
+# because advisories move. The layout is what the screenshot is for, and the layout is what
+# triggers it. Dispatch this workflow with `screenshot=true` to refresh it anyway.
 #
 # Runs after every release, and on demand from the Actions tab. Release is the right moment
 # rather than a push to main: the job captures the *latest release*, which is what a reader who
@@ -18,7 +32,24 @@ name: Demo assets
 
 on:
   workflow_call:
+    inputs:
+      screenshot:
+        description: Also re-render the README screenshot (slow).
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      screenshot:
+        description: Also re-render the README screenshot (slow).
+        type: boolean
+        default: true
+  # The console layout is the screenshot's whole subject, so a change to it is the one event
+  # that always warrants the expensive path.
+  push:
+    branches: [main]
+    paths:
+      - pkg/report/**
+      - contrib/demo/scan.tape
 
 permissions:
   contents: read
@@ -77,7 +108,31 @@ jobs:
         working-directory: draugr-demo
         run: draugr scan . >/dev/null 2>&1 || true
 
+      # vhs renders a fixed viewport, so output taller than it is never captured — including the
+      # line the tape's Wait matches on, which turns a too-short frame into a 120-second timeout
+      # for text that was never going to appear. That is a slow, opaque way to learn the output
+      # grew, and it has happened: a second component added four rows and the render died.
+      #
+      # Measured here instead, in a second, against the tape's own declared height.
+      - name: The output still fits the viewport
+        if: ${{ inputs.screenshot || github.event_name == 'push' }}
+        working-directory: draugr-demo
+        run: |
+          set -uo pipefail
+          set +e
+          draugr scan . 2>/dev/null > /tmp/scan.txt
+          set -e
+          rows=$(( $(wc -l < /tmp/scan.txt) + 2 ))   # + the prompt line and the one after it
+          height=$(grep -oP 'Set Height \K[0-9]+' "$GITHUB_WORKSPACE/contrib/demo/scan.tape")
+          needed=$(( rows * 22 + 40 ))               # ~22px a row at font size 18, plus padding
+          echo "output is $rows rows (~${needed}px); tape declares ${height}px"
+          [ "$needed" -le "$height" ] || {
+            echo "::error::the scan output needs ~${needed}px and contrib/demo/scan.tape declares" \
+                 "${height}px — raise Set Height, or the Wait will time out on a line that never" \
+                 "appears"; exit 1; }
+
       - name: Install vhs and its dependencies
+        if: ${{ inputs.screenshot || github.event_name == 'push' }}
         run: |
           set -euo pipefail
           sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -93,6 +148,7 @@ jobs:
       # check after it. Without one, an upstream regression in `Screenshot` would show up as a
       # green run that opened no PR — indistinguishable from "the output didn't change".
       - name: Render the tape
+        if: ${{ inputs.screenshot || github.event_name == 'push' }}
         run: |
           set -euo pipefail
           rm -f contrib/demo/scan.png
@@ -105,6 +161,7 @@ jobs:
       # a palette costs nothing visible and roughly halves the file. This image is the first
       # thing the README and the home page load.
       - name: Reduce the palette
+        if: ${{ inputs.screenshot || github.event_name == 'push' }}
         run: |
           set -euo pipefail
           before=$(stat -c%s contrib/demo/scan.png)
