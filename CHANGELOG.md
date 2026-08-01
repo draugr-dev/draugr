@@ -12,6 +12,12 @@ and move it under a version on release.
 
 ### Added
 
+- **`draugr doctor` sees kube-bench's missing benchmark configuration.** kube-bench ships its
+  benchmarks as a `cfg/` tree beside the binary and people install the binary alone; every run
+  then dies with `config file is missing 'target_mapping' section`, which names an internal
+  structure rather than the directory nobody copied. Doctor checks the paths kube-bench itself
+  searches, including beside the binary where a tarball extract leaves it.
+
 - **The report says which component passed and which failed**, when there is more than one:
 
   ```
