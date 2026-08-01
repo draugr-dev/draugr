@@ -84,6 +84,9 @@ func runDoctor(
 
 	// Descriptor check: loading validates (parse + env-resolve + schema).
 	var required []tools.Tool
+	// inventoryOnly marks the no-descriptor run: it reports what is present without deciding
+	// that anything is missing, because nothing has asked for anything yet.
+	inventoryOnly := false
 	if sagaPath != "" {
 		model, err := saga.LoadFile(sagaPath)
 		if err != nil {
@@ -97,7 +100,14 @@ func runDoctor(
 		}
 		required = requiredTools(reg, model)
 	} else {
+		// No descriptor, so nothing has been selected and nothing is required. The catalogue is
+		// an inventory here — "what could Draugr use, and what have you got" — and treating
+		// every entry as required told a clean machine it was missing seven tools it may never
+		// need. kube-bench is the clearest case: the default infrastructure scanner is native
+		// and needs no binary at all, so demanding it is asking for a tool to run a scanner
+		// nobody chose.
 		required = tools.All()
+		inventoryOnly = true
 	}
 
 	statuses := make([]tools.Status, 0, len(required))
@@ -133,6 +143,17 @@ func runDoctor(
 		writeDoctorTable(w, statuses)
 	}
 
+	if missing > 0 && inventoryOnly {
+		// Reported, not failed. Which of these matter depends on a descriptor, and there is not
+		// one — `draugr doctor <saga>` is the question with an answer.
+		if !asJSON {
+			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleMuted,
+				fmt.Sprintf("%d of these are not installed. Which you need depends on your "+
+					"descriptor — run `draugr doctor <saga>` to check just those, or "+
+					"`draugr tools install` to fetch them all.", missing)))
+		}
+		return nil
+	}
 	if missing > 0 {
 		if !asJSON {
 			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleFail,
