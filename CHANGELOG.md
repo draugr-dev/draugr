@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.52.0] - 2026-07-31
+
 ### Added
 
 - **`ignore` on a repository removes paths from a scan.** Gitignore-shaped, applied after
@@ -1689,7 +1693,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.51.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.52.0...HEAD
+[0.52.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.52.0
 [0.51.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.51.0
 [0.50.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.50.0
 [0.49.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.49.0
