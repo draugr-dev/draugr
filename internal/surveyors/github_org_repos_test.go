@@ -1,10 +1,13 @@
 package surveyors
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -85,4 +88,54 @@ func srvURL(r *http.Request) string {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host
+}
+
+func TestSurveyWarnsWhenUnauthenticated(t *testing.T) {
+	// The descriptor that results is syntactically fine and omits every private repository. For
+	// a security tool that is the worst-shaped incompleteness there is: nothing about the
+	// artifact looks unfinished.
+	var logged bytes.Buffer
+	prior := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	t.Cleanup(func() { slog.SetDefault(prior) })
+	t.Setenv("GITHUB_TOKEN", "")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			t.Errorf("no token was set, so none should be sent: %q", r.Header.Get("Authorization"))
+		}
+		_, _ = w.Write([]byte(`[{"name":"a","clone_url":"https://git/a.git","default_branch":"main"}]`))
+	}))
+	defer srv.Close()
+
+	g := GitHubOrgRepos{baseURL: srv.URL, httpClient: srv.Client()}
+	if _, err := g.Survey(context.Background(), plugin.SurveyScope{Ref: "acme"}); err != nil {
+		t.Fatalf("Survey: %v", err)
+	}
+	for _, want := range []string{"public repositories only", "GITHUB_TOKEN"} {
+		if !strings.Contains(logged.String(), want) {
+			t.Errorf("the warning should mention %q, got: %s", want, logged.String())
+		}
+	}
+}
+
+func TestSurveyStaysQuietWithAToken(t *testing.T) {
+	var logged bytes.Buffer
+	prior := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	t.Cleanup(func() { slog.SetDefault(prior) })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer srv.Close()
+
+	g := GitHubOrgRepos{baseURL: srv.URL, httpClient: srv.Client()}
+	scope := plugin.SurveyScope{Ref: "acme", Config: plugin.Config{"token": "t"}}
+	if _, err := g.Survey(context.Background(), scope); err != nil {
+		t.Fatalf("Survey: %v", err)
+	}
+	if strings.Contains(logged.String(), "public repositories only") {
+		t.Errorf("an authenticated survey must not warn: %s", logged.String())
+	}
 }

@@ -299,10 +299,24 @@ Shared by all of them: `-o, --output` (default stdout), `--merge`, `--name`, `--
 Auth: the GitHub surveyor uses `GITHUB_TOKEN` (or a token in scope config); the Kubernetes
 surveyors use your ambient kubeconfig (`KUBECONFIG` / `~/.kube/config` / in-cluster).
 
+**Without a token, GitHub answers with the org's public repositories only** — the survey warns,
+because the descriptor that results looks complete and is missing every private repository.
+
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
 ```
+
+**It says what it wrote.** A survey that writes a file reports the path and what is now in it, on
+stderr so a descriptor sent to stdout stays a descriptor:
+
+```
+wrote draugr.saga.yaml — 12 components, 12 repositories
+```
+
+A `--merge` says what that run contributed on top of what was already there, and a survey that
+discovered nothing says so — a descriptor describing nothing is almost always a scope or
+credentials problem, and the count alone would read as success.
 
 **The output is scannable as written.** Discovery enables the controls the surface it found can
 be checked with — repositories imply `sca`, `secrets`, `sast` and `iac`; images imply `images`;

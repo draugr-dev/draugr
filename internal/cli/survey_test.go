@@ -409,3 +409,52 @@ func TestSurveyOutputIsScannable(t *testing.T) {
 		t.Errorf("a surveyed cluster should be scannable without hand-editing:\n%s", buf.String())
 	}
 }
+
+func TestSurveySummaryDescribesTheArtifact(t *testing.T) {
+	// The command's whole purpose is to write a file, and it never named it, counted what it
+	// found, or said where it went. Two testers concluded nothing had happened.
+	model := saga.Model{Components: []saga.Component{
+		{Name: "web", Repositories: []saga.Repository{{URL: "https://git/a"}}, Hosts: []saga.Host{{URL: "https://a"}}},
+		{Name: "api", Repositories: []saga.Repository{{URL: "https://git/b"}}},
+	}}
+	got := surveySummary(surveyOptions{output: ".saga.yaml"}, saga.Fragment{}, model)
+	want := "wrote .saga.yaml — 2 components, 2 repositories, 1 host"
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestSurveySummarySaysWhatAMergeAdded(t *testing.T) {
+	// After a merge the total says little on its own — the reader wants to know what this run
+	// contributed, which is otherwise answered by diffing the file.
+	model := saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
+	frag := saga.Fragment{Components: []saga.Component{{Name: "c"}}}
+	got := surveySummary(surveyOptions{output: "s.yaml", merge: true}, frag, model)
+	if !strings.Contains(got, "merged into s.yaml") || !strings.Contains(got, "this survey found 1 component") {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestSurveySummaryCallsOutADescriptorThatScansNothing(t *testing.T) {
+	// A survey that discovered nothing writes a valid file that checks nothing, and the count
+	// alone reads as success.
+	got := surveySummary(surveyOptions{output: "s.yaml"}, saga.Fragment{}, saga.Model{})
+	if !strings.Contains(got, "nothing was discovered") {
+		t.Errorf("an empty descriptor must say so: %q", got)
+	}
+}
+
+func TestPluralHandlesTheNounsWeUse(t *testing.T) {
+	cases := map[string]string{
+		"1 component":    plural(1, "component"),
+		"2 components":   plural(2, "component"),
+		"1 repository":   plural(1, "repository"),
+		"3 repositories": plural(3, "repository"),
+		"0 hosts":        plural(0, "host"),
+	}
+	for want, got := range cases {
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+}

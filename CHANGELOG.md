@@ -22,6 +22,23 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`draugr survey` says what it wrote.** It produced a descriptor and reported nothing — no
+  path, no counts, no account of what it discovered — so the only evidence a survey had worked
+  was the absence of an error. With `-o .saga.yaml` the file is not even visible to `ls`:
+
+  ```
+  wrote .saga.yaml — 3 components, 3 repositories
+  ```
+
+  A merge says what this run contributed, and a survey that discovered nothing says so rather
+  than reporting a count that reads as success.
+
+- **`survey github repos` says when it could only see public repositories.** With no
+  `GITHUB_TOKEN` the GitHub API answers with the org's public repositories, and the descriptor
+  that resulted was syntactically fine, enabled every control, and silently omitted every private
+  repository. Nothing about the artifact looked unfinished. It now warns, naming the consequence
+  and the variable to set.
+
 - **A prompt is no longer printed when stdin is `/dev/null`.** It is a character device, so the
   terminal check said yes to it — and it is exactly what a script redirects from when it means
   there is nobody here. Affected the `tools install` confirmation too.

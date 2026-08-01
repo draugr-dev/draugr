@@ -244,10 +244,69 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		return err
 	}
 	if opts.output != "" {
-		return os.WriteFile(opts.output, out, 0o600)
+		if err := os.WriteFile(opts.output, out, 0o600); err != nil {
+			return err
+		}
+		// Say what was produced. A command whose whole purpose is to write a file never named
+		// the file, counted what it found, or said where it went — and `-o .saga.yaml` is a name
+		// `ls` does not show, so the only evidence of a successful survey was the absence of an
+		// error. Two testers in a row concluded, reasonably, that nothing had happened.
+		//
+		// stderr, so a descriptor written to stdout stays a descriptor.
+		_, _ = fmt.Fprintln(os.Stderr, surveySummary(opts, frag, model))
+		return nil
 	}
 	_, err = stdout.Write(out)
 	return err
+}
+
+// surveySummary describes the artifact rather than the mechanics: what is now in the file, and
+// whether this survey added to something that was already there.
+func surveySummary(opts surveyOptions, frag saga.Fragment, model saga.Model) string {
+	verb := "wrote"
+	if opts.merge {
+		verb = "merged into"
+	}
+
+	var repos, images, hosts, infra int
+	for _, c := range model.Components {
+		repos += len(c.Repositories)
+		images += len(c.Images)
+		hosts += len(c.Hosts)
+		infra += len(c.Infrastructure)
+	}
+	parts := []string{plural(len(model.Components), "component")}
+	for _, p := range []struct {
+		n    int
+		noun string
+	}{{repos, "repository"}, {images, "image"}, {hosts, "host"}, {infra, "infrastructure target"}} {
+		if p.n > 0 {
+			parts = append(parts, plural(p.n, p.noun))
+		}
+	}
+
+	line := fmt.Sprintf("%s %s — %s", verb, opts.output, strings.Join(parts, ", "))
+	// On a merge the total says little on its own; the reader wants to know what this run added.
+	if opts.merge {
+		line += fmt.Sprintf(" (this survey found %s)", plural(len(frag.Components), "component"))
+	}
+	if len(model.Components) == 0 {
+		// A descriptor describing nothing is almost always a scope or credentials problem, and
+		// it is the one case where the count alone reads as success.
+		line += " — nothing was discovered, so this descriptor scans nothing"
+	}
+	return line
+}
+
+// plural renders a count with its noun, pluralised the way English mostly manages.
+func plural(n int, noun string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, noun)
+	}
+	if strings.HasSuffix(noun, "y") {
+		return fmt.Sprintf("%d %sies", n, strings.TrimSuffix(noun, "y"))
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }
 
 // baseModel returns the model to merge into: the existing Saga when --merge is set and
