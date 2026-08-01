@@ -23,6 +23,11 @@ one, starting with a Software Bill of Materials of everything you actually ship.
 
 This is the open-source core engine.
 
+**[Quickstart](#quickstart)** · [See it in action](#see-it-in-action) · [Status](#status) ·
+[Use in CI](#use-in-ci-github-actions) · [From an AI assistant](#use-from-an-ai-coding-assistant) ·
+[Documentation](#documentation) · [What Draugr doesn't promise](#what-draugr-doesnt-promise) ·
+[Security](#security--supply-chain) · [Development](#development)
+
 ## See it in action
 
 ![Terminal output from `draugr scan .`: a FAIL verdict, counts across priorities P1 to P4, a per-control table of severities, and a ranked fix-first list giving each finding's priority, severity, score, rule, control, scanner and file location.](contrib/demo/scan.png)
