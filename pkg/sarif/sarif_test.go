@@ -2,6 +2,7 @@ package sarif
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -380,7 +381,7 @@ func TestFromSARIFKeepsRuleMetadata(t *testing.T) {
 		Help:             "Use ast.literal_eval.",
 		HelpURI:          "https://semgrep.dev/r/py.audit.eval",
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("rule = %+v, want %+v", got, want)
 	}
 }

@@ -34,6 +34,10 @@ type sarifRun struct {
 	// bag on a run for exactly this, so the benchmark a report was measured against travels to
 	// any consumer that reads SARIF rather than only to Draugr's own reporters.
 	Properties *sarifRunProperties `json:"properties,omitempty"`
+	// Taxonomies are the classification schemes the rules below reference — CIS controls, CWEs.
+	// SARIF's own mechanism for saying "these two rules are about the same thing", which is what
+	// lets a consumer group findings across tools without guessing from rule ids.
+	Taxonomies []sarifTaxonomy `json:"taxonomies,omitempty"`
 }
 
 // sarifRunProperties is Draugr's run-level property bag.
@@ -94,6 +98,43 @@ type sarifRule struct {
 	HelpURI              string           `json:"helpUri,omitempty"`
 	DefaultConfiguration *sarifRuleConfig `json:"defaultConfiguration,omitempty"`
 	Properties           *sarifProperties `json:"properties,omitempty"`
+	// Relationships point at the taxa this rule implements, by index into run.taxonomies.
+	Relationships []sarifRelationship `json:"relationships,omitempty"`
+}
+
+// sarifTaxonomy is one classification scheme and the taxa within it that this run references.
+type sarifTaxonomy struct {
+	Name            string       `json:"name"`
+	Version         string       `json:"version,omitempty"`
+	GUID            string       `json:"guid,omitempty"`
+	Taxa            []sarifTaxon `json:"taxa"`
+	IsComprehensive bool         `json:"isComprehensive"`
+}
+
+// sarifTaxon is one classification — a CIS control, a CWE.
+type sarifTaxon struct {
+	ID               string        `json:"id"`
+	Name             string        `json:"name,omitempty"`
+	ShortDescription *sarifMessage `json:"shortDescription,omitempty"`
+}
+
+// sarifRelationship links a rule to a taxon it implements.
+type sarifRelationship struct {
+	Target sarifReportingDescriptorRef `json:"target"`
+	Kinds  []string                    `json:"kinds"`
+}
+
+// sarifReportingDescriptorRef addresses a taxon within one of the run's taxonomies.
+type sarifReportingDescriptorRef struct {
+	ID            string       `json:"id"`
+	Index         int          `json:"index"`
+	ToolComponent sarifToolRef `json:"toolComponent"`
+}
+
+// sarifToolRef names which taxonomy a reference points into, by index.
+type sarifToolRef struct {
+	Name  string `json:"name"`
+	Index int    `json:"index"`
 }
 
 // text returns m's text, tolerating a nil message so callers can read optional fields inline.
@@ -279,6 +320,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 	}
 	// Emit one rule per ruleId, tagged with its originating scanner(s). GitHub matches a
 	// result to its rule by ruleId and shows the rule's tags on the alert.
+	taxonomies := newTaxonomyIndex()
 	for _, id := range ruleOrder {
 		scanners := make([]string, 0, len(ruleScanners[id]))
 		for s := range ruleScanners[id] {
@@ -300,8 +342,10 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		if len(tags) > 0 {
 			out.Properties = &sarifProperties{Tags: tags}
 		}
+		out.Relationships = taxonomies.relate(rule.Taxa)
 		run.Tool.Driver.Rules = append(run.Tool.Driver.Rules, out)
 	}
+	run.Taxonomies = taxonomies.emit()
 	log := sarifLog{Schema: schemaURL, Version: Version, Runs: []sarifRun{run}}
 	if opts.Compact {
 		return json.Marshal(log)
@@ -490,4 +534,85 @@ func readableMessage(msg, summary string) string {
 		return msg
 	}
 	return summary
+}
+
+// taxonomyIndex collects the classification schemes a report references and assigns each taxon
+// the stable index SARIF relationships address it by.
+//
+// Built while writing rather than declared up front: only the taxa actually referenced belong in
+// the output, and a run that mentions none should not carry an empty taxonomies array.
+type taxonomyIndex struct {
+	order  []string // taxonomy names, in first-seen order
+	byName map[string]*taxonomyEntry
+}
+
+type taxonomyEntry struct {
+	index   int
+	version string
+	ids     []string       // taxon ids, in first-seen order
+	byID    map[string]int // id → index within this taxonomy
+	taxa    []sarifTaxon
+}
+
+func newTaxonomyIndex() *taxonomyIndex {
+	return &taxonomyIndex{byName: map[string]*taxonomyEntry{}}
+}
+
+// relate records each taxon and returns the relationships pointing at them.
+func (t *taxonomyIndex) relate(taxa []Taxon) []sarifRelationship {
+	if len(taxa) == 0 {
+		return nil
+	}
+	out := make([]sarifRelationship, 0, len(taxa))
+	for _, tx := range taxa {
+		if tx.Taxonomy == "" || tx.ID == "" {
+			continue // a half-declared taxon says nothing and would produce a dangling reference
+		}
+		entry, ok := t.byName[tx.Taxonomy]
+		if !ok {
+			entry = &taxonomyEntry{index: len(t.order), version: tx.Version, byID: map[string]int{}}
+			t.byName[tx.Taxonomy] = entry
+			t.order = append(t.order, tx.Taxonomy)
+		}
+		idx, seen := entry.byID[tx.ID]
+		if !seen {
+			idx = len(entry.taxa)
+			entry.byID[tx.ID] = idx
+			entry.ids = append(entry.ids, tx.ID)
+			entry.taxa = append(entry.taxa, sarifTaxon{ID: tx.ID, Name: tx.Name})
+		}
+		out = append(out, sarifRelationship{
+			Target: sarifReportingDescriptorRef{
+				ID:            tx.ID,
+				Index:         idx,
+				ToolComponent: sarifToolRef{Name: tx.Taxonomy, Index: entry.index},
+			},
+			// "superset": the taxon covers this rule and more. SARIF's vocabulary for "this rule
+			// is one implementation of that classification", which is exactly the relationship
+			// between a scanner's check and the benchmark control it implements.
+			Kinds: []string{"superset"},
+		})
+	}
+	return out
+}
+
+// emit renders the collected schemes, or nil when nothing referenced any.
+func (t *taxonomyIndex) emit() []sarifTaxonomy {
+	if len(t.order) == 0 {
+		return nil
+	}
+	out := make([]sarifTaxonomy, 0, len(t.order))
+	for _, name := range t.order {
+		e := t.byName[name]
+		out = append(out, sarifTaxonomy{
+			Name:    name,
+			Version: e.version,
+			Taxa:    e.taxa,
+			// Not comprehensive: these are the taxa this run happened to reference, not the whole
+			// benchmark. Claiming otherwise would tell a consumer that anything absent is not in
+			// the standard.
+			IsComprehensive: false,
+		})
+	}
+	return out
 }

@@ -616,6 +616,15 @@ func reportFromKubeBench(doc kubeBenchDoc, tool, location string) sarif.Report {
 					ShortDescription: res.TestDesc,
 					FullDescription:  strings.TrimSpace(res.Remedy),
 					HelpURI:          "https://www.cisecurity.org/benchmark/kubernetes",
+					// Same taxonomy and same control id as draugr-k8s-policies, which is how the
+					// two scanners' accounts of one check stay recognisable as such now that
+					// their rule ids are namespaced apart.
+					Taxa: []sarif.Taxon{{
+						Taxonomy: cisKubernetesTaxonomy,
+						ID:       res.TestNumber,
+						Name:     res.TestDesc,
+						Version:  ctl.Version,
+					}},
 				}
 			}
 		}
