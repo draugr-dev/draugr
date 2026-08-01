@@ -25,7 +25,7 @@ func TestApplyExclusionsSuppressesRatherThanDeletes(t *testing.T) {
 		sarif.Result{RuleID: "private-key", Level: sarif.LevelError, Location: sarif.Location{URI: "test/fixture.go"}},
 		sarif.Result{RuleID: "aws-key", Level: sarif.LevelError, Location: sarif.Location{URI: "src/real.go"}},
 	)
-	n, _ := applyExclusions(ctrls, []saga.ExcludeRule{
+	n, _, _ := applyExclusions(ctrls, []saga.ExcludeRule{
 		{Paths: []string{"test/fixture.go"}, Rules: []string{"private-key"}, Reason: "deliberate test fixture"},
 	}, time.Now())
 	if n != 1 {
@@ -74,7 +74,7 @@ func TestApplyExclusionsRemovesTheFindingFromTheVerdict(t *testing.T) {
 
 func TestApplyExclusionsNoRulesIsANoop(t *testing.T) {
 	ctrls := controlsWith(sarif.Result{RuleID: "k", Level: sarif.LevelError, Location: sarif.Location{URI: "a.go"}})
-	if n, _ := applyExclusions(ctrls, nil, time.Now()); n != 0 {
+	if n, _, _ := applyExclusions(ctrls, nil, time.Now()); n != 0 {
 		t.Errorf("suppressed = %d, want 0", n)
 	}
 	if ctrls["sca"].Report.Results[0].Suppressed() {
@@ -89,7 +89,7 @@ func TestApplyExclusionsLeavesAnUpstreamSuppressionAlone(t *testing.T) {
 		RuleID: "k", Level: sarif.LevelError, Location: sarif.Location{URI: "a.go"},
 		Suppression: &sarif.Suppression{Kind: "inSource", Justification: "nosem comment"},
 	})
-	if n, _ := applyExclusions(ctrls, []saga.ExcludeRule{{Paths: []string{"*.go"}, Reason: "ours"}}, time.Now()); n != 0 {
+	if n, _, _ := applyExclusions(ctrls, []saga.ExcludeRule{{Paths: []string{"*.go"}, Reason: "ours"}}, time.Now()); n != 0 {
 		t.Errorf("suppressed = %d, want 0 — it was already suppressed", n)
 	}
 	if got := ctrls["sca"].Report.Results[0].Suppression.Justification; got != "nosem comment" {
@@ -101,7 +101,7 @@ func TestApplyExclusionsFirstMatchWins(t *testing.T) {
 	// Two rules can cover the same finding. It is suppressed once, with the first reason, so
 	// the count matches the number of findings rather than the number of matches.
 	ctrls := controlsWith(sarif.Result{RuleID: "k", Level: sarif.LevelError, Location: sarif.Location{URI: "test/f.go"}})
-	n, _ := applyExclusions(ctrls, []saga.ExcludeRule{
+	n, _, _ := applyExclusions(ctrls, []saga.ExcludeRule{
 		{Paths: []string{"test/"}, Reason: "first"},
 		{Rules: []string{"k"}, Reason: "second"},
 	}, time.Now())
@@ -124,7 +124,7 @@ func TestApplyExclusionsCountsWhatABroadGlobSwallowed(t *testing.T) {
 		sarif.Result{RuleID: "license/GPL-3.0-only/c", Level: sarif.LevelError, Location: sarif.Location{URI: "go.mod"}},
 		sarif.Result{RuleID: "CVE-2019-1", Level: sarif.LevelError, Location: sarif.Location{URI: "go.mod"}},
 	)
-	n, _ := applyExclusions(ctrls, []saga.ExcludeRule{
+	n, _, _ := applyExclusions(ctrls, []saga.ExcludeRule{
 		{Rules: []string{"license/*"}, Reason: "licence policy handled out of band"},
 	}, time.Now())
 	if n != 3 {
@@ -153,9 +153,45 @@ func TestApplyExclusionsGlobMatchesAcrossSeparators(t *testing.T) {
 		RuleID: "license/GPL-3.0-only/github.com/somelib/thing",
 		Level:  sarif.LevelWarning, Location: sarif.Location{URI: "go.mod"},
 	})
-	if n, _ := applyExclusions(ctrls, []saga.ExcludeRule{
+	if n, _, _ := applyExclusions(ctrls, []saga.ExcludeRule{
 		{Rules: []string{"license/GPL-3.0-only/*"}, Reason: "legal reviewed; we don't distribute"},
 	}, time.Now()); n != 1 {
 		t.Errorf("suppressed = %d, want the compound id matched", n)
+	}
+}
+
+func TestApplyExclusionsReportsARuleThatMatchedNothing(t *testing.T) {
+	// An exclusion doing nothing reads exactly like one that is working. Usually a typo, a rule
+	// id that moved, or a finding someone fixed and forgot to stop excusing — and in every case
+	// the descriptor claims a decision it is not making.
+	ctrls := controlsWith(
+		sarif.Result{RuleID: "draugr/cis/5.1.1", Level: sarif.LevelError, Location: sarif.Location{URI: "cluster"}},
+	)
+	_, _, unmatched := applyExclusions(ctrls, []saga.ExcludeRule{
+		{Rules: []string{"draugr/cis/5.1.1"}, Reason: "accepted"},
+		{Rules: []string{"cis/5.1.1"}, Reason: "written before the ids were namespaced"},
+		{Paths: []string{"nowhere/"}, Reason: "a directory that no longer exists"},
+	}, time.Now())
+
+	if len(unmatched) != 2 {
+		t.Fatalf("unmatched = %d, want the two that matched nothing", len(unmatched))
+	}
+	if unmatched[0].Reason != "written before the ids were namespaced" {
+		t.Errorf("order should follow the descriptor: %+v", unmatched)
+	}
+}
+
+func TestApplyExclusionsCountsAnExpiredRuleAsLapsedNotUnmatched(t *testing.T) {
+	// A rule that expired did not fail to match; it was withdrawn before matching was attempted,
+	// and reporting it twice would say two different things happened.
+	ctrls := controlsWith(sarif.Result{RuleID: "x", Level: sarif.LevelError})
+	_, lapsed, unmatched := applyExclusions(ctrls, []saga.ExcludeRule{
+		{Rules: []string{"x"}, Reason: "accepted", Expires: "2000-01-01"},
+	}, time.Now())
+	if len(lapsed) != 1 {
+		t.Errorf("lapsed = %d, want 1", len(lapsed))
+	}
+	if len(unmatched) != 0 {
+		t.Errorf("an expired rule is not an unmatched one: %+v", unmatched)
 	}
 }

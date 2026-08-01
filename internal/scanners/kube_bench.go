@@ -275,6 +275,10 @@ var provisionedKubeBenchCfg = func() string {
 	return dir
 }
 
+// kubeBenchCISRulePrefix namespaces this scanner's CIS rule ids, so they cannot be confused with
+// draugr-k8s-policies' findings about the very same checks.
+const kubeBenchCISRulePrefix = "kube-bench/cis/"
+
 // kubeBenchPlan is how the scan will run, and what it therefore expects back.
 //
 // platform carries the distribution Draugr detected, and is empty whenever the benchmark was
@@ -599,7 +603,7 @@ func reportFromKubeBench(doc kubeBenchDoc, tool, location string) sarif.Report {
 				if !ok {
 					continue
 				}
-				ruleID := "cis/" + res.TestNumber
+				ruleID := kubeBenchCISRulePrefix + res.TestNumber
 				report.Results = append(report.Results, sarif.Result{
 					Tool:     tool,
 					RuleID:   ruleID,
