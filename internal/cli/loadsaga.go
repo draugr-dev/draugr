@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // scanModel resolves a scan target into a Saga model. An empty target means the current
@@ -26,26 +29,111 @@ func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
 		// Deliberately not a fallback: if the descriptor is there but unreadable, that is an
 		// error. Falling back would reproduce the bug this exists to fix, with an extra step —
 		// the reason a descriptor was skipped has to be reported, never shrugged at.
-		if path := descriptorIn(target); path != "" {
-			m, err = loadSaga(path)
-			return m, false, err
+		found, ferr := descriptorsIn(target)
+		if ferr != nil {
+			return nil, false, ferr
 		}
-		return syntheticSaga(target), true, nil
+		switch len(found) {
+		case 0:
+			return syntheticSaga(target), true, nil
+		case 1:
+			m, err = loadSaga(found[0])
+			return m, false, err
+		default:
+			// Two descriptors are two different accounts of what this project is. Ask when there
+			// is someone to ask; refuse with the list when there is not.
+			if choice, ok := chooser(found); ok {
+				m, err = loadSaga(choice)
+				return m, false, err
+			}
+			return nil, false, ambiguousDescriptors(target, found)
+		}
 	}
 	m, err = loadSaga(target)
 	return m, false, err
 }
 
-// DescriptorName is the file `draugr init` writes and `scan` looks for in a directory.
+// DescriptorName is the file `draugr init` writes. It is one of several names a scan will find,
+// not the only one — see descriptorsIn.
 const DescriptorName = "draugr.saga.yaml"
 
-// descriptorIn returns the descriptor in dir, or "" when there is none.
-func descriptorIn(dir string) string {
-	path := filepath.Join(dir, DescriptorName)
-	if info, err := os.Stat(path); err == nil && !info.IsDir() {
-		return path
+// descriptorSuffixes are the endings that make a file a Saga descriptor.
+//
+// Any `*.saga.yaml` counts, not just `draugr.saga.yaml`. These are the names our SchemaStore
+// entry claims, so an editor already offers completion and validation on all of them — a scan
+// that then ignored three of the four would be contradicting our own editor integration. It also
+// covers the dotfile form on its own, since `.saga.yaml` has no stem before the suffix.
+var descriptorSuffixes = []string{".saga.yaml", ".saga.yml"}
+
+// descriptorsIn returns every Saga descriptor directly in dir, sorted for a stable message.
+// Subdirectories are not searched: a descriptor names the project it sits beside, and walking
+// would pick up fixtures and vendored trees that describe something else entirely.
+func descriptorsIn(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", dir, err)
 	}
-	return ""
+	var found []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		for _, suffix := range descriptorSuffixes {
+			if strings.HasSuffix(e.Name(), suffix) {
+				found = append(found, filepath.Join(dir, e.Name()))
+				break
+			}
+		}
+	}
+	sort.Strings(found)
+	return found, nil
+}
+
+// chooser asks which descriptor to use. A var so a test can answer without a terminal.
+var chooser = promptForDescriptor
+
+// ambiguousDescriptors refuses a directory holding more than one descriptor.
+//
+// Not a guess. Two descriptors are two different accounts of what this project is: different
+// components, different controls, different exposure driving different priorities. Picking one
+// by name would produce a verdict about something the reader did not ask about, and nothing in
+// the output would say which.
+//
+// Nor are both scanned. A descriptor carries a release and yields one verdict; running two and
+// merging them answers a question nobody asked, and running two and reporting twice is a
+// different command from the one that was typed.
+//
+// Reached only when there was nobody to ask — a prompt in CI would hang a pipeline, which is the
+// one outcome worse than stopping.
+func ambiguousDescriptors(dir string, found []string) error {
+	names := make([]string, len(found))
+	for i, p := range found {
+		names[i] = filepath.Base(p)
+	}
+	return fmt.Errorf("%s holds %d descriptors (%s) — name the one to scan, e.g. `draugr scan %s`",
+		dir, len(found), strings.Join(names, ", "), filepath.Join(dir, names[0]))
+}
+
+// promptForDescriptor asks which descriptor to scan, on a terminal only.
+func promptForDescriptor(found []string) (string, bool) {
+	if !tui.IsTerminal(os.Stdin) {
+		return "", false
+	}
+	fmt.Fprintf(os.Stderr, "More than one descriptor here. Which should I scan?\n")
+	for i, p := range found {
+		fmt.Fprintf(os.Stderr, "  %d) %s\n", i+1, filepath.Base(p))
+	}
+	fmt.Fprintf(os.Stderr, "Choose [1-%d], or anything else to cancel: ", len(found))
+
+	var answer string
+	if _, err := fmt.Fscanln(os.Stdin, &answer); err != nil {
+		return "", false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(answer))
+	if err != nil || n < 1 || n > len(found) {
+		return "", false
+	}
+	return found[n-1], true
 }
 
 // zeroConfigControls are the controls a zero-config scan enables: the repository-based ones,

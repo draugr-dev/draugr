@@ -76,13 +76,28 @@ human-readable **console** summary to stdout by default (`--format` for other fo
 **Exits non-zero when the verdict is `fail`.**
 
 **A descriptor in the directory wins.** Point `scan` at a directory — or omit the argument — and
-it uses the `draugr.saga.yaml` there if one exists. Everything that file declares applies:
-the controls chosen, the components, and the exposure and criticality that drive prioritization.
+it uses the descriptor there if one exists. Everything that file declares applies: the controls
+chosen, the components, and the exposure and criticality that drive prioritization.
+
+Any of these names counts, which are the ones the editor integration already validates:
+
+```
+draugr.saga.yaml    web.saga.yaml    .saga.yaml    api.saga.yml
+```
 
 If the descriptor cannot be read, the scan **fails**. It does not fall back to zero-config: the
 reason a descriptor was skipped has to be reported, or a broken file produces a green scan.
 
-**Zero-config.** A directory with no `draugr.saga.yaml` is scanned with `sca`, `secrets`, `sast`
+**More than one descriptor stops the scan.** Two are two different accounts of what the project
+is — different components, different controls, different exposure driving different priorities —
+so Draugr does not pick. On a terminal it asks which one; anywhere else it lists them and stops,
+because a prompt in CI would hang the pipeline. Name the file to skip the question:
+
+```bash
+draugr scan ./web.saga.yaml
+```
+
+**Zero-config.** A directory with no descriptor is scanned with `sca`, `secrets`, `sast`
 and `iac` — no Saga required.
 A one-line note is printed to stderr so machine formats on stdout stay clean. A Saga **file**
 argument runs exactly as before.

@@ -108,7 +108,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// Only reachable when the directory has no descriptor, so suggesting one is safe here —
 		// it used to print over a descriptor that was sitting right there, telling the reader to
 		// create the file they already had.
-		_, _ = fmt.Fprintf(os.Stderr, "No "+DescriptorName+" here — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
+		// Names the shape rather than one filename: a reader whose file is called `web.saga.yaml`
+		// would otherwise read "no draugr.saga.yaml here" as a filename mismatch and rename it,
+		// when the real answer is that the file is somewhere else.
+		_, _ = fmt.Fprintf(os.Stderr, "No *.saga.yaml here — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
 			"(run `draugr init` to scaffold one you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
