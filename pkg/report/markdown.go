@@ -108,7 +108,7 @@ func writeScanErrors(w io.Writer, s summary) {
 	_, _ = fmt.Fprintln(w, "**Errors**")
 	_, _ = fmt.Fprintln(w)
 	for _, name := range sortedKeys(s.scanErrors) {
-		for _, msg := range s.scanErrors[name] {
+		for _, msg := range dedupeMessages(s.scanErrors[name]) {
 			_, _ = fmt.Fprintf(w, "- `%s` — %s\n", name, findingSummary(msg))
 		}
 	}
