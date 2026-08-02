@@ -177,11 +177,16 @@ config:
 Each scanner validates its options against a declared schema, so a mistyped key or wrong value
 type is reported before the scan runs. Run `draugr controls` to see each control's scanners.
 
-> Implemented today: **`images`** (Trivy), **`sca`** (Trivy fs), **`secrets`** (Gitleaks),
-> **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config), **`headers`** (native
-> HTTP-header checks), **`dast`** (Nuclei), and **`tls`** (native TLS/certificate probe).
-> `threats` is on the roadmap; `sbom` ships as evidence under `config.sbom` rather than as a control. Run `draugr controls` for the current list and each control's
-> scanners.
+> Implemented today: **`images`** (Trivy), **`sca`** (Trivy fs), **`licenses`** (Trivy),
+> **`secrets`** (Gitleaks), **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config),
+> **`infrastructure`** (native CIS checks; opt-in kube-bench), **`headers`** (native HTTP-header
+> checks, including a graded CSP), **`dast`** (Nuclei), and **`tls`** (native TLS/certificate
+> probe). `threats` is on the roadmap; `sbom` ships as evidence under `config.sbom` rather than as
+> a control.
+>
+> **`draugr controls` is the authoritative list** — it asks the same registry the validator and the
+> JSON Schema do, so it cannot be out of date with the binary you are running. This one is prose,
+> and prose drifts.
 
 ## `config.reports` and `config.publishers`
 
