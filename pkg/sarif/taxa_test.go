@@ -3,6 +3,7 @@ package sarif
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"testing"
 )
 
@@ -86,5 +87,60 @@ func TestTaxonKeyDistinguishesBenchmarkRevisions(t *testing.T) {
 	}
 	if got := (Taxon{Taxonomy: "CWE", ID: "79"}).Key(); got != "CWE/79" {
 		t.Errorf("an unversioned taxonomy should key plainly, got %q", got)
+	}
+}
+
+func TestMergeUnionsWhatEachScannerSettled(t *testing.T) {
+	// The point of recording it: after merging, a consumer can ask which controls anybody reached
+	// a verdict on — and by elimination, which nobody examined.
+	cis := func(id string) Taxon {
+		return Taxon{Taxonomy: "CIS-Kubernetes", ID: id, Version: "cis-1.12"}
+	}
+	ours := Report{Tool: "draugr-k8s-policies", Decided: []Taxon{cis("5.1.1"), cis("5.1.5")}}
+	theirs := Report{Tool: "kube-bench", Decided: []Taxon{cis("5.1.1"), cis("5.2.4")}}
+
+	merged := Merge(ours, theirs)
+	var ids []string
+	for _, t := range merged.Decided {
+		ids = append(ids, t.ID)
+	}
+	slices.Sort(ids)
+	if !slices.Equal(ids, []string{"5.1.1", "5.1.5", "5.2.4"}) {
+		t.Errorf("got %v, want the union with 5.1.1 counted once", ids)
+	}
+}
+
+func TestDecidedDedupesOnTheKeyNotTheLabel(t *testing.T) {
+	// Two scanners naming one control will label it differently, and the label is not what makes
+	// it the same control.
+	a := Report{Decided: []Taxon{{Taxonomy: "CIS-Kubernetes", ID: "5.1.1", Name: "Minimize wildcard use"}}}
+	b := Report{Decided: []Taxon{{Taxonomy: "CIS-Kubernetes", ID: "5.1.1", Name: "5.1.1 Minimize wildcard use of roles"}}}
+	if got := len(Merge(a, b).Decided); got != 1 {
+		t.Errorf("got %d, want one control", got)
+	}
+}
+
+func TestDecidedKeepsRevisionsApart(t *testing.T) {
+	// A check number means a different thing between benchmark revisions.
+	a := Report{Decided: []Taxon{{Taxonomy: "CIS-Kubernetes", ID: "5.1.1", Version: "cis-1.12"}}}
+	b := Report{Decided: []Taxon{{Taxonomy: "CIS-Kubernetes", ID: "5.1.1", Version: "cis-1.9"}}}
+	if got := len(Merge(a, b).Decided); got != 2 {
+		t.Errorf("got %d, want both revisions", got)
+	}
+}
+
+func TestDecidedReachesSARIF(t *testing.T) {
+	// It has to leave the process, or only Draugr's own reporters can use it — and the consumer
+	// this matters most to is the one aggregating across runs.
+	rep := Report{Tool: "draugr-k8s-policies",
+		Decided: []Taxon{{Taxonomy: "CIS-Kubernetes", ID: "5.1.1", Version: "cis-1.12"}}}
+	data, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"decided"`, `"CIS-Kubernetes"`, `"5.1.1"`, `"cis-1.12"`} {
+		if !bytes.Contains(data, []byte(want)) {
+			t.Errorf("missing %s in:\n%s", want, data)
+		}
 	}
 }
