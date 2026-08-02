@@ -458,3 +458,23 @@ func TestPluralHandlesTheNounsWeUse(t *testing.T) {
 		}
 	}
 }
+
+func TestPlural(t *testing.T) {
+	cases := []struct {
+		n    int
+		noun string
+		want string
+	}{
+		{1, "component", "1 component"},
+		{2, "component", "2 components"},
+		{3, "repository", "3 repositories"},
+		{4, "day", "4 days"}, // vowel before the y: not "daies"
+		{2, "key", "2 keys"},
+		{0, "tool", "0 tools"},
+	}
+	for _, c := range cases {
+		if got := plural(c.n, c.noun); got != c.want {
+			t.Errorf("plural(%d, %q) = %q, want %q", c.n, c.noun, got, c.want)
+		}
+	}
+}

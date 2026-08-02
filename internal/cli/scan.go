@@ -80,8 +80,8 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "list findings at or above this priority band (P1-P4)")
 	cmd.Flags().StringSliceVar(&opts.allowEffects, "allow-effects", nil,
 		"accept scanner effects for this run (mutate, privilege); config.allowEffects is the reviewed equivalent")
-	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog JSON: a CVE on it is escalated to critical")
-	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores CSV: a CVE at/above --epss-threshold is bumped one severity band")
+	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE on it is escalated to critical")
+	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE at/above --epss-threshold is bumped one band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", 0.5, "EPSS probability (0-1) that triggers a severity bump")
 	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0, "max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency")
 	cmd.Flags().StringVar(&opts.format, "format", "console", "stdout report format: console, markdown, html, junit, json, sarif, template")
@@ -125,7 +125,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return err
 	}
-	expl, err := loadExploitSource(opts)
+	expl, err := loadExploitSource(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -284,37 +284,6 @@ func fixFirstLimit(top int) int {
 // and criticality.
 func defaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 	return scanpolicy.DefaultPrioritizer(expl)
-}
-
-// loadExploitSource builds an exploitability source from the optional --kev / --epss files.
-// Returns nil when neither is provided (enrichment disabled).
-func loadExploitSource(opts scanOptions) (*exploit.Source, error) {
-	if opts.kevFile == "" && opts.epssFile == "" {
-		return nil, nil
-	}
-	var kev map[string]bool
-	var epss map[string]float64
-	if opts.kevFile != "" {
-		f, err := os.Open(opts.kevFile) //nolint:gosec // operator-provided path
-		if err != nil {
-			return nil, fmt.Errorf("open --kev: %w", err)
-		}
-		defer func() { _ = f.Close() }()
-		if kev, err = exploit.LoadKEV(f); err != nil {
-			return nil, fmt.Errorf("parse --kev: %w", err)
-		}
-	}
-	if opts.epssFile != "" {
-		f, err := os.Open(opts.epssFile) //nolint:gosec // operator-provided path
-		if err != nil {
-			return nil, fmt.Errorf("open --epss: %w", err)
-		}
-		defer func() { _ = f.Close() }()
-		if epss, err = exploit.LoadEPSS(f); err != nil {
-			return nil, fmt.Errorf("parse --epss: %w", err)
-		}
-	}
-	return exploit.New(kev, epss, opts.epssThreshold), nil
 }
 
 // validatePriority validates and upper-cases a priority-band flag value. Empty is allowed

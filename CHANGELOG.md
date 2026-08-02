@@ -10,7 +10,35 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr feeds update` fetches the KEV and EPSS datasets for you.** Exploitability enrichment
+  used to start with two `curl` commands and a `gunzip`, which meant knowing that CISA publishes
+  KEV as JSON at a stable URL — so the feature was off for the people it helps most.
+
+  ```bash
+  draugr feeds update                                    # into ~/.draugr/feeds
+  draugr scan draugr.saga.yaml --kev cache --epss cache
+  ```
+
+  `--kev` and `--epss` still take a file path, unchanged, and now also take `cache` (read what
+  `feeds update` left; never touch the network) or `auto` (fetch when the cache is missing or
+  over a day old). **A scan never fetches on its own**: the network is touched when you ask,
+  which is what keeps a gated run reproducible and an air-gapped runner working.
+
+  `draugr feeds status` reports what is cached, how old it is, and the digest of each copy —
+  because "escalated to critical because it was on KEV as of 2026-08-01" is an auditable
+  statement and "KEV said so" is not.
+
+  Staleness is treated as a correctness problem rather than housekeeping. EPSS is republished
+  daily, so a week-old copy does not fail — it ranks a finding lower than today's data would. A
+  scan reading a feed over a day old warns and names the age. `DRAUGR_OFFLINE=1` stops `auto`
+  fetching at all.
+
+### Fixed
+
+- **A count of days no longer reads as "4 daies".** The plural rule turned any noun ending in
+  `y` into `-ies`, which is right after a consonant and wrong after a vowel.
 
 ## [0.55.0] - 2026-08-01
 

@@ -125,8 +125,8 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
 | `--allow-effects` | — | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent — see [below](#scanners-that-do-more-than-read) |
-| `--kev` | — | CISA KEV catalog JSON; a CVE on it is escalated to critical |
-| `--epss` | — | FIRST EPSS scores CSV; a CVE at/above `--epss-threshold` is bumped one band |
+| `--kev` | — | CISA KEV catalog: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE on it is escalated to critical |
+| `--epss` | — | FIRST EPSS scores: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE at/above `--epss-threshold` is bumped one band |
 | `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump |
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
@@ -543,6 +543,68 @@ it's currently found (with path + version).
 ```bash
 draugr tools list
 ```
+
+---
+
+## `draugr feeds`
+
+Fetch and inspect the exploitability datasets that raise a finding's severity by real-world
+signals. Fetching is explicit: a scan reads the cache and never reaches the network on its own,
+so a gated run stays reproducible and works on an air-gapped runner.
+
+### `draugr feeds update [kev|epss]`
+
+Download CISA's KEV catalog and FIRST's EPSS scores into `~/.draugr/feeds`. With no arguments,
+fetches both. A copy less than a day old is left alone unless `--force` is given.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--force` | `false` | fetch even if the cached copy is current |
+
+```bash
+draugr feeds update            # both
+draugr feeds update epss       # just the daily one
+draugr feeds update --force    # refetch regardless of age
+```
+
+EPSS is published gzipped and is decompressed on the way in, so the cache holds a CSV the
+scanner can read directly. Each write is atomic — an interrupted fetch cannot leave half a
+catalogue behind for the next scan to read as though it were complete.
+
+**In CI, run this as its own step.** A feed outage then fails where it happened rather than
+producing a scan that ranked everything as though nothing were exploited.
+
+### `draugr feeds status`
+
+What is cached, how old it is, where it came from, and the digest of each copy.
+
+```
+FEED   FETCHED                AGE            SIZE       DIGEST
+kev    2026-08-01 09:12Z      6 hours        1.5 MiB    sha256:15b44d7c9c57
+epss   2026-07-29 08:55Z      3 days (stale) 10.3 MiB   sha256:41c20e9dc3cf
+```
+
+Age is the column that matters: EPSS is republished daily, so a stale copy does not fail — it
+ranks a finding lower than today's data would. A scan reading one warns and names the age.
+
+### Using the cache in a scan
+
+`--kev` and `--epss` accept a path, or one of two keywords:
+
+| Value | Behaviour |
+|-------|-----------|
+| a path | read that file; never touches the cache or the network — the air-gapped route |
+| `cache` | read `~/.draugr/feeds`; **never** fetches. Errors if nothing is cached |
+| `auto` | read the cache, fetching when it is missing or over a day old |
+
+With `auto`, a failed fetch falls back to a cached copy and says so — a feed outage should not
+break a gate that has a usable answer on disk. With nothing cached, it is an error.
+
+`DRAUGR_OFFLINE=1` stops `auto` fetching: it reads the cache, or says clearly there is nothing
+to read.
+
+See [prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) for what the
+signals mean and how to choose a threshold.
 
 ---
 

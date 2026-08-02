@@ -299,12 +299,15 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, model saga.Model) str
 }
 
 // plural renders a count with its noun, pluralised the way English mostly manages.
+//
+// The -y → -ies rule only applies after a consonant: "repository" becomes "repositories" and
+// "day" becomes "days".
 func plural(n int, noun string) string {
 	if n == 1 {
 		return fmt.Sprintf("%d %s", n, noun)
 	}
-	if strings.HasSuffix(noun, "y") {
-		return fmt.Sprintf("%d %sies", n, strings.TrimSuffix(noun, "y"))
+	if stem, ok := strings.CutSuffix(noun, "y"); ok && stem != "" && !strings.ContainsRune("aeiou", rune(stem[len(stem)-1])) {
+		return fmt.Sprintf("%d %sies", n, stem)
 	}
 	return fmt.Sprintf("%d %ss", n, noun)
 }
