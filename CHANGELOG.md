@@ -10,7 +10,29 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **The `headers` control now grades your Content-Security-Policy, not just its presence.** A CSP
+  of `default-src *; script-src 'unsafe-inline' 'unsafe-eval'` passed the old check while
+  permitting exactly what a CSP exists to prevent.
+
+  ```
+  P1  error  headers/csp-unsafe-inline  headers  http-headers  https://app
+      Content-Security-Policy allows 'unsafe-inline' in script-src, so an injected <script> tag
+      or event handler runs — which is most of what a CSP is for. Use a nonce or a hash per
+      script instead.
+  ```
+
+  Ten checks, each saying what to change, graded by real risk: an injected script running is an
+  error, a missing `report-uri` is a note.
+
+  **A nonce, a hash or `'strict-dynamic'` makes `'unsafe-inline'` inert**, and `'strict-dynamic'`
+  does the same to host and scheme sources — so those are reported as *doing nothing* rather than
+  as flaws. Without that distinction the check would fire on the policies people were right to
+  write, which is how a checker becomes something you switch off.
+
+  It also reports a missing `base-uri`, which does **not** inherit from `default-src` — the
+  subtlety that most often leaves a policy weaker than its author believes.
 
 ## [0.57.0] - 2026-08-02
 

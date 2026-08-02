@@ -127,7 +127,11 @@ func TestHeadersDefaultTypeIsBrowser(t *testing.T) {
 func TestHeadersWellConfiguredBrowserIsClean(t *testing.T) {
 	h := http.Header{}
 	h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
-	h.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'")
+	// A policy that is actually complete, not merely present: the directives that do not inherit
+	// from default-src are named, objects are off, and violations are reported somewhere.
+	h.Set("Content-Security-Policy",
+		"default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; "+
+			"frame-ancestors 'none'; report-uri /csp-report")
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 	h.Set("Permissions-Policy", "geolocation=()")
