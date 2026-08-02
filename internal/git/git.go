@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // Checkout clones url into a fresh temporary directory, materialising only what scope allows.
@@ -114,4 +115,43 @@ var gitRun = func(ctx context.Context, args ...string) error {
 		return fmt.Errorf("%w: %s", err, out)
 	}
 	return nil
+}
+
+// UncommittedFiles counts a local repository's uncommitted changes, or 0 when there are none,
+// the path is not local, or git cannot say.
+//
+// Exists because a local path is cloned like any other source: the scan sees the *committed*
+// state, not the files on disk. That is right — a scan has to describe a revision someone else
+// can reproduce — and it is invisible, so a change that introduces a finding passes until it is
+// committed. Best-effort: a scan must not fail because git could not answer a courtesy question.
+func UncommittedFiles(ctx context.Context, url string) int {
+	if !IsLocalPath(url) {
+		return 0
+	}
+	out, err := exec.CommandContext(ctx, "git", "-C", url, "status", "--porcelain").Output() //nolint:gosec // the descriptor's own repository path
+	if err != nil {
+		return 0 // not a repository, or no git — the clone will say so properly
+	}
+	n := 0
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if strings.TrimSpace(line) != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// IsLocalPath reports whether url names a directory on this machine rather than a remote.
+//
+// Deliberately a filesystem question rather than a URL-parsing one: "." and "../service" and an
+// absolute path are all local, and anything with a scheme or an scp-style host is not.
+func IsLocalPath(url string) bool {
+	if url == "" || strings.Contains(url, "://") {
+		return false
+	}
+	if i := strings.Index(url, ":"); i > 0 && !strings.HasPrefix(url, "/") && !strings.HasPrefix(url, ".") {
+		return false // scp-style, e.g. git@github.com:org/repo.git
+	}
+	info, err := os.Stat(url)
+	return err == nil && info.IsDir()
 }

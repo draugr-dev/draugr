@@ -81,8 +81,11 @@ so leave it off when producing SARIF for your editor. See
 ## A caveat worth knowing
 
 Repository scans run against a **clean checkout of the committed revision**, not your working
-tree. Line numbers therefore match what's committed. If you have uncommitted edits above a
-finding, its marker will sit a few lines off — commit, or re-scan, before trusting the position.
+tree — a local path is cloned just like a URL. Line numbers therefore match what's committed. If
+you have uncommitted edits above a finding, its marker will sit a few lines off; if the edits
+*are* the thing you wanted scanned, they aren't in the report at all. Draugr warns when it scans
+a repository with uncommitted changes. Commit, then re-scan. See
+[URLs and paths](../reference/saga-schema.md#where-a-repository-comes-from-urls-and-paths).
 
 ## Related
 

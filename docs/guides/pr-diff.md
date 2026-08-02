@@ -52,6 +52,14 @@ draugr scan draugr.saga.yaml -o base/    # on the base branch (store as an artif
 draugr scan draugr.saga.yaml -o head/    # on the PR head
 ```
 
+Each scan clones the repository before reading it, so a `results.sarif` always describes a
+**committed revision** — which is what makes the two comparable, and what a reader needs in order
+to reproduce either side. It also means the pair above only differs if the two scans ran against
+different commits: iterating locally with `scan → edit → scan` compares `HEAD` with itself and
+reports no change. Commit between the two, or set `revision` on the repository to name each
+revision explicitly. See
+[URLs and paths](../reference/saga-schema.md#where-a-repository-comes-from-urls-and-paths).
+
 ## Diff and gate
 
 ```bash
