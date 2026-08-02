@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.56.0] - 2026-08-02
+
 ### Added
 
 - **One way to say offline.** `--offline`, on any command, or `DRAUGR_OFFLINE=1`:
@@ -38,7 +42,7 @@ and move it under a version on release.
 
   **`draugr doctor` now lists every network call Draugr can make** and what each is for, so a
   runner can be prepared from that list instead of discovered one failure at a time. There is a
-  new guide for [running air-gapped](docs/guides/air-gapped.md).
+  new guide for [running air-gapped](https://github.com/draugr-dev/draugr/blob/main/docs/guides/air-gapped.md).
 
   `draugr doctor --offline` and `DRAUGR_NO_UPDATE_CHECK=1` keep working and keep their narrower
   meaning — "do not check for a release" is a reasonable thing to want on a machine that does
@@ -2053,7 +2057,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.55.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.56.0...HEAD
+[0.56.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.56.0
 [0.55.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.55.0
 [0.54.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.54.0
 [0.53.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.53.0
