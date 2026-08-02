@@ -50,12 +50,37 @@ KEV wins where both apply: observed exploitation outranks a prediction about it.
 
 ### Using them
 
-Let Draugr fetch them:
+Turn it on in the descriptor, where it gets reviewed:
+
+```yaml
+config:
+  exploitability:
+    kev: cache          # path | cache | auto
+    epss: cache
+    epssThreshold: 0.5  # optional; the default
+    maxAge: 24h         # optional; how old a cached feed may be
+```
 
 ```bash
-draugr feeds update                                  # into ~/.draugr/feeds
-draugr scan draugr.saga.yaml --kev cache --epss cache
+draugr feeds update                    # into ~/.draugr/feeds
+draugr scan draugr.saga.yaml           # enrichment is on, no flags to remember
 ```
+
+In the Saga rather than only in flags because it is a decision about how findings are ranked. A
+team that agrees to use KEV needs somewhere to write that down that a reviewer sees and every
+pipeline reads — not a flag whoever wrote the workflow has to remember.
+
+**`--kev` and `--epss` still work and override the descriptor**, which is what you want for a
+one-off:
+
+```bash
+draugr scan draugr.saga.yaml --kev cache --epss cache      # without a descriptor entry
+draugr scan draugr.saga.yaml --epss-threshold 0.1          # widen the net for this run only
+```
+
+Only a flag you actually type overrides — passing `--epss-threshold 0.5` beats a descriptor that
+says `0.1`, and not passing it leaves the descriptor's value alone. See
+[`config.exploitability`](../reference/saga-schema.md#configexploitability) for the full block.
 
 **A scan never fetches on its own.** `cache` reads what `feeds update` left and cannot reach the
 network, so there is no network dependency inside your pipeline, nothing leaves your environment
@@ -102,7 +127,9 @@ than a day old warns and names the age:
 WARN using a stale exploitability feed feed=epss fetched_at=2026-07-29T08:55:00Z age="3 days"
 ```
 
-`draugr feeds update` refreshes it; a daily job is plenty.
+`draugr feeds update` refreshes it; a daily job is plenty. Raise `config.exploitability.maxAge`
+on a runner deliberately pinned to a known copy of the data — reproducing last quarter's verdict
+requires last quarter's feed, and being told it is old every time helps nobody.
 
 ### Bring your own file
 
@@ -117,8 +144,8 @@ draugr scan draugr.saga.yaml --kev kev.json --epss epss.csv
 ```
 
 `--kev` takes CISA's JSON as published; `--epss` takes FIRST's CSV (`cve,epss,percentile` —
-comment and header lines are skipped). Either flag works on its own, and either accepts a path,
-`cache`, or `auto`.
+comment and header lines are skipped). Either signal works on its own, and each accepts a path,
+`cache`, or `auto` — in the descriptor or on the command line.
 
 Setting `DRAUGR_OFFLINE=1` stops `auto` fetching anything: it reads the cache, or says clearly
 that there is nothing to read.

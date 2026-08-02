@@ -32,16 +32,20 @@ import (
 )
 
 type scanOptions struct {
-	outputDir       string
-	failOn          string
-	failOnPriority  string
-	cacheDir        string
-	cacheTTL        time.Duration
-	minPriority     string
-	allowEffects    []string
-	kevFile         string
-	epssFile        string
-	epssThreshold   float64
+	outputDir      string
+	failOn         string
+	failOnPriority string
+	cacheDir       string
+	cacheTTL       time.Duration
+	minPriority    string
+	allowEffects   []string
+	kevFile        string
+	epssFile       string
+	epssThreshold  float64
+	// setFlags names the flags the user actually typed. Needed because the descriptor supplies
+	// defaults for the same settings, and a flag with a non-zero default — --epss-threshold is
+	// 0.5 — cannot be told apart from an unset one by its value.
+	setFlags        map[string]bool
 	jobs            int
 	format          string
 	template        string
@@ -69,6 +73,7 @@ func newScanCommand() *cobra.Command {
 			if len(args) == 1 {
 				target = args[0]
 			}
+			opts.setFlags = changedFlags(cmd)
 			return runScan(cmd.Context(), target, *opts, builtins.Registry(), cmd.OutOrStdout())
 		},
 	}
@@ -125,7 +130,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return err
 	}
-	expl, err := loadExploitSource(ctx, opts)
+	expl, err := loadExploitSource(ctx, exploitSettings(opts, model.Config.Exploitability))
 	if err != nil {
 		return err
 	}

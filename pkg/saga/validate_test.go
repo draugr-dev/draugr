@@ -407,3 +407,72 @@ func TestValidateAcceptsCamelCaseControllerKeys(t *testing.T) {
 		t.Errorf("camelCase keys should validate, got: %v", err)
 	}
 }
+
+func TestExploitabilityConfigRoundTripsThroughLoad(t *testing.T) {
+	m, err := Load([]byte("release:\n  name: x\n  version: \"1\"\n" +
+		"config:\n  exploitability:\n    kev: cache\n    epss: auto\n" +
+		"    epssThreshold: 0.1\n    maxAge: 168h\n"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	x := m.Config.Exploitability
+	if x == nil || x.KEV != "cache" || x.EPSS != FeedSourceAuto || x.MaxAge != "168h" {
+		t.Fatalf("exploitability config = %+v", x)
+	}
+	if x.EPSSThreshold == nil || *x.EPSSThreshold != 0.1 {
+		t.Errorf("threshold = %v, want 0.1", x.EPSSThreshold)
+	}
+}
+
+func TestExploitabilityThresholdZeroIsNotAbsent(t *testing.T) {
+	// Zero disables the EPSS bump while leaving KEV in force, which is a thing someone might
+	// mean. It has to survive the round trip as a set value rather than as "unspecified".
+	m, err := Load([]byte("release:\n  name: x\n  version: \"1\"\n" +
+		"config:\n  exploitability:\n    kev: cache\n    epssThreshold: 0\n"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if x := m.Config.Exploitability; x == nil || x.EPSSThreshold == nil || *x.EPSSThreshold != 0 {
+		t.Errorf("a deliberate zero was lost: %+v", x)
+	}
+}
+
+func TestExploitabilityConfigValidation(t *testing.T) {
+	cases := []struct {
+		name, yaml, want string
+	}{
+		{
+			"threshold above one",
+			"config:\n  exploitability:\n    epssThreshold: 1.5\n",
+			"probability",
+		},
+		{
+			"negative threshold",
+			"config:\n  exploitability:\n    epssThreshold: -0.1\n",
+			"probability",
+		},
+		{
+			"maxAge is not a duration",
+			"config:\n  exploitability:\n    maxAge: \"3 days\"\n",
+			"not a duration",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := Load([]byte("release:\n  name: x\n  version: \"1\"\n" + c.yaml))
+			if err == nil {
+				t.Fatal("accepted")
+			}
+			if !strings.Contains(err.Error(), c.want) {
+				t.Errorf("error should say %q: %v", c.want, err)
+			}
+		})
+	}
+
+	// A path is not checkable here: a shared descriptor may name a file this machine does not
+	// have, which is a scan-time error rather than a validation one.
+	if _, err := Load([]byte("release:\n  name: x\n  version: \"1\"\n" +
+		"config:\n  exploitability:\n    kev: ./kev.json\n    maxAge: 24h\n")); err != nil {
+		t.Errorf("a file path should validate: %v", err)
+	}
+}

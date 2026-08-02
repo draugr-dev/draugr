@@ -44,6 +44,10 @@ type Config struct {
 	// images. It is evidence rather than a control: an SBOM is an inventory, it finds nothing,
 	// and it never affects the verdict.
 	SBOM *SBOMConfig `yaml:"sbom,omitempty"`
+	// Exploitability raises a finding's severity by real-world signals — CISA KEV and FIRST
+	// EPSS — before it is ranked, so "what to fix first" reflects what is being exploited
+	// rather than only what could be.
+	Exploitability *ExploitabilityConfig `yaml:"exploitability,omitempty"`
 	// AllowEffects acknowledges scanner effects that would otherwise stop a run — the kinds a
 	// scanner declares when it does more to a target than read it ("mutate", "privilege").
 	//
@@ -202,6 +206,42 @@ func matchesAnyPath(patterns []string, uri string) bool {
 	}
 	return false
 }
+
+// ExploitabilityConfig turns on severity enrichment from real-world exploitability signals and
+// says where the data comes from.
+//
+// In the descriptor rather than only in flags because it is a decision about how findings are
+// ranked, and a team that agrees to use KEV needs somewhere to write that down where it gets
+// reviewed — not a flag every pipeline has to remember to pass.
+type ExploitabilityConfig struct {
+	// KEV and EPSS each name a source: a file path, "cache" to read what `draugr feeds update`
+	// left without touching the network, or "auto" to fetch when the cache is missing or stale.
+	// Empty leaves that signal off; either may be used without the other.
+	KEV  string `yaml:"kev,omitempty"`
+	EPSS string `yaml:"epss,omitempty"`
+	// EPSSThreshold is the EPSS probability (0–1) at or above which a finding's severity is
+	// raised one band. Zero means the CLI default.
+	//
+	// A pointer so "not set" and "deliberately zero" stay distinguishable: zero disables the
+	// EPSS bump entirely, which is a thing someone might mean.
+	EPSSThreshold *float64 `yaml:"epssThreshold,omitempty"`
+	// MaxAge is how old a cached feed may be before "auto" refetches it and a scan warns that
+	// it is stale. Empty means the built-in default of 24 hours, which tracks EPSS being
+	// republished daily.
+	//
+	// Configurable because a runner deliberately pinned to a known copy of the data has a
+	// legitimate reason to say "do not tell me it is old" — reproducing last quarter's verdict
+	// requires last quarter's feed.
+	MaxAge string `yaml:"maxAge,omitempty"`
+}
+
+// ExploitabilitySources are the values KEV and EPSS accept besides a file path.
+const (
+	// FeedSourceCache reads the cache and never reaches the network.
+	FeedSourceCache = "cache"
+	// FeedSourceAuto reads the cache, fetching when it is missing or stale.
+	FeedSourceAuto = "auto"
+)
 
 // SBOMConfig turns on SBOM generation and chooses the document format.
 type SBOMConfig struct {

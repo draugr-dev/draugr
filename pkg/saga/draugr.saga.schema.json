@@ -85,6 +85,9 @@
         "sbom": {
           "$ref": "#/$defs/sbomConfig"
         },
+        "exploitability": {
+          "$ref": "#/$defs/exploitabilityConfig"
+        },
         "exclude": {
           "type": "array",
           "description": "Findings to suppress, each with a stated reason. A suppressed finding is still reported \u2014 marked, with its justification \u2014 it just stops counting toward the verdict.",
@@ -324,6 +327,34 @@
               "note"
             ]
           }
+        }
+      }
+    },
+    "exploitabilityConfig": {
+      "type": "object",
+      "description": "Severity enrichment from real-world exploitability signals: CISA's Known Exploited Vulnerabilities catalog and FIRST's EPSS scores. A CVE on KEV becomes critical; a CVE at or above the EPSS threshold is raised one band. Applied before ranking, so priority reflects what is being exploited rather than only what could be. Either signal works without the other. Fetch the data with `draugr feeds update`.",
+      "additionalProperties": false,
+      "properties": {
+        "kev": {
+          "type": "string",
+          "description": "Where the KEV catalog comes from: a file path, \"cache\" to read ~/.draugr/feeds without touching the network, or \"auto\" to fetch when the cache is missing or stale. Omit to leave KEV off.",
+          "examples": ["cache", "auto", "./kev.json"]
+        },
+        "epss": {
+          "type": "string",
+          "description": "Where the EPSS scores come from: a file path, \"cache\", or \"auto\" \u2014 the same three choices as kev. Omit to leave EPSS off.",
+          "examples": ["cache", "auto", "./epss.csv"]
+        },
+        "epssThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "EPSS probability at or above which a finding's severity is raised one band. Defaults to 0.5 \u2014 a coin-flip chance of exploitation within 30 days. Scores are heavily skewed, so lowering this widens the net faster than the number suggests. Zero disables the EPSS bump while leaving KEV in force."
+        },
+        "maxAge": {
+          "type": "string",
+          "description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is stale. A Go duration; defaults to 24h, tracking EPSS being republished daily. Raise it on a runner deliberately pinned to a known copy of the data.",
+          "examples": ["24h", "168h"]
         }
       }
     },

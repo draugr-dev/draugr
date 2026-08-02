@@ -13,6 +13,19 @@ if [ -n "$unformatted" ]; then
 	exit 1
 fi
 
+echo "▶ go mod tidy"
+# CI fails the build when go.mod and go.sum are not what `go mod tidy` would write, and the
+# usual way to get there is importing a package that was previously an indirect dependency —
+# which builds and tests perfectly well right up until the pipeline says otherwise. Checked
+# here so the gate covers what CI covers.
+tidy_before=$(cat go.mod go.sum)
+go mod tidy
+if [ "$tidy_before" != "$(cat go.mod go.sum)" ]; then
+	echo "  go.mod/go.sum were not tidy — updated in place. Review and commit:" >&2
+	git --no-pager diff --stat -- go.mod go.sum >&2
+	exit 1
+fi
+
 echo "▶ go vet"
 go vet ./...
 
