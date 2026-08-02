@@ -599,6 +599,21 @@ func reportFromKubeBench(doc kubeBenchDoc, tool, location string) sarif.Report {
 	for _, ctl := range doc.Controls {
 		for _, test := range ctl.Tests {
 			for _, res := range test.Results {
+				// Decided before filtered. A PASS produces no finding and is still a verdict —
+				// the scanner looked at that control and was satisfied. Recording only what
+				// failed would make "no finding" mean two different things, and the whole point
+				// of this list is telling them apart.
+				//
+				// WARN is kube-bench's "needs manual review", which is not a verdict: a check it
+				// could not settle is not a dissent from a scanner that could.
+				if decided := kubeBenchDecided(res.Status); decided {
+					report.Decided = append(report.Decided, sarif.Taxon{
+						Taxonomy: cisKubernetesTaxonomy,
+						ID:       res.TestNumber,
+						Name:     res.TestDesc,
+						Version:  ctl.Version,
+					})
+				}
 				level, ok := kubeBenchLevel(res.Status, res.Scored)
 				if !ok {
 					continue
@@ -638,6 +653,18 @@ func reportFromKubeBench(doc kubeBenchDoc, tool, location string) sarif.Report {
 // An unscored FAIL and a WARN are both warnings — WARN in CIS terms means "manual check
 // required", which is a prompt for a human rather than a defect, and reporting it as an error
 // would make a clean cluster impossible.
+// kubeBenchDecided reports whether a status is a verdict rather than a referral.
+//
+// PASS and FAIL are conclusions. WARN is kube-bench's way of saying a human has to look, and INFO
+// is context — neither settles the control, so neither can contradict a scanner that did.
+func kubeBenchDecided(status string) bool {
+	switch strings.ToUpper(status) {
+	case "PASS", "FAIL":
+		return true
+	}
+	return false
+}
+
 func kubeBenchLevel(status string, scored bool) (sarif.Level, bool) {
 	switch strings.ToUpper(status) {
 	case "FAIL":

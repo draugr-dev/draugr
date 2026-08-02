@@ -30,6 +30,22 @@ and move it under a version on release.
 
 ### Added
 
+- **A scan records which classifications it reached a verdict on.** Both CIS scanners now report
+  the controls they settled — including the ones they found compliant, which produce no finding:
+
+  ```json
+  "decided": [{"taxonomy": "CIS-Kubernetes", "id": "5.1.1", "version": "cis-1.12"}]
+  ```
+
+  A scanner reporting nothing about a control has either examined it and been satisfied or never
+  examined it at all, and those mean opposite things. Without this, "one of two scanners found it"
+  is a guess that the other dissented — when far more often the other does not check that control.
+  It is the prerequisite for saying two scanners agree, and for answering *what is nothing
+  checking?*
+
+  Decided, not examined: a control a scanner looked at and could not settle — kube-bench's `WARN`,
+  our manual-review checks — is not a dissent either.
+
 - **SARIF output declares the classifications a rule implements.** Both CIS scanners now reference
   the benchmark control their checks cover, using SARIF's own `taxonomies` and `taxa`:
 

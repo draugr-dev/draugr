@@ -754,3 +754,44 @@ func TestEvaluatePodSecurityCoversTheRemainingChecks(t *testing.T) {
 		t.Error("CHOWN is a capability, so 5.2.9 applies")
 	}
 }
+
+func TestPoliciesReportDeclaresWhatItSettled(t *testing.T) {
+	// The distinction the whole thing exists for: a control this scanner decided and found clean
+	// is not the same as one it never examined, and only one of them is a dissent.
+	decided := map[string]policyVerdict{
+		"5.1.1": {Compliant: true},
+		"5.1.5": {Compliant: false, Detail: "payments"},
+	}
+	rep := policiesReport(decided, "kubernetes/prod", nil)
+
+	if len(rep.Decided) != 2 {
+		t.Fatalf("declared %d settled checks, want 2: %+v", len(rep.Decided), rep.Decided)
+	}
+	for _, tx := range rep.Decided {
+		if tx.Taxonomy != cisKubernetesTaxonomy || tx.Version != cisCatalogueVersion {
+			t.Errorf("a taxon without its scheme and revision cannot correlate: %+v", tx)
+		}
+	}
+	// 5.1.1 was decided and compliant, so it is declared but produces no finding — which is
+	// exactly the state that used to be indistinguishable from never having looked.
+	for _, r := range rep.Results {
+		if r.RuleID == draugrCISRulePrefix+"5.1.1" {
+			t.Error("a compliant check is not a finding")
+		}
+	}
+	if !slices.ContainsFunc(rep.Decided, func(tx sarif.Taxon) bool { return tx.ID == "5.1.1" }) {
+		t.Error("a compliant check must still be declared as decided")
+	}
+}
+
+func TestPoliciesReportDeclaresNothingForAManualCheck(t *testing.T) {
+	// A check requiring human judgement was examined and not settled. Declaring it would let a
+	// consumer read our silence as a verdict.
+	rep := policiesReport(map[string]policyVerdict{}, "kubernetes/prod", nil)
+	if len(rep.Decided) != 0 {
+		t.Errorf("nothing was settled: %+v", rep.Decided)
+	}
+	if len(rep.Results) == 0 {
+		t.Error("the manual-review findings should still be reported")
+	}
+}
