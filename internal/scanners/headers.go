@@ -125,6 +125,10 @@ func evaluateHeaders(url, hostType string, h http.Header) []sarif.Result {
 		add("headers/csp-missing",
 			"Missing Content-Security-Policy: add a CSP to mitigate XSS and content-injection.",
 			sarif.LevelWarning)
+	} else {
+		// Present is not the same as effective. A policy can name every directive and still
+		// allow an injected script to run, so the content gets judged too.
+		evaluateCSP(csp, add)
 	}
 	if h.Get("X-Frame-Options") == "" && !strings.Contains(strings.ToLower(csp), "frame-ancestors") {
 		add("headers/x-frame-options-missing",
