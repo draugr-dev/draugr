@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **The GitHub Action can fetch the exploitability feeds** — `feeds: true` runs
+  `draugr feeds update` before the scan, so a Saga whose `config.exploitability` reads `cache` has
+  something to read.
+
+  Its own step on purpose, which is what the docs already told you to do by hand: the scan then
+  never reaches the network, and a feed outage fails at the fetch instead of producing a scan that
+  ranked everything as though nothing were exploited.
+
+  Draugr's own self-scan now uses it.
 
 ## [0.56.0] - 2026-08-02
 

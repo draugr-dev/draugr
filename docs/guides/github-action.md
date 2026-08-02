@@ -81,6 +81,33 @@ what avoids a second, overlapping PR comment. See [gate PRs on new findings](pr-
 | `args` | — | Extra raw arguments appended to `draugr scan` (escape hatch). |
 | `verify` | `true` | Cosign-verify the release signature (the checksum is always verified). |
 | `tools` | `false` | Provision the external scanners (Trivy, Gitleaks, gosec via `draugr tools install`, Semgrep via pipx) before scanning. Set `true` when the runner doesn't already have them. |
+| `feeds` | `false` | Fetch the exploitability datasets (KEV, EPSS) into the runner's cache before scanning. Set `true` when the Saga's `config.exploitability` reads them with `cache`. |
+
+### Ranking by real-world exploitability
+
+Set `feeds: true` when the descriptor asks for KEV or EPSS from the cache:
+
+```yaml
+- uses: draugr-dev/draugr@v0
+  with:
+    saga: draugr.saga.yaml
+    tools: true
+    feeds: true          # draugr feeds update, before the scan
+    fail-on-priority: P1
+```
+
+```yaml
+# draugr.saga.yaml
+config:
+  exploitability:
+    kev: cache
+    epss: cache
+```
+
+**Its own step on purpose.** The scan then reads the cache and never reaches the network, so the
+gate stays reproducible — and a feed outage fails at the fetch, visibly, instead of producing a
+scan that ranked everything as though nothing were exploited. See
+[`config.exploitability`](../reference/saga-schema.md#configexploitability).
 
 Outputs: **`sarif`** (path to `results.sarif`) and **`report`** (path to `report.json`). Both
 point inside `output` and are written on pull requests too, so an `if: always()` upload step
