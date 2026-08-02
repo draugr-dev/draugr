@@ -15,6 +15,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
@@ -145,6 +146,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	eopts := []engine.Option{
 		engine.WithPrioritization(defaultPrioritizer(expl)),
 		engine.WithSBOM(sbomgen.New()),
+	}
+	if netpolicy.Offline() {
+		eopts = append(eopts, engine.WithoutPrewarm())
 	}
 	if opts.cacheDir != "" {
 		eopts = append(eopts, engine.WithCache(cache.NewLocal(opts.cacheDir, opts.cacheTTL)))

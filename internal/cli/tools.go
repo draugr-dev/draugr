@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/tools"
 
 	"github.com/draugr-dev/draugr/pkg/tui"
@@ -59,6 +60,16 @@ func newToolsInstallCommand() *cobra.Command {
 			names, err := installNames(cmd.OutOrStdout(), args, *opts)
 			if err != nil {
 				return err
+			}
+			// Names them, because someone preparing an air-gapped machine wants the list of what
+			// they will have to bring across. An empty selection means everything installable.
+			if netpolicy.Offline() {
+				wanted := names
+				if len(wanted) == 0 {
+					wanted = tools.Installable()
+				}
+				return netpolicy.Refuse("draugr tools install",
+					"the pinned release archive for: "+strings.Join(wanted, ", "))
 			}
 			return runToolsInstall(cmd.OutOrStdout(), cmd.InOrStdin(), names, *opts, install)
 		},

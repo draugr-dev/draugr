@@ -49,6 +49,10 @@ var (
 	oidcIssuer     = "https://token.actions.githubusercontent.com"
 )
 
+// ReleaseURL is where releases are resolved from — exported so a command that declines to reach
+// the network can say what it would have fetched.
+var ReleaseURL = githubBase + "/releases/latest"
+
 // CurrentVersion is the running binary's version (build stamp), without a leading "v".
 func CurrentVersion() string { return strings.TrimPrefix(version.Version, "v") }
 

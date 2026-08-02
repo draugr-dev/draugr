@@ -24,5 +24,5 @@ func NewTrivyConfig() plugin.Scanner {
 // when misconfigurations are found (findings live in the SARIF report, not the exit code;
 // the iac controller judges severity).
 func trivyConfigArgs(dir string, _ plugin.Config) []string {
-	return []string{"trivy", "config", "--quiet", "--format", "sarif", dir}
+	return offlineTrivyArgs([]string{"trivy", "config", "--quiet", "--format", "sarif", dir})
 }

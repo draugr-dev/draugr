@@ -13,6 +13,17 @@ All commands accept these **global flags**:
 |------|---------|-------------|
 | `--log-level` | `info` | `trace`, `debug`, `info`, `warn`, `error` |
 | `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` |
+| `--offline` | `false` | make no network calls (also `DRAUGR_OFFLINE=1`) |
+
+**`--offline`** says once that this machine has no network, and every place Draugr would reach out
+honours it. Optional fetches are skipped with a line saying so; a command whose whole purpose is
+to download — `feeds update`, `tools install`, `self-update` — refuses and names what it would
+have fetched. A scan runs against whatever each tool already has on disk, and a tool with nothing
+on disk reports an error rather than a clean result.
+
+`draugr doctor` lists every network call Draugr can make, so a runner can be prepared from that
+list rather than one failure at a time. See
+[running air-gapped](../guides/air-gapped.md).
 
 **Seeing what Draugr is doing.** `--log-level debug` narrates the run: what was planned, the
 **exact command** handed to each scanner with its working directory, duration and exit code,

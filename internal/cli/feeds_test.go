@@ -159,15 +159,6 @@ func TestResolveFeedOffline(t *testing.T) {
 	}
 }
 
-func TestOffline(t *testing.T) {
-	for value, want := range map[string]bool{"": false, "0": false, "false": false, "1": true, "yes": true} {
-		t.Setenv("DRAUGR_OFFLINE", value)
-		if got := offline(); got != want {
-			t.Errorf("DRAUGR_OFFLINE=%q → %v, want %v", value, got, want)
-		}
-	}
-}
-
 func TestFeedNames(t *testing.T) {
 	if got, err := feedNames(nil); err != nil || len(got) != 2 {
 		t.Errorf("no arguments should mean every feed: %v %v", got, err)

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/controllers"
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/selfupdate"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -50,7 +50,7 @@ func newDoctorCommand() *cobra.Command {
 			// Best-effort update check (current vs latest), unless opted out. It never blocks or
 			// fails the command: a short timeout, errors ignored.
 			var latest func(context.Context) (string, error)
-			if !opts.offline && os.Getenv("DRAUGR_NO_UPDATE_CHECK") == "" {
+			if !opts.offline && !netpolicy.SkipUpdateCheck() {
 				latest = func(ctx context.Context) (string, error) {
 					ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 					defer cancel()
@@ -61,7 +61,11 @@ func newDoctorCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&opts.json, "json", false, "output results as JSON")
-	cmd.Flags().BoolVar(&opts.offline, "offline", false, "skip the check for a newer draugr release (also DRAUGR_NO_UPDATE_CHECK=1)")
+	// Kept as a command-local flag as well as the root one: it is documented, it is in people's
+	// CI, and "do not check for a release" is a narrower request than "this machine has no
+	// network" that someone may still want to make on its own.
+	cmd.Flags().BoolVar(&opts.offline, "offline", false,
+		"skip the check for a newer draugr release (also DRAUGR_NO_UPDATE_CHECK=1; implied by the root --offline)")
 	return cmd
 }
 
@@ -141,6 +145,7 @@ func runDoctor(
 				col.Paint(tui.StylePass, "✓ valid"), col.Paint(tui.StyleMuted, "("+sagaPath+")"))
 		}
 		writeDoctorTable(w, statuses)
+		writeNetworkCalls(w)
 	}
 
 	if missing > 0 && inventoryOnly {
@@ -379,4 +384,46 @@ func writeDoctorJSON(w io.Writer, dv draugrReport, desc *descriptorReport, statu
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(report)
+}
+
+// networkCall is one place Draugr can reach out from, and what for.
+type networkCall struct {
+	When string
+	What string
+}
+
+// networkCalls is every outbound call Draugr makes, so someone preparing an air-gapped runner
+// has the list rather than discovering it one failure at a time.
+//
+// Written out rather than derived: the point is to be complete, and a list assembled from
+// whatever happens to be registered would silently shrink when something moves. It changes when
+// a network call is added, which is exactly when someone should be made to think about it.
+var networkCalls = []networkCall{
+	{"draugr tools install", "each tool's pinned release archive, verified against a recorded SHA-256"},
+	{"draugr feeds update", "the CISA KEV catalog and the FIRST EPSS scores"},
+	{"draugr self-update", "the latest draugr release"},
+	{"draugr doctor", "the latest draugr release, to compare against yours (skipped by --offline)"},
+	{"a scan, before it starts", "Trivy's vulnerability database and Nuclei's template set"},
+	{"a scan, per target", "the registry, for an image; the endpoint itself, for a host or DAST target"},
+}
+
+// writeNetworkCalls lists what Draugr fetches and when.
+//
+// Shown always rather than only under --offline. Someone deciding whether Draugr can run in
+// their environment is asking this before they have a reason to pass the flag, and a list that
+// appears only once you already know to ask for it answers the wrong question.
+func writeNetworkCalls(w io.Writer) {
+	col := tui.For(w)
+	_, _ = fmt.Fprintf(w, "\nNetwork  %s\n", col.Paint(tui.StyleMuted, networkHeading()))
+	for _, c := range networkCalls {
+		_, _ = fmt.Fprintf(w, "  %-26s %s\n", c.When, col.Paint(tui.StyleMuted, c.What))
+	}
+}
+
+// networkHeading says whether the calls below are live or suppressed.
+func networkHeading() string {
+	if netpolicy.Offline() {
+		return "(offline: none of these will happen)"
+	}
+	return "(what Draugr fetches, and when — suppress with --offline)"
 }

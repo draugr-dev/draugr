@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/observability"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
@@ -17,6 +18,7 @@ import (
 type globalOptions struct {
 	logLevel  string
 	logFormat string
+	offline   bool
 }
 
 func newRootCommand() *cobra.Command {
@@ -40,6 +42,11 @@ func newRootCommand() *cobra.Command {
 				return err
 			}
 			observability.SetDefault(logger)
+			// Recorded once, here, so every network call in the process reads the same answer
+			// rather than each deciding for itself.
+			if opts.offline {
+				netpolicy.SetOffline(true)
+			}
 			return nil
 		},
 	}
@@ -48,6 +55,8 @@ func newRootCommand() *cobra.Command {
 		"log level: trace, debug, info, warn, error (trace relays scanner output)")
 	cmd.PersistentFlags().StringVar(&opts.logFormat, "log-format", "console",
 		"log format: console (human-readable, colorized on a terminal), json, or text")
+	cmd.PersistentFlags().BoolVar(&opts.offline, "offline", false,
+		"make no network calls: skip optional fetches, and refuse rather than download (also DRAUGR_OFFLINE=1)")
 
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newSchemaCommand())
