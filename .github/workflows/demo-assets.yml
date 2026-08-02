@@ -256,6 +256,20 @@ jobs:
           # nothing else writes to it, so the newest render simply supersedes the last. Without
           # this the push is rejected and a successful render is thrown away at the final step.
           git push -u --force origin "$branch"
+
+          # Discard superseded renders. Each run names its branch after the commit it rendered,
+          # so an earlier one is a picture of older output that nobody merged — and keeping them
+          # means the branch list grows by one per release until the dead ones outnumber the
+          # live one. A superseded render has no value: the newest is the only candidate.
+          #
+          # Closing its pull request is the point rather than a side effect. Two open PRs both
+          # offering to replace the same image is a choice nobody should have to make.
+          for old in $(gh api "repos/$GITHUB_REPOSITORY/branches?per_page=100" --jq '.[].name' \
+                        | grep '^demo-assets-' | grep -vx "$branch" || true); do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$old" \
+              && echo "discarded superseded render $old"
+          done
+
           # Best-effort: creating a PR needs the org's "Allow GitHub Actions to create pull
           # requests" setting. If it's off, just print the compare link — the branch is pushed.
           gh pr create --title "docs: regenerate the demo assets" \
