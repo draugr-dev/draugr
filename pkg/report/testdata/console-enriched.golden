@@ -1,0 +1,21 @@
+Draugr — FAIL   (acme-api 1.4.0)
+
+Priorities:  P1 2   P2 1   P3 0   P4 0
+
+Controls:
+  sca  FAIL   2 critical  1 high
+
+Exploitability: KEV 2026-08-01 · EPSS 2026-07-29, stale
+
+All 3 findings, by priority:
+  Priority  Severity  Score  Rule              Control  Scanner  Location
+  P1        critical  10.0   CVE-2024-3094     sca      trivy    go.mod:12
+            xz: malicious code in the upstream tarballs
+            ↑ raised from high — on KEV (2026-08-01)
+  P1        critical  9.8    CVE-2019-20477    sca      trivy    app/requirements.txt:4
+            PyYAML: command execution through python/object/apply constructor
+            ↑ raised from medium — EPSS 0.87 (2026-08-02)
+  P2        high      7.5    CVE-2018-1000656  sca      trivy    app/requirements.txt:2
+            python-flask: Denial of Service via crafted JSON file
+
+Use --format json for the full report, or -o <dir> for report.json + results.sarif.
