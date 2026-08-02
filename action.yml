@@ -57,6 +57,16 @@ inputs:
       when the runner doesn't already have them (e.g. the code-scanning starter workflow).
     required: false
     default: "false"
+  feeds:
+    description: >-
+      Fetch the exploitability datasets (CISA KEV, FIRST EPSS) into the runner's cache before
+      scanning: `draugr feeds update`. Set "true" when the Saga's `config.exploitability` — or
+      `--kev`/`--epss` — reads them with `cache`.
+
+      Its own step on purpose. A feed outage then fails here, visibly, instead of producing a
+      scan that ranked everything as though nothing were exploited.
+    required: false
+    default: "false"
   mode:
     description: >-
       What the action does. "scan": run a full scan and let the Saga's publishers deliver
@@ -204,6 +214,14 @@ runs:
           pipx install semgrep
           echo "$HOME/.local/bin" >>"$GITHUB_PATH"
         fi
+
+    - name: Fetch exploitability feeds
+      if: inputs.feeds == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        draugr feeds update
+        draugr feeds status
 
     - name: Run Draugr scan
       if: steps.setup.outputs.mode == 'scan'

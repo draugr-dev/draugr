@@ -22,6 +22,14 @@ config:
     # in the tree is permissive — which is exactly the state worth having a gate protect.
     licenses:
       enabled: true
+  # Rank our own findings by what is actually being exploited, not only by CVSS. `cache` reads
+  # what `draugr feeds update` left and never touches the network during the scan, so the gate
+  # stays reproducible — the CI job fetches the feeds as its own step, where an outage fails
+  # visibly instead of quietly un-escalating everything.
+  exploitability:
+    kev: cache
+    epss: cache
+
   # Replaces a .semgrepignore and a .gitleaks.toml: two files, two syntaxes, two discovery
   # rules. Worth knowing why that matters — a .semgrepignore *replaces* Semgrep's built-in
   # ignore list rather than extending it, so any file using one has to restate the defaults or
