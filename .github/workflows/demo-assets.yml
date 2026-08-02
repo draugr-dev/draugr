@@ -108,6 +108,28 @@ jobs:
         working-directory: draugr-demo
         run: draugr scan . >/dev/null 2>&1 || true
 
+      # The warm-up leaves the sandbox dirty: its Saga writes reports into a committed
+      # draugr-out/, so a scan modifies three tracked files. A scan of a repository with
+      # uncommitted work says so — correctly — and that warning would then be the first line of
+      # the README's hero image, telling every reader the demo is looking at something other
+      # than what it shows.
+      #
+      # Reset rather than gitignore: the files are the demo's own committed evidence, and the
+      # warning is right. What is wrong is capturing a tree our own setup step disturbed.
+      - name: Put the sandbox back as it was cloned
+        working-directory: draugr-demo
+        run: |
+          set -euo pipefail
+          git checkout -- .
+          git clean -fdq
+          # Nothing should remain. A still-dirty tree means the capture is about to include a
+          # warning about it, and finding that out from the image is finding out too late.
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "sandbox still dirty after reset:" >&2
+            git status --porcelain >&2
+            exit 1
+          fi
+
       # vhs renders a fixed viewport, so output taller than it is never captured — including the
       # line the tape's Wait matches on, which turns a too-short frame into a 120-second timeout
       # for text that was never going to appear. That is a slow, opaque way to learn the output
