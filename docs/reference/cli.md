@@ -125,9 +125,9 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
 | `--allow-effects` | — | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent — see [below](#scanners-that-do-more-than-read) |
-| `--kev` | — | CISA KEV catalog: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE on it is escalated to critical |
-| `--epss` | — | FIRST EPSS scores: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE at/above `--epss-threshold` is bumped one band |
-| `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump |
+| `--kev` | — | CISA KEV catalog: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE on it is escalated to critical. Overrides `config.exploitability.kev` |
+| `--epss` | — | FIRST EPSS scores: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE at/above `--epss-threshold` is bumped one band. Overrides `config.exploitability.epss` |
+| `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump. Overrides `config.exploitability.epssThreshold` |
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
@@ -589,7 +589,9 @@ ranks a finding lower than today's data would. A scan reading one warns and name
 
 ### Using the cache in a scan
 
-`--kev` and `--epss` accept a path, or one of two keywords:
+Set it once in the descriptor under
+[`config.exploitability`](saga-schema.md#configexploitability), or pass it per run. `--kev` and
+`--epss` accept a path, or one of two keywords:
 
 | Value | Behaviour |
 |-------|-----------|
@@ -602,6 +604,10 @@ break a gate that has a usable answer on disk. With nothing cached, it is an err
 
 `DRAUGR_OFFLINE=1` stops `auto` fetching: it reads the cache, or says clearly there is nothing
 to read.
+
+**A flag overrides the descriptor only when you type it.** `--epss-threshold 0.5` beats a
+descriptor saying `0.1`, even though 0.5 is also the flag's default; leaving it off leaves the
+descriptor's value alone.
 
 See [prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) for what the
 signals mean and how to choose a threshold.

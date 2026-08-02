@@ -12,6 +12,31 @@ and move it under a version on release.
 
 ### Added
 
+- **Exploitability enrichment can be turned on in the Saga**, instead of a flag every pipeline
+  has to remember:
+
+  ```yaml
+  config:
+    exploitability:
+      kev: cache          # path | cache | auto
+      epss: cache
+      epssThreshold: 0.5  # optional
+      maxAge: 24h         # optional — how old a cached feed may be before it counts as stale
+  ```
+
+  ```bash
+  draugr feeds update
+  draugr scan draugr.saga.yaml     # enrichment is on, no flags
+  ```
+
+  It is a decision about how findings are ranked, so it belongs somewhere a reviewer sees it and
+  every pipeline reads. `--kev`, `--epss` and `--epss-threshold` still work and override the
+  descriptor — but only when you actually type them, so `--epss-threshold 0.5` beats a descriptor
+  saying `0.1` while leaving it off does not.
+
+  `maxAge` was a fixed 24 hours. A runner deliberately pinned to a known copy of the data has a
+  legitimate reason to raise it: reproducing last quarter's verdict requires last quarter's feed.
+
 - **`draugr feeds update` fetches the KEV and EPSS datasets for you.** Exploitability enrichment
   used to start with two `curl` commands and a `gunzip`, which meant knowing that CISA publishes
   KEV as JSON at a stable URL — so the feature was off for the people it helps most.

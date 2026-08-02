@@ -128,6 +128,22 @@ func (m *Model) Validate() error {
 		}
 	}
 
+	if x := m.Config.Exploitability; x != nil {
+		if t := x.EPSSThreshold; t != nil && (*t < 0 || *t > 1) {
+			errs = append(errs, fmt.Errorf(
+				"config.exploitability.epssThreshold is %v, but EPSS is a probability (0–1)", *t))
+		}
+		if x.MaxAge != "" {
+			if _, err := time.ParseDuration(x.MaxAge); err != nil {
+				errs = append(errs, fmt.Errorf(
+					"config.exploitability.maxAge %q is not a duration (want e.g. 24h, 30m, 168h)", x.MaxAge))
+			}
+		}
+		// A path is anything else, and cannot be checked here — the descriptor may name a file
+		// this machine does not have, which is a legitimate thing for a shared descriptor to do
+		// and a scan-time error rather than a validation one.
+	}
+
 	if s := m.Config.SBOM; s != nil && s.Format != "" && !s.Format.Valid() {
 		errs = append(errs, fmt.Errorf("config.sbom.format %q is not a known format (want one of %v)", s.Format, SBOMFormats))
 	}

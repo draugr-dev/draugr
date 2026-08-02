@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/feeds"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -74,7 +75,7 @@ const kevJSON = `{"vulnerabilities":[{"cveID":"CVE-2021-44228"}]}`
 func TestResolveFeedPathPassesThrough(t *testing.T) {
 	// Anything that is not a keyword is a path, used exactly as given. This is the air-gapped
 	// route and it must not acquire a dependency on the cache existing.
-	got, err := resolveFeed(context.Background(), feeds.KEV, "/etc/kev.json", "--kev")
+	got, err := resolveFeed(context.Background(), feeds.KEV, "/etc/kev.json", "--kev", feeds.DefaultMaxAge)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +89,7 @@ func TestResolveFeedCache(t *testing.T) {
 	seed(t, dir, feeds.KEV, kevJSON, time.Hour)
 
 	out := warnings(t, func() {
-		got, err := resolveFeed(context.Background(), feeds.KEV, feedCache, "--kev")
+		got, err := resolveFeed(context.Background(), feeds.KEV, feedCache, "--kev", feeds.DefaultMaxAge)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -103,7 +104,7 @@ func TestResolveFeedCache(t *testing.T) {
 
 func TestResolveFeedCacheEmpty(t *testing.T) {
 	cacheHome(t)
-	_, err := resolveFeed(context.Background(), feeds.KEV, feedCache, "--kev")
+	_, err := resolveFeed(context.Background(), feeds.KEV, feedCache, "--kev", feeds.DefaultMaxAge)
 	if err == nil {
 		t.Fatal("an empty cache resolved")
 	}
@@ -119,7 +120,7 @@ func TestResolveFeedCacheStaleWarnsAndProceeds(t *testing.T) {
 	seed(t, dir, feeds.EPSS, "cve,epss,percentile\n", 72*time.Hour)
 
 	out := warnings(t, func() {
-		got, err := resolveFeed(context.Background(), feeds.EPSS, feedCache, "--epss")
+		got, err := resolveFeed(context.Background(), feeds.EPSS, feedCache, "--epss", feeds.DefaultMaxAge)
 		if err != nil {
 			t.Fatalf("a stale feed should be used, not refused: %v", err)
 		}
@@ -140,7 +141,7 @@ func TestResolveFeedOffline(t *testing.T) {
 	t.Setenv("DRAUGR_OFFLINE", "1")
 
 	// Nothing cached: it must say so rather than attempt a fetch it has been told will fail.
-	if _, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev"); err == nil {
+	if _, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev", feeds.DefaultMaxAge); err == nil {
 		t.Error("offline with an empty cache resolved")
 	} else if !strings.Contains(err.Error(), "DRAUGR_OFFLINE") {
 		t.Errorf("error does not mention why it did not fetch: %v", err)
@@ -149,7 +150,7 @@ func TestResolveFeedOffline(t *testing.T) {
 	// Cached but stale: offline uses it, because the alternative is no answer at all.
 	seed(t, dir, feeds.KEV, kevJSON, 100*time.Hour)
 	out := warnings(t, func() {
-		if _, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev"); err != nil {
+		if _, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev", feeds.DefaultMaxAge); err != nil {
 			t.Errorf("offline with a stale cache: %v", err)
 		}
 	})
@@ -238,8 +239,8 @@ func TestLoadExploitSourceFromCache(t *testing.T) {
 	seed(t, dir, feeds.KEV, kevJSON, time.Hour)
 	seed(t, dir, feeds.EPSS, "cve,epss,percentile\nCVE-2021-44228,0.97,0.99\n", time.Hour)
 
-	src, err := loadExploitSource(context.Background(), scanOptions{
-		kevFile: feedCache, epssFile: feedCache, epssThreshold: 0.5,
+	src, err := loadExploitSource(context.Background(), exploitability{
+		kev: feedCache, epss: feedCache, threshold: 0.5, maxAge: feeds.DefaultMaxAge,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -254,7 +255,7 @@ func TestLoadExploitSourceFromCache(t *testing.T) {
 }
 
 func TestLoadExploitSourceDisabled(t *testing.T) {
-	src, err := loadExploitSource(context.Background(), scanOptions{})
+	src, err := loadExploitSource(context.Background(), exploitability{})
 	if err != nil || src != nil {
 		t.Errorf("no flags should mean no enrichment: %v %v", src, err)
 	}
@@ -262,14 +263,14 @@ func TestLoadExploitSourceDisabled(t *testing.T) {
 
 func TestLoadExploitSourceBadFile(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "nope.json")
-	if _, err := loadExploitSource(context.Background(), scanOptions{kevFile: missing}); err == nil {
+	if _, err := loadExploitSource(context.Background(), exploitability{kev: missing, maxAge: feeds.DefaultMaxAge}); err == nil {
 		t.Error("a missing --kev file was accepted")
 	}
 	bad := filepath.Join(t.TempDir(), "bad.json")
 	if err := os.WriteFile(bad, []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := loadExploitSource(context.Background(), scanOptions{kevFile: bad}); err == nil {
+	if _, err := loadExploitSource(context.Background(), exploitability{kev: bad, maxAge: feeds.DefaultMaxAge}); err == nil {
 		t.Error("an unparseable --kev file was accepted")
 	}
 }
@@ -357,7 +358,7 @@ func TestResolveFeedAutoFetches(t *testing.T) {
 	cacheHome(t)
 	calls := stubFetch(t, kevJSON, nil)
 
-	if _, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev"); err != nil {
+	if _, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev", feeds.DefaultMaxAge); err != nil {
 		t.Fatal(err)
 	}
 	if *calls != 1 {
@@ -365,7 +366,7 @@ func TestResolveFeedAutoFetches(t *testing.T) {
 	}
 
 	// Now it is fresh, so a second resolve must not reach out again.
-	if _, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev"); err != nil {
+	if _, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev", feeds.DefaultMaxAge); err != nil {
 		t.Fatal(err)
 	}
 	if *calls != 1 {
@@ -381,7 +382,7 @@ func TestResolveFeedAutoFallsBackToAStaleCache(t *testing.T) {
 	var got string
 	out := warnings(t, func() {
 		var err error
-		got, err = resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev")
+		got, err = resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev", feeds.DefaultMaxAge)
 		if err != nil {
 			t.Errorf("a feed outage should not fail a run with a usable copy on disk: %v", err)
 		}
@@ -402,7 +403,7 @@ func TestResolveFeedAutoFailsWithNothingToFallBackOn(t *testing.T) {
 	cacheHome(t)
 	stubFetch(t, "", errors.New("connection refused"))
 
-	_, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev")
+	_, err := resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev", feeds.DefaultMaxAge)
 	if err == nil {
 		t.Fatal("asked for enrichment, got none, and it passed")
 	}
@@ -417,5 +418,93 @@ func TestShort(t *testing.T) {
 	}
 	if got := short("abc"); got != "abc" {
 		t.Errorf("a short string should pass through: %q", got)
+	}
+}
+
+func TestExploitSettingsDescriptorOnly(t *testing.T) {
+	th := 0.1
+	got := exploitSettings(scanOptions{epssThreshold: 0.5, setFlags: map[string]bool{}},
+		&saga.ExploitabilityConfig{KEV: "cache", EPSS: "auto", EPSSThreshold: &th, MaxAge: "168h"})
+
+	if got.kev != "cache" || got.epss != "auto" {
+		t.Errorf("descriptor sources ignored: %+v", got)
+	}
+	if got.threshold != 0.1 {
+		t.Errorf("threshold = %v, want the descriptor's 0.1 — the flag's default must not win", got.threshold)
+	}
+	if got.maxAge != 168*time.Hour {
+		t.Errorf("maxAge = %v, want 168h", got.maxAge)
+	}
+	// The error a reader gets should name the thing they would edit.
+	if got.kevFrom != "config.exploitability.kev" {
+		t.Errorf("kevFrom = %q", got.kevFrom)
+	}
+}
+
+func TestExploitSettingsFlagsOverride(t *testing.T) {
+	th := 0.1
+	cfg := &saga.ExploitabilityConfig{KEV: "cache", EPSS: "cache", EPSSThreshold: &th}
+	opts := scanOptions{
+		kevFile: "/tmp/kev.json", epssThreshold: 0.9,
+		setFlags: map[string]bool{"kev": true, "epss-threshold": true},
+	}
+	got := exploitSettings(opts, cfg)
+
+	if got.kev != "/tmp/kev.json" || got.kevFrom != "--kev" {
+		t.Errorf("--kev did not win: %+v", got)
+	}
+	if got.threshold != 0.9 {
+		t.Errorf("threshold = %v, want the flag's 0.9", got.threshold)
+	}
+	// --epss was not typed, so the descriptor still supplies it.
+	if got.epss != "cache" || got.epssFrom != "config.exploitability.epss" {
+		t.Errorf("an untyped flag should not clear the descriptor: %+v", got)
+	}
+}
+
+func TestExploitSettingsThresholdTypedAtItsDefault(t *testing.T) {
+	// --epss-threshold 0.5 is the default *value*, and passing it deliberately must still beat
+	// a descriptor that says otherwise. This is why resolution reads which flags were typed
+	// rather than comparing against defaults.
+	th := 0.1
+	got := exploitSettings(
+		scanOptions{epssThreshold: 0.5, setFlags: map[string]bool{"epss-threshold": true}},
+		&saga.ExploitabilityConfig{EPSS: "cache", EPSSThreshold: &th})
+	if got.threshold != 0.5 {
+		t.Errorf("threshold = %v, want 0.5 — an explicit flag at its default value still wins", got.threshold)
+	}
+}
+
+func TestExploitSettingsNoFlagProvenance(t *testing.T) {
+	// A programmatic caller has no flag information. Its values must be honoured rather than
+	// silently dropped, which is what a nil setFlags used to mean.
+	got := exploitSettings(scanOptions{kevFile: "/tmp/kev.json", epssThreshold: 0.3}, nil)
+	if got.kev != "/tmp/kev.json" || got.threshold != 0.3 {
+		t.Errorf("programmatic options were dropped: %+v", got)
+	}
+	if got.maxAge != feeds.DefaultMaxAge {
+		t.Errorf("maxAge = %v, want the default", got.maxAge)
+	}
+}
+
+func TestExploitSettingsOffByDefault(t *testing.T) {
+	got := exploitSettings(scanOptions{epssThreshold: 0.5, setFlags: map[string]bool{}}, nil)
+	if got.kev != "" || got.epss != "" {
+		t.Errorf("enrichment should be off with neither a flag nor a descriptor: %+v", got)
+	}
+}
+
+func TestResolveFeedHonoursConfiguredMaxAge(t *testing.T) {
+	dir := cacheHome(t)
+	seed(t, dir, feeds.KEV, kevJSON, 72*time.Hour)
+
+	// Three days old, and a descriptor that says a week is fine: not stale, nothing said.
+	out := warnings(t, func() {
+		if _, err := resolveFeed(context.Background(), feeds.KEV, feedCache, "--kev", 168*time.Hour); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if out != "" {
+		t.Errorf("warned despite a maxAge that covers it: %s", out)
 	}
 }

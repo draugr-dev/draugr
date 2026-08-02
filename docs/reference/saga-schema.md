@@ -576,6 +576,52 @@ suppress every finding in the project.
 Findings a scanner suppressed itself (a Semgrep `nosem` comment, say) keep their own reason and
 aren't re-attributed to your Saga.
 
+## `config.exploitability`
+
+Raises a finding's severity by real-world exploitability before it is ranked, so priority reflects
+what is being exploited rather than only what could be.
+
+```yaml
+config:
+  exploitability:
+    kev: cache          # path | cache | auto — omit to leave KEV off
+    epss: cache
+    epssThreshold: 0.5  # optional; default 0.5
+    maxAge: 24h         # optional; default 24h
+```
+
+| Key | Meaning |
+|-----|---------|
+| `kev` | CISA's Known Exploited Vulnerabilities catalog. A CVE on it becomes **critical**, whatever it was. |
+| `epss` | FIRST's EPSS scores. A CVE at or above `epssThreshold` is raised **one band**. |
+| `epssThreshold` | The EPSS probability (0–1) that triggers the bump. Zero disables it while leaving KEV in force. |
+| `maxAge` | How old a cached feed may be before `auto` refetches it and a scan warns. A Go duration. |
+
+KEV wins where both apply: observed exploitation outranks a prediction about it. Either signal
+works without the other — set one key and omit the other.
+
+**Where the data comes from.** `kev` and `epss` each take three kinds of value:
+
+| Value | Behaviour |
+|-------|-----------|
+| a path | that file. Touches neither the cache nor the network — the air-gapped route |
+| `cache` | reads `~/.draugr/feeds`; **never** fetches. Errors if nothing is cached |
+| `auto` | reads the cache, fetching when it is missing or older than `maxAge` |
+
+Populate the cache with [`draugr feeds update`](cli.md#draugr-feeds). In CI, make that its own
+step and use `cache`, so a feed outage fails where it happened rather than producing a scan that
+ranked everything as though nothing were exploited.
+
+**Flags override this block**, but only the ones you actually type: `--kev`, `--epss` and
+`--epss-threshold`. Passing `--epss-threshold 0.5` beats a descriptor saying `0.1` even though
+0.5 is also the flag's default; not passing it leaves the descriptor's value alone.
+
+Raise `maxAge` on a runner deliberately pinned to a known copy of the data — reproducing last
+quarter's verdict requires last quarter's feed.
+
+See [prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) for what the
+signals mean and how to choose a threshold.
+
 ## SBOM generation
 
 ```yaml
