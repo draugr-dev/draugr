@@ -56,6 +56,15 @@ func NewK8sPolicies() plugin.Scanner {
 // Info describes the scanner.
 func (s k8sPoliciesScanner) Info() plugin.ScannerInfo { return s.info }
 
+// CacheVersion ties cached results to this binary (implements plugin.CacheVersioner).
+//
+// The CIS checks are implemented natively against a catalogue that ships with Draugr, so the
+// catalogue's version is Draugr's. A cluster that has not changed can still get a different
+// answer after an upgrade that adds a control, and the cache must not hide that.
+func (s k8sPoliciesScanner) CacheVersion(context.Context) string {
+	return draugrCacheVersion() + ";cis@" + cisCatalogueVersion
+}
+
 // Scan evaluates the policies section against the cluster the target names.
 //
 // Every check in the section is answered. The ones implemented here get a verdict from the

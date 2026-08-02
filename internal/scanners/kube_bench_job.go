@@ -71,6 +71,14 @@ func NewKubeBenchJob() plugin.Scanner {
 // Info describes the scanner.
 func (s kubeBenchJobScanner) Info() plugin.ScannerInfo { return s.info }
 
+// CacheVersion reports the pinned image (implements plugin.CacheVersioner).
+//
+// No probe needed and none wanted: this scanner runs kube-bench from an image pinned by digest,
+// so the digest *is* the version — exactly, and without asking anything at run time.
+func (s kubeBenchJobScanner) CacheVersion(context.Context) string {
+	return "kube-bench-job@" + defaultKubeBenchImage
+}
+
 // Config keys specific to the in-cluster run.
 const (
 	// namespaceKey is where the Job is created.

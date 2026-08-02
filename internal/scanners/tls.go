@@ -114,6 +114,11 @@ func NewTLSProbe() plugin.Scanner {
 // Info describes the scanner.
 func (s tlsProbeScanner) Info() plugin.ScannerInfo { return s.info }
 
+// CacheVersion ties cached results to this binary (implements plugin.CacheVersioner).
+//
+// A native scanner has no external tool to ask, and the probe's expectations — protocol floor, expiry window, chain rules — are ours, so they change when Draugr does.
+func (s tlsProbeScanner) CacheVersion(context.Context) string { return draugrCacheVersion() }
+
 // Scan probes the host's TLS endpoint and reports certificate and protocol findings.
 func (s tlsProbeScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	host, ok := target.(plugin.HostTarget)

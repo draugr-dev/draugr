@@ -5,7 +5,7 @@ import "github.com/draugr-dev/draugr/pkg/plugin"
 // NewGitleaks returns a Scanner that runs Gitleaks over a checked-out repository to detect
 // leaked secrets (credentials, tokens, keys). It serves the "secrets" control.
 func NewGitleaks() plugin.Scanner {
-	return newRepoScanner(
+	s := newRepoScanner(
 		plugin.ScannerInfo{
 			Name:        "gitleaks",
 			Binary:      "gitleaks",
@@ -14,6 +14,8 @@ func NewGitleaks() plugin.Scanner {
 		},
 		gitleaksArgs,
 	)
+	s.cacheVersion = sharedGitleaksVersion.version
+	return s
 }
 
 // gitleaksArgs scans the working tree, writing SARIF to stdout. --exit-code 0 keeps the
