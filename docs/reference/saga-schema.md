@@ -367,6 +367,80 @@ pull request and applied identically by every pipeline, not remembered by whoeve
 workflow. Resolution order is per-control setting → `--fail-on` → `error`.
 
 
+## Where a repository comes from: URLs and paths
+
+`url` accepts either a **remote URL** or a **local path**. The field is named for the common case;
+anything git can clone is valid.
+
+```yaml
+repositories:
+  - url: https://github.com/acme/web.git   # remote — cloned over the network
+  - url: git@github.com:acme/web.git       # remote — uses your SSH agent
+  - url: ../web                            # local — relative to the descriptor's directory
+  - url: /srv/checkouts/web                # local — absolute
+```
+
+A relative path resolves against **the directory holding the Saga**, not the current working
+directory, so a descriptor committed beside its code means the same thing wherever it is run
+from. `draugr scan .` with no descriptor synthesises one pointing at the directory you named, so
+the zero-config path lands here too.
+
+**Both kinds are cloned.** A local path is not read in place: Draugr clones it into a temporary
+directory the same way it clones a URL, applies [`paths` and `ignore`](#scoping-a-repository) as
+a sparse checkout, and runs the scanners over that. Three things follow, and they are the reason
+this section exists.
+
+**The scan sees the committed revision, not your working tree.** Uncommitted work — edited,
+staged, or untracked — is simply absent. A change that introduces a finding passes until it is
+committed, and a fix appears not to have worked. This is deliberate: a report has to name a
+revision that someone else can check out and reproduce, and "whatever was on one machine at one
+moment" is not that. Draugr warns when it scans a local repository with uncommitted changes, so
+the state you are looking at is never a guess:
+
+```
+WARN scanning the committed revision, not your working tree repository=/srv/web uncommitted_files=3
+```
+
+**`revision` still applies.** A local path with `revision: main` scans `main`, whatever branch
+the working copy happens to be on. Left unset, the scan follows the checkout's current `HEAD` —
+which is usually what you want locally and worth pinning in CI.
+
+**The clone is a copy.** Nothing a scanner does can modify your checkout, and the temporary
+directory is removed when the scan ends.
+
+Use a local path for iterating on a descriptor, for scanning something not pushed anywhere, and
+for a monorepo where several components share one checkout. Use a URL in CI, where the path is
+the runner's and means nothing to anyone reading the report later.
+
+### What this means for `draugr diff`
+
+`diff` compares two `results.sarif` files, so it inherits this: both sides describe committed
+revisions. In CI that is exactly right — the base is a merge-base commit and the head is the PR's
+head commit, both pushed, both reproducible — and it is why the [GitHub Action](../guides/github-action.md)
+needs `fetch-depth: 0` to reach the base.
+
+Locally it is the part that surprises people. This does nothing:
+
+```bash
+draugr scan . -o base/
+vim app/handler.py          # introduce something
+draugr scan . -o head/
+draugr diff base/results.sarif head/results.sarif   # → no change
+```
+
+Both scans cloned the same `HEAD`, so both SARIF files are identical. Commit between them, and
+the diff is real:
+
+```bash
+draugr scan . -o base/
+git commit -am "add the endpoint"
+draugr scan . -o head/
+draugr diff base/results.sarif head/results.sarif
+```
+
+Or scan two revisions explicitly by pointing `revision` at each in turn, which is closer to what
+CI does and does not disturb your branch.
+
 ## Scoping a repository
 
 A monorepo holds more than one component, and a component is rarely the whole tree. `paths` and

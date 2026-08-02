@@ -284,6 +284,13 @@ it *introduces*, not the pre-existing backlog — so a gate stays adoptable wher
 gate would block every PR. The command exits non-zero when the gate trips. A typical CI setup
 scans `main` on push and stores `results.sarif` as an artifact, scans the PR, then diffs the two.
 
+**Both sides are committed revisions.** A repository is cloned before it is scanned, whether it
+was given as a URL or a local path, so each SARIF file describes a commit rather than a working
+tree. In CI that is the intent. Locally it means scanning, editing and re-scanning produces two
+identical files and an empty diff — commit between the two scans, or point `revision` at each
+revision in turn. See
+[URLs and paths](saga-schema.md#where-a-repository-comes-from-urls-and-paths).
+
 **Finding identity.** Findings are matched on `(tool, rule, file, message)` — deliberately
 ignoring the line number (which drifts as code moves) and the severity level (a re-scored finding
 is still the same issue), so genuinely-carried-over findings aren't reported as fixed + new.

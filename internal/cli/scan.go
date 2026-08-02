@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/git"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
@@ -114,6 +115,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		_, _ = fmt.Fprintf(os.Stderr, "No *.saga.yaml here — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
 			"(run `draugr init` to scaffold one you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
+	warnUncommitted(ctx, model)
+
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
 	if err != nil {
 		return err
@@ -484,4 +487,32 @@ func priorityBand(p string) int {
 		return 3
 	}
 	return -1
+}
+
+// warnUncommitted says when a local repository has work the scan will not see.
+//
+// A repository given as a path is cloned like any other source, so the scan describes the
+// committed revision rather than the files on disk. That is the right behaviour — evidence has to
+// name a revision someone else can reproduce — and it is silent, which is the problem: a change
+// that introduces a finding passes until it is committed, and a fix appears not to have worked.
+//
+// Once per repository per run, not once per scanner. Four controls over one checkout is one fact
+// about that checkout, and saying it four times is how a warning becomes wallpaper.
+func warnUncommitted(ctx context.Context, model *saga.Model) {
+	if model == nil {
+		return
+	}
+	seen := map[string]bool{}
+	for _, c := range model.Components {
+		for _, r := range c.Repositories {
+			if seen[r.URL] {
+				continue
+			}
+			seen[r.URL] = true
+			if n := git.UncommittedFiles(ctx, r.URL); n > 0 {
+				slog.WarnContext(ctx, "scanning the committed revision, not your working tree",
+					"repository", r.URL, "uncommitted_files", n)
+			}
+		}
+	}
 }

@@ -30,6 +30,19 @@ and move it under a version on release.
 
 ### Added
 
+- **A scan says when a local repository has uncommitted work it will not see.** A repository
+  given as a path is cloned like any other source, so the scan describes the committed revision
+  rather than the files on disk — which is what makes a report reproducible, and what makes an
+  uncommitted change look like it did nothing:
+
+  ```
+  WARN scanning the committed revision, not your working tree repository=/srv/web uncommitted_files=3
+  ```
+
+  The reference now covers [URLs versus paths](docs/reference/saga-schema.md) in full, including
+  what it means for `draugr diff`: scan, edit, re-scan compares `HEAD` with itself and reports no
+  change, so commit between the two scans or name each `revision` explicitly.
+
 - **A scan records which classifications it reached a verdict on.** Both CIS scanners now report
   the controls they settled — including the ones they found compliant, which produce no finding:
 
