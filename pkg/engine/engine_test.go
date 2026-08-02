@@ -501,3 +501,48 @@ func TestFindingsCarryTheirComponent(t *testing.T) {
 		}
 	}
 }
+
+// warmingScanner is a fakeScanner that also counts how often it was prewarmed.
+type warmingScanner struct {
+	fakeScanner
+	warms int
+}
+
+func (w *warmingScanner) Prewarm(context.Context) error {
+	w.warms++
+	return nil
+}
+
+func TestWithoutPrewarmSkipsWarmingButStillScans(t *testing.T) {
+	newReg := func(sc plugin.Scanner) *Registry {
+		reg := NewRegistry()
+		reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+		reg.RegisterScanner(sc)
+		return reg
+	}
+
+	offline := &warmingScanner{fakeScanner: fakeScanner{name: "s"}}
+	res, err := New(newReg(offline), WithoutPrewarm()).Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if offline.warms != 0 {
+		t.Errorf("prewarmed %d times while offline", offline.warms)
+	}
+	// The scan itself must still happen against whatever is on disk. Skipping the warm-up is
+	// not skipping the run — an earlier version of this cleared the wrong slice and did both.
+	if offline.calls() == 0 {
+		t.Error("no scans ran; the run was skipped rather than the warm-up")
+	}
+	if len(res.Controls) == 0 {
+		t.Error("no control results")
+	}
+
+	online := &warmingScanner{fakeScanner: fakeScanner{name: "s"}}
+	if _, err := New(newReg(online)).Run(context.Background(), model()); err != nil {
+		t.Fatal(err)
+	}
+	if online.warms != 1 {
+		t.Errorf("prewarmed %d times without the option, want 1", online.warms)
+	}
+}

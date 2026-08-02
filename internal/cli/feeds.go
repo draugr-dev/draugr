@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/feeds"
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 )
 
 // fetchFeed is feeds.Fetch, indirected so tests can exercise the command without a network.
@@ -62,6 +63,15 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 	out := cmd.OutOrStdout()
 	cached := feeds.Load(dir)
 	now := time.Now()
+
+	if netpolicy.Offline() {
+		// Every name would be fetched, so name them all rather than stopping at the first.
+		urls := make([]string, 0, len(names))
+		for _, n := range names {
+			urls = append(urls, feeds.URL(n))
+		}
+		return netpolicy.Refuse("draugr feeds update", strings.Join(urls, "\n                        "))
+	}
 
 	for _, n := range names {
 		if rec, ok := cached[n]; ok && !force && !rec.Stale(now, feeds.DefaultMaxAge) {

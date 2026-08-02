@@ -12,6 +12,37 @@ and move it under a version on release.
 
 ### Added
 
+- **One way to say offline.** `--offline`, on any command, or `DRAUGR_OFFLINE=1`:
+
+  ```bash
+  draugr scan draugr.saga.yaml --offline
+  ```
+
+  Draugr reaches out from several places — a release check, Trivy's database, Nuclei's templates,
+  the exploitability feeds, tool downloads — and each used to decide for itself, so an air-gapped
+  runner met the failures one at a time. Now one flag covers all of them.
+
+  Nothing fails quietly. An optional fetch is skipped with a line saying so; a command whose whole
+  purpose is to download refuses and **names what it would have fetched**:
+
+  ```
+  draugr: draugr feeds update needs the network, and DRAUGR_OFFLINE/--offline is set
+
+  it would have fetched https://www.cisa.gov/…/known_exploited_vulnerabilities.json
+                        https://epss.empiricalsecurity.com/epss_scores-current.csv.gz
+  ```
+
+  A scan runs against whatever each tool already has on disk, and Trivy is told not to refresh
+  mid-scan — so a run with no vulnerability database reports an error rather than returning a
+  clean result it never earned.
+
+  **`draugr doctor` now lists every network call Draugr can make** and what each is for, so a
+  runner can be prepared from that list instead of discovered one failure at a time. There is a
+  new guide for [running air-gapped](docs/guides/air-gapped.md).
+
+  `draugr doctor --offline` and `DRAUGR_NO_UPDATE_CHECK=1` keep working and keep their narrower
+  meaning — "do not check for a release" is a reasonable thing to want on a machine that does
+  have a network.
 - **A report now says why a finding was escalated, and on what data.** Enrichment used to change
   a severity and leave no trace: the finding was critical, and nothing said it was critical
   because CISA had observed it being exploited on a particular date.

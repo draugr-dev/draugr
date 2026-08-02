@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tooladapter"
@@ -45,7 +46,24 @@ func NewTrivyFS() plugin.Scanner {
 
 // trivyFSArgs builds `trivy fs --quiet --scanners vuln --format sarif <dir>`.
 func trivyFSArgs(dir string, _ plugin.Config) []string {
-	return []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "sarif", dir}
+	return offlineTrivyArgs([]string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "sarif", dir})
+}
+
+// offlineTrivyArgs adds --skip-db-update when this process must make no network calls.
+//
+// Skipping the prewarm is not enough on its own: Trivy refreshes its database at scan time too,
+// so without this an offline run still reaches out — several times, once per job. With it, Trivy
+// uses its local cache and says plainly when there isn't one, which is a better message than
+// anything Draugr could write on its behalf.
+func offlineTrivyArgs(argv []string) []string {
+	if !netpolicy.Offline() {
+		return argv
+	}
+	// Before the positional argument: Trivy takes flags ahead of the target.
+	out := make([]string, 0, len(argv)+2)
+	out = append(out, argv[:len(argv)-1]...)
+	out = append(out, "--skip-db-update", "--skip-java-db-update")
+	return append(out, argv[len(argv)-1])
 }
 
 // trivyArgv builds `trivy image --quiet --format sarif <ref>` for an image target.
@@ -58,7 +76,7 @@ func trivyArgv(target plugin.Target, _ plugin.Config) ([]string, error) {
 	if ref == "" {
 		return nil, errors.New("trivy: image target has neither ref nor digest")
 	}
-	return []string{"trivy", "image", "--quiet", "--format", "sarif", ref}, nil
+	return offlineTrivyArgs([]string{"trivy", "image", "--quiet", "--format", "sarif", ref}), nil
 }
 
 // trivyImageLocations restates an image finding's location as the image that was scanned.

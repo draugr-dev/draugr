@@ -33,6 +33,9 @@ type Engine struct {
 	concurrency int
 	cache       cache.Cache
 	prioritize  Prioritizer
+	// skipPrewarm suppresses the pre-run warm-up of shared scanner state (Trivy's database,
+	// Nuclei's templates), which is the only part of a scan that reaches the network on its own.
+	skipPrewarm bool
 	sbomGen     sbom.Generator
 	// allowEffects are scanner effects accepted for this invocation, layered over the Saga's.
 	allowEffects []string
@@ -78,6 +81,15 @@ func WithCache(c cache.Cache) Option {
 // applied per run (never cached), since it depends on the component's current classification.
 func WithPrioritization(p Prioritizer) Option {
 	return func(e *Engine) { e.prioritize = p }
+}
+
+// WithoutPrewarm skips the pre-run warm-up of shared scanner state.
+//
+// For a run that must make no network calls. The scan still happens against whatever each tool
+// already has on disk, and a tool with nothing on disk reports that itself — which is a more
+// specific message than the engine could produce on its behalf.
+func WithoutPrewarm() Option {
+	return func(e *Engine) { e.skipPrewarm = true }
 }
 
 // WithSBOM supplies the generator used when a Saga enables config.sbom. Injected rather than
@@ -411,7 +423,18 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// Warm shared scanner state (e.g. Trivy's vuln DB) once per distinct scanner, before the
 	// concurrent fan-out — so parallel scans don't each cold-start it. Best-effort.
 	warmed := make(map[string]bool)
-	for _, pj := range planned {
+	toWarm := planned
+	if e.skipPrewarm {
+		// Said once, up front, rather than left for each scanner to hint at later. Whatever is
+		// on disk is what the run gets; a scanner with nothing on disk says so in its own terms,
+		// which is more specific than anything this loop could say for it.
+		//
+		// A separate slice, because `planned` is the scan itself: emptying it would skip the run
+		// rather than the warm-up.
+		slog.InfoContext(ctx, "offline: not refreshing scanner data, using what is on disk")
+		toWarm = nil
+	}
+	for _, pj := range toWarm {
 		if ctx.Err() != nil {
 			break
 		}

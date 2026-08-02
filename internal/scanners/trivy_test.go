@@ -1,7 +1,10 @@
 package scanners
 
 import (
+	"slices"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 
@@ -115,5 +118,39 @@ func TestTrivyImageLocationsUseTheScannedReference(t *testing.T) {
 		if got := trivyImageLocations(target, untouched); got.Results[0].Location.URI != "a/b.go" {
 			t.Errorf("%T: location was rewritten to %q", target, got.Results[0].Location.URI)
 		}
+	}
+}
+
+func TestOfflineTrivyArgs(t *testing.T) {
+	// Online: untouched. Adding flags nobody asked for would change what runs and what the
+	// cache key covers.
+	if got := trivyFSArgs("/src", nil); slices.Contains(got, "--skip-db-update") {
+		t.Errorf("online argv carries the offline flag: %v", got)
+	}
+
+	netpolicy.SetOffline(true)
+	t.Cleanup(func() { netpolicy.SetOffline(false) })
+
+	// Skipping the prewarm is not enough: Trivy refreshes at scan time too, so an offline run
+	// would still reach out once per job without this.
+	for name, argv := range map[string][]string{
+		"fs":     trivyFSArgs("/src", nil),
+		"config": trivyConfigArgs("/src", nil),
+	} {
+		if !slices.Contains(argv, "--skip-db-update") {
+			t.Errorf("%s: %v", name, argv)
+		}
+		// The target stays last: Trivy takes its flags before the positional argument.
+		if argv[len(argv)-1] != "/src" {
+			t.Errorf("%s: target is no longer last: %v", name, argv)
+		}
+	}
+
+	img, err := trivyArgv(plugin.ImageTarget{Ref: "acme/api:1"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(img, "--skip-db-update") || img[len(img)-1] != "acme/api:1" {
+		t.Errorf("image argv: %v", img)
 	}
 }

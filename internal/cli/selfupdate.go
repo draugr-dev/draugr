@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/selfupdate"
 )
 
@@ -45,6 +46,11 @@ func newSelfUpdateCommand() *cobra.Command {
 }
 
 func runSelfUpdate(ctx context.Context, w io.Writer, in io.Reader, opts selfUpdateOptions) error {
+	// The whole command is a network operation; there is no useful subset of it to do offline,
+	// including --check.
+	if netpolicy.Offline() {
+		return netpolicy.Refuse("draugr self-update", selfupdate.ReleaseURL)
+	}
 	cur := selfupdate.CurrentVersion()
 
 	// --check: report current vs latest, change nothing.
