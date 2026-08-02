@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.55.0] - 2026-08-01
+
 ### Changed
 
 - **CIS rule ids are namespaced by the scanner that emitted them** — `draugr/cis/5.1.1` and
@@ -39,7 +43,7 @@ and move it under a version on release.
   WARN scanning the committed revision, not your working tree repository=/srv/web uncommitted_files=3
   ```
 
-  The reference now covers [URLs versus paths](docs/reference/saga-schema.md) in full, including
+  The reference now covers [URLs versus paths](https://github.com/draugr-dev/draugr/blob/main/docs/reference/saga-schema.md#where-a-repository-comes-from-urls-and-paths) in full, including
   what it means for `draugr diff`: scan, edit, re-scan compares `HEAD` with itself and reports no
   change, so commit between the two scans or name each `revision` explicitly.
 
@@ -1941,7 +1945,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.54.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.55.0...HEAD
+[0.55.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.55.0
 [0.54.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.54.0
 [0.53.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.53.0
 [0.52.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.52.0
