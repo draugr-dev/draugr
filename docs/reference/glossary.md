@@ -121,7 +121,9 @@ advice**; see [scope and disclaimer](../trust-and-operations/disclaimer.md).
 
 Checks a web endpoint's **response headers** (CSP, HSTS, X-Content-Type-Options, …) that
 harden the browser against classes of attack. In Draugr: **`headers`** (native; tuned per host
-`type` — browser vs. api). (Implemented today.)
+`type` — browser vs. api). The Content-Security-Policy is **graded, not just counted**: a CSP
+allowing `'unsafe-inline'` in `script-src` permits what a CSP exists to prevent, so its content is
+judged too. (Implemented today.)
 
 ## TLS / certificate assessment
 
