@@ -1,446 +1,292 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://draugr.dev/schema/draugr.saga.schema.json",
-  "title": "Draugr Saga",
-  "description": "The draugr.saga.yaml descriptor \u2014 a declarative account of an application's security surface and the controls that must pass. See https://draugr.dev/docs/latest/reference/saga-schema/",
-  "type": "object",
-  "required": [
-    "release"
-  ],
-  "additionalProperties": false,
-  "properties": {
-    "release": {
-      "$ref": "#/$defs/release"
-    },
-    "config": {
-      "$ref": "#/$defs/config"
-    },
-    "components": {
-      "type": "array",
-      "description": "The app's parts. Each component declares the surfaces it exposes; Draugr plans scans per surface.",
-      "items": {
-        "$ref": "#/$defs/component"
-      }
-    },
-    "componentsMetaSources": {
-      "type": "array",
-      "description": "Load component definitions from other repositories (schema accepted today; resolution is on the roadmap).",
-      "items": {
-        "$ref": "#/$defs/metaSource"
-      }
-    },
-    "references": {
-      "type": "array",
-      "description": "Links to manual or human-performed controls (threat model, architecture diagram, \u2026).",
-      "items": {
-        "$ref": "#/$defs/reference"
-      }
-    }
-  },
   "$defs": {
-    "release": {
-      "type": "object",
-      "description": "Identifies what is being assessed.",
-      "required": [
-        "version"
-      ],
+    "component": {
       "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Release or application name."
-        },
-        "version": {
-          "type": "string",
-          "description": "Release version. Supports ${{ ENV_VAR }} substitution."
-        },
-        "stage": {
-          "type": "string",
-          "description": "Free-form stage label, e.g. dev, staging, prod."
-        }
-      }
-    },
-    "config": {
-      "type": "object",
-      "description": "Project-wide configuration: which controls run, and what is reported where.",
-      "additionalProperties": false,
+      "description": "One logical part of the app. All surface lists are optional — declare what applies.",
       "properties": {
         "controllers": {
-          "$ref": "#/$defs/controllers"
-        },
-        "reports": {
-          "type": "array",
-          "description": "Report formats to render for every scan.",
-          "items": {
-            "$ref": "#/$defs/reportConfig"
-          }
-        },
-        "publishers": {
-          "type": "array",
-          "description": "Where rendered reports are delivered. Every report goes to every publisher.",
-          "items": {
-            "$ref": "#/$defs/publisherConfig"
-          }
-        },
-        "sbom": {
-          "$ref": "#/$defs/sbomConfig"
-        },
-        "exploitability": {
-          "$ref": "#/$defs/exploitabilityConfig"
-        },
-        "exclude": {
-          "type": "array",
-          "description": "Findings to suppress, each with a stated reason. A suppressed finding is still reported \u2014 marked, with its justification \u2014 it just stops counting toward the verdict.",
-          "items": {
-            "$ref": "#/$defs/excludeRule"
-          }
-        },
-        "gate": {
-          "$ref": "#/$defs/gateConfig"
-        },
-        "allowEffects": {
-          "type": "array",
-          "description": "Scanner effects the project accepts. A scanner that does more to a target than read it declares an effect; kinds that require consent (\"mutate\", \"privilege\") will not run unless listed here or allowed with --allow-effects.",
-          "items": {
-            "type": "string",
-            "enum": [
-              "network",
-              "mutate",
-              "privilege"
-            ]
-          },
-          "uniqueItems": true
-        }
-      }
-    },
-    "controllers": {
-      "type": "object",
-      "description": "Security controls, keyed by name. A control runs only when enabled here (or on a component). Each scanner is configured under its own key inside the control.",
-      "propertyNames": {
-        "$ref": "#/$defs/controlName"
-      },
-      "additionalProperties": {
-        "$ref": "#/$defs/controllerSettings"
-      }
-    },
-    "controlName": {
-      "description": "A control Draugr implements today. Other names are ignored.",
-      "type": "string",
-      "anyOf": [
-        {
-          "const": "images",
-          "description": "Container image vulnerabilities (Trivy)."
-        },
-        {
-          "const": "sca",
-          "description": "Dependency vulnerabilities \u2014 Software Composition Analysis (Trivy fs)."
-        },
-        {
-          "const": "sast",
-          "description": "Static analysis of first-party source (Semgrep; opt-in gosec)."
-        },
-        {
-          "const": "secrets",
-          "description": "Committed credentials (Gitleaks)."
-        },
-        {
-          "const": "iac",
-          "description": "Infrastructure-as-Code misconfiguration (Trivy config)."
-        },
-        {
-          "const": "headers",
-          "description": "HTTP security headers on running endpoints (native)."
-        },
-        {
-          "const": "dast",
-          "description": "Runtime probing of running endpoints (Nuclei)."
-        },
-        {
-          "const": "tls",
-          "description": "TLS configuration and certificates on running endpoints (native)."
-        }
-      ]
-    },
-    "controllerSettings": {
-      "type": "object",
-      "description": "Settings for one control: `enabled`, plus a block per scanner.",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled."
-        }
-      },
-      "additionalProperties": {
-        "type": "object",
-        "description": "Per-scanner configuration. `enabled` turns a scanner on or off; the remaining keys are that scanner's own options, validated against its schema when the scan runs.",
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "description": "Run this scanner. Default scanners run unless set to false; opt-in scanners run only when set to true."
-          }
-        }
-      }
-    },
-    "reportConfig": {
-      "type": "object",
-      "required": [
-        "format"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "format": {
-          "type": "string",
-          "description": "Report format to render.",
-          "enum": [
-            "console",
-            "markdown",
-            "html",
-            "junit",
-            "json",
-            "sarif",
-            "template"
-          ]
-        },
-        "template": {
-          "type": "string",
-          "description": "Inline Go text/template (format: template). Set exactly one of template / templateFile."
-        },
-        "templateFile": {
-          "type": "string",
-          "description": "Path to a Go text/template (format: template)."
-        },
-        "filename": {
-          "type": "string",
-          "description": "Override the artifact's default output filename."
-        }
-      }
-    },
-    "publisherConfig": {
-      "type": "object",
-      "required": [
-        "kind"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "type": "string",
-          "description": "Where to deliver reports.",
-          "anyOf": [
-            {
-              "const": "file",
-              "description": "Write each report into a directory."
-            },
-            {
-              "const": "github",
-              "description": "Upload the SARIF report to GitHub code scanning."
-            },
-            {
-              "const": "github-pr-comment",
-              "description": "Post the Markdown report as a sticky pull-request comment."
-            }
-          ]
-        },
-        "dir": {
-          "type": "string",
-          "description": "file: output directory."
-        },
-        "repo": {
-          "type": "string",
-          "description": "github: owner/name. Defaults to $GITHUB_REPOSITORY."
-        },
-        "commit": {
-          "type": "string",
-          "description": "github: commit SHA. Defaults to $GITHUB_SHA."
-        },
-        "ref": {
-          "type": "string",
-          "description": "github: git ref. Defaults to $GITHUB_REF."
-        },
-        "tokenEnv": {
-          "type": "string",
-          "description": "Environment variable holding the token (default GITHUB_TOKEN). The token itself is never stored in the Saga."
-        },
-        "pr": {
-          "type": "integer",
-          "description": "github-pr-comment: pull-request number. Defaults to the CI environment."
-        },
-        "marker": {
-          "type": "string",
-          "description": "github-pr-comment: hidden marker identifying the sticky comment to update."
-        }
-      }
-    },
-    "excludeRule": {
-      "type": "object",
-      "description": "One exclusion. Set paths, rules, or both; when both are set a finding must match both.",
-      "required": [
-        "reason"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "paths": {
-          "type": "array",
-          "description": "Location patterns. A pattern ending in '/' matches everything beneath that directory; otherwise it is a glob against the whole location.",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "rules": {
-          "type": "array",
-          "description": "Rule ids to suppress, matched exactly.",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "reason": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Why this exclusion exists. Required: an exclusion without a reason is indistinguishable from an oversight."
-        },
-        "acceptedBy": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Who decided this finding was acceptable. Optional; a suppression without one is reported as unattributed."
-        },
-        "expires": {
-          "type": "string",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-          "description": "Date this exclusion stops applying (YYYY-MM-DD). Past it the finding returns and the report says the exclusion lapsed."
-        }
-      }
-    },
-    "gateConfig": {
-      "type": "object",
-      "description": "Pass/fail thresholds. Policy belongs in the descriptor rather than in a flag every pipeline has to remember.",
-      "additionalProperties": false,
-      "properties": {
-        "controls": {
-          "type": "object",
-          "description": "Per-control severity threshold, overriding --fail-on for that control only.",
-          "additionalProperties": {
-            "type": "string",
-            "enum": [
-              "error",
-              "warning",
-              "note"
-            ]
-          }
-        }
-      }
-    },
-    "exploitabilityConfig": {
-      "type": "object",
-      "description": "Severity enrichment from real-world exploitability signals: CISA's Known Exploited Vulnerabilities catalog and FIRST's EPSS scores. A CVE on KEV becomes critical; a CVE at or above the EPSS threshold is raised one band. Applied before ranking, so priority reflects what is being exploited rather than only what could be. Either signal works without the other. Fetch the data with `draugr feeds update`.",
-      "additionalProperties": false,
-      "properties": {
-        "kev": {
-          "type": "string",
-          "description": "Where the KEV catalog comes from: a file path, \"cache\" to read ~/.draugr/feeds without touching the network, or \"auto\" to fetch when the cache is missing or stale. Omit to leave KEV off.",
-          "examples": ["cache", "auto", "./kev.json"]
-        },
-        "epss": {
-          "type": "string",
-          "description": "Where the EPSS scores come from: a file path, \"cache\", or \"auto\" \u2014 the same three choices as kev. Omit to leave EPSS off.",
-          "examples": ["cache", "auto", "./epss.csv"]
-        },
-        "epssThreshold": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1,
-          "description": "EPSS probability at or above which a finding's severity is raised one band. Defaults to 0.5 \u2014 a coin-flip chance of exploitation within 30 days. Scores are heavily skewed, so lowering this widens the net faster than the number suggests. Zero disables the EPSS bump while leaving KEV in force."
-        },
-        "maxAge": {
-          "type": "string",
-          "description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is stale. A Go duration; defaults to 24h, tracking EPSS being republished daily. Raise it on a runner deliberately pinned to a known copy of the data.",
-          "examples": ["24h", "168h"]
-        }
-      }
-    },
-    "sbomConfig": {
-      "type": "object",
-      "description": "Software Bill of Materials generation. Evidence rather than a control: an SBOM is an inventory of what a component contains, so it finds nothing and never affects the verdict. One document is produced per distinct repository and image. Requires the syft tool.",
-      "additionalProperties": false,
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "description": "Generate an SBOM for every repository and image in the project."
-        },
-        "format": {
-          "type": "string",
-          "description": "SBOM document format. Defaults to spdx-json. SPDX and CycloneDX are each offered in both of their standard encodings; pick whichever your consumer reads.",
-          "enum": [
-            "spdx-json",
-            "spdx-tag-value",
-            "cyclonedx-json",
-            "cyclonedx-xml"
-          ]
-        }
-      }
-    },
-    "component": {
-      "type": "object",
-      "description": "One logical part of the app. All surface lists are optional \u2014 declare what applies.",
-      "required": [
-        "name"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Unique component name."
-        },
-        "labels": {
-          "type": "object",
-          "description": "Free-form key/value metadata, e.g. team or tier.",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "exposure": {
-          "$ref": "#/$defs/exposure"
+          "$ref": "#/$defs/controllers",
+          "description": "Per-component control overrides. Same shape as config.controllers; component settings win."
         },
         "criticality": {
           "$ref": "#/$defs/criticality"
         },
-        "repositories": {
-          "type": "array",
-          "description": "Source repositories \u2014 scanned by sca, secrets, and sast.",
-          "items": {
-            "$ref": "#/$defs/repository"
-          }
-        },
-        "images": {
-          "type": "array",
-          "description": "Container images \u2014 scanned by the images control.",
-          "items": {
-            "$ref": "#/$defs/image"
-          }
+        "exposure": {
+          "$ref": "#/$defs/exposure"
         },
         "hosts": {
-          "type": "array",
-          "description": "Running endpoints \u2014 probed by headers, tls, and dast.",
+          "description": "Running endpoints — probed by headers, tls, and dast.",
           "items": {
             "$ref": "#/$defs/host"
-          }
+          },
+          "type": "array"
+        },
+        "images": {
+          "description": "Container images — scanned by the images control.",
+          "items": {
+            "$ref": "#/$defs/image"
+          },
+          "type": "array"
         },
         "infrastructure": {
-          "type": "array",
           "description": "Infrastructure this component runs on.",
           "items": {
             "$ref": "#/$defs/infrastructure"
-          }
+          },
+          "type": "array"
+        },
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Free-form key/value metadata, e.g. team or tier.",
+          "type": "object"
+        },
+        "name": {
+          "description": "Unique component name.",
+          "type": "string"
+        },
+        "repositories": {
+          "description": "Source repositories — scanned by sca, secrets, and sast.",
+          "items": {
+            "$ref": "#/$defs/repository"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "config": {
+      "additionalProperties": false,
+      "description": "Project-wide configuration: which controls run, and what is reported where.",
+      "properties": {
+        "allowEffects": {
+          "description": "Scanner effects the project accepts. A scanner that does more to a target than read it declares an effect; kinds that require consent (\"mutate\", \"privilege\") will not run unless listed here or allowed with --allow-effects.",
+          "items": {
+            "enum": [
+              "network",
+              "mutate",
+              "privilege"
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
         },
         "controllers": {
-          "$ref": "#/$defs/controllers",
-          "description": "Per-component control overrides. Same shape as config.controllers; component settings win."
+          "$ref": "#/$defs/controllers"
+        },
+        "exclude": {
+          "description": "Findings to suppress, each with a stated reason. A suppressed finding is still reported — marked, with its justification — it just stops counting toward the verdict.",
+          "items": {
+            "$ref": "#/$defs/excludeRule"
+          },
+          "type": "array"
+        },
+        "exploitability": {
+          "$ref": "#/$defs/exploitabilityConfig"
+        },
+        "gate": {
+          "$ref": "#/$defs/gateConfig"
+        },
+        "publishers": {
+          "description": "Where rendered reports are delivered. Every report goes to every publisher.",
+          "items": {
+            "$ref": "#/$defs/publisherConfig"
+          },
+          "type": "array"
+        },
+        "reports": {
+          "description": "Report formats to render for every scan.",
+          "items": {
+            "$ref": "#/$defs/reportConfig"
+          },
+          "type": "array"
+        },
+        "sbom": {
+          "$ref": "#/$defs/sbomConfig"
         }
-      }
+      },
+      "type": "object"
+    },
+    "controlName": {
+      "anyOf": [
+        {
+          "const": "dast",
+          "description": "Probe a component's running endpoints for runtime vulnerabilities."
+        },
+        {
+          "const": "headers",
+          "description": "Check HTTP security headers on a component's running endpoints."
+        },
+        {
+          "const": "iac",
+          "description": "Scan Infrastructure-as-Code for insecure misconfigurations."
+        },
+        {
+          "const": "images",
+          "description": "Scan container images for known OS/package vulnerabilities."
+        },
+        {
+          "const": "infrastructure",
+          "description": "Audit a Kubernetes cluster against the CIS Kubernetes Benchmark."
+        },
+        {
+          "const": "licenses",
+          "description": "Report dependency licences that carry an obligation (copyleft, forbidden, unidentified)."
+        },
+        {
+          "const": "sast",
+          "description": "Static analysis of a repo's own source code for security bugs."
+        },
+        {
+          "const": "sca",
+          "description": "Scan a repo's dependencies for known vulnerabilities (Software Composition Analysis)."
+        },
+        {
+          "const": "secrets",
+          "description": "Detect committed secrets and credentials in a repo."
+        },
+        {
+          "const": "tls",
+          "description": "Check TLS configuration and certificates on a component's running endpoints."
+        }
+      ],
+      "description": "A control this build of Draugr implements. A name that is not here is rejected: a control Draugr cannot run is a check that will not happen, and a descriptor should not be able to ask for one quietly.",
+      "type": "string"
+    },
+    "controllerSettings": {
+      "additionalProperties": {
+        "description": "Per-scanner configuration. `enabled` turns a scanner on or off; the remaining keys are that scanner's own options, validated against its schema when the scan runs.",
+        "properties": {
+          "enabled": {
+            "description": "Run this scanner. Default scanners run unless set to false; opt-in scanners run only when set to true.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "description": "Settings for one control: `enabled`, plus a block per scanner.",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "controllers": {
+      "additionalProperties": {
+        "$ref": "#/$defs/controllerSettings"
+      },
+      "description": "Security controls, keyed by name. A control runs only when enabled here (or on a component). Each scanner is configured under its own key inside the control.",
+      "propertyNames": {
+        "$ref": "#/$defs/controlName"
+      },
+      "type": "object"
+    },
+    "criticality": {
+      "anyOf": [
+        {
+          "const": "critical",
+          "description": "Failure causes an outage or data loss."
+        },
+        {
+          "const": "important",
+          "description": "Degraded functionality, no immediate outage."
+        },
+        {
+          "const": "supporting",
+          "description": "Limited operational impact."
+        }
+      ],
+      "description": "Business impact if this component fails — the impact axis of risk prioritization.",
+      "type": "string"
+    },
+    "excludeRule": {
+      "additionalProperties": false,
+      "description": "One exclusion. Set paths, rules, or both; when both are set a finding must match both.",
+      "properties": {
+        "acceptedBy": {
+          "description": "Who decided this finding was acceptable. Optional; a suppression without one is reported as unattributed.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "expires": {
+          "description": "Date this exclusion stops applying (YYYY-MM-DD). Past it the finding returns and the report says the exclusion lapsed.",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "paths": {
+          "description": "Location patterns. A pattern ending in '/' matches everything beneath that directory; otherwise it is a glob against the whole location.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "description": "Why this exclusion exists. Required: an exclusion without a reason is indistinguishable from an oversight.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "rules": {
+          "description": "Rule ids to suppress, matched exactly.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "type": "object"
+    },
+    "exploitabilityConfig": {
+      "additionalProperties": false,
+      "description": "Severity enrichment from real-world exploitability signals: CISA's Known Exploited Vulnerabilities catalog and FIRST's EPSS scores. A CVE on KEV becomes critical; a CVE at or above the EPSS threshold is raised one band. Applied before ranking, so priority reflects what is being exploited rather than only what could be. Either signal works without the other. Fetch the data with `draugr feeds update`.",
+      "properties": {
+        "epss": {
+          "description": "Where the EPSS scores come from: a file path, \"cache\", or \"auto\" — the same three choices as kev. Omit to leave EPSS off.",
+          "examples": [
+            "cache",
+            "auto",
+            "./epss.csv"
+          ],
+          "type": "string"
+        },
+        "epssThreshold": {
+          "description": "EPSS probability at or above which a finding's severity is raised one band. Defaults to 0.5 — a coin-flip chance of exploitation within 30 days. Scores are heavily skewed, so lowering this widens the net faster than the number suggests. Zero disables the EPSS bump while leaving KEV in force.",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "kev": {
+          "description": "Where the KEV catalog comes from: a file path, \"cache\" to read ~/.draugr/feeds without touching the network, or \"auto\" to fetch when the cache is missing or stale. Omit to leave KEV off.",
+          "examples": [
+            "cache",
+            "auto",
+            "./kev.json"
+          ],
+          "type": "string"
+        },
+        "maxAge": {
+          "description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is stale. A Go duration; defaults to 24h, tracking EPSS being republished daily. Raise it on a runner deliberately pinned to a known copy of the data.",
+          "examples": [
+            "24h",
+            "168h"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
     },
     "exposure": {
-      "type": "string",
-      "description": "How reachable this component is \u2014 the likelihood axis of risk prioritization.",
       "anyOf": [
         {
           "const": "public",
@@ -458,172 +304,348 @@
           "const": "restricted",
           "description": "Namespace- or network-policy-scoped."
         }
-      ]
-    },
-    "criticality": {
-      "type": "string",
-      "description": "Business impact if this component fails \u2014 the impact axis of risk prioritization.",
-      "anyOf": [
-        {
-          "const": "critical",
-          "description": "Failure causes an outage or data loss."
-        },
-        {
-          "const": "important",
-          "description": "Degraded functionality, no immediate outage."
-        },
-        {
-          "const": "supporting",
-          "description": "Limited operational impact."
-        }
-      ]
-    },
-    "repository": {
-      "type": "object",
-      "required": [
-        "url"
       ],
-      "additionalProperties": false,
-      "properties": {
-        "url": {
-          "type": "string",
-          "description": "Repository URL, or a local path such as `.`"
-        },
-        "revision": {
-          "type": "string",
-          "description": "Branch, tag, or commit to scan."
-        },
-        "paths": {
-          "type": "array",
-          "description": "Restrict the scan to these directories. Files at the repository root are always included — manifests and scanner configuration live there.",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "ignore": {
-          "type": "array",
-          "description": "Remove matching paths from the scan, applied after `paths`. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment, `**` across them.",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      }
+      "description": "How reachable this component is — the likelihood axis of risk prioritization.",
+      "type": "string"
     },
-    "image": {
-      "type": "object",
-      "required": [
-        "image"
-      ],
+    "gateConfig": {
       "additionalProperties": false,
+      "description": "Pass/fail thresholds. Policy belongs in the descriptor rather than in a flag every pipeline has to remember.",
       "properties": {
-        "image": {
-          "type": "string",
-          "description": "Image reference, e.g. registry.example.com/acme/web:1.0"
-        },
-        "digest": {
-          "type": "string",
-          "description": "Pin the immutable content digest, e.g. sha256:\u2026"
+        "controls": {
+          "additionalProperties": {
+            "enum": [
+              "error",
+              "warning",
+              "note"
+            ],
+            "type": "string"
+          },
+          "description": "Per-control severity threshold, overriding --fail-on for that control only.",
+          "propertyNames": {
+            "$ref": "#/$defs/controlName"
+          },
+          "type": "object"
         }
-      }
+      },
+      "type": "object"
     },
     "host": {
-      "type": "object",
-      "required": [
-        "url"
-      ],
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string",
-          "description": "Label for this endpoint."
-        },
-        "url": {
-          "type": "string",
-          "description": "Endpoint URL. Must be https:// for the tls control."
+          "description": "Label for this endpoint.",
+          "type": "string"
         },
         "type": {
-          "type": "string",
-          "description": "Tunes which header checks apply.",
           "anyOf": [
             {
               "const": "browser",
-              "description": "Served to browsers \u2014 full security-header suite (default)."
+              "description": "Served to browsers — full security-header suite (default)."
             },
             {
               "const": "api",
-              "description": "API endpoint \u2014 skips browser-only headers."
+              "description": "API endpoint — skips browser-only headers."
             }
-          ]
+          ],
+          "description": "Tunes which header checks apply.",
+          "type": "string"
+        },
+        "url": {
+          "description": "Endpoint URL. Must be https:// for the tls control.",
+          "type": "string"
         }
-      }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "image": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "description": "Pin the immutable content digest, e.g. sha256:…",
+          "type": "string"
+        },
+        "image": {
+          "description": "Image reference, e.g. registry.example.com/acme/web:1.0",
+          "type": "string"
+        }
+      },
+      "required": [
+        "image"
+      ],
+      "type": "object"
     },
     "infrastructure": {
-      "type": "object",
-      "required": [
-        "kind"
-      ],
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "type": "string",
-          "description": "Infrastructure type, e.g. kubernetes."
-        },
-        "ref": {
-          "type": "string",
-          "description": "Identifier, e.g. a cluster name."
+          "description": "Infrastructure type, e.g. kubernetes.",
+          "type": "string"
         },
         "namespaces": {
-          "type": "array",
+          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the k8sPolicies scanner can honour a scope; the others refuse rather than silently report the whole cluster.",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "type": "string"
           },
-          "uniqueItems": true,
-          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the k8sPolicies scanner can honour a scope; the others refuse rather than silently report the whole cluster."
+          "type": "array",
+          "uniqueItems": true
+        },
+        "ref": {
+          "description": "Identifier, e.g. a cluster name.",
+          "type": "string"
         }
-      }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
     },
     "metaSource": {
-      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Path within that repo; supports globs.",
+          "type": "string"
+        },
+        "repoUrl": {
+          "description": "Repository holding component definitions.",
+          "type": "string"
+        },
+        "revision": {
+          "description": "Branch, tag, or commit.",
+          "type": "string"
+        }
+      },
       "required": [
         "repoUrl",
         "path"
       ],
+      "type": "object"
+    },
+    "publisherConfig": {
       "additionalProperties": false,
       "properties": {
-        "repoUrl": {
-          "type": "string",
-          "description": "Repository holding component definitions."
+        "commit": {
+          "description": "github: commit SHA. Defaults to $GITHUB_SHA.",
+          "type": "string"
         },
-        "path": {
-          "type": "string",
-          "description": "Path within that repo; supports globs."
+        "dir": {
+          "description": "file: output directory.",
+          "type": "string"
         },
-        "revision": {
-          "type": "string",
-          "description": "Branch, tag, or commit."
+        "kind": {
+          "anyOf": [
+            {
+              "const": "file",
+              "description": "Write each report into a directory."
+            },
+            {
+              "const": "github",
+              "description": "Upload the SARIF report to GitHub code scanning."
+            },
+            {
+              "const": "github-pr-comment",
+              "description": "Post the Markdown report as a sticky pull-request comment."
+            }
+          ],
+          "description": "Where to deliver reports.",
+          "type": "string"
+        },
+        "marker": {
+          "description": "github-pr-comment: hidden marker identifying the sticky comment to update.",
+          "type": "string"
+        },
+        "pr": {
+          "description": "github-pr-comment: pull-request number. Defaults to the CI environment.",
+          "type": "integer"
+        },
+        "ref": {
+          "description": "github: git ref. Defaults to $GITHUB_REF.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "github: owner/name. Defaults to $GITHUB_REPOSITORY.",
+          "type": "string"
+        },
+        "tokenEnv": {
+          "description": "Environment variable holding the token (default GITHUB_TOKEN). The token itself is never stored in the Saga.",
+          "type": "string"
         }
-      }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
     },
     "reference": {
-      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "link": {
+          "description": "URL to the document.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Kind of reference, e.g. ThreatModel.",
+          "type": "string"
+        }
+      },
       "required": [
         "type",
         "link"
       ],
+      "type": "object"
+    },
+    "release": {
+      "additionalProperties": false,
+      "description": "Identifies what is being assessed.",
+      "properties": {
+        "name": {
+          "description": "Release or application name.",
+          "type": "string"
+        },
+        "stage": {
+          "description": "Free-form stage label, e.g. dev, staging, prod.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Release version. Supports ${{ ENV_VAR }} substitution.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "type": "object"
+    },
+    "reportConfig": {
       "additionalProperties": false,
       "properties": {
-        "type": {
-          "type": "string",
-          "description": "Kind of reference, e.g. ThreatModel."
+        "filename": {
+          "description": "Override the artifact's default output filename.",
+          "type": "string"
         },
-        "link": {
-          "type": "string",
-          "description": "URL to the document."
+        "format": {
+          "description": "Report format to render.",
+          "enum": [
+            "console",
+            "markdown",
+            "html",
+            "junit",
+            "json",
+            "sarif",
+            "template"
+          ],
+          "type": "string"
+        },
+        "template": {
+          "description": "Inline Go text/template (format: template). Set exactly one of template / templateFile.",
+          "type": "string"
+        },
+        "templateFile": {
+          "description": "Path to a Go text/template (format: template).",
+          "type": "string"
         }
-      }
+      },
+      "required": [
+        "format"
+      ],
+      "type": "object"
+    },
+    "repository": {
+      "additionalProperties": false,
+      "properties": {
+        "ignore": {
+          "description": "Remove matching paths from the scan, applied after `paths`. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment, `**` across them.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "paths": {
+          "description": "Restrict the scan to these directories. Files at the repository root are always included — manifests and scanner configuration live there.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "revision": {
+          "description": "Branch, tag, or commit to scan.",
+          "type": "string"
+        },
+        "url": {
+          "description": "Repository URL, or a local path such as `.`",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "sbomConfig": {
+      "additionalProperties": false,
+      "description": "Software Bill of Materials generation. Evidence rather than a control: an SBOM is an inventory of what a component contains, so it finds nothing and never affects the verdict. One document is produced per distinct repository and image. Requires the syft tool.",
+      "properties": {
+        "enabled": {
+          "description": "Generate an SBOM for every repository and image in the project.",
+          "type": "boolean"
+        },
+        "format": {
+          "description": "SBOM document format. Defaults to spdx-json. SPDX and CycloneDX are each offered in both of their standard encodings; pick whichever your consumer reads.",
+          "enum": [
+            "spdx-json",
+            "spdx-tag-value",
+            "cyclonedx-json",
+            "cyclonedx-xml"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
     }
-  }
+  },
+  "$id": "https://draugr.dev/schema/draugr.saga.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The draugr.saga.yaml descriptor — a declarative account of an application's security surface and the controls that must pass. See https://draugr.dev/docs/latest/reference/saga-schema/",
+  "properties": {
+    "components": {
+      "description": "The app's parts. Each component declares the surfaces it exposes; Draugr plans scans per surface.",
+      "items": {
+        "$ref": "#/$defs/component"
+      },
+      "type": "array"
+    },
+    "componentsMetaSources": {
+      "description": "Load component definitions from other repositories (schema accepted today; resolution is on the roadmap).",
+      "items": {
+        "$ref": "#/$defs/metaSource"
+      },
+      "type": "array"
+    },
+    "config": {
+      "$ref": "#/$defs/config"
+    },
+    "references": {
+      "description": "Links to manual or human-performed controls (threat model, architecture diagram, …).",
+      "items": {
+        "$ref": "#/$defs/reference"
+      },
+      "type": "array"
+    },
+    "release": {
+      "$ref": "#/$defs/release"
+    }
+  },
+  "required": [
+    "release"
+  ],
+  "title": "Draugr Saga",
+  "type": "object"
 }
