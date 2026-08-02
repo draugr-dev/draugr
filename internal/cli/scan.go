@@ -130,7 +130,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return err
 	}
-	expl, err := loadExploitSource(ctx, exploitSettings(opts, model.Config.Exploitability))
+	expl, feedProv, err := loadExploitSource(ctx, exploitSettings(opts, model.Config.Exploitability))
 	if err != nil {
 		return err
 	}
@@ -194,6 +194,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Compact:              opts.compact,
 		Components:           components,
 		UnattributedFindings: unattributed,
+		Exploitability:       feedProv,
 		// Stamped so a rendered report can say when it ran and what produced it. A report
 		// offered as evidence has to answer both, and only the CLI knows either.
 		Generated: time.Now(),

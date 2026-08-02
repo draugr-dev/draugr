@@ -25,9 +25,9 @@ func Styled(style Style, text string) Cell { return Cell{Text: text, Style: styl
 
 type row struct {
 	cells []Cell
-	// note is a supporting line printed under the row, indented past the first column and
+	// notes are supporting lines printed under the row, indented past the first column and
 	// dimmed. It's how a table says more than its columns have room for.
-	note string
+	notes []string
 }
 
 // Table renders aligned columns for a person reading a terminal.
@@ -65,7 +65,20 @@ func (t *Table) Row(cells ...Cell) *Table {
 // RowWithNote appends a row followed by a dimmed continuation line, aligned under the second
 // column. Use it when a row's own columns can't carry the explanation.
 func (t *Table) RowWithNote(note string, cells ...Cell) *Table {
-	t.rows = append(t.rows, row{cells: cells, note: note})
+	return t.RowWithNotes([]string{note}, cells...)
+}
+
+// RowWithNotes appends a row followed by several dimmed continuation lines, each aligned under
+// the second column. Empty strings are dropped, so a caller can pass a line that may or may not
+// have anything to say without guarding at the call site.
+func (t *Table) RowWithNotes(notes []string, cells ...Cell) *Table {
+	kept := make([]string, 0, len(notes))
+	for _, n := range notes {
+		if n != "" {
+			kept = append(kept, n)
+		}
+	}
+	t.rows = append(t.rows, row{cells: cells, notes: kept})
 	return t
 }
 
@@ -104,11 +117,11 @@ func (t *Table) Render(w io.Writer) {
 	}
 	for _, r := range t.rows {
 		t.writeLine(w, widths, r.cells)
-		if r.note != "" {
-			// Align the note under the second column: far enough in to read as subordinate to
-			// the row, not as a row of its own.
-			pad := strings.Repeat(" ", widths[0]+columnGap)
-			_, _ = fmt.Fprintf(w, "%s%s%s\n", t.indent, pad, t.painter.Paint(StyleMuted, r.note))
+		// Align notes under the second column: far enough in to read as subordinate to the
+		// row, not as rows of their own.
+		pad := strings.Repeat(" ", widths[0]+columnGap)
+		for _, n := range r.notes {
+			_, _ = fmt.Fprintf(w, "%s%s%s\n", t.indent, pad, t.painter.Paint(StyleMuted, n))
 		}
 	}
 }

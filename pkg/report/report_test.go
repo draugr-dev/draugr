@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -953,5 +954,138 @@ func TestSuppressionLineOrdersAcceptorsStably(t *testing.T) {
 	}
 	if !strings.Contains(first, "a.first, 1 accepted by z.last") {
 		t.Errorf("expected alphabetical: %q", first)
+	}
+}
+
+func TestExploitabilityLine(t *testing.T) {
+	fetched := time.Date(2026, 8, 1, 9, 12, 0, 0, time.UTC)
+	cases := []struct {
+		name  string
+		feeds []FeedProvenance
+		want  string
+	}{
+		{"none", nil, ""},
+		{
+			"fetched",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}},
+			"Exploitability: KEV 2026-08-01",
+		},
+		{
+			// A file the operator supplied has no fetch date, and saying so is more accurate
+			// than inventing today's.
+			"a supplied file",
+			[]FeedProvenance{{Name: "kev"}},
+			"Exploitability: KEV (file)",
+		},
+		{
+			"stale is said out loud",
+			[]FeedProvenance{{Name: "epss", FetchedAt: fetched, Stale: true}},
+			"Exploitability: EPSS 2026-08-01, stale",
+		},
+		{
+			"both",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}, {Name: "epss", FetchedAt: fetched}},
+			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := exploitabilityLine(c.feeds); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+func TestEscalationNote(t *testing.T) {
+	if got := escalationNote(nil); got != "" {
+		t.Errorf("nothing raised it, so nothing should be claimed: %q", got)
+	}
+	// What it was ranked as, not what it was raised from: the Severity column still shows the
+	// scanner's rating, so "raised from high" beside a row reading "high" would say nothing.
+	got := escalationNote(&sarif.Escalation{
+		From: sarif.SeverityHigh, To: sarif.SeverityCritical,
+		Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01",
+	})
+	if got != "↑ ranked as critical — on KEV (2026-08-01)" {
+		t.Errorf("got %q", got)
+	}
+	// No date: the claim stands without one rather than being dropped or dated wrongly.
+	got = escalationNote(&sarif.Escalation{From: sarif.SeverityLow, To: sarif.SeverityMedium, Detail: "EPSS 0.9"})
+	if got != "↑ ranked as medium — EPSS 0.9" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestExploitabilityAbsentWhenNoEnrichment(t *testing.T) {
+	// The whole feature is invisible on a run that did not use it. A header with nothing under
+	// it is a question the reader has to answer for themselves.
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, goldenCleanData()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "Exploitability") {
+		t.Errorf("unenriched run mentions exploitability:\n%s", buf.String())
+	}
+
+	buf.Reset()
+	if err := (markdownReporter{}).Render(&buf, goldenCleanData()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "Exploitability") {
+		t.Errorf("markdown mentions it too:\n%s", buf.String())
+	}
+}
+
+func TestExploitabilityInMarkdownAndHTML(t *testing.T) {
+	d := goldenEnrichedData()
+
+	var md bytes.Buffer
+	if err := (markdownReporter{}).Render(&md, d); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Exploitability data", "`kev`", "fetched 2026-08-01", "**stale**"} {
+		if !strings.Contains(md.String(), want) {
+			t.Errorf("markdown missing %q:\n%s", want, md.String())
+		}
+	}
+
+	var html bytes.Buffer
+	if err := (htmlReporter{}).Render(&html, d); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Exploitability data", "2026-08-01", "(stale)", "sha256:15b44d7c9c57"} {
+		if !strings.Contains(html.String(), want) {
+			t.Errorf("html missing %q", want)
+		}
+	}
+}
+
+func TestExploitabilityInJSON(t *testing.T) {
+	var buf bytes.Buffer
+	if err := (jsonReporter{}).Render(&buf, goldenEnrichedData()); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Exploitability []struct {
+			Name      string `json:"name"`
+			URL       string `json:"url"`
+			FetchedAt string `json:"fetchedAt"`
+			SHA256    string `json:"sha256"`
+			Stale     bool   `json:"stale"`
+		} `json:"exploitability"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Exploitability) != 2 {
+		t.Fatalf("got %d feeds, want 2:\n%s", len(doc.Exploitability), buf.String())
+	}
+	kev := doc.Exploitability[0]
+	if kev.Name != "kev" || kev.URL == "" || kev.SHA256 == "" || kev.FetchedAt == "" {
+		t.Errorf("incomplete provenance: %+v", kev)
+	}
+	if !doc.Exploitability[1].Stale {
+		t.Error("the stale feed is not marked stale in the JSON")
 	}
 }

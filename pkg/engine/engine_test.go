@@ -103,11 +103,13 @@ func TestWithPrioritizationStampsFindings(t *testing.T) {
 		Components: []saga.Component{{Name: "a", Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical}},
 	}
 	// The prioritizer receives the component's classification and the control name.
-	prio := func(control string, e saga.Exposure, c saga.Criticality, _ sarif.Result) string {
+	prio := func(control string, e saga.Exposure, c saga.Criticality, _ sarif.Result) Priority {
 		if control == "images" && e == saga.ExposurePublic && c == saga.CriticalityCritical {
-			return "P1"
+			return Priority{Band: "P1", Escalation: &sarif.Escalation{
+				From: sarif.SeverityHigh, Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01",
+			}}
 		}
-		return "P4"
+		return Priority{Band: "P4"}
 	}
 	res, err := New(reg, WithPrioritization(prio)).Run(context.Background(), m)
 	if err != nil {
@@ -116,6 +118,12 @@ func TestWithPrioritizationStampsFindings(t *testing.T) {
 	report := res.Controls["images"].Report
 	if len(report.Results) != 1 || report.Results[0].Priority != "P1" {
 		t.Fatalf("expected finding stamped P1, got %+v", report.Results)
+	}
+	// The reason travels with the band. A band on its own states a conclusion and withholds
+	// the premise it was computed from.
+	esc := report.Results[0].Escalation
+	if esc == nil || esc.Signal != "kev" || esc.From != sarif.SeverityHigh || esc.AsOf != "2026-08-01" {
+		t.Errorf("escalation did not reach the result: %+v", esc)
 	}
 }
 

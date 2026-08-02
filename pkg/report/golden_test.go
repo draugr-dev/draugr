@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -36,6 +37,7 @@ func TestConsoleGolden(t *testing.T) {
 	}{
 		{"full", goldenFullData()},
 		{"clean", goldenCleanData()},
+		{"enriched", goldenEnrichedData()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var b bytes.Buffer
@@ -194,4 +196,55 @@ func suppressedLicences(base []sarif.Result) []sarif.Result {
 		sarif.Result{RuleID: "license/GPL-3.0-only/y", Level: sarif.LevelWarning,
 			Location:    sarif.Location{URI: "go.mod"},
 			Suppression: &sarif.Suppression{Kind: "external", Justification: "same package tree"}})
+}
+
+// goldenEnrichedData is a run whose severities were raised by exploitability data.
+//
+// A separate case rather than a change to "full" on purpose: the layout in "full" is the one
+// quoted in the README, the docs and the demo screenshot, and enrichment is off by default, so
+// none of those should move because this shipped. If this case ever has to edit "full", that is
+// the signal to go and refresh them.
+func goldenEnrichedData() Data {
+	fetched := time.Date(2026, 8, 1, 9, 12, 0, 0, time.UTC)
+	sca := []sarif.Result{
+		{RuleID: "CVE-2024-3094", Level: sarif.LevelError, Score: 8.1, HasScore: true, Priority: "P1",
+			Tool: "trivy", Location: sarif.Location{URI: "go.mod", StartLine: 12},
+			Message: "xz: malicious code in the upstream tarballs",
+			Escalation: &sarif.Escalation{
+				From: sarif.SeverityHigh, To: sarif.SeverityCritical,
+				Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01",
+			}},
+		{RuleID: "CVE-2019-20477", Level: sarif.LevelWarning, Score: 6.5, HasScore: true, Priority: "P1",
+			Tool: "trivy", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 4},
+			Message: "PyYAML: command execution through python/object/apply constructor",
+			Escalation: &sarif.Escalation{
+				From: sarif.SeverityMedium, To: sarif.SeverityHigh,
+				Signal: "epss", Detail: "EPSS 0.87", AsOf: "2026-08-02",
+			}},
+		// Not everything moves. A run where every row carries a note would not show that the
+		// note means something.
+		{RuleID: "CVE-2018-1000656", Level: sarif.LevelWarning, Score: 7.5, HasScore: true, Priority: "P2",
+			Tool: "trivy", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 2},
+			Message: "python-flask: Denial of Service via crafted JSON file"},
+	}
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{
+			"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: sca}},
+		},
+	}
+	return Data{
+		Release: saga.Release{Name: "acme-api", Version: "1.4.0"},
+		Run:     run,
+		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+			{Control: "sca", Verdict: norn.Fail, Counts: sarif.Counts{Error: 2, Warning: 1}},
+		}},
+		Exploitability: []FeedProvenance{
+			{Name: "kev", URL: "https://www.cisa.gov/…/known_exploited_vulnerabilities.json",
+				FetchedAt: fetched, SHA256: "15b44d7c9c5713e2f5b1a0c4d8e93a76b1c0f2d3e4a5b6c7d8e9f0a1b2c3d4e5"},
+			// Three days old against a 24-hour bar: the report says so, not just the log of the
+			// run that produced it.
+			{Name: "epss", URL: "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz",
+				FetchedAt: fetched.Add(-72 * time.Hour), SHA256: "41c20e9dc3cf8a71e0d2b3c4f5a6978899aabbccddeeff00112233445566778", Stale: true},
+		},
+	}
 }

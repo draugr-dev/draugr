@@ -5,6 +5,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -182,6 +183,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
+	if line := exploitabilityLine(d.Exploitability); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
+	}
+
 	if n := len(d.Run.SBOMs); n > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim,
 			fmt.Sprintf("SBOM: %s (%s)", plural(n, "document"), d.Run.SBOMs[0].Format)))
@@ -305,7 +310,7 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 			cells = append(cells, tui.PlainCell(dash(f.component)))
 		}
 		cells = append(cells, tui.PlainCell(dash(f.location)))
-		t.RowWithNote(findingSummary(f.message), cells...)
+		t.RowWithNotes([]string{findingSummary(f.message), escalationNote(f.escalation)}, cells...)
 	}
 	t.Render(w)
 }
@@ -563,4 +568,50 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, l.Control), col.Paint(cDim, text))
 	}
+}
+
+// exploitabilityLine summarises the feeds a run's severities were enriched from, or "" when
+// there were none.
+//
+// Beside the SBOM line rather than in the findings table: it describes the run, and a reader
+// asking "is this data current" is asking about the whole scan rather than any one result.
+func exploitabilityLine(feeds []FeedProvenance) string {
+	if len(feeds) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(feeds))
+	for _, f := range feeds {
+		part := strings.ToUpper(f.Name)
+		if !f.FetchedAt.IsZero() {
+			part += " " + f.FetchedAt.UTC().Format(time.DateOnly)
+		} else {
+			part += " (file)" // supplied by hand: there is no fetch date to give
+		}
+		if f.Stale {
+			part += ", stale"
+		}
+		parts = append(parts, part)
+	}
+	return "Exploitability: " + strings.Join(parts, " · ")
+}
+
+// escalationNote is the line under a finding saying why it outranks its severity, or "" when
+// nothing moved it.
+//
+// Says what the finding was *ranked* as rather than "raised from x": the Severity column keeps
+// showing what the scanner reported, because that is what the scanner reported. A note reading
+// "raised from high" beside a row reading "high" describes nothing. What the reader needs is why
+// a P1 is sitting on a high row, and the answer is that it was ranked as critical.
+//
+// Under the finding rather than in a column because it is the answer to a question only some
+// rows provoke, and a column of mostly-dashes costs every row width to serve a few.
+func escalationNote(e *sarif.Escalation) string {
+	if e == nil {
+		return ""
+	}
+	out := "↑ ranked as " + string(e.To) + " — " + e.Detail
+	if e.AsOf != "" {
+		out += " (" + e.AsOf + ")"
+	}
+	return out
 }

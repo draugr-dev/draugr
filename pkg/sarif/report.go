@@ -77,6 +77,35 @@ type Result struct {
 	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
 	// Nil for an active finding.
 	Suppression *Suppression `json:"suppression,omitempty"`
+	// Escalation is set when exploitability enrichment raised this finding's severity, and says
+	// which signal did it. Nil when nothing moved it.
+	//
+	// Suppression's twin: one records a decision to count a finding for less, this one records
+	// evidence that it deserves more. Both answer the same question — a report that states a
+	// conclusion and withholds its premise is a hint rather than evidence, and "critical because
+	// CISA observed this being exploited, as of a date you can check" is the premise.
+	Escalation *Escalation `json:"escalation,omitempty"`
+}
+
+// Escalation records that exploitability data raised a finding's severity, and on what grounds.
+//
+// Deliberately not part of Fingerprint: a finding is the same finding whether or not a feed
+// moved it, and folding this in would make every diff churn on the day EPSS reprices a CVE.
+type Escalation struct {
+	// From is the severity before enrichment — the scanner's own rating, and the one the report
+	// still displays, because it is what the scanner actually said.
+	From Severity `json:"from"`
+	// To is the severity the finding was *ranked* as. Enrichment feeds the priority matrix
+	// rather than rewriting what the scanner reported, so this is the value the band was
+	// computed from and the one that explains a P1 sitting on a "high" row.
+	To Severity `json:"to"`
+	// Signal names the dataset that fired: "kev" or "epss".
+	Signal string `json:"signal"`
+	// Detail is the specific fact, e.g. "on KEV" or "EPSS 0.87".
+	Detail string `json:"detail"`
+	// AsOf is the day the data was fetched, as YYYY-MM-DD. Without it the claim is "KEV said
+	// so", which is not something a reader can check or reproduce.
+	AsOf string `json:"asOf,omitempty"`
 }
 
 // Suppression records that a finding was excluded, and why.

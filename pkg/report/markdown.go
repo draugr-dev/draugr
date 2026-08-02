@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/norn"
 )
@@ -59,6 +60,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 		writeScanErrors(w, s)
 		writeProvenance(w, d)
+		writeExploitability(w, d)
 	}
 
 	writeComponentTable(w, d)
@@ -174,4 +176,28 @@ func writeComponentTable(w io.Writer, d Data) {
 		_, _ = fmt.Fprintf(w, "_%s not tied to a component (project-wide controls)._\n\n",
 			plural(d.UnattributedFindings, "finding"))
 	}
+}
+
+// writeExploitability records the datasets that raised severities in this run.
+//
+// Alongside the scanners' own provenance, and for the same reason: a reader asking whether the
+// right standard was applied is asking about the run. A stale copy is marked here rather than
+// only warned about while the scan was running.
+func writeExploitability(w io.Writer, d Data) {
+	if len(d.Exploitability) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "**Exploitability data**")
+	_, _ = fmt.Fprintln(w)
+	for _, f := range d.Exploitability {
+		when := "supplied as a file"
+		if !f.FetchedAt.IsZero() {
+			when = "fetched " + f.FetchedAt.UTC().Format(time.DateOnly)
+		}
+		if f.Stale {
+			when += " — **stale**"
+		}
+		_, _ = fmt.Fprintf(w, "- `%s` — %s\n", f.Name, when)
+	}
+	_, _ = fmt.Fprintln(w)
 }

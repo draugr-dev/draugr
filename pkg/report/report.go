@@ -41,10 +41,33 @@ type Data struct {
 	// Components breaks the verdict down by the part of the application it belongs to, when
 	// there is more than one. Optional: a caller that does not compute it renders as before.
 	Components []ComponentVerdict
+	// Exploitability describes the feeds that enriched this run's severities, if any. Empty
+	// when no enrichment was configured, in which case nothing about it is rendered.
+	//
+	// A report that raised a finding to critical has to be able to say on what data, obtained
+	// when. "KEV said so" is not reproducible; "on KEV as of 2026-08-01" is.
+	Exploitability []FeedProvenance
 	// UnattributedFindings counts findings that belong to no component — a project-scoped
 	// control like `infrastructure` produces them. Reported alongside the component breakdown,
 	// because a breakdown that silently omits them makes the parts look like the whole.
 	UnattributedFindings int
+}
+
+// FeedProvenance is one exploitability dataset as this run saw it.
+type FeedProvenance struct {
+	// Name is the signal: "kev" or "epss".
+	Name string
+	// URL is where the copy came from. Empty for a file the operator supplied, which is its own
+	// useful statement — the data was brought in by hand.
+	URL string
+	// FetchedAt is when it was obtained. Zero for a file path, which has no fetch to record.
+	FetchedAt time.Time
+	// SHA256 is the digest of the bytes that were read.
+	SHA256 string
+	// Stale reports that the copy was older than the run's configured maxAge. Recorded here and
+	// not only warned about in the logs, because the logs of the run that produced a report are
+	// exactly where nobody looks six weeks later.
+	Stale bool
 }
 
 // ComponentVerdict is one component's outcome, judged by the same policy as the run.
@@ -107,7 +130,25 @@ type jsonReporter struct{}
 
 func (jsonReporter) Format() string { return "json" }
 func (jsonReporter) Render(w io.Writer, d Data) error {
-	return skald.RenderJSONWith(w, d.Release, d.Run, d.Verdict, d.MinPriority, d.marshalOptions())
+	return skald.RenderJSONWithFeeds(w, d.Release, d.Run, d.Verdict, d.MinPriority,
+		skaldFeeds(d.Exploitability), d.marshalOptions())
+}
+
+// skaldFeeds converts the report's feed provenance into the JSON document's shape.
+func skaldFeeds(feeds []FeedProvenance) []skald.FeedProvenance {
+	if len(feeds) == 0 {
+		return nil
+	}
+	out := make([]skald.FeedProvenance, 0, len(feeds))
+	for _, f := range feeds {
+		e := skald.FeedProvenance{Name: f.Name, URL: f.URL, SHA256: f.SHA256, Stale: f.Stale}
+		if !f.FetchedAt.IsZero() {
+			t := f.FetchedAt.UTC()
+			e.FetchedAt = &t
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 type sarifReporter struct{}
@@ -188,10 +229,12 @@ type finding struct {
 	helpURI string
 	// justification is why a suppressed finding was set aside. Empty for an active finding.
 	justification string
-	level         sarif.Level
-	severity      sarif.Severity
-	score         float64
-	hasScore      bool
+	// escalation is why this finding's severity was raised, if it was.
+	escalation *sarif.Escalation
+	level      sarif.Level
+	severity   sarif.Severity
+	score      float64
+	hasScore   bool
 }
 
 // sevCounts tallies findings by normalized severity band.
@@ -297,8 +340,9 @@ func summarize(d Data) summary {
 			s.bands[name] = b
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-				component: res.Component,
-				location:  loc, message: res.Message,
+				escalation: res.Escalation,
+				component:  res.Component,
+				location:   loc, message: res.Message,
 				level: res.Level, severity: sev,
 				helpURI: rep.HelpURI(res.RuleID),
 				score:   res.Score, hasScore: res.HasScore,
