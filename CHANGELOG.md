@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.58.0] - 2026-08-02
+
 ### Added
 
 - **The `headers` control now grades your Content-Security-Policy, not just its presence.** A CSP
@@ -33,6 +37,31 @@ and move it under a version on release.
 
   It also reports a missing `base-uri`, which does **not** inherit from `default-src` — the
   subtlety that most often leaves a policy weaker than its author believes.
+
+### Fixed
+
+- **A misspelled control name is now an error, and the schema knows every control.** Two halves of
+  the same gap.
+
+  `config.gate.controls: { iaac: error }` used to validate clean and do nothing — a gate policy
+  that was reviewed, merged, and silently not applied. It now fails, wherever a control is named
+  (`config.controllers`, `config.gate.controls`, a component's own `controllers`), and suggests
+  the name you meant:
+
+  ```
+  draugr: config.gate.controls: "iaac" is not a control this build of Draugr provides — did you mean "iac"?
+  ```
+
+  **This can fail a descriptor that used to scan.** That is the point — the typo was never doing
+  what it looked like it was doing — but it is a change worth knowing about before your pipeline
+  finds it.
+
+  Separately, the JSON Schema's control list had fallen two behind: `licenses` and
+  `infrastructure` were missing, so an editor flagged descriptors Draugr accepts. Editors now also
+  autocomplete control names inside `config.gate.controls`, which previously offered nothing.
+
+  Both come from the registry rather than a hand-written list, so `draugr controls`, the schema and
+  the validator cannot disagree again.
 
 ## [0.57.0] - 2026-08-02
 
@@ -2097,7 +2126,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.57.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.58.0...HEAD
+[0.58.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.58.0
 [0.57.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.57.0
 [0.56.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.56.0
 [0.55.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.55.0
