@@ -34,11 +34,41 @@ New entries go under `## [Unreleased]`. Released sections are a record of what s
 version is tagged, editing its notes rewrites history that release notes and the published site
 already quote.
 
-`make changelog-guard` (part of `make gate`, and a CI check) compares each released section
-against its own tag and fails if one has moved. The failure it exists for is aim rather than
-malice: an entry meant for `[Unreleased]` landing one section lower produces a perfectly valid
-CHANGELOG describing a fix in a release that does not contain it. It reports how many sections it
-checked, because a guard that silently checks nothing is worse than no guard.
+You can edit the file by hand — it is Markdown, and nothing here is mandatory. There is a helper
+for the parts that are easy to get quietly wrong:
+
+```bash
+make changelog                      # check it (also part of `make gate` and CI)
+make changelog-show                 # print what a tag would publish
+echo "- **What you can now do.**" | ./scripts/changelog.sh add fixed
+```
+
+`add` puts the entry under the right heading in `[Unreleased]`, creating the heading in
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) order and clearing `_Nothing yet._`. The
+sections it accepts are Added, Changed, Deprecated, Removed, Fixed and Security; `### Fix` reads
+fine and lands nowhere the release notes look.
+
+**What `make changelog` catches.** Every one of these produces a file that looks right:
+
+- **Two `### Fixed` blocks under one version.** The published notes contain whichever the
+  extractor reaches first, and there is no way to tell from the release page that half is missing.
+- **A heading that is not one of the six.** Entries under it are simply not published.
+- **A released version with no link reference**, which renders as a bare `[0.58.0]`.
+- **A released section that has changed since its tag** — the original guard, still run as part of
+  this. The failure it exists for is aim rather than malice: an entry meant for `[Unreleased]`
+  landing one section lower produces a perfectly valid CHANGELOG describing a fix in a release
+  that does not contain it. It reports how many sections it checked, because a guard that
+  silently checks nothing is worse than no guard.
+
+Heading checks apply to `[Unreleased]` only. Released sections are held to what their tag said,
+and the earliest history predates this convention — a check that can never pass is a check nobody
+reads.
+
+**Releasing.** `./scripts/changelog.sh promote X.Y.Z` moves `[Unreleased]` into a dated section
+and updates the compare links, then prints what the tag will publish. Read that output. It
+**refuses to promote an empty `[Unreleased]`**, which is the case worth refusing: an entry that
+was written but never landed produces a release nobody can describe, and the only moment that is
+cheap to fix is before the tag exists.
 
 #### On the file's size
 

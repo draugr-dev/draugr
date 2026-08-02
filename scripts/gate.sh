@@ -44,8 +44,8 @@ go test -race -covermode=atomic -coverprofile=coverage.out ./...
 echo "▶ public-scope"
 ./scripts/check-public-scope.sh
 
-echo "▶ changelog-guard"
-./scripts/changelog-guard.sh
+echo "▶ changelog"
+./scripts/changelog.sh check
 
 echo "▶ govulncheck"
 if command -v govulncheck >/dev/null 2>&1; then
