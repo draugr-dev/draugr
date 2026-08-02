@@ -56,6 +56,19 @@ func NewKubeBench() plugin.Scanner {
 // Info describes the scanner.
 func (s kubeBenchScanner) Info() plugin.ScannerInfo { return s.info }
 
+// CacheVersion reports kube-bench's version and the benchmark set it was provisioned with
+// (implements plugin.CacheVersioner).
+//
+// Both matter: the binary decides how a check is run, and the cfg/ tree decides which checks
+// exist. A benchmark update adds controls to an unchanged cluster, and a cached pass from before
+// it would answer a narrower question than the one being asked.
+func (s kubeBenchScanner) CacheVersion(ctx context.Context) string {
+	if v := sharedKubeBenchVersion.version(ctx); v != "" {
+		return "kube-bench@" + v
+	}
+	return ""
+}
+
 // Scan audits the cluster the target names and converts kube-bench's JSON to SARIF.
 func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	infra, ok := target.(plugin.InfraTarget)

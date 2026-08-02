@@ -7,7 +7,7 @@ import "github.com/draugr-dev/draugr/pkg/plugin"
 // Semgrep); it only makes sense on Go components, so it is opt-in via
 // controllers.sast.scanners.
 func NewGosec() plugin.Scanner {
-	return newRepoScanner(
+	s := newRepoScanner(
 		plugin.ScannerInfo{
 			Name:        "gosec",
 			Binary:      "gosec",
@@ -16,6 +16,8 @@ func NewGosec() plugin.Scanner {
 		},
 		gosecArgs,
 	)
+	s.cacheVersion = sharedGosecVersion.version
+	return s
 }
 
 // gosecArgs builds `gosec -fmt sarif -no-fail ./...`. gosec loads Go packages relative to the

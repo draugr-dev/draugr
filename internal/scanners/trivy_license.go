@@ -22,7 +22,7 @@ const trivyLicenseScannerName = "trivy-license"
 
 // NewTrivyLicense returns a Scanner that reports dependency licences carrying an obligation.
 func NewTrivyLicense() plugin.Scanner {
-	return newRepoScannerWithParser(
+	s := newRepoScannerWithParser(
 		plugin.ScannerInfo{
 			Name:        trivyLicenseScannerName,
 			Binary:      "trivy",
@@ -32,6 +32,8 @@ func NewTrivyLicense() plugin.Scanner {
 		trivyLicenseArgs,
 		parseTrivyLicenses,
 	)
+	s.cacheVersion = sharedTrivyVersion.cacheVersion
+	return s
 }
 
 // trivyLicenseArgs builds `trivy fs --quiet --scanners license --format json <dir>`.

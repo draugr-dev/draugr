@@ -57,6 +57,19 @@ func NewNuclei() plugin.Scanner {
 // Info describes the scanner.
 func (s nucleiScanner) Info() plugin.ScannerInfo { return s.info }
 
+// CacheVersion reports the *template* version, not the binary's (implements
+// plugin.CacheVersioner).
+//
+// The templates are what decide the answer, and they are republished daily — so a cached "no
+// findings" against last week's set is a claim about a question nobody asked. The binary changes
+// rarely enough that keying on it instead would be close to keying on nothing.
+func (s nucleiScanner) CacheVersion(ctx context.Context) string {
+	if v := sharedNucleiVersion.version(ctx); v != "" {
+		return "nuclei-templates@" + v
+	}
+	return ""
+}
+
 // Prewarm downloads Nuclei's template set once before a run's concurrent fan-out, so parallel
 // host scans don't each cold-start the download (implements plugin.Prewarmer). Best-effort: a
 // failure is non-fatal (a real problem resurfaces at scan time).

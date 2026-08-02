@@ -17,6 +17,22 @@ and move it under a version on release.
   review — and `./scripts/changelog.sh add fixed` puts an entry under the right heading. See
   [CONTRIBUTING](CONTRIBUTING.md#editing-the-changelog).
 
+### Fixed
+
+- **A cached result is now invalidated by the update that made it wrong.** Only the Trivy-backed
+  scanners folded their data version into the cache key; Semgrep, Nuclei, Gitleaks, gosec,
+  trivy-license, kube-bench and the native scanners contributed nothing, so an upgrade left
+  yesterday's `no findings` looking current.
+
+  Nuclei is the sharpest case — its templates are republished daily, so a cached clean run could
+  be answering a question from last week. Its key now follows the **template** version rather than
+  the binary's. The native scanners key on Draugr's own version, so a release that adds a check
+  re-scans what it affects instead of leaving every cached result standing.
+
+  This mattered little on a fresh CI runner, which has nothing cached to serve. It is the
+  prerequisite for a cache that outlives one machine — see
+  [caching and performance](docs/guides/caching-and-performance.md) for what each scanner follows.
+
 ## [0.58.0] - 2026-08-02
 
 ### Added

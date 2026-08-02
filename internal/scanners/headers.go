@@ -36,6 +36,11 @@ func NewHTTPHeaders() plugin.Scanner {
 // Info describes the scanner.
 func (s httpHeadersScanner) Info() plugin.ScannerInfo { return s.info }
 
+// CacheVersion ties cached results to this binary (implements plugin.CacheVersioner).
+//
+// A native scanner has no external tool to ask, and the header checklist and the CSP grading live in this binary, so a Draugr upgrade is what changes the answer — adding a CSP rule must not leave every cached header result standing.
+func (s httpHeadersScanner) CacheVersion(context.Context) string { return draugrCacheVersion() }
+
 // Scan fetches the host and evaluates its security headers, emitting one SARIF result per
 // missing or misconfigured header.
 func (s httpHeadersScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {

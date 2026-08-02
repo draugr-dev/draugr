@@ -25,7 +25,7 @@ const semgrepConfigSchema = `{
 // NewSemgrep returns a Scanner that runs Semgrep over a checked-out repository for static
 // application security testing (SAST). It serves the "sast" control.
 func NewSemgrep() plugin.Scanner {
-	return newRepoScanner(
+	s := newRepoScanner(
 		plugin.ScannerInfo{
 			Name:         "semgrep",
 			Binary:       "semgrep",
@@ -35,6 +35,8 @@ func NewSemgrep() plugin.Scanner {
 		},
 		semgrepArgs,
 	)
+	s.cacheVersion = sharedSemgrepVersion.version
+	return s
 }
 
 // semgrepArgs builds `semgrep scan --sarif ... <dir>`.
