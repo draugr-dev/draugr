@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -49,7 +50,7 @@ func runValidate(args []string, w io.Writer) error {
 	// it as `draugr: <problem>`. Fanning out to a per-file report only helps when there are files
 	// to tell apart.
 	if len(paths) == 1 {
-		if _, err := saga.LoadFile(paths[0]); err != nil {
+		if err := loadAndCheck(paths[0]); err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(w, "✓ %s is valid\n", paths[0])
@@ -58,7 +59,7 @@ func runValidate(args []string, w io.Writer) error {
 
 	var failed int
 	for _, p := range paths {
-		if _, err := saga.LoadFile(p); err != nil {
+		if err := loadAndCheck(p); err != nil {
 			failed++
 			// Strip the loader's own path prefix: the file is already the line's subject.
 			_, _ = fmt.Fprintf(w, "✗ %s\n    %s\n", p, strings.TrimPrefix(err.Error(), p+": "))
@@ -137,4 +138,17 @@ func discoverSagas(root string) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// loadAndCheck is what `draugr validate` asks of a descriptor: that it parses, and that every
+// control it names is one this build can run.
+//
+// Separate from loadSaga because validate *is* the check — loadSaga's error tells the reader to
+// run validate, which would be circular here.
+func loadAndCheck(path string) error {
+	model, err := saga.LoadFile(path)
+	if err != nil {
+		return err
+	}
+	return checkControlNames(builtins.Registry(), model)
 }

@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+//go:generate go run ../../internal/schemagen/gen
+
 // SchemaJSON is the Saga's JSON Schema, embedded so the binary always carries the schema it
 // actually enforces. That makes `draugr schema` exact — no network, no version guessing — and is
 // what lets an air-gapped or pinned setup validate against precisely this build.

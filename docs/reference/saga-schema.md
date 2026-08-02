@@ -138,6 +138,20 @@ config:
       enabled: true          # absent entry ⇒ disabled; entry without `enabled` ⇒ enabled
 ```
 
+**A control name Draugr does not provide is an error**, wherever it appears — here, in
+`config.gate.controls`, or in a component's own `controllers`. A typo is otherwise invisible: the
+descriptor claims a decision it is not making, and the run goes green either way.
+
+```
+$ draugr validate draugr.saga.yaml
+draugr: config.gate.controls: "iaac" is not a control this build of Draugr provides — did you mean "iac"?
+```
+
+Checked against what **this build** can run, which is also what
+[`draugr controls`](cli.md#draugr-controls) lists and what the
+[JSON Schema](#editor-support-autocomplete-hover-docs-validation) offers for autocompletion — all
+three come from one place and cannot disagree.
+
 ### Per-scanner config
 
 A control can be served by more than one scanner, and each scanner is configured under its own

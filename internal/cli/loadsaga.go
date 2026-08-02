@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -191,6 +192,12 @@ func loadSaga(path string) (*saga.Model, error) {
 		detail := strings.ReplaceAll(err.Error(), "\n", "\n  ")
 		return nil, fmt.Errorf("%q is not a valid Saga:\n  %s\nrun `draugr validate %s` to check the descriptor",
 			path, detail, path)
+	}
+	// Checked here rather than in pkg/saga: only the registry knows what this build can run, and
+	// pkg/saga cannot import it without a cycle. That is also why the schema had drifted.
+	if err := checkControlNames(builtins.Registry(), model); err != nil {
+		return nil, fmt.Errorf("%q names a control Draugr cannot run:\n  %s",
+			path, strings.ReplaceAll(err.Error(), "\n", "\n  "))
 	}
 	return model, nil
 }

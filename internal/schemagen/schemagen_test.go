@@ -1,0 +1,114 @@
+package schemagen
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/pkg/saga"
+)
+
+// schemaPath is the checked-in file the binary embeds.
+func schemaPath() string { return filepath.Join("..", "..", "pkg", "saga", "draugr.saga.schema.json") }
+
+func TestCheckedInSchemaIsUpToDate(t *testing.T) {
+	current, err := os.ReadFile(schemaPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	regenerated, err := Apply(current, builtins.Registry())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(current) != string(regenerated) {
+		t.Error("the checked-in schema is not what the registry would generate — run `go generate ./pkg/saga/...`\n" +
+			"This is the drift that let the schema fall two controls behind the registry: an editor " +
+			"rejected descriptors Draugr accepted, including Draugr's own self-scan.")
+	}
+}
+
+func TestSchemaListsEveryRegisteredControl(t *testing.T) {
+	var doc struct {
+		Defs struct {
+			ControlName struct {
+				AnyOf []struct {
+					Const       string `json:"const"`
+					Description string `json:"description"`
+				} `json:"anyOf"`
+			} `json:"controlName"`
+		} `json:"$defs"`
+	}
+	data, err := os.ReadFile(schemaPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+
+	inSchema := map[string]string{}
+	for _, v := range doc.Defs.ControlName.AnyOf {
+		inSchema[v.Const] = v.Description
+	}
+
+	registered := map[string]bool{}
+	for _, c := range builtins.Registry().Controllers() {
+		info := c.Info()
+		registered[info.Name] = true
+		desc, ok := inSchema[info.Name]
+		if !ok {
+			t.Errorf("control %q is registered but absent from the schema — an editor will reject "+
+				"a descriptor that enables it", info.Name)
+			continue
+		}
+		// The description an editor shows on hover has to be the one the CLI prints, or the two
+		// answers to "what does this control do" drift apart.
+		if desc != info.Summary {
+			t.Errorf("control %q: schema says %q, the controller says %q", info.Name, desc, info.Summary)
+		}
+	}
+	for name := range inSchema {
+		if !registered[name] {
+			t.Errorf("schema offers control %q, which no controller serves — autocompleting a name "+
+				"that fails at scan time is worse than not offering it", name)
+		}
+	}
+}
+
+func TestGateControlsAutocompletes(t *testing.T) {
+	// The reported symptom: IntelliSense stopped at config.gate.controls, because the key was
+	// unconstrained. A threshold is only meaningful against a control that exists.
+	var doc map[string]any
+	data, err := os.ReadFile(schemaPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	defs := doc["$defs"].(map[string]any)
+	gate := defs["gateConfig"].(map[string]any)["properties"].(map[string]any)
+	controls := gate["controls"].(map[string]any)
+
+	names, ok := controls["propertyNames"].(map[string]any)
+	if !ok {
+		t.Fatal("config.gate.controls does not constrain its keys, so an editor offers nothing")
+	}
+	if names["$ref"] != "#/$defs/controlName" {
+		t.Errorf("propertyNames = %v, want a reference to controlName", names)
+	}
+}
+
+func TestEmbeddedSchemaMatchesTheFileOnDisk(t *testing.T) {
+	// The binary embeds the file; generation writes the file. If they can disagree, `draugr
+	// schema` hands out something the binary does not enforce.
+	data, err := os.ReadFile(schemaPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(saga.SchemaJSON) != string(data) {
+		t.Error("the embedded schema differs from the checked-in file")
+	}
+}
