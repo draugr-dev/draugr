@@ -404,21 +404,21 @@ func TestRunScanFailOnPriority(t *testing.T) {
 }
 
 func TestLoadExploitSource(t *testing.T) {
-	if src, err := loadExploitSource(scanOptions{}); err != nil || src != nil {
+	if src, err := loadExploitSource(context.Background(), scanOptions{}); err != nil || src != nil {
 		t.Fatalf("no files should yield nil source, got %v %v", src, err)
 	}
 	kev := filepath.Join(t.TempDir(), "kev.json")
 	if err := os.WriteFile(kev, []byte(`{"vulnerabilities":[{"cveID":"CVE-2021-44228"}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	src, err := loadExploitSource(scanOptions{kevFile: kev, epssThreshold: 0.5})
+	src, err := loadExploitSource(context.Background(), scanOptions{kevFile: kev, epssThreshold: 0.5})
 	if err != nil || src == nil || src.Empty() {
 		t.Fatalf("kev file should yield a non-empty source, got %v %v", src, err)
 	}
-	if _, err := loadExploitSource(scanOptions{kevFile: filepath.Join(t.TempDir(), "nope.json")}); err == nil {
+	if _, err := loadExploitSource(context.Background(), scanOptions{kevFile: filepath.Join(t.TempDir(), "nope.json")}); err == nil {
 		t.Error("missing --kev file should error")
 	}
-	if _, err := loadExploitSource(scanOptions{epssFile: filepath.Join(t.TempDir(), "nope.csv")}); err == nil {
+	if _, err := loadExploitSource(context.Background(), scanOptions{epssFile: filepath.Join(t.TempDir(), "nope.csv")}); err == nil {
 		t.Error("missing --epss file should error")
 	}
 }

@@ -50,22 +50,78 @@ KEV wins where both apply: observed exploitation outranks a prediction about it.
 
 ### Using them
 
-Both are **offline, bring-your-own**: you download the feed, Draugr reads the file. It never
-calls CISA or FIRST during a scan — no network dependency in your pipeline, nothing leaves your
-environment about what you're scanning, and the same inputs produce the same verdict.
+Let Draugr fetch them:
 
 ```bash
-# fetch the feeds (daily is plenty — KEV changes rarely, EPSS is republished each day)
+draugr feeds update                                  # into ~/.draugr/feeds
+draugr scan draugr.saga.yaml --kev cache --epss cache
+```
+
+**A scan never fetches on its own.** `cache` reads what `feeds update` left and cannot reach the
+network, so there is no network dependency inside your pipeline, nothing leaves your environment
+about what you are scanning, and the same inputs produce the same verdict. That is the same
+guarantee the bring-your-own-file route has always given; it just no longer requires you to
+know two URLs.
+
+`draugr feeds status` says what is cached, how old it is, and the digest of each copy:
+
+```
+FEED   FETCHED                AGE            SIZE       DIGEST
+kev    2026-08-01 09:12Z      6 hours        1.5 MiB    sha256:15b44d7c9c57
+epss   2026-07-29 08:55Z      3 days (stale) 10.3 MiB   sha256:41c20e9dc3cf
+```
+
+**In CI, make the fetch its own step.** A feed outage then fails where it happened, loudly,
+instead of producing a scan that ranked everything as though nothing were exploited:
+
+```yaml
+- run: draugr feeds update
+- run: draugr scan draugr.saga.yaml --kev cache --epss cache
+```
+
+**Working locally**, `auto` saves you remembering: it reads the cache when it is fresh and
+fetches when it is missing or more than a day old.
+
+```bash
+draugr scan draugr.saga.yaml --kev auto --epss auto
+draugr scan draugr.saga.yaml --epss auto --epss-threshold 0.1   # widen the net
+```
+
+If a fetch fails and there is a cached copy, the scan uses it and says so rather than failing —
+a feed outage should not break a gate that has a usable answer on disk. With nothing cached, it
+is an error: you asked for enrichment and did not get it, and a run that quietly skips
+escalation is worse than one that stops.
+
+### Staleness
+
+EPSS is republished daily. A stale copy does not fail — it ranks a finding lower than today's
+data would, which is the failure mode that looks like success. So a scan reading a feed more
+than a day old warns and names the age:
+
+```
+WARN using a stale exploitability feed feed=epss fetched_at=2026-07-29T08:55:00Z age="3 days"
+```
+
+`draugr feeds update` refreshes it; a daily job is plenty.
+
+### Bring your own file
+
+`--kev` and `--epss` still take a path, which is the air-gapped route and needs no cache at all:
+
+```bash
 curl -fsSL -o kev.json \
   https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
 curl -fsSL https://epss.empiricalsecurity.com/epss_scores-current.csv.gz | gunzip > epss.csv
 
 draugr scan draugr.saga.yaml --kev kev.json --epss epss.csv
-draugr scan draugr.saga.yaml --epss epss.csv --epss-threshold 0.1   # widen the net
 ```
 
 `--kev` takes CISA's JSON as published; `--epss` takes FIRST's CSV (`cve,epss,percentile` —
-comment and header lines are skipped). Either flag works on its own.
+comment and header lines are skipped). Either flag works on its own, and either accepts a path,
+`cache`, or `auto`.
+
+Setting `DRAUGR_OFFLINE=1` stops `auto` fetching anything: it reads the cache, or says clearly
+that there is nothing to read.
 
 ### Choosing an EPSS threshold
 

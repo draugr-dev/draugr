@@ -59,6 +59,7 @@ func newRootCommand() *cobra.Command {
 	cmd.AddCommand(newValidateCommand())
 	cmd.AddCommand(newDoctorCommand())
 	cmd.AddCommand(newToolsCommand())
+	cmd.AddCommand(newFeedsCommand())
 	cmd.AddCommand(newControlsCommand())
 	cmd.AddCommand(newMCPCommand())
 	cmd.AddCommand(newSelfUpdateCommand())
