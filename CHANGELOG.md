@@ -10,7 +10,12 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **A helper for editing the CHANGELOG.** `make changelog` checks its structure — a duplicate
+  `### Fixed` under one version splits the published notes in half and looks perfectly correct in
+  review — and `./scripts/changelog.sh add fixed` puts an entry under the right heading. See
+  [CONTRIBUTING](CONTRIBUTING.md#editing-the-changelog).
 
 ## [0.58.0] - 2026-08-02
 

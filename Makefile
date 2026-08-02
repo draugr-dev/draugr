@@ -54,6 +54,15 @@ gate: ## Run the full local quality gate (fmt, vet, lint, race tests, vulncheck)
 examples: build ## Print real scan output from the demo sandbox, to refresh the examples in README/docs
 	@./scripts/examples.sh
 
+changelog: ## Check the CHANGELOG's structure and that released sections are unchanged
+	@./scripts/changelog.sh check
+
+changelog-show: ## Print what a tag would publish (VERSION=X.Y.Z, default [Unreleased])
+	@./scripts/changelog.sh show $(VERSION)
+
+changelog-promote: ## Move [Unreleased] into a dated release section (VERSION=X.Y.Z required)
+	@./scripts/changelog.sh promote $(VERSION)
+
 changelog-guard: ## Fail if a released CHANGELOG section has been edited
 	@./scripts/changelog-guard.sh
 
