@@ -79,8 +79,8 @@ func TestResolveFeedPathPassesThrough(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "/etc/kev.json" {
-		t.Errorf("got %q, want the path unchanged", got)
+	if got.path != "/etc/kev.json" {
+		t.Errorf("got %q, want the path unchanged", got.path)
 	}
 }
 
@@ -93,8 +93,8 @@ func TestResolveFeedCache(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got != feeds.Path(dir, feeds.KEV) {
-			t.Errorf("got %q, want the cached copy", got)
+		if got.path != feeds.Path(dir, feeds.KEV) {
+			t.Errorf("got %q, want the cached copy", got.path)
 		}
 	})
 	if out != "" {
@@ -124,8 +124,8 @@ func TestResolveFeedCacheStaleWarnsAndProceeds(t *testing.T) {
 		if err != nil {
 			t.Fatalf("a stale feed should be used, not refused: %v", err)
 		}
-		if got != feeds.Path(dir, feeds.EPSS) {
-			t.Errorf("got %q, want the cached copy", got)
+		if got.path != feeds.Path(dir, feeds.EPSS) {
+			t.Errorf("got %q, want the cached copy", got.path)
 		}
 	})
 	if !strings.Contains(out, "stale exploitability feed") {
@@ -239,7 +239,7 @@ func TestLoadExploitSourceFromCache(t *testing.T) {
 	seed(t, dir, feeds.KEV, kevJSON, time.Hour)
 	seed(t, dir, feeds.EPSS, "cve,epss,percentile\nCVE-2021-44228,0.97,0.99\n", time.Hour)
 
-	src, err := loadExploitSource(context.Background(), exploitability{
+	src, _, err := loadExploitSource(context.Background(), exploitability{
 		kev: feedCache, epss: feedCache, threshold: 0.5, maxAge: feeds.DefaultMaxAge,
 	})
 	if err != nil {
@@ -255,7 +255,7 @@ func TestLoadExploitSourceFromCache(t *testing.T) {
 }
 
 func TestLoadExploitSourceDisabled(t *testing.T) {
-	src, err := loadExploitSource(context.Background(), exploitability{})
+	src, _, err := loadExploitSource(context.Background(), exploitability{})
 	if err != nil || src != nil {
 		t.Errorf("no flags should mean no enrichment: %v %v", src, err)
 	}
@@ -263,14 +263,14 @@ func TestLoadExploitSourceDisabled(t *testing.T) {
 
 func TestLoadExploitSourceBadFile(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "nope.json")
-	if _, err := loadExploitSource(context.Background(), exploitability{kev: missing, maxAge: feeds.DefaultMaxAge}); err == nil {
+	if _, _, err := loadExploitSource(context.Background(), exploitability{kev: missing, maxAge: feeds.DefaultMaxAge}); err == nil {
 		t.Error("a missing --kev file was accepted")
 	}
 	bad := filepath.Join(t.TempDir(), "bad.json")
 	if err := os.WriteFile(bad, []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := loadExploitSource(context.Background(), exploitability{kev: bad, maxAge: feeds.DefaultMaxAge}); err == nil {
+	if _, _, err := loadExploitSource(context.Background(), exploitability{kev: bad, maxAge: feeds.DefaultMaxAge}); err == nil {
 		t.Error("an unparseable --kev file was accepted")
 	}
 }
@@ -379,7 +379,7 @@ func TestResolveFeedAutoFallsBackToAStaleCache(t *testing.T) {
 	seed(t, dir, feeds.KEV, kevJSON, 96*time.Hour)
 	stubFetch(t, "", errors.New("connection refused"))
 
-	var got string
+	var got resolvedFeed
 	out := warnings(t, func() {
 		var err error
 		got, err = resolveFeed(context.Background(), feeds.KEV, feedAuto, "--kev", feeds.DefaultMaxAge)
@@ -387,8 +387,8 @@ func TestResolveFeedAutoFallsBackToAStaleCache(t *testing.T) {
 			t.Errorf("a feed outage should not fail a run with a usable copy on disk: %v", err)
 		}
 	})
-	if got != feeds.Path(dir, feeds.KEV) {
-		t.Errorf("got %q, want the cached copy", got)
+	if got.path != feeds.Path(dir, feeds.KEV) {
+		t.Errorf("got %q, want the cached copy", got.path)
 	}
 	// Both facts: the refresh failed, and what it fell back to is old.
 	if !strings.Contains(out, "could not refresh") {
@@ -506,5 +506,60 @@ func TestResolveFeedHonoursConfiguredMaxAge(t *testing.T) {
 	})
 	if out != "" {
 		t.Errorf("warned despite a maxAge that covers it: %s", out)
+	}
+}
+
+func TestLoadExploitSourceReportsProvenance(t *testing.T) {
+	dir := cacheHome(t)
+	seed(t, dir, feeds.KEV, kevJSON, time.Hour)
+	seed(t, dir, feeds.EPSS, "cve,epss,percentile\nCVE-2021-44228,0.97,0.99\n", 96*time.Hour)
+
+	src, prov, err := loadExploitSource(context.Background(), exploitability{
+		kev: feedCache, epss: feedCache, threshold: 0.5, maxAge: feeds.DefaultMaxAge,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prov) != 2 {
+		t.Fatalf("got %d feeds of provenance, want 2: %+v", len(prov), prov)
+	}
+	for _, p := range prov {
+		if p.FetchedAt.IsZero() || p.SHA256 == "" || p.URL == "" {
+			t.Errorf("%s: incomplete provenance %+v", p.Name, p)
+		}
+	}
+	// Four days old against a 24-hour bar. The report has to carry that, not just the log of
+	// the run that produced it.
+	if prov[0].Stale {
+		t.Error("the one-hour-old feed was marked stale")
+	}
+	if !prov[1].Stale {
+		t.Error("the four-day-old feed was not marked stale in the provenance")
+	}
+
+	// And the date reaches the escalation, which is what makes the claim checkable.
+	_, esc := src.Explain(sarif.SeverityLow, "CVE-2021-44228")
+	if esc == nil || esc.AsOf == "" {
+		t.Errorf("escalation cannot cite a date: %+v", esc)
+	}
+}
+
+func TestLoadExploitSourceProvenanceForAFilePath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "kev.json")
+	if err := os.WriteFile(path, []byte(kevJSON), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, prov, err := loadExploitSource(context.Background(),
+		exploitability{kev: path, kevFrom: "--kev", maxAge: feeds.DefaultMaxAge})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prov) != 1 {
+		t.Fatalf("provenance = %+v", prov)
+	}
+	// A file has no fetch to describe. Reporting a zero time is the honest answer; inventing
+	// one would put a date on the report that nothing supports.
+	if !prov[0].FetchedAt.IsZero() || prov[0].URL != "" || prov[0].Stale {
+		t.Errorf("a supplied file claimed a provenance it does not have: %+v", prov[0])
 	}
 }

@@ -117,6 +117,38 @@ a feed outage should not break a gate that has a usable answer on disk. With not
 is an error: you asked for enrichment and did not get it, and a run that quietly skips
 escalation is worse than one that stops.
 
+### What the report says about it
+
+A run that used exploitability data says so, and says which copy:
+
+```
+Exploitability: KEV 2026-08-01 · EPSS 2026-08-02
+```
+
+Each finding that was actually moved carries the reason underneath it:
+
+```
+  P1  high  8.1  CVE-2024-3094   sca  trivy  go.mod:12
+      xz: malicious code in the upstream tarballs
+      ↑ ranked as critical — on KEV (2026-08-01)
+```
+
+**The Severity column keeps showing what the scanner said.** Enrichment feeds the ranking rather
+than rewriting the scanner's rating, so a finding can be `high` and still be P1 — and the note is
+what explains it. Overwriting the scanner's number would leave nothing to compare against and no
+way to see that a signal was applied at all.
+
+This is the difference between evidence and a hint. A P1 on its own is a conclusion with the
+premise withheld; *ranked as critical because CISA listed it on a date you can check* is
+something a reader can verify, disagree with, or reproduce six months later.
+
+Findings nothing moved carry no note, so the note means something when it appears. The same
+information is in the markdown and HTML reports, and in `--format json` and `--format sarif`
+under `escalation` on each finding, with the feeds themselves under `exploitability`.
+
+A **stale** feed is marked in the report rather than only warned about while the scan ran — the
+logs of the run that produced a report are exactly where nobody looks six weeks later.
+
 ### Staleness
 
 EPSS is republished daily. A stale copy does not fail — it ranks a finding lower than today's

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -21,8 +22,11 @@ type jsonReport struct {
 	Verdict    string          `json:"verdict"`
 	Controls   []controlReport `json:"controls"`
 	Priorities *priorityCounts `json:"priorities,omitempty"`
-	Findings   []findingReport `json:"findings,omitempty"`
-	Stats      statsInfo       `json:"stats"`
+	// Exploitability names the datasets that enriched this run's severities, so a report can
+	// be checked against the data it was computed from. Absent when no enrichment ran.
+	Exploitability []FeedProvenance `json:"exploitability,omitempty"`
+	Findings       []findingReport  `json:"findings,omitempty"`
+	Stats          statsInfo        `json:"stats"`
 }
 
 // priorityCounts tallies findings by priority band (present when prioritization ran).
@@ -43,6 +47,19 @@ type findingReport struct {
 	RuleID   string  `json:"ruleId,omitempty"`
 	Message  string  `json:"message,omitempty"`
 	Location string  `json:"location,omitempty"`
+	// Escalation says why this finding's severity was raised, when exploitability data raised
+	// it. A consumer acting on the priority can then say what the priority rests on.
+	Escalation *sarif.Escalation `json:"escalation,omitempty"`
+}
+
+// FeedProvenance is one exploitability dataset as a run saw it: where it came from, when, and
+// whether it was already older than the run allowed for.
+type FeedProvenance struct {
+	Name      string     `json:"name"`
+	URL       string     `json:"url,omitempty"`
+	FetchedAt *time.Time `json:"fetchedAt,omitempty"`
+	SHA256    string     `json:"sha256,omitempty"`
+	Stale     bool       `json:"stale,omitempty"`
 }
 
 type releaseInfo struct {
@@ -80,6 +97,11 @@ func RenderJSON(w io.Writer, release saga.Release, run engine.Result, verdict no
 
 // RenderJSONWith is RenderJSON with marshalling options; Compact drops the indentation.
 func RenderJSONWith(w io.Writer, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, opts sarif.MarshalOptions) error {
+	return RenderJSONWithFeeds(w, release, run, verdict, minPriority, nil, opts)
+}
+
+// RenderJSONWithFeeds is RenderJSONWith plus the exploitability datasets the run used.
+func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions) error {
 	doc := jsonReport{
 		Release: releaseInfo{Name: release.Name, Version: release.Version},
 		Verdict: string(verdict.Verdict),
@@ -107,6 +129,7 @@ func RenderJSONWith(w io.Writer, release saga.Release, run engine.Result, verdic
 	sort.Slice(doc.Controls, func(i, j int) bool { return doc.Controls[i].Name < doc.Controls[j].Name })
 
 	doc.Priorities, doc.Findings = summarizePriorities(run, minPriority)
+	doc.Exploitability = feeds
 
 	enc := json.NewEncoder(w)
 	if !opts.Compact {
@@ -158,14 +181,15 @@ func toFinding(control string, res sarif.Result) findingReport {
 		loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
 	}
 	return findingReport{
-		Priority: res.Priority,
-		Level:    string(res.Level),
-		Score:    res.Score,
-		Control:  control,
-		Tool:     res.Tool,
-		RuleID:   res.RuleID,
-		Message:  res.Message,
-		Location: loc,
+		Priority:   res.Priority,
+		Level:      string(res.Level),
+		Score:      res.Score,
+		Control:    control,
+		Tool:       res.Tool,
+		RuleID:     res.RuleID,
+		Message:    res.Message,
+		Location:   loc,
+		Escalation: res.Escalation,
 	}
 }
 

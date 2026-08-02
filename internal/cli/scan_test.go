@@ -405,21 +405,21 @@ func TestRunScanFailOnPriority(t *testing.T) {
 }
 
 func TestLoadExploitSource(t *testing.T) {
-	if src, err := loadExploitSource(context.Background(), exploitability{}); err != nil || src != nil {
+	if src, _, err := loadExploitSource(context.Background(), exploitability{}); err != nil || src != nil {
 		t.Fatalf("no files should yield nil source, got %v %v", src, err)
 	}
 	kev := filepath.Join(t.TempDir(), "kev.json")
 	if err := os.WriteFile(kev, []byte(`{"vulnerabilities":[{"cveID":"CVE-2021-44228"}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	src, err := loadExploitSource(context.Background(), exploitability{kev: kev, threshold: 0.5, maxAge: feeds.DefaultMaxAge})
+	src, _, err := loadExploitSource(context.Background(), exploitability{kev: kev, threshold: 0.5, maxAge: feeds.DefaultMaxAge})
 	if err != nil || src == nil || src.Empty() {
 		t.Fatalf("kev file should yield a non-empty source, got %v %v", src, err)
 	}
-	if _, err := loadExploitSource(context.Background(), exploitability{kev: filepath.Join(t.TempDir(), "nope.json"), maxAge: feeds.DefaultMaxAge}); err == nil {
+	if _, _, err := loadExploitSource(context.Background(), exploitability{kev: filepath.Join(t.TempDir(), "nope.json"), maxAge: feeds.DefaultMaxAge}); err == nil {
 		t.Error("missing --kev file should error")
 	}
-	if _, err := loadExploitSource(context.Background(), exploitability{epss: filepath.Join(t.TempDir(), "nope.csv"), maxAge: feeds.DefaultMaxAge}); err == nil {
+	if _, _, err := loadExploitSource(context.Background(), exploitability{epss: filepath.Join(t.TempDir(), "nope.csv"), maxAge: feeds.DefaultMaxAge}); err == nil {
 		t.Error("missing --epss file should error")
 	}
 }

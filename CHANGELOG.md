@@ -12,6 +12,30 @@ and move it under a version on release.
 
 ### Added
 
+- **A report now says why a finding was escalated, and on what data.** Enrichment used to change
+  a severity and leave no trace: the finding was critical, and nothing said it was critical
+  because CISA had observed it being exploited on a particular date.
+
+  ```
+  Exploitability: KEV 2026-08-01 · EPSS 2026-08-02
+
+    P1  high  8.1  CVE-2024-3094   sca  trivy  go.mod:12
+        xz: malicious code in the upstream tarballs
+        ↑ ranked as critical — on KEV (2026-08-01)
+  ```
+
+  The Severity column still shows what the scanner said — enrichment feeds the ranking rather
+  than rewriting the scanner's rating — so the note is what explains a `high` finding sitting at
+  P1.
+
+  Findings nothing moved carry no note, so the note means something when it appears. Markdown and
+  HTML get the same, and both `--format json` and `--format sarif` carry `escalation` per finding
+  plus the feeds themselves — URL, fetch time and digest — so a report can be checked against the
+  data it was computed from.
+
+  A **stale** feed is now recorded in the report, not only warned about while the scan ran. The
+  logs of the run that produced a report are exactly where nobody looks six weeks later.
+
 - **Exploitability enrichment can be turned on in the Saga**, instead of a flag every pipeline
   has to remember:
 

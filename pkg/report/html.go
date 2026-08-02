@@ -32,6 +32,10 @@ type htmlView struct {
 	// someone who did not run the scan, so it is the one that most needs to say what was
 	// measured rather than only what was found.
 	Provenance []provenanceLine
+	// Exploitability names the datasets that raised severities, with the date each was obtained.
+	// A shared report claiming a finding is critical has to be able to say on what data — and
+	// this is the copy most likely to be read by someone who cannot re-run the scan.
+	Exploitability []htmlFeed
 	// Errors, Suppressed and SBOM describe what the run couldn't do and what it set aside. A
 	// shared report that omits them describes a thinner run rather than a broken one, and the
 	// reader has no way to tell which they are looking at.
@@ -92,10 +96,11 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	s := summarize(d)
 
 	view := htmlView{
-		Provenance:  provenanceLines(d),
-		Pass:        s.verdict != norn.Fail,
-		Prioritized: s.prioritized,
-		P1:          s.p1, P2: s.p2, P3: s.p3, P4: s.p4,
+		Provenance:     provenanceLines(d),
+		Exploitability: htmlFeeds(d.Exploitability),
+		Pass:           s.verdict != norn.Fail,
+		Prioritized:    s.prioritized,
+		P1:             s.p1, P2: s.p2, P3: s.p3, P4: s.p4,
 		Suppressed:  s.suppressed,
 		SBOMCount:   s.sboms,
 		SBOMFormat:  s.sbomFormat,
@@ -341,6 +346,15 @@ the component is — so the same issue ranks differently on a public API than on
 </tr>{{end}}
 </tbody>
 </table>
+{{if .Exploitability}}
+<h3 class="sub">Exploitability data</h3>
+<table class="provenance">
+<thead><tr><th scope="col">Feed</th><th scope="col">Obtained</th><th scope="col">Digest</th></tr></thead>
+<tbody>
+{{range .Exploitability}}<tr><td>{{.Name}}</td><td>{{.Obtained}}</td><td>{{.Digest}}</td></tr>{{end}}
+</tbody>
+</table>
+{{end}}
 {{if .Provenance}}
 <h3 class="sub">Measured against</h3>
 <table class="provenance">
@@ -506,3 +520,34 @@ more than the elapsed time — the shares are of the total work, not of the wall
 </body>
 </html>
 `
+
+// htmlFeed is one exploitability dataset, rendered.
+type htmlFeed struct {
+	Name     string
+	Obtained string
+	Digest   string
+}
+
+// htmlFeeds renders feed provenance for the template, resolving each field to the string the
+// reader should see rather than leaving the template to decide.
+func htmlFeeds(feeds []FeedProvenance) []htmlFeed {
+	if len(feeds) == 0 {
+		return nil
+	}
+	out := make([]htmlFeed, 0, len(feeds))
+	for _, f := range feeds {
+		obtained := "supplied as a file"
+		if !f.FetchedAt.IsZero() {
+			obtained = f.FetchedAt.UTC().Format(time.DateOnly)
+		}
+		if f.Stale {
+			obtained += " (stale)"
+		}
+		digest := f.SHA256
+		if len(digest) > 12 {
+			digest = "sha256:" + digest[:12]
+		}
+		out = append(out, htmlFeed{Name: f.Name, Obtained: obtained, Digest: digest})
+	}
+	return out
+}

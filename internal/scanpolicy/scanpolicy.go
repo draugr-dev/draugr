@@ -18,9 +18,13 @@ import (
 // enrichment is skipped.
 func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 	matrices := prioritization.DefaultMatrices()
-	return func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) string {
+	return func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) engine.Priority {
 		sev := res.Severity(controllers.SeverityFloor(control))
-		sev = expl.Enrich(sev, res.RuleID) // nil-safe: no-op when no source
-		return string(matrices.Prioritize(exposure, criticality, sev))
+		// nil-safe: no-op when no source, and the escalation is nil unless something moved.
+		sev, esc := expl.Explain(sev, res.RuleID)
+		return engine.Priority{
+			Band:       string(matrices.Prioritize(exposure, criticality, sev)),
+			Escalation: esc,
+		}
 	}
 }

@@ -41,7 +41,19 @@ type Engine struct {
 // Prioritizer computes a finding's priority band from its control and its component's risk
 // classification. Injected via WithPrioritization so the engine stays decoupled from the
 // prioritization matrices and per-control severity floors; nil disables priority stamping.
-type Prioritizer func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) string
+type Prioritizer func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) Priority
+
+// Priority is what a Prioritizer decided, and why where there is a why.
+//
+// A struct rather than a bare band because the band alone states a conclusion and withholds its
+// premise — and because the next thing worth explaining about a ranking will not be the last.
+type Priority struct {
+	// Band is the action band, P1–P4. Empty leaves the finding unstamped.
+	Band string
+	// Escalation is set when exploitability data raised the severity the band was computed
+	// from. Nil when the scanner's own rating stood.
+	Escalation *sarif.Escalation
+}
 
 // Option configures an Engine.
 type Option func(*Engine)
@@ -612,7 +624,9 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 	for i := range out.Results {
 		out.Results[i].Component = pj.Component
 		if e.prioritize != nil {
-			out.Results[i].Priority = e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
+			p := e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
+			out.Results[i].Priority = p.Band
+			out.Results[i].Escalation = p.Escalation
 		}
 	}
 	return out
