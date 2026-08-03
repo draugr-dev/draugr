@@ -352,11 +352,6 @@ func TestValidateRejectsUnusableControllerKeys(t *testing.T) {
 			settings: ControllerSettings{"kube-bench-job": map[string]any{"enabled": true}},
 			want:     []string{"camelCase", "kubeBenchJob"},
 		},
-		{
-			name:     "removed mode setting",
-			settings: ControllerSettings{"mode": "job"},
-			want:     []string{"was removed", "kubeBenchJob"},
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -374,6 +369,36 @@ func TestValidateRejectsUnusableControllerKeys(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// removedControllerKeys is empty today, so the mechanism is exercised with an entry of its own
+// rather than with whatever legacy happens to be listed.
+//
+// It exists for the setting whose replacement is a different shape rather than a new name — the
+// "no such scanner key" error can list what a control accepts, but it cannot explain that one
+// setting became three blocks. Untested, an empty map is indistinguishable from a dead one, and
+// the day it is needed is not the day to find out it stopped working.
+func TestRemovedControllerKeysExplainTheReplacement(t *testing.T) {
+	removedControllerKeys["infrastructure"] = map[string]string{
+		"mode": "per-scanner blocks: `kubeBenchJob: { enabled: true }`",
+	}
+	t.Cleanup(func() { delete(removedControllerKeys, "infrastructure") })
+
+	m := &Model{
+		Release: Release{Version: "1.0"},
+		Config: Config{Controllers: map[string]ControllerSettings{
+			"infrastructure": {"mode": "job"},
+		}},
+	}
+	err := m.Validate()
+	if err == nil {
+		t.Fatal("a removed setting was accepted")
+	}
+	for _, want := range []string{"was removed", "kubeBenchJob"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should mention %q: %v", want, err)
+		}
 	}
 }
 

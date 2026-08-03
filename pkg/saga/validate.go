@@ -176,21 +176,13 @@ func camelCaseKey(key string) string {
 // either way. Naming the replacement costs one line here and saves the reader from discovering
 // it by comparing two reports.
 var removedControllerKeys = map[string]map[string]string{
-	// Draugr's own scanners took a `draugr-` prefix so a name says where it came from — in a
-	// descriptor there is no room for a column, and `draugrHeaders` is the only place the
-	// provenance can appear. The old keys would otherwise match no scanner and be ignored, which
-	// is how "I turned that scanner off" becomes a scan that still runs it.
-	"headers": {
-		"httpHeaders": "`draugrHeaders` — the scanner is now `draugr-headers`",
-	},
-	"tls": {
-		"tlsProbe": "`draugrTls` — the scanner is now `draugr-tls`",
-	},
-	"infrastructure": {
-		"k8sPolicies": "`draugrK8sPolicies` — the scanner is now `draugr-k8s-policies`",
-		"mode": "per-scanner blocks: `kubeBenchJob: { enabled: true }` for the node sections, " +
-			"`draugrK8sPolicies: { enabled: true }` to read section 5 through the Kubernetes API",
-	},
+	// Empty on purpose. A key that names no scanner is already rejected with the list of keys
+	// the control does accept, which covers every rename without an entry here.
+	//
+	// This is for the case that error cannot serve: a setting whose replacement is not a
+	// renaming but a different shape, where knowing the old name is the only way to explain the
+	// new one. `infrastructure.mode` was one — it became per-scanner blocks — and there are no
+	// users to migrate today, so it is gone with it.
 }
 
 // validateControllerKeys rejects descriptor keys that do not follow the schema's convention.

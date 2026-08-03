@@ -31,6 +31,18 @@ and move it under a version on release.
 
 ### Changed
 
+- **A descriptor key that names no scanner is now an error.** `controllers.headers.httpHeaders`
+  — or any other key a control does not have — used to be read by nothing and changed nothing, so
+  a descriptor turning a scanner off ran it anyway and reported a pass either way.
+
+  ```
+  draugr: config.controllers.headers: "httpHeaders" is not a scanner of the "headers" control (it has draugrHeaders)
+  ```
+
+  It names the keys the control does accept, so a rename explains itself without anyone having
+  written a migration note for it. That is why this release carries none: a per-rename entry only
+  helps with the renames somebody thought of.
+
 - **Draugr's own scanners now say so in their names**: `http-headers` → `draugr-headers`,
   `tls-probe` → `draugr-tls`, `k8s-policies` → `draugr-k8s-policies`.
 
@@ -40,12 +52,7 @@ and move it under a version on release.
 
   **This renames descriptor keys.** `controllers.headers.httpHeaders` becomes `draugrHeaders`,
   `tls.tlsProbe` becomes `draugrTls`, and `infrastructure.k8sPolicies` becomes
-  `draugrK8sPolicies`. The old key does not silently do nothing — it fails, and names its
-  replacement:
-
-  ```
-  draugr: controllers.headers.httpHeaders was removed. Use `draugrHeaders` — the scanner is now `draugr-headers`
-  ```
+  `draugrK8sPolicies`.
 
   Cache keys change with the names, so expect one re-scan. **Rule ids are unchanged** —
   `headers/csp-unsafe-inline` is already unambiguous, and renaming it would break every

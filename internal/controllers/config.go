@@ -201,3 +201,15 @@ func scannerNameFor(key string) (string, bool) {
 	}
 	return key, true
 }
+
+// ScannerConfigKey returns the descriptor key a scanner is configured under.
+//
+// Exported so the validator can tell a reader which keys a control accepts. Without it the CLI
+// would have to reimplement the hyphen-to-camelCase rule, and two implementations of a naming
+// convention is one more than can stay correct.
+func ScannerConfigKey(scanner string) string {
+	if k, ok := scannerConfigKey[scanner]; ok {
+		return k
+	}
+	return scanner
+}
