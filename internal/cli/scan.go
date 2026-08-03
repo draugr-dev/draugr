@@ -34,6 +34,7 @@ import (
 
 type scanOptions struct {
 	outputDir      string
+	reports        []string
 	failOn         string
 	failOnPriority string
 	cacheDir       string
@@ -78,7 +79,7 @@ func newScanCommand() *cobra.Command {
 			return runScan(cmd.Context(), target, *opts, builtins.Registry(), cmd.OutOrStdout())
 		},
 	}
-	cmd.Flags().StringVarP(&opts.outputDir, "output", "o", "", "directory to write report.json and results.sarif")
+	cmd.Flags().StringVarP(&opts.outputDir, "output", "o", "", "directory to write reports into (see --report; default report.json and results.sarif)")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.LevelError), "severity that fails the gate: error, warning, note")
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "", "also fail the gate on any finding at or above this priority (P1-P4)")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
@@ -90,7 +91,10 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE at/above --epss-threshold is bumped one band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", 0.5, "EPSS probability (0-1) that triggers a severity bump")
 	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0, "max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency")
-	cmd.Flags().StringVar(&opts.format, "format", "console", "stdout report format: console, markdown, html, junit, json, sarif, template")
+	cmd.Flags().StringVar(&opts.format, "format", "console",
+		"what to print: "+strings.Join(report.StreamFormats, ", "))
+	cmd.Flags().StringSliceVar(&opts.reports, "report", nil,
+		"formats to write into -o (console, markdown, html, junit, json, sarif); default json,sarif")
 	cmd.Flags().StringVar(&opts.template, "template", "", "inline Go text/template (with --format template)")
 	cmd.Flags().StringVar(&opts.templateFile, "template-file", "", "Go text/template file (with --format template)")
 	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")
@@ -189,6 +193,19 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if format == "" {
 		format = "console"
 	}
+	// Checked here rather than when the reporter is looked up, so the message can say where a
+	// document format did go instead of only that it is not a printable one.
+	if err := report.StreamFormat(format); err != nil {
+		return err
+	}
+	if len(opts.reports) > 0 && opts.outputDir == "" {
+		return fmt.Errorf("--report needs somewhere to write: pass -o <dir>")
+	}
+	for _, f := range opts.reports {
+		if _, err := report.For(f); err != nil {
+			return err
+		}
+	}
 	data := report.Data{
 		Release:              model.Release,
 		Run:                  run,
@@ -227,7 +244,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 	}
 	if opts.outputDir != "" {
-		if err := writeArtifacts(opts.outputDir, model.Release, run, verdict, minPriority); err != nil {
+		if err := writeArtifacts(opts.outputDir, opts.reports, data, model.Release, run, verdict, minPriority); err != nil {
 			return err
 		}
 	}
@@ -320,26 +337,69 @@ func reportVersion() string {
 	return "v" + strings.TrimPrefix(version.Version, "v")
 }
 
-func writeArtifacts(dir string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string) error {
+// artifactFilename is what each format is written as inside -o.
+//
+// json and sarif keep the names pipelines already expect. The rest follow the same shape so a
+// directory listing reads as one set of reports rather than a pile of conventions.
+var artifactFilename = map[string]string{
+	"json":     "report.json",
+	"sarif":    "results.sarif",
+	"html":     "report.html",
+	"markdown": "report.md",
+	"junit":    "junit.xml",
+	"console":  "report.txt",
+}
+
+// defaultArtifacts is what -o writes when --report says nothing: the two a pipeline already
+// depends on.
+var defaultArtifacts = []string{"json", "sarif"}
+
+// writeArtifacts renders the requested formats into dir.
+//
+// The formats are rendered through the same reporters that serve --format and the Saga's
+// config.reports, so an HTML file written here and one delivered by a publisher cannot differ.
+func writeArtifacts(dir string, formats []string, data report.Data, release saga.Release,
+	run engine.Result, verdict norn.Result, minPriority string,
+) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	reportFile, err := os.Create(filepath.Join(dir, "report.json")) //nolint:gosec // operator-provided output dir
-	if err != nil {
-		return err
-	}
-	defer func() { _ = reportFile.Close() }()
-	if err := skald.RenderJSON(reportFile, release, run, verdict, minPriority); err != nil {
-		return err
+	if len(formats) == 0 {
+		formats = defaultArtifacts
 	}
 
-	sarifFile, err := os.Create(filepath.Join(dir, "results.sarif")) //nolint:gosec // operator-provided output dir
-	if err != nil {
-		return err
-	}
-	defer func() { _ = sarifFile.Close() }()
-	if err := skald.WriteSARIF(sarifFile, run); err != nil {
-		return err
+	for _, format := range formats {
+		name, ok := artifactFilename[format]
+		if !ok {
+			name = "report." + format
+		}
+		// json and sarif go through skald directly, as they always have: those two are written
+		// complete regardless of --min-priority, because a filtered artifact is a lie to whatever
+		// consumes it.
+		switch format {
+		case "json":
+			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
+				return skald.RenderJSON(w, release, run, verdict, minPriority)
+			}); err != nil {
+				return err
+			}
+		case "sarif":
+			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
+				return skald.WriteSARIF(w, run)
+			}); err != nil {
+				return err
+			}
+		default:
+			r, err := report.For(format)
+			if err != nil {
+				return err
+			}
+			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
+				return r.Render(w, data)
+			}); err != nil {
+				return err
+			}
+		}
 	}
 
 	// SBOMs are evidence of the run and belong with the rest of it, so -o writes them too
@@ -348,6 +408,19 @@ func writeArtifacts(dir string, release saga.Release, run engine.Result, verdict
 		if err := os.WriteFile(filepath.Join(dir, a.Filename), a.Bytes, 0o600); err != nil {
 			return fmt.Errorf("write %s: %w", a.Filename, err)
 		}
+	}
+	return nil
+}
+
+// writeTo creates path and hands the writer to render, closing it either way.
+func writeTo(path string, render func(io.Writer) error) error {
+	f, err := os.Create(path) //nolint:gosec // operator-provided output dir
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	if err := render(f); err != nil {
+		return fmt.Errorf("write %s: %w", filepath.Base(path), err)
 	}
 	return nil
 }

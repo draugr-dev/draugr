@@ -142,7 +142,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
-| `--format` | `console` | stdout report format: `console`, `markdown`, `html`, `junit`, `json`, `sarif`, `template` |
+| `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `template` |
 | `--template` | — | inline Go `text/template` (with `--format template`) |
 | `--template-file` | — | Go `text/template` file (with `--format template`) |
 | `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
@@ -243,6 +243,37 @@ in the [scope and disclaimer](../trust-and-operations/disclaimer.md).
 What a run actually did appears in the report, so evidence describes what happened rather than
 what was configured. Only scans that really executed count: a cache hit means the traffic was not
 sent this time.
+
+### `--format` prints; `--report` writes
+
+Two different questions, and they used to share one flag.
+
+**`--format` is what appears on screen.** It accepts only formats a person or a pipe can sensibly
+receive: `console`, `markdown`, `json`, `sarif`, `template`. `--format html` is rejected —
+
+```
+draugr: html is a document, not something to print: use `--report html` with `-o <dir>`
+```
+
+An HTML report is a styled document with its CSS inlined; a JUnit file is read by a CI runner from
+a path, never by a person. Printing either because a plausible-looking flag was typed is not
+behaviour worth defending, so neither is offered here.
+
+**`--report` is what gets written**, into the directory `-o` names:
+
+```bash
+draugr scan draugr.saga.yaml -o out/                          # report.json + results.sarif
+draugr scan draugr.saga.yaml -o out/ --report html,junit      # report.html + junit.xml
+draugr scan draugr.saga.yaml -o out/ --report html --format console
+```
+
+`-o` on its own still writes `report.json` and `results.sarif`, which is what pipelines already
+depend on. `--report` replaces that default rather than adding to it, so what you ask for is what
+you get.
+
+This mirrors the descriptor, which has always kept the two apart:
+[`config.reports`](saga-schema.md#configreports-and-configpublishers) is *what to render* and
+`config.publishers` is *where to send it*.
 
 ### What `--min-priority` narrows
 
