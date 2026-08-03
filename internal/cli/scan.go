@@ -19,6 +19,7 @@ import (
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
+	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -132,6 +133,13 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		_, _ = fmt.Fprintf(os.Stderr, "No *.saga.yaml here — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
 			"(run `draugr init` to scaffold one you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
+	// Organisation defaults are merged *underneath* the descriptor, so the engine sees one
+	// effective Saga and nothing downstream has to know there were two files. Merged after the
+	// descriptor has been validated on its own, so an error still names what the author wrote.
+	if err := applyConfigDefaults(ctx, model); err != nil {
+		return err
+	}
+
 	warnUncommitted(ctx, model)
 
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
@@ -599,4 +607,34 @@ func digestPinnedOnly(t plugin.Target) bool {
 		return true // not an image; nothing about it is mutable behind our back
 	}
 	return img.Digest != ""
+}
+
+// applyConfigDefaults merges the machine/organisation controller defaults under the descriptor.
+//
+// Under, not over: a project that has an opinion keeps it, and inherits the rest. The alternative
+// — defaults that a Saga cannot override — is a guarantee a CLI cannot keep, because the config
+// lives on a machine the same person controls.
+func applyConfigDefaults(ctx context.Context, model *saga.Model) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	res, err := config.Load(rootConfigPath, wd)
+	if err != nil {
+		return err
+	}
+	if len(res.File.Controllers) == 0 {
+		return nil
+	}
+	if model.Config.Controllers == nil {
+		model.Config.Controllers = map[string]saga.ControllerSettings{}
+	}
+	for control, defaults := range res.File.Controllers {
+		model.Config.Controllers[control] = config.DeepMerge(defaults, model.Config.Controllers[control])
+	}
+	// Said once, at debug: a reader wondering why a control behaved unexpectedly needs to know a
+	// second file had a say, and `draugr config show` is where the detail lives.
+	slog.DebugContext(ctx, "merged controller defaults from configuration",
+		"files", len(res.Sources), "controls", len(res.File.Controllers))
+	return nil
 }

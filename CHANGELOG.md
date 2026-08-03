@@ -10,7 +10,29 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr config` — machine and organisation settings, kept apart from the Saga.** A Saga
+  describes an application; which build of a scanner runs and what a control defaults to describe
+  the environment scanning it, and want to be the same everywhere.
+
+  ```
+  $ draugr config show
+  In effect:
+    Setting                          Value            From
+    controllers.sast.semgrep.config  p/owasp-top-ten  /repo/draugr.config.yaml
+    tools.trivy.version              0.69.3           ~/.draugr/config.yaml
+  ```
+
+  Defaults are merged **underneath** the descriptor, so a project overrides only the keys it names
+  and inherits the rest. Discovery is `~/.draugr/config.yaml` then `./draugr.config.yaml`, and
+  `--config`/`DRAUGR_CONFIG` replaces both.
+
+  **A broken config fails the run rather than falling back**, because silently reverting a pinned
+  toolchain is how a scan stops being reproducible. Recovery is one command — `config validate`
+  says what is wrong and `config init --force` starts again — and `config set`/`unset` cannot
+  produce a broken file: they edit the document, so comments survive, and parse the result before
+  saving.
 
 ## [0.61.0] - 2026-08-03
 
