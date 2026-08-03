@@ -39,6 +39,11 @@ func newRootCommand() *cobra.Command {
 			"the right tools, and produces a pass/fail verdict with evidence.\n\n" +
 			"Security controls (SAST, SCA, secrets, IaC, DAST, TLS, headers) and compliance\n" +
 			"evidence (SBOMs) from the same descriptor and the same gate.",
+		// `draugr version` is the command; this makes `--version` the same answer under the
+		// spelling every other CLI uses. Cobra adds the flag from this field alone — without it
+		// the near-universal `draugr --version` exits non-zero on "unknown flag", which a
+		// container smoke test or a tool-cache probe reads as a broken binary.
+		Version:       version.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -84,6 +89,9 @@ func newRootCommand() *cobra.Command {
 	cmd.AddCommand(newControlsCommand())
 	cmd.AddCommand(newMCPCommand())
 	cmd.AddCommand(newSelfUpdateCommand())
+	// Cobra's default template prints "draugr version X". Overriding it means the flag and the
+	// subcommand produce the same bytes, so a script that parses one parses the other.
+	cmd.SetVersionTemplate(version.String() + "\n")
 	return cmd
 }
 

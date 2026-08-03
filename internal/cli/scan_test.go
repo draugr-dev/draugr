@@ -940,3 +940,21 @@ func TestToolBuildsIgnoresUnknownScanners(t *testing.T) {
 		t.Errorf("got %+v", got)
 	}
 }
+
+func TestWriteArtifactsUsesTheSameNamesAPublisherWould(t *testing.T) {
+	// -o and a publisher have to write a format under one name. When they disagree, a CI step
+	// globbing for the file finds nothing — and the common ones warn rather than fail, so the run
+	// stays green with no results in it.
+	dir := t.TempDir()
+	formats := []string{"json", "sarif", "html", "markdown", "junit"}
+	err := writeArtifacts(dir, formats, report.Data{Release: saga.Release{Name: "app", Version: "1"}},
+		saga.Release{Name: "app", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range formats {
+		if _, err := os.Stat(filepath.Join(dir, report.Filename(f))); err != nil {
+			t.Errorf("%s: %s not written: %v", f, report.Filename(f), err)
+		}
+	}
+}

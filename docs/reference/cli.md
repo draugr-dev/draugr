@@ -300,7 +300,7 @@ behaviour worth defending, so neither is offered here.
 
 ```bash
 draugr scan draugr.saga.yaml -o out/                          # report.json + results.sarif
-draugr scan draugr.saga.yaml -o out/ --report html,junit      # report.html + junit.xml
+draugr scan draugr.saga.yaml -o out/ --report html,junit      # report.html + report.junit.xml
 draugr scan draugr.saga.yaml -o out/ --report html --format console
 ```
 
@@ -895,10 +895,15 @@ Print the version, commit, build date, and Go version.
 
 ```bash
 draugr version            # draugr 0.31.1 (commit 30862ef, built …, go1.26.5)
+draugr --version          # the same bytes, under the spelling every other CLI uses
 draugr version --json     # {"version":"0.31.1","commit":"30862ef","built":"…","go":"go1.26.5"}
 ```
 
 Output goes to stdout in both forms, so `v=$(draugr version --json | jq -r .version)` works.
+
+**`--version` prints exactly what `version` prints**, so a script parsing one parses the other.
+It exists because container smoke tests, tool caches and version probes reach for the flag rather
+than the subcommand, and an unknown-flag error reads as a broken binary.
 
 ## `draugr schema`
 
