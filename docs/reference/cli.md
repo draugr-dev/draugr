@@ -159,9 +159,9 @@ draugr scan draugr.saga.yaml --fail-on-priority P1    # also block on P1 finding
 draugr scan draugr.saga.yaml --cache-dir .draugr-cache
 draugr scan draugr.saga.yaml -j 4                      # cap parallelism (or -j 1 for serial)
 draugr scan draugr.saga.yaml --format markdown        # portable report (MR comment, wiki)
-draugr scan draugr.saga.yaml --format html > report.html   # shareable browser report
-draugr scan draugr.saga.yaml --format junit > report.xml   # CI test panel
-draugr scan draugr.saga.yaml --format json | jq .     # machine-readable
+draugr scan draugr.saga.yaml --format json | jq .      # machine-readable
+draugr scan draugr.saga.yaml -o out/ --report html    # shareable browser report
+draugr scan draugr.saga.yaml -o out/ --report junit   # CI test panel
 draugr scan draugr.saga.yaml --format template --template '{{.Verdict}}: P1={{.Priorities.P1}}'
 ```
 
