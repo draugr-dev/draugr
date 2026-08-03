@@ -12,6 +12,9 @@ and move it under a version on release.
 
 ### Added
 
+- **`draugr --version`** now works, printing exactly what `draugr version` prints. Container
+  smoke tests, tool caches and version probes reach for the flag rather than the subcommand.
+
 - **A report now says which build of each scanner produced it.** A scan runs whatever is on
   `PATH`, which is right — an operator may have an experimental build or a fork, and refusing
   them would be Draugr mistaking "I cannot verify this" for "this is wrong". But a report that
@@ -46,6 +49,14 @@ and move it under a version on release.
   against nothing at all. That level then appears in every report the tool produces, so nothing is
   weakened quietly. A published checksum the download *contradicts* is still refused — that is
   evidence, not a gap.
+
+### Fixed
+
+- **JUnit reports are written as `report.junit.xml` everywhere.** `-o` and the `file` publisher
+  named the same format differently, so a CI step globbing for one found nothing when the other
+  had produced it — and the common test-publishing tasks warn rather than fail, leaving a green
+  run with no results in it. Every format now has exactly one name. If you glob for `junit.xml`,
+  update it to `report.junit.xml`.
 
 ## [0.62.0] - 2026-08-03
 

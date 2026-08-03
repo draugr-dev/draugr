@@ -361,19 +361,6 @@ func reportVersion() string {
 	return "v" + strings.TrimPrefix(version.Version, "v")
 }
 
-// artifactFilename is what each format is written as inside -o.
-//
-// json and sarif keep the names pipelines already expect. The rest follow the same shape so a
-// directory listing reads as one set of reports rather than a pile of conventions.
-var artifactFilename = map[string]string{
-	"json":     "report.json",
-	"sarif":    "results.sarif",
-	"html":     "report.html",
-	"markdown": "report.md",
-	"junit":    "junit.xml",
-	"console":  "report.txt",
-}
-
 // defaultArtifacts is what -o writes when --report says nothing: the two a pipeline already
 // depends on.
 var defaultArtifacts = []string{"json", "sarif"}
@@ -393,10 +380,7 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 	}
 
 	for _, format := range formats {
-		name, ok := artifactFilename[format]
-		if !ok {
-			name = "report." + format
-		}
+		name := report.Filename(format)
 		// json and sarif go through skald directly, as they always have: those two are written
 		// complete regardless of --min-priority, because a filtered artifact is a lie to whatever
 		// consumes it.

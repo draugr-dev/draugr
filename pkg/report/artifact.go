@@ -17,6 +17,9 @@ type Artifact struct {
 }
 
 // formatMeta maps each format to its default filename and MIME content type.
+//
+// json and sarif keep the names pipelines already expect; the rest follow one shape so a
+// directory listing reads as a set of reports rather than a pile of conventions.
 var formatMeta = map[string]struct{ filename, contentType string }{
 	"json":     {"report.json", "application/json"},
 	"sarif":    {"results.sarif", "application/sarif+json"},
@@ -24,6 +27,19 @@ var formatMeta = map[string]struct{ filename, contentType string }{
 	"html":     {"report.html", "text/html; charset=utf-8"},
 	"junit":    {"report.junit.xml", "application/xml"},
 	"console":  {"report.txt", "text/plain; charset=utf-8"},
+}
+
+// Filename is what a format is written as, whether a publisher delivers it or `-o` writes it.
+//
+// One table, because the alternative is two that agree until they do not. A format written under
+// one name locally and another by a publisher breaks whatever globs for it — and a CI step that
+// globs for a file it never finds usually warns and carries on, which is a green run with no
+// results in it.
+func Filename(format string) string {
+	if m, ok := formatMeta[format]; ok {
+		return m.filename
+	}
+	return "report." + format
 }
 
 // Build renders a report as configured and returns it as an Artifact ready to publish. The
