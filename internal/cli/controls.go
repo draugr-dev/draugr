@@ -3,12 +3,14 @@ package cli
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -68,6 +70,8 @@ func runControls(w io.Writer, reg *engine.Registry) error {
 	}
 	t.Render(w)
 
+	writeScannerOrigins(w, col, reg)
+
 	if optIn {
 		_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
 			"* opt-in scanner — enable with controllers.<control>.<scanner>.enabled: true in the Saga."))
@@ -112,4 +116,59 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry) {
 			"Effects marked mutate or privilege do not run until accepted — list them under\n"+
 				"config.allowEffects in your Saga, or pass --allow-effects."))
 	}
+}
+
+// writeScannerOrigins lists who publishes each scanner's tool.
+//
+// A roster answers a question the per-control table cannot: which of these is a third party
+// executing on this machine, and whose. Reading that table, `http-headers` and `gitleaks` look
+// alike — one is Draugr's own detection logic and the other is somebody else's binary, and
+// nothing on the row says so.
+//
+// Grouped by origin rather than listed per scanner, because the question is usually about the
+// publisher: four of these come from Aqua, and a supply-chain review wants to see that at once.
+func writeScannerOrigins(w io.Writer, col tui.Painter, reg *engine.Registry) {
+	byOrigin := map[string][]string{}
+	for _, s := range reg.Scanners() {
+		info := s.Info()
+		origin := info.Origin
+		if origin == "" {
+			// Never silently attributed to us. An unlabelled scanner is a gap in the roster, and
+			// showing it as one is the only way it gets fixed.
+			origin = "unknown"
+		}
+		byOrigin[origin] = append(byOrigin[origin], info.Name)
+	}
+	if len(byOrigin) == 0 {
+		return
+	}
+
+	origins := make([]string, 0, len(byOrigin))
+	for o := range byOrigin {
+		origins = append(origins, o)
+	}
+	// Draugr first — the reader is usually asking which are not ours, and the answer is
+	// everything below the first row.
+	sort.Slice(origins, func(i, j int) bool {
+		if (origins[i] == plugin.OriginDraugr) != (origins[j] == plugin.OriginDraugr) {
+			return origins[i] == plugin.OriginDraugr
+		}
+		return origins[i] < origins[j]
+	})
+
+	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleAccent, "Who publishes each scanner:"))
+	t := tui.NewTable(col, "Origin", "Scanners").Indent("  ")
+	for _, o := range origins {
+		names := byOrigin[o]
+		sort.Strings(names)
+		style := tui.StyleMuted
+		if o == plugin.OriginDraugr {
+			style = tui.StyleAccent
+		}
+		t.Row(tui.Styled(style, o), tui.PlainCell(strings.Join(names, ", ")))
+	}
+	t.Render(w)
+	_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
+		"Draugr executes third-party tools rather than bundling them, so each stays under its own\n"+
+			"licence. `draugr tools list` shows which are installed and where."))
 }

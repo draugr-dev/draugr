@@ -26,6 +26,7 @@ func NewHTTPHeaders() plugin.Scanner {
 	return httpHeadersScanner{
 		info: plugin.ScannerInfo{
 			Name:        "http-headers",
+			Origin:      plugin.OriginDraugr,
 			Controls:    []string{"headers"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetHost},
 		},

@@ -8,6 +8,7 @@ func NewGitleaks() plugin.Scanner {
 	s := newRepoScanner(
 		plugin.ScannerInfo{
 			Name:        "gitleaks",
+			Origin:      "gitleaks",
 			Binary:      "gitleaks",
 			Controls:    []string{"secrets"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},

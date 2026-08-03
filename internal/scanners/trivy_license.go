@@ -25,6 +25,7 @@ func NewTrivyLicense() plugin.Scanner {
 	s := newRepoScannerWithParser(
 		plugin.ScannerInfo{
 			Name:        trivyLicenseScannerName,
+			Origin:      "aquasecurity",
 			Binary:      "trivy",
 			Controls:    []string{"licenses"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},

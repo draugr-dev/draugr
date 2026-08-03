@@ -40,6 +40,7 @@ func NewKubeBench() plugin.Scanner {
 	return kubeBenchScanner{
 		info: plugin.ScannerInfo{
 			Name:   kubeBenchScannerName,
+			Origin: "aquasecurity",
 			Binary: "kube-bench",
 			// Its CIS policy checks are shell scripts that invoke kubectl; without it the tool
 			// runs and reports every check as failed.

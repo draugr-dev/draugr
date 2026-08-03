@@ -43,7 +43,8 @@ type k8sPoliciesScanner struct {
 func NewK8sPolicies() plugin.Scanner {
 	return k8sPoliciesScanner{
 		info: plugin.ScannerInfo{
-			Name: k8sPoliciesScannerName,
+			Name:   k8sPoliciesScannerName,
+			Origin: plugin.OriginDraugr,
 			// No Binary: this scanner is the tool. Nothing to install, and nothing for
 			// `draugr doctor` to report missing.
 			Controls:    []string{"infrastructure"},

@@ -45,7 +45,8 @@ type kubeBenchJobScanner struct {
 func NewKubeBenchJob() plugin.Scanner {
 	return kubeBenchJobScanner{
 		info: plugin.ScannerInfo{
-			Name: kubeBenchJobScannerName,
+			Name:   kubeBenchJobScannerName,
+			Origin: "aquasecurity",
 			// No Binary: the work happens in the cluster, from an image.
 			Controls:    []string{"infrastructure"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetInfra},

@@ -28,6 +28,7 @@ func NewSemgrep() plugin.Scanner {
 	s := newRepoScanner(
 		plugin.ScannerInfo{
 			Name:         "semgrep",
+			Origin:       "semgrep",
 			Binary:       "semgrep",
 			Controls:     []string{"sast"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},

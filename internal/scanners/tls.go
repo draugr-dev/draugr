@@ -102,6 +102,7 @@ func NewTLSProbe() plugin.Scanner {
 	return tlsProbeScanner{
 		info: plugin.ScannerInfo{
 			Name:         "tls-probe",
+			Origin:       plugin.OriginDraugr,
 			Controls:     []string{"tls"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
 			ConfigSchema: json.RawMessage(tlsProbeConfigSchema),

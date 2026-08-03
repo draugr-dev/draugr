@@ -20,6 +20,12 @@ links, and license/terms.
 See also: [control taxonomy](../contributing/naming.md#security-controls-taxonomy) ·
 [glossary](glossary.md).
 
+**Who publishes what.** `draugr controls` ends with a roster grouping every scanner by the project
+that publishes its tool — `aquasecurity` for the Trivy family and kube-bench, `projectdiscovery`
+for Nuclei, and `draugr` for the ones whose detection logic is our own and which need no external
+tool at all. Reading the control table those look alike, and one of them is somebody else's binary
+executing on your machine, which is a question worth being able to answer without reading source.
+
 ## Controllers
 
 | Control | Industry term | Scope | Status | Scanner(s) | Doc |

@@ -19,9 +19,11 @@ import (
 
 // Config declares how to adapt a tool.
 type Config struct {
-	Name        string
-	Binary      string
-	Version     string
+	Name    string
+	Binary  string
+	Version string
+	// Origin is the upstream project that publishes the tool (see plugin.ScannerInfo.Origin).
+	Origin      string
 	Controls    []string
 	TargetKinds []plugin.TargetKind
 	// Argv builds the command line (argv[0] is the executable) for a target and config.
@@ -66,6 +68,7 @@ func (a *Adapter) Info() plugin.ScannerInfo {
 	return plugin.ScannerInfo{
 		Name:        a.cfg.Name,
 		Binary:      a.cfg.Binary,
+		Origin:      a.cfg.Origin,
 		Version:     a.cfg.Version,
 		Controls:    a.cfg.Controls,
 		TargetKinds: a.cfg.TargetKinds,
