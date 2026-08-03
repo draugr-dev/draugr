@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Cache entries are compressed.** An entry is a whole SARIF report, which is repetitive by
+  construction — a measured one went from 375 KB to 60 KB, a factor of six.
+
+  It matters most where a cache is persisted between CI runs: uncompressed, a large project spends
+  on restoring the cache what it saves on scanning. A cache written by an older Draugr still reads,
+  so upgrading does not silently discard a warm one.
 
 ## [0.60.0] - 2026-08-03
 

@@ -3,7 +3,10 @@
 package cache
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -86,6 +89,9 @@ func (l *Local) Get(key string) (sarif.Report, bool) {
 	if err != nil {
 		return sarif.Report{}, false
 	}
+	if data, err = maybeGunzip(data); err != nil {
+		return sarif.Report{}, false
+	}
 	var e entry
 	if err := json.Unmarshal(data, &e); err != nil {
 		return sarif.Report{}, false
@@ -108,5 +114,46 @@ func (l *Local) Put(key string, report sarif.Report) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(l.pathFor(key), data, 0o600)
+	packed, err := gzipBytes(data)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(l.pathFor(key), packed, 0o600)
+}
+
+// gzipMagic is the two bytes every gzip stream starts with.
+var gzipMagic = []byte{0x1f, 0x8b}
+
+// gzipBytes compresses an entry for storage.
+//
+// A cached entry is a whole SARIF report, which is repetitive by construction — a measured entry
+// went from 375 KB to 60 KB, and a project with a few hundred of them is the difference between
+// a cache that is cheap to keep and one that costs more to restore than the scan it saves.
+func gzipBytes(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	if _, err := zw.Write(data); err != nil {
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// maybeGunzip decompresses an entry, passing through anything that is not gzip.
+//
+// Sniffed rather than assumed so a cache written by an older Draugr still reads. Those entries
+// are plain JSON, and refusing them would silently discard a warm cache on upgrade — a
+// correctness-neutral change that costs everyone a full re-scan is not one worth making.
+func maybeGunzip(data []byte) ([]byte, error) {
+	if !bytes.HasPrefix(data, gzipMagic) {
+		return data, nil
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = zr.Close() }()
+	return io.ReadAll(zr)
 }
