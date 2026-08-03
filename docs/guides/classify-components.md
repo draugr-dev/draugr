@@ -25,11 +25,16 @@ draugr classify draugr.saga.yaml --all    # re-classify every component
 
 ```
 Component: web
-  Exposure — how reachable is it?
-  Reachable from the public internet? [y/N] y
-  Does it require authentication? [y/N] n
-  Criticality — impact if it fails or is compromised?
-    1) outage or data loss   2) degraded, no outage   3) limited impact
+  Exposure — who can reach it?
+    1) public         anyone on the internet can reach it, no sign-in
+    2) authenticated  on the internet, but behind a login
+    3) internal       only from inside your own network or VPN
+    4) restricted     inside your network and locked down further — an allowlist, a private link, its own segment
+  Choose [1-4]: 1
+  Criticality — what happens if it fails or is breached?
+    1) critical       an outage or data loss for the business
+    2) important      degraded service, but no outage
+    3) supporting     limited impact, easily worked around
   Choose [1-3]: 1
   → web: exposure=public, criticality=critical
 ```
