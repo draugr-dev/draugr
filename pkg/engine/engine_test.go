@@ -546,3 +546,45 @@ func TestWithoutPrewarmSkipsWarmingButStillScans(t *testing.T) {
 		t.Errorf("prewarmed %d times without the option, want 1", online.warms)
 	}
 }
+
+func TestWithCacheableTargetVetoesAJob(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	sc := &fakeScanner{name: "s"}
+	reg.RegisterScanner(sc)
+
+	// Reject everything: the scan still runs, and nothing is stored — a vetoed target behaves
+	// exactly as though caching were off.
+	c := cache.NewMemory()
+	if _, err := New(reg, WithCache(c), WithCacheableTarget(func(plugin.Target) bool { return false })).
+		Run(context.Background(), model()); err != nil {
+		t.Fatal(err)
+	}
+	before := sc.calls()
+	if before == 0 {
+		t.Fatal("no scans ran")
+	}
+	// A second run must scan again, because the first stored nothing.
+	if _, err := New(reg, WithCache(c), WithCacheableTarget(func(plugin.Target) bool { return false })).
+		Run(context.Background(), model()); err != nil {
+		t.Fatal(err)
+	}
+	if sc.calls() == before {
+		t.Error("the second run was served from a cache the veto should have kept empty")
+	}
+
+	// Accepting everything caches as usual, so the veto is what made the difference above.
+	sc2 := &fakeScanner{name: "s"}
+	reg2 := NewRegistry()
+	reg2.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg2.RegisterScanner(sc2)
+	shared := cache.NewMemory()
+	for range 2 {
+		if _, err := New(reg2, WithCache(shared)).Run(context.Background(), model()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := sc2.calls(); n != 2 {
+		t.Errorf("with caching on, expected 2 scans across two runs (one per target), got %d", n)
+	}
+}

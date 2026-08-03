@@ -162,3 +162,25 @@ func TestLocalIgnoresCorruptEntries(t *testing.T) {
 		}
 	}
 }
+
+func TestReadOnlyServesButDoesNotStore(t *testing.T) {
+	dir := t.TempDir()
+	writable := NewLocal(dir, 0)
+	if err := writable.Put("known", sarif.Report{Tool: "trivy"}); err != nil {
+		t.Fatal(err)
+	}
+
+	ro := ReadOnly(NewLocal(dir, 0))
+	// Reading stays useful: entries already there were written by runs that were trusted.
+	if _, ok := ro.Get("known"); !ok {
+		t.Error("a read-only cache should still serve what is there")
+	}
+	// Writing is discarded silently — a read-only cache is a configuration, not an error, and a
+	// scan failing because it could not write a cache would be absurd.
+	if err := ro.Put("new", sarif.Report{Tool: "trivy"}); err != nil {
+		t.Errorf("Put returned an error: %v", err)
+	}
+	if _, ok := NewLocal(dir, 0).Get("new"); ok {
+		t.Error("a read-only cache wrote an entry")
+	}
+}

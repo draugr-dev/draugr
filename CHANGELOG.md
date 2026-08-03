@@ -18,6 +18,23 @@ and move it under a version on release.
   It matters most where a cache is persisted between CI runs: uncompressed, a large project spends
   on restoring the cache what it saves on scanning. A cache written by an older Draugr still reads,
   so upgrading does not silently discard a warm one.
+### Added
+
+- **Two ways to keep a shared cache honest.** `--cache-read-only` reads entries and writes none,
+  for a run whose results should not be trusted by the next one; `--cache-require-digest` refuses
+  to cache a container image identified only by a tag, because a tag can be rebuilt and the key
+  cannot tell.
+
+  **The GitHub Action sets `--cache-read-only` on a pull request from a fork**, without being
+  asked. A job running unreviewed code that can *write* a shared cache decides what the next run
+  on your default branch reads — a pass nobody earned. GitHub's own cache already scopes writes by
+  branch, but a bucket or a self-hosted runner does not, and the guarantee should not depend on
+  which transport somebody picked. Reading stays on, because the entries already there are what
+  make a pull-request scan fast.
+
+  There is now a guide to [persisting a cache between CI runs](docs/guides/caching-and-performance.md),
+  which leads with the part that carries no trust question at all: Trivy's databases are 2.6 GB and
+  a cold runner downloads all of them before scanning anything.
 
 ## [0.60.0] - 2026-08-03
 

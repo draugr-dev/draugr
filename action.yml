@@ -234,6 +234,18 @@ runs:
         INPUT_FAIL_ON_PRIORITY: ${{ inputs.fail-on-priority }}
         INPUT_MIN_PRIORITY: ${{ inputs.min-priority }}
         INPUT_CACHE_DIR: ${{ inputs.cache-dir }}
+        # A pull request from a fork runs code the base repository has not reviewed. If that job
+        # can *write* a shared cache, the fork decides what the next run on the default branch
+        # reads — a pass nobody earned, with nothing in the report to show for it.
+        #
+        # GitHub's own cache is already scoped so a fork cannot write the base branch's copy, but
+        # a self-hosted runner, a bucket or a mounted volume is not, and the guarantee should not
+        # depend on which transport somebody chose. Set here rather than in the CLI because the
+        # event is a fact the action has and Draugr does not.
+        #
+        # Read-only, not cache-off: the entries already there were written by trusted runs and are
+        # exactly what makes a pull-request scan fast.
+        CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'true' || '' }}
         INPUT_ARGS: ${{ inputs.args }}
         # Forwarded so a Saga's `github` publisher can upload SARIF to code scanning. Uploading
         # requires the job to grant `permissions: security-events: write`. GITHUB_REPOSITORY/
@@ -248,6 +260,7 @@ runs:
         [ -n "$INPUT_FAIL_ON_PRIORITY" ] && scan_args+=(--fail-on-priority "$INPUT_FAIL_ON_PRIORITY")
         [ -n "$INPUT_MIN_PRIORITY" ]     && scan_args+=(--min-priority "$INPUT_MIN_PRIORITY")
         [ -n "$INPUT_CACHE_DIR" ]        && scan_args+=(--cache-dir "$INPUT_CACHE_DIR")
+        [ -n "$CACHE_READ_ONLY" ]        && scan_args+=(--cache-read-only)
         # shellcheck disable=SC2206  # intentional word-splitting of the raw args escape hatch
         [ -n "$INPUT_ARGS" ]             && scan_args+=($INPUT_ARGS)
 
@@ -262,6 +275,18 @@ runs:
         INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
         INPUT_OUTPUT: ${{ inputs.output }}
         INPUT_CACHE_DIR: ${{ inputs.cache-dir }}
+        # A pull request from a fork runs code the base repository has not reviewed. If that job
+        # can *write* a shared cache, the fork decides what the next run on the default branch
+        # reads — a pass nobody earned, with nothing in the report to show for it.
+        #
+        # GitHub's own cache is already scoped so a fork cannot write the base branch's copy, but
+        # a self-hosted runner, a bucket or a mounted volume is not, and the guarantee should not
+        # depend on which transport somebody chose. Set here rather than in the CLI because the
+        # event is a fact the action has and Draugr does not.
+        #
+        # Read-only, not cache-off: the entries already there were written by trusted runs and are
+        # exactly what makes a pull-request scan fast.
+        CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'true' || '' }}
         INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
         INPUT_FAIL_ON_NEW_PRIORITY: ${{ inputs.fail-on-new-priority }}
         INPUT_ARGS: ${{ inputs.args }}
@@ -292,6 +317,7 @@ runs:
         # keeps a Saga's `github` publisher from also uploading to code scanning on the PR.
         scan_common=(--no-publish)
         [ -n "$INPUT_CACHE_DIR" ] && scan_common+=(--cache-dir "$INPUT_CACHE_DIR")
+        [ -n "$CACHE_READ_ONLY" ] && scan_common+=(--cache-read-only)
         # shellcheck disable=SC2206  # intentional word-splitting of the raw args escape hatch
         [ -n "$INPUT_ARGS" ] && scan_common+=($INPUT_ARGS)
 
