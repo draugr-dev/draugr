@@ -742,10 +742,14 @@ component may be left unclassified.
 
 | `exposure` | meaning | | `criticality` | meaning |
 |------------|---------|-|---------------|---------|
-| `public` | internet-facing, no auth | | `critical` | failure causes outage / data loss |
-| `authenticated` | internet-facing, behind auth | | `important` | degraded, no immediate outage |
-| `internal` | reachable within the environment | | `supporting` | limited operational impact |
-| `restricted` | namespace- / network-policy-scoped | | | |
+| `public` | anyone on the internet, no sign-in | | `critical` | an outage or data loss for the business |
+| `authenticated` | on the internet, behind a login | | `important` | degraded service, but no outage |
+| `internal` | only from inside your network or VPN | | `supporting` | limited impact, easily worked around |
+| `restricted` | inside your network and locked down further — an allowlist, a private link, its own segment | | | |
+
+The wording names no platform on purpose: a Kubernetes network policy is one way to arrange
+`restricted`, and Draugr classifies repositories and images as well as clusters. `draugr classify`
+asks these same questions with the same words.
 
 ## `componentsMetaSources` (planned)
 

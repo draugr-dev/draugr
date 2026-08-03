@@ -29,6 +29,26 @@ and move it under a version on release.
   `-o` alone still writes `report.json` and `results.sarif`. This mirrors the descriptor, which
   has always kept `config.reports` (what to render) apart from `config.publishers` (where to send
   it) — the command line just had no way to say it.
+- **`draugr classify` asks one kind of question, in plain words, with the weight of each answer
+  visible.** Exposure was a tree of yes/no questions and criticality a numbered list, so a reader
+  switched modes halfway through a wizard whose whole point is to be quick.
+
+  ```
+    Exposure — who can reach it?
+      1) public         anyone on the internet can reach it, no sign-in
+      2) authenticated  on the internet, but behind a login
+      3) internal       only from inside your own network or VPN
+      4) restricted     inside your network and locked down further — an allowlist, a private link, its own segment
+  ```
+
+  Options are coloured by rank in the same palette findings use, so how exposed an answer is shows
+  while you choose it rather than afterwards in a report. The list also shows the whole ladder: a
+  decision tree hid `restricted` from anyone who answered "not public".
+
+  **The wording names no platform.** "Is its network access restricted (namespace / network
+  policy)?" was answerable if you run Kubernetes and a guess otherwise — and a guess here silently
+  miscolours every P1 that follows, because exposure and criticality drive the whole ranking. The
+  reference table now uses the same words.
 
 ## [0.59.0] - 2026-08-03
 
