@@ -35,6 +35,10 @@ type Prewarmer interface {
 	Prewarm(ctx context.Context) error
 }
 
+// OriginDraugr marks a scanner whose detection logic is Draugr's own rather than an external
+// tool's. It is the value the registry stamps on every built-in native scanner.
+const OriginDraugr = "draugr"
+
 // ScannerInfo describes a scanner and its capabilities.
 type ScannerInfo struct {
 	// Name is the scanner identifier, e.g. "trivy".
@@ -51,6 +55,16 @@ type ScannerInfo struct {
 	AlsoRequires []string
 	// Version is the scanner/plugin version; it participates in the cache key.
 	Version string
+	// Origin names who publishes the tool this scanner runs — the upstream project, not the
+	// scanner's author. "aquasecurity" for Trivy and kube-bench, "projectdiscovery" for Nuclei,
+	// "draugr" for a scanner whose detection logic is Draugr's own.
+	//
+	// Read rather than declared, when it can be: OriginDraugr is stamped by the registry for
+	// built-ins, and a plugin's Origin is stamped by whatever loaded it. A scanner that could
+	// name its own origin could claim one, and the whole value of the field is that a reader can
+	// trust it — "which of these is a third party executing on my machine" is a supply-chain
+	// question, and an answer the subject supplies is not an answer.
+	Origin string
 	// Controls are the security controls this scanner can serve, e.g. ["images"].
 	Controls []string
 	// TargetKinds are the target kinds this scanner accepts.

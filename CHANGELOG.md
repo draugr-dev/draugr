@@ -10,7 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr controls` now says who publishes each scanner.** Reading the control table,
+  `http-headers` and `gitleaks` looked alike — one is Draugr's own detection logic needing no
+  external tool, the other is somebody else's binary executing on your machine, and nothing on the
+  row said so.
+
+  ```
+  Who publishes each scanner:
+    Origin            Scanners
+    draugr            http-headers, k8s-policies, tls-probe
+    aquasecurity      kube-bench, kube-bench-job, trivy, trivy-config, trivy-fs, trivy-license
+    projectdiscovery  nuclei
+  ```
+
+  Grouped by publisher, because that is the shape of the question a supply-chain review asks. The
+  origin is declared on the scanner rather than inferred from its name, and a plugin will not be
+  able to set its own — the loader stamps it, so it is an answer the subject does not supply.
 
 ## [0.58.1] - 2026-08-03
 

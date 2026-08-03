@@ -10,6 +10,7 @@ func NewGosec() plugin.Scanner {
 	s := newRepoScanner(
 		plugin.ScannerInfo{
 			Name:        "gosec",
+			Origin:      "securego",
 			Binary:      "gosec",
 			Controls:    []string{"sast"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
