@@ -12,6 +12,23 @@ and move it under a version on release.
 
 ### Added
 
+- **`azure-pr-comment` publisher** — Draugr's report as a sticky Azure DevOps pull-request
+  comment, updated in place on each push rather than stacking a copy per run:
+
+  ```yaml
+  config:
+    reports:
+      - format: markdown
+    publishers:
+      - kind: azure-pr-comment
+  ```
+
+  Everything defaults from the pipeline environment, so that is usually the whole configuration.
+  Map `SYSTEM_ACCESSTOKEN: $(System.AccessToken)` into the step — Azure does not expose it to
+  scripts by default — and grant the build service *Contribute to pull requests* on the
+  repository. Draugr names both in its error messages rather than leaving you with a bare 401
+  or 403.
+
 - **`draugr --version`** now works, printing exactly what `draugr version` prints. Container
   smoke tests, tool caches and version probes reach for the flag rather than the subcommand.
 
