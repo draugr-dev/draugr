@@ -38,7 +38,7 @@ func TestAttestVouchesForWhatDraugrInstalled(t *testing.T) {
 	path := installed(t, binDir, "trivy", "0.69.3", []byte("#!/bin/sh\n"))
 
 	a := Attest("trivy", path, "0.69.3", binDir)
-	if !a.Attested {
+	if !a.Level.Vouched() {
 		t.Fatalf("a binary Draugr installed was not attested: %+v", a)
 	}
 	if a.Reason != "" {
@@ -59,7 +59,7 @@ func TestAttestDeclinesWhatItDidNotInstall(t *testing.T) {
 		"absent": Attest("trivy", "", "", binDir),
 	}
 	for name, a := range cases {
-		if a.Attested {
+		if a.Level.Vouched() {
 			t.Errorf("%s: attested when it should not be", name)
 		}
 		if a.Reason == "" {
@@ -77,7 +77,7 @@ func TestAttestNoticesAChangedBinary(t *testing.T) {
 	}
 
 	a := Attest("trivy", path, "0.69.3", binDir)
-	if a.Attested {
+	if a.Level.Vouched() {
 		t.Error("a replaced binary was still attested")
 	}
 	if a.Reason != "changed since Draugr installed it" {
@@ -97,7 +97,7 @@ func TestAttestNoticesAnUnrecordedBinary(t *testing.T) {
 	}
 
 	a := Attest("trivy", path, "", binDir)
-	if a.Attested {
+	if a.Level.Vouched() {
 		t.Error("an unrecorded binary was attested")
 	}
 }
@@ -109,7 +109,7 @@ func TestAttestFallsBackToTheRecordedVersion(t *testing.T) {
 	path := installed(t, binDir, "gitleaks", "8.30.1", []byte("x"))
 
 	a := Attest("gitleaks", path, "", binDir)
-	if !a.Attested || a.Version != "8.30.1" {
+	if !a.Level.Vouched() || a.Version != "8.30.1" {
 		t.Errorf("got %+v", a)
 	}
 }

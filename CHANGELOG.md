@@ -22,10 +22,30 @@ and move it under a version on release.
   Scanner (unverified): semgrep 1.99.0 — found on PATH; Draugr did not install it
   ```
 
-  **Attested** means Draugr installed that exact binary and it is unchanged: in `~/.draugr/bin`,
-  in the install record, and still hashing to what was recorded — which makes it a claim about a
-  file rather than about a path. Anything else is used and labelled, and none of it affects the
+  The first line lists the builds Draugr fetched and checked: in `~/.draugr/bin`, in the install
+  record, and still hashing to what was recorded — which makes it a claim about a file rather than
+  about a path. Anything else is used and labelled with the reason, and none of it affects the
   verdict: it is a fact about the run, not a finding about your software.
+
+- **Pin the version of each scanner.** Write it once, where it gets reviewed, and every pipeline
+  provisions the same build — so two runners cannot turn identical code into different findings:
+
+  ```yaml
+  # draugr.config.yaml
+  tools:
+    trivy:    { version: "0.69.3" }
+    gitleaks: { version: "8.30.1" }
+  ```
+
+  `draugr tools install trivy --version 0.68.0` does it for one run.
+
+  Draugr will not refuse a version it cannot vouch for — asking for a fork, a release candidate or
+  a build newer than this release is a case where you know something Draugr does not. It installs
+  what you asked for and records how well it could check it: matched against a checksum recorded
+  in this build, against checksums the upstream signed, against an unsigned checksums file, or
+  against nothing at all. That level then appears in every report the tool produces, so nothing is
+  weakened quietly. A published checksum the download *contradicts* is still refused — that is
+  evidence, not a gap.
 
 ## [0.62.0] - 2026-08-03
 
