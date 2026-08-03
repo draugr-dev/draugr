@@ -14,6 +14,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
@@ -520,7 +521,7 @@ func TestWriteArtifactsWritesSBOMs(t *testing.T) {
 		{Component: "web", Target: "https://git/web", Format: saga.SBOMSPDXJSON, Bytes: []byte(`{"spdxVersion":"SPDX-2.3"}`)},
 		{Component: "api", Target: "api:1", Format: saga.SBOMCycloneDXJSON, Bytes: []byte(`{"bomFormat":"CycloneDX"}`)},
 	}}
-	if err := writeArtifacts(dir, saga.Release{Name: "app", Version: "1"}, run, norn.Result{Verdict: norn.Pass}, ""); err != nil {
+	if err := writeArtifacts(dir, nil, report.Data{}, saga.Release{Name: "app", Version: "1"}, run, norn.Result{Verdict: norn.Pass}, ""); err != nil {
 		t.Fatalf("writeArtifacts: %v", err)
 	}
 	for name, want := range map[string]string{
@@ -824,5 +825,65 @@ func TestComponentVerdictsAreAbsentForOneComponent(t *testing.T) {
 	model := &saga.Model{Components: []saga.Component{{Name: "only"}}}
 	if got, _ := componentVerdicts(policy, model, nil); got != nil {
 		t.Errorf("nothing to tell apart: %+v", got)
+	}
+}
+
+func TestFormatRejectsDocumentFormats(t *testing.T) {
+	// The complaint this fixes: `--format html` dumped four thousand lines of styled document
+	// into a terminal. It is not a printable format, so it is not one --format offers.
+	for _, f := range []string{"html", "junit"} {
+		err := report.StreamFormat(f)
+		if err == nil {
+			t.Errorf("--format %s was accepted", f)
+			continue
+		}
+		// The error has to say where the format *did* go, or it reads as a capability removed.
+		if !strings.Contains(err.Error(), "--report "+f) {
+			t.Errorf("%s: error does not point at --report: %v", f, err)
+		}
+	}
+}
+
+func TestFormatAcceptsWhatAPersonMightRead(t *testing.T) {
+	for _, f := range []string{"console", "markdown", "json", "sarif", "template"} {
+		if err := report.StreamFormat(f); err != nil {
+			t.Errorf("--format %s should be allowed: %v", f, err)
+		}
+	}
+	if err := report.StreamFormat("nonsense"); err == nil {
+		t.Error("an unknown format was accepted")
+	}
+}
+
+func TestWriteArtifactsHonoursReportFormats(t *testing.T) {
+	dir := t.TempDir()
+	data := report.Data{Release: saga.Release{Name: "app", Version: "1"}}
+	err := writeArtifacts(dir, []string{"html", "markdown"}, data,
+		saga.Release{Name: "app", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"report.html", "report.md"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("%s not written: %v", name, err)
+		}
+	}
+	// Only what was asked for. Writing json and sarif anyway would make --report advisory.
+	if _, err := os.Stat(filepath.Join(dir, "report.json")); err == nil {
+		t.Error("report.json written despite --report naming other formats")
+	}
+}
+
+func TestWriteArtifactsDefaultsToWhatPipelinesExpect(t *testing.T) {
+	dir := t.TempDir()
+	err := writeArtifacts(dir, nil, report.Data{}, saga.Release{Name: "app", Version: "1"},
+		engine.Result{}, norn.Result{Verdict: norn.Pass}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"report.json", "results.sarif"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("-o alone should still write %s: %v", name, err)
+		}
 	}
 }

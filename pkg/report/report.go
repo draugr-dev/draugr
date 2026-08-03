@@ -6,6 +6,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -103,6 +104,35 @@ var reporters = map[string]Reporter{
 	"junit":    junitReporter{},
 	"json":     jsonReporter{},
 	"sarif":    sarifReporter{},
+}
+
+// StreamFormats are the formats `--format` accepts: the ones whose natural destination is a
+// stream, so a terminal, a pipe or a redirect all make sense.
+//
+// html and junit are deliberately absent. An HTML report is a styled document with its CSS
+// inlined, and printing four thousand lines of it because someone typed a plausible-looking flag
+// is not a thing to explain away — a JUnit file is read by a CI runner from a path, never by a
+// person. Both are produced with --report into an output directory, which is the only place they
+// were ever useful.
+//
+// Narrow on purpose. Every format offered here is one a reader has to rule out.
+var StreamFormats = []string{"console", "markdown", "json", "sarif", "template"}
+
+// documentFormats are produced as files rather than printed. Named so the error for
+// `--format html` can say where the format did go rather than only that it is not here.
+var documentFormats = map[string]bool{"html": true, "junit": true}
+
+// StreamFormat reports whether a format may be written to stdout, and if not, why.
+func StreamFormat(format string) error {
+	if slices.Contains(StreamFormats, format) {
+		return nil
+	}
+	if documentFormats[format] {
+		return fmt.Errorf(
+			"%s is a document, not something to print: use `--report %s` with `-o <dir>`", format, format)
+	}
+	return fmt.Errorf("unknown format %q for --format (available: %s)",
+		format, strings.Join(StreamFormats, ", "))
 }
 
 // For returns the reporter for a format name.

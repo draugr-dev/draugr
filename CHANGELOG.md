@@ -10,7 +10,25 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **`--format` prints, `--report` writes.** One flag used to mean both, and
+  `--format html` answered by dumping a styled document — CSS and all — into the terminal.
+
+  ```
+  draugr: html is a document, not something to print: use `--report html` with `-o <dir>`
+  ```
+
+  `--format` now accepts only what a person or a pipe can receive: `console`, `markdown`,
+  `json`, `sarif`, `template`. Documents are produced with `--report` into `-o`:
+
+  ```bash
+  draugr scan draugr.saga.yaml -o out/ --report html,junit
+  ```
+
+  `-o` alone still writes `report.json` and `results.sarif`. This mirrors the descriptor, which
+  has always kept `config.reports` (what to render) apart from `config.publishers` (where to send
+  it) — the command line just had no way to say it.
 
 ## [0.59.0] - 2026-08-03
 
