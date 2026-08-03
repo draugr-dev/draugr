@@ -141,6 +141,8 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump. Overrides `config.exploitability.epssThreshold` |
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
+| `--cache-read-only` | `false` | Read the cache, never write it — for a run whose results should not be trusted by the next one |
+| `--cache-require-digest` | `false` | Do not cache an image identified only by a tag |
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
 | `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `template` |
 | `--template` | — | inline Go `text/template` (with `--format template`) |

@@ -76,6 +76,23 @@ func NewLocal(dir string, ttl time.Duration) *Local {
 	return &Local{dir: dir, ttl: ttl, now: time.Now}
 }
 
+// ReadOnly returns a view of c that serves entries and stores none.
+//
+// For a run whose results should not be trusted by the next one — a pull request from a fork
+// being the case that matters, where the code deciding what the scan sees is not the code the
+// cache is meant to describe. Reading stays useful: the entries already there were written by
+// runs that were trusted.
+//
+// A wrapper rather than a flag on Local so the guarantee is structural. A boolean checked inside
+// Put is a boolean somebody can forget to check.
+func ReadOnly(c Cache) Cache { return readOnly{c} }
+
+type readOnly struct{ Cache }
+
+// Put discards the report. Silently: a read-only cache is a deliberate configuration, not an
+// error, and a scan that failed because it could not write a cache would be absurd.
+func (readOnly) Put(string, sarif.Report) error { return nil }
+
 func (l *Local) pathFor(key string) string {
 	return filepath.Join(l.dir, key+".json")
 }

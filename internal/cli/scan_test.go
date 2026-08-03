@@ -887,3 +887,18 @@ func TestWriteArtifactsDefaultsToWhatPipelinesExpect(t *testing.T) {
 		}
 	}
 }
+
+func TestDigestPinnedOnly(t *testing.T) {
+	// A tag is a name, not content: rebuild and re-push and the key is unchanged while the image
+	// is not. Everything else Draugr scans is content-addressed already.
+	if digestPinnedOnly(plugin.ImageTarget{Ref: "acme/api:latest"}) {
+		t.Error("a tag-only image was allowed into the cache")
+	}
+	if !digestPinnedOnly(plugin.ImageTarget{Ref: "acme/api:latest", Digest: "sha256:abc"}) {
+		t.Error("a digest-pinned image was refused")
+	}
+	// Repositories and hosts are not mutable behind our back in the same way.
+	if !digestPinnedOnly(plugin.RepositoryTarget{URL: "https://git/x"}) {
+		t.Error("a repository was refused")
+	}
+}

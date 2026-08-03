@@ -32,7 +32,9 @@ type Engine struct {
 	reg         *Registry
 	concurrency int
 	cache       cache.Cache
-	prioritize  Prioritizer
+	// cacheable, when set, vetoes caching for targets it rejects.
+	cacheable  func(plugin.Target) bool
+	prioritize Prioritizer
 	// skipPrewarm suppresses the pre-run warm-up of shared scanner state (Trivy's database,
 	// Nuclei's templates), which is the only part of a scan that reaches the network on its own.
 	skipPrewarm bool
@@ -75,6 +77,17 @@ func WithConcurrency(n int) Option {
 // instead of re-scanning. A nil cache disables caching (the default).
 func WithCache(c cache.Cache) Option {
 	return func(e *Engine) { e.cache = c }
+}
+
+// WithCacheableTarget restricts caching to targets the predicate accepts.
+//
+// Draugr's cache is content-addressed, which holds only while a target's identity is its content.
+// A container image named by a mutable tag breaks that: the name is stable while the bytes behind
+// it are not. This is the hook for a caller that would rather re-scan than be wrong about one.
+//
+// Nil accepts everything, which is the default.
+func WithCacheableTarget(fn func(plugin.Target) bool) Option {
+	return func(e *Engine) { e.cacheable = fn }
 }
 
 // WithPrioritization stamps each finding with a priority band computed by p. Priority is
@@ -500,7 +513,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				// probing twice, and fall back to the static one when nothing resolved it.
 				var key string
 				version := scanner.Info().Version
-				if e.cache != nil {
+				// A vetoed target is scanned as though caching were off: no lookup, no store.
+				// Checked once here so the two cannot disagree about whether this job caches.
+				caches := e.cache != nil && (e.cacheable == nil || e.cacheable(pj.Job.Target))
+				if caches {
 					if v := scannerVersion(jobCtx, scanner); v != "" {
 						version = v
 					}
@@ -527,7 +543,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				}
 				// Before caching, so a cache hit carries the same account a fresh scan does.
 				recordProvenance(&rep, pj.Job.Scanner, version)
-				if e.cache != nil {
+				if caches {
 					_ = e.cache.Put(key, rep) // cache the raw findings; priority is stamped per run
 				}
 				slog.DebugContext(jobCtx, "scan complete",

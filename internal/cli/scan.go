@@ -22,6 +22,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
@@ -33,17 +34,19 @@ import (
 )
 
 type scanOptions struct {
-	outputDir      string
-	reports        []string
-	failOn         string
-	failOnPriority string
-	cacheDir       string
-	cacheTTL       time.Duration
-	minPriority    string
-	allowEffects   []string
-	kevFile        string
-	epssFile       string
-	epssThreshold  float64
+	outputDir          string
+	reports            []string
+	failOn             string
+	failOnPriority     string
+	cacheDir           string
+	cacheTTL           time.Duration
+	cacheReadOnly      bool
+	cacheRequireDigest bool
+	minPriority        string
+	allowEffects       []string
+	kevFile            string
+	epssFile           string
+	epssThreshold      float64
 	// setFlags names the flags the user actually typed. Needed because the descriptor supplies
 	// defaults for the same settings, and a flag with a non-zero default — --epss-threshold is
 	// 0.5 — cannot be told apart from an unset one by its value.
@@ -84,6 +87,10 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "", "also fail the gate on any finding at or above this priority (P1-P4)")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
+	cmd.Flags().BoolVar(&opts.cacheReadOnly, "cache-read-only", false,
+		"read the cache but never write it — for a run whose results should not be trusted by the next one")
+	cmd.Flags().BoolVar(&opts.cacheRequireDigest, "cache-require-digest", false,
+		"do not cache an image identified only by a tag: a tag can be rebuilt, so a hit can be right about the key and wrong about the image")
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "list findings at or above this priority band (P1-P4)")
 	cmd.Flags().StringSliceVar(&opts.allowEffects, "allow-effects", nil,
 		"accept scanner effects for this run (mutate, privilege); config.allowEffects is the reviewed equivalent")
@@ -155,7 +162,14 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		eopts = append(eopts, engine.WithoutPrewarm())
 	}
 	if opts.cacheDir != "" {
-		eopts = append(eopts, engine.WithCache(cache.NewLocal(opts.cacheDir, opts.cacheTTL)))
+		var c cache.Cache = cache.NewLocal(opts.cacheDir, opts.cacheTTL)
+		if opts.cacheReadOnly {
+			c = cache.ReadOnly(c)
+		}
+		if opts.cacheRequireDigest {
+			eopts = append(eopts, engine.WithCacheableTarget(digestPinnedOnly))
+		}
+		eopts = append(eopts, engine.WithCache(c))
 	}
 	if opts.jobs > 0 {
 		eopts = append(eopts, engine.WithConcurrency(opts.jobs))
@@ -567,4 +581,22 @@ func warnUncommitted(ctx context.Context, model *saga.Model) {
 			}
 		}
 	}
+}
+
+// digestPinnedOnly refuses to cache an image identified only by a mutable tag.
+//
+// A tag is a name, not content. Rebuild and re-push `acme/api:latest` and the cache key is
+// unchanged, so the next scan reports the previous image's findings and is entirely convinced.
+// Every other target Draugr scans is content-addressed already — a commit, a digest, a normalised
+// endpoint — which is why this is the one exception worth being able to switch off.
+//
+// Off by default: the reader who pins digests loses nothing, and refusing to cache tags outright
+// would punish the common case to prevent an uncommon one. Turning it on is for a pipeline that
+// would rather re-scan than be wrong.
+func digestPinnedOnly(t plugin.Target) bool {
+	img, ok := t.(plugin.ImageTarget)
+	if !ok {
+		return true // not an image; nothing about it is mutable behind our back
+	}
+	return img.Digest != ""
 }
