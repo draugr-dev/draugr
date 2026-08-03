@@ -40,7 +40,28 @@ func runControls(w io.Writer, reg *engine.Registry) error {
 	}
 
 	col := tui.For(w)
-	t := tui.NewTable(col, "Control", "Scope", "Scanners", "Purpose")
+
+	// Scope earns a column only when it distinguishes one control from another. Every controller
+	// is component-scoped today, so the column repeated "component" ten times and cost width the
+	// Purpose column wanted — the same reasoning that hides the Component column in a report of a
+	// single-component scan. The engine still supports project scope; if one ever ships, the
+	// column comes back on its own.
+	varyingScope := false
+	if all := reg.Controllers(); len(all) > 1 {
+		first := all[0].Info().Scope
+		for _, c := range all[1:] {
+			if c.Info().Scope != first {
+				varyingScope = true
+				break
+			}
+		}
+	}
+
+	headers := []string{"Control", "Scanners", "Purpose"}
+	if varyingScope {
+		headers = []string{"Control", "Scope", "Scanners", "Purpose"}
+	}
+	t := tui.NewTable(col, headers...)
 	optIn := false
 	for _, ctrl := range reg.Controllers() {
 		info := ctrl.Info()
@@ -61,12 +82,15 @@ func runControls(w io.Writer, reg *engine.Registry) error {
 		if scanners == "" {
 			scanners = "-"
 		}
-		t.Row(
-			tui.Styled(tui.StyleAccent, info.Name),
-			tui.PlainCell(string(info.Scope)),
+		cells := []tui.Cell{tui.Styled(tui.StyleAccent, info.Name)}
+		if varyingScope {
+			cells = append(cells, tui.PlainCell(string(info.Scope)))
+		}
+		cells = append(cells,
 			tui.PlainCell(scanners),
 			tui.Styled(tui.StyleMuted, info.Summary),
 		)
+		t.Row(cells...)
 	}
 	t.Render(w)
 
@@ -121,7 +145,7 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry) {
 // writeScannerOrigins lists who publishes each scanner's tool.
 //
 // A roster answers a question the per-control table cannot: which of these is a third party
-// executing on this machine, and whose. Reading that table, `http-headers` and `gitleaks` look
+// executing on this machine, and whose. Reading that table, `draugr-headers` and `gitleaks` look
 // alike — one is Draugr's own detection logic and the other is somebody else's binary, and
 // nothing on the row says so.
 //

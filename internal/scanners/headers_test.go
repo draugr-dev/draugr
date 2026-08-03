@@ -39,7 +39,7 @@ func TestHTTPFetchHeaders(t *testing.T) {
 
 func TestHTTPHeadersInfo(t *testing.T) {
 	info := NewHTTPHeaders().Info()
-	if info.Name != "http-headers" {
+	if info.Name != "draugr-headers" {
 		t.Errorf("name = %q", info.Name)
 	}
 	if info.Binary != "" {
@@ -64,7 +64,7 @@ func ruleIDs(rep sarif.Report) map[string]sarif.Level {
 
 func scanWith(t *testing.T, host plugin.HostTarget, header http.Header) sarif.Report {
 	t.Helper()
-	s := httpHeadersScanner{
+	s := draugrHeadersScanner{
 		info:  NewHTTPHeaders().Info(),
 		fetch: func(context.Context, string) (http.Header, error) { return header, nil },
 	}
@@ -193,7 +193,7 @@ func TestHeadersScanErrors(t *testing.T) {
 		t.Error("expected error for empty URL")
 	}
 	// Fetch failure.
-	failing := httpHeadersScanner{
+	failing := draugrHeadersScanner{
 		info:  s.Info(),
 		fetch: func(context.Context, string) (http.Header, error) { return nil, errors.New("boom") },
 	}

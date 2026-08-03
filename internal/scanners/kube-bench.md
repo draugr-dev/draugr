@@ -191,7 +191,7 @@ Passing checks are not findings. A report listing three hundred passes buries th
 which is the same reasoning that keeps permissive licences out of the `licenses` control.
 
 Rule ids are `kube-bench/cis/<check number>`, e.g. `kube-bench/cis/5.1.1` — namespaced because
-`draugr-k8s-policies` audits the same benchmark with the same numbering, and a bare `cis/5.1.1`
+`draugr-draugr-k8s-policies` audits the same benchmark with the same numbering, and a bare `cis/5.1.1`
 would be an id two tools both claim. A `config.exclude` rule reads the way the
 benchmark does.
 

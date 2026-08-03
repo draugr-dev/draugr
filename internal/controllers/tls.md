@@ -3,7 +3,7 @@
 - **Industry term:** TLS / certificate assessment
 - **Scope:** component
 - **Status:** ✅ implemented
-- **Scanners:** [`tls-probe`](../scanners/tls-probe.md) (default, native — no external tool)
+- **Scanners:** [`draugr-tls`](../scanners/draugr-tls.md) (default, native — no external tool)
 - **Resource:** a component's `hosts:`
 
 ## What it does
@@ -29,8 +29,8 @@ components:
 ```
 
 Per-scanner config uses the standard shape (`controllers.tls.<scanner>`), so the default probe
-can be turned off with `tls-probe: { enabled: false }` when an opt-in engine is added, and its
-certificate-expiry windows tuned — see [`tls-probe.md`](../scanners/tls-probe.md#configuration).
+can be turned off with `draugr-tls: { enabled: false }` when an opt-in engine is added, and its
+certificate-expiry windows tuned — see [`draugr-tls.md`](../scanners/draugr-tls.md#configuration).
 
 ## Links
 

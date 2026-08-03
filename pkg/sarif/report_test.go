@@ -134,8 +134,8 @@ func TestMergeKeepsEveryScannersProvenance(t *testing.T) {
 		Tool: "kube-bench-job", Version: "0.15.6",
 		Fields: []Field{{Key: "benchmark", Value: "gke-1.9.0"}},
 	}}}
-	b := Report{Tool: "k8s-policies", Provenance: []Provenance{{
-		Tool:   "k8s-policies",
+	b := Report{Tool: "draugr-k8s-policies", Provenance: []Provenance{{
+		Tool:   "draugr-k8s-policies",
 		Fields: []Field{{Key: "benchmark", Value: "cis-1.12"}, {Key: "coverage", Value: "20 of 34 decided"}},
 	}}}
 

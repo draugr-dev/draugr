@@ -18,10 +18,10 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// k8sPoliciesScannerName identifies the native reader of the CIS policies section.
-const k8sPoliciesScannerName = "k8s-policies"
+// draugrK8sPoliciesScannerName identifies the native reader of the CIS policies section.
+const draugrK8sPoliciesScannerName = "draugr-k8s-policies"
 
-// k8sPoliciesScanner evaluates the CIS Kubernetes Benchmark's policies section against the
+// draugrK8sPoliciesScanner evaluates the CIS Kubernetes Benchmark's policies section against the
 // Kubernetes API directly, instead of shelling out to kube-bench.
 //
 // The section is the part of the benchmark that can be answered without standing on a node, and
@@ -33,7 +33,7 @@ const k8sPoliciesScannerName = "k8s-policies"
 // but not the interesting one: a check expressed in Go can decide things a `kubectl | jq`
 // pipeline cannot, and it can be scoped to the namespaces a team actually owns — which is
 // impossible through kube-bench, whose queries carry --all-namespaces inside the config.
-type k8sPoliciesScanner struct {
+type draugrK8sPoliciesScanner struct {
 	info plugin.ScannerInfo
 	// client builds a Kubernetes client for a context; injectable for tests.
 	client func(kubeCtx string) (kubernetes.Interface, error)
@@ -41,9 +41,9 @@ type k8sPoliciesScanner struct {
 
 // NewK8sPolicies returns a Scanner that reads the CIS policies section through the Kubernetes API.
 func NewK8sPolicies() plugin.Scanner {
-	return k8sPoliciesScanner{
+	return draugrK8sPoliciesScanner{
 		info: plugin.ScannerInfo{
-			Name:   k8sPoliciesScannerName,
+			Name:   draugrK8sPoliciesScannerName,
 			Origin: plugin.OriginDraugr,
 			// No Binary: this scanner is the tool. Nothing to install, and nothing for
 			// `draugr doctor` to report missing.
@@ -55,14 +55,14 @@ func NewK8sPolicies() plugin.Scanner {
 }
 
 // Info describes the scanner.
-func (s k8sPoliciesScanner) Info() plugin.ScannerInfo { return s.info }
+func (s draugrK8sPoliciesScanner) Info() plugin.ScannerInfo { return s.info }
 
 // CacheVersion ties cached results to this binary (implements plugin.CacheVersioner).
 //
 // The CIS checks are implemented natively against a catalogue that ships with Draugr, so the
 // catalogue's version is Draugr's. A cluster that has not changed can still get a different
 // answer after an upgrade that adds a control, and the cache must not hide that.
-func (s k8sPoliciesScanner) CacheVersion(context.Context) string {
+func (s draugrK8sPoliciesScanner) CacheVersion(context.Context) string {
 	return draugrCacheVersion() + ";cis@" + cisCatalogueVersion
 }
 
@@ -72,20 +72,20 @@ func (s k8sPoliciesScanner) CacheVersion(context.Context) string {
 // cluster's actual state; the rest are reported as requiring a human, which is what CIS says
 // about them and what kube-bench reports too. A partially implemented scanner that omitted the
 // rest would return a shorter, cleaner report that quietly means less.
-func (s k8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+func (s draugrK8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	if _, ok := target.(plugin.InfraTarget); !ok {
-		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want infrastructure)", k8sPoliciesScannerName, target)
+		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want infrastructure)", draugrK8sPoliciesScannerName, target)
 	}
 	kubeCtx := kubeContext(target, cfg)
 	client, err := s.client(kubeCtx)
 	if err != nil {
-		return sarif.Report{}, fmt.Errorf("%s: %w", k8sPoliciesScannerName, err)
+		return sarif.Report{}, fmt.Errorf("%s: %w", draugrK8sPoliciesScannerName, err)
 	}
 
 	infra, _ := target.(plugin.InfraTarget)
 	decided, err := evaluatePolicies(ctx, client, infra.Namespaces)
 	if err != nil {
-		return sarif.Report{}, fmt.Errorf("%s: %w", k8sPoliciesScannerName, err)
+		return sarif.Report{}, fmt.Errorf("%s: %w", draugrK8sPoliciesScannerName, err)
 	}
 	report := policiesReport(decided, clusterScopeLabel(kubeCtx, infra.Namespaces), infra.Namespaces)
 
@@ -273,7 +273,7 @@ func summarize(items []string) string {
 // policiesReport renders the whole section: a verdict where there is one, a manual prompt
 // everywhere else.
 func policiesReport(decided map[string]policyVerdict, location string, namespaces []string) sarif.Report {
-	report := sarif.Report{Tool: k8sPoliciesScannerName, Rules: map[string]sarif.Rule{}}
+	report := sarif.Report{Tool: draugrK8sPoliciesScannerName, Rules: map[string]sarif.Rule{}}
 
 	// What was measured, against what, and how much of it could be settled. The coverage figure
 	// is the one a reader cannot otherwise get: counting manual-review findings by hand is the
@@ -305,7 +305,7 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 		slices.Sort(ns)
 		fields = append(fields, sarif.Field{Key: "scope", Value: strings.Join(ns, ", ")})
 	}
-	report.Provenance = []sarif.Provenance{{Tool: k8sPoliciesScannerName, Fields: fields}}
+	report.Provenance = []sarif.Provenance{{Tool: draugrK8sPoliciesScannerName, Fields: fields}}
 
 	for _, check := range cisPolicies {
 		// Namespaced by emitter. kube-bench audits the same benchmark and numbers its checks
@@ -326,7 +326,7 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 		}
 
 		report.Results = append(report.Results, sarif.Result{
-			Tool:     k8sPoliciesScannerName,
+			Tool:     draugrK8sPoliciesScannerName,
 			RuleID:   ruleID,
 			Level:    sarif.LevelWarning,
 			Message:  message,
@@ -739,7 +739,7 @@ func managedServicesFinding(platform, location string) (sarif.Result, sarif.Rule
 		return sarif.Result{}, sarif.Rule{}, false
 	}
 	return sarif.Result{
-			Tool:   k8sPoliciesScannerName,
+			Tool:   draugrK8sPoliciesScannerName,
 			RuleID: managedServicesRuleID,
 			Level:  sarif.LevelWarning,
 			Message: fmt.Sprintf(

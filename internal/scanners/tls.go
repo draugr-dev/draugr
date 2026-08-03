@@ -18,7 +18,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// tlsProbeScanner is a native (no external tool) scanner that inspects a host's TLS
+// draugrTLSScanner is a native (no external tool) scanner that inspects a host's TLS
 // configuration: the certificate it presents and which protocol versions it accepts. It serves
 // the "tls" control.
 //
@@ -28,7 +28,7 @@ import (
 // bundleable). The checks below are the high-value ones that Go's crypto/tls can make in
 // seconds. Depth that Go cannot reach — SSLv2/SSLv3, export/NULL ciphers, protocol-level vulns
 // like ROBOT — is left to an opt-in testssl.sh scanner as a follow-up.
-type tlsProbeScanner struct {
+type draugrTLSScanner struct {
 	info plugin.ScannerInfo
 	// probe performs one handshake at a fixed protocol version, returning the negotiated
 	// connection state. Injected so tests don't need a live endpoint.
@@ -46,9 +46,9 @@ const (
 	defaultExpiryWarnDays  = 30
 )
 
-// tlsProbeConfigSchema is the JSON Schema for the probe's Saga config
-// (controllers.tls.tls-probe). additionalProperties:false rejects mistyped keys.
-const tlsProbeConfigSchema = `{
+// draugrTLSConfigSchema is the JSON Schema for the probe's Saga config
+// (controllers.tls.draugr-tls). additionalProperties:false rejects mistyped keys.
+const draugrTLSConfigSchema = `{
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -99,13 +99,13 @@ func configInt(cfg plugin.Config, key string) (int, bool) {
 
 // NewTLSProbe returns the native TLS configuration scanner.
 func NewTLSProbe() plugin.Scanner {
-	return tlsProbeScanner{
+	return draugrTLSScanner{
 		info: plugin.ScannerInfo{
-			Name:         "tls-probe",
+			Name:         "draugr-tls",
 			Origin:       plugin.OriginDraugr,
 			Controls:     []string{"tls"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
-			ConfigSchema: json.RawMessage(tlsProbeConfigSchema),
+			ConfigSchema: json.RawMessage(draugrTLSConfigSchema),
 		},
 		probe: dialTLS,
 		now:   time.Now,
@@ -113,25 +113,25 @@ func NewTLSProbe() plugin.Scanner {
 }
 
 // Info describes the scanner.
-func (s tlsProbeScanner) Info() plugin.ScannerInfo { return s.info }
+func (s draugrTLSScanner) Info() plugin.ScannerInfo { return s.info }
 
 // CacheVersion ties cached results to this binary (implements plugin.CacheVersioner).
 //
 // A native scanner has no external tool to ask, and the probe's expectations — protocol floor, expiry window, chain rules — are ours, so they change when Draugr does.
-func (s tlsProbeScanner) CacheVersion(context.Context) string { return draugrCacheVersion() }
+func (s draugrTLSScanner) CacheVersion(context.Context) string { return draugrCacheVersion() }
 
 // Scan probes the host's TLS endpoint and reports certificate and protocol findings.
-func (s tlsProbeScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	host, ok := target.(plugin.HostTarget)
 	if !ok {
-		return sarif.Report{}, fmt.Errorf("tls-probe: unsupported target %T (want host)", target)
+		return sarif.Report{}, fmt.Errorf("draugr-tls: unsupported target %T (want host)", target)
 	}
 	if host.URL == "" {
-		return sarif.Report{}, errors.New("tls-probe: host target has no url")
+		return sarif.Report{}, errors.New("draugr-tls: host target has no url")
 	}
 	addr, serverName, err := tlsAddress(host.URL)
 	if err != nil {
-		return sarif.Report{}, fmt.Errorf("tls-probe: %w", err)
+		return sarif.Report{}, fmt.Errorf("draugr-tls: %w", err)
 	}
 
 	var results []sarif.Result
@@ -149,7 +149,7 @@ func (s tlsProbeScanner) Scan(ctx context.Context, target plugin.Target, cfg plu
 		// case, and a finding rather than an error. Retry on the legacy range before giving up.
 		legacyState, legacyErr := s.probe(ctx, addr, serverName, tls.VersionTLS10, tls.VersionTLS11)
 		if legacyErr != nil {
-			return sarif.Report{}, fmt.Errorf("tls-probe: connect %s: %w", addr, err)
+			return sarif.Report{}, fmt.Errorf("draugr-tls: connect %s: %w", addr, err)
 		}
 		results = append(results, sarif.Result{
 			Tool:     s.info.Name,
@@ -219,7 +219,7 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time, t
 	switch remaining := leaf.NotAfter.Sub(now); {
 	case remaining <= 0:
 		out = append(out, sarif.Result{
-			Tool: "tls-probe", RuleID: "tls-cert-expired", Level: sarif.LevelError,
+			Tool: "draugr-tls", RuleID: "tls-cert-expired", Level: sarif.LevelError,
 			Score: 9.0, HasScore: true,
 			Message: fmt.Sprintf("Certificate expired on %s. Clients will refuse to connect — renew it now.",
 				leaf.NotAfter.UTC().Format(time.DateOnly)),
@@ -227,7 +227,7 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time, t
 		})
 	case remaining < time.Duration(th.errorDays)*24*time.Hour:
 		out = append(out, sarif.Result{
-			Tool: "tls-probe", RuleID: "tls-cert-expiring", Level: sarif.LevelError,
+			Tool: "draugr-tls", RuleID: "tls-cert-expiring", Level: sarif.LevelError,
 			Score: 7.0, HasScore: true,
 			Message: fmt.Sprintf("Certificate expires in %d day(s), on %s. Renew it before it lapses.",
 				int(remaining.Hours()/24), leaf.NotAfter.UTC().Format(time.DateOnly)),
@@ -235,7 +235,7 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time, t
 		})
 	case remaining < time.Duration(th.warnDays)*24*time.Hour:
 		out = append(out, sarif.Result{
-			Tool: "tls-probe", RuleID: "tls-cert-expiring", Level: sarif.LevelWarning,
+			Tool: "draugr-tls", RuleID: "tls-cert-expiring", Level: sarif.LevelWarning,
 			Score: 4.0, HasScore: true,
 			Message: fmt.Sprintf("Certificate expires in %d day(s), on %s. Schedule the renewal.",
 				int(remaining.Hours()/24), leaf.NotAfter.UTC().Format(time.DateOnly)),
@@ -245,7 +245,7 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time, t
 
 	if weakSignature(leaf.SignatureAlgorithm) {
 		out = append(out, sarif.Result{
-			Tool: "tls-probe", RuleID: "tls-weak-cert-signature", Level: sarif.LevelError,
+			Tool: "draugr-tls", RuleID: "tls-weak-cert-signature", Level: sarif.LevelError,
 			Score: 7.5, HasScore: true,
 			Message: fmt.Sprintf("Certificate is signed with %s, which is collision-prone and no longer "+
 				"trusted. Reissue it with an SHA-256 (or stronger) signature.", leaf.SignatureAlgorithm),
@@ -255,7 +255,7 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time, t
 
 	if rule, msg, score, ok := weakKey(leaf); ok {
 		out = append(out, sarif.Result{
-			Tool: "tls-probe", RuleID: rule, Level: sarif.LevelError,
+			Tool: "draugr-tls", RuleID: rule, Level: sarif.LevelError,
 			Score: score, HasScore: true,
 			Message:  msg,
 			Location: sarif.Location{URI: uri},
@@ -297,7 +297,7 @@ func weakKey(cert *x509.Certificate) (rule, message string, score float64, weak 
 // connections, timeouts — are left as scan errors, since they say nothing about TLS posture.
 func certHandshakeFinding(uri string, err error) (sarif.Result, bool) {
 	base := sarif.Result{
-		Tool: "tls-probe", Level: sarif.LevelError, HasScore: true,
+		Tool: "draugr-tls", Level: sarif.LevelError, HasScore: true,
 		Location: sarif.Location{URI: uri},
 	}
 	var unknownAuthority x509.UnknownAuthorityError

@@ -117,3 +117,57 @@ func TestCheckControlNamesEmptyModel(t *testing.T) {
 		t.Errorf("a descriptor naming no controls is not wrong: %v", err)
 	}
 }
+
+func TestCheckControlNamesRejectsUnknownScannerKeys(t *testing.T) {
+	// A key naming no scanner used to be accepted and ignored, which is how a descriptor that
+	// disables a scanner runs it anyway. This is also what makes per-rename migration entries
+	// unnecessary: any wrong key, for any reason, says what the control actually accepts.
+	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"headers": {"enabled": true, "httpHeaders": saga.ControllerSettings{"enabled": false}},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("a key naming no scanner was accepted")
+	}
+	for _, want := range []string{"httpHeaders", "not a scanner", "draugrHeaders"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should mention %q: %v", want, err)
+		}
+	}
+}
+
+func TestCheckControlNamesAcceptsRealScannerKeys(t *testing.T) {
+	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"headers":        {"enabled": true, "draugrHeaders": saga.ControllerSettings{"enabled": false}},
+		"sast":           {"semgrep": saga.ControllerSettings{"config": "p/default"}, "gosec": saga.ControllerSettings{"enabled": true}},
+		"infrastructure": {"draugrK8sPolicies": saga.ControllerSettings{"enabled": true}},
+	}}}
+	if err := checkControlNames(builtins.Registry(), m); err != nil {
+		t.Errorf("rejected valid scanner keys: %v", err)
+	}
+}
+
+func TestCheckControlNamesIgnoresScalarOptions(t *testing.T) {
+	// A scalar under a control is a control-level option, not a scanner block, and this check
+	// has no opinion about it.
+	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"licenses": {"enabled": true, "forbidden": []any{"GPL-3.0-only"}, "threshold": "warn"},
+	}}}
+	if err := checkControlNames(builtins.Registry(), m); err != nil {
+		t.Errorf("a scalar option was treated as a scanner: %v", err)
+	}
+}
+
+func TestCheckControlNamesChecksComponentScannerKeys(t *testing.T) {
+	m := &saga.Model{Components: []saga.Component{{
+		Name:        "web",
+		Controllers: map[string]saga.ControllerSettings{"tls": {"tlsProbe": saga.ControllerSettings{"enabled": true}}},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("a component's own block went unchecked")
+	}
+	if !strings.Contains(err.Error(), "draugrTls") {
+		t.Errorf("error should name the real key: %v", err)
+	}
+}

@@ -48,7 +48,7 @@ classification over both.
 This is what makes the descriptor match the survey that produced it. Without it a namespace-scoped
 survey would still emit a cluster-wide component, which the operator then narrows by hand having
 already said which namespace they meant. See
-[namespace scoping](k8s-policies.md#scoping-to-the-namespaces-you-own) for what it changes at scan
+[namespace scoping](draugr-k8s-policies.md#scoping-to-the-namespaces-you-own) for what it changes at scan
 time.
 
 `--context` selects which cluster, for both surveyors in the `k8s` group. It is an override on

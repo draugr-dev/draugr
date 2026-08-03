@@ -1,4 +1,4 @@
-# Scanner: `tls-probe` (native TLS configuration probe)
+# Scanner: `draugr-tls` (native TLS configuration probe)
 
 - **Control:** [`tls`](../controllers/tls.md)
 - **Tool:** none — implemented natively in Go (`crypto/tls`, `crypto/x509`)
@@ -25,7 +25,7 @@ provisioning, and it finishes in seconds:
 
 ## Configuration
 
-Certificate-expiry windows are tunable under `controllers.tls.tls-probe`:
+Certificate-expiry windows are tunable under `controllers.tls.draugr-tls`:
 
 | Option | Default | Meaning |
 |--------|---------|---------|
@@ -37,7 +37,7 @@ config:
   controllers:
     tls:
       enabled: true
-      tls-probe:
+      draugr-tls:
         expiryWarnDays: 10     # endpoint renews automatically — only shout if renewal failed
         expiryErrorDays: 5
 ```

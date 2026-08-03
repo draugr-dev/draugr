@@ -12,20 +12,20 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// httpHeadersScanner is a native (no external tool) scanner that fetches a running endpoint
+// draugrHeadersScanner is a native (no external tool) scanner that fetches a running endpoint
 // and evaluates its HTTP security response headers against the OWASP Secure Headers guidance.
 // It serves the "headers" control. The header set is tuned by the host's type: browser hosts
 // get the full browser suite; API hosts skip browser-only headers and get API-specific checks.
-type httpHeadersScanner struct {
+type draugrHeadersScanner struct {
 	info  plugin.ScannerInfo
 	fetch func(ctx context.Context, url string) (http.Header, error)
 }
 
 // NewHTTPHeaders returns the native HTTP security-header scanner.
 func NewHTTPHeaders() plugin.Scanner {
-	return httpHeadersScanner{
+	return draugrHeadersScanner{
 		info: plugin.ScannerInfo{
-			Name:        "http-headers",
+			Name:        "draugr-headers",
 			Origin:      plugin.OriginDraugr,
 			Controls:    []string{"headers"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetHost},
@@ -35,26 +35,26 @@ func NewHTTPHeaders() plugin.Scanner {
 }
 
 // Info describes the scanner.
-func (s httpHeadersScanner) Info() plugin.ScannerInfo { return s.info }
+func (s draugrHeadersScanner) Info() plugin.ScannerInfo { return s.info }
 
 // CacheVersion ties cached results to this binary (implements plugin.CacheVersioner).
 //
 // A native scanner has no external tool to ask, and the header checklist and the CSP grading live in this binary, so a Draugr upgrade is what changes the answer — adding a CSP rule must not leave every cached header result standing.
-func (s httpHeadersScanner) CacheVersion(context.Context) string { return draugrCacheVersion() }
+func (s draugrHeadersScanner) CacheVersion(context.Context) string { return draugrCacheVersion() }
 
 // Scan fetches the host and evaluates its security headers, emitting one SARIF result per
 // missing or misconfigured header.
-func (s httpHeadersScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
+func (s draugrHeadersScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
 	host, ok := target.(plugin.HostTarget)
 	if !ok {
-		return sarif.Report{}, fmt.Errorf("http-headers: unsupported target %T (want host)", target)
+		return sarif.Report{}, fmt.Errorf("draugr-headers: unsupported target %T (want host)", target)
 	}
 	if host.URL == "" {
-		return sarif.Report{}, errors.New("http-headers: host target has no url")
+		return sarif.Report{}, errors.New("draugr-headers: host target has no url")
 	}
 	header, err := s.fetch(ctx, host.URL)
 	if err != nil {
-		return sarif.Report{}, fmt.Errorf("http-headers: fetch %s: %w", host.URL, err)
+		return sarif.Report{}, fmt.Errorf("draugr-headers: fetch %s: %w", host.URL, err)
 	}
 	return sarif.Report{Tool: s.info.Name, Results: evaluateHeaders(host.URL, host.Type, header)}, nil
 }
@@ -69,7 +69,7 @@ func evaluateHeaders(url, hostType string, h http.Header) []sarif.Result {
 	var out []sarif.Result
 	add := func(ruleID, message string, level sarif.Level) {
 		out = append(out, sarif.Result{
-			Tool:     "http-headers",
+			Tool:     "draugr-headers",
 			RuleID:   ruleID,
 			Level:    level,
 			Message:  message,

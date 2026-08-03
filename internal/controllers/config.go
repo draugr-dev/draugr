@@ -159,14 +159,14 @@ func deepMerge(dst, src map[string]any) map[string]any {
 //
 // Single-word scanners (semgrep, gosec, trivy, nuclei) need no entry: key and name are equal.
 var scannerConfigKey = map[string]string{
-	"kube-bench":     "kubeBench",
-	"kube-bench-job": "kubeBenchJob",
-	"k8s-policies":   "k8sPolicies",
-	"tls-probe":      "tlsProbe",
-	"http-headers":   "httpHeaders",
-	"trivy-fs":       "trivyFs",
-	"trivy-config":   "trivyConfig",
-	"trivy-license":  "trivyLicense",
+	"kube-bench":          "kubeBench",
+	"kube-bench-job":      "kubeBenchJob",
+	"draugr-k8s-policies": "draugrK8sPolicies",
+	"draugr-tls":          "draugrTls",
+	"draugr-headers":      "draugrHeaders",
+	"trivy-fs":            "trivyFs",
+	"trivy-config":        "trivyConfig",
+	"trivy-license":       "trivyLicense",
 }
 
 // scannerForConfigKey inverts scannerConfigKey.
@@ -200,4 +200,16 @@ func scannerNameFor(key string) (string, bool) {
 		return "", false
 	}
 	return key, true
+}
+
+// ScannerConfigKey returns the descriptor key a scanner is configured under.
+//
+// Exported so the validator can tell a reader which keys a control accepts. Without it the CLI
+// would have to reimplement the hyphen-to-camelCase rule, and two implementations of a naming
+// convention is one more than can stay correct.
+func ScannerConfigKey(scanner string) string {
+	if k, ok := scannerConfigKey[scanner]; ok {
+		return k
+	}
+	return scanner
 }

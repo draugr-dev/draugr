@@ -176,10 +176,13 @@ func camelCaseKey(key string) string {
 // either way. Naming the replacement costs one line here and saves the reader from discovering
 // it by comparing two reports.
 var removedControllerKeys = map[string]map[string]string{
-	"infrastructure": {
-		"mode": "per-scanner blocks: `kubeBenchJob: { enabled: true }` for the node sections, " +
-			"`k8sPolicies: { enabled: true }` to read section 5 through the Kubernetes API",
-	},
+	// Empty on purpose. A key that names no scanner is already rejected with the list of keys
+	// the control does accept, which covers every rename without an entry here.
+	//
+	// This is for the case that error cannot serve: a setting whose replacement is not a
+	// renaming but a different shape, where knowing the old name is the only way to explain the
+	// new one. `infrastructure.mode` was one — it became per-scanner blocks — and there are no
+	// users to migrate today, so it is gone with it.
 }
 
 // validateControllerKeys rejects descriptor keys that do not follow the schema's convention.

@@ -386,7 +386,7 @@
           "type": "string"
         },
         "namespaces": {
-          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the k8sPolicies scanner can honour a scope; the others refuse rather than silently report the whole cluster.",
+          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the draugrK8sPolicies scanner can honour a scope; the others refuse rather than silently report the whole cluster.",
           "items": {
             "minLength": 1,
             "type": "string"

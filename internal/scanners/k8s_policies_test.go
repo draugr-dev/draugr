@@ -29,7 +29,7 @@ func TestK8sPoliciesInfo(t *testing.T) {
 	t.Parallel()
 	info := NewK8sPolicies().Info()
 
-	if info.Name != k8sPoliciesScannerName {
+	if info.Name != draugrK8sPoliciesScannerName {
 		t.Errorf("name = %q", info.Name)
 	}
 	// No binary is the point of this scanner: nothing to install, and doctor has nothing to
@@ -248,8 +248,8 @@ func TestK8sPoliciesRuleIDsMatchKubeBench(t *testing.T) {
 
 func TestK8sPoliciesRejectsTheWrongTarget(t *testing.T) {
 	t.Parallel()
-	s := k8sPoliciesScanner{
-		info:   plugin.ScannerInfo{Name: k8sPoliciesScannerName},
+	s := draugrK8sPoliciesScanner{
+		info:   plugin.ScannerInfo{Name: draugrK8sPoliciesScannerName},
 		client: func(string) (kubernetes.Interface, error) { return fake.NewSimpleClientset(), nil },
 	}
 	if _, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "https://example.com/x.git"}, nil); err == nil {
@@ -261,20 +261,20 @@ func TestK8sPoliciesRejectsTheWrongTarget(t *testing.T) {
 // never look like one that found nothing.
 func TestK8sPoliciesReportsAnUnreachableCluster(t *testing.T) {
 	t.Parallel()
-	s := k8sPoliciesScanner{
-		info:   plugin.ScannerInfo{Name: k8sPoliciesScannerName},
+	s := draugrK8sPoliciesScanner{
+		info:   plugin.ScannerInfo{Name: draugrK8sPoliciesScannerName},
 		client: func(string) (kubernetes.Interface, error) { return nil, errors.New("no kubeconfig") },
 	}
 	_, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
-	if err == nil || !strings.Contains(err.Error(), k8sPoliciesScannerName) {
+	if err == nil || !strings.Contains(err.Error(), draugrK8sPoliciesScannerName) {
 		t.Errorf("want an error naming the scanner, got %v", err)
 	}
 }
 
 func scanPolicies(t *testing.T, client kubernetes.Interface) (sarif.Report, error) {
 	t.Helper()
-	s := k8sPoliciesScanner{
-		info:   plugin.ScannerInfo{Name: k8sPoliciesScannerName},
+	s := draugrK8sPoliciesScanner{
+		info:   plugin.ScannerInfo{Name: draugrK8sPoliciesScannerName},
 		client: func(string) (kubernetes.Interface, error) { return client, nil },
 	}
 	return s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes", Ref: "test"}, nil)
@@ -577,7 +577,7 @@ func TestScannersThatCannotScopeRefuse(t *testing.T) {
 	if err == nil {
 		t.Fatal("want a refusal")
 	}
-	for _, want := range []string{"namespace", "k8sPolicies"} {
+	for _, want := range []string{"namespace", "draugrK8sPolicies"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the error should mention %q so the reader knows what to use, got: %v", want, err)
 		}

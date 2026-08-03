@@ -32,7 +32,7 @@ func TestHeadersPlan(t *testing.T) {
 		t.Fatalf("want 2 jobs (blank host skipped), got %d", len(jobs))
 	}
 	for _, j := range jobs {
-		if j.Scanner != "http-headers" {
+		if j.Scanner != "draugr-headers" {
 			t.Errorf("scanner = %q", j.Scanner)
 		}
 		if _, ok := j.Target.(plugin.HostTarget); !ok {
@@ -50,11 +50,11 @@ func TestHeadersPlanNilComponent(t *testing.T) {
 
 func TestHeadersAggregate(t *testing.T) {
 	reports := []sarif.Report{
-		{Tool: "http-headers", Results: []sarif.Result{
+		{Tool: "draugr-headers", Results: []sarif.Result{
 			{RuleID: "headers/csp-missing", Level: sarif.LevelWarning, Location: sarif.Location{URI: "https://a"}},
 			{RuleID: "headers/server-disclosure", Level: sarif.LevelNote, Location: sarif.Location{URI: "https://a"}},
 		}},
-		{Tool: "http-headers", Results: []sarif.Result{
+		{Tool: "draugr-headers", Results: []sarif.Result{
 			{RuleID: "headers/cors-wildcard-with-credentials", Level: sarif.LevelError, Location: sarif.Location{URI: "https://b"}},
 		}},
 	}
