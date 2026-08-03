@@ -17,6 +17,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/config"
@@ -238,6 +239,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Components:           components,
 		UnattributedFindings: unattributed,
 		Exploitability:       feedProv,
+		Tools:                toolBuilds(run),
 		// Stamped so a rendered report can say when it ran and what produced it. A report
 		// offered as evidence has to answer both, and only the CLI knows either.
 		Generated: time.Now(),
@@ -637,4 +639,44 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) error {
 	slog.DebugContext(ctx, "merged controller defaults from configuration",
 		"files", len(res.Sources), "controls", len(res.File.Controllers))
 	return nil
+}
+
+// toolBuilds reports the build of each external scanner the run actually used.
+//
+// Derived from the results rather than from the registry: a scanner that was configured but never
+// ran has no bearing on how these findings were produced, and listing it would pad the evidence
+// with tools that did nothing.
+//
+// Native scanners are skipped — their rules ship in this binary, so "which build" is answered by
+// Draugr's own version, which the report already stamps.
+func toolBuilds(run engine.Result) []report.ToolBuild {
+	binaries := map[string]bool{}
+	for _, name := range run.Scanners {
+		// The registry is the only thing that maps a scanner to its executable. A finding's Tool
+		// is the SARIF driver name the tool gives itself — "Trivy" for trivy-fs — so matching on
+		// it finds nothing, which is exactly what the first version of this did.
+		if sc, ok := builtins.Registry().Scanner(name); ok {
+			if b := sc.Info().Binary; b != "" {
+				binaries[b] = true
+			}
+		}
+	}
+	if len(binaries) == 0 {
+		return nil
+	}
+
+	names := make([]string, 0, len(binaries))
+	for b := range binaries {
+		names = append(names, b)
+	}
+	sort.Strings(names)
+
+	out := make([]report.ToolBuild, 0, len(names))
+	for _, b := range names {
+		a := tools.AttestFound(b, "")
+		out = append(out, report.ToolBuild{
+			Name: a.Tool, Version: a.Version, Attested: a.Attested, Reason: a.Reason,
+		})
+	}
+	return out
 }

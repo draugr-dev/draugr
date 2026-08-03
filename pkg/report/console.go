@@ -183,6 +183,13 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
+	if lines := toolBuildLines(d.Tools); len(lines) > 0 {
+		for _, l := range lines {
+			_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+
 	if line := exploitabilityLine(d.Exploitability); line != "" {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
@@ -612,6 +619,41 @@ func escalationNote(e *sarif.Escalation) string {
 	out := "↑ ranked as " + string(e.To) + " — " + e.Detail
 	if e.AsOf != "" {
 		out += " (" + e.AsOf + ")"
+	}
+	return out
+}
+
+// toolBuildLines reports which build of each external scanner ran, and flags the ones Draugr
+// cannot vouch for.
+//
+// One line when everything is attested, because "we installed all of these" is a single fact and
+// does not need a row each. A tool Draugr did not install gets its own line, because that is the
+// one a reader has to decide about.
+func toolBuildLines(tools []ToolBuild) []string {
+	if len(tools) == 0 {
+		return nil
+	}
+	var attested, other []string
+	for _, t := range tools {
+		label := t.Name
+		if t.Version != "" {
+			label += " " + t.Version
+		}
+		if t.Attested {
+			attested = append(attested, label)
+			continue
+		}
+		other = append(other, label+" — "+t.Reason)
+	}
+	sort.Strings(attested)
+	sort.Strings(other)
+
+	var out []string
+	if len(attested) > 0 {
+		out = append(out, "Scanners: "+strings.Join(attested, ", "))
+	}
+	for _, o := range other {
+		out = append(out, "Scanner (unverified): "+o)
 	}
 	return out
 }
