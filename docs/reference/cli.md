@@ -14,6 +14,7 @@ All commands accept these **global flags**:
 | `--log-level` | `info` | `trace`, `debug`, `info`, `warn`, `error` |
 | `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` |
 | `--offline` | `false` | make no network calls (also `DRAUGR_OFFLINE=1`) |
+| `--config` | — | machine/organisation settings file, used instead of the discovered ones (also `DRAUGR_CONFIG`) |
 
 **`--offline`** says once that this machine has no network, and every place Draugr would reach out
 honours it. Optional fetches are skipped with a line saying so; a command whose whole purpose is
@@ -655,6 +656,91 @@ descriptor's value alone.
 
 See [prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) for what the
 signals mean and how to choose a threshold.
+
+---
+
+## `draugr config`
+
+Machine and organisation settings, kept apart from the Saga.
+
+A Saga describes an application: its repositories, how exposed a component is, which controls must
+pass. Those are facts about the software and belong in its repository. **Which build of a scanner
+runs, and what a control defaults to, are facts about a machine or an organisation** — they want
+to be the same everywhere, which is exactly why they do not belong in a per-application
+descriptor. A descriptor that could pin its own scanner version is one that could downgrade a
+scanner until a finding disappears.
+
+```yaml
+# draugr.config.yaml
+controllers:            # merged *underneath* the Saga, so a project overrides only what it names
+  sast:
+    semgrep:
+      config: p/owasp-top-ten
+```
+
+### Where it comes from
+
+| | |
+|---|---|
+| `--config <path>` or `DRAUGR_CONFIG` | that file **alone** — explicit means explicit |
+| `./draugr.config.yaml` | this project |
+| `~/.draugr/config.yaml` | this machine |
+
+Discovered files are layered, project over home. An explicit one replaces both: a runner image
+that names a config expects that config, not that one laid over whatever is in the working
+directory.
+
+For behaviour, the full order is **component → Saga → config → built-in**, deep-merged, so an
+override replaces only the keys it names.
+
+### Commands
+
+| | |
+|---|---|
+| `draugr config show` | what is in effect, and **which file each value came from** |
+| `draugr config get <key>` | one resolved value |
+| `draugr config set <key> <value>` | write a value; `--global` for `~/.draugr/config.yaml` |
+| `draugr config unset <key>` | remove one, pruning anything it empties |
+| `draugr config init` | a commented starter; `--force` resets a broken file |
+| `draugr config validate` | check the files load |
+
+```
+$ draugr config show
+Files, least specific first:
+  ~/.draugr/config.yaml
+  /repo/draugr.config.yaml
+
+In effect:
+  Setting                          Value            From
+  controllers.sast.semgrep.config  p/owasp-top-ten  /repo/draugr.config.yaml
+  tools.trivy.version              0.69.3           ~/.draugr/config.yaml
+```
+
+`show` is the one worth knowing about. A layered configuration is undebuggable without it —
+*"why is Trivy 0.68?"* has one useful answer, and it is a filename.
+
+### If the file breaks
+
+**Draugr refuses to run rather than falling back.** A broken Saga must fail because nobody else
+knows what your application is; a broken *config* looks like it has a safe fallback, but taking it
+silently is how a pinned toolchain becomes a different one. Somebody pinned that version for a
+reason.
+
+Recovery is one command:
+
+```bash
+draugr config validate          # what is wrong, and where
+draugr config init --force      # start again from the built-in defaults
+```
+
+`set` and `unset` cannot break a file: they edit the document rather than rewriting it — **so
+comments survive** — and parse the result before saving, so nothing is written that Draugr would
+then refuse. Draugr will not silently repair a file it cannot parse, because rewriting somebody's
+settings on a guess is worse than refusing them.
+
+### What does not go here
+
+Secrets. Use `${{ ENV_VAR }}` as a Saga does, so the file stays safe to commit.
 
 ---
 

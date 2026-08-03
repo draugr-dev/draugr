@@ -19,7 +19,15 @@ type globalOptions struct {
 	logLevel  string
 	logFormat string
 	offline   bool
+	config    string
 }
+
+// rootConfigPath is the --config value, read by the config and scan commands.
+//
+// A package-level value for the same reason offline is one: it is decided once at startup and
+// every command that loads configuration must see the same answer. Threading it through every
+// constructor would let one path forget.
+var rootConfigPath string
 
 func newRootCommand() *cobra.Command {
 	opts := &globalOptions{}
@@ -47,6 +55,7 @@ func newRootCommand() *cobra.Command {
 			if opts.offline {
 				netpolicy.SetOffline(true)
 			}
+			rootConfigPath = opts.config
 			return nil
 		},
 	}
@@ -55,6 +64,8 @@ func newRootCommand() *cobra.Command {
 		"log level: trace, debug, info, warn, error (trace relays scanner output)")
 	cmd.PersistentFlags().StringVar(&opts.logFormat, "log-format", "console",
 		"log format: console (human-readable, colorized on a terminal), json, or text")
+	cmd.PersistentFlags().StringVar(&opts.config, "config", "",
+		"machine/organisation settings file, used instead of the discovered ones (also DRAUGR_CONFIG)")
 	cmd.PersistentFlags().BoolVar(&opts.offline, "offline", false,
 		"make no network calls: skip optional fetches, and refuse rather than download (also DRAUGR_OFFLINE=1)")
 
@@ -69,6 +80,7 @@ func newRootCommand() *cobra.Command {
 	cmd.AddCommand(newDoctorCommand())
 	cmd.AddCommand(newToolsCommand())
 	cmd.AddCommand(newFeedsCommand())
+	cmd.AddCommand(newConfigCommand())
 	cmd.AddCommand(newControlsCommand())
 	cmd.AddCommand(newMCPCommand())
 	cmd.AddCommand(newSelfUpdateCommand())
