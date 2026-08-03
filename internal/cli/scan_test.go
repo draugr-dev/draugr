@@ -902,3 +902,41 @@ func TestDigestPinnedOnly(t *testing.T) {
 		t.Error("a repository was refused")
 	}
 }
+
+func TestToolBuildsUsesTheRegistryNotTheDriverName(t *testing.T) {
+	// A finding's Tool is the SARIF driver name the tool gives itself — "Trivy" for trivy-fs —
+	// so deriving the list from findings finds nothing. It comes from Result.Scanners, which are
+	// the names Draugr selected.
+	got := toolBuilds(engine.Result{Scanners: []string{"trivy-fs", "gitleaks"}})
+	names := map[string]bool{}
+	for _, b := range got {
+		names[b.Name] = true
+	}
+	if !names["trivy"] || !names["gitleaks"] {
+		t.Errorf("expected the executables behind those scanners, got %+v", got)
+	}
+	// Every entry says something either way: attested, or why not.
+	for _, b := range got {
+		if !b.Attested && b.Reason == "" {
+			t.Errorf("%s is unattested without a reason", b.Name)
+		}
+	}
+}
+
+func TestToolBuildsSkipsNativeScanners(t *testing.T) {
+	// Their rules ship in this binary, so "which build" is answered by Draugr's own version,
+	// which the report already stamps. Listing them would pad the evidence with nothing.
+	if got := toolBuilds(engine.Result{Scanners: []string{"draugr-headers", "draugr-tls"}}); got != nil {
+		t.Errorf("native scanners were listed as external tools: %+v", got)
+	}
+	if got := toolBuilds(engine.Result{}); got != nil {
+		t.Errorf("a run that used nothing listed something: %+v", got)
+	}
+}
+
+func TestToolBuildsIgnoresUnknownScanners(t *testing.T) {
+	// A name no scanner answers to cannot have an executable behind it.
+	if got := toolBuilds(engine.Result{Scanners: []string{"not-a-scanner"}}); got != nil {
+		t.Errorf("got %+v", got)
+	}
+}

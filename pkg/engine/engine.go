@@ -297,6 +297,13 @@ type Result struct {
 	// scans that actually executed count: a cache hit means the traffic was not sent this time,
 	// and a record of effects has to describe what happened rather than what was configured.
 	Effects []plugin.Effect
+	// Scanners names every scanner this run used, deduplicated and sorted.
+	//
+	// Recorded because a report has to be able to say which tools produced its findings — the
+	// SARIF driver name is the tool's own and does not identify the scanner Draugr selected, so
+	// nothing downstream could work it out. Cache hits count: the key includes the tool version,
+	// so a hit describes the same build as the run that stored it.
+	Scanners []string
 	// SBOMs are the Software Bills of Materials produced when the Saga enables config.sbom.
 	// Evidence rather than judgement: they carry no findings and never affect the verdict.
 	SBOMs []sbom.Document
@@ -607,6 +614,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		Controls: make(map[string]plugin.ControlResult),
 		Stats:    stats,
 		Effects:  dedupeEffects(effects),
+		Scanners: distinctScanners(planned),
 		SBOMs:    docs,
 	}
 	if len(ctlErrs) > 0 {
@@ -830,4 +838,23 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 	}
 	slog.DebugContext(ctx, "generated SBOMs", "documents", len(docs), "errors", len(errs))
 	return docs, errs
+}
+
+// distinctScanners names the scanners a run used, sorted.
+//
+// From the planned jobs rather than from the findings: a scanner that ran and found nothing still
+// produced this report's silence, and a reader asking which tools it was deserves the same answer
+// either way.
+func distinctScanners(planned []PlannedJob) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, pj := range planned {
+		if pj.Job.Scanner == "" || seen[pj.Job.Scanner] {
+			continue
+		}
+		seen[pj.Job.Scanner] = true
+		out = append(out, pj.Job.Scanner)
+	}
+	sort.Strings(out)
+	return out
 }

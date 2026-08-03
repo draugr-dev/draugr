@@ -247,6 +247,26 @@ What a run actually did appears in the report, so evidence describes what happen
 what was configured. Only scans that really executed count: a cache hit means the traffic was not
 sent this time.
 
+### Which build of each scanner ran
+
+A scan runs whatever is on `PATH`. That is deliberate — an operator may have an experimental
+build, a fork, or a distribution package with a vendor suffix, and refusing them would be Draugr
+mistaking *"I cannot verify this"* for *"this is wrong"*.
+
+But a report that cannot say which build produced its findings cannot be reproduced, so it says:
+
+```
+Scanners: gitleaks 8.30.1, trivy 0.69.3
+Scanner (unverified): semgrep 1.99.0 — found on PATH; Draugr did not install it
+```
+
+**Attested** means Draugr installed that exact binary and it is unchanged since: it sits in
+`~/.draugr/bin`, the install record has it, and the file still hashes to what was recorded. The
+hash is what makes that a claim about a file rather than about a path.
+
+Anything else is used and labelled. It does not affect the verdict — it is a fact about the run,
+not a finding about your software.
+
 ### `--format` prints; `--report` writes
 
 Two different questions, and they used to share one flag.

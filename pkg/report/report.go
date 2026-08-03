@@ -48,10 +48,30 @@ type Data struct {
 	// A report that raised a finding to critical has to be able to say on what data, obtained
 	// when. "KEV said so" is not reproducible; "on KEV as of 2026-08-01" is.
 	Exploitability []FeedProvenance
+	// Tools records the build of each external scanner the run used, and whether Draugr can
+	// vouch for it. Empty when nothing external ran.
+	//
+	// A scan runs whatever is on PATH, which is right — an operator may have an experimental
+	// build or a fork, and blocking them would be Draugr mistaking "I cannot verify this" for
+	// "this is wrong". But a report that cannot say which build produced its findings cannot be
+	// reproduced, so the answer is to record it.
+	Tools []ToolBuild
 	// UnattributedFindings counts findings that belong to no component — a project-scoped
 	// control like `infrastructure` produces them. Reported alongside the component breakdown,
 	// because a breakdown that silently omits them makes the parts look like the whole.
 	UnattributedFindings int
+}
+
+// ToolBuild is the build of one external scanner, as this run found it.
+type ToolBuild struct {
+	// Name is the executable, e.g. "trivy".
+	Name string
+	// Version is what it reports, or what Draugr recorded when it installed it.
+	Version string
+	// Attested means Draugr installed this exact binary and it is unchanged since.
+	Attested bool
+	// Reason says why not. Empty when attested.
+	Reason string
 }
 
 // FeedProvenance is one exploitability dataset as this run saw it.

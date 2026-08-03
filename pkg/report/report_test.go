@@ -1089,3 +1089,42 @@ func TestExploitabilityInJSON(t *testing.T) {
 		t.Error("the stale feed is not marked stale in the JSON")
 	}
 }
+
+func TestToolBuildLines(t *testing.T) {
+	// Attested tools share a line — "we installed all of these" is one fact. A tool Draugr did
+	// not install gets its own, because that is the one a reader has to decide about.
+	got := toolBuildLines([]ToolBuild{
+		{Name: "trivy", Version: "0.69.3", Attested: true},
+		{Name: "gitleaks", Version: "8.30.1", Attested: true},
+	})
+	if len(got) != 1 || !strings.Contains(got[0], "gitleaks 8.30.1, trivy 0.69.3") {
+		t.Errorf("attested tools not grouped: %q", got)
+	}
+
+	got = toolBuildLines([]ToolBuild{
+		{Name: "trivy", Version: "0.69.3", Attested: true},
+		{Name: "semgrep", Version: "1.99.0", Reason: "found on PATH; Draugr did not install it"},
+	})
+	if len(got) != 2 {
+		t.Fatalf("expected the unverified one on its own line: %q", got)
+	}
+	if !strings.Contains(got[1], "unverified") || !strings.Contains(got[1], "did not install it") {
+		t.Errorf("the reason is what makes it actionable: %q", got[1])
+	}
+
+	if toolBuildLines(nil) != nil {
+		t.Error("a run with no external scanners should say nothing")
+	}
+}
+
+func TestToolBuildsAbsentFromAnUnenrichedReport(t *testing.T) {
+	// A native-only scan uses no external tool, and a "Scanners:" line listing nothing would be
+	// noise on every such run.
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, goldenCleanData()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "Scanners:") {
+		t.Errorf("a run with no external tools mentioned them:\n%s", buf.String())
+	}
+}

@@ -10,7 +10,22 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **A report now says which build of each scanner produced it.** A scan runs whatever is on
+  `PATH`, which is right — an operator may have an experimental build or a fork, and refusing
+  them would be Draugr mistaking "I cannot verify this" for "this is wrong". But a report that
+  cannot say which build produced its findings cannot be reproduced.
+
+  ```
+  Scanners: gitleaks 8.30.1, trivy 0.69.3
+  Scanner (unverified): semgrep 1.99.0 — found on PATH; Draugr did not install it
+  ```
+
+  **Attested** means Draugr installed that exact binary and it is unchanged: in `~/.draugr/bin`,
+  in the install record, and still hashing to what was recorded — which makes it a claim about a
+  file rather than about a path. Anything else is used and labelled, and none of it affects the
+  verdict: it is a fact about the run, not a finding about your software.
 
 ## [0.62.0] - 2026-08-03
 
