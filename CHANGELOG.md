@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.58.1] - 2026-08-03
+
 ### Added
 
 - **A helper for editing the CHANGELOG.** `make changelog` checks its structure — a duplicate
@@ -32,6 +36,10 @@ and move it under a version on release.
   This mattered little on a fresh CI runner, which has nothing cached to serve. It is the
   prerequisite for a cache that outlives one machine — see
   [caching and performance](docs/guides/caching-and-performance.md) for what each scanner follows.
+
+  **If you use `--cache-dir`, expect one full re-scan.** Every key changes, so every existing
+  entry misses once. That is the fix working: those entries were answers to a question that had
+  moved on.
 
 ## [0.58.0] - 2026-08-02
 
@@ -2147,7 +2155,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.58.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.58.1...HEAD
+[0.58.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.58.1
 [0.58.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.58.0
 [0.57.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.57.0
 [0.56.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.56.0
