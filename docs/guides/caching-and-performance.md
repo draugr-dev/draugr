@@ -41,6 +41,11 @@ the update that made it wrong rather than by waiting out the clock. A new Nuclei
 Trivy database refresh, a Semgrep upgrade, or a Draugr release that adds a check will each
 re-scan what they affect.
 
+**Entries are compressed.** A cached entry is a whole SARIF report, which is repetitive by
+construction — a measured one went from 375 KB to 60 KB. That matters most where the cache is
+persisted between CI runs, because an uncompressed cache spends on restore what it saves on
+scanning. A cache written by an older Draugr is read as-is, so upgrading does not throw one away.
+
 Entries still expire on a TTL, as a backstop for what a version cannot express — most notably a
 Semgrep ruleset fetched from the registry, whose contents can change without the tool's version
 moving. For **container images**, pin a `digest:` in the Saga
