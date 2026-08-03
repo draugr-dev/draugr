@@ -765,7 +765,7 @@ func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
 			{RuleID: "CVE-1", Level: sarif.LevelError, Component: "payments", Priority: "P1"},
 			{RuleID: "CVE-2", Level: sarif.LevelNote, Component: "internal-tool", Priority: "P4"},
 		}},
-		"infrastructure": {Tool: "k8s-policies", Results: []sarif.Result{
+		"infrastructure": {Tool: "draugr-k8s-policies", Results: []sarif.Result{
 			{RuleID: "cis/5.1.1", Level: sarif.LevelWarning}, // project-scoped: no component
 		}},
 	}

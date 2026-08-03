@@ -6,7 +6,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-const httpHeadersScanner = "http-headers"
+const draugrHeadersScanner = "draugr-headers"
 
 // Headers is the HTTP security-header control. It plans one native header scan per host
 // declared on a component and aggregates the findings. No external tool is required.
@@ -21,7 +21,7 @@ func (Headers) Info() plugin.ControllerInfo {
 		Name:            "headers",
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Check HTTP security headers on a component's running endpoints.",
-		DefaultScanners: []string{"http-headers"},
+		DefaultScanners: []string{"draugr-headers"},
 	}
 }
 
@@ -37,7 +37,7 @@ func (Headers) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error
 		}
 		target := plugin.HostTarget{Name: host.Name, URL: host.URL, Type: host.Type}
 		jobs = append(jobs, plugin.ScanJob{
-			Scanner: httpHeadersScanner,
+			Scanner: draugrHeadersScanner,
 			Target:  target,
 		})
 	}

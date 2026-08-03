@@ -176,9 +176,20 @@ func camelCaseKey(key string) string {
 // either way. Naming the replacement costs one line here and saves the reader from discovering
 // it by comparing two reports.
 var removedControllerKeys = map[string]map[string]string{
+	// Draugr's own scanners took a `draugr-` prefix so a name says where it came from — in a
+	// descriptor there is no room for a column, and `draugrHeaders` is the only place the
+	// provenance can appear. The old keys would otherwise match no scanner and be ignored, which
+	// is how "I turned that scanner off" becomes a scan that still runs it.
+	"headers": {
+		"httpHeaders": "`draugrHeaders` — the scanner is now `draugr-headers`",
+	},
+	"tls": {
+		"tlsProbe": "`draugrTls` — the scanner is now `draugr-tls`",
+	},
 	"infrastructure": {
+		"k8sPolicies": "`draugrK8sPolicies` — the scanner is now `draugr-k8s-policies`",
 		"mode": "per-scanner blocks: `kubeBenchJob: { enabled: true }` for the node sections, " +
-			"`k8sPolicies: { enabled: true }` to read section 5 through the Kubernetes API",
+			"`draugrK8sPolicies: { enabled: true }` to read section 5 through the Kubernetes API",
 	},
 }
 

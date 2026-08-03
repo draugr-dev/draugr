@@ -115,7 +115,7 @@ contract, crash containment.
 ### Built-ins
 A curated set compiles into the core so `draugr` is useful out of the box: scanners
 `trivy`/`trivy-fs`/`trivy-config`, `gitleaks`, `semgrep`, `gosec`, and a native
-`http-headers`; surveyors `k8s-images` and `github-org-repos`.
+`draugr-headers`; surveyors `k8s-images` and `github-org-repos`.
 
 ### Distribution — "the Hoard"
 Plugins are packaged as **OCI artifacts** and pulled from a registry (the Hoard),
@@ -173,7 +173,7 @@ draugr/
   pkg/surveyor/          # surveyor framework/registry
   internal/builtins/     # wires the default controllers/scanners/surveyors
   internal/controllers/  # built-in controllers (images, sca, secrets, sast, iac, headers, dast, tls)
-  internal/scanners/     # built-in scanners (trivy*, gitleaks, semgrep, gosec, http-headers)
+  internal/scanners/     # built-in scanners (trivy*, gitleaks, semgrep, gosec, draugr-headers)
   internal/surveyors/    # built-in surveyors (k8s-images, github-org-repos)
   internal/tools/        # doctor detection + `tools install` provisioning
   internal/selfupdate/   # `self-update` (verified in-place binary update)

@@ -385,12 +385,12 @@ func TestValidateChecksComponentControllerKeys(t *testing.T) {
 		Release: Release{Version: "1.0"},
 		Components: []Component{{
 			Name:        "web",
-			Controllers: map[string]ControllerSettings{"tls": {"tls-probe": map[string]any{"enabled": false}}},
+			Controllers: map[string]ControllerSettings{"tls": {"draugr-tls": map[string]any{"enabled": false}}},
 		}},
 	}
 	err := m.Validate()
-	if err == nil || !strings.Contains(err.Error(), "tlsProbe") {
-		t.Errorf("want an error naming tlsProbe, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "draugrTls") {
+		t.Errorf("want an error naming draugrTls, got: %v", err)
 	}
 }
 

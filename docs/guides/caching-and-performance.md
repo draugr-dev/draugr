@@ -34,7 +34,7 @@ tool downloads rather than on the tool itself, that data's version:
 | `nuclei` | the **template set** version — republished daily, so this is the one that moves |
 | `semgrep`, `gitleaks`, `gosec`, `kube-bench` | the tool's version |
 | `kube-bench-job` | the pinned image digest |
-| `http-headers`, `tls-probe`, `k8s-policies` | Draugr's own version — their rules ship in the binary |
+| `draugr-headers`, `draugr-tls`, `draugr-k8s-policies` | Draugr's own version — their rules ship in the binary |
 
 So the thing that would change the answer changes the key, and a cached result is invalidated by
 the update that made it wrong rather than by waiting out the clock. A new Nuclei template set, a

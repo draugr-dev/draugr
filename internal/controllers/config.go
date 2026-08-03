@@ -159,14 +159,14 @@ func deepMerge(dst, src map[string]any) map[string]any {
 //
 // Single-word scanners (semgrep, gosec, trivy, nuclei) need no entry: key and name are equal.
 var scannerConfigKey = map[string]string{
-	"kube-bench":     "kubeBench",
-	"kube-bench-job": "kubeBenchJob",
-	"k8s-policies":   "k8sPolicies",
-	"tls-probe":      "tlsProbe",
-	"http-headers":   "httpHeaders",
-	"trivy-fs":       "trivyFs",
-	"trivy-config":   "trivyConfig",
-	"trivy-license":  "trivyLicense",
+	"kube-bench":          "kubeBench",
+	"kube-bench-job":      "kubeBenchJob",
+	"draugr-k8s-policies": "draugrK8sPolicies",
+	"draugr-tls":          "draugrTls",
+	"draugr-headers":      "draugrHeaders",
+	"trivy-fs":            "trivyFs",
+	"trivy-config":        "trivyConfig",
+	"trivy-license":       "trivyLicense",
 }
 
 // scannerForConfigKey inverts scannerConfigKey.

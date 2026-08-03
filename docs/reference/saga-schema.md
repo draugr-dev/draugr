@@ -157,7 +157,7 @@ three come from one place and cannot disagree.
 A control can be served by more than one scanner, and each scanner is configured under its own
 key in `controllers.<control>.<scanner>`. **The key is camelCase**, like every field in a Saga —
 so a scanner whose name is hyphenated is configured under the camelCase form of it
-(`kube-bench-job` → `kubeBenchJob`, `tls-probe` → `tlsProbe`). A hyphenated key is rejected at
+(`kube-bench-job` → `kubeBenchJob`, `draugr-tls` → `draugrTls`). A hyphenated key is rejected at
 load: it would otherwise match no scanner and quietly run one fewer than asked for. A scanner block holds an optional **`enabled`** flag
 plus that scanner's options. Default scanners run unless turned off with `enabled: false`; a
 non-default scanner runs only when it sets `enabled: true`. A component may override the project

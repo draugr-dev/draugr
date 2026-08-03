@@ -790,7 +790,7 @@ func TestProvenanceLines(t *testing.T) {
 	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
 		"infrastructure": {Report: sarif.Report{Provenance: []sarif.Provenance{
 			{Tool: "kube-bench-job", Version: "0.15.6", Fields: []sarif.Field{{Key: "benchmark", Value: "gke-1.9.0"}}},
-			{Tool: "k8s-policies", Fields: []sarif.Field{{Key: "coverage", Value: "20 of 34"}}},
+			{Tool: "draugr-k8s-policies", Fields: []sarif.Field{{Key: "coverage", Value: "20 of 34"}}},
 		}}},
 		"sca": {Report: sarif.Report{Provenance: []sarif.Provenance{{Tool: "trivy", Version: "0.69.3"}}}},
 	}}}
@@ -807,7 +807,7 @@ func TestProvenanceLines(t *testing.T) {
 		t.Errorf("Label = %q", got[0].Label())
 	}
 	// A scanner that reported no version is named without one rather than as "unknown".
-	if got[1].Label() != "k8s-policies" {
+	if got[1].Label() != "draugr-k8s-policies" {
 		t.Errorf("Label without a version = %q", got[1].Label())
 	}
 	// A version alone is still worth reporting: it answers "what produced this".

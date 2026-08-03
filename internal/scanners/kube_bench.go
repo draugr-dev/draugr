@@ -290,7 +290,7 @@ var provisionedKubeBenchCfg = func() string {
 }
 
 // kubeBenchCISRulePrefix namespaces this scanner's CIS rule ids, so they cannot be confused with
-// draugr-k8s-policies' findings about the very same checks.
+// draugr-draugr-k8s-policies' findings about the very same checks.
 const kubeBenchCISRulePrefix = "kube-bench/cis/"
 
 // kubeBenchPlan is how the scan will run, and what it therefore expects back.
@@ -645,7 +645,7 @@ func reportFromKubeBench(doc kubeBenchDoc, tool, location string) sarif.Report {
 					ShortDescription: res.TestDesc,
 					FullDescription:  strings.TrimSpace(res.Remedy),
 					HelpURI:          "https://www.cisecurity.org/benchmark/kubernetes",
-					// Same taxonomy and same control id as draugr-k8s-policies, which is how the
+					// Same taxonomy and same control id as draugr-draugr-k8s-policies, which is how the
 					// two scanners' accounts of one check stay recognisable as such now that
 					// their rule ids are namespaced apart.
 					Taxa: []sarif.Taxon{{
@@ -710,7 +710,7 @@ func refuseNamespaceScope(scanner string, namespaces []string) error {
 	return fmt.Errorf(
 		"%s cannot audit a namespace scope: its checks query every namespace and offer no way to "+
 			"narrow that, so it would report the whole cluster against a component that declared "+
-			"%d namespace(s). Use the k8sPolicies scanner, which is the default and reads the "+
+			"%d namespace(s). Use the draugrK8sPolicies scanner, which is the default and reads the "+
 			"Kubernetes API directly, or remove `namespaces` from the component's infrastructure entry",
 		scanner, len(namespaces))
 }

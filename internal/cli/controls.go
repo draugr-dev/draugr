@@ -145,7 +145,7 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry) {
 // writeScannerOrigins lists who publishes each scanner's tool.
 //
 // A roster answers a question the per-control table cannot: which of these is a third party
-// executing on this machine, and whose. Reading that table, `http-headers` and `gitleaks` look
+// executing on this machine, and whose. Reading that table, `draugr-headers` and `gitleaks` look
 // alike — one is Draugr's own detection logic and the other is somebody else's binary, and
 // nothing on the row says so.
 //

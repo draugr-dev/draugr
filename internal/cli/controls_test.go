@@ -20,7 +20,7 @@ func TestRunControls(t *testing.T) {
 		"images", "trivy",
 		"secrets", "gitleaks",
 		"sast", "semgrep",
-		"headers", "http-headers",
+		"headers", "draugr-headers",
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("controls output missing %q\n%s", want, s)
@@ -55,7 +55,7 @@ func TestControlsShowsWhoPublishesEachScanner(t *testing.T) {
 	if !strings.Contains(out, "Who publishes each scanner:") {
 		t.Fatalf("no provenance section:\n%s", out)
 	}
-	// The question this answers: reading the control table, http-headers and gitleaks look
+	// The question this answers: reading the control table, draugr-headers and gitleaks look
 	// alike, and one of them is somebody else's binary.
 	for _, want := range []string{"draugr", "aquasecurity", "projectdiscovery", "securego"} {
 		if !strings.Contains(out, want) {

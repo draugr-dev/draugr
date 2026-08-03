@@ -3,7 +3,7 @@
 - **Industry term:** HTTP security header analysis
 - **Scope:** component
 - **Status:** ✅ implemented (native, no external tool)
-- **Scanner:** [`http-headers`](../scanners/http-headers.md)
+- **Scanner:** [`draugr-headers`](../scanners/draugr-headers.md)
 - **Resource:** a component's `hosts:`
 
 ## What it does
@@ -22,6 +22,6 @@ summary. The scanner tunes its checklist by each host's `type` (`browser` — th
 
 - Native control: **no external tool** to install — nothing extra for `draugr doctor` to check.
 - Host `type` is `browser` (browser-facing UI) or `api` (programmatic); optional, defaults to
-  `browser`. It selects the ruleset (see the [scanner doc](../scanners/http-headers.md)).
+  `browser`. It selects the ruleset (see the [scanner doc](../scanners/draugr-headers.md)).
 - Org-configurable header policy (required headers, per-header severity, exemptions) is a
   follow-up on the global-config work ([#129](https://github.com/draugr-dev/draugr/issues/129)).

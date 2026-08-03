@@ -35,8 +35,8 @@ func TestInfrastructureInfo(t *testing.T) {
 	}
 	// The native reader, not the exec'd one: both decide the same 11 checks, so defaulting to
 	// the one that needs no kubectl and creates nothing costs no coverage.
-	if len(info.DefaultScanners) != 1 || info.DefaultScanners[0] != "k8s-policies" {
-		t.Errorf("default scanners = %v, want [k8s-policies]", info.DefaultScanners)
+	if len(info.DefaultScanners) != 1 || info.DefaultScanners[0] != "draugr-k8s-policies" {
+		t.Errorf("default scanners = %v, want [draugr-k8s-policies]", info.DefaultScanners)
 	}
 }
 
@@ -49,7 +49,7 @@ func TestInfrastructurePlanOneJobPerCluster(t *testing.T) {
 		t.Fatalf("want 2 jobs, got %d", len(jobs))
 	}
 	for i, want := range []string{"kubernetes/prod", "kubernetes/staging"} {
-		if jobs[i].Scanner != "k8s-policies" {
+		if jobs[i].Scanner != "draugr-k8s-policies" {
 			t.Errorf("job %d scanner = %q", i, jobs[i].Scanner)
 		}
 		if got := jobs[i].Target.Identity(); got != want {
@@ -159,7 +159,7 @@ func TestPlanKeepsThePoliciesScannerWhenTheJobIsEnabled(t *testing.T) {
 	for _, j := range jobs {
 		byScanner[j.Scanner]++
 	}
-	for _, want := range []string{"kube-bench-job", "k8s-policies"} {
+	for _, want := range []string{"kube-bench-job", "draugr-k8s-policies"} {
 		if byScanner[want] != 2 {
 			t.Errorf("scanner %q planned %d times, want 2", want, byScanner[want])
 		}
@@ -179,23 +179,23 @@ func TestInfrastructureScannerSelection(t *testing.T) {
 		settings saga.ControllerSettings
 		want     []string
 	}{
-		{"default reads the policies section natively", nil, []string{"k8s-policies"}},
-		{"job runs alongside the default", saga.ControllerSettings{"kubeBenchJob": block(true)}, []string{"k8s-policies", "kube-bench-job"}},
-		{"exec'd reader opted in alongside the default", saga.ControllerSettings{"kubeBench": block(true)}, []string{"k8s-policies", "kube-bench"}},
+		{"default reads the policies section natively", nil, []string{"draugr-k8s-policies"}},
+		{"job runs alongside the default", saga.ControllerSettings{"kubeBenchJob": block(true)}, []string{"draugr-k8s-policies", "kube-bench-job"}},
+		{"exec'd reader opted in alongside the default", saga.ControllerSettings{"kubeBench": block(true)}, []string{"draugr-k8s-policies", "kube-bench"}},
 
 		// The question this design had to answer: the node sections without section 5.
 		{"node sections only", saga.ControllerSettings{
-			"k8sPolicies":  block(false),
-			"kubeBenchJob": block(true),
+			"draugrK8sPolicies": block(false),
+			"kubeBenchJob":      block(true),
 		}, []string{"kube-bench-job"}},
 
 		// Native section 5 plus the node sections, which is the fast whole benchmark.
 		// The exec'd reader in place of the native one, for anyone who wants kube-bench itself
 		// to be the thing that ran.
 		{"exec'd policies plus the job", saga.ControllerSettings{
-			"k8sPolicies":  block(false),
-			"kubeBench":    block(true),
-			"kubeBenchJob": block(true),
+			"draugrK8sPolicies": block(false),
+			"kubeBench":         block(true),
+			"kubeBenchJob":      block(true),
 		}, []string{"kube-bench", "kube-bench-job"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

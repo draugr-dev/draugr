@@ -80,13 +80,13 @@ func TestNativeScannersKeyOnDraugrsOwnVersion(t *testing.T) {
 	// this, today's new CSP checks would not run against anything already cached.
 	ctx := context.Background()
 	for name, got := range map[string]string{
-		"http-headers": NewHTTPHeaders().(interface {
+		"draugr-headers": NewHTTPHeaders().(interface {
 			CacheVersion(context.Context) string
 		}).CacheVersion(ctx),
-		"tls-probe": NewTLSProbe().(interface {
+		"draugr-tls": NewTLSProbe().(interface {
 			CacheVersion(context.Context) string
 		}).CacheVersion(ctx),
-		"k8s-policies": NewK8sPolicies().(interface {
+		"draugr-k8s-policies": NewK8sPolicies().(interface {
 			CacheVersion(context.Context) string
 		}).CacheVersion(ctx),
 	} {
@@ -106,19 +106,19 @@ func TestNativeScannersKeyOnDraugrsOwnVersion(t *testing.T) {
 // answer after the thing that decides the answer has changed, and nothing says so.
 func TestEveryScannerWiresACacheVersion(t *testing.T) {
 	all := map[string]plugin.Scanner{
-		"trivy":          NewTrivy(),
-		"trivy-fs":       NewTrivyFS(),
-		"trivy-config":   NewTrivyConfig(),
-		"trivy-license":  NewTrivyLicense(),
-		"semgrep":        NewSemgrep(),
-		"gosec":          NewGosec(),
-		"gitleaks":       NewGitleaks(),
-		"nuclei":         NewNuclei(),
-		"http-headers":   NewHTTPHeaders(),
-		"tls-probe":      NewTLSProbe(),
-		"k8s-policies":   NewK8sPolicies(),
-		"kube-bench":     NewKubeBench(),
-		"kube-bench-job": NewKubeBenchJob(),
+		"trivy":               NewTrivy(),
+		"trivy-fs":            NewTrivyFS(),
+		"trivy-config":        NewTrivyConfig(),
+		"trivy-license":       NewTrivyLicense(),
+		"semgrep":             NewSemgrep(),
+		"gosec":               NewGosec(),
+		"gitleaks":            NewGitleaks(),
+		"nuclei":              NewNuclei(),
+		"draugr-headers":      NewHTTPHeaders(),
+		"draugr-tls":          NewTLSProbe(),
+		"draugr-k8s-policies": NewK8sPolicies(),
+		"kube-bench":          NewKubeBench(),
+		"kube-bench-job":      NewKubeBenchJob(),
 	}
 
 	for name, s := range all {
@@ -147,10 +147,10 @@ func TestEveryScannerWiresACacheVersion(t *testing.T) {
 func TestNativeAndPinnedScannersAnswerWithoutATool(t *testing.T) {
 	ctx := context.Background()
 	for name, s := range map[string]plugin.Scanner{
-		"http-headers":   NewHTTPHeaders(),
-		"tls-probe":      NewTLSProbe(),
-		"k8s-policies":   NewK8sPolicies(),
-		"kube-bench-job": NewKubeBenchJob(),
+		"draugr-headers":      NewHTTPHeaders(),
+		"draugr-tls":          NewTLSProbe(),
+		"draugr-k8s-policies": NewK8sPolicies(),
+		"kube-bench-job":      NewKubeBenchJob(),
 	} {
 		cv, ok := s.(plugin.CacheVersioner)
 		if !ok {

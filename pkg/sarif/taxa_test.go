@@ -9,18 +9,18 @@ import (
 
 // Two scanners, two namespaced rule ids, one shared taxon — the whole point of taxa.
 //
-// Namespacing the rule ids removed the accidental correspondence between draugr-k8s-policies and
+// Namespacing the rule ids removed the accidental correspondence between draugr-draugr-k8s-policies and
 // kube-bench; this is what puts it back at the layer where it belongs. A consumer that has never
 // heard of Draugr can group these two findings by the CIS control they both implement, and it
 // does so from a published vocabulary rather than from two ids happening to collide.
 func TestTaxaCorrelateTwoScannersOnOneControl(t *testing.T) {
-	rep := Report{Tool: "draugr-k8s-policies", Rules: map[string]Rule{
+	rep := Report{Tool: "draugr-draugr-k8s-policies", Rules: map[string]Rule{
 		"draugr/cis/5.1.1": {Name: "CIS 5.1.1", Taxa: []Taxon{
 			{Taxonomy: "CIS-Kubernetes", ID: "5.1.1", Name: "Minimize wildcard use", Version: "cis-1.12"}}},
 		"kube-bench/cis/5.1.1": {Name: "5.1.1", Taxa: []Taxon{
 			{Taxonomy: "CIS-Kubernetes", ID: "5.1.1", Name: "Minimize wildcard use", Version: "cis-1.12"}}},
 	}, Results: []Result{
-		{Tool: "draugr-k8s-policies", RuleID: "draugr/cis/5.1.1", Level: LevelWarning, Message: "a"},
+		{Tool: "draugr-draugr-k8s-policies", RuleID: "draugr/cis/5.1.1", Level: LevelWarning, Message: "a"},
 		{Tool: "kube-bench", RuleID: "kube-bench/cis/5.1.1", Level: LevelWarning, Message: "b"},
 	}}
 	data, err := rep.MarshalSARIF()
@@ -96,7 +96,7 @@ func TestMergeUnionsWhatEachScannerSettled(t *testing.T) {
 	cis := func(id string) Taxon {
 		return Taxon{Taxonomy: "CIS-Kubernetes", ID: id, Version: "cis-1.12"}
 	}
-	ours := Report{Tool: "draugr-k8s-policies", Decided: []Taxon{cis("5.1.1"), cis("5.1.5")}}
+	ours := Report{Tool: "draugr-draugr-k8s-policies", Decided: []Taxon{cis("5.1.1"), cis("5.1.5")}}
 	theirs := Report{Tool: "kube-bench", Decided: []Taxon{cis("5.1.1"), cis("5.2.4")}}
 
 	merged := Merge(ours, theirs)
@@ -132,7 +132,7 @@ func TestDecidedKeepsRevisionsApart(t *testing.T) {
 func TestDecidedReachesSARIF(t *testing.T) {
 	// It has to leave the process, or only Draugr's own reporters can use it — and the consumer
 	// this matters most to is the one aggregating across runs.
-	rep := Report{Tool: "draugr-k8s-policies",
+	rep := Report{Tool: "draugr-draugr-k8s-policies",
 		Decided: []Taxon{{Taxonomy: "CIS-Kubernetes", ID: "5.1.1", Version: "cis-1.12"}}}
 	data, err := rep.MarshalSARIF()
 	if err != nil {

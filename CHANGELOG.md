@@ -13,14 +13,14 @@ and move it under a version on release.
 ### Added
 
 - **`draugr controls` now says who publishes each scanner.** Reading the control table,
-  `http-headers` and `gitleaks` looked alike — one is Draugr's own detection logic needing no
+  `draugr-headers` and `gitleaks` looked alike — one is Draugr's own detection logic needing no
   external tool, the other is somebody else's binary executing on your machine, and nothing on the
   row said so.
 
   ```
   Who publishes each scanner:
     Origin            Scanners
-    draugr            http-headers, k8s-policies, tls-probe
+    draugr            draugr-headers, draugr-k8s-policies, draugr-tls
     aquasecurity      kube-bench, kube-bench-job, trivy, trivy-config, trivy-fs, trivy-license
     projectdiscovery  nuclei
   ```
@@ -28,6 +28,32 @@ and move it under a version on release.
   Grouped by publisher, because that is the shape of the question a supply-chain review asks. The
   origin is declared on the scanner rather than inferred from its name, and a plugin will not be
   able to set its own — the loader stamps it, so it is an answer the subject does not supply.
+
+### Changed
+
+- **Draugr's own scanners now say so in their names**: `http-headers` → `draugr-headers`,
+  `tls-probe` → `draugr-tls`, `k8s-policies` → `draugr-k8s-policies`.
+
+  A table can carry a column saying who published a scanner. A descriptor cannot — there the name
+  is all you get, and `controllers.headers.draugrHeaders` is the only place the provenance can
+  appear. Same for a log line, a SARIF `tool` value, or a grep.
+
+  **This renames descriptor keys.** `controllers.headers.httpHeaders` becomes `draugrHeaders`,
+  `tls.tlsProbe` becomes `draugrTls`, and `infrastructure.k8sPolicies` becomes
+  `draugrK8sPolicies`. The old key does not silently do nothing — it fails, and names its
+  replacement:
+
+  ```
+  draugr: controllers.headers.httpHeaders was removed. Use `draugrHeaders` — the scanner is now `draugr-headers`
+  ```
+
+  Cache keys change with the names, so expect one re-scan. **Rule ids are unchanged** —
+  `headers/csp-unsafe-inline` is already unambiguous, and renaming it would break every
+  `config.exclude` that mentions it for no gain.
+
+- **`draugr controls` no longer prints a Scope column.** Every controller is component-scoped, so
+  it repeated one word down the whole table and took width the Purpose column wanted. It reappears
+  on its own if a project-scoped control ever ships.
 
 ## [0.58.1] - 2026-08-03
 

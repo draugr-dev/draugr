@@ -77,8 +77,8 @@ func probeFunc(state tls.ConnectionState, okVersions ...uint16) func(context.Con
 	}
 }
 
-func newTestScanner(probe func(context.Context, string, string, uint16, uint16) (tls.ConnectionState, error)) tlsProbeScanner {
-	s := NewTLSProbe().(tlsProbeScanner)
+func newTestScanner(probe func(context.Context, string, string, uint16, uint16) (tls.ConnectionState, error)) draugrTLSScanner {
+	s := NewTLSProbe().(draugrTLSScanner)
 	s.probe = probe
 	s.now = func() time.Time { return testNow }
 	return s
@@ -92,7 +92,7 @@ func hasRule(rep sarif.Report, id string) bool {
 
 func TestTLSProbeInfo(t *testing.T) {
 	info := NewTLSProbe().Info()
-	if info.Name != "tls-probe" {
+	if info.Name != "draugr-tls" {
 		t.Errorf("name = %q", info.Name)
 	}
 	if len(info.Controls) != 1 || info.Controls[0] != "tls" {
@@ -361,7 +361,7 @@ func TestTLSProbeHonorsConfiguredThresholds(t *testing.T) {
 func TestTLSProbeConfigSchemaValid(t *testing.T) {
 	schema := NewTLSProbe().Info().ConfigSchema
 	if len(schema) == 0 {
-		t.Fatal("tls-probe should declare a config schema")
+		t.Fatal("draugr-tls should declare a config schema")
 	}
 	if err := plugin.ValidateConfig(schema, plugin.Config{"expiryWarnDays": 10}); err != nil {
 		t.Errorf("valid config rejected: %v", err)

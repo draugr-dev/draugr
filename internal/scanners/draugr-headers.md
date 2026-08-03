@@ -1,4 +1,4 @@
-# Scanner: `http-headers` (HTTP security headers)
+# Scanner: `draugr-headers` (HTTP security headers)
 
 - **Control:** [`headers`](../controllers/headers.md)
 - **Tool:** **native** — no external tool. A Go HTTP client fetches each host and evaluates

@@ -16,7 +16,7 @@ func TestTLSInfo(t *testing.T) {
 	if info.Scope != plugin.ScopeComponent {
 		t.Errorf("scope = %v, want component", info.Scope)
 	}
-	if len(info.DefaultScanners) != 1 || info.DefaultScanners[0] != tlsProbeScanner {
+	if len(info.DefaultScanners) != 1 || info.DefaultScanners[0] != draugrTLSScanner {
 		t.Errorf("default scanners = %v", info.DefaultScanners)
 	}
 }
@@ -35,7 +35,7 @@ func TestTLSPlanOneJobPerHost(t *testing.T) {
 		t.Fatalf("want 2 jobs (url-less host skipped), got %d", len(jobs))
 	}
 	for _, j := range jobs {
-		if j.Scanner != tlsProbeScanner {
+		if j.Scanner != draugrTLSScanner {
 			t.Errorf("scanner = %q", j.Scanner)
 		}
 		if _, ok := j.Target.(plugin.HostTarget); !ok {
@@ -57,7 +57,7 @@ func TestTLSPlanRespectsScannerConfig(t *testing.T) {
 		Name:  "web",
 		Hosts: []saga.Host{{Name: "api", URL: "https://api.example.test"}},
 		Controllers: map[string]saga.ControllerSettings{
-			"tls": {configKeyFor(tlsProbeScanner): map[string]any{"enabled": false}},
+			"tls": {configKeyFor(draugrTLSScanner): map[string]any{"enabled": false}},
 		},
 	}
 	jobs, err := NewTLS().Plan(saga.Model{}, comp)
@@ -71,7 +71,7 @@ func TestTLSPlanRespectsScannerConfig(t *testing.T) {
 
 func TestTLSAggregate(t *testing.T) {
 	reports := []sarif.Report{
-		{Tool: "tlsProbe", Results: []sarif.Result{
+		{Tool: "draugrTls", Results: []sarif.Result{
 			{RuleID: "tls-cert-expired", Level: sarif.LevelError},
 			{RuleID: "tls-cert-expiring", Level: sarif.LevelWarning},
 			{RuleID: "tls-no-tls13", Level: sarif.LevelNote},

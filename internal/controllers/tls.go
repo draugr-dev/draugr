@@ -6,7 +6,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-const tlsProbeScanner = "tls-probe"
+const draugrTLSScanner = "draugr-tls"
 
 // TLS is the transport-security control. It plans one native TLS probe per host declared on a
 // component and aggregates the findings. No external tool is required.
@@ -21,7 +21,7 @@ func (TLS) Info() plugin.ControllerInfo {
 		Name:            "tls",
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Check TLS configuration and certificates on a component's running endpoints.",
-		DefaultScanners: []string{tlsProbeScanner},
+		DefaultScanners: []string{draugrTLSScanner},
 	}
 }
 
@@ -31,7 +31,7 @@ func (TLS) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error
 	if comp == nil {
 		return nil, nil
 	}
-	selections := resolveScanners(model, comp, "tls", []string{tlsProbeScanner})
+	selections := resolveScanners(model, comp, "tls", []string{draugrTLSScanner})
 	jobs := make([]plugin.ScanJob, 0, len(comp.Hosts)*len(selections))
 	for _, host := range comp.Hosts {
 		if host.URL == "" {

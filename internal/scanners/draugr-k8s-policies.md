@@ -1,4 +1,4 @@
-# Scanner: `k8s-policies` (CIS policies section, natively)
+# Scanner: `draugr-k8s-policies` (CIS policies section, natively)
 
 - **Control:** [`infrastructure`](../controllers/infrastructure.md)
 - **Tool:** none — this scanner reads the Kubernetes API directly
@@ -17,7 +17,7 @@ config:
     infrastructure:
       enabled: true
       kubeBench: { enabled: false }   # stop exec'ing kube-bench for this section
-      k8sPolicies: { enabled: true }
+      draugrK8sPolicies: { enabled: true }
 ```
 
 ## Why not just run kube-bench
@@ -197,7 +197,7 @@ The scanner records what it measured and against what, which travels in `--forma
 
 ```
 Measured against
-- infrastructure — k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope team-a
+- infrastructure — draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope team-a
 ```
 
 The coverage figure is the one a reader cannot otherwise get. Counting manual-review findings by

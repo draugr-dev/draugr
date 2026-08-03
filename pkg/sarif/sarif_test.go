@@ -675,8 +675,8 @@ func TestFromSARIFRewritesFieldDumpMessages(t *testing.T) {
 // SARIF has a run-level property bag for exactly this, so the benchmark a report was measured
 // against travels to any consumer that reads SARIF — not only to Draugr's own reporters.
 func TestSARIFCarriesProvenance(t *testing.T) {
-	r := Report{Tool: "k8s-policies", Provenance: []Provenance{{
-		Tool: "k8s-policies", Version: "0.50.0",
+	r := Report{Tool: "draugr-k8s-policies", Provenance: []Provenance{{
+		Tool: "draugr-k8s-policies", Version: "0.50.0",
 		Fields: []Field{{Key: "benchmark", Value: "cis-1.12"}},
 	}}}
 	b, err := r.MarshalSARIF()
