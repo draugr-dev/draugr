@@ -260,12 +260,26 @@ Scanners: gitleaks 8.30.1, trivy 0.69.3
 Scanner (unverified): semgrep 1.99.0 — found on PATH; Draugr did not install it
 ```
 
-**Attested** means Draugr installed that exact binary and it is unchanged since: it sits in
-`~/.draugr/bin`, the install record has it, and the file still hashes to what was recorded. The
-hash is what makes that a claim about a file rather than about a path.
+The first line lists the builds Draugr fetched **and checked**: each sits in `~/.draugr/bin`, the
+install record has it, and the file still hashes to what was recorded. The hash is what makes that
+a claim about a file rather than about a path.
 
-Anything else is used and labelled. It does not affect the verdict — it is a fact about the run,
-not a finding about your software.
+Everything else gets its own line with the reason, because that is the one you have to decide
+about. What Draugr can say about a binary has five levels:
+
+| Level | What it means |
+|---|---|
+| `pinned` | Installed at the version Draugr ships, matching a checksum recorded in this build |
+| `signed` | Installed at another version, matching checksums signed by the upstream's Sigstore identity |
+| `checksum` | Installed, matching an unsigned checksums file fetched from the upstream |
+| `unverified` | Installed, with nothing published to check it against |
+| `external` | Not installed by Draugr — found on `PATH` |
+
+`checksum` is kept distinct from `unverified` deliberately: an unsigned checksums file over HTTPS
+proves the download was not corrupted or truncated, without proving the upstream published it.
+That is weaker than a signature and much stronger than nothing.
+
+None of this affects the verdict — it is a fact about the run, not a finding about your software.
 
 ### `--format` prints; `--report` writes
 
@@ -538,6 +552,7 @@ no arguments, installs everything Draugr can provision (`trivy`, `gitleaks`, `go
 | `-y, --yes` | — | Skip the confirmation prompt |
 | `--dry-run` | — | Print the install plan and exit |
 | `--force` | `false` | Reinstall even when the pinned build is already present |
+| `--version` | — | Install this version instead of the one Draugr ships (one tool at a time) |
 | `--saga` | — | Install only the tools that descriptor's scan will run |
 
 ```bash
@@ -546,7 +561,34 @@ draugr tools install trivy      # just one
 draugr tools install --dry-run  # preview the plan, change nothing
 draugr tools install -y         # non-interactive
 draugr tools install --saga draugr.saga.yaml   # only what this project's scan runs
+draugr tools install trivy --version 0.68.0    # a version other than the one Draugr ships
 ```
+
+**Pinning a version.** A team wanting every pipeline to scan with the same Trivy writes it once,
+where it gets reviewed:
+
+```yaml
+# draugr.config.yaml
+tools:
+  trivy:    { version: "0.69.3" }
+  gitleaks: { version: "8.30.1" }
+```
+
+`--version` overrides that for a single invocation, and takes one tool because it takes one value.
+
+Draugr **does not refuse a version it cannot vouch for.** Someone asking for one has a reason
+Draugr does not know about — a fork, a release candidate, a build newer than this release — and
+refusing would be blocking them over a gap in Draugr's knowledge. It installs what was asked for
+and records how well it could check it, and that record travels into every report the tool goes on
+to produce.
+
+What it does refuse is a **contradiction**: a checksum the upstream published that the download
+does not match. Nothing published is *unknown*; a published checksum that disagrees says the
+download was corrupted or substituted, and installing past that would be ignoring evidence rather
+than lacking it.
+
+The install plan says which of these you are getting before anything is downloaded — the `Verify`
+column reads `sha256`, `sha256 + cosign`, `upstream cosign`, `upstream sha256` or `unverified`.
 
 **`--saga` installs what a descriptor needs**, resolved the same way
 [`draugr doctor`](#draugr-doctor-sagayaml) decides what to check: the enabled controls, and the
@@ -692,11 +734,17 @@ scanner until a finding disappears.
 
 ```yaml
 # draugr.config.yaml
+tools:                  # which build `draugr tools install` fetches
+  trivy: { version: "0.69.3" }
 controllers:            # merged *underneath* the Saga, so a project overrides only what it names
   sast:
     semgrep:
       config: p/owasp-top-ten
 ```
+
+`tools.<name>.version` is what [`tools install`](#draugr-tools-install-tool) provisions — so every
+runner that shares the config scans with the same build, and two runners cannot produce different
+findings from identical code.
 
 ### Where it comes from
 

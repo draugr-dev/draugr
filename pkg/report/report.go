@@ -68,9 +68,12 @@ type ToolBuild struct {
 	Name string
 	// Version is what it reports, or what Draugr recorded when it installed it.
 	Version string
-	// Attested means Draugr installed this exact binary and it is unchanged since.
-	Attested bool
-	// Reason says why not. Empty when attested.
+	// Level is how strongly Draugr can vouch for this build: pinned, signed, checksum,
+	// unverified, or external. Not a boolean, because those are genuinely different claims — an
+	// unsigned checksum proves the download was not corrupted without proving upstream published
+	// it, and collapsing that into "unattested" discards a difference a reader may care about.
+	Level string
+	// Reason renders the level for someone who has not read its definition.
 	Reason string
 }
 

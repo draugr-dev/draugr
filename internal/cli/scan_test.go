@@ -915,10 +915,10 @@ func TestToolBuildsUsesTheRegistryNotTheDriverName(t *testing.T) {
 	if !names["trivy"] || !names["gitleaks"] {
 		t.Errorf("expected the executables behind those scanners, got %+v", got)
 	}
-	// Every entry says something either way: attested, or why not.
+	// Every entry says something either way: verified, or why not.
 	for _, b := range got {
-		if !b.Attested && b.Reason == "" {
-			t.Errorf("%s is unattested without a reason", b.Name)
+		if b.Level != "pinned" && b.Level != "signed" && b.Reason == "" {
+			t.Errorf("%s is unverified without a reason", b.Name)
 		}
 	}
 }

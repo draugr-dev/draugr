@@ -1091,25 +1091,34 @@ func TestExploitabilityInJSON(t *testing.T) {
 }
 
 func TestToolBuildLines(t *testing.T) {
-	// Attested tools share a line — "we installed all of these" is one fact. A tool Draugr did
-	// not install gets its own, because that is the one a reader has to decide about.
+	// pinned and signed share a line — "Draugr fetched these and checked them" is one fact, and a
+	// reader who wants the distinction has the JSON. Anything weaker gets its own, because that
+	// is the one they have to decide about.
 	got := toolBuildLines([]ToolBuild{
-		{Name: "trivy", Version: "0.69.3", Attested: true},
-		{Name: "gitleaks", Version: "8.30.1", Attested: true},
+		{Name: "trivy", Version: "0.69.3", Level: "signed"},
+		{Name: "gitleaks", Version: "8.30.1", Level: "pinned"},
 	})
 	if len(got) != 1 || !strings.Contains(got[0], "gitleaks 8.30.1, trivy 0.69.3") {
-		t.Errorf("attested tools not grouped: %q", got)
+		t.Errorf("verified tools not grouped: %q", got)
 	}
 
+	// A tool Draugr installed but could not verify is not the same as one it never touched, and
+	// both are called out.
 	got = toolBuildLines([]ToolBuild{
-		{Name: "trivy", Version: "0.69.3", Attested: true},
-		{Name: "semgrep", Version: "1.99.0", Reason: "found on PATH; Draugr did not install it"},
+		{Name: "trivy", Version: "0.69.3", Level: "pinned"},
+		{Name: "nuclei", Version: "3.5.0", Level: "unverified",
+			Reason: "installed by Draugr, nothing published to verify it against"},
+		{Name: "semgrep", Version: "1.99.0", Level: "external",
+			Reason: "found on PATH; Draugr did not install it"},
 	})
-	if len(got) != 2 {
-		t.Fatalf("expected the unverified one on its own line: %q", got)
+	if len(got) != 3 {
+		t.Fatalf("expected each weaker level on its own line: %q", got)
 	}
-	if !strings.Contains(got[1], "unverified") || !strings.Contains(got[1], "did not install it") {
-		t.Errorf("the reason is what makes it actionable: %q", got[1])
+	if !strings.Contains(got[1], "nothing published") {
+		t.Errorf("an unverified install reads as if Draugr never fetched it: %q", got[1])
+	}
+	if !strings.Contains(got[2], "did not install it") {
+		t.Errorf("the reason is what makes it actionable: %q", got[2])
 	}
 
 	if toolBuildLines(nil) != nil {

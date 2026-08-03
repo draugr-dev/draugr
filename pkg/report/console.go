@@ -626,31 +626,31 @@ func escalationNote(e *sarif.Escalation) string {
 // toolBuildLines reports which build of each external scanner ran, and flags the ones Draugr
 // cannot vouch for.
 //
-// One line when everything is attested, because "we installed all of these" is a single fact and
-// does not need a row each. A tool Draugr did not install gets its own line, because that is the
-// one a reader has to decide about.
+// One line for everything Draugr fetched and checked, because that is a single fact and does not
+// need a row each. Anything weaker gets its own line carrying the reason, because those are the
+// ones a reader has to decide about.
 func toolBuildLines(tools []ToolBuild) []string {
 	if len(tools) == 0 {
 		return nil
 	}
-	var attested, other []string
+	var verified, other []string
 	for _, t := range tools {
 		label := t.Name
 		if t.Version != "" {
 			label += " " + t.Version
 		}
-		if t.Attested {
-			attested = append(attested, label)
+		if t.Level == "pinned" || t.Level == "signed" {
+			verified = append(verified, label)
 			continue
 		}
 		other = append(other, label+" — "+t.Reason)
 	}
-	sort.Strings(attested)
+	sort.Strings(verified)
 	sort.Strings(other)
 
 	var out []string
-	if len(attested) > 0 {
-		out = append(out, "Scanners: "+strings.Join(attested, ", "))
+	if len(verified) > 0 {
+		out = append(out, "Scanners: "+strings.Join(verified, ", "))
 	}
 	for _, o := range other {
 		out = append(out, "Scanner (unverified): "+o)
