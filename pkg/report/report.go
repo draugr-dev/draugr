@@ -48,6 +48,10 @@ type Data struct {
 	// A report that raised a finding to critical has to be able to say on what data, obtained
 	// when. "KEV said so" is not reproducible; "on KEV as of 2026-08-01" is.
 	Exploitability []FeedProvenance
+	// Repositories is which repository each scan read, and at which commit. Derived from what the
+	// scanners recorded rather than from the descriptor, because the descriptor usually names no
+	// revision at all — and "the default branch" is not something a reader can check out.
+	Repositories []RepositoryProvenance
 	// Tools records the build of each external scanner the run used, and whether Draugr can
 	// vouch for it. Empty when nothing external ran.
 	//
@@ -76,6 +80,12 @@ type ToolBuild struct {
 	// Reason renders the level for someone who has not read its definition.
 	Reason string
 }
+
+// RepositoryProvenance is one repository as this run read it.
+//
+// An alias rather than a copy: the JSON report is rendered by pkg/skald, which cannot import this
+// package, and two structs that must agree eventually will not.
+type RepositoryProvenance = sarif.RepositoryRef
 
 // FeedProvenance is one exploitability dataset as this run saw it.
 type FeedProvenance struct {
@@ -488,6 +498,10 @@ func provenanceLines(d Data) []provenanceLine {
 	var out []provenanceLine
 	for _, name := range names {
 		for _, p := range d.Run.Controls[name].Report.Provenance {
+			// The repository and revision are reported once for the run, not once per control:
+			// five controls reading one checkout is one fact, and repeating it five times in a
+			// block headed "measured against" is how a useful section becomes wallpaper.
+			p.Fields = withoutRepositoryFields(p.Fields)
 			detail := p.Describe()
 			if detail == "" && p.Version == "" {
 				continue
@@ -585,4 +599,31 @@ func suppressionLine(d Data) string {
 		line += " — " + strings.Join(parts, ", ")
 	}
 	return line
+}
+
+// RepositoriesFrom collects which repository each scan read, and at which commit.
+func RepositoriesFrom(run engine.Result) []RepositoryProvenance {
+	names := make([]string, 0, len(run.Controls))
+	for name := range run.Controls {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	reports := make([]sarif.Report, 0, len(names))
+	for _, name := range names {
+		reports = append(reports, run.Controls[name].Report)
+	}
+	return sarif.RepositoriesIn(reports)
+}
+
+// withoutRepositoryFields drops the fields that belong to the report-level repository line.
+func withoutRepositoryFields(fields []sarif.Field) []sarif.Field {
+	out := make([]sarif.Field, 0, len(fields))
+	for _, f := range fields {
+		switch f.Key {
+		case "repository", "revision", "uncommitted":
+		default:
+			out = append(out, f)
+		}
+	}
+	return out
 }

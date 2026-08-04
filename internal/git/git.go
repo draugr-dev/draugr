@@ -10,14 +10,31 @@ import (
 	"strings"
 )
 
+// Tree is a materialised copy of a repository, and the revision it actually holds.
+//
+// The resolved revision matters because a descriptor usually does not name one: `revision` is
+// empty far more often than not, meaning "the default branch", which is a moving answer. A report
+// that cannot say which commit it describes cannot be reproduced or compared, and that is the
+// entire justification for scanning a committed revision in the first place.
+type Tree struct {
+	// Dir is the checkout on disk.
+	Dir string
+	// Revision is the SHA that was materialised, as `git rev-parse HEAD` reports it. Empty only
+	// when git could not be asked, which is not worth failing a scan over.
+	Revision string
+	// Dirty counts uncommitted files in the source that are *not* in this tree. Always 0 for a
+	// clone; set only when the tree was taken from a working copy.
+	Dirty int
+}
+
 // Checkout clones url into a fresh temporary directory, materialising only what scope allows.
 // With an empty revision it does a shallow clone of the default branch; otherwise it clones and
 // checks out revision. The returned cleanup removes the directory (call it even on error paths
 // that returned a dir).
-func Checkout(ctx context.Context, url, revision string, scope Scope) (dir string, cleanup func(), err error) {
-	dir, err = os.MkdirTemp("", "draugr-repo-")
+func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree, cleanup func(), err error) {
+	dir, err := os.MkdirTemp("", "draugr-repo-")
 	if err != nil {
-		return "", nil, err
+		return Tree{}, nil, err
 	}
 	cleanup = func() { _ = os.RemoveAll(dir) }
 
@@ -37,26 +54,26 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (dir strin
 	if err := gitRun(ctx, cloneArgs...); err != nil {
 		if !sparse {
 			cleanup()
-			return "", nil, fmt.Errorf("git clone: %w", err)
+			return Tree{}, nil, fmt.Errorf("git clone: %w", err)
 		}
 		// Partial clone needs the server's cooperation and sparse checkout needs a recent git.
 		// Neither is a reason to refuse to scan: fall back to a full clone and cut the tree down
 		// afterwards, which produces the same tree by a slower route.
 		if err := retryPlain(ctx, dir, url, revision); err != nil {
 			cleanup()
-			return "", nil, err
+			return Tree{}, nil, err
 		}
 		if err := prune(dir, scope, true); err != nil {
 			cleanup()
-			return "", nil, fmt.Errorf("restrict checkout to paths: %w", err)
+			return Tree{}, nil, fmt.Errorf("restrict checkout to paths: %w", err)
 		}
-		return dir, cleanup, nil
+		return resolved(ctx, dir, url), cleanup, nil
 	}
 
 	if revision != "" {
 		if err := gitRun(ctx, "-C", dir, "checkout", "--quiet", revision); err != nil {
 			cleanup()
-			return "", nil, fmt.Errorf("git checkout %q: %w", revision, err)
+			return Tree{}, nil, fmt.Errorf("git checkout %q: %w", revision, err)
 		}
 	}
 	if sparse {
@@ -66,16 +83,36 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (dir strin
 		args := append([]string{"-C", dir, "sparse-checkout", "set", "--cone"}, coneDirs(scope.Paths)...)
 		if err := gitRun(ctx, args...); err != nil {
 			cleanup()
-			return "", nil, fmt.Errorf("git sparse-checkout: %w", err)
+			return Tree{}, nil, fmt.Errorf("git sparse-checkout: %w", err)
 		}
 	}
 	if len(scope.Ignore) > 0 {
 		if err := prune(dir, scope, false); err != nil {
 			cleanup()
-			return "", nil, fmt.Errorf("apply ignore: %w", err)
+			return Tree{}, nil, fmt.Errorf("apply ignore: %w", err)
 		}
 	}
-	return dir, cleanup, nil
+	return resolved(ctx, dir, url), cleanup, nil
+}
+
+// resolved reports the tree, the commit it holds, and what the scan is therefore not seeing.
+//
+// A local checkout with edits in it is the normal state of somewhere someone is working. The
+// useful form of that fact is the report saying which commit it read and how much of the tree it
+// left out — not a warning on every run.
+//
+// Best effort on both counts: a checkout that cannot be interrogated still scans. Failing a scan
+// because `rev-parse` did not answer would trade a whole result for a line of provenance.
+//
+// Both of Checkout's exit paths go through here, so neither can forget one of the two.
+func resolved(ctx context.Context, dir, source string) Tree {
+	t := Tree{Dir: dir, Dirty: UncommittedFiles(ctx, source)}
+	out, err := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "HEAD").Output() //nolint:gosec // Draugr's own temporary checkout
+	if err != nil {
+		return t
+	}
+	t.Revision = strings.TrimSpace(string(out))
+	return t
 }
 
 // retryPlain re-clones url into dir without sparse checkout, for a server or a git that could

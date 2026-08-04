@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/git"
@@ -18,7 +19,7 @@ import (
 type repoScanner struct {
 	info     plugin.ScannerInfo
 	args     func(dir string, cfg plugin.Config) []string
-	checkout func(ctx context.Context, url, revision string, scope git.Scope) (string, func(), error)
+	checkout func(ctx context.Context, url, revision string, scope git.Scope) (git.Tree, func(), error)
 	// parse decodes the tool's output. Nil means the tool emits SARIF.
 	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 	run   func(ctx context.Context, dir string, argv []string) ([]byte, error)
@@ -79,12 +80,13 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		return sarif.Report{}, fmt.Errorf("%s: repository target has no url", s.info.Name)
 	}
 
-	dir, cleanup, err := s.checkout(ctx, repo.URL, repo.Revision,
+	tree, cleanup, err := s.checkout(ctx, repo.URL, repo.Revision,
 		git.Scope{Paths: repo.Paths, Ignore: repo.Ignore})
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", s.info.Name, err)
 	}
 	defer cleanup()
+	dir := tree.Dir
 
 	out, err := s.run(ctx, dir, s.args(dir, cfg))
 	if err != nil {
@@ -110,7 +112,25 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		report.Results[i].Location.URI = repoRelPath(dir, report.Results[i].Location.URI)
 		report.Results[i].Message = stripCheckoutDir(dir, report.Results[i].Message)
 	}
+	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.URL, tree))
 	return report, nil
+}
+
+// repoProvenance records which repository this scanner read, and at which commit.
+//
+// Stamped per scanner rather than once per run because each one checks out independently, so on a
+// branch that moves mid-scan they can genuinely see different commits. Recording what each
+// actually read is the only honest option; asserting a single revision for the run would be an
+// assumption dressed as evidence.
+func repoProvenance(scanner, url string, tree git.Tree) sarif.Provenance {
+	fields := []sarif.Field{{Key: "repository", Value: url}}
+	if tree.Revision != "" {
+		fields = append(fields, sarif.Field{Key: "revision", Value: tree.Revision})
+	}
+	if tree.Dirty > 0 {
+		fields = append(fields, sarif.Field{Key: "uncommitted", Value: strconv.Itoa(tree.Dirty)})
+	}
+	return sarif.Provenance{Tool: scanner, Fields: fields}
 }
 
 // decode turns the tool's output into a report, via SARIF unless the scanner supplied its own

@@ -190,6 +190,13 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
+	for _, l := range repositoryLines(d.Repositories) {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
+	}
+	if len(d.Repositories) > 0 {
+		_, _ = fmt.Fprintln(w)
+	}
+
 	if line := exploitabilityLine(d.Exploitability, s.escalated); line != "" {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
@@ -664,6 +671,32 @@ func toolBuildLines(tools []ToolBuild) []string {
 	}
 	for _, o := range other {
 		out = append(out, "Scanner (unverified): "+o)
+	}
+	return out
+}
+
+// repositoryLines say which repository was read, and at which commit.
+//
+// The reason a scan reads a committed revision rather than your working tree is so the report can
+// name something reproducible. This is that name — without it the justification was asserted in
+// the docs and never delivered in the output, and the only thing said out loud was a warning about
+// which revision was *not* scanned.
+func repositoryLines(repos []RepositoryProvenance) []string {
+	if len(repos) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(repos))
+	for _, r := range repos {
+		line := "Scanned: " + r.URL
+		if rev := r.Short(); rev != "" {
+			line += " at " + rev
+		}
+		if r.Uncommitted > 0 {
+			// A clause, not an alarm. Uncommitted work is the normal state of a checkout somebody
+			// is editing; what matters is knowing it is not in what you are reading.
+			line += fmt.Sprintf(" (%s not included)", plural(r.Uncommitted, "uncommitted file"))
+		}
+		out = append(out, line)
 	}
 	return out
 }
