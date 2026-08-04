@@ -89,5 +89,9 @@ Actions with `$GITHUB_TOKEN`, `azure-pr-comment` under Azure Pipelines with `$SY
 Azure needs that variable mapped into the step; see
 [Azure Pipelines](azure-pipelines.md#a-sticky-pull-request-comment).
 
+The diff keeps its **own** sticky comment, separate from the one a Saga's PR-comment publisher
+maintains. A pipeline can run both — the state of the branch, and what this pull request changed
+— and get two comments rather than one overwriting the other.
+
 See the [CLI reference](../reference/cli.md#draugr-diff-basesarif-headsarif) for every `diff`
 flag, and [reports & publishers](reports-and-publishers.md) for both publishers.

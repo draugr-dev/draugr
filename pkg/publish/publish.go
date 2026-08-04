@@ -114,3 +114,13 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 	}
 	return firstErr
 }
+
+// DiffMarker identifies the sticky comment `draugr diff --publish` maintains.
+//
+// Exported so the diff command asks for it by name rather than restating the string. It is
+// deliberately not the marker a Saga's PR-comment publisher uses: a run that posts both a report
+// and a delta wants two comments, not one that overwrites the other.
+const DiffMarker = defaultDiffPRMarker
+
+// ReportMarker identifies the sticky comment a Saga's PR-comment publisher maintains.
+const ReportMarker = defaultPRMarker
