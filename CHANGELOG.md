@@ -27,6 +27,15 @@ and move it under a version on release.
 
 _Nothing yet._
 
+### Fixed
+
+- **A mistyped gate level is now an error instead of a wider gate.** `--fail-on` and
+  `--fail-on-new` accepted anything. An unrecognized level ranks below every finding, so
+  `--fail-on-new high` — which is exactly what the report's `high` invites you to type — quietly
+  meant *fail on anything new at all*, and looked like it had narrowed the gate. Both flags now
+  reject what they cannot rank, and say so before the scan rather than after it. A severity band
+  gets a message explaining that the gate is on the other ladder.
+
 ## [0.63.0] - 2026-08-04
 
 ### Added

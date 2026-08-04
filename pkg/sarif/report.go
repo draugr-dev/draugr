@@ -7,6 +7,7 @@ package sarif
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -447,5 +448,27 @@ func (r *Report) addDecided(taxa []Taxon) {
 			continue
 		}
 		r.Decided = append(r.Decided, t)
+	}
+}
+
+// ParseLevel converts a user-supplied gate level, rejecting anything it does not recognize.
+//
+// Rejecting matters more than it looks. An unknown level ranks 0, and every finding is at least
+// 0 — so a typo, or a plausible-sounding value like "high", silently turns a gate into "fail on
+// anything at all" rather than failing to parse. A flag either does something or says why not.
+func ParseLevel(s string) (Level, error) {
+	switch l := Level(strings.ToLower(strings.TrimSpace(s))); l {
+	case LevelError, LevelWarning, LevelNote:
+		return l, nil
+	default:
+		// Severity bands are what the reports print, so they are the likely mistake. Say where
+		// the two vocabularies differ instead of only listing the valid words.
+		switch Severity(strings.ToLower(strings.TrimSpace(s))) {
+		case SeverityCritical, SeverityHigh, SeverityMedium, SeverityLow:
+			return "", fmt.Errorf("%q is a severity band, and the gate takes a SARIF level: "+
+				"error, warning or note (critical and high map to error, medium to warning, "+
+				"low to note)", s)
+		}
+		return "", fmt.Errorf("unknown level %q: want error, warning or note", s)
 	}
 }

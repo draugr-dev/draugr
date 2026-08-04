@@ -49,6 +49,17 @@ func newDiffCommand() *cobra.Command {
 // runDiff loads both SARIF reports, compares them, renders the delta, optionally posts it as a
 // PR comment, and applies the differential gate.
 func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w io.Writer) error {
+	// The cheap check first. A mistyped gate level should not need two readable SARIF files
+	// before it will admit to being mistyped, and it should certainly not be discovered after
+	// the comment has already been posted.
+	var failOn sarif.Level
+	if opts.failOnNew != "" {
+		var err error
+		if failOn, err = sarif.ParseLevel(opts.failOnNew); err != nil {
+			return fmt.Errorf("--fail-on-new: %w", err)
+		}
+	}
+
 	base, err := loadSARIF(basePath)
 	if err != nil {
 		return fmt.Errorf("base report: %w", err)
@@ -69,7 +80,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 		}
 	}
 
-	tripped := result.GateNew(sarif.Level(opts.failOnNew), opts.failOnNewPriority)
+	tripped := result.GateNew(failOn, opts.failOnNewPriority)
 	if len(tripped) > 0 {
 		return fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(tripped))
 	}
