@@ -10,6 +10,16 @@
 #     - template: azure-pipelines/draugr.yml@draugr
 #       parameters:
 #         saga: draugr.saga.yaml
+#
+# Two things to set up once, neither of which a template can do for you, and both needed before
+# the pull-request comment works:
+#
+#   1. a Build Validation branch policy — Azure Repos ignores a `pr:` trigger, so without one
+#      there are no pull-request builds at all;
+#   2. `Contribute to pull requests` for the `<Project> Build Service` identity, or posting the
+#      comment gets a 403 while the token is perfectly valid.
+#
+# Everything else works without them.
 
 parameters:
   # The descriptor to scan.

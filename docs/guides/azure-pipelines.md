@@ -42,6 +42,22 @@ and publishes the findings to the Tests tab. Its parameters:
 | `failOnNewPriority` | `P1` | fail a pull request on a new finding at or above this priority |
 | `publishResults` | `true` | Tests tab and build artifacts |
 
+### Two things to set up once
+
+Neither can be done from a descriptor or a template, and both are needed before Draugr can comment
+on a pull request:
+
+1. **A build validation policy**, or there are no pull-request builds at all — Azure Repos ignores
+   a `pr:` trigger. *Project settings → Repositories → your repository → Policies → your branch →
+   Build Validation → `+`*. Start it **optional** rather than required.
+2. **`Contribute to pull requests` for the build identity**, or the comment gets a 403 while the
+   token is perfectly valid. *Project settings → Repositories → your repository → Security*, grant
+   it to **`<Project> Build Service`**.
+
+Draugr names both in its error messages, so a failure points at the fix rather than at your token
+— but they are easier to do now than to diagnose later. Skip them and everything except the
+pull-request comment still works.
+
 **Copying it in beats referencing it remotely.** Azure can pull a template from a GitHub repository
 resource, but that needs a service connection, and it means your pipeline changes when we change
 the template. A vendored file is one `curl` to update and is pinned by your own git history.
