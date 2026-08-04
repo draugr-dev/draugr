@@ -77,13 +77,17 @@ genuinely-carried-over findings aren't reported as fixed + new.
 
 ## Post the delta as a PR comment
 
-`--publish` posts the diff as a **sticky** pull-request comment via the `github-pr-comment`
-publisher (updated in place on each push). It uses `$GITHUB_TOKEN` in CI and no-ops off a PR:
+`--publish` posts the diff as a **sticky** pull-request comment, updated in place on each push,
+and no-ops off a pull request:
 
 ```bash
 draugr diff base/results.sarif head/results.sarif --publish
 ```
 
+It picks the publisher from the CI system it is running on — `github-pr-comment` under GitHub
+Actions with `$GITHUB_TOKEN`, `azure-pr-comment` under Azure Pipelines with `$SYSTEM_ACCESSTOKEN`.
+Azure needs that variable mapped into the step; see
+[Azure Pipelines](azure-pipelines.md#a-sticky-pull-request-comment).
+
 See the [CLI reference](../reference/cli.md#draugr-diff-basesarif-headsarif) for every `diff`
-flag, and [reports & publishers](reports-and-publishers.md) for the `github-pr-comment`
-publisher.
+flag, and [reports & publishers](reports-and-publishers.md) for both publishers.

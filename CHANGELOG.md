@@ -29,6 +29,10 @@ and move it under a version on release.
   repository. Draugr names both in its error messages rather than leaving you with a bare 401
   or 403.
 
+  `draugr diff --publish` follows the CI system it is running on, so the same command posts to a
+  GitHub or an Azure pull request. It used to name the GitHub publisher outright, which on an
+  Azure agent meant a flag that quietly did nothing.
+
 - **`draugr --version`** now works, printing exactly what `draugr version` prints. Container
   smoke tests, tool caches and version probes reach for the flag rather than the subcommand.
 
