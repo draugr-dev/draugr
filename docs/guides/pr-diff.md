@@ -145,6 +145,11 @@ a scanner publishes one, and the SARIF level decides it when none is published. 
 not a severity: SARIF has three of them, and they cannot express the difference between a 7.0 and
 a 9.8.
 
+`--fail-on-new` takes a **SARIF level** (`error` / `warning` / `note`), not a band — the same
+split `--fail-on` has, and it is checked, so `--fail-on-new high` is an error rather than a gate
+that quietly matches everything. To gate on the bands' underlying risk instead, use
+`--fail-on-new-priority`.
+
 Severity is still not priority. `P1`–`P4` fold in the component's declared exposure and
 criticality, which is why a `high` on an internet-facing component outranks a `critical` on
 something nothing can reach. See [prioritization](../concepts/prioritization.md).
