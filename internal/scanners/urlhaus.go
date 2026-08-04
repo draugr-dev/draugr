@@ -21,6 +21,9 @@ import (
 // with `http_post_expected`.
 const urlhausAPI = "https://urlhaus-api.abuse.ch/v1/host/"
 
+// urlhausEndpoint is the address actually called. A var so a test can point it at a local server.
+var urlhausEndpoint = urlhausAPI
+
 // urlhausKeyEnv holds the abuse.ch Auth-Key. Free, and required: abuse.ch made authentication
 // mandatory, so this scanner cannot work without one and says so rather than failing at the
 // network.
@@ -143,7 +146,7 @@ type urlhausEntry struct {
 // urlhausLookup posts the host to abuse.ch.
 func urlhausLookup(ctx context.Context, host string) (urlhausResponse, error) {
 	form := url.Values{"host": {host}}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlhausAPI, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlhausEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return urlhausResponse{}, err
 	}

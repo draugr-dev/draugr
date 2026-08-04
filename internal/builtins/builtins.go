@@ -36,6 +36,7 @@ func Registry() *engine.Registry {
 	reg.RegisterScanner(scanners.NewK8sPolicies())
 	reg.RegisterScanner(scanners.NewHTTPHeaders())
 	reg.RegisterScanner(scanners.NewURLhaus())
+	reg.RegisterScanner(scanners.NewVirusTotal())
 	reg.RegisterScanner(scanners.NewNuclei())
 	reg.RegisterScanner(scanners.NewTrivyLicense())
 	reg.RegisterScanner(scanners.NewTLSProbe())

@@ -40,7 +40,7 @@ executing on your machine, which is a question worth being able to answer withou
 | `infrastructure` | CIS benchmarks / posture | component | ✅ | `draugr-k8s-policies` (default), `kube-bench` and `kube-bench-job` (opt-in) | [doc](../../internal/controllers/infrastructure.md) |
 | `tls` | TLS/certificate assessment | component | ✅ | `draugr-tls` (native) | [doc](../../internal/controllers/tls.md) |
 | `licenses` | Dependency licence compliance | component | ✅ | `trivy-license` | [doc](../../internal/controllers/licenses.md) |
-| `threats` | Threat intelligence | component | ✅ | `urlhaus` | [doc](../../internal/controllers/threats.md) |
+| `threats` | Threat intelligence | component | ✅ | `urlhaus` (default), `virustotal` (opt-in) | [doc](../../internal/controllers/threats.md) |
 
 `licenses` is a control rather than part of `sca` because licence risk isn't a vulnerability —
 the exposure is legal, the policy is owned by different people, and
@@ -70,6 +70,7 @@ configured separately as `config.sbom` and travels as evidence. See
 | `nuclei` | dast | ProjectDiscovery Nuclei | MIT | ✅ | [doc](../../internal/scanners/nuclei.md) |
 | `draugr-tls` | tls | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-tls.md) |
 | `urlhaus` | threats | abuse.ch URLhaus (hosted API, free key) | data: abuse.ch terms | ✅ | [doc](../../internal/scanners/urlhaus.md) |
+| `virustotal` | threats | VirusTotal (hosted API, free key) | data: VirusTotal/Google terms | ✅ | [doc](../../internal/scanners/virustotal.md) |
 
 ## Surveyors
 

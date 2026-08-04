@@ -3,6 +3,9 @@ package scanners
 import (
 	"context"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -188,5 +191,64 @@ func TestSummariseEntriesStopsAtThree(t *testing.T) {
 	}
 	if got := summariseEntries([]urlhausEntry{{URL: "http://x.example/a"}}); !strings.Contains(got, "unknown threat") {
 		t.Errorf("a record with no threat category should still read sensibly: %q", got)
+	}
+}
+
+func TestURLhausLookupHandlesEachAnswer(t *testing.T) {
+	const key = "abuse-ch-secret-key"
+	t.Setenv(urlhausKeyEnv, key)
+
+	cases := []struct {
+		name, body, wantErr string
+		status, wantURLs    int
+	}{
+		{name: "known", status: 200, wantURLs: 1,
+			body: `{"query_status":"ok","urls":[{"url":"http://x/","url_status":"online"}]}`},
+		{name: "unknown", status: 200, body: `{"query_status":"no_results"}`},
+		{name: "bad host", status: 200, body: `{"query_status":"invalid_host"}`, wantErr: "could not read"},
+		{name: "auth failure", status: 401, body: `{"error":"bad key ` + key + `"}`, wantErr: "401"},
+		{name: "garbage", status: 200, body: `{not json`, wantErr: "decode"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotKeyHeader, gotForm string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotKeyHeader = r.Header.Get("Auth-Key")
+				b, _ := io.ReadAll(r.Body)
+				gotForm = string(b)
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			orig := urlhausEndpoint
+			urlhausEndpoint = srv.URL
+			defer func() { urlhausEndpoint = orig }()
+
+			got, err := urlhausLookup(context.Background(), "shop.example")
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("err = %v, want it to mention %q", err, tc.wantErr)
+				}
+				// abuse.ch can echo the key on an auth failure, and this string reaches the report.
+				if strings.Contains(err.Error(), key) {
+					t.Error("the Auth-Key leaked into an error message")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got.URLs) != tc.wantURLs {
+				t.Errorf("urls = %d, want %d", len(got.URLs), tc.wantURLs)
+			}
+			if gotKeyHeader != key {
+				t.Errorf("key sent as %q", gotKeyHeader)
+			}
+			// A POST with a form body: their API rejects anything else with http_post_expected.
+			if !strings.Contains(gotForm, "host=shop.example") {
+				t.Errorf("form = %q", gotForm)
+			}
+		})
 	}
 }

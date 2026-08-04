@@ -1,6 +1,9 @@
 package plugin
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestEffectKindsCoversTheTaxonomy(t *testing.T) {
 	// The Saga schema's allowEffects enum is generated from this, so a kind missing here is a
@@ -38,6 +41,25 @@ func TestOnlyConsequencesToTheTargetRequireConsent(t *testing.T) {
 	for _, k := range []EffectKind{EffectNetwork, EffectDisclosure, ""} {
 		if k.RequiresConsent() {
 			t.Errorf("%q should be declared rather than gated", k)
+		}
+	}
+}
+
+func TestRateInterval(t *testing.T) {
+	// The spacing between calls, not the window. A vendor publishes "4 per minute"; Draugr turns
+	// that into one call every fifteen seconds rather than four at once, because a burst obeys
+	// the letter and trips the throttle — their window rarely starts where ours did.
+	if got := (Rate{Requests: 4, Per: time.Minute}).Interval(); got != 15*time.Second {
+		t.Errorf("4/minute = %v, want 15s", got)
+	}
+	if got := (Rate{Requests: 1000, Per: time.Minute}).Interval(); got != 60*time.Millisecond {
+		t.Errorf("1000/minute = %v", got)
+	}
+	// A zero or nonsensical rate means no limit rather than an infinite wait, which would hang a
+	// scan on a scanner that declared its rate carelessly.
+	for _, r := range []Rate{{}, {Requests: 4}, {Per: time.Minute}, {Requests: -1, Per: time.Minute}} {
+		if got := r.Interval(); got != 0 {
+			t.Errorf("%+v should mean no limit, got %v", r, got)
 		}
 	}
 }
