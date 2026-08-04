@@ -361,6 +361,19 @@ finding whose line can't be determined still points at the file.
 Scanner effects this project accepts. A scanner that does more to a target than read it declares
 an effect; the kinds that require consent (`mutate`, `privilege`) will not run unless listed here.
 
+| Kind | |
+|---|---|
+| `mutate` | creates or changes something that outlives the scan — **needs consent** |
+| `privilege` | needs access beyond what reading the target requires — **needs consent** |
+| `network` | sends traffic to the target rather than reading an artifact |
+| `disclosure` | sends information about the target to a third party |
+
+`network` and `disclosure` are recorded but not gated. The controls that do them exist to do
+them, and a prompt for the thing the control is *for* becomes a keystroke people learn to skip.
+Both carry an obligation stated rather than enforced: that you are entitled to probe the host, and
+that you are content for the third party to know what was sent. What was sent is in the effect's
+detail line, because "a hostname" and "your source code" are not the same decision.
+
 ```yaml
 config:
   allowEffects: [mutate]

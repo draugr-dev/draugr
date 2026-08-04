@@ -47,12 +47,12 @@ func NewURLhaus() plugin.Scanner {
 			Origin:      "abuse.ch",
 			Controls:    []string{"threats"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetHost},
-			// Declared because it is a disclosure, not just traffic. Every other host control
-			// sends packets to a host you own; this one tells a third party that the host
-			// exists and that you are interested in it. Someone approving a scan of an
-			// unannounced service deserves to know that before it runs, not after.
+			// Disclosure rather than network: the packets do not go to the target at all. Every
+			// other host scanner sends traffic to a host you own; this one tells a third party
+			// that the host exists and that you are interested in it. Someone approving a scan
+			// of an unannounced service deserves to know that before it runs, not after.
 			Effects: []plugin.Effect{{
-				Kind: plugin.EffectNetwork,
+				Kind: plugin.EffectDisclosure,
 				Detail: "sends each host's name to abuse.ch to ask whether it is known to " +
 					"serve malware — a third party learns the hostname",
 			}},

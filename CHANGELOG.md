@@ -38,6 +38,10 @@ and move it under a version on release.
   Offline, the control refuses and names the host it would have asked about, rather than passing
   quietly with nothing checked.
 
+  VirusTotal, the optional second connector in the original issue, is **not** included: its terms
+  and privacy notice are not readable by automation, and for a control whose whole risk is what a
+  third party learns about your infrastructure, that is not something to infer from behaviour.
+
 - **Running one Trivy server for the fleet is documented**, and needs nothing from Draugr — it
   passes its environment through, so `TRIVY_SERVER` is enough. Measured with an empty local
   cache: the `sca` control returned its usual findings and downloaded no database at all.

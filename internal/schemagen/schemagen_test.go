@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -110,5 +111,42 @@ func TestEmbeddedSchemaMatchesTheFileOnDisk(t *testing.T) {
 	}
 	if string(saga.SchemaJSON) != string(data) {
 		t.Error("the embedded schema differs from the checked-in file")
+	}
+}
+
+func TestSchemaAllowsEveryEffectKind(t *testing.T) {
+	// The enum used to be written out beside the taxonomy, and the two drifted the moment a kind
+	// was added: the schema rejected a value the binary accepts, so an editor disagreed with
+	// Draugr about a valid descriptor. Same failure the generated control names exist to prevent.
+	data, err := os.ReadFile(schemaPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	defs := doc["$defs"].(map[string]any)
+	cfg := defs["config"].(map[string]any)
+	props := cfg["properties"].(map[string]any)
+	allow := props["allowEffects"].(map[string]any)
+	items := allow["items"].(map[string]any)
+
+	got := map[string]bool{}
+	for _, v := range items["enum"].([]any) {
+		got[v.(string)] = true
+	}
+	for _, k := range plugin.EffectKinds() {
+		if !got[string(k)] {
+			t.Errorf("effect %q is declarable but the schema rejects it in allowEffects", k)
+		}
+	}
+	if len(got) != len(plugin.EffectKinds()) {
+		t.Errorf("schema lists %d kinds, the taxonomy has %d", len(got), len(plugin.EffectKinds()))
+	}
+	// A constraint the hand-written definition carried; a generator that drops one silently is
+	// worse than the drift it replaced.
+	if allow["uniqueItems"] != true {
+		t.Error("allowEffects no longer requires unique items")
 	}
 }

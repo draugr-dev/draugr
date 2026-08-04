@@ -30,10 +30,11 @@ func TestURLhausInfo(t *testing.T) {
 	if len(info.TargetKinds) != 1 || info.TargetKinds[0] != plugin.TargetHost {
 		t.Errorf("target kinds = %v", info.TargetKinds)
 	}
-	// The effect is the point of declaring one: unlike every other host scanner, the traffic
-	// goes to a third party rather than to the host being scanned, and somebody approving a scan
-	// of an unannounced service deserves to know that before it runs.
-	if len(info.Effects) != 1 || info.Effects[0].Kind != plugin.EffectNetwork {
+	// Disclosure, not network. The taxonomy's distinction is the target, and the packets do not
+	// go to the target at all — a third party learns the hostname. Reported as network, this
+	// would be indistinguishable from dast probing your own endpoint, which is a different
+	// decision entirely.
+	if len(info.Effects) != 1 || info.Effects[0].Kind != plugin.EffectDisclosure {
 		t.Fatalf("effects = %+v", info.Effects)
 	}
 	if !strings.Contains(info.Effects[0].Detail, "abuse.ch") {

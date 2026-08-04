@@ -85,6 +85,15 @@ Details, including query-volume expectations and the restriction on derivative w
 allows 4 requests a minute and its terms forbid use "in commercial products or services", so it
 needs a different shape from a control that runs on every scan.
 
-One concern was checked and dismissed rather than assumed: a VirusTotal *lookup* of a URL it has
-never seen returns 404 and does not create a record, so it would not publish your hostnames into
-their corpus. That would have ruled it out; it does not.
+One concern was **partly** answered. A VirusTotal *lookup* of a URL it has never seen returns 404
+twice, over a minute apart — so the lookup does not create a report others can retrieve. That is a
+behavioural observation, and behaviour can change without notice.
+
+What has **not** been established is what their terms and privacy notice say about retaining,
+logging or sharing query data. Those pages are not readable by automation — the GUI is a
+JavaScript shell, the documentation site serves Google Cloud's terms instead, and the support
+article rejects the request — so somebody has to read them in a browser.
+
+Until that happens, the connector should not be built. For a control whose whole risk is *what a
+third party learns about your infrastructure*, "we observed it behaving well once" is the wrong
+kind of evidence; the durable statement is the contract, not the response code.
