@@ -33,8 +33,10 @@ type Engine struct {
 	concurrency int
 	cache       cache.Cache
 	// cacheable, when set, vetoes caching for targets it rejects.
-	cacheable  func(plugin.Target) bool
-	prioritize Prioritizer
+	cacheable func(plugin.Target) bool
+	// workingTree scans repositories as they are on disk rather than at their committed revision.
+	workingTree bool
+	prioritize  Prioritizer
 	// skipPrewarm suppresses the pre-run warm-up of shared scanner state (Trivy's database,
 	// Nuclei's templates), which is the only part of a scan that reaches the network on its own.
 	skipPrewarm bool
@@ -88,6 +90,25 @@ func WithCache(c cache.Cache) Option {
 // Nil accepts everything, which is the default.
 func WithCacheableTarget(fn func(plugin.Target) bool) Option {
 	return func(e *Engine) { e.cacheable = fn }
+}
+
+// WithWorkingTree scans repositories as they are on disk, uncommitted work included, instead of
+// at their committed revision.
+//
+// Also refuses to cache what it scans. A working tree's content changes between two runs at the
+// same revision, so a content-addressed cache keyed on the revision would serve the previous
+// edit's findings — which is the exact opposite of what somebody iterating on a fix needs.
+func WithWorkingTree() Option {
+	return func(e *Engine) {
+		e.workingTree = true
+		prev := e.cacheable
+		e.cacheable = func(t plugin.Target) bool {
+			if r, ok := t.(plugin.RepositoryTarget); ok && r.WorkingTree {
+				return false
+			}
+			return prev == nil || prev(t)
+		}
+	}
 }
 
 // WithPrioritization stamps each finding with a priority band computed by p. Priority is
@@ -170,7 +191,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			}
 			jobs, verrs := e.validateConfigs(name, jobs, allowed)
 			errs = append(errs, verrs...)
-			planned = appendJobs(planned, name, "", "", "", jobs)
+			planned = appendJobs(planned, name, "", "", "", e.markWorkingTree(jobs))
 		case plugin.ScopeComponent:
 			for i := range model.Components {
 				comp := &model.Components[i]
@@ -184,7 +205,8 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				}
 				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs, allowed)
 				errs = append(errs, verrs...)
-				planned = appendJobs(planned, name, comp.Name, comp.Exposure, comp.Criticality, jobs)
+				planned = appendJobs(planned, name, comp.Name, comp.Exposure, comp.Criticality,
+					e.markWorkingTree(jobs))
 			}
 		}
 	}
@@ -297,6 +319,13 @@ type Result struct {
 	// scans that actually executed count: a cache hit means the traffic was not sent this time,
 	// and a record of effects has to describe what happened rather than what was configured.
 	Effects []plugin.Effect
+	// Scanners names every scanner this run used, deduplicated and sorted.
+	//
+	// Recorded because a report has to be able to say which tools produced its findings — the
+	// SARIF driver name is the tool's own and does not identify the scanner Draugr selected, so
+	// nothing downstream could work it out. Cache hits count: the key includes the tool version,
+	// so a hit describes the same build as the run that stored it.
+	Scanners []string
 	// SBOMs are the Software Bills of Materials produced when the Saga enables config.sbom.
 	// Evidence rather than judgement: they carry no findings and never affect the verdict.
 	SBOMs []sbom.Document
@@ -607,6 +636,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		Controls: make(map[string]plugin.ControlResult),
 		Stats:    stats,
 		Effects:  dedupeEffects(effects),
+		Scanners: distinctScanners(planned),
 		SBOMs:    docs,
 	}
 	if len(ctlErrs) > 0 {
@@ -635,6 +665,34 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res.Suppressed, res.LapsedExclusions, res.UnmatchedExclusions =
 		applyExclusions(res.Controls, model.Config.Exclude, time.Now())
 	return res, errors.Join(errs...)
+}
+
+// markWorkingTree flags every repository target so the scanner reads the checkout on disk.
+//
+// Applied here rather than where each controller builds its targets: every controller constructs
+// its own RepositoryTarget, so setting the flag at the source would be a change in each one and a
+// silently missing flag in whichever is written next. Every planned job funnels through here.
+//
+// The cache key changes with the flag (RepositoryTarget.Identity), so a working-tree scan and a
+// committed one cannot be confused for each other.
+func (e *Engine) markWorkingTree(jobs []plugin.ScanJob) []plugin.ScanJob {
+	if !e.workingTree {
+		return jobs
+	}
+	for i, j := range jobs {
+		r, ok := j.Target.(plugin.RepositoryTarget)
+		if !ok {
+			continue
+		}
+		r.WorkingTree = true
+		jobs[i].Target = r
+		// The cache key is computed by the controller from the target it planned, so it has to be
+		// recomputed against the one that will actually be scanned.
+		if jobs[i].CacheKey != "" {
+			jobs[i].CacheKey += "+worktree"
+		}
+	}
+	return jobs
 }
 
 func appendJobs(dst []PlannedJob, control, component string, exposure saga.Exposure, criticality saga.Criticality, jobs []plugin.ScanJob) []PlannedJob {
@@ -806,7 +864,9 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 		comp := &model.Components[i]
 		var targets []plugin.Target
 		for _, r := range comp.Repositories {
-			targets = append(targets, plugin.RepositoryTarget{URL: r.URL, Revision: r.Revision})
+			targets = append(targets, plugin.RepositoryTarget{
+				URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree,
+			})
 		}
 		for _, img := range comp.Images {
 			targets = append(targets, plugin.ImageTarget{Ref: img.Image, Digest: img.Digest})
@@ -830,4 +890,23 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 	}
 	slog.DebugContext(ctx, "generated SBOMs", "documents", len(docs), "errors", len(errs))
 	return docs, errs
+}
+
+// distinctScanners names the scanners a run used, sorted.
+//
+// From the planned jobs rather than from the findings: a scanner that ran and found nothing still
+// produced this report's silence, and a reader asking which tools it was deserves the same answer
+// either way.
+func distinctScanners(planned []PlannedJob) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, pj := range planned {
+		if pj.Job.Scanner == "" || seen[pj.Job.Scanner] {
+			continue
+		}
+		seen[pj.Job.Scanner] = true
+		out = append(out, pj.Job.Scanner)
+	}
+	sort.Strings(out)
+	return out
 }

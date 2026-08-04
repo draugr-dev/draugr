@@ -450,29 +450,41 @@
             {
               "const": "github-pr-comment",
               "description": "Post the Markdown report as a sticky pull-request comment."
+            },
+            {
+              "const": "azure-pr-comment",
+              "description": "Post the Markdown report as a sticky Azure DevOps pull-request comment."
             }
           ],
           "description": "Where to deliver reports.",
           "type": "string"
         },
         "marker": {
-          "description": "github-pr-comment: hidden marker identifying the sticky comment to update.",
+          "description": "github-pr-comment / azure-pr-comment: hidden marker identifying the sticky comment to update.",
+          "type": "string"
+        },
+        "org": {
+          "description": "azure-pr-comment: collection URI. Defaults to $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI.",
           "type": "string"
         },
         "pr": {
-          "description": "github-pr-comment: pull-request number. Defaults to the CI environment.",
+          "description": "github-pr-comment / azure-pr-comment: pull-request number. Defaults to the CI environment.",
           "type": "integer"
+        },
+        "project": {
+          "description": "azure-pr-comment: team project. Defaults to $SYSTEM_TEAMPROJECT.",
+          "type": "string"
         },
         "ref": {
           "description": "github: git ref. Defaults to $GITHUB_REF.",
           "type": "string"
         },
         "repo": {
-          "description": "github: owner/name. Defaults to $GITHUB_REPOSITORY.",
+          "description": "github: owner/name (default $GITHUB_REPOSITORY). azure-pr-comment: repository name (default $BUILD_REPOSITORY_NAME).",
           "type": "string"
         },
         "tokenEnv": {
-          "description": "Environment variable holding the token (default GITHUB_TOKEN). The token itself is never stored in the Saga.",
+          "description": "Environment variable holding the token (default GITHUB_TOKEN; SYSTEM_ACCESSTOKEN for azure-pr-comment). The token itself is never stored in the Saga.",
           "type": "string"
         }
       },

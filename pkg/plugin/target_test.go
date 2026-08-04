@@ -60,3 +60,14 @@ func TestImagePinnedRef(t *testing.T) {
 		}
 	}
 }
+
+func TestRepositoryIdentitySeparatesAWorkingTreeFromItsCommit(t *testing.T) {
+	// A working tree's content changes between two runs at the same revision, so sharing an
+	// identity with the committed scan would let a content-addressed cache serve the previous
+	// edit's findings — the exact opposite of what somebody iterating on a fix needs.
+	committed := RepositoryTarget{URL: ".", Revision: "abc"}
+	working := RepositoryTarget{URL: ".", Revision: "abc", WorkingTree: true}
+	if committed.Identity() == working.Identity() {
+		t.Errorf("both identify as %q", committed.Identity())
+	}
+}

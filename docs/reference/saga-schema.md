@@ -242,6 +242,13 @@ and the PR number default from the GitHub Actions environment; the token comes f
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif), which posts a PR **security
 delta** (new / fixed findings) as that comment.
 
+The **`azure-pr-comment`** publisher is its Azure DevOps counterpart, with the same sticky
+behaviour. `org`, `project`, `repo` and the PR number default from the Azure Pipelines
+environment, so `kind: azure-pr-comment` on its own is usually the whole configuration. The token
+comes from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`), which a pipeline must map into the step
+explicitly — see [reports & publishers](../guides/reports-and-publishers.md#azure-devops) for
+that and for the repository permission the build identity needs.
+
 ## Licence policy (`controllers.licenses`)
 
 ```yaml
@@ -413,12 +420,23 @@ this section exists.
 staged, or untracked — is simply absent. A change that introduces a finding passes until it is
 committed, and a fix appears not to have worked. This is deliberate: a report has to name a
 revision that someone else can check out and reproduce, and "whatever was on one machine at one
-moment" is not that. Draugr warns when it scans a local repository with uncommitted changes, so
-the state you are looking at is never a guess:
+moment" is not that.
+
+**So the report names it**, along with what it left out:
 
 ```
-WARN scanning the committed revision, not your working tree repository=/srv/web uncommitted_files=3
+Scanned: /srv/web at 3f9a1c2b (3 uncommitted files not included)
 ```
+
+That line is in the console report, the Markdown and HTML ones, and the JSON under
+`repositories`. It is per repository and per revision rather than per control: several controls
+scanning one checkout is one fact. If two controls somehow read different commits — possible on a
+branch that moves mid-scan, since each scanner checks out independently — both are listed, because
+a single revision would be an assumption rather than a record.
+
+For the loop of fixing something, `draugr scan --working-tree` reads the checkout as it is —
+uncommitted work included, from a copy, and marked in the report as not reproducible. See
+[the CLI reference](cli.md#--working-tree-for-the-loop-of-fixing-something).
 
 **`revision` still applies.** A local path with `revision: main` scans `main`, whatever branch
 the working copy happens to be on. Left unset, the scan follows the checkout's current `HEAD` —

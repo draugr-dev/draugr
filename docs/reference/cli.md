@@ -14,6 +14,7 @@ All commands accept these **global flags**:
 | `--log-level` | `info` | `trace`, `debug`, `info`, `warn`, `error` |
 | `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` |
 | `--offline` | `false` | make no network calls (also `DRAUGR_OFFLINE=1`) |
+| `--config` | — | machine/organisation settings file, used instead of the discovered ones (also `DRAUGR_CONFIG`) |
 
 **`--offline`** says once that this machine has no network, and every place Draugr would reach out
 honours it. Optional fetches are skipped with a line saying so; a command whose whole purpose is
@@ -133,6 +134,8 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 |------|---------|-------------|
 | `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
 | `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
+| `--working-tree` | `false` | Scan the checkout as it is on disk, uncommitted work included — for iterating on a fix without committing |
+| `--no-gate` | `false` | Report the verdict but exit 0 on a fail — for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
 | `--allow-effects` | — | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent — see [below](#scanners-that-do-more-than-read) |
@@ -198,6 +201,10 @@ gate evaluates. They line up like this:
 | medium | 4.0–6.9 | `warning` | — | fails |
 | low | 0.1–3.9 | `note` | — | — |
 
+Typing a band where a level belongs — `--fail-on high` — is **rejected**, with a message saying
+which ladder the flag is on. It has to be: an unrecognized level ranks below every finding, so
+accepting it would widen the gate to *everything* while reading like a narrowing.
+
 A finding with no CVSS score keeps whatever level its scanner assigned; a control may also apply
 a **floor** (a leaked secret is never reported as low, however the scanner scored it). To gate on
 business risk instead of raw severity, use `--fail-on-priority` — it accounts for the
@@ -246,6 +253,40 @@ What a run actually did appears in the report, so evidence describes what happen
 what was configured. Only scans that really executed count: a cache hit means the traffic was not
 sent this time.
 
+### Which build of each scanner ran
+
+A scan runs whatever is on `PATH`. That is deliberate — an operator may have an experimental
+build, a fork, or a distribution package with a vendor suffix, and refusing them would be Draugr
+mistaking *"I cannot verify this"* for *"this is wrong"*.
+
+But a report that cannot say which build produced its findings cannot be reproduced, so it says:
+
+```
+Scanners: gitleaks 8.30.1, trivy 0.69.3
+Scanner (unverified): semgrep 1.99.0 — found on PATH; Draugr did not install it
+```
+
+The first line lists the builds Draugr fetched **and checked**: each sits in `~/.draugr/bin`, the
+install record has it, and the file still hashes to what was recorded. The hash is what makes that
+a claim about a file rather than about a path.
+
+Everything else gets its own line with the reason, because that is the one you have to decide
+about. What Draugr can say about a binary has five levels:
+
+| Level | What it means |
+|---|---|
+| `pinned` | Installed at the version Draugr ships, matching a checksum recorded in this build |
+| `signed` | Installed at another version, matching checksums signed by the upstream's Sigstore identity |
+| `checksum` | Installed, matching an unsigned checksums file fetched from the upstream |
+| `unverified` | Installed, with nothing published to check it against |
+| `external` | Not installed by Draugr — found on `PATH` |
+
+`checksum` is kept distinct from `unverified` deliberately: an unsigned checksums file over HTTPS
+proves the download was not corrupted or truncated, without proving the upstream published it.
+That is weaker than a signature and much stronger than nothing.
+
+None of this affects the verdict — it is a fact about the run, not a finding about your software.
+
 ### `--format` prints; `--report` writes
 
 Two different questions, and they used to share one flag.
@@ -261,11 +302,40 @@ An HTML report is a styled document with its CSS inlined; a JUnit file is read b
 a path, never by a person. Printing either because a plausible-looking flag was typed is not
 behaviour worth defending, so neither is offered here.
 
+### `--working-tree`, for the loop of fixing something
+
+A scan reads the committed revision, so the loop of fixing a finding — edit, scan, check — needs a
+commit per iteration. `--working-tree` reads the checkout as it is instead:
+
+```bash
+draugr scan draugr.saga.yaml --working-tree
+```
+
+```
+Scanned: . working tree at 3f9a1c2b+ (7 uncommitted files, not reproducible)
+```
+
+The `+` is git's own convention for a tree that has moved past its commit, and **not
+reproducible** is the point: nobody else can check out what you just scanned, so the report says
+so rather than implying a revision it does not describe. For the same reason these scans are
+**never cached** — two runs at one revision read different bytes, and a cache keyed on the
+revision would answer the second with the first's findings.
+
+It reads a **copy**, not your checkout. Scanners cannot write into your files, and `paths` /
+`ignore` scoping prunes the copy — against a real checkout, pruning would be deleting your work.
+The file list is `git ls-files -co --exclude-standard`: tracked files plus untracked ones that are
+not ignored, so a `node_modules` or a local `.env` is left out for the same reason a commit would
+leave it out.
+
+A remote repository is **refused**, naming it. There is no working tree to read, and falling back
+to the committed revision would answer a different question while looking like it answered this
+one.
+
 **`--report` is what gets written**, into the directory `-o` names:
 
 ```bash
 draugr scan draugr.saga.yaml -o out/                          # report.json + results.sarif
-draugr scan draugr.saga.yaml -o out/ --report html,junit      # report.html + junit.xml
+draugr scan draugr.saga.yaml -o out/ --report html,junit      # report.html + report.junit.xml
 draugr scan draugr.saga.yaml -o out/ --report html --format console
 ```
 
@@ -314,7 +384,7 @@ complete regardless of `--min-priority`.
 | `--format` | `console` | output format: `console`, `markdown`, `json` |
 | `--fail-on-new` | — | fail if a **new** finding is at or above this severity: `error`, `warning`, `note` |
 | `--fail-on-new-priority` | — | fail if a **new** finding is at or above this priority (`P1`–`P4`) |
-| `--publish` | `false` | post the diff as a sticky pull-request comment (`github-pr-comment` publisher; uses `$GITHUB_TOKEN` in CI, no-ops off a PR) |
+| `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment` or `azure-pr-comment` from the CI environment; no-ops off a PR |
 
 ```bash
 draugr diff base/results.sarif head/results.sarif                     # console delta
@@ -517,6 +587,7 @@ no arguments, installs everything Draugr can provision (`trivy`, `gitleaks`, `go
 | `-y, --yes` | — | Skip the confirmation prompt |
 | `--dry-run` | — | Print the install plan and exit |
 | `--force` | `false` | Reinstall even when the pinned build is already present |
+| `--version` | — | Install this version instead of the one Draugr ships (one tool at a time) |
 | `--saga` | — | Install only the tools that descriptor's scan will run |
 
 ```bash
@@ -525,7 +596,34 @@ draugr tools install trivy      # just one
 draugr tools install --dry-run  # preview the plan, change nothing
 draugr tools install -y         # non-interactive
 draugr tools install --saga draugr.saga.yaml   # only what this project's scan runs
+draugr tools install trivy --version 0.68.0    # a version other than the one Draugr ships
 ```
+
+**Pinning a version.** A team wanting every pipeline to scan with the same Trivy writes it once,
+where it gets reviewed:
+
+```yaml
+# draugr.config.yaml
+tools:
+  trivy:    { version: "0.69.3" }
+  gitleaks: { version: "8.30.1" }
+```
+
+`--version` overrides that for a single invocation, and takes one tool because it takes one value.
+
+Draugr **does not refuse a version it cannot vouch for.** Someone asking for one has a reason
+Draugr does not know about — a fork, a release candidate, a build newer than this release — and
+refusing would be blocking them over a gap in Draugr's knowledge. It installs what was asked for
+and records how well it could check it, and that record travels into every report the tool goes on
+to produce.
+
+What it does refuse is a **contradiction**: a checksum the upstream published that the download
+does not match. Nothing published is *unknown*; a published checksum that disagrees says the
+download was corrupted or substituted, and installing past that would be ignoring evidence rather
+than lacking it.
+
+The install plan says which of these you are getting before anything is downloaded — the `Verify`
+column reads `sha256`, `sha256 + cosign`, `upstream cosign`, `upstream sha256` or `unverified`.
 
 **`--saga` installs what a descriptor needs**, resolved the same way
 [`draugr doctor`](#draugr-doctor-sagayaml) decides what to check: the enabled controls, and the
@@ -658,6 +756,97 @@ signals mean and how to choose a threshold.
 
 ---
 
+## `draugr config`
+
+Machine and organisation settings, kept apart from the Saga.
+
+A Saga describes an application: its repositories, how exposed a component is, which controls must
+pass. Those are facts about the software and belong in its repository. **Which build of a scanner
+runs, and what a control defaults to, are facts about a machine or an organisation** — they want
+to be the same everywhere, which is exactly why they do not belong in a per-application
+descriptor. A descriptor that could pin its own scanner version is one that could downgrade a
+scanner until a finding disappears.
+
+```yaml
+# draugr.config.yaml
+tools:                  # which build `draugr tools install` fetches
+  trivy: { version: "0.69.3" }
+controllers:            # merged *underneath* the Saga, so a project overrides only what it names
+  sast:
+    semgrep:
+      config: p/owasp-top-ten
+```
+
+`tools.<name>.version` is what [`tools install`](#draugr-tools-install-tool) provisions — so every
+runner that shares the config scans with the same build, and two runners cannot produce different
+findings from identical code.
+
+### Where it comes from
+
+| | |
+|---|---|
+| `--config <path>` or `DRAUGR_CONFIG` | that file **alone** — explicit means explicit |
+| `./draugr.config.yaml` | this project |
+| `~/.draugr/config.yaml` | this machine |
+
+Discovered files are layered, project over home. An explicit one replaces both: a runner image
+that names a config expects that config, not that one laid over whatever is in the working
+directory.
+
+For behaviour, the full order is **component → Saga → config → built-in**, deep-merged, so an
+override replaces only the keys it names.
+
+### Commands
+
+| | |
+|---|---|
+| `draugr config show` | what is in effect, and **which file each value came from** |
+| `draugr config get <key>` | one resolved value |
+| `draugr config set <key> <value>` | write a value; `--global` for `~/.draugr/config.yaml` |
+| `draugr config unset <key>` | remove one, pruning anything it empties |
+| `draugr config init` | a commented starter; `--force` resets a broken file |
+| `draugr config validate` | check the files load |
+
+```
+$ draugr config show
+Files, least specific first:
+  ~/.draugr/config.yaml
+  /repo/draugr.config.yaml
+
+In effect:
+  Setting                          Value            From
+  controllers.sast.semgrep.config  p/owasp-top-ten  /repo/draugr.config.yaml
+  tools.trivy.version              0.69.3           ~/.draugr/config.yaml
+```
+
+`show` is the one worth knowing about. A layered configuration is undebuggable without it —
+*"why is Trivy 0.68?"* has one useful answer, and it is a filename.
+
+### If the file breaks
+
+**Draugr refuses to run rather than falling back.** A broken Saga must fail because nobody else
+knows what your application is; a broken *config* looks like it has a safe fallback, but taking it
+silently is how a pinned toolchain becomes a different one. Somebody pinned that version for a
+reason.
+
+Recovery is one command:
+
+```bash
+draugr config validate          # what is wrong, and where
+draugr config init --force      # start again from the built-in defaults
+```
+
+`set` and `unset` cannot break a file: they edit the document rather than rewriting it — **so
+comments survive** — and parse the result before saving, so nothing is written that Draugr would
+then refuse. Draugr will not silently repair a file it cannot parse, because rewriting somebody's
+settings on a guess is worse than refusing them.
+
+### What does not go here
+
+Secrets. Use `${{ ENV_VAR }}` as a Saga does, so the file stays safe to commit.
+
+---
+
 ## `draugr controls`
 
 List the security controls Draugr can run — what each checks, its scope, and which scanner(s)
@@ -741,10 +930,15 @@ Print the version, commit, build date, and Go version.
 
 ```bash
 draugr version            # draugr 0.31.1 (commit 30862ef, built …, go1.26.5)
+draugr --version          # the same bytes, under the spelling every other CLI uses
 draugr version --json     # {"version":"0.31.1","commit":"30862ef","built":"…","go":"go1.26.5"}
 ```
 
 Output goes to stdout in both forms, so `v=$(draugr version --json | jq -r .version)` works.
+
+**`--version` prints exactly what `version` prints**, so a script parsing one parses the other.
+It exists because container smoke tests, tool caches and version probes reach for the flag rather
+than the subcommand, and an unknown-flag error reads as a broken binary.
 
 ## `draugr schema`
 

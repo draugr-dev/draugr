@@ -48,11 +48,44 @@ type Data struct {
 	// A report that raised a finding to critical has to be able to say on what data, obtained
 	// when. "KEV said so" is not reproducible; "on KEV as of 2026-08-01" is.
 	Exploitability []FeedProvenance
+	// Repositories is which repository each scan read, and at which commit. Derived from what the
+	// scanners recorded rather than from the descriptor, because the descriptor usually names no
+	// revision at all — and "the default branch" is not something a reader can check out.
+	Repositories []RepositoryProvenance
+	// Tools records the build of each external scanner the run used, and whether Draugr can
+	// vouch for it. Empty when nothing external ran.
+	//
+	// A scan runs whatever is on PATH, which is right — an operator may have an experimental
+	// build or a fork, and blocking them would be Draugr mistaking "I cannot verify this" for
+	// "this is wrong". But a report that cannot say which build produced its findings cannot be
+	// reproduced, so the answer is to record it.
+	Tools []ToolBuild
 	// UnattributedFindings counts findings that belong to no component — a project-scoped
 	// control like `infrastructure` produces them. Reported alongside the component breakdown,
 	// because a breakdown that silently omits them makes the parts look like the whole.
 	UnattributedFindings int
 }
+
+// ToolBuild is the build of one external scanner, as this run found it.
+type ToolBuild struct {
+	// Name is the executable, e.g. "trivy".
+	Name string
+	// Version is what it reports, or what Draugr recorded when it installed it.
+	Version string
+	// Level is how strongly Draugr can vouch for this build: pinned, signed, checksum,
+	// unverified, or external. Not a boolean, because those are genuinely different claims — an
+	// unsigned checksum proves the download was not corrupted without proving upstream published
+	// it, and collapsing that into "unattested" discards a difference a reader may care about.
+	Level string
+	// Reason renders the level for someone who has not read its definition.
+	Reason string
+}
+
+// RepositoryProvenance is one repository as this run read it.
+//
+// An alias rather than a copy: the JSON report is rendered by pkg/skald, which cannot import this
+// package, and two structs that must agree eventually will not.
+type RepositoryProvenance = sarif.RepositoryRef
 
 // FeedProvenance is one exploitability dataset as this run saw it.
 type FeedProvenance struct {
@@ -293,6 +326,10 @@ type summary struct {
 	p1, p2, p3, p4 int
 	bands          map[string]sevCounts // per-control severity counts
 	findings       []finding            // sorted most-urgent first
+	// escalated is how many findings a feed moved up a band. Counted over every finding, not
+	// only the ones shown: --top and --min-priority narrow the listing, and "nothing raised"
+	// has to mean nothing in the run rather than nothing on this page.
+	escalated int
 
 	// What the run could not do, and what it set aside. A report that omits these describes a
 	// thinner run rather than a broken one — and a reader cannot tell the difference, which is
@@ -368,6 +405,9 @@ func summarize(d Data) summary {
 			b := s.bands[name]
 			b.add(sev)
 			s.bands[name] = b
+			if res.Escalation != nil {
+				s.escalated++
+			}
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
 				escalation: res.Escalation,
@@ -458,6 +498,10 @@ func provenanceLines(d Data) []provenanceLine {
 	var out []provenanceLine
 	for _, name := range names {
 		for _, p := range d.Run.Controls[name].Report.Provenance {
+			// The repository and revision are reported once for the run, not once per control:
+			// five controls reading one checkout is one fact, and repeating it five times in a
+			// block headed "measured against" is how a useful section becomes wallpaper.
+			p.Fields = withoutRepositoryFields(p.Fields)
 			detail := p.Describe()
 			if detail == "" && p.Version == "" {
 				continue
@@ -555,4 +599,31 @@ func suppressionLine(d Data) string {
 		line += " — " + strings.Join(parts, ", ")
 	}
 	return line
+}
+
+// RepositoriesFrom collects which repository each scan read, and at which commit.
+func RepositoriesFrom(run engine.Result) []RepositoryProvenance {
+	names := make([]string, 0, len(run.Controls))
+	for name := range run.Controls {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	reports := make([]sarif.Report, 0, len(names))
+	for _, name := range names {
+		reports = append(reports, run.Controls[name].Report)
+	}
+	return sarif.RepositoriesIn(reports)
+}
+
+// withoutRepositoryFields drops the fields that belong to the report-level repository line.
+func withoutRepositoryFields(fields []sarif.Field) []sarif.Field {
+	out := make([]sarif.Field, 0, len(fields))
+	for _, f := range fields {
+		switch f.Key {
+		case "repository", "revision", "uncommitted":
+		default:
+			out = append(out, f)
+		}
+	}
+	return out
 }

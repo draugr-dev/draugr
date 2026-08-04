@@ -588,3 +588,32 @@ func TestWithCacheableTargetVetoesAJob(t *testing.T) {
 		t.Errorf("with caching on, expected 2 scans across two runs (one per target), got %d", n)
 	}
 }
+
+func TestWithWorkingTreeRefusesToCacheWhatItScans(t *testing.T) {
+	// Two runs at the same revision read different bytes, so a cache keyed on the revision would
+	// answer the second with the first's findings.
+	e := New(NewRegistry(), WithWorkingTree())
+	if e.cacheable == nil {
+		t.Fatal("no cache veto was registered")
+	}
+	if e.cacheable(plugin.RepositoryTarget{URL: ".", Revision: "abc", WorkingTree: true}) {
+		t.Error("a working-tree scan was cacheable")
+	}
+	// Everything else is still cacheable, including a committed scan of the same repository.
+	if !e.cacheable(plugin.RepositoryTarget{URL: ".", Revision: "abc"}) {
+		t.Error("the veto swallowed the committed scan too")
+	}
+	if !e.cacheable(plugin.ImageTarget{Ref: "acme/api@sha256:abc"}) {
+		t.Error("the veto swallowed an image")
+	}
+}
+
+func TestWithWorkingTreeComposesWithAnExistingVeto(t *testing.T) {
+	// --cache-require-digest already registers one. The second must not silently replace it.
+	e := New(NewRegistry(),
+		WithCacheableTarget(func(plugin.Target) bool { return false }),
+		WithWorkingTree())
+	if e.cacheable(plugin.ImageTarget{Ref: "acme/api:latest"}) {
+		t.Error("the earlier veto was discarded")
+	}
+}

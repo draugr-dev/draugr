@@ -7,6 +7,7 @@ package sarif
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -448,4 +449,105 @@ func (r *Report) addDecided(taxa []Taxon) {
 		}
 		r.Decided = append(r.Decided, t)
 	}
+}
+
+// ParseLevel converts a user-supplied gate level, rejecting anything it does not recognize.
+//
+// Rejecting matters more than it looks. An unknown level ranks 0, and every finding is at least
+// 0 — so a typo, or a plausible-sounding value like "high", silently turns a gate into "fail on
+// anything at all" rather than failing to parse. A flag either does something or says why not.
+func ParseLevel(s string) (Level, error) {
+	switch l := Level(strings.ToLower(strings.TrimSpace(s))); l {
+	case LevelError, LevelWarning, LevelNote:
+		return l, nil
+	default:
+		// Severity bands are what the reports print, so they are the likely mistake. Say where
+		// the two vocabularies differ instead of only listing the valid words.
+		switch Severity(strings.ToLower(strings.TrimSpace(s))) {
+		case SeverityCritical, SeverityHigh, SeverityMedium, SeverityLow:
+			return "", fmt.Errorf("%q is a severity band, and the gate takes a SARIF level: "+
+				"error, warning or note (critical and high map to error, medium to warning, "+
+				"low to note)", s)
+		}
+		return "", fmt.Errorf("unknown level %q: want error, warning or note", s)
+	}
+}
+
+// RepositoryRef is the repository a scan read, and the commit it read.
+//
+// Recorded by repository scanners as Provenance fields rather than as a typed member of Report,
+// because Provenance is already the channel for "what this scanner says about its own run" and
+// this package should not grow a field per domain fact. Parsed back out here so every consumer —
+// console, markdown, HTML, JSON — reads it the same way instead of each learning the key names.
+type RepositoryRef struct {
+	// URL is the repository as the descriptor named it.
+	URL string `json:"url"`
+	// Revision is the commit that was scanned. Empty when git could not be asked.
+	Revision string `json:"revision,omitempty"`
+	// Uncommitted counts files in the working copy. Not part of what was scanned unless
+	// WorkingTree is set, in which case they are precisely what was.
+	Uncommitted int `json:"uncommitted,omitempty"`
+	// WorkingTree reports that the scan read the checkout on disk rather than a commit, so the
+	// result is not reproducible from the revision alone.
+	WorkingTree bool `json:"workingTree,omitempty"`
+}
+
+// Short renders the revision the way a human refers to a commit, with git's own "+" for a tree
+// that has moved past it.
+func (r RepositoryRef) Short() string {
+	s := r.Revision
+	if len(s) > 8 {
+		s = s[:8]
+	}
+	if r.WorkingTree && s != "" && r.Uncommitted > 0 {
+		s += "+"
+	}
+	return s
+}
+
+// Repository extracts the repository this provenance entry describes, if it describes one.
+func (p Provenance) Repository() (RepositoryRef, bool) {
+	var r RepositoryRef
+	for _, f := range p.Fields {
+		switch f.Key {
+		case "repository":
+			r.URL = f.Value
+		case "revision":
+			r.Revision = f.Value
+		case "uncommitted":
+			r.Uncommitted, _ = strconv.Atoi(f.Value)
+		case "workingTree":
+			r.WorkingTree = f.Value == "true"
+		}
+	}
+	// A scanner that recorded no repository is describing something else — a cluster, a benchmark
+	// — and belongs in the per-control provenance rather than here.
+	return r, r.URL != ""
+}
+
+// RepositoriesIn collects the distinct repository/revision pairs the reports recorded.
+//
+// Keyed on the pair rather than the scanner: five controls reading one commit is one fact. When
+// two controls disagree, both are kept — each repository scanner checks out independently, so on
+// a branch that moves mid-scan they can genuinely read different commits, and collapsing that
+// would be an assumption presented as evidence.
+func RepositoriesIn(reports []Report) []RepositoryRef {
+	type key struct{ url, rev string }
+	seen := map[key]bool{}
+	var out []RepositoryRef
+	for _, rep := range reports {
+		for _, p := range rep.Provenance {
+			r, ok := p.Repository()
+			if !ok {
+				continue
+			}
+			k := key{r.URL, r.Revision}
+			if seen[k] {
+				continue
+			}
+			seen[k] = true
+			out = append(out, r)
+		}
+	}
+	return out
 }

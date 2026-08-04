@@ -26,9 +26,9 @@ func (r *recorder) run(_ context.Context, dir string, argv []string) ([]byte, er
 	return r.out, r.err
 }
 
-func (r *recorder) fakeCheckout(_ context.Context, _, _ string, _ git.Scope) (string, func(), error) {
+func (r *recorder) fakeCheckout(_ context.Context, _, _ string, _ git.Scope) (git.Tree, func(), error) {
 	r.checkout++
-	return "/tmp/checkout", func() {}, nil
+	return git.Tree{Dir: "/tmp/checkout"}, func() {}, nil
 }
 
 func newTestGenerator(r *recorder) *Generator {
@@ -157,8 +157,8 @@ func TestGenerateRejectsAnEmptyDocument(t *testing.T) {
 func TestGenerateReportsACheckoutFailure(t *testing.T) {
 	g := &Generator{
 		run: (&recorder{}).run,
-		checkout: func(context.Context, string, string, git.Scope) (string, func(), error) {
-			return "", nil, errors.New("no such host")
+		checkout: func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+			return git.Tree{}, nil, errors.New("no such host")
 		},
 	}
 	_, err := g.Generate(context.Background(), "c", plugin.RepositoryTarget{URL: "https://git/x"}, "")
