@@ -88,3 +88,21 @@ func TestRunDiffBadFormat(t *testing.T) {
 		t.Error("expected an error for an unknown format")
 	}
 }
+
+func TestDiffPublisherFollowsTheCIItIsRunningOn(t *testing.T) {
+	// Hardcoding GitHub made --publish a flag that silently did nothing on an Azure agent: the
+	// GitHub publisher no-ops when it cannot see GITHUB_ACTIONS, so the run stayed green and the
+	// comment never appeared.
+	t.Run("azure", func(t *testing.T) {
+		t.Setenv("TF_BUILD", "True")
+		if got := diffPublisherKind(); got != "azure-pr-comment" {
+			t.Errorf("on an Azure agent --publish would use %q", got)
+		}
+	})
+	t.Run("github and anywhere else", func(t *testing.T) {
+		t.Setenv("TF_BUILD", "")
+		if got := diffPublisherKind(); got != "github-pr-comment" {
+			t.Errorf("diffPublisherKind() = %q", got)
+		}
+	})
+}

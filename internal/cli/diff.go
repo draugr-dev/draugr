@@ -42,7 +42,7 @@ func newDiffCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.format, "format", "console", "output format: console, markdown, json")
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "", "fail if a new finding is at or above this severity: error, warning, note")
 	cmd.Flags().StringVar(&opts.failOnNewPriority, "fail-on-new-priority", "", "fail if a new finding is at or above this priority (P1-P4)")
-	cmd.Flags().BoolVar(&opts.publish, "publish", false, "post the diff as a sticky pull-request comment (github-pr-comment publisher; uses $GITHUB_TOKEN in CI)")
+	cmd.Flags().BoolVar(&opts.publish, "publish", false, "post the diff as a sticky pull-request comment (GitHub or Azure DevOps, detected from the CI environment)")
 	return cmd
 }
 
@@ -76,14 +76,26 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	return nil
 }
 
-// publishDiff renders the diff as markdown and delivers it via the github-pr-comment publisher
-// (a sticky PR comment). Outside a pull request the publisher no-ops.
+// diffPublisherKind picks the sticky-comment publisher for the CI system this is running on.
+//
+// Hardcoding GitHub would make --publish a flag that silently does nothing on an Azure agent:
+// the GitHub publisher no-ops when it cannot see GITHUB_ACTIONS, so the run stays green and the
+// comment never appears. A flag either does something or says why it did not.
+func diffPublisherKind() string {
+	if os.Getenv("TF_BUILD") == "True" {
+		return "azure-pr-comment"
+	}
+	return "github-pr-comment"
+}
+
+// publishDiff renders the diff as markdown and delivers it as a sticky pull-request comment on
+// whichever CI system is running it. Outside a pull request the publisher no-ops.
 func publishDiff(ctx context.Context, result diff.Result) error {
 	var md bytes.Buffer
 	if err := diff.Render(&md, "markdown", result); err != nil {
 		return err
 	}
-	pub, err := publish.For(saga.PublisherConfig{Kind: "github-pr-comment"})
+	pub, err := publish.For(saga.PublisherConfig{Kind: diffPublisherKind()})
 	if err != nil {
 		return err
 	}
