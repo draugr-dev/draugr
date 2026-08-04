@@ -15,16 +15,17 @@ no service connection to create. The pipeline below is the whole integration.
 trigger:
   branches:
     include: [main]
-pr:
-  branches:
-    include: [main]
+
+# Azure Repos ignores a `pr:` trigger — see "Pull-request builds" below. Declaring it none
+# makes that explicit rather than leaving a block that looks like it does something.
+pr: none
 
 pool:
   vmImage: ubuntu-latest
 
 steps:
   - checkout: self
-    fetchDepth: 0                 # a pull-request scan needs the base commit
+    fetchDepth: 0                 # a diff against the base branch needs its commit
 
   - script: |
       set -euo pipefail
@@ -93,6 +94,25 @@ the build too means one problem reported as two.
 Azure has no native SARIF ingestion, so `results.sarif` goes to the build artifacts, where another
 tool or a reviewer can pick it up. It is also what your editor reads — see
 [findings in your editor](findings-in-your-editor.md).
+
+## Pull-request builds
+
+**Azure Repos does not honour a `pr:` trigger in YAML.** It is silently ignored — no build, no
+warning, and a `pr:` block in the file that reads as though pull requests are covered. (It *does*
+work for a pipeline whose source is GitHub or Bitbucket, which is why the key exists at all.)
+
+For an Azure Repos repository, pull-request builds come from a **branch policy** on the target
+branch:
+
+*Project settings → Repositories → your repository → Policies → your branch → Build Validation →
+`+`* — select this pipeline, and choose whether it is **required** (blocks completion) or
+**optional** (runs and reports, does not block).
+
+Optional is the honest place to start: it produces the same build and the same PR comment without
+turning a first trial of a security gate into something that blocks everyone's merges on day one.
+
+Everything below about the pull-request comment depends on this — without a build validation
+policy there is no pull-request build, so there is nothing to comment from.
 
 ## A sticky pull-request comment
 
