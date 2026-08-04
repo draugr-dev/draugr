@@ -204,3 +204,33 @@ func TestFingerprintSeparatesComponents(t *testing.T) {
 		t.Errorf("the same finding in the same component is one, got %d", len(twice.Results))
 	}
 }
+
+func TestParseLevelRejectsWhatItCannotRank(t *testing.T) {
+	// An unknown level ranks 0 and every finding is at least 0, so an unvalidated typo turns a
+	// gate into "fail on anything at all" — passing loudly while meaning something else entirely.
+	for _, in := range []string{"error", "WARNING", " note "} {
+		if _, err := ParseLevel(in); err != nil {
+			t.Errorf("ParseLevel(%q): %v", in, err)
+		}
+	}
+	for _, in := range []string{"banana", "", "P1", "err"} {
+		if _, err := ParseLevel(in); err == nil {
+			t.Errorf("ParseLevel(%q) was accepted", in)
+		}
+	}
+}
+
+func TestParseLevelExplainsTheSeverityMixUp(t *testing.T) {
+	// The reports print critical/high/medium/low, so those are what someone reaches for. Listing
+	// the three valid words without saying why theirs was not one of them leaves them guessing at
+	// which of two ladders a flag is on.
+	for _, in := range []string{"critical", "high", "medium", "low"} {
+		_, err := ParseLevel(in)
+		if err == nil {
+			t.Fatalf("ParseLevel(%q) was accepted as a level", in)
+		}
+		if !strings.Contains(err.Error(), "severity band") {
+			t.Errorf("ParseLevel(%q) = %v, want it to name the confusion", in, err)
+		}
+	}
+}

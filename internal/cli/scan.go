@@ -155,6 +155,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return err
 	}
+	// Before the scan, not after. A typo discovered once the scanners have finished is a wasted
+	// pipeline minute for a mistake that was visible on the command line.
+	failOn, err := sarif.ParseLevel(opts.failOn)
+	if err != nil {
+		return fmt.Errorf("--fail-on: %w", err)
+	}
 	expl, feedProv, err := loadExploitSource(ctx, exploitSettings(opts, model.Config.Exploitability))
 	if err != nil {
 		return err
@@ -201,7 +207,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		reports[name] = cr.Report
 	}
 	policy := norn.Policy{
-		FailOn:         sarif.Level(opts.failOn),
+		FailOn:         failOn,
 		PerControl:     perControlThresholds(model.Config.Gate),
 		FailOnPriority: failOnPriority,
 	}

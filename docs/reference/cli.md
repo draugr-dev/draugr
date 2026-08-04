@@ -200,6 +200,10 @@ gate evaluates. They line up like this:
 | medium | 4.0–6.9 | `warning` | — | fails |
 | low | 0.1–3.9 | `note` | — | — |
 
+Typing a band where a level belongs — `--fail-on high` — is **rejected**, with a message saying
+which ladder the flag is on. It has to be: an unrecognized level ranks below every finding, so
+accepting it would widen the gate to *everything* while reading like a narrowing.
+
 A finding with no CVSS score keeps whatever level its scanner assigned; a control may also apply
 a **floor** (a leaked secret is never reported as low, however the scanner scored it). To gate on
 business risk instead of raw severity, use `--fail-on-priority` — it accounts for the

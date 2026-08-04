@@ -122,3 +122,22 @@ func TestDiffUsesItsOwnStickyComment(t *testing.T) {
 			publish.DiffMarker)
 	}
 }
+
+func TestDiffRejectsAGateLevelItCannotRank(t *testing.T) {
+	// Before #559 the diff printed SARIF levels, so "error" was the obvious thing to type. It
+	// prints severity bands now, which makes "high" the obvious thing — and an unrecognized level
+	// ranks 0, so every new finding is at least that. The gate would quietly become "fail on
+	// anything new" while looking like it had been narrowed.
+	cmd := newRootCommand()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"diff", "a.sarif", "b.sarif", "--fail-on-new", "high"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("--fail-on-new high was accepted, and silently means something else")
+	}
+	if !strings.Contains(err.Error(), "severity band") {
+		t.Errorf("the error should explain the two ladders: %v", err)
+	}
+}
