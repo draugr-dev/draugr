@@ -87,7 +87,22 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 			return git.CheckoutWorkingTree(ctx, url, scope)
 		}
 	}
-	tree, cleanup, err := checkout(ctx, repo.URL, repo.Revision, scope)
+	// Share the checkout with the other scanners in this run when there is a pool to share it
+	// through. Keyed on the target's identity, which already accounts for everything that changes
+	// the tree: url, revision, scope, and whether it is a working tree.
+	//
+	// Without a pool — a scanner used directly, or a test — it clones for itself, as it always did.
+	materialise := func(ctx context.Context) (git.Tree, func(), error) {
+		return checkout(ctx, repo.URL, repo.Revision, scope)
+	}
+	var tree git.Tree
+	var cleanup func()
+	var err error
+	if pool := git.PoolFrom(ctx); pool != nil {
+		tree, cleanup, err = pool.Checkout(ctx, repo.Identity(), materialise)
+	} else {
+		tree, cleanup, err = materialise(ctx)
+	}
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", s.info.Name, err)
 	}

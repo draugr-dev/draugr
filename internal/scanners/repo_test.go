@@ -3,6 +3,7 @@ package scanners
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/git"
@@ -205,5 +206,87 @@ func TestRepoScanStampsWhatItRead(t *testing.T) {
 	}
 	if !found {
 		t.Error("a repository scan recorded no repository provenance")
+	}
+}
+
+func TestRepoScanSharesAPooledCheckout(t *testing.T) {
+	// Five controls over one repository should check it out once. The scanner cannot know how
+	// many others there are, so it asks the run's pool by the target's identity and the pool
+	// decides — which also means every control provably reads the same commit.
+	var clones atomic.Int32
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
+		return []byte(`{"runs":[{"tool":{"driver":{"name":"Trivy"}},"results":[]}]}`), nil
+	})
+	dir := t.TempDir()
+	s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+		clones.Add(1)
+		return git.Tree{Dir: dir, Revision: "abc"}, func() {}, nil
+	}
+
+	pool := git.NewPool()
+	defer pool.Close()
+	ctx := git.WithPool(context.Background(), pool)
+	target := plugin.RepositoryTarget{URL: "."}
+	for range 5 {
+		if _, err := s.Scan(ctx, target, plugin.Config{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := clones.Load(); n != 1 {
+		t.Errorf("checked out %d times, want 1", n)
+	}
+}
+
+func TestRepoScanWithoutAPoolChecksOutForItself(t *testing.T) {
+	// A scanner used on its own, or in a test, must not depend on a run having set one up.
+	var clones atomic.Int32
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
+		return []byte(`{"runs":[{"tool":{"driver":{"name":"Trivy"}},"results":[]}]}`), nil
+	})
+	dir := t.TempDir()
+	s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+		clones.Add(1)
+		return git.Tree{Dir: dir}, func() {}, nil
+	}
+	for range 3 {
+		if _, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "."}, plugin.Config{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := clones.Load(); n != 3 {
+		t.Errorf("checked out %d times without a pool, want 3", n)
+	}
+}
+
+func TestRepoScanDoesNotShareAcrossDifferentTargets(t *testing.T) {
+	// The key is the target's identity, which already accounts for revision and scope — two
+	// components pointing at different subtrees are two scans, not one.
+	var clones atomic.Int32
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
+		return []byte(`{"runs":[{"tool":{"driver":{"name":"Trivy"}},"results":[]}]}`), nil
+	})
+	dir := t.TempDir()
+	s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+		clones.Add(1)
+		return git.Tree{Dir: dir}, func() {}, nil
+	}
+	pool := git.NewPool()
+	defer pool.Close()
+	ctx := git.WithPool(context.Background(), pool)
+
+	// WorkingTree is deliberately absent: it routes to CheckoutWorkingTree rather than the
+	// injected checkout, so this counter cannot see it. That it keys separately is covered by
+	// RepositoryTarget.Identity's own test.
+	for _, target := range []plugin.RepositoryTarget{
+		{URL: "."},
+		{URL: ".", Revision: "v1"},
+		{URL: ".", Paths: []string{"api"}},
+	} {
+		if _, err := s.Scan(ctx, target, plugin.Config{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := clones.Load(); n != 3 {
+		t.Errorf("checked out %d times for 3 distinct targets, want 3", n)
 	}
 }

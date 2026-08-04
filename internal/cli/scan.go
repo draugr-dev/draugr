@@ -205,6 +205,14 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		eopts = append(eopts, engine.WithWorkingTree())
 	}
 
+	// One checkout per repository for this run, shared by every scanner that asks for the same
+	// one. Owned by the invocation rather than the engine: the lifetime is this run's, and
+	// pkg/engine orchestrates targets in general — it should not learn about git to make
+	// repositories cheaper.
+	pool := git.NewPool()
+	defer pool.Close()
+	ctx = git.WithPool(ctx, pool)
+
 	run, runErr := engine.New(reg, eopts...).Run(ctx, *model)
 	if runErr != nil {
 		slog.Warn("scan completed with issues", "error", runErr)
