@@ -1137,3 +1137,63 @@ func TestToolBuildsAbsentFromAnUnenrichedReport(t *testing.T) {
 		t.Errorf("a run with no external tools mentioned them:\n%s", buf.String())
 	}
 }
+
+func TestJUnitCarriesTheAdvisoryLink(t *testing.T) {
+	// A test panel shows the failure body when someone opens a finding, and "CVE-2020-14343" with
+	// no link is a number they have to retype into a search engine. The one thing they are about
+	// to go looking for is where to read more, so it travels with the finding.
+	var b bytes.Buffer
+	d := goldenCleanData()
+	d.Run = engine.Result{Controls: map[string]plugin.ControlResult{"sca": {Report: sarif.Report{
+		Tool: "trivy",
+		Rules: map[string]sarif.Rule{
+			"CVE-2020-14343": {HelpURI: "https://avd.aquasec.com/nvd/cve-2020-14343"},
+		},
+		Results: []sarif.Result{
+			{Tool: "Trivy", RuleID: "CVE-2020-14343", Level: sarif.LevelError,
+				Message:  "PyYAML: incomplete fix for CVE-2020-1747",
+				Location: sarif.Location{URI: "app/requirements.txt", StartLine: 3}},
+			// No rule metadata and no recognizable scheme: nowhere honest to point.
+			{Tool: "Trivy", RuleID: "house-style-42", Level: sarif.LevelWarning,
+				Message: "something local"},
+		},
+	}}}}
+	d.Verdict = norn.Result{Verdict: norn.Fail,
+		Controls: []norn.ControlOutcome{{Control: "sca", Verdict: norn.Fail}}}
+
+	if err := (junitReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	var suites junitTestsuites
+	if err := xml.Unmarshal(b.Bytes(), &suites); err != nil {
+		t.Fatal(err)
+	}
+	bodies := map[string]string{}
+	for _, s := range suites.Suites {
+		for _, tc := range s.TestCases {
+			if tc.Failure != nil {
+				bodies[tc.Name] = tc.Failure.Body
+			}
+		}
+	}
+	var cve, local string
+	for name, body := range bodies {
+		if strings.HasPrefix(name, "CVE-2020-14343") {
+			cve = body
+		}
+		if strings.HasPrefix(name, "house-style-42") {
+			local = body
+		}
+	}
+	if !strings.Contains(cve, "https://avd.aquasec.com/nvd/cve-2020-14343") {
+		t.Errorf("no advisory link in the failure body: %q", cve)
+	}
+	if !strings.Contains(cve, "incomplete fix") {
+		t.Errorf("the link replaced the description instead of joining it: %q", cve)
+	}
+	// A wrong link is worse than none, so a rule with nowhere to point gets no trailing blank
+	// lines pretending there was somewhere.
+	if local != "something local" {
+		t.Errorf("a finding with no advisory should carry only its message, got %q", local)
+	}
+}

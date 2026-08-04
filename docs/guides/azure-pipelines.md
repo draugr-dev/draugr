@@ -84,6 +84,9 @@ was nothing to report.
 failed test — control and scanner as the suite, the rule and location as the test name. It is the
 one panel in Azure DevOps that already knows how to show a list of things that need fixing.
 
+Each failure carries the finding's description and a link to the advisory, so a CVE number in the
+panel is something you can follow rather than something you retype into a search engine.
+
 `failTaskOnFailedTests: false` because the scan has already decided. Letting the publish step fail
 the build too means one problem reported as two.
 

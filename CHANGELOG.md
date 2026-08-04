@@ -73,6 +73,11 @@ and move it under a version on release.
 
 ### Fixed
 
+- **JUnit findings link to the advisory.** A CI test panel showed a CVE number and its
+  description, which left the reader retyping the number into a search engine. The failure now
+  carries the scanner's advisory URL — or one derived from the identifier when the scanner
+  published none, and nothing at all when there is nowhere honest to point.
+
 - **`draugr diff --publish` keeps its own pull-request comment.** It shared a marker with the
   Saga's PR-comment publisher, so a pipeline running both — the state of the branch, and what the
   pull request changed — got one comment silently overwritten by the other, with nothing to say a
