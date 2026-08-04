@@ -61,6 +61,24 @@ old result under a mutable tag. See [caching in depth](../concepts/controls-and-
 > immediately, pin the immutable `digest:` in the Saga — a discovery surveyor records the running
 > digest for you — so the key becomes content-addressed.
 
+## Configure it once, per machine
+
+The `--cache-*` flags all have a home in [`draugr.config.yaml`](../reference/cli.md#draugr-config),
+which is usually the better place for them: a cache directory describes a runner image, not an
+application, and every pipeline on that runner wants the same one.
+
+```yaml
+# draugr.config.yaml
+cache:
+  dir: /var/cache/draugr
+  ttl: 24h
+  requireDigest: true     # do not cache an image named only by a tag
+```
+
+A flag you type always wins. `readOnly` and `requireDigest` only ever turn *on* from the config —
+a project file that does not discuss caching should not undo a machine that declared its results
+untrustworthy — but typing `--cache-read-only=false` still overrides it, because you typed it.
+
 ## Persisting the cache between CI runs
 
 A runner is fresh every time, so a pipeline pays full price for scanning artifacts that have not

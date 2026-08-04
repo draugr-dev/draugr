@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseRejectsUnknownKeys(t *testing.T) {
@@ -137,5 +138,33 @@ func write(t *testing.T, path, body string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCacheSettingsLayerFieldByField(t *testing.T) {
+	// A project file setting only `ttl` must keep the `dir` the machine file supplied. Replacing
+	// the struct wholesale would make the more specific file silently discard settings it never
+	// mentioned — the opposite of what layering is for.
+	home := File{Cache: CacheSettings{Dir: "/var/cache/draugr", TTL: time.Hour, RequireDigest: true}}
+	project := File{Cache: CacheSettings{TTL: 15 * time.Minute}}
+
+	got := merge(home, project).Cache
+	if got.Dir != "/var/cache/draugr" {
+		t.Errorf("the project file discarded the machine's cache dir: %q", got.Dir)
+	}
+	if got.TTL != 15*time.Minute {
+		t.Errorf("TTL = %v, want the project's", got.TTL)
+	}
+	if !got.RequireDigest {
+		t.Error("requireDigest was dropped by a file that never mentioned it")
+	}
+}
+
+func TestCacheReadOnlyOnlyEverTurnsOn(t *testing.T) {
+	// A machine that declares its results untrustworthy should not have that undone by a project
+	// file that simply does not discuss caching.
+	got := merge(File{Cache: CacheSettings{ReadOnly: true}}, File{Cache: CacheSettings{Dir: "x"}}).Cache
+	if !got.ReadOnly {
+		t.Error("read-only was silently cleared")
 	}
 }

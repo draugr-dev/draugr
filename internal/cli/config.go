@@ -158,6 +158,23 @@ func flatten(f config.File) []kv {
 			out = append(out, kv{"tools." + name + ".version", t.Version})
 		}
 	}
+	// Only what was actually set. A zero field here is the absence of a setting, not a setting
+	// whose value is zero — and printing `cache.ttl 0s` beside a file that never mentions caching
+	// would invite someone to wonder why their cache expires immediately.
+	if c := f.Cache; c != (config.CacheSettings{}) {
+		if c.Dir != "" {
+			out = append(out, kv{"cache.dir", c.Dir})
+		}
+		if c.TTL != 0 {
+			out = append(out, kv{"cache.ttl", c.TTL.String()})
+		}
+		if c.ReadOnly {
+			out = append(out, kv{"cache.readOnly", "true"})
+		}
+		if c.RequireDigest {
+			out = append(out, kv{"cache.requireDigest", "true"})
+		}
+	}
 	for control, settings := range f.Controllers {
 		out = append(out, flattenAny("controllers."+control, settings)...)
 	}

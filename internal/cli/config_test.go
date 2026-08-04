@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -91,7 +92,7 @@ func TestApplyConfigDefaultsMergesUnderTheDescriptor(t *testing.T) {
 	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"sast": {"semgrep": map[string]any{"config": "p/mine"}},
 	}}}
-	if err := applyConfigDefaults(context.Background(), m); err != nil {
+	if _, err := applyConfigDefaults(context.Background(), m); err != nil {
 		t.Fatal(err)
 	}
 
@@ -113,7 +114,7 @@ func TestApplyConfigDefaultsIsANoOpWithoutAFile(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("HOME", t.TempDir())
 	m := &saga.Model{}
-	if err := applyConfigDefaults(context.Background(), m); err != nil {
+	if _, err := applyConfigDefaults(context.Background(), m); err != nil {
 		t.Fatal(err)
 	}
 	if len(m.Config.Controllers) != 0 {
@@ -234,5 +235,40 @@ func TestShortHome(t *testing.T) {
 	}
 	if got := shortHome("/etc/draugr.yaml"); got != "/etc/draugr.yaml" {
 		t.Errorf("a path outside home was rewritten: %q", got)
+	}
+}
+
+func TestConfigShowRendersCacheSettings(t *testing.T) {
+	// `config show` exists so "why is my cache behaving like that" has a filename for an answer.
+	// A setting it does not render is one the command cannot answer for.
+	got := flatten(config.File{Cache: config.CacheSettings{
+		Dir: "/var/cache/draugr", TTL: 2 * time.Hour, ReadOnly: true, RequireDigest: true,
+	}})
+	want := map[string]string{
+		"cache.dir":           "/var/cache/draugr",
+		"cache.ttl":           "2h0m0s",
+		"cache.readOnly":      "true",
+		"cache.requireDigest": "true",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("rendered %d settings, want %d: %+v", len(got), len(want), got)
+	}
+	for _, kv := range got {
+		if want[kv.key] != kv.value {
+			t.Errorf("%s = %q, want %q", kv.key, kv.value, want[kv.key])
+		}
+	}
+}
+
+func TestConfigShowOmitsCacheSettingsNobodySet(t *testing.T) {
+	// A zero field is the absence of a setting, not a setting whose value is zero. Printing
+	// `cache.ttl 0s` beside a file that never mentions caching invites someone to wonder why
+	// their cache expires immediately.
+	if got := flatten(config.File{}); len(got) != 0 {
+		t.Errorf("an empty config rendered %+v", got)
+	}
+	got := flatten(config.File{Cache: config.CacheSettings{Dir: "x"}})
+	if len(got) != 1 || got[0].key != "cache.dir" {
+		t.Errorf("only the set field should render, got %+v", got)
 	}
 }

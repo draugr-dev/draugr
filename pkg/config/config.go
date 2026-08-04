@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -41,6 +42,31 @@ type File struct {
 	// Controllers are default settings merged *underneath* the Saga's, so a project overrides
 	// only the keys it cares about and inherits the rest.
 	Controllers map[string]saga.ControllerSettings `yaml:"controllers,omitempty"`
+	// Cache is where scan results are reused between runs, and for how long.
+	//
+	// Here rather than in a Saga for the same reason as Tools: a cache directory is a fact about
+	// a machine or a runner image, not about the application being described. Two projects on one
+	// runner want the same cache; one project on two runners does not want its descriptor
+	// naming a path that exists on only one of them.
+	Cache CacheSettings `yaml:"cache,omitempty"`
+}
+
+// CacheSettings configures result caching.
+type CacheSettings struct {
+	// Dir enables caching and says where. Empty leaves caching off, which stays the default:
+	// a cache is a promise that an unchanged input has an unchanged answer, and that is a promise
+	// somebody should opt into.
+	Dir string `yaml:"dir,omitempty"`
+	// TTL is how long an entry stays usable. Zero means the built-in default rather than "no
+	// expiry" — a config file that omits a field is not asking for entries that never expire.
+	// Set `ttl: 0s` explicitly for that.
+	TTL time.Duration `yaml:"ttl,omitempty"`
+	// ReadOnly serves entries without writing them, for a run whose results the next run should
+	// not trust.
+	ReadOnly bool `yaml:"readOnly,omitempty"`
+	// RequireDigest refuses to cache an image named only by a tag, which can be rebuilt under the
+	// same name.
+	RequireDigest bool `yaml:"requireDigest,omitempty"`
 }
 
 // ToolSettings pins one external tool.
@@ -154,6 +180,23 @@ func merge(a, b File) File {
 	for k, v := range b.Controllers {
 		out.Controllers[k] = DeepMerge(out.Controllers[k], v)
 	}
+	// Field by field rather than whole-struct, so a project file setting only `ttl` keeps the
+	// `dir` the machine file supplied. Replacing the struct would make the more specific file
+	// silently discard settings it never mentioned.
+	out.Cache = a.Cache
+	if b.Cache.Dir != "" {
+		out.Cache.Dir = b.Cache.Dir
+	}
+	if b.Cache.TTL != 0 {
+		out.Cache.TTL = b.Cache.TTL
+	}
+	if b.Cache.ReadOnly {
+		out.Cache.ReadOnly = true
+	}
+	if b.Cache.RequireDigest {
+		out.Cache.RequireDigest = true
+	}
+
 	if len(out.Tools) == 0 {
 		out.Tools = nil
 	}

@@ -10,6 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **Cache settings live in `draugr.config.yaml`.** A cache directory is a fact about a runner
+  image, not about an application, so every pipeline on that runner can share one setting instead
+  of repeating four flags:
+
+  ```yaml
+  cache:
+    dir: /var/cache/draugr
+    ttl: 24h
+    requireDigest: true
+  ```
+
+  A flag you type always wins — including `--cache-ttl 0` for no expiry, which is a deliberate
+  instruction rather than an absent one. `readOnly` and `requireDigest` only ever turn *on* from
+  the config, so a project file that never mentions caching cannot undo a machine that declared
+  its results untrustworthy.
+
 _Nothing yet._
 
 ## [0.65.0] - 2026-08-04
