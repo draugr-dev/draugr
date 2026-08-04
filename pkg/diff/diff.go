@@ -83,24 +83,31 @@ func sortResults(rs []sarif.Result) {
 	})
 }
 
-// LevelCounts tallies findings by SARIF level.
-type LevelCounts struct {
-	Error   int `json:"error"`
-	Warning int `json:"warning"`
-	Note    int `json:"note"`
+// SeverityCounts tallies findings by Draugr's normalized severity band.
+//
+// Bands rather than SARIF levels, because a diff is read next to the scan report it came from
+// and the two have to agree. error/warning/note is the wire vocabulary of the file; a reader
+// deciding whether a pull request made things worse is thinking in critical/high/medium/low.
+type SeverityCounts struct {
+	Critical int `json:"critical"`
+	High     int `json:"high"`
+	Medium   int `json:"medium"`
+	Low      int `json:"low"`
 }
 
-// countLevels tallies a finding slice by level.
-func countLevels(rs []sarif.Result) LevelCounts {
-	var c LevelCounts
+// countSeverities tallies a finding slice by severity band.
+func countSeverities(rs []sarif.Result) SeverityCounts {
+	var c SeverityCounts
 	for _, r := range rs {
-		switch r.Level {
-		case sarif.LevelError:
-			c.Error++
-		case sarif.LevelWarning:
-			c.Warning++
-		case sarif.LevelNote:
-			c.Note++
+		switch r.Severity("") {
+		case sarif.SeverityCritical:
+			c.Critical++
+		case sarif.SeverityHigh:
+			c.High++
+		case sarif.SeverityMedium:
+			c.Medium++
+		case sarif.SeverityLow:
+			c.Low++
 		}
 	}
 	return c
