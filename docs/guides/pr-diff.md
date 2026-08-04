@@ -98,7 +98,7 @@ non-zero and takes the whole step with it under `set -e`. It suppresses the verd
 only: a scan that could not run still fails, so a missing report never reaches the diff disguised
 as "no new findings".
 
-For a complete pipeline, see [Azure Pipelines](azure-pipelines.md#gate-on-new-findings); on GitHub
+For a complete pipeline, see [Azure Pipelines](azure-pipelines.md#gating-on-new-findings); on GitHub
 the action's `mode: auto` does all of this for you.
 
 Each scan clones the repository before reading it, so a `results.sarif` always describes a
@@ -136,7 +136,7 @@ draugr diff base/results.sarif head/results.sarif --publish
 It picks the publisher from the CI system it is running on — `github-pr-comment` under GitHub
 Actions with `$GITHUB_TOKEN`, `azure-pr-comment` under Azure Pipelines with `$SYSTEM_ACCESSTOKEN`.
 Azure needs that variable mapped into the step; see
-[Azure Pipelines](azure-pipelines.md#a-sticky-pull-request-comment).
+[Azure Pipelines](azure-pipelines.md#a-sticky-comment).
 
 The diff keeps its **own** sticky comment, separate from the one a Saga's PR-comment publisher
 maintains. A pipeline can run both — the state of the branch, and what this pull request changed
