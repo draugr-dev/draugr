@@ -8,10 +8,51 @@ order: 15
 # Use in CI (Azure Pipelines)
 
 Draugr is a single binary with no Azure-specific parts, so there is no extension to install and
-no service connection to create. The pipeline below is the whole integration.
+no service connection to create.
+
+## The short version
+
+Copy [`azure-pipelines/draugr.yml`](https://github.com/draugr-dev/draugr/blob/main/azure-pipelines/draugr.yml)
+into your repository — say as `.azure/draugr.yml` — and your pipeline is this:
 
 ```yaml
-# azure-pipelines.yml
+trigger:
+  branches:
+    include: [main]
+pr: none          # Azure Repos ignores this; see Pull-request builds below
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - template: .azure/draugr.yml
+    parameters:
+      saga: draugr.saga.yaml
+```
+
+That installs Draugr, provisions the scanners, scans, gates a pull request on what it introduced,
+and publishes the findings to the Tests tab. Its parameters:
+
+| Parameter | Default | |
+|---|---|---|
+| `saga` | `draugr.saga.yaml` | the descriptor to scan |
+| `mode` | `auto` | `auto` (scan on push, and diff on a pull request), `scan`, or `diff` |
+| `version` | latest | pin a release — **do this for real pipelines** |
+| `tools` | `true` | provision the scanners the controls need |
+| `failOnNewPriority` | `P1` | fail a pull request on a new finding at or above this priority |
+| `publishResults` | `true` | Tests tab and build artifacts |
+
+**Copying it in beats referencing it remotely.** Azure can pull a template from a GitHub repository
+resource, but that needs a service connection, and it means your pipeline changes when we change
+the template. A vendored file is one `curl` to update and is pinned by your own git history.
+
+The rest of this page is what that template does, written out. Worth reading once — a template
+you cannot debug is worse than the twenty lines it saved you.
+
+## The long version
+
+```yaml
+# azure-pipelines.yml — equivalent to the template above
 trigger:
   branches:
     include: [main]

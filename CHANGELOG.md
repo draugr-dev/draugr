@@ -12,6 +12,20 @@ and move it under a version on release.
 
 ### Added
 
+- **A reusable Azure Pipelines template.** `azure-pipelines/draugr.yml` collapses the install,
+  scanner provisioning, scan, pull-request diff and publishing into one reference. Copy it into
+  your repository and the pipeline is four lines of Draugr:
+
+  ```yaml
+  steps:
+    - template: .azure/draugr.yml
+      parameters:
+        saga: draugr.saga.yaml
+  ```
+
+  Parameters for the descriptor, the mode (`auto` scans a push and diffs a pull request), a pinned
+  version, scanner provisioning, the priority to gate on, and whether to publish results.
+
 - **`draugr scan --no-gate`** reports the verdict and exits 0 anyway. It is what the two scans
   either side of a `draugr diff` need: their job is to produce reports, and the diff is the gate.
   Without it the base scan's `FAIL` — which any repository with a backlog produces — takes the
