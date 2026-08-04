@@ -1,0 +1,144 @@
+# Draugr as a reusable Azure Pipelines step template.
+#
+# Azure has no first-party Draugr task, so this template is the equivalent: it collapses the
+# install, the scanner provisioning, the scan, the pull-request diff and the publishing into one
+# reference with parameters. The full pipeline it replaces is in
+# docs/guides/azure-pipelines.md — worth reading once, because a template that is a black box is
+# a thing you cannot debug at 2am.
+#
+#   steps:
+#     - template: azure-pipelines/draugr.yml@draugr
+#       parameters:
+#         saga: draugr.saga.yaml
+#
+# Two things to set up once, neither of which a template can do for you, and both needed before
+# the pull-request comment works:
+#
+#   1. a Build Validation branch policy — Azure Repos ignores a `pr:` trigger, so without one
+#      there are no pull-request builds at all;
+#   2. `Contribute to pull requests` for the `<Project> Build Service` identity, or posting the
+#      comment gets a 403 while the token is perfectly valid.
+#
+# Everything else works without them.
+
+parameters:
+  # The descriptor to scan.
+  - name: saga
+    type: string
+    default: draugr.saga.yaml
+
+  # auto  — full scan on a push, and on a pull request also gate on what it introduced
+  # scan  — full scan only
+  # diff  — the pull-request delta only
+  - name: mode
+    type: string
+    default: auto
+    values: [auto, scan, diff]
+
+  # Pin a release for reproducible pipelines. Empty installs the latest, which means a scanner
+  # change can turn a green pipeline red on a day nobody touched the code.
+  - name: version
+    type: string
+    default: ''
+
+  # Provision the scanners the descriptor's controls need.
+  - name: tools
+    type: boolean
+    default: true
+
+  # Fail a pull request on a new finding at or above this priority. Priority rather than severity
+  # so the component's declared exposure and criticality decide. Empty reports without gating.
+  - name: failOnNewPriority
+    type: string
+    default: P1
+
+  # Publish the JUnit findings to the Tests tab and the reports as a build artifact.
+  - name: publishResults
+    type: boolean
+    default: true
+
+steps:
+  - checkout: self
+    # A diff needs the base branch's commit, which a shallow clone does not have.
+    fetchDepth: 0
+
+  - script: |
+      set -euo pipefail
+      if [ -n "${DRAUGR_VERSION:-}" ]; then
+        curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION="$DRAUGR_VERSION" sh
+      else
+        curl -fsSL https://draugr.dev/install.sh | sh
+      fi
+      # Two directories: install.sh writes Draugr to the first, Draugr writes the scanners it
+      # provisions to the second. Neither is on a hosted agent's PATH.
+      echo "##vso[task.prependpath]$HOME/.local/bin"
+      echo "##vso[task.prependpath]$HOME/.draugr/bin"
+    displayName: Install Draugr
+    env:
+      DRAUGR_VERSION: ${{ parameters.version }}
+
+  - ${{ if eq(parameters.tools, true) }}:
+      - script: |
+          set -euo pipefail
+          draugr tools install -y --saga "${{ parameters.saga }}"
+        displayName: Provision scanners
+
+  - ${{ if ne(parameters.mode, 'diff') }}:
+      - script: |
+          set -euo pipefail
+          draugr scan "${{ parameters.saga }}" --report junit,sarif,html \
+            -o "$(Build.ArtifactStagingDirectory)"
+        displayName: Scan
+        env:
+          # Azure does not expose the build's own token to a script step unless it is mapped.
+          # Needed only by the azure-pr-comment publisher, and harmless otherwise.
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+  - ${{ if ne(parameters.mode, 'scan') }}:
+      - script: |
+          set -euo pipefail
+          target="${SYSTEM_PULLREQUEST_TARGETBRANCH#refs/heads/}"
+
+          # --no-gate on both: these two scans exist to produce reports, and the diff is the
+          # gate. Without it the base scan's FAIL — which any repository with a backlog
+          # produces — takes the step down before the comparison runs.
+          git checkout -q --detach "origin/$target"
+          draugr scan "${{ parameters.saga }}" --no-gate --report sarif -o "$(Pipeline.Workspace)/draugr-base"
+
+          # A pull-request build checks out refs/pull/N/merge, which is on no branch, so
+          # `git checkout -` cannot find its way home.
+          git checkout -q --detach "$BUILD_SOURCEVERSION"
+          draugr scan "${{ parameters.saga }}" --no-gate --report sarif -o "$(Pipeline.Workspace)/draugr-head"
+
+          gate=""
+          if [ -n "${FAIL_ON_NEW_PRIORITY:-}" ]; then
+            gate="--fail-on-new-priority $FAIL_ON_NEW_PRIORITY"
+          fi
+          # shellcheck disable=SC2086 # gate is a deliberate word-split, empty when not gating
+          draugr diff "$(Pipeline.Workspace)/draugr-base/results.sarif" \
+                      "$(Pipeline.Workspace)/draugr-head/results.sarif" \
+                      --publish $gate
+        displayName: Gate on new findings
+        condition: eq(variables['Build.Reason'], 'PullRequest')
+        env:
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+          FAIL_ON_NEW_PRIORITY: ${{ parameters.failOnNewPriority }}
+
+  - ${{ if eq(parameters.publishResults, true) }}:
+      # succeededOrFailed, because the run that failed is the one whose evidence you want.
+      - task: PublishTestResults@2
+        displayName: Publish findings to the Tests tab
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFormat: JUnit
+          testResultsFiles: '$(Build.ArtifactStagingDirectory)/report.junit.xml'
+          testRunTitle: Draugr
+          # The scan has already decided. Failing here too reports one problem as two.
+          failTaskOnFailedTests: false
+
+      - task: PublishBuildArtifacts@1
+        displayName: Publish the reports
+        condition: succeededOrFailed()
+        inputs:
+          pathToPublish: $(Build.ArtifactStagingDirectory)
+          artifactName: draugr

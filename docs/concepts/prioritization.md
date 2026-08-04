@@ -119,11 +119,18 @@ escalation is worse than one that stops.
 
 ### What the report says about it
 
-A run that used exploitability data says so, and says which copy:
+A run that used exploitability data says so, says which copy, and says what it changed:
 
 ```
-Exploitability: KEV 2026-08-01 · EPSS 2026-08-02
+Exploitability: KEV 2026-08-01 · EPSS 2026-08-02 — 3 findings raised
 ```
+
+**"nothing raised" is printed when nothing moved**, because that is a result rather than an
+absence. Without it, the only way to learn that a feed changed nothing is to read every finding
+looking for a note that is not there, and then wonder whether you missed one.
+
+The count is over the whole run, not the visible listing — `--top` and `--min-priority` narrow
+what is shown, and this answers what the feeds did, not what fitted on the page.
 
 Each finding that was actually moved carries the reason underneath it:
 

@@ -17,11 +17,14 @@ import (
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
+	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
@@ -33,17 +36,21 @@ import (
 )
 
 type scanOptions struct {
-	outputDir      string
-	reports        []string
-	failOn         string
-	failOnPriority string
-	cacheDir       string
-	cacheTTL       time.Duration
-	minPriority    string
-	allowEffects   []string
-	kevFile        string
-	epssFile       string
-	epssThreshold  float64
+	outputDir          string
+	reports            []string
+	failOn             string
+	noGate             bool
+	workingTree        bool
+	failOnPriority     string
+	cacheDir           string
+	cacheTTL           time.Duration
+	cacheReadOnly      bool
+	cacheRequireDigest bool
+	minPriority        string
+	allowEffects       []string
+	kevFile            string
+	epssFile           string
+	epssThreshold      float64
 	// setFlags names the flags the user actually typed. Needed because the descriptor supplies
 	// defaults for the same settings, and a flag with a non-zero default — --epss-threshold is
 	// 0.5 — cannot be told apart from an unset one by its value.
@@ -80,10 +87,20 @@ func newScanCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&opts.outputDir, "output", "o", "", "directory to write reports into (see --report; default report.json and results.sarif)")
+	cmd.Flags().BoolVar(&opts.workingTree, "working-tree", false,
+		"scan repositories as they are on disk, uncommitted work included — for iterating on a "+
+			"fix without committing. The result is not reproducible and the report says so")
+	cmd.Flags().BoolVar(&opts.noGate, "no-gate", false,
+		"report the verdict but exit 0 on a fail — for producing a report to compare later, "+
+			"where `draugr diff` is the gate")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.LevelError), "severity that fails the gate: error, warning, note")
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "", "also fail the gate on any finding at or above this priority (P1-P4)")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
+	cmd.Flags().BoolVar(&opts.cacheReadOnly, "cache-read-only", false,
+		"read the cache but never write it — for a run whose results should not be trusted by the next one")
+	cmd.Flags().BoolVar(&opts.cacheRequireDigest, "cache-require-digest", false,
+		"do not cache an image identified only by a tag: a tag can be rebuilt, so a hit can be right about the key and wrong about the image")
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "list findings at or above this priority band (P1-P4)")
 	cmd.Flags().StringSliceVar(&opts.allowEffects, "allow-effects", nil,
 		"accept scanner effects for this run (mutate, privilege); config.allowEffects is the reviewed equivalent")
@@ -125,7 +142,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		_, _ = fmt.Fprintf(os.Stderr, "No *.saga.yaml here — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
 			"(run `draugr init` to scaffold one you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
-	warnUncommitted(ctx, model)
+	// Organisation defaults are merged *underneath* the descriptor, so the engine sees one
+	// effective Saga and nothing downstream has to know there were two files. Merged after the
+	// descriptor has been validated on its own, so an error still names what the author wrote.
+	if err := applyConfigDefaults(ctx, model); err != nil {
+		return err
+	}
 
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
 	if err != nil {
@@ -133,6 +155,15 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	failOnPriority, err := validatePriority("--fail-on-priority", opts.failOnPriority)
 	if err != nil {
+		return err
+	}
+	// Before the scan, not after. A typo discovered once the scanners have finished is a wasted
+	// pipeline minute for a mistake that was visible on the command line.
+	failOn, err := sarif.ParseLevel(opts.failOn)
+	if err != nil {
+		return fmt.Errorf("--fail-on: %w", err)
+	}
+	if err := checkWorkingTree(opts.workingTree, model); err != nil {
 		return err
 	}
 	expl, feedProv, err := loadExploitSource(ctx, exploitSettings(opts, model.Config.Exploitability))
@@ -155,13 +186,23 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		eopts = append(eopts, engine.WithoutPrewarm())
 	}
 	if opts.cacheDir != "" {
-		eopts = append(eopts, engine.WithCache(cache.NewLocal(opts.cacheDir, opts.cacheTTL)))
+		var c cache.Cache = cache.NewLocal(opts.cacheDir, opts.cacheTTL)
+		if opts.cacheReadOnly {
+			c = cache.ReadOnly(c)
+		}
+		if opts.cacheRequireDigest {
+			eopts = append(eopts, engine.WithCacheableTarget(digestPinnedOnly))
+		}
+		eopts = append(eopts, engine.WithCache(c))
 	}
 	if opts.jobs > 0 {
 		eopts = append(eopts, engine.WithConcurrency(opts.jobs))
 	}
 	if len(opts.allowEffects) > 0 {
 		eopts = append(eopts, engine.WithAllowedEffects(opts.allowEffects))
+	}
+	if opts.workingTree {
+		eopts = append(eopts, engine.WithWorkingTree())
 	}
 
 	run, runErr := engine.New(reg, eopts...).Run(ctx, *model)
@@ -174,7 +215,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		reports[name] = cr.Report
 	}
 	policy := norn.Policy{
-		FailOn:         sarif.Level(opts.failOn),
+		FailOn:         failOn,
 		PerControl:     perControlThresholds(model.Config.Gate),
 		FailOnPriority: failOnPriority,
 	}
@@ -216,6 +257,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Components:           components,
 		UnattributedFindings: unattributed,
 		Exploitability:       feedProv,
+		Tools:                toolBuilds(run),
+		Repositories:         report.RepositoriesFrom(run),
 		// Stamped so a rendered report can say when it ran and what produced it. A report
 		// offered as evidence has to answer both, and only the CLI knows either.
 		Generated: time.Now(),
@@ -277,7 +320,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			"(use --allow-scan-errors to accept partial results)",
 			strings.Join(waived, ", ")), publishErr)
 	}
-	if verdict.Verdict == norn.Fail {
+	// --no-gate suppresses the *verdict's* exit code only. A scan that could not run still fails,
+	// above: the flag says "I am producing a report to compare later, and the comparison is the
+	// gate" — not "ignore whatever happened". `|| true` in a pipeline cannot tell the two apart,
+	// and swallows the scan error that leaves no report for the diff to read.
+	if verdict.Verdict == norn.Fail && !opts.noGate {
 		return alsoPublish(fmt.Errorf("policy verdict: fail"), publishErr)
 	}
 	return publishErr
@@ -337,19 +384,6 @@ func reportVersion() string {
 	return "v" + strings.TrimPrefix(version.Version, "v")
 }
 
-// artifactFilename is what each format is written as inside -o.
-//
-// json and sarif keep the names pipelines already expect. The rest follow the same shape so a
-// directory listing reads as one set of reports rather than a pile of conventions.
-var artifactFilename = map[string]string{
-	"json":     "report.json",
-	"sarif":    "results.sarif",
-	"html":     "report.html",
-	"markdown": "report.md",
-	"junit":    "junit.xml",
-	"console":  "report.txt",
-}
-
 // defaultArtifacts is what -o writes when --report says nothing: the two a pipeline already
 // depends on.
 var defaultArtifacts = []string{"json", "sarif"}
@@ -369,10 +403,7 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 	}
 
 	for _, format := range formats {
-		name, ok := artifactFilename[format]
-		if !ok {
-			name = "report." + format
-		}
+		name := report.Filename(format)
 		// json and sarif go through skald directly, as they always have: those two are written
 		// complete regardless of --min-priority, because a filtered artifact is a lie to whatever
 		// consumes it.
@@ -541,30 +572,115 @@ func priorityBand(p string) int {
 	return -1
 }
 
-// warnUncommitted says when a local repository has work the scan will not see.
+// digestPinnedOnly refuses to cache an image identified only by a mutable tag.
 //
-// A repository given as a path is cloned like any other source, so the scan describes the
-// committed revision rather than the files on disk. That is the right behaviour — evidence has to
-// name a revision someone else can reproduce — and it is silent, which is the problem: a change
-// that introduces a finding passes until it is committed, and a fix appears not to have worked.
+// A tag is a name, not content. Rebuild and re-push `acme/api:latest` and the cache key is
+// unchanged, so the next scan reports the previous image's findings and is entirely convinced.
+// Every other target Draugr scans is content-addressed already — a commit, a digest, a normalised
+// endpoint — which is why this is the one exception worth being able to switch off.
 //
-// Once per repository per run, not once per scanner. Four controls over one checkout is one fact
-// about that checkout, and saying it four times is how a warning becomes wallpaper.
-func warnUncommitted(ctx context.Context, model *saga.Model) {
-	if model == nil {
-		return
+// Off by default: the reader who pins digests loses nothing, and refusing to cache tags outright
+// would punish the common case to prevent an uncommon one. Turning it on is for a pipeline that
+// would rather re-scan than be wrong.
+func digestPinnedOnly(t plugin.Target) bool {
+	img, ok := t.(plugin.ImageTarget)
+	if !ok {
+		return true // not an image; nothing about it is mutable behind our back
 	}
-	seen := map[string]bool{}
-	for _, c := range model.Components {
-		for _, r := range c.Repositories {
-			if seen[r.URL] {
-				continue
-			}
-			seen[r.URL] = true
-			if n := git.UncommittedFiles(ctx, r.URL); n > 0 {
-				slog.WarnContext(ctx, "scanning the committed revision, not your working tree",
-					"repository", r.URL, "uncommitted_files", n)
+	return img.Digest != ""
+}
+
+// applyConfigDefaults merges the machine/organisation controller defaults under the descriptor.
+//
+// Under, not over: a project that has an opinion keeps it, and inherits the rest. The alternative
+// — defaults that a Saga cannot override — is a guarantee a CLI cannot keep, because the config
+// lives on a machine the same person controls.
+func applyConfigDefaults(ctx context.Context, model *saga.Model) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	res, err := config.Load(rootConfigPath, wd)
+	if err != nil {
+		return err
+	}
+	if len(res.File.Controllers) == 0 {
+		return nil
+	}
+	if model.Config.Controllers == nil {
+		model.Config.Controllers = map[string]saga.ControllerSettings{}
+	}
+	for control, defaults := range res.File.Controllers {
+		model.Config.Controllers[control] = config.DeepMerge(defaults, model.Config.Controllers[control])
+	}
+	// Said once, at debug: a reader wondering why a control behaved unexpectedly needs to know a
+	// second file had a say, and `draugr config show` is where the detail lives.
+	slog.DebugContext(ctx, "merged controller defaults from configuration",
+		"files", len(res.Sources), "controls", len(res.File.Controllers))
+	return nil
+}
+
+// toolBuilds reports the build of each external scanner the run actually used.
+//
+// Derived from the results rather than from the registry: a scanner that was configured but never
+// ran has no bearing on how these findings were produced, and listing it would pad the evidence
+// with tools that did nothing.
+//
+// Native scanners are skipped — their rules ship in this binary, so "which build" is answered by
+// Draugr's own version, which the report already stamps.
+func toolBuilds(run engine.Result) []report.ToolBuild {
+	binaries := map[string]bool{}
+	for _, name := range run.Scanners {
+		// The registry is the only thing that maps a scanner to its executable. A finding's Tool
+		// is the SARIF driver name the tool gives itself — "Trivy" for trivy-fs — so matching on
+		// it finds nothing, which is exactly what the first version of this did.
+		if sc, ok := builtins.Registry().Scanner(name); ok {
+			if b := sc.Info().Binary; b != "" {
+				binaries[b] = true
 			}
 		}
 	}
+	if len(binaries) == 0 {
+		return nil
+	}
+
+	names := make([]string, 0, len(binaries))
+	for b := range binaries {
+		names = append(names, b)
+	}
+	sort.Strings(names)
+
+	out := make([]report.ToolBuild, 0, len(names))
+	for _, b := range names {
+		a := tools.AttestFound(b, "")
+		out = append(out, report.ToolBuild{
+			Name: a.Tool, Version: a.Version, Level: string(a.Level), Reason: a.Reason,
+		})
+	}
+	return out
+}
+
+// checkWorkingTree refuses --working-tree for a descriptor Draugr cannot honour it for.
+//
+// A remote repository has no working tree. Falling back to the committed revision would produce a
+// report that looks like the one asked for and describes something else — and the whole reason to
+// ask is that you want to see work that is not committed yet.
+func checkWorkingTree(enabled bool, model *saga.Model) error {
+	if !enabled || model == nil {
+		return nil
+	}
+	var remote []string
+	for _, c := range model.Components {
+		for _, r := range c.Repositories {
+			if !git.IsLocalPath(r.URL) {
+				remote = append(remote, r.URL)
+			}
+		}
+	}
+	if len(remote) > 0 {
+		return fmt.Errorf("--working-tree needs a local checkout, and %s %s a remote: "+
+			"scan without the flag, or point the descriptor at a path",
+			strings.Join(remote, ", "), plural2(len(remote), "is", "are"))
+	}
+	return nil
 }

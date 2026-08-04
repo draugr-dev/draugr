@@ -887,3 +887,115 @@ func TestWriteArtifactsDefaultsToWhatPipelinesExpect(t *testing.T) {
 		}
 	}
 }
+
+func TestDigestPinnedOnly(t *testing.T) {
+	// A tag is a name, not content: rebuild and re-push and the key is unchanged while the image
+	// is not. Everything else Draugr scans is content-addressed already.
+	if digestPinnedOnly(plugin.ImageTarget{Ref: "acme/api:latest"}) {
+		t.Error("a tag-only image was allowed into the cache")
+	}
+	if !digestPinnedOnly(plugin.ImageTarget{Ref: "acme/api:latest", Digest: "sha256:abc"}) {
+		t.Error("a digest-pinned image was refused")
+	}
+	// Repositories and hosts are not mutable behind our back in the same way.
+	if !digestPinnedOnly(plugin.RepositoryTarget{URL: "https://git/x"}) {
+		t.Error("a repository was refused")
+	}
+}
+
+func TestToolBuildsUsesTheRegistryNotTheDriverName(t *testing.T) {
+	// A finding's Tool is the SARIF driver name the tool gives itself — "Trivy" for trivy-fs —
+	// so deriving the list from findings finds nothing. It comes from Result.Scanners, which are
+	// the names Draugr selected.
+	got := toolBuilds(engine.Result{Scanners: []string{"trivy-fs", "gitleaks"}})
+	names := map[string]bool{}
+	for _, b := range got {
+		names[b.Name] = true
+	}
+	if !names["trivy"] || !names["gitleaks"] {
+		t.Errorf("expected the executables behind those scanners, got %+v", got)
+	}
+	// Every entry says something either way: verified, or why not.
+	for _, b := range got {
+		if b.Level != "pinned" && b.Level != "signed" && b.Reason == "" {
+			t.Errorf("%s is unverified without a reason", b.Name)
+		}
+	}
+}
+
+func TestToolBuildsSkipsNativeScanners(t *testing.T) {
+	// Their rules ship in this binary, so "which build" is answered by Draugr's own version,
+	// which the report already stamps. Listing them would pad the evidence with nothing.
+	if got := toolBuilds(engine.Result{Scanners: []string{"draugr-headers", "draugr-tls"}}); got != nil {
+		t.Errorf("native scanners were listed as external tools: %+v", got)
+	}
+	if got := toolBuilds(engine.Result{}); got != nil {
+		t.Errorf("a run that used nothing listed something: %+v", got)
+	}
+}
+
+func TestToolBuildsIgnoresUnknownScanners(t *testing.T) {
+	// A name no scanner answers to cannot have an executable behind it.
+	if got := toolBuilds(engine.Result{Scanners: []string{"not-a-scanner"}}); got != nil {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func TestWriteArtifactsUsesTheSameNamesAPublisherWould(t *testing.T) {
+	// -o and a publisher have to write a format under one name. When they disagree, a CI step
+	// globbing for the file finds nothing — and the common ones warn rather than fail, so the run
+	// stays green with no results in it.
+	dir := t.TempDir()
+	formats := []string{"json", "sarif", "html", "markdown", "junit"}
+	err := writeArtifacts(dir, formats, report.Data{Release: saga.Release{Name: "app", Version: "1"}},
+		saga.Release{Name: "app", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range formats {
+		if _, err := os.Stat(filepath.Join(dir, report.Filename(f))); err != nil {
+			t.Errorf("%s: %s not written: %v", f, report.Filename(f), err)
+		}
+	}
+}
+
+func TestNoGateSuppressesTheVerdictButNotAFailedScan(t *testing.T) {
+	// The flag exists for the two scans either side of a `draugr diff`: their job is to produce
+	// reports, and the diff is the gate. `|| true` in a pipeline would do it, but it also
+	// swallows a scan that never ran — and then the diff fails on a file that was never written,
+	// which reads as a diff problem rather than a scan one.
+	if !strings.Contains(newScanCommand().Flags().Lookup("no-gate").Usage, "diff") {
+		t.Error("the flag's help should say what it is for")
+	}
+}
+
+func TestWorkingTreeRefusesARemoteRatherThanScanningSomethingElse(t *testing.T) {
+	// A remote has no working tree. Falling back to the committed revision would produce a report
+	// that looks like the one asked for and describes something else — and the reason to ask is
+	// precisely that you want to see work that is not committed yet.
+	model := &saga.Model{Components: []saga.Component{{
+		Name:         "web",
+		Repositories: []saga.Repository{{URL: "https://example.test/web.git"}},
+	}}}
+	err := checkWorkingTree(true, model)
+	if err == nil {
+		t.Fatal("a remote was accepted")
+	}
+	if !strings.Contains(err.Error(), "example.test") {
+		t.Errorf("the error should name the repository: %v", err)
+	}
+
+	// A local path is fine, and so is not passing the flag at all.
+	local := &saga.Model{Components: []saga.Component{{
+		Name: "web", Repositories: []saga.Repository{{URL: "."}},
+	}}}
+	if err := checkWorkingTree(true, local); err != nil {
+		t.Errorf("a local checkout was refused: %v", err)
+	}
+	if err := checkWorkingTree(false, model); err != nil {
+		t.Errorf("the check fired without the flag: %v", err)
+	}
+	if err := checkWorkingTree(true, nil); err != nil {
+		t.Errorf("no descriptor is not an error here: %v", err)
+	}
+}

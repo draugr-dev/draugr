@@ -3,7 +3,10 @@
 package cache
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -73,6 +76,23 @@ func NewLocal(dir string, ttl time.Duration) *Local {
 	return &Local{dir: dir, ttl: ttl, now: time.Now}
 }
 
+// ReadOnly returns a view of c that serves entries and stores none.
+//
+// For a run whose results should not be trusted by the next one — a pull request from a fork
+// being the case that matters, where the code deciding what the scan sees is not the code the
+// cache is meant to describe. Reading stays useful: the entries already there were written by
+// runs that were trusted.
+//
+// A wrapper rather than a flag on Local so the guarantee is structural. A boolean checked inside
+// Put is a boolean somebody can forget to check.
+func ReadOnly(c Cache) Cache { return readOnly{c} }
+
+type readOnly struct{ Cache }
+
+// Put discards the report. Silently: a read-only cache is a deliberate configuration, not an
+// error, and a scan that failed because it could not write a cache would be absurd.
+func (readOnly) Put(string, sarif.Report) error { return nil }
+
 func (l *Local) pathFor(key string) string {
 	return filepath.Join(l.dir, key+".json")
 }
@@ -84,6 +104,9 @@ func (l *Local) Get(key string) (sarif.Report, bool) {
 
 	data, err := os.ReadFile(l.pathFor(key)) //nolint:gosec // key is a content-hash filename
 	if err != nil {
+		return sarif.Report{}, false
+	}
+	if data, err = maybeGunzip(data); err != nil {
 		return sarif.Report{}, false
 	}
 	var e entry
@@ -108,5 +131,46 @@ func (l *Local) Put(key string, report sarif.Report) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(l.pathFor(key), data, 0o600)
+	packed, err := gzipBytes(data)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(l.pathFor(key), packed, 0o600)
+}
+
+// gzipMagic is the two bytes every gzip stream starts with.
+var gzipMagic = []byte{0x1f, 0x8b}
+
+// gzipBytes compresses an entry for storage.
+//
+// A cached entry is a whole SARIF report, which is repetitive by construction — a measured entry
+// went from 375 KB to 60 KB, and a project with a few hundred of them is the difference between
+// a cache that is cheap to keep and one that costs more to restore than the scan it saves.
+func gzipBytes(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	if _, err := zw.Write(data); err != nil {
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// maybeGunzip decompresses an entry, passing through anything that is not gzip.
+//
+// Sniffed rather than assumed so a cache written by an older Draugr still reads. Those entries
+// are plain JSON, and refusing them would silently discard a warm cache on upgrade — a
+// correctness-neutral change that costs everyone a full re-scan is not one worth making.
+func maybeGunzip(data []byte) ([]byte, error) {
+	if !bytes.HasPrefix(data, gzipMagic) {
+		return data, nil
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = zr.Close() }()
+	return io.ReadAll(zr)
 }

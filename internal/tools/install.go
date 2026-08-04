@@ -44,7 +44,11 @@ const (
 // Asset is one platform's download for an installable tool. When BinaryInArchive is empty the
 // downloaded file is the binary itself (a bare release binary, e.g. cosign), not an archive.
 type Asset struct {
-	URL             string
+	URL string
+	// URLTemplate renders the download URL for a version other than the pinned one, with
+	// {version} substituted (no leading "v"). Empty means Draugr cannot fetch another version of
+	// this platform's build, and will say so rather than guessing at a URL shape.
+	URLTemplate     string
 	SHA256          string
 	BinaryInArchive string // name of the binary within the .tar.gz; "" = the download is the binary
 	// DataInArchive is a directory prefix inside the archive to extract alongside the binary,
@@ -64,6 +68,9 @@ type Asset struct {
 type CosignSpec struct {
 	// ChecksumsURL is the upstream's signed checksums file, listing each asset's SHA-256.
 	ChecksumsURL string
+	// ChecksumsURLTemplate and BundleURLTemplate render those URLs for another version.
+	ChecksumsURLTemplate string
+	BundleURLTemplate    string
 	// BundleURL is the Sigstore bundle (.sigstore.json) signing ChecksumsURL.
 	BundleURL string
 	// IdentityRegexp is the required signing certificate identity (--certificate-identity-regexp).
@@ -77,7 +84,11 @@ type CosignSpec struct {
 type InstallSpec struct {
 	Binary  string
 	Version string
-	Assets  map[string]Asset
+	// ChecksumsURLTemplate is an *unsigned* checksums file for an arbitrary version, for an
+	// upstream that publishes one but signs nothing. Weaker than Cosign and much better than
+	// nothing: it catches a corrupted or truncated download.
+	ChecksumsURLTemplate string
+	Assets               map[string]Asset
 	// Cosign, when set, verifies the release's provenance in addition to the SHA-256 pin.
 	// Nil for upstreams that publish no signature (e.g. gitleaks) — those stay SHA-256-only.
 	Cosign *CosignSpec
@@ -94,29 +105,35 @@ var installable = map[string]InstallSpec{
 		Version: "0.69.3",
 		// Trivy signs its checksums file with keyless cosign (new Sigstore bundle format).
 		Cosign: &CosignSpec{
-			ChecksumsURL:   "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_checksums.txt",
-			BundleURL:      "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_checksums.txt.sigstore.json",
-			IdentityRegexp: `^https://github\.com/aquasecurity/trivy/\.github/workflows/.*@refs/tags/v.*$`,
-			OIDCIssuer:     "https://token.actions.githubusercontent.com",
+			ChecksumsURL:         "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_checksums.txt",
+			ChecksumsURLTemplate: "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_checksums.txt",
+			BundleURL:            "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_checksums.txt.sigstore.json",
+			BundleURLTemplate:    "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_checksums.txt.sigstore.json",
+			IdentityRegexp:       `^https://github\.com/aquasecurity/trivy/\.github/workflows/.*@refs/tags/v.*$`,
+			OIDCIssuer:           "https://token.actions.githubusercontent.com",
 		},
 		Assets: map[string]Asset{
 			"linux/amd64": {
 				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz",
+				URLTemplate:     "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_Linux-64bit.tar.gz",
 				SHA256:          "1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75",
 				BinaryInArchive: "trivy",
 			},
 			"linux/arm64": {
 				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-ARM64.tar.gz",
+				URLTemplate:     "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_Linux-ARM64.tar.gz",
 				SHA256:          "7e3924a974e912e57b4a99f65ece7931f8079584dae12eb7845024f97087bdfd",
 				BinaryInArchive: "trivy",
 			},
 			"darwin/amd64": {
 				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_macOS-64bit.tar.gz",
+				URLTemplate:     "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_macOS-64bit.tar.gz",
 				SHA256:          "fec4a9f7569b624dd9d044fca019e5da69e032700edbb1d7318972c448ec2f4e",
 				BinaryInArchive: "trivy",
 			},
 			"darwin/arm64": {
 				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_macOS-ARM64.tar.gz",
+				URLTemplate:     "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_macOS-ARM64.tar.gz",
 				SHA256:          "a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5",
 				BinaryInArchive: "trivy",
 			},
@@ -130,20 +147,24 @@ var installable = map[string]InstallSpec{
 		// floor) — using cosign to verify itself would be circular.
 		Assets: map[string]Asset{
 			"linux/amd64": {
-				URL:    "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-linux-amd64",
-				SHA256: "ae1ecd212663f3693ad9edf8b1a183900c9a52d3155ba6e354237f9a0f6463fc",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-linux-amd64",
+				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-linux-amd64",
+				SHA256:      "ae1ecd212663f3693ad9edf8b1a183900c9a52d3155ba6e354237f9a0f6463fc",
 			},
 			"linux/arm64": {
-				URL:    "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-linux-arm64",
-				SHA256: "2ec865872e331c32fd12b08dae15332d3f92c0aa029219589684a4903ca85d11",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-linux-arm64",
+				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-linux-arm64",
+				SHA256:      "2ec865872e331c32fd12b08dae15332d3f92c0aa029219589684a4903ca85d11",
 			},
 			"darwin/amd64": {
-				URL:    "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-darwin-amd64",
-				SHA256: "14d2678dfbfde18798151e86fbd91ebdadbb7424b18412a42a155dd8a2df4c7a",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-darwin-amd64",
+				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-darwin-amd64",
+				SHA256:      "14d2678dfbfde18798151e86fbd91ebdadbb7424b18412a42a155dd8a2df4c7a",
 			},
 			"darwin/arm64": {
-				URL:    "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-darwin-arm64",
-				SHA256: "94b42a9e697be95675f6160ab031a9a5f1ec1e646d6f648d7b2f5cd59ececbc5",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-darwin-arm64",
+				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-darwin-arm64",
+				SHA256:      "94b42a9e697be95675f6160ab031a9a5f1ec1e646d6f648d7b2f5cd59ececbc5",
 			},
 		},
 	},
@@ -160,12 +181,14 @@ var installable = map[string]InstallSpec{
 		Assets: map[string]Asset{
 			"linux/amd64": {
 				URL:             "https://github.com/aquasecurity/kube-bench/releases/download/v0.15.6/kube-bench_0.15.6_linux_amd64.tar.gz",
+				URLTemplate:     "https://github.com/aquasecurity/kube-bench/releases/download/v{version}/kube-bench_{version}_linux_amd64.tar.gz",
 				SHA256:          "783882d23a13837ffd9d2a3dc713d86bed121802f51c93465f47add4dae9eb23",
 				BinaryInArchive: "kube-bench",
 				DataInArchive:   "cfg/",
 			},
 			"linux/arm64": {
 				URL:             "https://github.com/aquasecurity/kube-bench/releases/download/v0.15.6/kube-bench_0.15.6_linux_arm64.tar.gz",
+				URLTemplate:     "https://github.com/aquasecurity/kube-bench/releases/download/v{version}/kube-bench_{version}_linux_arm64.tar.gz",
 				SHA256:          "69a3870f5ce3578429de8d5d771b7703a062eec64b8d7e6d014b15350fcb4a35",
 				BinaryInArchive: "kube-bench",
 				DataInArchive:   "cfg/",
@@ -181,21 +204,25 @@ var installable = map[string]InstallSpec{
 		Assets: map[string]Asset{
 			"linux/amd64": {
 				URL:             "https://github.com/securego/gosec/releases/download/v2.28.0/gosec_2.28.0_linux_amd64.tar.gz",
+				URLTemplate:     "https://github.com/securego/gosec/releases/download/v{version}/gosec_{version}_linux_amd64.tar.gz",
 				SHA256:          "d7882e505b1ff345d458bf0e893eec8019bc849f861ad73a212869540dd505ff",
 				BinaryInArchive: "gosec",
 			},
 			"linux/arm64": {
 				URL:             "https://github.com/securego/gosec/releases/download/v2.28.0/gosec_2.28.0_linux_arm64.tar.gz",
+				URLTemplate:     "https://github.com/securego/gosec/releases/download/v{version}/gosec_{version}_linux_arm64.tar.gz",
 				SHA256:          "63259681b6e4b9e7a24d4e187b485e75d3844d28d512b0c97dc831e51d374720",
 				BinaryInArchive: "gosec",
 			},
 			"darwin/amd64": {
 				URL:             "https://github.com/securego/gosec/releases/download/v2.28.0/gosec_2.28.0_darwin_amd64.tar.gz",
+				URLTemplate:     "https://github.com/securego/gosec/releases/download/v{version}/gosec_{version}_darwin_amd64.tar.gz",
 				SHA256:          "ad23af3a6bfef8112a2da386acd61ede1374c8d022c06d8ef130ccf9748311d4",
 				BinaryInArchive: "gosec",
 			},
 			"darwin/arm64": {
 				URL:             "https://github.com/securego/gosec/releases/download/v2.28.0/gosec_2.28.0_darwin_arm64.tar.gz",
+				URLTemplate:     "https://github.com/securego/gosec/releases/download/v{version}/gosec_{version}_darwin_arm64.tar.gz",
 				SHA256:          "6c4993a0ab5e3007d66c87cbcb4e3948f8000971f8eeaf3ac269cbc87a603ba4",
 				BinaryInArchive: "gosec",
 			},
@@ -207,21 +234,25 @@ var installable = map[string]InstallSpec{
 		Assets: map[string]Asset{
 			"linux/amd64": {
 				URL:             "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz",
+				URLTemplate:     "https://github.com/gitleaks/gitleaks/releases/download/v{version}/gitleaks_{version}_linux_x64.tar.gz",
 				SHA256:          "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
 				BinaryInArchive: "gitleaks",
 			},
 			"linux/arm64": {
 				URL:             "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_arm64.tar.gz",
+				URLTemplate:     "https://github.com/gitleaks/gitleaks/releases/download/v{version}/gitleaks_{version}_linux_arm64.tar.gz",
 				SHA256:          "e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080",
 				BinaryInArchive: "gitleaks",
 			},
 			"darwin/amd64": {
 				URL:             "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_x64.tar.gz",
+				URLTemplate:     "https://github.com/gitleaks/gitleaks/releases/download/v{version}/gitleaks_{version}_darwin_x64.tar.gz",
 				SHA256:          "dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709",
 				BinaryInArchive: "gitleaks",
 			},
 			"darwin/arm64": {
 				URL:             "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz",
+				URLTemplate:     "https://github.com/gitleaks/gitleaks/releases/download/v{version}/gitleaks_{version}_darwin_arm64.tar.gz",
 				SHA256:          "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5",
 				BinaryInArchive: "gitleaks",
 			},
@@ -240,21 +271,25 @@ var installable = map[string]InstallSpec{
 		Assets: map[string]Asset{
 			"linux/amd64": {
 				URL:             "https://github.com/anchore/syft/releases/download/v1.49.0/syft_1.49.0_linux_amd64.tar.gz",
+				URLTemplate:     "https://github.com/anchore/syft/releases/download/v{version}/syft_{version}_linux_amd64.tar.gz",
 				SHA256:          "7aa2f03ee92739cf643279ba3990548b9925d4e22cae13f46831ee62821147fe",
 				BinaryInArchive: "syft",
 			},
 			"linux/arm64": {
 				URL:             "https://github.com/anchore/syft/releases/download/v1.49.0/syft_1.49.0_linux_arm64.tar.gz",
+				URLTemplate:     "https://github.com/anchore/syft/releases/download/v{version}/syft_{version}_linux_arm64.tar.gz",
 				SHA256:          "c7c32de183c32368de197edba75e8dba7632915f7761bacd55149a9ca7fe0fa4",
 				BinaryInArchive: "syft",
 			},
 			"darwin/amd64": {
 				URL:             "https://github.com/anchore/syft/releases/download/v1.49.0/syft_1.49.0_darwin_amd64.tar.gz",
+				URLTemplate:     "https://github.com/anchore/syft/releases/download/v{version}/syft_{version}_darwin_amd64.tar.gz",
 				SHA256:          "a18ba5c48a4e75d0d87cae7b36b93bdfc04ddd5ea69b87bec9f7cd9431a8cdb9",
 				BinaryInArchive: "syft",
 			},
 			"darwin/arm64": {
 				URL:             "https://github.com/anchore/syft/releases/download/v1.49.0/syft_1.49.0_darwin_arm64.tar.gz",
+				URLTemplate:     "https://github.com/anchore/syft/releases/download/v{version}/syft_{version}_darwin_arm64.tar.gz",
 				SHA256:          "4d137302fb3e049cb1b124b1cbd840a77280dc9f50a45a5a4389250a2228b3cb",
 				BinaryInArchive: "syft",
 			},
@@ -268,21 +303,25 @@ var installable = map[string]InstallSpec{
 		Assets: map[string]Asset{
 			"linux/amd64": {
 				URL:             "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.0/nuclei_3.11.0_linux_amd64.zip",
+				URLTemplate:     "https://github.com/projectdiscovery/nuclei/releases/download/v{version}/nuclei_{version}_linux_amd64.zip",
 				SHA256:          "dc238d6040813e14fc30514dac5a2eb1b430c694f3ca99eee2a5097e55076283",
 				BinaryInArchive: "nuclei",
 			},
 			"linux/arm64": {
 				URL:             "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.0/nuclei_3.11.0_linux_arm64.zip",
+				URLTemplate:     "https://github.com/projectdiscovery/nuclei/releases/download/v{version}/nuclei_{version}_linux_arm64.zip",
 				SHA256:          "78401fc570ed60a48b8a659f65f6645015a8b3b3097a5e50fc6fbe106a4b108a",
 				BinaryInArchive: "nuclei",
 			},
 			"darwin/amd64": {
 				URL:             "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.0/nuclei_3.11.0_macOS_amd64.zip",
+				URLTemplate:     "https://github.com/projectdiscovery/nuclei/releases/download/v{version}/nuclei_{version}_macOS_amd64.zip",
 				SHA256:          "70feaf206250e50f7ef8403f914ef6c500e0f2cab0172bedced3fbd5b0caedad",
 				BinaryInArchive: "nuclei",
 			},
 			"darwin/arm64": {
 				URL:             "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.0/nuclei_3.11.0_macOS_arm64.zip",
+				URLTemplate:     "https://github.com/projectdiscovery/nuclei/releases/download/v{version}/nuclei_{version}_macOS_arm64.zip",
 				SHA256:          "e35f513943f07b78d39bcca83f0a7f2db87fafa67669334e647666df7b397467",
 				BinaryInArchive: "nuclei",
 			},
@@ -378,15 +417,27 @@ func DataDirFor(name string) string {
 
 func platformKey() string { return runtime.GOOS + "/" + runtime.GOARCH }
 
+// PlatformKey is the key into InstallSpec.Assets for the machine Draugr is running on.
+func PlatformKey() string { return platformKey() }
+
 // Install downloads the pinned build of name, verifies its SHA-256, extracts the binary, and
 // installs it into destDir with an executable bit. client may be nil (a default is used). The
 // download is verified before anything is written, and the binary is placed atomically.
 // Install provisions a pinned tool into destDir. A tool already present at exactly the pinned
 // build is left alone unless force is set — see the install manifest below.
 func Install(ctx context.Context, name, destDir string, client *http.Client, force bool) (Installed, error) {
-	spec, ok := installable[name]
-	if !ok {
-		return Installed{}, fmt.Errorf("unknown tool %q (installable: %v)", name, Installable())
+	return InstallVersion(ctx, name, "", destDir, client, force)
+}
+
+// InstallVersion installs a specific version, or the pinned one when version is empty.
+//
+// would hide the order, and the order is the security property.
+//
+//nolint:gocyclo // one linear sequence: resolve, download, verify, extract, record. Splitting it
+func InstallVersion(ctx context.Context, name, version, destDir string, client *http.Client, force bool) (Installed, error) {
+	spec, err := SpecFor(name, version)
+	if err != nil {
+		return Installed{}, err
 	}
 	asset, ok := spec.Assets[platformKey()]
 	if !ok {
@@ -414,9 +465,20 @@ func Install(ctx context.Context, name, destDir string, client *http.Client, for
 
 	sum := sha256.Sum256(data)
 	gotSHA := hex.EncodeToString(sum[:])
-	if gotSHA != asset.SHA256 {
-		return Installed{}, fmt.Errorf("%s: checksum mismatch for %s: got %s, want %s",
-			name, asset.URL, gotSHA, asset.SHA256)
+
+	// A recorded SHA is the strongest thing available and needs no network. It exists only for
+	// the version Draugr ships.
+	level := LevelPinned
+	if asset.SHA256 != "" {
+		if gotSHA != asset.SHA256 {
+			return Installed{}, fmt.Errorf("%s: checksum mismatch for %s: got %s, want %s",
+				name, asset.URL, gotSHA, asset.SHA256)
+		}
+	} else {
+		level, err = verifyByPublishedChecksums(ctx, client, spec, asset, gotSHA)
+		if err != nil {
+			return Installed{}, err
+		}
 	}
 
 	// Optional provenance layer: verify the upstream's cosign signature over the checksums
@@ -424,7 +486,7 @@ func Install(ctx context.Context, name, destDir string, client *http.Client, for
 	// mandatory floor; this adds signed-by-the-expected-identity assurance on top.
 	signatureVerified := false
 	provenanceNote := ""
-	if spec.Cosign != nil {
+	if spec.Cosign != nil && level == LevelPinned {
 		signatureVerified, provenanceNote, err = verifyCosignProvenance(ctx, client, spec.Cosign, asset.URL, gotSHA)
 		if err != nil {
 			return Installed{}, fmt.Errorf("%s: provenance verification failed: %w", name, err)
@@ -465,10 +527,14 @@ func Install(ctx context.Context, name, destDir string, client *http.Client, for
 	}
 
 	binSum := sha256.Sum256(bin)
+	if signatureVerified && level == LevelPinned {
+		level = LevelSigned
+	}
 	recordInstall(destDir, name, installRecord{
 		Version:      spec.Version,
-		AssetSHA256:  asset.SHA256,
+		AssetSHA256:  gotSHA,
 		BinarySHA256: hex.EncodeToString(binSum[:]),
+		Verified:     level,
 	})
 	return Installed{
 		Name:              name,
@@ -660,6 +726,10 @@ type installRecord struct {
 	Version      string `json:"version"`
 	AssetSHA256  string `json:"assetSha256"`
 	BinarySHA256 string `json:"binarySha256"`
+	// Verified is how the download was checked. Recorded because install time is the only moment
+	// the evidence exists: the checksums file and the signature are not kept, so a later reader
+	// asking "how well do we know this binary" has nothing else to go on.
+	Verified Level `json:"verified,omitempty"`
 }
 
 func manifestPath(destDir string) string { return filepath.Join(destDir, manifestName) }
@@ -771,4 +841,56 @@ func extractTree(data []byte, prefix, dest string) (int, error) {
 		return 0, fmt.Errorf("no files under %q in the archive", prefix)
 	}
 	return written, nil
+}
+
+// verifyByPublishedChecksums checks a download Draugr has no recorded hash for, and reports how
+// strongly it managed to.
+//
+// It never refuses for want of evidence — a version somebody asked for is installed even when
+// nothing is published to check it against, because refusing would block an operator who knows
+// something Draugr does not. It does refuse a **mismatch**: a published checksum that disagrees
+// is not missing information, it is information saying the download is wrong, and installing past
+// it would be ignoring evidence rather than lacking it.
+func verifyByPublishedChecksums(ctx context.Context, client *http.Client, spec InstallSpec, asset Asset, gotSHA string) (Level, error) {
+	file := assetFileName(asset.URL)
+
+	if spec.Cosign != nil {
+		ok, _, err := verifyCosignProvenance(ctx, client, spec.Cosign, asset.URL, gotSHA)
+		switch {
+		case err != nil:
+			// The signature or the checksums say something is wrong. That is evidence, not a gap.
+			return "", fmt.Errorf("%s %s: %w", spec.Binary, spec.Version, err)
+		case ok:
+			return LevelSigned, nil
+		}
+		// cosign is not installed, so the signature could not be checked. Fall through to the
+		// checksums file on its own rather than treating an absent verifier as a failure.
+	}
+
+	url := spec.ChecksumsURLTemplate
+	if url == "" && spec.Cosign != nil {
+		url = spec.Cosign.ChecksumsURL
+	}
+	if url == "" {
+		return LevelUnverified, nil
+	}
+	checksums, err := download(ctx, client, url)
+	if err != nil {
+		// Could not fetch them. Unknown, not wrong.
+		return LevelUnverified, nil
+	}
+	if !checksumsContain(checksums, file, gotSHA) {
+		return "", fmt.Errorf("%s %s: %s is not listed with checksum %s in %s — the download does "+
+			"not match what the upstream published", spec.Binary, spec.Version, file, gotSHA, url)
+	}
+	return LevelChecksum, nil
+}
+
+// assetFileName is the last path segment of a download URL, which is how a checksums file names
+// its entries.
+func assetFileName(url string) string {
+	if i := strings.LastIndex(url, "/"); i >= 0 {
+		return url[i+1:]
+	}
+	return url
 }

@@ -389,7 +389,7 @@ func TestInstallPlanMarksWhatIsAlreadyThere(t *testing.T) {
 	stubDetect(t, map[string]string{"trivy": "0.69.3"})
 	var out bytes.Buffer
 	names := []string{"trivy", "gitleaks"}
-	writeInstallPlan(&out, names, false, present(context.Background(), names, false))
+	writeInstallPlan(&out, names, false, present(context.Background(), names, toolsInstallOptions{}), toolsInstallOptions{})
 
 	got := out.String()
 	if !strings.Contains(got, "already at 0.69.3") {
@@ -402,14 +402,14 @@ func TestInstallPlanMarksWhatIsAlreadyThere(t *testing.T) {
 
 func TestPresentIgnoresAWrongVersion(t *testing.T) {
 	stubDetect(t, map[string]string{"trivy": "0.1.0"})
-	if have := present(context.Background(), []string{"trivy"}, false); len(have) != 0 {
+	if have := present(context.Background(), []string{"trivy"}, toolsInstallOptions{}); len(have) != 0 {
 		t.Errorf("an old version is still work to do: %v", have)
 	}
 }
 
 func TestPresentIgnoresEverythingUnderForce(t *testing.T) {
 	stubDetect(t, map[string]string{"trivy": "0.69.3"})
-	if have := present(context.Background(), []string{"trivy"}, true); len(have) != 0 {
+	if have := present(context.Background(), []string{"trivy"}, toolsInstallOptions{force: true}); len(have) != 0 {
 		t.Errorf("--force reinstalls regardless: %v", have)
 	}
 }
@@ -454,5 +454,106 @@ func TestInstallStillPrintsTheSemgrepHintWhenAbsent(t *testing.T) {
 		func(string) (tools.Installed, error) { return tools.Installed{}, nil })
 	if !strings.Contains(out.String(), "pipx install") {
 		t.Errorf("an absent semgrep still needs its instruction:\n%s", out.String())
+	}
+}
+
+func TestWantedVersionsFromConfig(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "draugr.config.yaml"),
+		[]byte("tools:\n  trivy:\n    version: \"0.68.0\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	got, err := wantedVersions(nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["trivy"] != "0.68.0" {
+		t.Errorf("the pin in draugr.config.yaml was ignored: %v", got)
+	}
+}
+
+func TestWantedVersionsFlagBeatsTheConfig(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "draugr.config.yaml"),
+		[]byte("tools:\n  trivy:\n    version: \"0.68.0\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	got, err := wantedVersions([]string{"trivy"}, "0.69.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["trivy"] != "0.69.3" {
+		t.Errorf("--version should win for this run: %v", got)
+	}
+}
+
+func TestWantedVersionsRefusesAVersionForSeveralTools(t *testing.T) {
+	// One value cannot mean the right thing for two tools, and installing 0.69.3 of gitleaks
+	// because it was typed for trivy is worse than saying so.
+	for _, args := range [][]string{nil, {"trivy", "gitleaks"}} {
+		if _, err := wantedVersions(args, "0.69.3"); err == nil {
+			t.Errorf("args %v: expected a refusal", args)
+		}
+	}
+}
+
+func TestPresentIgnoresABinaryThatIsNotThePinnedVersion(t *testing.T) {
+	// The config asks for 0.68.0; 0.69.3 on disk is still work to do, or the pin does nothing.
+	stubDetect(t, map[string]string{"trivy": "0.69.3"})
+	opts := toolsInstallOptions{wanted: map[string]string{"trivy": "0.68.0"}}
+	if have := present(context.Background(), []string{"trivy"}, opts); len(have) != 0 {
+		t.Errorf("a pinned version that is not installed was reported as satisfied: %v", have)
+	}
+	opts.wanted["trivy"] = "v0.69.3"
+	if have := present(context.Background(), []string{"trivy"}, opts); len(have) != 1 {
+		t.Errorf("a leading v is how tags are written and should not force a reinstall: %v", have)
+	}
+}
+
+func TestInstallPlanSaysHowWellItCanVerify(t *testing.T) {
+	// The plan is where someone decides whether to let Draugr write a security tool to their
+	// machine, so the strength of the check belongs there rather than in the result afterwards.
+	stubDetect(t, nil)
+	var out bytes.Buffer
+	names := []string{"trivy"}
+	opts := toolsInstallOptions{wanted: map[string]string{"trivy": "0.68.0"}}
+	writeInstallPlan(&out, names, false, present(context.Background(), names, opts), opts)
+
+	got := out.String()
+	if !strings.Contains(got, "0.68.0") {
+		t.Errorf("the plan shows the version Draugr ships, not the one it will install:\n%s", got)
+	}
+	if !strings.Contains(got, "upstream") {
+		t.Errorf("another version is verified against the upstream, and should say so:\n%s", got)
+	}
+}
+
+func TestPlanVerifyReportsTheWeakestHonestClaim(t *testing.T) {
+	key := tools.PlatformKey()
+	cases := []struct {
+		name string
+		spec tools.InstallSpec
+		want string
+	}{
+		{"recorded sha", tools.InstallSpec{Assets: map[string]tools.Asset{key: {SHA256: "abc"}}}, "sha256"},
+		{"recorded sha and a signature",
+			tools.InstallSpec{Assets: map[string]tools.Asset{key: {SHA256: "abc"}}, Cosign: &tools.CosignSpec{}},
+			"sha256 + cosign"},
+		{"upstream signature",
+			tools.InstallSpec{Assets: map[string]tools.Asset{key: {}}, Cosign: &tools.CosignSpec{}},
+			"upstream cosign"},
+		{"upstream checksums only",
+			tools.InstallSpec{Assets: map[string]tools.Asset{key: {}}, ChecksumsURLTemplate: "u"},
+			"upstream sha256"},
+		{"nothing published", tools.InstallSpec{Assets: map[string]tools.Asset{key: {}}}, "unverified"},
+	}
+	for _, tc := range cases {
+		if got := planVerify(tc.spec); got != tc.want {
+			t.Errorf("%s: planVerify = %q, want %q", tc.name, got, tc.want)
+		}
 	}
 }

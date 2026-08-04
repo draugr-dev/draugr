@@ -960,37 +960,50 @@ func TestSuppressionLineOrdersAcceptorsStably(t *testing.T) {
 func TestExploitabilityLine(t *testing.T) {
 	fetched := time.Date(2026, 8, 1, 9, 12, 0, 0, time.UTC)
 	cases := []struct {
-		name  string
-		feeds []FeedProvenance
-		want  string
+		name      string
+		feeds     []FeedProvenance
+		escalated int
+		want      string
 	}{
-		{"none", nil, ""},
+		{"none", nil, 0, ""},
 		{
-			"fetched",
-			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}},
-			"Exploitability: KEV 2026-08-01",
+			// Dates alone say the feeds were consulted, not what they did. Without the effect the
+			// only way to find out is to read every finding and then doubt yourself.
+			"consulted and changed nothing",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 0,
+			"Exploitability: KEV 2026-08-01 — nothing raised",
+		},
+		{
+			"one finding raised",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 1,
+			"Exploitability: KEV 2026-08-01 — 1 finding raised",
+		},
+		{
+			"several raised",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 4,
+			"Exploitability: KEV 2026-08-01 — 4 findings raised",
 		},
 		{
 			// A file the operator supplied has no fetch date, and saying so is more accurate
 			// than inventing today's.
 			"a supplied file",
-			[]FeedProvenance{{Name: "kev"}},
-			"Exploitability: KEV (file)",
+			[]FeedProvenance{{Name: "kev"}}, 0,
+			"Exploitability: KEV (file) — nothing raised",
 		},
 		{
 			"stale is said out loud",
-			[]FeedProvenance{{Name: "epss", FetchedAt: fetched, Stale: true}},
-			"Exploitability: EPSS 2026-08-01, stale",
+			[]FeedProvenance{{Name: "epss", FetchedAt: fetched, Stale: true}}, 0,
+			"Exploitability: EPSS 2026-08-01, stale — nothing raised",
 		},
 		{
 			"both",
-			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}, {Name: "epss", FetchedAt: fetched}},
-			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}, {Name: "epss", FetchedAt: fetched}}, 2,
+			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01 — 2 findings raised",
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := exploitabilityLine(c.feeds); got != c.want {
+			if got := exploitabilityLine(c.feeds, c.escalated); got != c.want {
 				t.Errorf("got %q, want %q", got, c.want)
 			}
 		})
@@ -1087,5 +1100,225 @@ func TestExploitabilityInJSON(t *testing.T) {
 	}
 	if !doc.Exploitability[1].Stale {
 		t.Error("the stale feed is not marked stale in the JSON")
+	}
+}
+
+func TestToolBuildLines(t *testing.T) {
+	// pinned and signed share a line — "Draugr fetched these and checked them" is one fact, and a
+	// reader who wants the distinction has the JSON. Anything weaker gets its own, because that
+	// is the one they have to decide about.
+	got := toolBuildLines([]ToolBuild{
+		{Name: "trivy", Version: "0.69.3", Level: "signed"},
+		{Name: "gitleaks", Version: "8.30.1", Level: "pinned"},
+	})
+	if len(got) != 1 || !strings.Contains(got[0], "gitleaks 8.30.1, trivy 0.69.3") {
+		t.Errorf("verified tools not grouped: %q", got)
+	}
+
+	// A tool Draugr installed but could not verify is not the same as one it never touched, and
+	// both are called out.
+	got = toolBuildLines([]ToolBuild{
+		{Name: "trivy", Version: "0.69.3", Level: "pinned"},
+		{Name: "nuclei", Version: "3.5.0", Level: "unverified",
+			Reason: "installed by Draugr, nothing published to verify it against"},
+		{Name: "semgrep", Version: "1.99.0", Level: "external",
+			Reason: "found on PATH; Draugr did not install it"},
+	})
+	if len(got) != 3 {
+		t.Fatalf("expected each weaker level on its own line: %q", got)
+	}
+	if !strings.Contains(got[1], "nothing published") {
+		t.Errorf("an unverified install reads as if Draugr never fetched it: %q", got[1])
+	}
+	if !strings.Contains(got[2], "did not install it") {
+		t.Errorf("the reason is what makes it actionable: %q", got[2])
+	}
+
+	if toolBuildLines(nil) != nil {
+		t.Error("a run with no external scanners should say nothing")
+	}
+}
+
+func TestToolBuildsAbsentFromAnUnenrichedReport(t *testing.T) {
+	// A native-only scan uses no external tool, and a "Scanners:" line listing nothing would be
+	// noise on every such run.
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, goldenCleanData()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "Scanners:") {
+		t.Errorf("a run with no external tools mentioned them:\n%s", buf.String())
+	}
+}
+
+func TestJUnitCarriesTheAdvisoryLink(t *testing.T) {
+	// A test panel shows the failure body when someone opens a finding, and "CVE-2020-14343" with
+	// no link is a number they have to retype into a search engine. The one thing they are about
+	// to go looking for is where to read more, so it travels with the finding.
+	var b bytes.Buffer
+	d := goldenCleanData()
+	d.Run = engine.Result{Controls: map[string]plugin.ControlResult{"sca": {Report: sarif.Report{
+		Tool: "trivy",
+		Rules: map[string]sarif.Rule{
+			"CVE-2020-14343": {HelpURI: "https://avd.aquasec.com/nvd/cve-2020-14343"},
+		},
+		Results: []sarif.Result{
+			{Tool: "Trivy", RuleID: "CVE-2020-14343", Level: sarif.LevelError,
+				Message:  "PyYAML: incomplete fix for CVE-2020-1747",
+				Location: sarif.Location{URI: "app/requirements.txt", StartLine: 3}},
+			// No rule metadata and no recognizable scheme: nowhere honest to point.
+			{Tool: "Trivy", RuleID: "house-style-42", Level: sarif.LevelWarning,
+				Message: "something local"},
+		},
+	}}}}
+	d.Verdict = norn.Result{Verdict: norn.Fail,
+		Controls: []norn.ControlOutcome{{Control: "sca", Verdict: norn.Fail}}}
+
+	if err := (junitReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	var suites junitTestsuites
+	if err := xml.Unmarshal(b.Bytes(), &suites); err != nil {
+		t.Fatal(err)
+	}
+	bodies := map[string]string{}
+	for _, s := range suites.Suites {
+		for _, tc := range s.TestCases {
+			if tc.Failure != nil {
+				bodies[tc.Name] = tc.Failure.Body
+			}
+		}
+	}
+	var cve, local string
+	for name, body := range bodies {
+		if strings.HasPrefix(name, "CVE-2020-14343") {
+			cve = body
+		}
+		if strings.HasPrefix(name, "house-style-42") {
+			local = body
+		}
+	}
+	if !strings.Contains(cve, "https://avd.aquasec.com/nvd/cve-2020-14343") {
+		t.Errorf("no advisory link in the failure body: %q", cve)
+	}
+	if !strings.Contains(cve, "incomplete fix") {
+		t.Errorf("the link replaced the description instead of joining it: %q", cve)
+	}
+	// A wrong link is worse than none, so a rule with nowhere to point gets no trailing blank
+	// lines pretending there was somewhere.
+	if local != "something local" {
+		t.Errorf("a finding with no advisory should carry only its message, got %q", local)
+	}
+}
+
+func TestRepositoriesFromDeduplicatesAcrossControls(t *testing.T) {
+	// Every repository scanner checks out independently, so five controls over one repository
+	// record the same repository five times. That is one fact about one checkout, and reporting
+	// it five times is how a useful line becomes wallpaper.
+	repo := func(url, rev string) sarif.Report {
+		return sarif.Report{Provenance: []sarif.Provenance{{Tool: "t", Fields: []sarif.Field{
+			{Key: "repository", Value: url}, {Key: "revision", Value: rev},
+		}}}}
+	}
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca":     {Report: repo(".", "abc123def456")},
+		"secrets": {Report: repo(".", "abc123def456")},
+		"sast":    {Report: repo(".", "abc123def456")},
+	}}
+	got := RepositoriesFrom(run)
+	if len(got) != 1 {
+		t.Fatalf("expected one line for one checkout, got %d: %+v", len(got), got)
+	}
+	if got[0].Short() != "abc123de" {
+		t.Errorf("Short() = %q", got[0].Short())
+	}
+}
+
+func TestRepositoriesFromKeepsControlsThatDisagree(t *testing.T) {
+	// Independent checkouts mean a branch that moves mid-scan can genuinely be read at two
+	// commits. Collapsing that would be an assumption presented as evidence — and the report
+	// would name a revision that half of it did not describe.
+	repo := func(rev string) sarif.Report {
+		return sarif.Report{Provenance: []sarif.Provenance{{Tool: "t", Fields: []sarif.Field{
+			{Key: "repository", Value: "."}, {Key: "revision", Value: rev},
+		}}}}
+	}
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca":     {Report: repo("aaaaaaaa1111")},
+		"secrets": {Report: repo("bbbbbbbb2222")},
+	}}
+	if got := RepositoriesFrom(run); len(got) != 2 {
+		t.Errorf("two controls read two commits; report showed %d: %+v", len(got), got)
+	}
+}
+
+func TestRepositoriesFromIgnoresProvenanceAboutSomethingElse(t *testing.T) {
+	// kube-bench records a benchmark, not a repository. It belongs in the per-control block.
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"kubernetes": {Report: sarif.Report{Provenance: []sarif.Provenance{{
+			Tool: "kube-bench", Fields: []sarif.Field{{Key: "benchmark", Value: "cis-1.8"}},
+		}}}},
+	}}
+	if got := RepositoriesFrom(run); len(got) != 0 {
+		t.Errorf("non-repository provenance leaked into the repository line: %+v", got)
+	}
+}
+
+func TestRepositoryLinesReadAsAClauseNotAnAlarm(t *testing.T) {
+	got := repositoryLines([]RepositoryProvenance{{URL: ".", Revision: "abc123def456"}})
+	if len(got) != 1 || got[0] != "Scanned: . at abc123de" {
+		t.Errorf("got %q", got)
+	}
+	got = repositoryLines([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 7}})
+	if len(got) != 1 || got[0] != "Scanned: . at abc123de (7 uncommitted files not included)" {
+		t.Errorf("got %q", got)
+	}
+	// One file is one file. A report that says "1 uncommitted files" was written by a program.
+	got = repositoryLines([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 1}})
+	if !strings.Contains(got[0], "1 uncommitted file ") {
+		t.Errorf("got %q", got)
+	}
+	if repositoryLines(nil) != nil {
+		t.Error("a run that read no repository should say nothing")
+	}
+}
+
+func TestPerControlProvenanceDropsTheRepositoryFields(t *testing.T) {
+	// The repository is reported once for the run. Leaving it in the per-control block too would
+	// print the same checkout under every control, in a section headed "measured against".
+	d := goldenCleanData()
+	d.Run = engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Provenance: []sarif.Provenance{{
+			Tool: "trivy-fs", Fields: []sarif.Field{
+				{Key: "repository", Value: "."}, {Key: "revision", Value: "abc123"},
+			},
+		}}}},
+	}}
+	if lines := provenanceLines(d); len(lines) != 0 {
+		t.Errorf("repository provenance appeared per control: %+v", lines)
+	}
+}
+
+func TestRepositoryLineSaysWhenTheTreeIsNotReproducible(t *testing.T) {
+	// The committed line and the working-tree line describe opposite situations with the same
+	// number: one counts what is missing, the other counts what is uniquely there.
+	working := repositoryLines([]RepositoryProvenance{{
+		URL: ".", Revision: "abc123def456", Uncommitted: 2, WorkingTree: true,
+	}})
+	if len(working) != 1 || working[0] != "Scanned: . working tree at abc123de+ (2 uncommitted files, not reproducible)" {
+		t.Errorf("got %q", working)
+	}
+	committed := repositoryLines([]RepositoryProvenance{{
+		URL: ".", Revision: "abc123def456", Uncommitted: 2,
+	}})
+	if committed[0] != "Scanned: . at abc123de (2 uncommitted files not included)" {
+		t.Errorf("got %q", committed)
+	}
+	// A clean working tree is the same bytes as its commit, so no "+" and nothing to warn about.
+	clean := repositoryLines([]RepositoryProvenance{{
+		URL: ".", Revision: "abc123def456", WorkingTree: true,
+	}})
+	if clean[0] != "Scanned: . working tree at abc123de" {
+		t.Errorf("got %q", clean)
 	}
 }

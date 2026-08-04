@@ -183,7 +183,21 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
-	if line := exploitabilityLine(d.Exploitability); line != "" {
+	if lines := toolBuildLines(d.Tools); len(lines) > 0 {
+		for _, l := range lines {
+			_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+
+	for _, l := range repositoryLines(d.Repositories) {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
+	}
+	if len(d.Repositories) > 0 {
+		_, _ = fmt.Fprintln(w)
+	}
+
+	if line := exploitabilityLine(d.Exploitability, s.escalated); line != "" {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
 
@@ -575,7 +589,13 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 //
 // Beside the SBOM line rather than in the findings table: it describes the run, and a reader
 // asking "is this data current" is asking about the whole scan rather than any one result.
-func exploitabilityLine(feeds []FeedProvenance) string {
+// exploitabilityLine names the feeds, their dates, and — the part a reader actually wants — what
+// they did to this run.
+//
+// Dates alone say enrichment ran, not whether it changed anything, so the only way to find out
+// was to read every finding looking for an escalation note and then wonder whether one had been
+// missed. "nothing raised" is a real answer and it takes one word to give.
+func exploitabilityLine(feeds []FeedProvenance, escalated int) string {
 	if len(feeds) == 0 {
 		return ""
 	}
@@ -592,7 +612,11 @@ func exploitabilityLine(feeds []FeedProvenance) string {
 		}
 		parts = append(parts, part)
 	}
-	return "Exploitability: " + strings.Join(parts, " · ")
+	effect := "nothing raised"
+	if escalated > 0 {
+		effect = fmt.Sprintf("%s raised", plural(escalated, "finding"))
+	}
+	return "Exploitability: " + strings.Join(parts, " · ") + " — " + effect
 }
 
 // escalationNote is the line under a finding saying why it outranks its severity, or "" when
@@ -612,6 +636,75 @@ func escalationNote(e *sarif.Escalation) string {
 	out := "↑ ranked as " + string(e.To) + " — " + e.Detail
 	if e.AsOf != "" {
 		out += " (" + e.AsOf + ")"
+	}
+	return out
+}
+
+// toolBuildLines reports which build of each external scanner ran, and flags the ones Draugr
+// cannot vouch for.
+//
+// One line for everything Draugr fetched and checked, because that is a single fact and does not
+// need a row each. Anything weaker gets its own line carrying the reason, because those are the
+// ones a reader has to decide about.
+func toolBuildLines(tools []ToolBuild) []string {
+	if len(tools) == 0 {
+		return nil
+	}
+	var verified, other []string
+	for _, t := range tools {
+		label := t.Name
+		if t.Version != "" {
+			label += " " + t.Version
+		}
+		if t.Level == "pinned" || t.Level == "signed" {
+			verified = append(verified, label)
+			continue
+		}
+		other = append(other, label+" — "+t.Reason)
+	}
+	sort.Strings(verified)
+	sort.Strings(other)
+
+	var out []string
+	if len(verified) > 0 {
+		out = append(out, "Scanners: "+strings.Join(verified, ", "))
+	}
+	for _, o := range other {
+		out = append(out, "Scanner (unverified): "+o)
+	}
+	return out
+}
+
+// repositoryLines say which repository was read, and at which commit.
+//
+// The reason a scan reads a committed revision rather than your working tree is so the report can
+// name something reproducible. This is that name — without it the justification was asserted in
+// the docs and never delivered in the output, and the only thing said out loud was a warning about
+// which revision was *not* scanned.
+func repositoryLines(repos []RepositoryProvenance) []string {
+	if len(repos) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(repos))
+	for _, r := range repos {
+		line := "Scanned: " + r.URL
+		if r.WorkingTree {
+			line += " working tree"
+		}
+		if rev := r.Short(); rev != "" {
+			line += " at " + rev
+		}
+		switch {
+		case r.WorkingTree && r.Uncommitted > 0:
+			// The uncommitted work is the reason this scan was asked for, so it is included
+			// rather than missing — and the result cannot be reproduced from the revision.
+			line += fmt.Sprintf(" (%s, not reproducible)", plural(r.Uncommitted, "uncommitted file"))
+		case r.Uncommitted > 0:
+			// A clause, not an alarm. Uncommitted work is the normal state of a checkout somebody
+			// is editing; what matters is knowing it is not in what you are reading.
+			line += fmt.Sprintf(" (%s not included)", plural(r.Uncommitted, "uncommitted file"))
+		}
+		out = append(out, line)
 	}
 	return out
 }

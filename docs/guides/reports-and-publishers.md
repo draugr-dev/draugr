@@ -58,13 +58,53 @@ bespoke summary line, a Slack payload, or any custom text without writing code.
 | `file` | a local directory (one file per report format) | `dir` |
 | `github` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `github-pr-comment` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `azure-pr-comment` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 
-The `github` and `github-pr-comment` publishers never store a secret in the Saga — the token
-comes from an environment variable, and they no-op outside their GitHub context (not in
-Actions, or no PR) so the same Saga still runs locally. `github-pr-comment` upserts one
-**sticky** comment (updated in place on each push) and pairs with
-[`draugr diff --publish`](pr-diff.md) for a PR security delta. The `github` publisher pairs
-with [code scanning](code-scanning.md).
+No publisher stores a secret in the Saga — every token comes from an environment variable, and
+each no-ops outside its own context (not in CI, or no PR) so the same Saga still runs locally.
+Both PR publishers upsert one **sticky** comment, updated in place on each push, and pair with
+[`draugr diff --publish`](pr-diff.md) for a PR security delta. The `github` publisher pairs with
+[code scanning](code-scanning.md).
+
+### Azure DevOps
+
+In a pipeline everything defaults from the environment, so the whole configuration is:
+
+```yaml
+config:
+  reports:
+    - format: markdown
+  publishers:
+    - kind: azure-pr-comment
+```
+
+Two things Azure requires that nothing in the Saga can do for you:
+
+**Map the access token into the step.** `SYSTEM_ACCESSTOKEN` is the one pipeline variable not
+exposed to scripts by default:
+
+```yaml
+- script: draugr scan draugr.saga.yaml
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+```
+
+**Let the build identity write.** In *Project settings → Repositories → your repo → Security*,
+grant **`<Project> Build Service`** the *Contribute to pull requests* permission. Without it the
+API answers 403 with the token perfectly valid, so Draugr names the permission in the error
+rather than leaving you re-checking the token.
+
+And a pull-request build has to exist in the first place: Azure Repos ignores a `pr:` trigger, so
+that comes from a build validation branch policy. See
+[Azure Pipelines](azure-pipelines.md#two-things-to-set-up-once).
+
+Azure models a PR comment as a *thread*, so the sticky comment is the first comment of the thread
+carrying Draugr's marker. The marker is matched on that first comment only — a reviewer who
+quotes the report in a reply gets their words left alone.
+
+The thread is created **active**. If your branch policy requires all comments to be resolved
+before merging, someone has to resolve Draugr's thread; set a distinct `marker` per pipeline if
+you run more than one Draugr scan against the same pull request.
 
 ## Compact output, for tools and agents
 

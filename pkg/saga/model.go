@@ -314,11 +314,18 @@ type PublisherConfig struct {
 	Ref      string `yaml:"ref,omitempty"`
 	TokenEnv string `yaml:"tokenEnv,omitempty"` // env var holding the token; default GITHUB_TOKEN
 
-	// github-pr-comment: posts the markdown report as a sticky pull-request comment. PR defaults
-	// to the number parsed from $GITHUB_REF (refs/pull/<n>/merge); Marker identifies the sticky
-	// comment to update (default a Draugr marker).
+	// github-pr-comment / azure-pr-comment: posts the markdown report as a sticky pull-request
+	// comment. PR defaults to the number parsed from $GITHUB_REF (refs/pull/<n>/merge) or
+	// $SYSTEM_PULLREQUEST_PULLREQUESTID; Marker identifies the sticky comment to update
+	// (default a Draugr marker).
 	PR     int    `yaml:"pr,omitempty"`
 	Marker string `yaml:"marker,omitempty"`
+
+	// azure-pr-comment: Org is the collection URI (default $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI)
+	// and Project the team project (default $SYSTEM_TEAMPROJECT). Repo defaults to
+	// $BUILD_REPOSITORY_NAME and the token to $SYSTEM_ACCESSTOKEN (or TokenEnv).
+	Org     string `yaml:"org,omitempty"`
+	Project string `yaml:"project,omitempty"`
 }
 
 // Component is one logical part of an application: its repositories, images, hosts, and

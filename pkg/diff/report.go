@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
 
@@ -27,11 +28,28 @@ func Render(w io.Writer, format string, r Result) error {
 	}
 }
 
-// headline summarizes the delta in one line, e.g. "2 new (1 error), 3 fixed, 5 unchanged".
+// headline summarizes the delta in one line, e.g.
+// "2 new (1 critical, 1 high), 3 fixed, 5 unchanged".
+//
+// Only the bands that occur are named. A run with nothing critical should not have to read past
+// "0 critical" to find the number that is not zero.
 func headline(r Result) string {
-	nl := countLevels(r.New)
-	return fmt.Sprintf("%d new (%d error, %d warning, %d note), %d fixed, %d unchanged",
-		len(r.New), nl.Error, nl.Warning, nl.Note, len(r.Fixed), len(r.Unchanged))
+	c := countSeverities(r.New)
+	var parts []string
+	for _, b := range []struct {
+		name string
+		n    int
+	}{{"critical", c.Critical}, {"high", c.High}, {"medium", c.Medium}, {"low", c.Low}} {
+		if b.n > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", b.n, b.name))
+		}
+	}
+	bands := ""
+	if len(parts) > 0 {
+		bands = " (" + strings.Join(parts, ", ") + ")"
+	}
+	return fmt.Sprintf("%d new%s, %d fixed, %d unchanged",
+		len(r.New), bands, len(r.Fixed), len(r.Unchanged))
 }
 
 func loc(f string, line int) string {
@@ -98,7 +116,11 @@ func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Sty
 			// The sign and the priority travel together — both answer "what is this finding
 			// in this diff" — so they share a cell and the spacing stays tight.
 			tui.Styled(style, sign+" "+dash(f.Priority)),
-			tui.PlainCell(string(f.Level)),
+			// Severity, not Level. A scan reports critical/high/medium/low; printing the SARIF
+			// wire value here made the same finding read as "error" in a diff and "critical" in
+			// the report it came from, and left a reader translating between two vocabularies to
+			// decide whether a pull request had made things worse.
+			tui.PlainCell(string(f.Severity(""))),
 			tui.PlainCell(f.RuleID),
 		}
 		if showComponent {
@@ -169,7 +191,7 @@ func mdTable(w io.Writer, rs []sarif.Result, showComponent bool) {
 			component = " " + dash(f.Component) + " |"
 		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | `%s` | %s |%s %s |\n",
-			dash(f.Priority), f.Level, f.RuleID, dash(f.Tool), component,
+			dash(f.Priority), f.Severity(""), f.RuleID, dash(f.Tool), component,
 			loc(f.Location.URI, f.Location.StartLine))
 	}
 }
@@ -187,8 +209,8 @@ type jsonSummary struct {
 	Fixed     int `json:"fixed"`
 	Unchanged int `json:"unchanged"`
 
-	NewByLevel      LevelCounts    `json:"newByLevel"`
-	FixedByLevel    LevelCounts    `json:"fixedByLevel"`
+	NewBySeverity   SeverityCounts `json:"newBySeverity"`
+	FixedBySeverity SeverityCounts `json:"fixedBySeverity"`
 	NewByPriority   PriorityCounts `json:"newByPriority"`
 	FixedByPriority PriorityCounts `json:"fixedByPriority"`
 }
@@ -197,7 +219,7 @@ func renderJSON(w io.Writer, r Result) error {
 	doc := jsonDiff{
 		Summary: jsonSummary{
 			New: len(r.New), Fixed: len(r.Fixed), Unchanged: len(r.Unchanged),
-			NewByLevel: countLevels(r.New), FixedByLevel: countLevels(r.Fixed),
+			NewBySeverity: countSeverities(r.New), FixedBySeverity: countSeverities(r.Fixed),
 			NewByPriority: countPriorities(r.New), FixedByPriority: countPriorities(r.Fixed),
 		},
 		New:   r.New,

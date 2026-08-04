@@ -234,9 +234,10 @@ func TestCountsAllBands(t *testing.T) {
 		res("t", "c", sarif.LevelNote, "u", 0, "P3"),
 		res("t", "d", sarif.LevelNote, "u", 0, "P4"),
 	}
-	lc := countLevels(rs)
-	if lc.Error != 1 || lc.Warning != 1 || lc.Note != 2 {
-		t.Errorf("countLevels = %+v", lc)
+	// error → high and warning → medium when no score says otherwise; note lands in low.
+	sc := countSeverities(rs)
+	if sc.High != 1 || sc.Medium != 1 || sc.Low != 2 {
+		t.Errorf("countSeverities = %+v", sc)
 	}
 	pc := countPriorities(rs)
 	if pc.P1 != 1 || pc.P2 != 1 || pc.P3 != 1 || pc.P4 != 1 {

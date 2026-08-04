@@ -64,3 +64,29 @@ func TestInvalidLogLevelFails(t *testing.T) {
 		t.Fatal("expected error for invalid log level, got nil")
 	}
 }
+
+func TestVersionFlagMatchesTheVersionCommand(t *testing.T) {
+	// `--version` is what every other CLI accepts — git, docker, kubectl, and every scanner
+	// Draugr execs. Without it a container smoke test or a tool-cache probe gets a non-zero exit
+	// on "unknown flag", which reads as a broken binary rather than a missing alias.
+	run := func(args ...string) string {
+		cmd := newRootCommand()
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("execute %v: %v", args, err)
+		}
+		return out.String()
+	}
+	flag, sub := run("--version"), run("version")
+	if flag != sub {
+		// Same bytes, so a script parsing one parses the other. Cobra's default template says
+		// "draugr version X", which is neither.
+		t.Errorf("--version printed %q, version printed %q", flag, sub)
+	}
+	if !strings.Contains(flag, "draugr") {
+		t.Errorf("--version output = %q", flag)
+	}
+}

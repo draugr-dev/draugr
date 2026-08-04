@@ -12,6 +12,235 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.64.0] - 2026-08-04
+
+### Added
+
+- **`draugr scan --working-tree`** scans the checkout as it is on disk, uncommitted work included.
+
+  A scan reads the committed revision, which is what makes a report reproducible — and what makes
+  the loop of fixing a finding need a commit per iteration. Now it does not:
+
+  ```
+  Scanned: . working tree at 3f9a1c2b+ (7 uncommitted files, not reproducible)
+  ```
+
+  It reads a **copy**, so scanners cannot write into your files and `paths`/`ignore` scoping prunes
+  the copy rather than your work. The file list is git's own (`ls-files -co --exclude-standard`),
+  so an ignored `node_modules` or `.env` stays out for the same reason a commit would leave it out.
+  These scans are never cached, since two runs at one revision read different bytes. A remote
+  repository is refused by name rather than quietly scanned at its committed revision.
+
+- **The report names the revision it describes.**
+
+  ```
+  Scanned: . at 3f9a1c2b (7 uncommitted files not included)
+  ```
+
+  A scan reads the committed revision rather than your working tree so that a report names
+  something reproducible — but the report never said which commit that was, and the only thing
+  said out loud was a warning on every local run about the revision it was *not* reading. The
+  commit is now in the console, Markdown and HTML reports and in the JSON under `repositories`,
+  and the uncommitted count travels with it as a clause rather than a warning. The warning is
+  gone.
+
+- **A reusable Azure Pipelines template.** `azure-pipelines/draugr.yml` collapses the install,
+  scanner provisioning, scan, pull-request diff and publishing into one reference. Copy it into
+  your repository and the pipeline is four lines of Draugr:
+
+  ```yaml
+  steps:
+    - template: .azure/draugr.yml
+      parameters:
+        saga: draugr.saga.yaml
+  ```
+
+  Parameters for the descriptor, the mode (`auto` scans a push and diffs a pull request), a pinned
+  version, scanner provisioning, the priority to gate on, and whether to publish results.
+
+- **`draugr scan --no-gate`** reports the verdict and exits 0 anyway. It is what the two scans
+  either side of a `draugr diff` need: their job is to produce reports, and the diff is the gate.
+  Without it the base scan's `FAIL` — which any repository with a backlog produces — takes the
+  whole CI step down before the comparison runs.
+
+  It suppresses the *verdict's* exit code and nothing else. A scan that could not run still fails,
+  so a missing report can never reach a diff disguised as "no new findings" — which is exactly
+  what `|| true` in a pipeline does instead.
+
+- **A worked `draugr diff` pipeline for Azure DevOps.** GitHub's action hides the two-scan dance
+  behind `mode: auto`; Azure has no first-party task, so
+  [the guide](https://github.com/draugr-dev/draugr/blob/main/docs/guides/azure-pipelines.md)
+  now spells it out — including getting back to the pull request's merge commit, which
+  `git checkout -` cannot do.
+
+- **The exploitability line says what the feeds actually did.** It named KEV and EPSS and their
+  dates, which tells you enrichment ran but not whether it changed anything — so the only way to
+  find out was to read every finding looking for a note that might not be there, and then wonder
+  whether you had missed one.
+
+  ```
+  Exploitability: KEV 2026-08-04 · EPSS 2026-08-04 — 3 findings raised
+  Exploitability: KEV 2026-08-04 · EPSS 2026-08-04 — nothing raised
+  ```
+
+  The count covers the whole run, not the visible listing, so `--top` and `--min-priority` cannot
+  make it read as though a feed did less than it did.
+
+_Nothing yet._
+
+### Fixed
+
+- **A mistyped gate level is now an error instead of a wider gate.** `--fail-on` and
+  `--fail-on-new` accepted anything. An unrecognized level ranks below every finding, so
+  `--fail-on-new high` — which is exactly what the report's `high` invites you to type — quietly
+  meant *fail on anything new at all*, and looked like it had narrowed the gate. Both flags now
+  reject what they cannot rank, and say so before the scan rather than after it. A severity band
+  gets a message explaining that the gate is on the other ladder.
+
+## [0.63.0] - 2026-08-04
+
+### Added
+
+- **`azure-pr-comment` publisher** — Draugr's report as a sticky Azure DevOps pull-request
+  comment, updated in place on each push rather than stacking a copy per run:
+
+  ```yaml
+  config:
+    reports:
+      - format: markdown
+    publishers:
+      - kind: azure-pr-comment
+  ```
+
+  Everything defaults from the pipeline environment, so that is usually the whole configuration.
+  Map `SYSTEM_ACCESSTOKEN: $(System.AccessToken)` into the step — Azure does not expose it to
+  scripts by default — and grant the build service *Contribute to pull requests* on the
+  repository. Draugr names both in its error messages rather than leaving you with a bare 401
+  or 403.
+
+  `draugr diff --publish` follows the CI system it is running on, so the same command posts to a
+  GitHub or an Azure pull request. It used to name the GitHub publisher outright, which on an
+  Azure agent meant a flag that quietly did nothing.
+
+- **`draugr --version`** now works, printing exactly what `draugr version` prints. Container
+  smoke tests, tool caches and version probes reach for the flag rather than the subcommand.
+
+- **A report now says which build of each scanner produced it.** A scan runs whatever is on
+  `PATH`, which is right — an operator may have an experimental build or a fork, and refusing
+  them would be Draugr mistaking "I cannot verify this" for "this is wrong". But a report that
+  cannot say which build produced its findings cannot be reproduced.
+
+  ```
+  Scanners: gitleaks 8.30.1, trivy 0.69.3
+  Scanner (unverified): semgrep 1.99.0 — found on PATH; Draugr did not install it
+  ```
+
+  The first line lists the builds Draugr fetched and checked: in `~/.draugr/bin`, in the install
+  record, and still hashing to what was recorded — which makes it a claim about a file rather than
+  about a path. Anything else is used and labelled with the reason, and none of it affects the
+  verdict: it is a fact about the run, not a finding about your software.
+
+- **Pin the version of each scanner.** Write it once, where it gets reviewed, and every pipeline
+  provisions the same build — so two runners cannot turn identical code into different findings:
+
+  ```yaml
+  # draugr.config.yaml
+  tools:
+    trivy:    { version: "0.69.3" }
+    gitleaks: { version: "8.30.1" }
+  ```
+
+  `draugr tools install trivy --version 0.68.0` does it for one run.
+
+  Draugr will not refuse a version it cannot vouch for — asking for a fork, a release candidate or
+  a build newer than this release is a case where you know something Draugr does not. It installs
+  what you asked for and records how well it could check it: matched against a checksum recorded
+  in this build, against checksums the upstream signed, against an unsigned checksums file, or
+  against nothing at all. That level then appears in every report the tool produces, so nothing is
+  weakened quietly. A published checksum the download *contradicts* is still refused — that is
+  evidence, not a gap.
+
+### Fixed
+
+- **`draugr diff` reports severity, not SARIF levels.** A column headed *Severity* printed
+  `error` / `warning` / `note`, so the same finding read as "error" in a diff and "critical" in
+  the scan report it came from, and a reader comparing the two had to translate between
+  vocabularies. Diffs now use the same `critical` / `high` / `medium` / `low` bands everywhere,
+  and the headline names only the bands that occur — `12 new (4 high, 8 medium)` rather than a
+  row of zeroes. In `--format json`, `newByLevel` / `fixedByLevel` become
+  `newBySeverity` / `fixedBySeverity`, counting bands instead of levels.
+
+- **JUnit findings link to the advisory.** A CI test panel showed a CVE number and its
+  description, which left the reader retyping the number into a search engine. The failure now
+  carries the scanner's advisory URL — or one derived from the identifier when the scanner
+  published none, and nothing at all when there is nowhere honest to point.
+
+- **`draugr diff --publish` keeps its own pull-request comment.** It shared a marker with the
+  Saga's PR-comment publisher, so a pipeline running both — the state of the branch, and what the
+  pull request changed — got one comment silently overwritten by the other, with nothing to say a
+  second had ever been posted. They are two questions and now get two comments. Set `marker` on
+  the publisher if you were relying on the old shared one.
+
+- **JUnit reports are written as `report.junit.xml` everywhere.** `-o` and the `file` publisher
+  named the same format differently, so a CI step globbing for one found nothing when the other
+  had produced it — and the common test-publishing tasks warn rather than fail, leaving a green
+  run with no results in it. Every format now has exactly one name. If you glob for `junit.xml`,
+  update it to `report.junit.xml`.
+
+## [0.62.0] - 2026-08-03
+
+### Added
+
+- **`draugr config` — machine and organisation settings, kept apart from the Saga.** A Saga
+  describes an application; which build of a scanner runs and what a control defaults to describe
+  the environment scanning it, and want to be the same everywhere.
+
+  ```
+  $ draugr config show
+  In effect:
+    Setting                          Value            From
+    controllers.sast.semgrep.config  p/owasp-top-ten  /repo/draugr.config.yaml
+    tools.trivy.version              0.69.3           ~/.draugr/config.yaml
+  ```
+
+  Defaults are merged **underneath** the descriptor, so a project overrides only the keys it names
+  and inherits the rest. Discovery is `~/.draugr/config.yaml` then `./draugr.config.yaml`, and
+  `--config`/`DRAUGR_CONFIG` replaces both.
+
+  **A broken config fails the run rather than falling back**, because silently reverting a pinned
+  toolchain is how a scan stops being reproducible. Recovery is one command — `config validate`
+  says what is wrong and `config init --force` starts again — and `config set`/`unset` cannot
+  produce a broken file: they edit the document, so comments survive, and parse the result before
+  saving.
+
+## [0.61.0] - 2026-08-03
+
+### Changed
+
+- **Cache entries are compressed.** An entry is a whole SARIF report, which is repetitive by
+  construction — a measured one went from 375 KB to 60 KB, a factor of six.
+
+  It matters most where a cache is persisted between CI runs: uncompressed, a large project spends
+  on restoring the cache what it saves on scanning. A cache written by an older Draugr still reads,
+  so upgrading does not silently discard a warm one.
+### Added
+
+- **Two ways to keep a shared cache honest.** `--cache-read-only` reads entries and writes none,
+  for a run whose results should not be trusted by the next one; `--cache-require-digest` refuses
+  to cache a container image identified only by a tag, because a tag can be rebuilt and the key
+  cannot tell.
+
+  **The GitHub Action sets `--cache-read-only` on a pull request from a fork**, without being
+  asked. A job running unreviewed code that can *write* a shared cache decides what the next run
+  on your default branch reads — a pass nobody earned. GitHub's own cache already scopes writes by
+  branch, but a bucket or a self-hosted runner does not, and the guarantee should not depend on
+  which transport somebody picked. Reading stays on, because the entries already there are what
+  make a pull-request scan fast.
+
+  There is now a guide to [persisting a cache between CI runs](docs/guides/caching-and-performance.md),
+  which leads with the part that carries no trust question at all: Trivy's databases are 2.6 GB and
+  a cold runner downloads all of them before scanning anything.
+
 ## [0.60.0] - 2026-08-03
 
 ### Changed
@@ -2251,7 +2480,11 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.60.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.64.0...HEAD
+[0.64.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.64.0
+[0.63.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.63.0
+[0.62.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.62.0
+[0.61.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.61.0
 [0.60.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.60.0
 [0.59.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.59.0
 [0.58.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.58.1
