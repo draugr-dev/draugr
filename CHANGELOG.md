@@ -10,6 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **The exploitability line says what the feeds actually did.** It named KEV and EPSS and their
+  dates, which tells you enrichment ran but not whether it changed anything — so the only way to
+  find out was to read every finding looking for a note that might not be there, and then wonder
+  whether you had missed one.
+
+  ```
+  Exploitability: KEV 2026-08-04 · EPSS 2026-08-04 — 3 findings raised
+  Exploitability: KEV 2026-08-04 · EPSS 2026-08-04 — nothing raised
+  ```
+
+  The count covers the whole run, not the visible listing, so `--top` and `--min-priority` cannot
+  make it read as though a feed did less than it did.
+
 _Nothing yet._
 
 ## [0.63.0] - 2026-08-04
