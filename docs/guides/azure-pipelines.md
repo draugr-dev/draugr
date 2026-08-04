@@ -149,9 +149,56 @@ the token.
 If a branch policy requires all comments to be resolved before merging, someone has to resolve
 Draugr's thread — it is created active, like any other comment.
 
-For a gate on **only the findings a pull request introduces**, rather than everything already in
-the branch, see [gate PRs on new findings](pr-diff.md). It keeps its own separate comment, so a
-pipeline running both gets one for the branch and one for the delta.
+## Gate on new findings
+
+The scan above gates on everything in the branch, which is the right gate for `main` and the
+wrong one for a first pull request against a codebase with a backlog. To gate on **what this
+change introduced**, scan both sides and compare:
+
+```yaml
+  - script: |
+      set -euo pipefail
+      target="${SYSTEM_PULLREQUEST_TARGETBRANCH#refs/heads/}"
+
+      git checkout -q --detach "origin/$target"
+      draugr scan draugr.saga.yaml --no-gate --report sarif -o "$(Pipeline.Workspace)/base"
+
+      git checkout -q --detach "$BUILD_SOURCEVERSION"
+      draugr scan draugr.saga.yaml --no-gate --report sarif -o "$(Pipeline.Workspace)/head"
+
+      draugr diff "$(Pipeline.Workspace)/base/results.sarif" \
+                  "$(Pipeline.Workspace)/head/results.sarif" \
+                  --publish --fail-on-new-priority P1
+    displayName: Gate on new findings
+    condition: eq(variables['Build.Reason'], 'PullRequest')
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+```
+
+There is no `mode: auto` here as there is in the GitHub Action — Azure has no first-party task, so
+the two scans are written out. Four things in that snippet are the whole trick:
+
+**`--no-gate` on both scans.** A scan exits non-zero on a `FAIL` verdict, which under `set -e`
+kills the step before the diff ever runs — and on a repository with any backlog, the base scan
+fails every time. `--no-gate` suppresses the *verdict's* exit code and nothing else: a scan that
+could not run still fails the step. `|| true` cannot make that distinction, and swallows the
+failure that leaves no report for the diff to read.
+
+**`$BUILD_SOURCEVERSION` to get back.** A pull-request build checks out `refs/pull/N/merge`, a
+merge commit that is not on any branch, so `git checkout -` will not find its way home.
+
+**`condition:` on the build reason**, so the step is skipped entirely on push builds, where there
+is no pull request and nothing to compare against.
+
+**`--fail-on-new-priority P1`** rather than a severity: priority folds in the component's declared
+exposure and criticality, so it blocks on a critical finding in something exposed and lets one in
+a sandbox through. Use `--fail-on-new` if you want the raw ladder.
+
+The diff gets **its own comment**, separate from the report the publisher posts, so a pipeline
+running both leaves one comment for the branch and one for the delta.
+
+See [gate PRs on new findings](pr-diff.md) for how findings are matched across the two scans, and
+why line numbers and re-scoring do not make an old finding look new.
 
 ## Scanning several repositories
 
