@@ -316,6 +316,10 @@ type summary struct {
 	p1, p2, p3, p4 int
 	bands          map[string]sevCounts // per-control severity counts
 	findings       []finding            // sorted most-urgent first
+	// escalated is how many findings a feed moved up a band. Counted over every finding, not
+	// only the ones shown: --top and --min-priority narrow the listing, and "nothing raised"
+	// has to mean nothing in the run rather than nothing on this page.
+	escalated int
 
 	// What the run could not do, and what it set aside. A report that omits these describes a
 	// thinner run rather than a broken one — and a reader cannot tell the difference, which is
@@ -391,6 +395,9 @@ func summarize(d Data) summary {
 			b := s.bands[name]
 			b.add(sev)
 			s.bands[name] = b
+			if res.Escalation != nil {
+				s.escalated++
+			}
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
 				escalation: res.Escalation,

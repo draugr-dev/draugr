@@ -960,37 +960,50 @@ func TestSuppressionLineOrdersAcceptorsStably(t *testing.T) {
 func TestExploitabilityLine(t *testing.T) {
 	fetched := time.Date(2026, 8, 1, 9, 12, 0, 0, time.UTC)
 	cases := []struct {
-		name  string
-		feeds []FeedProvenance
-		want  string
+		name      string
+		feeds     []FeedProvenance
+		escalated int
+		want      string
 	}{
-		{"none", nil, ""},
+		{"none", nil, 0, ""},
 		{
-			"fetched",
-			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}},
-			"Exploitability: KEV 2026-08-01",
+			// Dates alone say the feeds were consulted, not what they did. Without the effect the
+			// only way to find out is to read every finding and then doubt yourself.
+			"consulted and changed nothing",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 0,
+			"Exploitability: KEV 2026-08-01 — nothing raised",
+		},
+		{
+			"one finding raised",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 1,
+			"Exploitability: KEV 2026-08-01 — 1 finding raised",
+		},
+		{
+			"several raised",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 4,
+			"Exploitability: KEV 2026-08-01 — 4 findings raised",
 		},
 		{
 			// A file the operator supplied has no fetch date, and saying so is more accurate
 			// than inventing today's.
 			"a supplied file",
-			[]FeedProvenance{{Name: "kev"}},
-			"Exploitability: KEV (file)",
+			[]FeedProvenance{{Name: "kev"}}, 0,
+			"Exploitability: KEV (file) — nothing raised",
 		},
 		{
 			"stale is said out loud",
-			[]FeedProvenance{{Name: "epss", FetchedAt: fetched, Stale: true}},
-			"Exploitability: EPSS 2026-08-01, stale",
+			[]FeedProvenance{{Name: "epss", FetchedAt: fetched, Stale: true}}, 0,
+			"Exploitability: EPSS 2026-08-01, stale — nothing raised",
 		},
 		{
 			"both",
-			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}, {Name: "epss", FetchedAt: fetched}},
-			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}, {Name: "epss", FetchedAt: fetched}}, 2,
+			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01 — 2 findings raised",
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := exploitabilityLine(c.feeds); got != c.want {
+			if got := exploitabilityLine(c.feeds, c.escalated); got != c.want {
 				t.Errorf("got %q, want %q", got, c.want)
 			}
 		})

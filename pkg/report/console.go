@@ -190,7 +190,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
-	if line := exploitabilityLine(d.Exploitability); line != "" {
+	if line := exploitabilityLine(d.Exploitability, s.escalated); line != "" {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
 
@@ -582,7 +582,13 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 //
 // Beside the SBOM line rather than in the findings table: it describes the run, and a reader
 // asking "is this data current" is asking about the whole scan rather than any one result.
-func exploitabilityLine(feeds []FeedProvenance) string {
+// exploitabilityLine names the feeds, their dates, and — the part a reader actually wants — what
+// they did to this run.
+//
+// Dates alone say enrichment ran, not whether it changed anything, so the only way to find out
+// was to read every finding looking for an escalation note and then wonder whether one had been
+// missed. "nothing raised" is a real answer and it takes one word to give.
+func exploitabilityLine(feeds []FeedProvenance, escalated int) string {
 	if len(feeds) == 0 {
 		return ""
 	}
@@ -599,7 +605,11 @@ func exploitabilityLine(feeds []FeedProvenance) string {
 		}
 		parts = append(parts, part)
 	}
-	return "Exploitability: " + strings.Join(parts, " · ")
+	effect := "nothing raised"
+	if escalated > 0 {
+		effect = fmt.Sprintf("%s raised", plural(escalated, "finding"))
+	}
+	return "Exploitability: " + strings.Join(parts, " · ") + " — " + effect
 }
 
 // escalationNote is the line under a finding saying why it outranks its severity, or "" when
