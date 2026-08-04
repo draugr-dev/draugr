@@ -210,6 +210,22 @@ jobs:
       # showed a different scan from the image beside it; nothing catches that but a person
       # noticing. A PTY is needed because Draugr colours output only for a terminal — piping the
       # scan straight to a file would capture it plain, and the fragment would be grey.
+      # Again, because rendering the tape ran a scan of its own and that scan disturbs the tree.
+      # The earlier cleanup happens before the render, so by here the sandbox is dirty and the
+      # fragment would report uncommitted files the screenshot beside it does not — the two
+      # assets disagreeing about one scan, which is the drift this whole job exists to prevent.
+      - name: Put the sandbox back, again, before capturing
+        if: ${{ inputs.screenshot || github.event_name == 'push' }}
+        working-directory: draugr-demo
+        run: |
+          set -euo pipefail
+          git checkout -- .
+          git clean -fdq
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::the sandbox is still dirty; the fragment would describe a tree the" \
+                 "screenshot does not"; exit 1
+          fi
+
       - name: Capture the terminal fragment
         working-directory: draugr-demo
         run: |
