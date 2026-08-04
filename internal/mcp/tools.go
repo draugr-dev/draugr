@@ -11,6 +11,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
@@ -344,6 +345,11 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		if err != nil {
 			return nil, ScanOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
 		}
+		// Shared for this run, as the CLI does — an assistant asking for a scan should not pay
+		// for five clones of one repository either.
+		pool := git.NewPool()
+		defer pool.Close()
+		ctx = git.WithPool(ctx, pool)
 		run, runErr := engine.New(reg, engine.WithPrioritization(scanpolicy.DefaultPrioritizer(nil))).Run(ctx, *model)
 		if runErr != nil {
 			// Say so rather than swallowing it: a partial scan that reads as complete is worse

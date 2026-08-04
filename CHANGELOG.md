@@ -10,6 +10,23 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **A repository is checked out once per scan, not once per control.** Every repository scanner
+  used to clone for itself, so a five-control scan cloned the same repository five times.
+
+  At default concurrency this is not faster — the clones overlapped, so they cost about the
+  wall-clock of one. What it saves is **bandwidth and disk**, in proportion to how many controls
+  you run: on a four-control scan of a small repository, peak checkout disk halved. On a runner
+  with constrained concurrency it is also faster (measured 3.35s → 1.62s at `-j 1`).
+
+  The reason to do it anyway is agreement: independent clones of a branch that moves mid-scan can
+  resolve to different commits, so two controls could report against different code while the
+  report named one revision. One checkout per run removes the possibility.
+
+  The shared checkout is **read-only**, so a tool that writes into what it scans fails where it
+  writes rather than quietly changing what the next scanner reads.
+
 _Nothing yet._
 
 ## [0.64.0] - 2026-08-04
