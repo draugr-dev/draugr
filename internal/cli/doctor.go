@@ -405,6 +405,11 @@ var networkCalls = []networkCall{
 	{"draugr doctor", "the latest draugr release, to compare against yours (skipped by --offline)"},
 	{"a scan, before it starts", "Trivy's vulnerability database and Nuclei's template set"},
 	{"a scan, per target", "the registry, for an image; the endpoint itself, for a host or DAST target"},
+	// The only entry where the traffic does not go to something of yours. Listed separately
+	// because an air-gapped runner is not the only reason to care: this one discloses your
+	// hostnames to a third party, and someone reading this list to decide what Draugr may reach
+	// should see that without having to know the control exists.
+	{"a scan, with the threats control", "abuse.ch, which learns each host's name"},
 }
 
 // writeNetworkCalls lists what Draugr fetches and when.
@@ -415,8 +420,16 @@ var networkCalls = []networkCall{
 func writeNetworkCalls(w io.Writer) {
 	col := tui.For(w)
 	_, _ = fmt.Fprintf(w, "\nNetwork  %s\n", col.Paint(tui.StyleMuted, networkHeading()))
+	// Width from the longest entry rather than a constant: a hardcoded 26 silently stops
+	// aligning the moment an entry outgrows it, and the misalignment is the only warning.
+	width := 0
 	for _, c := range networkCalls {
-		_, _ = fmt.Fprintf(w, "  %-26s %s\n", c.When, col.Paint(tui.StyleMuted, c.What))
+		if len(c.When) > width {
+			width = len(c.When)
+		}
+	}
+	for _, c := range networkCalls {
+		_, _ = fmt.Fprintf(w, "  %-*s %s\n", width, c.When, col.Paint(tui.StyleMuted, c.What))
 	}
 }
 

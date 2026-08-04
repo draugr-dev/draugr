@@ -139,8 +139,17 @@ expiry, chain validity, and key/signature strength. In Draugr: **`tls`**, using 
 *Go deeper: [Threat intelligence](/learn/threat-intelligence/) in Learn.*
 
 Checks the **reputation** of hosts/URLs against known-bad feeds (malware, phishing,
-command-and-control). In Draugr: **`threats`** via URLhaus (+ optional VirusTotal).
-Roadmap: [#59](https://github.com/draugr-dev/draugr/issues/59).
+command-and-control). In Draugr: **`threats`** via URLhaus. (Implemented today.)
+
+It answers a question no scan of your own endpoint can. A scanner you point at your host checks
+the paths you know about; this asks whether **somebody else has already seen** that host serving
+malware — from a path you never deployed and would never think to probe. A hit means either a
+compromise you have not found, or a name that was abused before you held it.
+
+It is the one control that **tells a third party your hosts exist**, so it declares that as an
+effect and needs a free abuse.ch key. Distinguishes malware served *now* (error) from a host that
+served it once (warning), because treating a years-old record as an emergency is how a control
+gets switched off.
 
 ## CIS benchmarks / posture
 

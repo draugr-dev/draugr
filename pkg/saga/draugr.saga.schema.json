@@ -151,6 +151,10 @@
           "description": "Detect committed secrets and credentials in a repo."
         },
         {
+          "const": "threats",
+          "description": "Check whether a component's hosts are known to threat-intelligence feeds."
+        },
+        {
           "const": "tls",
           "description": "Check TLS configuration and certificates on a component's running endpoints."
         }

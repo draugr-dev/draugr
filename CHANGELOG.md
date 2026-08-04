@@ -12,6 +12,32 @@ and move it under a version on release.
 
 ### Added
 
+- **`threats` control** — asks whether your own hosts are already known to be serving malware,
+  via [abuse.ch URLhaus](https://urlhaus.abuse.ch/).
+
+  ```yaml
+  config:
+    controllers:
+      threats: { enabled: true }
+  ```
+
+  It answers a question no scan of your own endpoint can. A scanner you point at your host checks
+  the paths you know about; this asks whether somebody else has already seen that host serving
+  malware — from a path you never deployed and would never think to probe. A hit means either a
+  compromise you have not found, or a name that was abused before you held it.
+
+  Malware being served **now** is an error; a host that served it once and no longer does is a
+  warning. Treating a years-old record as an emergency is how a control gets switched off.
+
+  Two things to know before enabling it. It **tells abuse.ch that your hosts exist** — declared as
+  an effect, shown in `draugr controls` and in `draugr doctor`'s list of outbound calls, and the
+  hostname is all that is ever sent. And abuse.ch's **free tier is non-commercial**: the key is
+  free from https://auth.abuse.ch/ and goes in `URLHAUS_AUTH_KEY`, but commercial use is routed
+  through a Spamhaus subscription, so read https://abuse.ch/terms-of-use/ before you rely on it.
+
+  Offline, the control refuses and names the host it would have asked about, rather than passing
+  quietly with nothing checked.
+
 - **Running one Trivy server for the fleet is documented**, and needs nothing from Draugr — it
   passes its environment through, so `TRIVY_SERVER` is enough. Measured with an empty local
   cache: the `sca` control returned its usual findings and downloaded no database at all.
@@ -37,6 +63,7 @@ and move it under a version on release.
   its results untrustworthy.
 
 _Nothing yet._
+
 
 ## [0.65.0] - 2026-08-04
 
