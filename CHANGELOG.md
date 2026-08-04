@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.63.0] - 2026-08-04
+
 ### Added
 
 - **`azure-pr-comment` publisher** — Draugr's report as a sticky Azure DevOps pull-request
@@ -2372,7 +2376,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.62.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.63.0...HEAD
+[0.63.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.63.0
 [0.62.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.62.0
 [0.61.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.61.0
 [0.60.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.60.0
