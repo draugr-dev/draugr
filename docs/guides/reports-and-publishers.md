@@ -96,7 +96,7 @@ rather than leaving you re-checking the token.
 
 And a pull-request build has to exist in the first place: Azure Repos ignores a `pr:` trigger, so
 that comes from a build validation branch policy. See
-[Azure Pipelines](azure-pipelines.md#two-things-to-set-up-once).
+[Azure Pipelines](azure-pipelines.md#two-one-time-settings).
 
 Azure models a PR comment as a *thread*, so the sticky comment is the first comment of the thread
 carrying Draugr's marker. The marker is matched on that first comment only — a reviewer who
