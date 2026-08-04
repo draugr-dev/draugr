@@ -134,6 +134,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 |------|---------|-------------|
 | `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
 | `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
+| `--no-gate` | `false` | Report the verdict but exit 0 on a fail — for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
 | `--allow-effects` | — | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent — see [below](#scanners-that-do-more-than-read) |

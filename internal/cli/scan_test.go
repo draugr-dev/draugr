@@ -958,3 +958,13 @@ func TestWriteArtifactsUsesTheSameNamesAPublisherWould(t *testing.T) {
 		}
 	}
 }
+
+func TestNoGateSuppressesTheVerdictButNotAFailedScan(t *testing.T) {
+	// The flag exists for the two scans either side of a `draugr diff`: their job is to produce
+	// reports, and the diff is the gate. `|| true` in a pipeline would do it, but it also
+	// swallows a scan that never ran — and then the diff fails on a file that was never written,
+	// which reads as a diff problem rather than a scan one.
+	if !strings.Contains(newScanCommand().Flags().Lookup("no-gate").Usage, "diff") {
+		t.Error("the flag's help should say what it is for")
+	}
+}

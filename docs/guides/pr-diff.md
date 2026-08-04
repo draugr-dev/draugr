@@ -88,9 +88,18 @@ writes (SARIF is the complete, structured result set). A typical setup scans `ma
 stores `results.sarif` as an artifact, then scans the PR:
 
 ```bash
-draugr scan draugr.saga.yaml -o base/    # on the base branch (store as an artifact)
-draugr scan draugr.saga.yaml -o head/    # on the PR head
+draugr scan draugr.saga.yaml --no-gate -o base/    # on the base branch
+draugr scan draugr.saga.yaml --no-gate -o head/    # on the PR head
 ```
+
+**`--no-gate` on both.** These two scans exist to produce reports; the diff is the gate. Without
+it a `FAIL` verdict on the base — which any repository with a backlog will produce — exits
+non-zero and takes the whole step with it under `set -e`. It suppresses the verdict's exit code
+only: a scan that could not run still fails, so a missing report never reaches the diff disguised
+as "no new findings".
+
+For a complete pipeline, see [Azure Pipelines](azure-pipelines.md#gate-on-new-findings); on GitHub
+the action's `mode: auto` does all of this for you.
 
 Each scan clones the repository before reading it, so a `results.sarif` always describes a
 **committed revision** — which is what makes the two comparable, and what a reader needs in order

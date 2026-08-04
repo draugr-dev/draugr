@@ -39,6 +39,7 @@ type scanOptions struct {
 	outputDir          string
 	reports            []string
 	failOn             string
+	noGate             bool
 	failOnPriority     string
 	cacheDir           string
 	cacheTTL           time.Duration
@@ -85,6 +86,9 @@ func newScanCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&opts.outputDir, "output", "o", "", "directory to write reports into (see --report; default report.json and results.sarif)")
+	cmd.Flags().BoolVar(&opts.noGate, "no-gate", false,
+		"report the verdict but exit 0 on a fail — for producing a report to compare later, "+
+			"where `draugr diff` is the gate")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.LevelError), "severity that fails the gate: error, warning, note")
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "", "also fail the gate on any finding at or above this priority (P1-P4)")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
@@ -307,7 +311,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			"(use --allow-scan-errors to accept partial results)",
 			strings.Join(waived, ", ")), publishErr)
 	}
-	if verdict.Verdict == norn.Fail {
+	// --no-gate suppresses the *verdict's* exit code only. A scan that could not run still fails,
+	// above: the flag says "I am producing a report to compare later, and the comparison is the
+	// gate" — not "ignore whatever happened". `|| true` in a pipeline cannot tell the two apart,
+	// and swallows the scan error that leaves no report for the diff to read.
+	if verdict.Verdict == norn.Fail && !opts.noGate {
 		return alsoPublish(fmt.Errorf("policy verdict: fail"), publishErr)
 	}
 	return publishErr

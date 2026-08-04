@@ -12,6 +12,21 @@ and move it under a version on release.
 
 ### Added
 
+- **`draugr scan --no-gate`** reports the verdict and exits 0 anyway. It is what the two scans
+  either side of a `draugr diff` need: their job is to produce reports, and the diff is the gate.
+  Without it the base scan's `FAIL` — which any repository with a backlog produces — takes the
+  whole CI step down before the comparison runs.
+
+  It suppresses the *verdict's* exit code and nothing else. A scan that could not run still fails,
+  so a missing report can never reach a diff disguised as "no new findings" — which is exactly
+  what `|| true` in a pipeline does instead.
+
+- **A worked `draugr diff` pipeline for Azure DevOps.** GitHub's action hides the two-scan dance
+  behind `mode: auto`; Azure has no first-party task, so
+  [the guide](https://github.com/draugr-dev/draugr/blob/main/docs/guides/azure-pipelines.md)
+  now spells it out — including getting back to the pull request's merge commit, which
+  `git checkout -` cannot do.
+
 - **The exploitability line says what the feeds actually did.** It named KEV and EPSS and their
   dates, which tells you enrichment ran but not whether it changed anything — so the only way to
   find out was to read every finding looking for a note that might not be there, and then wonder
