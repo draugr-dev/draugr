@@ -73,6 +73,14 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`draugr diff` reports severity, not SARIF levels.** A column headed *Severity* printed
+  `error` / `warning` / `note`, so the same finding read as "error" in a diff and "critical" in
+  the scan report it came from, and a reader comparing the two had to translate between
+  vocabularies. Diffs now use the same `critical` / `high` / `medium` / `low` bands everywhere,
+  and the headline names only the bands that occur — `12 new (4 high, 8 medium)` rather than a
+  row of zeroes. In `--format json`, `newByLevel` / `fixedByLevel` become
+  `newBySeverity` / `fixedBySeverity`, counting bands instead of levels.
+
 - **JUnit findings link to the advisory.** A CI test panel showed a CVE number and its
   description, which left the reader retyping the number into a search engine. The failure now
   carries the scanner's advisory URL — or one derived from the identifier when the scanner
