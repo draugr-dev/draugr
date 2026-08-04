@@ -99,22 +99,41 @@ protections attach to "Customer Data" under an Account. Somebody using a free pu
 signed nothing of the sort. It never mentions VirusTotal, and does not describe what happens to a
 URL you look up.
 
-The privacy notice settles it the same way, and says so itself. The SecOps Privacy Notice covers
-"the SecOps services described at cloud.google.com/terms/secops/services" and states plainly:
-**"This Privacy Notice does not apply to any other Google services."**
+VirusTotal's own documentation answers it, and the answer is why this stays unbuilt.
 
-So both documents scope themselves to *purchased* Google Cloud services, and both exclude
-everything else. The free public API is governed by neither, and the document that does govern it
-has not been located.
+Their API-key page conditions use of a key on **"the sharing of your Sample submissions with the
+security community"**, and warns **"Please do not submit any personal information; we are not
+responsible for the contents of your submissions."** Their *How it works* page goes further:
+scanning reports "are shared with the public VirusTotal community", and "the contents of submitted
+files or pages may also be shared with premium VirusTotal customers".
 
-**The answer therefore differs by tier**, which is the finding worth carrying forward:
+Neither page distinguishes a **lookup** from a **submission**, which is the distinction the whole
+question turns on. Measured behaviour suggests they are different — a lookup of a URL VirusTotal
+has never seen returns 404 twice, over a minute apart, and creates no record. But an undocumented
+behaviour is not a guarantee, and the documented default is sharing.
 
-| | Governed by | Data handling |
+So the risk is not hypothetical and not small: if a lookup of an unknown host ever queues it for
+analysis — today, or after a change nobody announces — that hostname enters a corpus shared with
+the community and with paying customers. For a control that exists to send *your infrastructure's
+names* somewhere, an unstated distinction protecting you from publication is not a foundation.
+
+The terms and privacy notice do not rescue it. Google Cloud's terms are a contract "entered into
+by Google and the entity or person agreeing to these terms", effective on clicking to accept, with
+protections attaching to Customer Data under an Account; the SecOps Privacy Notice states plainly
+that it "does not apply to any other Google services". Both scope to **purchased** services. A
+free public API key is covered by neither.
+
+**The answer therefore differs by tier:**
+
+| | Governed by | Sharing |
 |---|---|---|
-| VirusTotal Enterprise (a purchased SecOps Service) | Google Cloud ToS, SecOps Privacy Notice, Cloud Data Processing Addendum | Google "will not access, use, or process Customer Data for any other purpose" |
-| Free public API | not established | not established |
+| VirusTotal Enterprise (a purchased SecOps Service) | Cloud ToS, SecOps Privacy Notice, Data Processing Addendum | Google "will not access, use, or process Customer Data for any other purpose" |
+| Free public API | the API-key terms above | submissions shared with the community and premium customers |
 
-A connector could make an honest claim for the first and none for the second — and the second is
-the one people would actually use. Until that is resolved, it should not be built. For a control
-whose whole risk is *what a third party learns about your infrastructure*, "we observed it behaving
-well once" is the wrong kind of evidence.
+A connector could make an honest claim for the first and the opposite one for the second — and the
+second is what people would actually use. That is not a gap to fill later; it is the answer.
+
+If it is ever built, two things follow from the same page: the key must stay in the environment,
+because VirusTotal asks that it not be embedded "in scripts or software from which it can be
+easily retrieved"; and the control would have to say, at the point of enabling it, that a free-tier
+lookup is not promised to stay private.
