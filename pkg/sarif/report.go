@@ -472,3 +472,71 @@ func ParseLevel(s string) (Level, error) {
 		return "", fmt.Errorf("unknown level %q: want error, warning or note", s)
 	}
 }
+
+// RepositoryRef is the repository a scan read, and the commit it read.
+//
+// Recorded by repository scanners as Provenance fields rather than as a typed member of Report,
+// because Provenance is already the channel for "what this scanner says about its own run" and
+// this package should not grow a field per domain fact. Parsed back out here so every consumer —
+// console, markdown, HTML, JSON — reads it the same way instead of each learning the key names.
+type RepositoryRef struct {
+	// URL is the repository as the descriptor named it.
+	URL string `json:"url"`
+	// Revision is the commit that was scanned. Empty when git could not be asked.
+	Revision string `json:"revision,omitempty"`
+	// Uncommitted counts files in the working copy that were not part of what was scanned.
+	Uncommitted int `json:"uncommitted,omitempty"`
+}
+
+// Short renders the revision the way a human refers to a commit.
+func (r RepositoryRef) Short() string {
+	if len(r.Revision) > 8 {
+		return r.Revision[:8]
+	}
+	return r.Revision
+}
+
+// Repository extracts the repository this provenance entry describes, if it describes one.
+func (p Provenance) Repository() (RepositoryRef, bool) {
+	var r RepositoryRef
+	for _, f := range p.Fields {
+		switch f.Key {
+		case "repository":
+			r.URL = f.Value
+		case "revision":
+			r.Revision = f.Value
+		case "uncommitted":
+			r.Uncommitted, _ = strconv.Atoi(f.Value)
+		}
+	}
+	// A scanner that recorded no repository is describing something else — a cluster, a benchmark
+	// — and belongs in the per-control provenance rather than here.
+	return r, r.URL != ""
+}
+
+// RepositoriesIn collects the distinct repository/revision pairs the reports recorded.
+//
+// Keyed on the pair rather than the scanner: five controls reading one commit is one fact. When
+// two controls disagree, both are kept — each repository scanner checks out independently, so on
+// a branch that moves mid-scan they can genuinely read different commits, and collapsing that
+// would be an assumption presented as evidence.
+func RepositoriesIn(reports []Report) []RepositoryRef {
+	type key struct{ url, rev string }
+	seen := map[key]bool{}
+	var out []RepositoryRef
+	for _, rep := range reports {
+		for _, p := range rep.Provenance {
+			r, ok := p.Repository()
+			if !ok {
+				continue
+			}
+			k := key{r.URL, r.Revision}
+			if seen[k] {
+				continue
+			}
+			seen[k] = true
+			out = append(out, r)
+		}
+	}
+	return out
+}

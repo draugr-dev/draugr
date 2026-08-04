@@ -1210,3 +1210,91 @@ func TestJUnitCarriesTheAdvisoryLink(t *testing.T) {
 		t.Errorf("a finding with no advisory should carry only its message, got %q", local)
 	}
 }
+
+func TestRepositoriesFromDeduplicatesAcrossControls(t *testing.T) {
+	// Every repository scanner checks out independently, so five controls over one repository
+	// record the same repository five times. That is one fact about one checkout, and reporting
+	// it five times is how a useful line becomes wallpaper.
+	repo := func(url, rev string) sarif.Report {
+		return sarif.Report{Provenance: []sarif.Provenance{{Tool: "t", Fields: []sarif.Field{
+			{Key: "repository", Value: url}, {Key: "revision", Value: rev},
+		}}}}
+	}
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca":     {Report: repo(".", "abc123def456")},
+		"secrets": {Report: repo(".", "abc123def456")},
+		"sast":    {Report: repo(".", "abc123def456")},
+	}}
+	got := RepositoriesFrom(run)
+	if len(got) != 1 {
+		t.Fatalf("expected one line for one checkout, got %d: %+v", len(got), got)
+	}
+	if got[0].Short() != "abc123de" {
+		t.Errorf("Short() = %q", got[0].Short())
+	}
+}
+
+func TestRepositoriesFromKeepsControlsThatDisagree(t *testing.T) {
+	// Independent checkouts mean a branch that moves mid-scan can genuinely be read at two
+	// commits. Collapsing that would be an assumption presented as evidence — and the report
+	// would name a revision that half of it did not describe.
+	repo := func(rev string) sarif.Report {
+		return sarif.Report{Provenance: []sarif.Provenance{{Tool: "t", Fields: []sarif.Field{
+			{Key: "repository", Value: "."}, {Key: "revision", Value: rev},
+		}}}}
+	}
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca":     {Report: repo("aaaaaaaa1111")},
+		"secrets": {Report: repo("bbbbbbbb2222")},
+	}}
+	if got := RepositoriesFrom(run); len(got) != 2 {
+		t.Errorf("two controls read two commits; report showed %d: %+v", len(got), got)
+	}
+}
+
+func TestRepositoriesFromIgnoresProvenanceAboutSomethingElse(t *testing.T) {
+	// kube-bench records a benchmark, not a repository. It belongs in the per-control block.
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"kubernetes": {Report: sarif.Report{Provenance: []sarif.Provenance{{
+			Tool: "kube-bench", Fields: []sarif.Field{{Key: "benchmark", Value: "cis-1.8"}},
+		}}}},
+	}}
+	if got := RepositoriesFrom(run); len(got) != 0 {
+		t.Errorf("non-repository provenance leaked into the repository line: %+v", got)
+	}
+}
+
+func TestRepositoryLinesReadAsAClauseNotAnAlarm(t *testing.T) {
+	got := repositoryLines([]RepositoryProvenance{{URL: ".", Revision: "abc123def456"}})
+	if len(got) != 1 || got[0] != "Scanned: . at abc123de" {
+		t.Errorf("got %q", got)
+	}
+	got = repositoryLines([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 7}})
+	if len(got) != 1 || got[0] != "Scanned: . at abc123de (7 uncommitted files not included)" {
+		t.Errorf("got %q", got)
+	}
+	// One file is one file. A report that says "1 uncommitted files" was written by a program.
+	got = repositoryLines([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 1}})
+	if !strings.Contains(got[0], "1 uncommitted file ") {
+		t.Errorf("got %q", got)
+	}
+	if repositoryLines(nil) != nil {
+		t.Error("a run that read no repository should say nothing")
+	}
+}
+
+func TestPerControlProvenanceDropsTheRepositoryFields(t *testing.T) {
+	// The repository is reported once for the run. Leaving it in the per-control block too would
+	// print the same checkout under every control, in a section headed "measured against".
+	d := goldenCleanData()
+	d.Run = engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Provenance: []sarif.Provenance{{
+			Tool: "trivy-fs", Fields: []sarif.Field{
+				{Key: "repository", Value: "."}, {Key: "revision", Value: "abc123"},
+			},
+		}}}},
+	}}
+	if lines := provenanceLines(d); len(lines) != 0 {
+		t.Errorf("repository provenance appeared per control: %+v", lines)
+	}
+}

@@ -420,12 +420,19 @@ this section exists.
 staged, or untracked — is simply absent. A change that introduces a finding passes until it is
 committed, and a fix appears not to have worked. This is deliberate: a report has to name a
 revision that someone else can check out and reproduce, and "whatever was on one machine at one
-moment" is not that. Draugr warns when it scans a local repository with uncommitted changes, so
-the state you are looking at is never a guess:
+moment" is not that.
+
+**So the report names it**, along with what it left out:
 
 ```
-WARN scanning the committed revision, not your working tree repository=/srv/web uncommitted_files=3
+Scanned: /srv/web at 3f9a1c2b (3 uncommitted files not included)
 ```
+
+That line is in the console report, the Markdown and HTML ones, and the JSON under
+`repositories`. It is per repository and per revision rather than per control: several controls
+scanning one checkout is one fact. If two controls somehow read different commits — possible on a
+branch that moves mid-scan, since each scanner checks out independently — both are listed, because
+a single revision would be an assumption rather than a record.
 
 **`revision` still applies.** A local path with `revision: main` scans `main`, whatever branch
 the working copy happens to be on. Left unset, the scan follows the checkout's current `HEAD` —

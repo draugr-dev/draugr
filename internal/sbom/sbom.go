@@ -18,8 +18,8 @@ import (
 // runner executes a command and returns its stdout. Injectable so tests don't need Syft.
 type runner func(ctx context.Context, dir string, argv []string) ([]byte, error)
 
-// checkouter clones a repository and returns its path plus a cleanup. Injectable for tests.
-type checkouter func(ctx context.Context, url, revision string, scope git.Scope) (string, func(), error)
+// checkouter clones a repository and returns the tree plus a cleanup. Injectable for tests.
+type checkouter func(ctx context.Context, url, revision string, scope git.Scope) (git.Tree, func(), error)
 
 // Generator implements pkgsbom.Generator by shelling out to Syft. The zero value is not
 // usable; use New.
@@ -76,7 +76,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 	var src, label, sourceName string
 	switch target := t.(type) {
 	case plugin.RepositoryTarget:
-		dir, cleanup, err := g.checkout(ctx, target.URL, target.Revision,
+		tree, cleanup, err := g.checkout(ctx, target.URL, target.Revision,
 			git.Scope{Paths: target.Paths, Ignore: target.Ignore})
 		if err != nil {
 			return pkgsbom.Document{}, fmt.Errorf("checkout %s: %w", target.URL, err)
@@ -84,7 +84,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		defer cleanup()
 		// dir: disambiguates a local path from an image reference — Syft guesses otherwise,
 		// and a directory named like a registry path is not a hypothetical we want to debug.
-		src, label, sourceName = "dir:"+dir, target.URL, target.URL
+		src, label, sourceName = "dir:"+tree.Dir, target.URL, target.URL
 	case plugin.ImageTarget:
 		src = target.PinnedRef()
 		label = src

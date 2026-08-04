@@ -12,6 +12,19 @@ and move it under a version on release.
 
 ### Added
 
+- **The report names the revision it describes.**
+
+  ```
+  Scanned: . at 3f9a1c2b (7 uncommitted files not included)
+  ```
+
+  A scan reads the committed revision rather than your working tree so that a report names
+  something reproducible — but the report never said which commit that was, and the only thing
+  said out loud was a warning on every local run about the revision it was *not* reading. The
+  commit is now in the console, Markdown and HTML reports and in the JSON under `repositories`,
+  and the uncommitted count travels with it as a clause rather than a warning. The warning is
+  gone.
+
 - **A reusable Azure Pipelines template.** `azure-pipelines/draugr.yml` collapses the install,
   scanner provisioning, scan, pull-request diff and publishing into one reference. Copy it into
   your repository and the pipeline is four lines of Draugr:

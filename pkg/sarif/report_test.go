@@ -234,3 +234,67 @@ func TestParseLevelExplainsTheSeverityMixUp(t *testing.T) {
 		}
 	}
 }
+
+func TestProvenanceRepository(t *testing.T) {
+	p := Provenance{Tool: "trivy-fs", Fields: []Field{
+		{Key: "repository", Value: "."},
+		{Key: "revision", Value: "abc123def4567890"},
+		{Key: "uncommitted", Value: "3"},
+	}}
+	got, ok := p.Repository()
+	if !ok {
+		t.Fatal("a repository entry was not recognised")
+	}
+	if got.URL != "." || got.Revision != "abc123def4567890" || got.Uncommitted != 3 {
+		t.Errorf("Repository() = %+v", got)
+	}
+	if got.Short() != "abc123de" {
+		t.Errorf("Short() = %q", got.Short())
+	}
+
+	// A scanner describing a benchmark rather than a checkout is not a repository, and treating
+	// it as one would put a cluster scan under a heading about commits.
+	other := Provenance{Tool: "kube-bench", Fields: []Field{{Key: "benchmark", Value: "cis-1.8"}}}
+	if _, ok := other.Repository(); ok {
+		t.Error("non-repository provenance was read as a repository")
+	}
+
+	// A revision short enough to be its own abbreviation, and a missing one.
+	if s := (RepositoryRef{Revision: "abc"}).Short(); s != "abc" {
+		t.Errorf("Short() = %q", s)
+	}
+	if s := (RepositoryRef{}).Short(); s != "" {
+		t.Errorf("Short() = %q", s)
+	}
+	// An unparseable count is not worth failing over; it just means no count.
+	bad := Provenance{Fields: []Field{{Key: "repository", Value: "."}, {Key: "uncommitted", Value: "many"}}}
+	if r, _ := bad.Repository(); r.Uncommitted != 0 {
+		t.Errorf("Uncommitted = %d", r.Uncommitted)
+	}
+}
+
+func TestRepositoriesIn(t *testing.T) {
+	entry := func(url, rev string) Report {
+		return Report{Provenance: []Provenance{{Tool: "t", Fields: []Field{
+			{Key: "repository", Value: url}, {Key: "revision", Value: rev},
+		}}}}
+	}
+	// One checkout read by three controls is one fact.
+	got := RepositoriesIn([]Report{entry(".", "aaa"), entry(".", "aaa"), entry(".", "aaa")})
+	if len(got) != 1 {
+		t.Errorf("expected one entry, got %+v", got)
+	}
+	// Two commits for one repository is a real event and stays visible.
+	got = RepositoriesIn([]Report{entry(".", "aaa"), entry(".", "bbb")})
+	if len(got) != 2 {
+		t.Errorf("a mid-scan branch move was collapsed: %+v", got)
+	}
+	// Two repositories are two entries.
+	got = RepositoriesIn([]Report{entry("a", "aaa"), entry("b", "aaa")})
+	if len(got) != 2 {
+		t.Errorf("expected both repositories, got %+v", got)
+	}
+	if RepositoriesIn(nil) != nil {
+		t.Error("no reports should produce no repositories")
+	}
+}
