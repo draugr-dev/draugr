@@ -70,11 +70,12 @@ func TestCheckoutPathsKeepsTheRootAndTheSelectedSubtree(t *testing.T) {
 	// The reason paths has to keep the root: go.mod, .trivyignore and the Dockerfile are how a
 	// scanner knows what it is looking at. Without them Trivy finds no dependencies to check and
 	// reports nothing, which is indistinguishable from a repository that has no vulnerabilities.
-	dir, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
+	co, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
 		Scope{Paths: []string{"services/web"}})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
+	dir := co.Dir
 	defer cleanup()
 
 	got := tree(t, dir)
@@ -93,11 +94,12 @@ func TestCheckoutPathsKeepsTheRootAndTheSelectedSubtree(t *testing.T) {
 func TestCheckoutAcceptsAGlobSuffixOnPaths(t *testing.T) {
 	// `services/web/**` is what the example descriptor taught for as long as the field did
 	// nothing. Rejecting it now would break descriptors that were written in good faith.
-	dir, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
+	co, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
 		Scope{Paths: []string{"services/web/**"}})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
+	dir := co.Dir
 	defer cleanup()
 	if got := tree(t, dir); !slices.Contains(got, "services/web/main.go") ||
 		slices.Contains(got, "services/api/main.go") {
@@ -106,11 +108,12 @@ func TestCheckoutAcceptsAGlobSuffixOnPaths(t *testing.T) {
 }
 
 func TestCheckoutIgnoreRemovesMatchingPaths(t *testing.T) {
-	dir, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
+	co, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
 		Scope{Ignore: []string{"vendor/", "**/testdata/**"}})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
+	dir := co.Dir
 	defer cleanup()
 
 	got := tree(t, dir)
@@ -129,11 +132,12 @@ func TestCheckoutIgnoreRemovesMatchingPaths(t *testing.T) {
 func TestCheckoutIgnoreAppliesInsidePaths(t *testing.T) {
 	// Ignore runs last so it can carve out of a selected subtree — the common shape being "this
 	// service, but not its fixtures".
-	dir, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
+	co, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
 		Scope{Paths: []string{"services/web"}, Ignore: []string{"services/web/testdata/"}})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
+	dir := co.Dir
 	defer cleanup()
 
 	got := tree(t, dir)
@@ -146,10 +150,11 @@ func TestCheckoutIgnoreAppliesInsidePaths(t *testing.T) {
 }
 
 func TestCheckoutUnscopedTakesEverything(t *testing.T) {
-	dir, cleanup, err := Checkout(context.Background(), scopedRepo(t), "", Scope{})
+	co, cleanup, err := Checkout(context.Background(), scopedRepo(t), "", Scope{})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
+	dir := co.Dir
 	defer cleanup()
 	if got := len(tree(t, dir)); got != 7 {
 		t.Errorf("files = %d, want all 7: %v", got, tree(t, dir))
@@ -220,10 +225,11 @@ func TestPruneEnforcesPathsForTheFallback(t *testing.T) {
 	// checkout. It has to produce the same tree as the fast one, or a scan's scope would depend
 	// on where the repository is hosted.
 	src := scopedRepo(t)
-	dir, cleanup, err := Checkout(context.Background(), src, "", Scope{})
+	co, cleanup, err := Checkout(context.Background(), src, "", Scope{})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
+	dir := co.Dir
 	defer cleanup()
 
 	if err := prune(dir, Scope{Paths: []string{"services/web"}, Ignore: []string{"**/testdata/**"}}, true); err != nil {
@@ -272,11 +278,12 @@ func TestCheckoutScopedAtARevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir, cleanup, err := Checkout(context.Background(), src, string(sha[:len(sha)-1]),
+	co, cleanup, err := Checkout(context.Background(), src, string(sha[:len(sha)-1]),
 		Scope{Paths: []string{"services/api"}})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
+	dir := co.Dir
 	defer cleanup()
 	got := tree(t, dir)
 	if !slices.Contains(got, "services/api/main.go") || slices.Contains(got, "services/web/main.go") {
@@ -297,11 +304,12 @@ func TestCheckoutFallsBackWhenSparseCloneIsRefused(t *testing.T) {
 		return orig(ctx, args...)
 	}
 
-	dir, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
+	co, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
 		Scope{Paths: []string{"services/web"}, Ignore: []string{"**/testdata/**"}})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
+	dir := co.Dir
 	defer cleanup()
 
 	got := tree(t, dir)

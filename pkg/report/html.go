@@ -32,6 +32,9 @@ type htmlView struct {
 	// someone who did not run the scan, so it is the one that most needs to say what was
 	// measured rather than only what was found.
 	Provenance []provenanceLine
+	// Repositories is which repository was read and at which commit — the thing that makes the
+	// report reproducible, and the answer to "does this describe my change or the last release".
+	Repositories []RepositoryProvenance
 	// Exploitability names the datasets that raised severities, with the date each was obtained.
 	// A shared report claiming a finding is critical has to be able to say on what data — and
 	// this is the copy most likely to be read by someone who cannot re-run the scan.
@@ -97,6 +100,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 
 	view := htmlView{
 		Provenance:     provenanceLines(d),
+		Repositories:   d.Repositories,
 		Exploitability: htmlFeeds(d.Exploitability),
 		Pass:           s.verdict != norn.Fail,
 		Prioritized:    s.prioritized,
@@ -352,6 +356,15 @@ the component is — so the same issue ranks differently on a public API than on
 <thead><tr><th scope="col">Feed</th><th scope="col">Obtained</th><th scope="col">Digest</th></tr></thead>
 <tbody>
 {{range .Exploitability}}<tr><td>{{.Name}}</td><td>{{.Obtained}}</td><td>{{.Digest}}</td></tr>{{end}}
+</tbody>
+</table>
+{{end}}
+{{if .Repositories}}
+<h3 class="sub">Scanned</h3>
+<table class="provenance">
+<thead><tr><th scope="col">Repository</th><th scope="col">Revision</th><th scope="col">Not included</th></tr></thead>
+<tbody>
+{{range .Repositories}}<tr><td>{{.URL}}</td><td>{{.Short}}</td><td>{{if .Uncommitted}}{{.Uncommitted}} uncommitted{{else}}—{{end}}</td></tr>{{end}}
 </tbody>
 </table>
 {{end}}

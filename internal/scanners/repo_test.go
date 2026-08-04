@@ -12,8 +12,8 @@ import (
 const repoSARIF = `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":""}},` +
 	`"results":[{"ruleId":"CVE-1","level":"error","message":{"text":"vuln"}}]}]}`
 
-func fakeCheckout(_ context.Context, _, _ string, _ git.Scope) (string, func(), error) {
-	return "/tmp/fake-checkout", func() {}, nil
+func fakeCheckout(_ context.Context, _, _ string, _ git.Scope) (git.Tree, func(), error) {
+	return git.Tree{Dir: "/tmp/fake-checkout", Revision: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"}, func() {}, nil
 }
 
 func newFakeRepoScanner(run func(context.Context, string, []string) ([]byte, error)) repoScanner {
@@ -140,8 +140,8 @@ func TestRepoScannerNoURL(t *testing.T) {
 
 func TestRepoScannerCheckoutError(t *testing.T) {
 	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) { return nil, nil })
-	s.checkout = func(context.Context, string, string, git.Scope) (string, func(), error) {
-		return "", nil, errors.New("clone failed")
+	s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+		return git.Tree{}, nil, errors.New("clone failed")
 	}
 	if _, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "u"}, nil); err == nil {
 		t.Fatal("expected checkout error")
@@ -176,5 +176,34 @@ func TestExecArgv(t *testing.T) {
 	}
 	if _, err := execArgv(context.Background(), nil); err == nil {
 		t.Fatal("empty argv should error")
+	}
+}
+
+func TestRepoScanStampsWhatItRead(t *testing.T) {
+	// A report that cannot name the commit it describes cannot be reproduced or compared, which
+	// is the whole reason a scan reads a committed revision rather than the files on disk.
+	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
+		return []byte(`{"runs":[{"tool":{"driver":{"name":"Trivy"}},"results":[]}]}`), nil
+	})
+	report, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "."}, plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, p := range report.Provenance {
+		r, ok := p.Repository()
+		if !ok {
+			continue
+		}
+		found = true
+		if r.URL != "." {
+			t.Errorf("repository = %q", r.URL)
+		}
+		if r.Short() != "a1b2c3d4" {
+			t.Errorf("revision = %q, want the checkout's resolved SHA", r.Short())
+		}
+	}
+	if !found {
+		t.Error("a repository scan recorded no repository provenance")
 	}
 }

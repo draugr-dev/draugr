@@ -88,7 +88,7 @@ func (junitReporter) Render(w io.Writer, d Data) error {
 				Failure: &junitFailure{
 					Message: junitFailureMessage(f),
 					Type:    string(f.level),
-					Body:    f.message,
+					Body:    junitFailureBody(f),
 				},
 			})
 			suite.Tests++
@@ -109,6 +109,22 @@ func (junitReporter) Render(w io.Writer, d Data) error {
 	}
 	_, err := io.WriteString(w, "\n")
 	return err
+}
+
+// junitFailureBody is what a test panel shows when someone opens a finding, so it carries the
+// one thing they are about to go looking for: where to read more.
+//
+// The URL goes on its own line, bare. A test panel is not a place to be clever with formatting —
+// several of them linkify a bare URL, and the ones that do not leave something a reader can copy
+// rather than a CVE number they have to retype into a search engine.
+func junitFailureBody(f finding) string {
+	if f.helpURI == "" {
+		return f.message
+	}
+	if f.message == "" {
+		return f.helpURI
+	}
+	return f.message + "\n\n" + f.helpURI
 }
 
 // junitFailureMessage builds a short, scannable one-liner for the test panel.

@@ -15,6 +15,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/tools"
+	"github.com/draugr-dev/draugr/pkg/config"
 
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -32,11 +33,18 @@ func newToolsCommand() *cobra.Command {
 }
 
 type toolsInstallOptions struct {
-	yes    bool
-	dryRun bool
-	force  bool
-	saga   string
+	yes     bool
+	dryRun  bool
+	force   bool
+	saga    string
+	version string
+	// wanted is the version to install per tool, resolved from draugr.config.yaml and then
+	// --version. Absent means the version Draugr ships.
+	wanted map[string]string
 }
+
+// want is the version to install for a tool, or "" for the one Draugr ships.
+func (o toolsInstallOptions) want(name string) string { return o.wanted[name] }
 
 func newToolsInstallCommand() *cobra.Command {
 	opts := &toolsInstallOptions{}
@@ -54,12 +62,15 @@ func newToolsInstallCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			install := func(name string) (tools.Installed, error) {
-				return tools.Install(cmd.Context(), name, dir, nil, opts.force)
-			}
 			names, err := installNames(cmd.OutOrStdout(), args, *opts)
 			if err != nil {
 				return err
+			}
+			if opts.wanted, err = wantedVersions(args, opts.version); err != nil {
+				return err
+			}
+			install := func(name string) (tools.Installed, error) {
+				return tools.InstallVersion(cmd.Context(), name, opts.want(name), dir, nil, opts.force)
 			}
 			// Names them, because someone preparing an air-gapped machine wants the list of what
 			// they will have to bring across. An empty selection means everything installable.
@@ -76,6 +87,8 @@ func newToolsInstallCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&opts.yes, "yes", "y", false, "skip the confirmation prompt")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "print the install plan and exit")
+	cmd.Flags().StringVar(&opts.version, "version", "",
+		"install this version instead of the one Draugr ships (one tool at a time)")
 	cmd.Flags().BoolVar(&opts.force, "force", false,
 		"reinstall even when the pinned version is already present (repairs a modified binary)")
 	cmd.Flags().StringVar(&opts.saga, "saga", "",
@@ -294,8 +307,8 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 	if all && !slices.Contains(planned, "semgrep") {
 		planned = append(append([]string{}, planned...), "semgrep")
 	}
-	have := present(context.Background(), planned, opts.force)
-	writeInstallPlan(w, names, all, have)
+	have := present(context.Background(), planned, opts)
+	writeInstallPlan(w, names, all, have, opts)
 
 	if opts.dryRun {
 		_, _ = fmt.Fprintln(w, "\n(dry run — nothing installed)")
@@ -374,9 +387,9 @@ var detectTool = func(ctx context.Context, t tools.Tool) tools.Status {
 	return tools.Detect(ctx, t, nil, nil)
 }
 
-func present(ctx context.Context, names []string, force bool) map[string]string {
+func present(ctx context.Context, names []string, opts toolsInstallOptions) map[string]string {
 	found := map[string]string{}
-	if force {
+	if opts.force {
 		return found // --force reinstalls regardless, so nothing counts as satisfied
 	}
 	catalog := tools.Catalog()
@@ -395,8 +408,13 @@ func present(ctx context.Context, names []string, force bool) map[string]string 
 		if st.DataChecked && !st.DataFound {
 			continue
 		}
-		// A different version is still work to do, so only the pinned one counts.
-		if spec, ok := tools.Spec(name); ok && st.Version != spec.Version {
+		// A different version is still work to do, so only the requested one counts — which is
+		// the pin from the config when there is one, and otherwise the version Draugr ships.
+		if want := opts.want(name); want != "" {
+			if st.Version != strings.TrimPrefix(want, "v") {
+				continue
+			}
+		} else if spec, ok := tools.Spec(name); ok && st.Version != spec.Version {
 			continue
 		}
 		if name == "semgrep" && st.Version != tools.SemgrepVersion() {
@@ -407,7 +425,7 @@ func present(ctx context.Context, names []string, force bool) map[string]string 
 	return found
 }
 
-func writeInstallPlan(w io.Writer, names []string, all bool, have map[string]string) {
+func writeInstallPlan(w io.Writer, names []string, all bool, have map[string]string, opts toolsInstallOptions) {
 	dir, _ := tools.BinDir()
 	catalog := tools.Catalog()
 	category := func(name string) string {
@@ -431,7 +449,8 @@ func writeInstallPlan(w io.Writer, names []string, all bool, have map[string]str
 			showSemgrep = true
 			continue
 		}
-		spec, ok := tools.Spec(name)
+		spec, err := tools.SpecFor(name, opts.want(name))
+		ok := err == nil
 		if !ok {
 			table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell("-"),
 				tui.PlainCell(category(name)), tui.PlainCell("-"),
@@ -445,10 +464,7 @@ func writeInstallPlan(w io.Writer, names []string, all bool, have map[string]str
 			continue
 		}
 		todo++
-		verify := "sha256"
-		if spec.Cosign != nil {
-			verify = "sha256 + cosign"
-		}
+		verify := planVerify(spec)
 		table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(spec.Version),
 			tui.PlainCell(category(name)), tui.PlainCell(verify),
 			tui.Styled(tui.StyleMuted, filepath.Join(dir, spec.Binary)))
@@ -534,4 +550,57 @@ func appendUnique(xs []string, s string) []string {
 		}
 	}
 	return append(xs, s)
+}
+
+// planVerify says how strongly the install will be able to verify this download, before it runs.
+//
+// The plan is where someone decides whether to let Draugr write a security tool to their machine,
+// so the strength of the check belongs there rather than in the result afterwards. A recorded
+// SHA-256 exists only for the version Draugr ships; any other version is checked against what the
+// upstream publishes, which for some tools is nothing.
+func planVerify(spec tools.InstallSpec) string {
+	if a, ok := spec.Assets[tools.PlatformKey()]; ok && a.SHA256 != "" {
+		if spec.Cosign != nil {
+			return "sha256 + cosign"
+		}
+		return "sha256"
+	}
+	switch {
+	case spec.Cosign != nil:
+		return "upstream cosign"
+	case spec.ChecksumsURLTemplate != "":
+		return "upstream sha256"
+	default:
+		return "unverified"
+	}
+}
+
+// wantedVersions resolves the version to install per tool: the pins in draugr.config.yaml, then
+// --version on top for the single tool it was given with.
+//
+// --version applies to one tool because it takes one value. Applying it to several would install
+// a version number that means something different to each of them.
+func wantedVersions(args []string, flag string) (map[string]string, error) {
+	wanted := map[string]string{}
+	wd, err := os.Getwd()
+	if err == nil {
+		res, err := config.Load(rootConfigPath, wd)
+		if err != nil {
+			return nil, err
+		}
+		for name, t := range res.File.Tools {
+			if t.Version != "" {
+				wanted[name] = t.Version
+			}
+		}
+	}
+	if flag == "" {
+		return wanted, nil
+	}
+	if len(args) != 1 {
+		return nil, fmt.Errorf("--version applies to a single tool: name one, e.g. " +
+			"`draugr tools install trivy --version 0.69.3`, or pin several in draugr.config.yaml")
+	}
+	wanted[args[0]] = flag
+	return wanted, nil
 }

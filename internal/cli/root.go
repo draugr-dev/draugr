@@ -19,7 +19,15 @@ type globalOptions struct {
 	logLevel  string
 	logFormat string
 	offline   bool
+	config    string
 }
+
+// rootConfigPath is the --config value, read by the config and scan commands.
+//
+// A package-level value for the same reason offline is one: it is decided once at startup and
+// every command that loads configuration must see the same answer. Threading it through every
+// constructor would let one path forget.
+var rootConfigPath string
 
 func newRootCommand() *cobra.Command {
 	opts := &globalOptions{}
@@ -31,6 +39,11 @@ func newRootCommand() *cobra.Command {
 			"the right tools, and produces a pass/fail verdict with evidence.\n\n" +
 			"Security controls (SAST, SCA, secrets, IaC, DAST, TLS, headers) and compliance\n" +
 			"evidence (SBOMs) from the same descriptor and the same gate.",
+		// `draugr version` is the command; this makes `--version` the same answer under the
+		// spelling every other CLI uses. Cobra adds the flag from this field alone — without it
+		// the near-universal `draugr --version` exits non-zero on "unknown flag", which a
+		// container smoke test or a tool-cache probe reads as a broken binary.
+		Version:       version.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -47,6 +60,7 @@ func newRootCommand() *cobra.Command {
 			if opts.offline {
 				netpolicy.SetOffline(true)
 			}
+			rootConfigPath = opts.config
 			return nil
 		},
 	}
@@ -55,6 +69,8 @@ func newRootCommand() *cobra.Command {
 		"log level: trace, debug, info, warn, error (trace relays scanner output)")
 	cmd.PersistentFlags().StringVar(&opts.logFormat, "log-format", "console",
 		"log format: console (human-readable, colorized on a terminal), json, or text")
+	cmd.PersistentFlags().StringVar(&opts.config, "config", "",
+		"machine/organisation settings file, used instead of the discovered ones (also DRAUGR_CONFIG)")
 	cmd.PersistentFlags().BoolVar(&opts.offline, "offline", false,
 		"make no network calls: skip optional fetches, and refuse rather than download (also DRAUGR_OFFLINE=1)")
 
@@ -69,9 +85,13 @@ func newRootCommand() *cobra.Command {
 	cmd.AddCommand(newDoctorCommand())
 	cmd.AddCommand(newToolsCommand())
 	cmd.AddCommand(newFeedsCommand())
+	cmd.AddCommand(newConfigCommand())
 	cmd.AddCommand(newControlsCommand())
 	cmd.AddCommand(newMCPCommand())
 	cmd.AddCommand(newSelfUpdateCommand())
+	// Cobra's default template prints "draugr version X". Overriding it means the flag and the
+	// subcommand produce the same bytes, so a script that parses one parses the other.
+	cmd.SetVersionTemplate(version.String() + "\n")
 	return cmd
 }
 

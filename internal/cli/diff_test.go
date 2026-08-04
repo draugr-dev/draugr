@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/publish"
 )
 
 // A minimal Draugr SARIF report with one result.
@@ -86,5 +88,56 @@ func TestRunDiffBadFormat(t *testing.T) {
 	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
 	if err := runDiff(context.Background(), base, head, diffOptions{format: "bogus"}, &bytes.Buffer{}); err == nil {
 		t.Error("expected an error for an unknown format")
+	}
+}
+
+func TestDiffPublisherFollowsTheCIItIsRunningOn(t *testing.T) {
+	// Hardcoding GitHub made --publish a flag that silently did nothing on an Azure agent: the
+	// GitHub publisher no-ops when it cannot see GITHUB_ACTIONS, so the run stayed green and the
+	// comment never appeared.
+	t.Run("azure", func(t *testing.T) {
+		t.Setenv("TF_BUILD", "True")
+		if got := diffPublisherKind(); got != "azure-pr-comment" {
+			t.Errorf("on an Azure agent --publish would use %q", got)
+		}
+	})
+	t.Run("github and anywhere else", func(t *testing.T) {
+		t.Setenv("TF_BUILD", "")
+		if got := diffPublisherKind(); got != "github-pr-comment" {
+			t.Errorf("diffPublisherKind() = %q", got)
+		}
+	})
+}
+
+func TestDiffUsesItsOwnStickyComment(t *testing.T) {
+	// A pipeline can reasonably run both: the Saga's PR-comment publisher for the state of the
+	// branch, and `diff --publish` for what this pull request changed. They are two questions and
+	// want two comments. Sharing the default marker made whichever ran second silently overwrite
+	// the first, leaving no trace that the other had ever posted.
+	if publish.DiffMarker == "" {
+		t.Fatal("the diff publisher has no marker, so every run would post a new comment")
+	}
+	if publish.DiffMarker == publish.ReportMarker {
+		t.Errorf("diff and report share the marker %q, so one overwrites the other",
+			publish.DiffMarker)
+	}
+}
+
+func TestDiffRejectsAGateLevelItCannotRank(t *testing.T) {
+	// Before #559 the diff printed SARIF levels, so "error" was the obvious thing to type. It
+	// prints severity bands now, which makes "high" the obvious thing — and an unrecognized level
+	// ranks 0, so every new finding is at least that. The gate would quietly become "fail on
+	// anything new" while looking like it had been narrowed.
+	cmd := newRootCommand()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"diff", "a.sarif", "b.sarif", "--fail-on-new", "high"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("--fail-on-new high was accepted, and silently means something else")
+	}
+	if !strings.Contains(err.Error(), "severity band") {
+		t.Errorf("the error should explain the two ladders: %v", err)
 	}
 }

@@ -59,6 +59,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		}
 		_, _ = fmt.Fprintln(w)
 		writeScanErrors(w, s)
+		writeRepositories(w, d)
 		writeProvenance(w, d)
 		writeExploitability(w, d)
 	}
@@ -133,6 +134,25 @@ func writeEvidenceNotes(w io.Writer, d Data, s summary) {
 //
 // Under the controls table rather than beside a finding: it describes the run, not any one
 // result, and a reader checking "is this the right standard" is asking about the whole control.
+func writeRepositories(w io.Writer, d Data) {
+	if len(d.Repositories) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "**Scanned**")
+	_, _ = fmt.Fprintln(w)
+	for _, r := range d.Repositories {
+		line := "- `" + r.URL + "`"
+		if rev := r.Short(); rev != "" {
+			line += " at `" + rev + "`"
+		}
+		if r.Uncommitted > 0 {
+			line += fmt.Sprintf(" — %s not included", plural(r.Uncommitted, "uncommitted file"))
+		}
+		_, _ = fmt.Fprintln(w, line)
+	}
+	_, _ = fmt.Fprintln(w)
+}
+
 func writeProvenance(w io.Writer, d Data) {
 	lines := provenanceLines(d)
 	if len(lines) == 0 {

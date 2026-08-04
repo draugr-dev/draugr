@@ -25,8 +25,11 @@ type jsonReport struct {
 	// Exploitability names the datasets that enriched this run's severities, so a report can
 	// be checked against the data it was computed from. Absent when no enrichment ran.
 	Exploitability []FeedProvenance `json:"exploitability,omitempty"`
-	Findings       []findingReport  `json:"findings,omitempty"`
-	Stats          statsInfo        `json:"stats"`
+	// Repositories is which repository was read and at which commit — what makes the report
+	// reproducible, and the answer to "does this describe my change or last week's".
+	Repositories []sarif.RepositoryRef `json:"repositories,omitempty"`
+	Findings     []findingReport       `json:"findings,omitempty"`
+	Stats        statsInfo             `json:"stats"`
 }
 
 // priorityCounts tallies findings by priority band (present when prioritization ran).
@@ -130,6 +133,18 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 
 	doc.Priorities, doc.Findings = summarizePriorities(run, minPriority)
 	doc.Exploitability = feeds
+
+	reports := make([]sarif.Report, 0, len(run.Controls))
+	for _, cr := range run.Controls {
+		reports = append(reports, cr.Report)
+	}
+	doc.Repositories = sarif.RepositoriesIn(reports)
+	sort.Slice(doc.Repositories, func(i, j int) bool {
+		if doc.Repositories[i].URL != doc.Repositories[j].URL {
+			return doc.Repositories[i].URL < doc.Repositories[j].URL
+		}
+		return doc.Repositories[i].Revision < doc.Repositories[j].Revision
+	})
 
 	enc := json.NewEncoder(w)
 	if !opts.Compact {
