@@ -145,9 +145,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// Organisation defaults are merged *underneath* the descriptor, so the engine sees one
 	// effective Saga and nothing downstream has to know there were two files. Merged after the
 	// descriptor has been validated on its own, so an error still names what the author wrote.
-	if err := applyConfigDefaults(ctx, model); err != nil {
+	cacheCfg, err := applyConfigDefaults(ctx, model)
+	if err != nil {
 		return err
 	}
+	cacheOptionsFrom(&opts, cacheCfg)
 
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
 	if err != nil {
@@ -603,17 +605,17 @@ func digestPinnedOnly(t plugin.Target) bool {
 // Under, not over: a project that has an opinion keeps it, and inherits the rest. The alternative
 // — defaults that a Saga cannot override — is a guarantee a CLI cannot keep, because the config
 // lives on a machine the same person controls.
-func applyConfigDefaults(ctx context.Context, model *saga.Model) error {
+func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.CacheSettings, error) {
 	wd, err := os.Getwd()
 	if err != nil {
-		return err
+		return config.CacheSettings{}, err
 	}
 	res, err := config.Load(rootConfigPath, wd)
 	if err != nil {
-		return err
+		return config.CacheSettings{}, err
 	}
 	if len(res.File.Controllers) == 0 {
-		return nil
+		return res.File.Cache, nil
 	}
 	if model.Config.Controllers == nil {
 		model.Config.Controllers = map[string]saga.ControllerSettings{}
@@ -625,7 +627,30 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) error {
 	// second file had a say, and `draugr config show` is where the detail lives.
 	slog.DebugContext(ctx, "merged controller defaults from configuration",
 		"files", len(res.Sources), "controls", len(res.File.Controllers))
-	return nil
+	return res.File.Cache, nil
+}
+
+// cacheOptionsFrom folds the configured cache settings under the flags.
+//
+// A typed flag cannot distinguish "not passed" from "passed its zero value", so the check is
+// whether it was *typed* — otherwise `--cache-ttl 0` (no expiry, deliberately) would read as
+// absent and the configured value would override an explicit instruction.
+func cacheOptionsFrom(opts *scanOptions, cfg config.CacheSettings) {
+	if cfg.Dir != "" && !opts.setFlags["cache-dir"] {
+		opts.cacheDir = cfg.Dir
+	}
+	if cfg.TTL != 0 && !opts.setFlags["cache-ttl"] {
+		opts.cacheTTL = cfg.TTL
+	}
+	// Booleans only ever turn on: a config that says read-only means somebody decided this
+	// machine's results should not be trusted by the next run, and a flag's absence is not an
+	// argument against that. --cache-read-only=false is still honoured, because it was typed.
+	if cfg.ReadOnly && !opts.setFlags["cache-read-only"] {
+		opts.cacheReadOnly = true
+	}
+	if cfg.RequireDigest && !opts.setFlags["cache-require-digest"] {
+		opts.cacheRequireDigest = true
+	}
 }
 
 // toolBuilds reports the build of each external scanner the run actually used.

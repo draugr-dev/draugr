@@ -769,6 +769,9 @@ scanner until a finding disappears.
 
 ```yaml
 # draugr.config.yaml
+cache:                  # where results are reused between runs, and for how long
+  dir: /var/cache/draugr
+  ttl: 24h
 tools:                  # which build `draugr tools install` fetches
   trivy: { version: "0.69.3" }
 controllers:            # merged *underneath* the Saga, so a project overrides only what it names
@@ -776,6 +779,12 @@ controllers:            # merged *underneath* the Saga, so a project overrides o
     semgrep:
       config: p/owasp-top-ten
 ```
+
+`cache.*` mirrors the `--cache-*` flags, and a flag you type always wins — including
+`--cache-ttl 0` for no expiry, which is a deliberate instruction rather than an absent one. A
+cache directory is a fact about a runner, not about an application, which is why it belongs here
+and not in a Saga: one project on two runners should not carry a path that exists on only one of
+them. See [caching & performance](../guides/caching-and-performance.md).
 
 `tools.<name>.version` is what [`tools install`](#draugr-tools-install-tool) provisions — so every
 runner that shares the config scans with the same build, and two runners cannot produce different

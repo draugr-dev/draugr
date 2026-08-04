@@ -9,8 +9,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/internal/feeds"
+	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -997,5 +999,41 @@ func TestWorkingTreeRefusesARemoteRatherThanScanningSomethingElse(t *testing.T) 
 	}
 	if err := checkWorkingTree(true, nil); err != nil {
 		t.Errorf("no descriptor is not an error here: %v", err)
+	}
+}
+
+func TestCacheSettingsComeFromConfigUnlessTyped(t *testing.T) {
+	cfg := config.CacheSettings{
+		Dir: "/from/config", TTL: 2 * time.Hour, ReadOnly: true, RequireDigest: true,
+	}
+
+	// Nothing typed: the config decides.
+	opts := scanOptions{cacheTTL: 24 * time.Hour, setFlags: map[string]bool{}}
+	cacheOptionsFrom(&opts, cfg)
+	if opts.cacheDir != "/from/config" || opts.cacheTTL != 2*time.Hour ||
+		!opts.cacheReadOnly || !opts.cacheRequireDigest {
+		t.Errorf("config was not applied: %+v", opts)
+	}
+
+	// Typed: the flag wins, including when what was typed is a zero value. `--cache-ttl 0` means
+	// no expiry, deliberately, and must not read as absent and be overridden.
+	opts = scanOptions{
+		cacheDir: "/from/flag", cacheTTL: 0,
+		setFlags: map[string]bool{"cache-dir": true, "cache-ttl": true},
+	}
+	cacheOptionsFrom(&opts, cfg)
+	if opts.cacheDir != "/from/flag" {
+		t.Errorf("cacheDir = %q, want the typed flag", opts.cacheDir)
+	}
+	if opts.cacheTTL != 0 {
+		t.Errorf("an explicit --cache-ttl 0 was overridden with %v", opts.cacheTTL)
+	}
+
+	// An explicit --cache-read-only=false is honoured over a config that says true, because it
+	// was typed. Booleans otherwise only ever turn on.
+	opts = scanOptions{setFlags: map[string]bool{"cache-read-only": true}}
+	cacheOptionsFrom(&opts, cfg)
+	if opts.cacheReadOnly {
+		t.Error("an explicit --cache-read-only=false was overridden by the config")
 	}
 }

@@ -61,6 +61,24 @@ old result under a mutable tag. See [caching in depth](../concepts/controls-and-
 > immediately, pin the immutable `digest:` in the Saga — a discovery surveyor records the running
 > digest for you — so the key becomes content-addressed.
 
+## Configure it once, per machine
+
+The `--cache-*` flags all have a home in [`draugr.config.yaml`](../reference/cli.md#draugr-config),
+which is usually the better place for them: a cache directory describes a runner image, not an
+application, and every pipeline on that runner wants the same one.
+
+```yaml
+# draugr.config.yaml
+cache:
+  dir: /var/cache/draugr
+  ttl: 24h
+  requireDigest: true     # do not cache an image named only by a tag
+```
+
+A flag you type always wins. `readOnly` and `requireDigest` only ever turn *on* from the config —
+a project file that does not discuss caching should not undo a machine that declared its results
+untrustworthy — but typing `--cache-read-only=false` still overrides it, because you typed it.
+
 ## Persisting the cache between CI runs
 
 A runner is fresh every time, so a pipeline pays full price for scanning artifacts that have not
@@ -69,9 +87,10 @@ risky.
 
 ### Cache the scanner's data first
 
-This is the bigger win and it carries no trust question at all. Trivy's databases are **2.6 GB**
-— 1.4 GB of Java index and 1.2 GB of vulnerability data — and a cold runner downloads all of it
-before scanning anything. For many projects that is larger than the scanning.
+This is the bigger win and it carries no trust question at all. Trivy's databases are up to
+**2.6 GB** — 1.2 GB of vulnerability data, plus 1.4 GB of Java index *if you scan Java artifacts*,
+which Trivy fetches only when something needs it. A cold runner downloads all of what it needs
+before scanning anything, and for many projects that is larger than the scanning.
 
 ```yaml
 - uses: actions/cache@v4
@@ -88,6 +107,33 @@ Draugr already folds into the cache key — so nothing downstream is deceived.
 
 Nuclei's template set (`~/.local/nuclei-templates` by default) is worth the same treatment if you
 run `dast`.
+
+### Or run one Trivy server for the whole fleet
+
+If you have enough runners that persisting a database on each is its own problem,
+[Trivy's client/server mode](https://trivy.dev/docs/latest/references/modes/client-server/) holds
+the databases once and serves them. Draugr needs no configuration for this — it passes its
+environment to the tools it runs, so the variable Trivy already understands is enough:
+
+```yaml
+env:
+  TRIVY_SERVER: http://trivy.internal:8080
+  # TRIVY_TOKEN: ...   if the server was started with --token
+```
+
+Measured against a server with an **empty** local cache: the `sca` control returned its usual
+findings and downloaded nothing — no 1.2 GB, no cache directory created at all.
+
+**It does not cover everything, and the gap is easy to miss.** Trivy's client/server mode supports
+image, filesystem and repository scanning, and deliberately does *not* support `trivy config` —
+so the `iac` control still runs locally and still wants its policy bundle. Misconfiguration and
+secret scanning stay client-side by design, so that files which may hold sensitive data are never
+sent to the server. And Draugr runs more than Trivy: Gitleaks, Semgrep and Nuclei keep their own
+data regardless.
+
+So a server is worth it when a platform team already runs services and the fleet is large enough
+to care. One or a few runners are better served by the directory cache above, which needs nobody
+to operate it.
 
 ### Then, if it earns its place, the result cache
 
