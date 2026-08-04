@@ -80,8 +80,14 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		return sarif.Report{}, fmt.Errorf("%s: repository target has no url", s.info.Name)
 	}
 
-	tree, cleanup, err := s.checkout(ctx, repo.URL, repo.Revision,
-		git.Scope{Paths: repo.Paths, Ignore: repo.Ignore})
+	scope := git.Scope{Paths: repo.Paths, Ignore: repo.Ignore}
+	checkout := s.checkout
+	if repo.WorkingTree {
+		checkout = func(ctx context.Context, url, _ string, scope git.Scope) (git.Tree, func(), error) {
+			return git.CheckoutWorkingTree(ctx, url, scope)
+		}
+	}
+	tree, cleanup, err := checkout(ctx, repo.URL, repo.Revision, scope)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", s.info.Name, err)
 	}
@@ -129,6 +135,9 @@ func repoProvenance(scanner, url string, tree git.Tree) sarif.Provenance {
 	}
 	if tree.Dirty > 0 {
 		fields = append(fields, sarif.Field{Key: "uncommitted", Value: strconv.Itoa(tree.Dirty)})
+	}
+	if tree.WorkingTree {
+		fields = append(fields, sarif.Field{Key: "workingTree", Value: "true"})
 	}
 	return sarif.Provenance{Tool: scanner, Fields: fields}
 }

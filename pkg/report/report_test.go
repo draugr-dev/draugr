@@ -1298,3 +1298,27 @@ func TestPerControlProvenanceDropsTheRepositoryFields(t *testing.T) {
 		t.Errorf("repository provenance appeared per control: %+v", lines)
 	}
 }
+
+func TestRepositoryLineSaysWhenTheTreeIsNotReproducible(t *testing.T) {
+	// The committed line and the working-tree line describe opposite situations with the same
+	// number: one counts what is missing, the other counts what is uniquely there.
+	working := repositoryLines([]RepositoryProvenance{{
+		URL: ".", Revision: "abc123def456", Uncommitted: 2, WorkingTree: true,
+	}})
+	if len(working) != 1 || working[0] != "Scanned: . working tree at abc123de+ (2 uncommitted files, not reproducible)" {
+		t.Errorf("got %q", working)
+	}
+	committed := repositoryLines([]RepositoryProvenance{{
+		URL: ".", Revision: "abc123def456", Uncommitted: 2,
+	}})
+	if committed[0] != "Scanned: . at abc123de (2 uncommitted files not included)" {
+		t.Errorf("got %q", committed)
+	}
+	// A clean working tree is the same bytes as its commit, so no "+" and nothing to warn about.
+	clean := repositoryLines([]RepositoryProvenance{{
+		URL: ".", Revision: "abc123def456", WorkingTree: true,
+	}})
+	if clean[0] != "Scanned: . working tree at abc123de" {
+		t.Errorf("got %q", clean)
+	}
+}

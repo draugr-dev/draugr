@@ -688,10 +688,18 @@ func repositoryLines(repos []RepositoryProvenance) []string {
 	out := make([]string, 0, len(repos))
 	for _, r := range repos {
 		line := "Scanned: " + r.URL
+		if r.WorkingTree {
+			line += " working tree"
+		}
 		if rev := r.Short(); rev != "" {
 			line += " at " + rev
 		}
-		if r.Uncommitted > 0 {
+		switch {
+		case r.WorkingTree && r.Uncommitted > 0:
+			// The uncommitted work is the reason this scan was asked for, so it is included
+			// rather than missing — and the result cannot be reproduced from the revision.
+			line += fmt.Sprintf(" (%s, not reproducible)", plural(r.Uncommitted, "uncommitted file"))
+		case r.Uncommitted > 0:
 			// A clause, not an alarm. Uncommitted work is the normal state of a checkout somebody
 			// is editing; what matters is knowing it is not in what you are reading.
 			line += fmt.Sprintf(" (%s not included)", plural(r.Uncommitted, "uncommitted file"))

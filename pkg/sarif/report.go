@@ -484,16 +484,25 @@ type RepositoryRef struct {
 	URL string `json:"url"`
 	// Revision is the commit that was scanned. Empty when git could not be asked.
 	Revision string `json:"revision,omitempty"`
-	// Uncommitted counts files in the working copy that were not part of what was scanned.
+	// Uncommitted counts files in the working copy. Not part of what was scanned unless
+	// WorkingTree is set, in which case they are precisely what was.
 	Uncommitted int `json:"uncommitted,omitempty"`
+	// WorkingTree reports that the scan read the checkout on disk rather than a commit, so the
+	// result is not reproducible from the revision alone.
+	WorkingTree bool `json:"workingTree,omitempty"`
 }
 
-// Short renders the revision the way a human refers to a commit.
+// Short renders the revision the way a human refers to a commit, with git's own "+" for a tree
+// that has moved past it.
 func (r RepositoryRef) Short() string {
-	if len(r.Revision) > 8 {
-		return r.Revision[:8]
+	s := r.Revision
+	if len(s) > 8 {
+		s = s[:8]
 	}
-	return r.Revision
+	if r.WorkingTree && s != "" && r.Uncommitted > 0 {
+		s += "+"
+	}
+	return s
 }
 
 // Repository extracts the repository this provenance entry describes, if it describes one.
@@ -507,6 +516,8 @@ func (p Provenance) Repository() (RepositoryRef, bool) {
 			r.Revision = f.Value
 		case "uncommitted":
 			r.Uncommitted, _ = strconv.Atoi(f.Value)
+		case "workingTree":
+			r.WorkingTree = f.Value == "true"
 		}
 	}
 	// A scanner that recorded no repository is describing something else — a cluster, a benchmark

@@ -434,6 +434,10 @@ scanning one checkout is one fact. If two controls somehow read different commit
 branch that moves mid-scan, since each scanner checks out independently — both are listed, because
 a single revision would be an assumption rather than a record.
 
+For the loop of fixing something, `draugr scan --working-tree` reads the checkout as it is —
+uncommitted work included, from a copy, and marked in the report as not reproducible. See
+[the CLI reference](cli.md#--working-tree-for-the-loop-of-fixing-something).
+
 **`revision` still applies.** A local path with `revision: main` scans `main`, whatever branch
 the working copy happens to be on. Left unset, the scan follows the checkout's current `HEAD` —
 which is usually what you want locally and worth pinning in CI.
