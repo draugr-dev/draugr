@@ -33,6 +33,14 @@ type RepositoryTarget struct {
 	Paths []string
 	// Ignore removes matching paths, applied after Paths.
 	Ignore []string
+	// WorkingTree scans the checkout as it is on disk, uncommitted work included, instead of the
+	// committed revision. Set only by `draugr scan --working-tree`, and only meaningful for a
+	// local path.
+	//
+	// It exists for the loop of fixing a finding — edit, scan, see whether it went away — which
+	// otherwise needs a commit per iteration. The result is deliberately not reproducible, and
+	// says so in the report.
+	WorkingTree bool
 }
 
 // Kind returns TargetRepository.
@@ -46,6 +54,12 @@ func (RepositoryTarget) Kind() TargetKind { return TargetRepository }
 // findings both then received.
 func (t RepositoryTarget) Identity() string {
 	id := t.URL + "@" + t.Revision
+	if t.WorkingTree {
+		// A different scan input from the commit it sits on, and one whose content changes
+		// between two runs at the same revision. Sharing an identity with the committed scan
+		// would let one serve the other from cache.
+		id += "+worktree"
+	}
 	if s := scopeKey(t.Paths, t.Ignore); s != "" {
 		id += "#" + s
 	}

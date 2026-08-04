@@ -134,6 +134,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 |------|---------|-------------|
 | `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
 | `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
+| `--working-tree` | `false` | Scan the checkout as it is on disk, uncommitted work included — for iterating on a fix without committing |
 | `--no-gate` | `false` | Report the verdict but exit 0 on a fail — for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
@@ -300,6 +301,35 @@ draugr: html is a document, not something to print: use `--report html` with `-o
 An HTML report is a styled document with its CSS inlined; a JUnit file is read by a CI runner from
 a path, never by a person. Printing either because a plausible-looking flag was typed is not
 behaviour worth defending, so neither is offered here.
+
+### `--working-tree`, for the loop of fixing something
+
+A scan reads the committed revision, so the loop of fixing a finding — edit, scan, check — needs a
+commit per iteration. `--working-tree` reads the checkout as it is instead:
+
+```bash
+draugr scan draugr.saga.yaml --working-tree
+```
+
+```
+Scanned: . working tree at 3f9a1c2b+ (7 uncommitted files, not reproducible)
+```
+
+The `+` is git's own convention for a tree that has moved past its commit, and **not
+reproducible** is the point: nobody else can check out what you just scanned, so the report says
+so rather than implying a revision it does not describe. For the same reason these scans are
+**never cached** — two runs at one revision read different bytes, and a cache keyed on the
+revision would answer the second with the first's findings.
+
+It reads a **copy**, not your checkout. Scanners cannot write into your files, and `paths` /
+`ignore` scoping prunes the copy — against a real checkout, pruning would be deleting your work.
+The file list is `git ls-files -co --exclude-standard`: tracked files plus untracked ones that are
+not ignored, so a `node_modules` or a local `.env` is left out for the same reason a commit would
+leave it out.
+
+A remote repository is **refused**, naming it. There is no working tree to read, and falling back
+to the committed revision would answer a different question while looking like it answered this
+one.
 
 **`--report` is what gets written**, into the directory `-o` names:
 

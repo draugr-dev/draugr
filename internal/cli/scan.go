@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -39,6 +40,7 @@ type scanOptions struct {
 	reports            []string
 	failOn             string
 	noGate             bool
+	workingTree        bool
 	failOnPriority     string
 	cacheDir           string
 	cacheTTL           time.Duration
@@ -85,6 +87,9 @@ func newScanCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&opts.outputDir, "output", "o", "", "directory to write reports into (see --report; default report.json and results.sarif)")
+	cmd.Flags().BoolVar(&opts.workingTree, "working-tree", false,
+		"scan repositories as they are on disk, uncommitted work included — for iterating on a "+
+			"fix without committing. The result is not reproducible and the report says so")
 	cmd.Flags().BoolVar(&opts.noGate, "no-gate", false,
 		"report the verdict but exit 0 on a fail — for producing a report to compare later, "+
 			"where `draugr diff` is the gate")
@@ -158,6 +163,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return fmt.Errorf("--fail-on: %w", err)
 	}
+	if err := checkWorkingTree(opts.workingTree, model); err != nil {
+		return err
+	}
 	expl, feedProv, err := loadExploitSource(ctx, exploitSettings(opts, model.Config.Exploitability))
 	if err != nil {
 		return err
@@ -192,6 +200,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	if len(opts.allowEffects) > 0 {
 		eopts = append(eopts, engine.WithAllowedEffects(opts.allowEffects))
+	}
+	if opts.workingTree {
+		eopts = append(eopts, engine.WithWorkingTree())
 	}
 
 	run, runErr := engine.New(reg, eopts...).Run(ctx, *model)
@@ -647,4 +658,29 @@ func toolBuilds(run engine.Result) []report.ToolBuild {
 		})
 	}
 	return out
+}
+
+// checkWorkingTree refuses --working-tree for a descriptor Draugr cannot honour it for.
+//
+// A remote repository has no working tree. Falling back to the committed revision would produce a
+// report that looks like the one asked for and describes something else — and the whole reason to
+// ask is that you want to see work that is not committed yet.
+func checkWorkingTree(enabled bool, model *saga.Model) error {
+	if !enabled || model == nil {
+		return nil
+	}
+	var remote []string
+	for _, c := range model.Components {
+		for _, r := range c.Repositories {
+			if !git.IsLocalPath(r.URL) {
+				remote = append(remote, r.URL)
+			}
+		}
+	}
+	if len(remote) > 0 {
+		return fmt.Errorf("--working-tree needs a local checkout, and %s %s a remote: "+
+			"scan without the flag, or point the descriptor at a path",
+			strings.Join(remote, ", "), plural2(len(remote), "is", "are"))
+	}
+	return nil
 }

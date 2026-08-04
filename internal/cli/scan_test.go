@@ -968,3 +968,34 @@ func TestNoGateSuppressesTheVerdictButNotAFailedScan(t *testing.T) {
 		t.Error("the flag's help should say what it is for")
 	}
 }
+
+func TestWorkingTreeRefusesARemoteRatherThanScanningSomethingElse(t *testing.T) {
+	// A remote has no working tree. Falling back to the committed revision would produce a report
+	// that looks like the one asked for and describes something else — and the reason to ask is
+	// precisely that you want to see work that is not committed yet.
+	model := &saga.Model{Components: []saga.Component{{
+		Name:         "web",
+		Repositories: []saga.Repository{{URL: "https://example.test/web.git"}},
+	}}}
+	err := checkWorkingTree(true, model)
+	if err == nil {
+		t.Fatal("a remote was accepted")
+	}
+	if !strings.Contains(err.Error(), "example.test") {
+		t.Errorf("the error should name the repository: %v", err)
+	}
+
+	// A local path is fine, and so is not passing the flag at all.
+	local := &saga.Model{Components: []saga.Component{{
+		Name: "web", Repositories: []saga.Repository{{URL: "."}},
+	}}}
+	if err := checkWorkingTree(true, local); err != nil {
+		t.Errorf("a local checkout was refused: %v", err)
+	}
+	if err := checkWorkingTree(false, model); err != nil {
+		t.Errorf("the check fired without the flag: %v", err)
+	}
+	if err := checkWorkingTree(true, nil); err != nil {
+		t.Errorf("no descriptor is not an error here: %v", err)
+	}
+}

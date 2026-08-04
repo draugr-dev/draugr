@@ -12,6 +12,21 @@ and move it under a version on release.
 
 ### Added
 
+- **`draugr scan --working-tree`** scans the checkout as it is on disk, uncommitted work included.
+
+  A scan reads the committed revision, which is what makes a report reproducible — and what makes
+  the loop of fixing a finding need a commit per iteration. Now it does not:
+
+  ```
+  Scanned: . working tree at 3f9a1c2b+ (7 uncommitted files, not reproducible)
+  ```
+
+  It reads a **copy**, so scanners cannot write into your files and `paths`/`ignore` scoping prunes
+  the copy rather than your work. The file list is git's own (`ls-files -co --exclude-standard`),
+  so an ignored `node_modules` or `.env` stays out for the same reason a commit would leave it out.
+  These scans are never cached, since two runs at one revision read different bytes. A remote
+  repository is refused by name rather than quietly scanned at its committed revision.
+
 - **The report names the revision it describes.**
 
   ```

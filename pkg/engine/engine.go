@@ -33,8 +33,10 @@ type Engine struct {
 	concurrency int
 	cache       cache.Cache
 	// cacheable, when set, vetoes caching for targets it rejects.
-	cacheable  func(plugin.Target) bool
-	prioritize Prioritizer
+	cacheable func(plugin.Target) bool
+	// workingTree scans repositories as they are on disk rather than at their committed revision.
+	workingTree bool
+	prioritize  Prioritizer
 	// skipPrewarm suppresses the pre-run warm-up of shared scanner state (Trivy's database,
 	// Nuclei's templates), which is the only part of a scan that reaches the network on its own.
 	skipPrewarm bool
@@ -88,6 +90,25 @@ func WithCache(c cache.Cache) Option {
 // Nil accepts everything, which is the default.
 func WithCacheableTarget(fn func(plugin.Target) bool) Option {
 	return func(e *Engine) { e.cacheable = fn }
+}
+
+// WithWorkingTree scans repositories as they are on disk, uncommitted work included, instead of
+// at their committed revision.
+//
+// Also refuses to cache what it scans. A working tree's content changes between two runs at the
+// same revision, so a content-addressed cache keyed on the revision would serve the previous
+// edit's findings — which is the exact opposite of what somebody iterating on a fix needs.
+func WithWorkingTree() Option {
+	return func(e *Engine) {
+		e.workingTree = true
+		prev := e.cacheable
+		e.cacheable = func(t plugin.Target) bool {
+			if r, ok := t.(plugin.RepositoryTarget); ok && r.WorkingTree {
+				return false
+			}
+			return prev == nil || prev(t)
+		}
+	}
 }
 
 // WithPrioritization stamps each finding with a priority band computed by p. Priority is
@@ -170,7 +191,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			}
 			jobs, verrs := e.validateConfigs(name, jobs, allowed)
 			errs = append(errs, verrs...)
-			planned = appendJobs(planned, name, "", "", "", jobs)
+			planned = appendJobs(planned, name, "", "", "", e.markWorkingTree(jobs))
 		case plugin.ScopeComponent:
 			for i := range model.Components {
 				comp := &model.Components[i]
@@ -184,7 +205,8 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				}
 				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs, allowed)
 				errs = append(errs, verrs...)
-				planned = appendJobs(planned, name, comp.Name, comp.Exposure, comp.Criticality, jobs)
+				planned = appendJobs(planned, name, comp.Name, comp.Exposure, comp.Criticality,
+					e.markWorkingTree(jobs))
 			}
 		}
 	}
@@ -645,6 +667,34 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	return res, errors.Join(errs...)
 }
 
+// markWorkingTree flags every repository target so the scanner reads the checkout on disk.
+//
+// Applied here rather than where each controller builds its targets: every controller constructs
+// its own RepositoryTarget, so setting the flag at the source would be a change in each one and a
+// silently missing flag in whichever is written next. Every planned job funnels through here.
+//
+// The cache key changes with the flag (RepositoryTarget.Identity), so a working-tree scan and a
+// committed one cannot be confused for each other.
+func (e *Engine) markWorkingTree(jobs []plugin.ScanJob) []plugin.ScanJob {
+	if !e.workingTree {
+		return jobs
+	}
+	for i, j := range jobs {
+		r, ok := j.Target.(plugin.RepositoryTarget)
+		if !ok {
+			continue
+		}
+		r.WorkingTree = true
+		jobs[i].Target = r
+		// The cache key is computed by the controller from the target it planned, so it has to be
+		// recomputed against the one that will actually be scanned.
+		if jobs[i].CacheKey != "" {
+			jobs[i].CacheKey += "+worktree"
+		}
+	}
+	return jobs
+}
+
 func appendJobs(dst []PlannedJob, control, component string, exposure saga.Exposure, criticality saga.Criticality, jobs []plugin.ScanJob) []PlannedJob {
 	for _, j := range jobs {
 		dst = append(dst, PlannedJob{
@@ -814,7 +864,9 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 		comp := &model.Components[i]
 		var targets []plugin.Target
 		for _, r := range comp.Repositories {
-			targets = append(targets, plugin.RepositoryTarget{URL: r.URL, Revision: r.Revision})
+			targets = append(targets, plugin.RepositoryTarget{
+				URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree,
+			})
 		}
 		for _, img := range comp.Images {
 			targets = append(targets, plugin.ImageTarget{Ref: img.Image, Digest: img.Digest})
