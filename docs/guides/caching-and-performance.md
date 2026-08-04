@@ -194,3 +194,31 @@ draugr scan draugr.saga.yaml -j 1      # serial: deterministic output, handy for
 The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total jobs),
 `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence. See the
 [CLI reference](../reference/cli.md#draugr-scan-sagayaml) for the full flag list.
+
+## Scanners that call a rate-limited API
+
+**You do not need to slow the whole run down for one of them.** A scanner that talks to a hosted
+API declares how often it may be called, and Draugr spaces *its* calls out — while everything else
+keeps running at full parallelism.
+
+`virustotal` is the example: its public tier allows four requests a minute, so Draugr leaves
+fifteen seconds between its lookups. A scan of three hosts takes about thirty seconds, no request
+is ever rejected, and no other control waits for it.
+
+The waiting happens **before** a worker is taken, which is what makes that true. Were the scanner
+to hold a slot while waiting, a handful of its jobs would occupy the pool and every unrelated
+control would queue behind a scanner it has nothing to do with. Lowering `-j` would be the wrong
+fix for the same reason: it trades a global slowdown for one scanner's local limit.
+
+If your key allows more, say so — per scanner, not globally:
+
+```yaml
+config:
+  controllers:
+    threats:
+      virustotal:
+        requestsPerMinute: 1000    # a paid key; the default assumes the free tier's 4
+```
+
+Raise it only to what your key actually permits. Exceeding a vendor's published limit risks losing
+access, and some state a permanent ban as the penalty for terms violations.

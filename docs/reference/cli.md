@@ -156,6 +156,10 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything |
 | `--compact` | `false` | Strip indentation and rule documentation from `json`/`sarif` output. For a consumer that acts on the report rather than reads it — see [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
 
+The four `--cache-*` flags also live in [`draugr.config.yaml`](#draugr-config) under `cache:`,
+which is usually the better home: a cache directory describes a runner image, not an application,
+and every pipeline on that runner wants the same one.
+
 ```bash
 draugr scan draugr.saga.yaml
 draugr scan draugr.saga.yaml -o out/ --fail-on warning
@@ -228,8 +232,15 @@ Most scanners read an artifact and nothing else. A few do more, and say so: they
 | Effect | Meaning |
 |---|---|
 | `network` | Sends traffic to the target rather than reading an artifact |
+| `disclosure` | Sends information about the target to a **third party** |
 | `mutate` | Creates or changes something that outlives the scan |
 | `privilege` | Needs access beyond what reading the target requires |
+
+**`network` and `disclosure` differ in who is affected.** Network traffic asks whether you are
+entitled to probe a host. Disclosure asks whether you are content for a vendor to learn what you
+just told them — a hostname, a dependency manifest, a repository's source. Those are not the same
+decision, so what is actually sent appears in the effect's detail line, and every scanner that
+discloses documents it under *What is sent* in its colocated doc.
 
 Run `draugr controls` to see which scanners declare what.
 
