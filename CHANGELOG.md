@@ -73,6 +73,12 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`draugr diff --publish` keeps its own pull-request comment.** It shared a marker with the
+  Saga's PR-comment publisher, so a pipeline running both — the state of the branch, and what the
+  pull request changed — got one comment silently overwritten by the other, with nothing to say a
+  second had ever been posted. They are two questions and now get two comments. Set `marker` on
+  the publisher if you were relying on the old shared one.
+
 - **JUnit reports are written as `report.junit.xml` everywhere.** `-o` and the `file` publisher
   named the same format differently, so a CI step globbing for one found nothing when the other
   had produced it — and the common test-publishing tasks warn rather than fail, leaving a green

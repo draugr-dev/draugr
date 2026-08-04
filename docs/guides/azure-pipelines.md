@@ -127,7 +127,8 @@ If a branch policy requires all comments to be resolved before merging, someone 
 Draugr's thread — it is created active, like any other comment.
 
 For a gate on **only the findings a pull request introduces**, rather than everything already in
-the branch, see [gate PRs on new findings](pr-diff.md).
+the branch, see [gate PRs on new findings](pr-diff.md). It keeps its own separate comment, so a
+pipeline running both gets one for the branch and one for the delta.
 
 ## Scanning several repositories
 

@@ -95,7 +95,12 @@ func publishDiff(ctx context.Context, result diff.Result) error {
 	if err := diff.Render(&md, "markdown", result); err != nil {
 		return err
 	}
-	pub, err := publish.For(saga.PublisherConfig{Kind: diffPublisherKind()})
+	// A distinct marker from the Saga's own PR-comment publisher. A pipeline running both — a
+	// full report and the delta this pull request introduced — wants two comments, and sharing
+	// the default meant the second silently replaced the first.
+	pub, err := publish.For(saga.PublisherConfig{
+		Kind: diffPublisherKind(), Marker: publish.DiffMarker,
+	})
 	if err != nil {
 		return err
 	}

@@ -16,9 +16,17 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// defaultPRMarker is embedded (as an HTML comment) in the sticky PR comment so subsequent runs
-// find and update the same comment instead of posting a new one each push.
-const defaultPRMarker = "<!-- draugr:pr-comment -->"
+// The markers are embedded (as HTML comments) in a sticky PR comment so subsequent runs find and
+// update the same comment instead of posting a new one each push.
+//
+// Two of them, because a scan report and a diff are different comments answering different
+// questions — "what is wrong with this branch" and "what did this pull request change". Sharing
+// one marker made whichever ran second silently overwrite the first, with no error and nothing in
+// the report to say a second comment had ever existed.
+const (
+	defaultPRMarker     = "<!-- draugr:pr-comment -->"
+	defaultDiffPRMarker = "<!-- draugr:pr-diff -->"
+)
 
 // githubPRCommentPublisher posts the markdown report as a sticky pull-request comment on GitHub.
 // It's the "where" for a human-facing delta on a PR (pairs with `draugr diff --format markdown`).

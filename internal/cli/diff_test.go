@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/publish"
 )
 
 // A minimal Draugr SARIF report with one result.
@@ -105,4 +107,18 @@ func TestDiffPublisherFollowsTheCIItIsRunningOn(t *testing.T) {
 			t.Errorf("diffPublisherKind() = %q", got)
 		}
 	})
+}
+
+func TestDiffUsesItsOwnStickyComment(t *testing.T) {
+	// A pipeline can reasonably run both: the Saga's PR-comment publisher for the state of the
+	// branch, and `diff --publish` for what this pull request changed. They are two questions and
+	// want two comments. Sharing the default marker made whichever ran second silently overwrite
+	// the first, leaving no trace that the other had ever posted.
+	if publish.DiffMarker == "" {
+		t.Fatal("the diff publisher has no marker, so every run would post a new comment")
+	}
+	if publish.DiffMarker == publish.ReportMarker {
+		t.Errorf("diff and report share the marker %q, so one overwrites the other",
+			publish.DiffMarker)
+	}
 }
