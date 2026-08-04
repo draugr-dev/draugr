@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -24,6 +25,46 @@ type Scanner interface {
 // Unlike Info(), CacheVersion may perform I/O.
 type CacheVersioner interface {
 	CacheVersion(ctx context.Context) string
+}
+
+// Rate is how often a scanner may run: Requests in each Per.
+//
+// Expressed as a rate rather than a delay because that is how the services publishing one
+// express it — "4 requests per minute" is copied from a vendor's page without arithmetic, and a
+// value someone has to convert is a value someone converts wrongly.
+type Rate struct {
+	Requests int
+	Per      time.Duration
+}
+
+// Interval is the spacing the engine applies between calls: the rate, spread evenly.
+//
+// Evenly rather than in bursts. A burst of four followed by a minute of silence obeys the letter
+// of "4 per minute" and is exactly the shape that trips a vendor's throttle, because their window
+// is rarely aligned with ours. Spacing them also means a run that is interrupted has consumed
+// what it appeared to.
+func (r Rate) Interval() time.Duration {
+	if r.Requests <= 0 || r.Per <= 0 {
+		return 0
+	}
+	return r.Per / time.Duration(r.Requests)
+}
+
+// RateLimited is an optional interface a Scanner may implement when it must not be called more
+// often than some limit — almost always because it calls a hosted API that publishes one.
+//
+// The engine waits **before** taking a concurrency slot, so a scanner spacing its calls fifteen
+// seconds apart does not hold workers idle while everything else queues behind it. A rate limit
+// is one scanner's constraint and must not become the run's.
+//
+// Given the job's Config because the limit is often a property of the caller's account rather
+// than of the service: the same API commonly allows a few requests a minute on a free key and
+// hundreds on a paid one. A scanner that hardcoded the free tier would throttle a customer who
+// had paid not to be.
+//
+// A zero Rate means no limit.
+type RateLimited interface {
+	RateLimit(cfg Config) Rate
 }
 
 // Prewarmer is an optional interface a Scanner may implement to warm shared, expensive state

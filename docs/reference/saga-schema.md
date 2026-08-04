@@ -172,6 +172,11 @@ config:
         config: p/owasp-top-ten   # ruleset: a registry ref or a path/URL (default: p/default)
       gosec:
         enabled: true             # opt-in scanner (Go-only) — off unless enabled here
+    threats:
+      enabled: true
+      virustotal:
+        enabled: true             # opt-in: a second feed is a second party told about your hosts
+        requestsPerMinute: 1000   # only if your key is a paid one; defaults to the free tier's 4
 ```
 
 Each scanner validates its options against a declared schema, so a mistyped key or wrong value

@@ -501,15 +501,31 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		}
 	}
 
+	gates := newRateGates()
 	for _, pj := range planned {
 		if ctx.Err() != nil {
 			canceled = true
 			break
 		}
-		sem <- struct{}{}
 		wg.Add(1)
 		go func(pj PlannedJob) {
 			defer wg.Done()
+
+			// A scanner's rate limit is waited out *before* a concurrency slot is taken, and
+			// that ordering is the whole design. A hosted API allowing four calls a minute means
+			// fifteen seconds of waiting per call; spent holding a worker, four such jobs would
+			// idle half a default pool and every other control would queue behind a scanner it
+			// has nothing to do with. One scanner's constraint must not become the run's.
+			//
+			// The cost is a goroutine per planned job rather than per worker. Goroutines blocked
+			// on a timer are cheap, and the semaphore below still bounds what actually runs.
+			if sc, ok := e.reg.Scanner(pj.Job.Scanner); ok {
+				if err := gates.wait(ctx, sc, pj.Job.Scanner, pj.Job.Config); err != nil {
+					return // the run was cancelled while waiting
+				}
+			}
+
+			sem <- struct{}{}
 			defer func() { <-sem }()
 
 			jobStart := time.Now()

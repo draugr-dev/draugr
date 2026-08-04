@@ -29,12 +29,31 @@ endpoints on one host are one question, because the feed keys on the host.
 Off by default, like every control, and for a sharper reason than most — see the disclosure note
 below.
 
-## Scanners
+## Scanners, and why one is opt-in
 
-| Scanner | Source |
-|---|---|
-| [`urlhaus`](../scanners/urlhaus.md) | abuse.ch URLhaus |
+| Scanner | Default | Source |
+|---|---|---|
+| [`urlhaus`](../scanners/urlhaus.md) | yes | abuse.ch URLhaus |
+| [`virustotal`](../scanners/virustotal.md) | **no** | VirusTotal (Google) |
 
+```yaml
+config:
+  controllers:
+    threats:
+      enabled: true
+      virustotal: { enabled: true }
+```
+
+Running a second feed is a decision to disclose to a second party, so it is never implied by
+enabling the control. It is also the one whose safety rests on an **observed** behaviour rather
+than a documented one: VirusTotal's terms describe sharing in terms of submissions and never say a
+lookup is treated differently. The scanner only ever reads domain reports — never an endpoint that
+accepts content — and the reasoning is set out in [its doc](../scanners/virustotal.md).
+
+**Rate limits are the scanner's problem, not yours.** VirusTotal's public API allows four requests
+a minute, and Draugr spaces its calls to match without holding up anything else in the run. A
+scan of three hosts takes about thirty seconds and never trips the limit; nothing else waits on it,
+and there is no need to lower `--jobs`.
 ## Severity, and why it is split
 
 | Rule | Level | Meaning |
@@ -71,19 +90,20 @@ to run it. Read [the terms](https://abuse.ch/terms-of-use/) and decide before yo
 This is worth stating plainly because it is the opposite of what the feature looks like. A free key
 issued in thirty seconds reads as permissive; the terms behind it are not.
 
-The same is true of the VirusTotal connector that has not been built — its public API forbids use
-"in commercial products or services". **There is no commercially-free threat-intelligence source
-here**, which is a property of this corner of the ecosystem rather than of Draugr.
+The same is true of VirusTotal: its public API forbids use "in commercial products or services".
+**There is no commercially-free threat-intelligence source here** — a property of this corner of
+the ecosystem rather than of Draugr, and true of both scanners this control offers. Whose key it
+is decides whose obligation it is; Draugr calls documented APIs with credentials you supply.
 
 Details, including query-volume expectations and the restriction on derivative works, are in the
 [scanner doc](../scanners/urlhaus.md).
 
-## Not yet included
+## Deliberately not done
 
-**VirusTotal**, named in the original issue
-(https://github.com/draugr-dev/draugr/issues/59) as an optional second connector. Its public API
-allows 4 requests a minute and its terms forbid use "in commercial products or services", so it
-needs a different shape from a control that runs on every scan.
+Nothing, now. **VirusTotal** was held back while its terms were read, and shipped once the shape
+that satisfies them was clear: domain reports only, opt-in, and rate-limited to the public tier by
+default. What was learned along the way is kept in its doc, because the reasoning is the part worth
+having.
 
 One concern was **partly** answered. A VirusTotal *lookup* of a URL it has never seen returns 404
 twice, over a minute apart — so the lookup does not create a report others can retrieve. That is a

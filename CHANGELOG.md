@@ -12,6 +12,34 @@ and move it under a version on release.
 
 ### Added
 
+- **A `virustotal` scanner for the `threats` control**, opt-in beside `urlhaus`:
+
+  ```yaml
+  config:
+    controllers:
+      threats:
+        enabled: true
+        virustotal: { enabled: true }
+  ```
+
+  Two or more of VirusTotal's engines calling a domain malicious is an error; a single detection
+  is a warning, because one engine flagging a legitimate domain is routine and failing a build on
+  it is how a control gets switched off.
+
+  **Domain reports only.** VirusTotal's terms attach sharing to "Sample submissions" — files and
+  URLs sent for analysis — and a domain report is a lookup of an aggregate they already hold. The
+  scanner has exactly one endpoint and a test that it has not grown another. Opt-in because a
+  second feed means a second party told about your hosts.
+
+- **Scanners can declare a rate limit, and Draugr respects it without slowing the run.** A scanner
+  implementing `plugin.RateLimited` says how often it may be called; the engine spaces its calls
+  out **before** taking a concurrency slot, so a hosted API allowing four requests a minute does
+  not leave workers idle while every other control queues behind it.
+
+  This is why `virustotal` needs no tuning: three hosts take about thirty seconds, nothing else
+  waits, and you do not have to lower `--jobs` to avoid a 429. A paid key raises the limit with
+  `requestsPerMinute`.
+
 - **`threats` control** — asks whether your own hosts are already known to be serving malware,
   via [abuse.ch URLhaus](https://urlhaus.abuse.ch/).
 

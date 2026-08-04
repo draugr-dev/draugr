@@ -37,34 +37,39 @@ func (Threats) Info() plugin.ControllerInfo {
 	}
 }
 
-// Plan produces one lookup per host with a URL declared on the component.
+// Plan produces one lookup per distinct host, for each selected scanner.
 //
-// De-duplicated by hostname: two endpoints on one host are one question to abuse.ch, and asking
-// twice would spend a rate limit to receive the same answer.
-func (Threats) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+// De-duplicated by hostname: two endpoints on one host are one question to a feed, and asking
+// twice spends a rate limit to receive the same answer. Feeds here are rate-limited enough that
+// this is the difference between a scan taking seconds and taking minutes.
+//
+// urlhaus runs by default; virustotal is opted in per scanner block, e.g.
+// `controllers.threats.virustotal.enabled: true`. Running a second feed is a decision to disclose
+// to a second party, so it is never implied.
+func (Threats) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {
 		return nil, nil
 	}
+	selections := resolveScanners(model, comp, "threats", []string{urlhausScannerName})
 	seen := map[string]bool{}
-	jobs := make([]plugin.ScanJob, 0, len(comp.Hosts))
+	jobs := make([]plugin.ScanJob, 0, len(comp.Hosts)*len(selections))
 	for _, host := range comp.Hosts {
 		if host.URL == "" {
 			continue
 		}
 		name, err := hostnameFor(host.URL)
-		if err != nil || seen[name] {
+		if err != nil {
 			// A URL that cannot be parsed is left to the scanner, which reports it properly
 			// rather than being silently dropped at planning time.
-			if err == nil {
-				continue
-			}
 			name = host.URL
+		} else if seen[name] {
+			continue
 		}
 		seen[name] = true
-		jobs = append(jobs, plugin.ScanJob{
-			Scanner: urlhausScannerName,
-			Target:  plugin.HostTarget{Name: host.Name, URL: host.URL, Type: host.Type},
-		})
+		target := plugin.HostTarget{Name: host.Name, URL: host.URL, Type: host.Type}
+		for _, sel := range selections {
+			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
+		}
 	}
 	return jobs, nil
 }
