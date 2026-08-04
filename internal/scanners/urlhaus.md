@@ -41,6 +41,19 @@ the host it would have asked about. There is no degraded version of a control wh
 to ask somebody else, and an air-gapped operator preparing a runner needs to know what the scan
 would have disclosed.
 
+## What is sent
+
+| | |
+|---|---|
+| **Leaves your machine** | the hostname, and nothing else — no path, no query string, no credential, no response body, no finding |
+| **Who receives it** | abuse.ch AG (Zürich); Spamhaus Technology Limited is the primary licensee of the datasets |
+| **What they say about keeping it** | their [terms](https://abuse.ch/terms-of-use/) describe query-volume expectations and prohibited conduct; they do not describe retention or sharing of queries. Assume a request is logged, as with any API |
+| **Frequency** | once per distinct hostname per scan — the controller de-duplicates, so two endpoints on one host are one question |
+
+A hostname is a small disclosure and it is not nothing: for an unannounced service or an internal
+name that happens to resolve, telling a third party it exists is the fact worth weighing. That is
+the whole reason this is a section rather than a sentence.
+
 ## Effects
 
 Declares a `network` effect. Unlike the other host scanners, the traffic does not go to your host

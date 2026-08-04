@@ -89,11 +89,32 @@ One concern was **partly** answered. A VirusTotal *lookup* of a URL it has never
 twice, over a minute apart — so the lookup does not create a report others can retrieve. That is a
 behavioural observation, and behaviour can change without notice.
 
-What has **not** been established is what their terms and privacy notice say about retaining,
-logging or sharing query data. Those pages are not readable by automation — the GUI is a
-JavaScript shell, the documentation site serves Google Cloud's terms instead, and the support
-article rejects the request — so somebody has to read them in a browser.
+What has **not** been established is which terms govern the free public API, and what they say
+about retaining or sharing query data.
 
-Until that happens, the connector should not be built. For a control whose whole risk is *what a
-third party learns about your infrastructure*, "we observed it behaving well once" is the wrong
-kind of evidence; the durable statement is the contract, not the response code.
+VirusTotal is owned by Google, and its terms link to Google Cloud's — reasonably, not by mistake.
+But that document is a contract for **purchased** Cloud services: it is "entered into by Google and
+the entity or person agreeing to these terms", effective when a customer clicks to accept, and its
+protections attach to "Customer Data" under an Account. Somebody using a free public API key has
+signed nothing of the sort. It never mentions VirusTotal, and does not describe what happens to a
+URL you look up.
+
+The privacy notice settles it the same way, and says so itself. The SecOps Privacy Notice covers
+"the SecOps services described at cloud.google.com/terms/secops/services" and states plainly:
+**"This Privacy Notice does not apply to any other Google services."**
+
+So both documents scope themselves to *purchased* Google Cloud services, and both exclude
+everything else. The free public API is governed by neither, and the document that does govern it
+has not been located.
+
+**The answer therefore differs by tier**, which is the finding worth carrying forward:
+
+| | Governed by | Data handling |
+|---|---|---|
+| VirusTotal Enterprise (a purchased SecOps Service) | Google Cloud ToS, SecOps Privacy Notice, Cloud Data Processing Addendum | Google "will not access, use, or process Customer Data for any other purpose" |
+| Free public API | not established | not established |
+
+A connector could make an honest claim for the first and none for the second — and the second is
+the one people would actually use. Until that is resolved, it should not be built. For a control
+whose whole risk is *what a third party learns about your infrastructure*, "we observed it behaving
+well once" is the wrong kind of evidence.
