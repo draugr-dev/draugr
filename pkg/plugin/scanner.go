@@ -88,12 +88,25 @@ type EffectKind string
 //
 // The distinction that matters is the **target**. Fetching a vulnerability database from a
 // vendor is a network call, but it is not a consequence for the thing being scanned, and it is
-// not an effect. Sending traffic to the customer's endpoint is.
+// not an effect. Sending traffic to the customer's endpoint is — and so is sending the
+// customer's data to somebody else, which is a consequence for them rather than for the target.
 const (
 	// EffectNetwork sends traffic to the target rather than reading an artifact. Probing a host
 	// you do not own is unlawful in many jurisdictions, which is why it is worth stating even
 	// though it changes nothing.
 	EffectNetwork EffectKind = "network"
+	// EffectDisclosure sends information about the target to a third party. The target is
+	// unaffected; somebody else learns something about it.
+	//
+	// Distinct from EffectNetwork because the risk is a different one and lands on a different
+	// party. Network traffic asks whether you are entitled to probe a host. This asks whether you
+	// are content for a vendor to know what you just told them — a hostname, a dependency
+	// manifest, a repository's source. Reported as the same kind, a reputation lookup and a
+	// source-code upload would be indistinguishable in a report, and they are not remotely the
+	// same decision.
+	//
+	// Detail carries what is actually sent, which is where the whole range lives.
+	EffectDisclosure EffectKind = "disclosure"
 	// EffectMutate creates or changes something that outlives the scan.
 	EffectMutate EffectKind = "mutate"
 	// EffectPrivilege needs access beyond what reading the target requires.
@@ -103,10 +116,17 @@ const (
 // RequiresConsent reports whether an effect must be acknowledged before a scanner runs.
 //
 // Mutating a target or asking for elevated access is a decision someone should make on purpose.
-// Network traffic is declared and recorded but not gated: the controls that send it exist to
-// send it, and demanding consent per run for the thing the control is *for* trains people to
-// agree without reading. The obligation it carries — that you are entitled to probe the host —
-// is set out in the scope and disclaimer.
+//
+// Network traffic and disclosure are declared and recorded but not gated: the controls that do
+// them exist to do them, and demanding consent per run for the thing the control is *for* trains
+// people to agree without reading. Both carry an obligation that is stated rather than enforced —
+// that you are entitled to probe the host, and that you are content for the third party to know
+// what you sent. A scanner that discloses also needs a credential the operator had to go and
+// obtain, so the decision was already made somewhere it could be thought about.
+//
+// An organisation wanting to forbid disclosure outright wants a policy, not a per-run prompt.
+// That belongs in configuration rather than here, where it would become a keystroke everybody
+// learns to skip.
 func (k EffectKind) RequiresConsent() bool {
 	return k == EffectMutate || k == EffectPrivilege
 }
@@ -117,4 +137,30 @@ type Effect struct {
 	// Detail is one line, addressed to whoever has to approve it: what will happen, in terms of
 	// the target rather than the implementation.
 	Detail string
+}
+
+// EffectKinds is every effect a scanner can declare, most consequential first.
+//
+// Exported so the Saga schema's `allowEffects` enum is generated from the taxonomy rather than
+// restated beside it. The two were maintained separately, which meant adding a kind left the
+// schema rejecting a value Draugr accepts — an editor disagreeing with the binary, which is the
+// same drift the generated control names exist to prevent.
+func EffectKinds() []EffectKind {
+	return []EffectKind{EffectMutate, EffectPrivilege, EffectNetwork, EffectDisclosure}
+}
+
+// Describe explains a kind in one line, for a schema tooltip or a listing.
+func (k EffectKind) Describe() string {
+	switch k {
+	case EffectMutate:
+		return "creates or changes something that outlives the scan"
+	case EffectPrivilege:
+		return "needs access beyond what reading the target requires"
+	case EffectNetwork:
+		return "sends traffic to the target rather than reading an artifact"
+	case EffectDisclosure:
+		return "sends information about the target to a third party"
+	default:
+		return string(k)
+	}
 }

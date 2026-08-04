@@ -50,6 +50,7 @@ the **new-vs-fixed PR diff** and the sticky comment.
 - **Controls:** `images` (Trivy), `sca` (Trivy fs), `licenses` (Trivy licence scanner),
   `secrets` (Gitleaks), `sast` (Semgrep, plus opt-in gosec for Go), `iac` (Trivy config),
   `headers` (native HTTP-header analyzer), `dast` (Nuclei), `tls` (native TLS/certificate probe),
+  `threats` (abuse.ch URLhaus — whether your hosts are already known to serve malware),
   `infrastructure` (CIS Kubernetes Benchmark — read through the Kubernetes API by default, with
   kube-bench and an in-cluster Job available for the node sections).
   See the [integrations catalog](docs/reference/catalog.md).
@@ -85,7 +86,9 @@ the **new-vs-fixed PR diff** and the sticky comment.
 [Nuclei](https://github.com/projectdiscovery/nuclei) (`dast`),
 [kube-bench](https://github.com/aquasecurity/kube-bench) with `kubectl` (`infrastructure`);
 `git` for repo scans, and [Syft](https://github.com/anchore/syft) for `config.sbom`. `headers`
-and `tls` need no external tool.
+and `tls` need no external tool. `threats` needs no tool either, but does need a free
+[abuse.ch](https://auth.abuse.ch/) key in `URLHAUS_AUTH_KEY` — and their free tier is
+non-commercial, so read [their terms](https://abuse.ch/terms-of-use/) first.
 
 `draugr doctor` tells you which of these your Saga actually needs and whether they are present;
 `draugr tools install` fetches pinned, verified copies of the ones Draugr packages. Go 1.26+ only

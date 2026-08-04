@@ -67,9 +67,10 @@
           "description": "Scanner effects the project accepts. A scanner that does more to a target than read it declares an effect; kinds that require consent (\"mutate\", \"privilege\") will not run unless listed here or allowed with --allow-effects.",
           "items": {
             "enum": [
-              "network",
               "mutate",
-              "privilege"
+              "privilege",
+              "network",
+              "disclosure"
             ],
             "type": "string"
           },
@@ -149,6 +150,10 @@
         {
           "const": "secrets",
           "description": "Detect committed secrets and credentials in a repo."
+        },
+        {
+          "const": "threats",
+          "description": "Check whether a component's hosts are known to threat-intelligence feeds."
         },
         {
           "const": "tls",

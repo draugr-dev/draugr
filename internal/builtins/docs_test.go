@@ -3,9 +3,12 @@ package builtins
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
 // Every controller, scanner and surveyor ships a colocated `.md` beside its code, and a row in
@@ -137,4 +140,74 @@ func catalogRow(doc, control string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// termsSection matches however a doc states the licence and terms of the thing it runs. The
+// house style is a `- **License / terms:**` bullet; a heading is equally fine.
+var termsSection = regexp.MustCompile(`(?i)licen[cs]e|terms of use`)
+
+func TestEveryToolDocStatesItsTerms(t *testing.T) {
+	// Draugr execs other people's software and reads other people's data, and the obligation that
+	// comes with each is not visible from the code. It is the one fact about an integration that
+	// nobody can derive later: a reader can see which binary is invoked, and cannot see whether
+	// its terms permit what we are doing with it.
+	//
+	// Checked rather than remembered, for the same reason the colocated doc itself is: it is
+	// mechanically checkable, and an integration whose terms nobody read still compiles.
+	//
+	// Controllers are exempt: they plan and aggregate, and run nothing. The obligation belongs to
+	// the scanner that invokes the tool or calls the API.
+	reg := Registry()
+	for _, s := range reg.Scanners() {
+		assertStatesTerms(t, "scanner", "internal/scanners", s.Info().Name)
+	}
+	for _, name := range SurveyorRegistry().Names() {
+		assertStatesTerms(t, "surveyor", "internal/surveyors", name)
+	}
+}
+
+func assertStatesTerms(t *testing.T, kind, dir, name string) {
+	t.Helper()
+	path := filepath.Join(repoRoot, dir, name+".md")
+	body, err := os.ReadFile(path) //nolint:gosec // a path built from the registry, inside this repo
+	if err != nil {
+		return // the colocated-docs test already reports a missing file, and better
+	}
+	if !termsSection.Match(body) {
+		t.Errorf("%s %q does not state the licence or terms of what it runs (%s)", kind, name, path)
+		t.Log("  Every integration says what it is allowed to do with the tool or data behind it.\n" +
+			"  Native scanners say so too — \"native Draugr code (Apache-2.0)\" is an answer.")
+	}
+}
+
+// sendsSection matches a doc's account of what leaves the machine.
+var sendsSection = regexp.MustCompile(`(?im)^#+ .*(what is sent|privacy|data (sent|handling))`)
+
+func TestDisclosingScannersDocumentWhatTheySend(t *testing.T) {
+	// A scanner declaring `disclosure` sends something about a customer's systems to somebody
+	// else. Its terms are not the whole question — the other half is what that party receives,
+	// and whether they keep or share it.
+	//
+	// Triggered by the effect rather than by a list, so it applies to the next connector without
+	// anyone adding it here. Declaring the effect is what makes a scanner honest; this makes the
+	// declaration carry its explanation.
+	for _, s := range Registry().Scanners() {
+		info := s.Info()
+		if !slices.ContainsFunc(info.Effects, func(e plugin.Effect) bool {
+			return e.Kind == plugin.EffectDisclosure
+		}) {
+			continue
+		}
+		path := filepath.Join(repoRoot, "internal/scanners", info.Name+".md")
+		body, err := os.ReadFile(path) //nolint:gosec // a path built from the registry, inside this repo
+		if err != nil {
+			continue
+		}
+		if !sendsSection.Match(body) {
+			t.Errorf("scanner %q discloses to a third party but its doc has no section on what is sent (%s)", info.Name, path)
+			t.Log("  Add a `## What is sent` section: the exact data that leaves, and what the\n" +
+				"  receiving party's terms say about keeping or sharing it. A reader deciding\n" +
+				"  whether to enable this is asking what the vendor learns, not what we send it over.")
+		}
+	}
 }

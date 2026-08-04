@@ -104,6 +104,41 @@ A user-facing change isn't finished until, **in the same pull request**:
 Documentation follows [Diátaxis](https://diataxis.fr/) — tutorial, how-to, reference, or
 explanation. Knowing which one you're writing prevents most documentation problems.
 
+## Before any third-party integration ships
+
+**Read the licence, the terms of use, and the privacy notice. All three, from the source, before
+the connector merges.** Not the API overview, not a summary, not what the issue that scoped the
+work assumed.
+
+This is a rule because assuming has been wrong every time it has been tried. An issue described
+one feed as the free, permissive default with an attribution requirement: authentication had since
+become mandatory, free access was limited to not-for-profit use with commercial use routed through
+a separate licensee, and no attribution requirement existed. Three wrong facts, all discoverable in
+one page.
+
+What has to be established, and written into the colocated doc:
+
+- **Licence** — of the tool, if we exec one. Exec keeps it theirs; linking or bundling does not.
+- **Terms of use** — what the free tier permits. *Non-commercial* is common and easy to miss when
+  a key is issued in thirty seconds, and it decides whether a user may run the control at all.
+- **Privacy and data handling** — what the other party receives, keeps, and shares. This is the
+  half that has no technical signal: an integration that uploads a repository looks, in code,
+  much like one that fetches a database.
+
+Two of these are enforced mechanically, because they are checkable and a rule people remember is
+a rule people forget: `TestEveryToolDocStatesItsTerms` requires the statement in every scanner and
+surveyor doc, and `TestDisclosingScannersDocumentWhatTheySend` requires a `## What is sent` section
+from any scanner declaring the `disclosure` effect.
+
+**If you cannot identify the document that governs the tier we are using, the integration does not
+ship.** Finding *a* contract is not the same as finding *the* one. A vendor owned by a larger
+company will point at the parent's terms, and those may govern a contracted enterprise service
+while saying nothing about the free tier a connector actually uses — a document that opens
+"effective when Customer clicks to accept" is not the one binding somebody with a free API key.
+
+Infer nothing from how the API behaved once. Behaviour changes without notice; the contract is the
+durable statement, and the useful question is always *which* contract.
+
 ## Changing what `draugr scan` prints
 
 The console layout is quoted in several files under `docs/`, captured into the demo screenshot
