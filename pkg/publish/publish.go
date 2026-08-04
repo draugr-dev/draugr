@@ -40,6 +40,7 @@ var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
 	"file":              newFilePublisher,
 	"github":            newGithubPublisher,
 	"github-pr-comment": newGithubPRCommentPublisher,
+	"azure-pr-comment":  newAzurePRCommentPublisher,
 }
 
 // For resolves a configured publisher, validating its kind and required fields.

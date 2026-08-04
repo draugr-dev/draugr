@@ -242,6 +242,13 @@ and the PR number default from the GitHub Actions environment; the token comes f
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif), which posts a PR **security
 delta** (new / fixed findings) as that comment.
 
+The **`azure-pr-comment`** publisher is its Azure DevOps counterpart, with the same sticky
+behaviour. `org`, `project`, `repo` and the PR number default from the Azure Pipelines
+environment, so `kind: azure-pr-comment` on its own is usually the whole configuration. The token
+comes from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`), which a pipeline must map into the step
+explicitly — see [reports & publishers](../guides/reports-and-publishers.md#azure-devops) for
+that and for the repository permission the build identity needs.
+
 ## Licence policy (`controllers.licenses`)
 
 ```yaml
