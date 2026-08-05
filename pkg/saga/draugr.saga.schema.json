@@ -628,6 +628,15 @@
             "spdx-tag-value"
           ],
           "type": "string"
+        },
+        "scope": {
+          "description": "What each document covers. component (default) is one per repository and image; project is one covering the whole release, assembled along the hierarchy the Saga declares; both emits the parts and the whole. project and both require format cyclonedx-json.",
+          "enum": [
+            "component",
+            "project",
+            "both"
+          ],
+          "type": "string"
         }
       },
       "type": "object"

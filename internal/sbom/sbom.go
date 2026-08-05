@@ -5,8 +5,10 @@
 package sbom
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/toolexec"
@@ -73,7 +75,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		return pkgsbom.Document{}, fmt.Errorf("unknown sbom format %q (want one of %v)", format, saga.SBOMFormats)
 	}
 
-	var src, label, sourceName string
+	var src, label, sourceName, checkoutDir string
 	switch target := t.(type) {
 	case plugin.RepositoryTarget:
 		tree, cleanup, err := g.checkout(ctx, target.URL, target.Revision,
@@ -85,6 +87,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		// dir: disambiguates a local path from an image reference — Syft guesses otherwise,
 		// and a directory named like a registry path is not a hypothetical we want to debug.
 		src, label, sourceName = "dir:"+tree.Dir, target.URL, target.URL
+		checkoutDir = tree.Dir
 	case plugin.ImageTarget:
 		src = target.PinnedRef()
 		label = src
@@ -101,5 +104,26 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 	if len(out) == 0 {
 		return pkgsbom.Document{}, fmt.Errorf("syft %s: produced an empty document", label)
 	}
-	return pkgsbom.Document{Component: component, Target: label, Format: format, Bytes: out}, nil
+	return pkgsbom.Document{
+		Component: component, Target: label, Format: format,
+		Bytes: stripCheckoutPath(out, checkoutDir),
+	}, nil
+}
+
+// stripCheckoutPath rewrites the temporary clone out of a generated document.
+//
+// --source-name keeps the checkout path out of what the document calls *itself*, but Syft's file
+// cataloguer records each file it hashed by absolute path, and that path is a fresh temp
+// directory on every run. So the same commit produced a different document each time it was
+// scanned, and the bom-refs derived from those paths moved with them — enough to make two SBOMs
+// of one revision compare unequal, which defeats diffing releases and defeats committing the
+// document at all.
+//
+// Rewriting to repository-relative paths also makes the document agree with the rest of the run:
+// a finding says app/requirements.txt, and now so does the inventory.
+func stripCheckoutPath(doc []byte, dir string) []byte {
+	if dir == "" || len(doc) == 0 {
+		return doc // an image, which Syft addresses by reference and never checks out
+	}
+	return bytes.ReplaceAll(doc, []byte(dir+string(filepath.Separator)), nil)
 }

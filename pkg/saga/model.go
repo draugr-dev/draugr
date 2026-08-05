@@ -257,7 +257,43 @@ type SBOMConfig struct {
 	Enabled bool `yaml:"enabled"`
 	// Format is the document format. Empty means SBOMCycloneDXJSON.
 	Format SBOMFormat `yaml:"format,omitempty"`
+	// Scope is what each document covers: one target, the whole project, or both. Empty means
+	// SBOMScopeComponent, which is the behaviour a descriptor written before this field had.
+	Scope SBOMScope `yaml:"scope,omitempty"`
 }
+
+// SBOMScope is what a generated SBOM document covers.
+//
+// The distinction exists because an SBOM is requested per *product* — a customer questionnaire,
+// EO 14028 and the CRA all ask for the bill of materials of the thing you shipped — while Draugr
+// scans per repository and image. A project with four repositories and three images produces
+// seven documents and no answer to the question being asked.
+type SBOMScope string
+
+// The scopes a Saga may ask for.
+const (
+	// SBOMScopeComponent is the default: one document per distinct repository and image.
+	SBOMScopeComponent SBOMScope = "component"
+	// SBOMScopeProject is one document covering the whole release, assembled along the hierarchy
+	// the Saga already declares.
+	SBOMScopeProject SBOMScope = "project"
+	// SBOMScopeBoth emits the per-target documents and the assembled one. The parts are the
+	// evidence for the whole, and an auditor asking where a package came from wants both.
+	SBOMScopeBoth SBOMScope = "both"
+)
+
+// SBOMScopes lists the valid scopes.
+var SBOMScopes = []SBOMScope{SBOMScopeComponent, SBOMScopeProject, SBOMScopeBoth}
+
+// Valid reports whether s is a known scope. The empty value is not valid here; it means "the
+// default" to callers, which resolve it before use.
+func (s SBOMScope) Valid() bool { return slices.Contains(SBOMScopes, s) }
+
+// Project reports whether this scope asks for an assembled project document.
+func (s SBOMScope) Project() bool { return s == SBOMScopeProject || s == SBOMScopeBoth }
+
+// PerTarget reports whether this scope asks for the per-repository and per-image documents.
+func (s SBOMScope) PerTarget() bool { return s != SBOMScopeProject }
 
 // SBOMFormat is the document format for a generated SBOM. Both supported formats are open
 // specifications that downstream tooling already reads.

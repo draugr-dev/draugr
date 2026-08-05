@@ -47,10 +47,35 @@ and move it under a version on release.
   a digest of its own content, so it can be committed and reviewed like any other file. See
   [publish a VEX document](docs/guides/vex.md).
 
+- **`config.sbom.scope: project` produces one SBOM for the whole release**, instead of one per
+  repository and image. SBOMs are asked for per product — a customer questionnaire, EO 14028 and
+  the CRA all want the bill of materials of the thing you shipped — so a project with four
+  repositories and three images used to produce seven documents and no answer to the question.
+
+  ```yaml
+  config:
+    sbom:
+      enabled: true
+      scope: project      # component (default) | project | both
+  ```
+
+  The assembled document's root is the release, with a node per component, per repository or
+  image, and then the packages. A package shared by three components appears **once**, with the
+  graph recording which targets contain it — so "what do we ship" and "who ships it" are both
+  answerable, and two versions of one library stay two packages. `both` keeps the per-target
+  documents alongside the assembled one.
+
+  CycloneDX JSON only for now, and it says so if you ask for anything else.
+
 ### Fixed
 
 - The Saga JSON Schema still offered `spdx-json` as the SBOM default, so editor autocompletion
   disagreed with what a scan produced.
+
+- **Generated SBOMs no longer embed the temporary checkout path.** A repository SBOM recorded each
+  file it hashed by absolute path inside a throwaway directory, so scanning the same commit twice
+  produced different documents and the inventory disagreed with the findings about where anything
+  lived. Paths are now repository-relative, like `app/requirements.txt`.
 
 ## [0.67.0] - 2026-08-04
 

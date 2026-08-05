@@ -224,3 +224,43 @@ func TestConsoleSaysNothingWhenNothingWasSuppressed(t *testing.T) {
 		t.Errorf("no exclusions means no line:\n%s", buf.String())
 	}
 }
+
+// The assembled document has no component or target to be named after, and "the project" is the
+// distinction a reader needs when both kinds land in one directory.
+func TestSBOMArtifactsNameTheProjectDocument(t *testing.T) {
+	arts := SBOMArtifacts([]sbom.Document{
+		{Component: "api", Target: "https://git/api", Format: saga.SBOMCycloneDXJSON, Bytes: []byte("{}")},
+		{Project: true, Format: saga.SBOMCycloneDXJSON, Bytes: []byte("{}")},
+	})
+	if len(arts) != 2 {
+		t.Fatalf("artifacts = %d", len(arts))
+	}
+	if arts[0].Filename != "sbom-api-https-git-api.cdx.json" {
+		t.Errorf("component document = %q", arts[0].Filename)
+	}
+	if arts[1].Filename != "sbom-project.cdx.json" {
+		t.Errorf("project document = %q", arts[1].Filename)
+	}
+}
+
+func TestSBOMLine(t *testing.T) {
+	part := sbom.Document{Component: "api", Target: "t", Format: saga.SBOMCycloneDXJSON}
+	project := sbom.Document{Project: true, Format: saga.SBOMCycloneDXJSON}
+	for _, tc := range []struct {
+		name string
+		docs []sbom.Document
+		want string
+	}{
+		{"nothing", nil, ""},
+		{"parts only", []sbom.Document{part, part}, "SBOM: 2 documents (cyclonedx-json)"},
+		{"project only", []sbom.Document{project}, "SBOM: 1 project document (cyclonedx-json)"},
+		{"both", []sbom.Document{part, part, project},
+			"SBOM: 1 project document + 2 component documents (cyclonedx-json)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := sbomLine(tc.docs); got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

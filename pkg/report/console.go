@@ -10,6 +10,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/sbom"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -201,9 +202,8 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
 
-	if n := len(d.Run.SBOMs); n > 0 {
-		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim,
-			fmt.Sprintf("SBOM: %s (%s)", plural(n, "document"), d.Run.SBOMs[0].Format)))
+	if line := sbomLine(d.Run.SBOMs); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
 
 	if len(s.findings) == 0 {
@@ -707,4 +707,32 @@ func repositoryLines(repos []RepositoryProvenance) []string {
 		out = append(out, line)
 	}
 	return out
+}
+
+// sbomLine reports what inventory the run produced.
+//
+// An assembled project document is called out rather than counted in with the rest: it is the one
+// that answers "what does this release contain", and "3 documents" would hide it among the parts
+// it was built from.
+func sbomLine(docs []sbom.Document) string {
+	if len(docs) == 0 {
+		return ""
+	}
+	parts := 0
+	project := false
+	for _, d := range docs {
+		if d.Project {
+			project = true
+			continue
+		}
+		parts++
+	}
+	switch {
+	case project && parts > 0:
+		return fmt.Sprintf("SBOM: 1 project document + %s (%s)", plural(parts, "component document"), docs[0].Format)
+	case project:
+		return fmt.Sprintf("SBOM: 1 project document (%s)", docs[0].Format)
+	default:
+		return fmt.Sprintf("SBOM: %s (%s)", plural(parts, "document"), docs[0].Format)
+	}
 }
