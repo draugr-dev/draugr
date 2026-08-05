@@ -684,7 +684,7 @@ signals mean and how to choose a threshold.
 config:
   sbom:
     enabled: true
-    format: spdx-json      # defaults to spdx-json
+    format: cyclonedx-json   # defaults to cyclonedx-json
 ```
 
 Produces one [Software Bill of Materials](glossary.md#sbom--software-bill-of-materials) per
@@ -696,10 +696,18 @@ whichever the thing consuming the document reads:
 
 | `format` | Written as | Media type |
 |----------|------------|------------|
-| `spdx-json` (default) | `sbom-<component>-<target>.spdx.json` | `application/spdx+json` |
-| `spdx-tag-value` | `sbom-<component>-<target>.spdx` | `text/spdx` |
-| `cyclonedx-json` | `sbom-<component>-<target>.cdx.json` | `application/vnd.cyclonedx+json` |
+| `cyclonedx-json` (default) | `sbom-<component>-<target>.cdx.json` | `application/vnd.cyclonedx+json` |
 | `cyclonedx-xml` | `sbom-<component>-<target>.cdx.xml` | `application/vnd.cyclonedx+xml` |
+| `spdx-json` | `sbom-<component>-<target>.spdx.json` | `application/spdx+json` |
+| `spdx-tag-value` | `sbom-<component>-<target>.spdx` | `text/spdx` |
+
+**Why CycloneDX is the default.** Both are open standards and neither is going away, so the
+default is decided by what a document is likely to be *used for* rather than by seniority.
+CycloneDX (ECMA-424) composes: a document can carry nested components and state how complete it
+is, so it answers "what is in this project" and not only "what is in this repository". It is
+also what most security tooling reads first, and the format VEX is expressed in. SPDX (ISO/IEC
+5962) is the name a procurement questionnaire or licence-compliance process is more likely to
+ask for — set `format: spdx-json` when that is who the document is for.
 
 Syft can emit more — its own `syft-json`, GitHub's dependency-snapshot format, a bare PURL list
 — but those are either vendor-specific or not an SBOM, so Draugr doesn't offer them. Every
@@ -716,7 +724,7 @@ pass or fail. The console reports them on their own line:
 Controls:
   secrets  FAIL   1 high
 
-SBOM: 2 documents (spdx-json)
+SBOM: 2 documents (cyclonedx-json)
 ```
 
 **Where the documents go.** `-o <dir>` writes them beside `report.json` and `results.sarif`,

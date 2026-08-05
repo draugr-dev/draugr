@@ -21,7 +21,7 @@ import (
 )
 
 // DefaultFormat is used when a Saga enables SBOM generation without naming a format.
-const DefaultFormat = saga.SBOMSPDXJSON
+const DefaultFormat = saga.SBOMCycloneDXJSON
 
 // Document is one generated SBOM: the bytes, plus enough provenance to name the file and to
 // know what it actually describes.

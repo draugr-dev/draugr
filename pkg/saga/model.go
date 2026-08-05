@@ -247,7 +247,7 @@ const (
 type SBOMConfig struct {
 	// Enabled generates one SBOM per distinct repository and image in the project.
 	Enabled bool `yaml:"enabled"`
-	// Format is the document format. Empty means SBOMSPDXJSON.
+	// Format is the document format. Empty means SBOMCycloneDXJSON.
 	Format SBOMFormat `yaml:"format,omitempty"`
 }
 
@@ -263,20 +263,23 @@ type SBOMFormat string
 // but those are either vendor-specific or not an SBOM. Keeping this list to the interchange
 // formats means every document Draugr produces is one a third party can read.
 const (
-	// SBOMSPDXJSON is the default: SPDX in JSON, the ISO standard (ISO/IEC 5962), and what
-	// Draugr's own releases publish.
+	// SBOMCycloneDXJSON is the default: the OWASP format in JSON, ECMA-424, and the one that
+	// composes — a CycloneDX document can carry nested components and describe how complete it
+	// is, which is what a document covering a whole project needs. It is also the format
+	// security tooling reads most readily, and the one VEX is expressed in.
+	SBOMCycloneDXJSON SBOMFormat = "cyclonedx-json"
+	// SBOMCycloneDXXML is CycloneDX in XML, which some enterprise tooling still expects.
+	SBOMCycloneDXXML SBOMFormat = "cyclonedx-xml"
+	// SBOMSPDXJSON is SPDX in JSON, ISO/IEC 5962, and what a procurement or licence-compliance
+	// process is most likely to ask for by name.
 	SBOMSPDXJSON SBOMFormat = "spdx-json"
 	// SBOMSPDXTagValue is SPDX in its original tag-value encoding, still required by some
 	// compliance tooling.
 	SBOMSPDXTagValue SBOMFormat = "spdx-tag-value"
-	// SBOMCycloneDXJSON is the OWASP format in JSON, common in security tooling.
-	SBOMCycloneDXJSON SBOMFormat = "cyclonedx-json"
-	// SBOMCycloneDXXML is CycloneDX in XML, which some enterprise tooling still expects.
-	SBOMCycloneDXXML SBOMFormat = "cyclonedx-xml"
 )
 
 // SBOMFormats lists the valid SBOM document formats.
-var SBOMFormats = []SBOMFormat{SBOMSPDXJSON, SBOMSPDXTagValue, SBOMCycloneDXJSON, SBOMCycloneDXXML}
+var SBOMFormats = []SBOMFormat{SBOMCycloneDXJSON, SBOMCycloneDXXML, SBOMSPDXJSON, SBOMSPDXTagValue}
 
 // Valid reports whether f is a known SBOM format. The empty value is not valid here; it means
 // "the default" to callers, which resolve it before use.
