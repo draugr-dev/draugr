@@ -126,6 +126,35 @@ func (m *Model) Validate() error {
 				errs = append(errs, fmt.Errorf("%s: paths[%d] is empty", where, j))
 			}
 		}
+		// A VEX status is a claim a consumer acts on without reading it, so a value outside the
+		// vocabulary cannot be passed through and cannot be dropped: either would publish
+		// something other than what the descriptor says.
+		if v := e.VEX; v != nil {
+			switch {
+			case v.Status == "":
+				errs = append(errs, fmt.Errorf("%s: vex.status is required when vex is set (one of %s)",
+					where, strings.Join(VEXStatuses, ", ")))
+			case !ValidVEXStatus(v.Status):
+				hint := ""
+				if v.Status == VEXUnderInvestigation {
+					hint = " — a finding you have suppressed is one you have finished investigating; " +
+						"it is what Draugr already reports for findings nobody has triaged"
+				}
+				errs = append(errs, fmt.Errorf("%s: vex.status %q is not a status an exclusion may declare (want %s)%s",
+					where, v.Status, strings.Join(VEXStatuses, ", "), hint))
+			}
+			if v.Justification != "" {
+				if v.Status != VEXNotAffected && v.Status != "" {
+					errs = append(errs, fmt.Errorf(
+						"%s: vex.justification applies only to status %s, not %q — it answers why the "+
+							"product is unaffected", where, VEXNotAffected, v.Status))
+				} else if !ValidVEXJustification(v.Justification) {
+					errs = append(errs, fmt.Errorf(
+						"%s: vex.justification %q is not one of VEX's justifications (want %s)",
+						where, v.Justification, strings.Join(VEXJustifications, ", ")))
+				}
+			}
+		}
 	}
 
 	if x := m.Config.Exploitability; x != nil {

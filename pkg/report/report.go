@@ -39,6 +39,9 @@ type Data struct {
 	// so a caller that does not set them still renders a valid report.
 	Generated time.Time
 	Version   string
+	// VEX names the author and product for the "vex" format. Nil falls back to the release,
+	// which is enough for a valid document and not enough for a publishable one.
+	VEX *saga.VEXConfig
 	// Components breaks the verdict down by the part of the application it belongs to, when
 	// there is more than one. Optional: a caller that does not compute it renders as before.
 	Components []ComponentVerdict
@@ -137,6 +140,7 @@ var reporters = map[string]Reporter{
 	"junit":    junitReporter{},
 	"json":     jsonReporter{},
 	"sarif":    sarifReporter{},
+	"vex":      vexReporter{},
 }
 
 // StreamFormats are the formats `--format` accepts: the ones whose natural destination is a
@@ -149,7 +153,7 @@ var reporters = map[string]Reporter{
 // were ever useful.
 //
 // Narrow on purpose. Every format offered here is one a reader has to rule out.
-var StreamFormats = []string{"console", "markdown", "json", "sarif", "template"}
+var StreamFormats = []string{"console", "markdown", "json", "sarif", "vex", "template"}
 
 // documentFormats are produced as files rather than printed. Named so the error for
 // `--format html` can say where the format did go rather than only that it is not here.

@@ -40,6 +40,10 @@ type Config struct {
 	// Exclude suppresses findings that match, with a stated reason. Suppressed findings are
 	// still reported — they just stop counting toward the verdict.
 	Exclude []ExcludeRule `yaml:"exclude,omitempty"`
+	// VEX names the author and product for a generated VEX document (`--report vex`). Optional;
+	// without it Draugr falls back to the release, which produces a valid document rather than a
+	// publishable one.
+	VEX *VEXConfig `yaml:"vex,omitempty"`
 	// SBOM turns on Software Bill of Materials generation for this project's repositories and
 	// images. It is evidence rather than a control: an SBOM is an inventory, it finds nothing,
 	// and it never affects the verdict.
@@ -107,6 +111,10 @@ type ExcludeRule struct {
 	// no longer suppresses and the finding returns, with the report saying it lapsed rather than
 	// silently producing a finding that used to be accepted.
 	Expires string `yaml:"expires,omitempty"`
+	// VEX states what this suppression means as a machine-readable claim about the product,
+	// for `--report vex`. Optional: without it the finding is reported as `affected`, which is
+	// the claim that is never an overstatement.
+	VEX *VEXDecision `yaml:"vex,omitempty"`
 }
 
 // expiresLayout is the date format Expires uses: a plain calendar date, because an exclusion

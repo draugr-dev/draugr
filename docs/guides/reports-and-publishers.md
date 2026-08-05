@@ -25,6 +25,7 @@ Scan results render through a pluggable **Reporter**, selected on the CLI with
 | `junit` | JUnit XML — surfaces findings in CI test panels (GitLab, Jenkins, Azure DevOps…) |
 | `json` | machine-readable report |
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
+| `vex` | [OpenVEX](vex.md) — which of these vulnerabilities actually affect your product, for the people who consume your SBOM |
 | `template` | custom payload from a Go `text/template` (inline or file) — no code needed |
 
 `-o/--output <dir>` always writes `report.json` + `results.sarif` regardless of `--format`.

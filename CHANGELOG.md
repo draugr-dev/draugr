@@ -16,6 +16,42 @@ and move it under a version on release.
   `*.sbom.json` in SPDX). Same format `config.sbom` produces by default, so the tool and its own
   artifacts agree about what an SBOM looks like here.
 
+### Added
+
+- **`--report vex` publishes an OpenVEX document** — for every vulnerability a scan saw, whether
+  it affects your product and on whose authority. Your customers stop asking by email, one at a
+  time, whether the CVEs in your SBOM matter.
+
+  Most of it is already in your descriptor: a suppression keeps its reason, who accepted it and
+  when that lapses, and those are most of a VEX statement. A finding nobody has triaged is
+  published as `under_investigation`; a suppressed one as `affected`, carrying your reason.
+
+  To claim a vulnerability cannot affect you, say so — Draugr will not read your `reason` and
+  decide you meant it:
+
+  ```yaml
+  config:
+    vex:
+      author: "Acme Ltd <security@acme.example>"
+      product: "pkg:oci/acme/api@2.4.0"
+    exclude:
+      - rules: ["CVE-2018-18074"]
+        reason: "The redirect path that leaks the header is never taken; we pin the host."
+        vex:
+          status: not_affected
+          justification: vulnerable_code_not_in_execute_path
+  ```
+
+  Trivy and Grype both read the result, so you can check it against a real consumer:
+  `trivy image acme/api:2.4.0 --vex openvex.json`. The document is deterministic and its `@id` is
+  a digest of its own content, so it can be committed and reviewed like any other file. See
+  [publish a VEX document](docs/guides/vex.md).
+
+### Fixed
+
+- The Saga JSON Schema still offered `spdx-json` as the SBOM default, so editor autocompletion
+  disagreed with what a scan produced.
+
 ## [0.67.0] - 2026-08-04
 
 ### Changed

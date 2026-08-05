@@ -111,7 +111,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.format, "format", "console",
 		"what to print: "+strings.Join(report.StreamFormats, ", "))
 	cmd.Flags().StringSliceVar(&opts.reports, "report", nil,
-		"formats to write into -o (console, markdown, html, junit, json, sarif); default json,sarif")
+		"formats to write into -o (console, markdown, html, junit, json, sarif, vex); default json,sarif")
 	cmd.Flags().StringVar(&opts.template, "template", "", "inline Go text/template (with --format template)")
 	cmd.Flags().StringVar(&opts.templateFile, "template-file", "", "Go text/template file (with --format template)")
 	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")
@@ -269,6 +269,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Exploitability:       feedProv,
 		Tools:                toolBuilds(run),
 		Repositories:         report.RepositoriesFrom(run),
+		VEX:                  model.Config.VEX,
 		// Stamped so a rendered report can say when it ran and what produced it. A report
 		// offered as evidence has to answer both, and only the CLI knows either.
 		Generated: time.Now(),
