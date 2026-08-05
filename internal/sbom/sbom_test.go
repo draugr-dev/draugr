@@ -89,18 +89,18 @@ func TestGenerateImageDoesNotCheckOut(t *testing.T) {
 	}
 }
 
-func TestGenerateDefaultsToSPDX(t *testing.T) {
+func TestGenerateDefaultsToCycloneDX(t *testing.T) {
 	r := &recorder{out: []byte("{}")}
 	doc, err := newTestGenerator(r).Generate(context.Background(), "c",
 		plugin.ImageTarget{Ref: "alpine:3"}, "")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
-	if doc.Format != saga.SBOMSPDXJSON {
-		t.Errorf("format = %q, want %q", doc.Format, saga.SBOMSPDXJSON)
+	if doc.Format != saga.SBOMCycloneDXJSON {
+		t.Errorf("format = %q, want %q", doc.Format, saga.SBOMCycloneDXJSON)
 	}
-	if !strings.Contains(strings.Join(r.argv, " "), "-o spdx-json") {
-		t.Errorf("argv should request spdx-json: %v", r.argv)
+	if !strings.Contains(strings.Join(r.argv, " "), "-o cyclonedx-json") {
+		t.Errorf("argv should request cyclonedx-json: %v", r.argv)
 	}
 }
 

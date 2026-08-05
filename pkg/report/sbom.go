@@ -12,10 +12,10 @@ import (
 // formatMeta for reports. Not every SBOM is JSON — labelling an XML or tag-value document
 // application/json would be wrong the moment a publisher does anything with the media type.
 var sbomMeta = map[saga.SBOMFormat]struct{ ext, contentType string }{
-	saga.SBOMSPDXJSON:      {"spdx.json", "application/spdx+json"},
-	saga.SBOMSPDXTagValue:  {"spdx", "text/spdx; charset=utf-8"},
 	saga.SBOMCycloneDXJSON: {"cdx.json", "application/vnd.cyclonedx+json"},
 	saga.SBOMCycloneDXXML:  {"cdx.xml", "application/vnd.cyclonedx+xml"},
+	saga.SBOMSPDXJSON:      {"spdx.json", "application/spdx+json"},
+	saga.SBOMSPDXTagValue:  {"spdx", "text/spdx; charset=utf-8"},
 }
 
 // SBOMArtifacts converts SBOM documents into the unit publishers deliver, so SBOMs travel the

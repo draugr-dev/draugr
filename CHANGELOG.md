@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Generated SBOMs are CycloneDX JSON by default** (previously SPDX JSON). A CycloneDX document
+  can carry nested components and state how complete it is, so it can describe a whole project
+  and not only one repository; it is also what most security tooling reads first. SPDX remains
+  fully supported and is often the name a procurement or licence-compliance process asks for —
+  set `config.sbom.format: spdx-json` to keep it. Anything consuming `sbom-*.spdx.json` by
+  filename needs either that setting or a new filename.
 
 ## [0.66.0] - 2026-08-04
 
