@@ -10,7 +10,11 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Draugr's own release archives now ship a CycloneDX SBOM** (`*.cdx.json`, previously
+  `*.sbom.json` in SPDX). Same format `config.sbom` produces by default, so the tool and its own
+  artifacts agree about what an SBOM looks like here.
 
 ## [0.67.0] - 2026-08-04
 

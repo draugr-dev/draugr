@@ -39,9 +39,14 @@ checksum:
   name_template: checksums.txt
 
 # Software Bill of Materials for each archive (generated with syft).
+#
+# CycloneDX JSON, matching what `config.sbom` produces by default — the tool and its own release
+# artifacts should not disagree about what an SBOM looks like here.
 sboms:
   - id: archive
     artifacts: archive
+    args: ["$artifact", "--output", "cyclonedx-json=$document"]
+    documents: ["${artifact}.cdx.json"]
 
 # Keyless signing of the checksums file with cosign (Sigstore, via GitHub OIDC).
 signs:
