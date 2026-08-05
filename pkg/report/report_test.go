@@ -37,7 +37,7 @@ func sampleData() Data {
 }
 
 func TestForAndFormats(t *testing.T) {
-	for _, f := range []string{"console", "markdown", "html", "junit", "json", "sarif"} {
+	for _, f := range []string{"console", "markdown", "html", "junit", "json", "sarif", "vex"} {
 		r, err := For(f)
 		if err != nil || r.Format() != f {
 			t.Errorf("For(%q) = %v, %v", f, r, err)
@@ -46,7 +46,7 @@ func TestForAndFormats(t *testing.T) {
 	if _, err := For("nope"); err == nil {
 		t.Error("expected error for unknown format")
 	}
-	if got := Formats(); len(got) != 6 {
+	if got := Formats(); len(got) != 7 {
 		t.Errorf("Formats() = %v", got)
 	}
 }

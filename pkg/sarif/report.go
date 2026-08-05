@@ -123,6 +123,13 @@ type Suppression struct {
 	AcceptedBy string `json:"acceptedBy,omitempty"`
 	// Expires is when the acceptance lapses, as YYYY-MM-DD. Empty means it does not.
 	Expires string `json:"expires,omitempty"`
+	// VEXStatus is what the exclusion declared this suppression means as a claim about the
+	// product: not_affected, affected, or fixed. Empty when the exclusion said nothing, which
+	// is the common case and reports as affected — the reading that is never an overstatement.
+	VEXStatus string `json:"vexStatus,omitempty"`
+	// VEXJustification is why the product is not affected, from VEX's fixed vocabulary. Set
+	// only alongside a not_affected status.
+	VEXJustification string `json:"vexJustification,omitempty"`
 }
 
 // Suppressed reports whether this finding was excluded by a Saga rule.

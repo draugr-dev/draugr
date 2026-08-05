@@ -147,7 +147,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--cache-read-only` | `false` | Read the cache, never write it — for a run whose results should not be trusted by the next one |
 | `--cache-require-digest` | `false` | Do not cache an image identified only by a tag |
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
-| `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `template` |
+| `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
 | `--template` | — | inline Go `text/template` (with `--format template`) |
 | `--template-file` | — | Go `text/template` file (with `--format template`) |
 | `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
@@ -303,7 +303,7 @@ None of this affects the verdict — it is a fact about the run, not a finding a
 Two different questions, and they used to share one flag.
 
 **`--format` is what appears on screen.** It accepts only formats a person or a pipe can sensibly
-receive: `console`, `markdown`, `json`, `sarif`, `template`. `--format html` is rejected —
+receive: `console`, `markdown`, `json`, `sarif`, `vex`, `template`. `--format html` is rejected —
 
 ```
 draugr: html is a document, not something to print: use `--report html` with `-o <dir>`
@@ -347,6 +347,7 @@ one.
 ```bash
 draugr scan draugr.saga.yaml -o out/                          # report.json + results.sarif
 draugr scan draugr.saga.yaml -o out/ --report html,junit      # report.html + report.junit.xml
+draugr scan draugr.saga.yaml -o out/ --report vex             # openvex.json
 draugr scan draugr.saga.yaml -o out/ --report html --format console
 ```
 

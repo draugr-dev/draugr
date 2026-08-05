@@ -109,6 +109,9 @@
         },
         "sbom": {
           "$ref": "#/$defs/sbomConfig"
+        },
+        "vex": {
+          "$ref": "#/$defs/vexConfig"
         }
       },
       "type": "object"
@@ -245,6 +248,9 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "vex": {
+          "$ref": "#/$defs/vexDecision"
         }
       },
       "required": [
@@ -614,16 +620,63 @@
           "type": "boolean"
         },
         "format": {
-          "description": "SBOM document format. Defaults to spdx-json. SPDX and CycloneDX are each offered in both of their standard encodings; pick whichever your consumer reads.",
+          "description": "SBOM document format. Defaults to cyclonedx-json. CycloneDX and SPDX are each offered in both of their standard encodings; pick whichever your consumer reads.",
           "enum": [
-            "spdx-json",
-            "spdx-tag-value",
             "cyclonedx-json",
-            "cyclonedx-xml"
+            "cyclonedx-xml",
+            "spdx-json",
+            "spdx-tag-value"
           ],
           "type": "string"
         }
       },
+      "type": "object"
+    },
+    "vexConfig": {
+      "additionalProperties": false,
+      "description": "Who is making the claims in a generated VEX document, and what product they are about. Both optional and both worth setting for a document you publish.",
+      "properties": {
+        "author": {
+          "description": "Who is making these statements — an organisation, ideally with a contact. Defaults to the release name, which is a project rather than a party.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "product": {
+          "description": "The product the statements are about, as an IRI; a package URL is conventional. Defaults to a purl over the release. Set it to whatever the SBOM your consumer holds calls this product, or nothing will match.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "vexDecision": {
+      "additionalProperties": false,
+      "description": "What this suppression claims in VEX terms, for `--report vex`. Optional: without it the finding is reported as affected, the reading that is never an overstatement.",
+      "properties": {
+        "justification": {
+          "description": "Why the product is not affected, from VEX's fixed vocabulary. Valid only with status not_affected; without it the exclusion's reason is emitted as prose.",
+          "enum": [
+            "component_not_present",
+            "vulnerable_code_not_present",
+            "vulnerable_code_not_in_execute_path",
+            "vulnerable_code_cannot_be_controlled_by_adversary",
+            "inline_mitigations_already_exist"
+          ],
+          "type": "string"
+        },
+        "status": {
+          "description": "The claim. under_investigation is not accepted here: it is what an untriaged finding already reports, and a finding you have suppressed is one you have finished investigating.",
+          "enum": [
+            "not_affected",
+            "affected",
+            "fixed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
       "type": "object"
     }
   },

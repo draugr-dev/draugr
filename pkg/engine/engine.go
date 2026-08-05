@@ -829,6 +829,10 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 						Kind: "external", Justification: rule.Reason,
 						AcceptedBy: rule.AcceptedBy, Expires: rule.Expires,
 					}
+					if rule.VEX != nil {
+						res.Suppression.VEXStatus = rule.VEX.Status
+						res.Suppression.VEXJustification = rule.VEX.Justification
+					}
 					n++
 					break
 				}

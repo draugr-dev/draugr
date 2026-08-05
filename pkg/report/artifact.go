@@ -27,6 +27,7 @@ var formatMeta = map[string]struct{ filename, contentType string }{
 	"html":     {"report.html", "text/html; charset=utf-8"},
 	"junit":    {"report.junit.xml", "application/xml"},
 	"console":  {"report.txt", "text/plain; charset=utf-8"},
+	"vex":      {"openvex.json", "application/json"},
 }
 
 // Filename is what a format is written as, whether a publisher delivers it or `-o` writes it.

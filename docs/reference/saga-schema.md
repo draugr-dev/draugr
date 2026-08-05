@@ -583,6 +583,7 @@ was never there.
 | `reason` | **Required.** Why this exclusion exists. |
 | `acceptedBy` | Who decided this was acceptable. Optional; a suppression without one is reported as **unattributed**. |
 | `expires` | The date it stops applying (`YYYY-MM-DD`). Past it the finding returns and the report says the exclusion lapsed. |
+| `vex` | What this suppression claims about the product, for [`--report vex`](../guides/vex.md). Optional — see [below](#declaring-what-a-suppression-means-in-vex). |
 
 **Who, why, and until when.** The question asked of a suppression is not whether the scanner ran
 — it is who decided this was acceptable, and when. `reason` answers why; the other two answer the
@@ -595,6 +596,42 @@ suppressions have nobody attached:
 ```
 5 findings suppressed by config.exclude (2 unattributed)
 ```
+
+### Declaring what a suppression means in VEX
+
+`reason` is prose for whoever reviews the descriptor. A [VEX](../guides/vex.md) status is a
+machine-readable claim your customers' tooling acts on without reading it. They are different
+statements, so `vex` is a separate field rather than something inferred from the other one:
+
+```yaml
+config:
+  exclude:
+    - rules: ["CVE-2018-18074"]
+      reason: "The redirect path that leaks the header is never taken; we pin the host."
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+      vex:
+        status: not_affected
+        justification: vulnerable_code_not_in_execute_path
+```
+
+| Field | Meaning |
+|-------|---------|
+| `status` | `not_affected`, `affected`, or `fixed`. |
+| `justification` | Why the product is not affected, from VEX's fixed vocabulary. Valid only with `not_affected`. |
+
+The justifications are `component_not_present`, `vulnerable_code_not_present`,
+`vulnerable_code_not_in_execute_path`, `vulnerable_code_cannot_be_controlled_by_adversary` and
+`inline_mitigations_already_exist`. A closed list, because the entire value of the field is that
+a consumer can act on it without reading English. Omit it and the `reason` is published as VEX's
+prose alternative instead, which is valid and simply less useful to a machine.
+
+**Omitting `vex` entirely is fine.** The suppression is then published as `affected` carrying your
+reason — true, since you did find it and did decide to accept it. Draugr will not read the reason
+to work out whether you meant `not_affected`: that is a claim of safety made on your behalf,
+inferred from prose, and published over your name.
+
+`under_investigation` is not accepted here. It is what an untriaged finding already reports, and
+claiming it for something you have suppressed says the matter is both open and settled.
 
 **An expiry is enforced, not advisory.** On the day after `expires` the exclusion stops
 suppressing and the finding comes back — with the report saying the exclusion lapsed, so a
@@ -677,6 +714,28 @@ quarter's verdict requires last quarter's feed.
 
 See [prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) for what the
 signals mean and how to choose a threshold.
+
+## VEX (`config.vex`)
+
+Names the party making the claims in a generated [VEX document](../guides/vex.md)
+(`--report vex`), and the product they are about.
+
+```yaml
+config:
+  vex:
+    author: "Acme Ltd <security@acme.example>"   # defaults to release.name
+    product: "pkg:oci/acme/api@2.4.0"            # defaults to pkg:generic/<release>@<version>
+```
+
+Both are optional and both are worth setting for a document you publish. A VEX document is an
+assertion by a supplier about their own product, so a consumer needs to know **who says so** and
+**what about**. Draugr can guess the second from the release; it cannot guess the first at all,
+because it knows a project name rather than a legal entity or a contact.
+
+**`product` decides whether anything matches.** A consumer applies a VEX statement by comparing
+its product identifier against what their own SBOM calls the thing they are scanning. A document
+naming your product differently is a document nothing applies. Set this to the identifier that
+appears in the SBOM you ship.
 
 ## SBOM generation
 
