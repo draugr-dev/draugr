@@ -79,8 +79,22 @@ in the parts that have to be reproducible.
 **Human-readable by default.** A person is the default consumer. Machine formats — JSON logs,
 `--format json|sarif` — are opt-in behind a flag.
 
-**Execute third-party tools; don't link or bundle them.** A tool run as a subprocess keeps its
-licence its own. This is deliberate and constrains how integrations are written.
+**Execute third-party tools; don't link, bundle, or host them.** Three clauses, one distinction
+applied three times — the line between *using* somebody else's software and *taking
+responsibility for it*.
+
+- **Exec, don't bundle.** A tool run as a subprocess keeps its licence its own. Linking or
+  bundling can make Draugr a derivative work; a subprocess does not.
+- **Point, don't host.** Copyleft's other trigger is *distribution* — ship a GPL binary and you
+  owe corresponding source, and AGPL extends that to serving it over a network. Naming an
+  upstream URL is an index, like a Homebrew formula. Serving the bytes is distribution, and the
+  licence attaches to us. This applies to caches and mirrors too, which is where it will be
+  tempting.
+- **Tell, don't fetch** — for anything we have not reviewed. `draugr tools install` downloads
+  pinned, verified releases *because we vouched for them*. For a tool we have not, name what is
+  needed and let the operator install it; the report then says `external`, which is true.
+
+This is deliberate and constrains how integrations are written.
 
 **Severity is not priority.** Severity rates a flaw in the abstract. Priority (P1–P4) folds in
 the component's declared exposure and criticality — context no scanner can compute, because it
