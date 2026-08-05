@@ -30,9 +30,15 @@ func SBOMArtifacts(docs []sbom.Document) []Artifact {
 			// imprecise suffix.
 			meta = struct{ ext, contentType string }{"sbom", "application/octet-stream"}
 		}
+		name := fmt.Sprintf("sbom-%s-%s.%s", slug(d.Component), slug(d.Target), meta.ext)
+		if d.Project {
+			// The assembled document has no component or target to name it after, and "the
+			// project" is the distinction a reader needs when both kinds are in one directory.
+			name = "sbom-project." + meta.ext
+		}
 		arts = append(arts, Artifact{
 			Format:      "sbom",
-			Filename:    fmt.Sprintf("sbom-%s-%s.%s", slug(d.Component), slug(d.Target), meta.ext),
+			Filename:    name,
 			ContentType: meta.contentType,
 			Bytes:       d.Bytes,
 		})

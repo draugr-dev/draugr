@@ -744,6 +744,7 @@ config:
   sbom:
     enabled: true
     format: cyclonedx-json   # defaults to cyclonedx-json
+    scope: component         # component (default) | project | both
 ```
 
 Produces one [Software Bill of Materials](glossary.md#sbom--software-bill-of-materials) per
@@ -785,6 +786,55 @@ Controls:
 
 SBOM: 2 documents (cyclonedx-json)
 ```
+
+### One document per target, or one per product
+
+`scope` decides what each document covers.
+
+| `scope` | Produces |
+|---------|----------|
+| `component` (default) | one document per distinct repository and image |
+| `project` | one document covering the whole release |
+| `both` | the per-target documents **and** the assembled one |
+
+**Why this exists.** An SBOM is asked for per *product*. A customer questionnaire, EO 14028 and
+the CRA all want the bill of materials of the thing you shipped. Draugr scans per repository and
+image — so a project with four repositories and three images produces **seven documents and no
+answer to the question being asked**.
+
+```yaml
+config:
+  sbom:
+    enabled: true
+    scope: project
+```
+
+```
+SBOM: 1 project document (cyclonedx-json)
+```
+
+The assembled document is written as `sbom-project.cdx.json`. Its root component is the release,
+with one node per Saga component beneath it, one per repository or image beneath that, and the
+packages beneath those.
+
+**This is assembly, not merging.** A generic merge tool has a pile of documents and has to guess
+how they relate. Draugr is handed a release containing named components containing named targets
+— the hierarchy is declared, so it does not have to be inferred.
+
+That matters for the question a merge usually destroys. When `requests 2.19.1` appears in three
+components, deduplicating to one entry answers *what do we ship* and loses *who ships it*, which
+is what a triager needs the moment a CVE lands; keeping three entries answers the second and makes
+any consumer counting packages report a meaningless number. So Draugr keeps **one entry per
+package** and a **dependency graph** saying which targets contain it, and both questions are
+answerable from the same document. Two versions of one library stay two packages.
+
+`scope: project` replaces the per-target documents rather than adding to them — you asked for a
+document covering the product. Use `both` when you want the parts as evidence for the whole.
+
+**CycloneDX only.** `project` and `both` require `format: cyclonedx-json` and say so if it is
+something else. SPDX expresses containment through relationships and could carry this, but
+assembling it correctly is different work, and a half-right SPDX document would be worse than
+declining because nothing about it would look wrong.
 
 **Where the documents go.** `-o <dir>` writes them beside `report.json` and `results.sarif`,
 and any configured publisher delivers them alongside your reports — including with no
