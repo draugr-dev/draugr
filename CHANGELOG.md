@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.68.0] - 2026-08-05
+
 ### Changed
 
 - **Draugr's own release archives now ship a CycloneDX SBOM** (`*.cdx.json`, previously
@@ -2663,7 +2667,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.67.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.68.0...HEAD
+[0.68.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.68.0
 [0.67.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.67.0
 [0.66.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.66.0
 [0.65.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.65.0
