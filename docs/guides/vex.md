@@ -86,20 +86,67 @@ config:
 ## Name yourself and your product
 
 ```yaml
+release:
+  name: acme-api                                 # what you call this internally
+  version: "2.4.0"
+
 config:
   vex:
-    author: "Acme Ltd <security@acme.example>"
-    product: "pkg:oci/acme/api@2.4.0"
+    author: "Acme Ltd <security@acme.example>"   # who is making the claim
+    product: "pkg:oci/acme/api"                  # what a consumer matches on
 ```
 
-Both default to the release, which produces a valid document rather than a publishable one.
+Both are optional. Both are worth setting for a document you publish, because the defaults
+produce something valid rather than something useful.
 
-- **`author`** is who is making the claim. Draugr knows a project name; it does not know your
-  legal entity or how to reach you, and a consumer with a question needs both.
-- **`product`** is what the claim is about, and **it decides whether anything matches.** A
-  consumer applies a statement by comparing this identifier with what their SBOM calls the thing
-  they are scanning. Set it to the identifier in the SBOM you ship, or your document will be
-  read, understood, and applied to nothing.
+### These are two different names for one product
+
+`release` is **what you call this internally** — it names what Draugr is qualifying and heads
+your report. `config.vex` is **how the outside world refers to it**.
+
+They are rarely the same string, and the difference matters because of how VEX is consumed. A
+statement is applied by **matching the product identifier** against what the consumer's own SBOM
+calls the thing they are scanning. Your release is `acme-api 2.4.0`; their SBOM says
+`pkg:oci/acme/api@2.4.0`, or a digest, or a CPE. Only you know which.
+
+- **`author`** — Draugr knows a project name. It does not know your legal entity or how to reach
+  you, and a consumer with a question about a claim you made needs somebody to ask. Unset, this
+  falls back to `release.name`, which is a project rather than a party.
+- **`product`** — unset, this becomes `pkg:generic/<release.name>@<release.version>`, synthesised
+  from your descriptor. The `pkg:generic/` prefix says so plainly.
+
+**Get `product` wrong and nothing happens — which is the problem.** A consumer cannot tell that a
+statement was meant for it, so a mismatched identifier produces no error anywhere. The document
+is read, understood, and applied to nothing. Check it against an SBOM a consumer actually holds
+before you publish.
+
+### Let the version track your release
+
+A VEX statement is about a *version* of a product. `not_affected` in 2.3 says nothing about 2.4,
+which means a product identifier that has gone stale is making a claim about the wrong artifact.
+
+**Leave the version out and Draugr appends `release.version`:**
+
+```yaml
+release:  { name: acme-api, version: "2.4.0" }
+config:
+  vex:
+    product: "pkg:oci/acme/api"      # → pkg:oci/acme/api@2.4.0
+```
+
+Ship 2.5.0 and the identifier follows. Nothing to remember.
+
+A version you write yourself is left exactly as given, because pinning to something immutable is
+often what you want:
+
+```yaml
+    product: "pkg:oci/acme/api@sha256:0123…"
+```
+
+The cost of that escape hatch is worth knowing: **a literal version does not follow the
+release.** Write `pkg:oci/acme/api@2.4.0`, ship 2.5.0, and the document keeps claiming 2.4.0 —
+quietly, because it is still a perfectly valid document. Prefer the version-less form unless you
+are pinning to a digest.
 
 ## Check that it works
 

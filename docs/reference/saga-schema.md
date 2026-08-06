@@ -721,23 +721,77 @@ Names the party making the claims in a generated [VEX document](../guides/vex.md
 (`--report vex`), and the product they are about.
 
 ```yaml
+release:
+  name: acme-api          # what you call this internally
+  version: "2.4.0"
+
 config:
   vex:
-    author: "Acme Ltd <security@acme.example>"   # defaults to release.name
-    product: "pkg:oci/acme/api@2.4.0"            # defaults to pkg:generic/<release>@<version>
+    author: "Acme Ltd <security@acme.example>"   # who is making the claim
+    product: "pkg:oci/acme/api"                  # what a consumer will match on
 ```
 
-Both are optional and both are worth setting for a document you publish. A VEX document is an
-assertion by a supplier about their own product, so a consumer needs to know **who says so** and
-**what about**. Draugr can guess the second from the release; it cannot guess the first at all,
-because it knows a project name rather than a legal entity or a contact.
+| Field | The question it answers |
+|-------|-------------------------|
+| `author` | **Who is making this claim?** An organisation, ideally with a way to reach them. |
+| `product` | **What will a consumer's tooling look this up by?** An IRI; a package URL is conventional. |
 
-**`product` decides whether anything matches.** A consumer applies a VEX statement by comparing
-its product identifier against what their own SBOM calls the thing they are scanning. A document
-naming your product differently is a document nothing applies. Set this to the identifier that
-appears in the SBOM you ship.
+### `release` and `config.vex` are not the same thing
 
-## SBOM generation
+They describe the same product and rarely with the same string, which is the part worth being
+careful about.
+
+**`release` is what you call this internally.** It names what Draugr is qualifying, and it is
+what appears at the top of your report.
+
+**`config.vex` is how the outside world refers to it.** A VEX statement is matched by product
+identifier: a consumer applies it when the identifier equals what *their* SBOM calls the thing
+they are scanning. That is usually not your release name — it is an image reference, a package
+URL, a digest.
+
+Both fields are optional, and the defaults produce a valid document rather than a publishable
+one:
+
+| Unset | Falls back to | Why that is not enough |
+|-------|---------------|------------------------|
+| `author` | `release.name` | A project name is not a party. A consumer with a question about your claim needs somebody to ask. |
+| `product` | `pkg:generic/<release.name>@<release.version>` | Synthesised from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
+
+**A document nothing matches fails silently.** A consumer cannot tell that a statement was meant
+for it, so a wrong identifier does not error — it is read, understood, and applied to nothing.
+This is the single field most worth checking against a consumer's SBOM before you publish.
+
+### Versions track the release
+
+A VEX statement is about a *version* of a product: `not_affected` in 2.3 says nothing about 2.4.
+
+**Leave the version out of `product` and Draugr appends `release.version`.** This is the
+recommended form, and it cannot go stale — the identifier moves when the release does.
+
+```yaml
+release:  { name: acme-api, version: "2.4.0" }
+config:
+  vex:
+    product: "pkg:oci/acme/api"     # → pkg:oci/acme/api@2.4.0
+```
+
+A version you write yourself is kept exactly as given, because pinning is sometimes what you
+want:
+
+```yaml
+    product: "pkg:oci/acme/api@sha256:0123…"   # a digest, left alone
+```
+
+That escape hatch has a cost worth stating: **a literal version does not follow the release.**
+Write `pkg:oci/acme/api@2.4.0`, ship 2.5.0, and the document keeps claiming 2.4.0. Prefer the
+version-less form unless you are pinning to something immutable.
+
+Qualifiers and a subpath are preserved — the version is inserted where the package-URL
+specification puts it (`pkg:type/name@version?qualifiers#subpath`). A `product` that is not a
+package URL is left untouched, since VEX identifies a product by IRI and a purl is only the
+convention.
+
+## SBOM generation## SBOM generation
 
 ```yaml
 config:

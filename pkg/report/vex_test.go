@@ -298,3 +298,55 @@ func TestVEXIsRegisteredAndNamed(t *testing.T) {
 		t.Errorf("StreamFormat(vex): %v", err)
 	}
 }
+
+// A VEX statement is about a *version* of a product, so a product string with the version baked
+// into it keeps claiming the old one after the release moves on — silently, in a signed
+// document. A purl that omits the version cannot drift.
+func TestVEXProductTracksTheReleaseVersion(t *testing.T) {
+	d := vexData(vexResult("CVE-2024-0001", nil))
+	d.VEX = &saga.VEXConfig{Product: "pkg:oci/acme/api"}
+	if got := buildVEX(d).Statements[0].Products[0].ID; got != "pkg:oci/acme/api@2.4.0" {
+		t.Errorf("product = %q, want the release's version appended", got)
+	}
+}
+
+// A version somebody wrote is a decision, not an oversight — pinning to a digest is better
+// practice than pinning to a tag, and it lives in exactly that position.
+func TestVEXProductKeepsAnExplicitVersion(t *testing.T) {
+	for _, pinned := range []string{
+		"pkg:oci/acme/api@1.0.0",
+		"pkg:oci/acme/api@sha256:0123456789abcdef",
+	} {
+		d := vexData(vexResult("CVE-2024-0001", nil))
+		d.VEX = &saga.VEXConfig{Product: pinned}
+		if got := buildVEX(d).Statements[0].Products[0].ID; got != pinned {
+			t.Errorf("product = %q, want %q left alone", got, pinned)
+		}
+	}
+}
+
+// The version belongs before the qualifiers and subpath, which is where the purl spec puts it.
+func TestVEXProductInsertsTheVersionBeforeQualifiers(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"pkg:oci/acme/api?repository_url=acme.azurecr.io",
+			"pkg:oci/acme/api@2.4.0?repository_url=acme.azurecr.io"},
+		{"pkg:golang/github.com/acme/api#cmd/api",
+			"pkg:golang/github.com/acme/api@2.4.0#cmd/api"},
+	} {
+		d := vexData(vexResult("CVE-2024-0001", nil))
+		d.VEX = &saga.VEXConfig{Product: tc.in}
+		if got := buildVEX(d).Statements[0].Products[0].ID; got != tc.want {
+			t.Errorf("product = %q, want %q", got, tc.want)
+		}
+	}
+}
+
+// VEX identifies a product by IRI; a purl is only the conventional choice. Appending a version to
+// something that is not a purl would produce neither the IRI given nor a valid anything else.
+func TestVEXProductLeavesANonPurlAlone(t *testing.T) {
+	d := vexData(vexResult("CVE-2024-0001", nil))
+	d.VEX = &saga.VEXConfig{Product: "https://acme.example/products/api"}
+	if got := buildVEX(d).Statements[0].Products[0].ID; got != "https://acme.example/products/api" {
+		t.Errorf("product = %q, want it untouched", got)
+	}
+}
