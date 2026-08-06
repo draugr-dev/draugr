@@ -57,6 +57,19 @@ config:
         control has something real to find; a test asserting it finds nothing asserts nothing.
         The key material is fake and was never valid anywhere.
 
+    - paths:
+        - "pkg/publish/azure_pr_comment_test.go"
+      rules:
+        - "generic-api-key"
+      reason: >-
+        Table-driven fixtures for the test that proves a pipeline token goes in as a bearer and a
+        personal access token as basic auth — sending one as the other is a 401 with nothing to
+        explain it. One value is a structurally valid JWT whose payload is the empty object, the
+        other is sixteen hex digits; both are literals in the table, neither was ever issued by
+        anything. A credential-shaped string is what the test is about, so there is no version of
+        it that does not look like this to a scanner.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
   reports:
     - format: sarif
   publishers:
