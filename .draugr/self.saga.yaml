@@ -47,6 +47,7 @@ config:
         major tags for the same reason. Our real workflows, under .github/workflows/, are
         SHA-pinned and still scanned. Scoped to this one rule so a genuine problem in an example
         still surfaces.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
         - "test/integration/repo_scan_test.go"
@@ -56,6 +57,7 @@ config:
         The integration test writes a throwaway RSA key into a temporary repo so the secrets
         control has something real to find; a test asserting it finds nothing asserts nothing.
         The key material is fake and was never valid anywhere.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
         - "pkg/publish/azure_pr_comment_test.go"
@@ -68,6 +70,28 @@ config:
         other is sixteen hex digits; both are literals in the table, neither was ever issued by
         anything. A credential-shaped string is what the test is about, so there is no version of
         it that does not look like this to a scanner.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
+    - paths:
+        - "pkg/report/htmldata.go"
+      rules:
+        - "go.lang.security.audit.net.unescaped-data-in-url.unescaped-data-in-url"
+        - "go.lang.security.audit.xss.template-html-does-not-escape.unsafe-template-type"
+      reason: >-
+        Both flag the same line: dataURI returns template.URL, which tells html/template to emit
+        the value verbatim. That is deliberate — contextual escaping rejects a data: URI outright,
+        which is the right default because `data:text/html` in an href is a script-injection
+        vector, and it is also what makes the HTML report's self-contained download links
+        impossible any other way.
+
+        It is safe because nothing that reaches the markup comes from the scan. Both callers pass
+        a string literal for the MIME type, and the payload is base64 — an alphabet of letters,
+        digits, '+', '/' and '=' — so it cannot contain a quote or an angle bracket to end the
+        attribute. Whatever a scanner put in a finding is inside the encoded blob.
+
+        The equivalent gosec rule (G203) is suppressed inline at the same line for the same
+        reason. Scoped to this file and these two rules, so the same pattern anywhere else still
+        fails the gate.
       acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
   reports:
