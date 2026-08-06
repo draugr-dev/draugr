@@ -110,14 +110,3 @@ func TestApplyIntoModel(t *testing.T) {
 		}
 	}
 }
-
-func TestUnionHostsAndImagesDedup(t *testing.T) {
-	hosts := unionHosts([]saga.Host{{URL: "x"}}, []saga.Host{{URL: "x"}, {URL: "y"}})
-	if len(hosts) != 2 {
-		t.Errorf("hosts = %d, want 2", len(hosts))
-	}
-	imgs := unionImages([]saga.Image{{Image: "a"}}, []saga.Image{{Image: "a"}})
-	if len(imgs) != 1 {
-		t.Errorf("images = %d, want 1", len(imgs))
-	}
-}

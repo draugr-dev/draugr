@@ -15,7 +15,12 @@ var envPattern = regexp.MustCompile(`\$\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
 
 // Load parses a Saga descriptor from YAML bytes, substituting ${{ VAR }} references from
 // the environment and validating the result.
-func Load(data []byte) (*Model, error) {
+func Load(data []byte) (*Model, error) { return loadModel(data, true) }
+
+// loadModel parses a descriptor. validate is false when the caller will merge fragments first and
+// validate the result — a descriptor whose components all arrive from fragments is legitimately
+// incomplete until they do.
+func loadModel(data []byte, validate bool) (*Model, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal(data, &root); err != nil {
 		return nil, fmt.Errorf("parse saga: %w", err)
@@ -32,8 +37,17 @@ func Load(data []byte) (*Model, error) {
 			return nil, err
 		}
 	}
-	if err := m.Validate(); err != nil {
-		return nil, err
+	if validate {
+		// Load has no directory to resolve a relative path against, so a descriptor that needs
+		// fragments cannot be honoured from bytes alone. Saying so beats returning a model that
+		// silently describes less than the file does.
+		if len(m.Fragments) > 0 {
+			return nil, fmt.Errorf("this descriptor names %d fragment(s), which are resolved "+
+				"relative to the file — load it from a path rather than from bytes", len(m.Fragments))
+		}
+		if err := m.Validate(); err != nil {
+			return nil, err
+		}
 	}
 	return &m, nil
 }
@@ -80,13 +94,26 @@ func unknownFieldHint(err error) error {
 
 var unknownField = regexp.MustCompile(`field (\S+) not found in type (\S+)`)
 
-// LoadFile reads and parses a Saga descriptor from a file path.
+// LoadFile reads and parses a Saga descriptor, merging any local fragments it names.
+//
+// Remote fragments need a Fetcher, which needs git, which lives in internal/ — so a descriptor
+// using one gets an error here naming it rather than a descriptor that quietly contains less than
+// it says. Callers that can fetch use ResolveFile.
 func LoadFile(path string) (*Model, error) {
+	res, err := ResolveFile(path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return res.Model, nil
+}
+
+// loadModelFile reads one descriptor without resolving its fragments.
+func loadModelFile(path string) (*Model, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // path is operator-provided by design
 	if err != nil {
 		return nil, fmt.Errorf("read saga %q: %w", path, err)
 	}
-	return Load(data)
+	return loadModel(data, false)
 }
 
 // substituteEnv walks the parsed YAML tree and replaces every ${{ VAR }} in scalar

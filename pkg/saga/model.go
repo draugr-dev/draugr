@@ -1,6 +1,7 @@
 package saga
 
 import (
+	"fmt"
 	"path"
 	"slices"
 	"strings"
@@ -10,11 +11,11 @@ import (
 // Model is a parsed Saga descriptor — the declarative account of an application's
 // security surface plus the controller configuration that drives a scan.
 type Model struct {
-	Release               Release      `yaml:"release"`
-	Config                Config       `yaml:"config,omitempty"`
-	Components            []Component  `yaml:"components,omitempty"`
-	ComponentsMetaSources []MetaSource `yaml:"componentsMetaSources,omitempty"`
-	References            []Reference  `yaml:"references,omitempty"`
+	Release    Release       `yaml:"release"`
+	Config     Config        `yaml:"config,omitempty"`
+	Components []Component   `yaml:"components,omitempty"`
+	Fragments  []FragmentRef `yaml:"fragments,omitempty"`
+	References []Reference   `yaml:"references,omitempty"`
 }
 
 // Release identifies what is being assessed.
@@ -115,6 +116,10 @@ type ExcludeRule struct {
 	// for `--report vex`. Optional: without it the finding is reported as `affected`, which is
 	// the claim that is never an overstatement.
 	VEX *VEXDecision `yaml:"vex,omitempty"`
+	// Source is the file this rule was read from, set by the loader rather than by the
+	// descriptor. Splitting exclusions across files is only safe if the report can still say
+	// which file authorised each one, so the provenance travels with the rule.
+	Source string `yaml:"-"`
 }
 
 // expiresLayout is the date format Expires uses: a plain calendar date, because an exclusion
@@ -484,11 +489,37 @@ type Infrastructure struct {
 	Namespaces []string `yaml:"namespaces,omitempty"`
 }
 
-// MetaSource points at a Saga fragment kept close to a component's source.
-type MetaSource struct {
-	RepoURL  string `yaml:"repoUrl"`
-	Path     string `yaml:"path"`
+// FragmentRef names Saga fragments to merge into the descriptor that lists it.
+//
+// A fragment adds scope or adds attributed suppressions; it can never change policy. That is what
+// makes splitting a descriptor safe to review: including a file cannot quietly lower the gate or
+// switch a control off, so the worst a `fragments:` entry can do is add findings or add
+// suppressions that are individually attributed and counted in the report.
+type FragmentRef struct {
+	// Path selects the fragment files. Globs are the same dialect as `paths:` and `ignore:` —
+	// `*` within a segment, `**` across them — so `**/draugr.saga-fragment.yaml` collects one
+	// fragment from every component in a monorepo. Relative to the file that names it, so a
+	// fragment keeps working when its directory moves.
+	Path string `yaml:"path"`
+	// URL is a git repository to read the fragments from. Empty means the local filesystem.
+	URL string `yaml:"url,omitempty"`
+	// Revision is the branch, tag or commit to read. Required when URL is set, and deliberately
+	// not defaulted to the repository's default branch: a fragment that tracks a moving branch is
+	// a gate that changes with no commit in your own repository. The revision a run resolved to
+	// is recorded in the report, so a tag that moves is visible afterwards.
 	Revision string `yaml:"revision,omitempty"`
+}
+
+// Remote reports whether this reference reads from another repository.
+func (f FragmentRef) Remote() bool { return f.URL != "" }
+
+// String names the reference the way an error should, so a message about one fragment among
+// several says which.
+func (f FragmentRef) String() string {
+	if f.Remote() {
+		return fmt.Sprintf("%s@%s %s", f.URL, f.Revision, f.Path)
+	}
+	return f.Path
 }
 
 // Reference links a manual/human security control (e.g. threat model, architecture diagram).
@@ -497,10 +528,30 @@ type Reference struct {
 	Link string `yaml:"link"`
 }
 
-// Fragment is a partial Saga contributed by a Surveyor. The engine
-// merges fragments into the Model.
+// Fragment is a partial Saga: what a `fragments:` entry loads, and what a Surveyor contributes.
+//
+// One type for both because the merge is the same. A surveyor that discovers a cluster and a file
+// a person wrote are both saying "here is some more of the application", and having two merges
+// would mean two answers to what a repeated component name means.
 type Fragment struct {
+	// Components are merged by name — a repeated name unions the two surfaces rather than
+	// replacing or colliding, so a component described in two places ends up whole.
 	Components []Component `yaml:"components,omitempty"`
+	// Config is the subset of a Saga's config a fragment may carry.
+	Config FragmentConfig `yaml:"config,omitempty"`
+	// Fragments are further fragments this one pulls in, resolved relative to it.
+	Fragments []FragmentRef `yaml:"fragments,omitempty"`
+}
+
+// FragmentConfig is the part of Config a fragment is allowed to set.
+//
+// A separate type rather than a validated Config, so the restriction is enforced by the decoder
+// and shows up in the published schema — an editor says `gate` is not allowed here, rather than
+// the user finding out when a scan behaves unexpectedly.
+type FragmentConfig struct {
+	// Exclude suppresses findings that match, with a stated reason. Appended to whatever the
+	// descriptor and other fragments already carry.
+	Exclude []ExcludeRule `yaml:"exclude,omitempty"`
 }
 
 // ControllerEnabled reports whether the named controller is enabled at the project level.

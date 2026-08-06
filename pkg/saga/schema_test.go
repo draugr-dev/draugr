@@ -76,7 +76,8 @@ func TestSchemaCoversEveryModelField(t *testing.T) {
 		{"image", Image{}},
 		{"host", Host{}},
 		{"infrastructure", Infrastructure{}},
-		{"metaSource", MetaSource{}},
+		{"fragmentRef", FragmentRef{}},
+		{"fragmentConfig", FragmentConfig{}},
 		{"reference", Reference{}},
 	}
 

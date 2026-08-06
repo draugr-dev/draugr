@@ -10,7 +10,50 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Saga fragments: split a descriptor across files.** A descriptor half of which is
+  `config.exclude` is two things in one file — a structural account of the system, and a log of
+  dated decisions by named people. They change at different times, for different reasons, and get
+  reviewed by different people. `fragments:` lets them live apart:
+
+  ```yaml
+  # azure.saga.yaml
+  release: { name: acme-azure, version: "3.1.0" }
+  fragments:
+    - path: "**/draugr.saga-fragment.yaml"    # every component's shared description
+    - path: "**/azure.saga-fragment.yaml"     # plus the Azure-specific parts
+  ```
+
+  A fragment carries `components`, `config.exclude` and further `fragments` — it **adds scope or
+  adds attributed suppressions, and can never change policy**, so pulling one in cannot quietly
+  lower your gate or switch a control off.
+
+  Two fragments naming one component **merge into one**, so a shared fragment can declare the
+  repository and a per-cloud one add the image. That makes a monorepo serving several products
+  work without duplicating anything: name the audience in the file's stem, and each product's
+  Saga globs the exact stems it wants. Adding a component is one directory and no edit to either
+  product's Saga.
+
+  Globs use the descriptor's usual dialect (`*` within a segment, `**` across them), resolve
+  relative to the file that names them, and a pattern matching **nothing is an error** — silence
+  from a line somebody wrote on purpose is indistinguishable from a typo.
+
+- **`draugr validate --resolved`** prints the descriptor with every fragment merged in, each
+  block attributed to the file it came from. Provenance is emitted as comments, so the output is
+  both the answer to "what is actually in force" and a valid descriptor you can scan — which is
+  how you flatten a descriptor to carry across an air gap, or commit one to diff in CI so a
+  one-line `fragments:` change is reviewed by its effect rather than its cause.
+
+- **A published schema for fragments**, at
+  `https://draugr.dev/schema/draugr.saga-fragment.schema.json` and in `draugr schema --fragment`.
+  Editors validate a fragment as a fragment, and `draugr validate` checks one on its own.
+
+### Removed
+
+- **`componentsMetaSources`**, replaced by `fragments`, which does the same job for local and
+  remote files with one key. It never resolved anything, so a descriptor using it was silently
+  doing nothing; it is now a parse error naming the replacement.
 
 ## [0.68.0] - 2026-08-05
 

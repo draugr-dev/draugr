@@ -13,6 +13,7 @@ import (
 
 func main() {
 	const path = "draugr.saga.schema.json"
+	const fragmentPath = "draugr.saga-fragment.schema.json"
 	current, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "read schema:", err)
@@ -25,6 +26,18 @@ func main() {
 	}
 	if err := os.WriteFile(path, out, 0o600); err != nil { //nolint:gosec // path is the const above
 		fmt.Fprintln(os.Stderr, "write schema:", err)
+		os.Exit(1)
+	}
+
+	// The fragment schema is derived from the Saga's, so it is regenerated in the same breath and
+	// cannot fall behind it.
+	frag, err := schemagen.FragmentSchema(out)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "generate fragment schema:", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(fragmentPath, frag, 0o600); err != nil { //nolint:gosec // the const below
+		fmt.Fprintln(os.Stderr, "write fragment schema:", err)
 		os.Exit(1)
 	}
 }

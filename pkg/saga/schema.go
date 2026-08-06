@@ -14,6 +14,15 @@ import (
 //go:embed draugr.saga.schema.json
 var SchemaJSON []byte
 
+// FragmentSchemaJSON is the Saga fragment's JSON Schema, embedded for the same reason.
+//
+// A separate document because a fragment is a different shape: it has no `release:`, and it may
+// not carry policy. Validating one against the Saga's schema would report a missing release on
+// every valid fragment, which is why the two file types are distinguishable by name.
+//
+//go:embed draugr.saga-fragment.schema.json
+var FragmentSchemaJSON []byte
+
 // schemaBaseURL is where published copies live. The unversioned file tracks the newest release;
 // each release also publishes an immutable copy under its own tag.
 const schemaBaseURL = "https://draugr.dev/schema"
@@ -21,6 +30,9 @@ const schemaBaseURL = "https://draugr.dev/schema"
 // SchemaURL is the schema that tracks the latest release. Use it to follow along with new
 // Draugr versions; use SchemaURLFor to stay matched to a specific one.
 const SchemaURL = schemaBaseURL + "/draugr.saga.schema.json"
+
+// FragmentSchemaURL is the published fragment schema tracking the latest release.
+const FragmentSchemaURL = schemaBaseURL + "/draugr.saga-fragment.schema.json"
 
 // SchemaURLFor returns the published schema for a specific Draugr version, so an editor
 // validates a Saga against the same rules the installed binary applies. Unreleased builds

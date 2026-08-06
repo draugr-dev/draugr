@@ -706,10 +706,10 @@
       "type": "object"
     }
   },
-  "$id": "https://draugr.dev/schema/draugr.saga.schema.json",
+  "$id": "https://draugr.dev/schema/draugr.saga-fragment.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "The draugr.saga.yaml descriptor — a declarative account of an application's security surface and the controls that must pass. See https://draugr.dev/docs/latest/reference/saga-schema/",
+  "description": "A partial Draugr Saga: components and exclusions merged into the descriptor that names it. A fragment adds scope or adds attributed suppressions; it cannot change policy, so it carries no release, gate or controller settings.",
   "properties": {
     "components": {
       "description": "The app's parts. Each component declares the surfaces it exposes; Draugr plans scans per surface.",
@@ -719,7 +719,7 @@
       "type": "array"
     },
     "config": {
-      "$ref": "#/$defs/config"
+      "$ref": "#/$defs/fragmentConfig"
     },
     "fragments": {
       "description": "Saga fragments to merge into this descriptor.",
@@ -727,21 +727,8 @@
         "$ref": "#/$defs/fragmentRef"
       },
       "type": "array"
-    },
-    "references": {
-      "description": "Links to manual or human-performed controls (threat model, architecture diagram, …).",
-      "items": {
-        "$ref": "#/$defs/reference"
-      },
-      "type": "array"
-    },
-    "release": {
-      "$ref": "#/$defs/release"
     }
   },
-  "required": [
-    "release"
-  ],
-  "title": "Draugr Saga",
+  "title": "Draugr Saga fragment",
   "type": "object"
 }

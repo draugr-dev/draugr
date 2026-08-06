@@ -3,9 +3,10 @@ package git
 import (
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 // Scope restricts which of a repository's files a checkout materialises.
@@ -144,12 +145,12 @@ func matchesAny(patterns []string, rel string, isDir bool) bool {
 			}
 			continue
 		}
-		if globMatch(p, rel) {
+		if saga.GlobMatch(p, rel) {
 			return true
 		}
 		// A directory pattern also takes everything beneath it, which is what someone writing
 		// `vendor` rather than `vendor/` means.
-		if globMatch(p, firstSegments(rel, strings.Count(p, "/")+1)) {
+		if saga.GlobMatch(p, firstSegments(rel, strings.Count(p, "/")+1)) {
 			return true
 		}
 	}
@@ -163,38 +164,4 @@ func firstSegments(rel string, n int) string {
 		return rel
 	}
 	return strings.Join(seg[:n], "/")
-}
-
-// globMatch reports whether rel matches pattern, with `**` crossing separators.
-//
-// path.Match handles a single segment; `**` is split on and each side matched around it, so
-// `**/testdata/**` and `vendor/**` both behave the way the person writing them expects.
-func globMatch(pattern, rel string) bool {
-	if !strings.Contains(pattern, "**") {
-		ok, err := path.Match(pattern, rel)
-		return err == nil && ok
-	}
-	head, tail, _ := strings.Cut(pattern, "**")
-	head, tail = strings.TrimSuffix(head, "/"), strings.TrimPrefix(tail, "/")
-
-	if head != "" {
-		if !strings.HasPrefix(rel, head+"/") && rel != head {
-			return false
-		}
-		rel = strings.TrimPrefix(strings.TrimPrefix(rel, head), "/")
-	}
-	if tail == "" {
-		return true // `prefix/**` takes everything below prefix
-	}
-	// The remainder of the pattern may start at any depth.
-	for {
-		if globMatch(tail, rel) {
-			return true
-		}
-		_, rest, found := strings.Cut(rel, "/")
-		if !found {
-			return false
-		}
-		rel = rest
-	}
 }

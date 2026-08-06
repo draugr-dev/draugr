@@ -905,18 +905,52 @@ The wording names no platform on purpose: a Kubernetes network policy is one way
 `restricted`, and Draugr classifies repositories and images as well as clusters. `draugr classify`
 asks these same questions with the same words.
 
-## `componentsMetaSources` (planned)
+## `fragments`
 
-Reference Saga fragments kept next to a component's source, to be cloned and merged:
+Merge other files into this descriptor. See [split a Saga across
+files](../guides/saga-fragments.md) for the monorepo shape.
 
 ```yaml
-componentsMetaSources:
-  - repoUrl: https://github.com/acme/web.git
-    path: draugr.saga.yaml     # supports globs, e.g. **/draugr.saga.yaml
-    revision: main
+fragments:
+  # Local: a path relative to the file that names it.
+  - path: "**/draugr.saga-fragment.yaml"
+
+  # Remote: the same shape as a repository, plus which files to read.
+  - url: https://github.com/acme/platform.git
+    revision: v2.4.0
+    path: "components/**/draugr.saga-fragment.yaml"
 ```
 
-> Schema is accepted today; resolution/loading is tracked on the roadmap.
+| Field | Meaning |
+|-------|---------|
+| `path` | **Required.** Which files to read. Globs use the same dialect as `paths` and `ignore` — `*` within a segment, `**` across them. Relative to the file that names it, so `../shared/x.saga-fragment.yaml` works. |
+| `url` | A git repository to read from. Omit for a local path. |
+| `revision` | Branch, tag or commit. **Required with `url`**, and not defaulted — see below. |
+
+**A fragment adds scope or adds attributed suppressions; it cannot change policy.** It may carry
+`components`, `config.exclude`, and further `fragments` — nothing else. `release`, `config.gate`
+and `config.controllers` are rejected, naming the rule. That is what makes a `fragments:` line
+safe to review: pulling a file in can never quietly lower your gate or switch a control off, and
+the worst it can do is add suppressions, which are individually attributed and counted in the
+report.
+
+**A pattern that matches nothing is an error.** Somebody wrote the line on purpose, so silence
+from it is indistinguishable from a typo — and the result would be a descriptor scanning less
+than it claims. If a product genuinely has no components on one cloud, do not list that pattern.
+
+**A remote fragment must name a revision.** Defaulting to the repository's default branch would
+make your gate change with no commit in your own repository. A tag is fine; the commit it
+resolved to is recorded, so a tag that moves is visible afterwards.
+
+Fragments are files named `*.saga-fragment.yaml` (or `.yml`), with [their own
+schema](https://draugr.dev/schema/draugr.saga-fragment.schema.json) — a fragment has no
+`release:`, so validating one against the Saga's schema would report every valid fragment as
+broken. `draugr validate` checks a fragment on its own, and `draugr schema --fragment` prints the
+schema this build enforces.
+
+```bash
+draugr validate azure.saga.yaml --resolved   # the merged descriptor, with sources
+```
 
 ## `references`
 
