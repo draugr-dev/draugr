@@ -45,6 +45,39 @@ and move it under a version on release.
   how you flatten a descriptor to carry across an air gap, or commit one to diff in CI so a
   one-line `fragments:` change is reviewed by its effect rather than its cause.
 
+- **Fragments can live in another repository**, so a platform team can publish component
+  descriptions once and every product pull them in:
+
+  ```yaml
+  fragments:
+    - url: https://github.com/acme/platform.git
+      revision: v2.4.0
+      path: "components/**/draugr.saga-fragment.yaml"
+  ```
+
+  `revision` is **required** — without it your gate could change with no commit in your own
+  repository. A tag is fine: the commit it resolved to is recorded, so a tag that moves is visible
+  afterwards. Several fragments from one repository share a single clone.
+
+  Offline, an unreachable fragment is an **error**, never a quietly smaller scan. Resolve on a
+  connected machine and carry the flattened descriptor across instead —
+  `draugr validate <saga> --resolved > flat.saga.yaml` — which is reproducible as well as
+  portable.
+
+- **`draugr init --fragment`** scaffolds a fragment, naming the component after its directory —
+  the field that has to match for a component's fragments to merge into one.
+
+- **`draugr schema --fragment`** prints the fragment schema this build enforces, for pinning or
+  air-gapped editor validation.
+
+- **The report says which file suppressed what** once exclusions live in more than one place:
+
+  ```
+  3 findings suppressed — 2 from extra.saga-fragment.yaml, 1 from sup.saga.yaml — 3 accepted by …
+  ```
+
+  A descriptor that is a single file reads exactly as before.
+
 - **A published schema for fragments**, at
   `https://draugr.dev/schema/draugr.saga-fragment.schema.json` and in `draugr schema --fragment`.
   Editors validate a fragment as a fragment, and `draugr validate` checks one on its own.

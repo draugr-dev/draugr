@@ -112,7 +112,7 @@ draugr schema -o .saga.schema.json
 release: { ... }              # required
 config: { ... }               # optional — controllers, reports, and publishers
 components: [ ... ]           # the app's parts
-componentsMetaSources: [ ... ] # optional — load component defs from other repos (planned)
+fragments: [ ... ]            # optional — merge other Saga files into this one
 references: [ ... ]           # optional — links to manual/human controls
 ```
 

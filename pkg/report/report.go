@@ -588,6 +588,16 @@ func suppressionLine(d Data) string {
 		return ""
 	}
 	line := fmt.Sprintf("%s suppressed by config.exclude", plural(n, "finding"))
+	// Only named when there is more than one, so a descriptor that is a single file reads exactly
+	// as it did before fragments existed. The breakdown answers a question that only arises once
+	// the exclusions live somewhere other than the file you opened.
+	if sources := suppressionSources(d); len(sources) > 1 {
+		var where []string
+		for _, s := range sources {
+			where = append(where, fmt.Sprintf("%d from %s", s.n, s.name))
+		}
+		line = fmt.Sprintf("%s suppressed — %s", plural(n, "finding"), strings.Join(where, ", "))
+	}
 	acceptors, counts, unattributed := suppressionAttribution(d)
 
 	var parts []string
@@ -603,6 +613,37 @@ func suppressionLine(d Data) string {
 		line += " — " + strings.Join(parts, ", ")
 	}
 	return line
+}
+
+// sourceCount is one file's contribution to the suppressions in a run.
+type sourceCount struct {
+	name string
+	n    int
+}
+
+// suppressionSources counts suppressions per originating file, most first, then by name so a
+// report is reproducible.
+func suppressionSources(d Data) []sourceCount {
+	counts := map[string]int{}
+	for _, cr := range d.Run.Controls {
+		for _, res := range cr.Report.Results {
+			if res.Suppression == nil || res.Suppression.Source == "" {
+				continue
+			}
+			counts[res.Suppression.Source]++
+		}
+	}
+	out := make([]sourceCount, 0, len(counts))
+	for name, n := range counts {
+		out = append(out, sourceCount{name: name, n: n})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].n != out[j].n {
+			return out[i].n > out[j].n
+		}
+		return out[i].name < out[j].name
+	})
+	return out
 }
 
 // RepositoriesFrom collects which repository each scan read, and at which commit.

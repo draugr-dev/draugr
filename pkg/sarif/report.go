@@ -130,6 +130,13 @@ type Suppression struct {
 	// VEXJustification is why the product is not affected, from VEX's fixed vocabulary. Set
 	// only alongside a not_affected status.
 	VEXJustification string `json:"vexJustification,omitempty"`
+	// Source is the descriptor or fragment the exclusion was written in. Empty when the whole
+	// descriptor is one file, where naming it would be noise.
+	//
+	// Splitting exclusions across files is only safe if the report can still say which file
+	// authorised each one — otherwise composition trades a long descriptor for an unanswerable
+	// one, which is the worse of the two.
+	Source string `json:"source,omitempty"`
 }
 
 // Suppressed reports whether this finding was excluded by a Saga rule.

@@ -74,6 +74,27 @@ refused; on a deliberately pinned runner, raise `maxAge` so a reproducible verdi
 with a warning every run. See
 [`config.exploitability`](../reference/saga-schema.md#configexploitability).
 
+## Descriptors that name remote fragments
+
+A Saga can assemble itself from [fragments](saga-fragments.md), and a fragment held in another
+repository has to be fetched. Offline, that is refused rather than skipped — a fragment that
+cannot be read is scope the descriptor claims and the run would not have, and a scan quietly
+covering less than it says is worse than one that stops.
+
+Resolve it on a connected machine and carry the flattened descriptor across instead:
+
+```bash
+# connected
+draugr validate azure.saga.yaml --resolved > acme.flat.saga.yaml
+
+# air-gapped
+draugr scan acme.flat.saga.yaml
+```
+
+The flattened copy contains every component and exclusion the fragments contributed, with each
+remote one recorded at the commit it resolved to — so it is reproducible as well as portable, and
+the provenance survives the crossing as comments.
+
 ## Keeping it that way
 
 `--offline` is a promise you can check. Run the scan on a host with no route out and it either
