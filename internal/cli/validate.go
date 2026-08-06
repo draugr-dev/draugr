@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/sagafetch"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -59,7 +61,10 @@ func runResolved(args []string, w io.Writer) error {
 			"want, since the output is itself a descriptor and several concatenated would not be",
 			len(paths))
 	}
-	res, err := saga.ResolveFile(paths[0], nil)
+	fetcher := sagafetch.New(context.Background())
+	defer fetcher.Close()
+
+	res, err := saga.ResolveFile(paths[0], fetcher)
 	if err != nil {
 		return err
 	}
@@ -190,11 +195,14 @@ func loadAndCheck(path string) error {
 		_, err = saga.LoadFragment(data, path)
 		return err
 	}
-	model, err := saga.LoadFile(path)
+	fetcher := sagafetch.New(context.Background())
+	defer fetcher.Close()
+
+	res, err := saga.ResolveFile(path, fetcher)
 	if err != nil {
 		return err
 	}
-	return checkControlNames(builtins.Registry(), model)
+	return checkControlNames(builtins.Registry(), res.Model)
 }
 
 // isSagaFile reports whether a filename is a Saga descriptor.

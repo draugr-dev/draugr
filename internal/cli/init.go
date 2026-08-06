@@ -14,8 +14,10 @@ import (
 )
 
 type initOptions struct {
-	output string
-	force  bool
+	// fragment writes a Saga fragment rather than a Saga.
+	fragment bool
+	output   string
+	force    bool
 }
 
 func newInitCommand() *cobra.Command {
@@ -25,18 +27,28 @@ func newInitCommand() *cobra.Command {
 		Short: "Scaffold a draugr.saga.yaml for the current project",
 		Long: "Write a starter Saga for the given directory (default: the current one),\n" +
 			"detecting the stack to pre-fill sensible controls. Edit it, then `draugr scan`.\n" +
-			"For an instant scan with no file, use `draugr scan .` instead.",
+			"For an instant scan with no file, use `draugr scan .` instead.\n\n" +
+			"--fragment writes a Saga fragment instead: one component, no release and no policy,\n" +
+			"for a descriptor assembled from several files. The component takes the directory's\n" +
+			"name, which is what makes a component's fragments merge into one.\n\n" +
+			"  draugr init services/payments --fragment\n" +
+			"  draugr init services/payments --fragment -o azure.saga-fragment.yaml",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := "."
 			if len(args) == 1 {
 				dir = args[0]
 			}
+			if opts.fragment && !cmd.Flags().Changed("output") {
+				opts.output = filepath.Join(dir, "draugr.saga-fragment.yaml")
+			}
 			return runInit(dir, *opts, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "draugr.saga.yaml", "path to write the Saga (- for stdout)")
 	cmd.Flags().BoolVarP(&opts.force, "force", "f", false, "overwrite an existing file")
+	cmd.Flags().BoolVar(&opts.fragment, "fragment", false,
+		"write a Saga fragment (a component, no release or policy) instead of a Saga")
 	return cmd
 }
 
@@ -50,7 +62,11 @@ func runInit(dir string, opts initOptions, w io.Writer) error {
 	if name == "" || name == "." || name == string(filepath.Separator) {
 		name = "app"
 	}
-	saga := scaffoldSaga(dir, name)
+	body := scaffoldSaga(dir, name)
+	if opts.fragment {
+		body = scaffoldFragment(name)
+	}
+	saga := body
 
 	if opts.output == "-" {
 		_, err := io.WriteString(w, saga)
@@ -63,6 +79,15 @@ func runInit(dir string, opts initOptions, w io.Writer) error {
 	}
 	if err := os.WriteFile(opts.output, []byte(saga), 0o600); err != nil {
 		return err
+	}
+	if opts.fragment {
+		// A fragment is not scannable on its own — it has no release and no controls. Pointing at
+		// `draugr scan` here would send someone to an error the tool could have avoided.
+		_, _ = fmt.Fprintf(w, "✓ wrote %s\n\nNext, name it from a descriptor:\n"+
+			"  fragments:\n    - path: \"**/%s\"\n\n"+
+			"  draugr validate <saga> --resolved   # see the merged result\n",
+			opts.output, filepath.Base(opts.output))
+		return nil
 	}
 	_, _ = fmt.Fprintf(w, "✓ wrote %s\n\nNext:\n  draugr doctor %s   # check the scanners it needs\n  draugr scan %s\n",
 		opts.output, opts.output, opts.output)
@@ -124,5 +149,32 @@ func scaffoldSaga(dir, name string) string {
 	}
 	b.WriteString("    # hosts:            # for the headers/DAST controls\n")
 	b.WriteString("    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n")
+	return b.String()
+}
+
+// scaffoldFragment writes a starter Saga fragment for one component.
+//
+// Much smaller than a Saga's scaffold, and necessarily so: `init` detects a stack to pre-fill
+// `config.controllers`, and a fragment may not carry controllers — policy stays in the descriptor
+// that names it. What is left is the part worth automating anyway: the modeline, which is long
+// and silently wrong if mistyped, and the component name.
+//
+// The name comes from the directory because it is the field that has to match across a
+// component's fragments. A shared fragment and a per-cloud one agreeing on it is what makes them
+// merge into one component instead of two.
+func scaffoldFragment(name string) string {
+	var b strings.Builder
+	b.WriteString("# yaml-language-server: $schema=" + saga.FragmentSchemaURL + "\n")
+	b.WriteString("# A Saga fragment: merged into any descriptor whose `fragments:` matches this file.\n")
+	b.WriteString("# It may declare components and exclusions. Policy — the gate, which controls run —\n")
+	b.WriteString("# stays in the descriptor that names it, where a reviewer sees it.\n\n")
+	b.WriteString("components:\n")
+	b.WriteString("  - name: " + name + "\n")
+	b.WriteString("    # exposure and criticality belong in the shared fragment: where two fragments\n")
+	b.WriteString("    # describe one component, the first description of a field wins.\n")
+	b.WriteString("    # exposure: internal        # public | authenticated | internal | restricted\n")
+	b.WriteString("    # criticality: important    # critical | important | supporting\n")
+	b.WriteString("    repositories:\n")
+	b.WriteString("      - url: .\n")
 	return b.String()
 }

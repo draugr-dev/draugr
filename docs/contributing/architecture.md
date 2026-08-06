@@ -89,8 +89,10 @@ notApplicable:  # declared N/A controls with justification
 ```
 
 Component surface types (`repositories`, `images`, `hosts`, `infrastructure`) map to
-scanner **Target** kinds. A distributed mode (`componentsMetaSources`) lets each service
-keep its own Saga fragment next to its source and have the engine assemble them.
+scanner **Target** kinds. `fragments:` lets each service keep its own **Saga fragment** next to
+its source — locally or in another repository — and the loader assembles them before anything
+runs. Surveyors contribute the same `saga.Fragment` type through the same merge, so a discovered
+component and an authored one are folded in the same way.
 
 ---
 

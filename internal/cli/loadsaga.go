@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/sagafetch"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -185,8 +187,19 @@ func syntheticSaga(dir string) *saga.Model {
 // them), and a nudge to `draugr validate`. Commands should use this instead of saga.LoadFile
 // directly so a bad descriptor reads the same everywhere. (`draugr validate` itself calls
 // saga.LoadFile directly — it *is* the check, so the hint would be circular.)
-func loadSaga(path string) (*saga.Model, error) {
-	model, err := saga.LoadFile(path)
+func loadSaga(path string) (*saga.Model, error) { return loadSagaCtx(context.Background(), path) }
+
+// loadSagaCtx is loadSaga with a context, so fetching a remote fragment can be cancelled with the
+// rest of the run.
+func loadSagaCtx(ctx context.Context, path string) (*saga.Model, error) {
+	fetcher := sagafetch.New(ctx)
+	defer fetcher.Close()
+
+	res, err := saga.ResolveFile(path, fetcher)
+	var model *saga.Model
+	if res != nil {
+		model = res.Model
+	}
 	if err != nil {
 		// Indent the underlying (possibly multi-line, aggregated) error under the summary.
 		detail := strings.ReplaceAll(err.Error(), "\n", "\n  ")
