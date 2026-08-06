@@ -78,90 +78,14 @@ func MergeFragments(frags ...saga.Fragment) saga.Fragment {
 	var out saga.Fragment
 	for _, frag := range frags {
 		for _, comp := range frag.Components {
-			out.Components = upsertComponent(out.Components, comp)
+			out.Components = saga.UpsertComponent(out.Components, comp)
 		}
 	}
 	return out
 }
 
 // Apply merges a fragment into an existing model, upserting components by name.
-func Apply(model *saga.Model, frag saga.Fragment) {
-	for _, comp := range frag.Components {
-		model.Components = upsertComponent(model.Components, comp)
-	}
-}
-
-// upsertComponent appends comp, or unions its surface into an existing same-named one.
-func upsertComponent(components []saga.Component, comp saga.Component) []saga.Component {
-	for i := range components {
-		if components[i].Name == comp.Name {
-			components[i] = unionComponent(components[i], comp)
-			return components
-		}
-	}
-	return append(components, comp)
-}
-
-func unionComponent(a, b saga.Component) saga.Component {
-	a.Repositories = unionRepositories(a.Repositories, b.Repositories)
-	a.Images = unionImages(a.Images, b.Images)
-	a.Hosts = unionHosts(a.Hosts, b.Hosts)
-	a.Infrastructure = unionInfra(a.Infrastructure, b.Infrastructure)
-	return a
-}
-
-func unionRepositories(a, b []saga.Repository) []saga.Repository {
-	seen := make(map[string]bool)
-	for _, r := range a {
-		seen[r.URL+"@"+r.Revision] = true
-	}
-	for _, r := range b {
-		if key := r.URL + "@" + r.Revision; !seen[key] {
-			seen[key] = true
-			a = append(a, r)
-		}
-	}
-	return a
-}
-
-func unionImages(a, b []saga.Image) []saga.Image {
-	seen := make(map[string]bool)
-	for _, img := range a {
-		seen[img.Image] = true
-	}
-	for _, img := range b {
-		if !seen[img.Image] {
-			seen[img.Image] = true
-			a = append(a, img)
-		}
-	}
-	return a
-}
-
-func unionHosts(a, b []saga.Host) []saga.Host {
-	seen := make(map[string]bool)
-	for _, h := range a {
-		seen[h.URL] = true
-	}
-	for _, h := range b {
-		if !seen[h.URL] {
-			seen[h.URL] = true
-			a = append(a, h)
-		}
-	}
-	return a
-}
-
-func unionInfra(a, b []saga.Infrastructure) []saga.Infrastructure {
-	seen := make(map[string]bool)
-	for _, in := range a {
-		seen[in.Kind+"/"+in.Ref] = true
-	}
-	for _, in := range b {
-		if key := in.Kind + "/" + in.Ref; !seen[key] {
-			seen[key] = true
-			a = append(a, in)
-		}
-	}
-	return a
-}
+//
+// Delegates to saga.Merge so a surveyor's fragment and a `fragments:` entry go through one
+// merge. Two merges would eventually disagree about what a repeated component name means.
+func Apply(model *saga.Model, frag saga.Fragment) { saga.Merge(model, frag) }

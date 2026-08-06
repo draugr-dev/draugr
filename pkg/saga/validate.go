@@ -44,47 +44,7 @@ func (m *Model) Validate() error {
 
 	errs = append(errs, validateControllerKeys("", m.Config.Controllers)...)
 
-	seen := map[string]bool{}
-	for i, c := range m.Components {
-		errs = append(errs, validateControllerKeys(fmt.Sprintf("components[%d].", i), c.Controllers)...)
-		where := fmt.Sprintf("components[%d]", i)
-		if c.Name == "" {
-			errs = append(errs, fmt.Errorf("%s: name is required", where))
-		} else {
-			if seen[c.Name] {
-				errs = append(errs, fmt.Errorf("%s: duplicate component name %q", where, c.Name))
-			}
-			seen[c.Name] = true
-			where = fmt.Sprintf("component %q", c.Name)
-		}
-
-		if c.Exposure != "" && !c.Exposure.Valid() {
-			errs = append(errs, fmt.Errorf("%s: invalid exposure %q (want one of %v)", where, c.Exposure, Exposures))
-		}
-		if c.Criticality != "" && !c.Criticality.Valid() {
-			errs = append(errs, fmt.Errorf("%s: invalid criticality %q (want one of %v)", where, c.Criticality, Criticalities))
-		}
-
-		for j, r := range c.Repositories {
-			if r.URL == "" {
-				errs = append(errs, fmt.Errorf("%s: repositories[%d].url is required", where, j))
-			}
-			errs = append(errs, validateRepoScope(fmt.Sprintf("%s: repositories[%d]", where, j), r)...)
-		}
-		for j, img := range c.Images {
-			if img.Image == "" {
-				errs = append(errs, fmt.Errorf("%s: images[%d].image is required", where, j))
-			}
-			if img.Digest != "" && !validDigest(img.Digest) {
-				errs = append(errs, fmt.Errorf("%s: images[%d].digest %q must be of the form algorithm:hex (e.g. sha256:…)", where, j, img.Digest))
-			}
-		}
-		for j, h := range c.Hosts {
-			if h.URL == "" {
-				errs = append(errs, fmt.Errorf("%s: hosts[%d].url is required", where, j))
-			}
-		}
-	}
+	errs = append(errs, validateComponents(m.Components)...)
 
 	for i, r := range m.Config.Reports {
 		if r.Format == "" {
@@ -99,63 +59,8 @@ func (m *Model) Validate() error {
 			}
 		}
 	}
-	for i, e := range m.Config.Exclude {
-		where := fmt.Sprintf("config.exclude[%d]", i)
-		// Without a reason an exclusion is indistinguishable from an oversight six months on,
-		// and a reviewer has nothing to judge. It is the cheapest guard against a scanner
-		// being quietly defanged.
-		if strings.TrimSpace(e.Reason) == "" {
-			errs = append(errs, fmt.Errorf("%s: reason is required — say why this is excluded", where))
-		}
-		// A date that does not parse is worse than no date: the exclusion would keep suppressing
-		// forever while the descriptor claims it lapses, which is the belief this field exists
-		// to make true.
-		if e.Expires != "" {
-			if _, err := time.Parse(expiresLayout, e.Expires); err != nil {
-				errs = append(errs, fmt.Errorf(
-					"%s: expires must be a date as YYYY-MM-DD, got %q — an unreadable date would "+
-						"suppress indefinitely while claiming not to", where, e.Expires))
-			}
-		}
-		// Neither selector set would match every finding in the project.
-		if len(e.Paths) == 0 && len(e.Rules) == 0 {
-			errs = append(errs, fmt.Errorf("%s: set paths, rules, or both — an exclusion with neither would suppress everything", where))
-		}
-		for j, p := range e.Paths {
-			if strings.TrimSpace(p) == "" {
-				errs = append(errs, fmt.Errorf("%s: paths[%d] is empty", where, j))
-			}
-		}
-		// A VEX status is a claim a consumer acts on without reading it, so a value outside the
-		// vocabulary cannot be passed through and cannot be dropped: either would publish
-		// something other than what the descriptor says.
-		if v := e.VEX; v != nil {
-			switch {
-			case v.Status == "":
-				errs = append(errs, fmt.Errorf("%s: vex.status is required when vex is set (one of %s)",
-					where, strings.Join(VEXStatuses, ", ")))
-			case !ValidVEXStatus(v.Status):
-				hint := ""
-				if v.Status == VEXUnderInvestigation {
-					hint = " — a finding you have suppressed is one you have finished investigating; " +
-						"it is what Draugr already reports for findings nobody has triaged"
-				}
-				errs = append(errs, fmt.Errorf("%s: vex.status %q is not a status an exclusion may declare (want %s)%s",
-					where, v.Status, strings.Join(VEXStatuses, ", "), hint))
-			}
-			if v.Justification != "" {
-				if v.Status != VEXNotAffected && v.Status != "" {
-					errs = append(errs, fmt.Errorf(
-						"%s: vex.justification applies only to status %s, not %q — it answers why the "+
-							"product is unaffected", where, VEXNotAffected, v.Status))
-				} else if !ValidVEXJustification(v.Justification) {
-					errs = append(errs, fmt.Errorf(
-						"%s: vex.justification %q is not one of VEX's justifications (want %s)",
-						where, v.Justification, strings.Join(VEXJustifications, ", ")))
-				}
-			}
-		}
-	}
+	errs = append(errs, validateExclusions(m.Config.Exclude, "config.exclude")...)
+	errs = append(errs, validateFragmentRefs(m.Fragments, "fragments")...)
 
 	if x := m.Config.Exploitability; x != nil {
 		if t := x.EPSSThreshold; t != nil && (*t < 0 || *t > 1) {
@@ -172,7 +77,6 @@ func (m *Model) Validate() error {
 		// this machine does not have, which is a legitimate thing for a shared descriptor to do
 		// and a scan-time error rather than a validation one.
 	}
-
 	if s := m.Config.SBOM; s != nil && s.Format != "" && !s.Format.Valid() {
 		errs = append(errs, fmt.Errorf("config.sbom.format %q is not a known format (want one of %v)", s.Format, SBOMFormats))
 	}
@@ -274,3 +178,145 @@ func validateControllerKeys(where string, controllers map[string]ControllerSetti
 	sort.Slice(errs, func(i, j int) bool { return errs[i].Error() < errs[j].Error() })
 	return errs
 }
+
+// validateComponents checks each component's own fields, and that no two share a name.
+//
+// Shared by a Model and a Fragment, so a fragment is held to the same rules on its own as it will
+// be once merged. A fragment that only validates in context is one nobody can check.
+func validateComponents(comps []Component) []error {
+	var errs []error
+	seen := map[string]bool{}
+	for i, c := range comps {
+		errs = append(errs, validateControllerKeys(fmt.Sprintf("components[%d].", i), c.Controllers)...)
+		where := fmt.Sprintf("components[%d]", i)
+		if c.Name == "" {
+			errs = append(errs, fmt.Errorf("%s: name is required", where))
+		} else {
+			if seen[c.Name] {
+				errs = append(errs, fmt.Errorf("%s: duplicate component name %q", where, c.Name))
+			}
+			seen[c.Name] = true
+			where = fmt.Sprintf("component %q", c.Name)
+		}
+
+		if c.Exposure != "" && !c.Exposure.Valid() {
+			errs = append(errs, fmt.Errorf("%s: invalid exposure %q (want one of %v)", where, c.Exposure, Exposures))
+		}
+		if c.Criticality != "" && !c.Criticality.Valid() {
+			errs = append(errs, fmt.Errorf("%s: invalid criticality %q (want one of %v)", where, c.Criticality, Criticalities))
+		}
+
+		for j, r := range c.Repositories {
+			if r.URL == "" {
+				errs = append(errs, fmt.Errorf("%s: repositories[%d].url is required", where, j))
+			}
+			errs = append(errs, validateRepoScope(fmt.Sprintf("%s: repositories[%d]", where, j), r)...)
+		}
+		for j, img := range c.Images {
+			if img.Image == "" {
+				errs = append(errs, fmt.Errorf("%s: images[%d].image is required", where, j))
+			}
+			if img.Digest != "" && !validDigest(img.Digest) {
+				errs = append(errs, fmt.Errorf("%s: images[%d].digest %q must be of the form algorithm:hex (e.g. sha256:…)", where, j, img.Digest))
+			}
+		}
+		for j, h := range c.Hosts {
+			if h.URL == "" {
+				errs = append(errs, fmt.Errorf("%s: hosts[%d].url is required", where, j))
+			}
+		}
+	}
+	return errs
+}
+
+// validateExclusions checks an exclusion block. prefix names it, so the same errors read
+// correctly whether they came from a descriptor or from a fragment.
+func validateExclusions(rules []ExcludeRule, prefix string) []error {
+	var errs []error
+	for i, e := range rules {
+		where := fmt.Sprintf("%s[%d]", prefix, i)
+		// Without a reason an exclusion is indistinguishable from an oversight six months on,
+		// and a reviewer has nothing to judge. It is the cheapest guard against a scanner
+		// being quietly defanged.
+		if strings.TrimSpace(e.Reason) == "" {
+			errs = append(errs, fmt.Errorf("%s: reason is required — say why this is excluded", where))
+		}
+		// A date that does not parse is worse than no date: the exclusion would keep suppressing
+		// forever while the descriptor claims it lapses, which is the belief this field exists
+		// to make true.
+		if e.Expires != "" {
+			if _, err := time.Parse(expiresLayout, e.Expires); err != nil {
+				errs = append(errs, fmt.Errorf(
+					"%s: expires must be a date as YYYY-MM-DD, got %q — an unreadable date would "+
+						"suppress indefinitely while claiming not to", where, e.Expires))
+			}
+		}
+		// Neither selector set would match every finding in the project.
+		if len(e.Paths) == 0 && len(e.Rules) == 0 {
+			errs = append(errs, fmt.Errorf("%s: set paths, rules, or both — an exclusion with neither would suppress everything", where))
+		}
+		for j, p := range e.Paths {
+			if strings.TrimSpace(p) == "" {
+				errs = append(errs, fmt.Errorf("%s: paths[%d] is empty", where, j))
+			}
+		}
+		// A VEX status is a claim a consumer acts on without reading it, so a value outside the
+		// vocabulary cannot be passed through and cannot be dropped: either would publish
+		// something other than what the descriptor says.
+		if v := e.VEX; v != nil {
+			switch {
+			case v.Status == "":
+				errs = append(errs, fmt.Errorf("%s: vex.status is required when vex is set (one of %s)",
+					where, strings.Join(VEXStatuses, ", ")))
+			case !ValidVEXStatus(v.Status):
+				hint := ""
+				if v.Status == VEXUnderInvestigation {
+					hint = " — a finding you have suppressed is one you have finished investigating; " +
+						"it is what Draugr already reports for findings nobody has triaged"
+				}
+				errs = append(errs, fmt.Errorf("%s: vex.status %q is not a status an exclusion may declare (want %s)%s",
+					where, v.Status, strings.Join(VEXStatuses, ", "), hint))
+			}
+			if v.Justification != "" {
+				if v.Status != VEXNotAffected && v.Status != "" {
+					errs = append(errs, fmt.Errorf(
+						"%s: vex.justification applies only to status %s, not %q — it answers why the "+
+							"product is unaffected", where, VEXNotAffected, v.Status))
+				} else if !ValidVEXJustification(v.Justification) {
+					errs = append(errs, fmt.Errorf(
+						"%s: vex.justification %q is not one of VEX's justifications (want %s)",
+						where, v.Justification, strings.Join(VEXJustifications, ", ")))
+				}
+			}
+		}
+	}
+
+	return errs
+}
+
+// validateFragmentRefs checks the references used to pull in further fragments.
+func validateFragmentRefs(refs []FragmentRef, prefix string) []error {
+	var errs []error
+	for i, f := range refs {
+		where := fmt.Sprintf("%s[%d]", prefix, i)
+		if strings.TrimSpace(f.Path) == "" {
+			errs = append(errs, fmt.Errorf("%s: path is required — it selects which files to merge", where))
+		}
+		// A remote fragment with no revision is a gate that changes with no commit in your own
+		// repository. Refusing costs one line in the descriptor; defaulting to the default branch
+		// would make every scan quietly depend on somebody else's next push.
+		if f.Remote() && strings.TrimSpace(f.Revision) == "" {
+			errs = append(errs, fmt.Errorf(
+				"%s: revision is required when url is set — name a tag, branch or commit so the "+
+					"fragment cannot change without a change here", where))
+		}
+		if !f.Remote() && f.Revision != "" {
+			errs = append(errs, fmt.Errorf(
+				"%s: revision applies only with url — a local path is read from this checkout", where))
+		}
+	}
+	return errs
+}
+
+// joinErrs collapses a slice of problems into one error, or nil.
+func joinErrs(errs []error) error { return errors.Join(errs...) }

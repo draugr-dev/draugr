@@ -115,3 +115,50 @@ func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// FragmentSchema derives the Saga fragment's JSON Schema from the Saga's.
+//
+// Derived rather than maintained beside it, because two hand-written schemas drift — and the way
+// drift shows up here is an editor rejecting a descriptor Draugr accepts, which is exactly what
+// the checked-in-schema guard exists to prevent. Sharing `$defs` by construction means a change
+// to a component or an exclusion reaches both schemas or neither.
+//
+// The transformation is the rule "a fragment adds scope or attributed suppressions, and cannot
+// change policy", expressed so an editor can enforce it: only components, the restricted config,
+// and further fragments survive.
+func FragmentSchema(sagaJSON []byte) ([]byte, error) {
+	var doc map[string]any
+	if err := json.Unmarshal(sagaJSON, &doc); err != nil {
+		return nil, fmt.Errorf("parse schema: %w", err)
+	}
+	props, ok := doc["properties"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("schema has no properties object")
+	}
+
+	doc["$id"] = "https://draugr.dev/schema/draugr.saga-fragment.schema.json"
+	doc["title"] = "Draugr Saga fragment"
+	doc["description"] = "A partial Draugr Saga: components and exclusions merged into the " +
+		"descriptor that names it. A fragment adds scope or adds attributed suppressions; it " +
+		"cannot change policy, so it carries no release, gate or controller settings."
+	// A fragment requires nothing. One carrying only exclusions is a perfectly good fragment, and
+	// so is one carrying only components.
+	delete(doc, "required")
+
+	kept := map[string]any{}
+	for _, name := range []string{"components", "fragments"} {
+		if v, found := props[name]; found {
+			kept[name] = v
+		}
+	}
+	kept["config"] = map[string]any{"$ref": "#/$defs/fragmentConfig"}
+	doc["properties"] = kept
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(doc); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}

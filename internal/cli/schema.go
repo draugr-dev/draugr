@@ -14,6 +14,7 @@ import (
 
 func newSchemaCommand() *cobra.Command {
 	var out string
+	var fragment bool
 	cmd := &cobra.Command{
 		Use:   "schema",
 		Short: "Print the Saga JSON Schema this build enforces",
@@ -23,14 +24,20 @@ func newSchemaCommand() *cobra.Command {
 			"exactly the Draugr you have installed, and works offline or air-gapped:\n\n" +
 			"  draugr schema -o .saga.schema.json\n" +
 			"  # then in your Saga:\n" +
-			"  # yaml-language-server: $schema=./.saga.schema.json",
+			"  # yaml-language-server: $schema=./.saga.schema.json\n\n" +
+			"--fragment prints the schema for a Saga fragment instead. A fragment is a different\n" +
+			"shape — no release, and no policy — so it has a schema of its own.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			doc := saga.SchemaJSON
+			if fragment {
+				doc = saga.FragmentSchemaJSON
+			}
 			if out == "" {
-				_, err := cmd.OutOrStdout().Write(saga.SchemaJSON)
+				_, err := cmd.OutOrStdout().Write(doc)
 				return err
 			}
-			if err := os.WriteFile(out, saga.SchemaJSON, 0o600); err != nil {
+			if err := os.WriteFile(out, doc, 0o600); err != nil {
 				return fmt.Errorf("write schema: %w", err)
 			}
 			_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
@@ -39,6 +46,8 @@ func newSchemaCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&fragment, "fragment", false,
+		"print the Saga fragment schema instead of the Saga schema")
 	cmd.Flags().StringVarP(&out, "output", "o", "", "write the schema to this file instead of stdout")
 	return cmd
 }

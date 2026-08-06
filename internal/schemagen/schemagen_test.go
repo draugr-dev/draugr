@@ -150,3 +150,29 @@ func TestSchemaAllowsEveryEffectKind(t *testing.T) {
 		t.Error("allowEffects no longer requires unique items")
 	}
 }
+
+// The fragment schema is derived from the Saga's, so it can only be right if it is regenerated
+// whenever that one changes. Drift here shows up as an editor rejecting a fragment Draugr
+// accepts — the same class of problem the Saga's own guard exists to catch.
+func TestCheckedInFragmentSchemaIsUpToDate(t *testing.T) {
+	saga, err := os.ReadFile(schemaPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	regenerated, err := Apply(saga, builtins.Registry())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := FragmentSchema(regenerated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(filepath.Dir(schemaPath()), "draugr.saga-fragment.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Error("the checked-in fragment schema is not what the generator would produce — " +
+			"run `go generate ./pkg/saga/...`")
+	}
+}

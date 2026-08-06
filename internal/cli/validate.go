@@ -19,7 +19,8 @@ import (
 const sagaGlob = "*.saga.yaml"
 
 func newValidateCommand() *cobra.Command {
-	return &cobra.Command{
+	var resolved bool
+	cmd := &cobra.Command{
 		Use:   "validate [saga.yaml | glob ...]",
 		Short: "Validate one or more Saga descriptors against the schema",
 		Long: "Parse each Saga descriptor, resolve ${{ VAR }} references, and check it against\n" +
@@ -30,9 +31,42 @@ func newValidateCommand() *cobra.Command {
 			"one of them is invalid.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if resolved {
+				return runResolved(args, cmd.OutOrStdout())
+			}
 			return runValidate(args, cmd.OutOrStdout())
 		},
 	}
+	cmd.Flags().BoolVar(&resolved, "resolved", false,
+		"print the descriptor with every fragment merged, instead of validating quietly")
+	return cmd
+}
+
+// runResolved prints one descriptor as it stands after resolution.
+//
+// Deliberately one file. The output is itself a valid descriptor, and concatenating several would
+// produce a stream that is not — the one property that makes this worth piping.
+func runResolved(args []string, w io.Writer) error {
+	paths, err := resolveSagaPaths(args)
+	if err != nil {
+		return err
+	}
+	switch {
+	case len(paths) == 0:
+		return fmt.Errorf("no Saga files found (looked for %s); pass a path explicitly", sagaGlob)
+	case len(paths) > 1:
+		return fmt.Errorf("--resolved prints one descriptor, but %d matched — name the one you "+
+			"want, since the output is itself a descriptor and several concatenated would not be",
+			len(paths))
+	}
+	res, err := saga.ResolveFile(paths[0], nil)
+	if err != nil {
+		return err
+	}
+	if err := checkControlNames(builtins.Registry(), res.Model); err != nil {
+		return err
+	}
+	return printResolved(w, res)
 }
 
 // runValidate validates every Saga the arguments resolve to. Each file is reported on its own
@@ -127,8 +161,7 @@ func discoverSagas(root string) ([]string, error) {
 			}
 			return nil
 		}
-		name := d.Name()
-		if strings.HasSuffix(name, ".saga.yaml") || strings.HasSuffix(name, ".saga.yml") {
+		if name := d.Name(); isSagaFile(name) || IsFragmentFile(name) {
 			out = append(out, filepath.Clean(path))
 		}
 		return nil
@@ -146,9 +179,34 @@ func discoverSagas(root string) ([]string, error) {
 // Separate from loadSaga because validate *is* the check — loadSaga's error tells the reader to
 // run validate, which would be circular here.
 func loadAndCheck(path string) error {
+	// A fragment is checked as a fragment. Held to the Saga's rules it would fail on a missing
+	// release, which every valid fragment lacks — and a fragment that only validates once merged
+	// is one nobody can check before merging it.
+	if IsFragmentFile(filepath.Base(path)) {
+		data, err := os.ReadFile(path) //nolint:gosec // operator-provided path, by design
+		if err != nil {
+			return fmt.Errorf("read fragment %q: %w", path, err)
+		}
+		_, err = saga.LoadFragment(data, path)
+		return err
+	}
 	model, err := saga.LoadFile(path)
 	if err != nil {
 		return err
 	}
 	return checkControlNames(builtins.Registry(), model)
+}
+
+// isSagaFile reports whether a filename is a Saga descriptor.
+func isSagaFile(name string) bool {
+	return strings.HasSuffix(name, ".saga.yaml") || strings.HasSuffix(name, ".saga.yml")
+}
+
+// IsFragmentFile reports whether a filename is a Saga fragment.
+//
+// A distinct file type rather than a convention, because editors decide which schema to apply
+// from the name: the Saga schema requires a release, so a fragment named `*.saga.yaml` would be
+// flagged as invalid in every editor that reads the published catalogue.
+func IsFragmentFile(name string) bool {
+	return strings.HasSuffix(name, ".saga-fragment.yaml") || strings.HasSuffix(name, ".saga-fragment.yml")
 }

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 // scopedRepo builds a repository shaped like the monorepo the scope exists for: manifests and
@@ -200,8 +202,8 @@ func TestGlobMatch(t *testing.T) {
 		{"docs/*.md", "docs/README.md", true},
 	}
 	for _, c := range cases {
-		if got := globMatch(c.pattern, c.path); got != c.want {
-			t.Errorf("globMatch(%q, %q) = %v, want %v", c.pattern, c.path, got, c.want)
+		if got := saga.GlobMatch(c.pattern, c.path); got != c.want {
+			t.Errorf("saga.GlobMatch(%q, %q) = %v, want %v", c.pattern, c.path, got, c.want)
 		}
 	}
 }
