@@ -135,10 +135,10 @@ func log(ctx context.Context, argv []string, dir string, started time.Time, out 
 	}
 	// Stdout too, and on success as well as failure. Not every tool explains itself on stderr,
 	// and ours are deliberately configured not to fail on findings (--exit-code 0, -no-fail) —
-	// so err == nil is the normal path, and a tool that produced an empty report because it was
-	// misconfigured looked exactly like one that found nothing. Trace is the level where a
-	// reader has asked for everything; holding half of it back is what sent them to reproduce
-	// the run by hand.
+	// so err == nil is the normal path, and a tool producing an empty report because it was
+	// misconfigured looks exactly like one that found nothing. Trace is the level where a reader
+	// has asked for everything; holding half of it back leaves them reproducing the run by
+	// hand.
 	if len(out) > 0 {
 		slog.Log(ctx, observability.LevelTrace, "tool stdout",
 			"tool", argv[0], "stdout", clampForLog(string(out)))

@@ -50,10 +50,10 @@ func TestBuildFilenameOverride(t *testing.T) {
 }
 
 func TestFilenameAgreesWithWhatAPublisherDelivers(t *testing.T) {
-	// The two used to be separate tables. They agreed on five formats out of six, which is the
-	// worst possible outcome: nothing looks wrong until a pipeline globs for the sixth. Whatever
-	// `-o` writes and whatever a publisher hands to a destination have to be the same name, so
-	// the invariant is asserted per format rather than trusted.
+	// Two tables naming the same files agree until they do not, and near-agreement is the worst
+	// outcome: nothing looks wrong until a pipeline globs for the one format they differ on.
+	// Whatever `-o` writes and whatever a publisher hands to a destination have to be the same
+	// name, so the invariant is asserted per format rather than trusted.
 	for format := range reporters {
 		art, err := Build(saga.ReportConfig{Format: format}, goldenCleanData())
 		if err != nil {

@@ -90,6 +90,28 @@ in `CHANGELOG-ARCHIVE.md` — the guard already looks for that name, so archived
 checked rather than quietly dropping out of the check as they age — and add the archive to the
 release archive so the signed artifact still carries the whole record.
 
+### Writing the comment that explains a guard
+
+Everything here is world-readable — code comments, test rationale, workflow comments, config —
+and a comment saying *why* a check exists is one of the most useful things in the repository.
+Write it as **the risk the guard protects against**, not the occasion that prompted it.
+
+- No: *"the licenses control shipped without its docs and the gap reached the published site."*
+- Yes: *"a plugin with no documentation still compiles and still passes its own tests; nothing
+  looks wrong until someone goes looking for the docs."*
+
+The engineering value is in the second half, and the second half survives the rewrite intact. The
+first adds nothing a reader can act on, and a file of them reads as a defect log rather than as a
+design. It also stays true after the specific occasion is forgotten, which the other form does
+not.
+
+`scripts/check-no-defect-recounts.sh` (in `make gate` and in CI) catches the phrasings with no
+innocent reading. It cannot catch all of them, so this is a habit rather than a rule the tooling
+enforces for you.
+
+The **CHANGELOG is the exception**, and only its `### Fixed` section: users need to know what
+changed in a release, described as the fix rather than as the blunder.
+
 ### Changing what `draugr scan` prints
 
 The console layout is quoted in several documents under `docs/`, and captured verbatim into the

@@ -82,8 +82,9 @@ func TestRunHonoursContextCancellation(t *testing.T) {
 	}
 }
 
-// A scan used to be a black box: you could see that a tool failed but not what was run, where,
-// for how long, or what the tool itself said. These assert the record that answers that.
+// Without this record a scan is a black box: you can see that a tool failed, but not what was
+// run, where, for how long, or what the tool itself said. These assert the record that answers
+// those.
 func TestLogRecordsTheCommand(t *testing.T) {
 	var buf bytes.Buffer
 	prev := slog.Default()

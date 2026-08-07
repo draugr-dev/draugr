@@ -6,10 +6,11 @@
 // wrong tool for that: it is a wall of findings, it is two hundred kilobytes, it does not scale
 // with the reader's zoom, and nothing in it can be selected or indexed.
 //
-// Text solves all of that, and used to be written by hand — which is why it drifted, ending up
-// showing a different scan from the image beside it. Generating it from the real thing is what
-// makes "sleek" and "true" stop being a trade-off: the fragment is a few hundred bytes of real
-// output, and it cannot go stale while the job that produces it keeps running.
+// Text solves all of that, and hand-written text drifts: nothing connects a fragment somebody
+// typed to the scan it claims to show, so it ends up describing a different run from the image
+// beside it. Generating it from the real thing is what makes "sleek" and "true" stop being a
+// trade-off — the fragment is a few hundred bytes of real output, and it cannot go stale while
+// the job that produces it keeps running.
 //
 // Reads a coloured scan on stdin (a PTY is required for Draugr to emit colour at all) and writes
 // the fragment on stdout.

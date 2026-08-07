@@ -98,10 +98,10 @@ jobs:
       - name: Draugr self-scan
         if: needs.changes.outputs.code == 'true'
         id: draugr
-        # This step blocks. It used to be continue-on-error, which meant the check was green
-        # whatever the scan found — a gate that cannot fail is indistinguishable from one that
-        # passed, which is the failure mode Draugr exists to prevent. It was hiding a reachable
-        # CVE in a dependency for as long as the advisory had been public.
+        # This step blocks, and must keep blocking. `continue-on-error` here would make the
+        # check green whatever the scan found, and a gate that cannot fail is indistinguishable
+        # from one that passed — the failure mode Draugr exists to prevent. It would hide a
+        # reachable CVE in a dependency for as long as nobody read the log.
         #
         # Gating on P1 rather than on any finding: P1 is "high or critical severity, weighted by
         # the component's exposure and criticality", which is the bar we ask users to hold. A

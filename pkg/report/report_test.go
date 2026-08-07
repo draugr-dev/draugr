@@ -307,8 +307,8 @@ func TestConsoleNoFindings(t *testing.T) {
 	}
 }
 
-// --min-priority used to filter only the JSON report, so the default console output silently
-// ignored it. Every human format must honour it now.
+// A filter honoured by one format and ignored by the others is a flag that does nothing where
+// the reader is most likely to be looking. Every human format has to honour it.
 func minPriorityData(band string) Data {
 	results := []sarif.Result{
 		{RuleID: "CVE-P1", Level: sarif.LevelError, Priority: "P1", Tool: "trivy"},
@@ -554,8 +554,9 @@ func TestCompactAffectsOnlyTheMachineFormats(t *testing.T) {
 	}
 }
 
-// A control that couldn't run must appear in the report. It used to vanish, so the output got
-// shorter exactly when something had gone wrong.
+// A control that couldn't run must appear in the report. Dropping it makes the output get
+// shorter exactly when something has gone wrong, which is the one time a reader is counting on
+// it to get longer.
 func TestConsoleNamesControlsThatCouldNotRun(t *testing.T) {
 	d := Data{
 		Run: engine.Result{
@@ -602,9 +603,9 @@ func TestConsoleMarksPartialControlsAsError(t *testing.T) {
 	}
 }
 
-// --min-priority used to be silently ignored by --format sarif: byte-identical output with and
-// without the flag. The machine consumer with the strongest reason to ask for "just the P1s" was
-// the one it didn't serve, and the one least able to notice.
+// A flag silently ignored by one format is byte-identical output with and without it. SARIF is
+// the worst place for that: the machine consumer with the strongest reason to ask for "just the
+// P1s" is also the one least able to notice it did not get them.
 func TestSARIFHonoursMinPriority(t *testing.T) {
 	d := minPriorityData("P2")
 	var full, filtered bytes.Buffer

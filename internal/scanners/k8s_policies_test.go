@@ -772,8 +772,9 @@ func TestPoliciesReportDeclaresWhatItSettled(t *testing.T) {
 			t.Errorf("a taxon without its scheme and revision cannot correlate: %+v", tx)
 		}
 	}
-	// 5.1.1 was decided and compliant, so it is declared but produces no finding — which is
-	// exactly the state that used to be indistinguishable from never having looked.
+	// 5.1.1 was decided and compliant, so it is declared but produces no finding. Declaring it
+	// is the whole point: without that, a check that passed and a check nobody ran look the
+	// same.
 	for _, r := range rep.Results {
 		if r.RuleID == draugrCISRulePrefix+"5.1.1" {
 			t.Error("a compliant check is not a finding")

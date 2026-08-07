@@ -78,6 +78,12 @@ jobs:
       - name: No commercial framing in tracked files
         run: ./scripts/check-public-scope.sh
 
+      # Ungated for the same reason: the comment explaining a guard is documentation, and it is
+      # as public as the docs are. Issue bodies are equally public and equally invisible to this
+      # — those stay a human's job.
+      - name: Guards explain the risk, not the incident
+        run: ./scripts/check-no-defect-recounts.sh
+
       - name: Verify formatting
         if: needs.changes.outputs.code == 'true'
         run: |

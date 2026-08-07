@@ -160,9 +160,9 @@ func TestVerdictStillFailsOnAnUnsuppressedFinding(t *testing.T) {
 	}
 }
 
-// Go randomizes map iteration, so Evaluate used to return controls in a different order on
-// different runs — which reached the console, report.json, and the markdown and HTML reports,
-// making two scans of an unchanged repository diff against each other.
+// Go randomizes map iteration, so an Evaluate that returned controls in map order would order
+// them differently on every run — reaching the console, report.json, and the markdown and HTML
+// reports, and making two scans of an unchanged repository diff against each other.
 //
 // Asserted directly rather than by evaluating twice and comparing: with a handful of controls,
 // two runs collide by chance often enough that such a test would pass most of the time and fail

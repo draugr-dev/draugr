@@ -115,9 +115,9 @@ func TestEmbeddedSchemaMatchesTheFileOnDisk(t *testing.T) {
 }
 
 func TestSchemaAllowsEveryEffectKind(t *testing.T) {
-	// The enum used to be written out beside the taxonomy, and the two drifted the moment a kind
-	// was added: the schema rejected a value the binary accepts, so an editor disagreed with
-	// Draugr about a valid descriptor. Same failure the generated control names exist to prevent.
+	// An enum written out beside the taxonomy drifts from it the moment a kind is added, and the
+	// schema then rejects a value the binary accepts — an editor disagreeing with Draugr about a
+	// descriptor that is valid. Same failure the generated control names exist to prevent.
 	data, err := os.ReadFile(schemaPath())
 	if err != nil {
 		t.Fatal(err)

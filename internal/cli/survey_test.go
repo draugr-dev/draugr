@@ -122,9 +122,9 @@ func TestSurveyCommandViaCobraListsSurveyors(t *testing.T) {
 	}
 }
 
-// The defect the rework fixes: `--github-org acme --k8s-namespace prod` used to run, apply the
-// namespace to nothing, and say nothing. Leaving a retired flag to be ignored would have
-// preserved exactly that.
+// What the subcommands exist to prevent: `--github-org acme --k8s-namespace prod` reading as a
+// valid command, applying the namespace to nothing, and saying nothing. Leaving a retired flag
+// registered and ignored would reproduce exactly that, so it errors with its replacement.
 func TestRetiredSurveyFlagsErrorWithTheirReplacement(t *testing.T) {
 	t.Parallel()
 
@@ -199,7 +199,7 @@ func TestSurveyorOptionsAreScopedToTheirSurveyor(t *testing.T) {
 		t.Error("--org must not be reachable from k8s images")
 	}
 	if repos.Flags().Lookup("namespace") != nil {
-		t.Error("--namespace must not be reachable from github repos — that was the original defect")
+		t.Error("--namespace must not be reachable from github repos — a flag accepted where it means nothing does nothing, silently")
 	}
 	// Shared output settings stay shared.
 	if repos.InheritedFlags().Lookup("output") == nil || repos.InheritedFlags().Lookup("merge") == nil {
@@ -411,8 +411,8 @@ func TestSurveyOutputIsScannable(t *testing.T) {
 }
 
 func TestSurveySummaryDescribesTheArtifact(t *testing.T) {
-	// The command's whole purpose is to write a file, and it never named it, counted what it
-	// found, or said where it went. Two testers concluded nothing had happened.
+	// The command's whole purpose is to write a file, so it has to name it, count what it
+	// found, and say where it went. Without that, silence and failure look identical.
 	model := saga.Model{Components: []saga.Component{
 		{Name: "web", Repositories: []saga.Repository{{URL: "https://git/a"}}, Hosts: []saga.Host{{URL: "https://a"}}},
 		{Name: "api", Repositories: []saga.Repository{{URL: "https://git/b"}}},

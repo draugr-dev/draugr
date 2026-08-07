@@ -467,8 +467,8 @@ func TestExploitSettingsThresholdTypedAtItsDefault(t *testing.T) {
 }
 
 func TestExploitSettingsNoFlagProvenance(t *testing.T) {
-	// A programmatic caller has no flag information. Its values must be honoured rather than
-	// silently dropped, which is what a nil setFlags used to mean.
+	// A programmatic caller has no flag information, so a nil setFlags cannot mean "the caller
+	// set nothing" — its values have to be honoured rather than silently dropped.
 	got := exploitSettings(scanOptions{kevFile: "/tmp/kev.json", epssThreshold: 0.3}, nil)
 	if got.kev != "/tmp/kev.json" || got.threshold != 0.3 {
 		t.Errorf("programmatic options were dropped: %+v", got)
