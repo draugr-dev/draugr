@@ -70,6 +70,19 @@ cmd_next() {
 		;;
 	esac
 
+	# Refuse rather than guess. A heading nobody recognises is invisible to the rule below, so
+	# `### Improvements` holding a new capability derives a patch — the version is wrong, the tag
+	# is wrong, and nothing about either says so. `check` catches the heading, but this must not
+	# depend on somebody having run it first.
+	local heading
+	while IFS= read -r heading; do
+		heading="${heading#\#\#\# }"
+		case " ${SECTIONS[*]} " in
+		*" $heading "*) ;;
+		*) die "[Unreleased] has '### $heading', which is not a Keep a Changelog heading (want: ${SECTIONS[*]}). Run './scripts/changelog.sh check'." ;;
+		esac
+	done < <(printf '%s\n' "$body" | grep '^### ' || true)
+
 	local previous major minor patch
 	previous=$(grep -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' "$FILE" | head -1 | tr -d '#[] ')
 	[ -n "$previous" ] || die "no released section in $FILE to count from"

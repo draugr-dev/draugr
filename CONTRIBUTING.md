@@ -48,7 +48,8 @@ echo "- **What you can now do.**" | ./scripts/changelog.sh add fixed
 sections it accepts are Added, Changed, Deprecated, Removed, Fixed and Security; `### Fix` reads
 fine and lands nowhere the release notes look.
 
-**What `make changelog` catches.** Every one of these produces a file that looks right:
+**What `make changelog` catches** — it runs in `make gate` and in CI, so a heading nobody
+recognises never reaches `main`. Every one of these produces a file that looks right:
 
 - **Two `### Fixed` blocks under one version.** The published notes contain whichever the
   extractor reaches first, and there is no way to tell from the release page that half is missing.
