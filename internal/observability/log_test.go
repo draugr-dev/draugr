@@ -220,3 +220,127 @@ func TestTraceLevel(t *testing.T) {
 		t.Errorf("debug should not emit trace records: %q", quiet.String())
 	}
 }
+
+func TestConsoleHandlerRendersAStreamAsABlock(t *testing.T) {
+	// A tool's whole stdout arriving as one quoted attribute is the thing this handler exists
+	// not to do: the escapes are the unreadable part, and trace is reached by someone at a
+	// terminal trying to see what a scanner said.
+	var buf bytes.Buffer
+	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, false)
+	slog.New(h).Log(t.Context(), LevelTrace, "tool stdout", "tool", "trivy", "stdout", "{\n  \"a\": 1\n}\n")
+	s := buf.String()
+
+	if strings.Contains(s, `\n`) {
+		t.Errorf("a relayed stream must not be escaped onto one line:\n%s", s)
+	}
+	for _, want := range []string{"┌ stdout", "│ {", `│   "a": 1`, "│ }", "└"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("block missing %q:\n%s", want, s)
+		}
+	}
+	// The record's own line still carries its single-valued attributes, so it stays greppable.
+	if !strings.Contains(s, "tool stdout tool=trivy\n") {
+		t.Errorf("the record line should be intact above the block:\n%s", s)
+	}
+}
+
+func TestConsoleHandlerLeavesSingleLineValuesInline(t *testing.T) {
+	// Multi-line is the test for a stream, so a value that fits on a line is still a value.
+	var buf bytes.Buffer
+	h := newConsoleHandler(&buf, nil, false)
+	slog.New(h).Info("ran", "argv", "trivy fs --quiet .")
+	s := buf.String()
+	if strings.Contains(s, "┌") {
+		t.Errorf("a single-line value is not a stream:\n%s", s)
+	}
+	if !strings.Contains(s, `argv="trivy fs --quiet ."`) {
+		t.Errorf("a value with spaces is quoted inline:\n%s", s)
+	}
+}
+
+func TestConsoleHandlerStreamSurvivesNoColor(t *testing.T) {
+	// Colour changes the rendering, never the text: the plain block and the coloured one must
+	// carry identical content, or grepping trace output stops working when a terminal is
+	// attached.
+	const body = "line one\nline two"
+	render := func(color bool) string {
+		var buf bytes.Buffer
+		h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, color)
+		slog.New(h).Log(t.Context(), LevelTrace, "tool stderr", "stderr", body)
+		return buf.String()
+	}
+	plain, colored := render(false), stripANSI(render(true))
+	if plain != colored {
+		t.Errorf("colour changed the text:\nplain:   %q\ncoloured:%q", plain, colored)
+	}
+}
+
+// stripANSI removes SGR escape sequences, so a coloured render can be compared with a plain one.
+func stripANSI(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); {
+		if s[i] == 0x1b && i+1 < len(s) && s[i+1] == '[' {
+			j := i + 2
+			for j < len(s) && s[j] != 'm' {
+				j++
+			}
+			i = j + 1
+			continue
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+	return b.String()
+}
+
+func TestConsoleHandlerWeightsTheMessageAboveEverythingElse(t *testing.T) {
+	// The message is what a reader scans for in a dense debug stream, so it is the one part of
+	// the line rendered stronger than plain rather than weaker.
+	var buf bytes.Buffer
+	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}, true)
+	slog.New(h).Debug("ran external tool", "tool", "trivy")
+	s := buf.String()
+	if !strings.Contains(s, "\x1b["+string(tui.StyleStrong)+"mran external tool\x1b[0m") {
+		t.Errorf("the message should carry the strong style: %q", s)
+	}
+	if !strings.Contains(s, "\x1b["+string(tui.StyleMuted)+"mtool=") {
+		t.Errorf("attribute keys stay dimmed: %q", s)
+	}
+}
+
+func TestConsoleHandlerColorsTheLineWorthFinding(t *testing.T) {
+	// Every line in a debug stream looks alike, and the one worth finding is nearly always the
+	// one carrying an error or a non-zero exit.
+	for _, tc := range []struct {
+		name    string
+		attrs   []any
+		colored bool
+	}{
+		{"an error value", []any{"error", "connection refused"}, true},
+		{"the short spelling", []any{"err", "connection refused"}, true},
+		{"a failing exit code", []any{"exit_code", 1}, true},
+		{"a successful one", []any{"exit_code", 0}, false},
+		{"an ordinary value", []any{"duration", "41ms"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}, true)
+			slog.New(h).Debug("ran external tool", tc.attrs...)
+			got := strings.Count(buf.String(), "\x1b["+string(tui.StyleFail)+"m") > 0
+			if got != tc.colored {
+				t.Errorf("fail style present = %v, want %v: %q", got, tc.colored, buf.String())
+			}
+		})
+	}
+}
+
+func TestConsoleHandlerSeparatesTraceFromDebug(t *testing.T) {
+	// A trace run carries both levels, and the relayed streams are what a reader is scrolling
+	// past to reach the record they want — so trace is the quieter of the two.
+	if levelColor(LevelTrace) == levelColor(slog.LevelDebug) {
+		t.Error("trace and debug rendering identically makes a trace run one flat block")
+	}
+	if levelColor(LevelTrace) != tui.StyleMuted {
+		t.Errorf("trace should be the quietest level, got %q", levelColor(LevelTrace))
+	}
+}

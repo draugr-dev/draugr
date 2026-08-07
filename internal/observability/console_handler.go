@@ -15,9 +15,18 @@ import (
 //
 //	15:04:05 LEVEL  message key=value key2="a value"
 //
-// It colorizes the level and dims timestamps and attribute keys when color is enabled. It's a
-// deliberately small handler for interactive use; JSON remains the format for machine and
-// observability pipelines.
+// Four weights, so the shape of a line is readable before its content: the message strongest
+// because it is what a reader scans for, the level coloured, timestamps and attribute keys
+// dimmed, values plain — and an error or a non-zero exit coloured, because in a dense debug
+// stream that is the line worth finding.
+//
+// A multi-line value is a relayed program output rather than a value, and is rendered as an
+// indented block beneath the record instead of a quoted attribute. Colour never changes the
+// text, only its rendering, so a record stays greppable and NO_COLOR output stays identical
+// minus the escapes.
+//
+// A deliberately small handler for interactive use; JSON remains the format for machine and
+// observability pipelines, and is not affected by any of this.
 type consoleHandler struct {
 	opts         slog.HandlerOptions
 	mu           *sync.Mutex
@@ -58,14 +67,28 @@ func (h *consoleHandler) Handle(_ context.Context, r slog.Record) error {
 	}
 	buf = h.paint.Append(buf, levelColor(r.Level), levelLabel(r.Level))
 	buf = append(buf, ' ', ' ')
-	buf = append(buf, r.Message...)
+	// The message is what a reader scans for, so it is the one part of the line rendered
+	// stronger than plain rather than weaker. Bold is deliberate over a colour: debug output is
+	// already carrying level colours, and a fourth hue would compete with them for a job that
+	// weight does better.
+	buf = h.paint.Append(buf, tui.StyleStrong, r.Message)
 
+	// Streams are collected rather than rendered inline: a tool's whole stdout as a quoted
+	// attribute is the thing this handler exists not to do.
+	var streams []slog.Attr
 	buf = append(buf, h.preformatted...)
 	r.Attrs(func(a slog.Attr) bool {
+		if isStream(a) {
+			streams = append(streams, a)
+			return true
+		}
 		buf = h.appendAttr(buf, a, h.groupPrefix)
 		return true
 	})
 	buf = append(buf, '\n')
+	for _, a := range streams {
+		buf = h.appendStream(buf, a)
+	}
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -133,7 +156,56 @@ func (h *consoleHandler) appendAttr(buf []byte, a slog.Attr, prefix string) []by
 	if strings.ContainsAny(val, " \t\n\"") {
 		val = strconv.Quote(val)
 	}
-	return append(buf, val...)
+	return h.paint.Append(buf, valueStyle(a), val)
+}
+
+// isStream reports whether an attribute is a relayed program output rather than a value.
+//
+// Multi-line is the test, and it is the honest one: a value that spans lines cannot be rendered
+// on a line. Naming the keys instead would work for the two Draugr emits today and be wrong for
+// the next one.
+func isStream(a slog.Attr) bool {
+	return a.Value.Kind() == slog.KindString && strings.Contains(a.Value.String(), "\n")
+}
+
+// appendStream renders a relayed stream as an indented block beneath its record.
+//
+// The escapes are the unreadable part. A tool's stdout arriving as one quoted attribute is
+// correct for --log-format json and wrong for the case a reader reaches trace in, which is
+// sitting at a terminal trying to see what a scanner said. json and text are untouched: they
+// have their own handlers, and this is the human one.
+func (h *consoleHandler) appendStream(buf []byte, a slog.Attr) []byte {
+	body := strings.TrimRight(a.Value.String(), "\n")
+	buf = append(buf, ' ', ' ')
+	buf = h.paint.Append(buf, tui.StyleMuted, "┌ "+h.groupPrefix+a.Key)
+	buf = append(buf, '\n')
+	for line := range strings.SplitSeq(body, "\n") {
+		buf = append(buf, ' ', ' ')
+		buf = h.paint.Append(buf, tui.StyleMuted, "│ ")
+		buf = append(buf, line...)
+		buf = append(buf, '\n')
+	}
+	buf = append(buf, ' ', ' ')
+	buf = h.paint.Append(buf, tui.StyleMuted, "└")
+	return append(buf, '\n')
+}
+
+// valueStyle picks the weight for an attribute's value.
+//
+// Only failure is called out, and only on keys Draugr itself chooses. In a debug stream every
+// line looks alike, and the one worth finding is nearly always the one carrying an error or a
+// non-zero exit — so those are the values that get a colour, and everything else stays plain.
+// A rule that guessed from the value's shape would colour a tool's own prose.
+func valueStyle(a slog.Attr) tui.Style {
+	switch a.Key {
+	case "error", "err":
+		return tui.StyleFail
+	case "exit_code":
+		if a.Value.String() != "0" {
+			return tui.StyleFail
+		}
+	}
+	return tui.StyleNone
 }
 
 // levelLabel returns a fixed-width (5-char) label so records align in a column.
@@ -156,8 +228,12 @@ func levelLabel(l slog.Level) string {
 // as a warning anywhere else Draugr writes.
 func levelColor(l slog.Level) tui.Style {
 	switch {
-	case l < slog.LevelInfo:
+	// Trace is quieter than debug because it is noisier: a trace run carries both, and the
+	// relayed streams are the part a reader is scrolling past to reach the record they want.
+	case l < slog.LevelDebug:
 		return tui.StyleMuted
+	case l < slog.LevelInfo:
+		return tui.StyleNone
 	case l < slog.LevelWarn:
 		return tui.StylePass
 	case l < slog.LevelError:

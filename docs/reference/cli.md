@@ -53,8 +53,31 @@ scanner printed, verbatim, along with the exact argv Draugr ran:
 draugr scan . --log-level trace 2>trace.log
 ```
 
+A relayed stream is printed as a block rather than escaped onto one line, so it reads the way the
+tool wrote it:
+
+```console
+10:35:10 TRACE  tool stdout tool=trivy
+  ┌ stdout
+  │ {
+  │   "version": "2.1.0",
+  │   "runs": [
+  …
+  └
+```
+
 Verbose by design — reach for it when the summarised line hasn't answered the question. Logs go
 to stderr, so `2>trace.log` keeps them out of a report on stdout.
+
+**Reading a dense log.** The `console` format gives each part of a record its own weight, so the
+shape of a line is legible before its content: the **message** strongest, because it is what you
+scan for; the level coloured; timestamps and attribute keys dimmed; values plain. An `error` or a
+non-zero `exit_code` is coloured too — in a few hundred debug lines that is nearly always the one
+worth finding.
+
+Colour changes the rendering and never the text, so records stay greppable. `NO_COLOR=1`, a pipe
+or a redirect give the same output without the escapes, and `--log-format json` is unaffected by
+all of it.
 
 Logs go to **stderr**, so they never pollute a machine-readable report on stdout.
 
