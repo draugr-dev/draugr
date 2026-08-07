@@ -207,7 +207,8 @@ func loadSagaCtx(ctx context.Context, path string) (*saga.Model, error) {
 			path, detail, path)
 	}
 	// Checked here rather than in pkg/saga: only the registry knows what this build can run, and
-	// pkg/saga cannot import it without a cycle. That is also why the schema had drifted.
+	// pkg/saga cannot import it without a cycle — which is also why the schema's control list is
+	// generated from the registry rather than written beside it.
 	if err := checkControlNames(builtins.Registry(), model); err != nil {
 		return nil, fmt.Errorf("%q names a control Draugr cannot run:\n  %s",
 			path, strings.ReplaceAll(err.Error(), "\n", "\n  "))

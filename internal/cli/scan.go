@@ -62,6 +62,8 @@ type scanOptions struct {
 	noPublish       bool
 	top             int
 	noTips          bool
+	components      []string
+	controls        []string
 	allowScanErrors bool
 	compact         bool
 }
@@ -117,6 +119,10 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")
 	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the ranked table (0 = all)")
 	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false, "suppress the console's contextual tips (also DRAUGR_NO_TIPS)")
+	cmd.Flags().StringSliceVar(&opts.components, "components", nil,
+		"scan only these components; the verdict says what it covered")
+	cmd.Flags().StringSliceVar(&opts.controls, "controls", nil,
+		"run only these controls; the verdict says what it covered")
 	cmd.Flags().BoolVar(&opts.allowScanErrors, "allow-scan-errors", false,
 		"treat a control that couldn't run as a warning rather than a failure (best-effort scanning)")
 	cmd.Flags().BoolVar(&opts.compact, "compact", false,
@@ -150,6 +156,18 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		return err
 	}
 	cacheOptionsFrom(&opts, cacheCfg)
+
+	// Validated before anything runs, and against this descriptor. A misspelled name matches
+	// nothing, scans nothing, and passes — the "we did not look" verdict the scope is otherwise
+	// careful not to produce, reached by typo.
+	scope := engine.Scope{Components: opts.components, Controls: opts.controls}
+	if err := scope.Validate(*model, controlNames(reg)); err != nil {
+		return err
+	}
+	// Resolved once, here, where the descriptor is: everything downstream reads what was left out
+	// off the scope rather than needing the descriptor again. A rendered report knows what ran,
+	// not what was declared.
+	scope = scope.Resolve(*model)
 
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
 	if err != nil {
@@ -214,6 +232,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if opts.workingTree {
 		eopts = append(eopts, engine.WithWorkingTree())
 	}
+	if !scope.Empty() {
+		eopts = append(eopts, engine.WithScope(scope))
+	}
 
 	// One checkout per repository for this run, shared by every scanner that asks for the same
 	// one. Owned by the invocation rather than the engine: the lifetime is this run's, and
@@ -238,7 +259,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		FailOnPriority: failOnPriority,
 	}
 	verdict := policy.Evaluate(reports)
-	components, unattributed := componentVerdicts(policy, model, reports)
+	components, unattributed := componentVerdicts(policy, model, reports, scope)
 	// A control that couldn't run didn't find nothing — it found out nothing. Reporting that as
 	// a pass makes the gate a false negative exactly when it matters: in CI, where a scanner
 	// failing to provision is the common case and the warning scrolls past unread.
@@ -273,6 +294,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		TopN:                 fixFirstLimit(opts.top),
 		Compact:              opts.compact,
 		Components:           components,
+		Scope:                reportScope(scope),
 		UnattributedFindings: unattributed,
 		Exploitability:       feedProv,
 		Tools:                toolBuilds(run),
@@ -514,7 +536,7 @@ func splitScanErrors(scanErrors map[string][]string) (unwaived, waived []string)
 // Findings with no component come from project-scoped controls (infrastructure). They are
 // counted rather than assigned: a breakdown that quietly omits them makes the parts look like
 // the whole.
-func componentVerdicts(policy norn.Policy, model *saga.Model, reports map[string]sarif.Report) ([]report.ComponentVerdict, int) {
+func componentVerdicts(policy norn.Policy, model *saga.Model, reports map[string]sarif.Report, scope engine.Scope) ([]report.ComponentVerdict, int) {
 	if model == nil || len(model.Components) < 2 {
 		// One component repeats what the headline already said. The breakdown exists to tell
 		// components apart, and there is nothing to tell apart.
@@ -541,13 +563,19 @@ func componentVerdicts(policy norn.Policy, model *saga.Model, reports map[string
 			byComponent[res.Component][control] = r
 		}
 	}
-	// Every declared component gets a row, including the ones with nothing against them. A
-	// clean component is the answer someone can take back to their team, and building the list
-	// from the findings would have dropped exactly those.
+	// Every declared component *that ran* gets a row, including the ones with nothing against
+	// them. A clean component is the answer someone can take back to their team, and building
+	// the list from the findings would drop exactly those.
+	//
+	// A component the scope left out is not one of them, and must not appear here as passing:
+	// nothing looked at it, so a `pass` beside its name would be the report asserting something
+	// no scanner established. It is listed separately as `not scanned`.
 	out := make([]report.ComponentVerdict, 0, len(model.Components))
 	names := make([]string, 0, len(model.Components))
 	for _, c := range model.Components {
-		names = append(names, c.Name)
+		if scope.IncludesComponent(c.Name) {
+			names = append(names, c.Name)
+		}
 	}
 	sort.Strings(names)
 	for _, name := range names {
@@ -725,4 +753,20 @@ func checkWorkingTree(enabled bool, model *saga.Model) error {
 			strings.Join(remote, ", "), plural2(len(remote), "is", "are"))
 	}
 	return nil
+}
+
+// reportScope describes a scoped run for the report, and returns nil for an unscoped one.
+//
+// nil rather than an empty struct so an unscoped report renders and serialises exactly as it
+// always has. The presence of a scope is the signal, and inventing an empty one for every run
+// would turn that signal into a field consumers have to interpret.
+func reportScope(scope engine.Scope) *report.Scope {
+	if scope.Empty() {
+		return nil
+	}
+	return &report.Scope{
+		Components:        scope.Components,
+		Controls:          scope.Controls,
+		SkippedComponents: scope.SkippedComponents,
+	}
 }

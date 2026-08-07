@@ -217,3 +217,106 @@ func TestMergedSARIFOrders(t *testing.T) {
 		t.Fatalf("want 2 results, got %d", len(merged.Results))
 	}
 }
+
+func TestScopeProvenanceAndBack(t *testing.T) {
+	// The two halves have to agree, because one writes what the other reads: a scope written in
+	// a shape the reader does not recognise is a scoped report that looks unscoped, which is the
+	// failure the stamp exists to prevent.
+	for _, tc := range []struct {
+		name  string
+		scope engine.Scope
+		want  string
+	}{
+		{"components only", engine.Scope{Components: []string{"app", "api"}}, "components=app,api"},
+		{"controls only", engine.Scope{Controls: []string{"sca"}}, "controls=sca"},
+		{"both", engine.Scope{Components: []string{"app"}, Controls: []string{"sca", "secrets"}},
+			"components=app controls=sca,secrets"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			prov, ok := ScopeProvenance(tc.scope)
+			if !ok {
+				t.Fatal("a non-empty scope has something to say")
+			}
+			got, scoped := ScopeOfReport(sarif.Report{Provenance: []sarif.Provenance{prov}})
+			if !scoped || got != tc.want {
+				t.Errorf("got %q (scoped=%v), want %q", got, scoped, tc.want)
+			}
+		})
+	}
+}
+
+func TestScopeProvenanceSaysNothingForAnUnscopedRun(t *testing.T) {
+	// Nearly every run. Stamping an empty scope would make the marker meaningless — every
+	// report would carry one, and a consumer could no longer tell by its presence.
+	if _, ok := ScopeProvenance(engine.Scope{}); ok {
+		t.Error("an unscoped run stamps nothing")
+	}
+	if got, scoped := ScopeOfReport(sarif.Report{}); scoped || got != "" {
+		t.Errorf("a report with no stamp is unscoped, got %q (scoped=%v)", got, scoped)
+	}
+}
+
+func TestScopeOfReportIgnoresOtherToolsProvenance(t *testing.T) {
+	// Scanners write provenance too — a benchmark, a coverage figure. Reading one of those as a
+	// scope would make an ordinary report look partial.
+	rep := sarif.Report{Provenance: []sarif.Provenance{
+		{Tool: "kube-bench", Fields: []sarif.Field{{Key: "benchmark", Value: "cis-1.9"}}},
+	}}
+	if got, scoped := ScopeOfReport(rep); scoped {
+		t.Errorf("another tool's provenance is not a scope: %q", got)
+	}
+}
+
+func TestMergedSARIFStampsAScopedRun(t *testing.T) {
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{
+			"sca": {Report: sarif.Report{Results: []sarif.Result{{RuleID: "R"}}}},
+		},
+		Scope: engine.Scope{Components: []string{"app"}},
+	}
+	if got, scoped := ScopeOfReport(MergedSARIF(run)); !scoped || got != "components=app" {
+		t.Errorf("the merged report should carry the scope, got %q (scoped=%v)", got, scoped)
+	}
+
+	run.Scope = engine.Scope{}
+	if _, scoped := ScopeOfReport(MergedSARIF(run)); scoped {
+		t.Error("an unscoped run's SARIF must be exactly what it always was")
+	}
+}
+
+func TestJSONReportCarriesTheScope(t *testing.T) {
+	var b bytes.Buffer
+	run := engine.Result{Scope: engine.Scope{
+		Components: []string{"app"}, SkippedComponents: []string{"frontend"},
+	}}
+	if err := RenderJSON(&b, saga.Release{Name: "r", Version: "1"}, run, norn.Result{Verdict: norn.Pass}, ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Scope *struct {
+			Components        []string `json:"components"`
+			SkippedComponents []string `json:"skippedComponents"`
+		} `json:"scope"`
+	}
+	if err := json.Unmarshal(b.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Scope == nil {
+		t.Fatalf("a scoped run's report must say so:\n%s", b.String())
+	}
+	if len(doc.Scope.Components) != 1 || doc.Scope.Components[0] != "app" {
+		t.Errorf("components: %+v", doc.Scope)
+	}
+	if len(doc.Scope.SkippedComponents) != 1 || doc.Scope.SkippedComponents[0] != "frontend" {
+		t.Errorf("skipped: %+v", doc.Scope)
+	}
+
+	// And an unscoped run has no such field, so the presence of one is what carries the meaning.
+	b.Reset()
+	if err := RenderJSON(&b, saga.Release{Name: "r", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), `"scope"`) {
+		t.Errorf("an unscoped report should carry no scope field:\n%s", b.String())
+	}
+}

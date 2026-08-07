@@ -181,6 +181,52 @@ is gated on the run it is about, and none of them affects the verdict:
 At most two per run, highest-consequence first — a block of five is one nobody reads. `--no-tips`
 or `DRAUGR_NO_TIPS=1` silences them, as it does the surface note.
 
+### Scoping a run
+
+`--components` and `--controls` narrow a run without touching the descriptor — for iterating on
+one failing component, or debugging one control, without waiting for the rest:
+
+```bash
+draugr scan --components app,frontend
+draugr scan --controls sca
+draugr scan --components app --controls sca --log-level debug
+```
+
+They are a **view over one run**, not a decision. `config.controllers` records that a project does
+not need `dast`; editing it to debug is how a temporary change gets committed.
+
+**A scoped run still gates**, because answering "is my fix good?" with "no verdict" would send you
+back to a full scan and make the flags useless for the loop they exist for. What it never does is
+look like an unscoped run:
+
+```
+Draugr — FAIL   (multi 1.0.0)   (scope: 1 of 3 components; sca)
+
+Components:
+  app       FAIL   P1 9  P2 8  P3 1  sca
+  frontend  not scanned  (--components)
+  payments  not scanned  (--components)
+```
+
+Skipped components are **listed, not omitted** — a component absent from the breakdown renders
+identically to one that passed.
+
+The scope travels into the artifacts too, so a consumer that never saw the command can still tell
+a partial answer from a whole one. `report.json` gains a `scope` object, and the SARIF carries it
+as run provenance. Both are absent on an unscoped run, so their presence is the signal.
+
+**[`draugr diff`](#draugr-diff-basesarif-headsarif) refuses reports of different scope.** Every
+finding in the base and absent from the head is reported as *fixed* — correct when both scans
+looked at the same things, and confidently wrong when one was scoped. Two runs of the same scope
+compare normally.
+
+A name that matches nothing is an **error**, not an empty scan: `--components frontnd` scanning
+nothing and passing is the same "we did not look" verdict in miniature. The message lists what the
+descriptor actually declares.
+
+These change **what runs**. [`--min-priority`](#what---min-priority-narrows) changes what is
+*printed* from a full run — the two read alike and only one of them changes the verdict.
+
 **Zero-config.** A directory with no descriptor is scanned with `sca`, `secrets`, `sast`
 and `iac` — no Saga required.
 A one-line note is printed to stderr so machine formats on stdout stay clean. A Saga **file**
@@ -215,6 +261,8 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
 | `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding |
 | `--no-tips` | `false` | Suppress the console's contextual tips (also `DRAUGR_NO_TIPS`) |
+| `--components` | — | Scan only these components; the verdict says what it covered |
+| `--controls` | — | Run only these controls; the verdict says what it covered |
 | `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything |
 | `--compact` | `false` | Strip indentation and rule documentation from `json`/`sarif` output. For a consumer that acts on the report rather than reads it — see [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
 

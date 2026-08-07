@@ -14,6 +14,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 type diffOptions struct {
@@ -67,6 +68,10 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	head, err := loadSARIF(headPath)
 	if err != nil {
 		return fmt.Errorf("head report: %w", err)
+	}
+
+	if err := comparableScopes(basePath, base, headPath, head); err != nil {
+		return err
 	}
 
 	result := diff.Compare(base, head)
@@ -130,4 +135,32 @@ func loadSARIF(path string) (sarif.Report, error) {
 		return sarif.Report{}, err
 	}
 	return sarif.FromSARIF(data)
+}
+
+// comparableScopes refuses to compare two reports that did not cover the same ground.
+//
+// Every finding present in the base and absent from the head is reported as fixed. That is
+// correct when both scans looked at the same things, and confidently wrong when one of them was
+// scoped: a diff of a one-component head against a twelve-component base announces that eleven
+// components' worth of findings were resolved, and a gate on new findings passes it.
+//
+// Refusing rather than warning, because the failure is silent and the output is not obviously
+// wrong — it is a list of fixes, which is the thing a reader was hoping to see. A warning above
+// a plausible answer is a warning that gets read after the decision.
+func comparableScopes(basePath string, base sarif.Report, headPath string, head sarif.Report) error {
+	baseScope, baseScoped := skald.ScopeOfReport(base)
+	headScope, headScoped := skald.ScopeOfReport(head)
+	if baseScope == headScope {
+		return nil
+	}
+	describe := func(path, scope string, scoped bool) string {
+		if !scoped {
+			return path + " covered everything the descriptor declares"
+		}
+		return path + " was scoped to " + scope
+	}
+	return fmt.Errorf("these reports do not describe the same scan:\n  %s\n  %s\n"+
+		"a finding the head did not look for would be reported as fixed — re-run the scoped side "+
+		"unscoped, or scope both the same way",
+		describe(basePath, baseScope, baseScoped), describe(headPath, headScope, headScoped))
 }

@@ -707,3 +707,46 @@ func TestSARIFOmitsEmptyProvenance(t *testing.T) {
 		t.Error("a run with nothing to say must not carry an empty property bag")
 	}
 }
+
+func TestProvenanceSurvivesASARIFRoundTrip(t *testing.T) {
+	// A consumer that reloads a report has to be able to tell a scan of everything from a scan
+	// of part of it, and the results alone never say which it was. Writing provenance and not
+	// reading it back would be the same as not writing it.
+	in := Report{Tool: "draugr", Results: []Result{{RuleID: "R", Level: LevelError}},
+		Provenance: []Provenance{{
+			Tool:    "draugr/scope",
+			Version: "1.2.3",
+			Fields:  []Field{{Key: "components", Value: "app"}, {Key: "controls", Value: "sca"}},
+		}}}
+	data, err := in.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Provenance) != 1 {
+		t.Fatalf("want one provenance entry, got %d: %+v", len(out.Provenance), out.Provenance)
+	}
+	got := out.Provenance[0]
+	if got.Tool != "draugr/scope" || got.Version != "1.2.3" {
+		t.Errorf("tool/version lost: %+v", got)
+	}
+	// Sorted: the bag is a JSON object, whose key order is not something a consumer may rely on,
+	// so two loads of one file have to agree.
+	want := []Field{{Key: "components", Value: "app"}, {Key: "controls", Value: "sca"}}
+	if !reflect.DeepEqual(got.Fields, want) {
+		t.Errorf("got %+v, want %+v", got.Fields, want)
+	}
+}
+
+func TestFromSARIFWithoutProvenanceCarriesNone(t *testing.T) {
+	out, err := FromSARIF([]byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"t"}},"results":[]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Provenance) != 0 {
+		t.Errorf("nothing to read back: %+v", out.Provenance)
+	}
+}

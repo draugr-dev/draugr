@@ -772,7 +772,7 @@ func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
 			{RuleID: "cis/5.1.1", Level: sarif.LevelWarning}, // project-scoped: no component
 		}},
 	}
-	got, unattributed := componentVerdicts(policy, model, reports)
+	got, unattributed := componentVerdicts(policy, model, reports, engine.Scope{})
 	if len(got) != 2 {
 		t.Fatalf("want a row per declared component, got %d", len(got))
 	}
@@ -798,7 +798,7 @@ func TestComponentVerdictsIncludeAComponentWithNoFindings(t *testing.T) {
 	reports := map[string]sarif.Report{"sca": {Results: []sarif.Result{
 		{RuleID: "x", Level: sarif.LevelError, Component: "a"},
 	}}}
-	got, _ := componentVerdicts(policy, model, reports)
+	got, _ := componentVerdicts(policy, model, reports, engine.Scope{})
 	if len(got) != 2 {
 		t.Fatalf("got %d rows, want both components", len(got))
 	}
@@ -816,7 +816,7 @@ func TestComponentVerdictsSkipSuppressedFindings(t *testing.T) {
 		{RuleID: "x", Level: sarif.LevelError, Component: "a",
 			Suppression: &sarif.Suppression{Kind: "external", Justification: "accepted"}},
 	}}}
-	got, _ := componentVerdicts(policy, model, reports)
+	got, _ := componentVerdicts(policy, model, reports, engine.Scope{})
 	if got[0].Findings != 0 || got[0].Verdict != norn.Pass {
 		t.Errorf("a suppressed finding must not fail its component: %+v", got[0])
 	}
@@ -825,7 +825,7 @@ func TestComponentVerdictsSkipSuppressedFindings(t *testing.T) {
 func TestComponentVerdictsAreAbsentForOneComponent(t *testing.T) {
 	policy := norn.Policy{FailOn: sarif.LevelError}
 	model := &saga.Model{Components: []saga.Component{{Name: "only"}}}
-	if got, _ := componentVerdicts(policy, model, nil); got != nil {
+	if got, _ := componentVerdicts(policy, model, nil, engine.Scope{}); got != nil {
 		t.Errorf("nothing to tell apart: %+v", got)
 	}
 }

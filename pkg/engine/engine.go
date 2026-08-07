@@ -45,6 +45,8 @@ type Engine struct {
 	sbomGen     sbom.Generator
 	// allowEffects are scanner effects accepted for this invocation, layered over the Saga's.
 	allowEffects []string
+	// scope narrows the run to named components and controls; the zero value scans everything.
+	scope Scope
 }
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
@@ -138,6 +140,11 @@ func WithoutPrewarm() Option {
 // matches.
 type RemoteResolver func(path string) string
 
+// WithScope narrows the run to named components and controls. The zero Scope scans everything.
+func WithScope(sc Scope) Option {
+	return func(e *Engine) { e.scope = sc }
+}
+
 // WithRemoteResolver names local checkouts by the repository they came from.
 func WithRemoteResolver(r RemoteResolver) Option {
 	return func(e *Engine) { e.resolveRemote = r }
@@ -198,7 +205,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 		ctrl := e.reg.controllers[name]
 		switch ctrl.Info().Scope {
 		case plugin.ScopeProject:
-			if !model.Config.ControllerEnabled(name) {
+			if !e.scope.includesControl(name) || !model.Config.ControllerEnabled(name) {
 				continue
 			}
 			jobs, err := ctrl.Plan(model, nil)
@@ -210,9 +217,12 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			errs = append(errs, verrs...)
 			planned = appendJobs(planned, name, "", "", "", e.resolveRemotes(e.markWorkingTree(jobs)))
 		case plugin.ScopeComponent:
+			if !e.scope.includesControl(name) {
+				continue
+			}
 			for i := range model.Components {
 				comp := &model.Components[i]
-				if !comp.ControllerEnabled(name, model.Config) {
+				if !e.scope.IncludesComponent(comp.Name) || !comp.ControllerEnabled(name, model.Config) {
 					continue
 				}
 				jobs, err := ctrl.Plan(model, comp)
@@ -321,6 +331,12 @@ func allowedEffects(fromSaga, fromFlag []string) map[plugin.EffectKind]bool {
 type Result struct {
 	Controls map[string]plugin.ControlResult
 	Stats    Stats
+	// Scope is what the run was narrowed to, empty when it was not narrowed at all.
+	//
+	// Carried on the result rather than left with the caller because every artifact a result
+	// becomes has to be able to say so. A scoped report.json shaped exactly like an unscoped one
+	// is a partial answer that anything downstream will read as a complete one.
+	Scope Scope
 	// Suppressed counts findings a config.exclude rule matched. They are still present in the
 	// reports, marked with their justification — this is how many stopped counting.
 	Suppressed int
@@ -668,6 +684,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res := Result{
 		Controls: make(map[string]plugin.ControlResult),
 		Stats:    stats,
+		Scope:    e.scope,
 		Effects:  dedupeEffects(effects),
 		Scanners: distinctScanners(planned),
 		SBOMs:    docs,

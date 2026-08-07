@@ -1323,3 +1323,66 @@ func TestRepositoryLineSaysWhenTheTreeIsNotReproducible(t *testing.T) {
 		t.Errorf("got %q", clean)
 	}
 }
+
+// scopedData is a two-component run where only one was scanned.
+func scopedData() Data {
+	d := goldenCleanData()
+	d.Components = []ComponentVerdict{{Name: "app", Verdict: norn.Pass}}
+	d.Scope = &Scope{Components: []string{"app"}, SkippedComponents: []string{"frontend", "payments"}}
+	return d
+}
+
+func TestConsoleQualifiesAScopedVerdict(t *testing.T) {
+	// A reader who takes one line from this report takes the verdict line, so a PASS covering a
+	// third of the release must not be readable on its own.
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, scopedData()); err != nil {
+		t.Fatal(err)
+	}
+	head, _, _ := strings.Cut(b.String(), "\n")
+	if !strings.Contains(head, "1 of 3 components") {
+		t.Errorf("the verdict line should say what it covered:\n%s", head)
+	}
+}
+
+func TestConsoleNamesComponentsThatWereNotScanned(t *testing.T) {
+	// A component absent from the breakdown renders identically to one that passed, and absence
+	// is exactly how a reader concludes there was nothing to find.
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, scopedData()); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"frontend", "payments"} {
+		if !strings.Contains(b.String(), name) {
+			t.Errorf("%q should be listed:\n%s", name, b.String())
+		}
+	}
+	if got := strings.Count(b.String(), "not scanned"); got != 2 {
+		t.Errorf("both skipped components should say why, got %d:\n%s", got, b.String())
+	}
+	// And neither may read as a pass.
+	for _, line := range strings.Split(b.String(), "\n") {
+		if strings.Contains(line, "frontend") && strings.Contains(line, "pass") {
+			t.Errorf("a component nobody scanned must not read as passing: %q", line)
+		}
+	}
+}
+
+func TestConsoleUnscopedOutputIsUnchanged(t *testing.T) {
+	// Nearly every report is unscoped, and none of them should have moved.
+	var scoped, plain bytes.Buffer
+	d := goldenCleanData()
+	if err := (consoleReporter{}).Render(&plain, d); err != nil {
+		t.Fatal(err)
+	}
+	d.Scope = nil
+	if err := (consoleReporter{}).Render(&scoped, d); err != nil {
+		t.Fatal(err)
+	}
+	if plain.String() != scoped.String() {
+		t.Error("a nil scope must render exactly as before")
+	}
+	if strings.Contains(plain.String(), "scope:") || strings.Contains(plain.String(), "not scanned") {
+		t.Errorf("an unscoped run should say nothing about scope:\n%s", plain.String())
+	}
+}

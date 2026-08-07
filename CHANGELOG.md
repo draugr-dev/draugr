@@ -27,7 +27,31 @@ and move it under a version on release.
   Appended rather than truncated, since the second run is usually the one that reproduces the
   problem. Written `0600`, never coloured. A path that cannot be opened **fails the run** instead
   of being skipped.
+- **`--components` and `--controls` scope a scan**, for iterating on one failing component or one
+  control without waiting for the rest — and without editing the descriptor, which is how a
+  temporary change gets committed:
 
+  ```bash
+  draugr scan --components app,frontend
+  draugr scan --components app --controls sca --log-level debug
+  ```
+
+  **A scoped run still gates.** Answering *"is my fix good?"* with "no verdict" would send you
+  back to a full scan. What it never does is look like an unscoped one:
+
+  ```
+  Draugr — FAIL   (multi 1.0.0)   (scope: 1 of 3 components; sca)
+
+  Components:
+    app       FAIL   P1 9  P2 8  P3 1  sca
+    frontend  not scanned  (--components)
+    payments  not scanned  (--components)
+  ```
+
+  Skipped components are listed rather than omitted, the scope is recorded in `report.json` and in
+  the SARIF, and **`draugr diff` refuses to compare runs of different scope** — every finding the
+  head did not look for would otherwise be reported as fixed. A name matching nothing is an error,
+  not an empty scan that passes.
 
 - **`draugr survey k8s` takes more than one `--namespace`.** The descriptor's
   `infrastructure.namespaces` is a list, so someone who owns three namespaces could describe that
