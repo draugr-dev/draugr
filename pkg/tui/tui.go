@@ -36,6 +36,7 @@ const (
 	StylePass     Style = "32"
 	StyleAccent   Style = "33" // draws the eye without implying severity
 	StyleMuted    Style = "2"  // supporting detail: headers, labels, units
+	StyleStrong   Style = "1"  // the part of a line to read first, at no cost in colour
 )
 
 // Painter renders styled text, or plain text when colour isn't appropriate for the destination.

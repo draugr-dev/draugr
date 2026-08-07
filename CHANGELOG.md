@@ -10,6 +10,34 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **`--log-level debug` and `--log-level trace` are readable now.** Debug output is where you go
+  when a run did something you did not expect, and it was rendered in one weight — finding the
+  line that mattered meant reading all of them.
+
+  Each part of a record now carries its own weight: the **message** strongest, because that is
+  what you scan for; the level coloured; timestamps and attribute keys dimmed; values plain. An
+  `error` or a non-zero `exit_code` is coloured, since in a few hundred debug lines that is
+  nearly always the one you are looking for.
+
+- **A relayed tool stream prints as a block, not as an escaped attribute.** At trace level a
+  scanner's whole stdout arrived as one quoted `slog` value, escapes and all — correct for
+  `--log-format json`, and the opposite of useful for the case you reach trace in:
+
+  ```console
+  10:35:10 TRACE  tool stdout tool=trivy
+    ┌ stdout
+    │ {
+    │   "version": "2.1.0",
+    …
+    └
+  ```
+
+  Colour changes the rendering and never the text, so records stay greppable; `NO_COLOR=1`, a
+  pipe or a redirect give the same output without the escapes, and `--log-format json` and `text`
+  are untouched.
+
 ### Added
 
 - **`draugr survey k8s` takes more than one `--namespace`.** The descriptor's
