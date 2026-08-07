@@ -12,7 +12,24 @@ permissions:
   contents: read
 
 jobs:
+  # Nothing is built, signed, published to the MCP Registry or rendered into the demo until the
+  # tree being tagged passes its own gate.
+  #
+  # Run against the tag rather than read off main's last push scan, which is a different commit's
+  # answer and goes stale the moment anything merges between the two. "Was this exact tree
+  # acceptable" has one honest source.
+  #
+  # Before goreleaser rather than after: tagging first and checking second publishes the artifact
+  # and then reports that it should not have been.
+  selfscan:
+    uses: ./.github/workflows/selfscan.yml
+    permissions:
+      contents: read
+      security-events: write # the Saga's `github` publisher uploads SARIF to code scanning
+      pull-requests: write # unused on a tag push; the reusable workflow declares it for the PR path
+
   goreleaser:
+    needs: selfscan
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the GitHub release and upload assets

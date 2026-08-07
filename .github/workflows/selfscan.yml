@@ -12,6 +12,15 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # Called by release.yml before anything is built. A release is a claim about the whole
+  # artifact, so the tree being tagged has to be acceptable as a whole — and asking that here
+  # rather than duplicating the job keeps one definition of the gate, and one set of pinned
+  # scanner versions that internal/tools TestSelfscanPinsMatchManifest can hold to the manifest.
+  #
+  # `mode: auto` resolves to a full scan rather than a diff, because a tag push is not a pull
+  # request. That is the mode a release wants: a diff answers whether a change made things worse,
+  # which is not what shipping an artifact asserts.
+  workflow_call:
 
 permissions:
   contents: read
@@ -130,6 +139,22 @@ jobs:
           # to .draugr/self.saga.yaml in the same pull request. The finding stays in the report
           # marked suppressed, so the decision is visible afterwards rather than invisible.
           fail-on-priority: P1
+          # The diff gate, and the reason there are two.
+          #
+          # `mode: auto` runs a diff on a pull request and a full scan on a push, because those
+          # answer different questions. A diff answers "does this change make things worse", which
+          # is the only fair question to ask an author who inherited a tree they did not write. A
+          # full scan answers "is this tree acceptable", which nothing about a diff can establish.
+          #
+          # `fail-on-priority` above configures the second and is not read by the first. Without
+          # this line the pull-request gate ran, posted its comment, and passed whatever the diff
+          # contained — including a new P1 — so the check was green by construction rather than
+          # by result.
+          #
+          # Same band as the full scan's, deliberately: a finding urgent enough to block the
+          # branch is urgent enough to block the change that introduces it, and two thresholds
+          # would mean a P1 that is allowed in and never allowed out.
+          fail-on-new-priority: P1
 
       - name: Upload evidence
         if: needs.changes.outputs.code == 'true'
