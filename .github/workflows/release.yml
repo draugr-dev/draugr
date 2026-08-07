@@ -28,8 +28,21 @@ jobs:
       security-events: write # the Saga's `github` publisher uploads SARIF to code scanning
       pull-requests: write # unused on a tag push; the reusable workflow declares it for the PR path
 
+  # The other half of "was this exact tree acceptable". The self-scan asks whether Draugr's own
+  # code passes Draugr's policy; this asks whether Draugr still works — against a real Trivy and
+  # a real cluster, which is the part unit tests stub out and therefore the part that can be
+  # green while the tool is broken.
+  #
+  # Advisory on a pull request and binding here, deliberately. Requiring it on every change would
+  # make most of them wait on a kind cluster to learn what a unit test already said. A release is
+  # the moment that cost is obviously worth paying.
+  integration:
+    uses: ./.github/workflows/integration.yml
+    permissions:
+      contents: read
+
   goreleaser:
-    needs: selfscan
+    needs: [selfscan, integration]
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the GitHub release and upload assets

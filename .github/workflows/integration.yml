@@ -3,8 +3,12 @@ name: Integration
 # Integration tests exercise real external dependencies — a real Trivy binary and an
 # ephemeral kind cluster — that the unit tests stub out (see issue #39). They are heavier and
 # slower than unit tests, so they do NOT run on every PR: they run on main, on a nightly
-# schedule, on demand, and on a PR only when it carries the `ci-integration` label. Advisory
-# but visible — failures are loud, but this workflow is not a required check.
+# schedule, on demand, and on a PR only when it carries the `ci-integration` label.
+#
+# Advisory on a pull request, and binding on a release. A required check on every PR would make
+# most changes wait several minutes on a kind cluster to learn something a unit test already
+# said; a release is the one moment the cost is obviously worth it, because it is the moment the
+# artifact reaches people. So release.yml calls this and refuses to publish without it.
 
 on:
   push:
@@ -14,6 +18,9 @@ on:
   workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
+  # Called by release.yml against the tag. The `if:` below resolves to "run" because the caller's
+  # event is a push, which is what a tag is — the label opt-in only applies to pull requests.
+  workflow_call:
 
 permissions:
   contents: read
