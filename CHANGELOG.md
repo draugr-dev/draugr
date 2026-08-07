@@ -10,6 +10,39 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.70.0] - 2026-08-07
+
+### Added
+
+- **Mend can serve the `sca` control**, alongside Trivy or instead of it:
+
+  ```yaml
+  config:
+    allowEffects: [mutate]
+    controllers:
+      sca:
+        mendSca:
+          enabled: true
+          productToken: "…"
+  ```
+
+  Credentials come from `MEND_URL`, `MEND_EMAIL` and `MEND_USER_KEY` — never the descriptor. The
+  product token does live there, because it identifies a product rather than granting access, and
+  a component can point at a different one.
+
+  **Opt-in, and it requires `mutate`**, because a scan creates a project in your Mend account that
+  outlives it. Draugr will not write into a third party's account because a scan happened to run.
+
+  A scan that resolved no dependencies from a tree that declares them is reported as a control
+  that **could not run**, not as a clean pass — the Mend agent exits successfully in that case and
+  replaces the project inventory with nothing, which every other signal would read as "no
+  vulnerabilities found".
+
+  Install the Mend CLI yourself; Draugr executes it and never distributes it, and `draugr doctor`
+  says where it comes from.
+
 ### Fixed
 
 - **A VEX product identifier no longer goes stale when you cut a release.** A VEX statement is
@@ -2821,7 +2854,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.69.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.70.0...HEAD
+[0.70.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.70.0
 [0.69.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.69.0
 [0.68.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.68.0
 [0.67.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.67.0
