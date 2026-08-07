@@ -1,23 +1,28 @@
 <pre class="term"><span class="t-prompt">$</span> draugr scan .
 Draugr — <span class="t-crit">FAIL</span>   <span class="t-dim">(draugr-demo 1.0)</span>
 
-Priorities:  <span class="t-crit">P1 67</span>   <span class="t-warn">P2 104</span>   P3 82   <span class="t-dim">P4 18</span>
+Priorities:  <span class="t-crit">P1 69</span>   <span class="t-warn">P2 111</span>   P3 94   <span class="t-dim">P4 18</span>
 
 Controls:
-  iac      <span class="t-crit">FAIL </span>  <span class="t-high">4 high</span>  <span class="t-warn">5 medium</span>  <span class="t-dim">12 low</span>
-  images   <span class="t-crit">FAIL </span>  <span class="t-crit">9 critical</span>  <span class="t-high">40 high</span>  <span class="t-warn">92 medium</span>  <span class="t-dim">77 low</span>
-  sast     <span class="t-crit">FAIL </span>  <span class="t-high">7 high</span>  <span class="t-warn">6 medium</span>
-  sca      <span class="t-crit">FAIL </span>  <span class="t-crit">3 critical</span>  <span class="t-high">6 high</span>  <span class="t-warn">8 medium</span>  <span class="t-dim">1 low</span>
-  secrets  <span class="t-crit">FAIL </span>  <span class="t-high">1 high</span>
+  iac       <span class="t-crit">FAIL </span>  <span class="t-high">7 high</span>  <span class="t-warn">10 medium</span>  <span class="t-dim">23 low</span>
+  images    <span class="t-crit">FAIL </span>  <span class="t-crit">9 critical</span>  <span class="t-high">40 high</span>  <span class="t-warn">92 medium</span>  <span class="t-dim">78 low</span>
+  licenses  <span class="t-dim">pass </span>  <span class="t-dim">no findings</span>
+  sast      <span class="t-crit">FAIL </span>  <span class="t-high">7 high</span>  <span class="t-warn">8 medium</span>
+  sca       <span class="t-crit">FAIL </span>  <span class="t-crit">3 critical</span>  <span class="t-high">5 high</span>  <span class="t-warn">8 medium</span>  <span class="t-dim">1 low</span>
+  secrets   <span class="t-crit">FAIL </span>  <span class="t-high">1 high</span>
 
 Components:
-  api       <span class="t-crit">FAIL </span>  <span class="t-crit">P1 67</span>  <span class="t-warn">P2 104</span>  P3 79  <span class="t-dim">iac, images, sast, sca, secrets</span>
+  api       <span class="t-crit">FAIL </span>  <span class="t-crit">P1 69</span>  <span class="t-warn">P2 111</span>  P3 91  <span class="t-dim">iac, images, sast, sca, secrets</span>
   platform  <span class="t-crit">FAIL </span>  P3 3  <span class="t-dim">P4 18</span>  <span class="t-dim">iac</span>
+
+<span class="t-warn">1 finding suppressed by config.exclude — 1 accepted by demo@example.com</span>
 
 <span class="t-dim">Scanners: gitleaks 8.30.1, trivy 0.69.3</span>
 <span class="t-dim">Scanner (unverified): semgrep — found on PATH; Draugr did not install it</span>
 
-<span class="t-dim">Scanned: . at d96052ec</span>
+<span class="t-dim">Scanned: https://github.com/draugr-dev/draugr-demo at cc3afa03</span>
+
+<span class="t-dim">SBOM: 1 project document (cyclonedx-json)</span>
 
 <span class="t-prompt">$</span> echo $?
 1</pre>
