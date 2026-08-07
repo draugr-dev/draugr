@@ -10,7 +10,30 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **A VEX product identifier no longer goes stale when you cut a release.** A VEX statement is
+  about a *version* of a product — `not_affected` in 2.3 says nothing about 2.4 — so a
+  `config.vex.product` with the version written into it kept claiming the old one after the
+  release moved on, quietly, in a document you had signed.
+
+  Leave the version out and Draugr appends `release.version`:
+
+  ```yaml
+  release: { name: acme-api, version: "2.4.0" }
+  config:
+    vex:
+      product: "pkg:oci/acme/api"     # → pkg:oci/acme/api@2.4.0, and follows the release
+  ```
+
+  A version you write yourself is kept exactly as given, since pinning to a digest is often the
+  point. Qualifiers and subpaths are preserved, and a `product` that is not a package URL is
+  left untouched.
+
+  The docs now also spell out what `release` and `config.vex` are each for: `release` is what
+  you call the product internally, `config.vex.product` is the identifier a consumer matches
+  against — and getting the second wrong means the document is read, understood, and applied to
+  nothing.
 
 ## [0.69.0] - 2026-08-05
 

@@ -8,6 +8,7 @@ import (
 	"io"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -236,17 +237,50 @@ func vexAuthor(d Data) string {
 // vexProductID is the identifier the statements are about.
 //
 // Defaults to a purl over the release, because the release *is* the product — VEX is asked for
-// per shipped thing, not per repository. A generic purl is honest about being synthesised, and
-// config.vex.product replaces it with whatever a consumer's SBOM calls this.
+// per shipped thing, not per repository. `pkg:generic/` is honest about being synthesised from
+// the descriptor rather than taken from anywhere real, and config.vex.product replaces it with
+// whatever a consumer's SBOM calls this.
+//
+// A configured purl carrying no version gets the release's appended. That is what keeps the
+// identifier from going stale: a VEX statement is about a *version* of a product — a
+// not_affected that held in 2.3 says nothing about 2.4 — so a product string with the version
+// written into it silently keeps claiming the old one after the release moves on. Writing
+// `pkg:oci/acme/api` and letting the release supply the version cannot drift.
+//
+// A version that *is* written is left exactly as given. Pinning to a digest is a better practice
+// than pinning to a tag, and a digest belongs in that position; overriding it would be Draugr
+// deciding it knows the artifact better than the person who named it.
 func vexProductID(d Data) string {
 	if d.VEX != nil && d.VEX.Product != "" {
-		return d.VEX.Product
+		return withReleaseVersion(d.VEX.Product, d.Release.Version)
 	}
 	id := "pkg:generic/" + d.Release.Name
 	if d.Release.Version != "" {
 		id += "@" + d.Release.Version
 	}
 	return id
+}
+
+// withReleaseVersion appends the release's version to a package URL that does not carry one.
+//
+// Only package URLs. VEX identifies a product by IRI and a purl is merely the conventional
+// choice, so a product named by a plain URL is left alone — appending "@2.4.0" to
+// `https://acme.example/products/api` would produce something that is neither the IRI given nor
+// a valid anything else.
+func withReleaseVersion(product, version string) string {
+	if version == "" || !strings.HasPrefix(product, "pkg:") {
+		return product
+	}
+	// A purl is pkg:type/namespace/name@version?qualifiers#subpath. Version, when present,
+	// precedes the qualifiers and the subpath, so those are trimmed before looking for it.
+	head := product
+	if i := strings.IndexAny(head, "?#"); i >= 0 {
+		head = head[:i]
+	}
+	if strings.Contains(strings.TrimPrefix(head, "pkg:"), "@") {
+		return product // already versioned — deliberately, including a digest
+	}
+	return head + "@" + version + product[len(head):]
 }
 
 // vexID is the document's identifier: a digest of its own content.
