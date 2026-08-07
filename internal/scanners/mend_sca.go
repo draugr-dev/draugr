@@ -2,6 +2,8 @@ package scanners
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -112,7 +114,7 @@ func (s mendSCAScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 	// findings would describe whichever landed last. Derived from the repository URL rather than
 	// its identity, because identity includes the revision and that would make a new Mend project
 	// on every commit.
-	settings.project = mendProjectName(settings.project, repo.URL)
+	settings.project = mendProjectName(settings.project, repo.Source())
 
 	summary, err := s.upload(ctx, tree.Dir, settings)
 	if err != nil {
@@ -233,7 +235,7 @@ func (s uaSummary) check(dir string) error {
 // manifestsIn names the dependency manifests present in a tree, sorted.
 func manifestsIn(dir string) []string {
 	seen := map[string]bool{}
-	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	_ = filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil //nolint:nilerr // an unreadable subtree is not worth failing the check over
 		}
@@ -335,21 +337,26 @@ func firstLine(s string) string {
 
 // mendProjectName names the Mend project one repository reports into.
 //
-// Always repository-scoped. A configured name is a prefix rather than the whole name, because a
-// component may hold several repositories and Draugr scans them as separate, concurrent jobs —
-// letting them share a project would mean each upload discarding the last one's inventory.
-func mendProjectName(prefix, repoURL string) string {
-	repo := slugForMend(repoURL)
+// Always repository-scoped. Draugr plans a job per repository and those run concurrently, while a
+// Unified Agent upload *replaces* a project's inventory — so letting a component's repositories
+// share a project would have them overwrite each other, and the findings would describe whichever
+// landed last.
+//
+// Built from the target's Source rather than its raw URL, which means a local checkout and a CI
+// run against the same remote land in the *same* Mend project instead of two, and a credentialed
+// clone URL cannot write a token into a project name on somebody else's server.
+func mendProjectName(prefix, source string) string {
+	repo := mendNameFragment(source)
 	if prefix == "" {
 		return repo
 	}
 	return prefix + "-" + repo
 }
 
-// slugForMend makes a stable, readable project-name fragment out of a repository URL. The
+// mendNameFragment makes a stable, readable project-name fragment out of a repository source. The
 // revision is deliberately absent: including it would create a Mend project per commit.
-func slugForMend(url string) string {
-	s := strings.TrimSuffix(strings.Trim(url, "/"), ".git")
+func mendNameFragment(source string) string {
+	s := strings.TrimSuffix(strings.Trim(source, "/"), ".git")
 	if i := strings.Index(s, "://"); i >= 0 {
 		s = s[i+3:]
 	}
@@ -367,11 +374,20 @@ func slugForMend(url string) string {
 			}
 		}
 	}
-	out := strings.Trim(b.String(), "-.")
-	if out == "" {
-		return "repository"
+	if out := strings.Trim(b.String(), "-."); out != "" {
+		return out
 	}
-	return out
+	// A path with nothing nameable in it — "." for a checkout with no remote. Its absolute path
+	// is the only thing that distinguishes it, so it is used rather than a shared placeholder
+	// that would silently merge two repositories into one project.
+	return "repo-" + shortHash(source)
+}
+
+// shortHash keeps an unnameable source distinguishable without putting a path into a third
+// party's project list.
+func shortHash(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:4])
 }
 
 // defaultResultTimeout bounds the wait for Mend to process an upload.

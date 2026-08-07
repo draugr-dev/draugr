@@ -63,6 +63,33 @@ and move it under a version on release.
 
 ### Added
 
+- **Mend can now serve the `sca` control**, alongside Trivy or instead of it:
+
+  ```yaml
+  config:
+    allowEffects: [mutate]
+    controllers:
+      sca:
+        mendSca:
+          enabled: true
+          productToken: "…"
+  ```
+
+  Credentials come from `MEND_URL`, `MEND_EMAIL` and `MEND_USER_KEY` — never the descriptor. The
+  product token does live there, because it identifies a product rather than granting access, and
+  a component can point at a different one.
+
+  It is **opt-in and requires `mutate`**, because a scan creates a project in your Mend account
+  that outlives it. Draugr will not write into a third party's account because a scan happened to
+  run.
+
+  A scan that resolved no dependencies from a tree that declares them is reported as a control
+  that **could not run**, not as a clean pass — the agent exits successfully in that case and
+  replaces the project inventory with nothing, which every other signal would read as "no
+  vulnerabilities".
+
+### Added
+
 - **Saga fragments: split a descriptor across files.** A descriptor half of which is
   `config.exclude` is two things in one file — a structural account of the system, and a log of
   dated decisions by named people. They change at different times, for different reasons, and get
