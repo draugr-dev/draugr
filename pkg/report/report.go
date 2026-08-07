@@ -20,12 +20,36 @@ import (
 	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
+// Scope is what a run was narrowed to, and what it therefore did not cover.
+//
+// A scoped run is a real verdict about a real subset, which is why it still gates. It is only
+// dangerous when it is indistinguishable from a whole one — so this travels into every artifact
+// the run produces, and every rendering says what was left out.
+type Scope struct {
+	// Components and Controls are what the caller asked for; an empty list means that axis was
+	// not restricted.
+	Components []string `json:"components,omitempty"`
+	Controls   []string `json:"controls,omitempty"`
+	// SkippedComponents are declared components this run did not scan.
+	//
+	// Named rather than counted: "10 not scanned" tells a reader they are missing something and
+	// not which thing, and the answer is one they already have.
+	SkippedComponents []string `json:"skippedComponents,omitempty"`
+}
+
 // Data is everything a reporter needs to render a scan.
 type Data struct {
 	Release     saga.Release
 	Run         engine.Result
 	Verdict     norn.Result
 	MinPriority string
+	// Scope describes what the run was narrowed to, and is nil when it was not narrowed at all.
+	//
+	// A pointer so that every unscoped report — which is nearly all of them — renders and
+	// serialises exactly as it did before. Its presence is the signal: an artifact carrying a
+	// scope is a partial answer, and a consumer that finds one has been told so rather than
+	// having to infer it from a component list that looks complete.
+	Scope *Scope
 	// TopN caps how many findings the console "Fix first" table shows: 0 uses the default,
 	// a negative value shows all, and a positive value shows that many. Ignored by other formats.
 	TopN int

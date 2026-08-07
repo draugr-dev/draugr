@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -18,8 +19,14 @@ import (
 
 // jsonReport is the JSON evidence document.
 type jsonReport struct {
-	Release    releaseInfo     `json:"release"`
-	Verdict    string          `json:"verdict"`
+	Release releaseInfo `json:"release"`
+	Verdict string      `json:"verdict"`
+	// Scope is what the run was narrowed to, absent when it was not narrowed at all.
+	//
+	// First, beside the verdict, because it qualifies it. A consumer reading this document has
+	// to be able to tell a verdict about the release from a verdict about part of it, and the
+	// rest of the document looks the same either way.
+	Scope      *scopeInfo      `json:"scope,omitempty"`
 	Controls   []controlReport `json:"controls"`
 	Priorities *priorityCounts `json:"priorities,omitempty"`
 	// Exploitability names the datasets that enriched this run's severities, so a report can
@@ -30,6 +37,13 @@ type jsonReport struct {
 	Repositories []sarif.RepositoryRef `json:"repositories,omitempty"`
 	Findings     []findingReport       `json:"findings,omitempty"`
 	Stats        statsInfo             `json:"stats"`
+}
+
+// scopeInfo mirrors engine.Scope in the report document.
+type scopeInfo struct {
+	Components        []string `json:"components,omitempty"`
+	Controls          []string `json:"controls,omitempty"`
+	SkippedComponents []string `json:"skippedComponents,omitempty"`
 }
 
 // priorityCounts tallies findings by priority band (present when prioritization ran).
@@ -108,6 +122,7 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 	doc := jsonReport{
 		Release: releaseInfo{Name: release.Name, Version: release.Version},
 		Verdict: string(verdict.Verdict),
+		Scope:   scopeOf(run),
 		Stats: statsInfo{
 			Jobs:        run.Stats.Jobs,
 			Scans:       run.Stats.Scans,
@@ -242,7 +257,53 @@ func MergedSARIF(run engine.Result) sarif.Report {
 	for _, name := range names {
 		reports = append(reports, run.Controls[name].Report)
 	}
-	return sarif.Merge(reports...)
+	merged := sarif.Merge(reports...)
+	// A scoped run stamps what it covered. SARIF carries the results and nothing about what was
+	// not looked at, so without this a scan of one component and a scan of twelve are
+	// indistinguishable to any consumer that reloads the file — and the one that matters,
+	// `draugr diff`, would read every unscanned finding as fixed.
+	if prov, ok := ScopeProvenance(run.Scope); ok {
+		merged.Provenance = append(merged.Provenance, prov)
+	}
+	return merged
+}
+
+// ScopeProvenanceTool is the provenance entry a scoped run stamps on its SARIF.
+const ScopeProvenanceTool = "draugr/scope"
+
+// ScopeProvenance renders a scope as a SARIF provenance entry, and reports whether there was one
+// to render.
+//
+// Provenance is the right carrier and already says so: it is what a run states about itself
+// rather than about what it found, and it survives a round trip through the file.
+func ScopeProvenance(scope engine.Scope) (sarif.Provenance, bool) {
+	if scope.Empty() {
+		return sarif.Provenance{}, false
+	}
+	p := sarif.Provenance{Tool: ScopeProvenanceTool}
+	if len(scope.Components) > 0 {
+		p.Fields = append(p.Fields, sarif.Field{Key: "components", Value: strings.Join(scope.Components, ",")})
+	}
+	if len(scope.Controls) > 0 {
+		p.Fields = append(p.Fields, sarif.Field{Key: "controls", Value: strings.Join(scope.Controls, ",")})
+	}
+	return p, true
+}
+
+// ScopeOfReport describes what a loaded report was scoped to, and reports whether it was scoped
+// at all. The inverse of ScopeProvenance, for a consumer reading a file somebody else wrote.
+func ScopeOfReport(rep sarif.Report) (string, bool) {
+	for _, p := range rep.Provenance {
+		if p.Tool != ScopeProvenanceTool {
+			continue
+		}
+		parts := make([]string, 0, len(p.Fields))
+		for _, f := range p.Fields {
+			parts = append(parts, f.Key+"="+f.Value)
+		}
+		return strings.Join(parts, " "), true
+	}
+	return "", false
 }
 
 // WriteSARIF writes the merged run results as SARIF 2.1.0 JSON.
@@ -258,4 +319,19 @@ func WriteSARIFWith(w io.Writer, run engine.Result, opts sarif.MarshalOptions) e
 	}
 	_, err = w.Write(data)
 	return err
+}
+
+// scopeOf renders a run's scope, or nil when the run was not scoped.
+//
+// nil rather than an empty object, so an unscoped report is byte-identical to what it has always
+// been and the field's presence is what carries the meaning.
+func scopeOf(run engine.Result) *scopeInfo {
+	if run.Scope.Empty() {
+		return nil
+	}
+	return &scopeInfo{
+		Components:        run.Scope.Components,
+		Controls:          run.Scope.Controls,
+		SkippedComponents: run.Scope.SkippedComponents,
+	}
 }

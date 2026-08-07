@@ -2,7 +2,9 @@ package sarif
 
 import (
 	"encoding/json"
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -438,6 +440,10 @@ func FromSARIF(data []byte) (Report, error) {
 		if i == 0 {
 			out.Tool = run.Tool.Driver.Name
 		}
+		// The run's own account of itself, read back rather than dropped. A consumer that
+		// reloads a report — `draugr diff`, most of all — has to be able to tell a scan of
+		// everything from a scan of part of it, and the results alone never say which it was.
+		out.Provenance = append(out.Provenance, provenanceFrom(run.Properties)...)
 		// SARIF lets a result omit its level and inherit it from the rule's
 		// defaultConfiguration. Some tools (e.g. Semgrep) rely on this. Index the rules so
 		// we can resolve a result's severity from its ruleId.
@@ -630,6 +636,25 @@ func (t *taxonomyIndex) emit() []sarifTaxonomy {
 			// the standard.
 			IsComprehensive: false,
 		})
+	}
+	return out
+}
+
+// provenanceFrom reads a run's property bag back into the provenance entries that wrote it.
+func provenanceFrom(props *sarifRunProperties) []Provenance {
+	if props == nil {
+		return nil
+	}
+	out := make([]Provenance, 0, len(props.Provenance))
+	for _, sp := range props.Provenance {
+		p := Provenance{Tool: sp.Tool, Version: sp.Version}
+		// Sorted, because the bag is a JSON object and object key order is not something a
+		// consumer may rely on. Reading it back in map order would make two loads of one file
+		// differ, which is the opposite of what an artifact offered as evidence is for.
+		for _, k := range slices.Sorted(maps.Keys(sp.Fields)) {
+			p.Fields = append(p.Fields, Field{Key: k, Value: sp.Fields[k]})
+		}
+		out = append(out, p)
 	}
 	return out
 }

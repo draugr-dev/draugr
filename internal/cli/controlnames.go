@@ -134,3 +134,13 @@ func list(names []string) string {
 	}
 	return strings.Join(names[:len(names)-1], ", ") + " or " + names[len(names)-1]
 }
+
+// controlNames lists the controls this build can run, which is what a scope is validated against.
+func controlNames(reg *engine.Registry) []string {
+	ctrls := reg.Controllers()
+	out := make([]string, 0, len(ctrls))
+	for _, c := range ctrls {
+		out = append(out, c.Info().Name)
+	}
+	return out
+}

@@ -47,6 +47,7 @@ const (
 	cMedium   = tui.StyleMedium
 	cLow      = tui.StyleLow
 	cDim      = tui.StyleMuted
+	cAccent   = tui.StyleAccent
 )
 
 func (consoleReporter) Render(w io.Writer, d Data) error {
@@ -64,6 +65,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			rel += " " + d.Release.Version
 		}
 		_, _ = fmt.Fprintf(w, "   %s", col.Paint(cDim, "("+rel+")"))
+	}
+	// Beside the verdict rather than below it. A reader who takes one line from this report takes
+	// this one, and a PASS covering a fifth of the release must not be readable on its own.
+	if note := scopeNote(d); note != "" {
+		_, _ = fmt.Fprintf(w, "   %s", col.Paint(cAccent, note))
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
 
@@ -423,6 +429,11 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 	for _, c := range d.Components {
 		width = max(width, len(c.Name))
 	}
+	if d.Scope != nil {
+		for _, name := range d.Scope.SkippedComponents {
+			width = max(width, len(name))
+		}
+	}
 
 	_, _ = fmt.Fprintln(w, "Components:")
 	for _, c := range d.Components {
@@ -441,6 +452,15 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 			fmt.Sprintf("%-*s", width, c.Name),
 			col.Paint(style, fmt.Sprintf("%-5s", verdict)),
 			detail)
+	}
+	// Listed, not omitted. A component absent from this block renders identically to one that
+	// passed, and absence is exactly how a reader concludes there was nothing to find.
+	if d.Scope != nil {
+		for _, name := range d.Scope.SkippedComponents {
+			_, _ = fmt.Fprintf(w, "  %s  %s\n",
+				fmt.Sprintf("%-*s", width, name),
+				col.Paint(cDim, "not scanned  (--components)"))
+		}
 	}
 	if d.UnattributedFindings > 0 {
 		// Project-scoped controls produce these. Omitting them silently would make the parts
@@ -735,4 +755,26 @@ func sbomLine(docs []sbom.Document) string {
 	default:
 		return fmt.Sprintf("SBOM: %s (%s)", plural(parts, "document"), docs[0].Format)
 	}
+}
+
+// scopeNote describes what a scoped run covered, for the line beside the verdict.
+//
+// Says the ratio for components, because "2 of 12" is the fact that changes what the verdict
+// means, and names the controls, because there are few of them and the names are the answer.
+// Empty for an unscoped run, which is nearly all of them.
+func scopeNote(d Data) string {
+	if d.Scope == nil {
+		return ""
+	}
+	var parts []string
+	if n := len(d.Scope.SkippedComponents); n > 0 {
+		parts = append(parts, fmt.Sprintf("%d of %d components", len(d.Components), len(d.Components)+n))
+	}
+	if len(d.Scope.Controls) > 0 {
+		parts = append(parts, strings.Join(d.Scope.Controls, ", "))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "(scope: " + strings.Join(parts, "; ") + ")"
 }

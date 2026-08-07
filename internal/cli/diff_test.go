@@ -8,7 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/publish"
+	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 // A minimal Draugr SARIF report with one result.
@@ -139,5 +142,64 @@ func TestDiffRejectsAGateLevelItCannotRank(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "severity band") {
 		t.Errorf("the error should explain the two ladders: %v", err)
+	}
+}
+
+// scopedSARIF writes a SARIF report carrying the given scope, and returns its path.
+func scopedSARIF(t *testing.T, name string, scope engine.Scope) string {
+	t.Helper()
+	rep := sarif.Report{Tool: "draugr", Results: []sarif.Result{
+		{RuleID: "CVE-1", Level: sarif.LevelError, Message: "x"},
+	}}
+	if prov, ok := skald.ScopeProvenance(scope); ok {
+		rep.Provenance = append(rep.Provenance, prov)
+	}
+	data, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestDiffRefusesReportsOfDifferentScope(t *testing.T) {
+	// Every finding in the base and absent from the head is reported as fixed. That is correct
+	// when both looked at the same things, and confidently wrong when one was scoped: the diff
+	// announces the unscanned components' findings as resolved, and a gate on new findings
+	// passes it.
+	full := scopedSARIF(t, "base.sarif", engine.Scope{})
+	scoped := scopedSARIF(t, "head.sarif", engine.Scope{Components: []string{"app"}})
+
+	err := runDiff(t.Context(), full, scoped, diffOptions{format: "console"}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("comparing a scoped head against a full base must be refused")
+	}
+	for _, want := range []string{"do not describe the same scan", "components=app", "reported as fixed"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error should contain %q: %v", want, err)
+		}
+	}
+}
+
+func TestDiffComparesReportsOfTheSameScope(t *testing.T) {
+	// Two scoped runs of the same scope are comparable — that is the iteration loop the flag
+	// exists for, and refusing it would make the flag useless.
+	sc := engine.Scope{Components: []string{"app"}, Controls: []string{"sca"}}
+	base := scopedSARIF(t, "base.sarif", sc)
+	head := scopedSARIF(t, "head.sarif", sc)
+	if err := runDiff(t.Context(), base, head, diffOptions{format: "console"}, &bytes.Buffer{}); err != nil {
+		t.Errorf("identical scopes are comparable: %v", err)
+	}
+}
+
+func TestDiffComparesTwoUnscopedReports(t *testing.T) {
+	// The ordinary case, which must not have changed.
+	base := scopedSARIF(t, "base.sarif", engine.Scope{})
+	head := scopedSARIF(t, "head.sarif", engine.Scope{})
+	if err := runDiff(t.Context(), base, head, diffOptions{format: "console"}, &bytes.Buffer{}); err != nil {
+		t.Errorf("two unscoped reports are comparable: %v", err)
 	}
 }
