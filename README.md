@@ -278,6 +278,17 @@ A security tool should hold itself to what it checks. Draugr does:
 - **We scan ourselves** — Draugr runs on its own repo every PR (dogfood self-scan), and we track
   our supply-chain posture with the **[OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)**
   (badge above).
+
+  That card reports **`SAST: 0`**, and it is worth saying why we are leaving it there. Static
+  analysis does run on this repository: Semgrep and gosec through Draugr's own `sast` control on
+  every scan, and gosec again inside `golangci-lint` on every pull request. Scorecard looks for a
+  specific set of tools it recognises, and ours are not in it.
+
+  Adding a third static analyser purely to move the number would be the same thing as writing
+  tests that touch code without asserting anything — a metric improved without the property
+  behind it improving. We would rather the score be wrong and the analysis be real. If you want
+  to check the analysis rather than the score, the findings are in the repository's Security tab,
+  uploaded by the scan itself.
 - **Report a vulnerability** — see [SECURITY.md](SECURITY.md).
 
 ## Development
