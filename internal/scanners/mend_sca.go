@@ -1,0 +1,378 @@
+package scanners
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/mendapi"
+	"github.com/draugr-dev/draugr/internal/toolexec"
+	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/sarif"
+)
+
+// mendSCAScannerName identifies the Mend scanner behind the "sca" control.
+const mendSCAScannerName = "mend-sca"
+
+// mendSCAScanner runs Mend's Unified Agent over a repository and reads the findings back from
+// Mend's API.
+//
+// Two phases, because that is what the tool is: the agent uploads an inventory and exits without
+// saying what is wrong with it, and the findings come from the API afterwards. A one-command
+// scanner is not available here — the other engine (`mend dependencies`) resolves whatever is
+// installed on the scanning machine rather than what the project declares, which pointed at a
+// checkout means reporting on the CI runner.
+//
+// Written directly rather than through repoScanner, whose parse hook takes bytes and a directory.
+// The second phase needs the run's context to poll an API and give up politely when the run is
+// cancelled, and no amount of shaping makes that a decoder.
+type mendSCAScanner struct {
+	info plugin.ScannerInfo
+	// run executes the agent. Injectable so tests need neither the binary nor a tenant.
+	run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)
+	// api builds the client for a tenant. Injectable for the same reason.
+	api func(baseURL, userKey string) mendResults
+	// env reads credentials. Injectable so a test never touches the real environment.
+	env func(string) string
+}
+
+// mendResults is the part of the API client this scanner uses, named as an interface so a test
+// can supply one without a server.
+type mendResults interface {
+	Await(ctx context.Context, opts mendapi.AwaitOpts) ([]mendapi.Alert, error)
+}
+
+// NewMendSCA returns a Scanner for the "sca" control backed by Mend.
+func NewMendSCA() plugin.Scanner {
+	return mendSCAScanner{
+		info: plugin.ScannerInfo{
+			Name:        mendSCAScannerName,
+			Origin:      "mend.io",
+			Binary:      "mend",
+			Controls:    []string{"sca"},
+			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+			Effects: []plugin.Effect{
+				{
+					Kind: plugin.EffectDisclosure,
+					Detail: "uploads this component's resolved dependency inventory to Mend — " +
+						"names, versions, checksums, and the absolute paths they were found at",
+				},
+				{
+					Kind: plugin.EffectMutate,
+					Detail: "creates or updates a project inside your Mend product, which " +
+						"outlives the scan",
+				},
+			},
+		},
+		run: toolexec.RunWithEnv,
+		api: func(baseURL, userKey string) mendResults { return mendapi.New(baseURL, userKey) },
+		env: os.Getenv,
+	}
+}
+
+// Info describes the scanner.
+func (s mendSCAScanner) Info() plugin.ScannerInfo { return s.info }
+
+// Mend credentials, read from the environment and never from a descriptor. Mend's own names, so
+// an operator who already runs Mend has them set.
+const (
+	envMendURL     = "MEND_URL"
+	envMendEmail   = "MEND_EMAIL"
+	envMendUserKey = "MEND_USER_KEY"
+)
+
+// Scan uploads the component's dependencies to Mend and returns what Mend says about them.
+func (s mendSCAScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+	repo, ok := target.(plugin.RepositoryTarget)
+	if !ok {
+		return sarif.Report{}, fmt.Errorf("%s scans repositories, not a %s", mendSCAScannerName, target.Kind())
+	}
+	settings, err := mendSettings(cfg, s.env)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+
+	tree, cleanup, err := git.Checkout(ctx, repo.URL, repo.Revision,
+		git.Scope{Paths: repo.Paths, Ignore: repo.Ignore})
+	if err != nil {
+		return sarif.Report{}, fmt.Errorf("checkout %s: %w", repo.URL, err)
+	}
+	defer cleanup()
+
+	// One Mend project per repository, never per component. Draugr plans a job per repository, an
+	// upload *replaces* a project's inventory, and those jobs run concurrently — so a component
+	// with two repositories pointed at one project would have them overwrite each other, and the
+	// findings would describe whichever landed last. Derived from the repository URL rather than
+	// its identity, because identity includes the revision and that would make a new Mend project
+	// on every commit.
+	settings.project = mendProjectName(settings.project, repo.URL)
+
+	summary, err := s.upload(ctx, tree.Dir, settings)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	if err := summary.check(tree.Dir); err != nil {
+		return sarif.Report{}, err
+	}
+
+	alerts, err := s.api(settings.url, settings.userKey).Await(ctx, mendapi.AwaitOpts{
+		ProductToken: settings.productToken,
+		ProjectName:  settings.project,
+		RequestToken: summary.requestToken,
+		Timeout:      settings.resultTimeout,
+	})
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	return mendReport(alerts), nil
+}
+
+// upload runs the Unified Agent over the checkout.
+func (s mendSCAScanner) upload(ctx context.Context, dir string, set mendSettings2) (uaSummary, error) {
+	confPath := filepath.Join(dir, ".draugr-mend.config")
+	if err := os.WriteFile(confPath, []byte(set.agentConfig()), 0o600); err != nil {
+		return uaSummary{}, fmt.Errorf("write mend agent config: %w", err)
+	}
+	defer func() { _ = os.Remove(confPath) }()
+
+	argv := []string{"mend", "ua", "-c", confPath, "-d", dir,
+		"-productToken", set.productToken, "-project", set.project}
+
+	// The agent writes its own logs, and they contain the user key in plaintext. Pointing its
+	// base directory at a temporary one keeps that out of the operator's home and lets it be
+	// removed when the scan ends.
+	base, err := os.MkdirTemp("", "draugr-mend-")
+	if err != nil {
+		return uaSummary{}, fmt.Errorf("mend scratch dir: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(base) }()
+
+	env := append(os.Environ(), "MEND_BASEDIR="+base)
+	out, runErr := s.run(ctx, dir, argv, env)
+	summary := parseUASummary(string(out))
+	if runErr != nil {
+		return summary, fmt.Errorf("mend ua: %w", runErr)
+	}
+	return summary, nil
+}
+
+// uaSummary is what the agent's own summary table says about a run.
+type uaSummary struct {
+	resolved     int
+	requestToken string
+	// sawSummary distinguishes "the agent reported nothing resolved" from "we could not find the
+	// agent's summary at all", which are different failures.
+	sawSummary bool
+}
+
+var (
+	uaResolvedRE = regexp.MustCompile(`(?i)Resolve Dependencies\s+\S+\s+\S+\s+(\d+)\s+(?:total\s+)?dependenc`)
+	uaTokenRE    = regexp.MustCompile(`(?i)request token[:\s]+([0-9a-f-]{8,})`)
+)
+
+// parseUASummary reads the agent's summary table.
+func parseUASummary(out string) uaSummary {
+	var s uaSummary
+	if m := uaResolvedRE.FindStringSubmatch(out); m != nil {
+		s.sawSummary = true
+		s.resolved, _ = strconv.Atoi(m[1])
+	}
+	if m := uaTokenRE.FindStringSubmatch(out); m != nil {
+		s.requestToken = m[1]
+	}
+	return s
+}
+
+// manifests are the files whose presence means "this tree declares dependencies", used to decide
+// whether resolving nothing is a real answer or a broken toolchain.
+var manifests = []string{
+	"requirements.txt", "Pipfile", "pyproject.toml", "setup.py",
+	"package.json", "pom.xml", "build.gradle", "build.gradle.kts",
+	"go.mod", "Gemfile", "composer.json", "Cargo.toml", "*.csproj",
+}
+
+// check refuses a scan that resolved nothing from a tree that declares dependencies.
+//
+// The agent reports success in that case: it exits zero, and it replaces the project's inventory
+// with the nothing it found, after which the API honestly answers that there are no
+// vulnerabilities. Every signal says pass. The cause is usually a runner missing the package
+// manager the ecosystem needs — the agent drives pip, npm, maven and the rest, and a PATH that
+// does not reach them resolves zero without complaining.
+//
+// So this is the missing-scanner rule one level in: a control whose tool could not do its job
+// reports an error, not a pass.
+func (s uaSummary) check(dir string) error {
+	if s.resolved > 0 {
+		return nil
+	}
+	found := manifestsIn(dir)
+	if len(found) == 0 {
+		// Nothing declares dependencies, so nothing resolved is the right answer.
+		return nil
+	}
+	if !s.sawSummary {
+		return fmt.Errorf("mend: the agent produced no scan summary, so there is no way to tell " +
+			"whether it resolved anything — treating this as a failed scan rather than a clean one")
+	}
+	return fmt.Errorf(
+		"mend: resolved 0 dependencies from a tree that declares them (%s). The agent drives each "+
+			"ecosystem's own package manager, so this usually means the runner cannot reach one — "+
+			"check that it is installed and on PATH, and see the scanner's settings for "+
+			"per-language resolution options. Reporting this as a failed scan rather than a clean "+
+			"one, because Mend will have replaced the project inventory with nothing",
+		strings.Join(found, ", "))
+}
+
+// manifestsIn names the dependency manifests present in a tree, sorted.
+func manifestsIn(dir string) []string {
+	seen := map[string]bool{}
+	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil //nolint:nilerr // an unreadable subtree is not worth failing the check over
+		}
+		for _, m := range manifests {
+			if ok, _ := filepath.Match(m, d.Name()); ok {
+				seen[d.Name()] = true
+			}
+		}
+		return nil
+	})
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// mendReport converts Mend's alerts into findings.
+//
+// Only security vulnerabilities become findings. A NEW_MAJOR_VERSION alert is dependency
+// freshness, and a REJECTED_BY_POLICY_RESOURCE alert comes from policy configured in the
+// operator's Mend console — mapping that one would let a second policy engine reach into the
+// verdict, when the point of the gate is that a descriptor somebody can read decides it.
+func mendReport(alerts []mendapi.Alert) sarif.Report {
+	var rep sarif.Report
+	for _, a := range alerts {
+		if a.Type != mendapi.AlertTypeVulnerability || a.Vulnerability.Name == "" {
+			continue
+		}
+		res := sarif.Result{
+			Tool:    "Mend",
+			RuleID:  a.Vulnerability.Name,
+			Level:   mendLevel(a.Vulnerability.Severity),
+			Message: mendMessage(a),
+			// Mend identifies a library, not a place. The library is the most specific thing it
+			// knows, so it stands in for a location rather than inventing a file and line that
+			// nothing verified.
+			Location: sarif.Location{URI: mendLocation(a.Library)},
+		}
+		if a.Vulnerability.Score > 0 {
+			res.Score, res.HasScore = a.Vulnerability.Score, true
+		}
+		rep.Results = append(rep.Results, res)
+	}
+	return rep
+}
+
+// mendLevel maps Mend's severity onto SARIF's.
+func mendLevel(severity string) sarif.Level {
+	switch strings.ToLower(severity) {
+	case "critical", "high":
+		return sarif.LevelError
+	case "medium":
+		return sarif.LevelWarning
+	case "low":
+		return sarif.LevelNote
+	default:
+		// An unknown severity is reported rather than dropped, at the level that gets it read.
+		return sarif.LevelWarning
+	}
+}
+
+// mendMessage states the library, the version, and the fix when Mend suggests one.
+func mendMessage(a mendapi.Alert) string {
+	lib := strings.TrimSpace(a.Library.Name)
+	if a.Library.Version != "" {
+		lib += " " + a.Library.Version
+	}
+	msg := fmt.Sprintf("%s: %s", lib, firstLine(a.Vulnerability.Description))
+	if a.Vulnerability.TopFix != nil && a.Vulnerability.TopFix.FixResolution != "" {
+		msg += " — fixed in " + a.Vulnerability.TopFix.FixResolution
+	}
+	if !a.DirectDependency {
+		msg += " (transitive)"
+	}
+	return msg
+}
+
+// mendLocation names the library a finding is about.
+func mendLocation(l mendapi.Library) string {
+	switch {
+	case l.GroupID != "" && l.ArtifactID != "":
+		return l.GroupID + ":" + l.ArtifactID
+	case l.Name != "":
+		return l.Name
+	default:
+		return l.Filename
+	}
+}
+
+// firstLine keeps a message to one line; Mend's descriptions can run to paragraphs.
+func firstLine(s string) string {
+	if i := strings.IndexAny(s, "\r\n"); i >= 0 {
+		s = s[:i]
+	}
+	return strings.TrimSpace(s)
+}
+
+// mendProjectName names the Mend project one repository reports into.
+//
+// Always repository-scoped. A configured name is a prefix rather than the whole name, because a
+// component may hold several repositories and Draugr scans them as separate, concurrent jobs —
+// letting them share a project would mean each upload discarding the last one's inventory.
+func mendProjectName(prefix, repoURL string) string {
+	repo := slugForMend(repoURL)
+	if prefix == "" {
+		return repo
+	}
+	return prefix + "-" + repo
+}
+
+// slugForMend makes a stable, readable project-name fragment out of a repository URL. The
+// revision is deliberately absent: including it would create a Mend project per commit.
+func slugForMend(url string) string {
+	s := strings.TrimSuffix(strings.Trim(url, "/"), ".git")
+	if i := strings.Index(s, "://"); i >= 0 {
+		s = s[i+3:]
+	}
+	var b strings.Builder
+	dash := false
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '.':
+			b.WriteRune(r)
+			dash = false
+		default:
+			if !dash && b.Len() > 0 {
+				b.WriteByte('-')
+				dash = true
+			}
+		}
+	}
+	out := strings.Trim(b.String(), "-.")
+	if out == "" {
+		return "repository"
+	}
+	return out
+}
+
+// defaultResultTimeout bounds the wait for Mend to process an upload.
+const defaultResultTimeout = 10 * time.Minute
