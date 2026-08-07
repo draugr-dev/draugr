@@ -120,6 +120,23 @@ images, hosts or infrastructure and nothing is enabled to check them, the scan s
 combination reads as a clean pass over something nobody looked at. A note rather than a failure,
 since the choice may be deliberate; `--no-tips` or `DRAUGR_NO_TIPS=1` silences it.
 
+When the component declares hosts, the note also says why `dast` is not among the controls it
+names: `dast` sends attack traffic at a live service, so it is never suggested on the strength of
+a descriptor mentioning a URL. Enable it yourself, having decided.
+
+**Contextual tips.** After a console scan, up to two one-line hints may follow the report. Each
+is gated on the run it is about, and none of them affects the verdict:
+
+| Tip | Shown when |
+|---|---|
+| Priority gating | The run passed, carries P1 or P2 findings, and `--fail-on-priority` is unset |
+| Where the report went | `CI` is set in the environment, with no `-o` and no `config.publishers` |
+| Risk classification | There are findings and no component sets `exposure` or `criticality` |
+| Caching | The run took over a minute and `--cache-dir` is unset |
+
+At most two per run, highest-consequence first — a block of five is one nobody reads. `--no-tips`
+or `DRAUGR_NO_TIPS=1` silences them, as it does the surface note.
+
 **Zero-config.** A directory with no descriptor is scanned with `sca`, `secrets`, `sast`
 and `iac` — no Saga required.
 A one-line note is printed to stderr so machine formats on stdout stay clean. A Saga **file**

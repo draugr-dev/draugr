@@ -133,9 +133,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	if synthesized {
 		// To stderr so it never pollutes a machine-readable stdout format (json/sarif).
-		// Only reachable when the directory has no descriptor, so suggesting one is safe here —
-		// it used to print over a descriptor that was sitting right there, telling the reader to
-		// create the file they already had.
+		// Only reachable when the directory has no descriptor, which is what makes suggesting one
+		// safe: the same words printed over a descriptor that exists tell the reader to create a
+		// file they already have.
 		// Names the shape rather than one filename: a reader whose file is called `web.saga.yaml`
 		// would otherwise read "no draugr.saga.yaml here" as a filename mismatch and rename it,
 		// when the real answer is that the file is somewhere else.
@@ -302,7 +302,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			return err
 		}
 		if format == "console" {
-			printScanTips(w, model, run, opts.noTips)
+			printScanTips(w, tipContext{model: model, run: run, verdict: verdict, opts: &opts})
 		}
 	}
 	if opts.outputDir != "" {
