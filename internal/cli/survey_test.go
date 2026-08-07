@@ -478,3 +478,61 @@ func TestPlural(t *testing.T) {
 		}
 	}
 }
+
+func TestRequestPerNamespaceMakesOneRequestEach(t *testing.T) {
+	t.Parallel()
+	// Two, not one. A surveyor scoped to a namespace names its component after it and proposes
+	// an exposure from its topology; with one namespace any implementation looks right, and with
+	// two an implementation that collapses them into a single scope silently keeps one.
+	scopeFor := func(ref string) plugin.SurveyScope {
+		return plugin.SurveyScope{Ref: ref, Config: plugin.Config{"context": "prod"}}
+	}
+	got := requestPerNamespace("k8s-images", []string{"payments", "checkout"}, scopeFor)
+	if len(got) != 2 {
+		t.Fatalf("got %d requests, want one per namespace: %+v", len(got), got)
+	}
+	for i, want := range []string{"payments", "checkout"} {
+		if got[i].Scope.Ref != want {
+			t.Errorf("request %d scoped to %q, want %q", i, got[i].Scope.Ref, want)
+		}
+		if got[i].Surveyor != "k8s-images" {
+			t.Errorf("request %d ran %q", i, got[i].Surveyor)
+		}
+		// --context says which cluster, so it has to reach every request rather than the first.
+		if got[i].Scope.Config["context"] != "prod" {
+			t.Errorf("request %d lost the kube context: %+v", i, got[i].Scope.Config)
+		}
+	}
+}
+
+func TestRequestPerNamespaceDefaultsToTheWholeCluster(t *testing.T) {
+	t.Parallel()
+	// No namespace has always meant the whole cluster, and still does — one request with an
+	// empty ref, which is what the surveyor reads as "every namespace".
+	got := requestPerNamespace("k8s-cluster", nil, func(ref string) plugin.SurveyScope {
+		return plugin.SurveyScope{Ref: ref}
+	})
+	if len(got) != 1 || got[0].Scope.Ref != "" {
+		t.Fatalf("want a single whole-cluster request, got %+v", got)
+	}
+}
+
+func TestSurveyNamespaceFlagTakesSeveral(t *testing.T) {
+	t.Parallel()
+	// The descriptor's `infrastructure.namespaces` is a list, so discovery that could only
+	// express one left a user who owns three unable to survey what they can describe.
+	cmd := newSurveyCommand()
+	for _, path := range [][]string{{"k8s", "images"}, {"k8s", "cluster"}} {
+		sub, _, err := cmd.Find(path)
+		if err != nil {
+			t.Fatalf("%v: %v", path, err)
+		}
+		f := sub.Flags().Lookup("namespace")
+		if f == nil {
+			t.Fatalf("%v has no --namespace", path)
+		}
+		if f.Value.Type() != "stringSlice" {
+			t.Errorf("%v --namespace is %s, want a repeatable list", path, f.Value.Type())
+		}
+	}
+}
