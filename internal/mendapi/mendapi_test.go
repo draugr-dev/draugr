@@ -192,13 +192,13 @@ func TestLandedFallsBackWhenNoRequestTokenIsKnown(t *testing.T) {
 	c := server(t, map[string]string{
 		"getProjectVitals": `{"projectVitals":[{"lastUpdatedDate":"2026-01-01"}]}`,
 	})
-	ok, err := c.landed(context.Background(), "tp", "")
+	ok, err := c.landed(context.Background(), "tp", AwaitOpts{})
 	if err != nil || !ok {
 		t.Errorf("an updated project should count as landed: %v %v", ok, err)
 	}
 
 	never := server(t, map[string]string{"getProjectVitals": `{"projectVitals":[{"lastUpdatedDate":""}]}`})
-	if ok, _ := never.landed(context.Background(), "tp", ""); ok {
+	if ok, _ := never.landed(context.Background(), "tp", AwaitOpts{}); ok {
 		t.Error("a project that was never updated is not landed")
 	}
 }
@@ -236,5 +236,76 @@ func TestCallReportsNon200(t *testing.T) {
 func TestSleepCtxReturnsAfterTheInterval(t *testing.T) {
 	if err := sleepCtx(context.Background(), time.Millisecond); err != nil {
 		t.Errorf("sleepCtx: %v", err)
+	}
+}
+
+// The agent's CLI prints no request token, so this is the check that actually runs: the inventory
+// reaching the count the agent said it resolved. Without it the poll returns immediately against
+// an empty project, which reads as a clean scan.
+func TestLandedWaitsForTheInventoryToMatchWhatWasSent(t *testing.T) {
+	short := server(t, map[string]string{
+		"getProjectInventory": `{"libraries":[{},{}]}`,
+	})
+	ok, err := short.landed(context.Background(), "tp", AwaitOpts{ExpectLibraries: 3})
+	if ok {
+		t.Error("an inventory holding fewer libraries than were sent counts as landed")
+	}
+	if err == nil || !strings.Contains(err.Error(), "2 of the 3") {
+		t.Errorf("the state should say how far along it is: %v", err)
+	}
+
+	full := server(t, map[string]string{"getProjectInventory": `{"libraries":[{},{},{}]}`})
+	if ok, err := full.landed(context.Background(), "tp", AwaitOpts{ExpectLibraries: 3}); !ok || err != nil {
+		t.Errorf("a complete inventory should count as landed: %v %v", ok, err)
+	}
+}
+
+func TestLibraryCountReportsAnErrorRatherThanZero(t *testing.T) {
+	c := server(t, map[string]string{"getProjectInventory": `{"errorMessage":"denied"}`})
+	if _, err := c.LibraryCount(context.Background(), "tp"); err == nil {
+		t.Error("a refused inventory must be an error, not a count of zero")
+	}
+}
+
+func TestAwaitPassesTheExpectedCountThrough(t *testing.T) {
+	c := server(t, map[string]string{
+		"getAllProjects":      `{"projects":[{"projectName":"p","projectToken":"tp"}]}`,
+		"getProjectInventory": `{"libraries":[{},{},{}]}`,
+		"getProjectAlerts":    `{"alerts":[{"type":"SECURITY_VULNERABILITY","vulnerability":{"name":"CVE-1"}}]}`,
+	})
+	alerts, err := c.Await(context.Background(), AwaitOpts{
+		ProductToken: "prod", ProjectName: "p", ExpectLibraries: 3,
+		Timeout: time.Minute, Interval: time.Millisecond,
+		Sleep: func(context.Context, time.Duration) error { return nil },
+	})
+	if err != nil || len(alerts) != 1 {
+		t.Fatalf("alerts = %v, err = %v", alerts, err)
+	}
+}
+
+func TestLandedAndVitalsSurfaceTheirFailures(t *testing.T) {
+	// A refused vitals call is a state we do not know, not a scan that has landed.
+	c := server(t, map[string]string{"getProjectVitals": `{"errorMessage":"denied"}`})
+	if ok, err := c.landed(context.Background(), "tp", AwaitOpts{RequestToken: "x"}); ok || err == nil {
+		t.Errorf("ok=%v err=%v", ok, err)
+	}
+	if ok, err := c.landed(context.Background(), "tp", AwaitOpts{}); ok || err == nil {
+		t.Errorf("fallback: ok=%v err=%v", ok, err)
+	}
+	// A refused inventory likewise.
+	inv := server(t, map[string]string{"getProjectInventory": `{"errorMessage":"denied"}`})
+	if ok, err := inv.landed(context.Background(), "tp", AwaitOpts{ExpectLibraries: 2}); ok || err == nil {
+		t.Errorf("inventory: ok=%v err=%v", ok, err)
+	}
+}
+
+// Await applies its own defaults when a caller supplies none, so a zero-value opts still bounds
+// the wait rather than polling forever.
+func TestAwaitDefaultsItsTimeoutAndInterval(t *testing.T) {
+	c := server(t, map[string]string{"getAllProjects": `{"projects":[]}`})
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if _, err := c.Await(ctx, AwaitOpts{ProductToken: "p", ProjectName: "nope"}); err == nil {
+		t.Error("expected the wait to end")
 	}
 }

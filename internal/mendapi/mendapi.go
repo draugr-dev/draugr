@@ -171,6 +171,22 @@ func (c *Client) Alerts(ctx context.Context, projectToken string) ([]Alert, erro
 	return out.Alerts, err
 }
 
+// LibraryCount reports how many libraries a project's inventory holds.
+//
+// The way a caller tells a processed upload from an unprocessed one when the agent gave no
+// request token: the agent says how many dependencies it resolved, so waiting for the inventory
+// to hold that many is self-validating — it compares what arrived against what was sent.
+func (c *Client) LibraryCount(ctx context.Context, projectToken string) (int, error) {
+	var out struct {
+		Libraries []struct{} `json:"libraries"`
+	}
+	err := c.call(ctx, map[string]any{
+		"requestType":  "getProjectInventory",
+		"projectToken": projectToken,
+	}, &out)
+	return len(out.Libraries), err
+}
+
 // call posts one API request and decodes the reply.
 //
 // Mend answers errors with HTTP 200 and an errorMessage in the body, so the status code alone

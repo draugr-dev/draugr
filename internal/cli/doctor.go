@@ -218,7 +218,7 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 		out = append(out, tools.Tool{
 			Binary:      binary,
 			Category:    tools.CategoryScanner,
-			InstallHint: "required by a registered scanner; not in Draugr's tool catalog",
+			InstallHint: externalInstallHint(binary),
 		})
 	}
 
@@ -439,4 +439,23 @@ func networkHeading() string {
 		return "(offline: none of these will happen)"
 	}
 	return "(what Draugr fetches, and when — suppress with --offline)"
+}
+
+// externalInstallHint says where a tool Draugr does not distribute comes from.
+//
+// `draugr tools install` fetches pinned releases Draugr has verified, which it can only do for
+// tools it vouched for. For the rest — proprietary ones especially — naming the source is the
+// whole of the help available, and it is much more use than telling somebody to run a command
+// that will not find it.
+func externalInstallHint(binary string) string {
+	if from, ok := externalTools[binary]; ok {
+		return from
+	}
+	return "required by a registered scanner; not in Draugr's tool catalog"
+}
+
+// externalTools names where to get a tool Draugr execs but never downloads.
+var externalTools = map[string]string{
+	"mend": "proprietary; install the Mend CLI from Mend's documentation (Draugr does not " +
+		"distribute it) — see internal/scanners/mend-sca.md",
 }

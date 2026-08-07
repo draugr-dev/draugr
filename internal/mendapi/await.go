@@ -10,9 +10,12 @@ import (
 type AwaitOpts struct {
 	ProductToken string
 	ProjectName  string
-	// RequestToken is what the agent reported for this upload. When empty, Await falls back to
-	// the weaker signal of the project merely existing — see Await.
+	// RequestToken is what the agent reported for this upload, when it reported one.
 	RequestToken string
+	// ExpectLibraries is how many dependencies the agent said it resolved. Used when there is no
+	// request token: the inventory holding at least that many is evidence the upload was applied,
+	// and it compares what arrived against what was sent rather than trusting a clock.
+	ExpectLibraries int
 	// Timeout bounds the whole wait. Minutes rather than seconds: a large component is exactly
 	// when Mend is slowest to process, and also when giving up early does most damage.
 	Timeout time.Duration
@@ -37,10 +40,12 @@ const (
 // vulnerabilities", and does it most reliably on the largest components, because those take
 // longest.
 //
-// The check is a correlation, not a guess about timing. The agent emits an update-request token
-// when it uploads, and the project's vitals carry that token once the upload has been applied.
-// Comparing them answers "has *my* scan landed" rather than "has *something* happened recently",
-// which is the difference that matters when two pipelines scan one project.
+// The check is a correlation, not a guess about timing. Where the agent reports an update-request
+// token, the project's vitals carry it once the upload has been applied, which answers "has *my*
+// scan landed" rather than "has *something* happened recently". Where it does not — and the CLI's
+// agent does not print one — the fallback compares the inventory against the number of
+// dependencies the agent said it resolved, which is still evidence about *this* upload rather
+// than about the clock.
 //
 // **A timeout is an error, never an empty result.** Returning no alerts here would report a pass
 // for a scan nobody has read, which is the failure the whole function exists to prevent.
@@ -64,7 +69,7 @@ func (c *Client) Await(ctx context.Context, opts AwaitOpts) ([]Alert, error) {
 		project, err := c.ProjectByName(ctx, opts.ProductToken, opts.ProjectName)
 		if err == nil {
 			var landed bool
-			landed, lastErr = c.landed(ctx, project.Token, opts.RequestToken)
+			landed, lastErr = c.landed(ctx, project.Token, opts)
 			if lastErr == nil && landed {
 				return c.Alerts(ctx, project.Token)
 			}
@@ -99,15 +104,31 @@ func (c *Client) Await(ctx context.Context, opts AwaitOpts) ([]Alert, error) {
 // weaker fallback is that the project exists and has been updated at all, which cannot tell our
 // upload from somebody else's. The caller is told which of the two it got by the token being
 // empty, and the scanner passes one whenever the agent gives it.
-func (c *Client) landed(ctx context.Context, projectToken, requestToken string) (bool, error) {
+func (c *Client) landed(ctx context.Context, projectToken string, opts AwaitOpts) (bool, error) {
+	if opts.RequestToken != "" {
+		vitals, err := c.Vitals(ctx, projectToken)
+		if err != nil {
+			return false, err
+		}
+		return vitals.RequestToken == opts.RequestToken, nil
+	}
+	if opts.ExpectLibraries > 0 {
+		n, err := c.LibraryCount(ctx, projectToken)
+		if err != nil {
+			return false, err
+		}
+		if n < opts.ExpectLibraries {
+			return false, fmt.Errorf("inventory holds %d of the %d libraries the scan sent", n, opts.ExpectLibraries)
+		}
+		return true, nil
+	}
+	// Nothing to correlate against. The project existing and having been updated is all that can
+	// be said, and it cannot tell this upload from anybody else's.
 	vitals, err := c.Vitals(ctx, projectToken)
 	if err != nil {
 		return false, err
 	}
-	if requestToken == "" {
-		return vitals.LastUpdatedDate != "", nil
-	}
-	return vitals.RequestToken == requestToken, nil
+	return vitals.LastUpdatedDate != "", nil
 }
 
 // sleepCtx waits, or returns early if the run is cancelled.

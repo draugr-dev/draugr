@@ -128,7 +128,12 @@ func (s mendSCAScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		ProductToken: settings.productToken,
 		ProjectName:  settings.project,
 		RequestToken: summary.requestToken,
-		Timeout:      settings.resultTimeout,
+		// The agent does not print a request token, so the inventory reaching the count it
+		// resolved is what says the upload has been processed. Without it the poll returns on the
+		// first attempt with an empty project, which is the silent pass this scanner exists to
+		// refuse.
+		ExpectLibraries: summary.resolved,
+		Timeout:         settings.resultTimeout,
 	})
 	if err != nil {
 		return sarif.Report{}, err
@@ -147,28 +152,63 @@ func (s mendSCAScanner) upload(ctx context.Context, dir string, set mendSettings
 	argv := []string{"mend", "ua", "-c", confPath, "-d", dir,
 		"-productToken", set.productToken, "-project", set.project}
 
-	// The agent writes its own logs, and they contain the user key in plaintext. Pointing its
-	// base directory at a temporary one keeps that out of the operator's home and lets it be
-	// removed when the scan ends.
-	base, err := os.MkdirTemp("", "draugr-mend-")
+	// The base directory holds two very different things: the Unified Agent's jar, which the CLI
+	// downloads once and must find again, and its logs, which contain the user key in plaintext.
+	//
+	// A fresh directory per scan gets the second right and the first badly wrong — the agent then
+	// has no jar, resolves nothing, and exits zero, which is the silent pass this scanner exists
+	// to refuse. So the base is stable and only the logs are removed.
+	base, err := mendBaseDir()
 	if err != nil {
-		return uaSummary{}, fmt.Errorf("mend scratch dir: %w", err)
+		return uaSummary{}, err
 	}
-	defer func() { _ = os.RemoveAll(base) }()
+	defer func() { _ = os.RemoveAll(filepath.Join(base, "logs")) }()
 
 	env := append(os.Environ(), "MEND_BASEDIR="+base)
 	out, runErr := s.run(ctx, dir, argv, env)
 	summary := parseUASummary(string(out))
+	summary.failures = uaFailures(string(out))
 	if runErr != nil {
 		return summary, fmt.Errorf("mend ua: %w", runErr)
 	}
 	return summary, nil
 }
 
+// uaErrorRE matches the resolver failures the agent reports as warnings while still exiting zero
+// — an unsatisfiable manifest, a package manager that would not run.
+var uaErrorRE = regexp.MustCompile(`(?m)^.*Read error line #\d+: (ERROR: .*)$`)
+
+// uaFailures collects what the agent said went wrong, so the scanner can relay a cause rather
+// than guess at one.
+//
+// Scrubbed of anything credential-shaped before it is kept: this text reaches an error message,
+// and the agent's output is also what `--log-level trace` relays.
+func uaFailures(out string) []string {
+	seen := map[string]bool{}
+	var msgs []string
+	for _, m := range uaErrorRE.FindAllStringSubmatch(out, -1) {
+		line := strings.TrimSpace(scrubSecrets(m[1]))
+		if line == "" || seen[line] {
+			continue
+		}
+		seen[line] = true
+		msgs = append(msgs, line)
+	}
+	return msgs
+}
+
+// secretish matches the shapes a Mend credential takes — a 64-hex user key, or a URL carrying
+// userinfo — so neither reaches an error string or a relayed log line.
+var secretish = regexp.MustCompile(`(?i)[0-9a-f]{32,}|://[^/\s]*:[^/\s]*@`)
+
+func scrubSecrets(s string) string { return secretish.ReplaceAllString(s, "<redacted>") }
+
 // uaSummary is what the agent's own summary table says about a run.
 type uaSummary struct {
 	resolved     int
 	requestToken string
+	// failures are the resolver errors the agent printed while still exiting zero.
+	failures []string
 	// sawSummary distinguishes "the agent reported nothing resolved" from "we could not find the
 	// agent's summary at all", which are different failures.
 	sawSummary bool
@@ -223,12 +263,21 @@ func (s uaSummary) check(dir string) error {
 		return fmt.Errorf("mend: the agent produced no scan summary, so there is no way to tell " +
 			"whether it resolved anything — treating this as a failed scan rather than a clean one")
 	}
+	// The agent's own words when it has any: it reports a resolver failure as a warning and still
+	// exits zero, so this is usually the actual cause and always more specific than a guess.
+	if len(s.failures) > 0 {
+		return fmt.Errorf(
+			"mend: resolved 0 dependencies from a tree that declares them (%s). The agent reported: "+
+				"%s. Reporting this as a failed scan rather than a clean one, because Mend will have "+
+				"replaced the project inventory with nothing",
+			strings.Join(found, ", "), strings.Join(s.failures, "; "))
+	}
 	return fmt.Errorf(
-		"mend: resolved 0 dependencies from a tree that declares them (%s). The agent drives each "+
-			"ecosystem's own package manager, so this usually means the runner cannot reach one — "+
-			"check that it is installed and on PATH, and see the scanner's settings for "+
-			"per-language resolution options. Reporting this as a failed scan rather than a clean "+
-			"one, because Mend will have replaced the project inventory with nothing",
+		"mend: resolved 0 dependencies from a tree that declares them (%s), and reported no reason. "+
+			"The agent drives each ecosystem's own package manager, so check that the one this "+
+			"project needs is installed and on PATH, and see the scanner's settings for per-language "+
+			"resolution options. Reporting this as a failed scan rather than a clean one, because "+
+			"Mend will have replaced the project inventory with nothing",
 		strings.Join(found, ", "))
 }
 
@@ -392,3 +441,19 @@ func shortHash(s string) string {
 
 // defaultResultTimeout bounds the wait for Mend to process an upload.
 const defaultResultTimeout = 10 * time.Minute
+
+// mendBaseDir is where the CLI keeps its downloaded agent between scans.
+//
+// Under Draugr's own cache rather than the operator's home, so the jar is fetched once and the
+// logs it writes there — which carry the user key — are ours to remove.
+func mendBaseDir() (string, error) {
+	root, err := os.UserCacheDir()
+	if err != nil {
+		return "", fmt.Errorf("mend base directory: %w", err)
+	}
+	dir := filepath.Join(root, "draugr", "mend")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return "", fmt.Errorf("mend base directory: %w", err)
+	}
+	return dir, nil
+}
