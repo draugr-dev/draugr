@@ -125,7 +125,7 @@ func Path(dir string, n Name) string { return filepath.Join(dir, sources[n].file
 // described are then treated as absent, which is the safe direction — worst case a refetch.
 func Load(dir string) map[Name]Record {
 	out := map[Name]Record{}
-	data, err := os.ReadFile(filepath.Join(dir, manifestName)) //nolint:gosec // path is ours
+	data, err := os.ReadFile(filepath.Join(dir, manifestName)) // #nosec G304 -- path is ours
 	if err != nil {
 		return out
 	}

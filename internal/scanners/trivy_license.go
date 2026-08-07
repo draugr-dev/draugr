@@ -238,7 +238,7 @@ func (l *lineIndex) find(relPath, pkg string) int {
 // readLines reads a manifest, returning nil on any problem — a missing line number degrades the
 // finding, it doesn't invalidate it.
 func readLines(path string) []string {
-	f, err := os.Open(path) //nolint:gosec // a manifest inside the checkout Draugr just made
+	f, err := os.Open(path) // #nosec G304 -- a manifest inside the checkout Draugr just made
 	if err != nil {
 		return nil
 	}

@@ -109,7 +109,7 @@ func LoadFile(path string) (*Model, error) {
 
 // loadModelFile reads one descriptor without resolving its fragments.
 func loadModelFile(path string) (*Model, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // path is operator-provided by design
+	data, err := os.ReadFile(path) // #nosec G304 -- path is operator-provided by design
 	if err != nil {
 		return nil, fmt.Errorf("read saga %q: %w", path, err)
 	}

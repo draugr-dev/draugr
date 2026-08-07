@@ -42,7 +42,7 @@ func RunCombined(ctx context.Context, dir string, argv []string) ([]byte, error)
 		return nil, errors.New("empty command")
 	}
 	started := time.Now()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	log(ctx, argv, dir, started, out, err)
@@ -60,7 +60,7 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 		return nil, errors.New("empty command")
 	}
 	started := time.Now()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Dir = dir
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)

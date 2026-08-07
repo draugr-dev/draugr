@@ -188,7 +188,7 @@ func loadAndCheck(path string) error {
 	// release, which every valid fragment lacks — and a fragment that only validates once merged
 	// is one nobody can check before merging it.
 	if IsFragmentFile(filepath.Base(path)) {
-		data, err := os.ReadFile(path) //nolint:gosec // operator-provided path, by design
+		data, err := os.ReadFile(path) // #nosec G304 -- operator-provided path, by design
 		if err != nil {
 			return fmt.Errorf("read fragment %q: %w", path, err)
 		}

@@ -130,7 +130,7 @@ func publishDiff(ctx context.Context, result diff.Result) error {
 
 // loadSARIF reads and parses a SARIF report file.
 func loadSARIF(path string) (sarif.Report, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // operator-provided report path
+	data, err := os.ReadFile(path) // #nosec G304 -- operator-provided report path
 	if err != nil {
 		return sarif.Report{}, err
 	}

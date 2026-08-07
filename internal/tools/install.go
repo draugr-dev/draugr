@@ -350,7 +350,7 @@ var cosignLookPath = func() (string, error) { return exec.LookPath("cosign") }
 
 // runCosignVerify runs `cosign <args>`; overridable in tests.
 var runCosignVerify = func(ctx context.Context, cosignPath string, args []string) error {
-	cmd := exec.CommandContext(ctx, cosignPath, args...) //nolint:gosec // cosignPath from LookPath; args are built from the pinned manifest // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command -- verifying with the cosign CLI is the point; path from LookPath, args from the pinned manifest
+	cmd := exec.CommandContext(ctx, cosignPath, args...) // #nosec G204 -- cosignPath from LookPath; args are built from the pinned manifest // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command -- verifying with the cosign CLI is the point; path from LookPath, args from the pinned manifest
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%w: %s", err, bytes.TrimSpace(out))
 	}
@@ -757,7 +757,7 @@ func recordInstall(destDir, name string, rec installRecord) {
 
 // fileSHA256 hashes a file on disk, streaming so a large binary doesn't land in memory.
 func fileSHA256(path string) (string, error) {
-	f, err := os.Open(path) //nolint:gosec // path is ours, under destDir
+	f, err := os.Open(path) // #nosec G304 -- path is ours, under destDir
 	if err != nil {
 		return "", err
 	}

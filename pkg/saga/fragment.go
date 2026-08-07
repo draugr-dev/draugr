@@ -229,7 +229,7 @@ func Merge(model *Model, frag Fragment) {
 
 // loadFragmentFile reads and decodes one fragment.
 func loadFragmentFile(path string) (Fragment, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // path came from the descriptor, by design
+	data, err := os.ReadFile(path) // #nosec G304 -- path came from the descriptor, by design
 	if err != nil {
 		return Fragment{}, fmt.Errorf("read fragment %q: %w", path, err)
 	}

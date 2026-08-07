@@ -96,8 +96,8 @@ func tsvSafe(v string) string {
 // could end the attribute. Whatever a scanner put in a finding is inside the encoded blob, not
 // in the markup.
 func dataURI(mime, payload string) template.URL {
-	//nolint:gosec // G203: template.URL bypasses escaping by design here. See the comment above:
-	// the scheme and MIME are constants in this file and the payload is base64, whose alphabet
-	// cannot terminate the attribute. Nothing from the scan reaches the markup.
-	return template.URL(fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString([]byte(payload))))
+	// template.URL bypasses escaping by design here. See the comment above: the scheme and MIME
+	// are constants in this file and the payload is base64, whose alphabet cannot terminate the
+	// attribute. Nothing from the scan reaches the markup.
+	return template.URL(fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString([]byte(payload)))) // #nosec G203 -- see above
 }

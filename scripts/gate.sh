@@ -41,6 +41,34 @@ fi
 echo "▶ go test (race + coverage)"
 go test -race -covermode=atomic -coverprofile=coverage.out ./...
 
+echo "▶ self-scan (sast)"
+# Draugr on Draugr, before pushing. Scoped to `sast` because that is the control that reads the
+# code you just changed — sca and licenses answer questions about go.mod, which CI can have.
+#
+# --working-tree, and it is the whole point: without it the scan reads the committed revision and
+# says nothing about what you are about to commit, which is the one thing a pre-push check is for.
+#
+# Semgrep is the reason this earns its four seconds. gosec is already covered by golangci-lint
+# above, faster and with no extra install; semgrep is covered nowhere else, so a finding it
+# raises is currently first seen in CI.
+#
+# Skipped rather than fatal when the pieces are missing, and it says which piece: this is the one
+# check here that needs tools beyond the Go toolchain, and a contributor should not have to
+# install Semgrep to run the tests.
+# bin/draugr, never one on PATH. A gate is a claim about the code in front of you, and an
+# installed Draugr is whatever release somebody last downloaded — the one on this machine is nine
+# versions behind and does not have the flag below. Checking HEAD with an old binary would answer
+# a question nobody asked.
+if [ -x bin/draugr ]; then
+	if command -v semgrep >/dev/null 2>&1 || command -v gosec >/dev/null 2>&1; then
+		bin/draugr scan .draugr/self.saga.yaml --controls sast --working-tree --no-tips
+	else
+		echo "  no sast scanner found — skipping (pipx install semgrep, or draugr tools install gosec)"
+	fi
+else
+	echo "  bin/draugr not built — skipping (run: make build)"
+fi
+
 echo "▶ public-scope"
 ./scripts/check-public-scope.sh
 

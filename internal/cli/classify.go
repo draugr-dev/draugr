@@ -61,7 +61,7 @@ func runClassify(path string, all bool, in io.Reader, out io.Writer) error {
 		return nil
 	}
 
-	data, err := os.ReadFile(path) //nolint:gosec // operator-provided path
+	data, err := os.ReadFile(path) // #nosec G304 -- operator-provided path
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func runClassify(path string, all bool, in io.Reader, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, updated, 0o600); err != nil { //nolint:gosec // operator-provided saga path
+	if err := os.WriteFile(path, updated, 0o600); err != nil { // #nosec G703 -- operator-provided saga path
 		return err
 	}
 	_, _ = fmt.Fprintf(out, "\nClassified %d component(s) in %s.\n", len(class), path)
