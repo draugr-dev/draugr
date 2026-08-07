@@ -18,9 +18,18 @@ import (
 type globalOptions struct {
 	logLevel  string
 	logFormat string
+	logFile   string
 	offline   bool
 	config    string
 }
+
+// closeLogFile closes the --log-file destination, if one was opened.
+//
+// A package-level value for the same reason rootConfigPath is one: it is decided once in the
+// root command's PersistentPreRunE, and the only place that can close it is after the command
+// has finished — which is a different function. The zero value is a no-op, so a run without
+// --log-file needs no special case.
+var closeLogFile = func() error { return nil }
 
 // rootConfigPath is the --config value, read by the config and scan commands.
 //
@@ -47,14 +56,19 @@ func newRootCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			logger, err := observability.NewLogger(cmd.ErrOrStderr(), observability.LogOptions{
+			logger, closeLog, err := observability.NewLogger(cmd.ErrOrStderr(), observability.LogOptions{
 				Level:  opts.logLevel,
 				Format: opts.logFormat,
+				File:   opts.logFile,
 			})
 			if err != nil {
 				return err
 			}
 			observability.SetDefault(logger)
+			// Closed after the command, not here. Cobra has no "after everything" hook that runs
+			// on an error path as well as a success one, and a log file closed early would be
+			// missing exactly the records someone opened it for.
+			closeLogFile = closeLog
 			// Recorded once, here, so every network call in the process reads the same answer
 			// rather than each deciding for itself.
 			if opts.offline {
@@ -69,6 +83,8 @@ func newRootCommand() *cobra.Command {
 		"log level: trace, debug, info, warn, error (trace relays scanner output)")
 	cmd.PersistentFlags().StringVar(&opts.logFormat, "log-format", "console",
 		"log format: console (human-readable, colorized on a terminal), json, or text")
+	cmd.PersistentFlags().StringVar(&opts.logFile, "log-file", "",
+		"also append every record to this file, at trace level and unclamped")
 	cmd.PersistentFlags().StringVar(&opts.config, "config", "",
 		"machine/organisation settings file, used instead of the discovered ones (also DRAUGR_CONFIG)")
 	cmd.PersistentFlags().BoolVar(&opts.offline, "offline", false,
@@ -129,6 +145,9 @@ func execute(ctx context.Context, args []string) int {
 
 	root := newRootCommand()
 	root.SetArgs(args)
+	// After the command, on the error path as well as the success one: the records worth keeping
+	// are disproportionately the ones a failing run wrote.
+	defer func() { _ = closeLogFile() }()
 	if err := root.ExecuteContext(ctx); err != nil {
 		span.RecordError(err)
 		fmt.Fprintln(os.Stderr, "draugr: "+err.Error())

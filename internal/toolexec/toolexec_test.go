@@ -273,18 +273,16 @@ func TestLogDoesNotRelayStdoutAboveTrace(t *testing.T) {
 	}
 }
 
-func TestClampForLogTrimsAHugeReport(t *testing.T) {
-	// A SARIF report can be megabytes; a log line that large is scrolled past, or makes the file
-	// too big to open.
-	got := clampForLog(strings.Repeat("x", maxTraceOutput+500))
-	if len(got) >= maxTraceOutput+500 {
-		t.Errorf("not trimmed: %d bytes", len(got))
-	}
-	if !strings.Contains(got, "500 bytes truncated") {
-		t.Errorf("it should say what was left out: %q", got[len(got)-80:])
-	}
-	if short := clampForLog("small"); short != "small" {
-		t.Errorf("a short stream should pass through, got %q", short)
+func TestRelayedStreamIsPassedWhole(t *testing.T) {
+	// How much of a stream a reader sees is the log handler's decision. Clamping here would put
+	// a ceiling on every destination, including --log-file, which exists to have none.
+	var buf bytes.Buffer
+	defer captureLogs(t, &buf, observability.LevelTrace)()
+
+	big := strings.Repeat("x", 12000)
+	log(t.Context(), []string{"tool"}, "", time.Now(), []byte(big), nil)
+	if !strings.Contains(buf.String(), big) {
+		t.Errorf("the stream reached the handler trimmed; it should arrive whole (%d bytes logged)", buf.Len())
 	}
 }
 
