@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.71.0] - 2026-08-07
+
 ### Added
 
 - **`--log-file <path>` keeps the whole run, while your terminal keeps the summary.** Trace
@@ -27,6 +31,7 @@ and move it under a version on release.
   Appended rather than truncated, since the second run is usually the one that reproduces the
   problem. Written `0600`, never coloured. A path that cannot be opened **fails the run** instead
   of being skipped.
+
 - **`--components` and `--controls` scope a scan**, for iterating on one failing component or one
   control without waiting for the rest — and without editing the descriptor, which is how a
   temporary change gets committed:
@@ -2975,7 +2980,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.70.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.71.0...HEAD
+[0.71.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.71.0
 [0.70.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.70.0
 [0.69.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.69.0
 [0.68.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.68.0
