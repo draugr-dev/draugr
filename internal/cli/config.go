@@ -274,7 +274,7 @@ func editConfig(w io.Writer, global bool, apply func([]byte) ([]byte, error)) er
 	if err != nil {
 		return err
 	}
-	doc, err := os.ReadFile(path) //nolint:gosec // a path this command owns
+	doc, err := os.ReadFile(path) // #nosec G304 -- a path this command owns
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -362,7 +362,7 @@ func newConfigValidateCommand() *cobra.Command {
 				}
 			}
 			for _, p := range paths {
-				data, err := os.ReadFile(p) //nolint:gosec // operator-provided path
+				data, err := os.ReadFile(p) // #nosec G304 -- operator-provided path
 				if err != nil {
 					return err
 				}

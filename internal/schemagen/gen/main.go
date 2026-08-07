@@ -24,7 +24,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "generate:", err)
 		os.Exit(1)
 	}
-	if err := os.WriteFile(path, out, 0o600); err != nil { //nolint:gosec // path is the const above
+	if err := os.WriteFile(path, out, 0o600); err != nil { // #nosec G703 -- path is the const above
 		fmt.Fprintln(os.Stderr, "write schema:", err)
 		os.Exit(1)
 	}
@@ -36,7 +36,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "generate fragment schema:", err)
 		os.Exit(1)
 	}
-	if err := os.WriteFile(fragmentPath, frag, 0o600); err != nil { //nolint:gosec // the const below
+	if err := os.WriteFile(fragmentPath, frag, 0o600); err != nil { // #nosec G703 -- the const below
 		fmt.Fprintln(os.Stderr, "write fragment schema:", err)
 		os.Exit(1)
 	}

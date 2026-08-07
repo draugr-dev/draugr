@@ -486,7 +486,7 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 
 // writeTo creates path and hands the writer to render, closing it either way.
 func writeTo(path string, render func(io.Writer) error) error {
-	f, err := os.Create(path) //nolint:gosec // operator-provided output dir
+	f, err := os.Create(path) // #nosec G304 -- operator-provided output dir
 	if err != nil {
 		return err
 	}

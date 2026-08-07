@@ -261,7 +261,7 @@ func expandHome(path string) string {
 func defaultRun(ctx context.Context, argv []string) ([]byte, error) {
 	// Running the configured tool is the point; no shell, and argv comes from the typed
 	// catalog above, not user input.
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // version probe of a catalog-defined tool // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- version probe of a catalog-defined tool // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	return cmd.CombinedOutput()
 }
 

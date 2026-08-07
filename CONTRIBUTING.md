@@ -90,6 +90,22 @@ in `CHANGELOG-ARCHIVE.md` — the guard already looks for that name, so archived
 checked rather than quietly dropping out of the check as they age — and add the archive to the
 release archive so the signed artifact still carries the whole record.
 
+### Suppressing a gosec finding
+
+Write **`#nosec`**, never `//nolint:gosec`:
+
+```go
+data, err := os.ReadFile(path) // #nosec G304 -- operator-provided config path
+```
+
+Both matter. gosec runs twice here — inside `golangci-lint` (fast, local, in `make gate`) and as
+Draugr's own `sast` scanner (what a user would get). `#nosec` silences both; `//nolint:gosec`
+silences only the first, so a codebase using it passes `make gate` and fails the self-scan on the
+same line.
+
+Name the rule, and give a reason after `--`. A bare `#nosec` silences every gosec rule on that
+line, including one nobody has reviewed.
+
 ### Writing the comment that explains a guard
 
 Everything here is world-readable — code comments, test rationale, workflow comments, config —

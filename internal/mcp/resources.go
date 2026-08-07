@@ -68,7 +68,7 @@ func addSagaResources(s *mcp.Server, root string) error {
 // taken from the request, so a client cannot read arbitrary files by asking for a different URI.
 func readFileResource(path string) mcp.ResourceHandler {
 	return func(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-		data, err := os.ReadFile(path) //nolint:gosec // a path this server chose, not one the client supplied
+		data, err := os.ReadFile(path) // #nosec G304 -- a path this server chose, not one the client supplied
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", path, err)
 		}

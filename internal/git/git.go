@@ -112,7 +112,7 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 // Both of Checkout's exit paths go through here, so neither can forget one of the two.
 func resolved(ctx context.Context, dir, source string) Tree {
 	t := Tree{Dir: dir, Dirty: UncommittedFiles(ctx, source)}
-	out, err := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "HEAD").Output() //nolint:gosec // Draugr's own temporary checkout
+	out, err := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "HEAD").Output() // #nosec G204 -- Draugr's own temporary checkout
 	if err != nil {
 		return t
 	}
@@ -152,7 +152,7 @@ func retryPlain(ctx context.Context, dir, url, revision string) error {
 // only when a server refuses a partial clone, which is not something a local fixture can be
 // asked to do, and an untested fallback is one that breaks for whoever self-hosts.
 var gitRun = func(ctx context.Context, args ...string) error {
-	cmd := exec.CommandContext(ctx, "git", args...) //nolint:gosec // args are constructed, not shell-interpreted
+	cmd := exec.CommandContext(ctx, "git", args...) // #nosec G204 -- args are constructed, not shell-interpreted
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%w: %s", err, out)
 	}
@@ -170,7 +170,7 @@ func UncommittedFiles(ctx context.Context, url string) int {
 	if !IsLocalPath(url) {
 		return 0
 	}
-	out, err := exec.CommandContext(ctx, "git", "-C", url, "status", "--porcelain").Output() //nolint:gosec // the descriptor's own repository path
+	out, err := exec.CommandContext(ctx, "git", "-C", url, "status", "--porcelain").Output() // #nosec G204 -- the descriptor's own repository path
 	if err != nil {
 		return 0 // not a repository, or no git — the clone will say so properly
 	}
@@ -219,7 +219,7 @@ func CheckoutWorkingTree(ctx context.Context, path string, scope Scope) (Tree, f
 	}
 	cleanup := func() { _ = os.RemoveAll(dir) }
 
-	out, err := exec.CommandContext(ctx, "git", "-C", path, "ls-files", "-co", "--exclude-standard", "-z").Output() //nolint:gosec // the descriptor's own repository path
+	out, err := exec.CommandContext(ctx, "git", "-C", path, "ls-files", "-co", "--exclude-standard", "-z").Output() // #nosec G204 -- the descriptor's own repository path
 	if err != nil {
 		cleanup()
 		return Tree{}, nil, fmt.Errorf("list working tree of %s: %w", path, err)
@@ -244,7 +244,7 @@ func CheckoutWorkingTree(ctx context.Context, path string, scope Scope) (Tree, f
 	t := Tree{Dir: dir, Dirty: UncommittedFiles(ctx, path), WorkingTree: true}
 	// The commit the tree sits on, kept plain. Rendering marks it as dirty; storing a "+" in the
 	// value would make it something no consumer could compare against a real revision.
-	if head, err := exec.CommandContext(ctx, "git", "-C", path, "rev-parse", "HEAD").Output(); err == nil { //nolint:gosec // the descriptor's own repository path
+	if head, err := exec.CommandContext(ctx, "git", "-C", path, "rev-parse", "HEAD").Output(); err == nil { // #nosec G204 -- the descriptor's own repository path
 		t.Revision = strings.TrimSpace(string(head))
 	}
 	return t, cleanup, nil
@@ -279,11 +279,11 @@ func copyInto(dstRoot, srcRoot, rel string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
 		return err
 	}
-	data, err := os.ReadFile(src) //nolint:gosec // checked by containedPath above
+	data, err := os.ReadFile(src) // #nosec G304 -- checked by containedPath above
 	if err != nil {
 		return nil //nolint:nilerr // as above
 	}
-	return os.WriteFile(dst, data, info.Mode().Perm()&0o755) //nolint:gosec // checked by containedPath above
+	return os.WriteFile(dst, data, info.Mode().Perm()&0o755) // #nosec G703 -- checked by containedPath above
 }
 
 // containedPath joins rel onto root and refuses anything that would land outside it.
@@ -314,7 +314,7 @@ func RemoteURL(ctx context.Context, path string) string {
 	if url := remote(ctx, path, "origin"); url != "" {
 		return url
 	}
-	out, err := exec.CommandContext(ctx, "git", "-C", path, "remote").Output() //nolint:gosec // the descriptor's own repository path
+	out, err := exec.CommandContext(ctx, "git", "-C", path, "remote").Output() // #nosec G204 -- the descriptor's own repository path
 	if err != nil {
 		return ""
 	}
@@ -330,7 +330,7 @@ func RemoteURL(ctx context.Context, path string) string {
 
 // remote reads one remote's fetch URL.
 func remote(ctx context.Context, path, name string) string {
-	out, err := exec.CommandContext(ctx, "git", "-C", path, "remote", "get-url", name).Output() //nolint:gosec // the descriptor's own repository path
+	out, err := exec.CommandContext(ctx, "git", "-C", path, "remote", "get-url", name).Output() // #nosec G204 -- the descriptor's own repository path
 	if err != nil {
 		return ""
 	}

@@ -19,11 +19,11 @@ config:
       # point of adding gosec is that a Go security tool that does not run a Go analyser on itself
       # is asking users to take on faith something it will not do.
       #
-      # It also scans differently from the gosec inside golangci-lint, which is what the lint job
-      # runs. That one honours `//nolint:gosec`; standalone gosec reads `#nosec` and nothing else.
-      # Every annotation in this tree is in golangci's dialect, so the findings below are cases
-      # somebody already reviewed, in a syntax this scanner cannot see. They are excluded here
-      # instead, which keeps one reason per exemption rather than two that can drift.
+      # It scans the same tree as the gosec inside golangci-lint, which is what the lint job and
+      # `make gate` run — deliberately, because that one is fast and local and this one is what a
+      # user would get. They agree because every suppression in this tree is written `#nosec`,
+      # which both honour; `//nolint:gosec` silences only the first, and a codebase using it would
+      # pass `make gate` and fail here on the same line.
       gosec:
         enabled: true
     iac:
@@ -47,68 +47,6 @@ config:
   # quietly un-ignore every _test.go. One place, one syntax, and the reason travels with the
   # rule.
   exclude:
-    # gosec, run standalone rather than through golangci-lint. Scoped by rule *and* path in every
-    # case but one, so a new instance in a file nobody has reviewed still fails the gate — the
-    # value of running it at all is the finding nobody has seen yet.
-    - rules:
-        - "G204"
-      reason: >-
-        Subprocess launched with a variable. Every one of these is Draugr running a scanner:
-        exec'ing third-party tools rather than linking or bundling them is a stated design
-        principle, so the argv is assembled from a descriptor by construction. The argv itself is
-        never shell-interpreted — os/exec takes a slice, not a string — and each call site already
-        carries a reviewed annotation in golangci's dialect. Unscoped by path because a new
-        subprocess launch in a new scanner is the same reviewed shape, and a rule that has to be
-        edited for every scanner added is a rule that gets edited without being read.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
-
-    - paths:
-        - "internal/cli/"
-        - "internal/feeds/"
-        - "internal/git/"
-        - "internal/mcp/"
-        - "internal/scanners/trivy_license.go"
-        - "internal/schemagen/gen/"
-        - "internal/tools/install.go"
-        - "pkg/config/"
-        - "pkg/saga/"
-      rules:
-        - "G304"
-        - "G703"
-      reason: >-
-        Reading a file whose path came from a variable, where the variable is a path the operator
-        named: the descriptor, the cache directory, a feed file, a report to diff against. A CLI
-        that only opened compile-time constants would not be a CLI. Each of these call sites
-        already carries a reviewed annotation, and the ones that resolve a path against a base
-        check containment first. Scoped to the packages that read operator input, so the same
-        rule firing anywhere else — a scanner reading a path it derived rather than was given —
-        is a finding rather than a repeat.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
-
-    - paths:
-        - "pkg/report/htmldata.go"
-      rules:
-        - "G203"
-      reason: >-
-        One call, wrapping a data: URI in template.URL to bypass contextual escaping that would
-        otherwise reject it. Nothing from the scan reaches the markup: the scheme and MIME type
-        are constants in that file, and the payload is base64, whose alphabet cannot terminate an
-        HTML attribute. The argument is written out beside the code it defends.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
-
-    - paths:
-        - "examples/"
-        - "contrib/starter-workflow/"
-      rules:
-        - "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
-      reason: >-
-        Workflow templates people copy. Pinning a starter workflow to a commit SHA makes it
-        unreadable and stale on the next action release, and GitHub's own starter workflows use
-        major tags for the same reason. Our real workflows, under .github/workflows/, are
-        SHA-pinned and still scanned. Scoped to this one rule so a genuine problem in an example
-        still surfaces.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
-
     - paths:
         - "internal/scanners/mend_sca_test.go"
       rules:

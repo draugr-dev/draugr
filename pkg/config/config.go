@@ -134,7 +134,7 @@ func discover(workDir string) []string {
 
 // loadFile reads and validates one file.
 func loadFile(path string) (File, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // operator-provided config path
+	data, err := os.ReadFile(path) // #nosec G304 G703 -- operator-provided config path
 	if err != nil {
 		return File{}, fmt.Errorf("read %s: %w", path, err)
 	}

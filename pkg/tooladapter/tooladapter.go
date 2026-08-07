@@ -132,7 +132,7 @@ func execRun(ctx context.Context, argv []string) ([]byte, error) {
 	started := time.Now()
 	// Adapters intentionally run the configured tool; no shell (exec.CommandContext, not
 	// "sh -c") and argv is built from typed config, not user shell input.
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // adapters intentionally run configured tools // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- adapters intentionally run configured tools // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	out, err := cmd.Output()
 	logToolRun(ctx, argv, "", started, out, err)
 	return out, err
