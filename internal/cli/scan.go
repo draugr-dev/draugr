@@ -183,6 +183,14 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	eopts := []engine.Option{
 		engine.WithPrioritization(defaultPrioritizer(expl)),
 		engine.WithSBOM(sbomgen.New()),
+		// Name a local checkout by the repository it came from, so a scan here and a scan in a
+		// pipeline recognise each other as one source rather than two.
+		engine.WithRemoteResolver(func(path string) string {
+			if !git.IsLocalPath(path) {
+				return ""
+			}
+			return git.RemoteURL(context.Background(), path)
+		}),
 	}
 	if netpolicy.Offline() {
 		eopts = append(eopts, engine.WithoutPrewarm())

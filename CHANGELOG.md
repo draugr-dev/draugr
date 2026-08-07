@@ -34,6 +34,17 @@ and move it under a version on release.
   you call the product internally, `config.vex.product` is the identifier a consumer matches
   against — and getting the second wrong means the document is read, understood, and applied to
   nothing.
+- **A local checkout is now named by the repository it came from.** `url: .` reported as `.`,
+  so a scan on a laptop and a scan in a pipeline were two unrelated sources — different cache
+  entries, and nothing `draugr diff` could compare. Draugr now resolves the checkout's git remote:
+
+  ```
+  Scanned: https://github.com/acme/sample.git at 4c71c87c
+  ```
+
+  A checkout with no remote keeps its path, which is the only name it has and the one a reader
+  can act on. The URL used to clone is unchanged.
+
 - **A repository's credentials no longer reach reports, filenames or cache keys.** A clone URL of
   the form `https://oauth2:TOKEN@github.com/acme/api.git` — the ordinary shape in CI — had its
   token carried verbatim into the `Scanned:` line, the SARIF repository provenance and generated
