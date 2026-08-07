@@ -338,7 +338,7 @@ func TestValidateGateControls(t *testing.T) {
 }
 
 // A descriptor key that matches nothing is the quiet kind of wrong: the scan runs, reports a
-// verdict, and does less than its author asked for. Both of these used to do exactly that.
+// verdict, and does less than its author asked for. Both shapes below are that key.
 func TestValidateRejectsUnusableControllerKeys(t *testing.T) {
 	t.Parallel()
 

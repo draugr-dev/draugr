@@ -119,9 +119,9 @@ func TestCheckControlNamesEmptyModel(t *testing.T) {
 }
 
 func TestCheckControlNamesRejectsUnknownScannerKeys(t *testing.T) {
-	// A key naming no scanner used to be accepted and ignored, which is how a descriptor that
-	// disables a scanner runs it anyway. This is also what makes per-rename migration entries
-	// unnecessary: any wrong key, for any reason, says what the control actually accepts.
+	// A key naming no scanner, accepted and ignored, is how a descriptor that disables a scanner
+	// runs it anyway. Rejecting any wrong key — for any reason — is also what makes per-rename
+	// migration entries unnecessary: every one of them says what the control actually accepts.
 	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"headers": {"enabled": true, "httpHeaders": saga.ControllerSettings{"enabled": false}},
 	}}}

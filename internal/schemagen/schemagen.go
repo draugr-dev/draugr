@@ -1,10 +1,10 @@
 // Package schemagen keeps the Saga JSON Schema's knowledge of controls in step with the
 // registry that actually answers for them.
 //
-// The control list used to be hand-written in the schema file, and it drifted two controls
-// behind — an editor rejected descriptors that Draugr accepted, including Draugr's own. No test
-// could have caught it: pkg/saga owns the schema and cannot import the registry without a cycle,
-// so nothing was in a position to compare them. This package is that position.
+// A hand-written control list in the schema file drifts behind the registry, and the symptom
+// reaches a user as an editor rejecting a descriptor Draugr accepts — including Draugr's own. No
+// test can catch that from either side: pkg/saga owns the schema and cannot import the registry
+// without a cycle, so neither package is in a position to compare them. This one is.
 //
 // Generated rather than validated so the answer cannot be wrong: `go generate ./...` rewrites the
 // file, and a test asserts that regenerating changes nothing.

@@ -188,8 +188,8 @@ func TestToolsCommandWiring(t *testing.T) {
 	}
 }
 
-// A misspelled tool used to be rendered as a row of dashes in the install plan, followed by a
-// confirmation prompt. It's a typo — say so and stop.
+// A misspelled tool has nothing to plan, so it renders as a row of dashes and then asks for
+// confirmation of it. It is a typo — say so and stop.
 func TestToolsInstallRejectsUnknownTool(t *testing.T) {
 	var out bytes.Buffer
 	called := false

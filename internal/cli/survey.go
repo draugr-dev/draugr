@@ -29,11 +29,12 @@ type surveyOptions struct {
 
 // newSurveyCommand builds `draugr survey` and its per-platform subcommands.
 //
-// Subcommands rather than a flag per surveyor, because the flags were quietly related to each
-// other and nothing said so. `--k8s-namespace` meant something only alongside `--k8s-images`, and
-// `draugr survey --github-org acme --k8s-namespace prod` was accepted in silence — the namespace
-// applied to nothing and nobody was told. A flag that does nothing without saying so is the
-// failure this codebase refuses everywhere else.
+// Subcommands rather than a flag per surveyor, because one flat set hides which flags are
+// related to each other. `--k8s-namespace` means something only alongside `--k8s-images`, and
+// nothing about a flat list says so: `draugr survey --github-org acme --k8s-namespace prod`
+// reads as a valid command, and the namespace applies to nothing. A flag that does nothing
+// without saying so is the failure this codebase refuses everywhere else, and a subcommand
+// cannot accept one that does not belong to it.
 //
 // The prefixes were already doing a subcommand's work by hand: every surveyor's options had to be
 // namespaced (`--k8s-…`, `--github-…`) to keep them apart in one flat set, which grows with each
@@ -271,10 +272,10 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		if err := os.WriteFile(opts.output, out, 0o600); err != nil {
 			return err
 		}
-		// Say what was produced. A command whose whole purpose is to write a file never named
-		// the file, counted what it found, or said where it went — and `-o .saga.yaml` is a name
-		// `ls` does not show, so the only evidence of a successful survey was the absence of an
-		// error. Two testers in a row concluded, reasonably, that nothing had happened.
+		// Say what was produced. A command whose whole purpose is to write a file has to name
+		// the file, count what it found, and say where it went — otherwise the only evidence of
+		// a successful survey is the absence of an error, and `-o .saga.yaml` is a name `ls`
+		// does not show. Silence and failure look identical, and the reader picks the wrong one.
 		//
 		// stderr, so a descriptor written to stdout stays a descriptor.
 		_, _ = fmt.Fprintln(os.Stderr, surveySummary(opts, frag, model))

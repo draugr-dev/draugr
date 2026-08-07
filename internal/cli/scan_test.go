@@ -499,8 +499,8 @@ func TestRunScanLoadError(t *testing.T) {
 
 func TestScanCommandViaCobra(t *testing.T) {
 	// No components → no jobs → nothing was checked, which must not read as a pass. A descriptor
-	// that scans nothing is far more often unfinished than genuinely empty, and the output for
-	// the two used to be identical.
+	// that scans nothing is far more often unfinished than genuinely empty, and a clean verdict
+	// renders the two identically.
 	path := writeSaga(t, "release:\n  name: app\n  version: \"1.0\"\n")
 	cmd := newRootCommand()
 	var out bytes.Buffer

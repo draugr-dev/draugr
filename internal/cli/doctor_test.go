@@ -385,10 +385,10 @@ func TestRequiredToolsFollowsScannerSelection(t *testing.T) {
 	}
 }
 
-// A scanner needing a tool the catalog has never heard of used to vanish from the check
-// entirely, so `doctor` reported "all required tools present" for a control that could not run.
-// The one command whose job is answering "will a scan work?" answered yes because it did not
-// recognise the name.
+// A scanner needing a tool the catalog has never heard of must not vanish from the check: a
+// `doctor` that drops the names it does not recognise reports "all required tools present" for
+// a control that cannot run. The one command whose job is answering "will a scan work?" would
+// be answering yes because it did not recognise the name.
 func TestRequiredToolsKeepsBinariesTheCatalogDoesNotKnow(t *testing.T) {
 	reg := engine.NewRegistry()
 	reg.RegisterController(unknownToolController{})

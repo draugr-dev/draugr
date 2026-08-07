@@ -44,6 +44,9 @@ go test -race -covermode=atomic -coverprofile=coverage.out ./...
 echo "▶ public-scope"
 ./scripts/check-public-scope.sh
 
+echo "▶ no-defect-recounts"
+./scripts/check-no-defect-recounts.sh
+
 echo "▶ changelog"
 ./scripts/changelog.sh check
 

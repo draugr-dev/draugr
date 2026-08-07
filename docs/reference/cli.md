@@ -341,7 +341,7 @@ None of this affects the verdict — it is a fact about the run, not a finding a
 
 ### `--format` prints; `--report` writes
 
-Two different questions, and they used to share one flag.
+Two different questions, which is why they are two flags.
 
 **`--format` is what appears on screen.** It accepts only formats a person or a pipe can sensibly
 receive: `console`, `markdown`, `json`, `sarif`, `vex`, `template`. `--format html` is rejected —
