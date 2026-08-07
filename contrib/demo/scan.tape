@@ -36,10 +36,10 @@ Set Padding 20
 # rather than as a cropped image. At font size 18 a row is about 22px, and the sandbox scan
 # currently prints 41 rows including the prompt — 942px, so 1020 leaves about three rows spare.
 #
-# Check this when the output grows. It has already failed once exactly as described above: a
-# second component added four rows, the summary line moved below the fold, and the render died
-# on a 120-second Wait for text that was never going to appear. The height is not cosmetic —
-# it decides whether the tape completes at all.
+# Check this whenever the report grows a row: another component, another control, one more note
+# under the verdict. The failure is not a cropped image, which someone would see — it is a
+# timeout waiting for a line that rendered below the fold, so the height is not cosmetic. It
+# decides whether the tape completes at all.
 
 # Enter the sandbox off-camera. The scanner databases are warmed by the workflow before vhs
 # starts — Trivy downloads its database on first use, and on a cold runner that download

@@ -66,6 +66,12 @@ jobs:
     permissions:
       contents: write # push the screenshot branch
       pull-requests: write # open the PR
+    env:
+      # These steps capture what a reader gets when they run the same command themselves, and a
+      # reader runs it at a terminal. `scan` prints a tip in CI about a report that exists only
+      # in the log, which is true here and irrelevant to what the screenshot is demonstrating —
+      # and every line it adds is a line closer to the viewport height the tape declares.
+      CI: ""
     steps:
       # main, not the release tag: the branch this pushes has to merge into main, and the tape
       # to render is the current one. Only the *binary* being captured comes from the release.
@@ -110,8 +116,8 @@ jobs:
 
       # vhs renders a fixed viewport, so output taller than it is never captured — including the
       # line the tape's Wait matches on, which turns a too-short frame into a 120-second timeout
-      # for text that was never going to appear. That is a slow, opaque way to learn the output
-      # grew, and it has happened: a second component added four rows and the render died.
+      # for text that was never going to appear. Anything that adds rows to the report does that:
+      # a second component, another control, one more note under the verdict.
       #
       # Measured here instead, in a second, against the tape's own declared height.
       - name: The output still fits the viewport

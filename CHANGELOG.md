@@ -12,6 +12,24 @@ and move it under a version on release.
 
 ### Added
 
+- **`draugr scan` now points out things about the run you would otherwise have to know to look
+  for.** Up to two one-line tips follow a console report, each gated on the run it describes:
+
+  - the run **passed while carrying P1 or P2 findings** and nothing gates on priority — the one
+    case where the verdict is right and your reading of it is not;
+  - it looks like **CI, and the report exists only in this log** — no `-o` and no
+    `config.publishers`, so the evidence goes wherever the log does;
+  - **no component sets `exposure` or `criticality`**, so priorities are severity alone;
+  - the run **took over a minute with no `--cache-dir`**.
+
+  Two per run at most, in that order. A block of five tips is one nobody reads, so the cap is
+  deliberate. `--no-tips` or `DRAUGR_NO_TIPS=1` silences them, as before.
+
+- **The uncovered-surface note now says why `dast` is not on its list.** A component declaring
+  hosts with `headers` and `tls` off is told so — and told that `dast` is never suggested,
+  because it sends attack traffic at a live service and that is a decision to make rather than
+  one to be nudged into.
+
 - **Mend can also serve the `licenses` control**, reporting the licence of every dependency it
   resolved:
 

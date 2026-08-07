@@ -332,9 +332,9 @@ func fileExists(path string) bool {
 
 // controlsForSurface maps a discovered surface to the controls that can act on it.
 //
-// A descriptor written by discovery used to enable nothing, so its first scan reported PASS
-// having run no control. Discovery's promise is that the descriptor writes itself, and a
-// descriptor that checks nothing has not written itself — it has written a shape.
+// Discovery's promise is that the descriptor writes itself, and a descriptor enabling no control
+// has not written itself — it has written a shape, whose first scan reports PASS having checked
+// nothing.
 //
 // `dast` is deliberately absent from the host list. The passive host controls read a response;
 // dast sends attack traffic at a live service, and turning that on because a survey noticed the
