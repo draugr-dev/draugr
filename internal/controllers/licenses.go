@@ -45,14 +45,23 @@ func (Licenses) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, 
 	if comp == nil {
 		return nil, nil
 	}
-	cfg := licensePolicy(model, comp)
-	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories))
+	policy := licensePolicy(model, comp)
+	selections := resolveScanners(model, comp, "licenses", []string{trivyLicenseScanner})
+	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(selections))
 	for _, repo := range comp.Repositories {
-		jobs = append(jobs, plugin.ScanJob{
-			Scanner: trivyLicenseScanner,
-			Target:  plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths, Ignore: repo.Ignore},
-			Config:  cfg,
-		})
+		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths, Ignore: repo.Ignore}
+		for _, sel := range selections {
+			// The policy is the control's, so every scanner serving it judges by the same lists;
+			// a scanner's own block adds to that rather than replacing it.
+			cfg := plugin.Config{}
+			for k, v := range sel.Config {
+				cfg[k] = v
+			}
+			for k, v := range policy {
+				cfg[k] = v
+			}
+			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: cfg})
+		}
 	}
 	return jobs, nil
 }
