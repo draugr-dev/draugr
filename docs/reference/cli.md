@@ -468,6 +468,19 @@ draugr survey github repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
 ```
 
+**`--namespace` may be repeated, and each one becomes its own component** with its own proposed
+exposure:
+
+```bash
+draugr survey k8s images --namespace payments --namespace checkout -o draugr.saga.yaml
+draugr survey k8s images --namespace payments,checkout -o draugr.saga.yaml   # equivalent
+```
+
+That is the difference from naming no namespace at all: the whole cluster is discovered as one
+component, and one exposure covering everything running anywhere in it would not mean anything —
+so a whole-cluster survey proposes none. Three namespaces get three components and three
+proposals.
+
 **It says what it wrote.** A survey that writes a file reports the path and what is now in it, on
 stderr so a descriptor sent to stdout stays a descriptor:
 

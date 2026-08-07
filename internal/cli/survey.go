@@ -94,25 +94,28 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 		return scope
 	}
 
-	var namespace string
+	var namespaces []string
 	images := &cobra.Command{
 		Use:   "images",
 		Short: "Discover the container images running in a cluster",
 		Long: "Enumerate the unique container images running in a cluster, with the digest each is\n" +
 			"actually running, and write them as components.\n\n" +
-			"Scoped to one namespace, this also proposes each component's exposure from cluster\n" +
-			"topology — review it, then set criticality with `draugr classify`.",
+			"Scoped to a namespace, this also proposes each component's exposure from cluster\n" +
+			"topology — review it, then set criticality with `draugr classify`.\n\n" +
+			"--namespace may be repeated, and each one becomes its own component with its own\n" +
+			"proposed exposure. That is the difference between three namespaces and no namespace\n" +
+			"at all: the whole cluster is one component, and one exposure for everything running\n" +
+			"anywhere in it would not mean anything.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSurvey(cmd.Context(), *opts, []surveyor.Request{{
-				Surveyor: "k8s-images",
-				Scope:    scopeFor(namespace),
-			}}, builtins.SurveyorRegistry(), cmd.OutOrStdout())
+			return runSurvey(cmd.Context(), *opts, requestPerNamespace("k8s-images", namespaces, scopeFor),
+				builtins.SurveyorRegistry(), cmd.OutOrStdout())
 		},
 	}
-	images.Flags().StringVar(&namespace, "namespace", "", "limit discovery to one namespace (default all)")
+	images.Flags().StringSliceVar(&namespaces, "namespace", nil,
+		"limit discovery to a namespace; repeat for several, one component each (default all)")
 
-	var clusterNamespace string
+	var clusterNamespaces []string
 	cluster := &cobra.Command{
 		Use:   "cluster",
 		Short: "Discover the cluster itself, as infrastructure to audit",
@@ -120,23 +123,44 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 			"apply to it. Separate from `k8s images`: those are the application, this is what it\n" +
 			"runs on, and they will differ in criticality.\n\n" +
 			"With --namespace, the component owns that namespace rather than the whole cluster.\n" +
+			"Repeat it for several, and each becomes its own component — they are audited\n" +
+			"separately because they are usually owned separately.\n\n" +
 			"exposure and criticality are left unset — they are judgements no cluster holds; run\n" +
 			"`draugr classify` for those.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSurvey(cmd.Context(), *opts, []surveyor.Request{{
-				Surveyor: "k8s-cluster",
-				Scope:    scopeFor(clusterNamespace),
-			}}, builtins.SurveyorRegistry(), cmd.OutOrStdout())
+			return runSurvey(cmd.Context(), *opts, requestPerNamespace("k8s-cluster", clusterNamespaces, scopeFor),
+				builtins.SurveyorRegistry(), cmd.OutOrStdout())
 		},
 	}
-	cluster.Flags().StringVar(&clusterNamespace, "namespace", "",
-		"the component owns this namespace rather than the whole cluster")
+	cluster.Flags().StringSliceVar(&clusterNamespaces, "namespace", nil,
+		"the component owns this namespace rather than the whole cluster; repeat for several")
 
 	cmd.PersistentFlags().StringVar(&kubeContext, "context", "",
 		"kubeconfig context to survey (default the current one)")
 	cmd.AddCommand(images, cluster)
 	return cmd
+}
+
+// requestPerNamespace turns the namespaces a caller named into one survey request each.
+//
+// A surveyor scoped to a namespace describes that namespace: it names the component after it and
+// proposes an exposure from its topology. Passing several as one scope would collapse them back
+// into a single component and lose both — so the loop is here, at the boundary between what the
+// caller asked for and what a surveyor is asked to do, and the surveyor keeps answering one
+// question at a time.
+//
+// No namespace means the whole cluster, which is one request with an empty ref and the behaviour
+// that has always been the default.
+func requestPerNamespace(name string, namespaces []string, scopeFor func(string) plugin.SurveyScope) []surveyor.Request {
+	if len(namespaces) == 0 {
+		return []surveyor.Request{{Surveyor: name, Scope: scopeFor("")}}
+	}
+	out := make([]surveyor.Request, 0, len(namespaces))
+	for _, ns := range namespaces {
+		out = append(out, surveyor.Request{Surveyor: name, Scope: scopeFor(ns)})
+	}
+	return out
 }
 
 // newSurveyGitHubCommand groups the surveyors that read GitHub.

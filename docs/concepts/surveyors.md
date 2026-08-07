@@ -35,7 +35,15 @@ Each surveyor is a subcommand, so its options live with it — `--namespace` bel
 draugr survey github repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
 draugr survey k8s cluster --context prod --merge -o draugr.saga.yaml
+
+# Several namespaces, one component each
+draugr survey k8s images --namespace payments --namespace checkout -o draugr.saga.yaml
 ```
+
+**A namespace is a component.** `--namespace` repeats, and each one is surveyed on its own terms:
+its component is named after it, and its exposure is proposed from its own topology. Naming none
+discovers the whole cluster as a single component with no exposure proposed, because one exposure
+covering everything running anywhere in a cluster would not mean anything.
 
 `k8s images` and `k8s cluster` read the same cluster but describe different things, and are
 deliberately separate: the images are the application, the cluster is what it runs on, and they

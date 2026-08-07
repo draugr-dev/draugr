@@ -12,6 +12,19 @@ and move it under a version on release.
 
 ### Added
 
+- **`draugr survey k8s` takes more than one `--namespace`.** The descriptor's
+  `infrastructure.namespaces` is a list, so someone who owns three namespaces could describe that
+  and not discover it.
+
+  ```bash
+  draugr survey k8s images --namespace payments --namespace checkout -o draugr.saga.yaml
+  ```
+
+  Each namespace becomes **its own component, with its own proposed exposure** read from its own
+  topology — which is the difference from naming none. A whole-cluster survey is a single
+  component and proposes no exposure, because one value covering everything running anywhere in a
+  cluster would not mean anything.
+
 - **`draugr scan` now points out things about the run you would otherwise have to know to look
   for.** Up to two one-line tips follow a console report, each gated on the run it describes:
 
