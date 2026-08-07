@@ -116,7 +116,8 @@ func (s mendSCAScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 	// on every commit.
 	settings.project = mendProjectName(settings.project, repo.Source())
 
-	summary, err := s.upload(ctx, tree.Dir, settings)
+	summary, err := sharedMendUploads.upload(ctx, mendUploadKey(repo, settings),
+		func(ctx context.Context) (uaSummary, error) { return s.upload(ctx, tree.Dir, settings) })
 	if err != nil {
 		return sarif.Report{}, err
 	}
@@ -437,6 +438,12 @@ func mendNameFragment(source string) string {
 func shortHash(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:4])
+}
+
+// mendUploadKey identifies one upload: the repository as it will be scanned, and the project it
+// reports into. Anything that differs between those is a different upload.
+func mendUploadKey(repo plugin.RepositoryTarget, set mendSettings2) string {
+	return repo.Identity() + "→" + set.productToken + "/" + set.project
 }
 
 // defaultResultTimeout bounds the wait for Mend to process an upload.

@@ -171,6 +171,41 @@ func (c *Client) Alerts(ctx context.Context, projectToken string) ([]Alert, erro
 	return out.Alerts, err
 }
 
+// InventoryLibrary is one component in a project's inventory, with the licences Mend attributes
+// to it.
+type InventoryLibrary struct {
+	Name       string             `json:"name"`
+	Version    string             `json:"version"`
+	Filename   string             `json:"filename"`
+	Type       string             `json:"type"`
+	GroupID    string             `json:"groupId"`
+	ArtifactID string             `json:"artifactId"`
+	Licenses   []InventoryLicense `json:"licenses"`
+}
+
+// InventoryLicense is one licence Mend attributes to a library.
+//
+// Name is Mend's own vocabulary — "BSD 3", "Apache 2.0" — and SPDXName is frequently empty, which
+// is the fact the licences scanner is built around: a policy written in SPDX cannot match a name
+// that is not one.
+type InventoryLicense struct {
+	Name     string `json:"name"`
+	SPDXName string `json:"spdxName"`
+	URL      string `json:"url"`
+}
+
+// Inventory returns a project's libraries and the licences attributed to them.
+func (c *Client) Inventory(ctx context.Context, projectToken string) ([]InventoryLibrary, error) {
+	var out struct {
+		Libraries []InventoryLibrary `json:"libraries"`
+	}
+	err := c.call(ctx, map[string]any{
+		"requestType":  "getProjectInventory",
+		"projectToken": projectToken,
+	}, &out)
+	return out.Libraries, err
+}
+
 // LibraryCount reports how many libraries a project's inventory holds.
 //
 // The way a caller tells a processed upload from an unprocessed one when the agent gave no

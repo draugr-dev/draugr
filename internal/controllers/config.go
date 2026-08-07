@@ -168,6 +168,7 @@ var scannerConfigKey = map[string]string{
 	"trivy-config":        "trivyConfig",
 	"trivy-license":       "trivyLicense",
 	"mend-sca":            "mendSca",
+	"mend-licenses":       "mendLicenses",
 }
 
 // scannerForConfigKey inverts scannerConfigKey.

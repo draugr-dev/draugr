@@ -10,7 +10,28 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Mend can also serve the `licenses` control**, reporting the licence of every dependency it
+  resolved:
+
+  ```yaml
+  config:
+    controllers:
+      licenses:
+        mendLicenses: { enabled: true, productToken: "…" }
+        deny: ["GPL-3.0-only"]
+  ```
+
+  It shares one upload with `mend-sca`, so enabling both scans your dependencies once rather than
+  twice — and it works with `sca` disabled or served by Trivy, because the upload belongs to
+  neither.
+
+  **Two things to know before enabling it.** Mend often reports licences by its own names rather
+  than SPDX identifiers (`"BSD 3"`, not `BSD-3-Clause`); those are used as-is and the scan warns,
+  listing what the run produced, so you can write rules against the strings that will actually
+  appear. And Mend supplies no licence *category*, so this scanner reports only the licences your
+  policy names — where Trivy would also flag copyleft you never listed.
 
 ## [0.70.0] - 2026-08-07
 
