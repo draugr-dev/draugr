@@ -81,12 +81,15 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		tree, cleanup, err := g.checkout(ctx, target.URL, target.Revision,
 			git.Scope{Paths: target.Paths, Ignore: target.Ignore})
 		if err != nil {
-			return pkgsbom.Document{}, fmt.Errorf("checkout %s: %w", target.URL, err)
+			return pkgsbom.Document{}, fmt.Errorf("checkout %s: %w", target.Source(), err)
 		}
 		defer cleanup()
 		// dir: disambiguates a local path from an image reference — Syft guesses otherwise,
 		// and a directory named like a registry path is not a hypothetical we want to debug.
-		src, label, sourceName = "dir:"+tree.Dir, target.URL, target.URL
+		// The clone above used the raw URL because fetching needs whatever credentials it
+		// carries. What the document is *named* after is the source, which they are not part of.
+		source := target.Source()
+		src, label, sourceName = "dir:"+tree.Dir, source, source
 		checkoutDir = tree.Dir
 	case plugin.ImageTarget:
 		src = target.PinnedRef()

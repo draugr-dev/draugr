@@ -34,6 +34,19 @@ and move it under a version on release.
   you call the product internally, `config.vex.product` is the identifier a consumer matches
   against — and getting the second wrong means the document is read, understood, and applied to
   nothing.
+- **A repository's credentials no longer reach reports, filenames or cache keys.** A clone URL of
+  the form `https://oauth2:TOKEN@github.com/acme/api.git` — the ordinary shape in CI — had its
+  token carried verbatim into the `Scanned:` line, the SARIF repository provenance and generated
+  SBOM filenames.
+
+  A finding is about a repository, not about who fetched it, so the username and any credentials
+  are now **dropped** from everywhere a repository is named rather than merely hidden. The URL
+  used to clone is untouched, because fetching is the one thing they are for.
+
+  Two consequences beyond the leak. Azure DevOps URLs (`https://my-org@dev.azure.com/…`) no longer
+  carry the organisation twice. And two people scanning one repository with different credentials
+  now produce the **same** identity, so they share a cache entry and read as one source in a
+  report instead of two.
 
 ## [0.69.0] - 2026-08-05
 
