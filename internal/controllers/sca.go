@@ -25,18 +25,21 @@ func (SCA) Info() plugin.ControllerInfo {
 	}
 }
 
-// Plan produces one scan job per repository declared on the component.
-func (SCA) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+// Plan produces one scan job per repository, for each scanner this component selects.
+//
+// Trivy runs by default; anything else is opt-in, because the others reach a third party and one
+// of them writes into an account. See scanner selection in the Saga reference.
+func (SCA) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {
 		return nil, nil
 	}
-	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories))
+	selections := resolveScanners(model, comp, "sca", []string{trivyFSScanner})
+	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(selections))
 	for _, repo := range comp.Repositories {
 		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths, Ignore: repo.Ignore}
-		jobs = append(jobs, plugin.ScanJob{
-			Scanner: trivyFSScanner,
-			Target:  target,
-		})
+		for _, sel := range selections {
+			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
+		}
 	}
 	return jobs, nil
 }
