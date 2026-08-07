@@ -157,9 +157,111 @@ jobs:
           fail-on-new-priority: P1
 
       - name: Upload evidence
-        if: needs.changes.outputs.code == 'true'
+        # always(), not the code filter: the evidence is most wanted when the gate failed, and
+        # a step skipped on failure uploads nothing exactly then.
+        if: always() && needs.changes.outputs.code == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: draugr-selfscan
           path: draugr-out/
           if-no-files-found: warn
+
+  # A failing gate on the default branch has to reach a person.
+  #
+  # The pull-request gate stops a new P1 being merged and the release gate stops a bad tree
+  # shipping, so what is left is the case neither can see: main going red with no change to main.
+  # A CVE published against a dependency that was already there, a scanner shipping a new rule, an
+  # exclusion reaching its expiry date. Nobody did anything, and the branch is failing.
+  #
+  # That is a poor fit for blocking merges — the pull request that fixes it would be blocked by
+  # the thing it fixes, and every unrelated change waits on somebody else's CVE. It is a good fit
+  # for an issue, which is how the rest of the work here is tracked anyway.
+  #
+  # One issue, reused. Opening a fresh one per red push turns a week of a slow-moving advisory
+  # into seven duplicates, which is how a notification becomes something people filter. Closed
+  # automatically when the branch is green again, so an open one always means "red right now"
+  # rather than "was red once".
+  notify:
+    name: A red default branch raises an issue
+    needs: [changes, selfscan]
+    # Pushes to main only. On a pull request the author is already looking at the failing check,
+    # and an issue would be telling them what their own screen says.
+    if: always() && github.event_name == 'push' && needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Fetch the evidence
+        if: needs.selfscan.result == 'failure'
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: draugr-selfscan
+          path: draugr-out
+        continue-on-error: true
+
+      - name: Open or update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ needs.selfscan.result }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SECURITY_URL: ${{ github.server_url }}/${{ github.repository }}/security/code-scanning
+        run: |
+          set -euo pipefail
+          label="self-scan"
+
+          # The label is what makes the issue findable next time, so create it if it is missing
+          # rather than failing on a repository that has never been red.
+          gh label create "$label" --description "The self-scan on main is failing" --color B60205 2>/dev/null || true
+
+          existing=$(gh issue list --label "$label" --state open --limit 1 --json number --jq '.[0].number // empty')
+
+          if [ "$RESULT" != "failure" ]; then
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --body "Green again as of \`${SHA:0:8}\`. Closing — an open issue with this label means the branch is red now, not that it was red once."
+              gh issue close "$existing"
+              echo "closed #$existing"
+            else
+              echo "green, and nothing open"
+            fi
+            exit 0
+          fi
+
+          # Counts rather than a copy of the report: the SARIF is already in code scanning, where
+          # it can be triaged, and a body that restates it goes stale the moment somebody does.
+          summary="(the run's log has the detail)"
+          if [ -f draugr-out/report.json ]; then
+            summary=$(jq -r '
+              "P1 \(.priorities.p1 // 0) · P2 \(.priorities.p2 // 0) · P3 \(.priorities.p3 // 0) · P4 \(.priorities.p4 // 0)",
+              "",
+              "| Control | Verdict | Highest | Findings |",
+              "|---|---|---|---|",
+              (.controls[] | select(.verdict == "fail")
+                | "| `\(.name)` | \(.verdict) | \(.highestPriority // .highest) | \(.total) |")
+            ' draugr-out/report.json)
+          fi
+
+          body=$(cat <<BODY
+          The self-scan gate is failing on \`main\` as of [\`${SHA:0:8}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${SHA}).
+
+          ${summary}
+
+          [The run](${RUN_URL}) · [Code scanning](${SECURITY_URL}) — the SARIF is uploaded there by the scan itself, so triage happens in one place rather than in this issue.
+
+          **This does not necessarily mean somebody broke something.** The pull-request gate blocks a new P1 from being merged, so the usual cause of a red branch is that the world changed underneath an unchanged tree: an advisory published against a dependency that was already here, a scanner shipping a rule it did not have last week, or a \`config.exclude\` entry reaching its expiry date.
+
+          Two ways out, and the choice is the point: fix it, or accept it with a \`config.exclude\` entry in \`.draugr/self.saga.yaml\` carrying a reason and an \`acceptedBy\`. The finding stays in the report marked suppressed either way, so the decision is visible afterwards.
+
+          This issue closes itself when the branch is green again.
+          BODY
+          )
+          body=$(printf '%s\n' "$body" | sed 's/^          //')
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body "$body"
+            echo "updated #$existing"
+          else
+            gh issue create --label "$label" \
+              --title "The self-scan on main is failing" --body "$body"
+          fi
