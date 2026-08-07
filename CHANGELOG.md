@@ -10,7 +10,19 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **A missing scanner now tells you how to install it.** `sast` and `secrets` failing with
+  `executable file not found` was correct and unhelpful — most likely to happen on a first scan,
+  when Draugr is installed and nothing else is:
+
+  ```
+  secrets  ERROR  did not run
+           run gitleaks: … executable file not found in $PATH — run `draugr tools install gitleaks`
+  ```
+
+  For a tool Draugr does not distribute, it says so instead of suggesting an install that would
+  find nothing.
 
 ## [0.71.0] - 2026-08-07
 

@@ -24,7 +24,7 @@ No descriptor needed — point Draugr at a repository:
 draugr scan .          # scans the current repo with sca, secrets, sast, iac
 ```
 
-That's the 60-second path to a verdict. When you want to pick controls, add container images
+That's the whole path to a verdict — nothing to write first. When you want to pick controls, add container images
 or endpoints, or classify components for prioritization, scaffold a descriptor:
 
 ```bash

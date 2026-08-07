@@ -293,3 +293,50 @@ func captureLogs(t *testing.T, buf *bytes.Buffer, level slog.Level) func() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: level})))
 	return func() { slog.SetDefault(prev) }
 }
+
+func notFound() error {
+	return &exec.Error{Name: "x", Err: exec.ErrNotFound}
+}
+
+func TestExplainNamesTheFixForAMissingTool(t *testing.T) {
+	// A missing binary is the one failure whose fix is a single command, and it is the likeliest
+	// state for somebody on their first scan — Draugr installed, nothing else yet. The error said
+	// only that the file was not found.
+	//
+	// Built from a synthetic not-found rather than by running a binary that is absent: whether
+	// gitleaks is installed is a property of the machine, and a test that passes only on a clean
+	// one is a test that stops running.
+	err := explain("gitleaks", notFound())
+	if !strings.Contains(err.Error(), "draugr tools install gitleaks") {
+		t.Errorf("a tool Draugr distributes should name the command that installs it: %v", err)
+	}
+}
+
+func TestExplainDoesNotOfferToInstallWhatWeDoNotShip(t *testing.T) {
+	// Suggesting `tools install` for a tool Draugr does not distribute is worse than saying
+	// nothing: the command runs, finds no such tool, and the reader concludes the fix is broken.
+	err := explain("semgrep", notFound())
+	if strings.Contains(err.Error(), "tools install") {
+		t.Errorf("semgrep is not ours to install, so this must not suggest it: %v", err)
+	}
+	for _, want := range []string{"does not distribute", "draugr doctor"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("want %q in: %v", want, err)
+		}
+	}
+}
+
+func TestExplainLeavesOtherFailuresAlone(t *testing.T) {
+	// A tool that ran and failed already explains itself on stderr; adding installation advice
+	// there would be answering a question nobody asked.
+	_, err := Run(t.Context(), "", []string{"sh", "-c", "echo 'bad flag' >&2; exit 2"})
+	if err == nil {
+		t.Fatal("want the non-zero exit as an error")
+	}
+	if strings.Contains(err.Error(), "tools install") || strings.Contains(err.Error(), "does not distribute") {
+		t.Errorf("an exit failure is not a missing tool: %v", err)
+	}
+	if !strings.Contains(err.Error(), "bad flag") {
+		t.Errorf("the tool's own first line should still travel: %v", err)
+	}
+}

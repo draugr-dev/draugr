@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/observability"
+	"github.com/draugr-dev/draugr/internal/tools"
 )
 
 // Run executes argv and returns its stdout. dir sets the working directory; empty inherits the
@@ -46,7 +47,7 @@ func RunCombined(ctx context.Context, dir string, argv []string) ([]byte, error)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	log(ctx, argv, dir, started, out, err)
-	return out, explain(err)
+	return out, explain(argv[0], err)
 }
 
 // RunWithEnv is Run with extra environment variables layered over the parent's, each "K=V".
@@ -67,7 +68,7 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 	}
 	out, err := cmd.Output()
 	log(ctx, argv, dir, started, out, err)
-	return out, explain(err)
+	return out, explain(argv[0], err)
 }
 
 // explain puts the tool's own first words into the error.
@@ -79,7 +80,22 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 //
 // One line, clamped: some tools print a usage screen on failure, and a report is not the place
 // for it. Trace still has the rest.
-func explain(err error) error {
+func explain(tool string, err error) error {
+	// A missing binary is the one failure whose fix is a single command, and the error says
+	// only that the file was not found. That message is correct and it is the first thing a
+	// reader sees on their first scan — after installing Draugr and before installing anything
+	// else, which is the likeliest state for somebody who has just arrived.
+	//
+	// Which advice depends on whether Draugr distributes the tool. Suggesting `tools install`
+	// for one it does not is worse than saying nothing: the command runs, finds no such tool,
+	// and the reader concludes the fix does not work.
+	if errors.Is(err, exec.ErrNotFound) {
+		if _, ours := tools.Spec(tool); ours {
+			return fmt.Errorf("%w — run `draugr tools install %s`", err, tool)
+		}
+		return fmt.Errorf("%w — Draugr does not distribute %s; install it and put it on PATH "+
+			"(`draugr doctor` names the source)", err, tool)
+	}
 	exit, ok := errors.AsType[*exec.ExitError](err)
 	if !ok || len(exit.Stderr) == 0 {
 		return err
