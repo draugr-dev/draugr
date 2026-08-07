@@ -39,4 +39,13 @@ func SourceURL(raw string) string {
 
 // Source is the repository this target names, without credentials — what a report should show
 // and what identifies the scan.
-func (t RepositoryTarget) Source() string { return SourceURL(t.URL) }
+//
+// A resolved remote wins over the URL, because a local path describes where a checkout sits on
+// one machine rather than which repository it is. That is what lets a scan on a laptop and a scan
+// in a pipeline recognise each other as the same source.
+func (t RepositoryTarget) Source() string {
+	if t.Remote != "" {
+		return SourceURL(t.Remote)
+	}
+	return SourceURL(t.URL)
+}

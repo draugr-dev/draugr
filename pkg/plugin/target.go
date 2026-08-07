@@ -33,6 +33,13 @@ type RepositoryTarget struct {
 	Paths []string
 	// Ignore removes matching paths, applied after Paths.
 	Ignore []string
+	// Remote is the repository this checkout came from, resolved from its git remote when URL is
+	// a local path. Empty when URL is already remote, or when the checkout has no remote — a
+	// repository that exists only on one machine is legitimate, and then the path is all there is.
+	//
+	// Set by the engine rather than by each controller, so a controller written next cannot
+	// forget it.
+	Remote string
 	// WorkingTree scans the checkout as it is on disk, uncommitted work included, instead of the
 	// committed revision. Set only by `draugr scan --working-tree`, and only meaningful for a
 	// local path.

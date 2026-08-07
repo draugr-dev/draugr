@@ -36,7 +36,9 @@ type Engine struct {
 	cacheable func(plugin.Target) bool
 	// workingTree scans repositories as they are on disk rather than at their committed revision.
 	workingTree bool
-	prioritize  Prioritizer
+	// resolveRemote names a local checkout by its remote — see WithRemoteResolver.
+	resolveRemote RemoteResolver
+	prioritize    Prioritizer
 	// skipPrewarm suppresses the pre-run warm-up of shared scanner state (Trivy's database,
 	// Nuclei's templates), which is the only part of a scan that reaches the network on its own.
 	skipPrewarm bool
@@ -126,6 +128,21 @@ func WithoutPrewarm() Option {
 	return func(e *Engine) { e.skipPrewarm = true }
 }
 
+// RemoteResolver reports the repository a local checkout was cloned from, or "" when the path is
+// not a local checkout, has no remote, or should not be resolved.
+//
+// Injected because resolving one means running git, which lives in internal/ — the same
+// arrangement as the SBOM generator. It also makes "do not resolve" expressible by simply not
+// supplying one, which is what a vendored copy or an air-gapped mirror wants: there the path is
+// the more truthful answer, because the remote is absent or names something the tree no longer
+// matches.
+type RemoteResolver func(path string) string
+
+// WithRemoteResolver names local checkouts by the repository they came from.
+func WithRemoteResolver(r RemoteResolver) Option {
+	return func(e *Engine) { e.resolveRemote = r }
+}
+
 // WithSBOM supplies the generator used when a Saga enables config.sbom. Injected rather than
 // imported so pkg/engine stays free of a concrete tool, exactly as it does for scanners. Nil
 // (the default) means a Saga asking for SBOMs gets an error rather than silence.
@@ -191,7 +208,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			}
 			jobs, verrs := e.validateConfigs(name, jobs, allowed)
 			errs = append(errs, verrs...)
-			planned = appendJobs(planned, name, "", "", "", e.markWorkingTree(jobs))
+			planned = appendJobs(planned, name, "", "", "", e.resolveRemotes(e.markWorkingTree(jobs)))
 		case plugin.ScopeComponent:
 			for i := range model.Components {
 				comp := &model.Components[i]
@@ -206,7 +223,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs, allowed)
 				errs = append(errs, verrs...)
 				planned = appendJobs(planned, name, comp.Name, comp.Exposure, comp.Criticality,
-					e.markWorkingTree(jobs))
+					e.resolveRemotes(e.markWorkingTree(jobs)))
 			}
 		}
 	}
@@ -681,6 +698,47 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res.Suppressed, res.LapsedExclusions, res.UnmatchedExclusions =
 		applyExclusions(res.Controls, model.Config.Exclude, time.Now())
 	return res, errors.Join(errs...)
+}
+
+// resolveRemotes names each local checkout by the repository it came from.
+//
+// Here rather than in each controller for the reason markWorkingTree is: every controller builds
+// its own RepositoryTarget, so doing it at the source would be a change in each one and a
+// silently missing resolution in whichever is written next.
+//
+// It changes the target's identity, and therefore its cache key — deliberately. A laptop scanning
+// `.` and a pipeline scanning the remote are the same repository at the same revision, and until
+// now they were two unrelated sources that could not share a cache entry or be diffed against
+// each other.
+func (e *Engine) resolveRemotes(jobs []plugin.ScanJob) []plugin.ScanJob {
+	if e.resolveRemote == nil {
+		return jobs
+	}
+	resolved := map[string]string{}
+	for i, j := range jobs {
+		r, ok := j.Target.(plugin.RepositoryTarget)
+		if !ok || r.URL == "" {
+			continue
+		}
+		url, seen := resolved[r.URL]
+		if !seen {
+			// The resolver answers "" for anything that is not a local checkout with a remote,
+			// so the engine needs no notion of what a path or a remote looks like.
+			url = e.resolveRemote(r.URL)
+			resolved[r.URL] = url
+		}
+		if url == "" {
+			continue // no remote: the path is the only name this repository has
+		}
+		r.Remote = url
+		jobs[i].Target = r
+		// The controller computed the cache key from the target it planned, so it has to be
+		// recomputed against the one that will actually be scanned.
+		if jobs[i].CacheKey != "" {
+			jobs[i].CacheKey = plugin.ComputeCacheKey(j.Scanner, "", r, j.Config)
+		}
+	}
+	return jobs
 }
 
 // markWorkingTree flags every repository target so the scanner reads the checkout on disk.

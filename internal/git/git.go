@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -293,4 +294,45 @@ func containedPath(root, rel string) (string, error) {
 		return "", fmt.Errorf("path %q escapes %s", rel, root)
 	}
 	return p, nil
+}
+
+// RemoteURL returns the canonical remote a local checkout came from, or "" when it has none.
+//
+// A local path says where a repository sits on one machine; the remote says which repository it
+// is. Those are different questions, and only the second belongs in a report, a cache key, or
+// anything handed to a third party — the same distinction that keeps credentials out of a
+// repository's identity.
+//
+// Resolving it makes a laptop and a pipeline agree: `draugr scan .` and a CI run against the
+// remote become one source at one revision, so they share a cache entry and can be diffed against
+// each other. Without it they are two unrelated repositories that happen to hold the same code.
+//
+// "origin" by convention, then the first remote by name so the answer does not depend on map
+// ordering. No remote is not a failure: a repository that exists only on this machine is
+// legitimate, and the caller keeps the path.
+func RemoteURL(ctx context.Context, path string) string {
+	if url := remote(ctx, path, "origin"); url != "" {
+		return url
+	}
+	out, err := exec.CommandContext(ctx, "git", "-C", path, "remote").Output() //nolint:gosec // the descriptor's own repository path
+	if err != nil {
+		return ""
+	}
+	names := strings.Fields(string(out))
+	sort.Strings(names)
+	for _, n := range names {
+		if url := remote(ctx, path, n); url != "" {
+			return url
+		}
+	}
+	return ""
+}
+
+// remote reads one remote's fetch URL.
+func remote(ctx context.Context, path, name string) string {
+	out, err := exec.CommandContext(ctx, "git", "-C", path, "remote", "get-url", name).Output() //nolint:gosec // the descriptor's own repository path
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
