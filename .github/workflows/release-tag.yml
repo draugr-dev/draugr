@@ -1,0 +1,70 @@
+# Tag main when the CHANGELOG says a version was released and no tag says so yet.
+#
+# The state is the file, not a label, a branch name or a commit message. "The newest released
+# section has no tag" is a fact anyone can check by reading two things, it survives a squash
+# merge renaming the commit, and it is idempotent: a second run finds the tag and does nothing.
+# A convention encoded in a commit subject would be none of those.
+#
+# It also means the manual flow keeps working unchanged. Promoting the CHANGELOG by hand and
+# merging it tags the release too — the automation is the same act, not a second path with its
+# own rules.
+#
+# Tagging is all this does. The tag triggers release.yml, which gates on the self-scan and the
+# integration suite before anything is built or published, so this being wrong costs a tag and
+# not an artifact.
+name: Release tag
+
+on:
+  push:
+    branches: [main]
+    # Nothing else can change which version is released, and a scan of every push for a file that
+    # changes a few times a month is work nobody needs.
+    paths:
+      - CHANGELOG.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    name: Tag a promoted release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create and push the tag
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # every tag, to know which versions already have one
+
+      - name: Tag the newest released section, if it has no tag
+        run: |
+          set -euo pipefail
+
+          version=$(grep -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | head -1 | tr -d '#[] ')
+          if [ -z "$version" ]; then
+            echo "::error::no released section in CHANGELOG.md"; exit 1
+          fi
+          echo "newest released section: $version"
+
+          if git rev-parse "v$version" >/dev/null 2>&1; then
+            echo "v$version is already tagged — nothing to do."
+            exit 0
+          fi
+
+          # The notes have to be non-empty, because they become the release body. A tag whose
+          # notes are blank publishes a release nobody can read, and the tag is the part of this
+          # that cannot be withdrawn once anyone has fetched it.
+          notes=$(./scripts/changelog.sh show "$version")
+          if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
+            echo "::error::[$version] has no notes — refusing to tag a release nobody can describe."
+            exit 1
+          fi
+
+          summary=$(printf '%s\n' "$notes" | grep -m1 '^- ' | sed 's/^- //; s/\*\*//g; s/\.$//' | cut -c1-72)
+
+          git config user.name "Wilson Santos"
+          git config user.email "wilson@draugr.dev"
+          git tag -a "v$version" -m "v$version — ${summary:-see CHANGELOG.md}"
+          git push origin "v$version"
+          echo "tagged v$version"

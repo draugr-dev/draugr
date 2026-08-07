@@ -1,0 +1,108 @@
+# Cut a release from the CHANGELOG, in the two steps the manual flow already had.
+#
+# `prepare` reads what is under [Unreleased], derives the version from it, promotes the section
+# and opens a pull request. `tag` watches main and tags any released section that has no tag yet.
+#
+# Two workflows rather than one because this repository does not push to main, and a release has
+# to. The promotion is a commit like any other: it goes through a pull request, CI runs on it, and
+# a person merges it. What that buys is the last look at the notes a release will publish, at the
+# one moment changing them is still free.
+#
+# The version comes from the notes rather than from commit messages. The notes are written for
+# users and reviewed as prose, so the heading an author chose is a decision somebody made on
+# purpose — where a `feat:` prefix is a habit, and habits drift. `scripts/changelog.sh next`
+# holds the rule, so it is testable without a runner.
+#
+# Deliberately not on every merge. #144 asked for that: a version per trivial change is noise in
+# the tag list and in everyone's dependency updates. Dispatch it when the accumulated notes are
+# worth shipping.
+name: Release prepare
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Override the version instead of deriving it from [Unreleased] (X.Y.Z, e.g. for a major).
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Open the release pull request
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the release branch
+      pull-requests: write # open the pull request
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the guard below compares against every existing tag
+
+      - name: Work out the version
+        id: version
+        env:
+          OVERRIDE: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "$OVERRIDE" ]; then
+            # An override is the escape hatch for the one thing the notes cannot say: that an
+            # interface is now unsupportable. Validated rather than trusted, because a typo here
+            # becomes a tag, and a tag is the one thing in this process that cannot be taken back.
+            [[ "$OVERRIDE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+              echo "::error::--version must be X.Y.Z, got '$OVERRIDE'"; exit 1; }
+            version="$OVERRIDE"
+          else
+            # Fails when [Unreleased] is empty, which is the case worth failing on: a release
+            # nobody can describe is worse than no release.
+            version=$(./scripts/changelog.sh next)
+          fi
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          echo "next version: $version"
+
+      - name: Refuse a version that already exists
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "::error::v$VERSION is already tagged. The CHANGELOG's last released section is" \
+                 "probably behind — check that a previous release promoted cleanly."
+            exit 1
+          fi
+
+      - name: Promote the CHANGELOG and open the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ./scripts/changelog.sh promote "$VERSION"
+          ./scripts/changelog.sh check
+
+          git config user.name "Wilson Santos"
+          git config user.email "wilson@draugr.dev"
+          branch="release-$VERSION"
+          git checkout -b "$branch"
+          git commit -am "Release $VERSION"
+          git push -u origin "$branch"
+
+          # The body is the notes themselves, so the last review of a release is a review of what
+          # it will say — the same text the release workflow extracts for the GitHub release.
+          {
+            echo "Promotes \`[Unreleased]\` to \`## [$VERSION]\`. Merging this tags \`v$VERSION\`,"
+            echo "which runs the release workflow — and that refuses to publish unless the"
+            echo "self-scan and the integration suite both pass on this exact tree."
+            echo
+            echo "The notes this will publish, verbatim:"
+            echo
+            echo "---"
+            echo
+            ./scripts/changelog.sh show "$VERSION"
+          } >/tmp/body.md
+
+          gh pr create --title "Release $VERSION" --body-file /tmp/body.md \
+            || echo "::notice::Branch $branch pushed. Open a PR: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$branch?expand=1"
