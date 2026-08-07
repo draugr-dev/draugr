@@ -53,7 +53,10 @@ func (RepositoryTarget) Kind() TargetKind { return TargetRepository }
 // them the same identity, so they shared a cache entry and collapsed into a single run whose
 // findings both then received.
 func (t RepositoryTarget) Identity() string {
-	id := t.URL + "@" + t.Revision
+	// Source rather than URL: credentials are how a repository is fetched, not which repository
+	// it is. Including them would give two people scanning one repository different identities,
+	// so they would miss each other's cache entries and appear as two sources in a report.
+	id := t.Source() + "@" + t.Revision
 	if t.WorkingTree {
 		// A different scan input from the commit it sits on, and one whose content changes
 		// between two runs at the same revision. Sharing an identity with the committed scan

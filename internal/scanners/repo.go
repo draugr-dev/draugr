@@ -133,7 +133,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		report.Results[i].Location.URI = repoRelPath(dir, report.Results[i].Location.URI)
 		report.Results[i].Message = stripCheckoutDir(dir, report.Results[i].Message)
 	}
-	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.URL, tree))
+	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
 	return report, nil
 }
 
