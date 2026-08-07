@@ -13,6 +13,7 @@ All commands accept these **global flags**:
 |------|---------|-------------|
 | `--log-level` | `info` | `trace`, `debug`, `info`, `warn`, `error` |
 | `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` |
+| `--log-file` | — | also append every record to this file, at `trace` level and unclamped |
 | `--offline` | `false` | make no network calls (also `DRAUGR_OFFLINE=1`) |
 | `--config` | — | machine/organisation settings file, used instead of the discovered ones (also `DRAUGR_CONFIG`) |
 
@@ -68,6 +69,26 @@ tool wrote it:
 
 Verbose by design — reach for it when the summarised line hasn't answered the question. Logs go
 to stderr, so `2>trace.log` keeps them out of a report on stdout.
+
+**`--log-file` is usually the better way to get it.** The terminal keeps whatever `--log-level`
+you asked for; the file gets *everything*, at trace, with no ceiling on how much of a tool's
+output is kept:
+
+```bash
+draugr scan .                       # nothing on screen but the report
+draugr scan . --log-file draugr.log # …and the whole run in a file
+```
+
+One `--log-level` cannot serve both. A terminal wants a stream it can read, so a relayed stream
+is clamped there and says how much was left out. A file is what you attach to a bug report, where
+the answer is disproportionately in the part a terminal had no room for — so it is clamped at
+nothing. On the same scan of a findings-rich repository, the terminal shows about 5 KB with a
+truncation notice and the file holds 80 KB with none.
+
+The file is **appended**, not truncated, because the second run is usually the one that
+reproduces the problem. It is written `0600` and never coloured. A `--log-file` that cannot be
+opened **fails the run** rather than being skipped: a log silently not written leaves the run
+looking normal and the evidence you asked for missing.
 
 **Reading a dense log.** The `console` format gives each part of a record its own weight, so the
 shape of a line is legible before its content: the **message** strongest, because it is what you

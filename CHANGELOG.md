@@ -10,35 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-### Changed
+### Added
 
-- **`--log-level debug` and `--log-level trace` are readable now.** Debug output is where you go
-  when a run did something you did not expect, and it was rendered in one weight — finding the
-  line that mattered meant reading all of them.
+- **`--log-file <path>` keeps the whole run, while your terminal keeps the summary.** Trace
+  output is bigger than a scrollback and it is what you attach to a bug report, so one
+  `--log-level` was never going to serve both:
 
-  Each part of a record now carries its own weight: the **message** strongest, because that is
-  what you scan for; the level coloured; timestamps and attribute keys dimmed; values plain. An
-  `error` or a non-zero `exit_code` is coloured, since in a few hundred debug lines that is
-  nearly always the one you are looking for.
-
-- **A relayed tool stream prints as a block, not as an escaped attribute.** At trace level a
-  scanner's whole stdout arrived as one quoted `slog` value, escapes and all — correct for
-  `--log-format json`, and the opposite of useful for the case you reach trace in:
-
-  ```console
-  10:35:10 TRACE  tool stdout tool=trivy
-    ┌ stdout
-    │ {
-    │   "version": "2.1.0",
-    …
-    └
+  ```bash
+  draugr scan . --log-file draugr.log   # nothing extra on screen; everything in the file
   ```
 
-  Colour changes the rendering and never the text, so records stay greppable; `NO_COLOR=1`, a
-  pipe or a redirect give the same output without the escapes, and `--log-format json` and `text`
-  are untouched.
+  The terminal keeps whatever level you asked for. The file gets every record at `trace`, with
+  **no ceiling** on how much of a tool's output is kept — on the same scan, a terminal shows
+  about 5 KB and says it truncated, and the file holds 80 KB and did not.
 
-### Added
+  Appended rather than truncated, since the second run is usually the one that reproduces the
+  problem. Written `0600`, never coloured. A path that cannot be opened **fails the run** instead
+  of being skipped.
+
 
 - **`draugr survey k8s` takes more than one `--namespace`.** The descriptor's
   `infrastructure.namespaces` is a list, so someone who owns three namespaces could describe that
@@ -91,6 +80,34 @@ and move it under a version on release.
   listing what the run produced, so you can write rules against the strings that will actually
   appear. And Mend supplies no licence *category*, so this scanner reports only the licences your
   policy names — where Trivy would also flag copyleft you never listed.
+
+### Changed
+
+- **`--log-level debug` and `--log-level trace` are readable now.** Debug output is where you go
+  when a run did something you did not expect, and it was rendered in one weight — finding the
+  line that mattered meant reading all of them.
+
+  Each part of a record now carries its own weight: the **message** strongest, because that is
+  what you scan for; the level coloured; timestamps and attribute keys dimmed; values plain. An
+  `error` or a non-zero `exit_code` is coloured, since in a few hundred debug lines that is
+  nearly always the one you are looking for.
+
+- **A relayed tool stream prints as a block, not as an escaped attribute.** At trace level a
+  scanner's whole stdout arrived as one quoted `slog` value, escapes and all — correct for
+  `--log-format json`, and the opposite of useful for the case you reach trace in:
+
+  ```console
+  10:35:10 TRACE  tool stdout tool=trivy
+    ┌ stdout
+    │ {
+    │   "version": "2.1.0",
+    …
+    └
+  ```
+
+  Colour changes the rendering and never the text, so records stay greppable; `NO_COLOR=1`, a
+  pipe or a redirect give the same output without the escapes, and `--log-format json` and `text`
+  are untouched.
 
 ## [0.70.0] - 2026-08-07
 

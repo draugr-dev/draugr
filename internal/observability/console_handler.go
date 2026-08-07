@@ -2,6 +2,7 @@ package observability
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"strconv"
@@ -34,16 +35,22 @@ type consoleHandler struct {
 	paint        tui.Painter
 	groupPrefix  string
 	preformatted []byte // attributes accumulated via WithAttrs, already rendered
+	// maxValue clamps a rendered value, in bytes; 0 means unclamped.
+	//
+	// Truncation is a presentation decision, which is why it lives here rather than at the call
+	// site that produced the value. A terminal wants a stream it can read; a log file wants the
+	// stream. The same record reaches both, and each decides for itself.
+	maxValue int
 }
 
 // newConsoleHandler builds a consoleHandler writing to w. color is decided by the caller (see
 // tui.ColorEnabled) so it stays testable without a real terminal.
-func newConsoleHandler(w io.Writer, opts *slog.HandlerOptions, color bool) *consoleHandler {
+func newConsoleHandler(w io.Writer, opts *slog.HandlerOptions, color bool, maxValue int) *consoleHandler {
 	painter := tui.Plain()
 	if color {
 		painter = tui.Colored()
 	}
-	h := &consoleHandler{mu: &sync.Mutex{}, w: w, paint: painter}
+	h := &consoleHandler{mu: &sync.Mutex{}, w: w, paint: painter, maxValue: maxValue}
 	if opts != nil {
 		h.opts = *opts
 	}
@@ -126,6 +133,7 @@ func (h *consoleHandler) clone() *consoleHandler {
 		paint:        h.paint,
 		groupPrefix:  h.groupPrefix,
 		preformatted: pf,
+		maxValue:     h.maxValue,
 	}
 }
 
@@ -152,11 +160,24 @@ func (h *consoleHandler) appendAttr(buf []byte, a slog.Attr, prefix string) []by
 	}
 	buf = append(buf, ' ')
 	buf = h.paint.Append(buf, tui.StyleMuted, prefix+a.Key+"=")
-	val := a.Value.String()
+	val := h.clamp(a.Value.String())
 	if strings.ContainsAny(val, " \t\n\"") {
 		val = strconv.Quote(val)
 	}
 	return h.paint.Append(buf, valueStyle(a), val)
+}
+
+// clamp trims a value to this handler's ceiling, saying what was left out.
+//
+// A SARIF report can be megabytes, and a terminal that receives one in full has not been given
+// the answer — it has been given a reason to scroll. A handler with no ceiling (a log file) keeps
+// everything, which is the point of writing one.
+func (h *consoleHandler) clamp(s string) string {
+	if h.maxValue <= 0 || len(s) <= h.maxValue {
+		return s
+	}
+	return s[:h.maxValue] + fmt.Sprintf("… (%d bytes truncated; --log-file <path> keeps all of it)",
+		len(s)-h.maxValue)
 }
 
 // isStream reports whether an attribute is a relayed program output rather than a value.
@@ -175,7 +196,7 @@ func isStream(a slog.Attr) bool {
 // sitting at a terminal trying to see what a scanner said. json and text are untouched: they
 // have their own handlers, and this is the human one.
 func (h *consoleHandler) appendStream(buf []byte, a slog.Attr) []byte {
-	body := strings.TrimRight(a.Value.String(), "\n")
+	body := strings.TrimRight(h.clamp(a.Value.String()), "\n")
 	buf = append(buf, ' ', ' ')
 	buf = h.paint.Append(buf, tui.StyleMuted, "┌ "+h.groupPrefix+a.Key)
 	buf = append(buf, '\n')

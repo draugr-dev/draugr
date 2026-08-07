@@ -141,20 +141,11 @@ func log(ctx context.Context, argv []string, dir string, started time.Time, out 
 	// hand.
 	if len(out) > 0 {
 		slog.Log(ctx, observability.LevelTrace, "tool stdout",
-			"tool", argv[0], "stdout", clampForLog(string(out)))
+			"tool", argv[0], "stdout", string(out))
 	}
 	slog.DebugContext(ctx, "ran external tool", attrs...)
 }
 
-// maxTraceOutput bounds a relayed stream. A SARIF report can be megabytes, and a log line that
-// large is not read by anyone — it is scrolled past, or it makes the file too big to open.
-const maxTraceOutput = 4000
-
-// clampForLog trims a relayed stream to something a person can read, saying what was left out.
-func clampForLog(s string) string {
-	if len(s) <= maxTraceOutput {
-		return s
-	}
-	return s[:maxTraceOutput] + fmt.Sprintf("… (%d bytes truncated; use -o <dir> for the full report)",
-		len(s)-maxTraceOutput)
-}
+// The relayed stream is passed whole. How much of it a reader sees is the log handler's decision,
+// not this one's: a terminal clamps it to something readable, and --log-file keeps all of it.
+// Clamping here would put a ceiling on both, and the file exists to have no ceiling.

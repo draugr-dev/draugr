@@ -4,17 +4,21 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 func TestNewLoggerJSON(t *testing.T) {
 	var buf bytes.Buffer
-	logger, err := NewLogger(&buf, LogOptions{Level: "info", Format: "json"})
+	logger, _, err := NewLogger(&buf, LogOptions{Level: "info", Format: "json"})
 	if err != nil {
 		t.Fatalf("NewLogger: %v", err)
 	}
@@ -31,7 +35,7 @@ func TestNewLoggerJSON(t *testing.T) {
 
 func TestNewLoggerLevelFiltering(t *testing.T) {
 	var buf bytes.Buffer
-	logger, err := NewLogger(&buf, LogOptions{Level: "warn", Format: "text"})
+	logger, _, err := NewLogger(&buf, LogOptions{Level: "warn", Format: "text"})
 	if err != nil {
 		t.Fatalf("NewLogger: %v", err)
 	}
@@ -46,10 +50,10 @@ func TestNewLoggerLevelFiltering(t *testing.T) {
 }
 
 func TestNewLoggerRejectsBadInput(t *testing.T) {
-	if _, err := NewLogger(&bytes.Buffer{}, LogOptions{Level: "nope"}); err == nil {
+	if _, _, err := NewLogger(&bytes.Buffer{}, LogOptions{Level: "nope"}); err == nil {
 		t.Fatal("expected error for bad level")
 	}
-	if _, err := NewLogger(&bytes.Buffer{}, LogOptions{Format: "xml"}); err == nil {
+	if _, _, err := NewLogger(&bytes.Buffer{}, LogOptions{Format: "xml"}); err == nil {
 		t.Fatal("expected error for bad format")
 	}
 }
@@ -63,14 +67,14 @@ func TestParseLevelDefaults(t *testing.T) {
 
 func TestNewLoggerAllLevels(t *testing.T) {
 	for _, lvl := range []string{"debug", "info", "warn", "warning", "error"} {
-		if _, err := NewLogger(&bytes.Buffer{}, LogOptions{Level: lvl}); err != nil {
+		if _, _, err := NewLogger(&bytes.Buffer{}, LogOptions{Level: lvl}); err != nil {
 			t.Errorf("level %q: %v", lvl, err)
 		}
 	}
 }
 
 func TestSetDefault(t *testing.T) {
-	l, err := NewLogger(&bytes.Buffer{}, LogOptions{})
+	l, _, err := NewLogger(&bytes.Buffer{}, LogOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +86,7 @@ func TestSetDefault(t *testing.T) {
 // output must be plain text with no ANSI escapes.
 func TestNewLoggerDefaultIsConsole(t *testing.T) {
 	var buf bytes.Buffer
-	logger, err := NewLogger(&buf, LogOptions{})
+	logger, _, err := NewLogger(&buf, LogOptions{})
 	if err != nil {
 		t.Fatalf("NewLogger: %v", err)
 	}
@@ -103,7 +107,7 @@ func TestNewLoggerDefaultIsConsole(t *testing.T) {
 
 func TestConsoleHandlerColorWhenEnabled(t *testing.T) {
 	var buf bytes.Buffer
-	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}, true)
+	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}, true, 0)
 	slog.New(h).Error("boom", "code", 7)
 	s := buf.String()
 	if !strings.Contains(s, "\x1b[") || !strings.Contains(s, "\x1b[0m") {
@@ -123,7 +127,7 @@ func TestConsoleHandlerColorWhenEnabled(t *testing.T) {
 
 func TestConsoleHandlerLevelFiltering(t *testing.T) {
 	var buf bytes.Buffer
-	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}, false)
+	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}, false, 0)
 	log := slog.New(h)
 	log.Info("dropped")
 	if buf.Len() != 0 {
@@ -137,7 +141,7 @@ func TestConsoleHandlerLevelFiltering(t *testing.T) {
 
 func TestConsoleHandlerGroupsAndAttrs(t *testing.T) {
 	var buf bytes.Buffer
-	h := newConsoleHandler(&buf, nil, false)
+	h := newConsoleHandler(&buf, nil, false, 0)
 	log := slog.New(h).WithGroup("scan").With("scanner", "semgrep")
 	log.Info("done", "findings", 3)
 	s := buf.String()
@@ -150,7 +154,7 @@ func TestConsoleHandlerGroupsAndAttrs(t *testing.T) {
 
 func TestConsoleHandlerSkipsEmptyAndInlineGroup(t *testing.T) {
 	var buf bytes.Buffer
-	h := newConsoleHandler(&buf, nil, false)
+	h := newConsoleHandler(&buf, nil, false, 0)
 	// An empty attr is dropped; an inline group's members are prefixed and flattened.
 	slog.New(h).Info("m", slog.Attr{}, slog.Group("g", "a", 1), slog.Group("empty"))
 	s := buf.String()
@@ -164,7 +168,7 @@ func TestConsoleHandlerSkipsEmptyAndInlineGroup(t *testing.T) {
 
 func TestNewLoggerConsoleExplicit(t *testing.T) {
 	var buf bytes.Buffer
-	logger, err := NewLogger(&buf, LogOptions{Format: "console"})
+	logger, _, err := NewLogger(&buf, LogOptions{Format: "console"})
 	if err != nil {
 		t.Fatalf("NewLogger: %v", err)
 	}
@@ -203,18 +207,18 @@ func TestTraceLevel(t *testing.T) {
 	if LevelTrace >= slog.LevelDebug {
 		t.Errorf("LevelTrace (%v) should be below debug", LevelTrace)
 	}
-	if _, err := NewLogger(&bytes.Buffer{}, LogOptions{Level: "trace"}); err != nil {
+	if _, _, err := NewLogger(&bytes.Buffer{}, LogOptions{Level: "trace"}); err != nil {
 		t.Errorf("trace should be a valid level: %v", err)
 	}
 	var buf bytes.Buffer
-	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, false)
+	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, false, 0)
 	slog.New(h).Log(context.Background(), LevelTrace, "relayed")
 	if !strings.Contains(buf.String(), "TRACE") {
 		t.Errorf("trace records should be labelled TRACE: %q", buf.String())
 	}
 	// A debug-level logger must not emit trace records.
 	var quiet bytes.Buffer
-	hq := newConsoleHandler(&quiet, &slog.HandlerOptions{Level: slog.LevelDebug}, false)
+	hq := newConsoleHandler(&quiet, &slog.HandlerOptions{Level: slog.LevelDebug}, false, 0)
 	slog.New(hq).Log(context.Background(), LevelTrace, "relayed")
 	if quiet.Len() != 0 {
 		t.Errorf("debug should not emit trace records: %q", quiet.String())
@@ -226,7 +230,7 @@ func TestConsoleHandlerRendersAStreamAsABlock(t *testing.T) {
 	// not to do: the escapes are the unreadable part, and trace is reached by someone at a
 	// terminal trying to see what a scanner said.
 	var buf bytes.Buffer
-	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, false)
+	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, false, 0)
 	slog.New(h).Log(t.Context(), LevelTrace, "tool stdout", "tool", "trivy", "stdout", "{\n  \"a\": 1\n}\n")
 	s := buf.String()
 
@@ -247,7 +251,7 @@ func TestConsoleHandlerRendersAStreamAsABlock(t *testing.T) {
 func TestConsoleHandlerLeavesSingleLineValuesInline(t *testing.T) {
 	// Multi-line is the test for a stream, so a value that fits on a line is still a value.
 	var buf bytes.Buffer
-	h := newConsoleHandler(&buf, nil, false)
+	h := newConsoleHandler(&buf, nil, false, 0)
 	slog.New(h).Info("ran", "argv", "trivy fs --quiet .")
 	s := buf.String()
 	if strings.Contains(s, "┌") {
@@ -265,7 +269,7 @@ func TestConsoleHandlerStreamSurvivesNoColor(t *testing.T) {
 	const body = "line one\nline two"
 	render := func(color bool) string {
 		var buf bytes.Buffer
-		h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, color)
+		h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, color, 0)
 		slog.New(h).Log(t.Context(), LevelTrace, "tool stderr", "stderr", body)
 		return buf.String()
 	}
@@ -297,7 +301,7 @@ func TestConsoleHandlerWeightsTheMessageAboveEverythingElse(t *testing.T) {
 	// The message is what a reader scans for in a dense debug stream, so it is the one part of
 	// the line rendered stronger than plain rather than weaker.
 	var buf bytes.Buffer
-	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}, true)
+	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}, true, 0)
 	slog.New(h).Debug("ran external tool", "tool", "trivy")
 	s := buf.String()
 	if !strings.Contains(s, "\x1b["+string(tui.StyleStrong)+"mran external tool\x1b[0m") {
@@ -324,7 +328,7 @@ func TestConsoleHandlerColorsTheLineWorthFinding(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}, true)
+			h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}, true, 0)
 			slog.New(h).Debug("ran external tool", tc.attrs...)
 			got := strings.Count(buf.String(), "\x1b["+string(tui.StyleFail)+"m") > 0
 			if got != tc.colored {
@@ -344,3 +348,167 @@ func TestConsoleHandlerSeparatesTraceFromDebug(t *testing.T) {
 		t.Errorf("trace should be the quietest level, got %q", levelColor(LevelTrace))
 	}
 }
+
+func TestLogFileGetsEverythingTheTerminalDoesNot(t *testing.T) {
+	// The point of the file: the terminal keeps the level that was asked for, and the file gets
+	// the rest. One --log-level cannot serve a summary someone is reading now and the artefact
+	// they attach to a bug report.
+	path := filepath.Join(t.TempDir(), "draugr.log")
+	var term bytes.Buffer
+	logger, closeLog, err := NewLogger(&term, LogOptions{Level: "info", Format: "console", File: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger.Info("on screen")
+	logger.Log(t.Context(), LevelTrace, "tool stdout", "stdout", "verbose")
+	if err := closeLog(); err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Contains(term.String(), "tool stdout") {
+		t.Errorf("raising the file to trace must not put trace on screen:\n%s", term.String())
+	}
+	if !strings.Contains(term.String(), "on screen") {
+		t.Errorf("the terminal keeps its own level:\n%s", term.String())
+	}
+	body, err := os.ReadFile(path) // #nosec G304 -- path is a t.TempDir() file this test just wrote
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"on screen", "tool stdout", "verbose"} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf("the file should hold %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestLogFileIsUnclamped(t *testing.T) {
+	// The reason to write one is to keep the part a terminal had no room for, so the ceiling
+	// that makes the terminal readable must not follow the record into the file.
+	path := filepath.Join(t.TempDir(), "draugr.log")
+	var term bytes.Buffer
+	logger, closeLog, err := NewLogger(&term, LogOptions{Level: "trace", Format: "console", File: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	big := strings.Repeat("x", maxTerminalValue+2000)
+	logger.Log(t.Context(), LevelTrace, "tool stdout", "stdout", big)
+	if err := closeLog(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(term.String(), "2000 bytes truncated") {
+		t.Errorf("the terminal should clamp and say so:\n%s", term.String()[:min(300, term.Len())])
+	}
+	body, err := os.ReadFile(path) // #nosec G304 -- path is a t.TempDir() file this test just wrote
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), big) {
+		t.Errorf("the file should hold the whole stream, got %d bytes", len(body))
+	}
+}
+
+func TestLogFileAppendsRatherThanTruncates(t *testing.T) {
+	// A second run is usually the one that reproduces the problem, and losing the first would
+	// lose the comparison.
+	path := filepath.Join(t.TempDir(), "draugr.log")
+	for _, msg := range []string{"first run", "second run"} {
+		logger, closeLog, err := NewLogger(io.Discard, LogOptions{Level: "info", File: path})
+		if err != nil {
+			t.Fatal(err)
+		}
+		logger.Info(msg)
+		if err := closeLog(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	body, err := os.ReadFile(path) // #nosec G304 -- path is a t.TempDir() file this test just wrote
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "first run") || !strings.Contains(string(body), "second run") {
+		t.Errorf("both runs should be in the file:\n%s", body)
+	}
+}
+
+func TestLogFileThatCannotBeOpenedIsFatal(t *testing.T) {
+	// A log file silently not written would leave the run looking normal and the evidence
+	// somebody asked for missing.
+	_, _, err := NewLogger(io.Discard, LogOptions{Level: "info", File: filepath.Join(t.TempDir(), "no", "such", "dir", "x.log")})
+	if err == nil {
+		t.Fatal("an unopenable --log-file must fail the run, not be skipped")
+	}
+	if !strings.Contains(err.Error(), "--log-file") {
+		t.Errorf("the error should name the flag that caused it: %v", err)
+	}
+}
+
+func TestLogFileIsNotColoured(t *testing.T) {
+	// A file is not a terminal. Escape codes in one make it unreadable in exactly the place it
+	// is most likely to be read: pasted into an issue.
+	path := filepath.Join(t.TempDir(), "draugr.log")
+	logger, closeLog, err := NewLogger(io.Discard, LogOptions{Level: "info", Format: "console", File: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger.Error("boom", "error", "nope")
+	if err := closeLog(); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(path) // #nosec G304 -- path is a t.TempDir() file this test just wrote
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "\x1b[") {
+		t.Errorf("the file should be plain text:\n%q", body)
+	}
+}
+
+func TestMultiHandlerKeepsWritingAfterOneFails(t *testing.T) {
+	// A file that has filled its disk must not cost the reader the line on their terminal. The
+	// destinations carry the same record and do not depend on each other.
+	var ok bytes.Buffer
+	h := newMultiHandler(
+		failingHandler{},
+		newConsoleHandler(&ok, &slog.HandlerOptions{Level: slog.LevelInfo}, false, 0),
+	)
+	err := slog.New(h).Handler().Handle(t.Context(), slog.NewRecord(time.Time{}, slog.LevelInfo, "still written", 0))
+	if err == nil {
+		t.Error("the failure should be reported, not swallowed")
+	}
+	if !strings.Contains(ok.String(), "still written") {
+		t.Errorf("the healthy destination should still have the record: %q", ok.String())
+	}
+}
+
+func TestMultiHandlerWithOneDestinationIsThatDestination(t *testing.T) {
+	// The ordinary single-destination case should cost nothing.
+	var buf bytes.Buffer
+	inner := newConsoleHandler(&buf, nil, false, 0)
+	if got := newMultiHandler(inner); got != slog.Handler(inner) {
+		t.Errorf("one handler should be returned unwrapped, got %T", got)
+	}
+}
+
+func TestMultiHandlerCarriesAttrsAndGroupsToEveryDestination(t *testing.T) {
+	var a, b bytes.Buffer
+	h := newMultiHandler(
+		newConsoleHandler(&a, nil, false, 0),
+		newConsoleHandler(&b, nil, false, 0),
+	)
+	slog.New(h).WithGroup("scan").With("scanner", "trivy").Info("done", "findings", 2)
+	for name, buf := range map[string]*bytes.Buffer{"first": &a, "second": &b} {
+		if !strings.Contains(buf.String(), "scan.scanner=trivy") || !strings.Contains(buf.String(), "scan.findings=2") {
+			t.Errorf("%s destination lost the group or attrs: %q", name, buf.String())
+		}
+	}
+}
+
+// failingHandler accepts every record and refuses to write it.
+type failingHandler struct{}
+
+func (failingHandler) Enabled(context.Context, slog.Level) bool  { return true }
+func (failingHandler) Handle(context.Context, slog.Record) error { return errors.New("disk full") }
+func (f failingHandler) WithAttrs([]slog.Attr) slog.Handler      { return f }
+func (f failingHandler) WithGroup(string) slog.Handler           { return f }
