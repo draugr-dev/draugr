@@ -444,8 +444,23 @@ moment" is not that.
 **So the report names it**, along with what it left out:
 
 ```
-Scanned: /srv/web at 3f9a1c2b (3 uncommitted files not included)
+Scanned: https://github.com/acme/web.git at 3f9a1c2b (3 uncommitted files not included)
 ```
+
+**A repository is named by the repository, not by how you reached it.** Two details follow, and
+both exist so that one repository reads as one thing however it was scanned.
+
+*A local checkout is reported as the repository it was cloned from.* Point a descriptor at `.` or
+`/srv/web` and the report names its git remote, because the path is where the code sits on one
+machine rather than which repository it is. That is what lets a scan on a laptop and a scan in a
+pipeline recognise each other: same repository, same revision, same identity — so they share a
+cache entry, and `draugr diff` can compare them. A checkout with **no** remote keeps its path,
+which is then the only name it has and the one you can act on.
+
+*Credentials and usernames are dropped.* `https://oauth2:TOKEN@github.com/acme/web.git` is
+reported, cached and named as `https://github.com/acme/web.git`, and Azure DevOps URLs stop
+carrying the organisation as a username as well as in the path. The URL used to **clone** keeps
+everything it had — fetching is the one thing credentials are for.
 
 That line is in the console report, the Markdown and HTML ones, and the JSON under
 `repositories`. It is per repository and per revision rather than per control: several controls
