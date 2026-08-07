@@ -48,7 +48,8 @@ echo "- **What you can now do.**" | ./scripts/changelog.sh add fixed
 sections it accepts are Added, Changed, Deprecated, Removed, Fixed and Security; `### Fix` reads
 fine and lands nowhere the release notes look.
 
-**What `make changelog` catches.** Every one of these produces a file that looks right:
+**What `make changelog` catches** — it runs in `make gate` and in CI, so a heading nobody
+recognises never reaches `main`. Every one of these produces a file that looks right:
 
 - **Two `### Fixed` blocks under one version.** The published notes contain whichever the
   extractor reaches first, and there is no way to tell from the release page that half is missing.
@@ -89,6 +90,40 @@ Revisit at roughly **3,000 lines**, or the first year boundary. When splitting, 
 in `CHANGELOG-ARCHIVE.md` — the guard already looks for that name, so archived sections keep being
 checked rather than quietly dropping out of the check as they age — and add the archive to the
 release archive so the signed artifact still carries the whole record.
+
+### Cutting a release
+
+Releases come from the CHANGELOG, and go out in two steps.
+
+**Run the `Release prepare` workflow** (Actions → Release prepare → Run workflow). It derives the
+version from what is under `[Unreleased]`, promotes that section to a dated one, and opens a pull
+request whose body is the notes the release will publish:
+
+| `[Unreleased]` contains | Bump |
+|---|---|
+| `Added`, `Changed`, `Deprecated` or `Removed` | minor |
+| only `Fixed` and/or `Security` | patch |
+| — | **major is never derived** |
+
+Major takes the workflow's `version` input. Deciding an interface is now unsupportable is a
+judgement about people, not one a heading should be able to reach.
+
+**Merging that pull request tags the release.** A second workflow watches `main` and tags any
+released section that has no tag yet — so the state is the file rather than a label or a commit
+subject, and a hand-promoted CHANGELOG is tagged the same way. Running it twice is a no-op: the
+second run finds the tag and stops.
+
+The tag triggers the release workflow, which **refuses to publish** unless the self-scan and the
+integration suite both pass on that exact tree.
+
+Deliberately not on every merge. A version per trivial change is noise in the tag list and in
+everyone's dependency updates — dispatch it when the accumulated notes are worth shipping. Check
+what they say first:
+
+```bash
+make changelog-show      # exactly what a tag would publish
+./scripts/changelog.sh next    # the version that implies
+```
 
 ### Suppressing a gosec finding
 

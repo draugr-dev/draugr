@@ -51,6 +51,50 @@ cmd_show() {
 	printf '%s\n' "$body"
 }
 
+# cmd_next prints the version [Unreleased] implies, counting from the last released one.
+#
+# The rule is the one the notes already state, read rather than remembered: anything under Added
+# or Changed is new capability or altered behaviour, so a minor. A section holding only Fixed or
+# Security is a patch. Deprecated and Removed are minor for the same reason both headings exist —
+# a user who has to change something.
+#
+# Major is deliberately never derived. Deciding that an interface is now unsupportable is a
+# judgement about people, and a script that could reach it from a heading would eventually reach
+# it by accident.
+cmd_next() {
+	local body
+	body=$(section_of Unreleased)
+	case "$(printf '%s' "$body" | tr -d '[:space:]')" in
+	"" | "_Nothingyet._")
+		die "[Unreleased] is empty — there is no next version to derive."
+		;;
+	esac
+
+	# Refuse rather than guess. A heading nobody recognises is invisible to the rule below, so
+	# `### Improvements` holding a new capability derives a patch — the version is wrong, the tag
+	# is wrong, and nothing about either says so. `check` catches the heading, but this must not
+	# depend on somebody having run it first.
+	local heading
+	while IFS= read -r heading; do
+		heading="${heading#\#\#\# }"
+		case " ${SECTIONS[*]} " in
+		*" $heading "*) ;;
+		*) die "[Unreleased] has '### $heading', which is not a Keep a Changelog heading (want: ${SECTIONS[*]}). Run './scripts/changelog.sh check'." ;;
+		esac
+	done < <(printf '%s\n' "$body" | grep '^### ' || true)
+
+	local previous major minor patch
+	previous=$(grep -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' "$FILE" | head -1 | tr -d '#[] ')
+	[ -n "$previous" ] || die "no released section in $FILE to count from"
+	IFS=. read -r major minor patch <<<"$previous"
+
+	if printf '%s\n' "$body" | grep -qE '^### (Added|Changed|Deprecated|Removed)$'; then
+		echo "$major.$((minor + 1)).0"
+	else
+		echo "$major.$minor.$((patch + 1))"
+	fi
+}
+
 cmd_check() {
 	[ -f "$FILE" ] || die "$FILE not found"
 	local problems=0
@@ -217,7 +261,8 @@ case "${1:-}" in
 check) shift; cmd_check "$@" ;;
 show) shift; cmd_show "$@" ;;
 add) shift; cmd_add "$@" ;;
+next) shift; cmd_next "$@" ;;
 promote) shift; cmd_promote "$@" ;;
 -h | --help | help | "") usage 0 ;;
-*) die "unknown command '$1' (try: check, show, add, promote)" ;;
+*) die "unknown command '$1' (try: check, show, add, next, promote)" ;;
 esac
