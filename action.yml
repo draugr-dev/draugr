@@ -1,5 +1,5 @@
 name: Draugr Security Scan
-description: Run Draugr security-scan orchestration in CI — scan your app from one descriptor, upload SARIF to code scanning.
+description: Run Trivy, Semgrep, Gitleaks and more from one descriptor. Consolidates SAST, SCA, secrets, IaC and container findings into one SARIF report and one pass/fail gate, and can fail a pull request on new findings only.
 author: Draugr
 branding:
   icon: shield

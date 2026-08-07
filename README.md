@@ -1,6 +1,6 @@
 # Draugr
 
-> Developer-first, descriptor-driven security and compliance qualification.
+> Run Trivy, Semgrep, Gitleaks and more from one file. Get one SARIF report and one verdict.
 
 [![CI](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml/badge.svg)](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/draugr-dev/draugr/badge)](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)
@@ -10,12 +10,20 @@
 
 **Describe your app. Draugr figures out the rest.**
 
+Wiring SAST, SCA, secret, IaC and container scanners into a pipeline by hand means five
+tools to configure, five outputs to read, and no answer to "can this ship?". Draugr
+consolidates them: one descriptor, one **SARIF** report, one pass/fail gate.
+
 You declare what you *know* about your software — where the repos are, what container
 images it builds, what endpoints it exposes, what infrastructure it runs on — in a single
 descriptor (`draugr.saga.yaml`). Draugr infers which checks apply, runs the right tool for
 each, and produces pass/fail evidence you can trust. Swap scanners freely — use the tools
-you already pay for, or Draugr's open-source defaults. Every finding is normalized to
-**SARIF**.
+you already pay for, or Draugr's open-source defaults.
+
+Findings are **ranked**, not just listed: the same CVE is act-now on an internet-facing
+service and backlog on an internal tool, because Draugr knows which is which. And
+[`draugr diff`](docs/guides/pr-diff.md) gates a pull request on **new** findings only, so
+inheriting a repository with two hundred existing ones does not block every change.
 
 Both questions asked before a release ships, from the same descriptor and the same gate:
 the **security** one — SAST, SCA, secrets, IaC, DAST, TLS, headers — and the **compliance**
