@@ -61,7 +61,7 @@ configured separately as `config.sbom` and travels as evidence. See
 | `gitleaks` | secrets | Gitleaks | MIT | ✅ | [doc](../../internal/scanners/gitleaks.md) |
 | `semgrep` | sast | Semgrep | LGPL-2.1 | ✅ | [doc](../../internal/scanners/semgrep.md) |
 | `gosec` | sast | gosec (Go) | Apache-2.0 | ✅ | [doc](../../internal/scanners/gosec.md) |
-| `mend-sca` | sca | Mend CLI (Unified Agent) | proprietary | ❌ | [doc](../../internal/scanners/mend-sca.md) |
+| `mend-sca` | sca | Mend CLI (Unified Agent) | proprietary | ✅ | [doc](../../internal/scanners/mend-sca.md) |
 | `trivy-config` | iac | Aqua Trivy (config) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-config.md) |
 | `trivy-license` | licenses | Aqua Trivy (licence) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-license.md) |
 | `kube-bench` | infrastructure | Aqua kube-bench | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench.md) |
