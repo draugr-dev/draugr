@@ -21,6 +21,15 @@ on:
   # Called by release.yml against the tag. The `if:` below resolves to "run" because the caller's
   # event is a push, which is what a tag is — the label opt-in only applies to pull requests.
   workflow_call:
+    inputs:
+      ref:
+        description: >-
+          What to check out. Defaults to the caller's own commit, which is right for every path
+          but a release: there the tree being judged is the tag, and "was this exact tree
+          acceptable" has one honest answer.
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -48,6 +57,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
