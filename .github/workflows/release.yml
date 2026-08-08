@@ -240,7 +240,25 @@ jobs:
           # repo-wide, and why it should be rotated if a job on this runner is ever suspect.
           "$GITHUB_WORKSPACE/mcp-publisher" login dns \
             --domain draugr.dev --private-key "$MCP_PUBLISHER_DNS_KEY"
-          "$GITHUB_WORKSPACE/mcp-publisher" publish
+
+          # A version already in the registry is the state this step exists to reach, so reaching
+          # it twice is not a failure. The registry refuses a duplicate with a 400, which would
+          # otherwise redden a release whose artifacts published perfectly — and a red release run
+          # that is actually fine is worse than no signal, because the next real failure looks the
+          # same.
+          #
+          # Narrow on purpose: only "duplicate version" is forgiven, and it is reported. Every
+          # other 400 still fails, because those mean the listing did not reach the registry.
+          if ! out=$("$GITHUB_WORKSPACE/mcp-publisher" publish 2>&1); then
+            printf '%s\n' "$out"
+            if printf '%s' "$out" | grep -q 'cannot publish duplicate version'; then
+              echo "::notice::Version $version is already in the MCP Registry; nothing to publish."
+            else
+              exit 1
+            fi
+          else
+            printf '%s\n' "$out"
+          fi
 
   # Regenerate the demo assets against the release that was just published. Invoked here
   # rather than triggered by `release: published` in demo-assets.yml, because GoReleaser publishes the
