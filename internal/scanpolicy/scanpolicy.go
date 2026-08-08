@@ -22,15 +22,16 @@ func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 		sev := res.Severity(controllers.SeverityFloor(control))
 		// nil-safe: no-op when no source, and the escalation is nil unless something moved.
 		sev, esc := expl.Explain(sev, res.RuleID)
-		band := matrices.Prioritize(exposure, criticality, sev)
-
-		// Applied after the matrices rather than inside them, because it is not a different
-		// opinion about exposure — it is a statement that exposure does not bound this control's
-		// findings. Keeping the matrices' answer and then raising it leaves both visible.
+		// The context tier first, so a control that declares exposure does not bound its findings
+		// replaces the component's tier rather than second-guessing the band that came out of it.
+		// Severity still decides the row: a critical secret and a high one must not collapse into
+		// one band because they share a control.
+		tier := matrices.ContextOf(exposure, criticality)
 		var floorReason string
-		if floor, reason := controllers.PriorityFloor(control); floor != "" && floor.Rank() > band.Rank() {
-			band, floorReason = floor, reason
+		if floor, reason := controllers.ContextFloor(control); floor.Rank() > tier.Rank() {
+			tier, floorReason = floor, reason
 		}
+		band := matrices.PriorityOf(tier, sev)
 		return engine.Priority{
 			Band:       string(band),
 			Escalation: esc,

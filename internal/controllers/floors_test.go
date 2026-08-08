@@ -16,19 +16,19 @@ func TestSeverityFloor(t *testing.T) {
 	}
 }
 
-func TestPriorityFloorIsDeclaredWithItsReason(t *testing.T) {
+func TestContextFloorIsDeclaredWithItsReason(t *testing.T) {
 	// A floor with no reason produces a band nobody can account for from the report, which is the
 	// half of this that matters to a reader.
-	for control := range priorityFloors {
-		floor, reason := PriorityFloor(control)
+	for control := range contextFloors {
+		floor, reason := ContextFloor(control)
 		if floor == "" {
-			t.Errorf("%s: declared in priorityFloors but PriorityFloor returned nothing", control)
+			t.Errorf("%s: declared in contextFloors but ContextFloor returned nothing", control)
 		}
 		if reason == "" {
 			t.Errorf("%s: a floor with no reason is a band a reader has to take on trust", control)
 		}
 	}
-	if floor, reason := PriorityFloor("sca"); floor != "" || reason != "" {
+	if floor, reason := ContextFloor("sca"); floor != "" || reason != "" {
 		t.Errorf("sca declares no floor, got %q / %q", floor, reason)
 	}
 }
