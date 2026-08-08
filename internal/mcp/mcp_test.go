@@ -423,8 +423,16 @@ func decode(t *testing.T, res *mcp.CallToolResult, into any) {
 // In ask mode a scan must not happen unless the user agreed. Fail closed, and say how to
 // proceed — a client that can't prompt is common, and "unsupported" alone helps nobody.
 func TestAskModeRefusesWithoutApproval(t *testing.T) {
+	// A readable descriptor, because the prompt is built from one: a missing file would fail on
+	// the load and never reach the consent path this test is about.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "empty.saga.yaml")
+	if err := os.WriteFile(path, []byte(
+		"release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	h := scanTool(builtins.Registry(), ScanAsk)
-	_, _, err := h(context.Background(), nil, ScanInput{Path: "any.saga.yaml"})
+	_, _, err := h(context.Background(), nil, ScanInput{Path: path})
 	if err == nil {
 		t.Fatal("want a refusal when there's no session to ask through")
 	}
@@ -433,7 +441,7 @@ func TestAskModeRefusesWithoutApproval(t *testing.T) {
 	}
 	// A client that never declared elicitation support gets a message naming its own limitation.
 	req := &mcp.CallToolRequest{}
-	if _, _, err := h(context.Background(), req, ScanInput{Path: "any.saga.yaml"}); err == nil {
+	if _, _, err := h(context.Background(), req, ScanInput{Path: path}); err == nil {
 		t.Error("want a refusal without a session")
 	}
 	// Always mode doesn't consult anyone, so it gets past consent and fails on the descriptor.
@@ -524,6 +532,8 @@ func TestDiscoveryStopsAtDepth(t *testing.T) {
 func TestAskModeHonoursTheAnswer(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "empty.saga.yaml")
+	// No control enabled, so the handshake is exercised without a scanner binary or a network.
+	// What the prompt says about a real descriptor is TestDescribeScan's job.
 	if err := os.WriteFile(path, []byte(
 		"release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -558,9 +568,12 @@ func TestAskModeHonoursTheAnswer(t *testing.T) {
 				t.Errorf("action %q: IsError=%v, want %v (%+v)", tc.action, res.IsError, tc.wantErr, res.Content)
 			}
 			assertWellFormedElicit(t, sent)
-			// The user has to be told what they're agreeing to.
-			if !strings.Contains(asked, path) || !strings.Contains(asked, "clones") {
-				t.Errorf("prompt should name the target and the cost, got %q", asked)
+			// The user has to be told what they're agreeing to, and this descriptor's honest
+			// answer is that it would examine nothing.
+			for _, want := range []string{path, "examine nothing"} {
+				if !strings.Contains(asked, want) {
+					t.Errorf("prompt should contain %q, got %q", want, asked)
+				}
 			}
 		})
 	}

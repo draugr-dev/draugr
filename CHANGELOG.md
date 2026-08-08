@@ -38,6 +38,15 @@ and move it under a version on release.
 
 ### Added
 
+- **The MCP scan approval describes the scan in front of you.** `draugr mcp --scan=ask` now names
+  which controls will run over how many components, which scanners do more than read, whether
+  anything sends traffic to a live host you declared, and where results will be delivered. Five
+  read-only controls over a checkout and a `dast` run against a production host are different
+  decisions, and the person answering is often not the person who wrote the descriptor.
+- **A scan through MCP honours the descriptor's `reports` and `publishers`**, as `draugr scan`
+  does, and the result names where each landed. A conversation is the least durable place a
+  finding can end up; a saved report is one your assistant can point you at, or read back with
+  `summarize_report` instead of scanning again.
 - **Per-scanner options for `gitleaks`, `gosec`, `trivy`, `trivy-fs` and `trivy-config`.** Point
   Gitleaks at a ruleset shared across repositories (`config`); select gosec rules and build tags
   (`include`, `exclude`, `tags`); narrow Trivy to a package type or pull its database from an
