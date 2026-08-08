@@ -182,6 +182,20 @@ config:
 Each scanner validates its options against a declared schema, so a mistyped key or wrong value
 type is reported before the scan runs. Run `draugr controls` to see each control's scanners.
 
+**Which scanners take options, and which take only `enabled`:**
+
+| Scanner | Options |
+|---|---|
+| `semgrep` | `config` — a registry ref, path or URL |
+| `virustotal` | `requestsPerMinute`, `apiKeyEnv` |
+| `draugr-tls` | expiry thresholds |
+| `mend-sca`, `mend-licenses` | credentials, product and project identity |
+| `trivy`, `trivy-fs`, `trivy-config`, `trivy-license`, `gitleaks`, `gosec`, `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `kube-bench`, `kube-bench-job` | `enabled` only |
+
+Scanners in the last row run with the arguments Draugr chooses. Where a control has more than one
+scanner, the choice you make is **which one serves it** — and that choice is the one that
+matters most, because it is what lets a descriptor outlive any particular tool.
+
 > Implemented today: **`images`** (Trivy), **`sca`** (Trivy fs), **`licenses`** (Trivy),
 > **`secrets`** (Gitleaks), **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config),
 > **`infrastructure`** (native CIS checks; opt-in kube-bench), **`headers`** (native HTTP-header
