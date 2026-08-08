@@ -85,7 +85,6 @@ components:
       sast: { sonarqube: { projectKey: acme.backend } }
 
 references:      # links to manual/human controls (threat model, arch diagram, …)
-notApplicable:  # declared N/A controls with justification
 ```
 
 Component surface types (`repositories`, `images`, `hosts`, `infrastructure`) map to
