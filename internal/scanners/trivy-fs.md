@@ -19,6 +19,25 @@ entry](../../docs/reference/glossary.md#sca--software-composition-analysis).
 - Trivy filesystem scanning: https://trivy.dev/latest/docs/target/filesystem/
 - Licence scanning, in the separate [`trivy-license`](trivy-license.md) scanner: https://trivy.dev/latest/docs/scanner/license/
 
+## Saga options
+
+```yaml
+controllers:
+  sca:
+    trivyFs:
+      pkgTypes: [library]                          # skip the OS layer
+      dbRepository: [registry.internal/trivy-db:2] # an internal mirror
+```
+
+| Option | What it does |
+|---|---|
+| `pkgTypes` | Which package types to analyse: `os`, `library`, or both (`--pkg-types`). Narrow it when the OS layer is a platform team's responsibility. |
+| `dbRepository` | OCI repositories to pull the vulnerability database from, in priority order (`--db-repository`). For runners with no route to a public registry. |
+
+The same two options apply to the `trivy` image scanner and the `trivy-fs` filesystem scanner.
+Trivy's `--severity` and `--ignorefile` are deliberately absent: both drop findings inside the
+tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` instead.
+
 ## Notes
 
 - Integration mode: **exec** over a local checkout; Trivy + `git` must be on `PATH`.

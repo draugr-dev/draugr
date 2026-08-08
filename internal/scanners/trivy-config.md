@@ -14,6 +14,25 @@ to find insecure **Infrastructure as Code** — Terraform, Kubernetes manifests,
 Helm charts, CloudFormation, and more. See the
 [IaC glossary entry](../../docs/reference/glossary.md#iac-scanning--infrastructure-as-code).
 
+## Saga options
+
+```yaml
+controllers:
+  iac:
+    trivyConfig:
+      checks: [security/checks]   # your own Rego, alongside Trivy's built-in checks
+      namespaces: [user]          # the namespaces those checks declare
+```
+
+| Option | What it does |
+|---|---|
+| `checks` | Paths to Rego check files or directories, one `--config-check` each. Relative to where Draugr runs. |
+| `namespaces` | Rego namespaces to evaluate (`--check-namespaces`). Needed when your checks declare one Trivy does not scan by default. |
+
+Both add checks; neither removes findings. Trivy's `--severity` and `--ignorefile` are not
+exposed — see `config.exclude` in the Saga reference for suppressing a finding in a way that stays
+visible.
+
 ## Links
 
 - Trivy misconfiguration scanning: https://trivy.dev/latest/docs/scanner/misconfiguration/

@@ -15,16 +15,28 @@ config:
       enabled: true          # container images (Trivy)
     sca:
       enabled: true          # dependencies (Trivy fs)
+      # trivyFs:
+      #   pkgTypes: [library]                        # skip the OS layer when a platform team owns it
+      #   dbRepository: [registry.internal/trivy-db:2]   # an internal mirror, for runners with no
+      #                                                  # route to a public registry
     secrets:
       enabled: true          # committed credentials (Gitleaks)
+      # gitleaks:
+      #   config: security/gitleaks.toml   # a ruleset shared across repositories; a
+      #                                    # .gitleaks.toml committed in a repo is used anyway
     sast:
       enabled: true          # first-party source (Semgrep)
       # gosec:
       #   enabled: true      # opt-in extra Go analyzer
+      #   exclude: [G104]    # rules that do not apply here — for a finding you have judged,
+      #                      # use config.exclude, which keeps it in the report as suppressed
       # semgrep:
       #   config: p/owasp-top-ten   # point Semgrep at your own ruleset
     iac:
       enabled: true          # Infrastructure-as-Code (Trivy config)
+      # trivyConfig:
+      #   checks: [security/checks]  # your own Rego, alongside Trivy's built-in checks
+      #   namespaces: [user]         # the namespaces those checks declare
     headers:
       enabled: true          # HTTP security headers on hosts (native)
     tls:

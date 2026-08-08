@@ -17,6 +17,23 @@ to find leaked credentials — API keys, tokens, private keys — in the working
 the SARIF report, not the exit code. The [`secrets`](../controllers/secrets.md) controller
 decides severity.
 
+## Saga options
+
+```yaml
+controllers:
+  secrets:
+    gitleaks:
+      config: security/gitleaks.toml   # relative to where Draugr runs
+```
+
+| Option | What it does |
+|---|---|
+| `config` | Path to a Gitleaks TOML rules file, passed as `--config`. For a ruleset shared across repositories. |
+
+A `.gitleaks.toml` committed in the repository being scanned is already honoured without this —
+Gitleaks reads it from the target path. This option covers the case that file cannot: an
+organisation-wide ruleset that lives outside every repository using it.
+
 ## Links
 
 - Gitleaks: https://github.com/gitleaks/gitleaks
