@@ -193,13 +193,29 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 | `kube-bench` | `targets`, `benchmark`, `version`, `context`, `configDir` |
 | `trivy-license` | `deny`, `warn` — SPDX identifiers |
 | `draugr-tls` | `expiryErrorDays`, `expiryWarnDays` |
+| `gosec` | `include`, `exclude` — rule IDs; `tags` — Go build tags |
+| `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository` — an internal mirror |
+| `trivy-config` | `checks` — paths to your own Rego; `namespaces` — the namespaces they declare |
 | `semgrep` | `config` — a registry ref, path or URL |
+| `gitleaks` | `config` — a rules file shared across repositories |
 | `virustotal` | `requestsPerMinute` |
-| `trivy`, `trivy-fs`, `trivy-config`, `gitleaks`, `gosec`, `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus` | `enabled` only |
+| `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus` | `enabled` only |
 
 ```bash
 draugr controls --options   # the authoritative list, read from the same schemas the gate enforces
 ```
+
+**No scanner option filters findings**, and that is a rule rather than an omission. Trivy's
+`--severity` and `--ignorefile`, gosec's `-severity` and `-confidence` — each drops findings inside
+the tool, where Draugr never sees them. A finding Draugr never saw cannot be reported as
+suppressed, cannot carry the reason someone gave for accepting it, and cannot be told apart from
+one that was never made. Use [`config.exclude`](#configexclude) for a finding you have judged, which keeps
+it in the report marked suppressed, and the gate thresholds for what should fail a build. Scanner
+options decide **what gets looked at**; the Norn decides what the answer means.
+
+Paths in options — `gitleaks.config`, `trivyConfig.checks` — resolve relative to **where Draugr
+runs**, not to the repository being scanned. Repository scanners work in a temporary clone, and a
+path resolving inside it would point at somewhere your file is not.
 
 Scanners in the last row run with the arguments Draugr chooses. Where a control has more than one
 scanner, the choice you make is **which one serves it** — and that choice is the one that

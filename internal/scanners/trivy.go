@@ -11,6 +11,31 @@ import (
 	"github.com/draugr-dev/draugr/pkg/tooladapter"
 )
 
+// trivyConfigSchema is the JSON Schema for the two vulnerability scanners' Saga config
+// (controllers.images.trivy and controllers.sca.trivyFs). additionalProperties:false rejects
+// mistyped keys.
+//
+// Neither option filters findings. `--severity` and `--ignorefile` are the two Trivy flags people
+// reach for first and are deliberately absent: both drop findings inside the tool, where Draugr
+// cannot mark them suppressed or record who accepted them. `exclusions` in the Saga does that and
+// keeps the evidence; the gate thresholds decide what fails.
+const trivyConfigSchema = `{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "pkgTypes": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["os", "library"] },
+      "description": "Which package types to analyse. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility — a base image maintained by a platform team — so the report covers what this component controls."
+    },
+    "dbRepository": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "OCI repositories to pull the vulnerability database from, in priority order. Point it at an internal mirror where the runner cannot reach a public registry."
+    }
+  }
+}`
+
 // NewTrivy returns a Scanner that runs Aqua Trivy against container images and returns
 // its native SARIF output. It serves the "images" control.
 func NewTrivy() plugin.Scanner {
@@ -20,7 +45,7 @@ func NewTrivy() plugin.Scanner {
 		Binary:       "trivy",
 		Controls:     []string{"images"},
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
-		ConfigSchema: json.RawMessage(noScannerOptions),
+		ConfigSchema: json.RawMessage(trivyConfigSchema),
 		Argv:         trivyArgv,
 		Run:          execArgv,
 		CacheVersion: sharedTrivyVersion.cacheVersion,
@@ -40,7 +65,7 @@ func NewTrivyFS() plugin.Scanner {
 			Binary:       "trivy",
 			Controls:     []string{"sca"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
-			ConfigSchema: json.RawMessage(noScannerOptions),
+			ConfigSchema: json.RawMessage(trivyConfigSchema),
 		},
 		trivyFSArgs,
 	)
@@ -50,8 +75,22 @@ func NewTrivyFS() plugin.Scanner {
 }
 
 // trivyFSArgs builds `trivy fs --quiet --scanners vuln --format sarif <dir>`.
-func trivyFSArgs(dir string, _ plugin.Config) []string {
-	return offlineTrivyArgs([]string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "sarif", dir})
+func trivyFSArgs(dir string, cfg plugin.Config) []string {
+	argv := []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "sarif"}
+	return offlineTrivyArgs(append(trivyOptions(argv, cfg), dir))
+}
+
+// trivyOptions appends the descriptor's options to a Trivy command line, before its positional
+// target. Shared by the image and filesystem scanners: the same two options mean the same thing
+// to both, and a database mirror that is right for one is right for the other.
+func trivyOptions(argv []string, cfg plugin.Config) []string {
+	if v := commaList(cfg, "pkgTypes"); v != "" {
+		argv = append(argv, "--pkg-types", v)
+	}
+	if v := commaList(cfg, "dbRepository"); v != "" {
+		argv = append(argv, "--db-repository", v)
+	}
+	return argv
 }
 
 // offlineTrivyArgs adds --skip-db-update when this process must make no network calls.
@@ -72,7 +111,7 @@ func offlineTrivyArgs(argv []string) []string {
 }
 
 // trivyArgv builds `trivy image --quiet --format sarif <ref>` for an image target.
-func trivyArgv(target plugin.Target, _ plugin.Config) ([]string, error) {
+func trivyArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 	img, ok := target.(plugin.ImageTarget)
 	if !ok {
 		return nil, fmt.Errorf("trivy: unsupported target %T (want image)", target)
@@ -81,7 +120,8 @@ func trivyArgv(target plugin.Target, _ plugin.Config) ([]string, error) {
 	if ref == "" {
 		return nil, errors.New("trivy: image target has neither ref nor digest")
 	}
-	return offlineTrivyArgs([]string{"trivy", "image", "--quiet", "--format", "sarif", ref}), nil
+	argv := []string{"trivy", "image", "--quiet", "--format", "sarif"}
+	return offlineTrivyArgs(append(trivyOptions(argv, cfg), ref)), nil
 }
 
 // trivyImageLocations restates an image finding's location as the image that was scanned.

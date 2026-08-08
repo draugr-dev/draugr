@@ -38,6 +38,16 @@ and move it under a version on release.
 
 ### Added
 
+- **Per-scanner options for `gitleaks`, `gosec`, `trivy`, `trivy-fs` and `trivy-config`.** Point
+  Gitleaks at a ruleset shared across repositories (`config`); select gosec rules and build tags
+  (`include`, `exclude`, `tags`); narrow Trivy to a package type or pull its database from an
+  internal mirror (`pkgTypes`, `dbRepository`); and run your own Rego alongside Trivy's built-in
+  misconfiguration checks (`checks`, `namespaces`).
+
+  None of them filters findings, deliberately: `--severity` and `--ignorefile` drop findings
+  inside the tool, where a suppression cannot be recorded or reviewed. Use `exclusions` for a
+  finding you have judged — it stays in the report, marked suppressed with your reason — and the
+  gate thresholds for what fails a build.
 - **`draugr controls --options`** — what each scanner accepts in its Saga block, read from the
   same schemas the gate enforces, so it cannot drift from what is actually validated. A scanner
   shown with no options is configured by choosing it.
