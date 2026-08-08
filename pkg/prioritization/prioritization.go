@@ -26,6 +26,26 @@ const (
 	C4 Context = "C4"
 )
 
+// Rank orders context tiers by concern (higher is more concerning): C1=4 … C4=1, unknown=0.
+//
+// Explicit rather than comparing the strings, which happen to sort the same way today. A caller
+// asking "is this tier more concerning than that one" should get an answer from the ordering the
+// tiers mean, not from their spelling.
+func (c Context) Rank() int {
+	switch c {
+	case C1:
+		return 4
+	case C2:
+		return 3
+	case C3:
+		return 2
+	case C4:
+		return 1
+	default:
+		return 0
+	}
+}
+
 // Priority is a finding's action band (P1 most urgent, P4 least).
 type Priority string
 

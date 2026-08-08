@@ -255,20 +255,37 @@ It is the wrong question for a **leaked credential**. A credential is valid wher
 a cloud account, a registry, an artifact store — and git history is frequently readable by more
 people than the service is reachable by, so `internal` can understate who is able to obtain it.
 
-So a control may declare a **priority floor**: a band its findings are never damped below. The
-`secrets` control declares **P2**, which means a credential on the least exposed, least critical
-component in your descriptor is still "this cycle" rather than backlog. It is a floor and not a
-fixed band — exposure and criticality still raise a credential on a public, business-critical
-component to P1.
+So a control may declare that its findings are ranked at a fixed **context tier**, regardless of
+what the component says. The `secrets` control declares **C1**, the tier a public, business-critical
+component gets — so a credential on the least exposed, least critical component in your descriptor
+ranks exactly as it would on your front door.
+
+With the control's severity floor at `high`, that means **P1**. Two reasons it is not something
+short of P1:
+
+- `--fail-on-priority P1` is the gate this documentation recommends. Anything lower means a
+  credential fails the severity gate and passes the priority one, which is the same contradiction
+  one band over.
+- The claim is that exposure does not bound the finding. A band that still moves with exposure,
+  only less, is a third position — *exposure partly bounds it* — that nothing argues for.
+
+A **tier** rather than a fixed band, because the claim is about exposure and not about urgency.
+Severity is still the scanner's answer and the severity floor's: a critical finding and a high one
+should not collapse into one row because they share a control.
 
 The report says when the floor applied, because a band you cannot reconstruct from the component's
 classification is one you have to take on trust:
 
 ```
-  P2   high   -   github-pat   secrets   gitleaks   cfg.txt:1
+  P1   high   -   github-pat   secrets   gitleaks   cfg.txt:1
        ↑ not damped by exposure — a credential is valid wherever it is valid, not only where
          the component sits
 ```
+
+**A false positive is not what this is for.** A finding you have judged belongs in
+[`config.exclude`](../reference/saga-schema.md#configexclude), where it stays in the report marked
+suppressed with your reason. Ranking it lower would hide it from the gate and record nothing —
+the wrong lever, and the same category error this exists to fix.
 
 Nothing else changes. A control that declares no floor is ranked entirely by the matrices above,
 which is correct for every control that does not override its scanner's severity in the first

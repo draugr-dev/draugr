@@ -19,36 +19,45 @@ func SeverityFloor(control string) sarif.Severity {
 	return severityFloors[control]
 }
 
-// priorityFloors keep a control's findings from being ranked routine by a component's
-// classification, and exist because a severity floor alone does not survive the priority model.
+// contextFloors let a control say that a component's exposure and criticality do not bound its
+// findings, so they are ranked as though the component were the most exposed and most critical
+// one in the descriptor.
 //
-// The two mechanisms otherwise reach opposite conclusions about the same finding. `secrets`
-// declares that a credential is serious whatever the scanner rated it — that is what the severity
-// floor above says. Priority then applies exposure and criticality, which are premised on
-// seriousness varying with context, and damps it back to P3 or P4. The report then tells a reader
-// that nothing is urgent and that they cannot ship, in the same six lines, from the same finding.
+// It exists because a severity floor alone does not survive the priority model, and the two then
+// reach opposite conclusions about the same finding. `secrets` declares that a credential is
+// serious whatever the scanner rated it — that is the severity floor above. Priority then applies
+// exposure and criticality, which are premised on seriousness varying with context, and damps it
+// to P3 or P4. The report tells a reader that nothing is urgent and that they cannot ship, in the
+// same six lines, from the same finding.
 //
-// The resolution is not "exposure is wrong": for a CVE in a dependency, where a component sits is
-// exactly what decides how much it matters. It is that some findings are not bounded by the
+// The resolution is not that exposure is wrong: for a CVE in a dependency, where a component sits
+// is exactly what decides how much it matters. It is that some findings are not bounded by the
 // component at all. A credential is valid wherever it is valid — a cloud account, a registry, an
 // artifact store — and git history is frequently readable by more people than the service is
 // reachable by, so `internal` can understate who can obtain it.
 //
-// A floor, not a fixed band: exposure may still raise a credential on a public critical component
-// to P1. It may not push one below "this cycle".
-var priorityFloors = map[string]prioritization.Priority{
-	"secrets": prioritization.P2,
+// A context tier rather than a fixed band, because the claim is about **exposure**, not about
+// urgency. Pinning a band would also decide the severity question, and severity is still the
+// scanner's and the severity floor's to answer: a critical finding and a high one should not
+// collapse into the same row because they happen to share a control.
+//
+// Ranking rather than gating. A finding somebody has judged belongs in `config.exclude`, where it
+// stays in the report marked suppressed with a reason — a lower band is the wrong lever for a
+// false positive, and using it that way is the same category error this fixes.
+var contextFloors = map[string]prioritization.Context{
+	"secrets": prioritization.C1,
 }
 
-// priorityFloorReasons say why, for the report. A band a reader cannot account for from the
+// contextFloorReasons say why, for the report. A band a reader cannot account for from the
 // component's classification is one they have to take on trust, and the reasoning is the part
 // worth keeping inspectable.
-var priorityFloorReasons = map[string]string{ // #nosec G101 -- prose about credentials, not one
+var contextFloorReasons = map[string]string{ // #nosec G101 -- prose about credentials, not one
 	"secrets": "a credential is valid wherever it is valid, not only where the component sits",
 }
 
-// PriorityFloor returns the lowest band a control's findings may be ranked at, and why. An empty
-// priority means the control declares no floor and the matrices' answer stands.
-func PriorityFloor(control string) (prioritization.Priority, string) {
-	return priorityFloors[control], priorityFloorReasons[control]
+// ContextFloor returns the most concerning context tier a control's findings are ranked at, and
+// why. An empty tier means the control declares none and the component's own classification
+// stands.
+func ContextFloor(control string) (prioritization.Context, string) {
+	return contextFloors[control], contextFloorReasons[control]
 }
