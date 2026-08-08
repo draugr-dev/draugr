@@ -9,32 +9,27 @@
 # merging it tags the release too — the automation is the same act, not a second path with its
 # own rules.
 #
-# Tagging is all this does, and the tag alone does not publish. That is a constraint rather than
-# an oversight, and it has two layers.
+# Tagging is all this does, and the tag is what publishes.
 #
-# GitHub starts no workflow from an event created with the built-in GITHUB_TOKEN, so the tag this
-# pushes fires nothing. The obvious way round it is to call release.yml as a reusable workflow —
-# an invocation rather than an event, which is how demo-assets escapes the same rule.
+# The tag is pushed with a GitHub App installation token rather than GITHUB_TOKEN, and that one
+# detail is the whole mechanism. GitHub raises no workflow-starting event for anything
+# GITHUB_TOKEN did, so a tag pushed with it would sit there while everything reported success.
+# Pushed with the App's token it is an ordinary push, release.yml triggers on it, and — the part
+# that matters most — the run's own ref is the tag.
 #
-# That does not work here, and the reason is the whole point of the release. **A called workflow's
-# OIDC identity is the caller's ref.** Artifacts signed from a call made on `main` carry
-# `release.yml@refs/heads/main`, and `install.sh` and `action.yml` both verify
-# `release.yml@refs/tags/v.*` — so the signature would not match the identity every user is told
-# to check, and `curl … | sh` would refuse to install the release. Keyless signing tied to a tag
-# requires a run triggered by that tag.
+# That last point is why release.yml is triggered rather than called. A reusable workflow runs
+# under its **caller's** ref, so a call made from `main` signs artifacts
+# `release.yml@refs/heads/main`, while install.sh and action.yml both verify
+# `release.yml@refs/tags/v.*`. Such a release publishes and then refuses to install. Keyless
+# signing tied to a tag needs a run triggered by that tag, and there is no way around it.
+# TestReleaseIsNotCallable keeps that true.
 #
-# So publishing needs a run whose own ref is the tag. Any of:
+# The state is the file, not a label, a branch name or a commit message. "The newest released
+# section has no tag" is a fact anyone can check by reading two things, it survives a squash
+# merge renaming the commit, and it is idempotent: a second run finds the tag and does nothing.
 #
-#   - `gh workflow run Release --ref vX.Y.Z -f tag=vX.Y.Z` — one command, no new credential. The
-#     run's ref is the tag, so the certificate says so. **`--ref` is the load-bearing part**; a
-#     dispatch without it runs on the default branch and signs as `main`.
-#   - push the tag from a machine with a personal credential, which is what the release runbook
-#     describes.
-#   - configure a PAT or GitHub App token on the checkout below, so the tag it pushes is an event
-#     GitHub will act on. The only fully automatic option, and the one that costs a secret.
-#
-# Said here rather than left to be rediscovered, because everything about a run that stops at the
-# tag looks successful: green workflow, real tag, no release.
+# release.yml gates on the self-scan and the integration suite, run against the tag, before
+# anything is built. So this being wrong costs a tag and not an artifact.
 name: Release tag
 
 on:
@@ -56,9 +51,29 @@ jobs:
     permissions:
       contents: write # create and push the tag
     steps:
+      # A token that is not GITHUB_TOKEN, because GitHub raises no workflow-starting event for
+      # anything GITHUB_TOKEN did and refuses it `gh pr create` unless the repository allows
+      # Actions to create *and approve* pull requests — one switch, and approval is not something
+      # to grant a workflow in order to fix a papercut.
+      #
+      # An App rather than a personal token: the installation token lives for an hour, is scoped
+      # to this repository, carries no person's identity, and cannot quietly expire between
+      # releases the way a PAT does.
+      - name: Mint an installation token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # every tag, to know which versions already have one
+          # The token is what makes the tag below an event GitHub acts on, which is the whole
+          # mechanism: release.yml triggers on the tag push, so the run's ref is the tag, so the
+          # keyless certificate says `release.yml@refs/tags/vX.Y.Z` — the identity install.sh and
+          # action.yml verify. Push it with GITHUB_TOKEN and nothing runs at all.
+          token: ${{ steps.app.outputs.token }}
 
       - name: Tag the newest released section, if it has no tag
         run: |
@@ -91,6 +106,5 @@ jobs:
           git tag -a "v$version" -m "v$version — ${summary:-see CHANGELOG.md}"
           git push origin "v$version"
           echo "tagged v$version"
-          echo "::notice::Tagged v$version. It does not publish on its own: run" \
-            "\`gh workflow run Release --ref v$version -f tag=v$version\`. The --ref is what makes" \
-            "the signature say refs/tags/v$version, which is the identity install.sh verifies."
+          echo "::notice::Tagged v$version. The push starts the Release workflow, which gates on" \
+            "the self-scan and the integration suite before it publishes anything."

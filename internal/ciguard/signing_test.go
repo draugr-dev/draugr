@@ -85,3 +85,35 @@ func TestReleaseIsNotCallable(t *testing.T) {
 		}
 	}
 }
+
+// TestTheTagIsPushedWithACredentialThatTriggers guards the one line the whole release depends on.
+//
+// GitHub raises no workflow-starting event for anything the built-in GITHUB_TOKEN did. A checkout
+// that falls back to it pushes a tag nobody acts on: the workflow is green, the tag is real, and
+// no release exists — and because the tag *is* there, the next run finds the version already
+// tagged and does nothing either. Nothing anywhere reports a problem.
+//
+// The same token is what lets `gh pr create` work without granting Actions the right to approve
+// pull requests, so both release workflows are checked.
+func TestTheTagIsPushedWithACredentialThatTriggers(t *testing.T) {
+	for _, name := range []string{"release-tag.yml", "release-prepare.yml"} {
+		data, err := os.ReadFile("../../.github/workflows/" + name) // #nosec G304 -- our own workflow
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		wf := string(data)
+		if !strings.Contains(wf, "create-github-app-token") {
+			t.Errorf("%s mints no installation token, so it acts as GITHUB_TOKEN: its pushes "+
+				"start no workflow and it cannot open a pull request", name)
+			continue
+		}
+		if !strings.Contains(wf, "token: ${{ steps.app.outputs.token }}") {
+			t.Errorf("%s mints a token but its checkout does not use it, so pushes still go out "+
+				"as GITHUB_TOKEN and trigger nothing", name)
+		}
+		if strings.Contains(wf, "GH_TOKEN: ${{ github.token }}") {
+			t.Errorf("%s runs gh as GITHUB_TOKEN, which cannot create a pull request unless the "+
+				"repository also lets Actions approve them", name)
+		}
+	}
+}

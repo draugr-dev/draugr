@@ -9,9 +9,11 @@ on:
   # Deliberately no `workflow_call`. Calling this from a workflow on main would publish, and the
   # artifacts would be signed with the *caller's* ref — `release.yml@refs/heads/main` — while
   # install.sh and action.yml both verify `release.yml@refs/tags/v.*`. The release would exist and
-  # refuse to install. Keyless signing tied to a tag needs a run whose own ref is that tag.
+  # refuse to install. Keyless signing tied to a tag needs a run whose own ref is that tag, which
+  # is why release-tag.yml pushes a tag with a credential GitHub will act on rather than calling
+  # this workflow. TestReleaseIsNotCallable keeps it that way.
   #
-  # Dispatch is that, as long as it names the tag as the ref:
+  # The dispatch below is the manual path, and it needs the same thing of you:
   #
   #   gh workflow run Release --ref vX.Y.Z -f tag=vX.Y.Z
   #
