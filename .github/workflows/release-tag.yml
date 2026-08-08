@@ -9,16 +9,32 @@
 # merging it tags the release too — the automation is the same act, not a second path with its
 # own rules.
 #
-# It tags, then calls release.yml rather than waiting for the tag to trigger it.
+# Tagging is all this does, and the tag alone does not publish. That is a constraint rather than
+# an oversight, and it has two layers.
 #
 # GitHub starts no workflow from an event created with the built-in GITHUB_TOKEN, so the tag this
-# pushes fires nothing on its own — the run would be green, the tag real, and no release would
-# exist. A reusable-workflow call is a direct invocation rather than an event and is not subject
-# to that rule, which is the same route demo-assets takes instead of listening for
-# `release: published`.
+# pushes fires nothing. The obvious way round it is to call release.yml as a reusable workflow —
+# an invocation rather than an event, which is how demo-assets escapes the same rule.
 #
-# release.yml still gates on the self-scan and the integration suite, run against the tag, before
-# anything is built or published. So this being wrong costs a tag and not an artifact.
+# That does not work here, and the reason is the whole point of the release. **A called workflow's
+# OIDC identity is the caller's ref.** Artifacts signed from a call made on `main` carry
+# `release.yml@refs/heads/main`, and `install.sh` and `action.yml` both verify
+# `release.yml@refs/tags/v.*` — so the signature would not match the identity every user is told
+# to check, and `curl … | sh` would refuse to install the release. Keyless signing tied to a tag
+# requires a run triggered by that tag.
+#
+# So publishing needs a run whose own ref is the tag. Any of:
+#
+#   - `gh workflow run Release --ref vX.Y.Z -f tag=vX.Y.Z` — one command, no new credential. The
+#     run's ref is the tag, so the certificate says so. **`--ref` is the load-bearing part**; a
+#     dispatch without it runs on the default branch and signs as `main`.
+#   - push the tag from a machine with a personal credential, which is what the release runbook
+#     describes.
+#   - configure a PAT or GitHub App token on the checkout below, so the tag it pushes is an event
+#     GitHub will act on. The only fully automatic option, and the one that costs a secret.
+#
+# Said here rather than left to be rediscovered, because everything about a run that stops at the
+# tag looks successful: green workflow, real tag, no release.
 name: Release tag
 
 on:
@@ -39,17 +55,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # create and push the tag
-    outputs:
-      # Empty when the newest released section already had a tag, which is what makes a second run
-      # of this workflow do nothing rather than re-release.
-      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # every tag, to know which versions already have one
 
       - name: Tag the newest released section, if it has no tag
-        id: tag
         run: |
           set -euo pipefail
 
@@ -80,29 +91,6 @@ jobs:
           git tag -a "v$version" -m "v$version — ${summary:-see CHANGELOG.md}"
           git push origin "v$version"
           echo "tagged v$version"
-          echo "tag=v$version" >>"$GITHUB_OUTPUT"
-
-  # Called rather than left to the tag's own push event, which never fires — see the note at the
-  # top. Skipped when `tag` is empty, which is how a re-run of this workflow finds the version
-  # already tagged and stops instead of releasing it twice.
-  release:
-    needs: tag
-    if: needs.tag.outputs.tag != ''
-    uses: ./.github/workflows/release.yml
-    with:
-      tag: ${{ needs.tag.outputs.tag }}
-    # Everything release.yml's own jobs declare, because a called workflow cannot request more
-    # than its caller granted and the shortfall fails the run at startup with no message.
-    # TestCallersGrantEveryPermissionTheCalledWorkflowDeclares keeps this in step.
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
-      security-events: write
-      pull-requests: write
-      issues: write
-    # Named, not inherited: `secrets: inherit` would pass every secret this repository holds and
-    # keep doing so as more are added, which is a widening nobody comes back to review.
-    secrets:
-      CLOUDFLARE_PAGES_DEPLOY_HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
-      MCP_PUBLISHER_DNS_KEY: ${{ secrets.MCP_PUBLISHER_DNS_KEY }}
+          echo "::notice::Tagged v$version. It does not publish on its own: run" \
+            "\`gh workflow run Release --ref v$version -f tag=v$version\`. The --ref is what makes" \
+            "the signature say refs/tags/v$version, which is the identity install.sh verifies."
