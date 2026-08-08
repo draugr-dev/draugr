@@ -23,10 +23,16 @@ jobs:
   # and then reports that it should not have been.
   selfscan:
     uses: ./.github/workflows/selfscan.yml
+    # Every permission any job in that workflow declares, not only the ones a release needs. A
+    # called workflow cannot request more than its caller granted, and the shortfall is a startup
+    # failure of the whole run — no jobs, no logs, no annotation naming the missing scope. So this
+    # list tracks selfscan.yml rather than this workflow's own needs, and
+    # TestCallersGrantEveryPermissionTheCalledWorkflowDeclares keeps the two in step.
     permissions:
       contents: read
       security-events: write # the Saga's `github` publisher uploads SARIF to code scanning
       pull-requests: write # unused on a tag push; the reusable workflow declares it for the PR path
+      issues: write # the notify job, which opens an issue when the default branch is red
 
   # The other half of "was this exact tree acceptable". The self-scan asks whether Draugr's own
   # code passes Draugr's policy; this asks whether Draugr still works — against a real Trivy and
