@@ -21,6 +21,15 @@ on:
   # request. That is the mode a release wants: a diff answers whether a change made things worse,
   # which is not what shipping an artifact asserts.
   workflow_call:
+    inputs:
+      ref:
+        description: >-
+          What to check out. Defaults to the caller's own commit, which is right for every path
+          but a release: there the tree being judged is the tag, and "was this exact tree
+          acceptable" has one honest answer.
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -49,6 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref }}
           # Need the base commit to diff against; a shallow clone has only the tip.
           fetch-depth: 0
       - id: filter
@@ -80,6 +90,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
         if: needs.changes.outputs.code == 'true'
 
       - name: Install Trivy

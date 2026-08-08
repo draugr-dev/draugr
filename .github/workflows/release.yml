@@ -6,6 +6,50 @@ on:
       # Full-semver tags only (vX.Y.Z). This deliberately excludes the moving major tag (v0),
       # which this workflow re-points on each release — so that move never re-triggers a release.
       - "v*.*.*"
+  # Called by release-tag.yml, which cannot rely on the trigger above: GitHub starts no workflow
+  # from an event created with the built-in GITHUB_TOKEN, so a tag that workflow pushes fires
+  # nothing. A reusable-workflow call is a direct invocation rather than an event, and is not
+  # subject to that rule — the same reason demo-assets is called from here instead of listening
+  # for `release: published`.
+  workflow_call:
+    inputs:
+      tag:
+        description: The tag to release. Everything is checked out and built from it.
+        required: true
+        type: string
+      dryRun:
+        description: Resolve and build without publishing, to prove the wiring.
+        required: false
+        default: false
+        type: boolean
+    # Named rather than inherited. `secrets: inherit` hands the called workflow every secret the
+    # repository has, including ones a release has no business reading, and it keeps doing so as
+    # secrets are added later — a widening nobody revisits. These two are what this workflow
+    # touches; GITHUB_TOKEN is always available and is not passed.
+    secrets:
+      CLOUDFLARE_PAGES_DEPLOY_HOOK:
+        description: Rebuilds the docs site so its versioned docs pick up this release. Optional.
+        required: false
+      MCP_PUBLISHER_DNS_KEY:
+        description: Signs the MCP Registry publish. Optional; the step skips without it.
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag to release.
+        required: true
+        type: string
+      dryRun:
+        description: Resolve and build without publishing.
+        required: false
+        default: false
+        type: boolean
+
+# The tag this run is about, whichever way it started. Every step reads this rather than
+# GITHUB_REF_NAME, which is the tag on a push and the calling branch on a call — and a release
+# built from `main` while claiming to be a tag is the worst version of this being wrong.
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 # Least privilege at the top; the release job opts into the writes it needs.
 permissions:
@@ -23,6 +67,8 @@ jobs:
   # and then reports that it should not have been.
   selfscan:
     uses: ./.github/workflows/selfscan.yml
+    with:
+      ref: ${{ inputs.tag || github.ref_name }}
     # Every permission any job in that workflow declares, not only the ones a release needs. A
     # called workflow cannot request more than its caller granted, and the shortfall is a startup
     # failure of the whole run — no jobs, no logs, no annotation naming the missing scope. So this
@@ -44,6 +90,8 @@ jobs:
   # the moment that cost is obviously worth paying.
   integration:
     uses: ./.github/workflows/integration.yml
+    with:
+      ref: ${{ inputs.tag || github.ref_name }}
     permissions:
       contents: read
 
@@ -58,6 +106,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          # The tag, not the caller's branch. GoReleaser derives the version from the git state it
+          # finds, so a checkout of main would build main and label it with the tag's notes.
+          ref: ${{ env.TAG }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26"
@@ -68,7 +119,7 @@ jobs:
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Prepare user-facing release notes from CHANGELOG
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           awk -v v="$version" '
             $0 ~ "^## \\[" v "\\]" {f=1; next}
             f && /^## \[/ {exit}
@@ -82,11 +133,16 @@ jobs:
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           version: "~> v2"
-          args: release --clean --release-notes=RELEASE_NOTES.md
+          # A dry run builds and signs exactly as a real one does and stops before anything
+          # leaves the runner, so the wiring can be proved without a release nobody asked for.
+          args: >-
+            release --clean --release-notes=RELEASE_NOTES.md
+            ${{ inputs.dryRun && '--skip=publish,announce' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Attest build provenance (SLSA)
+        if: ${{ !inputs.dryRun }}
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: |
@@ -99,8 +155,9 @@ jobs:
       # The trigger above is vX.Y.Z-only, so moving v0 here never re-triggers a release; pushes
       # made with GITHUB_TOKEN also don't trigger workflows (belt and suspenders).
       - name: Update moving major tag
+        if: ${{ !inputs.dryRun }}
         run: |
-          tag="${GITHUB_REF_NAME}"   # e.g. v0.29.0
+          tag="${TAG}"   # e.g. v0.29.0
           major="${tag%%.*}"         # e.g. v0
           git tag -f "$major" "$tag"
           git push -f origin "refs/tags/$major"
@@ -115,14 +172,15 @@ jobs:
       # here should not leave a tagged release half-published. If it fails, run
       # `contrib/mcpb/build.sh <version>` afterwards and upload the result.
       - name: Build and attach the MCP Bundle
+        if: ${{ !inputs.dryRun }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           ./contrib/mcpb/build.sh "$version" "$RUNNER_TEMP"
-          gh release upload "$GITHUB_REF_NAME" \
+          gh release upload "$TAG" \
             "$RUNNER_TEMP/draugr-$version.mcpb" \
             "$RUNNER_TEMP/draugr-$version.mcpb.sha256" \
             --repo "$GITHUB_REPOSITORY" --clobber
@@ -137,6 +195,7 @@ jobs:
       # add its URL as the CLOUDFLARE_PAGES_DEPLOY_HOOK repo secret. The step no-ops (never fails
       # the release) when the secret is absent, so forks and pre-setup releases stay green.
       - name: Trigger docs site rebuild
+        if: ${{ !inputs.dryRun }}
         env:
           HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
         run: |
@@ -157,6 +216,7 @@ jobs:
   # DNS namespaces have no keyless option. The registry's own CI guide only documents
   # `login github-oidc` and a PAT, and both authenticate `io.github.*` namespaces, not a domain.
   publish-mcp:
+    if: ${{ !inputs.dryRun }}
     needs: goreleaser
     runs-on: ubuntu-latest
     environment: mcp-registry
@@ -177,7 +237,7 @@ jobs:
             echo "MCP_PUBLISHER_DNS_KEY not set; skipping the registry publish"
             exit 0
           fi
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
 
           os=$(uname -s | tr '[:upper:]' '[:lower:]')
           arch=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
@@ -207,6 +267,7 @@ jobs:
   # It opens a pull request rather than committing, so a bad render is caught before it reaches
   # the README, and it no-ops when the image is byte-identical.
   demo-assets:
+    if: ${{ !inputs.dryRun }}
     needs: goreleaser
     permissions:
       contents: write # push the assets branch

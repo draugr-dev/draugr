@@ -10,7 +10,20 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **A leaked credential now ranks P1 wherever it is found.** The `secrets` control ranks its
+  findings at the context tier a public, business-critical component gets, whatever the component
+  actually declares — because a credential is valid wherever it is valid, and git history is often
+  readable by more people than the service is reachable by.
+
+  This replaces the P2 floor with the position it was a compromise between. `--fail-on-priority P1`
+  is the gate the documentation recommends, so anything lower meant a credential failed the
+  severity gate and passed the priority one — the same contradiction, one band over.
+
+  A tier rather than a fixed band: severity still decides the row, so a critical finding and a
+  high one do not collapse into one because they share a control. A finding you have judged still
+  belongs in `config.exclude`, where it stays in the report marked suppressed with your reason.
 
 ## [0.72.0] - 2026-08-08
 
