@@ -35,6 +35,8 @@ env:
   GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
   # Pinned Semgrep (pip verifies the PyPI package hash for this exact version).
   SEMGREP_VERSION: "1.169.0"
+  GOSEC_VERSION: "2.28.0"
+  GOSEC_SHA256: "d7882e505b1ff345d458bf0e893eec8019bc849f861ad73a212869540dd505ff"
 
 jobs:
   # Mirrors ci.yml: one cheap job decides whether there is anything to scan, and the scan job
@@ -103,6 +105,22 @@ jobs:
           set -euo pipefail
           pipx install "semgrep==${SEMGREP_VERSION}"
           semgrep --version
+
+      # Enabled in .draugr/self.saga.yaml, so it has to be here: a control whose scanner is
+      # missing reports an error rather than a pass, which is the design working — and a red
+      # branch for a reason that is about the runner rather than about the code.
+      # TestSelfscanInstallsEveryScannerItsDescriptorEnables is what keeps the two in step.
+      - name: Install gosec
+        if: needs.changes.outputs.code == 'true'
+        run: |
+          set -euo pipefail
+          tarball="gosec_${GOSEC_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$tarball" \
+            "https://github.com/securego/gosec/releases/download/v${GOSEC_VERSION}/${tarball}"
+          echo "${GOSEC_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball" gosec
+          sudo mv gosec /usr/local/bin/
+          gosec --version
 
       - name: Draugr self-scan
         if: needs.changes.outputs.code == 'true'
@@ -203,6 +221,11 @@ jobs:
       - name: Open or update the issue
         env:
           GH_TOKEN: ${{ github.token }}
+          # This job never checks the repository out — it has no use for the source — so `gh` has
+          # no local clone to infer the repository from and every call has to name it. Without
+          # this the step fails on its first command with "not a git repository", and the branch
+          # is red with nobody told why, which is the one thing this job exists to prevent.
+          GH_REPO: ${{ github.repository }}
           RESULT: ${{ needs.selfscan.result }}
           SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

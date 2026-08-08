@@ -9,9 +9,21 @@
 # merging it tags the release too — the automation is the same act, not a second path with its
 # own rules.
 #
-# Tagging is all this does. The tag triggers release.yml, which gates on the self-scan and the
-# integration suite before anything is built or published, so this being wrong costs a tag and
-# not an artifact.
+# Tagging is all this does, and the tag alone does not publish anything.
+#
+# GitHub does not start a workflow from an event created with the built-in GITHUB_TOKEN, so the
+# tag this pushes does not fire release.yml the way a tag pushed from a laptop does. The tag is
+# still correct and still the record of what was released; publishing it needs one of:
+#
+#   - re-pushing the tag from a machine with a personal credential
+#     (`git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z`, then tag and push again), or
+#   - a token that is not GITHUB_TOKEN configured on the checkout below.
+#
+# Said here rather than left to be rediscovered, because everything about this run looks
+# successful: the workflow is green, the tag exists, and nothing is published.
+#
+# Either way release.yml gates on the self-scan and the integration suite before anything is
+# built, so a wrong tag costs a tag and not an artifact.
 name: Release tag
 
 on:
