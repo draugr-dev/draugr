@@ -1062,7 +1062,8 @@ Serve Draugr to AI coding assistants over the
 
 ```bash
 draugr mcp                 # read-only tools
-draugr mcp --scan=ask      # additionally expose scan, approving each call
+draugr mcp --scan=ask      # additionally expose scan, approving each call — the prompt names
+                           # the controls, the components, any live host, and where results go
 draugr mcp --scan=always   # additionally expose scan, without prompting
 ```
 
@@ -1076,7 +1077,7 @@ an MCP **resource**, so a client can read the descriptor without a tool call.
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
 | `check_tools` | Report which scanners are installed and what to run if any are missing |
 | `summarize_report` | Rank an existing `results.sarif` by priority |
-| `scan` | Run a scan and return the verdict (requires `--scan=ask` or `--scan=always`) |
+| `scan` | Run a scan and return the verdict, the scope it covered, and where the descriptor's publishers delivered it (requires `--scan=ask` or `--scan=always`) |
 
 | Flag | Default | Description |
 |---|---|---|

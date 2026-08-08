@@ -148,12 +148,50 @@ draugr mcp --scan=ask      # offered, and you approve each call
 draugr mcp --scan=always   # offered, and runs without asking
 ```
 
+The approval message describes the scan in front of you, not scanning in general — the controls
+that will run, over how many components, any scanner that does more than read, and where the
+results will be delivered:
+
+```
+Draugr wants to scan app.saga.yaml.
+
+Controls: dast, tls — over 1 component.
+
+These do more than read:
+  nuclei (network): sends probing traffic to the declared host
+
+This sends traffic to a live service you have declared: nuclei. Only approve it for a host you
+are authorised to probe.
+
+Results will be delivered to:
+  file: out/reports
+```
+
+That distinction is the point of asking. Five read-only controls over a checkout and a `dast` run
+against a production host are different decisions, and a message that reads the same for both asks
+you to approve something it has not described — particularly when the descriptor was written by
+the assistant rather than by you.
+
 **`--scan=ask` is the one to want** — you approve the scan in front of you, rather than every
 scan for the session. It needs a client that implements MCP *elicitation*, and many don't yet.
 If yours can't prompt, the scan is refused with a message saying so; it never silently runs
 anyway. Use `--scan=always` for a sandbox or CI, where there's nobody to ask.
 
 Everything else is read-only and safe to call freely. Leaving scanning off is a good default:
+### The scan honours your reports and publishers
+
+A scan through MCP runs the descriptor's `config.reports` and `config.publishers` exactly as
+`draugr scan` does, and the result names where each one landed:
+
+```json
+{ "verdict": "fail", "delivered": ["file: out/reports"] }
+```
+
+An assistant scanning on your behalf is the case where the artifact matters most, because a
+conversation is the least durable place a result can land: the session closes and the finding is
+gone. A saved SARIF file is something your assistant can point you at, or read back later with
+`summarize_report` instead of paying for another scan.
+
 `summarize_report` answers "what should I fix first?" from a scan your pipeline already ran, at
 no cost.
 

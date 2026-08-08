@@ -373,6 +373,9 @@ type ScanOutput struct {
 	Uncovered []string `json:"uncovered,omitempty" jsonschema:"surfaces this descriptor declares that no enabled control examined"`
 	// Unexamined is the same sentence for everything no control covers at all.
 	Unexamined string `json:"unexamined" jsonschema:"what a Draugr scan does not examine, whatever the verdict"`
+	// Delivered names where the descriptor's publishers put the report, so a caller can point
+	// the user at a file, or read it back later instead of scanning again.
+	Delivered []string `json:"delivered,omitempty" jsonschema:"where this run's reports were delivered, from the descriptor's config.publishers"`
 	SummarizeOutput
 }
 
@@ -391,14 +394,17 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		if in.Path == "" {
 			return nil, ScanOutput{}, fmt.Errorf("path is required")
 		}
-		if mode == ScanAsk {
-			if err := confirmScan(ctx, req, in.Path); err != nil {
-				return nil, ScanOutput{}, err
-			}
-		}
+		// Loaded before the prompt, because the prompt describes what the descriptor asks for.
+		// A question that names only a path asks the reader to approve something it has not
+		// described, and the reader is usually not the person who wrote the file.
 		model, err := saga.LoadFile(in.Path)
 		if err != nil {
 			return nil, ScanOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
+		}
+		if mode == ScanAsk {
+			if err := confirmScan(ctx, req, in.Path, describeScan(reg, model, in.Path)); err != nil {
+				return nil, ScanOutput{}, err
+			}
 		}
 		// Shared for this run, as the CLI does — an assistant asking for a scan should not pay
 		// for five clones of one repository either.
@@ -423,12 +429,29 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		}
 		sort.Strings(controls)
 
+		// The descriptor's reports and publishers, exactly as `draugr scan` runs them.
+		//
+		// An assistant scanning on someone's behalf is the case where the artifact matters most,
+		// because a conversation is the least durable place a result can land: the session closes
+		// and the finding is gone. A descriptor declaring `publishers: [{kind: file, dir: …}]` is
+		// asking for the opposite. Honouring the controls, the exclusions and the gate from a
+		// descriptor while dropping two of its blocks is also the silent no-op this project
+		// refuses everywhere else.
+		delivered, publishErr := deliver(ctx, model, run, verdict, in.MinPriority)
+
 		out := ScanOutput{
 			Verdict:         string(verdict.Verdict),
 			Controls:        controls,
 			Uncovered:       surfaces.Uncovered(model),
 			Unexamined:      unexaminedNote,
+			Delivered:       delivered,
 			SummarizeOutput: summarize(sarif.Merge(collect(reports)...), in.MinPriority, in.Limit),
+		}
+		// A delivery failure is returned rather than folded into the verdict: the findings are
+		// real either way, and a caller told "fail" without being told the upload never happened
+		// will report a scan that was filed when it was not.
+		if publishErr != nil {
+			return nil, out, fmt.Errorf("scan completed but publishing failed: %w", publishErr)
 		}
 		return nil, out, nil
 	}
@@ -453,7 +476,7 @@ func collect(m map[string]sarif.Report) []sarif.Report {
 // The failure message names the way out, because "elicitation is unsupported" is meaningless to
 // someone who chose --scan=ask from a docs page and has no idea their client doesn't implement
 // it.
-func confirmScan(ctx context.Context, req *mcp.CallToolRequest, path string) error {
+func confirmScan(ctx context.Context, req *mcp.CallToolRequest, path, message string) error {
 	if req == nil || req.Session == nil {
 		return fmt.Errorf("scan needs approval but there is no session to ask through; " +
 			"start the server with --scan=always to run scans without asking")
@@ -473,9 +496,8 @@ func confirmScan(ctx context.Context, req *mcp.CallToolRequest, path string) err
 	// holding to the spec rejects the request — which made --scan=ask fail before it could ask,
 	// with the error pointing at a handshake rather than at anything a reader could act on.
 	res, err := req.Session.Elicit(ctx, &mcp.ElicitParams{
-		Mode: "form",
-		Message: fmt.Sprintf("Draugr wants to scan %s. This clones the repositories it "+
-			"declares, runs external scanners, and uses the network.", path),
+		Mode:    "form",
+		Message: message,
 		RequestedSchema: map[string]any{
 			"type":       "object",
 			"properties": map[string]any{},
