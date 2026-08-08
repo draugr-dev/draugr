@@ -129,3 +129,19 @@ func TestOverrideCell(t *testing.T) {
 		t.Error("DefaultMatrices should return the shipped defaults, not the override")
 	}
 }
+
+// Rank exists so "is this tier more concerning" is answered by what the tiers mean rather than by
+// how they are spelled. A test that only compared C1 with C4 would pass against the string
+// ordering too, so this pins the whole order and the unknown case.
+func TestContextRankOrdersByConcern(t *testing.T) {
+	ordered := []Context{C4, C3, C2, C1}
+	for i := 1; i < len(ordered); i++ {
+		if ordered[i].Rank() <= ordered[i-1].Rank() {
+			t.Errorf("%s should outrank %s, got %d and %d",
+				ordered[i], ordered[i-1], ordered[i].Rank(), ordered[i-1].Rank())
+		}
+	}
+	if Context("nonsense").Rank() != 0 {
+		t.Error("an unknown tier must rank below every real one, so it never wins a comparison")
+	}
+}
