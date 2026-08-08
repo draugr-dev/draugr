@@ -331,3 +331,16 @@ func TestCheckoutReportsAFallbackFailure(t *testing.T) {
 		t.Fatal("expected the fallback's own failure to surface")
 	}
 }
+
+// Two scans of one repository, one wanting history and one not, are different scans. A key that
+// cannot tell them apart lets the shallow one serve the deep one's answer.
+func TestScopeKeyDistinguishesHistory(t *testing.T) {
+	shallow := Scope{Paths: []string{"a"}}
+	deep := Scope{Paths: []string{"a"}, History: true}
+	if shallow.Key() == deep.Key() {
+		t.Errorf("history must change the key, both are %q", shallow.Key())
+	}
+	if (Scope{History: true}).Empty() {
+		t.Error("a history scope restricts what the checkout must contain, so it is not empty")
+	}
+}

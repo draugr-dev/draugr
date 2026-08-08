@@ -29,6 +29,9 @@ type repoScanner struct {
 	// prewarm, when set, warms shared tool state before a run (see plugin.Prewarmer). Nil for
 	// scanners with nothing to warm.
 	prewarm func(ctx context.Context) error
+	// wantsHistory reports whether this scan needs the repository's commit history rather than
+	// only the tree. Nil for the scanners that read a tree, which is all but one.
+	wantsHistory func(cfg plugin.Config) bool
 }
 
 // CacheVersion reports the scanner's tool/data version for the cache key, when one is wired
@@ -81,6 +84,9 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	}
 
 	scope := git.Scope{Paths: repo.Paths, Ignore: repo.Ignore}
+	if s.wantsHistory != nil {
+		scope.History = s.wantsHistory(cfg)
+	}
 	checkout := s.checkout
 	if repo.WorkingTree {
 		checkout = func(ctx context.Context, url, _ string, scope git.Scope) (git.Tree, func(), error) {
@@ -99,7 +105,15 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	var cleanup func()
 	var err error
 	if pool := git.PoolFrom(ctx); pool != nil {
-		tree, cleanup, err = pool.Checkout(ctx, repo.Identity(), materialise)
+		// The identity comes from the target, and history is asked for by a scanner's config, so
+		// it has to be added here. Without it a run where one scanner wants history and another
+		// does not would share whichever checkout was materialised first — and half the time that
+		// is the shallow one, which reports clean over a history nobody read.
+		key := repo.Identity()
+		if scope.History {
+			key += "+history"
+		}
+		tree, cleanup, err = pool.Checkout(ctx, key, materialise)
 	} else {
 		tree, cleanup, err = materialise(ctx)
 	}

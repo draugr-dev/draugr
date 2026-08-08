@@ -43,9 +43,12 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 	}
 	cleanup = func() { _ = os.RemoveAll(dir) }
 
-	sparse := len(coneDirs(scope.Paths)) > 0
+	// Both optimisations are off when history is wanted. A shallow clone has no history, and a
+	// partial one has history whose blobs were never fetched — which walks commits it cannot read
+	// and finds nothing in them.
+	sparse := len(coneDirs(scope.Paths)) > 0 && !scope.History
 	cloneArgs := []string{"clone", "--quiet"}
-	if revision == "" {
+	if revision == "" && !scope.History {
 		cloneArgs = append(cloneArgs, "--depth", "1")
 	}
 	if sparse {
@@ -91,7 +94,14 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 			return Tree{}, nil, fmt.Errorf("git sparse-checkout: %w", err)
 		}
 	}
-	if len(scope.Ignore) > 0 {
+	if scope.History && len(coneDirs(scope.Paths)) > 0 {
+		// Sparse checkout was skipped, so the tree still holds everything. Cut it down the slow
+		// way, which produces the same tree.
+		if err := prune(dir, scope, true); err != nil {
+			cleanup()
+			return Tree{}, nil, fmt.Errorf("restrict checkout to paths: %w", err)
+		}
+	} else if len(scope.Ignore) > 0 {
 		if err := prune(dir, scope, false); err != nil {
 			cleanup()
 			return Tree{}, nil, fmt.Errorf("apply ignore: %w", err)

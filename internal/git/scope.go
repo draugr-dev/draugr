@@ -29,10 +29,22 @@ type Scope struct {
 	// Gitignore-style: a trailing `/` matches a directory and everything under it, `*` matches
 	// within a path segment, `**` matches across them.
 	Ignore []string
+
+	// History asks for the repository's commit history, not only the tree at one revision.
+	//
+	// A checkout is shallow by default because that is what makes a scan fast, and every scanner
+	// but one reads the tree. Secret detection is the exception: a credential committed and later
+	// removed is still fetchable by anyone who can clone the repository, so it is still
+	// compromised and still needs rotating. Finding it means having the history to look at.
+	//
+	// It also turns off the sparse and partial-clone optimisations. Those leave historical blobs
+	// unfetched, so a history scan over them would walk commits whose contents are not present
+	// and report clean — the most dangerous kind of wrong answer.
+	History bool
 }
 
 // Empty reports whether the scope restricts anything.
-func (s Scope) Empty() bool { return len(s.Paths) == 0 && len(s.Ignore) == 0 }
+func (s Scope) Empty() bool { return len(s.Paths) == 0 && len(s.Ignore) == 0 && !s.History }
 
 // Key renders the scope for a cache or dedup identity. Two components scoped to different
 // subtrees of one repository are different scans, and a key that cannot tell them apart lets
@@ -41,7 +53,11 @@ func (s Scope) Key() string {
 	if s.Empty() {
 		return ""
 	}
-	return "paths=" + strings.Join(s.Paths, ",") + ";ignore=" + strings.Join(s.Ignore, ",")
+	key := "paths=" + strings.Join(s.Paths, ",") + ";ignore=" + strings.Join(s.Ignore, ",")
+	if s.History {
+		key += ";history"
+	}
+	return key
 }
 
 // coneDirs normalises Paths into the directory list `git sparse-checkout set --cone` accepts.

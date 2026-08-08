@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -318,5 +319,90 @@ func TestCheckoutWorkingTreeAppliesIgnore(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(src, "drop.txt")); err != nil {
 		t.Error("ignore deleted from the real checkout")
+	}
+}
+
+// A secret committed and then removed is the case secret detection primarily exists for: it is
+// still fetchable by anyone who can clone, so it is still compromised. Finding it needs the
+// history to be present, which a shallow clone does not have.
+func TestCheckoutWithHistoryKeepsRemovedCommits(t *testing.T) {
+	src := t.TempDir()
+	runGit(t, src, "init", "-q", "-b", "main")
+	runGit(t, src, "config", "user.email", "t@example.com")
+	runGit(t, src, "config", "user.name", "Test")
+	if err := os.WriteFile(filepath.Join(src, "leak.txt"), []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, src, "add", "-A")
+	runGit(t, src, "commit", "-q", "-m", "add")
+	if err := os.Remove(filepath.Join(src, "leak.txt")); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, src, "add", "-A")
+	runGit(t, src, "commit", "-q", "-m", "remove")
+
+	ctx := context.Background()
+
+	// The default clone is not asserted to be shallow here: git ignores --depth for a clone from
+	// a local path, so a fixture cannot distinguish the two. What matters and is testable is the
+	// guarantee in the other direction — asking for history gets history.
+	deep, cleanDeep, err := Checkout(ctx, src, "", Scope{History: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanDeep()
+	if n := commitCount(t, deep.Dir); n != 2 {
+		t.Errorf("a history checkout should hold both commits, got %d", n)
+	}
+	// And the removed file is reachable from history, which is the whole point.
+	out := runGit(t, deep.Dir, "log", "--all", "--name-only", "--format=")
+	if !strings.Contains(string(out), "leak.txt") {
+		t.Errorf("the removed file should be reachable in history, got:\n%s", out)
+	}
+}
+
+func commitCount(t *testing.T, dir string) int {
+	t.Helper()
+	n, err := strconv.Atoi(strings.TrimSpace(string(runGit(t, dir, "rev-list", "--count", "HEAD"))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// Sparse checkout is off when history is wanted, so the tree has to be cut down the slow way
+// afterwards. Without this the scope silently stops applying the moment somebody asks for
+// history, and the scan quietly widens to the whole repository.
+func TestCheckoutWithHistoryStillHonoursPaths(t *testing.T) {
+	src, _ := initRepo(t)
+	for _, d := range []string{"keep", "drop"} {
+		if err := os.MkdirAll(filepath.Join(src, d), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(src, d, "f.txt"), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runGit(t, src, "add", ".")
+	runGit(t, src, "commit", "-q", "-m", "dirs")
+
+	co, cleanup, err := Checkout(context.Background(), src, "",
+		Scope{Paths: []string{"keep"}, History: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	if _, err := os.Stat(filepath.Join(co.Dir, "keep", "f.txt")); err != nil {
+		t.Errorf("the scoped directory is missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(co.Dir, "drop", "f.txt")); err == nil {
+		t.Error("a history checkout ignored the path scope")
+	}
+	// History is present regardless, which is what the scope cannot narrow: git history is not
+	// sparse-checkoutable, so a finding from outside the scope is still a real finding in this
+	// repository and belongs in config.exclude rather than being silently dropped.
+	if n := commitCount(t, co.Dir); n < 2 {
+		t.Errorf("history should still be there, got %d commits", n)
 	}
 }

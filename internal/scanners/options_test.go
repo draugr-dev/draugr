@@ -197,3 +197,20 @@ func TestAbsPathLeavesAnEmptyValueEmpty(t *testing.T) {
 		t.Errorf("got %q, want it resolved against the process directory", got)
 	}
 }
+
+// The failure this exists to prevent: `gitleaks git` over a shallow clone walks one commit and
+// reports clean, which reads exactly like a repository with no secret in its history.
+func TestGitleaksHistoryChangesBothTheModeAndTheClone(t *testing.T) {
+	if got := gitleaksArgs("/tree", plugin.Config{"history": true}); got[1] != "git" {
+		t.Errorf("history should select gitleaks' git mode, got %v", got)
+	}
+	if got := gitleaksArgs("/tree", nil); got[1] != "dir" {
+		t.Errorf("the default is the tree, got %v", got)
+	}
+	if !gitleaksWantsHistory(plugin.Config{"history": true}) {
+		t.Error("the checkout must be told, or the mode scans a shallow clone")
+	}
+	if gitleaksWantsHistory(nil) || gitleaksWantsHistory(plugin.Config{"history": false}) {
+		t.Error("history is off by default")
+	}
+}
