@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/surveyor"
@@ -355,23 +356,6 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-// controlsForSurface maps a discovered surface to the controls that can act on it.
-//
-// Discovery's promise is that the descriptor writes itself, and a descriptor enabling no control
-// has not written itself — it has written a shape, whose first scan reports PASS having checked
-// nothing.
-//
-// `dast` is deliberately absent from the host list. The passive host controls read a response;
-// dast sends attack traffic at a live service, and turning that on because a survey noticed the
-// service exists is not a decision discovery gets to make on someone's behalf. Enable it
-// yourself, having decided.
-var controlsForSurface = map[string][]string{
-	"repositories":   {"sca", "secrets", "sast", "iac"},
-	"images":         {"images"},
-	"hosts":          {"headers", "tls"},
-	"infrastructure": {"infrastructure"},
-}
-
 // enableControlsForSurface turns on the controls the discovered components can be checked with.
 //
 // Only controls the descriptor says nothing about are touched. A control someone set — including
@@ -385,8 +369,8 @@ func enableControlsForSurface(model *saga.Model) []string {
 	wanted := map[string]bool{}
 	for i := range model.Components {
 		c := &model.Components[i]
-		for surface, controls := range controlsForSurface {
-			if !componentHasSurface(c, surface) {
+		for surface, controls := range surfaces.Controls {
+			if !surfaces.ComponentHas(c, surface) {
 				continue
 			}
 			for _, name := range controls {
@@ -408,18 +392,4 @@ func enableControlsForSurface(model *saga.Model) []string {
 	}
 	sort.Strings(added)
 	return added
-}
-
-func componentHasSurface(c *saga.Component, surface string) bool {
-	switch surface {
-	case "repositories":
-		return len(c.Repositories) > 0
-	case "images":
-		return len(c.Images) > 0
-	case "hosts":
-		return len(c.Hosts) > 0
-	case "infrastructure":
-		return len(c.Infrastructure) > 0
-	}
-	return false
 }

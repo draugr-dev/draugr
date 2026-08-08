@@ -12,6 +12,11 @@ and move it under a version on release.
 
 ### Changed
 
+- `draugr mcp`'s `scan` result now states its own scope: the controls that ran, any surface your
+  descriptor declares that no enabled control looked at, and the classes a control-based scan
+  does not cover — trust boundaries, build-context hygiene, how credentials reach a subprocess.
+  An assistant handed a verdict can now tell what the verdict answers, and carry on from there
+  with the reproducible part already settled.
 - **A missing scanner now tells you how to install it.** `sast` and `secrets` failing with
   `executable file not found` was correct and unhelpful — most likely to happen on a first scan,
   when Draugr is installed and nothing else is:

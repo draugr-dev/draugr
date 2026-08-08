@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -340,6 +341,36 @@ func TestScanToolReturnsAVerdict(t *testing.T) {
 	}
 	if out.Total != 0 {
 		t.Errorf("total = %d, want 0", out.Total)
+	}
+}
+
+// The failure this guards against is not a wrong verdict — it is a right one being read as the
+// answer to a broader question than Draugr asked. A component declaring an image with the images
+// control off passes, and the pass must arrive saying so.
+func TestScanToolSaysWhatItDidNotLookAt(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "uncovered.saga.yaml")
+	if err := os.WriteFile(path, []byte(
+		"release:\n  name: app\n  version: \"1.0\"\ncomponents:\n"+
+			"  - name: api\n    images:\n      - image: registry.example.com/api:1.0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, out, err := scanTool(builtins.Registry(), ScanAlways)(context.Background(), nil, ScanInput{Path: path})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if out.Verdict != "pass" {
+		t.Fatalf("verdict = %q, want pass with nothing enabled", out.Verdict)
+	}
+	want := []string{"api declares images, and images is not enabled"}
+	if !slices.Equal(out.Uncovered, want) {
+		t.Errorf("uncovered = %q, want %q", out.Uncovered, want)
+	}
+	if out.Unexamined == "" {
+		t.Error("a verdict with no statement of its own boundary is the whole defect")
+	}
+	if out.Controls == nil {
+		t.Error("controls must be present even when empty, so the caller sees the scope was none")
 	}
 }
 

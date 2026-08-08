@@ -86,6 +86,28 @@ which finding needs a human to confirm.
 That division is the point. Detection and ranking are reproducible and come from the scan;
 judgement about what to do sits with the reader, human or otherwise.
 
+## The verdict states its own scope
+
+A `scan` result names the controls that ran, any surface your descriptor declares that no enabled
+control looked at, and the classes a control-based scan does not cover at all — trust boundaries,
+build-context hygiene, how credentials reach a subprocess, protocol assumptions:
+
+```json
+{
+  "verdict": "pass",
+  "controls": ["sca", "secrets"],
+  "uncovered": ["api declares images, and images is not enabled"],
+  "unexamined": "This verdict covers the controls above and nothing else. …"
+}
+```
+
+This is scope, and an assistant reads it the same way you would. A gate answers one question
+exactly — *do the declared controls, over the declared components, produce findings above the
+threshold* — and it answers it the same way every time, which is what makes it something to gate a
+pipeline on. Saying which question it answered is what lets an assistant keep going afterwards
+with the reproducible part already settled: it never re-derives your dependency CVEs, your
+priorities or your verdict, and spends its attention on the design questions no scanner computes.
+
 ## It diagnoses; it doesn't install
 
 `check_tools` reports which external scanners are on the machine and, when something's missing,

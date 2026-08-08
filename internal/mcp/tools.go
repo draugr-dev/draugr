@@ -13,6 +13,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
+	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -323,11 +324,31 @@ type ScanInput struct {
 	Limit       int    `json:"limit,omitempty" jsonschema:"maximum findings to return; defaults to 20"`
 }
 
-// ScanOutput is the verdict plus the ranked findings behind it.
+// ScanOutput is the verdict plus the ranked findings behind it, and the boundary of what it
+// describes.
+//
+// Scope is not decoration. A verdict arriving on its own reads as the answer to whatever question
+// prompted the scan, and the question is usually broader than the one Draugr answers: an assistant
+// asked whether a repository is safe to ship, handed a PASS, has every reason to stop. Naming the
+// controls that ran and the surfaces nothing looked at makes the floor visible as a floor.
 type ScanOutput struct {
 	Verdict string `json:"verdict" jsonschema:"pass or fail, by the same policy the CI gate applies"`
+	// Controls that actually ran, so the caller can see the scope rather than infer it.
+	Controls []string `json:"controls" jsonschema:"the controls this scan ran; nothing outside them was examined"`
+	// Uncovered names surfaces the descriptor declares that no enabled control looked at.
+	Uncovered []string `json:"uncovered,omitempty" jsonschema:"surfaces this descriptor declares that no enabled control examined"`
+	// Unexamined is the same sentence for everything no control covers at all.
+	Unexamined string `json:"unexamined" jsonschema:"what a Draugr scan does not examine, whatever the verdict"`
 	SummarizeOutput
 }
+
+// unexaminedNote is what a passing verdict does not mean. It is constant because the classes it
+// names are constant: they are properties of what scanners do, not of any particular descriptor.
+const unexaminedNote = "This verdict covers the controls above and nothing else. It does not " +
+	"examine trust boundaries, whether a build context carries secrets into an image, how " +
+	"credentials are passed to subprocesses, protocol assumptions, or authorization logic. If " +
+	"the question was whether this is safe to ship rather than whether it passes the gate, read " +
+	"the code as well."
 
 // scanTool builds the scan handler over reg. It's a closure rather than a bare function because
 // the registry is the one thing a scan can't derive from its arguments.
@@ -362,8 +383,17 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		}
 		verdict := norn.Policy{FailOn: sarif.LevelError}.Evaluate(reports)
 
+		controls := make([]string, 0, len(run.Controls))
+		for name := range run.Controls {
+			controls = append(controls, name)
+		}
+		sort.Strings(controls)
+
 		out := ScanOutput{
 			Verdict:         string(verdict.Verdict),
+			Controls:        controls,
+			Uncovered:       surfaces.Uncovered(model),
+			Unexamined:      unexaminedNote,
 			SummarizeOutput: summarize(sarif.Merge(collect(reports)...), in.MinPriority, in.Limit),
 		}
 		return nil, out, nil
