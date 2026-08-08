@@ -107,8 +107,18 @@ jobs:
           # Fails the run rather than degrading to a notice. A notice is printed into a log
           # nobody opens on a green workflow, so the branch sits pushed and unreviewed while
           # everything reports success — which is the shape of failure this project refuses.
+          #
+          # The likely cause is named because the error GitHub returns does not name it, and the
+          # setting is somewhere nobody looks while debugging a workflow. It is one toggle
+          # covering both creating and approving pull requests, which is why it may be off on
+          # purpose: a workflow that can approve is a workflow that can bypass review.
           if ! gh pr create --title "Release $VERSION" --body-file /tmp/body.md; then
-            echo "::error::Could not open the release pull request. The branch $branch is pushed;" \
-              "open it at ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$branch?expand=1"
+            echo "::error::Could not open the release pull request. The branch $branch is pushed," \
+              "so nothing is lost: open it at" \
+              "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$branch?expand=1" \
+              "-- if this failed on permissions, check Settings -> Actions -> General ->" \
+              "'Allow GitHub Actions to create and approve pull requests'. That toggle also" \
+              "grants approval, so leaving it off and opening the pull request by hand is a" \
+              "reasonable choice rather than a gap."
             exit 1
           fi
