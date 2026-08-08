@@ -325,10 +325,13 @@ type finding struct {
 	// priorityFloor is why this finding outranks what the component's classification alone would
 	// give it. Empty when the classification accounts for the band.
 	priorityFloor string
-	level         sarif.Level
-	severity      sarif.Severity
-	score         float64
-	hasScore      bool
+	// historical marks a finding that describes a commit rather than the current tree, so its
+	// location is a path that may no longer exist.
+	historical bool
+	level      sarif.Level
+	severity   sarif.Severity
+	score      float64
+	hasScore   bool
 }
 
 // sevCounts tallies findings by normalized severity band.
@@ -443,6 +446,7 @@ func summarize(d Data) summary {
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
 				escalation:    res.Escalation,
 				priorityFloor: res.PriorityFloor,
+				historical:    res.Historical,
 				component:     res.Component,
 				location:      loc, message: res.Message,
 				level: res.Level, severity: sev,

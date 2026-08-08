@@ -31,11 +31,17 @@ controllers:
 | `config` | Path to a Gitleaks TOML rules file, passed as `--config`. For a ruleset shared across repositories. |
 | `history` | Scan the commit history as well as the tree. Off by default. |
 
-`history: true` switches Gitleaks from `gitleaks dir` to `gitleaks git`, **and** the checkout from
-a shallow clone to a full one. Both, together: `gitleaks git` over a shallow clone walks a single
-commit and reports clean, which is indistinguishable from a repository whose history holds nothing.
-It also turns off the sparse and partial-clone optimisations, because those leave historical blobs
-unfetched — a scan that walks commits it cannot read finds nothing in them.
+`history: true` adds a second `gitleaks git` pass alongside the `gitleaks dir` pass, **and**
+switches the checkout from a shallow clone to a full one. Both, together: `gitleaks git` over a
+shallow clone walks a single commit and reports clean, which is indistinguishable from a
+repository whose history holds nothing. It also turns off the sparse and partial-clone
+optimisations, because those leave historical blobs unfetched — a scan that walks commits it
+cannot read finds nothing in them.
+
+The tree pass is kept rather than replaced. `gitleaks git` reports the path a secret had in the
+commit that introduced it, so a file since renamed is reported under a directory that no longer
+exists. Findings from the history pass are marked `historical` in the report, and the tree pass is
+what names the path a live secret is at now.
 
 A `.gitleaks.toml` committed in the repository being scanned is already honoured without this —
 Gitleaks reads it from the target path. This option covers the case that file cannot: an

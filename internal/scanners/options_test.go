@@ -200,17 +200,48 @@ func TestAbsPathLeavesAnEmptyValueEmpty(t *testing.T) {
 
 // The failure this exists to prevent: `gitleaks git` over a shallow clone walks one commit and
 // reports clean, which reads exactly like a repository with no secret in its history.
-func TestGitleaksHistoryChangesBothTheModeAndTheClone(t *testing.T) {
-	if got := gitleaksArgs("/tree", plugin.Config{"history": true}); got[1] != "git" {
-		t.Errorf("history should select gitleaks' git mode, got %v", got)
-	}
-	if got := gitleaksArgs("/tree", nil); got[1] != "dir" {
-		t.Errorf("the default is the tree, got %v", got)
+func TestGitleaksHistoryNeedsTheCloneAsWellAsTheMode(t *testing.T) {
+	if got := gitleaksHistoryArgs("/tree", plugin.Config{"history": true}); got[1] != "git" {
+		t.Errorf("the history pass should use gitleaks' git mode, got %v", got)
 	}
 	if !gitleaksWantsHistory(plugin.Config{"history": true}) {
 		t.Error("the checkout must be told, or the mode scans a shallow clone")
 	}
 	if gitleaksWantsHistory(nil) || gitleaksWantsHistory(plugin.Config{"history": false}) {
 		t.Error("history is off by default")
+	}
+}
+
+// The tree is scanned whatever `history` says, and that is the point of the split: a history pass
+// reports the path a secret had when it was introduced, so a file since renamed appears under a
+// directory that no longer exists and reads as already dealt with.
+func TestGitleaksAlwaysScansTheTree(t *testing.T) {
+	for _, cfg := range []plugin.Config{nil, {"history": true}, {"history": false}} {
+		if got := gitleaksArgs("/tree", cfg); got[1] != "dir" {
+			t.Errorf("cfg %v: first pass = %q, want the working tree", cfg, got[1])
+		}
+	}
+}
+
+func TestGitleaksRunsNoHistoryPassByDefault(t *testing.T) {
+	for _, cfg := range []plugin.Config{nil, {"history": false}} {
+		if got := gitleaksHistoryArgs("/tree", cfg); got != nil {
+			t.Errorf("cfg %v: unexpected history pass %v", cfg, got)
+		}
+	}
+}
+
+// Both passes take the shared ruleset, or an organisation's own rules apply to the tree and not
+// to its history — which is where the older secrets are.
+func TestBothGitleaksPassesTakeTheSharedRuleset(t *testing.T) {
+	cfg := plugin.Config{"history": true, "config": "rules.toml"}
+	for name, argv := range map[string][]string{
+		"tree":    gitleaksArgs("/tree", cfg),
+		"history": gitleaksHistoryArgs("/tree", cfg),
+	} {
+		i := slices.Index(argv, "--config")
+		if i < 0 || !strings.HasSuffix(argv[i+1], "rules.toml") {
+			t.Errorf("%s pass did not get the ruleset: %v", name, argv)
+		}
 	}
 }

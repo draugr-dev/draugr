@@ -32,6 +32,15 @@ type repoScanner struct {
 	// wantsHistory reports whether this scan needs the repository's commit history rather than
 	// only the tree. Nil for the scanners that read a tree, which is all but one.
 	wantsHistory func(cfg plugin.Config) bool
+	// historyArgs, when it returns an argv, runs a second command over the same checkout whose
+	// findings describe commits rather than the tree. Its results are marked Historical and
+	// merged with the first pass's.
+	//
+	// Two passes rather than one over history, because the two answer different questions and a
+	// reader needs both: what is in the tree now, at the path it is at now, and what is reachable
+	// from a commit. One pass over history alone reports every finding at the path it had when it
+	// was introduced, so anything since renamed looks like something already dealt with.
+	historyArgs func(dir string, cfg plugin.Config) []string
 }
 
 // CacheVersion reports the scanner's tool/data version for the cache key, when one is wired
@@ -130,6 +139,22 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	report, err := s.decode(out, dir, cfg)
 	if err != nil {
 		return sarif.Report{}, err
+	}
+	if s.historyArgs != nil {
+		if argv := s.historyArgs(dir, cfg); len(argv) > 0 {
+			hist, err := s.run(ctx, dir, argv)
+			if err != nil {
+				return sarif.Report{}, fmt.Errorf("run %s over history: %w", s.info.Name, err)
+			}
+			histReport, err := s.decode(hist, dir, cfg)
+			if err != nil {
+				return sarif.Report{}, err
+			}
+			for i := range histReport.Results {
+				histReport.Results[i].Historical = true
+			}
+			report = sarif.Merge(report, histReport)
+		}
 	}
 	if report.Tool == "" {
 		report.Tool = s.info.Name

@@ -1386,3 +1386,53 @@ func TestConsoleUnscopedOutputIsUnchanged(t *testing.T) {
 		t.Errorf("an unscoped run should say nothing about scope:\n%s", plain.String())
 	}
 }
+
+// A history finding's location is a path in a commit, and a reader who takes it for a current one
+// draws the opposite conclusion from the right facts: the path does not exist, so the finding
+// looks like something already dealt with. A credential reachable from any commit is still
+// fetchable by anyone who can clone.
+func TestConsoleSaysWhenAFindingComesFromHistory(t *testing.T) {
+	d := Data{
+		Run: engine.Result{Controls: map[string]plugin.ControlResult{
+			"secrets": {Control: "secrets", Report: sarif.Report{Tool: "gitleaks", Results: []sarif.Result{
+				{
+					RuleID: "github-pat", Level: sarif.LevelError, Message: "secret in a commit",
+					Location:   sarif.Location{URI: "old/scripts/check.ps1", StartLine: 1},
+					Historical: true,
+				},
+			}}},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "commit history") {
+		t.Errorf("a history finding must say so:\n%s", out)
+	}
+	if !strings.Contains(out, "rotating") {
+		t.Errorf("removing a secret from the tip is not remediation; the report should say so:\n%s", out)
+	}
+}
+
+// And a tree finding must not claim it, or the marker means nothing.
+func TestConsoleSaysNothingAboutHistoryForATreeFinding(t *testing.T) {
+	d := Data{
+		Run: engine.Result{Controls: map[string]plugin.ControlResult{
+			"secrets": {Control: "secrets", Report: sarif.Report{Tool: "gitleaks", Results: []sarif.Result{
+				{
+					RuleID: "github-pat", Level: sarif.LevelError, Message: "secret in the tree",
+					Location: sarif.Location{URI: "new/scripts/check.ps1", StartLine: 1},
+				},
+			}}},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "commit history") {
+		t.Errorf("a tree finding claimed to be historical:\n%s", buf.String())
+	}
+}
