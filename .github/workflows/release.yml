@@ -6,41 +6,25 @@ on:
       # Full-semver tags only (vX.Y.Z). This deliberately excludes the moving major tag (v0),
       # which this workflow re-points on each release — so that move never re-triggers a release.
       - "v*.*.*"
-  # Called by release-tag.yml, which cannot rely on the trigger above: GitHub starts no workflow
-  # from an event created with the built-in GITHUB_TOKEN, so a tag that workflow pushes fires
-  # nothing. A reusable-workflow call is a direct invocation rather than an event, and is not
-  # subject to that rule — the same reason demo-assets is called from here instead of listening
-  # for `release: published`.
-  workflow_call:
+  # Deliberately no `workflow_call`. Calling this from a workflow on main would publish, and the
+  # artifacts would be signed with the *caller's* ref — `release.yml@refs/heads/main` — while
+  # install.sh and action.yml both verify `release.yml@refs/tags/v.*`. The release would exist and
+  # refuse to install. Keyless signing tied to a tag needs a run whose own ref is that tag.
+  #
+  # Dispatch is that, as long as it names the tag as the ref:
+  #
+  #   gh workflow run Release --ref vX.Y.Z -f tag=vX.Y.Z
+  #
+  # Without `--ref` the run sits on the default branch and signs as main, which is the same
+  # failure by a shorter route.
+  workflow_dispatch:
     inputs:
       tag:
-        description: The tag to release. Everything is checked out and built from it.
+        description: The tag to release. Must match the ref this is dispatched against.
         required: true
         type: string
       dryRun:
         description: Resolve and build without publishing, to prove the wiring.
-        required: false
-        default: false
-        type: boolean
-    # Named rather than inherited. `secrets: inherit` hands the called workflow every secret the
-    # repository has, including ones a release has no business reading, and it keeps doing so as
-    # secrets are added later — a widening nobody revisits. These two are what this workflow
-    # touches; GITHUB_TOKEN is always available and is not passed.
-    secrets:
-      CLOUDFLARE_PAGES_DEPLOY_HOOK:
-        description: Rebuilds the docs site so its versioned docs pick up this release. Optional.
-        required: false
-      MCP_PUBLISHER_DNS_KEY:
-        description: Signs the MCP Registry publish. Optional; the step skips without it.
-        required: false
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: The tag to release.
-        required: true
-        type: string
-      dryRun:
-        description: Resolve and build without publishing.
         required: false
         default: false
         type: boolean
