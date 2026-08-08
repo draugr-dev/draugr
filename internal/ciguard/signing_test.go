@@ -56,12 +56,13 @@ func TestEverythingVerifiesTheSameSigningIdentity(t *testing.T) {
 	}
 }
 
-// TestReleaseIsNotCallable is the other half, and the one that was learned the hard way round.
+// TestReleaseIsNotCallable is the other half, and the one no reading of release.yml can catch.
 //
 // A reusable workflow runs under the **caller's** ref, so calling release.yml from a workflow on
 // main signs artifacts as `release.yml@refs/heads/main`. Everything above verifies
-// `refs/tags/v*`, so the release publishes and then refuses to install — which no test of
-// release.yml's own contents would notice, because release.yml would be entirely correct.
+// `refs/tags/v*`, so such a release publishes and then refuses to install. The file that causes
+// this is the caller; release.yml itself can be entirely correct throughout, which is why the
+// check lives here rather than in a reading of its contents.
 //
 // A tag push or a dispatch against the tag both put the tag in the certificate. A call cannot.
 func TestReleaseIsNotCallable(t *testing.T) {

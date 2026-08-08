@@ -39,10 +39,12 @@ patterns=(
 
 found=0
 for p in "${patterns[@]}"; do
-  # Tracked files only: build output and vendored trees are not ours to police. The CHANGELOG
-  # and the contributor guides are excluded — the first records fixes for users by design, and
-  # the second two are where the rule itself is written down.
-  if hits=$(git grep -nIiE "$p" -- '*.md' '*.go' '*.yml' '*.yaml' '*.json' '*.sh' '*.tape' \
+  # --untracked as well as tracked. A file that is not yet added is exactly where new prose
+  # lands, so a check that skipped it would pass on the local run and fail in CI — silent on the
+  # one commit that introduced the thing it looks for. Build output and vendored trees stay out
+  # via the pathspecs. The CHANGELOG and the contributor guides are excluded — the first records
+  # fixes for users by design, and the second two are where the rule itself is written down.
+  if hits=$(git grep --untracked -nIiE "$p" -- '*.md' '*.go' '*.yml' '*.yaml' '*.json' '*.sh' '*.tape' \
     ':!CHANGELOG.md' ':!CLAUDE.md' ':!CONTRIBUTING.md' ':!scripts/check-no-defect-recounts.sh' 2>/dev/null); then
     if [ -n "$hits" ]; then
       found=1
