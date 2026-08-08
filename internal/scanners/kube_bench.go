@@ -35,6 +35,35 @@ type kubeBenchScanner struct {
 	run  func(ctx context.Context, argv, env []string) ([]byte, error)
 }
 
+// kubeBenchConfigSchema is the JSON Schema for kube-bench's Saga config
+// (controllers.infrastructure.kubeBench). additionalProperties:false rejects mistyped keys.
+const kubeBenchConfigSchema = `{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "targets": {
+      "type": "string",
+      "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\". Defaults to the node checks, which are what a scan from outside the control plane can answer."
+    },
+    "benchmark": {
+      "type": "string",
+      "description": "kube-bench benchmark to run, e.g. cis-1.9 or eks-1.5.0. Defaults to letting kube-bench detect the cluster's version."
+    },
+    "version": {
+      "type": "string",
+      "description": "Kubernetes version to select the benchmark for, e.g. \"1.29\". Ignored when benchmark is set."
+    },
+    "context": {
+      "type": "string",
+      "description": "kubeconfig context to run against. Defaults to the current context."
+    },
+    "configDir": {
+      "type": "string",
+      "description": "Path to kube-bench's cfg/ tree of benchmark definitions. Needed when the binary is on PATH and its cfg lives beside it rather than in /etc/kube-bench/cfg."
+    }
+  }
+}`
+
 // NewKubeBench returns a Scanner for the "infrastructure" control.
 func NewKubeBench() plugin.Scanner {
 	return kubeBenchScanner{
@@ -47,6 +76,7 @@ func NewKubeBench() plugin.Scanner {
 			AlsoRequires: []string{"kubectl"},
 			Controls:     []string{"infrastructure"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetInfra},
+			ConfigSchema: json.RawMessage(kubeBenchConfigSchema),
 		},
 		run: func(ctx context.Context, argv, env []string) ([]byte, error) {
 			return toolexec.RunWithEnv(ctx, "", argv, env)

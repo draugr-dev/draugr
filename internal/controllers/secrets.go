@@ -27,17 +27,21 @@ func (Secrets) Info() plugin.ControllerInfo {
 }
 
 // Plan produces one scan job per repository declared on the component.
-func (Secrets) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+func (Secrets) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {
 		return nil, nil
 	}
-	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories))
+	// Through resolveScanners rather than named directly, even with one scanner to choose from.
+	// Naming it here would discard the descriptor's secrets block before anything could look at it,
+	// so an option written there would neither take effect nor be reported — and the scanner's
+	// declared schema, which exists to make that an error, would never be consulted.
+	selections := resolveScanners(model, comp, "secrets", []string{gitleaksScanner})
+	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(selections))
 	for _, repo := range comp.Repositories {
 		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths, Ignore: repo.Ignore}
-		jobs = append(jobs, plugin.ScanJob{
-			Scanner: gitleaksScanner,
-			Target:  target,
-		})
+		for _, sel := range selections {
+			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
+		}
 	}
 	return jobs, nil
 }

@@ -16,20 +16,27 @@ import (
 )
 
 func newControlsCommand() *cobra.Command {
-	return &cobra.Command{
+	var showOptions bool
+	cmd := &cobra.Command{
 		Use:   "controls",
 		Short: "List the security controls Draugr can run, their purpose, and scanners",
 		Long: "List every security control Draugr can run — what it checks, its scope, and which\n" +
 			"scanner(s) implement it (default, plus any opt-in alternatives). Enable a control in\n" +
-			"your Saga under config.controllers.<name> (or per component).",
+			"your Saga under config.controllers.<name> (or per component).\n\n" +
+			"--options adds what each scanner accepts in its Saga block. A scanner listed there\n" +
+			"with no options is configured by choosing it: anything else written under its block\n" +
+			"is rejected before the scan runs, rather than accepted and ignored.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runControls(cmd.OutOrStdout(), builtins.Registry())
+			return runControls(cmd.OutOrStdout(), builtins.Registry(), showOptions)
 		},
 	}
+	cmd.Flags().BoolVar(&showOptions, "options", false,
+		"also list the Saga options each scanner accepts")
+	return cmd
 }
 
-func runControls(w io.Writer, reg *engine.Registry) error {
+func runControls(w io.Writer, reg *engine.Registry, showOptions bool) error {
 	// Which scanners serve each control (by scanner name).
 	serving := map[string][]string{}
 	for _, s := range reg.Scanners() {
@@ -101,9 +108,58 @@ func runControls(w io.Writer, reg *engine.Registry) error {
 			"* opt-in scanner — enable with controllers.<control>.<scanner>.enabled: true in the Saga."))
 	}
 	writeEffects(w, col, reg)
+	if showOptions {
+		writeScannerOptions(w, col, reg)
+	}
 	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
 		"Enable a control under config.controllers.<name> (or per component) in your Saga."))
+	if !showOptions {
+		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
+			"Run `draugr controls --options` for what each scanner accepts in its block."))
+	}
 	return nil
+}
+
+// writeScannerOptions lists what each scanner accepts under its own block in the Saga.
+//
+// Behind a flag because it is reference material and the table above it is an overview; a reader
+// choosing which controls to enable does not need the option list, and a reader writing the block
+// needs all of it.
+//
+// A scanner with nothing to list still gets a line saying so. The alternative — omitting it —
+// leaves a reader unable to tell "accepts nothing" from "not documented yet", and those two
+// answers lead to opposite next steps.
+func writeScannerOptions(w io.Writer, col tui.Painter, reg *engine.Registry) {
+	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleAccent, "What each scanner accepts in its Saga block:"))
+	scanners := reg.Scanners()
+	sort.Slice(scanners, func(i, j int) bool { return scanners[i].Info().Name < scanners[j].Info().Name })
+	for _, s := range scanners {
+		info := s.Info()
+		opts := plugin.Options(info.ConfigSchema)
+		_, _ = fmt.Fprintln(w, "\n  "+col.Paint(tui.StyleAccent, info.Name))
+		if len(opts) == 0 {
+			_, _ = fmt.Fprintln(w, "    "+col.Paint(tui.StyleMuted,
+				"no options — configured by choosing it; any other key is an error"))
+			continue
+		}
+		t := tui.NewTable(col, "Option", "Type", "What it does").Indent("    ")
+		for _, o := range opts {
+			name := o.Name
+			if o.Required {
+				name += " (required)"
+			}
+			desc := o.Description
+			if len(o.Enum) > 0 {
+				desc += " One of: " + strings.Join(o.Enum, ", ") + "."
+			}
+			t.Row(
+				tui.PlainCell(name),
+				tui.Styled(tui.StyleMuted, o.Type),
+				tui.Styled(tui.StyleMuted, desc),
+			)
+		}
+		t.Render(w)
+	}
 }
 
 // writeEffects lists the scanners that do more to a target than read it.

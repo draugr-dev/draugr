@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -46,11 +47,12 @@ type mendInventory interface {
 func NewMendLicenses() plugin.Scanner {
 	return mendLicensesScanner{
 		info: plugin.ScannerInfo{
-			Name:        mendLicensesScannerName,
-			Origin:      "mend.io",
-			Binary:      "mend",
-			Controls:    []string{"licenses"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+			Name:         mendLicensesScannerName,
+			Origin:       "mend.io",
+			Binary:       "mend",
+			Controls:     []string{"licenses"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema: json.RawMessage(mendLicensesConfigSchema),
 			Effects: []plugin.Effect{
 				{Kind: plugin.EffectDisclosure, Detail: "uploads this component's resolved " +
 					"dependency inventory to Mend — names, versions, checksums, and the absolute " +

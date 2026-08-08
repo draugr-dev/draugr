@@ -28,20 +28,24 @@ func (DAST) Info() plugin.ControllerInfo {
 }
 
 // Plan produces one scan job per host with a URL declared on the component.
-func (DAST) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+func (DAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {
 		return nil, nil
 	}
-	jobs := make([]plugin.ScanJob, 0, len(comp.Hosts))
+	// Through resolveScanners rather than named directly, even with one scanner to choose from.
+	// Naming it here would discard the descriptor's dast block before anything could look at it,
+	// so an option written there would neither take effect nor be reported — and the scanner's
+	// declared schema, which exists to make that an error, would never be consulted.
+	selections := resolveScanners(model, comp, "dast", []string{nucleiScanner})
+	jobs := make([]plugin.ScanJob, 0, len(comp.Hosts)*len(selections))
 	for _, host := range comp.Hosts {
 		if host.URL == "" {
 			continue
 		}
 		target := plugin.HostTarget{Name: host.Name, URL: host.URL, Type: host.Type}
-		jobs = append(jobs, plugin.ScanJob{
-			Scanner: nucleiScanner,
-			Target:  target,
-		})
+		for _, sel := range selections {
+			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
+		}
 	}
 	return jobs, nil
 }

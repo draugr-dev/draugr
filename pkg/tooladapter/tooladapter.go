@@ -6,6 +6,7 @@ package tooladapter
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -26,6 +27,11 @@ type Config struct {
 	Origin      string
 	Controls    []string
 	TargetKinds []plugin.TargetKind
+	// ConfigSchema is the JSON Schema for this scanner's Saga options (see
+	// plugin.ScannerInfo.ConfigSchema). Declare one even when the scanner accepts nothing: an
+	// absent schema accepts any option and then discards it, which is a setting that silently
+	// does nothing.
+	ConfigSchema json.RawMessage
 	// Argv builds the command line (argv[0] is the executable) for a target and config.
 	Argv func(target plugin.Target, cfg plugin.Config) ([]string, error)
 	// Run executes argv and returns the tool's output. Optional; defaults to executing the
@@ -66,12 +72,13 @@ func New(cfg Config) *Adapter {
 // Info describes the underlying tool.
 func (a *Adapter) Info() plugin.ScannerInfo {
 	return plugin.ScannerInfo{
-		Name:        a.cfg.Name,
-		Binary:      a.cfg.Binary,
-		Origin:      a.cfg.Origin,
-		Version:     a.cfg.Version,
-		Controls:    a.cfg.Controls,
-		TargetKinds: a.cfg.TargetKinds,
+		Name:         a.cfg.Name,
+		Binary:       a.cfg.Binary,
+		Origin:       a.cfg.Origin,
+		Version:      a.cfg.Version,
+		Controls:     a.cfg.Controls,
+		TargetKinds:  a.cfg.TargetKinds,
+		ConfigSchema: a.cfg.ConfigSchema,
 	}
 }
 

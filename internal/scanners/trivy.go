@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -19,6 +20,7 @@ func NewTrivy() plugin.Scanner {
 		Binary:       "trivy",
 		Controls:     []string{"images"},
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
+		ConfigSchema: json.RawMessage(noScannerOptions),
 		Argv:         trivyArgv,
 		Run:          execArgv,
 		CacheVersion: sharedTrivyVersion.cacheVersion,
@@ -33,11 +35,12 @@ func NewTrivy() plugin.Scanner {
 func NewTrivyFS() plugin.Scanner {
 	s := newRepoScanner(
 		plugin.ScannerInfo{
-			Name:        "trivy-fs",
-			Origin:      "aquasecurity",
-			Binary:      "trivy",
-			Controls:    []string{"sca"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+			Name:         "trivy-fs",
+			Origin:       "aquasecurity",
+			Binary:       "trivy",
+			Controls:     []string{"sca"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema: json.RawMessage(noScannerOptions),
 		},
 		trivyFSArgs,
 	)

@@ -1041,7 +1041,12 @@ list` maps **tool → controls** ("why this tool matters").
 
 ```bash
 draugr controls
+draugr controls --options   # also: what each scanner accepts in its Saga block
 ```
+
+| Flag | Default | What it does |
+|---|---|---|
+| `--options` | off | List the Saga options each scanner accepts, read from the schemas the gate enforces. A scanner shown with no options is configured by choosing it — anything else under its block is an error, not a setting that quietly does nothing. |
 
 Enable a control in your Saga under `config.controllers.<name>` (or per component). A control's
 scanners are configured under their own keys — `controllers.<name>.<scanner>` — each with an
@@ -1066,7 +1071,7 @@ an MCP **resource**, so a client can read the descriptor without a tool call.
 
 | Tool | Purpose |
 |---|---|
-| `list_controls` | Which controls exist, what each checks, which scanner backs it |
+| `list_controls` | Which controls exist, what each checks, which scanner backs it, and the options each scanner accepts |
 | `get_saga_schema` | The Saga schema this build enforces |
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
 | `check_tools` | Report which scanners are installed and what to run if any are missing |

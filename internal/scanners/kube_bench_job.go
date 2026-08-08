@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -41,6 +42,43 @@ type kubeBenchJobScanner struct {
 	logs func(ctx context.Context, c kubernetes.Interface, namespace, jobName string) ([]byte, error)
 }
 
+// kubeBenchJobConfigSchema is the JSON Schema for the in-cluster runner's Saga config
+// (controllers.infrastructure.kubeBenchJob). additionalProperties:false rejects mistyped keys.
+const kubeBenchJobConfigSchema = `{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "targets": {
+      "type": "string",
+      "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\"."
+    },
+    "benchmark": {
+      "type": "string",
+      "description": "kube-bench benchmark to run, e.g. cis-1.9. Defaults to letting kube-bench detect the cluster's version."
+    },
+    "namespace": {
+      "type": "string",
+      "description": "Namespace to create the Job in. It must already exist; Draugr does not create namespaces."
+    },
+    "image": {
+      "type": "string",
+      "description": "kube-bench image the Job runs. Pin it to a digest for a reproducible benchmark, and to an internal mirror where the cluster cannot reach a public registry."
+    },
+    "nodeSelector": {
+      "type": "string",
+      "description": "Node selector for the Job, as comma-separated key=value pairs. Use it to benchmark a specific node pool."
+    },
+    "timeout": {
+      "type": "string",
+      "description": "How long to wait for the Job to finish, e.g. \"5m\". Plain seconds are accepted."
+    },
+    "context": {
+      "type": "string",
+      "description": "kubeconfig context to create the Job in. Defaults to the current context."
+    }
+  }
+}`
+
 // NewKubeBenchJob returns a Scanner that runs the CIS benchmark inside the cluster.
 func NewKubeBenchJob() plugin.Scanner {
 	return kubeBenchJobScanner{
@@ -48,8 +86,9 @@ func NewKubeBenchJob() plugin.Scanner {
 			Name:   kubeBenchJobScannerName,
 			Origin: "aquasecurity",
 			// No Binary: the work happens in the cluster, from an image.
-			Controls:    []string{"infrastructure"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+			Controls:     []string{"infrastructure"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetInfra},
+			ConfigSchema: json.RawMessage(kubeBenchJobConfigSchema),
 			Effects: []plugin.Effect{
 				{
 					Kind: plugin.EffectMutate,

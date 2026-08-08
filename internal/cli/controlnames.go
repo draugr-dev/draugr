@@ -6,6 +6,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -29,6 +30,9 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 	// Ordered so the message is stable between runs, and grouped so a descriptor with several
 	// mistakes reports all of them rather than one per re-run.
 	var problems []string
+	// Whether any problem was about what a block says rather than what it names, which decides
+	// where the closing line sends the reader: the option list, or the control list.
+	optionProblem := false
 	report := func(where, name string) {
 		if name == "" || known[name] {
 			return
@@ -42,12 +46,17 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 
 	// Which scanners serve each control, by the key a descriptor writes them under.
 	keysFor := map[string]map[string]bool{}
+	scannerForKey := map[string]map[string]plugin.ScannerInfo{}
 	for _, sc := range reg.Scanners() {
-		for _, c := range sc.Info().Controls {
+		info := sc.Info()
+		for _, c := range info.Controls {
 			if keysFor[c] == nil {
 				keysFor[c] = map[string]bool{}
+				scannerForKey[c] = map[string]plugin.ScannerInfo{}
 			}
-			keysFor[c][controllers.ScannerConfigKey(sc.Info().Name)] = true
+			key := controllers.ScannerConfigKey(info.Name)
+			keysFor[c][key] = true
+			scannerForKey[c][key] = info
 		}
 	}
 
@@ -75,6 +84,30 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 				"%s.%s: %q is not a scanner of the %q control (it has %s)",
 				where, control, key, control, list(sortedKeys(keysFor[control]))))
 		}
+		// And what the block says, not only whose block it is. The engine checks this again when
+		// it plans the run, but by then the descriptor has been accepted by `draugr validate`,
+		// merged, and is failing in somebody's pipeline. The whole point of a validate step is
+		// that it is the cheap place to find out.
+		for _, key := range sortedKeys(settings) {
+			scanner, ok := scannerForKey[control][key]
+			if !ok {
+				continue // already reported above, or the reserved `enabled` flag
+			}
+			block, ok := blockOf(settings[key])
+			if !ok {
+				continue
+			}
+			cfg := plugin.Config{}
+			for k, v := range block {
+				if k != "enabled" {
+					cfg[k] = v
+				}
+			}
+			if err := plugin.ValidateConfig(scanner.ConfigSchema, cfg); err != nil {
+				problems = append(problems, fmt.Sprintf("%s.%s.%s: %v", where, control, key, err))
+				optionProblem = true
+			}
+		}
 	}
 
 	for _, name := range sortedKeys(model.Config.Controllers) {
@@ -98,8 +131,11 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 	if len(problems) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%s\n\nrun `draugr controls` to see what this build provides",
-		strings.Join(problems, "\n"))
+	hint := "run `draugr controls` to see what this build provides"
+	if optionProblem {
+		hint = "run `draugr controls --options` to see what each scanner accepts"
+	}
+	return fmt.Errorf("%s\n\n%s", strings.Join(problems, "\n"), hint)
 }
 
 // nearestControl returns the known control closest to name, or "" when nothing is close enough.
@@ -143,4 +179,17 @@ func controlNames(reg *engine.Registry) []string {
 		out = append(out, c.Info().Name)
 	}
 	return out
+}
+
+// blockOf reads a scanner block whichever shape the decoder produced. YAML decodes a nested
+// mapping under a control as saga.ControllerSettings rather than a bare map, so both are
+// accepted; anything else is a control-level scalar and not a scanner block.
+func blockOf(v any) (map[string]any, bool) {
+	switch m := v.(type) {
+	case saga.ControllerSettings:
+		return m, true
+	case map[string]any:
+		return m, true
+	}
+	return nil, false
 }

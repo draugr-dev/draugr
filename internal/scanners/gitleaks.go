@@ -1,17 +1,22 @@
 package scanners
 
-import "github.com/draugr-dev/draugr/pkg/plugin"
+import (
+	"encoding/json"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
+)
 
 // NewGitleaks returns a Scanner that runs Gitleaks over a checked-out repository to detect
 // leaked secrets (credentials, tokens, keys). It serves the "secrets" control.
 func NewGitleaks() plugin.Scanner {
 	s := newRepoScanner(
 		plugin.ScannerInfo{
-			Name:        "gitleaks",
-			Origin:      "gitleaks",
-			Binary:      "gitleaks",
-			Controls:    []string{"secrets"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+			Name:         "gitleaks",
+			Origin:       "gitleaks",
+			Binary:       "gitleaks",
+			Controls:     []string{"secrets"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema: json.RawMessage(noScannerOptions),
 		},
 		gitleaksArgs,
 	)

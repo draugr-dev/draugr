@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,11 +56,12 @@ type mendResults interface {
 func NewMendSCA() plugin.Scanner {
 	return mendSCAScanner{
 		info: plugin.ScannerInfo{
-			Name:        mendSCAScannerName,
-			Origin:      "mend.io",
-			Binary:      "mend",
-			Controls:    []string{"sca"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+			Name:         mendSCAScannerName,
+			Origin:       "mend.io",
+			Binary:       "mend",
+			Controls:     []string{"sca"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema: json.RawMessage(mendSCAConfigSchema),
 			Effects: []plugin.Effect{
 				{
 					Kind: plugin.EffectDisclosure,

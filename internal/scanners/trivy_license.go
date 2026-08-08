@@ -20,15 +20,39 @@ import (
 // in its JSON output — its SARIF has none — so the conversion is ours.
 const trivyLicenseScannerName = "trivy-license"
 
+// trivyLicenseConfigSchema is the JSON Schema for the licence scanner's Saga config
+// (controllers.licenses.trivyLicense). additionalProperties:false rejects mistyped keys.
+//
+// The lists hold SPDX identifiers. They are policy rather than tuning: which licences a release
+// may carry is a decision about the release, so it belongs in the descriptor beside the
+// component it applies to.
+const trivyLicenseConfigSchema = `{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "deny": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]."
+    },
+    "warn": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]."
+    }
+  }
+}`
+
 // NewTrivyLicense returns a Scanner that reports dependency licences carrying an obligation.
 func NewTrivyLicense() plugin.Scanner {
 	s := newRepoScannerWithParser(
 		plugin.ScannerInfo{
-			Name:        trivyLicenseScannerName,
-			Origin:      "aquasecurity",
-			Binary:      "trivy",
-			Controls:    []string{"licenses"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+			Name:         trivyLicenseScannerName,
+			Origin:       "aquasecurity",
+			Binary:       "trivy",
+			Controls:     []string{"licenses"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema: json.RawMessage(trivyLicenseConfigSchema),
 		},
 		trivyLicenseArgs,
 		parseTrivyLicenses,

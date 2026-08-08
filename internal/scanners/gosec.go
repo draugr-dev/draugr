@@ -1,6 +1,10 @@
 package scanners
 
-import "github.com/draugr-dev/draugr/pkg/plugin"
+import (
+	"encoding/json"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
+)
 
 // NewGosec returns a Scanner that runs gosec, a Go-specialized static analyzer, over a
 // checked-out repository. It is an optional second scanner for the "sast" control (alongside
@@ -9,11 +13,12 @@ import "github.com/draugr-dev/draugr/pkg/plugin"
 func NewGosec() plugin.Scanner {
 	s := newRepoScanner(
 		plugin.ScannerInfo{
-			Name:        "gosec",
-			Origin:      "securego",
-			Binary:      "gosec",
-			Controls:    []string{"sast"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+			Name:         "gosec",
+			Origin:       "securego",
+			Binary:       "gosec",
+			Controls:     []string{"sast"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema: json.RawMessage(noScannerOptions),
 		},
 		gosecArgs,
 	)
