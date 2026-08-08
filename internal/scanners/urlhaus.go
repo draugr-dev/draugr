@@ -46,10 +46,11 @@ type urlhausScanner struct {
 func NewURLhaus() plugin.Scanner {
 	return urlhausScanner{
 		info: plugin.ScannerInfo{
-			Name:        "urlhaus",
-			Origin:      "abuse.ch",
-			Controls:    []string{"threats"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetHost},
+			Name:         "urlhaus",
+			Origin:       "abuse.ch",
+			Controls:     []string{"threats"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
+			ConfigSchema: json.RawMessage(noScannerOptions),
 			// Disclosure rather than network: the packets do not go to the target at all. Every
 			// other host scanner sends traffic to a host you own; this one tells a third party
 			// that the host exists and that you are interested in it. Someone approving a scan

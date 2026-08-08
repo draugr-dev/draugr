@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -47,8 +48,9 @@ func NewK8sPolicies() plugin.Scanner {
 			Origin: plugin.OriginDraugr,
 			// No Binary: this scanner is the tool. Nothing to install, and nothing for
 			// `draugr doctor` to report missing.
-			Controls:    []string{"infrastructure"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+			Controls:     []string{"infrastructure"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetInfra},
+			ConfigSchema: json.RawMessage(noScannerOptions),
 		},
 		client: clientForContext,
 	}

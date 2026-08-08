@@ -179,18 +179,27 @@ config:
         requestsPerMinute: 1000   # only if your key is a paid one; defaults to the free tier's 4
 ```
 
-Each scanner validates its options against a declared schema, so a mistyped key or wrong value
-type is reported before the scan runs. Run `draugr controls` to see each control's scanners.
+**Every scanner declares the options it accepts**, and anything else under its block is rejected
+before the scan runs, naming the key it could not honour. That includes the scanners that accept
+nothing: an option a scanner does not read is an error, not a setting that quietly does nothing.
 
 **Which scanners take options, and which take only `enabled`:**
 
 | Scanner | Options |
 |---|---|
+| `mend-sca` | `productToken` (required), `project`, `resultTimeout`, `settings` |
+| `mend-licenses` | the `mend-sca` options, plus `deny` and `warn` |
+| `kube-bench-job` | `targets`, `benchmark`, `namespace`, `image`, `nodeSelector`, `timeout`, `context` |
+| `kube-bench` | `targets`, `benchmark`, `version`, `context`, `configDir` |
+| `trivy-license` | `deny`, `warn` — SPDX identifiers |
+| `draugr-tls` | `expiryErrorDays`, `expiryWarnDays` |
 | `semgrep` | `config` — a registry ref, path or URL |
-| `virustotal` | `requestsPerMinute`, `apiKeyEnv` |
-| `draugr-tls` | expiry thresholds |
-| `mend-sca`, `mend-licenses` | credentials, product and project identity |
-| `trivy`, `trivy-fs`, `trivy-config`, `trivy-license`, `gitleaks`, `gosec`, `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `kube-bench`, `kube-bench-job` | `enabled` only |
+| `virustotal` | `requestsPerMinute` |
+| `trivy`, `trivy-fs`, `trivy-config`, `gitleaks`, `gosec`, `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus` | `enabled` only |
+
+```bash
+draugr controls --options   # the authoritative list, read from the same schemas the gate enforces
+```
 
 Scanners in the last row run with the arguments Draugr chooses. Where a control has more than one
 scanner, the choice you make is **which one serves it** — and that choice is the one that

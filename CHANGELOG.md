@@ -17,6 +17,13 @@ and move it under a version on release.
   does not cover — trust boundaries, build-context hygiene, how credentials reach a subprocess.
   An assistant handed a verdict can now tell what the verdict answers, and carry on from there
   with the reproducible part already settled.
+- **An option a scanner does not accept is now an error, not a silent no-op.** Every scanner
+  declares the options it takes, so `gitleaks: { severity: high }` fails validation naming the
+  key instead of being dropped between the descriptor and the tool. Several scanners were also
+  reading options nothing documented: `kube-bench` (`targets`, `benchmark`, `version`, `context`,
+  `configDir`), `kube-bench-job` (those plus `namespace`, `image`, `nodeSelector`, `timeout`),
+  `trivy-license` and `mend-licenses` (`deny`, `warn`), and the Mend scanners (`productToken`,
+  `project`, `resultTimeout`, `settings`). All are now declared and listed.
 - **A missing scanner now tells you how to install it.** `sast` and `secrets` failing with
   `executable file not found` was correct and unhelpful — most likely to happen on a first scan,
   when Draugr is installed and nothing else is:
@@ -28,6 +35,14 @@ and move it under a version on release.
 
   For a tool Draugr does not distribute, it says so instead of suggesting an install that would
   find nothing.
+
+### Added
+
+- **`draugr controls --options`** — what each scanner accepts in its Saga block, read from the
+  same schemas the gate enforces, so it cannot drift from what is actually validated. A scanner
+  shown with no options is configured by choosing it.
+- The MCP `list_controls` tool returns the same option lists, so an assistant writing a
+  descriptor stops guessing at keys.
 
 ## [0.71.0] - 2026-08-07
 

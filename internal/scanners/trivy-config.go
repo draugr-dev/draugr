@@ -1,6 +1,10 @@
 package scanners
 
-import "github.com/draugr-dev/draugr/pkg/plugin"
+import (
+	"encoding/json"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
+)
 
 // NewTrivyConfig returns a Scanner that runs Trivy's misconfiguration scanner over a
 // checked-out repository to find insecure Infrastructure-as-Code (Terraform, Kubernetes
@@ -8,11 +12,12 @@ import "github.com/draugr-dev/draugr/pkg/plugin"
 func NewTrivyConfig() plugin.Scanner {
 	s := newRepoScanner(
 		plugin.ScannerInfo{
-			Name:        "trivy-config",
-			Origin:      "aquasecurity",
-			Binary:      "trivy",
-			Controls:    []string{"iac"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+			Name:         "trivy-config",
+			Origin:       "aquasecurity",
+			Binary:       "trivy",
+			Controls:     []string{"iac"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema: json.RawMessage(noScannerOptions),
 		},
 		trivyConfigArgs,
 	)

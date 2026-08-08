@@ -26,17 +26,21 @@ func (Images) Info() plugin.ControllerInfo {
 }
 
 // Plan produces one scan job per image declared on the component.
-func (Images) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+func (Images) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {
 		return nil, nil
 	}
-	jobs := make([]plugin.ScanJob, 0, len(comp.Images))
+	// Through resolveScanners rather than named directly, even with one scanner to choose from.
+	// Naming it here would discard the descriptor's images block before anything could look at it,
+	// so an option written there would neither take effect nor be reported — and the scanner's
+	// declared schema, which exists to make that an error, would never be consulted.
+	selections := resolveScanners(model, comp, "images", []string{trivyScanner})
+	jobs := make([]plugin.ScanJob, 0, len(comp.Images)*len(selections))
 	for _, img := range comp.Images {
 		target := plugin.ImageTarget{Ref: img.Image, Digest: img.Digest}
-		jobs = append(jobs, plugin.ScanJob{
-			Scanner: trivyScanner,
-			Target:  target,
-		})
+		for _, sel := range selections {
+			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
+		}
 	}
 	return jobs, nil
 }

@@ -34,11 +34,12 @@ type nucleiScanner struct {
 func NewNuclei() plugin.Scanner {
 	return nucleiScanner{
 		info: plugin.ScannerInfo{
-			Name:        "nuclei",
-			Origin:      "projectdiscovery",
-			Binary:      "nuclei",
-			Controls:    []string{"dast"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetHost},
+			Name:         "nuclei",
+			Origin:       "projectdiscovery",
+			Binary:       "nuclei",
+			Controls:     []string{"dast"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
+			ConfigSchema: json.RawMessage(noScannerOptions),
 			// Declared rather than gated. A dynamic scanner exists to send traffic, so asking
 			// per run for permission to do the thing the control is for would train people to
 			// agree without reading. Stating it is still worth doing: probing a host you do not

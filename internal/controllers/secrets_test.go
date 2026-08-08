@@ -3,6 +3,7 @@ package controllers
 import (
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -73,5 +74,65 @@ func TestSecretsAggregateEmpty(t *testing.T) {
 	}
 	if res.Summary.Errors != 0 {
 		t.Errorf("no reports should yield no errors, got %+v", res.Summary)
+	}
+}
+
+// The five controllers that named their scanner directly discarded the descriptor's block before
+// anything could look at it: an option written there neither took effect nor was reported, and
+// the scanner's declared schema — which exists to make that an error — was never consulted.
+func TestSecretsPassesTheScannerBlockThrough(t *testing.T) {
+	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"secrets": {"gitleaks": saga.ControllerSettings{"someOption": "value"}},
+	}}}
+	comp := &saga.Component{Name: "api", Repositories: []saga.Repository{{URL: "u"}}}
+	jobs, err := Secrets{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 {
+		t.Fatalf("got %d jobs, want 1", len(jobs))
+	}
+	if jobs[0].Config["someOption"] != "value" {
+		t.Errorf("config = %v, want the descriptor's block", jobs[0].Config)
+	}
+}
+
+// And `enabled: false` on the only scanner now means what it says.
+func TestSecretsHonoursADisabledScanner(t *testing.T) {
+	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"secrets": {"gitleaks": saga.ControllerSettings{"enabled": false}},
+	}}}
+	comp := &saga.Component{Name: "api", Repositories: []saga.Repository{{URL: "u"}}}
+	jobs, err := Secrets{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 0 {
+		t.Errorf("got %d jobs, want none: a disabled scanner ran anyway", len(jobs))
+	}
+}
+
+// Two repositories, because one proves the loop runs and two prove it does not collapse.
+func TestSecretsPlansOneJobPerRepositoryWithConfig(t *testing.T) {
+	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"secrets": {"gitleaks": saga.ControllerSettings{"someOption": "value"}},
+	}}}
+	comp := &saga.Component{Name: "api", Repositories: []saga.Repository{{URL: "a"}, {URL: "b"}}}
+	jobs, err := Secrets{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 2 {
+		t.Fatalf("got %d jobs, want 2", len(jobs))
+	}
+	seen := map[string]bool{}
+	for _, j := range jobs {
+		seen[j.Target.(plugin.RepositoryTarget).URL] = true
+		if j.Config["someOption"] != "value" {
+			t.Errorf("job for %v lost its config", j.Target)
+		}
+	}
+	if !seen["a"] || !seen["b"] {
+		t.Errorf("both repositories should be planned, got %v", seen)
 	}
 }

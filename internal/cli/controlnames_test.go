@@ -171,3 +171,45 @@ func TestCheckControlNamesChecksComponentScannerKeys(t *testing.T) {
 		t.Errorf("error should name the real key: %v", err)
 	}
 }
+
+func TestCheckControlNamesRejectsAnOptionTheScannerDoesNotTake(t *testing.T) {
+	// The engine checks this too, when it plans the run — but by then the descriptor has passed
+	// `draugr validate`, been merged, and is failing in a pipeline. Validate is the cheap place.
+	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"secrets": {"enabled": true, "gitleaks": saga.ControllerSettings{"severity": "high"}},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("an option gitleaks does not read was accepted")
+	}
+	for _, want := range []string{"gitleaks", `"severity"`, "controls --options"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should mention %q: %v", want, err)
+		}
+	}
+}
+
+func TestCheckControlNamesRejectsAWrongTypedOption(t *testing.T) {
+	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"tls": {"draugrTls": saga.ControllerSettings{"expiryWarnDays": "thirty"}},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("a string where an integer belongs was accepted")
+	}
+	if !strings.Contains(err.Error(), "expiryWarnDays") {
+		t.Errorf("error should name the option: %v", err)
+	}
+}
+
+func TestCheckControlNamesAcceptsDeclaredOptionsAndTheEnabledFlag(t *testing.T) {
+	// `enabled` is the reserved flag, not one of the scanner's own options: a schema with
+	// additionalProperties:false would reject it if it reached the validator.
+	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"tls":      {"draugrTls": saga.ControllerSettings{"enabled": true, "expiryWarnDays": 21}},
+		"licenses": {"trivyLicense": saga.ControllerSettings{"deny": []any{"AGPL-3.0-only"}}},
+	}}}
+	if err := checkControlNames(builtins.Registry(), m); err != nil {
+		t.Errorf("rejected a valid block: %v", err)
+	}
+}

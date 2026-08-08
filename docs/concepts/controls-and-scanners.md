@@ -39,6 +39,37 @@ and Draugr runs it and parses its SARIF. Built-in today: **Trivy** in four modes
 only in its JSON output, and kube-bench has no SARIF mode at all — so those scanners do the
 conversion themselves.
 
+## How much of a tool a descriptor can reach
+
+Two coherent positions exist and drifting between them is how a descriptor becomes a wrapper
+around somebody else's command line. Draugr takes the first, with one deliberate exception.
+
+**Curated.** A scanner exposes named options for the settings Draugr can be responsible for. Each
+one is declared in a JSON Schema, validated before the scan runs, listed by
+`draugr controls --options`, and means the same thing in every release. The tool's flags are
+Draugr's business; the option is the contract. This is what makes a Saga survive a scanner being
+swapped for a different one — `deny: [AGPL-3.0-only]` is a statement about the release, and it
+holds whichever tool answers the `licenses` control.
+
+**Verbatim passthrough**, where curating would mean tracking a surface that is not ours. Mend's
+`settings` block is the one that exists: what the Unified Agent discovers depends entirely on how
+each ecosystem's package manager was told to run, a curated subset would lag behind every
+ecosystem Mend supports, and the people running it already know these keys from their own Mend
+setup. The test for adding another is whether the option space belongs to somebody else and
+changes on their schedule — not whether a passthrough would be convenient.
+
+**A scanner that accepts nothing declares that too.** An unrecognised key under any scanner's
+block is an error naming the key, not a setting that quietly does nothing:
+
+```
+sca/trivy-fs: config: unknown option "severity"
+```
+
+The alternative is worse than it looks. A validator that ignores what it does not recognise
+turns a typo into a silent behaviour change: the scan is green, the log says nothing, and the
+only symptom is a setting that never took effect. Someone reading the descriptor afterwards has
+every reason to believe it did.
+
 ## SARIF everywhere
 
 Every finding is normalized to **SARIF 2.1.0** (the OASIS standard). That means plugins

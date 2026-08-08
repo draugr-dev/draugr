@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,10 +26,11 @@ type draugrHeadersScanner struct {
 func NewHTTPHeaders() plugin.Scanner {
 	return draugrHeadersScanner{
 		info: plugin.ScannerInfo{
-			Name:        "draugr-headers",
-			Origin:      plugin.OriginDraugr,
-			Controls:    []string{"headers"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetHost},
+			Name:         "draugr-headers",
+			Origin:       plugin.OriginDraugr,
+			Controls:     []string{"headers"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
+			ConfigSchema: json.RawMessage(noScannerOptions),
 		},
 		fetch: httpFetchHeaders,
 	}

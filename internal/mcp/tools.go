@@ -18,6 +18,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -36,6 +37,10 @@ type Control struct {
 	Purpose         string   `json:"purpose" jsonschema:"what the control checks for"`
 	DefaultScanners []string `json:"defaultScanners" jsonschema:"scanners that run when the control is enabled"`
 	OptInScanners   []string `json:"optInScanners,omitempty" jsonschema:"additional scanners, each enabled explicitly under controllers.<control>.<scanner>.enabled"`
+	// ScannerOptions is what each of this control's scanners accepts in its Saga block, keyed by
+	// scanner name. An entry present but empty means that scanner accepts no options; anything
+	// else written under its block is rejected before the scan runs.
+	ScannerOptions map[string][]plugin.Option `json:"scannerOptions,omitempty" jsonschema:"options each scanner accepts in its Saga block, keyed by scanner name; an empty list means it accepts none"`
 }
 
 // ControlsOutput is the list_controls result.
@@ -55,9 +60,23 @@ func ListControls(reg *engine.Registry) ControlsOutput {
 			serving[c] = append(serving[c], info.Name)
 		}
 	}
+	options := map[string][]plugin.Option{}
+	for _, s := range reg.Scanners() {
+		info := s.Info()
+		// Always an entry, even when the list is empty. A scanner missing from this map and a
+		// scanner accepting nothing look identical to a caller otherwise, and they lead to
+		// opposite next steps: write the option, or stop trying.
+		opts := plugin.Options(info.ConfigSchema)
+		if opts == nil {
+			opts = []plugin.Option{}
+		}
+		options[info.Name] = opts
+	}
 	out := ControlsOutput{
 		Hint: "Enable a control under config.controllers.<name> in the Saga, or per component. " +
-			"An opt-in scanner additionally needs controllers.<control>.<scanner>.enabled: true.",
+			"An opt-in scanner additionally needs controllers.<control>.<scanner>.enabled: true. " +
+			"A scanner accepts only the options listed in scannerOptions — anything else is " +
+			"rejected when the descriptor is validated, so do not invent keys.",
 	}
 	for _, ctrl := range reg.Controllers() {
 		info := ctrl.Info()
@@ -78,9 +97,24 @@ func ListControls(reg *engine.Registry) ControlsOutput {
 			Purpose:         info.Summary,
 			DefaultScanners: info.DefaultScanners,
 			OptInScanners:   optIn,
+			ScannerOptions:  scannerOptionsFor(options, info.DefaultScanners, optIn),
 		})
 	}
 	sort.Slice(out.Controls, func(i, j int) bool { return out.Controls[i].Name < out.Controls[j].Name })
+	return out
+}
+
+// scannerOptionsFor narrows the registry-wide option map to the scanners one control can use, so
+// a caller reading a control's entry sees the keys it may write and no others.
+func scannerOptionsFor(all map[string][]plugin.Option, sets ...[]string) map[string][]plugin.Option {
+	out := map[string][]plugin.Option{}
+	for _, names := range sets {
+		for _, n := range names {
+			if opts, ok := all[n]; ok {
+				out[n] = opts
+			}
+		}
+	}
 	return out
 }
 
