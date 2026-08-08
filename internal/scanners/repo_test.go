@@ -8,6 +8,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 const repoSARIF = `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":""}},` +
@@ -288,5 +289,76 @@ func TestRepoScanDoesNotShareAcrossDifferentTargets(t *testing.T) {
 	}
 	if n := clones.Load(); n != 3 {
 		t.Errorf("checked out %d times for 3 distinct targets, want 3", n)
+	}
+}
+
+// The second pass exists because one pass over history reports every finding at the path it had
+// when it was introduced. A file since renamed then appears under a directory that does not
+// exist, and the most severe finding in a report reads as something already cleaned up.
+func TestRepoScannerMergesAHistoryPassAndMarksIt(t *testing.T) {
+	report := func(uri string) string {
+		return `{"runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[{"ruleId":"github-pat",` +
+			`"level":"error","message":{"text":"secret"},"locations":[{"physicalLocation":{` +
+			`"artifactLocation":{"uri":"` + uri + `"},"region":{"startLine":1}}}]}]}]}`
+	}
+	var ran [][]string
+	s := repoScanner{
+		info: plugin.ScannerInfo{Name: "gitleaks", Controls: []string{"secrets"}},
+		args: func(string, plugin.Config) []string { return []string{"tree"} },
+		checkout: func(_ context.Context, _, _ string, _ git.Scope) (git.Tree, func(), error) {
+			return git.Tree{Dir: t.TempDir()}, func() {}, nil
+		},
+		historyArgs: func(string, plugin.Config) []string { return []string{"history"} },
+		run: func(_ context.Context, _ string, argv []string) ([]byte, error) {
+			ran = append(ran, argv)
+			if argv[0] == "history" {
+				return []byte(report("old/path.ps1")), nil
+			}
+			return []byte(report("new/path.ps1")), nil
+		},
+	}
+
+	got, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "u"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ran) != 2 {
+		t.Fatalf("ran %d commands, want the tree and the history: %v", len(ran), ran)
+	}
+	if len(got.Results) != 2 {
+		t.Fatalf("got %d findings, want both passes': %+v", len(got.Results), got.Results)
+	}
+	byPath := map[string]sarif.Result{}
+	for _, r := range got.Results {
+		byPath[r.Location.URI] = r
+	}
+	if byPath["new/path.ps1"].Historical {
+		t.Error("the tree pass produced a finding marked as history")
+	}
+	if !byPath["old/path.ps1"].Historical {
+		t.Error("the history pass produced a finding not marked as history, which is the whole defect")
+	}
+}
+
+// No second pass configured, or none wanted, must leave the scan exactly as it was.
+func TestRepoScannerRunsOnePassWhenNoHistoryIsWanted(t *testing.T) {
+	var ran int
+	s := repoScanner{
+		info: plugin.ScannerInfo{Name: "gitleaks", Controls: []string{"secrets"}},
+		args: func(string, plugin.Config) []string { return []string{"tree"} },
+		checkout: func(_ context.Context, _, _ string, _ git.Scope) (git.Tree, func(), error) {
+			return git.Tree{Dir: t.TempDir()}, func() {}, nil
+		},
+		historyArgs: func(string, plugin.Config) []string { return nil },
+		run: func(context.Context, string, []string) ([]byte, error) {
+			ran++
+			return []byte(`{"runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[]}]}`), nil
+		},
+	}
+	if _, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "u"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if ran != 1 {
+		t.Errorf("ran %d commands, want 1", ran)
 	}
 }

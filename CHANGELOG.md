@@ -10,7 +10,25 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **A secret found in git history no longer reports a path that may not exist.** With
+  `gitleaks: {history: true}`, Gitleaks names the path a secret had in the commit that introduced
+  it — so a file since renamed was reported under a directory that had been deleted, and the
+  finding read as something already cleaned up. That is exactly backwards when the credential is
+  still in the working tree.
+
+  `history: true` now scans the tree **and** the history. A live secret is reported at the path it
+  is at now; a history finding says so, with the commit:
+
+  ```
+  P1  high  github-pat  secrets  gitleaks  old/scripts/check.ps1:1
+          ↩ found in commit history — this path is as it was then, and may have moved or gone
+            since. Still needs rotating: removing it from the tip does not unpublish it.
+  ```
+
+  A secret genuinely removed from the tip is still reported, marked as history — removing it is
+  not remediation, because it remains fetchable by anyone who can clone.
 
 ## [0.73.0] - 2026-08-08
 

@@ -64,6 +64,13 @@ type Result struct {
 	// Priority is the computed action band (P1–P4) for this finding, stamped by the engine
 	// from the component's risk classification. Empty when prioritization is not configured.
 	Priority string `json:"priority,omitempty"`
+	// Historical marks a finding that describes a commit rather than the current tree.
+	//
+	// A history scan reports the path a secret had in the commit that introduced it, and after a
+	// rename that path no longer exists. Unmarked, the finding reads as something already cleaned
+	// up — which is exactly backwards, because a credential in history is still fetchable by
+	// anyone who can clone and still needs rotating, whatever the tree looks like now.
+	Historical bool `json:"historical,omitempty"`
 	// PriorityFloor explains a band the component's classification alone does not account for.
 	//
 	// Some findings are not bounded by where the component sits. A leaked credential is valid

@@ -26,10 +26,26 @@ config:
         history: true
 ```
 
-That switches Gitleaks to its `git` mode and the clone to a full one — slower on a large
-repository, which is why it is opt-in rather than the default. The two decisions are made
-together on purpose: `gitleaks git` over a shallow clone walks a single commit and reports clean,
-which reads exactly like a repository whose history is genuinely empty.
+That adds a second pass over the commit history, and switches the clone to a full one — slower on
+a large repository, which is why it is opt-in. The clone and the pass are decided together on
+purpose: `gitleaks git` over a shallow clone walks a single commit and reports clean, which reads
+exactly like a repository whose history is genuinely empty.
+
+**The tree is still scanned as well, and that is not redundant.** A history pass reports the path
+a secret had in the commit that introduced it. If the file has since been renamed, that path no
+longer exists — and the finding reads as something already cleaned up, which is exactly backwards
+for a credential still sitting in the working tree. So the two passes answer two questions:
+
+```
+P1  high  github-pat  secrets  gitleaks  new/scripts/check.ps1:1
+P1  high  github-pat  secrets  gitleaks  old/scripts/check.ps1:1
+        ↩ found in commit history — this path is as it was then, and may have moved or gone
+          since. Still needs rotating: removing it from the tip does not unpublish it.
+```
+
+Both are real, and they call for different work: fix the tree, and rotate plus purge the history.
+A secret that has genuinely been removed from the tip still appears, marked — because removing it
+is not remediation. It remains fetchable by anyone who can clone.
 
 **A good split is history on a schedule, tree on a pull request.** History changes rarely, so a
 nightly or weekly deep scan is a backstop rather than a gate, and the per-change scan stays fast.
