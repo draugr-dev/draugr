@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.72.0] - 2026-08-08
+
 ### Changed
 
 - **A leaked credential is never ranked as routine.** Priority folds in a component's exposure and
@@ -3066,7 +3070,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.71.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.72.0...HEAD
+[0.72.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.72.0
 [0.71.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.71.0
 [0.70.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.70.0
 [0.69.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.69.0
