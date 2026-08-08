@@ -38,9 +38,25 @@ jobs:
       contents: write # push the release branch
       pull-requests: write # open the pull request
     steps:
+      # A token that is not GITHUB_TOKEN, because GitHub raises no workflow-starting event for
+      # anything GITHUB_TOKEN did and refuses it `gh pr create` unless the repository allows
+      # Actions to create *and approve* pull requests — one switch, and approval is not something
+      # to grant a workflow in order to fix a papercut.
+      #
+      # An App rather than a personal token: the installation token lives for an hour, is scoped
+      # to this repository, carries no person's identity, and cannot quietly expire between
+      # releases the way a PAT does.
+      - name: Mint an installation token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the guard below compares against every existing tag
+          token: ${{ steps.app.outputs.token }}
 
       - name: Work out the version
         id: version
@@ -76,7 +92,7 @@ jobs:
 
       - name: Promote the CHANGELOG and open the pull request
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
@@ -116,9 +132,8 @@ jobs:
             echo "::error::Could not open the release pull request. The branch $branch is pushed," \
               "so nothing is lost: open it at" \
               "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$branch?expand=1" \
-              "-- if this failed on permissions, check Settings -> Actions -> General ->" \
-              "'Allow GitHub Actions to create and approve pull requests'. That toggle also" \
-              "grants approval, so leaving it off and opening the pull request by hand is a" \
-              "reasonable choice rather than a gap."
+              "-- on a permissions error, check that the release App is still installed on this" \
+              "repository with Contents and Pull requests write, and that RELEASE_APP_ID and" \
+              "RELEASE_APP_PRIVATE_KEY still match it."
             exit 1
           fi
