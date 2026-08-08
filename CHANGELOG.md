@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.73.1] - 2026-08-08
+
 ### Fixed
 
 - **A secret found in git history no longer reports a path that may not exist.** With
@@ -3105,7 +3109,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.73.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.73.1...HEAD
+[0.73.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.73.1
 [0.73.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.73.0
 [0.72.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.72.0
 [0.71.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.71.0
