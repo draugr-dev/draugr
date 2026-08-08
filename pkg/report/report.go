@@ -322,10 +322,13 @@ type finding struct {
 	justification string
 	// escalation is why this finding's severity was raised, if it was.
 	escalation *sarif.Escalation
-	level      sarif.Level
-	severity   sarif.Severity
-	score      float64
-	hasScore   bool
+	// priorityFloor is why this finding outranks what the component's classification alone would
+	// give it. Empty when the classification accounts for the band.
+	priorityFloor string
+	level         sarif.Level
+	severity      sarif.Severity
+	score         float64
+	hasScore      bool
 }
 
 // sevCounts tallies findings by normalized severity band.
@@ -438,9 +441,10 @@ func summarize(d Data) summary {
 			}
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-				escalation: res.Escalation,
-				component:  res.Component,
-				location:   loc, message: res.Message,
+				escalation:    res.Escalation,
+				priorityFloor: res.PriorityFloor,
+				component:     res.Component,
+				location:      loc, message: res.Message,
 				level: res.Level, severity: sev,
 				helpURI: rep.HelpURI(res.RuleID),
 				score:   res.Score, hasScore: res.HasScore,

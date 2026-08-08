@@ -244,3 +244,32 @@ It also means the same flaw in two components is **two findings**. A library sha
 public, business-critical service and an internal tool is one vulnerability and two different
 risks — and reporting it once would keep whichever was merged first, which can be the one that
 does not matter.
+
+## Some findings are not bounded by the component
+
+Exposure and criticality answer "how much does a flaw here matter", and for a dependency CVE that
+is exactly the right question: a vulnerable library reachable from the internet is a different
+problem from the same library in a batch job.
+
+It is the wrong question for a **leaked credential**. A credential is valid wherever it is valid —
+a cloud account, a registry, an artifact store — and git history is frequently readable by more
+people than the service is reachable by, so `internal` can understate who is able to obtain it.
+
+So a control may declare a **priority floor**: a band its findings are never damped below. The
+`secrets` control declares **P2**, which means a credential on the least exposed, least critical
+component in your descriptor is still "this cycle" rather than backlog. It is a floor and not a
+fixed band — exposure and criticality still raise a credential on a public, business-critical
+component to P1.
+
+The report says when the floor applied, because a band you cannot reconstruct from the component's
+classification is one you have to take on trust:
+
+```
+  P2   high   -   github-pat   secrets   gitleaks   cfg.txt:1
+       ↑ not damped by exposure — a credential is valid wherever it is valid, not only where
+         the component sits
+```
+
+Nothing else changes. A control that declares no floor is ranked entirely by the matrices above,
+which is correct for every control that does not override its scanner's severity in the first
+place.

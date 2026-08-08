@@ -22,9 +22,19 @@ func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 		sev := res.Severity(controllers.SeverityFloor(control))
 		// nil-safe: no-op when no source, and the escalation is nil unless something moved.
 		sev, esc := expl.Explain(sev, res.RuleID)
+		band := matrices.Prioritize(exposure, criticality, sev)
+
+		// Applied after the matrices rather than inside them, because it is not a different
+		// opinion about exposure — it is a statement that exposure does not bound this control's
+		// findings. Keeping the matrices' answer and then raising it leaves both visible.
+		var floorReason string
+		if floor, reason := controllers.PriorityFloor(control); floor != "" && floor.Rank() > band.Rank() {
+			band, floorReason = floor, reason
+		}
 		return engine.Priority{
-			Band:       string(matrices.Prioritize(exposure, criticality, sev)),
+			Band:       string(band),
 			Escalation: esc,
+			Floor:      floorReason,
 		}
 	}
 }

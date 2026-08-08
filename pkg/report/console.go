@@ -330,7 +330,11 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 			cells = append(cells, tui.PlainCell(dash(f.component)))
 		}
 		cells = append(cells, tui.PlainCell(dash(f.location)))
-		t.RowWithNotes([]string{findingSummary(f.message), escalationNote(f.escalation)}, cells...)
+		t.RowWithNotes([]string{
+			findingSummary(f.message),
+			escalationNote(f.escalation),
+			priorityFloorNote(f.priorityFloor),
+		}, cells...)
 	}
 	t.Render(w)
 }
@@ -658,6 +662,19 @@ func escalationNote(e *sarif.Escalation) string {
 		out += " (" + e.AsOf + ")"
 	}
 	return out
+}
+
+// priorityFloorNote is the line under a finding saying why it outranks its component's
+// classification, or "" when the classification accounts for the band.
+//
+// Without it the band is unaccountable: a reader who knows this component is internal and
+// supporting, and reads P2 beside it, has no way to reconstruct the answer and has to take the
+// ranking on trust. The ranking is the thing they are being asked to act on.
+func priorityFloorNote(reason string) string {
+	if reason == "" {
+		return ""
+	}
+	return "↑ not damped by exposure — " + reason
 }
 
 // toolBuildLines reports which build of each external scanner ran, and flags the ones Draugr
