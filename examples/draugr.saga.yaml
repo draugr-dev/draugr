@@ -24,6 +24,9 @@ config:
       # gitleaks:
       #   config: security/gitleaks.toml   # a ruleset shared across repositories; a
       #                                    # .gitleaks.toml committed in a repo is used anyway
+      #   history: true      # also scan commit history — a secret removed from the tip is still
+      #                      # fetchable, so it is still compromised. Needs a full clone, so it
+      #                      # suits a nightly sweep more than a per-pull-request gate
     sast:
       enabled: true          # first-party source (Semgrep)
       # gosec:

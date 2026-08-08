@@ -38,6 +38,24 @@ and move it under a version on release.
 
 ### Added
 
+- **`secrets` can scan git history.** A credential committed and later removed is still fetchable
+  by anyone who can clone, so it is still compromised — and a scan of the tree alone will not find
+  it. Ask for it per repository:
+
+  ```yaml
+  config:
+    controllers:
+      secrets:
+        gitleaks:
+          history: true
+  ```
+
+  Off by default because it needs a full clone rather than a shallow one, which is slower on a
+  large repository. A good split is history on a schedule and the tree on every pull request.
+  The `secrets` docs also now show how to handle a vendor identifier that authenticates nothing —
+  a product or tenant token is 64 hex characters, which is what an API key looks like — with
+  `config.exclude`, so the finding stays in the report marked suppressed rather than being moved
+  out of the descriptor to hide from the scanner.
 - **The MCP scan approval describes the scan in front of you.** `draugr mcp --scan=ask` now names
   which controls will run over how many components, which scanners do more than read, whether
   anything sends traffic to a live host you declared, and where results will be delivered. Five

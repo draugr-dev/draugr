@@ -197,7 +197,7 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 | `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository` — an internal mirror |
 | `trivy-config` | `checks` — paths to your own Rego; `namespaces` — the namespaces they declare |
 | `semgrep` | `config` — a registry ref, path or URL |
-| `gitleaks` | `config` — a rules file shared across repositories |
+| `gitleaks` | `config` — a rules file shared across repositories; `history` — scan commit history too |
 | `virustotal` | `requestsPerMinute` |
 | `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus` | `enabled` only |
 
