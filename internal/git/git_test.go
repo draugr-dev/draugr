@@ -369,3 +369,40 @@ func commitCount(t *testing.T, dir string) int {
 	}
 	return n
 }
+
+// Sparse checkout is off when history is wanted, so the tree has to be cut down the slow way
+// afterwards. Without this the scope silently stops applying the moment somebody asks for
+// history, and the scan quietly widens to the whole repository.
+func TestCheckoutWithHistoryStillHonoursPaths(t *testing.T) {
+	src, _ := initRepo(t)
+	for _, d := range []string{"keep", "drop"} {
+		if err := os.MkdirAll(filepath.Join(src, d), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(src, d, "f.txt"), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runGit(t, src, "add", ".")
+	runGit(t, src, "commit", "-q", "-m", "dirs")
+
+	co, cleanup, err := Checkout(context.Background(), src, "",
+		Scope{Paths: []string{"keep"}, History: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	if _, err := os.Stat(filepath.Join(co.Dir, "keep", "f.txt")); err != nil {
+		t.Errorf("the scoped directory is missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(co.Dir, "drop", "f.txt")); err == nil {
+		t.Error("a history checkout ignored the path scope")
+	}
+	// History is present regardless, which is what the scope cannot narrow: git history is not
+	// sparse-checkoutable, so a finding from outside the scope is still a real finding in this
+	// repository and belongs in config.exclude rather than being silently dropped.
+	if n := commitCount(t, co.Dir); n < 2 {
+		t.Errorf("history should still be there, got %d commits", n)
+	}
+}
