@@ -64,6 +64,17 @@ type Result struct {
 	// Priority is the computed action band (P1–P4) for this finding, stamped by the engine
 	// from the component's risk classification. Empty when prioritization is not configured.
 	Priority string `json:"priority,omitempty"`
+	// PriorityFloor explains a band the component's classification alone does not account for.
+	//
+	// Some findings are not bounded by where the component sits. A leaked credential is valid
+	// wherever it is valid — a cloud account, a registry, an artifact store — and git history is
+	// often readable by more people than the service is reachable by, so an `internal` component
+	// can understate who can obtain the thing. Where a control says so, the band it produces is
+	// not damped below a floor.
+	//
+	// Set only when the floor actually raised the band, so a reader asking "why is this P2 on a
+	// supporting internal component" has the answer in the report rather than in the source.
+	PriorityFloor string `json:"priorityFloor,omitempty"`
 	// Component names the part of the application this finding belongs to, stamped by the engine
 	// from the component whose scan produced it. Empty for a project-scoped control, which has
 	// no one component to attribute to.

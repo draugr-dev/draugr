@@ -64,6 +64,10 @@ type Priority struct {
 	// Escalation is set when exploitability data raised the severity the band was computed
 	// from. Nil when the scanner's own rating stood.
 	Escalation *sarif.Escalation
+	// Floor explains a band that the component's classification alone does not account for,
+	// because the control declared that exposure does not bound its findings. Empty when the
+	// matrices' own answer stood.
+	Floor string
 }
 
 // Option configures an Engine.
@@ -815,6 +819,7 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 			p := e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
 			out.Results[i].Priority = p.Band
 			out.Results[i].Escalation = p.Escalation
+			out.Results[i].PriorityFloor = p.Floor
 		}
 	}
 	return out

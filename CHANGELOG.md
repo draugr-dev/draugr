@@ -12,6 +12,23 @@ and move it under a version on release.
 
 ### Changed
 
+- **A leaked credential is never ranked as routine.** Priority folds in a component's exposure and
+  criticality, which is exactly right for a dependency CVE and wrong for a credential: a
+  credential is valid wherever it is valid — a cloud account, a registry, an artifact store — and
+  git history is often readable by more people than the service is reachable by. The `secrets`
+  control now declares a **P2 floor**, so a secret on an internal supporting component is "this
+  cycle" rather than backlog, and the report says why:
+
+  ```
+  P2   high   -   github-pat   secrets   gitleaks   cfg.txt:1
+       ↑ not damped by exposure — a credential is valid wherever it is valid, not only where
+         the component sits
+  ```
+
+  A floor, not a fixed band: exposure still raises a credential on a public critical component to
+  P1. Controls that declare no floor are unchanged.
+
+
 - `draugr mcp`'s `scan` result now states its own scope: the controls that ran, any surface your
   descriptor declares that no enabled control looked at, and the classes a control-based scan
   does not cover — trust boundaries, build-context hygiene, how credentials reach a subprocess.
