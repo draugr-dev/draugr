@@ -104,5 +104,11 @@ jobs:
             ./scripts/changelog.sh show "$VERSION"
           } >/tmp/body.md
 
-          gh pr create --title "Release $VERSION" --body-file /tmp/body.md \
-            || echo "::notice::Branch $branch pushed. Open a PR: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$branch?expand=1"
+          # Fails the run rather than degrading to a notice. A notice is printed into a log
+          # nobody opens on a green workflow, so the branch sits pushed and unreviewed while
+          # everything reports success — which is the shape of failure this project refuses.
+          if ! gh pr create --title "Release $VERSION" --body-file /tmp/body.md; then
+            echo "::error::Could not open the release pull request. The branch $branch is pushed;" \
+              "open it at ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$branch?expand=1"
+            exit 1
+          fi
