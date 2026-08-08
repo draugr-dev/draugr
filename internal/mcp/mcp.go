@@ -163,14 +163,37 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		Description: "Read an existing Draugr report (results.sarif or report.json) and return " +
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
 			"for each. This is the cheap way to answer 'what should I fix first?' — it reads a " +
-			"scan that already happened rather than starting a new one.",
+			"scan that already happened rather than starting a new one. It covers the controls " +
+			"that scan ran and nothing else, so treat it as a floor to build on rather than a " +
+			"complete account of a codebase's security.",
 	}, SummarizeReportTool)
 
 	if opts.Scan != ScanOff {
+		// The description states what the scan does not cover, because a tool description is the
+		// only place a caller learns the scope before deciding the question is settled.
+		//
+		// A verdict is a complete-looking result, and a complete-looking result is read as the
+		// answer to whatever prompted it. The prompt is usually "is this safe to ship"; the scan
+		// answers "do the declared controls, over the declared components, produce findings above
+		// the gate". Those overlap without being the same, and the gap is exactly the classes no
+		// scanner computes — trust boundaries, credential handling, build-context hygiene. An
+		// assistant that stops at the verdict skips them, having done nothing wrong.
+		//
+		// So the description names the boundary. Nothing here weakens the claim: reproducibility,
+		// ranking and a gate are things a one-off read cannot give. It says which question was
+		// answered, so the caller can go on to the others.
 		desc := "Run a scan for a Saga descriptor and return the verdict with findings " +
 			"ranked by priority. This is expensive and has side effects: it clones " +
 			"repositories, executes external scanners and reaches the network. Prefer " +
-			"summarize_report when a recent report already exists."
+			"summarize_report when a recent report already exists.\n\n" +
+			"Scope: this runs the controls the descriptor declares over the components it " +
+			"declares, and nothing else. It is a reproducible floor, not a substitute for " +
+			"reading the code. It does not reason about trust boundaries, whether a build " +
+			"context carries secrets into an image, how credentials are passed to subprocesses, " +
+			"protocol assumptions, or anything a control was not enabled for. If the question " +
+			"was whether a repository is safe to ship rather than whether it passes this gate, " +
+			"keep looking after this returns — the findings here are the part that can be " +
+			"checked the same way every time, not the whole answer."
 		if opts.Scan == ScanAsk {
 			desc += " Each call asks the user to approve it first."
 		}

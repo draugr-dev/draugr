@@ -5,9 +5,9 @@ import (
 	"io"
 	"os"
 	"sort"
-	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -136,7 +136,7 @@ func printScanTips(w io.Writer, c tipContext) {
 // Not a tip and not counted against the tip budget: the tips describe a run that could be more
 // useful, and this describes one whose result covers less than the reader will assume it does.
 func printUncoveredSurfaceNote(w io.Writer, model *saga.Model) {
-	lines := uncoveredSurfaces(model)
+	lines := surfaces.Uncovered(model)
 	if len(lines) == 0 {
 		return
 	}
@@ -147,54 +147,10 @@ func printUncoveredSurfaceNote(w io.Writer, model *saga.Model) {
 	// Named here because it is absent everywhere else. A reader who knows Draugr has a `dast`
 	// control, and sees a host listed as unchecked without it, reads the omission as a gap in
 	// this note rather than as the deliberate choice it is.
-	if declaresHosts(model) {
+	if surfaces.DeclaresHosts(model) {
 		_, _ = fmt.Fprint(w, "      dast is never suggested: it sends attack traffic, so that one is your call.\n")
 	}
 	_, _ = fmt.Fprint(w, "      Run `draugr controls` to see what each control does.\n")
-}
-
-// declaresHosts reports whether any component exposes a host, which is the only case where the
-// absence of `dast` from the note is a question a reader would ask.
-func declaresHosts(model *saga.Model) bool {
-	for i := range model.Components {
-		if len(model.Components[i].Hosts) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// uncoveredSurfaces names each component surface that no enabled control looks at.
-//
-// A descriptor that declares a `hosts:` entry with the host controls off scans everything about
-// that component except the thing it exposes to the internet, and says nothing. The run is a
-// clean pass over a surface nobody looked at — the same shape as a scan that enables no control
-// at all, which fails loudly, but with a smaller blast radius and no signal whatsoever.
-//
-// A note rather than a failure: the choice may be deliberate, and refusing to scan because a
-// control is off would be worse than the gap. Suppressed by --no-tips / DRAUGR_NO_TIPS.
-func uncoveredSurfaces(model *saga.Model) []string {
-	var out []string
-	for i := range model.Components {
-		c := &model.Components[i]
-		for _, surface := range sortedKeys(controlsForSurface) {
-			if !componentHasSurface(c, surface) {
-				continue
-			}
-			var off []string
-			for _, name := range controlsForSurface[surface] {
-				if !c.ControllerEnabled(name, model.Config) {
-					off = append(off, name)
-				}
-			}
-			// Partial cover is still cover: one enabled control means someone is looking.
-			if len(off) == len(controlsForSurface[surface]) {
-				out = append(out, fmt.Sprintf("%s declares %s, and %s %s not enabled",
-					c.Name, surface, strings.Join(off, ", "), plural2(len(off), "is", "are")))
-			}
-		}
-	}
-	return out
 }
 
 // countAtOrAbove counts findings whose priority is at or above a band.
