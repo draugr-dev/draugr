@@ -65,3 +65,26 @@ func TestOptionsToleratesAnUnparseableSchema(t *testing.T) {
 		t.Errorf("got %+v, want none", got)
 	}
 }
+
+// An array option constrains its elements, not itself. Reading only the property-level enum loses
+// the accepted values entirely — so a caller rendering the option shows none while the validator
+// still enforces them, and the two disagree in front of the user.
+func TestOptionsReadsAnArrayElementEnum(t *testing.T) {
+	schema := json.RawMessage(`{
+	  "type": "object",
+	  "properties": {
+	    "pkgTypes": {
+	      "type": "array",
+	      "description": "which package types to analyse",
+	      "items": {"type": "string", "enum": ["os", "library"]}
+	    }
+	  }
+	}`)
+	got := Options(schema)
+	if len(got) != 1 {
+		t.Fatalf("got %d options, want 1", len(got))
+	}
+	if len(got[0].Enum) != 2 || got[0].Enum[0] != "os" || got[0].Enum[1] != "library" {
+		t.Errorf("enum = %v, want the element values", got[0].Enum)
+	}
+}

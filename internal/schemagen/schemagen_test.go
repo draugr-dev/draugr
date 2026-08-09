@@ -8,8 +8,27 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
+
+// generated decodes the schema the registry produces, which is what an editor consumes.
+func generated(t *testing.T) map[string]any {
+	t.Helper()
+	current, err := os.ReadFile(schemaPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := Apply(current, builtins.Registry())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(out, &doc); err != nil {
+		t.Fatal(err)
+	}
+	return doc
+}
 
 // schemaPath is the checked-in file the binary embeds.
 func schemaPath() string { return filepath.Join("..", "..", "pkg", "saga", "draugr.saga.schema.json") }
@@ -174,5 +193,65 @@ func TestCheckedInFragmentSchemaIsUpToDate(t *testing.T) {
 	if string(got) != string(want) {
 		t.Error("the checked-in fragment schema is not what the generator would produce — " +
 			"run `go generate ./pkg/saga/...`")
+	}
+}
+
+// TestSchemaCompletesScannerBlocks is the guard behind the editor experience, which no other test
+// can see: a descriptor is valid to the loader and useless to type, because the schema stops
+// describing things exactly where the reader stops knowing them.
+func TestSchemaCompletesScannerBlocks(t *testing.T) {
+	doc := generated(t)
+	defs := doc["$defs"].(map[string]any)
+
+	sast, ok := defs["control_sast"].(map[string]any)
+	if !ok {
+		t.Fatal("no per-control definition for sast; an editor cannot complete inside a control")
+	}
+	props := sast["properties"].(map[string]any)
+	for _, scanner := range []string{"semgrep", "gosec"} {
+		if _, ok := props[scanner]; !ok {
+			t.Errorf("sast does not name %q, so it will not be offered", scanner)
+		}
+	}
+	if sast["additionalProperties"] != false {
+		t.Error("a control that accepts any scanner key cannot flag a typo as you type")
+	}
+
+	// The option list has to come from the scanner's own schema, or what an editor offers and what
+	// the engine accepts drift — and the drift surfaces as a rejected descriptor, not a warning.
+	gosec := props["gosec"].(map[string]any)["properties"].(map[string]any)
+	for _, opt := range []string{"enabled", "include", "exclude", "tags"} {
+		if _, ok := gosec[opt]; !ok {
+			t.Errorf("gosec block is missing %q", opt)
+		}
+	}
+}
+
+// The descriptor writes a scanner under its camelCase key. Offering the scanner's own hyphenated
+// name would autocomplete something the loader then rejects, which is worse than offering nothing.
+func TestSchemaUsesTheKeyADescriptorWrites(t *testing.T) {
+	defs := generated(t)["$defs"].(map[string]any)
+	sca := defs["control_sca"].(map[string]any)["properties"].(map[string]any)
+	if _, ok := sca["trivyFs"]; !ok {
+		t.Error("sca does not offer trivyFs, which is the key a descriptor writes")
+	}
+	if _, ok := sca["trivy-fs"]; ok {
+		t.Error("sca offers the hyphenated scanner name, which the loader rejects")
+	}
+}
+
+// A hand-copied list of report formats drifts, and the way drift shows up is an editor rejecting
+// a descriptor Draugr accepts. `vex` reached the CLI while the schema still listed six formats.
+func TestSchemaKnowsEveryReportFormat(t *testing.T) {
+	defs := generated(t)["$defs"].(map[string]any)
+	rc := defs["reportConfig"].(map[string]any)["properties"].(map[string]any)
+	got := map[string]bool{}
+	for _, v := range rc["format"].(map[string]any)["enum"].([]any) {
+		got[v.(string)] = true
+	}
+	for _, f := range append(report.Formats(), "template") {
+		if !got[f] {
+			t.Errorf("the schema does not accept %q, which this build can render", f)
+		}
 	}
 }

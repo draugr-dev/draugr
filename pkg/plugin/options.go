@@ -41,6 +41,12 @@ func Options(schema json.RawMessage) []Option {
 			Type        string `json:"type"`
 			Description string `json:"description"`
 			Enum        []any  `json:"enum"`
+			// Items carries an array option's element constraint. Without reading it, the accepted
+			// values of a list are lost — and a caller rendering the option shows none, while the
+			// validator still enforces them. The two disagreeing is the failure to avoid.
+			Items struct {
+				Enum []any `json:"enum"`
+			} `json:"items"`
 		} `json:"properties"`
 	}
 	if err := json.Unmarshal(schema, &node); err != nil {
@@ -58,7 +64,13 @@ func Options(schema json.RawMessage) []Option {
 			Description: prop.Description,
 			Required:    required[name],
 		}
-		for _, e := range prop.Enum {
+		// An array constrains its elements; a scalar constrains itself. Either way these are the
+		// values the option accepts, which is the question a caller is asking.
+		values := prop.Enum
+		if len(values) == 0 {
+			values = prop.Items.Enum
+		}
+		for _, e := range values {
 			opt.Enum = append(opt.Enum, fmt.Sprint(e))
 		}
 		out = append(out, opt)
