@@ -20,7 +20,7 @@ components:
 
 ```bash
 draugr survey k8s cluster -o draugr.saga.yaml
-draugr survey k8s cluster --context staging --merge -o draugr.saga.yaml
+draugr survey k8s cluster --context staging -o draugr.saga.yaml
 ```
 
 ## Why this is not part of `k8s-images`

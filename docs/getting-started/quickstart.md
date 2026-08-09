@@ -172,7 +172,7 @@ exposure and criticality. It composes with the level gate (`--fail-on`): the run
 Instead of hand-writing components, point a surveyor at your environment:
 
 ```bash
-# Repositories in a GitHub org (token via --? no: GITHUB_TOKEN env or scope config)
+# Repositories in a GitHub org (GITHUB_TOKEN env var, or a token in scope config)
 GITHUB_TOKEN=*** draugr survey github repos --org my-org -o draugr.saga.yaml
 
 # Unique container images running in a Kubernetes namespace (uses your kubeconfig)

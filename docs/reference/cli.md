@@ -624,8 +624,8 @@ draugr survey --github-org acme --k8s-namespace prod   # namespace applied to no
 ```
 
 was accepted in silence. Each surveyor's options now live on its own command, where an option
-that does not belong is rejected rather than ignored. The old flags **error**, naming the
-subcommand that replaced them.
+that does not belong is rejected rather than ignored. The old flat flags — `--k8s-images`,
+`--k8s-namespace`, `--github-org` — are no longer accepted; use the subcommands above.
 
 ---
 
