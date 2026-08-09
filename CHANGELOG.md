@@ -12,6 +12,13 @@ and move it under a version on release.
 
 ### Fixed
 
+- **A scan with several images no longer loses some of them to a busy cache.** Every Trivy-backed
+  control shares one on-disk cache, and Trivy takes an exclusive lock to write analysis results
+  into it. Draugr scans images and repositories concurrently, so on a slow run two scans could want
+  that lock at once and the one that waited too long failed outright — reporting a plausible
+  finding count that was quietly missing whatever those images held. A scan that finds the cache
+  busy now waits and tries again, up to three times, and says so each time it waits. Anything else
+  still fails immediately.
 - **A tool's error keeps the part that says what went wrong.** The first line of a failing
   scanner's output was clamped to fit a terminal line, from the front — and a tool reports a
   wrapped chain whose cause is at the *end*. A Trivy failure arrived as `unable to initialize
