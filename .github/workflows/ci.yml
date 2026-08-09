@@ -85,6 +85,11 @@ jobs:
       # files this protects are documentation, so a docs-only pull request is precisely the one
       # that needs checking. It also cannot see issue bodies, which are equally public — those
       # stay a human's job.
+      # Ungated: a conflict marker in a Markdown or YAML file parses as content, so nothing else
+      # in this job would notice one.
+      - name: No unresolved conflict markers
+        run: ./scripts/check-no-conflict-markers.sh
+
       - name: No commercial framing in tracked files
         run: ./scripts/check-public-scope.sh
 

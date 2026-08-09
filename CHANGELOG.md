@@ -12,8 +12,12 @@ and move it under a version on release.
 
 ### Changed
 
-<<<<<<< HEAD
-=======
+- **Your editor now completes inside a control, not just up to it.** Typing
+  `controllers.sast:` used to offer nothing further — not `semgrep`, not `gosec`, and none of the
+  options either takes — because the schema described only `enabled` and accepted any key beside
+  it. It now names each control's scanners and the options each declares, with the same
+  descriptions `draugr controls --options` prints, so a mistyped scanner or an option a scanner
+  does not take is flagged as you type rather than when you run it.
 - **`draugr survey` adds to an existing descriptor instead of overwriting it.** A descriptor
   carries decisions a survey cannot rediscover — exposure, criticality, exclusions, controls
   somebody chose — so replacing it has to be asked for, with `--replace`. `--merge` is gone: it
@@ -32,7 +36,6 @@ and move it under a version on release.
 - **`draugr init` names the file it found**, rather than reporting `# Detected: dependency
   manifest` and leaving you to work out which one it meant.
 
->>>>>>> 7d5fc0c (Output states the fact; the argument stays in the docs)
 ### Fixed
 
 - **`format: vex` is no longer rejected by editors.** The schema's list of report formats was

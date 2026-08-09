@@ -69,6 +69,9 @@ else
 	echo "  bin/draugr not built — skipping (run: make build)"
 fi
 
+echo "▶ no-conflict-markers"
+./scripts/check-no-conflict-markers.sh
+
 echo "▶ public-scope"
 ./scripts/check-public-scope.sh
 
