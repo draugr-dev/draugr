@@ -20,6 +20,11 @@ and move it under a version on release.
 
 ### Fixed
 
+- **A scanner that tried several ways reports why each failed.** A tool looking for an image ends
+  its first line with `4 errors occurred:` and puts them on the lines after — so the report said
+  the image could not be found in any of four places, and dropped the line saying the registry
+  answered `401 Unauthorized`. That is the difference between checking the image name and logging
+  in. A message ending by promising a list now carries it.
 - **A failing scanner leads with what went wrong.** A tool's error is a chain running from general
   to specific, and Draugr has already said which scanner, control and component — so the tool's own
   account of what it was doing spent the whole message restating that, and pushed the words naming
