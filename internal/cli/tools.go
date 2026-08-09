@@ -332,7 +332,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 	_, _ = fmt.Fprintln(w)
 
 	col := tui.For(w)
-	var failed int
+	var failed, unchanged int
 	for _, name := range names {
 		if name == "semgrep" {
 			// Only when it is actually absent. An instruction to install something you already
@@ -348,14 +348,29 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 			failed++
 			continue
 		}
+		// Counted, not printed. The plan above already named every tool that was current, with
+		// its version and where it lives; repeating the list afterwards reads as a second check
+		// that found something different, and on a full install it buries the one line that
+		// describes what actually happened under seven that describe what did not.
+		//
+		// A tool that turns out not to be current after all is not AlreadyPresent — it is
+		// installed here and gets its own line, so the case worth seeing is still loud.
 		if res.AlreadyPresent {
-			_, _ = fmt.Fprintf(w, "%s %s %s already installed → %s\n",
-				col.Paint(tui.StyleMuted, "•"), res.Name, res.Version,
-				col.Paint(tui.StyleMuted, res.Path))
+			unchanged++
 			continue
 		}
 		_, _ = fmt.Fprintf(w, "%s %s %s → %s %s\n", col.Paint(tui.StylePass, "✓"), res.Name, res.Version,
 			res.Path, col.Paint(tui.StyleMuted, "("+provenanceLabel(res)+")"))
+	}
+
+	// semgrep is planned but not installed here — it is a Python package, so the loop above skips
+	// it. It still has to be counted, or a full install reports one fewer unchanged tool than the
+	// plan just said was current, and the two numbers disagreeing is worse than either alone.
+	if _, ok := have["semgrep"]; ok && !slices.Contains(names, "semgrep") {
+		unchanged++
+	}
+	if unchanged > 0 {
+		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, fmt.Sprintf("%s unchanged.", plural(unchanged, "tool"))))
 	}
 
 	// Semgrep isn't a downloadable binary; when installing everything, surface how to get it —

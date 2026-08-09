@@ -46,6 +46,11 @@ and move it under a version on release.
   been renamed, most of them into the CLI reference from the guides that link to it, and a
   duplicated heading in the Saga reference. A dead heading link renders as an ordinary one and
   jumps nowhere, so nothing but a reader following it ever notices — the gate checks them now.
+- **`draugr tools install` reports what changed.** It printed the plan — every tool, its version,
+  where it lives, which were already current — and then printed the same list again as it walked
+  it, so one download arrived buried under seven lines saying nothing had happened. The tools that
+  did not change are counted now (`7 tools unchanged.`), and a tool that turns out not to be
+  current after all is still installed and still named.
 
 ### Fixed
 

@@ -833,11 +833,18 @@ descriptor's scan runs.
 ```
 
 **Already-installed tools are skipped.** Re-running is cheap: a tool already present at the
-pinned build is left alone (`• trivy 0.69.3 already installed → …`) instead of being downloaded
-and verified again — which matters in CI, where provisioning runs on every job. "Already present"
-means the exact bytes Draugr installed: it compares the binary's checksum against what it
-recorded, so a **modified binary is replaced**, not accepted. A changed pin also reinstalls.
-Use `--force` to reinstall unconditionally.
+pinned build is left alone instead of being downloaded and verified again — which matters in CI,
+where provisioning runs on every job. The plan names them; afterwards they are counted, so the
+output describes what changed:
+
+```
+✓ syft 1.49.0 → ~/.draugr/bin/syft (sha256 verified)
+7 tools unchanged.
+```
+
+"Already present" means the exact bytes Draugr installed: it compares the binary's checksum
+against what it recorded, so a **modified binary is replaced**, not accepted — and a replacement
+gets its own line. A changed pin also reinstalls. Use `--force` to reinstall unconditionally.
 
 **Plan + confirmation.** It first prints the plan (tool, version, **category**, verification,
 destination). When run **interactively** it asks for confirmation; **non-interactively** (CI,

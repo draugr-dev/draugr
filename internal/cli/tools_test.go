@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -556,4 +557,106 @@ func TestPlanVerifyReportsTheWeakestHonestClaim(t *testing.T) {
 			t.Errorf("%s: planVerify = %q, want %q", tc.name, got, tc.want)
 		}
 	}
+}
+
+// The plan above already names every current tool, with its version and where it lives. Repeating
+// the list afterwards reads as a second check that found something different, and on a full
+// install it buries the one line describing what happened under seven describing what did not.
+func TestInstallReportsWhatChangedAndCountsTheRest(t *testing.T) {
+	stubDetect(t, map[string]string{"trivy": "0.69.3", "gitleaks": "8.30.1"})
+	var out bytes.Buffer
+	install := func(name string) (tools.Installed, error) {
+		if name == "syft" {
+			return tools.Installed{Name: name, Version: "1.49.0", Path: "/bin/syft"}, nil
+		}
+		return tools.Installed{Name: name, Version: "x", Path: "/bin/" + name, AlreadyPresent: true}, nil
+	}
+	err := runToolsInstall(&out, strings.NewReader(""), []string{"trivy", "gitleaks", "syft"},
+		toolsInstallOptions{yes: true}, install)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := out.String()
+	after := got[strings.Index(got, "Proceed")+1:] // the plan legitimately names them; the log must not
+	if strings.Contains(after, "already installed") {
+		t.Errorf("the current tools were listed a second time:\n%s", got)
+	}
+	if !strings.Contains(got, "2 tools unchanged.") {
+		t.Errorf("the unchanged tools should still be accounted for:\n%s", got)
+	}
+	if !strings.Contains(got, "✓ syft 1.49.0") {
+		t.Errorf("the one thing that happened is missing:\n%s", got)
+	}
+}
+
+// A tool that turns out not to be current after all is installed here, not skipped — so the case
+// worth seeing stays loud even though the quiet one went silent.
+func TestInstallStillNamesAToolItReplaced(t *testing.T) {
+	stubDetect(t, map[string]string{"trivy": "0.69.3"})
+	var out bytes.Buffer
+	install := func(name string) (tools.Installed, error) {
+		// Present at the pinned version by the plan's reckoning, but the checksum did not match.
+		return tools.Installed{Name: name, Version: "0.69.3", Path: "/bin/" + name}, nil
+	}
+	if err := runToolsInstall(&out, strings.NewReader(""), []string{"trivy", "syft"},
+		toolsInstallOptions{yes: true}, install); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "✓ trivy 0.69.3") {
+		t.Errorf("a replaced binary has to be named:\n%s", out.String())
+	}
+	if strings.Contains(out.String(), "unchanged") {
+		t.Errorf("nothing was unchanged:\n%s", out.String())
+	}
+}
+
+// The plan's count and the log's count describe the same tools, so they have to match. semgrep is
+// planned but installed by pip rather than by the loop, which is how they came apart: a full
+// install said 7 already current and then 6 unchanged, and a reader has to work out which is a
+// lie about what.
+func TestInstallCountsAgreeAcrossSemgrep(t *testing.T) {
+	// Everything the real command would plan, current except syft — the shape the report described.
+	current := map[string]string{"semgrep": tools.SemgrepVersion()}
+	catalog := tools.Catalog()
+	for _, name := range tools.Installable() {
+		if name == "syft" {
+			continue
+		}
+		current[catalog[name].Binary] = installVersion(t, name)
+	}
+
+	stubDetect(t, current)
+	var out bytes.Buffer
+	install := func(name string) (tools.Installed, error) {
+		return tools.Installed{
+			Name: name, Version: "x", Path: "/bin/" + name, AlreadyPresent: name != "syft",
+		}, nil
+	}
+	// No names at all is the full install, which is the case where the two counts came apart.
+	if err := runToolsInstall(&out, strings.NewReader(""), nil,
+		toolsInstallOptions{yes: true}, install); err != nil {
+		t.Fatal(err)
+	}
+
+	got := out.String()
+	planned := regexp.MustCompile(`(\d+) already current`).FindStringSubmatch(got)
+	logged := regexp.MustCompile(`(\d+) tools? unchanged`).FindStringSubmatch(got)
+	if planned == nil || logged == nil {
+		t.Fatalf("both counts should be printed:\n%s", got)
+	}
+	if planned[1] != logged[1] {
+		t.Errorf("the plan says %s current, the log says %s unchanged:\n%s", planned[1], logged[1], got)
+	}
+}
+
+// installVersion is the version `tools install` would fetch for a tool, which is what has to be
+// present for it to count as current.
+func installVersion(t *testing.T, name string) string {
+	t.Helper()
+	spec, ok := tools.Spec(name)
+	if !ok {
+		t.Fatalf("%s is installable but has no spec", name)
+	}
+	return spec.Version
 }

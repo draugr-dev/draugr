@@ -37,6 +37,11 @@ HEADING = re.compile(r"^(#{1,6})\s+(.*)$", re.M)
 LINK = re.compile(r"\]\(([^)\s#]*)#([^)\s]+)\)")
 # A fenced block holds examples, not headings — a `# comment` in bash is not a heading.
 FENCE = re.compile(r"^```.*?^```", re.M | re.S)
+# An inline code span is a quotation of a link, not a link. `[text](#heading)` written to
+# describe the syntax must not be resolved as if it were one. Blanked rather than removed, so
+# byte offsets — and therefore the reported line numbers — stay true, and so headings, whose text
+# is usually a code span, keep the words their slug is built from.
+CODE = re.compile(r"`[^`\n]*`")
 
 
 def slug(heading: str) -> str:
@@ -56,10 +61,11 @@ def main() -> int:
     # Every file's body and headings, read once: a reference page is linked to from a dozen others.
     bodies = {p: FENCE.sub("", (root / p).read_text(errors="replace")) for p in files}
     anchors = {p: {slug(m.group(2)) for m in HEADING.finditer(b)} for p, b in bodies.items()}
+    linkable = {p: CODE.sub(lambda m: " " * len(m.group()), b) for p, b in bodies.items()}
 
     broken: list[str] = []
     checked = 0
-    for path, body in bodies.items():
+    for path, body in linkable.items():
         for m in LINK.finditer(body):
             target, anchor = m.group(1), m.group(2)
             if target:
