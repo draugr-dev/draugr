@@ -90,6 +90,9 @@ jobs:
       - name: No unresolved conflict markers
         run: ./scripts/check-no-conflict-markers.sh
 
+      - name: Markdown heading links resolve
+        run: ./scripts/check-doc-anchors.py
+
       - name: No commercial framing in tracked files
         run: ./scripts/check-public-scope.sh
 

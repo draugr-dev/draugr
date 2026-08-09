@@ -72,6 +72,9 @@ fi
 echo "▶ no-conflict-markers"
 ./scripts/check-no-conflict-markers.sh
 
+echo "▶ doc-anchors"
+./scripts/check-doc-anchors.py
+
 echo "▶ public-scope"
 ./scripts/check-public-scope.sh
 

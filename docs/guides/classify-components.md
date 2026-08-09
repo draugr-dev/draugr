@@ -19,9 +19,14 @@ writes the labels back into your Saga, preserving comments and formatting. By de
 asks about unclassified components:
 
 ```bash
-draugr classify draugr.saga.yaml          # classify unclassified components
-draugr classify draugr.saga.yaml --all    # re-classify every component
+draugr classify                             # the descriptor in this directory
+draugr classify --all                       # re-classify every component
+draugr classify --components web,api        # only these two, classified or not
 ```
+
+It finds the descriptor the way `draugr scan` does, so the path is only needed when you have
+more than one or it is somewhere else. `--components` is what to reach for when one classification
+turned out wrong: naming a component re-asks about it without disturbing the others.
 
 ```
 Component: web

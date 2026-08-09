@@ -120,7 +120,7 @@ it asks a few questions per component and writes `exposure` and `criticality` ba
 Saga (comments and formatting preserved):
 
 ```bash
-draugr classify draugr.saga.yaml
+draugr classify
 ```
 
 ```

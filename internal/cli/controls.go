@@ -301,7 +301,7 @@ func knownControl(reg *engine.Registry, name string) error {
 	}
 	sort.Strings(names)
 	msg := fmt.Sprintf("%q is not a control this build provides", name)
-	if near := nearestControl(name, known); near != "" {
+	if near := nearestName(name, known); near != "" {
 		msg += fmt.Sprintf(" — did you mean %q?", near)
 	}
 	return fmt.Errorf("%s\n\nit has: %s", msg, strings.Join(names, ", "))

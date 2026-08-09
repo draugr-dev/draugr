@@ -38,7 +38,7 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			return
 		}
 		msg := fmt.Sprintf("%s: %q is not a control this build of Draugr provides", where, name)
-		if near := nearestControl(name, known); near != "" {
+		if near := nearestName(name, known); near != "" {
 			msg += fmt.Sprintf(" — did you mean %q?", near)
 		}
 		problems = append(problems, msg)
@@ -138,17 +138,20 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 	return fmt.Errorf("%s\n\n%s", strings.Join(problems, "\n"), hint)
 }
 
-// nearestControl returns the known control closest to name, or "" when nothing is close enough.
+// nearestName returns the known name closest to name, or "" when nothing is close enough.
 //
 // The suggestion is most of the value: "iaac is not a control" leaves someone scanning a list,
 // and "did you mean iac?" ends it. The threshold keeps it honest — a wild guess beside an error
 // is worse than no guess, because it sends the reader somewhere wrong.
-func nearestControl(name string, known map[string]bool) string {
+//
+// Not specific to controls: component names are matched the same way, and a typo costs the reader
+// the same either way.
+func nearestName(name string, known map[string]bool) string {
 	best, bestDist := "", 0
 	for candidate := range known {
 		d := editDistance(strings.ToLower(name), candidate)
 		// At most a third of the name wrong, and never more than three edits: enough for a typo,
-		// not enough to match a different control.
+		// not enough to match something else entirely.
 		limit := min(len(candidate)/3+1, 3)
 		if d > limit {
 			continue

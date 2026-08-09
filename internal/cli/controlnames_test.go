@@ -97,17 +97,17 @@ func TestNearestControlDoesNotGuessWildly(t *testing.T) {
 	for _, c := range builtins.Registry().Controllers() {
 		known[c.Info().Name] = true
 	}
-	if got := nearestControl("iaac", known); got != "iac" {
-		t.Errorf("nearestControl(iaac) = %q, want iac", got)
+	if got := nearestName("iaac", known); got != "iac" {
+		t.Errorf("nearestName(iaac) = %q, want iac", got)
 	}
-	if got := nearestControl("SCAA", known); got != "sca" {
+	if got := nearestName("SCAA", known); got != "sca" {
 		t.Errorf("case should not defeat the suggestion: %q", got)
 	}
 	// A name with nothing close gets no suggestion. Pointing somewhere wrong is worse than
 	// pointing nowhere — the reader trusts it and edits the wrong line.
 	for _, wild := range []string{"kubernetes-posture", "zzzzzzzz", ""} {
-		if got := nearestControl(wild, known); got != "" {
-			t.Errorf("nearestControl(%q) guessed %q", wild, got)
+		if got := nearestName(wild, known); got != "" {
+			t.Errorf("nearestName(%q) guessed %q", wild, got)
 		}
 	}
 }

@@ -35,6 +35,13 @@ and move it under a version on release.
   line now; the reasoning stays in the docs, where somebody who wants it will look.
 - **`draugr init` names the file it found**, rather than reporting `# Detected: dependency
   manifest` and leaving you to work out which one it meant.
+- **`draugr classify` finds your descriptor.** It took a filename and nothing else, so the
+  command after `draugr scan .` was the one that made you type the path. It now takes a directory
+  or no argument at all, exactly like a scan.
+- **`draugr classify --components gateway,api`** asks about the components you name and leaves
+  the rest alone. Naming one re-asks about it even if it is already classified, so correcting a
+  single component no longer means `--all` and re-answering for every other one. A name that
+  matches nothing is an error listing the components that exist.
 
 ### Fixed
 

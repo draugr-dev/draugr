@@ -850,7 +850,7 @@ specification puts it (`pkg:type/name@version?qualifiers#subpath`). A `product` 
 package URL is left untouched, since VEX identifies a product by IRI and a purl is only the
 convention.
 
-## SBOM generation## SBOM generation
+## SBOM generation
 
 ```yaml
 config:

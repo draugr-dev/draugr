@@ -498,7 +498,7 @@ So the flag is for reading — a terminal, or an agent asking for the short list
 
 Compare two scans and classify every finding as **new**, **fixed**, or **unchanged** — the
 security delta of a change, typically a PR's head vs its base branch. Inputs are the
-`results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml) writes, which are always
+`results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are always
 complete regardless of `--min-priority`.
 
 | Flag | Default | Description |
@@ -603,7 +603,7 @@ which is also how discovery is added to a descriptor you maintain by hand.
 
 When scoped to a specific namespace, `k8s images` also **proposes each component's `exposure`**
 from topology (Ingress/external Service → `public`, NetworkPolicy → `restricted`, else
-`internal`) — review it, then set `criticality` with [`draugr classify`](#draugr-classify-sagayaml).
+`internal`) — review it, then set `criticality` with [`draugr classify`](#draugr-classify-sagayaml--directory).
 
 ### Why subcommands
 
@@ -620,19 +620,30 @@ subcommand that replaced them.
 
 ---
 
-## `draugr classify <saga.yaml>`
+## `draugr classify [saga.yaml | directory]`
 
 A guided wizard that sets each component's **`exposure`** and **`criticality`** — the two
 inputs to finding prioritization — and writes them back into the Saga (preserving comments and
 formatting). It asks a few questions per component and derives the labels; by default it only
 asks about unclassified components.
 
+Finds the descriptor the same way [`draugr scan`](#draugr-scan-sagayaml--dir) does: with no
+argument, or with a directory, it uses the `*.saga.yaml` there. A directory holding more than one
+is an error naming them, and one holding none says so — unlike a scan, there is nothing to
+synthesize, because exposure and criticality are judgements that have to be recorded somewhere.
+
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--all` | `false` | Re-classify every component, not just unclassified ones |
+| `--components` | *(all)* | Only these components, by name. Naming one re-asks about it even if it is already classified |
+
+A name that matches no component is an error listing the ones that exist — a silent skip would
+report "all components are already classified", which answers a question nobody asked.
 
 ```bash
-draugr classify draugr.saga.yaml
+draugr classify                              # the descriptor in this directory
+draugr classify draugr.saga.yaml             # a specific file
+draugr classify --components gateway,api     # redo two, leave the rest alone
 ```
 
 ---
