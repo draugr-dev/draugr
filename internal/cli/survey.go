@@ -25,7 +25,6 @@ type surveyOptions struct {
 	output  string
 	name    string
 	version string
-	merge   bool // retained and deprecated: merging is the default
 	replace bool
 }
 
@@ -65,10 +64,12 @@ func newSurveyCommand() *cobra.Command {
 			"exclusions — so an existing file is added to rather than overwritten. Use --replace\n" +
 			"when you do want to start again.",
 		Args: cobra.NoArgs,
+		// Persistent, so a retired flag is caught wherever it was passed rather than only on
+		// `survey` itself. A flag that did nothing in silence is what this whole rework was about.
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			return reportRetiredSurveyFlags(cmd)
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if err := reportRetiredSurveyFlags(cmd); err != nil {
-				return err
-			}
 			return cmd.Help()
 		},
 	}
@@ -78,10 +79,6 @@ func newSurveyCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&opts.version, "version", "0.0.0", "release version for a newly created Saga")
 	cmd.PersistentFlags().BoolVar(&opts.replace, "replace", false,
 		"overwrite the Saga at --output instead of adding to it")
-	// Kept so every script and document that passes it keeps working, and deprecated rather than
-	// removed because it now asks for what already happens. Cobra prints the notice once.
-	cmd.PersistentFlags().BoolVar(&opts.merge, "merge", false, "merge into the existing Saga at --output")
-	_ = cmd.PersistentFlags().MarkDeprecated("merge", "merging is the default; pass --replace to overwrite instead")
 
 	registerRetiredSurveyFlags(cmd)
 	cmd.AddCommand(newSurveyK8sCommand(opts), newSurveyGitHubCommand(opts))
@@ -211,27 +208,38 @@ func newSurveyGitHubCommand(opts *surveyOptions) *cobra.Command {
 	return cmd
 }
 
-// retiredSurveyFlags are the per-surveyor flags the subcommands replaced, and what to run instead.
+// retiredSurveyFlags are flags that no longer exist, and what to do instead.
 //
 // Registered rather than removed, so the answer is the replacement instead of "unknown flag".
 // Hidden, because they are not choices — a flag list should offer what exists.
+//
+// They are kept because the docs site serves the newest tag's documentation, so a reader
+// following a page written against the last release runs a flag this build does not have. One
+// line here turns that into an instruction.
 var retiredSurveyFlags = map[string]string{
-	"k8s-images":    "draugr survey k8s images",
-	"k8s-namespace": "draugr survey k8s images --namespace <ns>",
-	"github-org":    "draugr survey github repos --org <org>",
+	"k8s-images": "each surveyor's options live with the surveyor they belong to. " +
+		"Use: draugr survey k8s images",
+	"k8s-namespace": "each surveyor's options live with the surveyor they belong to. " +
+		"Use: draugr survey k8s images --namespace <ns>",
+	"github-org": "each surveyor's options live with the surveyor they belong to. " +
+		"Use: draugr survey github repos --org <org>",
+	"merge": "merging is what a survey does. Pass --replace to overwrite the descriptor instead.",
 }
 
+// retiredBoolFlags were booleans, so they have to stay booleans: as a string flag `--merge` would
+// fail with "flag needs an argument" instead of reaching the error that says what to do.
+var retiredBoolFlags = map[string]bool{"k8s-images": true, "merge": true}
+
 func registerRetiredSurveyFlags(cmd *cobra.Command) {
-	// k8s-images was a bool, so it has to stay one: as a string flag `--k8s-images` would fail
-	// with "flag needs an argument" instead of reaching the error that names its replacement.
-	cmd.Flags().Bool("k8s-images", false, "retired")
-	_ = cmd.Flags().MarkHidden("k8s-images")
 	for name := range retiredSurveyFlags {
-		if name == "k8s-images" {
-			continue
+		// Persistent, because a retired flag is passed where it used to work — and --merge used
+		// to work on the subcommands, not on `survey` itself.
+		if retiredBoolFlags[name] {
+			cmd.PersistentFlags().Bool(name, false, "retired")
+		} else {
+			cmd.PersistentFlags().String(name, "", "retired")
 		}
-		cmd.Flags().String(name, "", "retired")
-		_ = cmd.Flags().MarkHidden(name)
+		_ = cmd.PersistentFlags().MarkHidden(name)
 	}
 }
 
@@ -247,9 +255,7 @@ func reportRetiredSurveyFlags(cmd *cobra.Command) error {
 	sort.Strings(names)
 	for _, name := range names {
 		if f := cmd.Flags().Lookup(name); f != nil && f.Changed {
-			return fmt.Errorf(
-				"--%s was replaced by a subcommand, so each surveyor's options live with the "+
-					"surveyor it belongs to. Use: %s", name, retiredSurveyFlags[name])
+			return fmt.Errorf("--%s no longer exists: %s", name, retiredSurveyFlags[name])
 		}
 	}
 	return nil

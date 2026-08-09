@@ -93,7 +93,7 @@ func TestRunSurveyMerge(t *testing.T) {
 	if err := os.WriteFile(out, []byte(existing), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	opts := surveyOptions{output: out, merge: true}
+	opts := surveyOptions{output: out}
 	if err := runSurvey(context.Background(), opts, []surveyor.Request{{Surveyor: "k8s-images"}}, stubRegistry(), &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,10 @@ func TestRetiredSurveyFlagsErrorWithTheirReplacement(t *testing.T) {
 		{[]string{"--k8s-namespace", "prod"}, "--namespace"},
 		{[]string{"--github-org", "acme"}, "draugr survey github repos"},
 		// The combination that was silently wrong: it must fail, not run.
-		{[]string{"--github-org", "acme", "--k8s-namespace", "prod"}, "replaced by a subcommand"},
+		{[]string{"--github-org", "acme", "--k8s-namespace", "prod"}, "no longer exists"},
+		// Removed rather than deprecated: merging is what a survey does, and a flag asking for
+		// the default is a flag to explain forever.
+		{[]string{"--merge"}, "--replace"},
 	} {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			t.Parallel()
@@ -161,7 +164,7 @@ func TestRetiredSurveyFlagsAreHidden(t *testing.T) {
 	t.Parallel()
 	cmd := newSurveyCommand()
 	for name := range retiredSurveyFlags {
-		f := cmd.Flags().Lookup(name)
+		f := cmd.PersistentFlags().Lookup(name)
 		if f == nil {
 			t.Errorf("--%s must still parse, or the error naming its replacement never runs", name)
 			continue

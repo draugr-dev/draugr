@@ -16,8 +16,8 @@ and move it under a version on release.
 =======
 - **`draugr survey` adds to an existing descriptor instead of overwriting it.** A descriptor
   carries decisions a survey cannot rediscover — exposure, criticality, exclusions, controls
-  somebody chose — so replacing it has to be asked for, with `--replace`. `--merge` still works
-  and is now the default it was requesting.
+  somebody chose — so replacing it has to be asked for, with `--replace`. `--merge` is gone: it
+  asked for what now always happens, and passing it says so and points at `--replace`.
 - **`draugr controls [control]`** narrows everything to one control, because `--options` across
   eleven of them is a screenful you scroll past to find the one you were writing. A name that is
   not a control says so and lists the ones that are.
