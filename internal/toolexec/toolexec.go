@@ -109,17 +109,50 @@ func explain(tool string, err error) error {
 	return fmt.Errorf("%w: %s", err, detail)
 }
 
-// firstLine returns the first non-blank line of a tool's stderr, stripped of its log preamble
-// and clamped.
+// firstLine returns what a tool said about its failure: the first non-blank line of stderr,
+// stripped of its log preamble, plus the list it promised if it ended by promising one.
 func firstLine(s string) string {
+	var lines []string
 	for _, line := range strings.Split(s, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
+		if line = strings.TrimSpace(line); line != "" {
+			lines = append(lines, line)
 		}
-		return shorten(message(line))
 	}
-	return ""
+	if len(lines) == 0 {
+		return ""
+	}
+	return shorten(withCauses(message(lines[0]), lines[1:]))
+}
+
+// withCauses appends the sub-errors of a multi-error to the line that announced them.
+//
+// A tool that tried several ways to do one thing reports the attempt and then the reasons, and the
+// reasons are the answer. Trivy looking for an image ends its first line with `4 errors occurred:`
+// and puts them on the lines after — so a reader given only the first line is told the image could
+// not be found in any of four places, and not that the registry answered 401.
+//
+// That difference decides what they do next: one sends them to check the image name, the other to
+// log in. Reading the first line alone turns the second into the first.
+//
+// Only when the line ends by promising a list, and only for lines that look like its items — a
+// tool that prints a usage screen after its error is not enumerating causes, and a report is not
+// the place for it.
+func withCauses(first string, rest []string) string {
+	if !strings.HasSuffix(first, ":") {
+		return first
+	}
+	var causes []string
+	for _, line := range rest {
+		item, ok := strings.CutPrefix(line, "* ")
+		if !ok {
+			break
+		}
+		causes = append(causes, strings.TrimSpace(item))
+	}
+	if len(causes) == 0 {
+		return first
+	}
+	return first + " " + strings.Join(causes, "; ")
 }
 
 // message drops the log preamble a tool writes ahead of what it is actually saying.

@@ -453,3 +453,72 @@ func TestFirstLineLeavesAShortLineAlone(t *testing.T) {
 		t.Errorf("firstLine(%q) = %q", short, got)
 	}
 }
+
+// A tool that tried several ways to do one thing reports the attempt and then the reasons, and the
+// reasons are the answer. Given only the first line, a reader is told an image could not be found
+// in any of four places — not that the registry answered 401, which is the difference between
+// checking the image name and logging in.
+func TestFirstLineKeepsTheCausesOfAMultiError(t *testing.T) {
+	t.Parallel()
+	const trivy = "2026-08-09T15:51:30-05:00\tFATAL\tFatal error\trun error: image scan error: " +
+		"unable to find the specified image \"reg.example.com/app:1\" in " +
+		"[\"docker\" \"containerd\" \"podman\" \"remote\"]: 4 errors occurred:\n" +
+		"\t* docker error: No such image: reg.example.com/app:1\n" +
+		"\t* containerd error: connect: permission denied\n" +
+		"\t* podman error: no podman socket found\n" +
+		"\t* remote error: POST https://reg.example.com/oauth2/token: unexpected status code 401 Unauthorized"
+
+	got := firstLine(trivy)
+	if !strings.Contains(got, "401 Unauthorized") {
+		t.Errorf("the cause was dropped:\n%s", got)
+	}
+	if n := len([]rune(got)); n > maxErrDetail {
+		t.Errorf("shortened to %d runes, want at most %d", n, maxErrDetail)
+	}
+}
+
+func TestWithCauses(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		first string
+		rest  []string
+		want  string
+	}{
+		{
+			name:  "a line promising a list gets it",
+			first: "2 errors occurred:",
+			rest:  []string{"* first cause", "* second cause"},
+			want:  "2 errors occurred: first cause; second cause",
+		},
+		{
+			// No colon, no promise. Whatever follows is a separate message.
+			name:  "a line promising nothing is left alone",
+			first: "could not open the file",
+			rest:  []string{"* not a cause of that"},
+			want:  "could not open the file",
+		},
+		{
+			// A tool printing usage after its error is not enumerating causes, and a report is
+			// not the place for a usage screen.
+			name:  "following lines that are not items are not folded in",
+			first: "bad flag:",
+			rest:  []string{"Usage: tool [options]", "* too late to count"},
+			want:  "bad flag:",
+		},
+		{
+			name:  "items stop where the list stops",
+			first: "1 error occurred:",
+			rest:  []string{"* the cause", "trailing prose"},
+			want:  "1 error occurred: the cause",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := withCauses(tc.first, tc.rest); got != tc.want {
+				t.Errorf("withCauses = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
