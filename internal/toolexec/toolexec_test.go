@@ -340,3 +340,48 @@ func TestExplainLeavesOtherFailuresAlone(t *testing.T) {
 		t.Errorf("the tool's own first line should still travel: %v", err)
 	}
 }
+
+// A tool reports a wrapped chain whose two ends carry different information: the left is the
+// operation, shared by every failure of that tool, and the right is the cause, which is the only
+// part identifying this one. Clamping the head alone yields "unable to…" — true of the failure
+// and of nothing else.
+func TestFirstLineKeepsTheCauseNotJustTheOperation(t *testing.T) {
+	t.Parallel()
+	const trivy = "2026-08-09T14:06:25-05:00\tFATAL\tFatal error\trun error: image scan error: " +
+		"scan error: unable to initialize a scan service: unable to initialize cache: " +
+		"unable to initialize fs cache: cache may be in use by another process: timeout"
+
+	got := firstLine(trivy)
+	if !strings.Contains(got, "cache may be in use by another process: timeout") {
+		t.Errorf("the cause was clamped away:\n%s", got)
+	}
+	if !strings.Contains(got, "FATAL") {
+		t.Errorf("the operation was lost:\n%s", got)
+	}
+	if n := len([]rune(got)); n > maxErrDetail {
+		t.Errorf("clamped to %d runes, want at most %d", n, maxErrDetail)
+	}
+}
+
+// A byte offset can land inside a multi-byte character, and the replacement glyph lands in the
+// one message somebody is reading closely.
+func TestFirstLineClampsOnRunes(t *testing.T) {
+	t.Parallel()
+	line := strings.Repeat("é", maxErrDetail*2)
+	got := firstLine(line)
+	if strings.ContainsRune(got, '�') {
+		t.Errorf("clamping split a character: %q", got)
+	}
+	if n := len([]rune(got)); n > maxErrDetail {
+		t.Errorf("clamped to %d runes, want at most %d", n, maxErrDetail)
+	}
+}
+
+// A line that fits is returned whole — no ellipsis on a message that was never shortened.
+func TestFirstLineLeavesAShortLineAlone(t *testing.T) {
+	t.Parallel()
+	const short = "trivy: no such image"
+	if got := firstLine(short); got != short {
+		t.Errorf("firstLine(%q) = %q", short, got)
+	}
+}
