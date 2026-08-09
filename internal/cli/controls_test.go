@@ -45,6 +45,25 @@ func TestControlsCommandViaCobra(t *testing.T) {
 	}
 }
 
+// The argument has to reach runControls. Every other test here calls that function directly, so
+// a name that never left the Cobra layer would list every control and look entirely correct.
+func TestControlsArgumentNarrowsToOneControl(t *testing.T) {
+	cmd := newControlsCommand()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"secrets"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	s := out.String()
+	if !strings.Contains(s, "secrets") {
+		t.Errorf("the control asked for is missing:\n%s", s)
+	}
+	if strings.Contains(s, "sast") {
+		t.Errorf("asked for one control, got the whole table:\n%s", s)
+	}
+}
+
 func TestControlsShowsWhoPublishesEachScanner(t *testing.T) {
 	var buf bytes.Buffer
 	if err := runControls(&buf, builtins.Registry(), false, ""); err != nil {

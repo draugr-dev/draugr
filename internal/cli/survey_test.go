@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -484,6 +485,52 @@ func TestSurveyNamespaceFlagTakesSeveral(t *testing.T) {
 		if f.Value.Type() != "stringSlice" {
 			t.Errorf("%v --namespace is %s, want a repeatable list", path, f.Value.Type())
 		}
+	}
+}
+
+// Merging keeps the wider scope, which is safe and also surprising: --namespace was accepted, the
+// survey ran, and the descriptor still covers the whole cluster. Somebody who narrowed on purpose
+// has to be told their flag did not reach the file, or they will believe the next scan is scoped.
+func TestSurveySaysWhenANamespaceScopeWasNotApplied(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "draugr.saga.yaml")
+	if err := os.WriteFile(out, []byte(
+		"release:\n  name: app\n  version: \"1.0\"\n"+
+			"components:\n  - name: prod\n    infrastructure:\n      - kind: kubernetes\n        ref: prod\n",
+	), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := surveyor.NewRegistry()
+	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
+		Name: "prod",
+		Infrastructure: []saga.Infrastructure{{
+			Kind: "kubernetes", Ref: "prod", Namespaces: []string{"team-a"},
+		}},
+	}})
+
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(prev)
+
+	err := runSurvey(context.Background(), surveyOptions{version: "1.0", output: out},
+		[]surveyor.Request{{Surveyor: "k8s-cluster", Scope: plugin.SurveyScope{Ref: "team-a"}}},
+		reg, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(logs.String(), "--namespace not applied") {
+		t.Errorf("the dropped scope was not reported:\n%s", logs.String())
+	}
+	written, err := os.ReadFile(out) // #nosec G304 -- a path this test just created
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The warning describes what happened; the file has to match it.
+	if strings.Contains(string(written), "team-a") {
+		t.Errorf("the descriptor was narrowed after all:\n%s", written)
 	}
 }
 

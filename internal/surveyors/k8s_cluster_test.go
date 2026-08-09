@@ -3,6 +3,7 @@ package surveyors
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -85,6 +86,22 @@ func TestK8sClusterWritesTheScopedNamespace(t *testing.T) {
 	}
 	if ns := unscoped.Components[0].Infrastructure[0].Namespaces; len(ns) != 0 {
 		t.Errorf("an unscoped survey owns the whole cluster, got namespaces %v", ns)
+	}
+}
+
+// A survey scoped to a namespace that is not there must fail rather than write a descriptor for
+// it. The descriptor is what everything downstream trusts, and a scan of a namespace that does not
+// exist finds nothing and reports nothing — indistinguishable from a clean one.
+func TestK8sClusterRejectsANamespaceThatIsNotThere(t *testing.T) {
+	t.Parallel()
+
+	_, err := clusterSurveyor(fake.NewSimpleClientset(), "prod").
+		Survey(context.Background(), plugin.SurveyScope{Ref: "typo"})
+	if err == nil {
+		t.Fatal("want an error naming the namespace, got a descriptor")
+	}
+	if !strings.Contains(err.Error(), "typo") {
+		t.Errorf("error = %q, want it to name the namespace", err)
 	}
 }
 
