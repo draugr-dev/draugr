@@ -34,7 +34,7 @@ Each surveyor is a subcommand, so its options live with it — `--namespace` bel
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod -o draugr.saga.yaml
-draugr survey k8s cluster --context prod --merge -o draugr.saga.yaml
+draugr survey k8s cluster --context prod -o draugr.saga.yaml
 
 # Several namespaces, one component each
 draugr survey k8s images --namespace payments --namespace checkout -o draugr.saga.yaml
@@ -56,10 +56,12 @@ component would surprise anyone reading the command that produced the descriptor
 
 ## Merging, not overwriting
 
-`--merge` folds discovered components into the Saga already at `--output` instead of replacing
-it. This is the flag that makes discovery repeatable: the classifications, exclusions and
+A survey folds discovered components into the Saga already at `--output` instead of replacing
+it, and that is the default rather than a flag. It is what makes discovery repeatable: the
+classifications, exclusions and
 per-component overrides you added by hand are preserved, and whatever has appeared in the
-environment since the last run is added alongside them.
+environment since the last run is added alongside them. Pass `--replace` when you do want to
+start again.
 
 Without it, `survey` writes a fresh descriptor — right for the first run, and a way to lose
 hand-written context on every one after that.

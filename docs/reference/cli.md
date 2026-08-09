@@ -598,8 +598,8 @@ behalf.
 `enabled: false`. A survey runs against a descriptor people edit, and one that switched
 something back on would be worse than the problem it solves.
 
-**Run several with `--merge`**, which folds each survey into the Saga already at `--output` —
-the same flag used to add discovery to a descriptor you maintain by hand.
+**Run several against one descriptor** — each survey folds into the Saga already at `--output`,
+which is also how discovery is added to a descriptor you maintain by hand.
 
 When scoped to a specific namespace, `k8s images` also **proposes each component's `exposure`**
 from topology (Ingress/external Service → `public`, NetworkPolicy → `restricted`, else
