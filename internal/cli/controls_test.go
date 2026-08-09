@@ -135,7 +135,7 @@ func TestControlsWithoutOptionsPointsAtThem(t *testing.T) {
 }
 
 // `--options` across eleven controls is a screenful you scroll past to find the one you were
-// writing, which is the state it was reported in.
+// writing.
 func TestControlsNarrowsToOneControl(t *testing.T) {
 	var out bytes.Buffer
 	if err := runControls(&out, builtins.Registry(), true, "secrets"); err != nil {

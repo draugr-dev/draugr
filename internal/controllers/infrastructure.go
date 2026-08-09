@@ -92,10 +92,9 @@ func infraConfig(model saga.Model, comp *saga.Component) plugin.Config {
 		// declares what it accepts then refuses the whole job, naming a key the descriptor never
 		// wrote at that level.
 		//
-		// This was invisible while scanners declared no schema: the stray keys were accepted and
-		// ignored, which is the same silent drop the schemas exist to end. The first descriptor
-		// with `infrastructure: {enabled: true}` and a scanner that validates its options failed
-		// on the flag that turned the control on.
+		// A scanner that declares no schema accepts them and ignores them, which is the same
+		// silent drop the schemas exist to end — so this is invisible until a scanner starts
+		// validating, and then it rejects `enabled`, the flag that turns the control on.
 		if k == enabledKey {
 			continue
 		}

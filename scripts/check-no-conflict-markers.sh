@@ -5,10 +5,10 @@
 # not compile it, so code is caught by the build — but Markdown, YAML and JSON parse it as
 # content, and a release note, a descriptor or a workflow reads as prose with an odd line in it.
 #
-# The CHANGELOG is the case that prompted a guard here, because it is the file most likely to
-# conflict — every branch adds to the same section — and the one whose contents are published
-# verbatim as release notes. `changelog.sh check` reads headings, so it passed a file with
-# `<<<<<<< HEAD` in it.
+# The CHANGELOG is the sharpest case. Every branch appends to the same section, so it conflicts
+# more than anything else here, and its contents are published verbatim as release notes — the
+# marker would reach a reader who never opens the repository. `changelog.sh check` reads headings,
+# which a marker sits below, so a file carrying one is structurally valid to it.
 set -uo pipefail
 
 cd "$(dirname "$0")/.."

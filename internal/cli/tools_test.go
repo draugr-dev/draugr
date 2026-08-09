@@ -612,9 +612,9 @@ func TestInstallStillNamesAToolItReplaced(t *testing.T) {
 }
 
 // The plan's count and the log's count describe the same tools, so they have to match. semgrep is
-// planned but installed by pip rather than by the loop, which is how they came apart: a full
-// install said 7 already current and then 6 unchanged, and a reader has to work out which is a
-// lie about what.
+// where they can drift apart: it is planned like everything else but installed by pip rather than
+// by the loop, so a full install can report one fewer unchanged tool than it just called current
+// — and two numbers about the same thing disagreeing is worse than either alone.
 func TestInstallCountsAgreeAcrossSemgrep(t *testing.T) {
 	// Everything the real command would plan, current except syft — the shape the report described.
 	current := map[string]string{"semgrep": tools.SemgrepVersion()}
@@ -633,7 +633,7 @@ func TestInstallCountsAgreeAcrossSemgrep(t *testing.T) {
 			Name: name, Version: "x", Path: "/bin/" + name, AlreadyPresent: name != "syft",
 		}, nil
 	}
-	// No names at all is the full install, which is the case where the two counts came apart.
+	// No names at all is the full install, which is where semgrep enters the plan.
 	if err := runToolsInstall(&out, strings.NewReader(""), nil,
 		toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatal(err)

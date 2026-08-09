@@ -234,8 +234,8 @@ func keysOf(m map[string]bool) []string {
 // scanner that declares what it accepts then refuses the whole job, naming a key the descriptor
 // never wrote at that level.
 //
-// The first descriptor to hit it was one `draugr survey` had written: enabling a control is the
-// most ordinary thing a descriptor does.
+// Enabling a control is the most ordinary thing a descriptor does, and `draugr survey` writes it
+// that way — so this is reachable from a generated descriptor, not only a hand-written one.
 func TestInfrastructureDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"infrastructure": {

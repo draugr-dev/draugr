@@ -365,7 +365,8 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 
 	// semgrep is planned but not installed here — it is a Python package, so the loop above skips
 	// it. It still has to be counted, or a full install reports one fewer unchanged tool than the
-	// plan just said was current, and the two numbers disagreeing is worse than either alone.
+	// plan just called current, and two numbers about the same thing disagreeing is worse than
+	// either alone.
 	if _, ok := have["semgrep"]; ok && !slices.Contains(names, "semgrep") {
 		unchanged++
 	}
