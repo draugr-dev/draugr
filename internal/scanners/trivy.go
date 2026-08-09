@@ -47,7 +47,7 @@ func NewTrivy() plugin.Scanner {
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
 		ConfigSchema: json.RawMessage(trivyConfigSchema),
 		Argv:         trivyArgv,
-		Run:          execArgv,
+		Run:          retryingRun("trivy", execArgv),
 		CacheVersion: sharedTrivyVersion.cacheVersion,
 		Prewarm:      sharedTrivyDB.warm,
 		Refine:       trivyImageLocations,
@@ -71,6 +71,7 @@ func NewTrivyFS() plugin.Scanner {
 	)
 	s.cacheVersion = sharedTrivyVersion.cacheVersion
 	s.prewarm = sharedTrivyDB.warm
+	s.run = retryingRunInDir("trivy", s.run)
 	return s
 }
 
