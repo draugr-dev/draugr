@@ -10,6 +10,15 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A tool's error keeps the part that says what went wrong.** The first line of a failing
+  scanner's output was clamped to fit a terminal line, from the front — and a tool reports a
+  wrapped chain whose cause is at the *end*. A Trivy failure arrived as `unable to initialize
+  cache: unable to…`, which is true of that failure and of nothing else; the words that named it
+  (`cache may be in use by another process: timeout`) were the ones cut. The middle is elided now,
+  so both the operation and the cause survive.
+
 ### Changed
 
 - **`--help` says what a command does, not why it works that way.** Every command's description

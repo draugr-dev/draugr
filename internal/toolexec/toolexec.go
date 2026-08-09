@@ -116,12 +116,49 @@ func firstLine(s string) string {
 		if line == "" {
 			continue
 		}
-		if len(line) > maxErrDetail {
-			line = strings.TrimSpace(line[:maxErrDetail-1]) + "…"
-		}
-		return line
+		return clamp(line)
 	}
 	return ""
+}
+
+// clamp shortens a tool's complaint by eliding its middle rather than its end.
+//
+// A tool reports a wrapped chain, and the two ends carry different information:
+//
+//	FATAL run error: image scan error: scan error: unable to initialize a scan service:
+//	unable to initialize cache: unable to initialize fs cache: cache may be in use by
+//	another process: timeout
+//
+// The left is the operation, which every failure of that tool shares. The right is the cause,
+// which is the only part identifying this one. Keeping the head alone yields "unable to…", a
+// message that says a scan failed while scanning — true of the failure and of nothing else.
+//
+// Both ends, so the reader knows what was being done as well as what went wrong. Sliced on
+// runes: a byte offset can land inside a multi-byte character and produce a replacement glyph
+// in the one message somebody is reading closely.
+func clamp(line string) string {
+	r := []rune(line)
+	if len(r) <= maxErrDetail {
+		return line
+	}
+	const sep = " … "
+	head := maxErrDetail / 3
+	tail := maxErrDetail - head - len([]rune(sep))
+	return strings.TrimSpace(string(r[:head])) + sep + strings.TrimSpace(atWord(r[len(r)-tail:]))
+}
+
+// atWord drops a partial leading word, so the tail resumes at a word rather than mid-token.
+//
+// Only when a space is near the start: on a long unbroken token — a path, a digest, a URL —
+// there is no boundary worth finding, and hunting for one would discard most of the tail.
+func atWord(r []rune) string {
+	limit := min(len(r), 24)
+	for i := range limit {
+		if r[i] == ' ' {
+			return string(r[i+1:])
+		}
+	}
+	return string(r)
 }
 
 // maxErrDetail keeps a tool's complaint to something that fits on a terminal line.
