@@ -10,7 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Your editor now completes inside a control, not just up to it.** Typing
+  `controllers.sast:` used to offer nothing further — not `semgrep`, not `gosec`, and none of the
+  options either takes — because the schema described only `enabled` and accepted any key beside
+  it. It now names each control's scanners and the options each declares, with the same
+  descriptions `draugr controls --options` prints, so a mistyped scanner or an option a scanner
+  does not take is flagged as you type rather than when you run it.
+
+### Fixed
+
+- **`format: vex` is no longer rejected by editors.** The schema's list of report formats was
+  written by hand and had fallen behind the CLI, so a descriptor asking for a VEX document was
+  valid to Draugr and flagged by your editor. The list is generated now, and a test fails if a
+  renderable format is missing from it.
+- **A list option's accepted values are shown, not just enforced.** `draugr controls --options`
+  and the schema both now report that `pkgTypes` takes `os` or `library`, rather than silently
+  accepting a third value and letting the scan reject it.
 
 ## [0.73.1] - 2026-08-08
 

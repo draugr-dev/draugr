@@ -205,6 +205,11 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 draugr controls --options   # the authoritative list, read from the same schemas the gate enforces
 ```
 
+**Your editor knows these too.** The published schema names each control's scanners and the
+options each accepts, so completion and hover docs work inside a control block, and a scanner or
+option that does not exist is flagged as you type. It is generated from the same registry the gate
+consults, so the three answers cannot disagree.
+
 **No scanner option filters findings**, and that is a rule rather than an omission. Trivy's
 `--severity` and `--ignorefile`, gosec's `-severity` and `-confidence` — each drops findings inside
 the tool, where Draugr never sees them. A finding Draugr never saw cannot be reported as

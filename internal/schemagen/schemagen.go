@@ -14,7 +14,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/report"
 
 	"bytes"
 	"encoding/json"
@@ -81,6 +83,133 @@ func allowEffectsDef() map[string]any {
 	}
 }
 
+// controlDefs builds one definition per control, naming the scanners that serve it and the
+// options each accepts.
+//
+// Without this, an editor's help stops at the control name. `controllers.sast:` completes, and
+// then nothing does — not `semgrep`, not `gosec`, not the options either takes — because the
+// generic settings shape describes only `enabled` and accepts any key beside it. A reader is left
+// guessing at exactly the layer that has the most to guess at: which scanners a control has, and
+// what each one is willing to be told.
+//
+// The scanner blocks are keyed by the camelCase name a descriptor writes, not the scanner's own
+// hyphenated name, because that is what the loader accepts. Getting that wrong would autocomplete
+// a key the descriptor then rejects, which is worse than no completion at all.
+//
+// Closed rather than open. `additionalProperties: false` means an editor flags a scanner the
+// control does not have, and an option a scanner does not take, at the moment it is typed — the
+// same answer `draugr validate` gives, arriving sooner. The engine still validates at plan time;
+// this is the same rule stated where it can be acted on.
+func controlDefs(reg *engine.Registry) map[string]map[string]any {
+	serving := map[string][]plugin.ScannerInfo{}
+	for _, sc := range reg.Scanners() {
+		info := sc.Info()
+		for _, control := range info.Controls {
+			serving[control] = append(serving[control], info)
+		}
+	}
+
+	out := map[string]map[string]any{}
+	for _, ctrl := range reg.Controllers() {
+		name := ctrl.Info().Name
+		scanners := serving[name]
+		sort.Slice(scanners, func(i, j int) bool { return scanners[i].Name < scanners[j].Name })
+
+		props := map[string]any{
+			"enabled": map[string]any{
+				"type": "boolean",
+				"description": "Whether this control runs. An entry with no `enabled` key counts " +
+					"as enabled; an absent entry means disabled.",
+			},
+		}
+		defaults := map[string]bool{}
+		for _, d := range ctrl.Info().DefaultScanners {
+			defaults[d] = true
+		}
+		for _, info := range scanners {
+			props[controllers.ScannerConfigKey(info.Name)] = scannerDef(info, defaults[info.Name])
+		}
+		out[name] = map[string]any{
+			"type":                 "object",
+			"description":          ctrl.Info().Summary,
+			"properties":           props,
+			"additionalProperties": false,
+		}
+	}
+	return out
+}
+
+// scannerDef describes one scanner's block: `enabled`, plus the options it declares.
+//
+// The options come from the scanner's own ConfigSchema, so what an editor offers and what the
+// engine accepts are the same list by construction. A scanner that accepts nothing gets a block
+// with only `enabled` — which is a statement, not an omission, and closing it is what turns "this
+// scanner takes no options" from something you discover by being rejected into something you see
+// while typing.
+func scannerDef(info plugin.ScannerInfo, isDefault bool) map[string]any {
+	enabled := "Run this scanner. "
+	if isDefault {
+		enabled += "It is a default for this control, so it runs unless set to false."
+	} else {
+		enabled += "It is opt-in, so it runs only when set to true."
+	}
+	props := map[string]any{
+		"enabled": map[string]any{"type": "boolean", "description": enabled},
+	}
+	for _, opt := range plugin.Options(info.ConfigSchema) {
+		props[opt.Name] = optionDef(opt)
+	}
+	def := map[string]any{
+		"type":                 "object",
+		"properties":           props,
+		"additionalProperties": false,
+	}
+	if info.Origin != "" {
+		def["description"] = fmt.Sprintf("%s — published by %s.", info.Name, info.Origin)
+	}
+	return def
+}
+
+// optionDef renders one declared option for the schema, keeping its description so an editor
+// shows the same sentence `draugr controls --options` prints.
+func optionDef(opt plugin.Option) map[string]any {
+	d := map[string]any{"description": opt.Description}
+	if opt.Type != "" {
+		d["type"] = opt.Type
+	}
+	if len(opt.Enum) > 0 {
+		vals := make([]any, len(opt.Enum))
+		for i, e := range opt.Enum {
+			vals[i] = e
+		}
+		if opt.Type == "array" {
+			d["items"] = map[string]any{"enum": vals}
+		} else {
+			d["enum"] = vals
+		}
+	}
+	return d
+}
+
+// reportFormatDef lists the report formats this build can render.
+//
+// Generated for the same reason the control list is: a hand-written copy drifts, and the way
+// drift shows up is an editor rejecting a descriptor Draugr accepts. `template` is added because
+// it is selectable through `--format` with `--template`, but is not a registered reporter.
+func reportFormatDef() map[string]any {
+	formats := append(report.Formats(), "template")
+	sort.Strings(formats)
+	vals := make([]any, len(formats))
+	for i, f := range formats {
+		vals[i] = f
+	}
+	return map[string]any{
+		"type":        "string",
+		"description": "Report format to render.",
+		"enum":        vals,
+	}
+}
+
 // Apply rewrites the generated parts of the schema document in place and returns the encoded
 // result, formatted the way the checked-in file is.
 func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
@@ -94,6 +223,22 @@ func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
 	}
 	defs["controlName"] = controlNameDef(reg)
 
+	// Per-control definitions, and a `controllers` node that points each control name at its own.
+	// The generic `controllerSettings` stays as the fallback for anything not in the registry, so
+	// a schema consumer never hits an unresolvable ref.
+	byControl := controlDefs(reg)
+	named := make(map[string]any, len(byControl))
+	for name, def := range byControl {
+		key := "control_" + name
+		defs[key] = def
+		named[name] = map[string]any{"$ref": "#/$defs/" + key}
+	}
+	ctrls, ok := defs["controllers"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("schema has no controllers definition")
+	}
+	ctrls["properties"] = named
+
 	cfg, ok := defs["config"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("schema has no config definition")
@@ -103,6 +248,16 @@ func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
 		return nil, fmt.Errorf("schema config has no properties")
 	}
 	props["allowEffects"] = allowEffectsDef()
+
+	rc, ok := defs["reportConfig"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("schema has no reportConfig definition")
+	}
+	rcProps, ok := rc["properties"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("reportConfig has no properties")
+	}
+	rcProps["format"] = reportFormatDef()
 
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
