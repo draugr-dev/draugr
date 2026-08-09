@@ -32,9 +32,8 @@ func newDiffCommand() *cobra.Command {
 		Long: "Compare two Draugr SARIF results (the results.sarif that `draugr scan -o` writes)\n" +
 			"and classify every finding as new / fixed / unchanged — the security delta of a\n" +
 			"change, typically a PR's head vs its base branch.\n\n" +
-			"The differential gate (--fail-on-new / --fail-on-new-priority) fails only on findings\n" +
-			"the change *introduces*, not the pre-existing backlog — so a PR gate stays adoptable.\n" +
-			"Exits non-zero when the differential gate trips.",
+			"--fail-on-new and --fail-on-new-priority gate on findings the change introduces, not\n" +
+			"on the existing backlog. Exits non-zero when that gate trips.",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDiff(cmd.Context(), args[0], args[1], *opts, cmd.OutOrStdout())

@@ -19,9 +19,8 @@ func newSchemaCommand() *cobra.Command {
 		Use:   "schema",
 		Short: "Print the Saga JSON Schema this build enforces",
 		Long: "Print the JSON Schema for draugr.saga.yaml, as embedded in this binary.\n\n" +
-			"Editors normally fetch the schema from draugr.dev, which requires network access and\n" +
-			"tracks whatever version is published. Writing it locally instead pins validation to\n" +
-			"exactly the Draugr you have installed, and works offline or air-gapped:\n\n" +
+			"Editors fetch it from draugr.dev by default, which needs network access and follows\n" +
+			"whatever is published. A local copy pins validation to this build and works offline:\n\n" +
 			"  draugr schema -o .saga.schema.json\n" +
 			"  # then in your Saga:\n" +
 			"  # yaml-language-server: $schema=./.saga.schema.json\n\n" +

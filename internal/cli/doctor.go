@@ -33,11 +33,11 @@ func newDoctorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor [saga.yaml]",
 		Short: "Check that the external scanners a scan needs are installed",
-		Long: "Report which external scanner tools are present, missing, or of what version,\n" +
-			"with an install hint for each — a preflight so a missing tool is caught up front\n" +
-			"instead of failing mid-scan. Given a Saga, it also validates the descriptor and\n" +
-			"checks only the tools its enabled controls need; without one, it checks them all.\n" +
-			"Exits non-zero when the descriptor is invalid or a required tool is missing.",
+		Long: "Report which external scanner tools are present, missing, or out of date, with an\n" +
+			"install hint for each.\n\n" +
+			"Given a Saga, also validates the descriptor and checks only the tools its enabled\n" +
+			"controls need; without one, checks them all. Exits non-zero when the descriptor is\n" +
+			"invalid or a required tool is missing.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sagaPath := ""

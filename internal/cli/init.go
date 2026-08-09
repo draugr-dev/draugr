@@ -29,8 +29,8 @@ func newInitCommand() *cobra.Command {
 			"detecting the stack to pre-fill sensible controls. Edit it, then `draugr scan`.\n" +
 			"For an instant scan with no file, use `draugr scan .` instead.\n\n" +
 			"--fragment writes a Saga fragment instead: one component, no release and no policy,\n" +
-			"for a descriptor assembled from several files. The component takes the directory's\n" +
-			"name, which is what makes a component's fragments merge into one.\n\n" +
+			"for a descriptor assembled from several files. The component is named after the\n" +
+			"directory; fragments naming the same component merge into one.\n\n" +
 			"  draugr init services/payments --fragment\n" +
 			"  draugr init services/payments --fragment -o azure.saga-fragment.yaml",
 		Args: cobra.MaximumNArgs(1),

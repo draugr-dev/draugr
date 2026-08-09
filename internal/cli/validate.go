@@ -26,8 +26,8 @@ func newValidateCommand() *cobra.Command {
 		Use:   "validate [saga.yaml | glob ...]",
 		Short: "Validate one or more Saga descriptors against the schema",
 		Long: "Parse each Saga descriptor, resolve ${{ VAR }} references, and check it against\n" +
-			"the schema — without running any scanners. Fast and dependency-free, so it fits\n" +
-			"a pre-commit hook, a CI lint step, or an editor.\n\n" +
+			"the schema. Runs no scanners and needs no tools, so it suits a pre-commit hook or a\n" +
+			"CI lint step.\n\n" +
 			"Accepts paths and globs, and with no arguments discovers *.saga.yaml (and .yml)\n" +
 			"beneath the current directory. Reports every file, then exits non-zero if any\n" +
 			"one of them is invalid.",

@@ -353,9 +353,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// failure sent readers to a green PASS over a scan that had checked nothing — the flag
 		// accepts a scanner that failed, and there was no scanner.
 		if len(unwaived) > 0 {
-			return alsoPublish(fmt.Errorf("scan incomplete: %s could not run — "+
-				"--allow-scan-errors accepts a scanner that failed; it cannot accept a scan "+
-				"that had nothing to do", strings.Join(unwaived, ", ")), publishErr)
+			return alsoPublish(fmt.Errorf("scan incomplete: %s could not run. "+
+				"--allow-scan-errors does not apply: it accepts a failed scanner, and no scanner ran",
+				strings.Join(unwaived, ", ")), publishErr)
 		}
 		return alsoPublish(fmt.Errorf("scan incomplete: %s could not run "+
 			"(use --allow-scan-errors to accept partial results)",

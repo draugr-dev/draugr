@@ -493,10 +493,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	if len(planned) == 0 && planErr == nil && !sbomRequested(model) {
 		// Runs before any worker goroutine starts; see above.
 		ctlErrs[planningPseudoControl] = append(ctlErrs[planningPseudoControl], //nolint:gocritic // same pre-goroutine window as the planErr append
-			"no controls ran: nothing in this descriptor enables a control whose surface the "+
-				"components carry, so the scan checked nothing. Enable a control under "+
-				"config.controllers, or run `draugr scan <dir>` to scan a repository with the "+
-				"defaults")
+			"no controls ran: no enabled control matches a surface these components declare. "+
+				"Enable one under config.controllers, or run `draugr scan <dir>` for the defaults")
 	}
 
 	// Warm shared scanner state (e.g. Trivy's vuln DB) once per distinct scanner, before the

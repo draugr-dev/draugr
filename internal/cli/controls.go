@@ -24,9 +24,9 @@ func newControlsCommand() *cobra.Command {
 		Long: "List every security control Draugr can run — what it checks, its scope, and which\n" +
 			"scanner(s) implement it (default, plus any opt-in alternatives). Enable a control in\n" +
 			"your Saga under config.controllers.<name> (or per component).\n\n" +
-			"--options adds what each scanner accepts in its Saga block. A scanner listed there\n" +
-			"with no options is configured by choosing it: anything else written under its block\n" +
-			"is rejected before the scan runs, rather than accepted and ignored.\n\n" +
+			"--options adds what each scanner accepts in its Saga block. A scanner listed with no\n" +
+			"options accepts none, and anything written under its block is rejected before the\n" +
+			"scan runs.\n\n" +
 			"Name a control to see only that one:\n\n" +
 			"  draugr controls sast --options",
 		// One control narrows everything below, because `--options` over eleven controls is a

@@ -55,14 +55,11 @@ func newSurveyCommand() *cobra.Command {
 		Use:   "survey",
 		Short: "Discover an application's surface and write it to a Saga",
 		Long: "Discover what an application is made of and write it into a Saga descriptor.\n\n" +
-			"Each surveyor is its own subcommand, so a surveyor's options sit with the surveyor\n" +
-			"they belong to. Run as many as you like against one descriptor — each survey folds\n" +
-			"into the Saga already at --output:\n\n" +
+			"Each surveyor is its own subcommand. Run several against one descriptor — each\n" +
+			"folds into the Saga already at --output:\n\n" +
 			"  draugr survey k8s images --namespace prod -o draugr.saga.yaml\n" +
 			"  draugr survey github repos --org acme -o draugr.saga.yaml\n\n" +
-			"A descriptor carries decisions a survey cannot rediscover — exposure, criticality,\n" +
-			"exclusions — so an existing file is added to rather than overwritten. Use --replace\n" +
-			"when you do want to start again.",
+			"An existing file is added to, never overwritten. Use --replace to start again.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
