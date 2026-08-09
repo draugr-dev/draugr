@@ -86,7 +86,27 @@ func infraConfig(model saga.Model, comp *saga.Component) plugin.Config {
 		return nil
 	}
 	cfg := plugin.Config{}
-	maps.Copy(cfg, settings)
+	for k, v := range settings {
+		// `enabled` is the control's own flag, and a nested mapping is a scanner's block. Copying
+		// either into a scanner's config hands it keys that are not its own — and a scanner that
+		// declares what it accepts then refuses the whole job, naming a key the descriptor never
+		// wrote at that level.
+		//
+		// A scanner that declares no schema accepts them and ignores them, which is the same
+		// silent drop the schemas exist to end — so this is invisible until a scanner starts
+		// validating, and then it rejects `enabled`, the flag that turns the control on.
+		if k == enabledKey {
+			continue
+		}
+		switch v.(type) {
+		case saga.ControllerSettings, map[string]any:
+			continue
+		}
+		cfg[k] = v
+	}
+	if len(cfg) == 0 {
+		return nil
+	}
 	return cfg
 }
 

@@ -151,6 +151,30 @@ func TestScanModelStillFallsBackWithNoDescriptor(t *testing.T) {
 	}
 }
 
+// `draugr scan` with no argument at all, which is the shortest way to run one. The synthesized
+// Saga has to describe the current directory, not an empty path — the repository it names is what
+// every scanner is then pointed at.
+func TestScanModelWithNoTargetSynthesizesForHere(t *testing.T) {
+	t.Chdir(t.TempDir())
+	m, synthesized, err := scanModel("")
+	if err != nil {
+		t.Fatalf("scanModel: %v", err)
+	}
+	if !synthesized {
+		t.Fatal("an empty directory is what zero-config is for")
+	}
+	if len(m.Components) != 1 || len(m.Components[0].Repositories) != 1 {
+		t.Fatalf("want one repository to scan, got %+v", m.Components)
+	}
+	here, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if url := m.Components[0].Repositories[0].URL; url != here {
+		t.Errorf("repository URL = %q, want the current directory %q", url, here)
+	}
+}
+
 func TestDescriptorsInIgnoresDirectoriesAndOtherFiles(t *testing.T) {
 	dir := writeDescriptors(t, "web.saga.yaml")
 	for _, name := range []string{"notes.yaml", "saga.yaml", "README.md"} {

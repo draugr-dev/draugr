@@ -45,6 +45,9 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 	}
 
 	namespace := scope.Ref
+	if err := requireNamespace(ctx, cs, namespace); err != nil {
+		return saga.Fragment{}, fmt.Errorf("k8s-images: %w", err)
+	}
 	pods, err := cs.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return saga.Fragment{}, fmt.Errorf("k8s-images: list pods: %w", err)
@@ -52,6 +55,13 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 
 	images := collectImages(pods.Items)
 	if len(images) == 0 {
+		// The namespace exists and is running nothing, which is a real answer rather than a
+		// failure — but silence here reads as "surveyed and found your images", and the
+		// descriptor that results scans nothing.
+		if namespace != "" {
+			slog.Warn("no running images: this namespace contributes no component",
+				"namespace", namespace)
+		}
 		return saga.Fragment{}, nil
 	}
 

@@ -18,6 +18,39 @@ and move it under a version on release.
   it. It now names each control's scanners and the options each declares, with the same
   descriptions `draugr controls --options` prints, so a mistyped scanner or an option a scanner
   does not take is flagged as you type rather than when you run it.
+- **`draugr survey` adds to an existing descriptor instead of overwriting it.** A descriptor
+  carries decisions a survey cannot rediscover — exposure, criticality, exclusions, controls
+  somebody chose — so replacing it has to be asked for, with `--replace`. `--merge` is gone: it
+  asked for what now always happens, and passing it says so and points at `--replace`.
+- **`draugr controls [control]`** narrows everything to one control, because `--options` across
+  eleven of them is a screenful you scroll past to find the one you were writing. A name that is
+  not a control says so and lists the ones that are.
+- **A truncated finding list points somewhere useful.** `… and 24 more finding(s)` used to be
+  followed by advice about `--format json` — a machine format, offered to somebody reading a
+  human-readable list. It now suggests `--top 0` and `--min-priority`, with the machine formats
+  on their own line.
+- **Console output states the fact and stops.** The lines under a finding explaining why it
+  ranked where it did, or that it came from git history, were arguments rather than labels — and
+  they print on every matching row of a table people scan rather than read. They are one short
+  line now; the reasoning stays in the docs, where somebody who wants it will look.
+- **`draugr init` names the file it found**, rather than reporting `# Detected: dependency
+  manifest` and leaving you to work out which one it meant.
+- **`draugr classify` finds your descriptor.** It took a filename and nothing else, so the
+  command after `draugr scan .` was the one that made you type the path. It now takes a directory
+  or no argument at all, exactly like a scan.
+- **`draugr classify --components gateway,api`** asks about the components you name and leaves
+  the rest alone. Naming one re-asks about it even if it is already classified, so correcting a
+  single component no longer means `--all` and re-answering for every other one. A name that
+  matches nothing is an error listing the components that exist.
+- **Every `[link](#heading)` in the docs goes where it says.** Twelve pointed at headings that had
+  been renamed, most of them into the CLI reference from the guides that link to it, and a
+  duplicated heading in the Saga reference. A dead heading link renders as an ordinary one and
+  jumps nowhere, so nothing but a reader following it ever notices — the gate checks them now.
+- **`draugr tools install` reports what changed.** It printed the plan — every tool, its version,
+  where it lives, which were already current — and then printed the same list again as it walked
+  it, so one download arrived buried under seven lines saying nothing had happened. The tools that
+  did not change are counted now (`7 tools unchanged.`), and a tool that turns out not to be
+  current after all is still installed and still named.
 
 ### Fixed
 
@@ -28,6 +61,30 @@ and move it under a version on release.
 - **A list option's accepted values are shown, not just enforced.** `draugr controls --options`
   and the schema both now report that `pkgTypes` takes `os` or `library`, rather than silently
   accepting a third value and letting the scan reject it.
+- **The `infrastructure` control passed its own `enabled` flag to its scanners**, so a descriptor
+  that merely turned the control on failed with `unknown option "enabled"` — naming a key nobody
+  wrote where it was reported. Scanner blocks were leaking the same way. Both are now stripped,
+  and genuine control-level settings like `context` still reach every scanner.
+- **`draugr survey --namespace` fails on a namespace that does not exist.** Listing pods in a
+  namespace that is not there returns an empty list rather than an error, so a typo produced a
+  survey that succeeded, discovered nothing from that namespace, and said nothing about it —
+  and the descriptor that resulted became the scope of every later scan. A namespace that exists
+  but is empty is reported too, since silence there reads as "found your images".
+- **`draugr survey --merge` no longer discards what the new survey learned.** An entry matching
+  one already in the descriptor was dropped whole, so a second survey that resolved an image
+  digest, narrowed a repository's `paths`, or named a host it had previously only seen by URL
+  left none of that behind — and the summary still counted the entry, so the file said what it
+  said before while the command said it had merged. Matching entries are now merged rather than
+  skipped.
+
+  The case that surfaced it: `survey k8s cluster --namespace <ns> --merge` reported success and
+  changed nothing, because the cluster was already in the descriptor.
+
+- **A cluster scope is never quietly narrowed.** Merging a namespace-scoped survey into a
+  descriptor that covers the whole cluster keeps the whole cluster, and says so. Two scoped
+  surveys union. A descriptor that silently began scanning less than it did the day before is the
+  dangerous direction for this to be wrong in, and nobody re-reads a descriptor to check that it
+  still covers what it used to.
 
 ## [0.73.1] - 2026-08-08
 

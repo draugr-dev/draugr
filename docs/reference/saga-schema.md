@@ -444,7 +444,7 @@ config:
       sast: note           # …this one fails on anything at all
 ```
 
-Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-saga) for the named
+Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-sagayaml--dir) for the named
 control only. Values are SARIF levels: `error`, `warning`, `note`.
 
 One threshold can't serve every control. Licence policy is owned by legal and vulnerability
@@ -850,7 +850,7 @@ specification puts it (`pkg:type/name@version?qualifiers#subpath`). A `product` 
 package URL is left untouched, since VEX identifies a product by IRI and a purl is only the
 convention.
 
-## SBOM generation## SBOM generation
+## SBOM generation
 
 ```yaml
 config:

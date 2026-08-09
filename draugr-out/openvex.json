@@ -1,0 +1,9 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://openvex.dev/docs/draugr/19128738f472e769eca702cff391dd3cc890ed868c31abf4fb4ab7988b90b3f3",
+  "author": "Draugr demo <demo@example.com>",
+  "timestamp": "2026-08-09T16:30:50Z",
+  "version": 1,
+  "tooling": "draugr/v0.73.1-4-gc7555c5-dirty",
+  "statements": []
+}

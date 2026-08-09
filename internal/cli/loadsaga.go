@@ -20,40 +20,61 @@ import (
 // zeroConfigControls over that repo); a file target is loaded as a Saga descriptor. Returns whether the
 // model was synthesized so the caller can note it.
 func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
+	path, found, err := resolveDescriptor(target, "scan")
+	if err != nil {
+		return nil, false, err
+	}
+	if !found {
+		if target == "" {
+			target = "."
+		}
+		return syntheticSaga(target), true, nil
+	}
+	m, err = loadSaga(path)
+	return m, false, err
+}
+
+// resolveDescriptor turns a path that may be a directory into the descriptor to act on. An empty
+// target means the current directory. A file is taken as given; a directory is looked in.
+//
+// found is false, with no error, only when a directory holds no descriptor at all. That is the
+// one outcome commands differ on: `scan` synthesizes one and says so, and everything that reads
+// or edits a descriptor has nothing to work with and must say that instead.
+//
+// A directory holding a descriptor is never treated as a bare directory. Everything in that file
+// — the controls chosen, the components declared, the exposure and criticality that drive
+// prioritization — would otherwise be discarded in favour of defaults, with nothing in the output
+// saying so. Nor is it a fallback: if the descriptor is there but unreadable, that is an error.
+// Falling back would reproduce the bug this exists to prevent with an extra step, because the
+// reason a descriptor was skipped has to be reported, never shrugged at.
+//
+// cmdName appears in the message that refuses an ambiguous directory, so the suggestion it prints
+// is a command the reader can actually run.
+func resolveDescriptor(target, cmdName string) (path string, found bool, err error) {
 	if target == "" {
 		target = "."
 	}
-	if info, statErr := os.Stat(target); statErr == nil && info.IsDir() {
-		// A directory holding a descriptor is not a directory to scan zero-config. Everything
-		// in that file — the controls chosen, the components declared, the exposure and
-		// criticality that drive prioritization — would otherwise be discarded in favour of
-		// four defaults, and nothing in the output would say so.
-		//
-		// Deliberately not a fallback: if the descriptor is there but unreadable, that is an
-		// error. Falling back would reproduce the bug this exists to fix, with an extra step —
-		// the reason a descriptor was skipped has to be reported, never shrugged at.
-		found, ferr := descriptorsIn(target)
-		if ferr != nil {
-			return nil, false, ferr
-		}
-		switch len(found) {
-		case 0:
-			return syntheticSaga(target), true, nil
-		case 1:
-			m, err = loadSaga(found[0])
-			return m, false, err
-		default:
-			// Two descriptors are two different accounts of what this project is. Ask when there
-			// is someone to ask; refuse with the list when there is not.
-			if choice, ok := chooser(found); ok {
-				m, err = loadSaga(choice)
-				return m, false, err
-			}
-			return nil, false, ambiguousDescriptors(target, found)
-		}
+	info, statErr := os.Stat(target)
+	if statErr != nil || !info.IsDir() {
+		return target, true, nil
 	}
-	m, err = loadSaga(target)
-	return m, false, err
+	descriptors, err := descriptorsIn(target)
+	if err != nil {
+		return "", false, err
+	}
+	switch len(descriptors) {
+	case 0:
+		return "", false, nil
+	case 1:
+		return descriptors[0], true, nil
+	default:
+		// Two descriptors are two different accounts of what this project is. Ask when there is
+		// someone to ask; refuse with the list when there is not.
+		if choice, ok := chooser(descriptors); ok {
+			return choice, true, nil
+		}
+		return "", false, ambiguousDescriptors(target, cmdName, descriptors)
+	}
 }
 
 // DescriptorName is the file `draugr init` writes. It is one of several names a scan will find,
@@ -108,13 +129,13 @@ var chooser = promptForDescriptor
 //
 // Reached only when there was nobody to ask — a prompt in CI would hang a pipeline, which is the
 // one outcome worse than stopping.
-func ambiguousDescriptors(dir string, found []string) error {
+func ambiguousDescriptors(dir, cmdName string, found []string) error {
 	names := make([]string, len(found))
 	for i, p := range found {
 		names[i] = filepath.Base(p)
 	}
-	return fmt.Errorf("%s holds %d descriptors (%s) — name the one to scan, e.g. `draugr scan %s`",
-		dir, len(found), strings.Join(names, ", "), filepath.Join(dir, names[0]))
+	return fmt.Errorf("%s holds %d descriptors (%s) — name the one to use, e.g. `draugr %s %s`",
+		dir, len(found), strings.Join(names, ", "), cmdName, filepath.Join(dir, names[0]))
 }
 
 // promptForDescriptor asks which descriptor to scan, on a terminal only.

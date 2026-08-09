@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Draugr"
+        }
+      },
+      "results": [],
+      "properties": {
+        "draugr/provenance": [
+          {
+            "tool": "trivy-fs",
+            "fields": {
+              "repository": "https://github.com/draugr-dev/draugr.git",
+              "revision": "c7555c5cf2c04875725266048aa0826e4d6f304b",
+              "uncommitted": "7"
+            }
+          },
+          {
+            "tool": "draugr/scope",
+            "fields": {
+              "components": "api",
+              "controls": "sca"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

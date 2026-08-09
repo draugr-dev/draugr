@@ -77,7 +77,7 @@ components:
 
 Draugr combines these with each finding's severity to assign a **P1–P4** priority — see
 [prioritization](../concepts/prioritization.md). You can set them by hand, or let the guided
-[`draugr classify`](../reference/cli.md#draugr-classify-sagayaml) wizard write them for you.
+[`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory) wizard write them for you.
 
 ## Reference environment variables, not secrets
 

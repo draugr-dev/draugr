@@ -3,6 +3,7 @@ package surveyors
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +26,13 @@ func pod(ns, name string, images ...string) *corev1.Pod {
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
 		Spec:       corev1.PodSpec{Containers: containers},
 	}
+}
+
+// ns builds the Namespace object a fixture implies. A fake cluster with pods in a namespace that
+// does not exist is not a shape a real cluster can be in, and leaving it out made the fixtures
+// disagree with the thing they stand in for.
+func ns(name string) *corev1.Namespace {
+	return &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
 }
 
 func withClient(cs kubernetes.Interface) K8sImages {
@@ -70,6 +78,7 @@ func TestDigestFromImageID(t *testing.T) {
 
 func TestK8sImagesSurveyCapturesDigest(t *testing.T) {
 	cs := fake.NewSimpleClientset(
+		ns("prod"),
 		podWithDigests("prod", "a", map[string]string{
 			"repo/x:1": "docker-pullable://repo/x@sha256:aaa",
 		}),
@@ -95,6 +104,7 @@ func TestK8sImagesInfo(t *testing.T) {
 
 func TestK8sImagesSurveyDedups(t *testing.T) {
 	cs := fake.NewSimpleClientset(
+		ns("prod"),
 		pod("prod", "a", "repo/x:1", "repo/y:1"),
 		pod("prod", "b", "repo/x:1"), // duplicate image
 	)
@@ -126,7 +136,7 @@ func TestK8sImagesEmptyNamespaceName(t *testing.T) {
 }
 
 func TestK8sImagesNoPods(t *testing.T) {
-	frag, err := withClient(fake.NewSimpleClientset()).Survey(context.Background(), plugin.SurveyScope{Ref: "empty"})
+	frag, err := withClient(fake.NewSimpleClientset(ns("empty"))).Survey(context.Background(), plugin.SurveyScope{Ref: "empty"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,6 +175,7 @@ func TestCollectImagesIncludesInitContainers(t *testing.T) {
 
 func TestInferExposurePublicFromIngress(t *testing.T) {
 	cs := fake.NewSimpleClientset(
+		ns("prod"),
 		pod("prod", "a", "repo/x:1"),
 		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "www", Namespace: "prod"}},
 	)
@@ -179,6 +190,7 @@ func TestInferExposurePublicFromIngress(t *testing.T) {
 
 func TestInferExposurePublicFromLoadBalancer(t *testing.T) {
 	cs := fake.NewSimpleClientset(
+		ns("prod"),
 		pod("prod", "a", "repo/x:1"),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: "svc", Namespace: "prod"},
@@ -193,6 +205,7 @@ func TestInferExposurePublicFromLoadBalancer(t *testing.T) {
 
 func TestInferExposureRestrictedFromNetworkPolicy(t *testing.T) {
 	cs := fake.NewSimpleClientset(
+		ns("prod"),
 		pod("prod", "a", "repo/x:1"),
 		&corev1.Service{ // ClusterIP (not external)
 			ObjectMeta: metav1.ObjectMeta{Name: "svc", Namespace: "prod"},
@@ -207,7 +220,7 @@ func TestInferExposureRestrictedFromNetworkPolicy(t *testing.T) {
 }
 
 func TestInferExposureInternalByDefault(t *testing.T) {
-	cs := fake.NewSimpleClientset(pod("prod", "a", "repo/x:1")) // no ingress/svc/netpol
+	cs := fake.NewSimpleClientset(ns("prod"), pod("prod", "a", "repo/x:1")) // no ingress/svc/netpol
 	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
 	if frag.Components[0].Exposure != saga.ExposureInternal {
 		t.Errorf("no topology signal → exposure = %q, want internal", frag.Components[0].Exposure)
@@ -217,11 +230,35 @@ func TestInferExposureInternalByDefault(t *testing.T) {
 func TestNoExposureForWholeCluster(t *testing.T) {
 	// A whole-cluster survey (no namespace) lumps components; exposure is not proposed.
 	cs := fake.NewSimpleClientset(
+		ns("prod"),
 		pod("prod", "a", "repo/x:1"),
 		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "www", Namespace: "prod"}},
 	)
 	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{})
 	if frag.Components[0].Exposure != "" {
 		t.Errorf("whole-cluster survey should not propose exposure, got %q", frag.Components[0].Exposure)
+	}
+}
+
+// Listing pods in a namespace that is not there returns an empty list rather than an error, so a
+// typo produced a survey that succeeded, discovered nothing from that namespace, and said nothing
+// about it. Ask for three namespaces, misspell one, and the descriptor quietly describes two —
+// which becomes the scope of every later scan.
+func TestASurveyFailsOnANamespaceThatDoesNotExist(t *testing.T) {
+	cs := fake.NewSimpleClientset(ns("prod"), pod("prod", "a", "repo/x:1"))
+	_, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prd"})
+	if err == nil {
+		t.Fatal("a misspelt namespace surveyed silently")
+	}
+	if !strings.Contains(err.Error(), "prd") {
+		t.Errorf("the error must name the namespace: %v", err)
+	}
+}
+
+// The whole cluster has no namespace to check.
+func TestAnUnscopedSurveyChecksNoNamespace(t *testing.T) {
+	cs := fake.NewSimpleClientset(pod("anywhere", "a", "repo/x:1"))
+	if _, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{}); err != nil {
+		t.Errorf("an unscoped survey should not need a namespace to exist: %v", err)
 	}
 }

@@ -82,7 +82,7 @@ func TestScanTipsNoteAppearsWithoutAnyFindings(t *testing.T) {
 	model := &saga.Model{Components: []saga.Component{{Name: "svc", Images: []saga.Image{{Image: "i"}}}}}
 	var out bytes.Buffer
 	printScanTips(&out, tips(model, engine.Result{}, nil))
-	if !strings.Contains(out.String(), "nothing checks part of what this descriptor declares") {
+	if !strings.Contains(out.String(), "Not checked:") {
 		t.Errorf("the note must not depend on findings:\n%s", out.String())
 	}
 }

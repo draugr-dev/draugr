@@ -28,57 +28,156 @@ func unionComponent(a, b Component) Component {
 }
 
 func unionRepositories(a, b []Repository) []Repository {
-	seen := make(map[string]bool)
-	for _, r := range a {
-		seen[r.URL+"@"+r.Revision] = true
+	at := map[string]int{}
+	for i, r := range a {
+		at[r.URL+"@"+r.Revision] = i
 	}
 	for _, r := range b {
-		if key := r.URL + "@" + r.Revision; !seen[key] {
-			seen[key] = true
+		key := r.URL + "@" + r.Revision
+		i, ok := at[key]
+		if !ok {
+			at[key] = len(a)
 			a = append(a, r)
+			continue
+		}
+		// Same repository at the same revision, described twice. Keep both descriptions: paths
+		// and ignore are scope, and scope discarded on merge is scanning that quietly stops
+		// happening.
+		a[i].Paths = unionStrings(a[i].Paths, r.Paths)
+		a[i].Ignore = unionStrings(a[i].Ignore, r.Ignore)
+	}
+	return a
+}
+
+// unionStrings appends what is not already present, preserving order.
+func unionStrings(a, b []string) []string {
+	if len(b) == 0 {
+		return a
+	}
+	seen := make(map[string]bool, len(a))
+	for _, s := range a {
+		seen[s] = true
+	}
+	for _, s := range b {
+		if !seen[s] {
+			seen[s] = true
+			a = append(a, s)
 		}
 	}
 	return a
 }
 
 func unionImages(a, b []Image) []Image {
-	seen := make(map[string]bool)
-	for _, img := range a {
-		seen[img.Image] = true
+	at := map[string]int{}
+	for i, img := range a {
+		at[img.Image] = i
 	}
 	for _, img := range b {
-		if !seen[img.Image] {
-			seen[img.Image] = true
-			a = append(a, img)
+		if i, ok := at[img.Image]; ok {
+			// A survey that just looked at a registry knows the digest; the descriptor that named
+			// only a tag does not. Dropping the newer entry throws that away, and a tag-only
+			// target is the one whose cached scan can go stale, so the detail is the point.
+			if img.Digest != "" {
+				a[i].Digest = img.Digest
+			}
+			continue
 		}
+		at[img.Image] = len(a)
+		a = append(a, img)
 	}
 	return a
 }
 
 func unionHosts(a, b []Host) []Host {
-	seen := make(map[string]bool)
-	for _, h := range a {
-		seen[h.URL] = true
+	at := map[string]int{}
+	for i, h := range a {
+		at[h.URL] = i
 	}
 	for _, h := range b {
-		if !seen[h.URL] {
-			seen[h.URL] = true
+		i, ok := at[h.URL]
+		if !ok {
+			at[h.URL] = len(a)
 			a = append(a, h)
+			continue
+		}
+		// A later survey may have learned what the earlier one could not name.
+		if a[i].Name == "" {
+			a[i].Name = h.Name
+		}
+		if a[i].Type == "" {
+			a[i].Type = h.Type
 		}
 	}
 	return a
 }
 
 func unionInfra(a, b []Infrastructure) []Infrastructure {
-	seen := make(map[string]bool)
-	for _, in := range a {
-		seen[in.Kind+"/"+in.Ref] = true
+	at := map[string]int{}
+	for i, in := range a {
+		at[in.Kind+"/"+in.Ref] = i
 	}
 	for _, in := range b {
-		if key := in.Kind + "/" + in.Ref; !seen[key] {
-			seen[key] = true
+		key := in.Kind + "/" + in.Ref
+		i, ok := at[key]
+		if !ok {
+			at[key] = len(a)
 			a = append(a, in)
+			continue
+		}
+		a[i].Namespaces = mergeNamespaces(a[i].Namespaces, in.Namespaces)
+	}
+	return a
+}
+
+// mergeNamespaces combines two namespace scopes, where **empty means the whole cluster**.
+//
+// So empty is not the identity of this operation, it is the widest value: an entry covering the
+// whole cluster stays covering the whole cluster, even when merged with one naming three
+// namespaces. Unioning the lists literally would narrow it, and a survey that quietly reduced
+// what the next scan looks at is the dangerous direction for this to be wrong in — nobody reads a
+// descriptor to check that it still covers what it covered yesterday.
+//
+// Widening is safe and is what a survey of the whole cluster means, so it happens without comment.
+// Narrowing is a decision, and `draugr survey` says when it declined to make one on your behalf.
+func mergeNamespaces(a, b []string) []string {
+	if len(a) == 0 || len(b) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(a))
+	for _, ns := range a {
+		seen[ns] = true
+	}
+	for _, ns := range b {
+		if !seen[ns] {
+			seen[ns] = true
+			a = append(a, ns)
 		}
 	}
 	return a
+}
+
+// NarrowsScope reports whether merging frag into model would have narrowed an infrastructure
+// target's namespaces, had the wider scope not been kept.
+//
+// Exported so the command that merges can say so. The merge itself keeps the wider scope, which
+// is the safe answer and also the surprising one: somebody who passed `--namespace` is entitled
+// to know their flag did not reach the descriptor.
+func NarrowsScope(model *Model, frag Fragment) []string {
+	wide := map[string]bool{}
+	for _, c := range model.Components {
+		for _, in := range c.Infrastructure {
+			if len(in.Namespaces) == 0 {
+				wide[c.Name+"/"+in.Kind+"/"+in.Ref] = true
+			}
+		}
+	}
+	var out []string
+	for _, c := range frag.Components {
+		for _, in := range c.Infrastructure {
+			if len(in.Namespaces) > 0 && wide[c.Name+"/"+in.Kind+"/"+in.Ref] {
+				out = append(out, c.Name+" ("+in.Ref+")")
+			}
+		}
+	}
+	return out
 }

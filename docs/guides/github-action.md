@@ -128,4 +128,4 @@ image), run it directly — the exit code is the gate:
     sarif_file: draugr-out/results.sarif
 ```
 
-See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml) for every `scan` flag.
+See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for every `scan` flag.

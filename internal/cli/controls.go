@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 
@@ -18,17 +19,25 @@ import (
 func newControlsCommand() *cobra.Command {
 	var showOptions bool
 	cmd := &cobra.Command{
-		Use:   "controls",
+		Use:   "controls [control]",
 		Short: "List the security controls Draugr can run, their purpose, and scanners",
 		Long: "List every security control Draugr can run — what it checks, its scope, and which\n" +
 			"scanner(s) implement it (default, plus any opt-in alternatives). Enable a control in\n" +
 			"your Saga under config.controllers.<name> (or per component).\n\n" +
 			"--options adds what each scanner accepts in its Saga block. A scanner listed there\n" +
 			"with no options is configured by choosing it: anything else written under its block\n" +
-			"is rejected before the scan runs, rather than accepted and ignored.",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runControls(cmd.OutOrStdout(), builtins.Registry(), showOptions)
+			"is rejected before the scan runs, rather than accepted and ignored.\n\n" +
+			"Name a control to see only that one:\n\n" +
+			"  draugr controls sast --options",
+		// One control narrows everything below, because `--options` over eleven controls is a
+		// screenful you scroll past to find the one you were writing.
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			only := ""
+			if len(args) == 1 {
+				only = args[0]
+			}
+			return runControls(cmd.OutOrStdout(), builtins.Registry(), showOptions, only)
 		},
 	}
 	cmd.Flags().BoolVar(&showOptions, "options", false,
@@ -36,7 +45,12 @@ func newControlsCommand() *cobra.Command {
 	return cmd
 }
 
-func runControls(w io.Writer, reg *engine.Registry, showOptions bool) error {
+func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only string) error {
+	if only != "" {
+		if err := knownControl(reg, only); err != nil {
+			return err
+		}
+	}
 	// Which scanners serve each control (by scanner name).
 	serving := map[string][]string{}
 	for _, s := range reg.Scanners() {
@@ -72,6 +86,9 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool) error {
 	optIn := false
 	for _, ctrl := range reg.Controllers() {
 		info := ctrl.Info()
+		if only != "" && info.Name != only {
+			continue
+		}
 		isDefault := map[string]bool{}
 		names := make([]string, 0, len(serving[info.Name]))
 		for _, d := range info.DefaultScanners {
@@ -101,15 +118,15 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool) error {
 	}
 	t.Render(w)
 
-	writeScannerOrigins(w, col, reg)
+	writeScannerOrigins(w, col, reg, only)
 
 	if optIn {
 		_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
 			"* opt-in scanner — enable with controllers.<control>.<scanner>.enabled: true in the Saga."))
 	}
-	writeEffects(w, col, reg)
+	writeEffects(w, col, reg, only)
 	if showOptions {
-		writeScannerOptions(w, col, reg)
+		writeScannerOptions(w, col, reg, only)
 	}
 	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
 		"Enable a control under config.controllers.<name> (or per component) in your Saga."))
@@ -129,12 +146,21 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool) error {
 // A scanner with nothing to list still gets a line saying so. The alternative — omitting it —
 // leaves a reader unable to tell "accepts nothing" from "not documented yet", and those two
 // answers lead to opposite next steps.
-func writeScannerOptions(w io.Writer, col tui.Painter, reg *engine.Registry) {
+func writeScannerOptions(w io.Writer, col tui.Painter, reg *engine.Registry, only string) {
+	serves := func(info plugin.ScannerInfo) bool {
+		if only == "" {
+			return true
+		}
+		return slices.Contains(info.Controls, only)
+	}
 	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleAccent, "What each scanner accepts in its Saga block:"))
 	scanners := reg.Scanners()
 	sort.Slice(scanners, func(i, j int) bool { return scanners[i].Info().Name < scanners[j].Info().Name })
 	for _, s := range scanners {
 		info := s.Info()
+		if !serves(info) {
+			continue
+		}
 		opts := plugin.Options(info.ConfigSchema)
 		_, _ = fmt.Fprintln(w, "\n  "+col.Paint(tui.StyleAccent, info.Name))
 		if len(opts) == 0 {
@@ -167,12 +193,15 @@ func writeScannerOptions(w io.Writer, col tui.Painter, reg *engine.Registry) {
 // Before a scan rather than during one: which controls send traffic, need elevated access, or
 // create something is a question to answer while choosing what to enable. A scanner that only
 // reads an artifact says nothing here, so the list stays short enough to read.
-func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry) {
+func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry, only string) {
 	type row struct{ scanner, kind, detail string }
 	var rows []row
 	needsConsent := false
 	for _, s := range reg.Scanners() {
 		info := s.Info()
+		if only != "" && !slices.Contains(info.Controls, only) {
+			continue
+		}
 		for _, e := range info.Effects {
 			rows = append(rows, row{info.Name, string(e.Kind), e.Detail})
 			needsConsent = needsConsent || e.Kind.RequiresConsent()
@@ -207,10 +236,13 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry) {
 //
 // Grouped by origin rather than listed per scanner, because the question is usually about the
 // publisher: four of these come from Aqua, and a supply-chain review wants to see that at once.
-func writeScannerOrigins(w io.Writer, col tui.Painter, reg *engine.Registry) {
+func writeScannerOrigins(w io.Writer, col tui.Painter, reg *engine.Registry, only string) {
 	byOrigin := map[string][]string{}
 	for _, s := range reg.Scanners() {
 		info := s.Info()
+		if only != "" && !slices.Contains(info.Controls, only) {
+			continue
+		}
 		origin := info.Origin
 		if origin == "" {
 			// Never silently attributed to us. An unlabelled scanner is a gap in the roster, and
@@ -251,4 +283,26 @@ func writeScannerOrigins(w io.Writer, col tui.Painter, reg *engine.Registry) {
 	_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
 		"Draugr executes third-party tools rather than bundling them, so each stays under its own\n"+
 			"licence. `draugr tools list` shows which are installed and where."))
+}
+
+// knownControl rejects a name no controller answers to, naming the closest match.
+//
+// Silently printing an empty table would read as "this control has no scanners", which is a
+// different and worse answer than "there is no such control".
+func knownControl(reg *engine.Registry, name string) error {
+	known := map[string]bool{}
+	var names []string
+	for _, c := range reg.Controllers() {
+		known[c.Info().Name] = true
+		names = append(names, c.Info().Name)
+	}
+	if known[name] {
+		return nil
+	}
+	sort.Strings(names)
+	msg := fmt.Sprintf("%q is not a control this build provides", name)
+	if near := nearestName(name, known); near != "" {
+		msg += fmt.Sprintf(" — did you mean %q?", near)
+	}
+	return fmt.Errorf("%s\n\nit has: %s", msg, strings.Join(names, ", "))
 }

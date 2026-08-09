@@ -33,8 +33,8 @@ Each surveyor is a subcommand, so its options live with it — `--namespace` bel
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
-draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
-draugr survey k8s cluster --context prod --merge -o draugr.saga.yaml
+draugr survey k8s images --namespace prod -o draugr.saga.yaml
+draugr survey k8s cluster --context prod -o draugr.saga.yaml
 
 # Several namespaces, one component each
 draugr survey k8s images --namespace payments --namespace checkout -o draugr.saga.yaml
@@ -56,10 +56,12 @@ component would surprise anyone reading the command that produced the descriptor
 
 ## Merging, not overwriting
 
-`--merge` folds discovered components into the Saga already at `--output` instead of replacing
-it. This is the flag that makes discovery repeatable: the classifications, exclusions and
+A survey folds discovered components into the Saga already at `--output` instead of replacing
+it, and that is the default rather than a flag. It is what makes discovery repeatable: the
+classifications, exclusions and
 per-component overrides you added by hand are preserved, and whatever has appeared in the
-environment since the last run is added alongside them.
+environment since the last run is added alongside them. Pass `--replace` when you do want to
+start again.
 
 Without it, `survey` writes a fresh descriptor — right for the first run, and a way to lose
 hand-written context on every one after that.
@@ -84,7 +86,7 @@ A surveyor reads the environment, so it can only recover what the environment kn
 
 **`criticality` is not in the cluster.** What it costs your business when a component fails is
 not a property of any manifest — it is a judgement, and Draugr will not manufacture one.
-Discovery leaves it unset; [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml)
+Discovery leaves it unset; [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory)
 asks you. Until both axes are set, [prioritization](prioritization.md) has half its input.
 
 **The proposed `exposure` is a proposal.** Topology is good evidence, not proof — a Service with
@@ -96,7 +98,7 @@ you from is a component ranked as though it does not matter.
 ## Going deeper
 
 - [`draugr survey`](../reference/cli.md#draugr-survey) — every flag
-- [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml) — set the two risk axes
+- [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory) — set the two risk axes
 - [The Saga](saga.md) — what the fragments are merged into
 - [Prioritization](prioritization.md) — what `exposure` and `criticality` drive
 - [`k8s-images`](../../internal/surveyors/k8s-images.md) ·

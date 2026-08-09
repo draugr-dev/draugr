@@ -10,7 +10,7 @@ import (
 
 func TestRunControls(t *testing.T) {
 	var out bytes.Buffer
-	if err := runControls(&out, builtins.Registry(), false); err != nil {
+	if err := runControls(&out, builtins.Registry(), false, ""); err != nil {
 		t.Fatalf("runControls: %v", err)
 	}
 	s := out.String()
@@ -45,9 +45,28 @@ func TestControlsCommandViaCobra(t *testing.T) {
 	}
 }
 
+// The argument has to reach runControls. Every other test here calls that function directly, so
+// a name that never left the Cobra layer would list every control and look entirely correct.
+func TestControlsArgumentNarrowsToOneControl(t *testing.T) {
+	cmd := newControlsCommand()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"secrets"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	s := out.String()
+	if !strings.Contains(s, "secrets") {
+		t.Errorf("the control asked for is missing:\n%s", s)
+	}
+	if strings.Contains(s, "sast") {
+		t.Errorf("asked for one control, got the whole table:\n%s", s)
+	}
+}
+
 func TestControlsShowsWhoPublishesEachScanner(t *testing.T) {
 	var buf bytes.Buffer
-	if err := runControls(&buf, builtins.Registry(), false); err != nil {
+	if err := runControls(&buf, builtins.Registry(), false, ""); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
@@ -84,7 +103,7 @@ func TestEveryRegisteredScannerDeclaresAnOrigin(t *testing.T) {
 // reader who cannot tell it apart from "not documented yet" takes the opposite next step.
 func TestControlsOptionsListsEveryScannerIncludingTheOnesWithNoOptions(t *testing.T) {
 	var out bytes.Buffer
-	if err := runControls(&out, builtins.Registry(), true); err != nil {
+	if err := runControls(&out, builtins.Registry(), true, ""); err != nil {
 		t.Fatalf("controls --options: %v", err)
 	}
 	got := out.String()
@@ -103,7 +122,7 @@ func TestControlsOptionsListsEveryScannerIncludingTheOnesWithNoOptions(t *testin
 // Without the flag the output stays an overview, and says where the detail is.
 func TestControlsWithoutOptionsPointsAtThem(t *testing.T) {
 	var out bytes.Buffer
-	if err := runControls(&out, builtins.Registry(), false); err != nil {
+	if err := runControls(&out, builtins.Registry(), false, ""); err != nil {
 		t.Fatalf("controls: %v", err)
 	}
 	got := out.String()
@@ -112,5 +131,38 @@ func TestControlsWithoutOptionsPointsAtThem(t *testing.T) {
 	}
 	if !strings.Contains(got, "draugr controls --options") {
 		t.Error("a reader who needs the options has no way to find out they exist")
+	}
+}
+
+// `--options` across eleven controls is a screenful you scroll past to find the one you were
+// writing.
+func TestControlsNarrowsToOneControl(t *testing.T) {
+	var out bytes.Buffer
+	if err := runControls(&out, builtins.Registry(), true, "secrets"); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "gitleaks") {
+		t.Errorf("the named control's scanner is missing:\n%s", got)
+	}
+	for _, other := range []string{"semgrep", "trivy-fs", "nuclei"} {
+		if strings.Contains(got, other) {
+			t.Errorf("%q belongs to another control and should not be listed:\n%s", other, got)
+		}
+	}
+}
+
+// A name that is not a control must say so. An empty table reads as "this control has no
+// scanners", which is a different and worse answer than "there is no such control".
+func TestControlsRejectsANameThatIsNotAControl(t *testing.T) {
+	var out bytes.Buffer
+	err := runControls(&out, builtins.Registry(), false, "secretz")
+	if err == nil {
+		t.Fatal("an unknown control printed an empty table")
+	}
+	for _, want := range []string{"secretz", "secrets", "it has:"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error should contain %q: %v", want, err)
+		}
 	}
 }

@@ -25,7 +25,7 @@ type surveyOptions struct {
 	output  string
 	name    string
 	version string
-	merge   bool
+	replace bool
 }
 
 // newSurveyCommand builds `draugr survey` and its per-platform subcommands.
@@ -41,9 +41,14 @@ type surveyOptions struct {
 // namespaced (`--k8s-…`, `--github-…`) to keep them apart in one flat set, which grows with each
 // surveyor and puts unrelated options beside each other in one `--help`.
 //
-// Running several surveyors at once was the reason for the flat design, and it survives: `--merge`
-// folds a survey into the Saga already at `--output`, which is how a descriptor is added to
-// anyway.
+// Running several surveyors at once was the reason for the flat design, and it survives: a survey
+// folds into the Saga already at `--output`, which is how a descriptor is added to anyway.
+//
+// Merging is the default because the alternative loses work silently. A descriptor is edited by
+// hand — exposure, criticality, exclusions, controls somebody chose — and none of that is
+// rediscoverable by a survey. Overwriting it needs to be something you ask for, not something you
+// get by forgetting a flag, because the failure is a file you have to reconstruct from memory and
+// the success looks identical at the moment it happens.
 func newSurveyCommand() *cobra.Command {
 	opts := &surveyOptions{}
 	cmd := &cobra.Command{
@@ -51,15 +56,15 @@ func newSurveyCommand() *cobra.Command {
 		Short: "Discover an application's surface and write it to a Saga",
 		Long: "Discover what an application is made of and write it into a Saga descriptor.\n\n" +
 			"Each surveyor is its own subcommand, so a surveyor's options sit with the surveyor\n" +
-			"they belong to. Run more than one with --merge, which folds each survey into the\n" +
-			"Saga already at --output:\n\n" +
+			"they belong to. Run as many as you like against one descriptor — each survey folds\n" +
+			"into the Saga already at --output:\n\n" +
 			"  draugr survey k8s images --namespace prod -o draugr.saga.yaml\n" +
-			"  draugr survey github repos --org acme --merge -o draugr.saga.yaml",
+			"  draugr survey github repos --org acme -o draugr.saga.yaml\n\n" +
+			"A descriptor carries decisions a survey cannot rediscover — exposure, criticality,\n" +
+			"exclusions — so an existing file is added to rather than overwritten. Use --replace\n" +
+			"when you do want to start again.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if err := reportRetiredSurveyFlags(cmd); err != nil {
-				return err
-			}
 			return cmd.Help()
 		},
 	}
@@ -67,9 +72,9 @@ func newSurveyCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&opts.output, "output", "o", "", "write the Saga here (default stdout)")
 	cmd.PersistentFlags().StringVar(&opts.name, "name", "", "release name for a newly created Saga")
 	cmd.PersistentFlags().StringVar(&opts.version, "version", "0.0.0", "release version for a newly created Saga")
-	cmd.PersistentFlags().BoolVar(&opts.merge, "merge", false, "merge into the existing Saga at --output")
+	cmd.PersistentFlags().BoolVar(&opts.replace, "replace", false,
+		"overwrite the Saga at --output instead of adding to it")
 
-	registerRetiredSurveyFlags(cmd)
 	cmd.AddCommand(newSurveyK8sCommand(opts), newSurveyGitHubCommand(opts))
 	return cmd
 }
@@ -197,50 +202,6 @@ func newSurveyGitHubCommand(opts *surveyOptions) *cobra.Command {
 	return cmd
 }
 
-// retiredSurveyFlags are the per-surveyor flags the subcommands replaced, and what to run instead.
-//
-// Registered rather than removed, so the answer is the replacement instead of "unknown flag".
-// Hidden, because they are not choices — a flag list should offer what exists.
-var retiredSurveyFlags = map[string]string{
-	"k8s-images":    "draugr survey k8s images",
-	"k8s-namespace": "draugr survey k8s images --namespace <ns>",
-	"github-org":    "draugr survey github repos --org <org>",
-}
-
-func registerRetiredSurveyFlags(cmd *cobra.Command) {
-	// k8s-images was a bool, so it has to stay one: as a string flag `--k8s-images` would fail
-	// with "flag needs an argument" instead of reaching the error that names its replacement.
-	cmd.Flags().Bool("k8s-images", false, "retired")
-	_ = cmd.Flags().MarkHidden("k8s-images")
-	for name := range retiredSurveyFlags {
-		if name == "k8s-images" {
-			continue
-		}
-		cmd.Flags().String(name, "", "retired")
-		_ = cmd.Flags().MarkHidden(name)
-	}
-}
-
-// reportRetiredSurveyFlags turns a retired flag into an error naming its replacement.
-//
-// The point of the rework is that a flag doing nothing in silence is unacceptable, so leaving one
-// behind to be ignored would undo it.
-func reportRetiredSurveyFlags(cmd *cobra.Command) error {
-	names := make([]string, 0, len(retiredSurveyFlags))
-	for name := range retiredSurveyFlags {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		if f := cmd.Flags().Lookup(name); f != nil && f.Changed {
-			return fmt.Errorf(
-				"--%s was replaced by a subcommand, so each surveyor's options live with the "+
-					"surveyor it belongs to. Use: %s", name, retiredSurveyFlags[name])
-		}
-	}
-	return nil
-}
-
 // runSurvey runs the requested surveyors and writes (or merges) what they discovered into a Saga.
 func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Request, reg *surveyor.Registry, stdout io.Writer) error {
 	// Run always returns the fragments it did gather alongside a joined error, so a survey that
@@ -259,7 +220,16 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	if err != nil {
 		return err
 	}
+	// Checked before the merge, because afterwards the wider scope has won and there is nothing
+	// left to notice. Somebody who passed --namespace is entitled to know it did not reach the
+	// descriptor, even though keeping the wider scope was the right call.
+	merged := opts.mergesInto()
+	narrowed := saga.NarrowsScope(&model, frag)
 	surveyor.Apply(&model, frag)
+	for _, target := range narrowed {
+		slog.Warn("--namespace not applied: this target already covers the whole cluster",
+			"target", target, "fix", "edit namespaces: in the descriptor to narrow it")
+	}
 	if added := enableControlsForSurface(&model); len(added) > 0 {
 		// To stderr, so a descriptor written to stdout stays a descriptor.
 		slog.Info("enabled controls for the discovered surface", "controls", strings.Join(added, ", "))
@@ -279,7 +249,7 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		// does not show. Silence and failure look identical, and the reader picks the wrong one.
 		//
 		// stderr, so a descriptor written to stdout stays a descriptor.
-		_, _ = fmt.Fprintln(os.Stderr, surveySummary(opts, frag, model))
+		_, _ = fmt.Fprintln(os.Stderr, surveySummary(opts, frag, model, merged))
 		return nil
 	}
 	_, err = stdout.Write(out)
@@ -288,9 +258,9 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 
 // surveySummary describes the artifact rather than the mechanics: what is now in the file, and
 // whether this survey added to something that was already there.
-func surveySummary(opts surveyOptions, frag saga.Fragment, model saga.Model) string {
+func surveySummary(opts surveyOptions, frag saga.Fragment, model saga.Model, merged bool) string {
 	verb := "wrote"
-	if opts.merge {
+	if merged {
 		verb = "merged into"
 	}
 
@@ -313,7 +283,7 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, model saga.Model) str
 
 	line := fmt.Sprintf("%s %s — %s", verb, opts.output, strings.Join(parts, ", "))
 	// On a merge the total says little on its own; the reader wants to know what this run added.
-	if opts.merge {
+	if merged {
 		line += fmt.Sprintf(" (this survey found %s)", plural(len(frag.Components), "component"))
 	}
 	if len(model.Components) == 0 {
@@ -338,10 +308,17 @@ func plural(n int, noun string) string {
 	return fmt.Sprintf("%d %ss", n, noun)
 }
 
-// baseModel returns the model to merge into: the existing Saga when --merge is set and
-// --output exists, otherwise a fresh model with the given release info.
+// mergesInto reports whether this run adds to an existing descriptor rather than writing a new
+// one. Both the loader and the summary ask it, so the file that gets written and the sentence
+// describing it cannot disagree.
+func (o surveyOptions) mergesInto() bool {
+	return !o.replace && o.output != "" && fileExists(o.output)
+}
+
+// baseModel returns the model to add to: the existing Saga at --output, unless --replace says to
+// start again or there is nothing there yet.
 func baseModel(opts surveyOptions) (saga.Model, error) {
-	if opts.merge && opts.output != "" && fileExists(opts.output) {
+	if opts.mergesInto() {
 		m, err := loadSaga(opts.output)
 		if err != nil {
 			return saga.Model{}, err

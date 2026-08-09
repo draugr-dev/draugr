@@ -50,7 +50,7 @@ func TestRunClassifyWritesUnclassified(t *testing.T) {
 	// longer switches between y/N and a list halfway through.
 	in := strings.NewReader("1\n1\n")
 	var out bytes.Buffer
-	if err := runClassify(path, false, in, &out); err != nil {
+	if err := runClassify(path, classifyOptions{}, in, &out); err != nil {
 		t.Fatal(err)
 	}
 	m, err := saga.LoadFile(path)
@@ -74,7 +74,7 @@ func TestRunClassifyWritesUnclassified(t *testing.T) {
 }
 
 func TestRunClassifyLoadError(t *testing.T) {
-	err := runClassify(filepath.Join(t.TempDir(), "missing.yaml"), false, strings.NewReader(""), &bytes.Buffer{})
+	err := runClassify(filepath.Join(t.TempDir(), "missing.yaml"), classifyOptions{}, strings.NewReader(""), &bytes.Buffer{})
 	if err == nil {
 		t.Fatal("expected an error for a missing saga file")
 	}
@@ -86,7 +86,7 @@ func TestRunClassifyNoComponents(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := runClassify(path, false, strings.NewReader(""), &out); err != nil {
+	if err := runClassify(path, classifyOptions{}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "No components") {
@@ -120,7 +120,7 @@ func TestRunClassifyAllAlreadyClassified(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := runClassify(path, false, strings.NewReader(""), &out); err != nil {
+	if err := runClassify(path, classifyOptions{}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "already classified") {
@@ -209,5 +209,168 @@ func TestClassifyRepromptsAndFallsBack(t *testing.T) {
 	// nor invents it.
 	if got := askExposure(bufio.NewScanner(strings.NewReader("")), io.Discard); got != saga.ExposureInternal {
 		t.Errorf("EOF fallback = %q, want internal", got)
+	}
+}
+
+// `draugr scan .` finds the descriptor; a reader who has just run it has no reason to think the
+// next command needs the filename spelled out.
+func TestClassifyFindsTheDescriptorInADirectory(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "web.saga.yaml")
+	if err := os.WriteFile(path, []byte(classifySaga), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	if err := runClassify(dir, classifyOptions{}, strings.NewReader("1\n1\n"), &out); err != nil {
+		t.Fatal(err)
+	}
+	m, err := saga.LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Components[0].Exposure != saga.ExposurePublic {
+		t.Errorf("the descriptor in the directory was not the one written: %+v", m.Components[0])
+	}
+	if !strings.Contains(out.String(), "web.saga.yaml") {
+		t.Errorf("the summary has to name the file it wrote:\n%s", out.String())
+	}
+}
+
+// A scan can synthesize a descriptor and say so. Classification cannot: exposure and criticality
+// are judgements, and there is nowhere to record them.
+func TestClassifyOnADirectoryWithNoDescriptorSaysWhatToDo(t *testing.T) {
+	err := runClassify(t.TempDir(), classifyOptions{}, strings.NewReader(""), &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("want an error, got a silent success")
+	}
+	if !strings.Contains(err.Error(), "draugr init") {
+		t.Errorf("error = %q, want it to say how to get a descriptor", err)
+	}
+}
+
+// Reclassifying one component must not mean reclassifying every other one to reach it.
+func TestClassifyComponentsPicksOneAndRedoesIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "draugr.saga.yaml")
+	if err := os.WriteFile(path, []byte(classifySaga), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// dashboard is already classified. Naming it is the instruction to redo it — without --all,
+	// which would have dragged gateway in too.
+	var out bytes.Buffer
+	err := runClassify(path, classifyOptions{components: []string{"dashboard"}},
+		strings.NewReader("1\n1\n"), &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := saga.LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]saga.Component{}
+	for _, c := range m.Components {
+		byName[c.Name] = c
+	}
+	if byName["dashboard"].Exposure != saga.ExposurePublic {
+		t.Errorf("dashboard was not reclassified: %+v", byName["dashboard"])
+	}
+	if byName["gateway"].Exposure != "" {
+		t.Errorf("gateway was not asked about and must be untouched: %+v", byName["gateway"])
+	}
+	if !strings.Contains(out.String(), "Classified 1 component") {
+		t.Errorf("summary:\n%s", out.String())
+	}
+}
+
+// A name that matches nothing is an error. Skipping it would report "all components are already
+// classified" — an answer to a question nobody asked.
+func TestClassifyRejectsAComponentThatIsNotThere(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "draugr.saga.yaml")
+	if err := os.WriteFile(path, []byte(classifySaga), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name string
+		want []string
+		says []string
+	}{
+		{"a typo suggests the name meant", []string{"gatewy"}, []string{"gateway"}},
+		{"an unrelated name lists what there is", []string{"nothing-like-it"}, []string{`"gateway"`, `"dashboard"`}},
+		{"several unknown names are all reported", []string{"nope", "also-nope"},
+			[]string{`"nope"`, `"also-nope"`}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := runClassify(path, classifyOptions{components: tc.want},
+				strings.NewReader("1\n1\n"), &bytes.Buffer{})
+			if err == nil {
+				t.Fatal("want an error, got a silent skip")
+			}
+			for _, s := range tc.says {
+				if !strings.Contains(err.Error(), s) {
+					t.Errorf("error = %q, want it to mention %q", err, s)
+				}
+			}
+		})
+	}
+}
+
+// The refusal has to name the command the reader is running. Suggesting `draugr scan` to somebody
+// who typed `draugr classify` sends them to a different command than the one they wanted.
+func TestClassifyRefusesTwoDescriptorsInItsOwnName(t *testing.T) {
+	orig := chooser
+	t.Cleanup(func() { chooser = orig })
+	chooser = func([]string) (string, bool) { return "", false } // no terminal
+
+	dir := writeDescriptors(t, "web.saga.yaml", "api.saga.yaml")
+	err := runClassify(dir, classifyOptions{}, strings.NewReader(""), &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("expected a refusal, not a guess")
+	}
+	if !strings.Contains(err.Error(), "draugr classify") {
+		t.Errorf("the suggestion names the wrong command: %v", err)
+	}
+}
+
+// No argument at all is the shortest path and the one a reader reaches for after `draugr scan .`.
+func TestClassifyWithNoArgumentUsesTheCurrentDirectory(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte(classifySaga), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	var out bytes.Buffer
+	if err := runClassify("", classifyOptions{}, strings.NewReader("1\n1\n"), &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "Classified 1 component") {
+		t.Errorf("summary:\n%s", out.String())
+	}
+
+	// And with nothing to classify, the message names the directory it looked in.
+	t.Chdir(t.TempDir())
+	err := runClassify("", classifyOptions{}, strings.NewReader(""), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "in .") {
+		t.Errorf("error = %v, want it to name the directory", err)
+	}
+}
+
+// `--components ,gateway` and `--components gateway,` are what a shell produces from a trailing
+// comma. Neither is a component named "".
+func TestClassifyIgnoresEmptyComponentNames(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "draugr.saga.yaml")
+	if err := os.WriteFile(path, []byte(classifySaga), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	err := runClassify(path, classifyOptions{components: []string{"", "gateway", " "}},
+		strings.NewReader("1\n1\n"), &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "Classified 1 component") {
+		t.Errorf("summary:\n%s", out.String())
 	}
 }

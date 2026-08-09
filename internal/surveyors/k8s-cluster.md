@@ -60,7 +60,7 @@ another.
 
 **`exposure` and `criticality`.** Neither is a property of a cluster — they are judgements about
 how reachable it is and what its failure costs, and no manifest holds them.
-[`draugr classify`](../../docs/reference/cli.md#draugr-classify-sagayaml) asks a human. Until both
+[`draugr classify`](../../docs/reference/cli.md#draugr-classify-sagayaml--directory) asks a human. Until both
 are set, [prioritization](../../docs/concepts/prioritization.md) has half its input.
 
 ## Notes

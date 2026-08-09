@@ -498,7 +498,7 @@ So the flag is for reading — a terminal, or an agent asking for the short list
 
 Compare two scans and classify every finding as **new**, **fixed**, or **unchanged** — the
 security delta of a change, typically a PR's head vs its base branch. Inputs are the
-`results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml) writes, which are always
+`results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are always
 complete regardless of `--min-priority`.
 
 | Flag | Default | Description |
@@ -546,7 +546,7 @@ belong to:
 | `draugr survey k8s cluster` | the cluster itself, as an `infrastructure` component | `--namespace` |
 | `draugr survey github repos` | repositories in a GitHub organization | `--org` |
 
-Shared by all of them: `-o, --output` (default stdout), `--merge`, `--name`, `--version`. The
+Shared by all of them: `-o, --output` (default stdout), `--replace`, `--name`, `--version`. The
 `k8s` group also takes `--context`, which selects the cluster for both of its surveyors.
 
 Auth: the GitHub surveyor uses `GITHUB_TOKEN` (or a token in scope config); the Kubernetes
@@ -557,7 +557,7 @@ because the descriptor that results looks complete and is missing every private 
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
-draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
+draugr survey k8s images --namespace prod -o draugr.saga.yaml
 ```
 
 **`--namespace` may be repeated, and each one becomes its own component** with its own proposed
@@ -580,7 +580,7 @@ stderr so a descriptor sent to stdout stays a descriptor:
 wrote draugr.saga.yaml — 12 components, 12 repositories
 ```
 
-A `--merge` says what that run contributed on top of what was already there, and a survey that
+A run that added to an existing descriptor says what it contributed, and a survey that
 discovered nothing says so — a descriptor describing nothing is almost always a scope or
 credentials problem, and the count alone would read as success.
 
@@ -595,15 +595,15 @@ nothing, which is not what "the descriptor writes itself" should mean.
 behalf.
 
 **A control you have already configured is never touched** — including one set to
-`enabled: false`. `--merge` runs against a descriptor people edit, and a survey that switched
+`enabled: false`. A survey runs against a descriptor people edit, and one that switched
 something back on would be worse than the problem it solves.
 
-**Run several with `--merge`**, which folds each survey into the Saga already at `--output` —
-the same flag used to add discovery to a descriptor you maintain by hand.
+**Run several against one descriptor** — each survey folds into the Saga already at `--output`,
+which is also how discovery is added to a descriptor you maintain by hand.
 
 When scoped to a specific namespace, `k8s images` also **proposes each component's `exposure`**
 from topology (Ingress/external Service → `public`, NetworkPolicy → `restricted`, else
-`internal`) — review it, then set `criticality` with [`draugr classify`](#draugr-classify-sagayaml).
+`internal`) — review it, then set `criticality` with [`draugr classify`](#draugr-classify-sagayaml--directory).
 
 ### Why subcommands
 
@@ -620,19 +620,30 @@ subcommand that replaced them.
 
 ---
 
-## `draugr classify <saga.yaml>`
+## `draugr classify [saga.yaml | directory]`
 
 A guided wizard that sets each component's **`exposure`** and **`criticality`** — the two
 inputs to finding prioritization — and writes them back into the Saga (preserving comments and
 formatting). It asks a few questions per component and derives the labels; by default it only
 asks about unclassified components.
 
+Finds the descriptor the same way [`draugr scan`](#draugr-scan-sagayaml--dir) does: with no
+argument, or with a directory, it uses the `*.saga.yaml` there. A directory holding more than one
+is an error naming them, and one holding none says so — unlike a scan, there is nothing to
+synthesize, because exposure and criticality are judgements that have to be recorded somewhere.
+
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--all` | `false` | Re-classify every component, not just unclassified ones |
+| `--components` | *(all)* | Only these components, by name. Naming one re-asks about it even if it is already classified |
+
+A name that matches no component is an error listing the ones that exist — a silent skip would
+report "all components are already classified", which answers a question nobody asked.
 
 ```bash
-draugr classify draugr.saga.yaml
+draugr classify                              # the descriptor in this directory
+draugr classify draugr.saga.yaml             # a specific file
+draugr classify --components gateway,api     # redo two, leave the rest alone
 ```
 
 ---
@@ -822,11 +833,18 @@ descriptor's scan runs.
 ```
 
 **Already-installed tools are skipped.** Re-running is cheap: a tool already present at the
-pinned build is left alone (`• trivy 0.69.3 already installed → …`) instead of being downloaded
-and verified again — which matters in CI, where provisioning runs on every job. "Already present"
-means the exact bytes Draugr installed: it compares the binary's checksum against what it
-recorded, so a **modified binary is replaced**, not accepted. A changed pin also reinstalls.
-Use `--force` to reinstall unconditionally.
+pinned build is left alone instead of being downloaded and verified again — which matters in CI,
+where provisioning runs on every job. The plan names them; afterwards they are counted, so the
+output describes what changed:
+
+```
+✓ syft 1.49.0 → ~/.draugr/bin/syft (sha256 verified)
+7 tools unchanged.
+```
+
+"Already present" means the exact bytes Draugr installed: it compares the binary's checksum
+against what it recorded, so a **modified binary is replaced**, not accepted — and a replacement
+gets its own line. A changed pin also reinstalls. Use `--force` to reinstall unconditionally.
 
 **Plan + confirmation.** It first prints the plan (tool, version, **category**, verification,
 destination). When run **interactively** it asks for confirmation; **non-interactively** (CI,
@@ -1041,11 +1059,13 @@ list` maps **tool → controls** ("why this tool matters").
 
 ```bash
 draugr controls
-draugr controls --options   # also: what each scanner accepts in its Saga block
+draugr controls --options          # also: what each scanner accepts in its Saga block
+draugr controls sast --options     # just one control
 ```
 
 | Flag | Default | What it does |
 |---|---|---|
+| `[control]` | — | Narrow everything below to one control. A name that is not a control says so and lists the ones that are. |
 | `--options` | off | List the Saga options each scanner accepts, read from the schemas the gate enforces. A scanner shown with no options is configured by choosing it — anything else under its block is an error, not a setting that quietly does nothing. |
 
 Enable a control in your Saga under `config.controllers.<name>` (or per component). A control's

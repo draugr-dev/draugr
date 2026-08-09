@@ -111,7 +111,7 @@ draugr scan draugr.saga.yaml --min-priority P2  # list only the findings worth a
 draugr scan draugr.saga.yaml --fail-on-priority P1  # also fail the gate on any P1 finding
 ```
 
-See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml) for every flag.
+See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for every flag.
 
 ## Focus: what to fix first
 
@@ -120,7 +120,7 @@ it asks a few questions per component and writes `exposure` and `criticality` ba
 Saga (comments and formatting preserved):
 
 ```bash
-draugr classify draugr.saga.yaml
+draugr classify
 ```
 
 ```
@@ -176,10 +176,11 @@ Instead of hand-writing components, point a surveyor at your environment:
 GITHUB_TOKEN=*** draugr survey github repos --org my-org -o draugr.saga.yaml
 
 # Unique container images running in a Kubernetes namespace (uses your kubeconfig)
-draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
+draugr survey k8s images --namespace prod -o draugr.saga.yaml
 ```
 
-`--merge` blends discovered components into an existing Saga instead of overwriting it. See
+A survey adds to an existing Saga rather than overwriting it — the descriptor holds decisions
+a survey cannot rediscover. Pass `--replace` to start again. See
 the [surveyors reference](../concepts/surveyors.md) for what each one discovers.
 
 ## 4. Run it in CI

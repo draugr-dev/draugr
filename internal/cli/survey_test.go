@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -39,7 +40,7 @@ func stubRegistry() *surveyor.Registry {
 
 // Selecting nothing is now impossible by construction: a surveyor is chosen by naming its
 // subcommand, so `draugr survey` with no subcommand prints help rather than running an empty
-// survey. What replaces this test is the retired-flag check below.
+// survey.
 func TestSurveyWithNoSubcommandPrintsHelp(t *testing.T) {
 	cmd := newSurveyCommand()
 	var out bytes.Buffer
@@ -93,7 +94,7 @@ func TestRunSurveyMerge(t *testing.T) {
 	if err := os.WriteFile(out, []byte(existing), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	opts := surveyOptions{output: out, merge: true}
+	opts := surveyOptions{output: out}
 	if err := runSurvey(context.Background(), opts, []surveyor.Request{{Surveyor: "k8s-images"}}, stubRegistry(), &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
@@ -118,56 +119,6 @@ func TestSurveyCommandViaCobraListsSurveyors(t *testing.T) {
 	for _, want := range []string{"k8s", "github"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("help should list %q, got %q", want, out.String())
-		}
-	}
-}
-
-// What the subcommands exist to prevent: `--github-org acme --k8s-namespace prod` reading as a
-// valid command, applying the namespace to nothing, and saying nothing. Leaving a retired flag
-// registered and ignored would reproduce exactly that, so it errors with its replacement.
-func TestRetiredSurveyFlagsErrorWithTheirReplacement(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		args []string
-		want string
-	}{
-		{[]string{"--k8s-images"}, "draugr survey k8s images"},
-		{[]string{"--k8s-namespace", "prod"}, "--namespace"},
-		{[]string{"--github-org", "acme"}, "draugr survey github repos"},
-		// The combination that was silently wrong: it must fail, not run.
-		{[]string{"--github-org", "acme", "--k8s-namespace", "prod"}, "replaced by a subcommand"},
-	} {
-		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
-			t.Parallel()
-			cmd := newSurveyCommand()
-			cmd.SetOut(&bytes.Buffer{})
-			cmd.SetErr(&bytes.Buffer{})
-			cmd.SetArgs(tc.args)
-			err := cmd.Execute()
-			if err == nil {
-				t.Fatal("a retired flag must not be accepted in silence")
-			}
-			if !strings.Contains(err.Error(), tc.want) {
-				t.Errorf("error should point at the replacement %q, got: %v", tc.want, err)
-			}
-		})
-	}
-}
-
-// Retired flags are answers to a question, not choices — offering them in --help would invite
-// the usage being removed.
-func TestRetiredSurveyFlagsAreHidden(t *testing.T) {
-	t.Parallel()
-	cmd := newSurveyCommand()
-	for name := range retiredSurveyFlags {
-		f := cmd.Flags().Lookup(name)
-		if f == nil {
-			t.Errorf("--%s must still parse, or the error naming its replacement never runs", name)
-			continue
-		}
-		if !f.Hidden {
-			t.Errorf("--%s should be hidden", name)
 		}
 	}
 }
@@ -202,8 +153,8 @@ func TestSurveyorOptionsAreScopedToTheirSurveyor(t *testing.T) {
 		t.Error("--namespace must not be reachable from github repos — a flag accepted where it means nothing does nothing, silently")
 	}
 	// Shared output settings stay shared.
-	if repos.InheritedFlags().Lookup("output") == nil || repos.InheritedFlags().Lookup("merge") == nil {
-		t.Error("--output and --merge apply to every surveyor")
+	if repos.InheritedFlags().Lookup("output") == nil || repos.InheritedFlags().Lookup("replace") == nil {
+		t.Error("--output and --replace apply to every surveyor")
 	}
 }
 
@@ -417,7 +368,7 @@ func TestSurveySummaryDescribesTheArtifact(t *testing.T) {
 		{Name: "web", Repositories: []saga.Repository{{URL: "https://git/a"}}, Hosts: []saga.Host{{URL: "https://a"}}},
 		{Name: "api", Repositories: []saga.Repository{{URL: "https://git/b"}}},
 	}}
-	got := surveySummary(surveyOptions{output: ".saga.yaml"}, saga.Fragment{}, model)
+	got := surveySummary(surveyOptions{output: ".saga.yaml"}, saga.Fragment{}, model, false)
 	want := "wrote .saga.yaml — 2 components, 2 repositories, 1 host"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
@@ -429,7 +380,7 @@ func TestSurveySummarySaysWhatAMergeAdded(t *testing.T) {
 	// contributed, which is otherwise answered by diffing the file.
 	model := saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
 	frag := saga.Fragment{Components: []saga.Component{{Name: "c"}}}
-	got := surveySummary(surveyOptions{output: "s.yaml", merge: true}, frag, model)
+	got := surveySummary(surveyOptions{output: "s.yaml"}, frag, model, true)
 	if !strings.Contains(got, "merged into s.yaml") || !strings.Contains(got, "this survey found 1 component") {
 		t.Errorf("got %q", got)
 	}
@@ -438,7 +389,7 @@ func TestSurveySummarySaysWhatAMergeAdded(t *testing.T) {
 func TestSurveySummaryCallsOutADescriptorThatScansNothing(t *testing.T) {
 	// A survey that discovered nothing writes a valid file that checks nothing, and the count
 	// alone reads as success.
-	got := surveySummary(surveyOptions{output: "s.yaml"}, saga.Fragment{}, saga.Model{})
+	got := surveySummary(surveyOptions{output: "s.yaml"}, saga.Fragment{}, saga.Model{}, false)
 	if !strings.Contains(got, "nothing was discovered") {
 		t.Errorf("an empty descriptor must say so: %q", got)
 	}
@@ -534,5 +485,88 @@ func TestSurveyNamespaceFlagTakesSeveral(t *testing.T) {
 		if f.Value.Type() != "stringSlice" {
 			t.Errorf("%v --namespace is %s, want a repeatable list", path, f.Value.Type())
 		}
+	}
+}
+
+// Merging keeps the wider scope, which is safe and also surprising: --namespace was accepted, the
+// survey ran, and the descriptor still covers the whole cluster. Somebody who narrowed on purpose
+// has to be told their flag did not reach the file, or they will believe the next scan is scoped.
+func TestSurveySaysWhenANamespaceScopeWasNotApplied(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "draugr.saga.yaml")
+	if err := os.WriteFile(out, []byte(
+		"release:\n  name: app\n  version: \"1.0\"\n"+
+			"components:\n  - name: prod\n    infrastructure:\n      - kind: kubernetes\n        ref: prod\n",
+	), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := surveyor.NewRegistry()
+	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
+		Name: "prod",
+		Infrastructure: []saga.Infrastructure{{
+			Kind: "kubernetes", Ref: "prod", Namespaces: []string{"team-a"},
+		}},
+	}})
+
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(prev)
+
+	err := runSurvey(context.Background(), surveyOptions{version: "1.0", output: out},
+		[]surveyor.Request{{Surveyor: "k8s-cluster", Scope: plugin.SurveyScope{Ref: "team-a"}}},
+		reg, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(logs.String(), "--namespace not applied") {
+		t.Errorf("the dropped scope was not reported:\n%s", logs.String())
+	}
+	written, err := os.ReadFile(out) // #nosec G304 -- a path this test just created
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The warning describes what happened; the file has to match it.
+	if strings.Contains(string(written), "team-a") {
+		t.Errorf("the descriptor was narrowed after all:\n%s", written)
+	}
+}
+
+// A descriptor carries decisions a survey cannot rediscover — exposure, criticality, exclusions,
+// controls somebody chose. Overwriting it has to be asked for, because the failure is a file you
+// reconstruct from memory and the success looks identical at the moment it happens.
+func TestSurveyAddsToAnExistingDescriptorUnlessToldOtherwise(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "draugr.saga.yaml")
+	if err := os.WriteFile(existing, []byte("release:\n  name: app\n  version: \"1.0\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	absent := filepath.Join(dir, "new.saga.yaml")
+
+	cases := []struct {
+		name string
+		opts surveyOptions
+		want bool
+	}{
+		{"an existing file is added to", surveyOptions{output: existing}, true},
+		{"--replace starts again", surveyOptions{output: existing, replace: true}, false},
+		{"a file that does not exist is created", surveyOptions{output: absent}, false},
+		{"stdout has nothing to merge into", surveyOptions{}, false},
+	}
+	for _, c := range cases {
+		if got := c.opts.mergesInto(); got != c.want {
+			t.Errorf("%s: mergesInto() = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// The verb has to follow what actually happened, or the summary describes a different run from
+// the one that wrote the file.
+func TestSurveySummaryVerbFollowsWhatHappened(t *testing.T) {
+	model := saga.Model{Components: []saga.Component{{Name: "a"}}}
+	if got := surveySummary(surveyOptions{output: "s.yaml", replace: true}, saga.Fragment{}, model, false); !strings.Contains(got, "wrote s.yaml") {
+		t.Errorf("--replace should say it wrote: %q", got)
 	}
 }

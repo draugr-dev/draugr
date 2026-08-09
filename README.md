@@ -184,7 +184,7 @@ Let discovery write the descriptor for you:
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
-draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
+draugr survey k8s images --namespace prod -o draugr.saga.yaml
 ```
 
 Full walkthrough: [`docs/getting-started/quickstart.md`](docs/getting-started/quickstart.md).

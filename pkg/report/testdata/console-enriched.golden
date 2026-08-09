@@ -18,4 +18,4 @@ All 3 findings, by priority:
   P2        high      7.5    CVE-2018-1000656  sca      trivy    app/requirements.txt:2
             python-flask: Denial of Service via crafted JSON file
 
-Use --format json for the full report, or -o <dir> for report.json + results.sarif.
+Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif.
