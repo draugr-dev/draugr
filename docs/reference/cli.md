@@ -603,7 +603,16 @@ which is also how discovery is added to a descriptor you maintain by hand.
 
 When scoped to a specific namespace, `k8s images` also **proposes each component's `exposure`**
 from topology (Ingress/external Service → `public`, NetworkPolicy → `restricted`, else
-`internal`) — review it, then set `criticality` with [`draugr classify`](#draugr-classify-sagayaml--directory).
+`internal`). Each proposal is named on the way out, with the value chosen, because in the file it
+is indistinguishable from a decision:
+
+```
+exposure proposed from cluster topology, not confirmed — run `draugr classify` to set it:
+  payments  public
+```
+
+A component that already carries an exposure keeps it and is not listed. Confirm the rest, and set
+`criticality`, with [`draugr classify`](#draugr-classify-sagayaml--directory).
 
 ### Why subcommands
 

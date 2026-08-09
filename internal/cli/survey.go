@@ -225,6 +225,10 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	// descriptor, even though keeping the wider scope was the right call.
 	merged := opts.mergesInto()
 	narrowed := saga.NarrowsScope(&model, frag)
+	// Same reason, for the same kind of message: a merge keeps the exposure already in the
+	// descriptor, so afterwards a proposal that was discarded is indistinguishable from one that
+	// landed. Only the ones that landed are worth asking anyone to confirm.
+	settled := classifiedComponents(model)
 	surveyor.Apply(&model, frag)
 	for _, target := range narrowed {
 		slog.Warn("--namespace not applied: this target already covers the whole cluster",
@@ -233,6 +237,11 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	if added := enableControlsForSurface(&model); len(added) > 0 {
 		// To stderr, so a descriptor written to stdout stays a descriptor.
 		slog.Info("enabled controls for the discovered surface", "controls", strings.Join(added, ", "))
+	}
+	// stderr for the same reason. Also after the merge, so it describes the file rather than the
+	// survey — a proposal the merge declined to apply is not a proposal anyone has to act on.
+	if note := proposedExposureNote(proposedExposures(frag, settled)); note != "" {
+		_, _ = fmt.Fprintln(os.Stderr, note)
 	}
 
 	out, err := yaml.Marshal(&model)
@@ -254,6 +263,67 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	}
 	_, err = stdout.Write(out)
 	return err
+}
+
+// exposureProposal is a component whose exposure a surveyor read rather than a person decided.
+type exposureProposal struct {
+	component string
+	exposure  saga.Exposure
+}
+
+// classifiedComponents names the components that already carry an exposure.
+func classifiedComponents(model saga.Model) map[string]bool {
+	settled := map[string]bool{}
+	for _, c := range model.Components {
+		if c.Exposure != "" {
+			settled[c.Name] = true
+		}
+	}
+	return settled
+}
+
+// proposedExposures returns the exposures this survey proposed and the descriptor took, in the
+// order the surveyor reported them.
+//
+// A surveyor reads topology, which is evidence about reachability rather than a decision about
+// it: an Ingress says a route exists, not who may take it, and a namespace with no external
+// Service may still be reachable through a gateway the cluster cannot see. The value is still
+// worth writing — it is right more often than nothing is, and an unclassified component is
+// treated as high-risk, which skews a report in its own direction.
+//
+// What it must not do is arrive silently. Written into a file, a proposal is indistinguishable
+// from a value somebody chose, while being the input that decides whether a finding is P1 or P3.
+// So the survey says which ones it guessed, and `draugr classify` is where they get settled.
+func proposedExposures(frag saga.Fragment, settled map[string]bool) []exposureProposal {
+	var out []exposureProposal
+	for _, c := range frag.Components {
+		if c.Exposure == "" || settled[c.Name] {
+			continue
+		}
+		out = append(out, exposureProposal{component: c.Name, exposure: c.Exposure})
+	}
+	return out
+}
+
+// proposedExposureNote renders the proposals as one block, or "" when there are none.
+//
+// Names every component and its value rather than counting them, because the reader's next action
+// is per-component: they are confirming or correcting each one, and a count tells them only that
+// there is something to open the file for.
+func proposedExposureNote(proposals []exposureProposal) string {
+	if len(proposals) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("exposure proposed from cluster topology, not confirmed — run `draugr classify` to set it:\n")
+	width := 0
+	for _, p := range proposals {
+		width = max(width, len(p.component))
+	}
+	for _, p := range proposals {
+		fmt.Fprintf(&b, "  %-*s  %s\n", width, p.component, p.exposure)
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // surveySummary describes the artifact rather than the mechanics: what is now in the file, and
