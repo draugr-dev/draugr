@@ -39,7 +39,7 @@ func stubRegistry() *surveyor.Registry {
 
 // Selecting nothing is now impossible by construction: a surveyor is chosen by naming its
 // subcommand, so `draugr survey` with no subcommand prints help rather than running an empty
-// survey. What replaces this test is the retired-flag check below.
+// survey.
 func TestSurveyWithNoSubcommandPrintsHelp(t *testing.T) {
 	cmd := newSurveyCommand()
 	var out bytes.Buffer
@@ -122,59 +122,6 @@ func TestSurveyCommandViaCobraListsSurveyors(t *testing.T) {
 	}
 }
 
-// What the subcommands exist to prevent: `--github-org acme --k8s-namespace prod` reading as a
-// valid command, applying the namespace to nothing, and saying nothing. Leaving a retired flag
-// registered and ignored would reproduce exactly that, so it errors with its replacement.
-func TestRetiredSurveyFlagsErrorWithTheirReplacement(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		args []string
-		want string
-	}{
-		{[]string{"--k8s-images"}, "draugr survey k8s images"},
-		{[]string{"--k8s-namespace", "prod"}, "--namespace"},
-		{[]string{"--github-org", "acme"}, "draugr survey github repos"},
-		// The combination that was silently wrong: it must fail, not run.
-		{[]string{"--github-org", "acme", "--k8s-namespace", "prod"}, "no longer exists"},
-		// Removed rather than deprecated: merging is what a survey does, and a flag asking for
-		// the default is a flag to explain forever.
-		{[]string{"--merge"}, "--replace"},
-	} {
-		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
-			t.Parallel()
-			cmd := newSurveyCommand()
-			cmd.SetOut(&bytes.Buffer{})
-			cmd.SetErr(&bytes.Buffer{})
-			cmd.SetArgs(tc.args)
-			err := cmd.Execute()
-			if err == nil {
-				t.Fatal("a retired flag must not be accepted in silence")
-			}
-			if !strings.Contains(err.Error(), tc.want) {
-				t.Errorf("error should point at the replacement %q, got: %v", tc.want, err)
-			}
-		})
-	}
-}
-
-// Retired flags are answers to a question, not choices — offering them in --help would invite
-// the usage being removed.
-func TestRetiredSurveyFlagsAreHidden(t *testing.T) {
-	t.Parallel()
-	cmd := newSurveyCommand()
-	for name := range retiredSurveyFlags {
-		f := cmd.PersistentFlags().Lookup(name)
-		if f == nil {
-			t.Errorf("--%s must still parse, or the error naming its replacement never runs", name)
-			continue
-		}
-		if !f.Hidden {
-			t.Errorf("--%s should be hidden", name)
-		}
-	}
-}
-
 // Each surveyor's options belong to it. The whole point is that a k8s option cannot be handed to
 // the GitHub surveyor and quietly ignored.
 func TestSurveyorOptionsAreScopedToTheirSurveyor(t *testing.T) {
@@ -205,8 +152,8 @@ func TestSurveyorOptionsAreScopedToTheirSurveyor(t *testing.T) {
 		t.Error("--namespace must not be reachable from github repos — a flag accepted where it means nothing does nothing, silently")
 	}
 	// Shared output settings stay shared.
-	if repos.InheritedFlags().Lookup("output") == nil || repos.InheritedFlags().Lookup("merge") == nil {
-		t.Error("--output and --merge apply to every surveyor")
+	if repos.InheritedFlags().Lookup("output") == nil || repos.InheritedFlags().Lookup("replace") == nil {
+		t.Error("--output and --replace apply to every surveyor")
 	}
 }
 

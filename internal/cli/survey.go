@@ -64,11 +64,6 @@ func newSurveyCommand() *cobra.Command {
 			"exclusions — so an existing file is added to rather than overwritten. Use --replace\n" +
 			"when you do want to start again.",
 		Args: cobra.NoArgs,
-		// Persistent, so a retired flag is caught wherever it was passed rather than only on
-		// `survey` itself. A flag that did nothing in silence is what this whole rework was about.
-		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			return reportRetiredSurveyFlags(cmd)
-		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
@@ -80,7 +75,6 @@ func newSurveyCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&opts.replace, "replace", false,
 		"overwrite the Saga at --output instead of adding to it")
 
-	registerRetiredSurveyFlags(cmd)
 	cmd.AddCommand(newSurveyK8sCommand(opts), newSurveyGitHubCommand(opts))
 	return cmd
 }
@@ -206,59 +200,6 @@ func newSurveyGitHubCommand(opts *surveyOptions) *cobra.Command {
 
 	cmd.AddCommand(repos)
 	return cmd
-}
-
-// retiredSurveyFlags are flags that no longer exist, and what to do instead.
-//
-// Registered rather than removed, so the answer is the replacement instead of "unknown flag".
-// Hidden, because they are not choices — a flag list should offer what exists.
-//
-// They are kept because the docs site serves the newest tag's documentation, so a reader
-// following a page written against the last release runs a flag this build does not have. One
-// line here turns that into an instruction.
-var retiredSurveyFlags = map[string]string{
-	"k8s-images": "each surveyor's options live with the surveyor they belong to. " +
-		"Use: draugr survey k8s images",
-	"k8s-namespace": "each surveyor's options live with the surveyor they belong to. " +
-		"Use: draugr survey k8s images --namespace <ns>",
-	"github-org": "each surveyor's options live with the surveyor they belong to. " +
-		"Use: draugr survey github repos --org <org>",
-	"merge": "merging is what a survey does. Pass --replace to overwrite the descriptor instead.",
-}
-
-// retiredBoolFlags were booleans, so they have to stay booleans: as a string flag `--merge` would
-// fail with "flag needs an argument" instead of reaching the error that says what to do.
-var retiredBoolFlags = map[string]bool{"k8s-images": true, "merge": true}
-
-func registerRetiredSurveyFlags(cmd *cobra.Command) {
-	for name := range retiredSurveyFlags {
-		// Persistent, because a retired flag is passed where it used to work — and --merge used
-		// to work on the subcommands, not on `survey` itself.
-		if retiredBoolFlags[name] {
-			cmd.PersistentFlags().Bool(name, false, "retired")
-		} else {
-			cmd.PersistentFlags().String(name, "", "retired")
-		}
-		_ = cmd.PersistentFlags().MarkHidden(name)
-	}
-}
-
-// reportRetiredSurveyFlags turns a retired flag into an error naming its replacement.
-//
-// The point of the rework is that a flag doing nothing in silence is unacceptable, so leaving one
-// behind to be ignored would undo it.
-func reportRetiredSurveyFlags(cmd *cobra.Command) error {
-	names := make([]string, 0, len(retiredSurveyFlags))
-	for name := range retiredSurveyFlags {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		if f := cmd.Flags().Lookup(name); f != nil && f.Changed {
-			return fmt.Errorf("--%s no longer exists: %s", name, retiredSurveyFlags[name])
-		}
-	}
-	return nil
 }
 
 // runSurvey runs the requested surveyors and writes (or merges) what they discovered into a Saga.
