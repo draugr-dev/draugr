@@ -12,6 +12,27 @@ and move it under a version on release.
 
 ### Changed
 
+<<<<<<< HEAD
+=======
+- **`draugr survey` adds to an existing descriptor instead of overwriting it.** A descriptor
+  carries decisions a survey cannot rediscover — exposure, criticality, exclusions, controls
+  somebody chose — so replacing it has to be asked for, with `--replace`. `--merge` still works
+  and is now the default it was requesting.
+- **`draugr controls [control]`** narrows everything to one control, because `--options` across
+  eleven of them is a screenful you scroll past to find the one you were writing. A name that is
+  not a control says so and lists the ones that are.
+- **A truncated finding list points somewhere useful.** `… and 24 more finding(s)` used to be
+  followed by advice about `--format json` — a machine format, offered to somebody reading a
+  human-readable list. It now suggests `--top 0` and `--min-priority`, with the machine formats
+  on their own line.
+- **Console output states the fact and stops.** The lines under a finding explaining why it
+  ranked where it did, or that it came from git history, were arguments rather than labels — and
+  they print on every matching row of a table people scan rather than read. They are one short
+  line now; the reasoning stays in the docs, where somebody who wants it will look.
+- **`draugr init` names the file it found**, rather than reporting `# Detected: dependency
+  manifest` and leaving you to work out which one it meant.
+
+>>>>>>> 7d5fc0c (Output states the fact; the argument stays in the docs)
 ### Fixed
 
 - **`format: vex` is no longer rejected by editors.** The schema's list of report formats was

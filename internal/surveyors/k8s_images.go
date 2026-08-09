@@ -59,8 +59,8 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 		// failure — but silence here reads as "surveyed and found your images", and the
 		// descriptor that results scans nothing.
 		if namespace != "" {
-			slog.Warn("no running images found", "namespace", namespace,
-				"note", "the namespace exists but has no pods, so it contributes no component")
+			slog.Warn("no running images: this namespace contributes no component",
+				"namespace", namespace)
 		}
 		return saga.Fragment{}, nil
 	}

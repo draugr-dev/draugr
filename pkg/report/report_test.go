@@ -1408,10 +1408,10 @@ func TestConsoleSaysWhenAFindingComesFromHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "commit history") {
+	if !strings.Contains(out, "git history") {
 		t.Errorf("a history finding must say so:\n%s", out)
 	}
-	if !strings.Contains(out, "rotating") {
+	if !strings.Contains(out, "Rotate it") {
 		t.Errorf("removing a secret from the tip is not remediation; the report should say so:\n%s", out)
 	}
 }
@@ -1432,7 +1432,7 @@ func TestConsoleSaysNothingAboutHistoryForATreeFinding(t *testing.T) {
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(buf.String(), "commit history") {
+	if strings.Contains(buf.String(), "git history") {
 		t.Errorf("a tree finding claimed to be historical:\n%s", buf.String())
 	}
 }

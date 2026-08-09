@@ -140,7 +140,7 @@ func printUncoveredSurfaceNote(w io.Writer, model *saga.Model) {
 	if len(lines) == 0 {
 		return
 	}
-	_, _ = fmt.Fprintf(w, "\nNote: nothing checks part of what this descriptor declares.\n")
+	_, _ = fmt.Fprintf(w, "\nNot checked:\n")
 	for _, l := range lines {
 		_, _ = fmt.Fprintf(w, "      %s\n", l)
 	}
@@ -148,9 +148,9 @@ func printUncoveredSurfaceNote(w io.Writer, model *saga.Model) {
 	// control, and sees a host listed as unchecked without it, reads the omission as a gap in
 	// this note rather than as the deliberate choice it is.
 	if surfaces.DeclaresHosts(model) {
-		_, _ = fmt.Fprint(w, "      dast is never suggested: it sends attack traffic, so that one is your call.\n")
+		_, _ = fmt.Fprint(w, "      dast is never suggested — it sends attack traffic. Enable it yourself.\n")
 	}
-	_, _ = fmt.Fprint(w, "      Run `draugr controls` to see what each control does.\n")
+	_, _ = fmt.Fprint(w, "      draugr controls — what each control does\n")
 }
 
 // countAtOrAbove counts findings whose priority is at or above a band.

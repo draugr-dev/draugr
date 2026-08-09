@@ -280,10 +280,8 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	narrowed := saga.NarrowsScope(&model, frag)
 	surveyor.Apply(&model, frag)
 	for _, target := range narrowed {
-		slog.Warn("kept the wider scope: this descriptor already covers the whole cluster",
-			"target", target,
-			"note", "--namespace did not narrow it, because a survey that quietly scanned less "+
-				"than the last one is the dangerous direction. Edit the descriptor to narrow it.")
+		slog.Warn("--namespace not applied: this target already covers the whole cluster",
+			"target", target, "fix", "edit namespaces: in the descriptor to narrow it")
 	}
 	if added := enableControlsForSurface(&model); len(added) > 0 {
 		// To stderr, so a descriptor written to stdout stays a descriptor.

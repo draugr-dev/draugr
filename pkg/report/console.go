@@ -680,7 +680,7 @@ func priorityFloorNote(reason string) string {
 	if reason == "" {
 		return ""
 	}
-	return "↑ not damped by exposure — " + reason
+	return "↑ " + reason
 }
 
 // historicalNote says that a finding's location is a path in a commit rather than in the tree.
@@ -688,13 +688,13 @@ func priorityFloorNote(reason string) string {
 // Without it the location column is read as current, and a path that no longer exists reads as
 // something already cleaned up. That inference is backwards: a credential reachable from any
 // commit is still fetchable by anyone who can clone, so removing it from the tip is not
-// remediation and the finding is not stale.
+// remediation and the finding is not stale. One line, because a reader scanning a table of
+// findings is counting, not reading.
 func historicalNote(historical bool) string {
 	if !historical {
 		return ""
 	}
-	return "↩ found in commit history — this path is as it was then, and may have moved or gone " +
-		"since. Still needs rotating: removing it from the tip does not unpublish it."
+	return "↩ in git history — path as it was then. Rotate it; deleting it does not unpublish it."
 }
 
 // toolBuildLines reports which build of each external scanner ran, and flags the ones Draugr

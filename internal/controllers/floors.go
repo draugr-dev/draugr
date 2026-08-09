@@ -51,8 +51,11 @@ var contextFloors = map[string]prioritization.Context{
 // contextFloorReasons say why, for the report. A band a reader cannot account for from the
 // component's classification is one they have to take on trust, and the reasoning is the part
 // worth keeping inspectable.
-var contextFloorReasons = map[string]string{ // #nosec G101 -- prose about credentials, not one
-	"secrets": "a credential is valid wherever it is valid, not only where the component sits",
+// Short, because it prints under every finding in a table somebody is scanning rather than
+// reading. Why the control declares a floor is in docs/concepts/prioritization.md, where a reader
+// who wants it will look; repeating the argument on every row buys nothing and costs the row.
+var contextFloorReasons = map[string]string{
+	"secrets": "ranked as internet-facing: a credential is valid wherever it is valid",
 }
 
 // ContextFloor returns the most concerning context tier a control's findings are ranked at, and
