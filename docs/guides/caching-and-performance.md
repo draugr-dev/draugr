@@ -193,7 +193,7 @@ draugr scan draugr.saga.yaml -j 1      # serial: deterministic output, handy for
 
 The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total jobs),
 `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence. See the
-[CLI reference](../reference/cli.md#draugr-scan-sagayaml) for the full flag list.
+[CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for the full flag list.
 
 ## Scanners that call a rate-limited API
 

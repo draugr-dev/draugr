@@ -31,7 +31,7 @@ ranking — see [Exploitability: KEV and EPSS](#exploitability-kev-and-epss) bel
 - A component left **unclassified** is treated as high-risk, so nothing slips silently.
 
 Set `exposure` and `criticality` by hand (see the [Saga schema](../reference/saga-schema.md))
-or with the guided [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml) wizard.
+or with the guided [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory) wizard.
 
 ## Exploitability: KEV and EPSS
 

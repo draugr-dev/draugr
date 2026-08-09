@@ -111,7 +111,7 @@ draugr scan draugr.saga.yaml --min-priority P2  # list only the findings worth a
 draugr scan draugr.saga.yaml --fail-on-priority P1  # also fail the gate on any P1 finding
 ```
 
-See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml) for every flag.
+See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for every flag.
 
 ## Focus: what to fix first
 

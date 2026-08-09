@@ -64,4 +64,4 @@ Service → `public`, NetworkPolicy → `restricted`, else `internal`); review i
 `criticality`. A component left **unclassified** is treated as high-risk, so nothing slips.
 
 Once classified, focus with `--min-priority P2` and gate with `--fail-on-priority P1` (see the
-[CLI reference](../reference/cli.md#draugr-scan-sagayaml)).
+[CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir)).

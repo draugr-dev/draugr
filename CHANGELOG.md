@@ -42,6 +42,10 @@ and move it under a version on release.
   the rest alone. Naming one re-asks about it even if it is already classified, so correcting a
   single component no longer means `--all` and re-answering for every other one. A name that
   matches nothing is an error listing the components that exist.
+- **Every `[link](#heading)` in the docs goes where it says.** Twelve pointed at headings that had
+  been renamed, most of them into the CLI reference from the guides that link to it, and a
+  duplicated heading in the Saga reference. A dead heading link renders as an ordinary one and
+  jumps nowhere, so nothing but a reader following it ever notices — the gate checks them now.
 
 ### Fixed
 

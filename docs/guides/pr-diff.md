@@ -83,7 +83,7 @@ does under the hood.
 
 ## Produce the two SARIF files
 
-`diff` consumes the `results.sarif` files that [`draugr scan -o`](../reference/cli.md#draugr-scan-sagayaml)
+`diff` consumes the `results.sarif` files that [`draugr scan -o`](../reference/cli.md#draugr-scan-sagayaml--dir)
 writes (SARIF is the complete, structured result set). A typical setup scans `main` on push and
 stores `results.sarif` as an artifact, then scans the PR:
 

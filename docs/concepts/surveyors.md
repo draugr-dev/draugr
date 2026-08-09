@@ -86,7 +86,7 @@ A surveyor reads the environment, so it can only recover what the environment kn
 
 **`criticality` is not in the cluster.** What it costs your business when a component fails is
 not a property of any manifest — it is a judgement, and Draugr will not manufacture one.
-Discovery leaves it unset; [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml)
+Discovery leaves it unset; [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory)
 asks you. Until both axes are set, [prioritization](prioritization.md) has half its input.
 
 **The proposed `exposure` is a proposal.** Topology is good evidence, not proof — a Service with
@@ -98,7 +98,7 @@ you from is a component ranked as though it does not matter.
 ## Going deeper
 
 - [`draugr survey`](../reference/cli.md#draugr-survey) — every flag
-- [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml) — set the two risk axes
+- [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory) — set the two risk axes
 - [The Saga](saga.md) — what the fragments are merged into
 - [Prioritization](prioritization.md) — what `exposure` and `criticality` drive
 - [`k8s-images`](../../internal/surveyors/k8s-images.md) ·

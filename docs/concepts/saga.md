@@ -88,7 +88,7 @@ and without them a scanner can only ever tell you severity in the abstract.
 The same CVE is act-now on a public, business-critical gateway and backlog on a restricted
 internal tool. That distinction is yours to declare, and it's what turns a wall of findings into
 a short list. Both are optional; a component may stay unclassified.
-[`draugr classify`](../reference/cli.md#draugr-classify-sagayaml) walks you through setting them.
+[`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory) walks you through setting them.
 
 ### `config`
 

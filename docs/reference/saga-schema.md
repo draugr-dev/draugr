@@ -444,7 +444,7 @@ config:
       sast: note           # …this one fails on anything at all
 ```
 
-Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-saga) for the named
+Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-sagayaml--dir) for the named
 control only. Values are SARIF levels: `error`, `warning`, `note`.
 
 One threshold can't serve every control. Licence policy is owned by legal and vulnerability
