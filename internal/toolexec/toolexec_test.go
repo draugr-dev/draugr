@@ -341,25 +341,93 @@ func TestExplainLeavesOtherFailuresAlone(t *testing.T) {
 	}
 }
 
-// A tool reports a wrapped chain whose two ends carry different information: the left is the
-// operation, shared by every failure of that tool, and the right is the cause, which is the only
-// part identifying this one. Clamping the head alone yields "unable to…" — true of the failure
-// and of nothing else.
-func TestFirstLineKeepsTheCauseNotJustTheOperation(t *testing.T) {
+// A tool's error runs from general to specific, and Draugr has already said which scanner, which
+// control and which component. So what has to survive is the end of the chain — the part naming
+// this failure rather than the tool's own account of what it was doing.
+func TestFirstLineKeepsWhatIdentifiesTheFailure(t *testing.T) {
 	t.Parallel()
-	const trivy = "2026-08-09T14:06:25-05:00\tFATAL\tFatal error\trun error: image scan error: " +
-		"scan error: unable to initialize a scan service: unable to initialize cache: " +
-		"unable to initialize fs cache: cache may be in use by another process: timeout"
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{
+			name: "a cache held by another scan",
+			raw: "2026-08-09T14:06:25-05:00\tFATAL\tFatal error\trun error: image scan error: " +
+				"scan error: unable to initialize a scan service: unable to initialize cache: " +
+				"unable to initialize fs cache: cache may be in use by another process: timeout",
+			want: "cache may be in use by another process: timeout",
+		},
+		{
+			// The complaint this shape was reported for: the words naming the failure sat behind
+			// four links of the tool restating that a scan was scanning.
+			name: "an image that cannot be pulled",
+			raw: "2026-08-09T15:37:55-05:00\tFATAL\tFatal error\trun error: image scan error: " +
+				"scan error: unable to initialize a scan service: unable to find the specified " +
+				`image "ghcr.io/draugr-dev/does-not-exist:9.9.9" in ["docker" "containerd" "podman" "remote"]`,
+			want: "unable to find the specified image",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := firstLine(tc.raw)
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("want %q in:\n%s", tc.want, got)
+			}
+			// The log preamble is the tool's, and it is the same on every failure it reports.
+			for _, noise := range []string{"FATAL", "2026-08-09T"} {
+				if strings.Contains(got, noise) {
+					t.Errorf("the log preamble survived (%q):\n%s", noise, got)
+				}
+			}
+			if n := len([]rune(got)); n > maxErrDetail {
+				t.Errorf("shortened to %d runes, want at most %d", n, maxErrDetail)
+			}
+		})
+	}
+}
 
-	got := firstLine(trivy)
-	if !strings.Contains(got, "cache may be in use by another process: timeout") {
-		t.Errorf("the cause was clamped away:\n%s", got)
+// Shortening has to be visible. A chain silently missing its opening reads as the whole message,
+// and a reader chasing the missing context has nothing telling them there was any.
+func TestFirstLineMarksWhatItDropped(t *testing.T) {
+	t.Parallel()
+	long := "run error: image scan error: scan error: " + strings.Repeat("wrapped: ", 12) + "the actual cause"
+	got := firstLine(long)
+	if !strings.HasPrefix(got, "… ") {
+		t.Errorf("a shortened chain should say so:\n%s", got)
 	}
-	if !strings.Contains(got, "FATAL") {
-		t.Errorf("the operation was lost:\n%s", got)
+	if !strings.HasSuffix(got, "the actual cause") {
+		t.Errorf("the cause was lost:\n%s", got)
 	}
+}
+
+// A message with no chain to cut on still has to fit, and the cause is still at the end.
+func TestFirstLineElidesAnUnbreakableMessage(t *testing.T) {
+	t.Parallel()
+	got := firstLine("prefix " + strings.Repeat("x", maxErrDetail*2) + " the cause")
 	if n := len([]rune(got)); n > maxErrDetail {
-		t.Errorf("clamped to %d runes, want at most %d", n, maxErrDetail)
+		t.Errorf("elided to %d runes, want at most %d", n, maxErrDetail)
+	}
+	if !strings.Contains(got, "the cause") {
+		t.Errorf("the cause was lost:\n%s", got)
+	}
+}
+
+// A line that is not a log line keeps all of itself: several tools write a bare sentence, and one
+// containing a tab must not be mistaken for structured output.
+func TestMessageOnlyStripsARealPreamble(t *testing.T) {
+	t.Parallel()
+	for _, line := range []string{
+		"trivy: no such image",
+		"could not open\tthe file",
+	} {
+		if got := message(line); got != line {
+			t.Errorf("message(%q) = %q, want it unchanged", line, got)
+		}
+	}
+	const logged = "2026-08-09T14:06:25-05:00\tFATAL\tsomething broke"
+	if got := message(logged); got != "something broke" {
+		t.Errorf("message(logged) = %q", got)
 	}
 }
 

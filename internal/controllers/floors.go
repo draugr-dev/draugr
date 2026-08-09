@@ -51,11 +51,18 @@ var contextFloors = map[string]prioritization.Context{
 // contextFloorReasons say why, for the report. A band a reader cannot account for from the
 // component's classification is one they have to take on trust, and the reasoning is the part
 // worth keeping inspectable.
+//
+// It states the conclusion, not the mechanism. Internally the floor works by ranking the finding
+// at the most exposed context tier, but "ranked as internet-facing" printed against a component
+// the reader has classified as internal reads as a claim about the component — one they can see is
+// untrue, which costs the note its credibility on the row where it matters most.
+//
 // Short, because it prints under every finding in a table somebody is scanning rather than
 // reading. Why the control declares a floor is in docs/concepts/prioritization.md, where a reader
 // who wants it will look; repeating the argument on every row buys nothing and costs the row.
+// #nosec G101 -- report copy: a map of control names to the sentence printed under a finding.
 var contextFloorReasons = map[string]string{
-	"secrets": "ranked as internet-facing: a credential is valid wherever it is valid",
+	"secrets": "a leaked credential is high priority wherever it is found",
 }
 
 // ContextFloor returns the most concerning context tier a control's findings are ranked at, and

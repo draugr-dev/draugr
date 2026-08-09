@@ -274,12 +274,14 @@ Severity is still the scanner's answer and the severity floor's: a critical find
 should not collapse into one row because they share a control.
 
 The report says when the floor applied, because a band you cannot reconstruct from the component's
-classification is one you have to take on trust:
+classification is one you have to take on trust. It states the conclusion rather than the mechanism:
+the floor works by ranking the finding at the most exposed tier, but printing that against a
+component you have classified as internal reads as a claim about the component, and you can see it
+is not true.
 
 ```
   P1   high   -   github-pat   secrets   gitleaks   cfg.txt:1
-       ↑ not damped by exposure — a credential is valid wherever it is valid, not only where
-         the component sits
+       ↑ a leaked credential is high priority wherever it is found
 ```
 
 **A false positive is not what this is for.** A finding you have judged belongs in

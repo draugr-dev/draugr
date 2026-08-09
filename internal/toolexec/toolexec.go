@@ -109,16 +109,97 @@ func explain(tool string, err error) error {
 	return fmt.Errorf("%w: %s", err, detail)
 }
 
-// firstLine returns the first non-blank line of a tool's stderr, clamped.
+// firstLine returns the first non-blank line of a tool's stderr, stripped of its log preamble
+// and clamped.
 func firstLine(s string) string {
 	for _, line := range strings.Split(s, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		return clamp(line)
+		return shorten(message(line))
 	}
 	return ""
+}
+
+// message drops the log preamble a tool writes ahead of what it is actually saying.
+//
+// Several tools log as tab-separated fields — a timestamp, a level, sometimes a label, then the
+// message. Trivy's is `<timestamp>\tFATAL\tFatal error\trun error: …`, which is four fields of
+// ceremony before the first informative word. That matters more than it sounds: the clamp has a
+// budget, and a preamble spends it on the part that is identical for every failure the tool ever
+// reports, pushing the words that name *this* one out of the message entirely.
+//
+// Only when an earlier field looks like a timestamp or a level, so a line that merely contains a
+// tab keeps all of itself.
+func message(line string) string {
+	fields := strings.Split(line, "\t")
+	if len(fields) < 2 {
+		return line
+	}
+	for _, f := range fields[:len(fields)-1] {
+		if isLogLevel(strings.TrimSpace(f)) || looksLikeTimestamp(strings.TrimSpace(f)) {
+			return strings.TrimSpace(fields[len(fields)-1])
+		}
+	}
+	return line
+}
+
+// isLogLevel reports whether a field is a severity label rather than content.
+func isLogLevel(f string) bool {
+	switch strings.ToUpper(f) {
+	case "TRACE", "DEBUG", "INFO", "WARN", "WARNING", "ERROR", "FATAL", "PANIC":
+		return true
+	}
+	return false
+}
+
+// looksLikeTimestamp reports whether a field opens with an ISO-8601 date.
+//
+// Shape rather than a parse: tools differ on precision, zone and separator, and every variant is
+// equally uninformative in an error message.
+func looksLikeTimestamp(f string) bool {
+	if len(f) < 10 {
+		return false
+	}
+	for i, r := range f[:10] {
+		digit := r >= '0' && r <= '9'
+		if (i == 4 || i == 7) != (r == '-') || (i != 4 && i != 7 && !digit) {
+			return false
+		}
+	}
+	return true
+}
+
+// shorten reduces a tool's complaint to what identifies this failure.
+//
+// A tool reports a colon-chained wrapping, and the chain runs from general to specific:
+//
+//	run error: image scan error: scan error: unable to initialize a scan service:
+//	unable to find the specified image "ghcr.io/x:1" in ["docker" "containerd" "podman" "remote"]
+//
+// Everything before the last link says a scan failed while scanning. Draugr has already said which
+// scanner, which control and which component — so repeating the tool's own account of what it was
+// doing spends the whole budget restating what the reader can see, and pushes the words naming the
+// failure off the end.
+//
+// So leading links are dropped until what remains fits, never below the last two, and the result is
+// marked with a leading ellipsis. A single link too long to fit falls back to eliding its middle,
+// which is the only option left when there is no boundary to cut on.
+func shorten(line string) string {
+	if len([]rune(line)) <= maxErrDetail {
+		return line
+	}
+	const sep = ": "
+	links := strings.Split(line, sep)
+	// Never below the last two: the final link alone is often a bare "timeout" or "not found",
+	// true of a hundred different failures and identifying none of them.
+	for i := 1; i <= len(links)-2; i++ {
+		if candidate := strings.Join(links[i:], sep); len([]rune(candidate)) <= maxErrDetail-2 {
+			return "… " + candidate
+		}
+	}
+	return clamp(line)
 }
 
 // clamp shortens a tool's complaint by eliding its middle rather than its end.
