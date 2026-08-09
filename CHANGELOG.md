@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.74.0] - 2026-08-09
+
 ### Changed
 
 - **`draugr survey` says which exposures it guessed.** Surveying a Kubernetes namespace proposes
@@ -33,8 +37,10 @@ and move it under a version on release.
   does not take is flagged as you type rather than when you run it.
 - **`draugr survey` adds to an existing descriptor instead of overwriting it.** A descriptor
   carries decisions a survey cannot rediscover — exposure, criticality, exclusions, controls
-  somebody chose — so replacing it has to be asked for, with `--replace`. `--merge` is gone: it
-  asked for what now always happens, and passing it says so and points at `--replace`.
+  somebody chose — so replacing it has to be asked for, with `--replace`. **`--merge` is removed**
+  — it asked for what now always happens. Drop it from any script that passes it; the flag is
+  rejected rather than ignored, so a pipeline still passing it fails rather than quietly doing
+  something else.
 - **`draugr controls [control]`** narrows everything to one control, because `--options` across
   eleven of them is a screenful you scroll past to find the one you were writing. A name that is
   not a control says so and lists the ones that are.
@@ -3196,7 +3202,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.73.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.74.0...HEAD
+[0.74.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.74.0
 [0.73.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.73.1
 [0.73.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.73.0
 [0.72.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.72.0
