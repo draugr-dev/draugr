@@ -12,6 +12,19 @@ and move it under a version on release.
 
 ### Changed
 
+- **`draugr survey` says which exposures it guessed.** Surveying a Kubernetes namespace proposes
+  each component's `exposure` from cluster topology, and the value landed in the descriptor
+  looking exactly like one you had chosen — while being the input that decides whether a finding
+  is P1 or P3. Every proposal is now named on the way out, with the value picked:
+
+  ```
+  exposure proposed from cluster topology, not confirmed — run `draugr classify` to set it:
+    payments      public
+    cert-manager  internal
+  ```
+
+  A component that already carries an exposure keeps it and is not listed: the merge does not
+  overwrite a decision, so there is nothing there to confirm.
 - **Your editor now completes inside a control, not just up to it.** Typing
   `controllers.sast:` used to offer nothing further — not `semgrep`, not `gosec`, and none of the
   options either takes — because the schema described only `enabled` and accepted any key beside

@@ -23,9 +23,15 @@ content-addressed — a rebuilt image under the same tag re-scans.
 | A `NetworkPolicy` (and no external reach) | `restricted` |
 | Otherwise | `internal` |
 
-It's a **proposal to confirm** — authentication can't be inferred, so internet-reachable is
-proposed as `public` (downgrade to `authenticated` if it sits behind auth). A whole-cluster
-survey lumps namespaces into one component, so exposure is not proposed there. `criticality`
+It's a **proposal to confirm**, and the survey says so: every component it guessed an exposure
+for is named on the way out, with the value it chose and a pointer to `draugr classify`. Written
+into the file a proposal looks exactly like a decision, and exposure is what turns a severity into
+a P1 or a P3 — so it arrives announced rather than quietly.
+
+Authentication can't be inferred, so internet-reachable is proposed as `public` (downgrade to
+`authenticated` if it sits behind auth). A whole-cluster survey lumps namespaces into one
+component, so exposure is not proposed there. A component that already carries an exposure keeps
+it — the merge does not overwrite a decision, and no proposal is reported for it. `criticality`
 is never inferred (it's human-declared) — run `draugr classify` to set it.
 
 ## Known limitations

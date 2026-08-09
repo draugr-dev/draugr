@@ -89,8 +89,19 @@ not a property of any manifest — it is a judgement, and Draugr will not manufa
 Discovery leaves it unset; [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory)
 asks you. Until both axes are set, [prioritization](prioritization.md) has half its input.
 
-**The proposed `exposure` is a proposal.** Topology is good evidence, not proof — a Service with
-no Ingress may still be reachable through a gateway the cluster cannot see. Review it.
+**The proposed `exposure` is a proposal, and the survey tells you which ones it made.** Topology
+is good evidence, not proof — an Ingress says a route exists, not who may take it, and a Service
+with none may still be reachable through a gateway the cluster cannot see.
+
+```
+exposure proposed from cluster topology, not confirmed — run `draugr classify` to set it:
+  payments      public
+  cert-manager  internal
+```
+
+Each is named with the value chosen, because the next action is per component. A component that
+already carries an exposure is left alone and not listed: the merge keeps a decision somebody
+made, so there is nothing there to confirm.
 
 The failure discovery protects you from is a component nobody scanned. The one it cannot protect
 you from is a component ranked as though it does not matter.

@@ -3,11 +3,13 @@ package cli
 import (
 	"bytes"
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -569,4 +571,113 @@ func TestSurveySummaryVerbFollowsWhatHappened(t *testing.T) {
 	if got := surveySummary(surveyOptions{output: "s.yaml", replace: true}, saga.Fragment{}, model, false); !strings.Contains(got, "wrote s.yaml") {
 		t.Errorf("--replace should say it wrote: %q", got)
 	}
+}
+
+// A proposal that arrives silently is indistinguishable from a decision once it is in the file,
+// and exposure is what turns a severity into a P1 or a P3.
+func TestSurveyNamesTheExposuresItProposed(t *testing.T) {
+	proposed := saga.Component{Name: "payments", Exposure: saga.ExposurePublic}
+	for _, tc := range []struct {
+		name     string
+		existing string
+		frag     saga.Component
+		want     []string
+		silent   bool
+	}{
+		{
+			name: "a new component",
+			frag: proposed,
+			want: []string{"payments", "public", "draugr classify"},
+		},
+		{
+			// The merge keeps the exposure already in the descriptor, so this proposal was
+			// discarded. Naming it would ask someone to confirm a value that is not in their file.
+			name:     "a component somebody has already classified",
+			existing: "components:\n  - name: payments\n    exposure: restricted\n",
+			frag:     proposed,
+			silent:   true,
+		},
+		{
+			name:   "a surveyor that proposes nothing",
+			frag:   saga.Component{Name: "payments", Images: []saga.Image{{Image: "repo/x:1"}}},
+			silent: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			out := filepath.Join(dir, "draugr.saga.yaml")
+			body := "release:\n  name: app\n  version: \"1.0\"\n" + tc.existing
+			if err := os.WriteFile(out, []byte(body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			reg := surveyor.NewRegistry()
+			reg.Register(stubSurveyor{name: "k8s-images", comp: tc.frag})
+
+			stderr := captureStderr(t)
+			err := runSurvey(context.Background(), surveyOptions{version: "1.0", output: out},
+				[]surveyor.Request{{Surveyor: "k8s-images"}}, reg, &bytes.Buffer{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := stderr()
+
+			if tc.silent {
+				if strings.Contains(got, "exposure proposed") {
+					t.Errorf("nothing was proposed into the file:\n%s", got)
+				}
+				return
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("the note should mention %q:\n%s", want, got)
+				}
+			}
+		})
+	}
+}
+
+// The reader's next action is per component — confirming or correcting each one — so a count
+// would tell them only that there is something to open the file for.
+func TestProposedExposureNoteNamesEachComponent(t *testing.T) {
+	t.Parallel()
+	note := proposedExposureNote([]exposureProposal{
+		{component: "payments", exposure: saga.ExposurePublic},
+		{component: "a", exposure: saga.ExposureInternal},
+	})
+	for _, want := range []string{"payments  public", "a         internal"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("want %q, aligned, in:\n%s", want, note)
+		}
+	}
+	if proposedExposureNote(nil) != "" {
+		t.Error("no proposals should print nothing at all")
+	}
+}
+
+// captureStderr redirects os.Stderr for the duration of a test, returning a reader for what was
+// written. A survey writes its notes there deliberately, so that a descriptor sent to stdout stays
+// a descriptor — which means stdout is the one place these messages cannot be checked.
+func captureStderr(t *testing.T) func() string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	prior := os.Stderr
+	os.Stderr = w
+	var once sync.Once
+	var out string
+	read := func() string {
+		once.Do(func() {
+			os.Stderr = prior
+			_ = w.Close()
+			b, _ := io.ReadAll(r)
+			_ = r.Close()
+			out = string(b)
+		})
+		return out
+	}
+	t.Cleanup(func() { read() })
+	return read
 }
