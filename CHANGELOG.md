@@ -19,6 +19,11 @@ and move it under a version on release.
   finding count that was quietly missing whatever those images held. A scan that finds the cache
   busy now waits and tries again, up to three times, and says so each time it waits. Anything else
   still fails immediately.
+- **Four documentation pages describe what the commands actually do.** The CLI reference claimed
+  the retired `survey` flags error with the subcommand that replaced them; they are rejected as
+  unknown flags. The `k8s-cluster` example passed `--merge`, which no longer exists. The Saga
+  reference still described prioritization as something that would feed in once it shipped. And the
+  quickstart carried a half-written note where a token was meant to be explained.
 - **A tool's error keeps the part that says what went wrong.** The first line of a failing
   scanner's output was clamped to fit a terminal line, from the front — and a tool reports a
   wrapped chain whose cause is at the *end*. A Trivy failure arrived as `unable to initialize

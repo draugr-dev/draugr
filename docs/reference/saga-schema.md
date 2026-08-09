@@ -1004,7 +1004,7 @@ on the component, or (absent an override) enabled globally under `config.control
 **Risk classification** (`exposure`, `criticality`) — optional, and the two axes of risk
 prioritization: exposure is how reachable the component is (likelihood), criticality is the
 business impact if it fails. Both are fixed ladders whose meaning an organization can
-redefine (the levels stay stable). They feed finding prioritization as that ships; a
+redefine (the levels stay stable). They feed finding prioritization; a
 component may be left unclassified.
 
 | `exposure` | meaning | | `criticality` | meaning |
