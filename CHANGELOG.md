@@ -28,6 +28,21 @@ and move it under a version on release.
 - **A list option's accepted values are shown, not just enforced.** `draugr controls --options`
   and the schema both now report that `pkgTypes` takes `os` or `library`, rather than silently
   accepting a third value and letting the scan reject it.
+- **`draugr survey --merge` no longer discards what the new survey learned.** An entry matching
+  one already in the descriptor was dropped whole, so a second survey that resolved an image
+  digest, narrowed a repository's `paths`, or named a host it had previously only seen by URL
+  left none of that behind — and the summary still counted the entry, so the file said what it
+  said before while the command said it had merged. Matching entries are now merged rather than
+  skipped.
+
+  The case that surfaced it: `survey k8s cluster --namespace <ns> --merge` reported success and
+  changed nothing, because the cluster was already in the descriptor.
+
+- **A cluster scope is never quietly narrowed.** Merging a namespace-scoped survey into a
+  descriptor that covers the whole cluster keeps the whole cluster, and says so. Two scoped
+  surveys union. A descriptor that silently began scanning less than it did the day before is the
+  dangerous direction for this to be wrong in, and nobody re-reads a descriptor to check that it
+  still covers what it used to.
 
 ## [0.73.1] - 2026-08-08
 

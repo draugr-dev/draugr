@@ -259,7 +259,17 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	if err != nil {
 		return err
 	}
+	// Checked before the merge, because afterwards the wider scope has won and there is nothing
+	// left to notice. Somebody who passed --namespace is entitled to know it did not reach the
+	// descriptor, even though keeping the wider scope was the right call.
+	narrowed := saga.NarrowsScope(&model, frag)
 	surveyor.Apply(&model, frag)
+	for _, target := range narrowed {
+		slog.Warn("kept the wider scope: this descriptor already covers the whole cluster",
+			"target", target,
+			"note", "--namespace did not narrow it, because a survey that quietly scanned less "+
+				"than the last one is the dangerous direction. Edit the descriptor to narrow it.")
+	}
 	if added := enableControlsForSurface(&model); len(added) > 0 {
 		// To stderr, so a descriptor written to stdout stays a descriptor.
 		slog.Info("enabled controls for the discovered surface", "controls", strings.Join(added, ", "))
