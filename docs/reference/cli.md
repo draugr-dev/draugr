@@ -546,7 +546,7 @@ belong to:
 | `draugr survey k8s cluster` | the cluster itself, as an `infrastructure` component | `--namespace` |
 | `draugr survey github repos` | repositories in a GitHub organization | `--org` |
 
-Shared by all of them: `-o, --output` (default stdout), `--merge`, `--name`, `--version`. The
+Shared by all of them: `-o, --output` (default stdout), `--replace`, `--name`, `--version`. The
 `k8s` group also takes `--context`, which selects the cluster for both of its surveyors.
 
 Auth: the GitHub surveyor uses `GITHUB_TOKEN` (or a token in scope config); the Kubernetes
@@ -557,7 +557,7 @@ because the descriptor that results looks complete and is missing every private 
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
-draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
+draugr survey k8s images --namespace prod -o draugr.saga.yaml
 ```
 
 **`--namespace` may be repeated, and each one becomes its own component** with its own proposed
@@ -580,7 +580,7 @@ stderr so a descriptor sent to stdout stays a descriptor:
 wrote draugr.saga.yaml — 12 components, 12 repositories
 ```
 
-A `--merge` says what that run contributed on top of what was already there, and a survey that
+A run that added to an existing descriptor says what it contributed, and a survey that
 discovered nothing says so — a descriptor describing nothing is almost always a scope or
 credentials problem, and the count alone would read as success.
 
@@ -595,7 +595,7 @@ nothing, which is not what "the descriptor writes itself" should mean.
 behalf.
 
 **A control you have already configured is never touched** — including one set to
-`enabled: false`. `--merge` runs against a descriptor people edit, and a survey that switched
+`enabled: false`. A survey runs against a descriptor people edit, and one that switched
 something back on would be worse than the problem it solves.
 
 **Run several with `--merge`**, which folds each survey into the Saga already at `--output` —
@@ -1041,11 +1041,13 @@ list` maps **tool → controls** ("why this tool matters").
 
 ```bash
 draugr controls
-draugr controls --options   # also: what each scanner accepts in its Saga block
+draugr controls --options          # also: what each scanner accepts in its Saga block
+draugr controls sast --options     # just one control
 ```
 
 | Flag | Default | What it does |
 |---|---|---|
+| `[control]` | — | Narrow everything below to one control. A name that is not a control says so and lists the ones that are. |
 | `--options` | off | List the Saga options each scanner accepts, read from the schemas the gate enforces. A scanner shown with no options is configured by choosing it — anything else under its block is an error, not a setting that quietly does nothing. |
 
 Enable a control in your Saga under `config.controllers.<name>` (or per component). A control's

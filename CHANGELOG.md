@@ -12,13 +12,6 @@ and move it under a version on release.
 
 ### Changed
 
-- **Your editor now completes inside a control, not just up to it.** Typing
-  `controllers.sast:` used to offer nothing further — not `semgrep`, not `gosec`, and none of the
-  options either takes — because the schema described only `enabled` and accepted any key beside
-  it. It now names each control's scanners and the options each declares, with the same
-  descriptions `draugr controls --options` prints, so a mistyped scanner or an option a scanner
-  does not take is flagged as you type rather than when you run it.
-
 ### Fixed
 
 - **`format: vex` is no longer rejected by editors.** The schema's list of report formats was
@@ -28,6 +21,15 @@ and move it under a version on release.
 - **A list option's accepted values are shown, not just enforced.** `draugr controls --options`
   and the schema both now report that `pkgTypes` takes `os` or `library`, rather than silently
   accepting a third value and letting the scan reject it.
+- **The `infrastructure` control passed its own `enabled` flag to its scanners**, so a descriptor
+  that merely turned the control on failed with `unknown option "enabled"` — naming a key nobody
+  wrote where it was reported. Scanner blocks were leaking the same way. Both are now stripped,
+  and genuine control-level settings like `context` still reach every scanner.
+- **`draugr survey --namespace` fails on a namespace that does not exist.** Listing pods in a
+  namespace that is not there returns an empty list rather than an error, so a typo produced a
+  survey that succeeded, discovered nothing from that namespace, and said nothing about it —
+  and the descriptor that resulted became the scope of every later scan. A namespace that exists
+  but is empty is reported too, since silence there reads as "found your images".
 - **`draugr survey --merge` no longer discards what the new survey learned.** An entry matching
   one already in the descriptor was dropped whole, so a second survey that resolved an image
   digest, narrowed a repository's `paths`, or named a host it had previously only seen by URL

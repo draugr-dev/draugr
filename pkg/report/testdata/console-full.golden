@@ -36,4 +36,6 @@ Fix first (top 5 of 8, by priority):
   P2        high      -      …tainted-sql-string.tainted-sql-string  sast     semgrep  -              app/main.py:42
             Detected user input flowing into a raw SQL string
 
-… and 3 more finding(s). Use --format json for the full report, or -o <dir> for report.json + results.sarif.
+… and 3 more finding(s).
+Use --top 0 to list them all, or --min-priority P2 to narrow to what to fix first.
+Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif.

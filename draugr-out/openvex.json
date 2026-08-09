@@ -1,0 +1,2375 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://openvex.dev/docs/draugr/2ab8c908025a3ca21ea398f2510a6a329fa1edb63b180a52b548270c0990b8c2",
+  "author": "Draugr demo <demo@example.com>",
+  "timestamp": "2026-08-09T16:23:15Z",
+  "version": 1,
+  "tooling": "draugr/v0.73.1-2-g9590fea-dirty",
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2005-2541"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2007-5686"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2010-4756"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2011-3374"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2011-3389"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2011-4116"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2013-4392"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2016-2781"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2017-18018"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2018-20796"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2018-5709"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2018-6829"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2019-1010022"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2019-1010023"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2019-1010024"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2019-1010025"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2019-9192"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2021-45346"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-0563"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-27943"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-3219"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-40897"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-29383"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-31437"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-31438"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-31439"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-31484"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-31486"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-4039"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-45853"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-4641"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-50495"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-52425"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-52426"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-5752"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-7104"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-10041"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-12133"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-12243"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-13176"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-2236"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-22365"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-26458"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-26461"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-26462"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-28757"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-50602"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-5535"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-56406"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-56433"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-6345"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-8176"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-9143"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-0395"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-13151"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-1390"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-14104"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-14831"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-15281"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-15467"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-15649"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-24528"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-27587"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-29088"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-30258"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-31115"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-32988"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-32989"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-32990"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-3576"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-40909"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-4598"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-47273"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-4802"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-5278"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-59375"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-6020"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-6141"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-6297"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-6395"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-66382"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-68160"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-68972"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-68973"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69418"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69419"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69420"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69421"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-6965"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69720"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-70873"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-7458"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-7709"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-8058"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-8869"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-9230"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-9232"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-9820"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-0861"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-0915"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-11822"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-11824"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-11850"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12087"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13221"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13595"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13757"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-1703"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18477"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18508"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18938"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-2219"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-22795"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-22796"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-24049"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-24515"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-25210"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-27171"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-27456"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-28387"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-28388"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-28389"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-28390"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-29111"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-31789"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-31790"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-3184"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-3219"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-32776"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-32777"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-32778"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-33845"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-33846"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34180"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34182"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34743"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-3833"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-40225"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-40226"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-40228"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-40355"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-40356"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-4046"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-4105"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-41080"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-41989"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-41991"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-41992"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42009"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42010"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42011"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42012"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42013"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42014"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42015"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42250"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42496"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42497"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42766"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42767"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42770"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-4437"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-4438"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-45186"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-45445"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-45446"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-45447"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-4878"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-48959"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-48961"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-48962"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-50219"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-50812"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-50813"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5260"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53613"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53615"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53910"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5419"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5435"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-54369"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-54370"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-54371"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-54411"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5450"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56131"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56132"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56391"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56392"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56403"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56404"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56405"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56406"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56407"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56408"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56409"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56410"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56411"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56412"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5704"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-57062"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-57432"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-57433"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5928"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5958"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-59890"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-6238"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-6357"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-7010"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-7017"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-7383"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-8376"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-8643"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-9076"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-9538"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/draugr-dev/draugr-demo@1.0"
+        }
+      ],
+      "status": "under_investigation"
+    }
+  ]
+}

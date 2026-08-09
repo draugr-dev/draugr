@@ -417,7 +417,7 @@ func TestSurveySummaryDescribesTheArtifact(t *testing.T) {
 		{Name: "web", Repositories: []saga.Repository{{URL: "https://git/a"}}, Hosts: []saga.Host{{URL: "https://a"}}},
 		{Name: "api", Repositories: []saga.Repository{{URL: "https://git/b"}}},
 	}}
-	got := surveySummary(surveyOptions{output: ".saga.yaml"}, saga.Fragment{}, model)
+	got := surveySummary(surveyOptions{output: ".saga.yaml"}, saga.Fragment{}, model, false)
 	want := "wrote .saga.yaml — 2 components, 2 repositories, 1 host"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
@@ -429,7 +429,7 @@ func TestSurveySummarySaysWhatAMergeAdded(t *testing.T) {
 	// contributed, which is otherwise answered by diffing the file.
 	model := saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
 	frag := saga.Fragment{Components: []saga.Component{{Name: "c"}}}
-	got := surveySummary(surveyOptions{output: "s.yaml", merge: true}, frag, model)
+	got := surveySummary(surveyOptions{output: "s.yaml"}, frag, model, true)
 	if !strings.Contains(got, "merged into s.yaml") || !strings.Contains(got, "this survey found 1 component") {
 		t.Errorf("got %q", got)
 	}
@@ -438,7 +438,7 @@ func TestSurveySummarySaysWhatAMergeAdded(t *testing.T) {
 func TestSurveySummaryCallsOutADescriptorThatScansNothing(t *testing.T) {
 	// A survey that discovered nothing writes a valid file that checks nothing, and the count
 	// alone reads as success.
-	got := surveySummary(surveyOptions{output: "s.yaml"}, saga.Fragment{}, saga.Model{})
+	got := surveySummary(surveyOptions{output: "s.yaml"}, saga.Fragment{}, saga.Model{}, false)
 	if !strings.Contains(got, "nothing was discovered") {
 		t.Errorf("an empty descriptor must say so: %q", got)
 	}
@@ -534,5 +534,42 @@ func TestSurveyNamespaceFlagTakesSeveral(t *testing.T) {
 		if f.Value.Type() != "stringSlice" {
 			t.Errorf("%v --namespace is %s, want a repeatable list", path, f.Value.Type())
 		}
+	}
+}
+
+// A descriptor carries decisions a survey cannot rediscover — exposure, criticality, exclusions,
+// controls somebody chose. Overwriting it has to be asked for, because the failure is a file you
+// reconstruct from memory and the success looks identical at the moment it happens.
+func TestSurveyAddsToAnExistingDescriptorUnlessToldOtherwise(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "draugr.saga.yaml")
+	if err := os.WriteFile(existing, []byte("release:\n  name: app\n  version: \"1.0\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	absent := filepath.Join(dir, "new.saga.yaml")
+
+	cases := []struct {
+		name string
+		opts surveyOptions
+		want bool
+	}{
+		{"an existing file is added to", surveyOptions{output: existing}, true},
+		{"--replace starts again", surveyOptions{output: existing, replace: true}, false},
+		{"a file that does not exist is created", surveyOptions{output: absent}, false},
+		{"stdout has nothing to merge into", surveyOptions{}, false},
+	}
+	for _, c := range cases {
+		if got := c.opts.mergesInto(); got != c.want {
+			t.Errorf("%s: mergesInto() = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// The verb has to follow what actually happened, or the summary describes a different run from
+// the one that wrote the file.
+func TestSurveySummaryVerbFollowsWhatHappened(t *testing.T) {
+	model := saga.Model{Components: []saga.Component{{Name: "a"}}}
+	if got := surveySummary(surveyOptions{output: "s.yaml", replace: true}, saga.Fragment{}, model, false); !strings.Contains(got, "wrote s.yaml") {
+		t.Errorf("--replace should say it wrote: %q", got)
 	}
 }

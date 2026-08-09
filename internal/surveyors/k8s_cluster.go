@@ -48,11 +48,10 @@ func (K8sCluster) Info() plugin.SurveyorInfo {
 // be contacted would write a descriptor whose first scan fails, and the descriptor is the thing
 // people trust afterwards — better to fail here, where the operator is watching, than at the
 // scan of a cluster they believed had been checked.
-// The context is unused: the reachability probe is client-go's discovery ServerVersion, which
-// predates context and takes none. The context-aware alternative goes through the discovery
-// REST client, which is nil on the fake clientset and so cannot be tested — a probe that only
-// runs against a real cluster is a probe nothing checks.
-func (k K8sCluster) Survey(_ context.Context, scope plugin.SurveyScope) (saga.Fragment, error) {
+// The reachability probe is client-go's discovery ServerVersion, which predates context and takes
+// none — the context-aware alternative goes through the discovery REST client, which is nil on
+// the fake clientset and so cannot be tested. The context is still used, for the namespace check.
+func (k K8sCluster) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.Fragment, error) {
 	cs, err := k.clientset(scope)
 	if err != nil {
 		return saga.Fragment{}, fmt.Errorf("k8s-cluster: %w", err)
@@ -73,6 +72,10 @@ func (k K8sCluster) Survey(_ context.Context, scope plugin.SurveyScope) (saga.Fr
 			Ref:  ref,
 		}},
 	}
+	if err := requireNamespace(ctx, cs, scope.Ref); err != nil {
+		return saga.Fragment{}, fmt.Errorf("k8s-cluster: %w", err)
+	}
+
 	// A survey scoped to a namespace describes a component that owns that namespace, not the
 	// whole cluster. Writing it here is what makes the descriptor match the survey that produced
 	// it; leaving it out would emit a cluster-wide component the operator then has to narrow by

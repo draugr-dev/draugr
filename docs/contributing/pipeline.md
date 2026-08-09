@@ -24,9 +24,9 @@ Stages map to packages: `saga`, `engine` (plan + scan + aggregate), `norn` (judg
 fragments merged into one.
 
 Discovery surveyors enumerate your app's surface so you don't have to write
-the descriptor by hand — one subcommand per surveyor, combined with `--merge`:
+the descriptor by hand — one subcommand per surveyor, each adding to the same file:
 `draugr survey k8s images -o draugr.saga.yaml`, then
-`draugr survey github repos --org <org> --merge -o draugr.saga.yaml`.
+`draugr survey github repos --org <org> -o draugr.saga.yaml`.
 Skip this stage entirely if you maintain the Saga yourself. See the [surveyors concept](../concepts/surveyors.md).
 
 ## 1. Describe — the Saga

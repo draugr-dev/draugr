@@ -95,6 +95,21 @@ func runInit(dir string, opts initOptions, w io.Writer) error {
 }
 
 // detect reports whether any of the given filenames exists in dir.
+// depManifest names the file that made the dependency check apply, because "dependency manifest"
+// is a category and the reader is looking at a directory. Naming the file they can see turns a
+// comment they have to translate into one they can check.
+func depManifest(dir string) string {
+	for _, name := range []string{
+		"go.mod", "package.json", "requirements.txt", "pyproject.toml",
+		"pom.xml", "Gemfile", "Cargo.toml", "composer.json",
+	} {
+		if detect(dir, name) {
+			return name
+		}
+	}
+	return "a lockfile"
+}
+
 func detect(dir string, names ...string) bool {
 	for _, n := range names {
 		if _, err := os.Stat(filepath.Join(dir, n)); err == nil {
@@ -123,7 +138,7 @@ func scaffoldSaga(dir, name string) string {
 		detected = append(detected, "Go")
 	}
 	if hasDeps {
-		detected = append(detected, "dependency manifest")
+		detected = append(detected, "dependencies to scan ("+depManifest(dir)+")")
 	}
 	if hasDocker {
 		detected = append(detected, "Dockerfile")

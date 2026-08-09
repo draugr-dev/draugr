@@ -33,7 +33,7 @@ Each surveyor is a subcommand, so its options live with it — `--namespace` bel
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
-draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
+draugr survey k8s images --namespace prod -o draugr.saga.yaml
 draugr survey k8s cluster --context prod --merge -o draugr.saga.yaml
 
 # Several namespaces, one component each

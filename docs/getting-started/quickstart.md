@@ -176,10 +176,11 @@ Instead of hand-writing components, point a surveyor at your environment:
 GITHUB_TOKEN=*** draugr survey github repos --org my-org -o draugr.saga.yaml
 
 # Unique container images running in a Kubernetes namespace (uses your kubeconfig)
-draugr survey k8s images --namespace prod --merge -o draugr.saga.yaml
+draugr survey k8s images --namespace prod -o draugr.saga.yaml
 ```
 
-`--merge` blends discovered components into an existing Saga instead of overwriting it. See
+A survey adds to an existing Saga rather than overwriting it — the descriptor holds decisions
+a survey cannot rediscover. Pass `--replace` to start again. See
 the [surveyors reference](../concepts/surveyors.md) for what each one discovers.
 
 ## 4. Run it in CI

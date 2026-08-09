@@ -140,7 +140,7 @@ A descriptor is only worth what its accuracy is worth, and two things protect th
 - **Editor support.** A `# yaml-language-server:` line gives you autocomplete, hover
   documentation and validation as you type — see
   [editor support](../reference/saga-schema.md#editor-support-autocomplete-hover-docs-validation).
-- **Re-survey.** `draugr survey --merge` against a live cluster or org adds what has appeared
+- **Re-survey.** `draugr survey` against a live cluster or org adds what has appeared
   since, so the descriptor tracks reality instead of drifting away from it.
 
 ## Going deeper

@@ -232,13 +232,18 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	_, _ = fmt.Fprintln(w, fixFirstHeading(s, len(shown), len(s.findings)))
 	renderFixFirst(w, col, shown)
 
+	// Two different readers, two different answers. Somebody looking at a truncated list wants
+	// the rest of *this* list, and answering that with a machine format sends them to a document
+	// they did not ask for — human-readable is the default here, so the follow-up should be too.
 	if len(shown) < len(s.findings) {
-		_, _ = fmt.Fprintf(w, "\n… and %d more finding(s). ", len(s.findings)-len(shown))
+		_, _ = fmt.Fprintf(w, "\n… and %d more finding(s).\n", len(s.findings)-len(shown))
+		_, _ = fmt.Fprintln(w, col.Paint(cDim,
+			"Use --top 0 to list them all, or --min-priority P2 to narrow to what to fix first."))
 	} else {
 		_, _ = fmt.Fprint(w, "\n")
 	}
 	_, _ = fmt.Fprintln(w, col.Paint(cDim,
-		"Use --format json for the full report, or -o <dir> for report.json + results.sarif."))
+		"Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif."))
 	return nil
 }
 

@@ -228,3 +228,46 @@ func keysOf(m map[string]bool) []string {
 	slices.Sort(out)
 	return out
 }
+
+// The control's own `enabled` flag, and the scanner blocks beneath it, are not a scanner's
+// options. Copying them into a scanner's config hands it keys that are not its own — and a
+// scanner that declares what it accepts then refuses the whole job, naming a key the descriptor
+// never wrote at that level.
+//
+// The first descriptor to hit it was one `draugr survey` had written: enabling a control is the
+// most ordinary thing a descriptor does.
+func TestInfrastructureDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
+	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"infrastructure": {
+			"enabled":           true,
+			"context":           "prod",
+			"draugrK8sPolicies": saga.ControllerSettings{"enabled": true},
+			"kubeBench":         saga.ControllerSettings{"enabled": false},
+		},
+	}}}
+	comp := &saga.Component{
+		Name:           "cluster",
+		Infrastructure: []saga.Infrastructure{{Kind: "kubernetes", Ref: "prod"}},
+	}
+	jobs, err := Infrastructure{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) == 0 {
+		t.Fatal("no jobs planned")
+	}
+	for _, j := range jobs {
+		if _, leaked := j.Config["enabled"]; leaked {
+			t.Errorf("%s got the control's own enabled flag as an option", j.Scanner)
+		}
+		for _, k := range []string{"draugrK8sPolicies", "kubeBench"} {
+			if _, leaked := j.Config[k]; leaked {
+				t.Errorf("%s got another scanner's block as an option", j.Scanner)
+			}
+		}
+		// The genuine control-level setting still reaches every scanner that needs it.
+		if j.Config["context"] != "prod" {
+			t.Errorf("%s lost the shared context: %v", j.Scanner, j.Config)
+		}
+	}
+}
