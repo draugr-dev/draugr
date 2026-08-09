@@ -20,8 +20,8 @@ func newFeedsCommand() *cobra.Command {
 		Use:   "feeds",
 		Short: "Manage the exploitability feeds Draugr can enrich findings with",
 		Long: "Fetch and inspect the KEV and EPSS datasets that raise a finding's severity by\n" +
-			"real-world exploitability. Fetching is explicit: a scan reads the cache and never\n" +
-			"reaches the network on its own, so a gated run stays reproducible and works offline.",
+			"real-world exploitability.\n\n" +
+			"A scan reads the cache and never fetches on its own. Update it with this command.",
 	}
 	cmd.AddCommand(newFeedsUpdateCommand())
 	cmd.AddCommand(newFeedsStatusCommand())
@@ -34,9 +34,8 @@ func newFeedsUpdateCommand() *cobra.Command {
 		Use:   "update [kev|epss]",
 		Short: "Fetch the exploitability feeds into ~/.draugr/feeds",
 		Long: "Download CISA's KEV catalog and FIRST's EPSS scores into ~/.draugr/feeds, where a\n" +
-			"scan can read them without touching the network. With no arguments, fetches both.\n\n" +
-			"In CI, run this as its own step: a feed outage then fails where it happened, rather\n" +
-			"than as a scan that quietly ranked everything as though nothing were exploited.",
+			"scan reads them without touching the network. With no arguments, fetches both.\n\n" +
+			"In CI, run it as its own step so a feed outage fails there rather than during a scan.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, err := feeds.Dir()
@@ -93,8 +92,7 @@ func newFeedsStatusCommand() *cobra.Command {
 		Use:   "status",
 		Short: "Show what is cached, how old it is, and where it came from",
 		Long: "List the cached exploitability feeds with their age, size, source and digest.\n\n" +
-			"Age is the point: EPSS is republished daily, so a stale copy does not fail — it\n" +
-			"quietly ranks a finding lower than today's data would.",
+			"EPSS is republished daily. A stale copy still scans; it ranks findings on old data.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, err := feeds.Dir()
@@ -144,8 +142,8 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 			joinNames(missing), joinNames(missing))
 	}
 	if len(stale) > 0 {
-		_, _ = fmt.Fprintf(out, "\n%s older than %s. A scan will use it and say so; "+
-			"`draugr feeds update` refreshes it.\n", joinNames(stale), humanAge(feeds.DefaultMaxAge))
+		_, _ = fmt.Fprintf(out, "\n%s older than %s. A scan uses it and marks the report stale. "+
+			"Refresh with `draugr feeds update`.\n", joinNames(stale), humanAge(feeds.DefaultMaxAge))
 	}
 }
 

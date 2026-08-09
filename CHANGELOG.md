@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **`--help` says what a command does, not why it works that way.** Every command's description
+  carried the reasoning behind its design as well as its usage — `draugr mcp` ran to 211 words, a
+  paragraph of which argued why pointing an assistant at Draugr beats letting it improvise. The
+  reasoning is in the docs, where somebody who wants it goes looking; in a terminal it sits between
+  you and what you are trying to do. Descriptions are a fifth shorter and the instructions are
+  easier to find.
+- **Three runtime messages state the fact and stop.** A scan that planned no jobs, a scan that
+  could not use `--allow-scan-errors`, and a stale feed each explained the decision behind the
+  message as well as the message. They now say what happened and what to do about it.
 
 ## [0.74.0] - 2026-08-09
 

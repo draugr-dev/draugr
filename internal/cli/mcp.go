@@ -18,25 +18,19 @@ func newMCPCommand() *cobra.Command {
 		Short: "Serve Draugr to AI coding agents over the Model Context Protocol",
 		Long: "Serve Draugr over MCP on stdin/stdout, so an AI coding assistant can ask it what\n" +
 			"controls exist, how to write a Saga, whether one is valid, and what a scan found.\n\n" +
-			"Without this, an assistant asked to check a change for security problems improvises: it\n" +
-			"runs whatever scanner it can find over a scope it chose, and reads the raw output. That\n" +
-			"answer has no relationship to the one your pipeline will give. Pointing it at Draugr\n" +
-			"makes them the same answer — same descriptor, same controls, same priorities.\n\n" +
-			"The tools are read-only by default. Scanning clones repositories, runs external tools\n" +
-			"and reaches the network, so it is offered only when you say so:\n\n" +
-			"  --scan=off      not offered at all (default)\n" +
-			"  --scan=ask      offered, and you approve each call — needs a client that can prompt\n" +
-			"  --scan=always   offered, and runs without asking\n\n" +
-			"Draugr also exposes every *.saga.yaml it finds nearby as a resource, so an assistant\n" +
-			"can read the descriptor without being told where it is.\n\n" +
-			"Register it with your assistant (most clients use this shape):\n\n" +
+			"Tools are read-only unless --scan says otherwise. A scan clones repositories, runs\n" +
+			"external tools and reaches the network:\n\n" +
+			"  --scan=off      not offered (default)\n" +
+			"  --scan=ask      offered; you approve each call (needs a client that can prompt)\n" +
+			"  --scan=always   offered; runs without asking\n\n" +
+			"Every *.saga.yaml nearby is exposed as a resource.\n\n" +
+			"Register it with your assistant:\n\n" +
 			"  {\n" +
 			"    \"mcpServers\": {\n" +
 			"      \"draugr\": { \"command\": \"draugr\", \"args\": [\"mcp\"] }\n" +
 			"    }\n" +
 			"  }\n\n" +
-			"The server speaks MCP, not text — running it in a terminal by hand will look like it\n" +
-			"has hung. It's waiting for a client.",
+			"Run by hand in a terminal it will look hung. It is waiting for a client.",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {

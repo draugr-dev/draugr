@@ -45,11 +45,9 @@ func newConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Inspect and edit Draugr's machine and organisation settings",
-		Long: "Read and write draugr.config.yaml — the settings that describe the environment\n" +
-			"running a scan rather than the application being scanned.\n\n" +
-			"A Saga is a fact about your software and belongs in its repository. Which build of a\n" +
-			"scanner runs, and what a control defaults to, are facts about a machine or an\n" +
-			"organisation, and want to be the same across every project.",
+		Long: "Read and write draugr.config.yaml: settings for the environment running a scan,\n" +
+			"not for the application being scanned — scanner versions, control defaults, and\n" +
+			"anything else meant to be the same across every project on this machine.",
 	}
 	cmd.AddCommand(newConfigShowCommand(), newConfigGetCommand(), newConfigSetCommand(),
 		newConfigUnsetCommand(), newConfigInitCommand(), newConfigValidateCommand())
@@ -82,10 +80,8 @@ func newConfigShowCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show",
 		Short: "Print the settings in effect and where each came from",
-		Long: "Print the resolved configuration, naming the file each value came from.\n\n" +
-			"A layered config is undebuggable without this. \"Why is Trivy 0.68?\" has one useful\n" +
-			"answer, and it is a filename.",
-		Args: cobra.NoArgs,
+		Long:  "Print the resolved configuration, naming the file each value came from.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			wd, err := os.Getwd()
 			if err != nil {
@@ -233,9 +229,8 @@ func newConfigSetCommand() *cobra.Command {
 		Use:   "set <key> <value>",
 		Short: "Set a value, keeping the file valid and its comments intact",
 		Long: "Write key=value into a config file, given as a dotted path.\n\n" +
-			"The file is edited as a document rather than rewritten, so comments survive. The\n" +
-			"result is parsed before it is saved, so this command cannot leave a file Draugr\n" +
-			"will refuse to load.",
+			"Comments are preserved. The result is parsed before it is saved, so this never\n" +
+			"leaves a file Draugr cannot load.",
 		Example: "  draugr config set controllers.sast.semgrep.config p/owasp-top-ten\n" +
 			"  draugr config set --global tools.trivy.version 0.69.3",
 		Args: cobra.ExactArgs(2),
@@ -305,10 +300,8 @@ func newConfigInitCommand() *cobra.Command {
 		Use:   "init",
 		Short: "Write a starter config, or reset a broken one",
 		Long: "Write a commented starter configuration.\n\n" +
-			"With --force this is the way back from a file that no longer loads: it replaces it\n" +
-			"with one that does. Draugr will not repair a file it cannot parse — rewriting\n" +
-			"somebody's settings on a guess is worse than refusing them — so this is deliberate\n" +
-			"and it is one command.",
+			"--force replaces a file that no longer loads. A file Draugr cannot parse is never\n" +
+			"repaired in place.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path, err := configPath(global)

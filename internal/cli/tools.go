@@ -24,8 +24,8 @@ func newToolsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tools",
 		Short: "Manage the external scanner tools Draugr uses",
-		Long: "Provision and inspect the external scanners (trivy, gitleaks, …) Draugr runs.\n" +
-			"Installs are opt-in and checksum-verified — nothing is ever downloaded during a scan.",
+		Long: "Provision and inspect the external scanners (trivy, gitleaks, …) Draugr runs.\n\n" +
+			"Installs are opt-in and checksum-verified. A scan never downloads anything.",
 	}
 	cmd.AddCommand(newToolsInstallCommand())
 	cmd.AddCommand(newToolsListCommand())
