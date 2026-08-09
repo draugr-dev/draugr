@@ -10,7 +10,22 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **A secrets finding says why it outranks its component.** The note read `↑ ranked as
+  internet-facing: a credential is valid wherever it is valid` — the mechanism, printed against a
+  component you had classified as internal, so it read as a claim about the component that you
+  could see was untrue. It now states the conclusion: `↑ a leaked credential is high priority
+  wherever it is found`.
+
+### Fixed
+
+- **A failing scanner leads with what went wrong.** A tool's error is a chain running from general
+  to specific, and Draugr has already said which scanner, control and component — so the tool's own
+  account of what it was doing spent the whole message restating that, and pushed the words naming
+  the failure off the end. An image that cannot be pulled reported `FATAL Fatal error run error …`
+  and is now `… unable to find the specified image "…" in ["docker" "containerd" …]`. The log
+  timestamp and level are dropped too.
 
 ## [0.75.0] - 2026-08-09
 
