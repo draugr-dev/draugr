@@ -254,7 +254,9 @@ func TestWaitForJobGivesUp(t *testing.T) {
 		t.Fatal("expected the wait to give up")
 	}
 	// The message has to suggest what to do; "context deadline exceeded" alone is a dead end.
-	for _, want := range []string{"did not finish", "timeout", "nodeSelector"} {
+	// This Job has no pod, so the answer is scheduling — not the timeout, which was once suggested
+	// on every path and is misleading on two of the three.
+	for _, want := range []string{"did not finish", "no pod was created", "nodeSelector"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error should mention %q, got: %v", want, err)
 		}
@@ -362,7 +364,7 @@ func TestWaitForJobExplainsATimeoutRatherThanTheClient(t *testing.T) {
 	if strings.Contains(err.Error(), "rate limiter") {
 		t.Errorf("the client's own complaint reached the reader:\n%v", err)
 	}
-	for _, want := range []string{"did not finish", "ContainerCreating", "longer `timeout`"} {
+	for _, want := range []string{"did not finish", "ContainerCreating", "A longer `timeout` may help"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error should mention %q:\n%v", want, err)
 		}
@@ -383,7 +385,59 @@ func TestWaitForJobNamesAPodThatWasNeverScheduled(t *testing.T) {
 	if err == nil {
 		t.Fatal("want a timeout error")
 	}
-	if !strings.Contains(err.Error(), "not scheduled onto any node") {
-		t.Errorf("error should say the pod never started:\n%v", err)
+	for _, want := range []string{"no pod was created", "nodeSelector"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should mention %q:\n%v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "longer `timeout`") {
+		t.Errorf("waiting longer cannot schedule a pod nothing will run:\n%v", err)
+	}
+}
+
+// A pod the cluster refused sits in ContainerCreating indefinitely, and the event is the only place
+// that says why. Reporting the condition without the cause sends the reader to raise a timeout for
+// something no timeout will fix.
+func TestWaitForJobReportsWhyTheClusterRefusedThePod(t *testing.T) {
+	t.Parallel()
+	client := fake.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default", Name: "draugr-kube-bench-3-xyz",
+				Labels: map[string]string{"job-name": "draugr-kube-bench-3"},
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodPending,
+				ContainerStatuses: []corev1.ContainerStatus{{
+					State: corev1.ContainerState{
+						Waiting: &corev1.ContainerStateWaiting{Reason: "ContainerCreating"},
+					},
+				}},
+			},
+		},
+		&corev1.Event{
+			ObjectMeta:     metav1.ObjectMeta{Namespace: "default", Name: "e1"},
+			InvolvedObject: corev1.ObjectReference{Name: "draugr-kube-bench-3-xyz"},
+			Type:           corev1.EventTypeWarning,
+			Reason:         "FailedCreatePodSandBox",
+			Message:        `plugin type="istio-cni" name="istio-cni" failed (add): Unauthorized`,
+			LastTimestamp:  metav1.NewTime(time.Now()),
+		},
+	)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	err := waitForJob(ctx, client, "default", "draugr-kube-bench-3")
+	if err == nil {
+		t.Fatal("want a timeout error")
+	}
+	for _, want := range []string{"FailedCreatePodSandBox", "istio-cni", "refused the pod"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should mention %q:\n%v", want, err)
+		}
+	}
+	// The advice has to follow the diagnosis: no timeout fixes a pod the cluster turned away.
+	if strings.Contains(err.Error(), "A longer `timeout` may help") {
+		t.Errorf("suggested waiting for something waiting cannot fix:\n%v", err)
 	}
 }
