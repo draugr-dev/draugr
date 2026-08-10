@@ -29,6 +29,14 @@ and move it under a version on release.
 
 ### Changed
 
+- **`--scan=ask` asks the way the current protocol requires.** MCP 2026-07-28 forbids a server
+  prompting while it is serving a request, which is how consent was obtained — so on a client
+  speaking that version `--scan=ask` could not ask at all. The `scan` tool now returns the question
+  and the client calls again with your answer; clients too old for that are asked the previous way
+  by the SDK, so both work. A refusal, a cancellation, a client that cannot prompt, or an answer
+  Draugr cannot read still all mean no scan.
+- **The MCP SDK is updated to 1.7.0**, which the above unblocks.
+
 - **An infrastructure finding says what the scan covered.** The scope was reported only when a scan
   was narrowed to namespaces, so a scan of the whole cluster and a scan whose scope nobody recorded
   looked the same — and that difference decides whether a finding is a namespace owner's to fix or

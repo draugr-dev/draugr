@@ -779,3 +779,77 @@ func assertWellFormedElicit(t *testing.T, p *mcp.ElicitParams) {
 		t.Error("requestedSchema has no properties key; an empty object is how \"nothing to fill in\" is said")
 	}
 }
+
+// The consent question is asked by returning it, not by blocking on it: protocol 2026-07-28
+// forbids a server sending `elicitation/create` while it is serving a request. What must not
+// change is that the failure of consent is never a scan.
+func TestConsentAsksByReturningTheQuestion(t *testing.T) {
+	t.Parallel()
+
+	// Unanswered: the call ends with the question rather than a result.
+	ask, err := consent(&mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{}}, "app.saga.yaml", "may I scan?")
+	if err != nil {
+		t.Fatalf("an unanswered call should return the question, not an error: %v", err)
+	}
+	if ask == nil {
+		t.Fatal("no question was returned, so nothing would ever ask")
+	}
+	req, ok := ask.InputRequests[consentRequestID]
+	if !ok {
+		t.Fatalf("the question is not under the id the client echoes back: %v", ask.InputRequests)
+	}
+	elicit, ok := req.(*mcp.ElicitParams)
+	if !ok {
+		t.Fatalf("the question is a %T, which no client will render as a prompt", req)
+	}
+	if elicit.Message != "may I scan?" {
+		t.Errorf("the description did not travel with the question: %q", elicit.Message)
+	}
+	// Not optional even though it asks for nothing: an absent schema serialises as null, and a
+	// client holding to the spec rejects the request.
+	if elicit.RequestedSchema == nil {
+		t.Error("a null requestedSchema is rejected by a conforming client")
+	}
+	// Content alongside input requests is a server bug the SDK rejects outright.
+	if len(ask.Content) != 0 {
+		t.Errorf("a question must carry no content, got %d", len(ask.Content))
+	}
+
+	// Answered.
+	for _, tc := range []struct {
+		name    string
+		answer  mcp.InputResponse
+		wantErr string
+	}{
+		{"accepted", &mcp.ElicitResult{Action: "accept"}, ""},
+		{"declined", &mcp.ElicitResult{Action: "decline"}, "declined"},
+		{"cancelled", &mcp.ElicitResult{Action: "cancel"}, "declined"},
+		// An answer of a shape Draugr cannot read is not a yes. Treating it as one would turn a
+		// protocol mismatch into an unapproved scan.
+		// A response of a shape Draugr has no meaning for: the client answered a different
+		// question, or the protocol grew one this build predates. Any non-elicitation response
+		// serves, and every one of them is deprecated — SEP-2577 retired roots and sampling, so
+		// an elicitation is currently the only live kind. The deprecation is the reason this
+		// type is here, not a reason to stop testing the case: an answer Draugr cannot read must
+		// never be taken for a yes.
+		//nolint:staticcheck // deliberately a deprecated response; the point is that it is not an *ElicitResult
+		{"unreadable", &mcp.CreateMessageWithToolsResult{}, "does not understand"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			res, err := consent(&mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{
+				InputResponses: mcp.InputResponseMap{consentRequestID: tc.answer},
+			}}, "app.saga.yaml", "may I scan?")
+			switch {
+			case tc.wantErr == "":
+				if err != nil || res != nil {
+					t.Errorf("an accepted scan should proceed, got res=%v err=%v", res, err)
+				}
+			case err == nil:
+				t.Errorf("want a refusal containing %q, got res=%v", tc.wantErr, res)
+			case !strings.Contains(err.Error(), tc.wantErr):
+				t.Errorf("error = %q, want it to contain %q", err, tc.wantErr)
+			}
+		})
+	}
+}
