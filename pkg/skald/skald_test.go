@@ -320,3 +320,125 @@ func TestJSONReportCarriesTheScope(t *testing.T) {
 		t.Errorf("an unscoped report should carry no scope field:\n%s", b.String())
 	}
 }
+
+// A control that could not run has to be in the document.
+//
+// It is the case that produced no findings and therefore no verdict outcome, so listing outcomes
+// dropped it: a consumer counting controls saw a shorter list rather than a failure, and every
+// remaining field described what was found rather than what was attempted. Reading this document
+// is exactly the situation where nobody is watching the terminal that says otherwise.
+func TestJSONNamesAControlThatCouldNotRun(t *testing.T) {
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{
+			"sca": {Report: sarif.Report{Results: []sarif.Result{
+				{RuleID: "R", Level: sarif.LevelError, Message: "m"},
+			}}},
+		},
+		ScanErrors: map[string][]string{
+			"dast": {`nuclei: executable file not found in $PATH`},
+			"sca":  {"trivy-fs: exit status 2"},
+		},
+	}
+	verdict := norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+		{Control: "sca", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1}},
+	}}
+
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1"}, run, verdict, ""); err != nil {
+		t.Fatalf("RenderJSON: %v", err)
+	}
+	var doc struct {
+		Incomplete bool `json:"incomplete"`
+		Controls   []struct {
+			Name       string   `json:"name"`
+			Verdict    string   `json:"verdict"`
+			Incomplete bool     `json:"incomplete"`
+			ScanErrors []string `json:"scanErrors"`
+		} `json:"controls"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, buf.String())
+	}
+
+	if !doc.Incomplete {
+		t.Error("a run where a control could not start is not a complete run")
+	}
+	byName := map[string]int{}
+	for i, c := range doc.Controls {
+		byName[c.Name] = i
+	}
+	// dast produced nothing at all, which is exactly why it used to be absent.
+	i, ok := byName["dast"]
+	if !ok {
+		t.Fatalf("the control that produced nothing is missing:\n%s", buf.String())
+	}
+	if !doc.Controls[i].Incomplete || doc.Controls[i].Verdict != "fail" {
+		t.Errorf("a control that never ran is not a pass: %+v", doc.Controls[i])
+	}
+	if len(doc.Controls[i].ScanErrors) != 1 ||
+		!strings.Contains(doc.Controls[i].ScanErrors[0], "not found") {
+		t.Errorf("the reason it did not run is missing: %+v", doc.Controls[i])
+	}
+	// And one that ran, found things, and still hit an error is partial rather than complete.
+	j := byName["sca"]
+	if !doc.Controls[j].Incomplete {
+		t.Errorf("a control with findings and an error is still incomplete: %+v", doc.Controls[j])
+	}
+}
+
+// A clean run carries none of it, or every consumer learns to ignore the fields that matter.
+func TestJSONOmitsTheCaveatsWhenThereAreNone(t *testing.T) {
+	var buf bytes.Buffer
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{}},
+	}}
+	verdict := norn.Result{Verdict: norn.Pass, Controls: []norn.ControlOutcome{
+		{Control: "sca", Verdict: norn.Pass},
+	}}
+	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1"}, run, verdict, ""); err != nil {
+		t.Fatalf("RenderJSON: %v", err)
+	}
+	for _, absent := range []string{"incomplete", "scanErrors", "notMeasured"} {
+		if strings.Contains(buf.String(), absent) {
+			t.Errorf("a complete run must not carry %q:\n%s", absent, buf.String())
+		}
+	}
+}
+
+// The skip travels too, naming what could not be answered and for which component.
+func TestJSONCarriesWhatWasNotMeasured(t *testing.T) {
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{"infrastructure": {Report: sarif.Report{}}},
+		Skipped: []engine.SkippedJob{{
+			Control: "infrastructure", Scanner: "kube-bench-job", Component: "team-a",
+			Reason: "audits the whole cluster and cannot be narrowed to namespace team-a",
+		}},
+	}
+	verdict := norn.Result{Verdict: norn.Pass, Controls: []norn.ControlOutcome{
+		{Control: "infrastructure", Verdict: norn.Pass},
+	}}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1"}, run, verdict, ""); err != nil {
+		t.Fatalf("RenderJSON: %v", err)
+	}
+	var doc struct {
+		Incomplete  bool `json:"incomplete"`
+		NotMeasured []struct {
+			Control, Scanner, Component, Reason string
+		} `json:"notMeasured"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(doc.NotMeasured) != 1 {
+		t.Fatalf("expected one entry, got %+v", doc.NotMeasured)
+	}
+	if doc.NotMeasured[0].Component != "team-a" || doc.NotMeasured[0].Scanner != "kube-bench-job" {
+		t.Errorf("wrong entry: %+v", doc.NotMeasured[0])
+	}
+	// A skip is not a failure: nothing went wrong, and the scanner was never going to be able to
+	// answer. Marking the run incomplete would make every scoped cluster look broken.
+	if doc.Incomplete {
+		t.Error("a skip must not mark the run incomplete")
+	}
+}
