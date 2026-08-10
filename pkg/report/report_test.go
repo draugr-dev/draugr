@@ -1477,3 +1477,86 @@ func TestConsoleSaysNothingAboutHistoryForATreeFinding(t *testing.T) {
 		t.Errorf("a tree finding claimed to be historical:\n%s", buf.String())
 	}
 }
+
+// A scanner that was planned and then not run has to appear in the report.
+//
+// It is the case that looks exactly like success: the control has findings from the scanners that
+// could run, the component reads pass, and nothing anywhere says a question went unanswered. The
+// note is the only thing standing between that and a PASS which means less than it appears to.
+func TestConsoleNamesAScannerThatCouldNotAnswer(t *testing.T) {
+	d := Data{
+		Run: engine.Result{
+			Controls: map[string]plugin.ControlResult{
+				"infrastructure": {Report: sarif.Report{
+					Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelWarning, Message: "m"}},
+				}},
+			},
+			Skipped: []engine.SkippedJob{{
+				Control:   "infrastructure",
+				Scanner:   "kube-bench-job",
+				Component: "team-a",
+				Reason:    "audits the whole cluster and cannot be narrowed to namespace team-a",
+			}},
+		},
+		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+			{Control: "infrastructure", Verdict: norn.Fail, Counts: sarif.Counts{Warning: 1}},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	out := buf.String()
+	// The scanner, the component it did not answer for, and why — an entry naming only the
+	// scanner leaves a reader unable to tell whether it mattered.
+	for _, want := range []string{"Not measured:", "kube-bench-job", "team-a", "cannot be narrowed"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// And a run where nothing was skipped says nothing, or the block becomes something readers learn
+// to scroll past — which takes the run that did skip something down with it.
+func TestConsoleSaysNothingWhenEveryScannerCouldAnswer(t *testing.T) {
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, Data{
+		Run:     engine.Result{Controls: map[string]plugin.ControlResult{}},
+		Verdict: norn.Result{Verdict: norn.Pass},
+	}); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if strings.Contains(buf.String(), "Not measured") {
+		t.Errorf("a complete run must not carry an empty caveat:\n%s", buf.String())
+	}
+}
+
+// The markdown report is what gets pasted into a pull request, which is where somebody decides
+// whether a green check means anything. A skip missing there is missing at the moment it counts.
+func TestMarkdownNamesAScannerThatCouldNotAnswer(t *testing.T) {
+	d := Data{
+		Run: engine.Result{
+			Controls: map[string]plugin.ControlResult{
+				"infrastructure": {Report: sarif.Report{
+					Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelWarning, Message: "m"}},
+				}},
+			},
+			Skipped: []engine.SkippedJob{{
+				Control: "infrastructure", Scanner: "kube-bench-job", Component: "team-a",
+				Reason: "audits the whole cluster and cannot be narrowed to namespace team-a",
+			}},
+		},
+		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+			{Control: "infrastructure", Verdict: norn.Fail, Counts: sarif.Counts{Warning: 1}},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := (markdownReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	for _, want := range []string{"Not measured", "kube-bench-job", "team-a", "cannot be narrowed"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("missing %q:\n%s", want, buf.String())
+		}
+	}
+}

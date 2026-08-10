@@ -70,9 +70,13 @@ The sections this Job runs read a node's own filesystem, which has no namespace 
 scope is not unimplemented here, it is meaningless. The findings always describe the whole cluster.
 
 A component that sets `namespaces` on its infrastructure entry therefore cannot be served by this
-scanner, and `draugr validate` rejects the pairing before a Job is created. Use
-[`draugr-k8s-policies`](draugr-k8s-policies.md), which reads the Kubernetes API and can be
-narrowed, or drop `namespaces`.
+scanner, so no Job is created for it and the report says so under **Not measured** — a scanner that
+quietly does not run reads exactly like one that ran and found nothing.
+
+Nothing needs disabling by hand. Declare the cluster twice — once narrowed to the namespaces a
+component owns, once whole — and the Job runs against the one that claims the whole cluster.
+[`draugr-k8s-policies`](draugr-k8s-policies.md) reads the Kubernetes API and can be narrowed, so it
+serves both.
 
 The `namespace` option below is unrelated: it is where the Job runs, not what it looks at.
 

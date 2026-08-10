@@ -59,6 +59,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		}
 		_, _ = fmt.Fprintln(w)
 		writeScanErrors(w, s)
+		writeNotMeasuredRows(w, d)
 		writeRepositories(w, d)
 		writeProvenance(w, d)
 		writeExploitability(w, d)
@@ -102,6 +103,27 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "\n_…and %d more finding(s)._\n", len(s.findings)-markdownTopN)
 	}
 	return nil
+}
+
+// writeNotMeasuredRows names any scanner that was planned and then not run.
+//
+// Carried into markdown as well as the console because this is the format that gets pasted into a
+// pull request, where a reader is deciding whether the check passing means anything. A scanner
+// that quietly did not run is indistinguishable there from one that ran and found nothing.
+func writeNotMeasuredRows(w io.Writer, d Data) {
+	if len(d.Run.Skipped) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "**Not measured**")
+	_, _ = fmt.Fprintln(w)
+	for _, sk := range d.Run.Skipped {
+		where := sk.Scanner
+		if sk.Component != "" {
+			where += " on `" + sk.Component + "`"
+		}
+		_, _ = fmt.Fprintf(w, "- %s (%s) — %s\n", where, sk.Control, sk.Reason)
+	}
+	_, _ = fmt.Fprintln(w)
 }
 
 // writeScanErrors lists what stopped each control, under the Controls table.

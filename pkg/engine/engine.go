@@ -412,6 +412,10 @@ type Result struct {
 	// scans that actually executed count: a cache hit means the traffic was not sent this time,
 	// and a record of effects has to describe what happened rather than what was configured.
 	Effects []plugin.Effect
+	// Skipped are jobs that were planned and then not run, because the scanner could not answer
+	// the question the target asked. Reported because a scanner that quietly does not run is
+	// indistinguishable, in the output, from one that ran and found nothing.
+	Skipped []SkippedJob
 	// Scanners names every scanner this run used, deduplicated and sorted.
 	//
 	// Recorded because a report has to be able to say which tools produced its findings — the
@@ -506,6 +510,10 @@ func recordProvenance(report *sarif.Report, tool, version string) {
 // whatever results succeeded. Honors ctx cancellation.
 func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	planned, planErr := e.Plan(model)
+	// A scanner that cannot answer the question a target asks does not run against it. Done
+	// here rather than in the controller because only the registry knows what a scanner can
+	// do, and the rule is about the scanner rather than about any one control.
+	planned, skipped := dropUnnarrowable(e.reg, planned)
 
 	ctx, runSpan := tracer.Start(ctx, "engine.run",
 		trace.WithAttributes(attribute.Int("jobs", len(planned))))
@@ -786,6 +794,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		Scanners: distinctScanners(planned),
 		SBOMs:    docs,
 	}
+	res.Skipped = skipped
 	if len(ctlErrs) > 0 {
 		res.ScanErrors = ctlErrs
 	}
