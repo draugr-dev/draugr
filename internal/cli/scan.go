@@ -250,10 +250,13 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	defer pool.Close()
 	ctx = git.WithPool(ctx, pool)
 
-	run, runErr := engine.New(reg, eopts...).Run(ctx, *model)
-	if runErr != nil {
-		slog.Warn("scan completed with issues", "error", runErr)
-	}
+	// The error is deliberately not logged here. Every failure it joins is also recorded against
+	// a control in run.ScanErrors — a planning failure against a pseudo-control precisely so it
+	// has somewhere to be reported from — so the report prints each one under the control it
+	// belongs to, and the command exits naming the control that could not run. Logging the join
+	// as well puts a third copy of the same sentences on the screen, the longest of them first,
+	// above the report that explains them.
+	run, _ := engine.New(reg, eopts...).Run(ctx, *model)
 
 	reports := make(map[string]sarif.Report, len(run.Controls))
 	for name, cr := range run.Controls {

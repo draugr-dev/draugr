@@ -16,12 +16,15 @@ import (
 
 // captureWarnings redirects the default logger for the duration of a test. The retry reports
 // itself through slog, which is the only place a caller can see that a scan waited.
+//
+// Held at the CLI's own default level rather than a permissive one, so the test fails if the
+// report is demoted below what a user sees. Somewhere in the logs is not the same as on screen.
 func captureWarnings(t *testing.T) func() string {
 	t.Helper()
 	var mu sync.Mutex
 	buf := &lockedBuffer{mu: &mu}
 	prior := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	slog.SetDefault(slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelInfo})))
 	t.Cleanup(func() { slog.SetDefault(prior) })
 	return buf.String
 }
@@ -186,8 +189,14 @@ func TestRetryLockedCacheSaysItIsWaiting(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if got := logs(); !strings.Contains(got, "cache is held by another scan") {
+	got := logs()
+	if !strings.Contains(got, "waiting for the scanner cache") {
 		t.Errorf("the wait was not reported:\n%s", got)
+	}
+	// The holder is one of this scan's own jobs. Calling it another scan sends a reader looking
+	// for a second Draugr process, and there is never one to find.
+	if strings.Contains(got, "another scan") {
+		t.Errorf("the wait must not blame a scan the reader did not start:\n%s", got)
 	}
 }
 
