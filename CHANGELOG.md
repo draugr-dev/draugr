@@ -10,6 +10,18 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`draugr tools install semgrep` no longer behaves like an installer.** It printed a plan,
+  counted semgrep as a tool to install, asked you to approve it, took a yes — and then printed a
+  `pipx` command, having installed nothing. Draugr does not distribute semgrep and never did; the
+  plan says so, the prompt is skipped when there is nothing for Draugr to download, and the command
+  you need is the whole output.
+- **The report distinguishes a tool Draugr did not install from one it does not distribute.**
+  `Scanner (unverified): semgrep — found on PATH; Draugr did not install it` read as an omission
+  worth fixing, and the command to fix it does not exist. A tool Draugr provisions now names
+  `draugr tools install <tool>`; one it does not says so and names what does install it.
+
 ### Changed
 
 - **An infrastructure finding says what the scan covered.** The scope was reported only when a scan

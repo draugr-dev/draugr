@@ -46,6 +46,33 @@ func (l Level) Describe() string {
 	}
 }
 
+// DescribeFor renders a level for one named tool.
+//
+// "Draugr did not install it" is true of everything external and misleading for some of it: a tool
+// Draugr does not distribute was never a candidate, and reporting an omission invites somebody to
+// go and fix it with a command that will not work. Semgrep is a Python package installed with
+// pipx, so the honest line names that rather than implying a gap.
+func DescribeFor(l Level, tool string) string {
+	if l != LevelExternal && l != "" {
+		return l.Describe()
+	}
+	if _, ours := Spec(tool); !ours {
+		if hint := externalInstallHint(tool); hint != "" {
+			return "found on PATH; Draugr does not distribute it (" + hint + ")"
+		}
+		return "found on PATH; Draugr does not distribute it"
+	}
+	return "found on PATH; Draugr did not install it — `draugr tools install " + tool + "` provisions a pinned build"
+}
+
+// externalInstallHint names how a tool Draugr does not distribute is normally obtained.
+func externalInstallHint(tool string) string {
+	if tool == "semgrep" {
+		return "pipx"
+	}
+	return ""
+}
+
 // Vouched reports whether Draugr installed this binary at all, at any level.
 func (l Level) Vouched() bool { return l != LevelExternal && l != "" }
 
