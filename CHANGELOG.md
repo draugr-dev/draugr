@@ -12,6 +12,11 @@ and move it under a version on release.
 
 ### Fixed
 
+- **A `kube-bench-job` whose pod the cluster refused says which plugin refused it.** A pod turned
+  away by a CNI or admission plugin waits in `ContainerCreating` indefinitely, so the report named
+  a condition and no cause — and then advised a longer `timeout`, which cannot fix a pod that will
+  never start. The cluster's own warning is now included, and the advice follows the diagnosis:
+  nothing scheduled it, the cluster refused it, or it is still working and waiting longer will help.
 - **A `kube-bench-job` that ran out of time says what its pod was doing.** The wait reported
   `client rate limiter Wait returned an error: context deadline exceeded` — a message about
   Draugr's own Kubernetes client, in place of the one explaining what to do. It now names the pod's

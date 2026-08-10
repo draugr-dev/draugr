@@ -370,47 +370,95 @@ func waitForJob(ctx context.Context, client kubernetes.Interface, namespace, nam
 	}
 }
 
-// timedOut explains a Job that never finished, naming what its pod was still doing.
+// timedOut explains a Job that never finished, naming what its pod was doing and what would help.
 //
-// "did not finish" on its own reads as a hang, and the usual cause is not one: the pod is pulling
-// an image, or it is unschedulable and has never started at all. Those need different answers —
-// wait longer, or fix the node selector — and the pod's own status already distinguishes them.
-//
-// Read with a context of its own, because the caller's has just expired and this is the moment its
-// answer is most useful.
+// "did not finish" on its own reads as a hang, and the usual cause is not one. The advice has to
+// follow the diagnosis rather than list every possibility: telling somebody to raise the timeout
+// for a pod the cluster refused sends them to change a number that was never the problem.
 func timedOut(ctx context.Context, client kubernetes.Interface, namespace, name string, cause error) error {
+	state, advice := podDiagnosis(ctx, client, namespace, name)
 	base := fmt.Sprintf("job %s/%s did not finish", namespace, name)
-	if state := podState(ctx, client, namespace, name); state != "" {
-		base += " — its pod is " + state
+	if state != "" {
+		base += " — " + state
 	}
-	return fmt.Errorf("%s: %w. The Job has been removed; a longer `timeout`, or a nodeSelector "+
-		"that matches a schedulable node, may help", base, cause)
+	return fmt.Errorf("%s: %w. The Job has been removed. %s", base, cause, advice)
 }
 
-// podState describes what the Job's pod was doing, or "" when it cannot be read.
-func podState(ctx context.Context, client kubernetes.Interface, namespace, jobName string) string {
+// podDiagnosis describes what the Job's pod was doing, and what would actually help.
+//
+// Three outcomes, and they need three different answers. No pod means nothing scheduled it. A
+// warning from the cluster means the pod was refused, and no amount of waiting changes that. Only
+// a pod quietly working — pulling an image, most often — is a case where a longer timeout is the
+// fix, and it is the only case where suggesting one is useful rather than misleading.
+func podDiagnosis(ctx context.Context, client kubernetes.Interface, namespace, jobName string) (state, advice string) {
 	readCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), podStateTimeout)
 	defer cancel()
 	pods, err := client.CoreV1().Pods(namespace).List(readCtx, metav1.ListOptions{
 		LabelSelector: "job-name=" + jobName,
 	})
-	if err != nil || len(pods.Items) == 0 {
-		// No pod at all is itself the answer, and the commonest reason is a cluster with nothing
-		// the Job may be scheduled onto.
-		if err == nil {
-			return "not scheduled onto any node"
-		}
-		return ""
+	if err != nil {
+		return "", "A longer `timeout` may help."
 	}
+	if len(pods.Items) == 0 {
+		return "no pod was created for it",
+			"Nothing scheduled it: check that a node matches the Job's `nodeSelector` and is schedulable."
+	}
+
 	pod := pods.Items[0]
+	state = string(pod.Status.Phase)
 	// The container's own reason first: "ContainerCreating" or "ImagePullBackOff" says which of
 	// the two waits this is, where the pod phase says only "Pending" for both.
 	for _, cs := range pod.Status.ContainerStatuses {
 		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" {
-			return string(pod.Status.Phase) + " (" + cs.State.Waiting.Reason + ")"
+			state += " (" + cs.State.Waiting.Reason + ")"
+			break
 		}
 	}
-	return string(pod.Status.Phase)
+	// Then the warning the cluster raised, which is the part that names a cause rather than a
+	// condition. A pod refused a network sandbox sits in ContainerCreating indefinitely, and
+	// reporting only that sends the reader to raise a timeout for something no timeout will fix.
+	if w := latestWarning(readCtx, client, namespace, pod.Name); w != "" {
+		return state + ": " + w,
+			"The cluster refused the pod; a longer `timeout` will not change that. " +
+				"`kubeBenchJob.namespace` runs it somewhere else."
+	}
+	return state, "A longer `timeout` may help."
+}
+
+// latestWarning returns the most recent Warning event for a pod, or "" when there is none.
+func latestWarning(ctx context.Context, client kubernetes.Interface, namespace, pod string) string {
+	events, err := client.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: "involvedObject.name=" + pod,
+	})
+	if err != nil {
+		return ""
+	}
+	var newest *corev1.Event
+	for i, e := range events.Items {
+		if e.Type != corev1.EventTypeWarning {
+			continue
+		}
+		if newest == nil || eventTime(e).After(eventTime(*newest)) {
+			newest = &events.Items[i]
+		}
+	}
+	if newest == nil {
+		return ""
+	}
+	return newest.Reason + " — " + strings.TrimSpace(newest.Message)
+}
+
+// eventTime is when an event was last seen, falling back through the fields different cluster
+// versions populate. An event with no time at all sorts oldest, which keeps it from displacing one
+// that is genuinely current.
+func eventTime(e corev1.Event) time.Time {
+	if !e.LastTimestamp.IsZero() {
+		return e.LastTimestamp.Time
+	}
+	if !e.EventTime.IsZero() {
+		return e.EventTime.Time
+	}
+	return e.FirstTimestamp.Time
 }
 
 // podStateTimeout bounds the extra read. It runs after the wait has already given up, so it must
