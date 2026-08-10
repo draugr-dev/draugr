@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.75.2] - 2026-08-09
+
 ### Fixed
 
 - **A `kube-bench-job` whose pod the cluster refused says which plugin refused it.** A pod turned
@@ -3276,7 +3280,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.75.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.75.2...HEAD
+[0.75.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.75.2
 [0.75.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.75.1
 [0.75.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.75.0
 [0.74.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.74.0
