@@ -173,11 +173,16 @@ This scanner always audits the whole cluster. Its checks are `kubectl` pipelines
 written into them — `--all-namespaces`, with no flag to change it — so a component that sets
 `namespaces` on its infrastructure entry cannot be honoured.
 
-`draugr validate` rejects that pairing rather than letting the scan reach a cluster and refuse
-there. The alternative is worse than a missing feature: the report would look scoped, the rule ids
-would look scoped, and the findings would be somebody else's. Use
-[`draugr-k8s-policies`](draugr-k8s-policies.md), which reads the Kubernetes API and can be
-narrowed, or drop `namespaces`.
+So it is not planned for such a component, the way a controller does not plan for an
+infrastructure kind it has no benchmark for. The alternative is worse than a missing feature: the
+report would look scoped, the rule ids would look scoped, and the findings would be somebody
+else's. The report names the skip under **Not measured**, because a scanner that quietly does not
+run reads exactly like one that ran and found nothing.
+
+Nothing needs disabling by hand. Declare the cluster twice — once narrowed to the namespaces a
+component owns, once whole — and each scanner runs where it can answer.
+[`draugr-k8s-policies`](draugr-k8s-policies.md) reads the Kubernetes API and can be narrowed, so it
+serves both.
 
 `kubeBenchJob` is the answer to both where a privileged pod is permitted. Where it is not — a
 namespace enforcing the restricted Pod Security Standard will reject it — this mode is what runs,

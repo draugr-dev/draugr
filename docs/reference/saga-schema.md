@@ -1005,10 +1005,30 @@ on the component, or (absent an override) enabled globally under `config.control
 cluster the component owns; omit it and the audit covers the whole cluster. Not every scanner can
 honour it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
 reads a node's own filesystem, which has no namespace — so both always describe the whole cluster.
-Enabling either for a component that sets `namespaces` is rejected by `draugr validate`, because
-the alternative is a report that looks scoped and lists somebody else's namespaces against this
-component. Use `draugr-k8s-policies`, which reads the Kubernetes API and can be narrowed, or drop
-`namespaces` and let the component claim the cluster.
+Neither is run against a component that sets `namespaces`. The alternative would be a report that
+looks scoped and lists somebody else's namespaces against this component, so the scan is not
+planned — and the report says so, under **Not measured**, naming the scanner and the component:
+
+```
+Not measured:
+  infrastructure  kube-bench-job on team-a — audits the whole cluster and cannot be narrowed to namespace team-a
+```
+
+Nothing has to be turned off by hand. To get both — node-level checks over the whole cluster, and
+API checks scoped to what you own — declare the cluster twice:
+
+```yaml
+components:
+  - name: team-a
+    infrastructure:
+      - kind: kubernetes
+        ref: prod-cluster
+        namespaces: [team-a]     # draugr-k8s-policies narrows to this
+  - name: prod-cluster           # the same cluster, claimed whole
+    infrastructure:
+      - kind: kubernetes
+        ref: prod-cluster        # kube-bench and kubeBenchJob run here
+```
 
 **Risk classification** (`exposure`, `criticality`) — optional, and the two axes of risk
 prioritization: exposure is how reachable the component is (likelihood), criticality is the

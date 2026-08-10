@@ -10,7 +10,28 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **A scanner that can only audit a whole cluster is skipped for a component that claimed part of
+  one, instead of the descriptor being rejected.** Declaring a cluster twice — once narrowed to the
+  namespaces a component owns, once whole — is a reasonable thing to write, and 0.78.0 refused it,
+  asking you to turn the scanner off by hand for the narrowed component. Draugr already knows which
+  scanners cannot be narrowed, so it works it out: `kubeBench` and `kubeBenchJob` run against the
+  component that claims the whole cluster, `draugrK8sPolicies` runs against both, and nothing needs
+  disabling. `draugr validate` accepts the descriptor again.
+
+### Added
+
+- **A `Not measured` section in the report**, naming any scanner that was planned and then not run,
+  the component it could not answer for, and why:
+
+  ```
+  Not measured:
+    infrastructure  kube-bench-job on team-a — audits the whole cluster and cannot be narrowed to namespace team-a
+  ```
+
+  A scanner that quietly does not run reads exactly like one that ran and found nothing, and the
+  difference decides what a `PASS` is worth. Nothing is printed when every scanner could answer.
 
 ## [0.78.0] - 2026-08-10
 

@@ -147,6 +147,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			why(name)
 		}
 		writeMeasuredAgainst(w, col, d, width)
+		writeNotMeasured(w, col, d, width)
 		_, _ = fmt.Fprintln(w)
 	}
 
@@ -628,6 +629,30 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 			text += " — " + l.Detail
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, l.Control), col.Paint(cDim, text))
+	}
+}
+
+// writeNotMeasured names a scanner that was planned for a component and then not run.
+//
+// Beside "Measured against" because it is the same question answered the other way, and a reader
+// deciding what a PASS is worth needs both halves. Without it a scanner that could not answer the
+// question a component asked looks exactly like one that answered it and found nothing — which is
+// the difference this report exists to make visible.
+func writeNotMeasured(w io.Writer, col tui.Painter, d Data, width int) {
+	if len(d.Run.Skipped) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Not measured:")
+	for _, sk := range d.Run.Skipped {
+		text := sk.Scanner
+		if sk.Component != "" {
+			text += " on " + sk.Component
+		}
+		if sk.Reason != "" {
+			text += " — " + sk.Reason
+		}
+		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, sk.Control), col.Paint(cDim, text))
 	}
 }
 
