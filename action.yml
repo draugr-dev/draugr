@@ -1,5 +1,5 @@
 name: Draugr Security Scan
-description: Run Trivy, Semgrep, Gitleaks and more from one descriptor. Consolidates SAST, SCA, secrets, IaC and container findings into one SARIF report and one pass/fail gate, and can fail a pull request on new findings only.
+description: SAST, SCA, secrets, IaC and container scanning from one descriptor — one SARIF report and one pass/fail gate.
 author: Draugr
 branding:
   icon: shield
