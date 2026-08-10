@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Print the terminal output the docs quote, produced by a real scan of the demo sandbox.
 #
-# Six documents and one GIF show `draugr scan .` output. They were transcribed by hand, which
+# Six documents and a screenshot show `draugr scan .` output. They were transcribed by hand, which
 # means they drift silently: nothing in CI reads them, and a rendering change or a new advisory
 # leaves them subtly wrong in a way that costs a reader their trust in the rest of the page.
 #
@@ -31,7 +31,7 @@ trap 'rm -rf "$workdir"' EXIT
 
 # The directory name matters: with no Saga present, `draugr scan .` names the release after the
 # directory, and that name is in every example. Clone into draugr-demo so the output can be
-# pasted verbatim — and so it matches the GIF, which records the same sandbox.
+# pasted verbatim — and so it matches the screenshot, which records the same sandbox.
 echo "Cloning the demo sandbox…" >&2
 git clone --quiet --depth 1 "$DEMO_REPO" "$workdir/draugr-demo"
 
@@ -52,6 +52,6 @@ cat >&2 <<'EOF'
 
 
 Done. The README and docs/concepts/verdict-and-gating.md quote abridged versions of the first
-block — keep the abridgement, refresh the numbers and any column that moved. Re-record the GIF
-separately:  gh workflow run 'Demo GIF' --repo draugr-dev/draugr
+block — keep the abridgement, refresh the numbers and any column that moved. Re-record the
+screenshot separately:  gh workflow run 'Demo assets' --repo draugr-dev/draugr
 EOF

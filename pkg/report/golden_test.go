@@ -95,7 +95,7 @@ func goldenMismatch(path string) string {
 // what it measured.
 //
 // Every element, because an element the fixture omits is an element the golden does not pin —
-// and the layout is copied into six documents, two blog posts and a recorded GIF that nothing
+// and the layout is copied into six documents, two blog posts and a screenshot that nothing
 // else checks.
 func goldenFullData() Data {
 	sca := []sarif.Result{
