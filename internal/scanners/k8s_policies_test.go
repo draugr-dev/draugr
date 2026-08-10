@@ -796,3 +796,59 @@ func TestPoliciesReportDeclaresNothingForAManualCheck(t *testing.T) {
 		t.Error("the manual-review findings should still be reported")
 	}
 }
+
+// A reader asks whether a finding is theirs to fix, and the answer is what the scan covered.
+// Reported only for a narrowed scan, "the whole cluster" was indistinguishable from "nobody
+// recorded it" — and a component owning one namespace and one owning the cluster produce findings
+// that otherwise read alike.
+func TestScopeDescription(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		ns   []string
+		want string
+	}{
+		{"nothing named covers everything", nil, "whole cluster"},
+		{"an empty list is the same thing", []string{}, "whole cluster"},
+		{"one namespace reads as one", []string{"team-a"}, "namespace team-a"},
+		{"several are listed", []string{"team-b", "team-a"}, "namespaces team-a, team-b"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := scopeDescription(tc.ns); got != tc.want {
+				t.Errorf("scopeDescription(%v) = %q, want %q", tc.ns, got, tc.want)
+			}
+		})
+	}
+}
+
+// The scope has to reach the report, not just exist. It travels as provenance, which is what the
+// console and the markdown render under the control — and which, unlike the finding's location, is
+// not part of a finding's fingerprint, so saying it cannot make every existing finding look new.
+func TestAClusterWideScanSaysSo(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		ns   []string
+		want string
+	}{
+		{"whole cluster", nil, "whole cluster"},
+		{"one namespace", []string{"team-a"}, "namespace team-a"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			rep := policiesReport(map[string]policyVerdict{}, "kubernetes/prod", tc.ns)
+			var got string
+			for _, p := range rep.Provenance {
+				for _, f := range p.Fields {
+					if f.Key == "scope" {
+						got = f.Value
+					}
+				}
+			}
+			if got != tc.want {
+				t.Errorf("scope provenance = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

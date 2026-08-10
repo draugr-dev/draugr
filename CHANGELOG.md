@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **An infrastructure finding says what the scan covered.** The scope was reported only when a scan
+  was narrowed to namespaces, so a scan of the whole cluster and a scan whose scope nobody recorded
+  looked the same — and that difference decides whether a finding is a namespace owner's to fix or
+  the cluster owner's. It is now stated either way, beside the benchmark and the coverage:
+
+  ```
+  draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope whole cluster
+  draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope namespace team-a
+  ```
 
 ## [0.76.0] - 2026-08-10
 
