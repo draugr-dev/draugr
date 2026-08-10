@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **A `kube-bench-job` that ran out of time says what its pod was doing.** The wait reported
+  `client rate limiter Wait returned an error: context deadline exceeded` — a message about
+  Draugr's own Kubernetes client, in place of the one explaining what to do. It now names the pod's
+  state, so `ContainerCreating` (wait longer) is distinguishable from a pod never scheduled (fix
+  the node selector), and both from a genuine hang.
+- **A scanner names every effect it needs at once.** Accepting them was a sequence of scans: allow
+  `mutate`, run again, get refused for `privilege`, run again. `kube-bench-job` declares both, and
+  the decision is whether to let it do all of it — so it is asked once, with a single
+  `--allow-effects mutate,privilege` to copy.
 
 ## [0.75.1] - 2026-08-09
 

@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -326,5 +327,63 @@ func TestKubeBenchJobFindingsNameTheJobScanner(t *testing.T) {
 		if r.Tool != kubeBenchJobScannerName {
 			t.Errorf("finding %s names %q, want %q", r.RuleID, r.Tool, kubeBenchJobScannerName)
 		}
+	}
+}
+
+// The two cases of the wait's select can be ready at once, and Go picks between them at random —
+// so half the time the loop asked the API with an expired context, and client-go refused inside
+// its rate limiter. The reader got a message about our own client instead of the one saying what
+// to do about their cluster.
+func TestWaitForJobExplainsATimeoutRatherThanTheClient(t *testing.T) {
+	t.Parallel()
+	client := fake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "draugr-kube-bench-1-abcde",
+			Labels:    map[string]string{"job-name": "draugr-kube-bench-1"},
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+			ContainerStatuses: []corev1.ContainerStatus{{
+				State: corev1.ContainerState{
+					Waiting: &corev1.ContainerStateWaiting{Reason: "ContainerCreating"},
+				},
+			}},
+		},
+	})
+	// Already expired: the state the loop is in when the deadline passes.
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	err := waitForJob(ctx, client, "default", "draugr-kube-bench-1")
+	if err == nil {
+		t.Fatal("want a timeout error")
+	}
+	if strings.Contains(err.Error(), "rate limiter") {
+		t.Errorf("the client's own complaint reached the reader:\n%v", err)
+	}
+	for _, want := range []string{"did not finish", "ContainerCreating", "longer `timeout`"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should mention %q:\n%v", want, err)
+		}
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("the cause should still be the deadline: %v", err)
+	}
+}
+
+// A pod that was never scheduled is a different problem from one still pulling an image, and the
+// answer differs: fix the node selector rather than wait longer.
+func TestWaitForJobNamesAPodThatWasNeverScheduled(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	err := waitForJob(ctx, fake.NewSimpleClientset(), "default", "draugr-kube-bench-2")
+	if err == nil {
+		t.Fatal("want a timeout error")
+	}
+	if !strings.Contains(err.Error(), "not scheduled onto any node") {
+		t.Errorf("error should say the pod never started:\n%v", err)
 	}
 }

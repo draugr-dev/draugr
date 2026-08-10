@@ -283,16 +283,38 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob, allowed ma
 // have done rather than only that it was blocked, because a refusal nobody can act on is its own
 // kind of dead end.
 func consentFor(info plugin.ScannerInfo, allowed map[plugin.EffectKind]bool) error {
+	// Every unaccepted effect, not the first. A scanner may declare several — the kube-bench Job
+	// both creates something and runs it privileged — and reporting one at a time makes accepting
+	// them a sequence of scans, each ending in a refusal naming an effect the previous run did not
+	// mention. The decision is whether to let this scanner do all of it, so it has to be asked once.
+	var kinds []string
+	var described []string
 	for _, effect := range info.Effects {
 		if !effect.Kind.RequiresConsent() || allowed[effect.Kind] {
 			continue
 		}
-		return fmt.Errorf(
-			"this scanner has a %q effect that has not been accepted: %s. Add %q to "+
-				"config.allowEffects in your Saga, or pass --allow-effects %s",
-			effect.Kind, effect.Detail, effect.Kind, effect.Kind)
+		kinds = append(kinds, string(effect.Kind))
+		described = append(described, fmt.Sprintf("%s (%s)", effect.Kind, effect.Detail))
 	}
-	return nil
+	if len(kinds) == 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"this scanner has %s that %s not been accepted: %s. Add %s to config.allowEffects in "+
+			"your Saga, or pass --allow-effects %s",
+		plural2(len(kinds), "an effect", "effects"),
+		plural2(len(kinds), "has", "have"),
+		strings.Join(described, "; "),
+		plural2(len(kinds), "it", "them"),
+		strings.Join(kinds, ","))
+}
+
+// plural2 picks a word for a count.
+func plural2(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 // dedupeEffects collapses the same effect reported by several jobs, in a stable order.

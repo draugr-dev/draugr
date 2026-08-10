@@ -341,6 +341,14 @@ func waitForJob(ctx context.Context, client kubernetes.Interface, namespace, nam
 	ticker := time.NewTicker(jobPollInterval)
 	defer ticker.Stop()
 	for {
+		// Checked before the request, not only in the select below. Both cases of that select can
+		// be ready at once, and Go picks between them at random — so half the time the loop went
+		// round and asked the API with an expired context, which client-go refuses inside its rate
+		// limiter. That surfaced as "client rate limiter Wait returned an error: context deadline
+		// exceeded", a message about our own client, in place of the one below that says what to do.
+		if err := ctx.Err(); err != nil {
+			return timedOut(ctx, client, namespace, name, err)
+		}
 		job, err := client.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("watch job %s/%s: %w", namespace, name, err)
@@ -356,13 +364,58 @@ func waitForJob(ctx context.Context, client kubernetes.Interface, namespace, nam
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("job %s/%s did not finish: %w — the Job has been removed; a "+
-				"longer `timeout`, or a nodeSelector that matches a schedulable node, may help",
-				namespace, name, ctx.Err())
+			return timedOut(ctx, client, namespace, name, ctx.Err())
 		case <-ticker.C:
 		}
 	}
 }
+
+// timedOut explains a Job that never finished, naming what its pod was still doing.
+//
+// "did not finish" on its own reads as a hang, and the usual cause is not one: the pod is pulling
+// an image, or it is unschedulable and has never started at all. Those need different answers —
+// wait longer, or fix the node selector — and the pod's own status already distinguishes them.
+//
+// Read with a context of its own, because the caller's has just expired and this is the moment its
+// answer is most useful.
+func timedOut(ctx context.Context, client kubernetes.Interface, namespace, name string, cause error) error {
+	base := fmt.Sprintf("job %s/%s did not finish", namespace, name)
+	if state := podState(ctx, client, namespace, name); state != "" {
+		base += " — its pod is " + state
+	}
+	return fmt.Errorf("%s: %w. The Job has been removed; a longer `timeout`, or a nodeSelector "+
+		"that matches a schedulable node, may help", base, cause)
+}
+
+// podState describes what the Job's pod was doing, or "" when it cannot be read.
+func podState(ctx context.Context, client kubernetes.Interface, namespace, jobName string) string {
+	readCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), podStateTimeout)
+	defer cancel()
+	pods, err := client.CoreV1().Pods(namespace).List(readCtx, metav1.ListOptions{
+		LabelSelector: "job-name=" + jobName,
+	})
+	if err != nil || len(pods.Items) == 0 {
+		// No pod at all is itself the answer, and the commonest reason is a cluster with nothing
+		// the Job may be scheduled onto.
+		if err == nil {
+			return "not scheduled onto any node"
+		}
+		return ""
+	}
+	pod := pods.Items[0]
+	// The container's own reason first: "ContainerCreating" or "ImagePullBackOff" says which of
+	// the two waits this is, where the pod phase says only "Pending" for both.
+	for _, cs := range pod.Status.ContainerStatuses {
+		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" {
+			return string(pod.Status.Phase) + " (" + cs.State.Waiting.Reason + ")"
+		}
+	}
+	return string(pod.Status.Phase)
+}
+
+// podStateTimeout bounds the extra read. It runs after the wait has already given up, so it must
+// not become a second wait of its own.
+const podStateTimeout = 5 * time.Second
 
 // jobLogs returns the output of the Job's pod.
 func jobLogs(ctx context.Context, client kubernetes.Interface, namespace, jobName string) ([]byte, error) {
