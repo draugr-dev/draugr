@@ -181,6 +181,37 @@ is gated on the run it is about, and none of them affects the verdict:
 At most two per run, highest-consequence first — a block of five is one nobody reads. `--no-tips`
 or `DRAUGR_NO_TIPS=1` silences them, as it does the surface note.
 
+### While a scan is running
+
+A scan plans one job per repository, image, host and cluster and runs them concurrently, and the
+slow ones are the interesting ones — an image being pulled, a benchmark Job waiting for a node. On
+a terminal it says what it is doing, on one line that redraws:
+
+```
+scanning 3/11 · images/trivy ×2, sca/trivy-fs
+```
+
+How many jobs have finished, then what is in flight; several jobs of the same kind collapse into a
+count. The line is erased before the report, so nothing of it survives in what you read afterwards.
+
+Drawn **only when stderr is a terminal**. A report on stdout stays parseable when piped, and a CI
+log keeps one line per event rather than a frame per update. `--no-tips` and `DRAUGR_NO_TIPS=1`
+turn it off along with the tips.
+
+### What the run cost
+
+Under the scanner builds, the run accounts for itself:
+
+```
+Ran 11 jobs in 34.5s — 4 from cache, 1 shared with an identical job.
+```
+
+Wall-clock, not the sum of the jobs: they run concurrently, and their sum is a number matching
+nothing you waited for. **From cache** is what makes [`--cache-dir`](#using-the-cache-in-a-scan) checkable — a second
+run being faster is not evidence that the cache did it. **Shared with an identical job** counts
+jobs answered by another job's scan in the same run, which is what two components pointing at one
+repository produce.
+
 ### Scoping a run
 
 `--components` and `--controls` narrow a run without touching the descriptor — for iterating on
