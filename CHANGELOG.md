@@ -10,7 +10,11 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **The GitHub Action can be published to the Marketplace.** Its description was 214 characters
+  against a limit of 125 — a limit nothing enforces until the moment you publish a release that has
+  already been tagged and built. It is shorter now, and a test fails if it grows back.
 
 ## [0.75.2] - 2026-08-09
 
