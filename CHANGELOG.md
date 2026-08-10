@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.78.0] - 2026-08-10
+
 ### Fixed
 
 - **A control's failure is printed under that control's own row.** It was gathered after the
@@ -22,15 +26,15 @@ and move it under a version on release.
 - **A scan no longer prints its failures three times.** Every error was logged above the report as
   well as appearing under its control and in the line the command exits with. The report and the
   exit are what remain.
+
+### Changed
+
 - **`draugr validate` rejects a namespace scope no enabled scanner can honour.** A component that
   narrows its infrastructure with `namespaces`, while `kubeBench` or `kubeBenchJob` is enabled, is
   asking for something neither can do — they audit the whole cluster or nothing. The descriptor was
   accepted, and you found out partway through a run, after a cluster had been contacted and a Job
   possibly created. Both halves are written in the file, so both are checked in it: `validate` and
   `scan` now name the component, the scanner, and the two ways out, before anything runs.
-
-### Changed
-
 - **Jobs queueing for a shared scanner cache report it as a wait, not a warning.** The message
   said the cache was held by another scan, so a reader went looking for a second Draugr that was
   never running — the holder is another job in the same scan. The wait is still reported at the
@@ -3380,7 +3384,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.77.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.78.0...HEAD
+[0.78.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.78.0
 [0.77.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.77.0
 [0.76.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.76.0
 [0.75.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.75.2
