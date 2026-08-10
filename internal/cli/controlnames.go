@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -128,8 +129,19 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 		}
 	}
 
-	if len(problems) == 0 {
+	// Every problem so far is a reader who wrote a name or an option they cannot know is wrong,
+	// so the error ends by naming where the right ones are listed. A scope pairing is not that:
+	// both halves are correct on their own, and the message carries the two ways to resolve them.
+	// A closing line sending that reader to a list they have no question about weakens the one
+	// instruction they do need, so it is only added when something on it would answer something.
+	nameOrOption := len(problems) > 0
+	problems = append(problems, unscopeableScanners(scannerForKey, model)...)
+
+	switch {
+	case len(problems) == 0:
 		return nil
+	case !nameOrOption:
+		return errors.New(strings.Join(problems, "\n"))
 	}
 	hint := "run `draugr controls` to see what this build provides"
 	if optionProblem {
@@ -162,6 +174,76 @@ func nearestName(name string, known map[string]bool) string {
 	}
 	return best
 }
+
+// unscopeableScanners reports a component that narrows its infrastructure to named namespaces
+// while enabling a scanner that always audits the whole cluster.
+//
+// The scanner refuses that pairing when it is handed the target, and refusing is right — the
+// alternative is reporting one component's cluster against another that claimed three of its
+// namespaces. But a scanner is handed a target partway through a run, so the refusal arrives
+// after jobs have been planned, tools resolved and a cluster contacted, and it arrives as a
+// control that errored rather than as a descriptor that cannot work.
+//
+// Both halves of the pairing are written in the file. Reporting it here means `draugr validate`
+// answers it, in a pre-commit hook, with no cluster and no credentials.
+//
+// Only an explicit `enabled: true` counts. Every cluster-wide scanner is a non-default one, so
+// that is exactly when it would be selected; a block that merely carries config for a scanner
+// nobody turned on is not a problem to report.
+func unscopeableScanners(scannerForKey map[string]map[string]plugin.ScannerInfo, model *saga.Model) []string {
+	var problems []string
+	for i := range model.Components {
+		c := &model.Components[i]
+		if !narrowsToNamespaces(c) {
+			continue
+		}
+		for _, control := range sortedKeys(scannerForKey) {
+			for _, key := range sortedKeys(scannerForKey[control]) {
+				info := scannerForKey[control][key]
+				if !info.ClusterWide || !scannerTurnedOn(model, c, control, key) {
+					continue
+				}
+				problems = append(problems, fmt.Sprintf(
+					"component %q narrows its infrastructure to namespaces, but enables %s, which "+
+						"always audits the whole cluster — remove `namespaces` from the component, "+
+						"or set controllers.%s.%s.enabled: false",
+					c.Name, info.Name, control, key))
+			}
+		}
+	}
+	return problems
+}
+
+// narrowsToNamespaces reports whether any of a component's infrastructure entries claims part of
+// a cluster rather than all of it.
+func narrowsToNamespaces(c *saga.Component) bool {
+	for _, infra := range c.Infrastructure {
+		if len(infra.Namespaces) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// scannerTurnedOn reports whether a scanner block says enabled:true for this component, with the
+// component's own block winning over the project's — which is the order the controller resolves
+// them in, and the only order under which a component can turn a scanner off for itself.
+func scannerTurnedOn(model *saga.Model, c *saga.Component, control, key string) bool {
+	on := false
+	for _, settings := range []map[string]saga.ControllerSettings{model.Config.Controllers, c.Controllers} {
+		block, ok := blockOf(settings[control][key])
+		if !ok {
+			continue
+		}
+		if flag, isBool := block[enabledSetting].(bool); isBool {
+			on = flag
+		}
+	}
+	return on
+}
+
+// enabledSetting is the reserved per-scanner flag inside a scanner's block.
+const enabledSetting = "enabled"
 
 // list renders names for an error message: "a, b or c".
 func list(names []string) string {

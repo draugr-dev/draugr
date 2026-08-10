@@ -86,8 +86,11 @@ func NewKubeBenchJob() plugin.Scanner {
 			Name:   kubeBenchJobScannerName,
 			Origin: "aquasecurity",
 			// No Binary: the work happens in the cluster, from an image.
-			Controls:     []string{"infrastructure"},
-			TargetKinds:  []plugin.TargetKind{plugin.TargetInfra},
+			Controls:    []string{"infrastructure"},
+			TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+			// The Job reads a node's own filesystem, which has no namespace — so a
+			// namespace scope is not unimplemented here, it is meaningless.
+			ClusterWide:  true,
 			ConfigSchema: json.RawMessage(kubeBenchJobConfigSchema),
 			Effects: []plugin.Effect{
 				{

@@ -76,6 +76,9 @@ func NewKubeBench() plugin.Scanner {
 			AlsoRequires: []string{"kubectl"},
 			Controls:     []string{"infrastructure"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetInfra},
+			// Its checks are shell pipelines with the scope written into them —
+			// `kubectl get pods --all-namespaces`, and no flag to change it.
+			ClusterWide:  true,
 			ConfigSchema: json.RawMessage(kubeBenchConfigSchema),
 		},
 		run: func(ctx context.Context, argv, env []string) ([]byte, error) {

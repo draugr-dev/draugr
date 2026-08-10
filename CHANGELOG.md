@@ -22,6 +22,12 @@ and move it under a version on release.
 - **A scan no longer prints its failures three times.** Every error was logged above the report as
   well as appearing under its control and in the line the command exits with. The report and the
   exit are what remain.
+- **`draugr validate` rejects a namespace scope no enabled scanner can honour.** A component that
+  narrows its infrastructure with `namespaces`, while `kubeBench` or `kubeBenchJob` is enabled, is
+  asking for something neither can do — they audit the whole cluster or nothing. The descriptor was
+  accepted, and you found out partway through a run, after a cluster had been contacted and a Job
+  possibly created. Both halves are written in the file, so both are checked in it: `validate` and
+  `scan` now name the component, the scanner, and the two ways out, before anything runs.
 
 ### Changed
 
