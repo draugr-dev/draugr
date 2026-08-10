@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.76.0] - 2026-08-10
+
 ### Added
 
 - **A scan says what it is doing while it does it.** One line on the terminal, redrawn as jobs
@@ -3313,7 +3317,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.75.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.76.0...HEAD
+[0.76.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.76.0
 [0.75.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.75.2
 [0.75.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.75.1
 [0.75.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.75.0
