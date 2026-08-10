@@ -12,6 +12,11 @@ and move it under a version on release.
 
 ### Fixed
 
+- **Ctrl-C no longer leaves a privileged Job running in your cluster.** Draugr installed no signal
+  handler, so an interrupt terminated the process where it stood and every deferred cleanup was
+  skipped — including the one that removes the `kube-bench-job` Job, which then ran on with nothing
+  left to delete it or to say it was there. An interrupt now cancels the scan so those run, and
+  says so; interrupting a second time stops immediately and warns that something may be left.
 - **The GitHub Action can be published to the Marketplace.** Its description was 214 characters
   against a limit of 125 — a limit nothing enforces until the moment you publish a release that has
   already been tagged and built. It is shorter now, and a test fails if it grows back.

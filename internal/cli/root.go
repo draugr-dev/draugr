@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
@@ -111,10 +114,61 @@ func newRootCommand() *cobra.Command {
 	return cmd
 }
 
-// Execute builds and runs the root command using the process arguments, wiring telemetry
-// around it. It returns a process exit code.
+// Execute builds and runs the root command using the process arguments, wiring telemetry and
+// interrupt handling around it. It returns a process exit code.
 func Execute(ctx context.Context) int {
+	ctx, stop := onInterrupt(ctx)
+	defer stop()
 	return execute(ctx, os.Args[1:])
+}
+
+// onInterrupt cancels the context on the first interrupt, and stops caring on the second.
+//
+// A scan holds things that have to be given back: a checkout in a temporary directory, and — for
+// the Kubernetes benchmark — a privileged Job running in somebody's cluster. Every one of those is
+// released by a deferred cleanup, and a deferred cleanup runs when a function returns, not when a
+// process is killed. Without this the default signal disposition terminates the process where it
+// stands, so Ctrl-C during that benchmark leaves the Job running with nobody left to remove it or
+// to say that it is there.
+//
+// The first signal cancels, which is what unwinds the stack and lets each cleanup do its work
+// against a context of its own. The second is a decision that waiting has gone on long enough, and
+// is honoured immediately — a cleanup that hangs must not be able to hold somebody's terminal, and
+// the exit code is the one a shell reports for the signal itself.
+func onInterrupt(ctx context.Context) (context.Context, func()) {
+	ctx, cancel := context.WithCancel(ctx)
+	sigs := make(chan os.Signal, 2)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-done:
+			return
+		case <-sigs:
+		}
+		// To stderr and not through slog: this answers "did it hear me", which a reader needs
+		// before the log level or format has any bearing on anything.
+		fmt.Fprintln(os.Stderr, "\ninterrupted — finishing what has to be cleaned up. Interrupt again to stop now.")
+		cancel()
+		select {
+		case <-done:
+		case <-sigs:
+			fmt.Fprintln(os.Stderr, "stopping now; anything a scan created may be left behind.")
+			os.Exit(130) //nolint:gocritic // the point is to bypass the cleanup being waited on
+		}
+	}()
+
+	// Idempotent: a cleanup that panics when it runs twice is a worse failure than the one it was
+	// added to prevent, and it would happen at exactly the moment everything else is unwinding.
+	var once sync.Once
+	return ctx, func() {
+		once.Do(func() {
+			signal.Stop(sigs)
+			close(done)
+		})
+		cancel()
+	}
 }
 
 // execute runs the root command with the given args; separated from Execute so it can be
