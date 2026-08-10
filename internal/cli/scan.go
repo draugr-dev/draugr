@@ -226,6 +226,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if opts.jobs > 0 {
 		eopts = append(eopts, engine.WithConcurrency(opts.jobs))
 	}
+	// Drawn on stderr so a report on stdout stays a report, and only for somebody watching one.
+	progress := newProgressLine(os.Stderr, opts)
+	if progress != nil {
+		eopts = append(eopts, engine.WithProgress(progress.update))
+		defer progress.done()
+	}
 	if len(opts.allowEffects) > 0 {
 		eopts = append(eopts, engine.WithAllowedEffects(opts.allowEffects))
 	}

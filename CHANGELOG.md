@@ -10,6 +10,30 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **A scan says what it is doing while it does it.** One line on the terminal, redrawn as jobs
+  finish:
+
+  ```
+  scanning 3/11 · images/trivy ×2, sca/trivy-fs
+  ```
+
+  Between the first line and the report a scan printed nothing, and the jobs worth waiting on are
+  the slow ones — an image being pulled, a benchmark Job waiting for a node — so a run that was
+  working and one that had hung looked identical for as long as they lasted. Drawn only when
+  stderr is a terminal, so a piped report stays parseable and a CI log keeps one line per event;
+  `--no-tips` turns it off with the rest.
+- **The report says what the run cost, and what it avoided.**
+
+  ```
+  Ran 11 jobs in 34.5s — 4 from cache, 1 shared with an identical job.
+  ```
+
+  The engine has counted all of this since caching was added and only the HTML report showed any
+  of it, which left `--cache-dir` unverifiable from a terminal: a second run is faster, and nothing
+  said whether the cache was the reason.
+
 ### Fixed
 
 - **Ctrl-C no longer leaves a privileged Job running in your cluster.** Draugr installed no signal

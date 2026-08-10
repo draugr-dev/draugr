@@ -660,3 +660,60 @@ func TestConsentNamesEveryUnacceptedEffect(t *testing.T) {
 		t.Errorf("everything accepted should pass: %v", err)
 	}
 }
+
+// A run that says nothing while it works is indistinguishable from one that has hung, and the jobs
+// worth waiting on are exactly the slow ones. The snapshots have to describe the run truthfully at
+// every point: never more complete than planned, and never claiming more in flight than the pool
+// can hold.
+func TestProgressDescribesTheRunAsItGoes(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var events []ProgressEvent
+	reg := NewRegistry()
+	// Two controls over two components: four jobs, more than the pool, so the snapshots have to
+	// describe a queue rather than everything at once.
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterController(fakeController{name: "infra", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterScanner(&fakeScanner{name: "s"})
+
+	eng := New(reg, WithConcurrency(2), WithProgress(func(ev ProgressEvent) {
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, ev)
+	}))
+
+	if _, err := eng.Run(context.Background(), model()); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(events) == 0 {
+		t.Fatal("a run reported nothing about itself")
+	}
+	total := events[0].Total
+	if total == 0 {
+		t.Fatal("the first snapshot should already know how many jobs were planned")
+	}
+	for i, ev := range events {
+		if ev.Total != total {
+			t.Errorf("event %d: total changed from %d to %d mid-run", i, total, ev.Total)
+		}
+		if ev.Complete > ev.Total {
+			t.Errorf("event %d: %d complete of %d planned", i, ev.Complete, ev.Total)
+		}
+		if len(ev.Running) > 2 {
+			t.Errorf("event %d: %d jobs in flight on a pool of 2", i, len(ev.Running))
+		}
+		if ev.Complete+len(ev.Running) > ev.Total {
+			t.Errorf("event %d: %d done plus %d running exceeds %d planned",
+				i, ev.Complete, len(ev.Running), ev.Total)
+		}
+	}
+	// The run is over, so the last word has to be that everything finished and nothing is left.
+	last := events[len(events)-1]
+	if last.Complete != last.Total || len(last.Running) != 0 {
+		t.Errorf("the final snapshot should be %d/%d with nothing running, got %d/%d running %v",
+			total, total, last.Complete, last.Total, last.Running)
+	}
+}

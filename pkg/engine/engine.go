@@ -43,6 +43,8 @@ type Engine struct {
 	// Nuclei's templates), which is the only part of a scan that reaches the network on its own.
 	skipPrewarm bool
 	sbomGen     sbom.Generator
+	// progress, when set, receives a snapshot as each job starts and finishes.
+	progress ProgressFunc
 	// allowEffects are scanner effects accepted for this invocation, layered over the Saga's.
 	allowEffects []string
 	// scope narrows the run to named components and controls; the zero value scans everything.
@@ -123,6 +125,38 @@ func WithWorkingTree() Option {
 // applied per run (never cached), since it depends on the component's current classification.
 func WithPrioritization(p Prioritizer) Option {
 	return func(e *Engine) { e.prioritize = p }
+}
+
+// ProgressEvent is what a run is doing at one moment: how much is done, and what is in flight.
+//
+// A snapshot rather than a stream of starts and stops, because the consumer renders a line and a
+// line shows a state. Reconstructing that state from events is work every consumer would repeat,
+// and get subtly differently.
+type ProgressEvent struct {
+	// Total is how many jobs were planned, and Complete how many have finished — including those
+	// that failed, were served from cache, or shared a scan with an identical job. A reader
+	// watching this wants to know when it ends, and every one of those ends it.
+	Total    int
+	Complete int
+	// Running names what is in flight as "control/scanner", sorted so the line does not reorder
+	// itself between updates for reasons that mean nothing.
+	Running []string
+}
+
+// ProgressFunc receives a snapshot whenever a job starts or finishes.
+//
+// Called while the run holds its lock, so it must not block: it exists to update a display, and a
+// display that stalls the scan it describes is worse than no display.
+type ProgressFunc func(ProgressEvent)
+
+// WithProgress reports what a run is doing while it does it.
+//
+// A scan plans one job per repository, image, host and cluster and runs them concurrently, and the
+// slow ones are the interesting ones — an image pulling, a benchmark Job waiting to be scheduled.
+// Without this a run that is working and a run that is stuck are indistinguishable for as long as
+// they last, which on a first scan is minutes.
+func WithProgress(fn ProgressFunc) Option {
+	return func(e *Engine) { e.progress = fn }
 }
 
 // WithoutPrewarm skips the pre-run warm-up of shared scanner state.
@@ -478,12 +512,16 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	defer runSpan.End()
 
 	var (
-		mu       sync.Mutex
-		wg       sync.WaitGroup
-		byCtl    = make(map[string][]sarif.Report)
-		ctlErrs  = make(map[string][]string)
-		errs     []error
-		stats    = Stats{Jobs: len(planned), Concurrency: e.concurrency, ByControl: map[string]time.Duration{}}
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		byCtl   = make(map[string][]sarif.Report)
+		ctlErrs = make(map[string][]string)
+		errs    []error
+		stats   = Stats{Jobs: len(planned), Concurrency: e.concurrency, ByControl: map[string]time.Duration{}}
+		// running is what is in flight, keyed by job so two jobs of the same shape can both be
+		// in it; complete counts every job that has stopped, however it stopped.
+		running  = map[int]string{}
+		complete int
 		effects  []plugin.Effect
 		runStart = time.Now()
 		sem      = make(chan struct{}, e.concurrency)
@@ -558,14 +596,34 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		}
 	}
 
+	// report emits a snapshot. Called with mu held, which is what makes Complete and Running
+	// describe the same instant — computed separately they can disagree, and a line claiming more
+	// jobs running than remain is the kind of wrong that makes a reader distrust the whole display.
+	report := func() {
+		if e.progress == nil {
+			return
+		}
+		inFlight := make([]string, 0, len(running))
+		for _, name := range running {
+			inFlight = append(inFlight, name)
+		}
+		sort.Strings(inFlight)
+		e.progress(ProgressEvent{Total: len(planned), Complete: complete, Running: inFlight})
+	}
+	if e.progress != nil {
+		mu.Lock()
+		report()
+		mu.Unlock()
+	}
+
 	gates := newRateGates()
-	for _, pj := range planned {
+	for jobIndex, pj := range planned {
 		if ctx.Err() != nil {
 			canceled = true
 			break
 		}
 		wg.Add(1)
-		go func(pj PlannedJob) {
+		go func(pj PlannedJob, jobIndex int) {
 			defer wg.Done()
 
 			// A scanner's rate limit is waited out *before* a concurrency slot is taken, and
@@ -584,6 +642,21 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 
 			sem <- struct{}{}
 			defer func() { <-sem }()
+
+			// Marked here rather than when the goroutine starts: every planned job has a goroutine
+			// immediately, and a display claiming eleven jobs running on a four-way pool describes
+			// something the machine is not doing.
+			mu.Lock()
+			running[jobIndex] = pj.Control + "/" + pj.Job.Scanner
+			report()
+			mu.Unlock()
+			defer func() {
+				mu.Lock()
+				delete(running, jobIndex)
+				complete++
+				report()
+				mu.Unlock()
+			}()
 
 			jobStart := time.Now()
 			jobCtx, span := tracer.Start(ctx, "engine.scan", trace.WithAttributes(
@@ -689,7 +762,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				stats.Scans++
 			}
 			mu.Unlock()
-		}(pj)
+		}(pj, jobIndex)
 	}
 	wg.Wait()
 	if canceled {

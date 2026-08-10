@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -195,6 +196,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
 		}
 		_, _ = fmt.Fprintln(w)
+	}
+
+	if l := runLine(d.Run.Stats); l != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, l))
 	}
 
 	for _, l := range repositoryLines(d.Repositories) {
@@ -695,6 +700,36 @@ func historicalNote(historical bool) string {
 		return ""
 	}
 	return "↩ in git history — path as it was then. Rotate it; deleting it does not unpublish it."
+}
+
+// runLine accounts for the run: how long it took, and how much of it was avoided.
+//
+// The engine has recorded all of this since caching was added and nothing showed it to the person
+// who ran the scan. That makes `--cache-dir` unverifiable by the only means available at a
+// terminal — the run is faster, and whether the cache did it or the registry was warm is a
+// question the output does not answer. A count of hits is the answer, and it costs one line.
+//
+// Wall-clock rather than the sum of the jobs, because jobs run concurrently and their sum is a
+// number that matches nothing the reader experienced.
+func runLine(st engine.Stats) string {
+	if st.Jobs == 0 || st.Duration <= 0 {
+		return ""
+	}
+	line := fmt.Sprintf("Ran %s in %s", plural(st.Jobs, "job"), st.Duration.Round(time.Millisecond))
+	var savings []string
+	if st.CacheHits > 0 {
+		savings = append(savings, fmt.Sprintf("%d from cache", st.CacheHits))
+	}
+	// Deduped is a different saving and worth its own word: two components sharing a repository
+	// plan two jobs, and one scan answers both. A reader counting jobs against scans otherwise
+	// finds a discrepancy with no name.
+	if st.Deduped > 0 {
+		savings = append(savings, fmt.Sprintf("%d shared with an identical job", st.Deduped))
+	}
+	if len(savings) > 0 {
+		line += " — " + strings.Join(savings, ", ")
+	}
+	return line + "."
 }
 
 // toolBuildLines reports which build of each external scanner ran, and flags the ones Draugr
