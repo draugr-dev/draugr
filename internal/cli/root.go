@@ -59,7 +59,7 @@ func newRootCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			logger, closeLog, err := observability.NewLogger(cmd.ErrOrStderr(), observability.LogOptions{
+			logger, closeLog, err := observability.NewLogger(LogWriter(cmd.ErrOrStderr()), observability.LogOptions{
 				Level:  opts.logLevel,
 				Format: opts.logFormat,
 				File:   opts.logFile,

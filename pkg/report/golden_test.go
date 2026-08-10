@@ -141,6 +141,13 @@ func goldenFullData() Data {
 					Fields: []sarif.Field{{Key: "policy", Value: "deny copyleft"}}}}}},
 		},
 		ScanErrors: map[string][]string{"dast": {"nuclei: executable file not found in $PATH"}},
+		// A run that saved work both ways: some jobs answered from the cache, one shared a scan
+		// with an identical job. Both appear on every real cached run, so the layout the docs
+		// copy has to include them.
+		Stats: engine.Stats{
+			Jobs: 11, Scans: 6, CacheHits: 4, Deduped: 1,
+			Concurrency: 8, Duration: 34500 * time.Millisecond,
+		},
 		Suppressed: 2,
 		// One suppression signed and one not, because the line renders them differently and an
 		// element the fixture omits is an element the golden does not pin. This is the account
