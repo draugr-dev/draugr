@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -111,5 +112,50 @@ func TestAttestFallsBackToTheRecordedVersion(t *testing.T) {
 	a := Attest("gitleaks", path, "", binDir)
 	if !a.Level.Vouched() || a.Version != "8.30.1" {
 		t.Errorf("got %+v", a)
+	}
+}
+
+// "Draugr did not install it" is true of everything external and misleading for some of it. A tool
+// Draugr does not distribute was never a candidate, so reporting an omission invites somebody to
+// go and fix it with a command that will not work.
+func TestDescribeForSeparatesNotInstalledFromNotDistributed(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		level   Level
+		tool    string
+		want    string
+		wantNot string
+	}{
+		{
+			// Draugr distributes trivy, so the omission is real and has a fix.
+			name:  "a tool Draugr installs, brought by the operator",
+			level: LevelExternal, tool: "trivy",
+			want: "draugr tools install trivy",
+		},
+		{
+			// It does not distribute semgrep, and never will: pipx does.
+			name:  "a tool Draugr does not distribute",
+			level: LevelExternal, tool: "semgrep",
+			want:    "does not distribute it (pipx)",
+			wantNot: "draugr tools install",
+		},
+		{
+			name:  "an installed tool is described by its level",
+			level: LevelPinned, tool: "trivy",
+			want: "installed by Draugr",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := DescribeFor(tc.level, tc.tool)
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("DescribeFor(%s, %s) = %q, want it to contain %q", tc.level, tc.tool, got, tc.want)
+			}
+			if tc.wantNot != "" && strings.Contains(got, tc.wantNot) {
+				t.Errorf("DescribeFor(%s, %s) = %q, should not suggest %q", tc.level, tc.tool, got, tc.wantNot)
+			}
+		})
 	}
 }

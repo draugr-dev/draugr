@@ -660,3 +660,69 @@ func installVersion(t *testing.T, name string) string {
 	}
 	return spec.Version
 }
+
+// Draugr does not install semgrep — it is a Python package — so a plan that counts it, a prompt
+// that gates it and a run that reports it are three claims about work that will not happen. The
+// command's whole job here is to print a pipx line.
+func TestInstallingSemgrepDoesNotPretendToInstallIt(t *testing.T) {
+	stubDetect(t, nil) // nothing present, so semgrep is outstanding
+	var out bytes.Buffer
+	called := 0
+	install := func(string) (tools.Installed, error) {
+		called++
+		return tools.Installed{}, nil
+	}
+	// A terminal, so the prompt would appear if anything asked for one.
+	priorTTY := isTTY
+	t.Cleanup(func() { isTTY = priorTTY })
+	isTTY = func(io.Reader) bool { return true }
+
+	if err := runToolsInstall(&out, strings.NewReader(""), []string{"semgrep"},
+		toolsInstallOptions{}, install); err != nil {
+		t.Fatal(err)
+	}
+
+	got := out.String()
+	if strings.Contains(got, "Proceed?") {
+		t.Errorf("asked to approve work Draugr will not do:\n%s", got)
+	}
+	if called != 0 {
+		t.Errorf("attempted %d install(s) of a tool it does not install", called)
+	}
+	if !strings.Contains(got, "pipx install semgrep") {
+		t.Errorf("the command that does install it is missing:\n%s", got)
+	}
+	if strings.Contains(got, "1 tool to install") {
+		t.Errorf("counted semgrep as work Draugr would do:\n%s", got)
+	}
+	if !strings.Contains(got, "not installed by Draugr") {
+		t.Errorf("the plan should say who installs it:\n%s", got)
+	}
+}
+
+// The gate still has to exist for what Draugr really does download — the point is that it gates
+// downloads, not that it is gone.
+func TestARealDownloadStillAsks(t *testing.T) {
+	stubDetect(t, nil)
+	var out bytes.Buffer
+	priorTTY := isTTY
+	t.Cleanup(func() { isTTY = priorTTY })
+	isTTY = func(io.Reader) bool { return true }
+
+	called := 0
+	install := func(string) (tools.Installed, error) {
+		called++
+		return tools.Installed{Name: "syft", Version: "1", Path: "/bin/syft"}, nil
+	}
+	// "n" — declining proves the prompt was real rather than printed and ignored.
+	if err := runToolsInstall(&out, strings.NewReader("n\n"), []string{"syft"},
+		toolsInstallOptions{}, install); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "Proceed?") {
+		t.Errorf("a real download should be approved first:\n%s", out.String())
+	}
+	if called != 0 {
+		t.Errorf("declined, but installed %d tool(s)", called)
+	}
+}

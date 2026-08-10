@@ -322,6 +322,15 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 		_, _ = fmt.Fprintln(w, "\nEverything is already current.")
 		return nil
 	}
+	// Nothing for Draugr to download is not a decision to put to anybody. `tools install semgrep`
+	// reaches here with work outstanding and none of it Draugr's — so asking to proceed, taking a
+	// yes, and then printing a command is a prompt that gated nothing and an install that did not
+	// happen.
+	if downloads(names, all, have) == 0 {
+		_, _ = fmt.Fprintln(w)
+		printSemgrepHint(w)
+		return nil
+	}
 	if !opts.yes && isTTY(in) {
 		_, _ = fmt.Fprint(w, "\nProceed? [y/N] ")
 		if !confirmed(in) {
@@ -384,6 +393,28 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 		return fmt.Errorf("%d tool(s) failed to install", failed)
 	}
 	return nil
+}
+
+// downloads counts what Draugr will actually fetch.
+//
+// Distinct from the number of tools outstanding: semgrep is planned, needed and absent, and Draugr
+// downloads none of it. The confirmation gate means *this* number, because a prompt is about what
+// the command is going to do to the machine.
+func downloads(names []string, all bool, have map[string]string) int {
+	wanted := names
+	if all {
+		wanted = tools.Installable()
+	}
+	n := 0
+	for _, name := range wanted {
+		if name == "semgrep" {
+			continue // provisioned with pipx; Draugr only prints the command
+		}
+		if _, current := have[name]; !current {
+			n++
+		}
+	}
+	return n
 }
 
 func printSemgrepHint(w io.Writer) {
@@ -491,10 +522,14 @@ func writeInstallPlan(w io.Writer, names []string, all bool, have map[string]str
 				tui.PlainCell(category("semgrep")), tui.PlainCell("—"),
 				tui.Styled(tui.StyleMuted, "already at "+have["semgrep"]))
 		} else {
-			todo++
-			table.Row(tui.Styled(tui.StyleAccent, "semgrep"), tui.PlainCell(tools.SemgrepVersion()),
-				tui.PlainCell(category("semgrep")), tui.PlainCell("pypi hash"),
-				tui.Styled(tui.StyleMuted, "pipx (command printed)"))
+			// Not counted as work. Draugr does not install semgrep — it is a Python package — so
+			// counting it made the plan promise a download, the confirmation gate something to
+			// approve, and the run report an install that never happened. The row stays, because
+			// a scan needs the tool and a reader deciding what to provision has to see it; what
+			// changes is that it no longer claims to be Draugr's to do.
+			table.Row(tui.Styled(tui.StyleMuted, "semgrep"), tui.PlainCell(tools.SemgrepVersion()),
+				tui.PlainCell(category("semgrep")), tui.PlainCell("—"),
+				tui.Styled(tui.StyleMuted, "not installed by Draugr — pipx"))
 		}
 	}
 	table.Render(w)

@@ -730,7 +730,8 @@ func toolBuilds(run engine.Result) []report.ToolBuild {
 	for _, b := range names {
 		a := tools.AttestFound(b, "")
 		out = append(out, report.ToolBuild{
-			Name: a.Tool, Version: a.Version, Level: string(a.Level), Reason: a.Reason,
+			Name: a.Tool, Version: a.Version, Level: string(a.Level),
+			Reason: tools.DescribeFor(a.Level, a.Tool),
 		})
 	}
 	return out
