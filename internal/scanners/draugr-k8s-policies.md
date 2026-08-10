@@ -197,12 +197,23 @@ The scanner records what it measured and against what, which travels in `--forma
 
 ```
 Measured against
-- infrastructure — draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope team-a
+- infrastructure — draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope whole cluster
+- infrastructure — draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope namespace team-a
 ```
 
-The coverage figure is the one a reader cannot otherwise get. Counting manual-review findings by
+Three facts, and each answers a question a reader has about a finding they are looking at.
+
+**The benchmark** names the standard the checks came from, which is what makes the result
+defensible to somebody who was not there — `cis-1.12` measures different things from `aks-1.8`.
+
+**The coverage** is the figure a reader cannot otherwise get. Counting manual-review findings by
 hand is the only alternative, and a clean report gives no hint that fourteen of the section's
 checks were never decided by anything.
+
+**The scope** says what the scan covered, and it is stated even when it covers everything. A scan
+of the whole cluster and a scan whose scope nobody recorded are the same silence otherwise, and the
+difference decides whether a finding belongs to the reader or to whoever owns the cluster — the
+question a namespace owner asks first.
 
 ## Interpreting a finding
 

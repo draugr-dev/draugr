@@ -302,11 +302,11 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 			Version:  cisCatalogueVersion,
 		})
 	}
-	if len(namespaces) > 0 {
-		ns := slices.Clone(namespaces)
-		slices.Sort(ns)
-		fields = append(fields, sarif.Field{Key: "scope", Value: strings.Join(ns, ", ")})
-	}
+	// Always, including when it covers everything. Reported only for a narrowed scan, the whole
+	// cluster was indistinguishable from a scan nobody recorded the scope of — and the reader's
+	// question is whether a finding is theirs to fix, which absence cannot answer. A component
+	// owning one namespace and a component owning the cluster produce findings that read alike.
+	fields = append(fields, sarif.Field{Key: "scope", Value: scopeDescription(namespaces)})
 	report.Provenance = []sarif.Provenance{{Tool: draugrK8sPoliciesScannerName, Fields: fields}}
 
 	for _, check := range cisPolicies {
@@ -684,6 +684,22 @@ func listNamespaced[L any, T any](
 		out = append(out, items(l)...)
 	}
 	return out, nil
+}
+
+// scopeDescription says what a scan covered, in the reader's terms rather than the descriptor's.
+//
+// "whole cluster" rather than an empty value or a bare "all": the finding it accompanies is about
+// something shared, and whether it is shared is the fact that decides who acts on it.
+func scopeDescription(namespaces []string) string {
+	if len(namespaces) == 0 {
+		return "whole cluster"
+	}
+	ns := slices.Clone(namespaces)
+	slices.Sort(ns)
+	if len(ns) == 1 {
+		return "namespace " + ns[0]
+	}
+	return "namespaces " + strings.Join(ns, ", ")
 }
 
 // clusterScopeLabel names what was assessed, scope included.
