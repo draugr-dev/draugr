@@ -415,12 +415,17 @@ But a report that cannot say which build produced its findings cannot be reprodu
 
 ```
 Scanners: gitleaks 8.30.1, trivy 0.69.3
-Scanner (unverified): semgrep 1.99.0 — found on PATH; Draugr did not install it
+Scanner (unverified): semgrep 1.169.0 — found on PATH; Draugr does not distribute it (pipx)
 ```
 
 The first line lists the builds Draugr fetched **and checked**: each sits in `~/.draugr/bin`, the
 install record has it, and the file still hashes to what was recorded. The hash is what makes that
 a claim about a file rather than about a path.
+
+The version is on both lines, and on the second it is the whole point. A tool Draugr installed can
+be identified from its install record; one you brought cannot, so Draugr asks it — which is what
+lets the report name the build behind a finding rather than only disclaiming responsibility for
+it. A tool that will not say gets no version, and that too is recorded rather than guessed.
 
 Everything else gets its own line with the reason, because that is the one you have to decide
 about. What Draugr can say about a binary has five levels:
