@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -909,7 +910,7 @@ func TestToolBuildsUsesTheRegistryNotTheDriverName(t *testing.T) {
 	// A finding's Tool is the SARIF driver name the tool gives itself — "Trivy" for trivy-fs —
 	// so deriving the list from findings finds nothing. It comes from Result.Scanners, which are
 	// the names Draugr selected.
-	got := toolBuilds(engine.Result{Scanners: []string{"trivy-fs", "gitleaks"}})
+	got := toolBuilds(t.Context(), engine.Result{Scanners: []string{"trivy-fs", "gitleaks"}})
 	names := map[string]bool{}
 	for _, b := range got {
 		names[b.Name] = true
@@ -928,17 +929,17 @@ func TestToolBuildsUsesTheRegistryNotTheDriverName(t *testing.T) {
 func TestToolBuildsSkipsNativeScanners(t *testing.T) {
 	// Their rules ship in this binary, so "which build" is answered by Draugr's own version,
 	// which the report already stamps. Listing them would pad the evidence with nothing.
-	if got := toolBuilds(engine.Result{Scanners: []string{"draugr-headers", "draugr-tls"}}); got != nil {
+	if got := toolBuilds(t.Context(), engine.Result{Scanners: []string{"draugr-headers", "draugr-tls"}}); got != nil {
 		t.Errorf("native scanners were listed as external tools: %+v", got)
 	}
-	if got := toolBuilds(engine.Result{}); got != nil {
+	if got := toolBuilds(t.Context(), engine.Result{}); got != nil {
 		t.Errorf("a run that used nothing listed something: %+v", got)
 	}
 }
 
 func TestToolBuildsIgnoresUnknownScanners(t *testing.T) {
 	// A name no scanner answers to cannot have an executable behind it.
-	if got := toolBuilds(engine.Result{Scanners: []string{"not-a-scanner"}}); got != nil {
+	if got := toolBuilds(t.Context(), engine.Result{Scanners: []string{"not-a-scanner"}}); got != nil {
 		t.Errorf("got %+v", got)
 	}
 }
@@ -1035,5 +1036,24 @@ func TestCacheSettingsComeFromConfigUnlessTyped(t *testing.T) {
 	cacheOptionsFrom(&opts, cfg)
 	if opts.cacheReadOnly {
 		t.Error("an explicit --cache-read-only=false was overridden by the config")
+	}
+}
+
+// A tool Draugr installed is identified from its install record; one the operator brought has no
+// record, so it had no version — and that is the case this whole section exists for. Without it
+// the report says only that Draugr did not install the tool, which is a fact about Draugr rather
+// than about the run, and nothing can be reproduced from it.
+func TestAnExternalToolStillNamesItsBuild(t *testing.T) {
+	// `go` is on PATH wherever these tests run and reports a version, which makes it a stand-in
+	// for any tool the operator brought: Draugr has no install record for it either.
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("no go on PATH")
+	}
+	if got := probeVersion(t.Context(), "go"); got != "" {
+		t.Logf("probed go version: %q", got)
+	}
+	// A binary Draugr has never heard of has nothing to ask, and must not error or hang.
+	if got := probeVersion(t.Context(), "definitely-not-a-tool"); got != "" {
+		t.Errorf("probeVersion for an unknown binary = %q, want empty", got)
 	}
 }

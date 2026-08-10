@@ -17,6 +17,11 @@ and move it under a version on release.
   `pipx` command, having installed nothing. Draugr does not distribute semgrep and never did; the
   plan says so, the prompt is skipped when there is nothing for Draugr to download, and the command
   you need is the whole output.
+- **A scanner Draugr did not install now says which build ran.** The version came from Draugr's
+  own install record, so a tool you brought had none — and that is the case the line exists for.
+  It reported that Draugr had not installed the tool, which is a fact about Draugr rather than
+  about the run, and nothing could be reproduced from it. The tool is asked directly now:
+  `Scanner (unverified): semgrep 1.169.0 — found on PATH; Draugr does not distribute it (pipx)`.
 - **The report distinguishes a tool Draugr did not install from one it does not distribute.**
   `Scanner (unverified): semgrep — found on PATH; Draugr did not install it` read as an omission
   worth fixing, and the command to fix it does not exist. A tool Draugr provisions now names

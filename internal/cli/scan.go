@@ -303,7 +303,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Scope:                reportScope(scope),
 		UnattributedFindings: unattributed,
 		Exploitability:       feedProv,
-		Tools:                toolBuilds(run),
+		Tools:                toolBuilds(ctx, run),
 		Repositories:         report.RepositoriesFrom(run),
 		VEX:                  model.Config.VEX,
 		// Stamped so a rendered report can say when it ran and what produced it. A report
@@ -704,7 +704,7 @@ func cacheOptionsFrom(opts *scanOptions, cfg config.CacheSettings) {
 //
 // Native scanners are skipped — their rules ship in this binary, so "which build" is answered by
 // Draugr's own version, which the report already stamps.
-func toolBuilds(run engine.Result) []report.ToolBuild {
+func toolBuilds(ctx context.Context, run engine.Result) []report.ToolBuild {
 	binaries := map[string]bool{}
 	for _, name := range run.Scanners {
 		// The registry is the only thing that maps a scanner to its executable. A finding's Tool
@@ -729,6 +729,15 @@ func toolBuilds(run engine.Result) []report.ToolBuild {
 	out := make([]report.ToolBuild, 0, len(names))
 	for _, b := range names {
 		a := tools.AttestFound(b, "")
+		// The version of a tool Draugr installed comes from its install record. A tool the
+		// operator brought has no record, so it had none — and that is the one this section
+		// exists for. The whole reason a scan runs whatever is on PATH rather than refusing it is
+		// that the report can still say which build produced the findings; without a version it
+		// says only that Draugr did not install it, which is a fact about Draugr rather than
+		// about the run, and cannot be reproduced from.
+		if a.Version == "" {
+			a.Version = probeVersion(ctx, b)
+		}
 		out = append(out, report.ToolBuild{
 			Name: a.Tool, Version: a.Version, Level: string(a.Level),
 			Reason: tools.DescribeFor(a.Level, a.Tool),
@@ -736,6 +745,28 @@ func toolBuilds(run engine.Result) []report.ToolBuild {
 	}
 	return out
 }
+
+// probeVersion asks a tool on PATH what version it is, or returns "" if it will not say.
+//
+// Best-effort and bounded: this runs after a scan has finished, to describe what produced it, and
+// a tool that hangs on `--version` must not hold the report. Nothing here fails the run — a
+// missing version is the state this improves on, not a regression to guard against.
+func probeVersion(ctx context.Context, binary string) string {
+	t, ok := tools.Catalog()[binary]
+	if !ok || len(t.VersionArgs) == 0 {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(ctx, versionProbeTimeout)
+	defer cancel()
+	if st := tools.Detect(ctx, t, nil, nil); st.Found {
+		return st.Version
+	}
+	return ""
+}
+
+// versionProbeTimeout bounds the extra call. Two seconds is far longer than any of these take and
+// far shorter than a reader waiting on a report will tolerate.
+const versionProbeTimeout = 2 * time.Second
 
 // checkWorkingTree refuses --working-tree for a descriptor Draugr cannot honour it for.
 //
