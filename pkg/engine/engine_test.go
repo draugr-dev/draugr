@@ -617,3 +617,46 @@ func TestWithWorkingTreeComposesWithAnExistingVeto(t *testing.T) {
 		t.Error("the earlier veto was discarded")
 	}
 }
+
+// A scanner may declare several effects, and reporting one at a time turns accepting them into a
+// sequence of scans, each ending in a refusal naming an effect the previous run never mentioned.
+// The decision is whether to let the scanner do all of it, so it has to be asked once.
+func TestConsentNamesEveryUnacceptedEffect(t *testing.T) {
+	t.Parallel()
+	info := plugin.ScannerInfo{
+		Name: "kube-bench-job",
+		Effects: []plugin.Effect{
+			{Kind: plugin.EffectMutate, Detail: "creates a short-lived Job"},
+			{Kind: plugin.EffectPrivilege, Detail: "runs privileged with host mounts"},
+		},
+	}
+
+	err := consentFor(info, nil)
+	if err == nil {
+		t.Fatal("want a refusal")
+	}
+	for _, want := range []string{"mutate", "privilege", "creates a short-lived Job",
+		"runs privileged with host mounts", "--allow-effects mutate,privilege"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal should mention %q:\n%v", want, err)
+		}
+	}
+
+	// Accepting one leaves the other, named on its own rather than as a list of one.
+	err = consentFor(info, map[plugin.EffectKind]bool{plugin.EffectMutate: true})
+	if err == nil {
+		t.Fatal("want a refusal for the remaining effect")
+	}
+	if strings.Contains(err.Error(), "mutate") {
+		t.Errorf("an accepted effect should not be listed again:\n%v", err)
+	}
+	if !strings.Contains(err.Error(), "an effect that has not been accepted") {
+		t.Errorf("a single effect should read as one:\n%v", err)
+	}
+
+	if err := consentFor(info, map[plugin.EffectKind]bool{
+		plugin.EffectMutate: true, plugin.EffectPrivilege: true,
+	}); err != nil {
+		t.Errorf("everything accepted should pass: %v", err)
+	}
+}
