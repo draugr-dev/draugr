@@ -26,7 +26,11 @@ Set Width 1600
 # Tall enough for the whole scan output. CI checks this against a real run before recording, so a
 # report that grows a line fails the check rather than producing a screenshot with the verdict cut
 # off the bottom — which nothing downstream would notice.
-Set Height 1220
+#
+# Raised beyond what the current report needs, deliberately. The check measures the real output, so
+# a value sized exactly to it fails on the next line the report gains — and that failure lands in a
+# release, after the binaries are built and signed, which is the most expensive moment to find it.
+Set Height 1400
 Set Theme "Dracula"
 Set Padding 20
 
