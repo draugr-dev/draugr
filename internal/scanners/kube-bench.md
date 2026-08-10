@@ -167,6 +167,18 @@ Two consequences worth being direct about:
   `--all-namespaces`. Against a 78-namespace managed cluster — where each invocation also
   re-runs a cloud auth plugin — a full pass takes tens of minutes.
 
+## Scope
+
+This scanner always audits the whole cluster. Its checks are `kubectl` pipelines with the scope
+written into them — `--all-namespaces`, with no flag to change it — so a component that sets
+`namespaces` on its infrastructure entry cannot be honoured.
+
+`draugr validate` rejects that pairing rather than letting the scan reach a cluster and refuse
+there. The alternative is worse than a missing feature: the report would look scoped, the rule ids
+would look scoped, and the findings would be somebody else's. Use
+[`draugr-k8s-policies`](draugr-k8s-policies.md), which reads the Kubernetes API and can be
+narrowed, or drop `namespaces`.
+
 `kubeBenchJob` is the answer to both where a privileged pod is permitted. Where it is not — a
 namespace enforcing the restricted Pod Security Standard will reject it — this mode is what runs,
 and 11 automated advisory checks beat nothing. Implementing the section natively against the

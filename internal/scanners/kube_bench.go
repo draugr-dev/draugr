@@ -76,6 +76,9 @@ func NewKubeBench() plugin.Scanner {
 			AlsoRequires: []string{"kubectl"},
 			Controls:     []string{"infrastructure"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetInfra},
+			// Its checks are shell pipelines with the scope written into them —
+			// `kubectl get pods --all-namespaces`, and no flag to change it.
+			ClusterWide:  true,
 			ConfigSchema: json.RawMessage(kubeBenchConfigSchema),
 		},
 		run: func(ctx context.Context, argv, env []string) ([]byte, error) {
@@ -733,14 +736,16 @@ func kubeBenchLevel(status string, scored bool) (sarif.Level, bool) {
 // That is the worst available outcome: not a missing feature but a wrong one, where the report
 // looks scoped, the rule ids look scoped, and the findings are somebody else's. Refusing is the
 // only honest answer, and the error names the scanner that can do it.
+//
+// The message carries the two things to do and one clause of why. The rest of the reasoning is
+// here and in the colocated docs, which is where a reader who wants it goes looking — in the
+// report it competes for the width the fix needs, and the fix is at the end of the sentence.
 func refuseNamespaceScope(scanner string, namespaces []string) error {
 	if len(namespaces) == 0 {
 		return nil
 	}
 	return fmt.Errorf(
-		"%s cannot audit a namespace scope: its checks query every namespace and offer no way to "+
-			"narrow that, so it would report the whole cluster against a component that declared "+
-			"%d namespace(s). Use the draugrK8sPolicies scanner, which is the default and reads the "+
-			"Kubernetes API directly, or remove `namespaces` from the component's infrastructure entry",
-		scanner, len(namespaces))
+		"%s always audits the whole cluster and cannot be narrowed to a namespace. Use the "+
+			"draugrK8sPolicies scanner instead, or remove `namespaces` from the component's "+
+			"infrastructure entry", scanner)
 }

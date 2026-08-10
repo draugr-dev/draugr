@@ -82,9 +82,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			col.Paint(cDim, fmt.Sprintf("P4 %d", s.p4)))
 	}
 
-	// Controls that errored are listed alongside the ones that ran. Previously a control whose
-	// scanner was missing simply wasn't in Verdict.Controls, so it vanished from the report —
-	// the output got shorter precisely when something had gone wrong.
+	// Controls that errored are listed alongside the ones that ran. A control that produced no
+	// report has no verdict entry to hang a row on, so listing only the ones that succeeded
+	// makes the output shorter exactly when something has gone wrong — which reads as a clean
+	// run to anyone who does not already know how many controls to expect.
 	errored := d.Run.ScanErrors
 	if len(d.Verdict.Controls) > 0 || len(errored) > 0 {
 		_, _ = fmt.Fprintln(w, "Controls:")
@@ -97,6 +98,27 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		for name := range errored {
 			if len(name) > width {
 				width = len(name)
+			}
+		}
+		// why prints a control's failures directly beneath that control's own row.
+		//
+		// Position is the only thing that says which control a message belongs to: it is indented
+		// under a row and names a scanner rather than a control, so gathered after the table it
+		// sits against whichever control happens to be listed last and reads as that one's
+		// problem. Nothing in the sentence contradicts the misreading, which is what makes it
+		// worth the extra pass rather than a footnote.
+		why := func(control string) {
+			for _, msg := range dedupeMessages(errored[control]) {
+				// Wrapped rather than clamped to one line. A clamp suits a tool's own stderr,
+				// which can be a whole usage screen — but these are Draugr's sentences too, and
+				// the half a reader acts on is the end of them.
+				for i, line := range wrapMessage(msg, messageWidth) {
+					prefix := strings.Repeat(" ", width+2)
+					if i > 0 {
+						prefix += "  "
+					}
+					_, _ = fmt.Fprintf(w, "  %s%s\n", prefix, col.Paint(cDim, line))
+				}
 			}
 		}
 		for _, c := range d.Verdict.Controls {
@@ -112,27 +134,17 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				fmt.Sprintf("%-*s", width, c.Control),
 				col.Paint(vc, fmt.Sprintf("%-5s", v)),
 				bandsText(col, s.bands[c.Control]))
+			why(c.Control)
 		}
 		// Controls that produced nothing at all have no verdict entry, so they're listed here.
+		// Between them these two loops cover every key in errored, so no failure loses its
+		// explanation by having no row to sit under.
 		for _, name := range s.errored {
 			_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 				fmt.Sprintf("%-*s", width, name),
 				col.Paint(cFail, fmt.Sprintf("%-5s", "ERROR")),
 				col.Paint(cDim, "did not run"))
-		}
-		for _, name := range sortedKeys(errored) {
-			for _, msg := range dedupeMessages(errored[name]) {
-				// Wrapped rather than clamped. The one-line clamp is right for a tool's own
-				// stderr, which can be a usage screen — but these are also Draugr's own
-				// sentences, and the clamp cut them at the clause that said what to do.
-				for i, line := range wrapMessage(msg, messageWidth) {
-					prefix := strings.Repeat(" ", width+2)
-					if i > 0 {
-						prefix += "  "
-					}
-					_, _ = fmt.Fprintf(w, "  %s%s\n", prefix, col.Paint(cDim, line))
-				}
-			}
+			why(name)
 		}
 		writeMeasuredAgainst(w, col, d, width)
 		_, _ = fmt.Fprintln(w)

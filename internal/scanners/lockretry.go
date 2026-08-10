@@ -50,7 +50,13 @@ func retryLockedCache(ctx context.Context, tool string, fn func() ([]byte, error
 			return out, err
 		}
 		delay := wait + jitter(wait/2)
-		slog.WarnContext(ctx, "scanner cache is held by another scan, waiting",
+		// Info, and phrased as queueing rather than trouble. The holder is another job in this
+		// same scan — Draugr planned both — so a warning about "another process" sends a reader
+		// looking for a second Draugr they never started, and finding none, for a broken cache.
+		// Nothing is wrong: the condition clears when the other job finishes, which is why this
+		// is a wait and not an error. It stays at the default level because a scan that took
+		// three times as long deserves a reason on the screen.
+		slog.InfoContext(ctx, "waiting for the scanner cache, which another job in this scan is using",
 			"tool", tool, "attempt", attempt+1, "of", lockRetries, "wait", delay.Round(time.Millisecond).String())
 		select {
 		case <-ctx.Done():

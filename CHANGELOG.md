@@ -10,7 +10,31 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **A control's failure is printed under that control's own row.** It was gathered after the
+  whole table, indented, where it sat against whichever control happened to be listed last — and
+  because the message names a scanner rather than a control, nothing in it contradicted the
+  misreading. An `infrastructure` failure read as a `secrets` one.
+- **A scanner that cannot be narrowed to a namespace says what to do instead.** The refusal spent
+  most of its length explaining itself and was cut off by the report's wrap before reaching either
+  of the two fixes it offered. It now names both.
+- **A scan no longer prints its failures three times.** Every error was logged above the report as
+  well as appearing under its control and in the line the command exits with. The report and the
+  exit are what remain.
+- **`draugr validate` rejects a namespace scope no enabled scanner can honour.** A component that
+  narrows its infrastructure with `namespaces`, while `kubeBench` or `kubeBenchJob` is enabled, is
+  asking for something neither can do — they audit the whole cluster or nothing. The descriptor was
+  accepted, and you found out partway through a run, after a cluster had been contacted and a Job
+  possibly created. Both halves are written in the file, so both are checked in it: `validate` and
+  `scan` now name the component, the scanner, and the two ways out, before anything runs.
+
+### Changed
+
+- **Jobs queueing for a shared scanner cache report it as a wait, not a warning.** The message
+  said the cache was held by another scan, so a reader went looking for a second Draugr that was
+  never running — the holder is another job in the same scan. The wait is still reported at the
+  default log level, because a scan that took three times as long deserves a reason on the screen.
 
 ## [0.77.0] - 2026-08-10
 

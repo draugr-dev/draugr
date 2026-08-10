@@ -603,6 +603,47 @@ func TestConsoleMarksPartialControlsAsError(t *testing.T) {
 	}
 }
 
+// An explanation belongs under the control it explains.
+//
+// Indentation is the only thing that says whose failure a message is, and the message names a
+// scanner rather than a control — so one printed after the table sits against whichever control
+// happens to be listed last and reads as that one's problem, with nothing in the sentence to
+// contradict it. The control that errored is deliberately not the last one here, because that is
+// the only arrangement where the two placements differ.
+func TestConsoleAttachesAFailureToItsOwnControl(t *testing.T) {
+	d := Data{
+		Run: engine.Result{
+			Controls: map[string]plugin.ControlResult{
+				"infrastructure": {Report: sarif.Report{
+					Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelWarning, Message: "m"}},
+				}},
+				"secrets": {Report: sarif.Report{
+					Results: []sarif.Result{{RuleID: "S", Level: sarif.LevelError, Message: "m"}},
+				}},
+			},
+			ScanErrors: map[string][]string{"infrastructure": {"kube-bench-job always audits the whole cluster"}},
+		},
+		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+			{Control: "infrastructure", Verdict: norn.Fail, Counts: sarif.Counts{Warning: 1}},
+			{Control: "secrets", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1}},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	out := buf.String()
+	infra := strings.Index(out, "infrastructure")
+	msg := strings.Index(out, "kube-bench-job")
+	secrets := strings.Index(out, "secrets")
+	if infra < 0 || msg < 0 || secrets < 0 {
+		t.Fatalf("expected both controls and the message:\n%s", out)
+	}
+	if infra > msg || msg > secrets {
+		t.Errorf("the failure must sit between its own control and the next one, not after the table:\n%s", out)
+	}
+}
+
 // A flag silently ignored by one format is byte-identical output with and without it. SARIF is
 // the worst place for that: the machine consumer with the strongest reason to ask for "just the
 // P1s" is also the one least able to notice it did not get them.

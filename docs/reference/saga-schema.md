@@ -1001,6 +1001,15 @@ components:
 **Control resolution:** a component-scoped control runs for a component when it is enabled
 on the component, or (absent an override) enabled globally under `config.controllers`.
 
+**Infrastructure namespaces:** `namespaces` narrows an infrastructure surface to the part of a
+cluster the component owns; omit it and the audit covers the whole cluster. Not every scanner can
+honour it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
+reads a node's own filesystem, which has no namespace — so both always describe the whole cluster.
+Enabling either for a component that sets `namespaces` is rejected by `draugr validate`, because
+the alternative is a report that looks scoped and lists somebody else's namespaces against this
+component. Use `draugr-k8s-policies`, which reads the Kubernetes API and can be narrowed, or drop
+`namespaces` and let the component claim the cluster.
+
 **Risk classification** (`exposure`, `criticality`) — optional, and the two axes of risk
 prioritization: exposure is how reachable the component is (likelihood), criticality is the
 business impact if it fails. Both are fixed ladders whose meaning an organization can

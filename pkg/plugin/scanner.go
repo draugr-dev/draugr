@@ -110,6 +110,18 @@ type ScannerInfo struct {
 	Controls []string
 	// TargetKinds are the target kinds this scanner accepts.
 	TargetKinds []TargetKind
+	// ClusterWide marks a scanner whose findings always describe a whole cluster, whatever the
+	// target asked for.
+	//
+	// A component narrows its infrastructure surface with `namespaces`, and a scanner that cannot
+	// honour that has two ways to behave and only one of them is honest: report the cluster
+	// against a component that claims part of it, or refuse. Refusing is what they do — but a
+	// scanner only finds out once it has been handed a target, which is partway through a run,
+	// after a cluster has been contacted.
+	//
+	// Declared here so the descriptor can be refused instead: the pairing is visible in the file,
+	// and `draugr validate` is the cheap place to be told.
+	ClusterWide bool
 	// ConfigSchema is a JSON Schema for Config; it drives validation and the config wizard.
 	ConfigSchema json.RawMessage
 	// Effects declare what this scanner does to a target beyond reading it. Empty — the common
