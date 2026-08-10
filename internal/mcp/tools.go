@@ -402,8 +402,16 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 			return nil, ScanOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
 		}
 		if mode == ScanAsk {
-			if err := confirmScan(ctx, req, in.Path, describeScan(reg, model, in.Path)); err != nil {
+			ask, err := consent(req, in.Path, describeScan(reg, model, in.Path))
+			if err != nil {
 				return nil, ScanOutput{}, err
+			}
+			if ask != nil {
+				// The question, not an answer: the call ends here and the client asks it, then
+				// calls again carrying the reply. Returning a result rather than blocking on one
+				// is what the protocol requires from 2026-07-28 — and the SDK asks on behalf of
+				// clients too old to do it themselves, so this one path serves both.
+				return ask, ScanOutput{}, nil
 			}
 		}
 		// Shared for this run, as the CLI does — an assistant asking for a scan should not pay
@@ -470,46 +478,76 @@ func collect(m map[string]sarif.Report) []sarif.Report {
 	return out
 }
 
-// confirmScan asks the user, through the client, before doing something expensive on their
-// machine. It fails closed: if the client can't ask, or the user says no, no scan happens.
+// consentRequestID names the one question this tool asks.
 //
-// The failure message names the way out, because "elicitation is unsupported" is meaningless to
-// someone who chose --scan=ask from a docs page and has no idea their client doesn't implement
-// it.
-func confirmScan(ctx context.Context, req *mcp.CallToolRequest, path, message string) error {
-	if req == nil || req.Session == nil {
-		return fmt.Errorf("scan needs approval but there is no session to ask through; " +
+// The client echoes it back with the answer, so it has to be stable across the two calls and
+// distinct from anything else the server might ask in future.
+const consentRequestID = "draugr.scan.approve"
+
+// consent decides whether this call may scan.
+//
+// Returns a result to send back while the question is unanswered, and nil once it has been
+// answered with a yes. Every other outcome is an error, and every one of them means no scan: a
+// declined prompt, a cancelled one, a client that cannot ask, an answer that does not parse. The
+// failure of consent is never a scan.
+//
+// Asking by returning a request rather than blocking on one is what the protocol requires from
+// version 2026-07-28, which forbids a server sending `elicitation/create` while it is serving a
+// request. The SDK performs the round trip for clients too old to do it themselves and re-invokes
+// this handler with the answer, so both generations take this one path.
+func consent(req *mcp.CallToolRequest, path, message string) (*mcp.CallToolResult, error) {
+	if req == nil || req.Params == nil {
+		return nil, fmt.Errorf("scan needs approval but there is nothing to ask through; " +
 			"start the server with --scan=always to run scans without asking")
 	}
-	if init := req.Session.InitializeParams(); init == nil || init.Capabilities == nil ||
-		init.Capabilities.Elicitation == nil {
-		return fmt.Errorf("scan needs your approval, but this client can't prompt for it "+
-			"(no elicitation support). Run `draugr scan %s` yourself, or restart the server "+
-			"with --scan=always to allow scans without asking", path)
+	// Refused here rather than left to the round trip. A client that never declared elicitation
+	// cannot answer this question however it is asked, and the SDK's own failure for that case —
+	// "client does not support elicitation" — is meaningless to somebody who chose --scan=ask from
+	// a docs page and has no idea their client does not implement it. The way out is worth naming
+	// while there is still a message to name it in.
+	if req.Session != nil {
+		if init := req.Session.InitializeParams(); init == nil || init.Capabilities == nil ||
+			init.Capabilities.Elicitation == nil {
+			return nil, fmt.Errorf("scan needs your approval, but this client can't prompt for it "+
+				"(no elicitation support). Run `draugr scan %s` yourself, or restart the server "+
+				"with --scan=always to allow scans without asking", path)
+		}
 	}
-	// A form with nothing in it: there is nothing to fill in, so accept and decline are the
-	// whole answer. The protocol has no dedicated confirmation mode, and an empty object schema
-	// is how that intent is expressed within one that does exist.
-	//
-	// The schema is not optional even when it asks for nothing. RequestedSchema has no
-	// omitempty, so leaving it unset put `"requestedSchema": null` on the wire, and a client
-	// holding to the spec rejects the request — which made --scan=ask fail before it could ask,
-	// with the error pointing at a handshake rather than at anything a reader could act on.
-	res, err := req.Session.Elicit(ctx, &mcp.ElicitParams{
-		Mode:    "form",
-		Message: message,
-		RequestedSchema: map[string]any{
-			"type":       "object",
-			"properties": map[string]any{},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("could not ask for approval to scan: %w", err)
+
+	answer, answered := req.Params.InputResponses[consentRequestID]
+	if !answered {
+		// The description travels with the question. A prompt naming only a path asks somebody to
+		// approve something it has not described, and the reader is rarely whoever wrote the file.
+		//
+		// The schema is not optional even when it asks for nothing: RequestedSchema has no
+		// omitempty, so leaving it unset puts `"requestedSchema": null` on the wire, and a client
+		// holding to the spec rejects the request — which fails --scan=ask before it can ask.
+		return &mcp.CallToolResult{
+			InputRequests: mcp.InputRequestMap{
+				consentRequestID: &mcp.ElicitParams{
+					Mode:    "form",
+					Message: message,
+					RequestedSchema: map[string]any{
+						"type":       "object",
+						"properties": map[string]any{},
+					},
+				},
+			},
+		}, nil
 	}
-	if res.Action != "accept" {
-		return fmt.Errorf("scan declined")
+
+	elicited, ok := answer.(*mcp.ElicitResult)
+	if !ok {
+		// An answer of the wrong shape is not a yes. Reading it as one would turn a protocol
+		// mismatch into an unapproved scan, the single outcome this must never produce.
+		return nil, fmt.Errorf("scan approval came back in a form Draugr does not understand "+
+			"(%T); run `draugr scan %s` yourself, or start the server with --scan=always",
+			answer, path)
 	}
-	return nil
+	if elicited.Action != "accept" {
+		return nil, fmt.Errorf("scan declined")
+	}
+	return nil, nil
 }
 
 // --- check_tools ---

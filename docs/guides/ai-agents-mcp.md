@@ -177,6 +177,13 @@ scan for the session. It needs a client that implements MCP *elicitation*, and m
 If yours can't prompt, the scan is refused with a message saying so; it never silently runs
 anyway. Use `--scan=always` for a sandbox or CI, where there's nobody to ask.
 
+The question is *returned* rather than asked mid-call: protocol version 2026-07-28 forbids a
+server prompting while it is serving a request, so the tool answers with the question and your
+client calls again carrying your reply. Clients too old to do that are asked the older way by the
+SDK on their behalf, so both work and neither needs anything from you. What does not change either
+way is that a refusal, a cancellation, a client that cannot ask, or an answer Draugr cannot read
+all mean no scan.
+
 Everything else is read-only and safe to call freely. Leaving scanning off is a good default:
 ### The scan honours your reports and publishers
 
