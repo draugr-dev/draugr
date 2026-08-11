@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -14,6 +16,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/surfaces"
+	"github.com/draugr-dev/draugr/internal/surveyors"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/surveyor"
@@ -22,10 +25,37 @@ import (
 // surveyOptions are the settings shared by every surveyor: what to write, and what to write it
 // into. Anything specific to one surveyor belongs on that surveyor's own command.
 type surveyOptions struct {
-	output  string
-	name    string
-	version string
-	replace bool
+	output   string
+	name     string
+	version  string
+	replace  bool
+	fragment bool
+}
+
+// check rejects flag combinations that would produce a file Draugr then refuses to read.
+//
+// A fragment is recognised by its name — `draugr validate` and a `fragments:` reference both
+// decide from the suffix — so a fragment written as `x.saga.yaml` is read as a Saga and rejected
+// for having no release. The survey knows that before it connects to anything, and saying so then
+// costs a retype rather than a survey.
+func (o surveyOptions) check(cmd *cobra.Command) error {
+	if !o.fragment {
+		return nil
+	}
+	if o.output != "" && !IsFragmentFile(filepath.Base(o.output)) {
+		return fmt.Errorf("--fragment writes a fragment, which is recognised by its name: "+
+			"%q has to end in .saga-fragment.yaml (or .yml), or Draugr will read it back as a Saga",
+			o.output)
+	}
+	// release: is what a fragment does not have. Silently ignoring these would leave somebody
+	// believing they had named the thing they are describing.
+	for _, name := range []string{"name", "version"} {
+		if cmd.Flags().Changed(name) {
+			return fmt.Errorf("--%s sets the release, and a fragment has none — it is part of a "+
+				"descriptor rather than a thing to release", name)
+		}
+	}
+	return nil
 }
 
 // newSurveyCommand builds `draugr survey` and its per-platform subcommands.
@@ -71,6 +101,14 @@ func newSurveyCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&opts.version, "version", "0.0.0", "release version for a newly created Saga")
 	cmd.PersistentFlags().BoolVar(&opts.replace, "replace", false,
 		"overwrite the Saga at --output instead of adding to it")
+	cmd.PersistentFlags().BoolVar(&opts.fragment, "fragment", false,
+		"write a Saga fragment — components only, for a descriptor to include")
+
+	// Checked here rather than per subcommand: --fragment is shared, and so are the flags it
+	// contradicts. A flag that quietly does nothing is the failure this file is arranged to avoid.
+	cmd.PersistentPreRunE = func(c *cobra.Command, _ []string) error {
+		return opts.check(c)
+	}
 
 	cmd.AddCommand(newSurveyK8sCommand(opts), newSurveyGitHubCommand(opts))
 	return cmd
@@ -99,25 +137,39 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 	}
 
 	var namespaces []string
+	var noExposure bool
 	images := &cobra.Command{
 		Use:   "images",
 		Short: "Discover the container images running in a cluster",
 		Long: "Enumerate the unique container images running in a cluster, with the digest each is\n" +
 			"actually running, and write them as components.\n\n" +
-			"Scoped to a namespace, this also proposes each component's exposure from cluster\n" +
-			"topology — review it, then set criticality with `draugr classify`.\n\n" +
-			"--namespace may be repeated, and each one becomes its own component with its own\n" +
-			"proposed exposure. That is the difference between three namespaces and no namespace\n" +
-			"at all: the whole cluster is one component, and one exposure for everything running\n" +
-			"anywhere in it would not mean anything.",
+			"A namespace is the unit: each becomes its own component, carrying only the images it\n" +
+			"runs and an exposure proposed from its own topology. Review the exposures, then set\n" +
+			"criticality with `draugr classify`.\n\n" +
+			"--namespace narrows which ones are described, and may be repeated. Without it every\n" +
+			"namespace is described, which on a large cluster is a lot of components — name the\n" +
+			"ones you own.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSurvey(cmd.Context(), *opts, requestPerNamespace("k8s-images", namespaces, scopeFor),
+			scoped := scopeFor
+			if noExposure {
+				scoped = func(ref string) plugin.SurveyScope {
+					sc := scopeFor(ref)
+					if sc.Config == nil {
+						sc.Config = plugin.Config{}
+					}
+					sc.Config[surveyors.ProposeExposureKey] = false
+					return sc
+				}
+			}
+			return runSurvey(cmd.Context(), *opts, requestPerNamespace("k8s-images", namespaces, scoped),
 				builtins.SurveyorRegistry(), cmd.OutOrStdout())
 		},
 	}
 	images.Flags().StringSliceVar(&namespaces, "namespace", nil,
-		"limit discovery to a namespace; repeat for several, one component each (default all)")
+		"describe only this namespace; repeat for several (default every namespace)")
+	images.Flags().BoolVar(&noExposure, "no-exposure", false,
+		"do not guess each component's exposure; leave it unset for draugr classify")
 
 	var clusterNamespaces []string
 	cluster := &cobra.Command{
@@ -154,8 +206,10 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 // caller asked for and what a surveyor is asked to do, and the surveyor keeps answering one
 // question at a time.
 //
-// No namespace means the whole cluster, which is one request with an empty ref and the behaviour
-// that has always been the default.
+// No namespace means every namespace, which is one request with an empty ref: a surveyor that
+// describes a namespace still does so for each of them, and the empty scope is what tells it to
+// find them rather than be given them. Enumerating here instead would mean building a Kubernetes
+// client in the CLI to ask a question the surveyor is already connected to answer.
 func requestPerNamespace(name string, namespaces []string, scopeFor func(string) plugin.SurveyScope) []surveyor.Request {
 	if len(namespaces) == 0 {
 		return []surveyor.Request{{Surveyor: name, Scope: scopeFor("")}}
@@ -213,6 +267,10 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		}
 	}
 
+	if opts.fragment {
+		return surveyIntoFragment(opts, frag, stdout)
+	}
+
 	model, err := baseModel(opts)
 	if err != nil {
 		return err
@@ -225,12 +283,9 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	// Same reason, for the same kind of message: a merge keeps the exposure already in the
 	// descriptor, so afterwards a proposal that was discarded is indistinguishable from one that
 	// landed. Only the ones that landed are worth asking anyone to confirm.
-	settled := classifiedComponents(model)
+	settled := classifiedComponents(model.Components)
 	surveyor.Apply(&model, frag)
-	for _, target := range narrowed {
-		slog.Warn("--namespace not applied: this target already covers the whole cluster",
-			"target", target, "fix", "edit namespaces: in the descriptor to narrow it")
-	}
+	reportNarrowed(narrowed)
 	if added := enableControlsForSurface(&model); len(added) > 0 {
 		// To stderr, so a descriptor written to stdout stays a descriptor.
 		slog.Info("enabled controls for the discovered surface", "controls", strings.Join(added, ", "))
@@ -241,8 +296,18 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		_, _ = fmt.Fprintln(os.Stderr, note)
 	}
 
-	out, err := yaml.Marshal(&model)
+	out, err := marshalSaga(&model)
 	if err != nil {
+		return err
+	}
+	// The reasoning goes beside the value, because that is where it is read. The note above is a
+	// terminal that scrolls; the descriptor is opened later, in an editor, by somebody who may not
+	// have run the survey — and a proposed exposure and a decided one look identical in a file.
+	//
+	// Filtered by the same rule the note uses: a component whose exposure the descriptor already
+	// carried keeps its own value, and commenting that would describe somebody's decision as a
+	// guess.
+	if out, err = saga.AnnotateExposures(out, proposedReasons(frag, settled)); err != nil {
 		return err
 	}
 	if opts.output != "" {
@@ -255,11 +320,77 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		// does not show. Silence and failure look identical, and the reader picks the wrong one.
 		//
 		// stderr, so a descriptor written to stdout stays a descriptor.
-		_, _ = fmt.Fprintln(os.Stderr, surveySummary(opts, frag, model, merged))
+		_, _ = fmt.Fprintln(os.Stderr, surveySummary(opts, frag, model.Components, merged))
 		return nil
 	}
 	_, err = stdout.Write(out)
 	return err
+}
+
+// surveyIntoFragment writes what a survey found as a Saga fragment rather than a whole descriptor.
+//
+// A fragment is components and nothing else. It carries no `release:` — it is not a thing to be
+// released, it is part of one — and no `config.controllers`, because FragmentConfig deliberately
+// cannot express them: the descriptor that includes a fragment decides what to run against it.
+// That is the point of the option, for a team that owns a namespace and hands its surface to a
+// descriptor somebody else maintains.
+func surveyIntoFragment(opts surveyOptions, frag saga.Fragment, stdout io.Writer) error {
+	base, err := baseFragment(opts)
+	if err != nil {
+		return err
+	}
+	merged := opts.mergesInto()
+	narrowed := saga.NarrowsScopeIn(base.Components, frag)
+	settled := classifiedComponents(base.Components)
+	for _, c := range frag.Components {
+		base.Components = saga.UpsertComponent(base.Components, c)
+	}
+	reportNarrowed(narrowed)
+	// Said once, because its absence is the one difference from a Saga a reader would otherwise
+	// have to work out from an empty file. A fragment enabling controls would be a fragment
+	// deciding policy for the descriptor that includes it.
+	slog.Info("no controls enabled: a fragment describes a surface, and the descriptor that includes it decides what to run")
+	if note := proposedExposureNote(proposedExposures(frag, settled)); note != "" {
+		_, _ = fmt.Fprintln(os.Stderr, note)
+	}
+
+	out, err := marshalSaga(&base)
+	if err != nil {
+		return err
+	}
+	if out, err = saga.AnnotateExposures(out, proposedReasons(frag, settled)); err != nil {
+		return err
+	}
+	if opts.output != "" {
+		if err := os.WriteFile(opts.output, out, 0o600); err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintln(os.Stderr, surveySummary(opts, frag, base.Components, merged))
+		return nil
+	}
+	_, err = stdout.Write(out)
+	return err
+}
+
+// baseFragment returns the fragment to add to: the one at --output, unless --replace says to start
+// again or there is nothing there yet.
+func baseFragment(opts surveyOptions) (saga.Fragment, error) {
+	if !opts.mergesInto() {
+		return saga.Fragment{}, nil
+	}
+	data, err := os.ReadFile(opts.output) // #nosec G304 -- operator-provided path, by design
+	if err != nil {
+		return saga.Fragment{}, err
+	}
+	return saga.LoadFragment(data, opts.output)
+}
+
+// reportNarrowed says which --namespace values the merge declined to apply.
+func reportNarrowed(narrowed []string) {
+	for _, target := range narrowed {
+		slog.Warn("--namespace not applied: this target already covers the whole cluster",
+			"target", target, "fix", "edit namespaces: in the descriptor to narrow it")
+	}
 }
 
 // exposureProposal is a component whose exposure a surveyor read rather than a person decided.
@@ -269,14 +400,31 @@ type exposureProposal struct {
 }
 
 // classifiedComponents names the components that already carry an exposure.
-func classifiedComponents(model saga.Model) map[string]bool {
+func classifiedComponents(components []saga.Component) map[string]bool {
 	settled := map[string]bool{}
-	for _, c := range model.Components {
+	for _, c := range components {
 		if c.Exposure != "" {
 			settled[c.Name] = true
 		}
 	}
 	return settled
+}
+
+// marshalSaga writes a descriptor at the indent every other command that touches one uses.
+//
+// yaml.Marshal's default is four, which is not a choice anybody made here — and a file written
+// with it is reindented end to end the first time `draugr classify` sets a field in it.
+func marshalSaga(doc any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(saga.Indent)
+	if err := enc.Encode(doc); err != nil {
+		return nil, err
+	}
+	if err := enc.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // proposedExposures returns the exposures this survey proposed and the descriptor took, in the
@@ -298,6 +446,21 @@ func proposedExposures(frag saga.Fragment, settled map[string]bool) []exposurePr
 			continue
 		}
 		out = append(out, exposureProposal{component: c.Name, exposure: c.Exposure})
+	}
+	return out
+}
+
+// proposedReasons is what each proposed exposure was read from, for the components the descriptor
+// actually took a proposal for.
+func proposedReasons(frag saga.Fragment, settled map[string]bool) map[string]string {
+	if len(frag.ExposureReasons) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(frag.ExposureReasons))
+	for _, p := range proposedExposures(frag, settled) {
+		if reason := frag.ExposureReasons[p.component]; reason != "" {
+			out[p.component] = reason
+		}
 	}
 	return out
 }
@@ -325,20 +488,20 @@ func proposedExposureNote(proposals []exposureProposal) string {
 
 // surveySummary describes the artifact rather than the mechanics: what is now in the file, and
 // whether this survey added to something that was already there.
-func surveySummary(opts surveyOptions, frag saga.Fragment, model saga.Model, merged bool) string {
+func surveySummary(opts surveyOptions, frag saga.Fragment, components []saga.Component, merged bool) string {
 	verb := "wrote"
 	if merged {
 		verb = "merged into"
 	}
 
 	var repos, images, hosts, infra int
-	for _, c := range model.Components {
+	for _, c := range components {
 		repos += len(c.Repositories)
 		images += len(c.Images)
 		hosts += len(c.Hosts)
 		infra += len(c.Infrastructure)
 	}
-	parts := []string{plural(len(model.Components), "component")}
+	parts := []string{plural(len(components), "component")}
 	for _, p := range []struct {
 		n    int
 		noun string
@@ -353,7 +516,7 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, model saga.Model, mer
 	if merged {
 		line += fmt.Sprintf(" (this survey found %s)", plural(len(frag.Components), "component"))
 	}
-	if len(model.Components) == 0 {
+	if len(components) == 0 {
 		// A descriptor describing nothing is almost always a scope or credentials problem, and
 		// it is the one case where the count alone reads as success.
 		line += " — nothing was discovered, so this descriptor scans nothing"

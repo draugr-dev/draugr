@@ -74,11 +74,25 @@ func (r *Registry) Run(ctx context.Context, requests []Request) (saga.Fragment, 
 
 // MergeFragments combines fragments into one, deduplicating components by name and
 // unioning each component's surface (repositories, images, hosts, infrastructure).
+//
+// Whatever a fragment says about a component has to survive the merge, or it may as well not have
+// been said. A proposed exposure travels with the topology it was read from, and the two are only
+// useful together — a value that arrives here without its reason is a guess nobody can check.
 func MergeFragments(frags ...saga.Fragment) saga.Fragment {
 	var out saga.Fragment
 	for _, frag := range frags {
 		for _, comp := range frag.Components {
 			out.Components = saga.UpsertComponent(out.Components, comp)
+		}
+		for name, reason := range frag.ExposureReasons {
+			// First wins, matching the component merge: the surface unions, but a value already
+			// proposed is the one that stays, so its reason has to stay with it.
+			if out.ExposureReasons == nil {
+				out.ExposureReasons = map[string]string{}
+			}
+			if _, seen := out.ExposureReasons[name]; !seen {
+				out.ExposureReasons[name] = reason
+			}
 		}
 	}
 	return out

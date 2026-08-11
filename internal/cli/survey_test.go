@@ -370,7 +370,7 @@ func TestSurveySummaryDescribesTheArtifact(t *testing.T) {
 		{Name: "web", Repositories: []saga.Repository{{URL: "https://git/a"}}, Hosts: []saga.Host{{URL: "https://a"}}},
 		{Name: "api", Repositories: []saga.Repository{{URL: "https://git/b"}}},
 	}}
-	got := surveySummary(surveyOptions{output: ".saga.yaml"}, saga.Fragment{}, model, false)
+	got := surveySummary(surveyOptions{output: ".saga.yaml"}, saga.Fragment{}, model.Components, false)
 	want := "wrote .saga.yaml — 2 components, 2 repositories, 1 host"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
@@ -382,7 +382,7 @@ func TestSurveySummarySaysWhatAMergeAdded(t *testing.T) {
 	// contributed, which is otherwise answered by diffing the file.
 	model := saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
 	frag := saga.Fragment{Components: []saga.Component{{Name: "c"}}}
-	got := surveySummary(surveyOptions{output: "s.yaml"}, frag, model, true)
+	got := surveySummary(surveyOptions{output: "s.yaml"}, frag, model.Components, true)
 	if !strings.Contains(got, "merged into s.yaml") || !strings.Contains(got, "this survey found 1 component") {
 		t.Errorf("got %q", got)
 	}
@@ -391,7 +391,7 @@ func TestSurveySummarySaysWhatAMergeAdded(t *testing.T) {
 func TestSurveySummaryCallsOutADescriptorThatScansNothing(t *testing.T) {
 	// A survey that discovered nothing writes a valid file that checks nothing, and the count
 	// alone reads as success.
-	got := surveySummary(surveyOptions{output: "s.yaml"}, saga.Fragment{}, saga.Model{}, false)
+	got := surveySummary(surveyOptions{output: "s.yaml"}, saga.Fragment{}, nil, false)
 	if !strings.Contains(got, "nothing was discovered") {
 		t.Errorf("an empty descriptor must say so: %q", got)
 	}
@@ -568,7 +568,7 @@ func TestSurveyAddsToAnExistingDescriptorUnlessToldOtherwise(t *testing.T) {
 // the one that wrote the file.
 func TestSurveySummaryVerbFollowsWhatHappened(t *testing.T) {
 	model := saga.Model{Components: []saga.Component{{Name: "a"}}}
-	if got := surveySummary(surveyOptions{output: "s.yaml", replace: true}, saga.Fragment{}, model, false); !strings.Contains(got, "wrote s.yaml") {
+	if got := surveySummary(surveyOptions{output: "s.yaml", replace: true}, saga.Fragment{}, model.Components, false); !strings.Contains(got, "wrote s.yaml") {
 		t.Errorf("--replace should say it wrote: %q", got)
 	}
 }
@@ -680,4 +680,143 @@ func captureStderr(t *testing.T) func() string {
 	}
 	t.Cleanup(func() { read() })
 	return read
+}
+
+// A descriptor a survey wrote must survive `draugr classify` without being reformatted.
+//
+// Several commands write the same file: a survey creates it, classify sets exposure and
+// criticality in place, `validate --resolved` prints it merged. Each one that picks its own indent
+// reindents the whole document as a side effect of changing two fields — and a two-field edit that
+// rewrites every line is a diff nobody reviews, so the one real change goes through unread.
+//
+// yaml.Marshal's default is four spaces, which is not a decision anybody made. Everything that
+// writes a Saga now shares saga.Indent, and this is what notices if one stops.
+func TestASurveyedDescriptorSurvivesClassifyUnreformatted(t *testing.T) {
+	model := saga.Model{
+		Release: saga.Release{Name: "app", Version: "1"},
+		Components: []saga.Component{
+			{Name: "front", Images: []saga.Image{{Image: "repo/a:1"}}},
+			{Name: "back", Images: []saga.Image{{Image: "repo/b:1"}}},
+		},
+	}
+	written, err := marshalSaga(&model)
+	if err != nil {
+		t.Fatalf("marshalSaga: %v", err)
+	}
+	classified, err := saga.WriteClassifications(written, map[string]saga.Classification{
+		"front": {Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical},
+	})
+	if err != nil {
+		t.Fatalf("WriteClassifications: %v", err)
+	}
+
+	// Every line the survey wrote still appears verbatim. Setting two fields adds lines; it must
+	// not rewrite the ones it did not touch.
+	after := string(classified)
+	for _, line := range strings.Split(strings.TrimRight(string(written), "\n"), "\n") {
+		if !strings.Contains(after, line+"\n") {
+			t.Fatalf("classify reformatted a line it did not change:\n  survey wrote: %q\n  result:\n%s",
+				line, after)
+		}
+	}
+}
+
+// --fragment writes components and nothing else.
+//
+// A fragment is part of a descriptor rather than a thing to release, so it carries no `release:`;
+// and FragmentConfig deliberately cannot express `controllers`, so it enables nothing — the
+// descriptor that includes it decides what to run. Both absences are the point of the option, and
+// both are what a reader would otherwise have to infer from a file that looks unfinished.
+func TestSurveyFragmentWritesComponentsAndNothingElse(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "team.saga-fragment.yaml")
+	opts := surveyOptions{output: out, fragment: true}
+	frag := saga.Fragment{Components: []saga.Component{
+		{Name: "team-a", Images: []saga.Image{{Image: "repo/a:1"}}, Exposure: saga.ExposureInternal},
+	}}
+	if err := surveyIntoFragment(opts, frag, io.Discard); err != nil {
+		t.Fatalf("surveyIntoFragment: %v", err)
+	}
+	data, err := os.ReadFile(out) //#nosec G304 -- a path this test just created under t.TempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(data)
+	for _, absent := range []string{"release:", "controllers:"} {
+		if strings.Contains(got, absent) {
+			t.Errorf("a fragment must not carry %q:\n%s", absent, got)
+		}
+	}
+	if !strings.Contains(got, "name: team-a") {
+		t.Errorf("the surveyed component is missing:\n%s", got)
+	}
+	// And it has to be readable as what it claims to be.
+	parsed, err := saga.LoadFragment(data, out)
+	if err != nil {
+		t.Fatalf("the fragment it wrote does not load: %v\n%s", err, got)
+	}
+	if len(parsed.Components) != 1 {
+		t.Errorf("components = %d, want 1", len(parsed.Components))
+	}
+}
+
+// A second survey adds to the fragment rather than replacing it, the same contract a Saga has.
+func TestSurveyFragmentAddsToWhatIsAlreadyThere(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "team.saga-fragment.yaml")
+	opts := surveyOptions{output: out, fragment: true}
+
+	first := saga.Fragment{Components: []saga.Component{{Name: "team-a", Images: []saga.Image{{Image: "repo/a:1"}}}}}
+	if err := surveyIntoFragment(opts, first, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	second := saga.Fragment{Components: []saga.Component{{Name: "team-b", Images: []saga.Image{{Image: "repo/b:1"}}}}}
+	if err := surveyIntoFragment(opts, second, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(out) //#nosec G304 -- a path this test just created under t.TempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := saga.LoadFragment(data, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Components) != 2 {
+		t.Fatalf("second survey replaced the first: components = %d, want 2\n%s", len(parsed.Components), data)
+	}
+}
+
+// A fragment is recognised by its name, so writing one under a Saga's name produces a file Draugr
+// reads back as a Saga and rejects for having no release. The survey knows that before it connects
+// to anything, and saying so then costs a retype rather than a survey.
+func TestSurveyFragmentRefusesAFilenameDraugrWouldMisread(t *testing.T) {
+	cmd := newSurveyCommand()
+	cmd.SetArgs([]string{"k8s", "images", "--fragment", "-o", "wrong.saga.yaml"})
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("a fragment written under a Saga's name was accepted")
+	}
+	for _, want := range []string{".saga-fragment.yaml", "wrong.saga.yaml"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should mention %q: %v", want, err)
+		}
+	}
+}
+
+// --name and --version set the release, and a fragment has none. Accepting them would leave
+// somebody believing they had named the thing they are describing.
+func TestSurveyFragmentRefusesReleaseFlags(t *testing.T) {
+	for _, flag := range []string{"--name=app", "--version=2.0.0"} {
+		cmd := newSurveyCommand()
+		cmd.SetArgs([]string{"k8s", "images", "--fragment", flag, "-o", "x.saga-fragment.yaml"})
+		cmd.SetOut(io.Discard)
+		cmd.SetErr(io.Discard)
+		if err := cmd.Execute(); err == nil {
+			t.Errorf("%s was accepted alongside --fragment", flag)
+		}
+	}
 }

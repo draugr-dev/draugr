@@ -32,7 +32,7 @@ func printResolved(w io.Writer, res *saga.Resolved) error {
 
 	var buf strings.Builder
 	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
+	enc.SetIndent(saga.Indent)
 	if err := enc.Encode(&flat); err != nil {
 		return fmt.Errorf("render resolved descriptor: %w", err)
 	}

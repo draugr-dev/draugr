@@ -163,8 +163,14 @@ func mergeNamespaces(a, b []string) []string {
 // is the safe answer and also the surprising one: somebody who passed `--namespace` is entitled
 // to know their flag did not reach the descriptor.
 func NarrowsScope(model *Model, frag Fragment) []string {
+	return NarrowsScopeIn(model.Components, frag)
+}
+
+// NarrowsScopeIn is NarrowsScope against a bare component list, for a document that is not a
+// Model — a fragment merges into a fragment, and the question is the same either way.
+func NarrowsScopeIn(components []Component, frag Fragment) []string {
 	wide := map[string]bool{}
-	for _, c := range model.Components {
+	for _, c := range components {
 		for _, in := range c.Infrastructure {
 			if len(in.Namespaces) == 0 {
 				wide[c.Name+"/"+in.Kind+"/"+in.Ref] = true

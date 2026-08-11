@@ -110,3 +110,46 @@ func TestApplyIntoModel(t *testing.T) {
 		}
 	}
 }
+
+// A fragment's exposure reasons have to survive the merge.
+//
+// The merge is the only path from a surveyor to the descriptor, so anything it drops may as well
+// never have been discovered — and dropping this is invisible: the exposure still arrives, the
+// file is still written, and the only thing missing is the evidence for a value the reader is
+// being asked to confirm.
+func TestMergeFragmentsKeepsWhyEachExposureWasProposed(t *testing.T) {
+	merged := MergeFragments(
+		saga.Fragment{
+			Components:      []saga.Component{{Name: "front", Exposure: saga.ExposurePublic}},
+			ExposureReasons: map[string]string{"front": "an Ingress routes into it"},
+		},
+		saga.Fragment{
+			Components:      []saga.Component{{Name: "back", Exposure: saga.ExposureInternal}},
+			ExposureReasons: map[string]string{"back": "no Ingress, external Service or NetworkPolicy found"},
+		},
+	)
+	if len(merged.ExposureReasons) != 2 {
+		t.Fatalf("reasons = %v, want one per component", merged.ExposureReasons)
+	}
+	if merged.ExposureReasons["front"] != "an Ingress routes into it" {
+		t.Errorf("front lost its reason: %q", merged.ExposureReasons["front"])
+	}
+}
+
+// The surface unions but a proposed value does not, so the reason has to stay with the value that
+// stayed — otherwise a component ends up carrying one fragment's exposure and another's reason.
+func TestMergeFragmentsKeepsTheReasonBelongingToTheExposureItKept(t *testing.T) {
+	merged := MergeFragments(
+		saga.Fragment{
+			Components:      []saga.Component{{Name: "app", Exposure: saga.ExposurePublic}},
+			ExposureReasons: map[string]string{"app": "an Ingress routes into it"},
+		},
+		saga.Fragment{
+			Components:      []saga.Component{{Name: "app", Exposure: saga.ExposureInternal}},
+			ExposureReasons: map[string]string{"app": "no Ingress, external Service or NetworkPolicy found"},
+		},
+	)
+	if got := merged.ExposureReasons["app"]; got != "an Ingress routes into it" {
+		t.Errorf("reason = %q, want the one belonging to the exposure that was kept", got)
+	}
+}

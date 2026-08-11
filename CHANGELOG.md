@@ -10,7 +10,60 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **`draugr survey k8s images` writes one component per namespace, not one called `cluster`.**
+  Without `--namespace` it collapsed every image in the cluster into a single component and
+  proposed no exposure for it — because one exposure covering everything running anywhere in a
+  cluster would not mean anything. That is the right conclusion from the wrong shape: a namespace
+  is what a team owns, so it is what a finding has to be attributed to, and exposure is a property
+  of one namespace's topology. Every namespace now gets the same treatment `--namespace a,b`
+  already gave the two you named — its own images, and its own proposed exposure.
+
+  `--namespace` still narrows *which* namespaces are described. On a large cluster the unnarrowed
+  survey is a lot of components, so name the ones you own.
+
+  An image running in two namespaces now appears under both, which is what each component's
+  surface actually is. The engine collapses identical targets when it plans, so scanning costs the
+  same.
+
+- **A survey writes the same YAML as everything else that touches a descriptor.** It used
+  `yaml.Marshal`, whose default is four spaces — not a choice anybody made, and every other command
+  that writes a Saga uses two. So `draugr classify` reindented a surveyed descriptor end to end the
+  first time it set a field: a two-field edit that rewrote every line, which is a diff nobody
+  reviews. `draugr init`, `classify`, `validate --resolved` and `survey` now share one definition.
+
+- **`draugr survey --fragment` writes a Saga fragment** — components and nothing else — for a
+  descriptor to include:
+
+  ```bash
+  draugr survey k8s images --namespace team-a --fragment -o team-a.saga-fragment.yaml
+  ```
+
+  A fragment is part of a descriptor rather than a thing to release, so it carries no `release:`
+  and enables no controls; the descriptor that includes it decides what to run. `--name` and
+  `--version` are refused alongside it, and `-o` has to end in `.saga-fragment.yaml`, because a
+  fragment written under a Saga's name is read back as a Saga and rejected for having no release.
+- **`draugr survey k8s images --no-exposure`** leaves `exposure` unset instead of guessing it from
+  cluster topology. The lookups are skipped rather than made and discarded — they need permissions
+  a namespace-scoped credential may not have.
+
+### Added
+
+- **A surveyed `exposure` says what it was read from**, in a comment beside the value:
+
+  ```yaml
+  components:
+      - name: checkout
+        exposure: public # a Service of type LoadBalancer exposes it
+      - name: batch
+        exposure: internal # no Ingress, external Service or NetworkPolicy found
+  ```
+
+  A proposal and a decision are the same three characters in a file, and exposure is what turns a
+  severity into a P1 or a P3. The survey already named its guesses on the way out, but a terminal
+  scrolls and the descriptor is what somebody opens later — so the reasoning is where the value is.
+  Only proposals are commented; an exposure the descriptor already carried is left alone.
 
 ## [0.80.0] - 2026-08-10
 
