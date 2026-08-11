@@ -10,7 +10,26 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **The JSON report can tell you a control did not run.** `--format json` carried nothing about the
+  errors that stopped a control — and a control that produced nothing at all had no verdict row, so
+  it was absent from the document entirely. A pipeline parsing the JSON saw a shorter list of
+  controls rather than a failure, with every remaining field describing what was found rather than
+  what was attempted. Reading the JSON is exactly the case where nobody is watching the terminal
+  that says otherwise.
+
+  Each affected control now carries `scanErrors`, and a control that produced nothing is listed
+  with `"verdict": "fail"` and no counts. Gate on it with
+  `jq -e '[.controls[].scanErrors // empty] | length == 0'`.
+
+### Added
+
+- **`notMeasured` in the JSON report**, matching the console's `Not measured` section: the control,
+  scanner, component and reason for anything planned and then not run. Not an error — nothing went
+  wrong, so no `scanErrors` are recorded for it.
+
+Both are omitted when there is nothing to report, so a clean run's document is unchanged.
 
 ## [0.79.0] - 2026-08-10
 

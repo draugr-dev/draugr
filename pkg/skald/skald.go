@@ -26,9 +26,14 @@ type jsonReport struct {
 	// First, beside the verdict, because it qualifies it. A consumer reading this document has
 	// to be able to tell a verdict about the release from a verdict about part of it, and the
 	// rest of the document looks the same either way.
-	Scope      *scopeInfo      `json:"scope,omitempty"`
-	Controls   []controlReport `json:"controls"`
-	Priorities *priorityCounts `json:"priorities,omitempty"`
+	Scope    *scopeInfo      `json:"scope,omitempty"`
+	Controls []controlReport `json:"controls"`
+	// NotMeasured names a scanner that was planned and then not run because it could not answer
+	// the question its target asked. Distinct from an error: nothing went wrong, and the run is
+	// not incomplete — but a scanner that quietly did not run is indistinguishable, in the rest
+	// of this document, from one that ran and found nothing.
+	NotMeasured []notMeasuredReport `json:"notMeasured,omitempty"`
+	Priorities  *priorityCounts     `json:"priorities,omitempty"`
 	// Exploitability names the datasets that enriched this run's severities, so a report can
 	// be checked against the data it was computed from. Absent when no enrichment ran.
 	Exploitability []FeedProvenance `json:"exploitability,omitempty"`
@@ -37,6 +42,16 @@ type jsonReport struct {
 	Repositories []sarif.RepositoryRef `json:"repositories,omitempty"`
 	Findings     []findingReport       `json:"findings,omitempty"`
 	Stats        statsInfo             `json:"stats"`
+}
+
+// sortedControls names the controls in a scan-error map, in a stable order.
+func sortedControls(errs map[string][]string) []string {
+	out := make([]string, 0, len(errs))
+	for name := range errs {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // scopeInfo mirrors engine.Scope in the report document.
@@ -94,6 +109,22 @@ type controlReport struct {
 	Warnings        int    `json:"warnings"`
 	Notes           int    `json:"notes"`
 	Total           int    `json:"total"`
+	// ScanErrors are what stopped this control finishing, in the scanner's own words.
+	//
+	// Present is the whole signal; there is no separate flag saying so. A run that failed because
+	// a scanner never started and one that failed on what it found are the same `fail` above, and
+	// they call for different things — the first is a broken pipeline, the second is work. When
+	// this is set the counts describe what the scanners that did run found, which is not the same
+	// as what is there.
+	ScanErrors []string `json:"scanErrors,omitempty"`
+}
+
+// notMeasuredReport is a job that was planned and then not run.
+type notMeasuredReport struct {
+	Control   string `json:"control"`
+	Scanner   string `json:"scanner"`
+	Component string `json:"component,omitempty"`
+	Reason    string `json:"reason"`
 }
 
 type statsInfo struct {
@@ -131,7 +162,9 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 			Concurrency: run.Stats.Concurrency,
 		},
 	}
+	seen := make(map[string]bool, len(verdict.Controls))
 	for _, oc := range verdict.Controls {
+		seen[oc.Control] = true
 		doc.Controls = append(doc.Controls, controlReport{
 			Name:            oc.Control,
 			Verdict:         string(oc.Verdict),
@@ -142,9 +175,31 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 			Warnings:        oc.Counts.Warning,
 			Notes:           oc.Counts.Note,
 			Total:           oc.Counts.Total(),
+			ScanErrors:      run.ScanErrors[oc.Control],
+		})
+	}
+	// A control that produced nothing at all has no outcome to attach to, so listing only the
+	// outcomes drops it entirely — and a consumer counting controls sees a shorter list rather
+	// than a failure. That is the whole complaint this document exists to answer, so it is
+	// listed with the counts it truly has: none.
+	for _, name := range sortedControls(run.ScanErrors) {
+		if seen[name] {
+			continue
+		}
+		doc.Controls = append(doc.Controls, controlReport{
+			Name:       name,
+			Verdict:    string(norn.Fail),
+			Highest:    string(sarif.LevelNone),
+			ScanErrors: run.ScanErrors[name],
 		})
 	}
 	sort.Slice(doc.Controls, func(i, j int) bool { return doc.Controls[i].Name < doc.Controls[j].Name })
+
+	for _, sk := range run.Skipped {
+		doc.NotMeasured = append(doc.NotMeasured, notMeasuredReport{
+			Control: sk.Control, Scanner: sk.Scanner, Component: sk.Component, Reason: sk.Reason,
+		})
+	}
 
 	doc.Priorities, doc.Findings = summarizePriorities(run, minPriority)
 	doc.Exploitability = feeds

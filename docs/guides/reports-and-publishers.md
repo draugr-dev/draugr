@@ -30,6 +30,24 @@ Scan results render through a pluggable **Reporter**, selected on the CLI with
 
 `-o/--output <dir>` always writes `report.json` + `results.sarif` regardless of `--format`.
 
+### Telling a partial run from a clean one
+
+A gate reading `report.json` should check more than `verdict`. A run where a scanner never started
+and a run that found nothing both produce findings-shaped output, and the difference is what your
+pipeline should do about it — one is broken infrastructure, the other is work.
+
+| Field | Meaning |
+|---|---|
+| `controls[].scanErrors` | what stopped that control, in the scanner's own words. Its counts then describe what the scanners that *did* run found, which is not the same as what is there. A control that produced nothing at all is still listed, with `"verdict": "fail"` and no counts. |
+| `notMeasured[]` | a scanner that was planned and then not run because it could not answer the question its target asked — the control, scanner, component and reason. Not an error: nothing went wrong, and no `scanErrors` are recorded for it. |
+
+Both are omitted when there is nothing to report, so a clean run's document is unchanged.
+
+```bash
+draugr scan draugr.saga.yaml -o out/
+jq -e '[.controls[].scanErrors // empty] | length == 0' out/report.json   # fail the build on a partial run
+```
+
 ## Declare formats and destinations
 
 ```yaml
