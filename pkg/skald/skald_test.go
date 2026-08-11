@@ -348,11 +348,9 @@ func TestJSONNamesAControlThatCouldNotRun(t *testing.T) {
 		t.Fatalf("RenderJSON: %v", err)
 	}
 	var doc struct {
-		Incomplete bool `json:"incomplete"`
-		Controls   []struct {
+		Controls []struct {
 			Name       string   `json:"name"`
 			Verdict    string   `json:"verdict"`
-			Incomplete bool     `json:"incomplete"`
 			ScanErrors []string `json:"scanErrors"`
 		} `json:"controls"`
 	}
@@ -360,9 +358,6 @@ func TestJSONNamesAControlThatCouldNotRun(t *testing.T) {
 		t.Fatalf("unmarshal: %v\n%s", err, buf.String())
 	}
 
-	if !doc.Incomplete {
-		t.Error("a run where a control could not start is not a complete run")
-	}
 	byName := map[string]int{}
 	for i, c := range doc.Controls {
 		byName[c.Name] = i
@@ -372,17 +367,18 @@ func TestJSONNamesAControlThatCouldNotRun(t *testing.T) {
 	if !ok {
 		t.Fatalf("the control that produced nothing is missing:\n%s", buf.String())
 	}
-	if !doc.Controls[i].Incomplete || doc.Controls[i].Verdict != "fail" {
+	if doc.Controls[i].Verdict != "fail" {
 		t.Errorf("a control that never ran is not a pass: %+v", doc.Controls[i])
 	}
 	if len(doc.Controls[i].ScanErrors) != 1 ||
 		!strings.Contains(doc.Controls[i].ScanErrors[0], "not found") {
 		t.Errorf("the reason it did not run is missing: %+v", doc.Controls[i])
 	}
-	// And one that ran, found things, and still hit an error is partial rather than complete.
+	// And one that ran, found things, and still hit an error carries the error too: its counts
+	// describe what the scanners that did run found, which is not the same as what is there.
 	j := byName["sca"]
-	if !doc.Controls[j].Incomplete {
-		t.Errorf("a control with findings and an error is still incomplete: %+v", doc.Controls[j])
+	if len(doc.Controls[j].ScanErrors) == 0 {
+		t.Errorf("a control with findings and an error is still partial: %+v", doc.Controls[j])
 	}
 }
 
@@ -398,7 +394,7 @@ func TestJSONOmitsTheCaveatsWhenThereAreNone(t *testing.T) {
 	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1"}, run, verdict, ""); err != nil {
 		t.Fatalf("RenderJSON: %v", err)
 	}
-	for _, absent := range []string{"incomplete", "scanErrors", "notMeasured"} {
+	for _, absent := range []string{"scanErrors", "notMeasured"} {
 		if strings.Contains(buf.String(), absent) {
 			t.Errorf("a complete run must not carry %q:\n%s", absent, buf.String())
 		}
@@ -422,7 +418,9 @@ func TestJSONCarriesWhatWasNotMeasured(t *testing.T) {
 		t.Fatalf("RenderJSON: %v", err)
 	}
 	var doc struct {
-		Incomplete  bool `json:"incomplete"`
+		Controls []struct {
+			ScanErrors []string `json:"scanErrors"`
+		} `json:"controls"`
 		NotMeasured []struct {
 			Control, Scanner, Component, Reason string
 		} `json:"notMeasured"`
@@ -437,8 +435,10 @@ func TestJSONCarriesWhatWasNotMeasured(t *testing.T) {
 		t.Errorf("wrong entry: %+v", doc.NotMeasured[0])
 	}
 	// A skip is not a failure: nothing went wrong, and the scanner was never going to be able to
-	// answer. Marking the run incomplete would make every scoped cluster look broken.
-	if doc.Incomplete {
-		t.Error("a skip must not mark the run incomplete")
+	// answer. Recording it as a scan error would make every namespace-scoped cluster look broken.
+	for _, c := range doc.Controls {
+		if len(c.ScanErrors) > 0 {
+			t.Errorf("a skip is not an error: %+v", c)
+		}
 	}
 }
