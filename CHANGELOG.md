@@ -27,6 +27,23 @@ and move it under a version on release.
   surface actually is. The engine collapses identical targets when it plans, so scanning costs the
   same.
 
+### Added
+
+- **A surveyed `exposure` says what it was read from**, in a comment beside the value:
+
+  ```yaml
+  components:
+      - name: checkout
+        exposure: public # a Service of type LoadBalancer exposes it
+      - name: batch
+        exposure: internal # no Ingress, external Service or NetworkPolicy found
+  ```
+
+  A proposal and a decision are the same three characters in a file, and exposure is what turns a
+  severity into a P1 or a P3. The survey already named its guesses on the way out, but a terminal
+  scrolls and the descriptor is what somebody opens later — so the reasoning is where the value is.
+  Only proposals are commented; an exposure the descriptor already carried is left alone.
+
 ## [0.80.0] - 2026-08-10
 
 ### Fixed

@@ -32,10 +32,23 @@ descriptor costs nothing to scan.
 | A `NetworkPolicy` (and no external reach) | `restricted` |
 | Otherwise | `internal` |
 
-It's a **proposal to confirm**, and the survey says so: every component it guessed an exposure
-for is named on the way out, with the value it chose and a pointer to `draugr classify`. Written
-into the file a proposal looks exactly like a decision, and exposure is what turns a severity into
-a P1 or a P3 — so it arrives announced rather than quietly.
+It's a **proposal to confirm**, and it says so twice. Every component it guessed an exposure for
+is named on the way out, with the value it chose and a pointer to `draugr classify`. And the
+reason travels into the descriptor beside the value:
+
+```yaml
+components:
+    - name: checkout
+      exposure: public # a Service of type LoadBalancer exposes it
+    - name: batch
+      exposure: internal # no Ingress, external Service or NetworkPolicy found
+```
+
+Written into a file a proposal looks exactly like a decision, and exposure is what turns a
+severity into a P1 or a P3. The terminal scrolls; the descriptor is what somebody opens a week
+later, possibly without having run the survey — so the evidence has to be where the value is.
+Only proposals are commented: a value the descriptor already carried is a decision, and marking it
+would say otherwise.
 
 Authentication can't be inferred, so internet-reachable is proposed as `public` (downgrade to
 `authenticated` if it sits behind auth). The three lookups are made once over the surveyed scope

@@ -541,6 +541,13 @@ type Fragment struct {
 	Config FragmentConfig `yaml:"config,omitempty"`
 	// Fragments are further fragments this one pulls in, resolved relative to it.
 	Fragments []FragmentRef `yaml:"fragments,omitempty"`
+	// ExposureReasons explains, per component name, what topology a proposed `exposure` was read
+	// from — "an Ingress routes into it", and so on.
+	//
+	// Never serialised: it is evidence about a proposal rather than part of the descriptor, and a
+	// fragment somebody writes by hand has no use for it. It exists so a survey can put the
+	// reasoning beside the value it wrote, where the value gets reviewed.
+	ExposureReasons map[string]string `yaml:"-" json:"-"`
 }
 
 // FragmentConfig is the part of Config a fragment is allowed to set.

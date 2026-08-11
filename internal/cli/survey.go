@@ -247,6 +247,16 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	if err != nil {
 		return err
 	}
+	// The reasoning goes beside the value, because that is where it is read. The note above is a
+	// terminal that scrolls; the descriptor is opened later, in an editor, by somebody who may not
+	// have run the survey — and a proposed exposure and a decided one look identical in a file.
+	//
+	// Filtered by the same rule the note uses: a component whose exposure the descriptor already
+	// carried keeps its own value, and commenting that would describe somebody's decision as a
+	// guess.
+	if out, err = saga.AnnotateExposures(out, proposedReasons(frag, settled)); err != nil {
+		return err
+	}
 	if opts.output != "" {
 		if err := os.WriteFile(opts.output, out, 0o600); err != nil {
 			return err
@@ -300,6 +310,21 @@ func proposedExposures(frag saga.Fragment, settled map[string]bool) []exposurePr
 			continue
 		}
 		out = append(out, exposureProposal{component: c.Name, exposure: c.Exposure})
+	}
+	return out
+}
+
+// proposedReasons is what each proposed exposure was read from, for the components the descriptor
+// actually took a proposal for.
+func proposedReasons(frag saga.Fragment, settled map[string]bool) map[string]string {
+	if len(frag.ExposureReasons) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(frag.ExposureReasons))
+	for _, p := range proposedExposures(frag, settled) {
+		if reason := frag.ExposureReasons[p.component]; reason != "" {
+			out[p.component] = reason
+		}
 	}
 	return out
 }

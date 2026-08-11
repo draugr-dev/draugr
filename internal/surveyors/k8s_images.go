@@ -84,18 +84,21 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 	// Proposed exposures for every namespace at once. Three list calls over the scope rather than
 	// three per namespace: on a cluster with eighty of them the per-namespace form is two hundred
 	// and forty round trips, and the answer is identical.
-	exposures := inferExposures(ctx, cs, namespace, names)
+	signals := inferExposures(ctx, cs, namespace, names)
 
 	comps := make([]saga.Component, 0, len(names))
+	reasons := make(map[string]string, len(names))
 	for _, ns := range names {
 		comp := saga.Component{Name: ns, Images: byNamespace[ns]}
-		// A suggestion for a human to confirm or adjust, not a measurement.
-		if exp, ok := exposures[ns]; ok {
-			comp.Exposure = exp
+		// A suggestion for a human to confirm or adjust, not a measurement — so it travels with
+		// what it was read from, and the descriptor says so beside the value.
+		if sig, ok := signals[ns]; ok {
+			comp.Exposure = sig.exposure
+			reasons[ns] = sig.reason
 		}
 		comps = append(comps, comp)
 	}
-	return saga.Fragment{Components: comps}, nil
+	return saga.Fragment{Components: comps, ExposureReasons: reasons}, nil
 }
 
 // inferExposures proposes an exposure for each namespace, from the Kubernetes topology it can
@@ -111,15 +114,20 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 // nothing at all rather than calling everything internal on no evidence. Authentication cannot be
 // inferred reliably, so internet-reachable is proposed as "public"; a human downgrades to
 // "authenticated" if it sits behind auth.
-func inferExposures(ctx context.Context, cs kubernetes.Interface, scope string, namespaces []string) map[string]saga.Exposure {
-	public := map[string]bool{}
+func inferExposures(ctx context.Context, cs kubernetes.Interface, scope string, namespaces []string) map[string]exposureSignal {
+	// What made a namespace reachable, not merely that something did. A reviewer confirming a
+	// proposal has to know where to look, and "public" alone sends them through every Ingress and
+	// Service in the namespace to find the one this was read from.
+	publicVia := map[string]string{}
 	restricted := map[string]bool{}
 	queried := false
 
 	if ing, err := cs.NetworkingV1().Ingresses(scope).List(ctx, metav1.ListOptions{}); err == nil {
 		queried = true
 		for _, i := range ing.Items {
-			public[i.Namespace] = true
+			if publicVia[i.Namespace] == "" {
+				publicVia[i.Namespace] = "an Ingress routes into it"
+			}
 		}
 	} else {
 		slog.Warn("infer exposure: list ingresses", "scope", scopeLabel(scope), "error", err)
@@ -128,8 +136,13 @@ func inferExposures(ctx context.Context, cs kubernetes.Interface, scope string, 
 	if svcs, err := cs.CoreV1().Services(scope).List(ctx, metav1.ListOptions{}); err == nil {
 		queried = true
 		for _, s := range svcs.Items {
-			if s.Spec.Type == corev1.ServiceTypeLoadBalancer || s.Spec.Type == corev1.ServiceTypeNodePort {
-				public[s.Namespace] = true
+			if s.Spec.Type != corev1.ServiceTypeLoadBalancer && s.Spec.Type != corev1.ServiceTypeNodePort {
+				continue
+			}
+			// An Ingress already found takes precedence, so the comment names the same signal the
+			// value was decided by rather than whichever list happened to be read last.
+			if publicVia[s.Namespace] == "" {
+				publicVia[s.Namespace] = "a Service of type " + string(s.Spec.Type) + " exposes it"
 			}
 		}
 	} else {
@@ -149,18 +162,26 @@ func inferExposures(ctx context.Context, cs kubernetes.Interface, scope string, 
 		return nil // could not read any topology — propose nothing
 	}
 
-	out := make(map[string]saga.Exposure, len(namespaces))
+	out := make(map[string]exposureSignal, len(namespaces))
 	for _, ns := range namespaces {
 		switch {
-		case public[ns]:
-			out[ns] = saga.ExposurePublic
+		case publicVia[ns] != "":
+			out[ns] = exposureSignal{saga.ExposurePublic, publicVia[ns]}
 		case restricted[ns]:
-			out[ns] = saga.ExposureRestricted
+			out[ns] = exposureSignal{saga.ExposureRestricted,
+				"a NetworkPolicy restricts it, and nothing routes in from outside"}
 		default:
-			out[ns] = saga.ExposureInternal
+			out[ns] = exposureSignal{saga.ExposureInternal,
+				"no Ingress, external Service or NetworkPolicy found"}
 		}
 	}
 	return out
+}
+
+// exposureSignal is a proposed exposure and the topology it was read from.
+type exposureSignal struct {
+	exposure saga.Exposure
+	reason   string
 }
 
 // scopeLabel names what a failed lookup covered, so a warning about the whole cluster does not
