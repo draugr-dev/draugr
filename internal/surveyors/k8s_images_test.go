@@ -3,6 +3,7 @@ package surveyors
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -124,14 +125,35 @@ func TestK8sImagesSurveyDedups(t *testing.T) {
 	}
 }
 
-func TestK8sImagesEmptyNamespaceName(t *testing.T) {
-	cs := fake.NewSimpleClientset(pod("", "a", "repo/x:1"))
+// A survey with no namespace describes every namespace, one component each — the same shape
+// `--namespace a,b` produces, for all of them rather than the two you happened to name.
+//
+// Three namespaces rather than one, because one cannot tell a per-namespace answer from a
+// collapsed one: with a single namespace, "the whole cluster" and "that namespace" are the same
+// set of images under the same name, and every arrangement looks correct.
+func TestK8sImagesWithoutANamespaceReturnsOneComponentPerNamespace(t *testing.T) {
+	cs := fake.NewSimpleClientset(
+		ns("alpha"), ns("beta"), ns("gamma"),
+		pod("alpha", "a", "repo/a:1"),
+		pod("beta", "b", "repo/b:1"),
+		pod("gamma", "c", "repo/c:1"),
+	)
 	frag, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if frag.Components[0].Name != "cluster" {
-		t.Errorf("empty namespace should name component 'cluster', got %q", frag.Components[0].Name)
+	var got []string
+	for _, c := range frag.Components {
+		got = append(got, c.Name)
+	}
+	// Sorted, so a re-survey does not reorder the descriptor and turn every run into a diff.
+	if want := []string{"alpha", "beta", "gamma"}; !slices.Equal(got, want) {
+		t.Fatalf("components = %v, want %v", got, want)
+	}
+	for _, c := range frag.Components {
+		if len(c.Images) != 1 {
+			t.Errorf("component %q should carry only its own images, got %+v", c.Name, c.Images)
+		}
 	}
 }
 
@@ -162,14 +184,34 @@ func TestDefaultClientsetErrorsWithoutConfig(t *testing.T) {
 	}
 }
 
-func TestCollectImagesIncludesInitContainers(t *testing.T) {
-	p := &corev1.Pod{Spec: corev1.PodSpec{
-		InitContainers: []corev1.Container{{Name: "init", Image: "init:1"}},
-		Containers:     []corev1.Container{{Name: "app", Image: "app:1"}},
-	}}
-	imgs := collectImages([]corev1.Pod{*p})
-	if len(imgs) != 2 {
+func TestImagesByNamespaceIncludesInitContainers(t *testing.T) {
+	p := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "prod"},
+		Spec: corev1.PodSpec{
+			InitContainers: []corev1.Container{{Name: "init", Image: "init:1"}},
+			Containers:     []corev1.Container{{Name: "app", Image: "app:1"}},
+		},
+	}
+	if imgs := imagesByNamespace([]corev1.Pod{*p})["prod"]; len(imgs) != 2 {
 		t.Fatalf("want init + app images, got %+v", imgs)
+	}
+}
+
+// The same image in two namespaces is two components' surface. Deduplicating across them would
+// leave one of the two describing an image it runs, and the engine collapses identical targets
+// when it plans, so the honest descriptor costs nothing to scan.
+func TestImagesByNamespaceKeepsAnImageSharedByTwoNamespaces(t *testing.T) {
+	shared := func(ns string) corev1.Pod {
+		return corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Namespace: ns},
+			Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "app", Image: "repo/x:1"}}},
+		}
+	}
+	got := imagesByNamespace([]corev1.Pod{shared("a"), shared("b")})
+	for _, ns := range []string{"a", "b"} {
+		if len(got[ns]) != 1 || got[ns][0].Image != "repo/x:1" {
+			t.Errorf("namespace %q lost the image it runs: %+v", ns, got[ns])
+		}
 	}
 }
 
@@ -227,16 +269,28 @@ func TestInferExposureInternalByDefault(t *testing.T) {
 	}
 }
 
-func TestNoExposureForWholeCluster(t *testing.T) {
-	// A whole-cluster survey (no namespace) lumps components; exposure is not proposed.
+// Exposure is proposed per namespace even when no namespace was asked for, and it belongs to the
+// namespace whose topology implies it.
+//
+// The Ingress is in one namespace only. Inference that answered per cluster would mark both
+// public — which is the reason a lumped component could not carry an exposure at all, and the
+// reason this has to be checked with a namespace that has no route as well as one that does.
+func TestExposureIsProposedPerNamespaceAcrossAWholeCluster(t *testing.T) {
 	cs := fake.NewSimpleClientset(
-		ns("prod"),
-		pod("prod", "a", "repo/x:1"),
-		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "www", Namespace: "prod"}},
+		ns("front"), ns("back"),
+		pod("front", "a", "repo/a:1"),
+		pod("back", "b", "repo/b:1"),
+		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "www", Namespace: "front"}},
 	)
-	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{})
-	if frag.Components[0].Exposure != "" {
-		t.Errorf("whole-cluster survey should not propose exposure, got %q", frag.Components[0].Exposure)
+	frag, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]saga.Exposure{"back": saga.ExposureInternal, "front": saga.ExposurePublic}
+	for _, c := range frag.Components {
+		if c.Exposure != want[c.Name] {
+			t.Errorf("%s exposure = %q, want %q", c.Name, c.Exposure, want[c.Name])
+		}
 	}
 }
 

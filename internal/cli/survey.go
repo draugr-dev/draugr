@@ -104,12 +104,12 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 		Short: "Discover the container images running in a cluster",
 		Long: "Enumerate the unique container images running in a cluster, with the digest each is\n" +
 			"actually running, and write them as components.\n\n" +
-			"Scoped to a namespace, this also proposes each component's exposure from cluster\n" +
-			"topology — review it, then set criticality with `draugr classify`.\n\n" +
-			"--namespace may be repeated, and each one becomes its own component with its own\n" +
-			"proposed exposure. That is the difference between three namespaces and no namespace\n" +
-			"at all: the whole cluster is one component, and one exposure for everything running\n" +
-			"anywhere in it would not mean anything.",
+			"A namespace is the unit: each becomes its own component, carrying only the images it\n" +
+			"runs and an exposure proposed from its own topology. Review the exposures, then set\n" +
+			"criticality with `draugr classify`.\n\n" +
+			"--namespace narrows which ones are described, and may be repeated. Without it every\n" +
+			"namespace is described, which on a large cluster is a lot of components — name the\n" +
+			"ones you own.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSurvey(cmd.Context(), *opts, requestPerNamespace("k8s-images", namespaces, scopeFor),
@@ -117,7 +117,7 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 		},
 	}
 	images.Flags().StringSliceVar(&namespaces, "namespace", nil,
-		"limit discovery to a namespace; repeat for several, one component each (default all)")
+		"describe only this namespace; repeat for several (default every namespace)")
 
 	var clusterNamespaces []string
 	cluster := &cobra.Command{
@@ -154,8 +154,10 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 // caller asked for and what a surveyor is asked to do, and the surveyor keeps answering one
 // question at a time.
 //
-// No namespace means the whole cluster, which is one request with an empty ref and the behaviour
-// that has always been the default.
+// No namespace means every namespace, which is one request with an empty ref: a surveyor that
+// describes a namespace still does so for each of them, and the empty scope is what tells it to
+// find them rather than be given them. Enumerating here instead would mean building a Kubernetes
+// client in the CLI to ask a question the surveyor is already connected to answer.
 func requestPerNamespace(name string, namespaces []string, scopeFor func(string) plugin.SurveyScope) []surveyor.Request {
 	if len(namespaces) == 0 {
 		return []surveyor.Request{{Surveyor: name, Scope: scopeFor("")}}

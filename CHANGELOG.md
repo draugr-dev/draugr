@@ -10,7 +10,22 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **`draugr survey k8s images` writes one component per namespace, not one called `cluster`.**
+  Without `--namespace` it collapsed every image in the cluster into a single component and
+  proposed no exposure for it — because one exposure covering everything running anywhere in a
+  cluster would not mean anything. That is the right conclusion from the wrong shape: a namespace
+  is what a team owns, so it is what a finding has to be attributed to, and exposure is a property
+  of one namespace's topology. Every namespace now gets the same treatment `--namespace a,b`
+  already gave the two you named — its own images, and its own proposed exposure.
+
+  `--namespace` still narrows *which* namespaces are described. On a large cluster the unnarrowed
+  survey is a lot of components, so name the ones you own.
+
+  An image running in two namespaces now appears under both, which is what each component's
+  surface actually is. The engine collapses identical targets when it plans, so scanning costs the
+  same.
 
 ## [0.80.0] - 2026-08-10
 

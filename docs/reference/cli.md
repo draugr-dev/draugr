@@ -604,10 +604,13 @@ draugr survey k8s images --namespace payments --namespace checkout -o draugr.sag
 draugr survey k8s images --namespace payments,checkout -o draugr.saga.yaml   # equivalent
 ```
 
-That is the difference from naming no namespace at all: the whole cluster is discovered as one
-component, and one exposure covering everything running anywhere in it would not mean anything —
-so a whole-cluster survey proposes none. Three namespaces get three components and three
-proposals.
+Naming no namespace describes every namespace the same way — a component each, with its own
+images and its own proposed exposure. `--namespace` narrows *which* namespaces are described, not
+whether they are kept apart: a namespace is what a team owns, so it is what a finding has to be
+attributed to, and exposure is a property of one namespace's topology rather than a cluster's.
+
+On a large cluster that is a lot of components — a managed cluster with two hundred namespaces
+produces two hundred. Name the ones you own.
 
 **It says what it wrote.** A survey that writes a file reports the path and what is now in it, on
 stderr so a descriptor sent to stdout stays a descriptor:

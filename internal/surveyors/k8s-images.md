@@ -9,13 +9,22 @@
 
 ## What it does
 
-Lists pods in a namespace (or all namespaces) via the Kubernetes API and returns the unique
-container images (init + regular) as a Saga component, so the descriptor writes itself. It also
-records each image's **running digest** (from the pod's container status), so result caching is
-content-addressed — a rebuilt image under the same tag re-scans.
+Lists pods in a namespace (or every namespace) via the Kubernetes API and returns the unique
+container images (init + regular) as **one Saga component per namespace**, so the descriptor
+writes itself. It also records each image's **running digest** (from the pod's container status),
+so result caching is content-addressed — a rebuilt image under the same tag re-scans.
 
-**Proposes exposure.** When surveying a *specific* namespace, it also infers the component's
-`exposure` from topology (see [prioritization](../../docs/concepts/prioritization.md)):
+The namespace is the unit whether or not one was named. A cluster collapsed into a single
+component loses both things that make the result usable: the namespace is what a team owns, so it
+is what a finding has to be attributed to, and one exposure covering everything running anywhere
+in a cluster would not mean anything.
+
+An image running in two namespaces appears under both. That is what each component's surface
+actually is, and the engine collapses identical targets when it plans the run, so the honest
+descriptor costs nothing to scan.
+
+**Proposes exposure.** Each component's `exposure` is inferred from its own namespace's topology
+(see [prioritization](../../docs/concepts/prioritization.md)):
 
 | Signal in the namespace | Proposed `exposure` |
 |-------------------------|---------------------|
@@ -29,9 +38,10 @@ into the file a proposal looks exactly like a decision, and exposure is what tur
 a P1 or a P3 — so it arrives announced rather than quietly.
 
 Authentication can't be inferred, so internet-reachable is proposed as `public` (downgrade to
-`authenticated` if it sits behind auth). A whole-cluster survey lumps namespaces into one
-component, so exposure is not proposed there. A component that already carries an exposure keeps
-it — the merge does not overwrite a decision, and no proposal is reported for it. `criticality`
+`authenticated` if it sits behind auth). The three lookups are made once over the surveyed scope
+rather than once per namespace — the answer is identical, and on a cluster with eighty namespaces
+the per-namespace form is two hundred and forty round trips. A component that already carries an
+exposure keeps it — the merge does not overwrite a decision, and no proposal is reported for it. `criticality`
 is never inferred (it's human-declared) — run `draugr classify` to set it.
 
 ## Known limitations
