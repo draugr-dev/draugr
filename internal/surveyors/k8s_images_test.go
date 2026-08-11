@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	k8stesting "k8s.io/client-go/testing"
+
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -314,5 +317,59 @@ func TestAnUnscopedSurveyChecksNoNamespace(t *testing.T) {
 	cs := fake.NewSimpleClientset(pod("anywhere", "a", "repo/x:1"))
 	if _, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{}); err != nil {
 		t.Errorf("an unscoped survey should not need a namespace to exist: %v", err)
+	}
+}
+
+// --no-exposure has to stop the lookups, not discard their answers.
+//
+// The three lists exposure needs are permissions a namespace-scoped credential may not have.
+// Inferring anyway and then dropping the value would spend them to produce warnings about
+// something nobody asked for — and the flag would be doing nothing while appearing to.
+func TestK8sImagesSkipsExposureEntirelyWhenAskedTo(t *testing.T) {
+	cs := fake.NewSimpleClientset(
+		ns("prod"),
+		pod("prod", "a", "repo/x:1"),
+		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "www", Namespace: "prod"}},
+	)
+	var listed []string
+	cs.PrependReactor("list", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		listed = append(listed, action.GetResource().Resource)
+		return false, nil, nil
+	})
+
+	frag, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{
+		Ref:    "prod",
+		Config: plugin.Config{ProposeExposureKey: false},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if frag.Components[0].Exposure != "" {
+		t.Errorf("exposure = %q, want none proposed", frag.Components[0].Exposure)
+	}
+	if len(frag.ExposureReasons) != 0 {
+		t.Errorf("a reason for a value that was not proposed: %v", frag.ExposureReasons)
+	}
+	// An Ingress is present and would have made this public. Nothing may have gone looking.
+	for _, resource := range listed {
+		if resource != "pods" {
+			t.Errorf("listed %q with --no-exposure; only pods are needed", resource)
+		}
+	}
+}
+
+// And the default is unchanged: absent config means propose.
+func TestK8sImagesProposesExposureByDefault(t *testing.T) {
+	cs := fake.NewSimpleClientset(
+		ns("prod"),
+		pod("prod", "a", "repo/x:1"),
+		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "www", Namespace: "prod"}},
+	)
+	frag, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if frag.Components[0].Exposure != saga.ExposurePublic {
+		t.Errorf("exposure = %q, want public", frag.Components[0].Exposure)
 	}
 }

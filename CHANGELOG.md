@@ -33,6 +33,21 @@ and move it under a version on release.
   first time it set a field: a two-field edit that rewrote every line, which is a diff nobody
   reviews. `draugr init`, `classify`, `validate --resolved` and `survey` now share one definition.
 
+- **`draugr survey --fragment` writes a Saga fragment** — components and nothing else — for a
+  descriptor to include:
+
+  ```bash
+  draugr survey k8s images --namespace team-a --fragment -o team-a.saga-fragment.yaml
+  ```
+
+  A fragment is part of a descriptor rather than a thing to release, so it carries no `release:`
+  and enables no controls; the descriptor that includes it decides what to run. `--name` and
+  `--version` are refused alongside it, and `-o` has to end in `.saga-fragment.yaml`, because a
+  fragment written under a Saga's name is read back as a Saga and rejected for having no release.
+- **`draugr survey k8s images --no-exposure`** leaves `exposure` unset instead of guessing it from
+  cluster topology. The lookups are skipped rather than made and discarded — they need permissions
+  a namespace-scoped credential may not have.
+
 ### Added
 
 - **A surveyed `exposure` says what it was read from**, in a comment beside the value:

@@ -84,7 +84,14 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 	// Proposed exposures for every namespace at once. Three list calls over the scope rather than
 	// three per namespace: on a cluster with eighty of them the per-namespace form is two hundred
 	// and forty round trips, and the answer is identical.
-	signals := inferExposures(ctx, cs, namespace, names)
+	//
+	// Skipped entirely when the caller does not want proposals, rather than inferred and then
+	// discarded. The three lookups need permissions a namespace-scoped credential may not have,
+	// and inferring anyway would spend them to produce warnings about a value nobody asked for.
+	var signals map[string]exposureSignal
+	if proposesExposure(scope.Config) {
+		signals = inferExposures(ctx, cs, namespace, names)
+	}
 
 	comps := make([]saga.Component, 0, len(names))
 	reasons := make(map[string]string, len(names))
@@ -99,6 +106,19 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 		comps = append(comps, comp)
 	}
 	return saga.Fragment{Components: comps, ExposureReasons: reasons}, nil
+}
+
+// ProposeExposureKey is the scope config key that turns exposure inference off. Absent — the
+// common case — means propose.
+//
+// A key rather than a field on SurveyScope: it is one surveyor's behaviour, and the scope is the
+// channel the CLI already uses to tell a surveyor how to do its job.
+const ProposeExposureKey = "proposeExposure"
+
+// proposesExposure reports whether this survey should guess an exposure at all.
+func proposesExposure(cfg plugin.Config) bool {
+	v, ok := cfg[ProposeExposureKey].(bool)
+	return !ok || v
 }
 
 // inferExposures proposes an exposure for each namespace, from the Kubernetes topology it can

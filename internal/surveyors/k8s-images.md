@@ -50,6 +50,10 @@ later, possibly without having run the survey — so the evidence has to be wher
 Only proposals are commented: a value the descriptor already carried is a decision, and marking it
 would say otherwise.
 
+`--no-exposure` turns the whole thing off, and skips the three lookups rather than making them and
+discarding the answer — they need permissions a namespace-scoped credential may not have. Use it
+when `draugr classify` is where exposure gets decided.
+
 Authentication can't be inferred, so internet-reachable is proposed as `public` (downgrade to
 `authenticated` if it sits behind auth). The three lookups are made once over the surveyed scope
 rather than once per namespace — the answer is identical, and on a cluster with eighty namespaces

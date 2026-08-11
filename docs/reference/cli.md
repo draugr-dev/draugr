@@ -578,12 +578,45 @@ belong to:
 
 | Command | Discovers | Options |
 |---|---|---|
-| `draugr survey k8s images` | unique container images running in a cluster, with their digests | `--namespace` |
+| `draugr survey k8s images` | unique container images running in a cluster, with their digests | `--namespace`, `--no-exposure` |
 | `draugr survey k8s cluster` | the cluster itself, as an `infrastructure` component | `--namespace` |
 | `draugr survey github repos` | repositories in a GitHub organization | `--org` |
 
-Shared by all of them: `-o, --output` (default stdout), `--replace`, `--name`, `--version`. The
-`k8s` group also takes `--context`, which selects the cluster for both of its surveyors.
+Shared by all of them: `-o, --output` (default stdout), `--replace`, `--fragment`, `--name`,
+`--version`. The `k8s` group also takes `--context`, which selects the cluster for both of its
+surveyors.
+
+### Writing a fragment instead of a descriptor
+
+`--fragment` writes a [Saga fragment](../guides/saga-fragments.md) — components and nothing else —
+for a descriptor to include:
+
+```bash
+draugr survey k8s images --namespace team-a --fragment -o team-a.saga-fragment.yaml
+```
+
+A fragment is part of a descriptor rather than a thing to release, so it carries no `release:`, and
+`--name` and `--version` are refused alongside it. It enables no controls either: `config` in a
+fragment cannot express them, and the descriptor that includes it decides what to run. That is the
+point of the option — a team owns a namespace and hands its surface to a descriptor somebody else
+maintains.
+
+The output name matters. `draugr validate` and a `fragments:` reference both decide what a file is
+from its suffix, so `--fragment` requires `-o` to end in `.saga-fragment.yaml` (or `.yml`) and says
+so before it connects to anything.
+
+### Not proposing an exposure
+
+`--no-exposure` leaves `exposure` unset rather than guessing it from cluster topology:
+
+```bash
+draugr survey k8s images --no-exposure -o draugr.saga.yaml
+```
+
+The lookups are skipped rather than made and discarded — they need permissions a namespace-scoped
+credential may not have, and spending them to produce warnings about a value nobody asked for helps
+no one. Use it when `draugr classify` is where exposure gets decided, or when the credential cannot
+read Ingresses, Services and NetworkPolicies.
 
 Auth: the GitHub surveyor uses `GITHUB_TOKEN` (or a token in scope config); the Kubernetes
 surveyors use your ambient kubeconfig (`KUBECONFIG` / `~/.kube/config` / in-cluster).
