@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.80.0] - 2026-08-10
+
 ### Fixed
 
 - **The JSON report can tell you a control did not run.** `--format json` carried nothing about the
@@ -3428,7 +3432,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.79.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.80.0...HEAD
+[0.80.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.80.0
 [0.79.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.79.0
 [0.78.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.78.0
 [0.77.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.77.0
