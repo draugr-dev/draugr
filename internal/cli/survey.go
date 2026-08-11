@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -243,7 +244,7 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		_, _ = fmt.Fprintln(os.Stderr, note)
 	}
 
-	out, err := yaml.Marshal(&model)
+	out, err := marshalSaga(&model)
 	if err != nil {
 		return err
 	}
@@ -289,6 +290,23 @@ func classifiedComponents(model saga.Model) map[string]bool {
 		}
 	}
 	return settled
+}
+
+// marshalSaga writes a descriptor at the indent every other command that touches one uses.
+//
+// yaml.Marshal's default is four, which is not a choice anybody made here — and a file written
+// with it is reindented end to end the first time `draugr classify` sets a field in it.
+func marshalSaga(model *saga.Model) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(saga.Indent)
+	if err := enc.Encode(model); err != nil {
+		return nil, err
+	}
+	if err := enc.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // proposedExposures returns the exposures this survey proposed and the descriptor took, in the

@@ -528,6 +528,15 @@ type Reference struct {
 	Link string `yaml:"link"`
 }
 
+// Indent is how many spaces a Saga is written with.
+//
+// Shared because several commands write the same file — a survey creates it, `classify` sets
+// exposure and criticality in place, `validate --resolved` prints it merged — and each one that
+// picks its own indent reindents the whole document as a side effect of changing two fields. A
+// two-field edit that rewrites sixty lines is a diff nobody can review, and the encoder's default
+// is not a decision anyone made.
+const Indent = 2
+
 // Fragment is a partial Saga: what a `fragments:` entry loads, and what a Surveyor contributes.
 //
 // One type for both because the merge is the same. A surveyor that discovers a cluster and a file

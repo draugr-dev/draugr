@@ -48,7 +48,7 @@ func WriteClassifications(data []byte, class map[string]Classification) ([]byte,
 
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
+	enc.SetIndent(Indent)
 	if err := enc.Encode(&root); err != nil {
 		return nil, fmt.Errorf("encode saga: %w", err)
 	}

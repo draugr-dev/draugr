@@ -6,17 +6,17 @@ import (
 )
 
 const annotateDoc = `release:
-    name: app
-    version: "1"
+  name: app
+  version: "1"
 components:
-    - name: front
-      exposure: public
-      images:
-        - image: repo/a:1
-    - name: back
-      exposure: internal
-    - name: decided
-      exposure: restricted
+  - name: front
+    exposure: public
+    images:
+      - image: repo/a:1
+  - name: back
+    exposure: internal
+  - name: decided
+    exposure: restricted
 `
 
 // The reason has to reach the file, because the file is where the value is reviewed. A survey

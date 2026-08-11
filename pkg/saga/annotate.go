@@ -59,9 +59,9 @@ func AnnotateExposures(data []byte, reasons map[string]string) ([]byte, error) {
 
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
-	// Four, which is what yaml.Marshal produces. Encoding through a node tree is how the comments
-	// get attached; it must not also reindent the file as a side effect.
-	enc.SetIndent(4)
+	// Encoding through a node tree is how the comments get attached; it must not reindent the
+	// file as a side effect.
+	enc.SetIndent(Indent)
 	if err := enc.Encode(&root); err != nil {
 		return nil, fmt.Errorf("encode saga: %w", err)
 	}

@@ -681,3 +681,42 @@ func captureStderr(t *testing.T) func() string {
 	t.Cleanup(func() { read() })
 	return read
 }
+
+// A descriptor a survey wrote must survive `draugr classify` without being reformatted.
+//
+// Several commands write the same file: a survey creates it, classify sets exposure and
+// criticality in place, `validate --resolved` prints it merged. Each one that picks its own indent
+// reindents the whole document as a side effect of changing two fields — and a two-field edit that
+// rewrites every line is a diff nobody reviews, so the one real change goes through unread.
+//
+// yaml.Marshal's default is four spaces, which is not a decision anybody made. Everything that
+// writes a Saga now shares saga.Indent, and this is what notices if one stops.
+func TestASurveyedDescriptorSurvivesClassifyUnreformatted(t *testing.T) {
+	model := saga.Model{
+		Release: saga.Release{Name: "app", Version: "1"},
+		Components: []saga.Component{
+			{Name: "front", Images: []saga.Image{{Image: "repo/a:1"}}},
+			{Name: "back", Images: []saga.Image{{Image: "repo/b:1"}}},
+		},
+	}
+	written, err := marshalSaga(&model)
+	if err != nil {
+		t.Fatalf("marshalSaga: %v", err)
+	}
+	classified, err := saga.WriteClassifications(written, map[string]saga.Classification{
+		"front": {Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical},
+	})
+	if err != nil {
+		t.Fatalf("WriteClassifications: %v", err)
+	}
+
+	// Every line the survey wrote still appears verbatim. Setting two fields adds lines; it must
+	// not rewrite the ones it did not touch.
+	after := string(classified)
+	for _, line := range strings.Split(strings.TrimRight(string(written), "\n"), "\n") {
+		if !strings.Contains(after, line+"\n") {
+			t.Fatalf("classify reformatted a line it did not change:\n  survey wrote: %q\n  result:\n%s",
+				line, after)
+		}
+	}
+}

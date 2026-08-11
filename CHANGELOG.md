@@ -27,6 +27,12 @@ and move it under a version on release.
   surface actually is. The engine collapses identical targets when it plans, so scanning costs the
   same.
 
+- **A survey writes the same YAML as everything else that touches a descriptor.** It used
+  `yaml.Marshal`, whose default is four spaces — not a choice anybody made, and every other command
+  that writes a Saga uses two. So `draugr classify` reindented a surveyed descriptor end to end the
+  first time it set a field: a two-field edit that rewrote every line, which is a diff nobody
+  reviews. `draugr init`, `classify`, `validate --resolved` and `survey` now share one definition.
+
 ### Added
 
 - **A surveyed `exposure` says what it was read from**, in a comment beside the value:
