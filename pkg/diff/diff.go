@@ -19,6 +19,21 @@ type Result struct {
 	New       []sarif.Result // present in head, absent in base
 	Fixed     []sarif.Result // present in base, absent in head
 	Unchanged []sarif.Result // present in both (head copy)
+	// Rules is what the scanners said about the rules these findings cite, carried over from the
+	// reports being compared.
+	//
+	// A diff that keeps only results keeps only identifiers. `CVE-2018-1000656` in a table is a
+	// string to copy into a search box, and the same id uploaded to code scanning arrives with no
+	// description and whatever link can be guessed from its shape — while the scanner that found
+	// it published both. Keeping the rules is what lets a reader click the finding instead of
+	// looking it up.
+	Rules map[string]sarif.Rule
+}
+
+// HelpURI is where a reader can look up a rule: what the scanner published, or a URL derived from
+// a well-known identifier scheme. Empty when neither applies — a wrong link is worse than none.
+func (r Result) HelpURI(ruleID string) string {
+	return sarif.Report{Rules: r.Rules}.HelpURI(ruleID)
 }
 
 // Compare classifies every finding across the two reports by stable identity.
@@ -43,6 +58,14 @@ func Compare(base, head sarif.Report) Result {
 	sortResults(r.New)
 	sortResults(r.Fixed)
 	sortResults(r.Unchanged)
+	// Head first, so a rule the change updated is described as it is now; base fills in whatever
+	// only the old scan saw, which is every fixed finding's rule.
+	r.Rules = map[string]sarif.Rule{}
+	for _, src := range []map[string]sarif.Rule{base.Rules, head.Rules} {
+		for id, rule := range src {
+			r.Rules[id] = rule
+		}
+	}
 	return r
 }
 

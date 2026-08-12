@@ -167,3 +167,87 @@ func TestFormatsAdvertisesSARIF(t *testing.T) {
 		t.Errorf("Formats() = %v, missing sarif", Formats())
 	}
 }
+
+// A rule id in a table is a string to copy into a search box. Linked, it is the answer.
+//
+// Both halves are checked because they come from different places: a scanner that published a
+// helpUri gets its own advisory, and one that published nothing gets whatever a well-known
+// identifier scheme implies. Getting the first wrong sends a reader to a generic page when the
+// scanner named a specific one.
+func TestMarkdownLinksRulesToWhereTheyAreExplained(t *testing.T) {
+	r := Result{
+		New: []sarif.Result{
+			{RuleID: "CVE-2018-1000656", Level: sarif.LevelError, Tool: "Trivy"},
+			{RuleID: "CVE-2021-99999", Level: sarif.LevelError, Tool: "Trivy"},
+			{RuleID: "no-such-scheme", Level: sarif.LevelWarning, Tool: "Semgrep"},
+		},
+		// Only the first has published metadata; the others fall back or get nothing.
+		Rules: map[string]sarif.Rule{
+			"CVE-2018-1000656": {HelpURI: "https://avd.aquasec.com/nvd/cve-2018-1000656"},
+		},
+	}
+	var buf bytes.Buffer
+	if err := Render(&buf, "markdown", r); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	got := buf.String()
+	for _, want := range []string{
+		"[`CVE-2018-1000656`](https://avd.aquasec.com/nvd/cve-2018-1000656)",  // what the scanner said
+		"[`CVE-2021-99999`](https://nvd.nist.gov/vuln/detail/CVE-2021-99999)", // derived from the id
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+	// Nowhere to send the reader is not a reason to invent a link.
+	if strings.Contains(got, "[`no-such-scheme`](") {
+		t.Errorf("linked a rule with no known home:\n%s", got)
+	}
+}
+
+// The SARIF a pull request uploads carries the rules its findings cite.
+//
+// Without them a code-scanning alert is a bare identifier: no description, and whatever link can
+// be guessed from the id's shape rather than the advisory the scanner named. Only the rules the
+// new findings actually cite — carrying the other few hundred would put the noise back.
+func TestRenderSARIFCarriesTheRulesItsFindingsCite(t *testing.T) {
+	r := Result{
+		New:   []sarif.Result{{RuleID: "CVE-1", Level: sarif.LevelError}},
+		Fixed: []sarif.Result{{RuleID: "CVE-2", Level: sarif.LevelError}},
+		Rules: map[string]sarif.Rule{
+			"CVE-1": {HelpURI: "https://example.test/cve-1", ShortDescription: "the new one"},
+			"CVE-2": {HelpURI: "https://example.test/cve-2", ShortDescription: "the fixed one"},
+		},
+	}
+	var buf bytes.Buffer
+	if err := Render(&buf, "sarif", r); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	var doc struct {
+		Runs []struct {
+			Tool struct {
+				Driver struct {
+					Rules []struct {
+						ID      string `json:"id"`
+						HelpURI string `json:"helpUri"`
+					} `json:"rules"`
+				} `json:"driver"`
+			} `json:"tool"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, buf.String())
+	}
+	var ids []string
+	for _, run := range doc.Runs {
+		for _, rule := range run.Tool.Driver.Rules {
+			ids = append(ids, rule.ID)
+			if rule.ID == "CVE-1" && rule.HelpURI != "https://example.test/cve-1" {
+				t.Errorf("CVE-1 lost the advisory the scanner published: %q", rule.HelpURI)
+			}
+		}
+	}
+	if !slices.Equal(ids, []string{"CVE-1"}) {
+		t.Errorf("rules = %v, want only the one the new findings cite", ids)
+	}
+}
