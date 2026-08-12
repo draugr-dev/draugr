@@ -539,9 +539,11 @@ entry naming the band, exactly as a scoped run records its scope. That is what k
 consequence visible rather than surprising — an alert closing because you asked for P1 only is a
 decision; one closing because a flag leaked into a file is a bug.
 
-The alert lifecycle still applies, so it is worth saying plainly: **an upload narrowed to P1
-closes the P2–P4 alerts** from a previous complete upload. On a pull request that is usually what
-you want; on a default branch it usually is not. The same reasoning protects `results.sarif`: it
+The alert lifecycle still applies, and it is worth saying precisely: an upload narrowed to `P1`
+resolves the P2–P4 alerts **for the ref and category it was uploaded against**. A pull-request run
+uploads against the pull request's own ref, so it never touches your default branch's alerts —
+which is what makes narrowing safe there, and why a push, which does upload against the default
+branch, is never narrowed. The same reasoning protects `results.sarif`: it
 feeds [`draugr diff`](#draugr-diff-basesarif-headsarif) and the
 [GitHub Action's](../guides/github-action.md) SARIF upload, and a baseline missing findings makes
 the next scan's delta wrong.
