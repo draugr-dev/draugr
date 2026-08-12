@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.83.0] - 2026-08-12
+
 ### Changed
 
 - **A rule in a diff is a link to what it means.** `CVE-2018-1000656` in a pull-request comment was
@@ -3551,7 +3555,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.82.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.83.0...HEAD
+[0.83.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.83.0
 [0.82.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.82.1
 [0.82.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.82.0
 [0.81.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.81.1
