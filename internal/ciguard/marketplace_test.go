@@ -2,6 +2,7 @@ package ciguard
 
 import (
 	"os"
+	"regexp"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -65,5 +66,59 @@ func TestTheActionManifestHasNoDuplicateKeys(t *testing.T) {
 	}
 	if _, ok := doc["inputs"]; !ok {
 		t.Error("action.yml declares no inputs; this guard is checking the wrong file")
+	}
+}
+
+// TestEveryOutputNamesAStepThatExists keeps an output wired to nothing.
+//
+// A composite action's output is an expression over step ids — `steps.setup.outputs.sarif`. Name a
+// step that does not exist, or write the value from a different step than the one the expression
+// reads, and the output resolves to the empty string. Nothing fails: the action runs, the caller's
+// upload step receives "", and the only symptom is a feature that quietly does nothing.
+//
+// That is worse than a broken build, because it survives every check that looks at the file.
+func TestEveryOutputNamesAStepThatExists(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile("../../action.yml")
+	if err != nil {
+		t.Fatalf("read action.yml: %v", err)
+	}
+	var action struct {
+		Outputs map[string]struct {
+			Value string `yaml:"value"`
+		} `yaml:"outputs"`
+		Runs struct {
+			Steps []struct {
+				ID string `yaml:"id"`
+			} `yaml:"steps"`
+		} `yaml:"runs"`
+	}
+	if err := yaml.Unmarshal(raw, &action); err != nil {
+		t.Fatalf("parse action.yml: %v", err)
+	}
+
+	ids := map[string]bool{}
+	for _, s := range action.Runs.Steps {
+		if s.ID != "" {
+			ids[s.ID] = true
+		}
+	}
+	if len(ids) == 0 {
+		t.Fatal("no step ids found; this guard is reading the wrong shape")
+	}
+
+	ref := regexp.MustCompile(`steps\.([A-Za-z0-9_-]+)\.outputs`)
+	for name, out := range action.Outputs {
+		matches := ref.FindAllStringSubmatch(out.Value, -1)
+		if len(matches) == 0 {
+			t.Errorf("output %q reads no step output: %q", name, out.Value)
+			continue
+		}
+		for _, m := range matches {
+			if !ids[m[1]] {
+				t.Errorf("output %q reads steps.%s.outputs, but no step has id %q — it will resolve to the empty string",
+					name, m[1], m[1])
+			}
+		}
 	}
 }

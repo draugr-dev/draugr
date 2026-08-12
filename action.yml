@@ -112,8 +112,11 @@ inputs:
 
 outputs:
   sarif:
-    description: Path to the merged SARIF report (results.sarif).
-    value: ${{ steps.setup.outputs.sarif }}
+    description: >-
+      Path to the SARIF to upload. In diff mode with `code-scanning: new` (the default) this is
+      the findings the pull request introduced; otherwise the complete scan. `report` is always
+      the complete run.
+    value: ${{ steps.diff.outputs.sarif || steps.setup.outputs.sarif }}
   report:
     description: Path to the JSON report (report.json).
     value: ${{ steps.setup.outputs.report }}
@@ -292,6 +295,7 @@ runs:
         draugr scan "${scan_args[@]}"
 
     - name: Run Draugr diff
+      id: diff
       if: steps.setup.outputs.mode == 'diff'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
