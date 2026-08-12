@@ -41,7 +41,16 @@ func Render(w io.Writer, format string, r Result) error {
 // there to annotate, and an unchanged one is the pre-existing noise this exists to remove; a
 // consumer wanting the whole picture has the head scan's own report.
 func renderSARIF(w io.Writer, r Result) error {
-	rep := sarif.Report{Tool: "draugr-diff", Results: r.New}
+	// With the rules those findings cite. Without them a code-scanning alert arrives as a bare
+	// identifier: no description, and whatever link can be guessed from the id's shape rather than
+	// the advisory the scanner actually named.
+	rules := map[string]sarif.Rule{}
+	for _, f := range r.New {
+		if rule, ok := r.Rules[f.RuleID]; ok {
+			rules[f.RuleID] = rule
+		}
+	}
+	rep := sarif.Report{Tool: "draugr-diff", Results: r.New, Rules: rules}
 	data, err := rep.MarshalSARIF()
 	if err != nil {
 		return err
@@ -119,19 +128,19 @@ func renderConsole(w io.Writer, r Result) error {
 	withComponent := anyComponent(r.New, r.Fixed)
 	if len(r.New) > 0 {
 		_, _ = fmt.Fprintf(w, "New (%d):\n", len(r.New))
-		renderDiffFindings(w, col, "+", tui.StyleFail, r.New, withComponent)
+		renderDiffFindings(w, col, "+", tui.StyleFail, r.New, withComponent, r.HelpURI)
 		_, _ = fmt.Fprintln(w)
 	}
 	if len(r.Fixed) > 0 {
 		_, _ = fmt.Fprintf(w, "Fixed (%d):\n", len(r.Fixed))
-		renderDiffFindings(w, col, "-", tui.StylePass, r.Fixed, withComponent)
+		renderDiffFindings(w, col, "-", tui.StylePass, r.Fixed, withComponent, r.HelpURI)
 	}
 	return nil
 }
 
 // renderDiffFindings lists findings under a sign, using the same table the scan report uses so
 // a diff and a scan read alike.
-func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Style, fs []sarif.Result, showComponent bool) {
+func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Style, fs []sarif.Result, showComponent bool, help func(string) string) {
 	t := tui.NewTable(col).Indent("  ")
 	for _, f := range fs {
 		cells := []tui.Cell{
@@ -143,7 +152,7 @@ func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Sty
 			// the report it came from, and left a reader translating between two vocabularies to
 			// decide whether a pull request had made things worse.
 			tui.PlainCell(string(f.Severity(""))),
-			tui.PlainCell(f.RuleID),
+			ruleCell(f.RuleID, help(f.RuleID)),
 		}
 		if showComponent {
 			cells = append(cells, tui.PlainCell(dash(f.Component)))
@@ -187,17 +196,24 @@ func renderMarkdown(w io.Writer, r Result) error {
 	withComponent := anyComponent(r.New, r.Fixed)
 	if len(r.New) > 0 {
 		_, _ = fmt.Fprintf(w, "### 🔺 New (%d)\n\n", len(r.New))
-		mdTable(w, r.New, withComponent)
+		mdTable(w, r.New, withComponent, r.HelpURI)
 		_, _ = fmt.Fprintln(w)
 	}
 	if len(r.Fixed) > 0 {
 		_, _ = fmt.Fprintf(w, "### ✅ Fixed (%d)\n\n", len(r.Fixed))
-		mdTable(w, r.Fixed, withComponent)
+		mdTable(w, r.Fixed, withComponent, r.HelpURI)
 	}
 	return nil
 }
 
-func mdTable(w io.Writer, rs []sarif.Result, showComponent bool) {
+// ruleCell renders a rule id, linked to what the scanner published about it where the terminal
+// supports it. The URL costs no width, which is what makes it usable in a table this wide — the
+// scan report's findings table does the same, so the two read alike.
+func ruleCell(ruleID, helpURI string) tui.Cell {
+	return tui.Cell{Text: ruleID, URL: helpURI}
+}
+
+func mdTable(w io.Writer, rs []sarif.Result, showComponent bool, help func(string) string) {
 	// Component before Location, as in the scan report: a path answers "where inside", and the
 	// reader of a monorepo pull request needs "which one" first.
 	if showComponent {
@@ -212,8 +228,15 @@ func mdTable(w io.Writer, rs []sarif.Result, showComponent bool) {
 		if showComponent {
 			component = " " + dash(f.Component) + " |"
 		}
-		_, _ = fmt.Fprintf(w, "| %s | %s | `%s` | %s |%s %s |\n",
-			dash(f.Priority), f.Severity(""), f.RuleID, dash(f.Tool), component,
+		// Linked to what the scanner published about it — Trivy's advisory page for a CVE, the
+		// rule's documentation for a static-analysis finding. A reader deciding whether a new
+		// finding matters is one click from the answer rather than one search.
+		rule := "`" + f.RuleID + "`"
+		if u := help(f.RuleID); u != "" {
+			rule = "[" + rule + "](" + u + ")"
+		}
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s |\n",
+			dash(f.Priority), f.Severity(""), rule, dash(f.Tool), component,
 			loc(f.Location.URI, f.Location.StartLine))
 	}
 }

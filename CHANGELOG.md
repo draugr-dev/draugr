@@ -10,7 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **A rule in a diff is a link to what it means.** `CVE-2018-1000656` in a pull-request comment was
+  a string to copy into a search box; it now points at what the scanner published about it — Trivy's
+  advisory page for a CVE, the rule's own documentation for a static-analysis finding — falling back
+  to NVD or the GitHub advisory database when a scanner published nothing, and to plain text when
+  neither applies. In the terminal too, where the link costs no width.
+- **The SARIF a pull request uploads carries the rules its findings cite.** A code-scanning alert
+  arrived as a bare identifier: no description, and a link guessed from the identifier's shape
+  rather than the advisory the scanner named. Only the rules the new findings cite travel — carrying
+  the rest would put back the noise the diff upload exists to remove.
 
 ## [0.82.1] - 2026-08-12
 
