@@ -554,3 +554,55 @@ func TestLoadExploitSourceProvenanceForAFilePath(t *testing.T) {
 		t.Errorf("a supplied file claimed a provenance it does not have: %+v", prov[0])
 	}
 }
+
+// A fetch that fails with a copy already on disk must not fail the run.
+//
+// This step exists so a scan cannot rank everything as though nothing were exploited. A cached
+// catalogue does not do that — it ranks on data of a known age, and the report says how old. So
+// blocking a pipeline on somebody else's outage buys nothing when the answer is already here,
+// which is what a release blocked on a 403 from CISA costs.
+func TestUpdateFeedsKeepsTheCachedCopyWhenAFetchFails(t *testing.T) {
+	dir := cacheHome(t)
+	// Stale, so the fetch is attempted rather than skipped as current.
+	for _, n := range feeds.Names() {
+		seed(t, dir, n, kevJSON, 30*24*time.Hour)
+	}
+	stubFetch(t, "", errors.New("unexpected status 403 Forbidden"))
+
+	cmd := newFeedsCommand()
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	if err := updateFeeds(cmd, dir, feeds.Names(), false); err != nil {
+		t.Fatalf("a cached copy should survive a failed fetch: %v", err)
+	}
+	got := buf.String()
+	// Both feeds, because stopping at the first would leave the second unattempted for a reason
+	// that no longer stops anything.
+	for _, n := range feeds.Names() {
+		if !strings.Contains(got, string(n)) {
+			t.Errorf("%s was not reported:\n%s", n, got)
+		}
+	}
+	// The age is the point: a reader has to be able to tell how old the ranking now is.
+	if !strings.Contains(got, "kept the cached copy") || !strings.Contains(got, "403") {
+		t.Errorf("should say what it kept and why:\n%s", got)
+	}
+	// And the file is still there to be scanned with.
+	if len(feeds.Load(dir)) != len(feeds.Names()) {
+		t.Errorf("a failed fetch removed the cache: %v", feeds.Load(dir))
+	}
+}
+
+// With nothing cached there is no answer to keep, and a scan would rank everything as though
+// nothing were exploited. That is the case the hard failure exists for, and it stays.
+func TestUpdateFeedsStillFailsWithAnEmptyCache(t *testing.T) {
+	dir := cacheHome(t)
+	stubFetch(t, "", errors.New("unexpected status 403 Forbidden"))
+
+	cmd := newFeedsCommand()
+	cmd.SetOut(io.Discard)
+	if err := updateFeeds(cmd, dir, feeds.Names(), false); err == nil {
+		t.Fatal("a failed fetch with no cache was reported as success")
+	}
+}

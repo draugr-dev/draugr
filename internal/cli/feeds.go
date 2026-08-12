@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -35,7 +36,9 @@ func newFeedsUpdateCommand() *cobra.Command {
 		Short: "Fetch the exploitability feeds into ~/.draugr/feeds",
 		Long: "Download CISA's KEV catalog and FIRST's EPSS scores into ~/.draugr/feeds, where a\n" +
 			"scan reads them without touching the network. With no arguments, fetches both.\n\n" +
-			"In CI, run it as its own step so a feed outage fails there rather than during a scan.",
+			"In CI, run it as its own step so a feed outage surfaces there rather than during a scan.\n" +
+			"A fetch that fails keeps the cached copy and says how old it is; with nothing cached\n" +
+			"there is no answer to keep, and it fails.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, err := feeds.Dir()
@@ -55,9 +58,15 @@ func newFeedsUpdateCommand() *cobra.Command {
 
 // updateFeeds fetches each named feed, reporting as it goes.
 //
-// A failure is returned rather than collected: there are two feeds, both are optional to use
-// and neither substitutes for the other, so the first failure is the whole answer. Continuing
-// would report a partial success that the next scan cannot distinguish from a full one.
+// A fetch that fails with nothing cached is returned rather than collected: there are two feeds,
+// both are optional to use and neither substitutes for the other, so the first failure is the
+// whole answer. Continuing would report a partial success that the next scan cannot distinguish
+// from a full one.
+//
+// A fetch that fails with a copy already on disk is different, and does not fail. This step exists
+// so a scan cannot rank everything as though nothing were exploited; a cached catalogue does not
+// do that. It ranks on data of a known age, the report says how old, and blocking a pipeline on
+// somebody else's outage buys nothing when the answer is already here.
 func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool) error {
 	out := cmd.OutOrStdout()
 	cached := feeds.Load(dir)
@@ -80,7 +89,22 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 		_, _ = fmt.Fprintf(out, "%-5s fetching %s…\n", n, feeds.URL(n))
 		rec, err := fetchFeed(cmd.Context(), dir, n, nil)
 		if err != nil {
-			return err
+			// A copy on disk is worth more than a failed run. The reason this step exists is to
+			// stop a scan ranking everything as though nothing were exploited — and a cached
+			// catalogue does not do that: it ranks on data of a stated age, which the report then
+			// carries. Refusing here would block a pipeline on somebody else's outage while the
+			// answer sat on disk.
+			prev, cachedOK := cached[n]
+			if !cachedOK {
+				return err
+			}
+			_, _ = fmt.Fprintf(out, "%-5s kept the cached copy (%s old): %v\n", n, humanAge(prev.Age(now)), err)
+			// Warned as well as printed, because the line above is one of several on a step
+			// nobody reads when it succeeds, and this is the run where the ranking is older than
+			// the operator thinks.
+			slog.WarnContext(cmd.Context(), "feed not refreshed, scanning on the cached copy",
+				"feed", string(n), "age", humanAge(prev.Age(now)), "error", err.Error())
+			continue
 		}
 		_, _ = fmt.Fprintf(out, "%-5s %s (%s)\n", n, feeds.Path(dir, n), humanBytes(rec.Bytes))
 	}
