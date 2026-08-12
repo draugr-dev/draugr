@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.81.1] - 2026-08-11
+
 ### Changed
 
 - **`draugr feeds update` keeps a cached feed when the fetch fails**, instead of failing the run. A
@@ -3496,7 +3500,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.81.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.81.1...HEAD
+[0.81.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.81.1
 [0.81.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.81.0
 [0.80.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.80.0
 [0.79.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.79.0
