@@ -28,6 +28,46 @@ config:
       # tokenEnv: GITHUB_TOKEN   # the token is read from this env var — never the Saga
 ```
 
+## Choosing what a reviewer sees
+
+An alert on every finding in the repository is an alert on nothing: a reviewer opening a pull
+request is annotated with hundreds they did not cause, and the ones they did are indistinguishable
+among them. Two ways to narrow it, and they compose.
+
+**What this change introduced.** The [GitHub Action](github-action.md) runs a diff on a pull
+request and, by default, uploads only the findings the branch added:
+
+```yaml
+- uses: draugr-dev/draugr@v0
+  with:
+    code-scanning: new   # the default; `all` uploads every finding
+```
+
+**What is urgent.** A band narrows it further, either per workflow or in the descriptor beside the
+rest of your policy:
+
+```yaml
+config:
+  reports:
+    - format: sarif
+      minPriority: P1    # this report only; the JSON beside it stays complete
+```
+
+### What narrowing does to existing alerts
+
+**Code scanning resolves any alert missing from an upload as fixed.** So an upload narrowed to new
+findings closes the alerts for pre-existing ones, and an upload narrowed to `P1` closes the P2–P4
+alerts.
+
+On a pull request that is the point — those findings are still carried by the complete scan your
+default branch uploads, and the reviewer is left with what their change is answerable for. On a
+default branch it is usually not what you want, which is why a push is never narrowed: there is
+nothing to diff against, so it uploads the complete scan.
+
+A narrowed SARIF records the band it was narrowed to, so nothing reading it later — including
+[`draugr diff`](pr-diff.md), which reads a missing finding as a fixed one — mistakes it for a
+complete scan.
+
 See [`examples/reporting.saga.yaml`](../../examples/reporting.saga.yaml) for a fuller,
 multi-format, multi-publisher Saga.
 
