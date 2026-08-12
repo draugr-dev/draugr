@@ -29,6 +29,8 @@ inputs:
       List findings at or above this priority band (P1-P4) in the printed output. Artifacts stay
       complete, because a file that silently omits findings is read by the next tool as a scan
       that did not find them. Use code-scanning-min-priority to narrow what is uploaded.
+    required: false
+    default: ""
   code-scanning-min-priority:
     description: >-
       Narrow the uploaded SARIF to this priority band (P1-P4), so review comments carry what is
@@ -47,8 +49,6 @@ inputs:
       complete scan.
     required: false
     default: new
-    required: false
-    default: ""
   cache-dir:
     description: Enable content-hash caching in this directory (relative to working-directory).
     required: false
