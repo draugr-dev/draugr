@@ -189,6 +189,10 @@ type sarifProperties struct {
 	// ambiguous once a descriptor has more than one component, and it is what makes the priority
 	// checkable — the band comes from that component's declared classification.
 	Component string `json:"component,omitempty"`
+	// Repository is which repository the finding was found in, for a component holding more than
+	// one. Part of a finding's identity, so it has to survive the file: a report is written and
+	// read back by `draugr diff`, and an identity that only exists in memory is not one.
+	Repository string `json:"repository,omitempty"`
 	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
 	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
 	Tags []string `json:"tags,omitempty"`
@@ -330,7 +334,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			sr.Locations = append(sr.Locations, loc)
 		}
 		if tool != "" || res.HasScore || res.Priority != "" {
-			sr.Properties = &sarifProperties{Tool: tool, Priority: res.Priority, Component: res.Component}
+			sr.Properties = &sarifProperties{Tool: tool, Priority: res.Priority, Component: res.Component, Repository: res.Repository}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
 			}
@@ -517,8 +521,14 @@ func FromSARIF(data []byte) (Report, error) {
 			} else if score, ok := ruleScore[sr.RuleID]; ok {
 				res.Score, res.HasScore = score, true
 			}
-			if sr.Properties != nil && sr.Properties.Priority != "" {
+			if sr.Properties != nil {
 				res.Priority = sr.Properties.Priority
+				// Read back, not only written. Both are part of Fingerprint, and a report is
+				// written and re-read by `draugr diff` on every pull request — so dropping them
+				// here made two components sharing a repository, or two repositories in one
+				// component, collapse into a single finding at exactly the moment it mattered.
+				res.Component = sr.Properties.Component
+				res.Repository = sr.Properties.Repository
 			}
 			out.Results = append(out.Results, res)
 		}

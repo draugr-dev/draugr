@@ -315,6 +315,9 @@ type finding struct {
 	// component is which part of the application the finding belongs to, empty for a
 	// project-scoped control. A location alone is ambiguous once a descriptor has more than one.
 	component string
+	// repository is which repository it was found in, for a component that has more than one.
+	// Paths are repository-relative, so two of them produce identical-looking rows.
+	repository string
 	// helpURI is where the rule is documented: what the scanner published, or a URL derived
 	// from a well-known identifier. Empty when we have nowhere honest to point.
 	helpURI string
@@ -413,8 +416,9 @@ func summarize(d Data) summary {
 			if res.Suppressed() {
 				s.excluded = append(s.excluded, finding{
 					control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-					component: res.Component,
-					location:  locationOf(res), message: res.Message,
+					component:  res.Component,
+					repository: res.Repository,
+					location:   locationOf(res), message: res.Message,
 					severity:      res.Severity(""),
 					justification: res.Suppression.Justification,
 					helpURI:       rep.HelpURI(res.RuleID),
@@ -448,6 +452,7 @@ func summarize(d Data) summary {
 				priorityFloor: res.PriorityFloor,
 				historical:    res.Historical,
 				component:     res.Component,
+				repository:    res.Repository,
 				location:      loc, message: res.Message,
 				level: res.Level, severity: sev,
 				helpURI: rep.HelpURI(res.RuleID),

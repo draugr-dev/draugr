@@ -329,13 +329,74 @@ func manyComponents(fs []finding) bool {
 	return false
 }
 
+// manyRepositories reports whether the findings span more than one repository.
+//
+// Same test as manyComponents and for the same reason: a column earns its width only when it
+// distinguishes findings from each other. Almost every descriptor has one repository per
+// component, and a column repeating it costs width to say nothing.
+func manyRepositories(fs []finding) bool {
+	seen := ""
+	for _, f := range fs {
+		if f.repository == "" {
+			continue
+		}
+		if seen == "" {
+			seen = f.repository
+			continue
+		}
+		if f.repository != seen {
+			return true
+		}
+	}
+	return false
+}
+
+// insertBefore puts a column immediately before the named one, appending if it is absent.
+func insertBefore(header []string, before, col string) []string {
+	out := make([]string, 0, len(header)+1)
+	for _, h := range header {
+		if h == before {
+			out = append(out, col)
+		}
+		out = append(out, h)
+	}
+	if len(out) == len(header) {
+		out = append(out, col)
+	}
+	return out
+}
+
+// shortRepository is a repository named as a reader would say it: the last two path segments,
+// without the scheme or the .git suffix. A column of full clone URLs is a column of one prefix
+// repeated, and the part that differs is at the end.
+func shortRepository(url string) string {
+	s := strings.TrimSuffix(url, ".git")
+	if i := strings.Index(s, "://"); i >= 0 {
+		s = s[i+3:]
+	}
+	parts := strings.Split(strings.Trim(s, "/"), "/")
+	if len(parts) > 2 {
+		parts = parts[len(parts)-2:]
+	}
+	return strings.Join(parts, "/")
+}
+
 // renderFixFirst prints the ranked findings as an aligned table with a header row, each
 // finding's own message on a dimmed line beneath it.
 func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 	withComponent := manyComponents(fs)
+	// A component may hold several repositories, and paths are repository-relative — so the same
+	// file in two of them produces rows identical in every column. The reader sees a duplicate
+	// and has no way to learn otherwise.
+	withRepository := manyRepositories(fs)
 	header := fixFirstHeaderNoComponent
 	if withComponent {
 		header = fixFirstHeader
+	}
+	if withRepository {
+		// Before Location for the same reason Component is: a path answers "where inside", and
+		// "which project" comes first.
+		header = insertBefore(header, "Location", "Repository")
 	}
 	t := tui.NewTable(col, header...).Indent("  ")
 	for _, f := range fs {
@@ -351,6 +412,9 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 		}
 		if withComponent {
 			cells = append(cells, tui.PlainCell(dash(f.component)))
+		}
+		if withRepository {
+			cells = append(cells, tui.PlainCell(dash(shortRepository(f.repository))))
 		}
 		cells = append(cells, tui.PlainCell(dash(f.location)))
 		t.RowWithNotes([]string{

@@ -10,7 +10,29 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Findings in different repositories, or different components, are no longer collapsed into
+  one.** A finding's identity did not include the repository it came from, and the component it
+  belonged to was written into the SARIF but never read back. Three consequences, each hiding a
+  real finding:
+
+  - A component holding two repositories reported **one** finding where both had the same file at
+    the same line. The same leaked credential in two projects was reported once, with nothing to
+    say the second existed — and the report named both repositories as scanned, so it looked
+    complete.
+  - `draugr diff` — the pull-request gate — dropped the component when reading a report back, so
+    two components sharing a repository collapsed on every pull request.
+  - The diff keyed findings on tool, rule, path and message only, so it collapsed them again even
+    when the file carried enough to tell them apart.
+
+  The repository now travels with a finding, both it and the component survive a round trip through
+  SARIF, and the report shows a `Repository` column when findings span more than one — the same
+  rule the `Component` column already follows.
+
+  **This changes what a finding is, so every baseline is new.** The first `draugr diff` after
+  upgrading compares old identities against new ones and reports the existing findings as fixed and
+  re-introduced. It settles after one run: re-baseline, or expect one noisy pull request.
 
 ## [0.83.0] - 2026-08-12
 
