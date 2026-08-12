@@ -55,14 +55,19 @@ config:
 
 ### What narrowing does to existing alerts
 
-**Code scanning resolves any alert missing from an upload as fixed.** So an upload narrowed to new
-findings closes the alerts for pre-existing ones, and an upload narrowed to `P1` closes the P2–P4
-alerts.
+**Code scanning resolves any alert missing from an upload as fixed** — within the ref and category
+that upload belongs to. Both halves matter, and the second is what makes narrowing a pull request
+safe.
 
-On a pull request that is the point — those findings are still carried by the complete scan your
-default branch uploads, and the reviewer is left with what their change is answerable for. On a
-default branch it is usually not what you want, which is why a push is never narrowed: there is
-nothing to diff against, so it uploads the complete scan.
+A pull-request run uploads against the **pull request's own ref**, not your default branch. Its
+alerts are the ones shown on that pull request, and narrowing them changes nothing about
+`main`: measured on a repository with 96 open alerts on `main`, a PR upload carrying zero findings
+created an analysis on `refs/pull/N/merge` and left all 96 open.
+
+So on a pull request, narrowing costs you nothing you were relying on. On a default branch it would
+— an upload narrowed to `P1` there resolves the P2–P4 alerts, and they are the ones nobody is
+looking at but somebody may still need. That is why a push is never narrowed: there is nothing to
+diff against, so it uploads the complete scan.
 
 A narrowed SARIF records the band it was narrowed to, so nothing reading it later — including
 [`draugr diff`](pr-diff.md), which reads a missing finding as a fixed one — mistakes it for a
