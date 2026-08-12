@@ -12,6 +12,15 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.82.1] - 2026-08-12
+
+### Fixed
+
+- **`code-scanning: new` now reaches the caller.** The action's `sarif` output resolved to the scan
+  step, while the diff step wrote the new-findings file — so the setting shipped in 0.82.0 wrote a
+  file nobody could name, and an upload step still received the complete scan. Nothing failed: the
+  run succeeded and the only symptom was the noise the setting exists to remove.
+
 ## [0.82.0] - 2026-08-12
 
 ### Changed
@@ -3532,7 +3541,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.82.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.82.1...HEAD
+[0.82.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.82.1
 [0.82.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.82.0
 [0.81.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.81.1
 [0.81.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.81.0
