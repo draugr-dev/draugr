@@ -158,8 +158,10 @@ jobs:
           saga: .draugr/self.saga.yaml
           output: draugr-out
           # The Saga reads KEV and EPSS from the cache, so they have to be in it. Fetched by the
-          # action as its own step: a feed outage fails there rather than producing a scan that
-          # ranked everything as though nothing were exploited.
+          # action as its own step, so a feed outage surfaces there rather than inside a scan.
+          # A fetch that fails keeps the cached copy and says how old it is — the thing this
+          # guards against is a scan ranking everything as though nothing were exploited, and a
+          # cached catalogue does not do that. With nothing cached there is no answer to keep.
           feeds: true
           # P1 only. The gate blocks on what the risk model says is urgent for this repository,
           # not on every warning a scanner can produce — a required check that fails on

@@ -105,8 +105,13 @@ config:
 ```
 
 **Its own step on purpose.** The scan then reads the cache and never reaches the network, so the
-gate stays reproducible — and a feed outage fails at the fetch, visibly, instead of producing a
-scan that ranked everything as though nothing were exploited. See
+gate stays reproducible, and a feed outage surfaces at the fetch rather than inside a scan.
+
+A fetch that fails **keeps the cached copy** and reports how old it is — what this guards against
+is a scan ranking everything as though nothing were exploited, and a cached catalogue does not do
+that: it ranks on data of a known age, which the report then carries. With nothing cached there is
+no answer to keep, and the step fails. So a pipeline is not blocked by an upstream outage it can
+already answer around. See
 [`config.exploitability`](../reference/saga-schema.md#configexploitability).
 
 Outputs: **`sarif`** (path to `results.sarif`) and **`report`** (path to `report.json`). Both

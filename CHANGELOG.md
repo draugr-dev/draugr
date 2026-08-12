@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **`draugr feeds update` keeps a cached feed when the fetch fails**, instead of failing the run. A
+  403 from CISA blocked a pipeline that already had the catalogue on disk. The step exists so a
+  scan cannot rank everything as though nothing were exploited — and a cached catalogue does not do
+  that: it ranks on data of a known age, and the report says how old. The failed fetch is reported
+  with the age of the copy it kept, and warned about, so a run whose ranking is older than you
+  think says so. With **nothing** cached there is no answer to keep, and it still fails.
 
 ## [0.81.0] - 2026-08-11
 

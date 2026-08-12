@@ -63,8 +63,10 @@ inputs:
       scanning: `draugr feeds update`. Set "true" when the Saga's `config.exploitability` — or
       `--kev`/`--epss` — reads them with `cache`.
 
-      Its own step on purpose. A feed outage then fails here, visibly, instead of producing a
-      scan that ranked everything as though nothing were exploited.
+      Its own step on purpose, so a feed outage surfaces here rather than inside a scan. A
+      fetch that fails keeps the cached copy and says how old it is; what this guards against is
+      a scan ranking everything as though nothing were exploited, which a cached catalogue does
+      not do. With nothing cached there is no answer to keep, and it fails.
     required: false
     default: "false"
   mode:
