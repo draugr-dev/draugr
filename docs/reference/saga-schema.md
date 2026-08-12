@@ -248,6 +248,7 @@ rendered report is delivered to every publisher.
 config:
   reports:
     - format: sarif        # any scan --format: console, markdown, html, junit, json, sarif
+      minPriority: P1      # optional — narrow this report, leaving the others complete
     - format: markdown
     - format: html
     - format: template     # custom payload from a Go text/template
@@ -280,6 +281,18 @@ config:
       # ref: refs/heads/main
       # tokenEnv: GITHUB_TOKEN   # the token is read from this env var — never the Saga
 ```
+
+**`minPriority`** narrows one report to findings at or above a priority band (`P1`–`P4`), leaving
+every other report complete. It exists for the SARIF that becomes review comments: a reviewer shown
+every finding in the repository reads none of them, while the JSON beside it is evidence and
+evidence is not something to trim.
+
+Narrowing an artifact is otherwise refused, and for a good reason — a file that claims to be the
+scan and is not misleads whatever reads it, most sharply `draugr diff`, which reads a missing
+finding as a fixed one. What makes this different is that it is **declared**: written in the
+descriptor, and recorded inside the artifact it produced, so a consumer can tell a narrowed file
+from a whole one. `--min-priority` on the command line still trims only what is printed;
+`--artifact-min-priority` is the flag that narrows a file, and it says so in the file.
 
 The `github` publisher requires a `sarif` report in `config.reports`. It never stores a secret in
 the descriptor — the token comes from an environment variable. Code scanning is free for public

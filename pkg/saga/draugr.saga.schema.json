@@ -1093,6 +1093,16 @@
           ],
           "type": "string"
         },
+        "minPriority": {
+          "description": "Narrow this report to findings at or above a priority band, leaving every other report complete. The artifact states the band it was narrowed to.",
+          "enum": [
+            "P1",
+            "P2",
+            "P3",
+            "P4"
+          ],
+          "type": "string"
+        },
         "template": {
           "description": "Inline Go text/template (format: template). Set exactly one of template / templateFile.",
           "type": "string"

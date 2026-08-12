@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -524,7 +525,7 @@ func TestWriteArtifactsWritesSBOMs(t *testing.T) {
 		{Component: "web", Target: "https://git/web", Format: saga.SBOMSPDXJSON, Bytes: []byte(`{"spdxVersion":"SPDX-2.3"}`)},
 		{Component: "api", Target: "api:1", Format: saga.SBOMCycloneDXJSON, Bytes: []byte(`{"bomFormat":"CycloneDX"}`)},
 	}}
-	if err := writeArtifacts(dir, nil, report.Data{}, saga.Release{Name: "app", Version: "1"}, run, norn.Result{Verdict: norn.Pass}, ""); err != nil {
+	if err := writeArtifacts(dir, nil, report.Data{}, saga.Release{Name: "app", Version: "1"}, run, norn.Result{Verdict: norn.Pass}, "", ""); err != nil {
 		t.Fatalf("writeArtifacts: %v", err)
 	}
 	for name, want := range map[string]string{
@@ -862,7 +863,7 @@ func TestWriteArtifactsHonoursReportFormats(t *testing.T) {
 	dir := t.TempDir()
 	data := report.Data{Release: saga.Release{Name: "app", Version: "1"}}
 	err := writeArtifacts(dir, []string{"html", "markdown"}, data,
-		saga.Release{Name: "app", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "")
+		saga.Release{Name: "app", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -880,7 +881,7 @@ func TestWriteArtifactsHonoursReportFormats(t *testing.T) {
 func TestWriteArtifactsDefaultsToWhatPipelinesExpect(t *testing.T) {
 	dir := t.TempDir()
 	err := writeArtifacts(dir, nil, report.Data{}, saga.Release{Name: "app", Version: "1"},
-		engine.Result{}, norn.Result{Verdict: norn.Pass}, "")
+		engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -951,7 +952,7 @@ func TestWriteArtifactsUsesTheSameNamesAPublisherWould(t *testing.T) {
 	dir := t.TempDir()
 	formats := []string{"json", "sarif", "html", "markdown", "junit"}
 	err := writeArtifacts(dir, formats, report.Data{Release: saga.Release{Name: "app", Version: "1"}},
-		saga.Release{Name: "app", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "")
+		saga.Release{Name: "app", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1055,5 +1056,93 @@ func TestAnExternalToolStillNamesItsBuild(t *testing.T) {
 	// A binary Draugr has never heard of has nothing to ask, and must not error or hang.
 	if got := probeVersion(t.Context(), "definitely-not-a-tool"); got != "" {
 		t.Errorf("probeVersion for an unknown binary = %q, want empty", got)
+	}
+}
+
+// The two priority knobs do different things, and the difference is the whole design.
+//
+// --min-priority trims what is printed and leaves every file complete, because a file that
+// silently omits findings is read by the next tool as a scan that did not find them — `draugr
+// diff` would call each one fixed. A band declared on the report, or asked for explicitly, is a
+// decision somebody recorded, and the artifact then states it.
+func TestArtifactsAreCompleteUnlessNarrowingWasDeclared(t *testing.T) {
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "URGENT", Level: sarif.LevelError, Priority: "P1", Message: "act now"},
+			{RuleID: "LATER", Level: sarif.LevelWarning, Priority: "P3", Message: "backlog"},
+		}}},
+	}}
+	verdict := norn.Result{Verdict: norn.Fail}
+	data := report.Data{Run: run, Verdict: verdict}
+
+	count := func(t *testing.T, dir string) (int, string) {
+		t.Helper()
+		raw, err := os.ReadFile(filepath.Join(dir, "results.sarif")) //#nosec G304 -- under t.TempDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc struct {
+			Runs []struct {
+				Results    []struct{} `json:"results"`
+				Properties struct {
+					Provenance []struct {
+						Tool   string            `json:"tool"`
+						Fields map[string]string `json:"fields"`
+					} `json:"draugr/provenance"`
+				} `json:"properties"`
+			} `json:"runs"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		n, band := 0, ""
+		for _, r := range doc.Runs {
+			n += len(r.Results)
+			for _, p := range r.Properties.Provenance {
+				if p.Tool == "draugr/min-priority" {
+					band = p.Fields["band"]
+				}
+			}
+		}
+		return n, band
+	}
+
+	// --min-priority alone: the file keeps everything and claims no narrowing.
+	whole := t.TempDir()
+	if err := writeArtifacts(whole, []string{"sarif"}, data, saga.Release{}, run, verdict, "P1", ""); err != nil {
+		t.Fatal(err)
+	}
+	if n, band := count(t, whole); n != 2 || band != "" {
+		t.Errorf("--min-priority alone wrote %d result(s) and declared %q; want 2 and no declaration", n, band)
+	}
+
+	// A declared band: narrowed, and the file says which band it was narrowed to.
+	narrowed := t.TempDir()
+	if err := writeArtifacts(narrowed, []string{"sarif"}, data, saga.Release{}, run, verdict, "", "P1"); err != nil {
+		t.Fatal(err)
+	}
+	if n, band := count(t, narrowed); n != 1 || band != "P1" {
+		t.Errorf("a declared band wrote %d result(s) and declared %q; want 1 and P1", n, band)
+	}
+}
+
+// The flag overrides the descriptor, so a workflow can narrow what it uploads without editing a
+// file it may not own.
+func TestDeclaredBandPrefersTheFlag(t *testing.T) {
+	model := &saga.Model{Config: saga.Config{Reports: []saga.ReportConfig{
+		{Format: "sarif", MinPriority: "P3"},
+	}}}
+	if got := declaredBand(scanOptions{artifactMinPriority: "P1"}, model); got != "P1" {
+		t.Errorf("flag should win: got %q", got)
+	}
+	if got := declaredBand(scanOptions{}, model); got != "P3" {
+		t.Errorf("descriptor should apply when no flag: got %q", got)
+	}
+	// Only a sarif report's band reaches the written sarif; another format's must not.
+	other := &saga.Model{Config: saga.Config{Reports: []saga.ReportConfig{
+		{Format: "markdown", MinPriority: "P1"},
+	}}}
+	if got := declaredBand(scanOptions{}, other); got != "" {
+		t.Errorf("a markdown report's band must not narrow the sarif: got %q", got)
 	}
 }

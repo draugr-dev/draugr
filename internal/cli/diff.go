@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -21,6 +22,7 @@ type diffOptions struct {
 	format            string
 	failOnNew         string
 	failOnNewPriority string
+	minPriority       string
 	publish           bool
 }
 
@@ -39,9 +41,10 @@ func newDiffCommand() *cobra.Command {
 			return runDiff(cmd.Context(), args[0], args[1], *opts, cmd.OutOrStdout())
 		},
 	}
-	cmd.Flags().StringVar(&opts.format, "format", "console", "output format: console, markdown, json")
+	cmd.Flags().StringVar(&opts.format, "format", "console", "output format: "+strings.Join(diff.Formats(), ", "))
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "", "fail if a new finding is at or above this severity: error, warning, note")
 	cmd.Flags().StringVar(&opts.failOnNewPriority, "fail-on-new-priority", "", "fail if a new finding is at or above this priority (P1-P4)")
+	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "report only new findings at or above this priority band (P1-P4); fixed and unchanged are unaffected")
 	cmd.Flags().BoolVar(&opts.publish, "publish", false, "post the diff as a sticky pull-request comment (GitHub or Azure DevOps, detected from the CI environment)")
 	return cmd
 }
@@ -73,7 +76,9 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 		return err
 	}
 
-	result := diff.Compare(base, head)
+	// Narrowed after the comparison, never before it: a diff computed from filtered inputs reads
+	// every finding the filter removed as fixed.
+	result := diff.Compare(base, head).NarrowNew(opts.minPriority)
 	if err := diff.Render(w, opts.format, result); err != nil {
 		return err
 	}

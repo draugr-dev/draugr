@@ -12,7 +12,7 @@ import (
 )
 
 // Formats lists the diff output formats, sorted.
-func Formats() []string { return []string{"console", "json", "markdown"} }
+func Formats() []string { return []string{"console", "json", "markdown", "sarif"} }
 
 // Render writes the diff in the named format. Unknown formats error.
 func Render(w io.Writer, format string, r Result) error {
@@ -23,9 +23,31 @@ func Render(w io.Writer, format string, r Result) error {
 		return renderMarkdown(w, r)
 	case "json":
 		return renderJSON(w, r)
+	case "sarif":
+		return renderSARIF(w, r)
 	default:
 		return fmt.Errorf("unknown diff format %q (available: %v)", format, Formats())
 	}
+}
+
+// renderSARIF writes the new findings, and only those, as a SARIF report.
+//
+// For code scanning on a pull request. An upload of the whole repository annotates a reviewer with
+// hundreds of findings the branch did not cause, and the ones it did are indistinguishable among
+// them — which is how a review surface stops being read. This is the answer to the question a pull
+// request actually asks.
+//
+// Fixed and unchanged are deliberately absent rather than empty. A fixed finding is no longer
+// there to annotate, and an unchanged one is the pre-existing noise this exists to remove; a
+// consumer wanting the whole picture has the head scan's own report.
+func renderSARIF(w io.Writer, r Result) error {
+	rep := sarif.Report{Tool: "draugr-diff", Results: r.New}
+	data, err := rep.MarshalSARIF()
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	return err
 }
 
 // headline summarizes the delta in one line, e.g.

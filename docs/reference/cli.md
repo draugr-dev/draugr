@@ -277,6 +277,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--no-gate` | `false` | Report the verdict but exit 0 on a fail — for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
+| `--artifact-min-priority` | — | Also narrow the `-o` artifacts to this band, and record the band inside them. The deliberate opposite of `--min-priority`, and safe for the same reason it is declared — see [below](#what---min-priority-narrows) |
 | `--allow-effects` | — | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent — see [below](#scanners-that-do-more-than-read) |
 | `--kev` | — | CISA KEV catalog: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE on it is escalated to critical. Overrides `config.exploitability.kev` |
 | `--epss` | — | FIRST EPSS scores: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE at/above `--epss-threshold` is bumped one band. Overrides `config.exploitability.epss` |
@@ -519,7 +520,28 @@ This mirrors the descriptor, which has always kept the two apart:
 
 The split exists because of one asymmetry: **GitHub code scanning resolves any alert missing
 from an upload as fixed.** A filtered report published there would quietly close real findings,
-in the one place the filtering is invisible. The same reasoning protects `results.sarif`: it
+in the one place the filtering is invisible.
+
+#### Narrowing on purpose
+
+That asymmetry is an argument against narrowing a file *by accident*, which is what
+`--min-priority` would be doing. Narrowing one on purpose is a different act, and there are two
+ways to say it:
+
+- **`--artifact-min-priority P1`**, or **`minPriority: P1`** on a report in
+  [`config.reports`](saga-schema.md#configreports-and-configpublishers) — narrows the written
+  SARIF and JSON.
+- **`draugr diff --format sarif`** — emits only the findings a change introduced, which is the
+  version of this a pull request actually wants.
+
+Both **record what they left out**: a narrowed SARIF carries a `draugr/min-priority` provenance
+entry naming the band, exactly as a scoped run records its scope. That is what keeps the
+consequence visible rather than surprising — an alert closing because you asked for P1 only is a
+decision; one closing because a flag leaked into a file is a bug.
+
+The alert lifecycle still applies, so it is worth saying plainly: **an upload narrowed to P1
+closes the P2–P4 alerts** from a previous complete upload. On a pull request that is usually what
+you want; on a default branch it usually is not. The same reasoning protects `results.sarif`: it
 feeds [`draugr diff`](#draugr-diff-basesarif-headsarif) and the
 [GitHub Action's](../guides/github-action.md) SARIF upload, and a baseline missing findings makes
 the next scan's delta wrong.
@@ -539,7 +561,8 @@ complete regardless of `--min-priority`.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--format` | `console` | output format: `console`, `markdown`, `json` |
+| `--format` | `console` | output format: `console`, `json`, `markdown`, `sarif`. `sarif` emits the **new** findings only, for code scanning on a pull request |
+| `--min-priority` | — | report only **new** findings at or above this priority band (`P1`–`P4`); fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
 | `--fail-on-new` | — | fail if a **new** finding is at or above this severity: `error`, `warning`, `note` |
 | `--fail-on-new-priority` | — | fail if a **new** finding is at or above this priority (`P1`–`P4`) |
 | `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment` or `azure-pr-comment` from the CI environment; no-ops off a PR |

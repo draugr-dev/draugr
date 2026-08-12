@@ -442,3 +442,28 @@ func TestJSONCarriesWhatWasNotMeasured(t *testing.T) {
 		}
 	}
 }
+
+// A narrowed report says so, and a reader can get the band back out.
+//
+// The round trip is the point. A file that is a subset and does not declare it is
+// indistinguishable from a complete one — and `draugr diff`, reading it as the base, would report
+// every finding below the band as fixed.
+func TestMinPriorityProvenanceRoundTrips(t *testing.T) {
+	prov, ok := MinPriorityProvenance("P2")
+	if !ok {
+		t.Fatal("a declared band produced no provenance")
+	}
+	rep := sarif.Report{Provenance: []sarif.Provenance{prov}}
+	band, narrowed := MinPriorityOfReport(rep)
+	if !narrowed || band != "P2" {
+		t.Errorf("read back %q/%v, want P2/true", band, narrowed)
+	}
+
+	// A complete report declares nothing, so it stays byte-identical to what it has always been.
+	if _, ok := MinPriorityProvenance(""); ok {
+		t.Error("an unnarrowed report must not stamp a band")
+	}
+	if band, narrowed := MinPriorityOfReport(sarif.Report{}); narrowed || band != "" {
+		t.Errorf("a report with no provenance read as narrowed to %q", band)
+	}
+}

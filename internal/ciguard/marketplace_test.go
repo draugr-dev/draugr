@@ -42,3 +42,28 @@ func TestTheActionDescriptionFitsTheMarketplace(t *testing.T) {
 			n, marketplaceDescriptionLimit, action.Description)
 	}
 }
+
+// TestTheActionManifestHasNoDuplicateKeys keeps a malformed manifest from reaching a runner.
+//
+// A repeated key inside an input — the second `required:` left behind when a description is
+// rewritten — is accepted silently by most YAML readers, which keep the last value. The Actions
+// runner is not one of them: it refuses the whole file with "'required' is already defined", and
+// every workflow using the action fails at load, before a single step runs.
+//
+// Nothing else catches it. The file is valid YAML by the permissive reading, so a linter passes, a
+// hand check passes, and the first evidence is a red workflow.
+func TestTheActionManifestHasNoDuplicateKeys(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile("../../action.yml")
+	if err != nil {
+		t.Fatalf("read action.yml: %v", err)
+	}
+	// yaml.v3 rejects duplicate mapping keys, which is the behaviour we want to borrow.
+	var doc map[string]any
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("action.yml is not loadable as the runner loads it: %v", err)
+	}
+	if _, ok := doc["inputs"]; !ok {
+		t.Error("action.yml declares no inputs; this guard is checking the wrong file")
+	}
+}

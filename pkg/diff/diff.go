@@ -139,6 +139,33 @@ func countPriorities(rs []sarif.Result) PriorityCounts {
 	return c
 }
 
+// NarrowNew drops new findings below a priority band, leaving fixed and unchanged alone.
+//
+// Only the new ones, because they are what the diff is reporting and what a reviewer is asked to
+// act on; fixed and unchanged are context, and a count of them that moved with a threshold would
+// mean something different on every run.
+//
+// A finding the scanner never prioritized is kept. An empty Priority means prioritization did not
+// run for it, not that it ranked low — dropping it would hide a finding for the reason it was
+// hardest to judge.
+func (r Result) NarrowNew(band string) Result {
+	if band == "" {
+		return r
+	}
+	want := prioritization.Priority(band).Rank()
+	if want == 0 {
+		return r
+	}
+	kept := make([]sarif.Result, 0, len(r.New))
+	for _, f := range r.New {
+		if f.Priority == "" || prioritization.Priority(f.Priority).Rank() >= want {
+			kept = append(kept, f)
+		}
+	}
+	r.New = kept
+	return r
+}
+
 // GateNew returns the new findings that meet the differential gate: level at or above failOn
 // (when set) OR priority at or above failOnPriority (when set). An empty threshold disables
 // that dimension. With both empty, nothing is returned.
