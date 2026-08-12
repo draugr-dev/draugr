@@ -368,12 +368,22 @@ runs:
         #
         # Written beside the head scan rather than over it, so the complete report is still there
         # for an artifact upload and for the `report` output. Only the `sarif` output moves.
+        # `version` lets a caller pin any published release, and this action tag moves
+        # independently of them — so the binary in front of us may predate `diff --format sarif`.
+        # Asked rather than assumed, because the alternative is every pinned workflow failing at
+        # the last step of a run that already did all its work.
         if [ "${INPUT_CODE_SCANNING:-new}" = "new" ]; then
-          # The band narrows the diff, never the scans it was computed from. A diff taken from
-          # filtered inputs reads every finding the filter removed as fixed, so the two scans above
-          # deliberately run complete whatever this is set to.
-          new_args=("$base_out/results.sarif" "$head_out/results.sarif" --format sarif)
-          [ -n "$INPUT_CODE_SCANNING_MIN_PRIORITY" ] && new_args+=(--min-priority "$INPUT_CODE_SCANNING_MIN_PRIORITY")
-          draugr diff "${new_args[@]}" > "$head_out/results-new.sarif"
-          echo "sarif=${head_out}/results-new.sarif" >>"$GITHUB_OUTPUT"
+          if draugr diff --help 2>&1 | grep -- '--format' | grep -q 'sarif'; then
+            # The band narrows the diff, never the scans it was computed from. A diff taken from
+            # filtered inputs reads every finding the filter removed as fixed, so the two scans
+            # above deliberately run complete whatever this is set to.
+            new_args=("$base_out/results.sarif" "$head_out/results.sarif" --format sarif)
+            [ -n "$INPUT_CODE_SCANNING_MIN_PRIORITY" ] && new_args+=(--min-priority "$INPUT_CODE_SCANNING_MIN_PRIORITY")
+            draugr diff "${new_args[@]}" > "$head_out/results-new.sarif"
+            echo "sarif=${head_out}/results-new.sarif" >>"$GITHUB_OUTPUT"
+          else
+            # Said out loud: the upload is the whole repository, which is what the setting exists
+            # to avoid, and silence would leave a reviewer wondering why the noise came back.
+            echo "::warning::code-scanning=new needs a Draugr release with 'diff --format sarif'; this one is older, so code scanning receives the complete scan. Pin a newer version, or set code-scanning: all."
+          fi
         fi
