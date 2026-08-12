@@ -3,6 +3,7 @@ package diff
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -150,9 +151,23 @@ func TestRenderUnknownFormat(t *testing.T) {
 	}
 }
 
+// Every advertised format renders.
+//
+// A count told us the list had the length somebody last wrote down, which is true of a list with
+// the wrong names in it and of one whose newest entry errors. `--format` help and the
+// unknown-format error are both built from this list, so it has to be the list that works.
 func TestFormats(t *testing.T) {
-	if got := Formats(); len(got) != 3 {
-		t.Errorf("Formats() = %v", got)
+	got := Formats()
+	if len(got) == 0 {
+		t.Fatal("Formats() is empty")
+	}
+	if !slices.IsSorted(got) {
+		t.Errorf("Formats() = %v, want sorted", got)
+	}
+	for _, f := range got {
+		if err := Render(&bytes.Buffer{}, f, Result{}); err != nil {
+			t.Errorf("advertised format %q does not render: %v", f, err)
+		}
 	}
 }
 
@@ -242,5 +257,41 @@ func TestCountsAllBands(t *testing.T) {
 	pc := countPriorities(rs)
 	if pc.P1 != 1 || pc.P2 != 1 || pc.P3 != 1 || pc.P4 != 1 {
 		t.Errorf("countPriorities = %+v", pc)
+	}
+}
+
+// Narrowing applies to the new findings and nothing else.
+//
+// Fixed and unchanged are context for the reader, not things to act on, and a count of them that
+// moved with a threshold would mean something different on every run. The unprioritized finding
+// is kept on purpose: an empty Priority means prioritization did not run for it, not that it
+// ranked low, and dropping it would hide the finding hardest to judge.
+func TestNarrowNewKeepsOnlyTheBandAndOnlyForNew(t *testing.T) {
+	r := Result{
+		New: []sarif.Result{
+			{RuleID: "URGENT", Priority: "P1"},
+			{RuleID: "LATER", Priority: "P3"},
+			{RuleID: "UNRANKED"},
+		},
+		Fixed:     []sarif.Result{{RuleID: "GONE", Priority: "P4"}},
+		Unchanged: []sarif.Result{{RuleID: "OLD", Priority: "P4"}},
+	}
+	got := r.NarrowNew("P2")
+
+	var ids []string
+	for _, f := range got.New {
+		ids = append(ids, f.RuleID)
+	}
+	if want := []string{"URGENT", "UNRANKED"}; !slices.Equal(ids, want) {
+		t.Errorf("new = %v, want %v", ids, want)
+	}
+	if len(got.Fixed) != 1 || len(got.Unchanged) != 1 {
+		t.Errorf("fixed/unchanged were narrowed: %d/%d", len(got.Fixed), len(got.Unchanged))
+	}
+	// No band, and an unrecognised one, both leave the result alone rather than emptying it.
+	for _, band := range []string{"", "urgent"} {
+		if n := len(r.NarrowNew(band).New); n != 3 {
+			t.Errorf("band %q kept %d new findings, want all 3", band, n)
+		}
 	}
 }

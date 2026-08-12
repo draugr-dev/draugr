@@ -501,3 +501,41 @@ func TestExploitabilityConfigValidation(t *testing.T) {
 		t.Errorf("a file path should validate: %v", err)
 	}
 }
+
+// A report may declare the band it was narrowed to; anything that is not a band is refused.
+//
+// Refused rather than ignored: the value decides what a code-scanning upload contains, and a typo
+// that silently means "complete" is a reviewer quietly getting every finding in the repository
+// back again, with nothing to say why.
+func TestValidateReportMinPriority(t *testing.T) {
+	for _, band := range []string{"P1", "P4"} {
+		m := &Model{
+			Release: Release{Version: "1"},
+			Config:  Config{Reports: []ReportConfig{{Format: "sarif", MinPriority: band}}},
+		}
+		if err := m.Validate(); err != nil {
+			t.Errorf("%s rejected: %v", band, err)
+		}
+	}
+	m := &Model{
+		Release: Release{Version: "1"},
+		Config:  Config{Reports: []ReportConfig{{Format: "sarif", MinPriority: "urgent"}}},
+	}
+	err := m.Validate()
+	if err == nil {
+		t.Fatal("a value that is not a priority band was accepted")
+	}
+	for _, want := range []string{"minPriority", "urgent", "P1"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should mention %q: %v", want, err)
+		}
+	}
+	// Unset stays the common case and must not be reported.
+	clean := &Model{
+		Release: Release{Version: "1"},
+		Config:  Config{Reports: []ReportConfig{{Format: "sarif"}}},
+	}
+	if err := clean.Validate(); err != nil {
+		t.Errorf("a report with no band was rejected: %v", err)
+	}
+}

@@ -114,7 +114,33 @@ no answer to keep, and the step fails. So a pipeline is not blocked by an upstre
 already answer around. See
 [`config.exploitability`](../reference/saga-schema.md#configexploitability).
 
-Outputs: **`sarif`** (path to `results.sarif`) and **`report`** (path to `report.json`). Both
+### What code scanning receives
+
+On a pull request the action runs a diff, and by default the SARIF it hands to code scanning
+carries **only the findings the branch introduced** (`code-scanning: new`). An upload of the whole
+repository annotates a reviewer with hundreds of findings they did not cause, and the ones they did
+are indistinguishable among them — which is how a review surface stops being read. Set
+`code-scanning: all` for the previous behaviour. On a push there is nothing to diff against, so the
+upload is always the complete scan.
+
+`code-scanning-min-priority: P1` narrows it further, to what is urgent. It applies to the diff, not
+to the scans the diff was computed from — a diff taken from filtered inputs would read every
+finding the filter removed as *fixed*.
+
+```yaml
+- uses: draugr-dev/draugr@v0
+  id: draugr
+  with:
+    code-scanning: new             # default — what this PR is answerable for
+    code-scanning-min-priority: P1 # and only what is urgent
+```
+
+A narrowed SARIF records the band inside itself, so nothing reading it later mistakes it for a
+complete scan. The complete report is still written to `output`, and `outputs.report` still names
+it — only `outputs.sarif` follows the setting.
+
+Outputs: **`sarif`** (path to the SARIF to upload — the new-findings one in diff mode) and
+**`report`** (path to `report.json`, always complete). Both
 point inside `output` and are written on pull requests too, so an `if: always()` upload step
 finds them whichever mode the action ran in.
 

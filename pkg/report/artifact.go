@@ -48,6 +48,12 @@ func Filename(format string) string {
 // all other formats use the built-in reporter registry. cfg.Filename overrides the default
 // output filename.
 func Build(cfg saga.ReportConfig, d Data) (Artifact, error) {
+	// A report may declare its own band, which narrows this artifact and no other. Applied here
+	// because every format is built through this one function, so a filter declared once cannot
+	// reach some renderers and miss others.
+	if cfg.MinPriority != "" {
+		d.MinPriority = cfg.MinPriority
+	}
 	if cfg.Format == "template" {
 		return buildTemplate(cfg, d)
 	}

@@ -116,7 +116,19 @@ draugr diff base/results.sarif head/results.sarif                     # console 
 draugr diff base/results.sarif head/results.sarif --format markdown   # MR comment
 draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
 draugr diff base/results.sarif head/results.sarif --publish           # sticky PR comment (in CI)
+draugr diff base/results.sarif head/results.sarif --format sarif      # only the new findings, for code scanning
+draugr diff base/results.sarif head/results.sarif --format sarif --min-priority P1
 ```
+
+`--format sarif` writes the **new** findings and only those, which is what a pull request's review
+comments should carry: an upload of the whole repository annotates a reviewer with hundreds of
+findings the branch did not cause. Fixed and unchanged are deliberately absent — a fixed finding is
+no longer there to annotate, and an unchanged one is the pre-existing noise this removes. The
+GitHub Action does this for you; see [`code-scanning`](github-action.md#what-code-scanning-receives).
+
+`--min-priority` narrows the **new** findings it reports, in any format, leaving fixed and
+unchanged counts alone. Narrow the diff rather than the scans it came from: a diff computed on
+filtered inputs reads every finding the filter removed as fixed.
 
 `--fail-on-new` / `--fail-on-new-priority` fail the command (non-zero exit) only for **new**
 findings at or above the given severity / priority. Findings are matched on

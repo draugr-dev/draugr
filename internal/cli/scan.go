@@ -47,10 +47,14 @@ type scanOptions struct {
 	cacheReadOnly      bool
 	cacheRequireDigest bool
 	minPriority        string
-	allowEffects       []string
-	kevFile            string
-	epssFile           string
-	epssThreshold      float64
+	// artifactMinPriority narrows the written artifacts as well, which --min-priority
+	// deliberately does not. Separate because they answer to different readers: one trims a
+	// terminal, the other changes a file another program acts on.
+	artifactMinPriority string
+	allowEffects        []string
+	kevFile             string
+	epssFile            string
+	epssThreshold       float64
 	// setFlags names the flags the user actually typed. Needed because the descriptor supplies
 	// defaults for the same settings, and a flag with a non-zero default — --epss-threshold is
 	// 0.5 — cannot be told apart from an unset one by its value.
@@ -104,6 +108,10 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.cacheRequireDigest, "cache-require-digest", false,
 		"do not cache an image identified only by a tag: a tag can be rebuilt, so a hit can be right about the key and wrong about the image")
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "list findings at or above this priority band (P1-P4)")
+	cmd.Flags().StringVar(&opts.artifactMinPriority, "artifact-min-priority", "",
+		"also narrow the -o artifacts to this band, and record the band inside them; "+
+			"--min-priority alone narrows only what is printed, because a file that silently "+
+			"omits findings is read as a scan that did not find them")
 	cmd.Flags().StringSliceVar(&opts.allowEffects, "allow-effects", nil,
 		"accept scanner effects for this run (mutate, privilege); config.allowEffects is the reviewed equivalent")
 	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE on it is escalated to critical")
@@ -337,7 +345,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 	}
 	if opts.outputDir != "" {
-		if err := writeArtifacts(opts.outputDir, opts.reports, data, model.Release, run, verdict, minPriority); err != nil {
+		if err := writeArtifacts(opts.outputDir, opts.reports, data, model.Release, run, verdict, minPriority, declaredBand(opts, model)); err != nil {
 			return err
 		}
 	}
@@ -438,12 +446,41 @@ func reportVersion() string {
 // depends on.
 var defaultArtifacts = []string{"json", "sarif"}
 
+// declaredBand is the priority band the artifacts were asked to be narrowed to, or "" for the
+// complete set.
+//
+// The flag wins over the descriptor so a workflow can narrow what it uploads without editing a
+// file it may not own — the same precedence every other scan setting uses. Only a sarif report's
+// band is consulted, because -o writes one sarif and asking which of several reports it came from
+// has no answer.
+func declaredBand(opts scanOptions, model *saga.Model) string {
+	if opts.artifactMinPriority != "" {
+		return opts.artifactMinPriority
+	}
+	for _, r := range model.Config.Reports {
+		if r.Format == "sarif" && r.MinPriority != "" {
+			return r.MinPriority
+		}
+	}
+	return ""
+}
+
+// firstNonEmpty returns the first value that is set.
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 // writeArtifacts renders the requested formats into dir.
 //
 // The formats are rendered through the same reporters that serve --format and the Saga's
 // config.reports, so an HTML file written here and one delivered by a publisher cannot differ.
 func writeArtifacts(dir string, formats []string, data report.Data, release saga.Release,
-	run engine.Result, verdict norn.Result, minPriority string,
+	run engine.Result, verdict norn.Result, minPriority, declared string,
 ) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
@@ -454,19 +491,25 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 
 	for _, format := range formats {
 		name := report.Filename(format)
-		// json and sarif go through skald directly, as they always have: those two are written
-		// complete regardless of --min-priority, because a filtered artifact is a lie to whatever
-		// consumes it.
+		// json and sarif go through skald directly, as they always have. They are written complete
+		// regardless of --min-priority, because a file that claims to be the scan and is not
+		// misleads whatever consumes it — most sharply `draugr diff`, which reads a missing
+		// finding as a fixed one.
+		//
+		// `declared` is the exception, and the difference is that it was asked for: a descriptor
+		// that says minPriority on a report, or --artifact-min-priority on the command line. The
+		// artifact then states the band inside itself, so a consumer can tell a narrowed file from
+		// a whole one rather than having to assume.
 		switch format {
 		case "json":
 			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
-				return skald.RenderJSON(w, release, run, verdict, minPriority)
+				return skald.RenderJSON(w, release, run, verdict, firstNonEmpty(declared, minPriority))
 			}); err != nil {
 				return err
 			}
 		case "sarif":
 			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
-				return skald.WriteSARIF(w, run)
+				return skald.WriteSARIFNarrowed(w, report.FilterByPriority(run, declared), declared, sarif.MarshalOptions{})
 			}); err != nil {
 				return err
 			}

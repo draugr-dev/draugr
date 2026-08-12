@@ -345,6 +345,44 @@ func ScopeProvenance(scope engine.Scope) (sarif.Provenance, bool) {
 	return p, true
 }
 
+// MinPriorityProvenanceTool is the provenance entry a priority-narrowed report stamps on its
+// SARIF.
+const MinPriorityProvenanceTool = "draugr/min-priority"
+
+// MinPriorityProvenance renders a declared priority band as a SARIF provenance entry, and reports
+// whether there was one to render.
+//
+// The same carrier and the same reason as a scope: a run states what it left out, not only what it
+// found. And the same hazard if it does not — a narrowed file and a complete one are
+// indistinguishable to anything that reloads them, so `draugr diff` would read every finding below
+// the band as fixed.
+func MinPriorityProvenance(band string) (sarif.Provenance, bool) {
+	if band == "" {
+		return sarif.Provenance{}, false
+	}
+	return sarif.Provenance{
+		Tool:   MinPriorityProvenanceTool,
+		Fields: []sarif.Field{{Key: "band", Value: band}},
+	}, true
+}
+
+// MinPriorityOfReport reports the band a loaded report was narrowed to, and whether it was
+// narrowed at all. The inverse of MinPriorityProvenance, for a consumer reading a file somebody
+// else wrote.
+func MinPriorityOfReport(rep sarif.Report) (string, bool) {
+	for _, p := range rep.Provenance {
+		if p.Tool != MinPriorityProvenanceTool {
+			continue
+		}
+		for _, f := range p.Fields {
+			if f.Key == "band" {
+				return f.Value, true
+			}
+		}
+	}
+	return "", false
+}
+
 // ScopeOfReport describes what a loaded report was scoped to, and reports whether it was scoped
 // at all. The inverse of ScopeProvenance, for a consumer reading a file somebody else wrote.
 func ScopeOfReport(rep sarif.Report) (string, bool) {
@@ -368,7 +406,21 @@ func WriteSARIF(w io.Writer, run engine.Result) error {
 
 // WriteSARIFWith is WriteSARIF with marshalling options.
 func WriteSARIFWith(w io.Writer, run engine.Result, opts sarif.MarshalOptions) error {
-	data, err := MergedSARIF(run).MarshalSARIFWith(opts)
+	return WriteSARIFNarrowed(w, run, "", opts)
+}
+
+// WriteSARIFNarrowed writes a SARIF report that says which priority band it was narrowed to.
+//
+// The caller has already dropped the findings below the band; what this adds is the statement
+// that it did. A file that is a subset and does not say so is the failure this whole provenance
+// mechanism exists to prevent — most sharply for `draugr diff`, which would otherwise report
+// every omitted finding as fixed.
+func WriteSARIFNarrowed(w io.Writer, run engine.Result, band string, opts sarif.MarshalOptions) error {
+	merged := MergedSARIF(run)
+	if prov, ok := MinPriorityProvenance(band); ok {
+		merged.Provenance = append(merged.Provenance, prov)
+	}
+	data, err := merged.MarshalSARIFWith(opts)
 	if err != nil {
 		return err
 	}

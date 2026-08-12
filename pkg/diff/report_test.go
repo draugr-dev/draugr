@@ -2,6 +2,8 @@ package diff
 
 import (
 	"bytes"
+	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -119,5 +121,49 @@ func TestDiffHeadlineNamesOnlyTheBandsPresent(t *testing.T) {
 	}
 	if clean := headline(Result{}); clean != "0 new, 0 fixed, 0 unchanged" {
 		t.Errorf("a clean diff should read clean, got %q", clean)
+	}
+}
+
+// The SARIF diff carries the new findings and only those.
+//
+// The fixture has all three kinds on purpose: with new findings alone, an implementation that
+// emits everything it was given is indistinguishable from one that selects. Fixed and unchanged
+// are what a pull request's reviewer did not cause, and shipping them is the noise this format
+// exists to remove.
+func TestRenderSARIFCarriesOnlyTheNewFindings(t *testing.T) {
+	r := Result{
+		New:       []sarif.Result{{RuleID: "NEW-1", Level: sarif.LevelError, Message: "introduced here"}},
+		Fixed:     []sarif.Result{{RuleID: "GONE-1", Level: sarif.LevelError, Message: "no longer present"}},
+		Unchanged: []sarif.Result{{RuleID: "OLD-1", Level: sarif.LevelWarning, Message: "was already there"}},
+	}
+	var buf bytes.Buffer
+	if err := Render(&buf, "sarif", r); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	var doc struct {
+		Runs []struct {
+			Results []struct {
+				RuleID string `json:"ruleId"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, buf.String())
+	}
+	var ids []string
+	for _, run := range doc.Runs {
+		for _, res := range run.Results {
+			ids = append(ids, res.RuleID)
+		}
+	}
+	if len(ids) != 1 || ids[0] != "NEW-1" {
+		t.Errorf("results = %v, want just the new finding", ids)
+	}
+}
+
+// sarif is in the advertised list, so `--format` help and the unknown-format error stay true.
+func TestFormatsAdvertisesSARIF(t *testing.T) {
+	if !slices.Contains(Formats(), "sarif") {
+		t.Errorf("Formats() = %v, missing sarif", Formats())
 	}
 }

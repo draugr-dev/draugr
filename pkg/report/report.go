@@ -246,10 +246,10 @@ type sarifReporter struct{}
 
 func (sarifReporter) Format() string { return "sarif" }
 func (sarifReporter) Render(w io.Writer, d Data) error {
-	return skald.WriteSARIFWith(w, filterByPriority(d.Run, d.MinPriority), d.marshalOptions())
+	return skald.WriteSARIFNarrowed(w, FilterByPriority(d.Run, d.MinPriority), d.MinPriority, d.marshalOptions())
 }
 
-// filterByPriority drops findings below the requested band, returning a copy so the caller's
+// FilterByPriority drops findings below the requested band, returning a copy so the caller's
 // run is untouched — the same Data is rendered in several formats and delivered to publishers.
 //
 // Findings the scanner never prioritized are kept. An empty Priority means prioritization did
@@ -259,7 +259,7 @@ func (sarifReporter) Render(w io.Writer, d Data) error {
 // Only the results need filtering: the emitted rules[] is derived from the results that remain,
 // so a rule nobody matched leaves with them. That is where most of the size saving comes from —
 // on Draugr's demo repository, filtering to P1 takes the compact SARIF from 82 KB to 32 KB.
-func filterByPriority(run engine.Result, minPriority string) engine.Result {
+func FilterByPriority(run engine.Result, minPriority string) engine.Result {
 	if minPriority == "" {
 		return run
 	}

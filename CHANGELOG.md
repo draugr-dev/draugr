@@ -10,7 +10,35 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **On a pull request, code scanning now receives the findings the pull request introduced.** The
+  GitHub Action uploaded every finding in the repository, so a reviewer was annotated with hundreds
+  they did not cause and the ones they did were lost among them. In diff mode `outputs.sarif` now
+  names a SARIF of the new findings only. Set `code-scanning: all` for the previous behaviour; on a
+  push there is nothing to diff against, so the upload is still the complete scan, and
+  `outputs.report` is always complete.
+
+  Worth knowing before you upgrade: **code scanning resolves any alert missing from an upload as
+  fixed**, so the first PR run closes the alerts for pre-existing findings. That is the point on a
+  pull request — those findings are still in the complete scan the default branch uploads.
+
+### Added
+
+- **`draugr diff --format sarif`** — the new findings, and only those, as SARIF. Fixed and
+  unchanged are deliberately absent: a fixed finding is no longer there to annotate, and an
+  unchanged one is the pre-existing noise this removes.
+- **`draugr diff --min-priority P1`** — report only new findings at or above a band, in any format.
+  It narrows the diff, never the scans it was computed from; a diff taken from filtered inputs
+  reads every finding the filter removed as fixed.
+- **`config.reports[].minPriority`**, and **`draugr scan --artifact-min-priority`** — narrow one
+  written report to a priority band, leaving the others complete. For the SARIF that becomes review
+  comments, where showing everything is why nobody reads any of it.
+
+  `--min-priority` still narrows only what is printed. The difference is that these are *declared*:
+  a narrowed artifact records the band inside itself, so nothing reading it later mistakes it for a
+  complete scan — which matters because `draugr diff` reads a missing finding as a fixed one.
+- **`code-scanning-min-priority`** on the GitHub Action, applying the band to what is uploaded.
 
 ## [0.81.1] - 2026-08-11
 

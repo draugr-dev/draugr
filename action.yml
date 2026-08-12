@@ -25,7 +25,28 @@ inputs:
     required: false
     default: ""
   min-priority:
-    description: List findings at or above this priority band (P1-P4) in the printed output. Artifacts and code-scanning uploads stay complete.
+    description: >-
+      List findings at or above this priority band (P1-P4) in the printed output. Artifacts stay
+      complete, because a file that silently omits findings is read by the next tool as a scan
+      that did not find them. Use code-scanning-min-priority to narrow what is uploaded.
+  code-scanning-min-priority:
+    description: >-
+      Narrow the uploaded SARIF to this priority band (P1-P4), so review comments carry what is
+      urgent rather than everything. The file records the band it was narrowed to, so nothing
+      reading it later mistakes it for a complete scan. Overrides `minPriority` on the Saga's
+      sarif report.
+    required: false
+    default: ""
+  code-scanning:
+    description: >-
+      In diff mode, which findings the uploaded SARIF carries. "new" (default): only what this
+      pull request introduced — the findings the branch is answerable for, and the ones a reviewer
+      can act on. "all": every finding in the repository, which is what a full scan produces.
+
+      Inert outside diff mode: a push has nothing to diff against, so its upload is always the
+      complete scan.
+    required: false
+    default: new
     required: false
     default: ""
   cache-dir:
@@ -235,6 +256,7 @@ runs:
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_FAIL_ON_PRIORITY: ${{ inputs.fail-on-priority }}
         INPUT_MIN_PRIORITY: ${{ inputs.min-priority }}
+        INPUT_CODE_SCANNING_MIN_PRIORITY: ${{ inputs.code-scanning-min-priority }}
         INPUT_CACHE_DIR: ${{ inputs.cache-dir }}
         # A pull request from a fork runs code the base repository has not reviewed. If that job
         # can *write* a shared cache, the fork decides what the next run on the default branch
@@ -261,6 +283,7 @@ runs:
         [ -n "$INPUT_FAIL_ON" ]          && scan_args+=(--fail-on "$INPUT_FAIL_ON")
         [ -n "$INPUT_FAIL_ON_PRIORITY" ] && scan_args+=(--fail-on-priority "$INPUT_FAIL_ON_PRIORITY")
         [ -n "$INPUT_MIN_PRIORITY" ]     && scan_args+=(--min-priority "$INPUT_MIN_PRIORITY")
+        [ -n "$INPUT_CODE_SCANNING_MIN_PRIORITY" ] && scan_args+=(--artifact-min-priority "$INPUT_CODE_SCANNING_MIN_PRIORITY")
         [ -n "$INPUT_CACHE_DIR" ]        && scan_args+=(--cache-dir "$INPUT_CACHE_DIR")
         [ -n "$CACHE_READ_ONLY" ]        && scan_args+=(--cache-read-only)
         # shellcheck disable=SC2206  # intentional word-splitting of the raw args escape hatch
@@ -291,6 +314,8 @@ runs:
         CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'true' || '' }}
         INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
         INPUT_FAIL_ON_NEW_PRIORITY: ${{ inputs.fail-on-new-priority }}
+        INPUT_CODE_SCANNING: ${{ inputs.code-scanning }}
+        INPUT_CODE_SCANNING_MIN_PRIORITY: ${{ inputs.code-scanning-min-priority }}
         INPUT_ARGS: ${{ inputs.args }}
         # base SHA of the PR; head is the current checkout. Requires the caller to check out with
         # fetch-depth: 0 so the base commit is present.
@@ -336,3 +361,19 @@ runs:
         [ -n "$INPUT_FAIL_ON_NEW" ]          && diff_args+=(--fail-on-new "$INPUT_FAIL_ON_NEW")
         [ -n "$INPUT_FAIL_ON_NEW_PRIORITY" ] && diff_args+=(--fail-on-new-priority "$INPUT_FAIL_ON_NEW_PRIORITY")
         draugr diff "${diff_args[@]}"
+
+        # What code scanning receives on a pull request. By default the findings this branch
+        # introduced: an upload of the whole repository annotates a reviewer with hundreds they did
+        # not cause, and the ones they did are lost among them.
+        #
+        # Written beside the head scan rather than over it, so the complete report is still there
+        # for an artifact upload and for the `report` output. Only the `sarif` output moves.
+        if [ "${INPUT_CODE_SCANNING:-new}" = "new" ]; then
+          # The band narrows the diff, never the scans it was computed from. A diff taken from
+          # filtered inputs reads every finding the filter removed as fixed, so the two scans above
+          # deliberately run complete whatever this is set to.
+          new_args=("$base_out/results.sarif" "$head_out/results.sarif" --format sarif)
+          [ -n "$INPUT_CODE_SCANNING_MIN_PRIORITY" ] && new_args+=(--min-priority "$INPUT_CODE_SCANNING_MIN_PRIORITY")
+          draugr diff "${new_args[@]}" > "$head_out/results-new.sarif"
+          echo "sarif=${head_out}/results-new.sarif" >>"$GITHUB_OUTPUT"
+        fi

@@ -50,6 +50,10 @@ func (m *Model) Validate() error {
 		if r.Format == "" {
 			errs = append(errs, fmt.Errorf("config.reports[%d].format is required", i))
 		}
+		if r.MinPriority != "" && !slices.Contains(Priorities, r.MinPriority) {
+			errs = append(errs, fmt.Errorf("config.reports[%d].minPriority is %q, but a priority band is one of %v",
+				i, r.MinPriority, Priorities))
+		}
 	}
 	if g := m.Config.Gate; g != nil {
 		for control, level := range g.Controls {

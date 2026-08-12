@@ -347,7 +347,26 @@ type ReportConfig struct {
 	TemplateFile string `yaml:"templateFile,omitempty"`
 	// Filename overrides the artifact's default output filename (used by file-based publishers).
 	Filename string `yaml:"filename,omitempty"`
+	// MinPriority narrows this report to findings at or above a priority band, leaving every
+	// other report complete.
+	//
+	// Per report, because the reports answer to different readers. A SARIF upload becomes review
+	// comments somebody reads on every pull request, where a few hundred findings they did not
+	// cause is the reason nobody reads any of them; the JSON beside it is evidence, and evidence
+	// is not something to trim.
+	//
+	// Narrowing an artifact is otherwise refused, and for a good reason: a file that claims to be
+	// the scan and is not misleads whatever consumes it. What makes this different is that it is
+	// declared — written in the descriptor, and stated inside the artifact it produced. A scope
+	// somebody chose and can read back is a scope; an undeclared one is the problem.
+	MinPriority string `yaml:"minPriority,omitempty"`
 }
+
+// Priorities lists the priority bands a report may be narrowed to, most to least urgent.
+//
+// Spelled here rather than taken from pkg/prioritization, which imports this package — the
+// descriptor is a leaf, and a cycle to share four constants is a poor trade.
+var Priorities = []string{"P1", "P2", "P3", "P4"}
 
 // PublisherConfig configures one destination for rendered reports. Kind selects the publisher
 // (e.g. "file", "github"); the remaining fields are read by that publisher. Known kinds and
