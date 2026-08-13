@@ -18,7 +18,7 @@ include:
   # `remote:` and not `project:` — `include: project:` resolves against your own GitLab instance,
   # and Draugr is not on it. Pin the tag: the URL is fetched at pipeline time, so an unpinned
   # include changes under a pipeline that has not changed.
-  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.87.0/gitlab-ci/draugr.yml'
+  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.88.0/gitlab-ci/draugr.yml'
 
 stages: [test]
 
