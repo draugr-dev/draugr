@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **The dependency list's Location column is filled in.** `gitlab-cyclonedx` named the manifest on
+  every package and not on the document, and GitLab reads the document-level property for that
+  column — its own analyzers emit one SBOM per manifest, where Draugr emits one covering everything
+  it scanned. Where every package came from the same file the two shapes agree and the path is now
+  stated at both levels. With several manifests it is stated per package only: there is no single
+  answer, and picking one would attribute a package to a file that does not declare it.
 
 ## [0.88.0] - 2026-08-13
 
