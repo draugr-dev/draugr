@@ -123,6 +123,11 @@ func (p azurePRCommentPublisher) prURL() string {
 //
 // The marker is matched against the thread's *first* comment only. A reply quoting the report
 // would otherwise be mistaken for the report, and Draugr would edit a reviewer's words.
+//
+// Not paginated, unlike the GitHub and GitLab equivalents. Azure documents this endpoint as
+// "retrieve all threads in a pull request" and offers no $top, $skip or continuation token — its
+// only query parameters place threads against a diff iteration. Adding paging here would be
+// guarding against a limit the API does not have.
 func (p azurePRCommentPublisher) findExisting(ctx context.Context) (int64, int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		p.prURL()+"/threads?api-version=7.1", nil)

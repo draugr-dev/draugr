@@ -23,6 +23,14 @@ and move it under a version on release.
   evidence at all from that run, including the reports a pipeline downstream was waiting on. What
   renders is now delivered, and what did not is reported alongside it. A run where nothing rendered
   still fails, naming every reason rather than the first.
+- **A sticky pull-request comment stays sticky past the first hundred comments.** GitHub returns
+  comments a page at a time, and the publisher read one page — so on a pull request with a real
+  conversation on it the marker fell off the end, no existing comment was found, and a fresh report
+  was posted every run. It degraded by adding noise rather than by failing, exactly where a long
+  thread makes the one comment worth having. The listing is now followed to the end.
+
+  Azure DevOps needs no equivalent: its API documents itself as returning all threads in a pull
+  request and offers no paging parameters, so there is nothing to follow.
 
 ## [0.88.2] - 2026-08-13
 

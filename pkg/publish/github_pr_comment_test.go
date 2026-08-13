@@ -172,3 +172,82 @@ func TestPRCommentMissingTokenErrors(t *testing.T) {
 		t.Fatalf("expected missing-token error, got %v", err)
 	}
 }
+
+// A hundred comments is a page, and a pull request that has had a real conversation passes that.
+//
+// Reading one page then finds no marker, and the publisher posts a fresh report every run — the
+// sticky comment stops being sticky exactly where a long thread makes it worth having, and it
+// degrades by adding noise rather than by failing.
+func TestPRCommentFollowsPagination(t *testing.T) {
+	var pages []string
+	var method, path string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			method, path = r.Method, r.URL.Path
+			_, _ = w.Write([]byte(`{"id":11}`))
+			return
+		}
+		page := r.URL.Query().Get("page")
+		pages = append(pages, page)
+		if page == "" || page == "1" {
+			// GitHub gives the whole next URL rather than a page number, cursor included.
+			w.Header().Set("Link", `<http://`+r.Host+r.URL.Path+`?per_page=100&page=2>; rel="next"`)
+			_, _ = w.Write([]byte(`[{"id":3,"body":"a reviewer said something"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`[{"id":11,"body":"` + defaultPRMarker + `\nold report"}]`))
+	}))
+	defer srv.Close()
+	prEnv(t, srv.URL)
+
+	p, _ := For(saga.PublisherConfig{Kind: "github-pr-comment"})
+	if err := p.Publish(context.Background(), []report.Artifact{mdArtifact()}); err != nil {
+		t.Fatal(err)
+	}
+	if len(pages) != 2 {
+		t.Errorf("read %d page(s) %v, want the second one to be read too", len(pages), pages)
+	}
+	if method != http.MethodPatch || !strings.HasSuffix(path, "/comments/11") {
+		t.Errorf("%s %q, want a PATCH to the comment found on page two", method, path)
+	}
+}
+
+// The absence of a rel="next" link is what ends the loop. A publisher that kept asking would spin
+// against a real repository rather than post anything.
+func TestPRCommentStopsAtTheLastPage(t *testing.T) {
+	var gets int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			gets++
+			// A Link header that offers only a previous page must not be followed.
+			w.Header().Set("Link", `<https://api.github.com/x?page=1>; rel="prev"`)
+			_, _ = w.Write([]byte(`[{"id":3,"body":"chatter"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"id":12}`))
+	}))
+	defer srv.Close()
+	prEnv(t, srv.URL)
+
+	p, _ := For(saga.PublisherConfig{Kind: "github-pr-comment"})
+	if err := p.Publish(context.Background(), []report.Artifact{mdArtifact()}); err != nil {
+		t.Fatal(err)
+	}
+	if gets != 1 {
+		t.Errorf("listed %d pages, want 1 — only rel=\"next\" is a next page", gets)
+	}
+}
+
+func TestNextPageURL(t *testing.T) {
+	cases := map[string]string{
+		`<https://api.github.com/x?page=2>; rel="next"`:                                 "https://api.github.com/x?page=2",
+		`<https://api.github.com/x?page=1>; rel="prev", <https://y?page=3>; rel="next"`: "https://y?page=3",
+		`<https://api.github.com/x?page=9>; rel="last"`:                                 "",
+		``: "",
+	}
+	for header, want := range cases {
+		if got := nextPageURL(header); got != want {
+			t.Errorf("nextPageURL(%q) = %q, want %q", header, got, want)
+		}
+	}
+}
