@@ -330,3 +330,30 @@ func TestIdentitySeparatesComponentsAndRepositories(t *testing.T) {
 		t.Errorf("a finding that moved lines read as new: %d new, %d unchanged", len(same.New), len(same.Unchanged))
 	}
 }
+
+// A code-scanning upload carries only what the reviewed checkout can anchor.
+//
+// Paths are repository-relative, so a finding from another repository resolves to a same-named
+// file here — an annotation on a line that does not have that problem. Findings belonging to no
+// repository are kept: an image finding is located at an image reference, and dropping those would
+// take most of a container scan off the surface a reviewer reads.
+func TestOnlyRepositoryKeepsWhatThisCheckoutCanAnchor(t *testing.T) {
+	r := Result{New: []sarif.Result{
+		{RuleID: "HERE", Repository: "https://github.com/acme/web.git"},
+		{RuleID: "ELSEWHERE", Repository: "https://github.com/acme/api.git"},
+		{RuleID: "NO-REPO"}, // an image finding: no checkout, no path to anchor
+	}}
+	got := r.OnlyRepository("https://github.com/acme/web")
+
+	var ids []string
+	for _, f := range got.New {
+		ids = append(ids, f.RuleID)
+	}
+	if want := []string{"HERE", "NO-REPO"}; !slices.Equal(ids, want) {
+		t.Errorf("new = %v, want %v", ids, want)
+	}
+	// No repository asked for means no filtering, so every other caller is unaffected.
+	if n := len(r.OnlyRepository("").New); n != 3 {
+		t.Errorf("an empty reference filtered anyway: %d of 3 kept", n)
+	}
+}

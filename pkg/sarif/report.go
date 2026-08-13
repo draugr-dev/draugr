@@ -517,6 +517,43 @@ func ParseLevel(s string) (Level, error) {
 	}
 }
 
+// SameRepository reports whether two repository references name the same repository.
+//
+// Tolerant on purpose: a descriptor may say `https://host/org/repo.git`, `git@host:org/repo.git`
+// or `.`, and a CI environment says `org/repo`. Comparing them literally would answer "different"
+// for the same repository and quietly drop its findings, which is worse than the problem this is
+// used to solve.
+//
+// Compares the last two path segments, case-insensitively, without scheme or `.git` — enough to
+// tell one project from another, and not so much that a clone URL's shape decides the answer.
+func SameRepository(a, b string) bool {
+	na, nb := normalizeRepository(a), normalizeRepository(b)
+	return na != "" && na == nb
+}
+
+// normalizeRepository reduces a repository reference to "org/repo", lowercased.
+func normalizeRepository(ref string) string {
+	s := strings.TrimSuffix(strings.TrimSpace(ref), ".git")
+	if i := strings.Index(s, "://"); i >= 0 {
+		s = s[i+3:]
+	}
+	// scp-style: git@host:org/repo
+	if i := strings.LastIndex(s, "@"); i >= 0 {
+		s = s[i+1:]
+	}
+	s = strings.ReplaceAll(s, ":", "/")
+	parts := []string{}
+	for _, p := range strings.Split(s, "/") {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	if len(parts) > 2 {
+		parts = parts[len(parts)-2:]
+	}
+	return strings.ToLower(strings.Join(parts, "/"))
+}
+
 // RepositoryRef is the repository a scan read, and the commit it read.
 //
 // Recorded by repository scanners as Provenance fields rather than as a typed member of Report,

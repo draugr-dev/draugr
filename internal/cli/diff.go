@@ -23,6 +23,7 @@ type diffOptions struct {
 	failOnNew         string
 	failOnNewPriority string
 	minPriority       string
+	repository        string
 	publish           bool
 }
 
@@ -45,6 +46,10 @@ func newDiffCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "", "fail if a new finding is at or above this severity: error, warning, note")
 	cmd.Flags().StringVar(&opts.failOnNewPriority, "fail-on-new-priority", "", "fail if a new finding is at or above this priority (P1-P4)")
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "report only new findings at or above this priority band (P1-P4); fixed and unchanged are unaffected")
+	cmd.Flags().StringVar(&opts.repository, "repository", "",
+		"keep only new findings from this repository, plus those belonging to none (an image, a "+
+			"host). For a code-scanning upload, whose paths anchor to one checkout — a finding "+
+			"from elsewhere would annotate a same-named file here")
 	cmd.Flags().BoolVar(&opts.publish, "publish", false, "post the diff as a sticky pull-request comment (GitHub or Azure DevOps, detected from the CI environment)")
 	return cmd
 }
@@ -78,7 +83,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 
 	// Narrowed after the comparison, never before it: a diff computed from filtered inputs reads
 	// every finding the filter removed as fixed.
-	result := diff.Compare(base, head).NarrowNew(opts.minPriority)
+	result := diff.Compare(base, head).NarrowNew(opts.minPriority).OnlyRepository(opts.repository)
 	if err := diff.Render(w, opts.format, result); err != nil {
 		return err
 	}

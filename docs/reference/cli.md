@@ -565,6 +565,7 @@ complete regardless of `--min-priority`.
 |------|---------|-------------|
 | `--format` | `console` | output format: `console`, `json`, `markdown`, `sarif`. `sarif` emits the **new** findings only, for code scanning on a pull request |
 | `--min-priority` | — | report only **new** findings at or above this priority band (`P1`–`P4`); fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
+| `--repository` | — | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
 | `--fail-on-new` | — | fail if a **new** finding is at or above this severity: `error`, `warning`, `note` |
 | `--fail-on-new-priority` | — | fail if a **new** finding is at or above this priority (`P1`–`P4`) |
 | `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment` or `azure-pr-comment` from the CI environment; no-ops off a PR |

@@ -363,3 +363,34 @@ func TestSARIFRoundTripKeepsWhatIdentifiesAFinding(t *testing.T) {
 		t.Error("two findings came back sharing one identity; a diff would report only one of them")
 	}
 }
+
+// Repository references are compared by what they name, not how they are spelled.
+//
+// A descriptor may say a clone URL, an ssh remote or a bare path; CI says "org/repo". Comparing
+// them literally answers "different" for the same repository — and the caller of this drops
+// findings on that answer, so a false negative loses a real finding.
+func TestSameRepository(t *testing.T) {
+	same := [][2]string{
+		{"https://github.com/acme/web.git", "https://github.com/acme/web"},
+		{"https://github.com/acme/web.git", "git@github.com:acme/web.git"},
+		{"https://github.com/acme/web", "acme/web"},
+		{"https://GITHUB.com/Acme/Web.git", "acme/web"},
+		{"https://dev.azure.com/org/proj/_git/web", "proj/_git/web"},
+	}
+	for _, p := range same {
+		if !SameRepository(p[0], p[1]) {
+			t.Errorf("SameRepository(%q, %q) = false, want true", p[0], p[1])
+		}
+	}
+	differ := [][2]string{
+		{"https://github.com/acme/web", "https://github.com/acme/api"},
+		{"https://github.com/acme/web", "https://github.com/other/web"},
+		{"", "acme/web"}, // nothing to compare is not a match
+		{"acme/web", ""}, // and neither is the other way round
+	}
+	for _, p := range differ {
+		if SameRepository(p[0], p[1]) {
+			t.Errorf("SameRepository(%q, %q) = true, want false", p[0], p[1])
+		}
+	}
+}

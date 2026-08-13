@@ -10,7 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **A pull request is no longer annotated with another repository's findings.** A descriptor can
+  describe several repositories — its own components, or ones a `fragments:` entry contributes from
+  another project — and their paths are relative to themselves. Uploaded to code scanning here, a
+  finding from elsewhere landed on a same-named file in this repository, on a line that does not
+  have that problem. The GitHub Action now drops them from the upload; they remain in the scan, the
+  artifacts and the pull-request comment. Findings belonging to no repository, like an image's, are
+  unaffected.
+
+### Added
+
+- **`draugr diff --repository`** — keep only new findings from one repository, plus those belonging
+  to none. What the Action uses for the above, and what to reach for when uploading to any surface
+  whose paths anchor to a single checkout.
 
 ## [0.84.0] - 2026-08-12
 

@@ -53,6 +53,19 @@ config:
       minPriority: P1    # this report only; the JSON beside it stays complete
 ```
 
+### A descriptor that describes more than one repository
+
+A component may hold several repositories, and a [fragment](saga-fragments.md) may contribute one
+from another project. Their findings carry paths relative to **their own** repository, so uploading
+them here would annotate a same-named file in this one — a squiggle on a line that does not have
+that problem.
+
+The Action drops them from the upload automatically. It is not a setting, because there is no case
+where annotating another repository's finding on this checkout is what you want. They stay in the
+scan, in the artifacts and in the pull-request comment, where a regression in a fragment-contributed
+repository is real news a reviewer should see. Findings that belong to no repository — an image's,
+a host's — are unaffected, because they were never anchored to a checkout.
+
 ### What narrowing does to existing alerts
 
 **Code scanning resolves any alert missing from an upload as fixed** — within the ref and category
