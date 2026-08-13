@@ -2,7 +2,8 @@
 // the "where" of reporting — separate from the Reporter (the "what", pkg/report) — so a scan
 // can render several formats once and deliver them to several destinations.
 //
-// Built-in publishers: file. Each publisher is configured from a saga.PublisherConfig.
+// Each publisher is configured from a saga.PublisherConfig and named by its kind; Kinds lists
+// the built-in set.
 package publish
 
 import (
@@ -41,6 +42,7 @@ var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
 	"github":            newGithubPublisher,
 	"github-pr-comment": newGithubPRCommentPublisher,
 	"azure-pr-comment":  newAzurePRCommentPublisher,
+	"gitlab-mr-comment": newGitLabMRCommentPublisher,
 }
 
 // For resolves a configured publisher, validating its kind and required fields.

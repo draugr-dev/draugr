@@ -78,10 +78,12 @@ bespoke summary line, a Slack payload, or any custom text without writing code.
 | `github` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `github-pr-comment` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `azure-pr-comment` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
+| `gitlab-mr-comment` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga — every token comes from an environment variable, and
 each no-ops outside its own context (not in CI, or no PR) so the same Saga still runs locally.
-Both PR publishers upsert one **sticky** comment, updated in place on each push, and pair with
+Every comment publisher upserts one **sticky** comment, updated in place on each push, and
+pairs with
 [`draugr diff --publish`](pr-diff.md) for a PR security delta. The `github` publisher pairs with
 [code scanning](code-scanning.md).
 
@@ -124,6 +126,42 @@ quotes the report in a reply gets their words left alone.
 The thread is created **active**. If your branch policy requires all comments to be resolved
 before merging, someone has to resolve Draugr's thread; set a distinct `marker` per pipeline if
 you run more than one Draugr scan against the same pull request.
+
+### GitLab
+
+Everything defaults from the runner environment, so the whole configuration is:
+
+```yaml
+config:
+  reports:
+    - format: markdown
+  publishers:
+    - kind: gitlab-mr-comment
+```
+
+**`CI_JOB_TOKEN` cannot post the comment.** GitLab puts it in every job, and it is read-only on the
+notes API — it can list notes and not write one. So the publisher reads `GITLAB_TOKEN`, which has to
+be a project or group access token with **`api`** scope and at least **Developer** role, added under
+*Settings → CI/CD → Variables* as a masked variable:
+
+```yaml
+draugr:
+  variables:
+    GITLAB_TOKEN: $DRAUGR_GITLAB_TOKEN
+```
+
+Draugr names this in the error rather than letting the job token produce an unexplained 401.
+
+A merge-request pipeline has to exist for there to be anything to comment on. Branch pipelines
+carry no `CI_MERGE_REQUEST_IID`, and the publisher no-ops there, so one Saga serves both.
+
+The project is taken from `CI_PROJECT_ID`. Setting `repo` to a full path instead works too, groups
+and all — `group/subgroup/project` is encoded for you.
+
+Draugr's own notes are told apart from GitLab's by the marker, and system notes ("added 3 commits",
+"marked as draft") are never candidates for the edit. The note list is read in full rather than a
+first page, so a long discussion cannot push the marker out of sight and turn the sticky comment
+into a new one each run.
 
 ## Compact output, for tools and agents
 

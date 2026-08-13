@@ -568,7 +568,7 @@ complete regardless of `--min-priority`.
 | `--repository` | — | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
 | `--fail-on-new` | — | fail if a **new** finding is at or above this severity: `error`, `warning`, `note` |
 | `--fail-on-new-priority` | — | fail if a **new** finding is at or above this priority (`P1`–`P4`) |
-| `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment` or `azure-pr-comment` from the CI environment; no-ops off a PR |
+| `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
 ```bash
 draugr diff base/results.sarif head/results.sarif                     # console delta

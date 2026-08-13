@@ -95,21 +95,23 @@ func TestRunDiffBadFormat(t *testing.T) {
 }
 
 func TestDiffPublisherFollowsTheCIItIsRunningOn(t *testing.T) {
-	// Hardcoding GitHub made --publish a flag that silently did nothing on an Azure agent: the
-	// GitHub publisher no-ops when it cannot see GITHUB_ACTIONS, so the run stayed green and the
-	// comment never appeared.
-	t.Run("azure", func(t *testing.T) {
-		t.Setenv("TF_BUILD", "True")
-		if got := diffPublisherKind(); got != "azure-pr-comment" {
-			t.Errorf("on an Azure agent --publish would use %q", got)
-		}
-	})
-	t.Run("github and anywhere else", func(t *testing.T) {
-		t.Setenv("TF_BUILD", "")
-		if got := diffPublisherKind(); got != "github-pr-comment" {
-			t.Errorf("diffPublisherKind() = %q", got)
-		}
-	})
+	// Every comment publisher no-ops when it cannot see its own CI system, so naming the wrong one
+	// costs nothing visible: the run stays green and no comment appears. --publish either posts or
+	// says why it did not, which means the choice has to follow the agent rather than a default.
+	cases := []struct{ name, tfBuild, gitlabCI, want string }{
+		{"azure", "True", "", "azure-pr-comment"},
+		{"gitlab", "", "true", "gitlab-mr-comment"},
+		{"github and anywhere else", "", "", "github-pr-comment"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("TF_BUILD", tc.tfBuild)
+			t.Setenv("GITLAB_CI", tc.gitlabCI)
+			if got := diffPublisherKind(); got != tc.want {
+				t.Errorf("diffPublisherKind() = %q, want %q", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestDiffUsesItsOwnStickyComment(t *testing.T) {

@@ -43,7 +43,7 @@ func TestFilePublisherRequiresDir(t *testing.T) {
 
 func TestKinds(t *testing.T) {
 	got := Kinds()
-	want := []string{"azure-pr-comment", "file", "github", "github-pr-comment"}
+	want := []string{"azure-pr-comment", "file", "github", "github-pr-comment", "gitlab-mr-comment"}
 	if len(got) != len(want) {
 		t.Fatalf("Kinds() = %v, want %v", got, want)
 	}

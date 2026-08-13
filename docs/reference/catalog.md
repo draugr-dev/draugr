@@ -112,11 +112,12 @@ every rendered report is delivered to every publisher.
 | `github` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `github-pr-comment` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `azure-pr-comment` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
+| `gitlab-mr-comment` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga — every token comes from an environment variable, and
 each no-ops outside its own context (not in CI, or no PR) so the same Saga still runs locally.
-Both PR publishers upsert one **sticky** comment (updated in place on each push rather than
-posting a new one) and pair with
+Every comment publisher upserts one **sticky** comment (updated in place on each push rather
+than posting a new one) and pairs with
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif) for a PR security delta. Code
 scanning is free for public repos; private repos need GitHub Advanced Security.
 

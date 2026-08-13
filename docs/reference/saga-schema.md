@@ -312,6 +312,14 @@ comes from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`), which a pipeline must map into
 explicitly — see [reports & publishers](../guides/reports-and-publishers.md#azure-devops) for
 that and for the repository permission the build identity needs.
 
+The **`gitlab-mr-comment`** publisher is the GitLab counterpart, with the same sticky behaviour.
+The project and the merge-request IID default from the GitLab CI environment, so
+`kind: gitlab-mr-comment` on its own is usually the whole configuration; `repo` accepts a numeric
+project id or a full path, groups included. The token comes from `$GITLAB_TOKEN` (or `tokenEnv`)
+and must carry **`api`** scope — `CI_JOB_TOKEN` is read-only on the notes API and cannot post,
+which is worth knowing before reaching for the variable GitLab already provides. See
+[reports & publishers](../guides/reports-and-publishers.md#gitlab).
+
 ## Licence policy (`controllers.licenses`)
 
 ```yaml
