@@ -120,8 +120,11 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0, "max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency")
 	cmd.Flags().StringVar(&opts.format, "format", "console",
 		"what to print: "+strings.Join(report.StreamFormats, ", "))
+	// Built from the registry, not restated. --format already does this; --report listed its
+	// formats by hand, so a format could ship, work, and be undiscoverable from the one place a
+	// user looks for the list.
 	cmd.Flags().StringSliceVar(&opts.reports, "report", nil,
-		"formats to write into -o (console, markdown, html, junit, json, sarif, vex); default json,sarif")
+		"formats to write into -o ("+strings.Join(report.Formats(), ", ")+"); default json,sarif")
 	cmd.Flags().StringVar(&opts.template, "template", "", "inline Go text/template (with --format template)")
 	cmd.Flags().StringVar(&opts.templateFile, "template-file", "", "Go text/template file (with --format template)")
 	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")

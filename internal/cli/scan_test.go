@@ -1146,3 +1146,22 @@ func TestDeclaredBandPrefersTheFlag(t *testing.T) {
 		t.Errorf("a markdown report's band must not narrow the sarif: got %q", got)
 	}
 }
+
+// The --report help lists what the registry actually holds.
+//
+// A format can ship, work, and still be undiscoverable: --report listed its formats as a hand-
+// written string, so a new one appeared nowhere a user looks. Nothing failed — `--report
+// gitlab-codequality` worked the whole time — which is why the drift survived a release.
+func TestReportFlagListsEveryFormat(t *testing.T) {
+	cmd := newRootCommand()
+	scan, _, err := cmd.Find([]string{"scan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage := scan.Flags().Lookup("report").Usage
+	for _, f := range report.Formats() {
+		if !strings.Contains(usage, f) {
+			t.Errorf("--report help does not mention %q, so nobody finds it: %s", f, usage)
+		}
+	}
+}
