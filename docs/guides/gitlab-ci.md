@@ -117,11 +117,12 @@ handles both:
 - **Spec version.** GitLab reads CycloneDX **1.4, 1.5 or 1.6** and rejects anything else outright.
   Syft emits 1.7, so a raw Syft SBOM is reported as *"could not be parsed"* rather than partially
   read.
-- **Its own property namespace.** The manifest a package came from and its package manager have to
-  be stated as `gitlab:dependency_scanning:input_file:path` and
-  `gitlab:dependency_scanning:package_manager:name`. Without the first, GitLab will not run its own
-  dependency scanning against the SBOM at all — and the Dependency List shows *Location* and
-  *Packager* as **unknown**.
+- **Its own property namespace, behind a required flag.** The manifest a package came from is
+  stated as `gitlab:dependency_scanning:input_file:path`, and GitLab reads it only if the document
+  also declares `gitlab:meta:schema_version`. Without that flag every `gitlab:` property is ignored
+  — quietly, because packages still show names, versions and licences from plain CycloneDX and
+  GitLab infers the packager from a purl. What goes missing is *Location*, and with it GitLab's own
+  dependency scanning against the SBOM.
 
 So Draugr renders a **`gitlab-cyclonedx`** view of the SBOM it already produces: the same packages,
 at a version GitLab accepts, with those two facts translated from what Syft recorded. Draugr's own

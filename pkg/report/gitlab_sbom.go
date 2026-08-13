@@ -20,6 +20,18 @@ const gitlabSBOMSpecVersion = "1.6"
 // gitlabInputFileProperty is the manifest a package was declared in, as GitLab names it.
 const gitlabInputFileProperty = "gitlab:dependency_scanning:input_file:path"
 
+// gitlabSchemaVersionProperty tells GitLab how to read the properties below it, and is required.
+//
+// Not optional metadata: without it GitLab ignores every `gitlab:` property in the document, and
+// does so quietly. The packages still appear — their names, versions and licences are plain
+// CycloneDX, and the package manager can be inferred from a purl — so the report looks almost
+// right. What goes missing is everything only these properties carry: the manifest each package was
+// declared in, and with it GitLab's own dependency scanning.
+const (
+	gitlabSchemaVersionProperty = "gitlab:meta:schema_version"
+	gitlabSchemaVersionValue    = "1"
+)
+
 // gitlabSBOMReporter renders the SBOM in the dialect GitLab reads.
 //
 // A separate document rather than a change to the SBOM Draugr already writes. That one is correct
@@ -81,6 +93,8 @@ func (gitlabSBOMReporter) Render(w io.Writer, d Data) error {
 // With several manifests there is no single answer, and inventing one would attribute a package to
 // a file that does not declare it. The per-component paths still stand.
 func gitlabStampMetadata(doc map[string]any, comps []any) {
+	gitlabSetMetadataProperty(doc, gitlabSchemaVersionProperty, gitlabSchemaVersionValue)
+
 	files := map[string]bool{}
 	for _, raw := range comps {
 		c, _ := raw.(map[string]any)
@@ -96,15 +110,19 @@ func gitlabStampMetadata(doc map[string]any, comps []any) {
 	for f := range files {
 		only = f
 	}
+	gitlabSetMetadataProperty(doc, gitlabInputFileProperty, only)
+}
+
+// gitlabSetMetadataProperty adds a document-level property, creating the metadata block if the SBOM
+// has none.
+func gitlabSetMetadataProperty(doc map[string]any, name, value string) {
 	meta, ok := doc["metadata"].(map[string]any)
 	if !ok {
 		meta = map[string]any{}
 		doc["metadata"] = meta
 	}
 	props, _ := meta["properties"].([]any)
-	meta["properties"] = append(props, map[string]any{
-		"name": gitlabInputFileProperty, "value": only,
-	})
+	meta["properties"] = append(props, map[string]any{"name": name, "value": value})
 }
 
 // gitlabPropertyValue reads one property by name, or "" when it is absent.
