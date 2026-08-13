@@ -9,6 +9,10 @@ order: 16
 
 There is no extension to install and no CI/CD Catalog component to add. Draugr is a single binary.
 
+A complete, commented `.gitlab-ci.yml` is at
+[`examples/gitlab-ci.yml`](../../examples/gitlab-ci.yml) — copy that if you would rather start from
+a working file than from prose.
+
 ## Set it up
 
 Include the template and add one variable.

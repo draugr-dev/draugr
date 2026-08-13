@@ -11,6 +11,10 @@ Draugr can upload its merged SARIF straight to GitHub **code scanning** (the Sec
 the native **`github`** publisher — no separate `upload-sarif` step. Code scanning is free for
 public repos; private repos need GitHub Advanced Security.
 
+> **On GitLab?** There is no upload: GitLab reads its own schema from build artifacts rather than
+> SARIF, so the equivalent is a set of report formats and a template that collects them. See
+> [use in CI with GitLab](gitlab-ci.md).
+
 ## 1. Declare the publisher in your Saga
 
 The `github` publisher requires a `sarif` report in `config.reports`. It never stores a secret

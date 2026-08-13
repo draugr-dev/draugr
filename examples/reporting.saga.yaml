@@ -18,6 +18,12 @@ config:
   # and template (a Go text/template — no code needed).
   reports:
     - format: sarif                 # for code scanning / dashboards
+    # GitLab reads its own schema rather than SARIF, and collects these as build artifacts.
+    # gitlab-codequality shows in the merge request on any tier; the two security reports feed
+    # the Vulnerability Report, which is Ultimate.
+    - format: gitlab-codequality
+    - format: gitlab-sast
+    - format: gitlab-secret-detection
     - format: markdown              # a portable report (MR comment, wiki)
     - format: html                  # a shareable, browser-viewable artifact
     - format: template              # a custom payload — e.g. a one-line summary
@@ -38,6 +44,15 @@ config:
       # repo: acme/my-app
       # ref: refs/heads/main
       # tokenEnv: GH_PAT            # name the env var that holds the token
+
+    - kind: gitlab-mr-comment       # a sticky merge-request comment on GitLab
+      # The project and the merge request are read from the runner (CI_PROJECT_ID /
+      # CI_MERGE_REQUEST_IID), so this line is usually the whole configuration. On a branch
+      # pipeline it no-ops, which is what lets one Saga serve both.
+      #
+      # The token comes from $GITLAB_TOKEN and needs `api` scope. CI_JOB_TOKEN is read-only on
+      # the notes API and cannot post, so it is not a substitute — Draugr says so rather than
+      # letting it fail as a bare 401.
 
 # Two components, because the reports this example is about only earn their shape with more than
 # one: the console gains a per-component verdict, the markdown report a component table, and a

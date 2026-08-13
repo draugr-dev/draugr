@@ -1,0 +1,42 @@
+# Example .gitlab-ci.yml: one Draugr job serving both merge requests and the default branch.
+#
+# Copy this into your project root. The template does the rest — on a merge request it scans the
+# head and the merge base and posts one sticky comment with the delta; on the default branch it
+# scans and gates the whole descriptor. Both feed GitLab's own surfaces.
+#
+# Pair it with a Saga that enables `config.sbom`, which is what fills the Dependency List and the
+# License Compliance tab (see examples/reporting.saga.yaml).
+#
+# ONE THING TO SET UP: Settings → CI/CD → Variables → add a *masked* variable named GITLAB_TOKEN
+# holding a project or group access token with `api` scope. The CI_JOB_TOKEN GitLab puts in every
+# job is read-only on the notes API, so the sticky comment cannot be posted with the credential
+# that is already there. Without it the job still scans and still gates — only the comment is
+# missing, and Draugr says which variable it wanted.
+
+include:
+  # `remote:` and not `project:` — `include: project:` resolves against your own GitLab instance,
+  # and Draugr is not on it. Pin the tag: the URL is fetched at pipeline time, so an unpinned
+  # include changes under a pipeline that has not changed.
+  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.87.0/gitlab-ci/draugr.yml'
+
+stages: [test]
+
+# Everything below is optional — the defaults are the sensible ones.
+draugr:
+  variables:
+    # The descriptor to run. Defaults to draugr.saga.yaml in the project root.
+    DRAUGR_SAGA: draugr.saga.yaml
+
+    # Fail a merge request on what it introduces rather than on the backlog it inherited.
+    # Empty disables the differential gate.
+    DRAUGR_FAIL_ON_NEW_PRIORITY: P1
+
+    # Gating the default branch and populating GitLab's merge-request widgets are mutually
+    # exclusive: GitLab baselines those widgets against the default branch's last *successful*
+    # pipeline, so a branch that legitimately fails the gate never establishes one. Set this to
+    # "false" to keep the default branch green and reporting, and leave gating to merge requests.
+    DRAUGR_GATE_DEFAULT_BRANCH: "true"
+
+    # Semgrep backs the `sast` control and Draugr does not distribute it, so the template installs
+    # it. Turn off if your descriptor does not enable `sast`, or if your image already has it.
+    DRAUGR_SEMGREP: "true"
