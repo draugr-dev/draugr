@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.88.2] - 2026-08-13
+
 ### Fixed
 
 - **GitLab now reads the properties in the SBOM at all.** The document did not declare
@@ -3826,7 +3830,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.88.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.88.2...HEAD
+[0.88.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.88.2
 [0.88.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.88.1
 [0.88.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.88.0
 [0.87.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.87.0
