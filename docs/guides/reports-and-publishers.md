@@ -26,6 +26,9 @@ Scan results render through a pluggable **Reporter**, selected on the CLI with
 | `json` | machine-readable report |
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
 | `vex` | [OpenVEX](vex.md) — which of these vulnerabilities actually affect your product, for the people who consume your SBOM |
+| `gitlab-sast` | GitLab's own security schema, for its Vulnerability Report. Written as a build artifact, not uploaded — GitLab has no endpoint. See [below](#gitlabs-own-report-formats) |
+| `gitlab-secret-detection` | the same, for leaked credentials |
+| `gitlab-codequality` | GitLab Code Quality — every finding, in the merge request, on **any** tier |
 | `template` | custom payload from a Go `text/template` (inline or file) — no code needed |
 
 `-o/--output <dir>` always writes `report.json` + `results.sarif` regardless of `--format`.
@@ -162,6 +165,76 @@ Draugr's own notes are told apart from GitLab's by the marker, and system notes 
 "marked as draft") are never candidates for the edit. The note list is read in full rather than a
 first page, so a long discussion cannot push the marker out of sight and turn the sticky comment
 into a new one each run.
+
+## GitLab's own report formats
+
+GitLab does not read SARIF. It reads its own schema, and there is no endpoint to upload one to — a
+job declares `artifacts: reports:` and the runner collects the file. So GitLab's equivalent of
+pushing to code scanning is a **report format**, not a publisher, and it composes with `-o` and the
+`file` publisher you already have.
+
+```yaml
+config:
+  reports:
+    - format: gitlab-sast
+    - format: gitlab-secret-detection
+    - format: gitlab-codequality
+  publishers:
+    - kind: file
+      dir: ./draugr-out
+```
+
+```yaml
+# .gitlab-ci.yml
+artifacts:
+  reports:
+    sast: draugr-out/gl-sast-report.json
+    secret_detection: draugr-out/gl-secret-detection-report.json
+    codequality: draugr-out/gl-code-quality-report.json
+```
+
+### Which one a reader actually sees depends on the tier
+
+| Surface | Fed by | Tier |
+|---|---|---|
+| Merge request **Reports** tab | `gitlab-codequality` | Free, Premium, Ultimate |
+| Diff annotations, inline | `gitlab-codequality` | Ultimate |
+| Vulnerability Report, MR security widget | `gitlab-sast`, `gitlab-secret-detection` | Ultimate |
+
+On a Free or Premium project the security reports are produced and stored and nothing displays
+them. That is why `gitlab-codequality` carries **every** finding whatever its control, and the
+typed security reports carry only their own: the untyped one is what makes sure nothing Draugr
+found is invisible, whatever plan you are on.
+
+### Severity means something different in each, on purpose
+
+The security reports carry the **flaw's** severity. GitLab's merge-request approval policies gate
+on that field, and a Draugr priority has already folded in the component's exposure and
+criticality — handing one over would have those policies apply that context a second time.
+
+Code Quality carries the **priority**, because it has no policy engine behind it. It is a list a
+reviewer reads in order, and the useful order is the one that accounts for what the component is
+exposed to. The flaw's severity leads the description, so nothing is lost.
+
+| Priority | Code Quality severity |
+|---|---|
+| P1 | `blocker` |
+| P2 | `critical` |
+| P3 | `major` |
+| P4 | `minor` |
+
+### What these reports leave out
+
+**Suppressed findings.** GitLab has no notion of one somebody already accepted: it would show it as
+open and wait to be dismissed, asking again for a decision your Saga records with its reason and its
+author. They stay in Draugr's own report, marked.
+
+**`dependency_scanning` and `container_scanning`.** GitLab requires a structured package name and
+version on every dependency finding, and an image and operating system on every container one.
+Draugr's findings carry that detail as the scanner's prose rather than as fields, and parsing prose
+to fill a schema would put a guess where GitLab expects a fact. Those findings reach the merge
+request through `gitlab-codequality` until a finding carries the identity —
+[issue 723](https://github.com/draugr-dev/draugr/issues/723).
 
 ## Compact output, for tools and agents
 
