@@ -24,7 +24,7 @@ func TestGitleaksArgs(t *testing.T) {
 	want := []string{
 		"gitleaks", "dir", "/work/repo",
 		"--report-format", "sarif",
-		"--report-path", "/dev/stdout",
+		"--report-path", ReportPathToken,
 		"--exit-code", "0",
 		"--no-banner",
 	}

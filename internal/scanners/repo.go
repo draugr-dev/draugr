@@ -3,7 +3,9 @@ package scanners
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -41,6 +43,41 @@ type repoScanner struct {
 	// from a commit. One pass over history alone reports every finding at the path it had when it
 	// was introduced, so anything since renamed looks like something already dealt with.
 	historyArgs func(dir string, cfg plugin.Config) []string
+}
+
+// ReportPathToken marks the argv slot where a tool wants a path to write its report to. The
+// harness replaces it with a real file and reads that back.
+//
+// A tool that *opens* a file cannot be pointed at /dev/stdout. That is a symlink to the process's
+// own fd 1, and opening it is not the same as writing to the descriptor it inherited: where stdout
+// is a pipe — which is every containerised runner — the open lands somewhere the parent never
+// reads, and the tool exits 0 having written nothing. The parse then fails on empty input and
+// blames the JSON.
+const ReportPathToken = "{{draugr:report-path}}" // #nosec G101 -- an argv placeholder, not a credential
+
+// runReporting runs argv and returns what the tool produced: its stdout, or the file it was
+// pointed at when the argv asks for one.
+func (s repoScanner) runReporting(ctx context.Context, dir string, argv []string) ([]byte, error) {
+	i := slices.Index(argv, ReportPathToken)
+	if i < 0 {
+		return s.run(ctx, dir, argv)
+	}
+	f, err := os.CreateTemp("", "draugr-report-*.sarif")
+	if err != nil {
+		return nil, err
+	}
+	path := f.Name()
+	if err := f.Close(); err != nil {
+		return nil, err
+	}
+	defer func() { _ = os.Remove(path) }()
+
+	argv = slices.Clone(argv)
+	argv[i] = path
+	if _, err := s.run(ctx, dir, argv); err != nil {
+		return nil, err
+	}
+	return os.ReadFile(path) // #nosec G304 -- a path this function just created
 }
 
 // CacheVersion reports the scanner's tool/data version for the cache key, when one is wired
@@ -132,7 +169,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	defer cleanup()
 	dir := tree.Dir
 
-	out, err := s.run(ctx, dir, s.args(dir, cfg))
+	out, err := s.runReporting(ctx, dir, s.args(dir, cfg))
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
 	}
@@ -142,7 +179,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	}
 	if s.historyArgs != nil {
 		if argv := s.historyArgs(dir, cfg); len(argv) > 0 {
-			hist, err := s.run(ctx, dir, argv)
+			hist, err := s.runReporting(ctx, dir, argv)
 			if err != nil {
 				return sarif.Report{}, fmt.Errorf("run %s over history: %w", s.info.Name, err)
 			}

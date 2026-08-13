@@ -12,6 +12,14 @@ and move it under a version on release.
 
 ### Fixed
 
+- **The `secrets` control works in a container.** Draugr asked Gitleaks to write its report to
+  `/dev/stdout`, which is a symlink to the process's own file descriptor — opening it is not the
+  same as writing to the descriptor it inherited, and where stdout is a pipe (every containerised
+  runner: GitLab CI, a GitHub Actions container job, a Kubernetes runner, a local `docker run`)
+  the tool exited successfully having written nothing. The scan then reported
+  `parse gitleaks SARIF: unexpected end of JSON input`, which blames the JSON for a plumbing
+  problem. The tool is handed a real file now.
+
 - **`--log-level debug` no longer prints a repository's credentials.** Planning logged the whole
   target struct, and a checkout's URL or its resolved git remote carries whatever was used to fetch
   it — a CI runner writes a token straight into the remote, so this affected any pipeline running

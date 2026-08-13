@@ -82,7 +82,9 @@ func gitleaksCommand(mode, dir string, cfg plugin.Config) []string {
 	argv := []string{
 		"gitleaks", mode, dir,
 		"--report-format", "sarif",
-		"--report-path", "/dev/stdout",
+		// Not /dev/stdout: gitleaks opens this path, and opening a process's own fd 1 is not the
+		// same as writing to it. See ReportPathToken.
+		"--report-path", ReportPathToken,
 		"--exit-code", "0",
 		"--no-banner",
 	}
