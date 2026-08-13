@@ -10,6 +10,16 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`DRAUGR_GATE_DEFAULT_BRANCH`** in the GitLab template, because gating the default branch and
+  populating GitLab's merge-request widgets turn out to be mutually exclusive. GitLab baselines
+  those widgets against the default branch's last *successful* pipeline, so a project whose default
+  branch legitimately fails the gate never establishes one — the reports upload and there is
+  nothing to compare them against. On by default, since a gate that does not fail is not a gate;
+  set it to `"false"` to keep the default branch green and reporting, and leave gating to the
+  merge-request path. The guide gives the trade-off as a table.
+
 ### Fixed
 
 - **The GitLab template's merge-request diff compares the right two trees.** It named the base
