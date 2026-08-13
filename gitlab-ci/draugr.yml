@@ -33,10 +33,16 @@ variables:
   DRAUGR_FAIL_ON_NEW_PRIORITY: P1
   # Provision the scanners Draugr distributes. Turn off on a runner whose image already has them.
   DRAUGR_TOOLS: "true"
+  # Semgrep backs the `sast` control and Draugr does not distribute it. Turn off if your descriptor
+  # does not enable `sast`, or if your image already carries it — installing it costs about a minute.
+  DRAUGR_SEMGREP: "true"
 
 draugr:
   stage: test
-  image: alpine:3.22
+  # Debian-based and carrying pip, for two reasons the alpine equivalent does not survive: the
+  # scanners Draugr provisions are built against glibc, and Semgrep ships manylinux wheels that do
+  # not install on musl.
+  image: python:3.13-slim
   variables:
     # A diff needs the merge base, and GitLab clones 20 commits deep by default — so the commit to
     # compare against is usually absent. The job fetches that one commit, which is far cheaper than
@@ -44,7 +50,10 @@ draugr:
     GIT_DEPTH: 20
     DRAUGR_BASE_WORKTREE: /tmp/draugr-base
   before_script:
-    - apk add --no-cache bash curl git ca-certificates >/dev/null
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl git ca-certificates >/dev/null
+    # A runner clones as one user and may run the job as another; git then refuses to read the
+    # repository, and a scanner that shells out to it reports nothing rather than an error.
+    - git config --global --add safe.directory '*'
     - |
       set -euo pipefail
       if [ -n "${DRAUGR_VERSION:-}" ]; then
@@ -56,12 +65,17 @@ draugr:
       # provisions to the second. Neither is on a runner's PATH.
       export PATH="$HOME/.local/bin:$HOME/.draugr/bin:$PATH"
       if [ "${DRAUGR_TOOLS}" = "true" ]; then
-        # Draugr distributes the scanners it can verify. Semgrep is not one of them — it installs
-        # through pipx — so a descriptor enabling `sast` needs it added to the image, and `draugr
-        # doctor` names what is missing rather than reporting a control that quietly found nothing.
         draugr tools install -y --saga "${DRAUGR_SAGA}"
+        # Draugr distributes only the scanners it can verify, and Semgrep is not one of them. A
+        # descriptor enabling `sast` needs it on PATH, so the template installs it here rather than
+        # letting the control report that it quietly found nothing.
+        if [ "${DRAUGR_SEMGREP}" = "true" ]; then
+          pip install --quiet --no-cache-dir semgrep
+        fi
       fi
-      draugr doctor --saga "${DRAUGR_SAGA}" || true
+      # Names anything still missing, and the source to get it from. Non-fatal: the scan below
+      # reports a control that could not run, which is the error worth failing on.
+      draugr doctor "${DRAUGR_SAGA}" || true
   script:
     - |
       set -euo pipefail

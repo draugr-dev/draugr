@@ -10,7 +10,18 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **The GitLab template now runs the scanners it provisions.** It ran on Alpine, where the tools
+  Draugr distributes are built against glibc and Semgrep's wheels do not install at all — so a
+  pipeline installed Draugr, started, and reported `sast` and `secrets` as controls that could not
+  run. It uses a glibc image, installs Semgrep (`DRAUGR_SEMGREP`, on by default), and marks the
+  checkout safe for git, which a runner that clones and executes as different users otherwise
+  refuses to read.
+- **`draugr doctor` is invoked correctly by the template.** It was passed `--saga`, which that
+  command does not take; the surrounding `|| true` swallowed the error, so the step reported
+  success and never ran. Both CI templates are now checked against the real command tree, so a
+  flag a template passes has to exist.
 
 ## [0.86.1] - 2026-08-13
 
