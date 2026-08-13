@@ -103,8 +103,12 @@ draugr:
       draugr scan "${DRAUGR_SAGA}" -o draugr-out --report "${reports}" --no-publish --no-gate
 
       git worktree add --detach "${DRAUGR_BASE_WORKTREE}" "${base}"
-      draugr scan "${DRAUGR_BASE_WORKTREE}/${DRAUGR_SAGA}" \
-        -o draugr-base-out --no-publish --no-gate
+      # Scanned from inside the worktree, not by pointing at the descriptor in it. A component's
+      # `url: .` resolves against the working directory, so naming the base's descriptor while
+      # standing in the head checkout scans the head twice — and a diff of a tree against itself
+      # reports no change and passes every gate. -o is absolute for the same reason.
+      ( cd "${DRAUGR_BASE_WORKTREE}" && draugr scan "${DRAUGR_SAGA}" \
+          -o "${CI_PROJECT_DIR}/draugr-base-out" --no-publish --no-gate )
 
       gate=""
       if [ -n "${DRAUGR_FAIL_ON_NEW_PRIORITY:-}" ]; then
@@ -112,7 +116,7 @@ draugr:
       fi
       # --publish selects gitlab-mr-comment from the runner's own environment, and no-ops with an
       # explanation rather than an error when GITLAB_TOKEN is not set.
-      draugr diff draugr-base-out/results.sarif draugr-out/results.sarif --publish ${gate}
+      draugr diff "${CI_PROJECT_DIR}/draugr-base-out/results.sarif" draugr-out/results.sarif --publish ${gate}
   artifacts:
     # A blocked merge request is exactly when a reviewer needs to see why, and reports produced
     # only on success are reports nobody reads.

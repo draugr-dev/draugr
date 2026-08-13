@@ -159,3 +159,27 @@ func TestTheGitLabTemplateWritesWhatItDiffs(t *testing.T) {
 			reports[1])
 	}
 }
+
+// The base is scanned from inside its own worktree.
+//
+// A component's `url: .` resolves against the working directory, not against the descriptor's
+// location. Naming the base's descriptor while standing in the head checkout therefore scans the
+// head twice — and a diff of a tree against itself reports no change, posts a clean comment and
+// passes every differential gate. It fails green, which is the only way a gate can fail that
+// nobody notices.
+func TestTheGitLabTemplateScansTheBaseInItsWorktree(t *testing.T) {
+	doc := readGitLabTemplate(t)
+	script := scriptText(t, doc["draugr"].(map[string]any))
+
+	worktree := regexp.MustCompile(`git worktree add[^\n]*?"\$\{(\w+)\}"`).FindStringSubmatch(script)
+	if worktree == nil {
+		t.Fatal("the merge-request path no longer adds a worktree for the base")
+	}
+	dir := "${" + worktree[1] + "}"
+
+	// The base scan has to be preceded by a cd into that worktree, in the same subshell.
+	base := regexp.MustCompile(`\(\s*cd "` + regexp.QuoteMeta(dir) + `"\s*&&\s*draugr scan`)
+	if !base.MatchString(script) {
+		t.Errorf("the base scan does not run inside %s, so it scans the head checkout twice", dir)
+	}
+}
