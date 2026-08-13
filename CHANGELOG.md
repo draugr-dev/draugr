@@ -12,6 +12,12 @@ and move it under a version on release.
 
 ### Fixed
 
+- **CI builds on an exact Go patch release.** The workflows asked for `1.26`, and setup-go's version
+  manifest lags go.dev by a day or two — so a floating minor resolves to yesterday's patch, and
+  `govulncheck` fails every pull request for stdlib vulnerabilities that were fixed in the newer
+  one and that no pull request introduced. The release workflow is pinned too: the binary people
+  install should be built on the toolchain the gate was checked against.
+
 - **The dependency list's Location column is filled in.** `gitlab-cyclonedx` named the manifest on
   every package and not on the document, and GitLab reads the document-level property for that
   column — its own analyzers emit one SBOM per manifest, where Draugr emits one covering everything

@@ -82,7 +82,9 @@ jobs:
       # For contrib/demo/ansi2html, which turns the captured scan into the home page's fragment.
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.26"
+          # Exact patch: the released binary should be built on the toolchain the gate
+          # checked, not on whichever one setup-go resolved that morning.
+          go-version: "1.26.6"
 
       - name: Install Draugr (latest release)
         env:
