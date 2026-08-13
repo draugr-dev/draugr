@@ -20,6 +20,7 @@ frontmatter and is rendered by the docs site. This index and the `contributing/`
 ## Guides
 - [Use in CI with the GitHub Action](guides/github-action.md) — the first-party action and its inputs.
 - [Use in CI with Azure Pipelines](guides/azure-pipelines.md) — the pipeline, the Tests tab, and a sticky PR comment.
+- [Use in CI with GitLab](guides/gitlab-ci.md) — the template, a sticky MR comment, and GitLab's own reports.
 - [Publish to GitHub code scanning](guides/code-scanning.md) — the native `github` publisher.
 - [Gate PRs on new findings](guides/pr-diff.md) — `draugr diff` and sticky PR comments.
 - [See findings in your editor](guides/findings-in-your-editor.md) — SARIF as inline diagnostics in VS Code and JetBrains.

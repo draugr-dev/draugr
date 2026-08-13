@@ -1,0 +1,113 @@
+# Draugr for GitLab CI — the counterpart of the GitHub Action and the Azure Pipelines template.
+#
+# GitLab has no first-party Draugr component, so this template is the equivalent. Include it and
+# override any variable:
+#
+#   include:
+#     - project: draugr-dev/draugr
+#       ref: v0.86.0                      # pin a release; `main` moves
+#       file: /gitlab-ci/draugr.yml
+#
+#   draugr:
+#     variables:
+#       DRAUGR_SAGA: services/api/draugr.saga.yaml
+#       DRAUGR_FAIL_ON_NEW_PRIORITY: P1
+#
+# On a merge request it scans the head and the merge base and reports the delta as a sticky
+# comment, gated on what the change introduces. On the default branch it scans and gates the whole
+# descriptor. Both publish GitLab's own reports as artifacts.
+#
+# ONE THING TO SET UP: add a masked CI/CD variable named GITLAB_TOKEN holding a project or group
+# access token with `api` scope. The CI_JOB_TOKEN GitLab puts in every job is read-only on the
+# notes API — it can list comments and not write one — so the sticky comment cannot be posted with
+# the credential that is already there. Without it Draugr names the fix and the job carries on.
+
+variables:
+  DRAUGR_SAGA: draugr.saga.yaml
+  # Empty installs the latest release. Pin it for a pipeline that has to be reproducible.
+  DRAUGR_VERSION: ""
+  # Gate a merge request on what it introduces rather than on the backlog it inherited. Empty
+  # disables the differential gate; the descriptor's own gate still applies on the default branch.
+  DRAUGR_FAIL_ON_NEW_PRIORITY: P1
+  # Provision the scanners Draugr distributes. Turn off on a runner whose image already has them.
+  DRAUGR_TOOLS: "true"
+
+draugr:
+  stage: test
+  image: alpine:3.22
+  variables:
+    # A diff needs the merge base, and GitLab clones 20 commits deep by default — so the commit to
+    # compare against is usually absent. The job fetches that one commit, which is far cheaper than
+    # a full history. Set GIT_DEPTH: 0 instead if your instance refuses to serve a bare SHA.
+    GIT_DEPTH: 20
+    DRAUGR_BASE_WORKTREE: /tmp/draugr-base
+  before_script:
+    - apk add --no-cache bash curl git ca-certificates >/dev/null
+    - |
+      set -euo pipefail
+      if [ -n "${DRAUGR_VERSION:-}" ]; then
+        curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION="$DRAUGR_VERSION" sh
+      else
+        curl -fsSL https://draugr.dev/install.sh | sh
+      fi
+      # Two directories: install.sh writes Draugr to the first, and Draugr writes the scanners it
+      # provisions to the second. Neither is on a runner's PATH.
+      export PATH="$HOME/.local/bin:$HOME/.draugr/bin:$PATH"
+      if [ "${DRAUGR_TOOLS}" = "true" ]; then
+        # Draugr distributes the scanners it can verify. Semgrep is not one of them — it installs
+        # through pipx — so a descriptor enabling `sast` needs it added to the image, and `draugr
+        # doctor` names what is missing rather than reporting a control that quietly found nothing.
+        draugr tools install -y --saga "${DRAUGR_SAGA}"
+      fi
+      draugr doctor --saga "${DRAUGR_SAGA}" || true
+  script:
+    - |
+      set -euo pipefail
+      export PATH="$HOME/.local/bin:$HOME/.draugr/bin:$PATH"
+
+      # One scan renders every report. `-o` writes report.json and results.sarif; `--report` adds
+      # GitLab's own, which the runner collects from `artifacts: reports:` below.
+      reports="gitlab-sast,gitlab-secret-detection,gitlab-codequality"
+
+      if [ -z "${CI_MERGE_REQUEST_IID:-}" ]; then
+        # A branch pipeline: the whole descriptor, gated by its own policy.
+        draugr scan "${DRAUGR_SAGA}" -o draugr-out --report "${reports}"
+        exit $?
+      fi
+
+      # A merge request: the head, then the merge base, then the delta between them.
+      base="${CI_MERGE_REQUEST_DIFF_BASE_SHA}"
+      echo "diffing against the merge base ${base}"
+      git fetch --no-tags --depth 1 origin "${base}"
+
+      # --no-gate on both scans: the descriptor's own verdict is about the branch as a whole, and
+      # the question a merge request asks is what *this change* added. `draugr diff` is the gate.
+      draugr scan "${DRAUGR_SAGA}" -o draugr-out --report "${reports}" --no-publish --no-gate
+
+      git worktree add --detach "${DRAUGR_BASE_WORKTREE}" "${base}"
+      draugr scan "${DRAUGR_BASE_WORKTREE}/${DRAUGR_SAGA}" \
+        -o draugr-base-out --no-publish --no-gate
+
+      gate=""
+      if [ -n "${DRAUGR_FAIL_ON_NEW_PRIORITY:-}" ]; then
+        gate="--fail-on-new-priority ${DRAUGR_FAIL_ON_NEW_PRIORITY}"
+      fi
+      # --publish selects gitlab-mr-comment from the runner's own environment, and no-ops with an
+      # explanation rather than an error when GITLAB_TOKEN is not set.
+      draugr diff draugr-base-out/results.sarif draugr-out/results.sarif --publish ${gate}
+  artifacts:
+    # A blocked merge request is exactly when a reviewer needs to see why, and reports produced
+    # only on success are reports nobody reads.
+    when: always
+    paths:
+      - draugr-out/
+    reports:
+      # sast and secret_detection feed the Vulnerability Report and the merge-request security
+      # widget, which are Ultimate. codequality shows in the merge request's Reports tab on every
+      # tier, which is why it carries every finding rather than a typed subset.
+      sast: draugr-out/gl-sast-report.json
+      secret_detection: draugr-out/gl-secret-detection-report.json
+      codequality: draugr-out/gl-code-quality-report.json
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
