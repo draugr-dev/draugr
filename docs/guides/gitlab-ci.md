@@ -16,12 +16,18 @@ Include the template and add one variable.
 ```yaml
 # .gitlab-ci.yml
 include:
-  - project: draugr-dev/draugr
-    ref: v0.86.0                    # pin a release; `main` moves
-    file: /gitlab-ci/draugr.yml
+  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.86.0/gitlab-ci/draugr.yml'
 
 stages: [test]
 ```
+
+**`remote:`, not `project:`.** `include: project:` resolves against your own GitLab instance, and
+Draugr is not on it — that form fails with a project-not-found error that reads like a permissions
+problem. Pin the tag rather than `main`: the URL is fetched at pipeline time, so an unpinned
+include changes under a pipeline that has not changed.
+
+If your runners have no route to raw.githubusercontent.com, copy `gitlab-ci/draugr.yml` into your
+own repository and `include: local:` it; nothing in it is specific to where it is hosted.
 
 Then, in *Settings → CI/CD → Variables*, add a **masked** variable named `GITLAB_TOKEN` holding a
 project or group access token with **`api`** scope and at least **Developer** role.
