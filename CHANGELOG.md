@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **The GitLab template's merge-request diff has something to diff.** `--report` replaces the
+  default `json,sarif` rather than adding to it, so a job asking only for GitLab's own formats
+  wrote no `results.sarif` — and the diff then failed on a missing file, which points at the diff
+  rather than at the report list that caused it. The template names `sarif` explicitly, and a test
+  now checks that whatever the template diffs is a format it asked the scan to write.
 
 ## [0.86.2] - 2026-08-13
 

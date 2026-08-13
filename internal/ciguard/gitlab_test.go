@@ -2,6 +2,8 @@ package ciguard
 
 import (
 	"os"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -134,4 +136,26 @@ func scriptText(t *testing.T, job map[string]any) string {
 		t.Fatal("the draugr job runs nothing")
 	}
 	return b.String()
+}
+
+// The diff reads a file the scan has to have been asked for.
+//
+// `--report` replaces the default `json,sarif` rather than adding to it, so a template naming only
+// GitLab's own formats writes no results.sarif — and the merge-request path then fails on a
+// missing file, which points at the diff rather than at the report list that caused it.
+func TestTheGitLabTemplateWritesWhatItDiffs(t *testing.T) {
+	doc := readGitLabTemplate(t)
+	script := scriptText(t, doc["draugr"].(map[string]any))
+
+	if !strings.Contains(script, "results.sarif") {
+		return // the template no longer diffs sarif files
+	}
+	reports := regexp.MustCompile(`reports="([^"]+)"`).FindStringSubmatch(script)
+	if reports == nil {
+		t.Fatal("cannot find the report list the scan is given")
+	}
+	if !slices.Contains(strings.Split(reports[1], ","), "sarif") {
+		t.Errorf("the template diffs results.sarif but asks for %q, which does not include sarif",
+			reports[1])
+	}
 }
