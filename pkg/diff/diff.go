@@ -196,6 +196,30 @@ func (r Result) NarrowNew(band string) Result {
 	return r
 }
 
+// OnlyRepository keeps the new findings a given repository's checkout can actually anchor.
+//
+// Paths are repository-relative, so a finding from another repository uploaded against this one
+// resolves to a same-named file here — an annotation on a line that does not have that problem.
+// That is wrong rather than merely noisy, and there is no case where it is wanted, so this is not
+// offered as a preference.
+//
+// A finding with no repository is kept. Not everything Draugr reports comes from a checkout: an
+// image finding is located at an image reference and belongs to no repository, and dropping those
+// would remove most of a container scan from the surface a reviewer reads.
+func (r Result) OnlyRepository(ref string) Result {
+	if ref == "" {
+		return r
+	}
+	kept := make([]sarif.Result, 0, len(r.New))
+	for _, f := range r.New {
+		if f.Repository == "" || sarif.SameRepository(f.Repository, ref) {
+			kept = append(kept, f)
+		}
+	}
+	r.New = kept
+	return r
+}
+
 // GateNew returns the new findings that meet the differential gate: level at or above failOn
 // (when set) OR priority at or above failOnPriority (when set). An empty threshold disables
 // that dimension. With both empty, nothing is returned.
