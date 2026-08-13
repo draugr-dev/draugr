@@ -295,3 +295,38 @@ func TestNarrowNewKeepsOnlyTheBandAndOnlyForNew(t *testing.T) {
 		}
 	}
 }
+
+// The diff keys on what distinguishes a finding, not only where it is.
+//
+// identity deliberately drops the line and the level, because both drift without the finding
+// changing. Component and repository are the opposite: they do not drift, they are the subject.
+// Keyed without them a diff keeps whichever it saw first, and the other is reported as neither new
+// nor fixed — it is simply absent, on the surface a reviewer is told to trust.
+func TestIdentitySeparatesComponentsAndRepositories(t *testing.T) {
+	at := func(component, repository string) sarif.Result {
+		return sarif.Result{
+			Tool: "gitleaks", RuleID: "generic-api-key", Level: sarif.LevelError,
+			Message: "secret", Location: sarif.Location{URI: "config.py", StartLine: 1},
+			Component: component, Repository: repository,
+		}
+	}
+	head := sarif.Report{Results: []sarif.Result{
+		at("frontend", "repo-a"), // same file, same rule, different component
+		at("backend", "repo-a"),
+		at("platform", "repo-b"), // and a third project entirely
+	}}
+	if got := Compare(sarif.Report{}, head); len(got.New) != 3 {
+		t.Fatalf("new = %d, want 3 — one per component/repository", len(got.New))
+	}
+
+	// And a finding that only moved is still the same finding: the line is not part of identity.
+	moved := at("frontend", "repo-a")
+	moved.Location.StartLine = 99
+	same := Compare(
+		sarif.Report{Results: []sarif.Result{at("frontend", "repo-a")}},
+		sarif.Report{Results: []sarif.Result{moved}},
+	)
+	if len(same.Unchanged) != 1 || len(same.New) != 0 {
+		t.Errorf("a finding that moved lines read as new: %d new, %d unchanged", len(same.New), len(same.Unchanged))
+	}
+}

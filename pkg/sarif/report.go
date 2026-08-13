@@ -92,6 +92,13 @@ type Result struct {
 	// criticality, so a report showing the band without naming the component states a conclusion
 	// and withholds its premise.
 	Component string `json:"component,omitempty"`
+	// Repository is the repository this finding was found in, for a component that has more than
+	// one — or a fragment that contributed one from somewhere else.
+	//
+	// Paths are rewritten repository-relative so a finding can be anchored to a file, which means
+	// two repositories that share a path share everything else about a finding. Without this they
+	// are one finding, and the second repository's copy is discarded on the way in.
+	Repository string `json:"repository,omitempty"`
 	// Suppression is set when a Saga exclusion matched this finding. A suppressed result is
 	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
 	// Nil for an active finding.
@@ -173,6 +180,11 @@ func (r Result) Fingerprint() string {
 		// which can be the urgent one, and contradicts the whole claim that context decides
 		// priority.
 		r.Component,
+		// And the repository, for the same reason one level down: a component may hold several,
+		// and a fragment may contribute one from another project entirely. Two of them with the
+		// same file at the same line are two findings — one leaked credential per repository, not
+		// one between them.
+		r.Repository,
 	}, "\x00")))
 	return hex.EncodeToString(sum[:])
 }

@@ -1014,6 +1014,14 @@ components:
 **Control resolution:** a component-scoped control runs for a component when it is enabled
 on the component, or (absent an override) enabled globally under `config.controllers`.
 
+**Several repositories on one component** is supported and worth knowing the shape of: Draugr plans
+one job per repository and runs them concurrently, and paths in a finding are relative to the
+repository it came from. Two repositories that share a path therefore produce findings that look
+alike — so a finding records which repository it came from, that is part of what makes it a
+distinct finding, and the report grows a `Repository` column when findings span more than one.
+The same applies to repositories a [fragment](../guides/saga-fragments.md) contributes from another
+project.
+
 **Infrastructure namespaces:** `namespaces` narrows an infrastructure surface to the part of a
 cluster the component owns; omit it and the audit covers the whole cluster. Not every scanner can
 honour it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`

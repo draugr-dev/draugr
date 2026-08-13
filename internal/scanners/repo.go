@@ -171,6 +171,10 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		// because the temp dir differs between the base and head scans.
 		report.Results[i].Location.URI = repoRelPath(dir, report.Results[i].Location.URI)
 		report.Results[i].Message = stripCheckoutDir(dir, report.Results[i].Message)
+		// Which repository this came from. The path above is now relative to it, so without this
+		// two repositories sharing a path produce one finding — the same secret in two projects
+		// reported once, and nothing to say the second exists.
+		report.Results[i].Repository = repo.Source()
 	}
 	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
 	return report, nil

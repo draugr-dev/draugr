@@ -298,3 +298,68 @@ func TestRepositoriesIn(t *testing.T) {
 		t.Error("no reports should produce no repositories")
 	}
 }
+
+// A finding's identity includes the repository it was found in.
+//
+// Paths are rewritten repository-relative so a finding can be anchored to a file, which means two
+// repositories sharing a path share everything else. A component may hold several repositories,
+// and a fragment may contribute one from another project — so the same secret in two of them is
+// two leaked credentials, not one.
+func TestFingerprintSeparatesRepositories(t *testing.T) {
+	base := Result{Tool: "gitleaks", RuleID: "generic-api-key", Level: LevelError,
+		Message: "secret", Location: Location{URI: "config.py", StartLine: 1}, Component: "platform"}
+	alpha, beta := base, base
+	alpha.Repository = "https://example.test/alpha"
+	beta.Repository = "https://example.test/beta"
+
+	if alpha.Fingerprint() == beta.Fingerprint() {
+		t.Error("the same finding in two repositories is one finding; the second is discarded on merge")
+	}
+	// A descriptor with no multi-repository component is unaffected, so nothing changes for the
+	// case almost every reader has: two separately-built identical findings still match.
+	twin := Result{Tool: "gitleaks", RuleID: "generic-api-key", Level: LevelError,
+		Message: "secret", Location: Location{URI: "config.py", StartLine: 1}, Component: "platform"}
+	if base.Fingerprint() != twin.Fingerprint() {
+		t.Error("identical findings with no repository should still match")
+	}
+}
+
+// Component and repository have to survive being written and read back.
+//
+// Both are part of Fingerprint, and a report is written to a file and re-read by `draugr diff` on
+// every pull request. An identity that only exists in memory is not one: the file said which
+// component each finding belonged to, and the reader threw it away.
+func TestSARIFRoundTripKeepsWhatIdentifiesAFinding(t *testing.T) {
+	rep := Report{Tool: "Draugr", Results: []Result{
+		{Tool: "gitleaks", RuleID: "generic-api-key", Level: LevelError, Message: "secret",
+			Location:  Location{URI: "config.py", StartLine: 1},
+			Component: "frontend", Repository: "https://example.test/alpha", Priority: "P1"},
+		{Tool: "gitleaks", RuleID: "generic-api-key", Level: LevelError, Message: "secret",
+			Location:  Location{URI: "config.py", StartLine: 1},
+			Component: "backend", Repository: "https://example.test/alpha", Priority: "P4"},
+	}}
+	data, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Results) != 2 {
+		t.Fatalf("read back %d results, want 2", len(back.Results))
+	}
+	seen := map[string]bool{}
+	for _, r := range back.Results {
+		if r.Component == "" {
+			t.Errorf("a finding came back with no component: %+v", r)
+		}
+		if r.Repository == "" {
+			t.Errorf("a finding came back with no repository: %+v", r)
+		}
+		seen[r.Fingerprint()] = true
+	}
+	if len(seen) != 2 {
+		t.Error("two findings came back sharing one identity; a diff would report only one of them")
+	}
+}

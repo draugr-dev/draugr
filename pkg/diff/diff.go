@@ -85,7 +85,14 @@ func index(results []sarif.Result) map[string]sarif.Result {
 // underlying issue). For CVE findings (SCA/images) the ruleID is the CVE and the URI is the
 // package/image, so this is stable; for SAST it keys on rule + file + message.
 func identity(r sarif.Result) string {
-	return strings.Join([]string{r.Tool, r.RuleID, r.Location.URI, r.Message}, "\x00")
+	// Component and repository are included for the opposite reason line and level are not: they
+	// do not drift, they are the subject. The same flaw at the same line in two components is two
+	// findings carrying two classifications, so one can be P1 and the other P4; the same file in
+	// two repositories is two projects to fix. Keyed without them, a diff keeps whichever it saw
+	// first and reports the other as neither new nor fixed — it simply is not there.
+	return strings.Join([]string{
+		r.Tool, r.RuleID, r.Location.URI, r.Message, r.Component, r.Repository,
+	}, "\x00")
 }
 
 // sortResults orders most-urgent first: by priority, then numeric score, then SARIF level, then
