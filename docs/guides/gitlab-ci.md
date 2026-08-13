@@ -95,6 +95,7 @@ Draugr renders GitLab's formats rather than uploading anything.
 | Diff annotations, inline | `gitlab-codequality` | Ultimate |
 | **Vulnerability Report**, MR security widget | `gitlab-sast`, `gitlab-secret-detection` | Ultimate |
 | Sticky merge-request comment | the `markdown` report | any |
+| **Dependency List**, **License Compliance** | a CycloneDX SBOM, from `config.sbom` | Ultimate |
 
 On Free and Premium the security reports are produced and stored and nothing displays them. That
 is why `gitlab-codequality` carries **every** finding whatever its control, and the typed security
@@ -102,6 +103,27 @@ reports carry only their own — the untyped one is what keeps findings visible 
 
 See [reports & publishers](reports-and-publishers.md#gitlabs-own-report-formats) for the severity
 mapping in each, and what they deliberately leave out.
+
+### The Dependency List and License Compliance both come from the SBOM
+
+GitLab reads both out of a **CycloneDX SBOM** rather than a report of its own — the older
+`license_scanning` artifact is not what populates either. Draugr writes one per repository and
+image, with SPDX identifiers already in each component's `licenses`, which is the only form GitLab
+reads. Turn it on in the descriptor:
+
+```yaml
+config:
+  sbom:
+    enabled: true
+    format: cyclonedx-json
+    scope: both
+```
+
+The template collects `draugr-out/sbom-*.cdx.json` for you, and that one artifact fills both
+*Secure → Dependency List* and the merge request's *License Compliance* tab — each package with its
+version and its licence. Without `config.sbom` there is nothing to collect, the runner says so, and
+the rest of the job is unaffected — so those read as empty until you enable it. Requires Syft, which
+`draugr tools install` provisions.
 
 ## The widgets need a green default branch
 

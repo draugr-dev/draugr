@@ -63,6 +63,8 @@ func TestTheGitLabTemplateNamesFormatsThatExist(t *testing.T) {
 	}
 
 	// GitLab's report type -> the Draugr format that fills it.
+	// cyclonedx is deliberately absent: it collects the SBOM a scan writes when the descriptor
+	// enables config.sbom, which is not a --report format and has its own filenames.
 	want := map[string]string{ // #nosec G101 -- GitLab report type names, not credentials
 		"sast":             "gitlab-sast",
 		"secret_detection": "gitlab-secret-detection",
