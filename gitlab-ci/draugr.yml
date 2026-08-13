@@ -4,7 +4,7 @@
 # override any variable:
 #
 #   include:
-#     - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.88.1/gitlab-ci/draugr.yml'
+#     - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.88.2/gitlab-ci/draugr.yml'
 #
 # `remote:` and not `project:` — `include: project:` resolves against your own GitLab instance, and
 # Draugr is not on it. Pin the tag: the URL is fetched at pipeline time, so `main` would change
