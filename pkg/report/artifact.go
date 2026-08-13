@@ -28,6 +28,11 @@ var formatMeta = map[string]struct{ filename, contentType string }{
 	"junit":    {"report.junit.xml", "application/xml"},
 	"console":  {"report.txt", "text/plain; charset=utf-8"},
 	"vex":      {"openvex.json", "application/json"},
+	// GitLab's conventional names, so a .gitlab-ci.yml written from GitLab's own documentation
+	// finds the file Draugr wrote.
+	"gitlab-sast":             {"gl-sast-report.json", "application/json"},
+	"gitlab-secret-detection": {"gl-secret-detection-report.json", "application/json"},
+	"gitlab-codequality":      {"gl-code-quality-report.json", "application/json"},
 }
 
 // Filename is what a format is written as, whether a publisher delivers it or `-o` writes it.

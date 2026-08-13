@@ -496,7 +496,14 @@ draugr scan draugr.saga.yaml -o out/                          # report.json + re
 draugr scan draugr.saga.yaml -o out/ --report html,junit      # report.html + report.junit.xml
 draugr scan draugr.saga.yaml -o out/ --report vex             # openvex.json
 draugr scan draugr.saga.yaml -o out/ --report html --format console
+draugr scan draugr.saga.yaml -o out/ --report gitlab-codequality
 ```
+
+The GitLab formats — `gitlab-sast`, `gitlab-secret-detection`, `gitlab-codequality` — are
+`--report` only, for the same reason `junit` is: a GitLab runner reads them from a path named in
+`artifacts: reports:`, and nobody reads one. See
+[reports & publishers](../guides/reports-and-publishers.md#gitlabs-own-report-formats) for which GitLab surface each
+one feeds, and on which tier.
 
 `-o` on its own still writes `report.json` and `results.sarif`, which is what pipelines already
 depend on. `--report` replaces that default rather than adding to it, so what you ask for is what

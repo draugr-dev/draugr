@@ -36,18 +36,37 @@ func sampleData() Data {
 	return Data{Release: saga.Release{Name: "app", Version: "1.0"}, Run: run, Verdict: verdict}
 }
 
+// Every advertised format resolves, and answers to the name it is advertised under.
+//
+// Driven by Formats() rather than by a list written out here, because both are true of a registry
+// whose newest entry is registered under one name and reports another — and Formats() is what the
+// --report help, the unknown-format error and the artifact filenames are all built from, so it is
+// the list that has to work.
 func TestForAndFormats(t *testing.T) {
-	for _, f := range []string{"console", "markdown", "html", "junit", "json", "sarif", "vex"} {
+	got := Formats()
+	if len(got) == 0 {
+		t.Fatal("Formats() is empty")
+	}
+	if !slices.IsSorted(got) {
+		t.Errorf("Formats() = %v, want sorted", got)
+	}
+	for _, f := range got {
 		r, err := For(f)
-		if err != nil || r.Format() != f {
-			t.Errorf("For(%q) = %v, %v", f, r, err)
+		if err != nil {
+			t.Errorf("advertised format %q does not resolve: %v", f, err)
+			continue
+		}
+		if r.Format() != f {
+			t.Errorf("format %q is registered under a name it does not answer to: %q", f, r.Format())
+		}
+		// A format missing from formatMeta still writes a file, under a fallback name and with no
+		// content type — so a publisher delivers it as something a consumer cannot identify.
+		if _, ok := formatMeta[f]; !ok {
+			t.Errorf("format %q has no entry in formatMeta, so it has no filename or content type", f)
 		}
 	}
 	if _, err := For("nope"); err == nil {
 		t.Error("expected error for unknown format")
-	}
-	if got := Formats(); len(got) != 7 {
-		t.Errorf("Formats() = %v", got)
 	}
 }
 

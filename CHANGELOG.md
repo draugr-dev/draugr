@@ -34,6 +34,33 @@ and move it under a version on release.
   as a masked CI/CD variable. The `CI_JOB_TOKEN` GitLab puts in every job is read-only on the notes
   API, so Draugr names that in the error rather than leaving you with an unexplained 401.
 
+- **Findings reach GitLab's own surfaces, not just a comment.** GitLab does not read SARIF — it
+  reads its own schema, collected by the runner as a build artifact — so there are three new report
+  formats rather than a publisher:
+
+  ```yaml
+  config:
+    reports:
+      - format: gitlab-sast              # gl-sast-report.json
+      - format: gitlab-secret-detection  # gl-secret-detection-report.json
+      - format: gitlab-codequality       # gl-code-quality-report.json
+  ```
+
+  `gitlab-codequality` shows every finding in the merge request's **Reports** tab on any tier,
+  including Free. The two security reports feed the Vulnerability Report and the merge-request
+  security widget, which are Ultimate — the guide says which surface needs which plan rather than
+  describing the best case and leaving you wondering why nothing appeared.
+
+  Severity is sourced differently on purpose: the security reports carry the flaw's severity,
+  because GitLab's approval policies gate on that field, and Code Quality carries Draugr's P1–P4,
+  because it is a list a reviewer reads in order. Suppressed findings are in neither — GitLab would
+  show one as open and ask again for a decision your Saga already records.
+
+  Dependency and container findings reach the merge request through `gitlab-codequality` for now.
+  GitLab's typed reports for those require a structured package name, version and operating system
+  that Draugr's findings currently carry as scanner prose, and guessing at a schema's required
+  field is worse than not filling it.
+
 ### Fixed
 
 - **Two repositories with the same name in different groups are no longer treated as one.**
