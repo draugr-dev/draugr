@@ -212,3 +212,52 @@ func TestRunDoesNotClearTheCallersMinPriority(t *testing.T) {
 		t.Errorf("Run mutated the caller's Data: MinPriority = %q", data.MinPriority)
 	}
 }
+
+// One format that cannot render must not cost the ones that can.
+//
+// A scan that took four minutes used to produce no evidence at all because of a typo a descriptor
+// check catches in milliseconds — Run returned on the first failed render, before any publisher saw
+// anything. The destination loop has always tolerated one failure; this is the same reasoning one
+// step earlier.
+func TestRunDeliversTheReportsThatRendered(t *testing.T) {
+	dir := t.TempDir()
+	err := Run(context.Background(),
+		[]saga.ReportConfig{{Format: "json"}, {Format: "no-such-format"}, {Format: "sarif"}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		sampleData())
+
+	if err == nil {
+		t.Fatal("the unrenderable format was not reported")
+	}
+	if !strings.Contains(err.Error(), "no-such-format") {
+		t.Errorf("the error should name the format that failed: %v", err)
+	}
+	for _, name := range []string{"report.json", "results.sarif"} {
+		if _, statErr := os.Stat(filepath.Join(dir, name)); statErr != nil {
+			t.Errorf("%s was not delivered, so a good report was lost to a bad one: %v", name, statErr)
+		}
+	}
+}
+
+// Nothing rendered is a different situation: there is no partial delivery to make, and reporting
+// only the first reason would hide the rest.
+func TestRunReportsEveryFailureWhenNothingRendered(t *testing.T) {
+	dir := t.TempDir()
+	err := Run(context.Background(),
+		[]saga.ReportConfig{{Format: "nope-one"}, {Format: "nope-two"}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		sampleData())
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	for _, want := range []string{"nope-one", "nope-two"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error should name %q: %v", want, err)
+		}
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 0 {
+		t.Errorf("nothing rendered, so nothing should have been written: %v", entries)
+	}
+}

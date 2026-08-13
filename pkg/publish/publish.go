@@ -8,6 +8,7 @@ package publish
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -86,20 +87,32 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 		data.MinPriority = ""
 	}
 
+	// Build what can be built and deliver it, rather than returning on the first format that
+	// fails. One unrenderable format used to cost every report from the run — a scan that took
+	// four minutes produced nothing, because of something a descriptor check catches in
+	// milliseconds. The publisher loop below has always tolerated one destination failing; this is
+	// the same reasoning applied one step earlier.
 	artifacts := make([]report.Artifact, 0, len(reports))
+	var buildErrs []error
 	for _, r := range reports {
 		a, err := report.Build(r, data)
 		if err != nil {
-			return err
+			buildErrs = append(buildErrs, err)
+			continue
 		}
 		artifacts = append(artifacts, a)
+	}
+	// Nothing rendered at all is a different situation: there is no partial delivery to make, and
+	// reporting only the first reason would hide the rest.
+	if len(artifacts) == 0 && len(buildErrs) > 0 {
+		return errors.Join(buildErrs...)
 	}
 	// SBOMs are already rendered by the time a run finishes, so they are appended rather than
 	// built from data. That is also why "sbom" is not a --format: a run produces one document
 	// per target, and a format that writes N files has no sensible meaning on stdout.
 	artifacts = append(artifacts, report.SBOMArtifacts(data.Run.SBOMs)...)
 
-	var firstErr error
+	firstErr := errors.Join(buildErrs...)
 	for _, cfg := range publishers {
 		p, err := For(cfg)
 		if err != nil {

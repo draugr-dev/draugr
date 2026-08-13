@@ -10,7 +10,19 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **`draugr validate` rejects a report format or publisher kind this build does not have**, and
+  names the nearest one. It used to accept them: the registries live in packages the descriptor's
+  own validation cannot import, so it could only check the fields were present. The failure then
+  surfaced at publish time, after every scanner had run — a four-minute scan ending in a typo a
+  check catches in milliseconds.
+
+- **One unrenderable report no longer costs you the rest.** Every configured format was rendered
+  before any was delivered, and the first failure returned — so a single bad format meant no
+  evidence at all from that run, including the reports a pipeline downstream was waiting on. What
+  renders is now delivered, and what did not is reported alongside it. A run where nothing rendered
+  still fails, naming every reason rather than the first.
 
 ## [0.88.2] - 2026-08-13
 
