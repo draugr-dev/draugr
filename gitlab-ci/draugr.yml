@@ -81,9 +81,11 @@ draugr:
       set -euo pipefail
       export PATH="$HOME/.local/bin:$HOME/.draugr/bin:$PATH"
 
-      # One scan renders every report. `-o` writes report.json and results.sarif; `--report` adds
-      # GitLab's own, which the runner collects from `artifacts: reports:` below.
-      reports="gitlab-sast,gitlab-secret-detection,gitlab-codequality"
+      # One scan renders every report. --report *replaces* the default json,sarif rather than
+      # adding to it, so sarif is named explicitly: the merge-request path below diffs two
+      # results.sarif files, and a scan that did not write one fails on a missing file rather than
+      # on anything that points at the report list.
+      reports="json,sarif,gitlab-sast,gitlab-secret-detection,gitlab-codequality"
 
       if [ -z "${CI_MERGE_REQUEST_IID:-}" ]; then
         # A branch pipeline: the whole descriptor, gated by its own policy.
