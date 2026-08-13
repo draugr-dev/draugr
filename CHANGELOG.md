@@ -77,6 +77,17 @@ and move it under a version on release.
   It fetches the merge base explicitly, because GitLab clones 20 commits deep by default and the
   commit to compare against is usually not in the checkout — a diff that works on a small test
   repository and fails on a real one.
+- **`draugr survey gitlab projects --group <path>`** writes a Saga from a GitLab group, one
+  component per project — the counterpart of `survey github repos`:
+
+  ```bash
+  draugr survey gitlab projects --group acme -o draugr.saga.yaml
+  ```
+
+  Subgroups are included, because a group is a tree and stopping at the top level would produce a
+  descriptor that looks like the whole organisation and describes one floor of it. Archived and
+  empty projects are skipped with the reason logged. Without `GITLAB_TOKEN` the survey warns that
+  it saw public projects only, since the descriptor that results looks complete either way.
 
 ### Fixed
 

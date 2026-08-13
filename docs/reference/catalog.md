@@ -81,6 +81,7 @@ configured separately as `config.sbom` and travels as evidence. See
 | `k8s-images` | container images (with running digests) in a k8s cluster | kubeconfig | ✅ | [doc](../../internal/surveyors/k8s-images.md) |
 | `k8s-cluster` | the cluster itself, as an `infrastructure` component | kubeconfig | ✅ | [doc](../../internal/surveyors/k8s-cluster.md) |
 | `github-org-repos` | repositories in a GitHub org | `GITHUB_TOKEN` | ✅ | [doc](../../internal/surveyors/github-org-repos.md) |
+| `gitlab-group-projects` | projects in a GitLab group, subgroups included | `GITLAB_TOKEN` | ✅ | [doc](../../internal/surveyors/gitlab-group-projects.md) |
 
 ## Reporters
 

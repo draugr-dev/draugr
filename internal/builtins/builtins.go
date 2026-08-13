@@ -51,5 +51,6 @@ func SurveyorRegistry() *surveyor.Registry {
 	reg.Register(dsurveyors.NewK8sImages())
 	reg.Register(dsurveyors.NewK8sCluster())
 	reg.Register(dsurveyors.NewGitHubOrgRepos())
+	reg.Register(dsurveyors.NewGitLabGroupProjects())
 	return reg
 }
