@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.87.0] - 2026-08-13
+
 ### Added
 
 - **GitLab's Dependency List and License Compliance tab are populated.** Both read a CycloneDX
@@ -3771,7 +3775,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.86.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.87.0...HEAD
+[0.87.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.87.0
 [0.86.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.86.2
 [0.86.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.86.1
 [0.86.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.86.0
