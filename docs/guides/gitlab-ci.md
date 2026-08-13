@@ -103,6 +103,25 @@ reports carry only their own — the untyped one is what keeps findings visible 
 See [reports & publishers](reports-and-publishers.md#gitlabs-own-report-formats) for the severity
 mapping in each, and what they deliberately leave out.
 
+## The widgets need a green default branch
+
+GitLab baselines a merge request's security and Code Quality widgets against **the default branch's
+last successful pipeline**. A project whose default branch legitimately fails the gate — which is
+what a gate is for — never establishes that baseline, and those widgets stay empty however many
+reports it uploads. The reports are stored and typed correctly; there is simply nothing to compare
+them against.
+
+So you get one or the other, and it is a real choice:
+
+| `DRAUGR_GATE_DEFAULT_BRANCH` | Default branch | Merge request |
+|---|---|---|
+| `true` (default) | fails while findings remain | comment and gate work; widgets stay empty |
+| `false` | green, and reporting | comment and gate work; widgets populate |
+
+The differential gate on merge requests is unaffected either way, and it is the one that changes
+what somebody does: it fails a change for what the change introduced, rather than for the backlog
+it inherited.
+
 ## Tune it
 
 Override any variable on the job:
@@ -111,9 +130,10 @@ Override any variable on the job:
 draugr:
   variables:
     DRAUGR_SAGA: services/api/draugr.saga.yaml
-    DRAUGR_VERSION: v0.86.2            # empty installs the latest release
-    DRAUGR_FAIL_ON_NEW_PRIORITY: P2    # empty disables the differential gate
-    DRAUGR_TOOLS: "false"              # a runner image that already has the scanners
+    DRAUGR_VERSION: v0.86.2               # empty installs the latest release
+    DRAUGR_FAIL_ON_NEW_PRIORITY: P2       # empty disables the differential gate
+    DRAUGR_GATE_DEFAULT_BRANCH: "false"   # keep the default branch green so the widgets populate
+    DRAUGR_TOOLS: "false"                 # a runner image that already has the scanners
 ```
 
 ## Scanners the runner needs

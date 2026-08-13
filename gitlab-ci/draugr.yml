@@ -31,6 +31,16 @@ variables:
   # Gate a merge request on what it introduces rather than on the backlog it inherited. Empty
   # disables the differential gate; the descriptor's own gate still applies on the default branch.
   DRAUGR_FAIL_ON_NEW_PRIORITY: P1
+  # Gate the default branch on the descriptor's own policy. On by default, because a gate that does
+  # not fail is not a gate.
+  #
+  # It has a cost worth knowing about: GitLab baselines a merge request's security and Code Quality
+  # widgets against the default branch's last **successful** pipeline. A project whose default
+  # branch legitimately fails the gate therefore never establishes that baseline, and those widgets
+  # stay empty however many reports it uploads. Set this to "false" to keep the default branch
+  # green and reporting, and leave gating to the merge-request path — which is where a gate changes
+  # what somebody does anyway.
+  DRAUGR_GATE_DEFAULT_BRANCH: "true"
   # Provision the scanners Draugr distributes. Turn off on a runner whose image already has them.
   DRAUGR_TOOLS: "true"
   # Semgrep backs the `sast` control and Draugr does not distribute it. Turn off if your descriptor
@@ -89,7 +99,11 @@ draugr:
 
       if [ -z "${CI_MERGE_REQUEST_IID:-}" ]; then
         # A branch pipeline: the whole descriptor, gated by its own policy.
-        draugr scan "${DRAUGR_SAGA}" -o draugr-out --report "${reports}"
+        gate=""
+        if [ "${DRAUGR_GATE_DEFAULT_BRANCH}" != "true" ]; then
+          gate="--no-gate"
+        fi
+        draugr scan "${DRAUGR_SAGA}" -o draugr-out --report "${reports}" ${gate}
         exit $?
       fi
 
