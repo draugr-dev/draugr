@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"sync"
 	"testing"
@@ -715,5 +717,34 @@ func TestProgressDescribesTheRunAsItGoes(t *testing.T) {
 	if last.Complete != last.Total || len(last.Running) != 0 {
 		t.Errorf("the final snapshot should be %d/%d with nothing running, got %d/%d running %v",
 			total, total, last.Complete, last.Total, last.Running)
+	}
+}
+
+// Credentials must never reach a log, and a target is where they arrive from.
+//
+// A CI runner writes a token straight into the checkout's git remote — GitLab uses
+// `https://gitlab-ci-token:<token>@host/...` — so a repository target carries one whether or not
+// the descriptor mentioned it. Formatting the target for a debug line printed it.
+func TestPlanningNeverLogsCredentials(t *testing.T) {
+	const secret = "glpat-NOTAREALTOKEN0123456789" // #nosec G101 -- a fabricated value, which is the point
+
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	defer slog.SetDefault(prev)
+
+	targets := []plugin.Target{
+		plugin.RepositoryTarget{URL: "https://oauth2:" + secret + "@gitlab.com/acme/api.git", Revision: "main"},
+		plugin.RepositoryTarget{URL: ".", Remote: "https://gitlab-ci-token:" + secret + "@gitlab.com/acme/api.git"},
+		plugin.HostTarget{URL: "https://admin:" + secret + "@api.internal/health"},
+	}
+	for _, target := range targets {
+		slog.Debug("planned job", "target", target.Identity(), "target_kind", target.Kind())
+		if id := target.Identity(); strings.Contains(id, secret) {
+			t.Errorf("Identity() carries the credential: %q", id)
+		}
+	}
+	if strings.Contains(logs.String(), secret) {
+		t.Errorf("a credential reached the log:\n%s", logs.String())
 	}
 }

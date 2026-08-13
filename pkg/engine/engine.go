@@ -277,9 +277,13 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 	}
 	slog.Debug("planned scan jobs", "jobs", len(planned), "controls", len(e.reg.controllers))
 	for _, pj := range planned {
+		// Identity, not the struct. A repository's URL and its resolved remote both carry
+		// whatever credentials were used to fetch it — a CI runner writes a token straight into
+		// the remote — and formatting the target printed them into the log. Identity is
+		// credential-free by construction, which is the property this relies on.
 		slog.Debug("planned job",
 			"control", pj.Control, "scanner", pj.Job.Scanner,
-			"target", fmt.Sprintf("%v", pj.Job.Target), "target_kind", pj.Job.Target.Kind())
+			"target", pj.Job.Target.Identity(), "target_kind", pj.Job.Target.Kind())
 	}
 	return planned, errors.Join(errs...)
 }
