@@ -10,7 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **GitLab now reads the properties in the SBOM at all.** The document did not declare
+  `gitlab:meta:schema_version`, which GitLab requires before it will parse any `gitlab:` property.
+  Its absence is quiet: packages still appear with names, versions and licences, because those are
+  plain CycloneDX, and GitLab infers the packager from a purl on its own — so the dependency list
+  looked nearly right while *Location* stayed empty and GitLab's own dependency scanning never ran
+  against the SBOM.
 
 ## [0.88.1] - 2026-08-13
 

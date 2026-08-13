@@ -241,3 +241,36 @@ func TestGitLabSBOMWillNotGuessBetweenManifests(t *testing.T) {
 		}
 	}
 }
+
+// The one property GitLab requires before it will read any of the others.
+//
+// Its absence is quiet: packages still appear with names, versions and licences, because those are
+// plain CycloneDX, and GitLab infers the package manager from a purl on its own. So the list looks
+// nearly right while the manifest path — and with it GitLab's own dependency scanning — is dropped.
+// That is the failure this asserts against, and it is invisible in the rendered document unless you
+// know to look.
+func TestGitLabSBOMDeclaresTheSchemaVersion(t *testing.T) {
+	for _, tc := range []struct{ name, doc string }{
+		{"one manifest", `{"specVersion":"1.6","components":[
+			{"name":"flask","version":"1","purl":"pkg:pypi/flask@1",
+			 "properties":[{"name":"syft:location:0:path","value":"/requirements.txt"}]}]}`},
+		// Also on the document that gets no input-file path, since the two are set independently
+		// and the required one must not depend on the optional one.
+		{"several manifests", syftSBOM},
+		// And on an SBOM carrying no metadata block at all.
+		{"no metadata", `{"specVersion":"1.6","components":[
+			{"name":"flask","version":"1","purl":"pkg:pypi/flask@1"}]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := renderGitLabSBOM(t, gitlabSBOMData(sbom.Document{
+				Project: true, Format: saga.SBOMCycloneDXJSON, Bytes: []byte(tc.doc),
+			}))
+			meta, _ := doc["metadata"].(map[string]any)
+			props, _ := meta["properties"].([]any)
+			if got := gitlabPropertyValue(props, gitlabSchemaVersionProperty); got != gitlabSchemaVersionValue {
+				t.Errorf("%s = %q, want %q — without it GitLab reads none of the others",
+					gitlabSchemaVersionProperty, got, gitlabSchemaVersionValue)
+			}
+		})
+	}
+}
