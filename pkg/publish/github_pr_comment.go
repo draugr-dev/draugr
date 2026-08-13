@@ -104,36 +104,68 @@ func (p githubPRCommentPublisher) Publish(ctx context.Context, artifacts []repor
 }
 
 // findExisting returns the id of the sticky Draugr comment on the PR, or 0 if none.
+//
+// Paginated. A hundred comments is a page, and a pull request that has had a real conversation on
+// it passes that — at which point reading one page finds no marker, and the publisher posts a fresh
+// report every run. The sticky comment stops being sticky exactly where a long thread makes it
+// worth having, and it degrades by adding noise rather than by failing.
 func (p githubPRCommentPublisher) findExisting(ctx context.Context) (int64, error) {
 	url := fmt.Sprintf("%s/repos/%s/issues/%d/comments?per_page=100", p.apiURL, p.repo, p.pr)
+	for url != "" {
+		id, next, err := p.commentsPage(ctx, url)
+		if err != nil || id != 0 {
+			return id, err
+		}
+		url = next
+	}
+	return 0, nil
+}
+
+// commentsPage reads one page of comments, returning the marked comment's id and the next page's
+// URL. An empty next URL means this was the last page.
+func (p githubPRCommentPublisher) commentsPage(ctx context.Context, url string) (int64, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // API URL from env
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	req.Header.Set("Authorization", "Bearer "+p.token)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return 0, fmt.Errorf("list PR comments failed: %s: %s", resp.Status, msg)
+		return 0, "", fmt.Errorf("list PR comments failed: %s: %s", resp.Status, msg)
 	}
 	var comments []struct {
 		ID   int64  `json:"id"`
 		Body string `json:"body"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&comments); err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	for _, c := range comments {
 		if bytes.Contains([]byte(c.Body), []byte(p.marker)) {
-			return c.ID, nil
+			return c.ID, "", nil
 		}
 	}
-	return 0, nil
+	return 0, nextPageURL(resp.Header.Get("Link")), nil
+}
+
+// nextLinkPattern matches the rel="next" entry of a GitHub Link header.
+var nextLinkPattern = regexp.MustCompile(`<([^>]+)>;\s*rel="next"`)
+
+// nextPageURL extracts the next page from a Link header, or "" when there is none.
+//
+// GitHub gives the whole URL rather than a page number, cursor included, so following it is both
+// simpler and correct for the endpoints that have moved to cursors.
+func nextPageURL(link string) string {
+	if m := nextLinkPattern.FindStringSubmatch(link); m != nil {
+		return m[1]
+	}
+	return ""
 }
 
 // send POSTs or PATCHes a comment body.
