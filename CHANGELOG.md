@@ -15,6 +15,11 @@ and move it under a version on release.
 - **`draugr scan --report --help` lists every format there is.** It restated them as a fixed
   string, so a format could ship, work, and appear nowhere a user looks for the list — the GitLab
   reports were missing from it. Built from the registry now, as `--format` already was.
+- **The GitLab template's documented `include:` now works.** It showed `include: project:`, which
+  resolves against your own GitLab instance — and Draugr is not on it, so the pipeline failed with
+  a project-not-found error that reads like a permissions problem. The form is
+  `include: remote:` with the raw URL of a pinned tag, and the guide says what to do when a runner
+  has no route to it.
 
 ## [0.86.0] - 2026-08-13
 
