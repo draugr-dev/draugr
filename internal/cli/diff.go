@@ -50,7 +50,7 @@ func newDiffCommand() *cobra.Command {
 		"keep only new findings from this repository, plus those belonging to none (an image, a "+
 			"host). For a code-scanning upload, whose paths anchor to one checkout — a finding "+
 			"from elsewhere would annotate a same-named file here")
-	cmd.Flags().BoolVar(&opts.publish, "publish", false, "post the diff as a sticky pull-request comment (GitHub or Azure DevOps, detected from the CI environment)")
+	cmd.Flags().BoolVar(&opts.publish, "publish", false, "post the diff as a sticky pull-request comment (GitHub, GitLab or Azure DevOps, detected from the CI environment)")
 	return cmd
 }
 
