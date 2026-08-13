@@ -10,7 +10,11 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **`draugr scan --report --help` lists every format there is.** It restated them as a fixed
+  string, so a format could ship, work, and appear nowhere a user looks for the list — the GitLab
+  reports were missing from it. Built from the registry now, as `--format` already was.
 
 ## [0.86.0] - 2026-08-13
 
