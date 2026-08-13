@@ -107,8 +107,11 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 // the GitHub publisher no-ops when it cannot see GITHUB_ACTIONS, so the run stays green and the
 // comment never appears. A flag either does something or says why it did not.
 func diffPublisherKind() string {
-	if os.Getenv("TF_BUILD") == "True" {
+	switch {
+	case os.Getenv("TF_BUILD") == "True":
 		return "azure-pr-comment"
+	case os.Getenv("GITLAB_CI") == "true":
+		return "gitlab-mr-comment"
 	}
 	return "github-pr-comment"
 }

@@ -146,9 +146,11 @@ draugr diff base/results.sarif head/results.sarif --publish
 ```
 
 It picks the publisher from the CI system it is running on — `github-pr-comment` under GitHub
-Actions with `$GITHUB_TOKEN`, `azure-pr-comment` under Azure Pipelines with `$SYSTEM_ACCESSTOKEN`.
-Azure needs that variable mapped into the step; see
-[Azure Pipelines](azure-pipelines.md#a-sticky-comment).
+Actions with `$GITHUB_TOKEN`, `azure-pr-comment` under Azure Pipelines with `$SYSTEM_ACCESSTOKEN`,
+`gitlab-mr-comment` under GitLab CI with `$GITLAB_TOKEN`. Azure needs that variable mapped into the
+step; see [Azure Pipelines](azure-pipelines.md#a-sticky-comment). GitLab needs a token with `api`
+scope, because the `CI_JOB_TOKEN` in every job cannot post notes; see
+[reports & publishers](reports-and-publishers.md#gitlab).
 
 The diff keeps its **own** sticky comment, separate from the one a Saga's PR-comment publisher
 maintains. A pipeline can run both — the state of the branch, and what this pull request changed

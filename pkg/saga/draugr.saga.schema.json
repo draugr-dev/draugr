@@ -993,13 +993,17 @@
             {
               "const": "azure-pr-comment",
               "description": "Post the Markdown report as a sticky Azure DevOps pull-request comment."
+            },
+            {
+              "const": "gitlab-mr-comment",
+              "description": "Post the Markdown report as a sticky GitLab merge-request comment."
             }
           ],
           "description": "Where to deliver reports.",
           "type": "string"
         },
         "marker": {
-          "description": "github-pr-comment / azure-pr-comment: hidden marker identifying the sticky comment to update.",
+          "description": "github-pr-comment / azure-pr-comment / gitlab-mr-comment: hidden marker identifying the sticky comment to update.",
           "type": "string"
         },
         "org": {
@@ -1007,7 +1011,7 @@
           "type": "string"
         },
         "pr": {
-          "description": "github-pr-comment / azure-pr-comment: pull-request number. Defaults to the CI environment.",
+          "description": "github-pr-comment / azure-pr-comment: pull-request number; gitlab-mr-comment: merge-request IID. Defaults to the CI environment.",
           "type": "integer"
         },
         "project": {
@@ -1019,11 +1023,11 @@
           "type": "string"
         },
         "repo": {
-          "description": "github: owner/name (default $GITHUB_REPOSITORY). azure-pr-comment: repository name (default $BUILD_REPOSITORY_NAME).",
+          "description": "github: owner/name (default $GITHUB_REPOSITORY). azure-pr-comment: repository name (default $BUILD_REPOSITORY_NAME). gitlab-mr-comment: project id or full path (default $CI_PROJECT_ID).",
           "type": "string"
         },
         "tokenEnv": {
-          "description": "Environment variable holding the token (default GITHUB_TOKEN; SYSTEM_ACCESSTOKEN for azure-pr-comment). The token itself is never stored in the Saga.",
+          "description": "Environment variable holding the token (default GITHUB_TOKEN; SYSTEM_ACCESSTOKEN for azure-pr-comment; GITLAB_TOKEN for gitlab-mr-comment). The token itself is never stored in the Saga.",
           "type": "string"
         }
       },

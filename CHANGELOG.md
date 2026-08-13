@@ -10,7 +10,29 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Draugr comments on GitLab merge requests.** The new `gitlab-mr-comment` publisher posts the
+  markdown report as a sticky comment — one note per merge request, updated in place on each
+  pipeline run instead of stacking up:
+
+  ```yaml
+  config:
+    reports:
+      - format: markdown
+    publishers:
+      - kind: gitlab-mr-comment
+  ```
+
+  Everything else defaults from the runner, and it no-ops on branch pipelines, so the same Saga
+  keeps working outside a merge request and on a laptop.
+
+  `draugr diff --publish` now recognises GitLab too, and posts the delta there rather than choosing
+  a publisher that had nothing to say on that runner.
+
+  One thing to set up: `GITLAB_TOKEN` must hold a project or group access token with `api` scope,
+  as a masked CI/CD variable. The `CI_JOB_TOKEN` GitLab puts in every job is read-only on the notes
+  API, so Draugr names that in the error rather than leaving you with an unexplained 401.
 
 ## [0.85.0] - 2026-08-13
 
