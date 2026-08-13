@@ -97,7 +97,9 @@ jobs:
           ref: ${{ env.TAG }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.26"
+          # Exact patch: the released binary should be built on the toolchain the gate
+          # checked, not on whichever one setup-go resolved that morning.
+          go-version: "1.26.6"
           check-latest: true
       - name: Install syft (SBOM generation)
         uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0

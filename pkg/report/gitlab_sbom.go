@@ -17,6 +17,9 @@ import (
 // the scan that produced it reports success.
 const gitlabSBOMSpecVersion = "1.6"
 
+// gitlabInputFileProperty is the manifest a package was declared in, as GitLab names it.
+const gitlabInputFileProperty = "gitlab:dependency_scanning:input_file:path"
+
 // gitlabSBOMReporter renders the SBOM in the dialect GitLab reads.
 //
 // A separate document rather than a change to the SBOM Draugr already writes. That one is correct
@@ -60,11 +63,63 @@ func (gitlabSBOMReporter) Render(w io.Writer, d Data) error {
 			"for GitLab's dependency list to show")
 	}
 	doc["components"] = kept
+	gitlabStampMetadata(doc, kept)
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
 	return enc.Encode(doc)
+}
+
+// gitlabStampMetadata names the manifest at document level when there is only one.
+//
+// GitLab's own analyzers emit one SBOM per manifest and put its path here; Draugr emits one
+// covering everything it scanned. Where every package came from the same file the two shapes agree
+// and the path is stated, which is what fills the dependency list's Location column — the
+// per-component properties are what GitLab's dependency scanning matches on, and it reads this one.
+//
+// With several manifests there is no single answer, and inventing one would attribute a package to
+// a file that does not declare it. The per-component paths still stand.
+func gitlabStampMetadata(doc map[string]any, comps []any) {
+	files := map[string]bool{}
+	for _, raw := range comps {
+		c, _ := raw.(map[string]any)
+		props, _ := c["properties"].([]any)
+		if f := gitlabPropertyValue(props, gitlabInputFileProperty); f != "" {
+			files[f] = true
+		}
+	}
+	if len(files) != 1 {
+		return
+	}
+	var only string
+	for f := range files {
+		only = f
+	}
+	meta, ok := doc["metadata"].(map[string]any)
+	if !ok {
+		meta = map[string]any{}
+		doc["metadata"] = meta
+	}
+	props, _ := meta["properties"].([]any)
+	meta["properties"] = append(props, map[string]any{
+		"name": gitlabInputFileProperty, "value": only,
+	})
+}
+
+// gitlabPropertyValue reads one property by name, or "" when it is absent.
+func gitlabPropertyValue(props []any, name string) string {
+	for _, raw := range props {
+		p, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if n, _ := p["name"].(string); n == name {
+			v, _ := p["value"].(string)
+			return v
+		}
+	}
+	return ""
 }
 
 // gitlabSBOMSource picks the document to translate, preferring the assembled one.
@@ -109,7 +164,7 @@ func gitlabStampComponent(c map[string]any, purl string) {
 		props = append(props, map[string]any{"name": name, "value": value})
 	}
 	add("gitlab:dependency_scanning:package_manager:name", gitlabPackageManager(purl))
-	add("gitlab:dependency_scanning:input_file:path", gitlabInputFile(props))
+	add(gitlabInputFileProperty, gitlabInputFile(props))
 	c["properties"] = props
 }
 

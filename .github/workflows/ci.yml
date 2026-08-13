@@ -15,7 +15,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.26"
+  # An exact patch, not "1.26". govulncheck fails the build on stdlib vulnerabilities fixed in a
+  # patch release, and setup-go's version manifest lags go.dev by a day or two — so the floating
+  # minor resolves to yesterday's patch and every pull request goes red for something no pull
+  # request did. Bump this when govulncheck names a newer one.
+  GO_VERSION: "1.26.6"
 
 jobs:
   # Does this change touch anything that Go tooling could have an opinion about?

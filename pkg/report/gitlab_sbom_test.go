@@ -198,3 +198,46 @@ func TestGitLabPackageManagerReadsThePurlType(t *testing.T) {
 		}
 	}
 }
+
+// GitLab's own analyzers emit one SBOM per manifest and name it at document level; Draugr emits one
+// covering everything. Where the two shapes agree — every package from the same file — saying so is
+// what fills the dependency list's Location column.
+func TestGitLabSBOMNamesTheManifestWhenThereIsOnlyOne(t *testing.T) {
+	oneFile := `{"specVersion":"1.6","components":[
+		{"name":"flask","version":"0.12.2","purl":"pkg:pypi/flask@0.12.2",
+		 "properties":[{"name":"syft:location:0:path","value":"/requirements.txt"}]},
+		{"name":"urllib3","version":"1.24.1","purl":"pkg:pypi/urllib3@1.24.1",
+		 "properties":[{"name":"syft:location:0:path","value":"/requirements.txt"}]}]}`
+
+	doc := renderGitLabSBOM(t, gitlabSBOMData(sbom.Document{
+		Project: true, Format: saga.SBOMCycloneDXJSON, Bytes: []byte(oneFile),
+	}))
+	meta, _ := doc["metadata"].(map[string]any)
+	if meta == nil {
+		t.Fatal("no metadata, so GitLab has no document-level path to read")
+	}
+	if got := gitlabPropertyValue(meta["properties"].([]any), gitlabInputFileProperty); got != "requirements.txt" {
+		t.Errorf("metadata input file = %q, want requirements.txt", got)
+	}
+}
+
+// With several manifests there is no single answer, and inventing one attributes a package to a
+// file that does not declare it. The per-component paths still stand.
+func TestGitLabSBOMWillNotGuessBetweenManifests(t *testing.T) {
+	doc := renderGitLabSBOM(t, gitlabSBOMData(sbom.Document{
+		Project: true, Format: saga.SBOMCycloneDXJSON, Bytes: []byte(syftSBOM),
+	}))
+	meta, _ := doc["metadata"].(map[string]any)
+	metaProps, _ := meta["properties"].([]any)
+	if got := gitlabPropertyValue(metaProps, gitlabInputFileProperty); got != "" {
+		t.Errorf("two manifests and the document claims one of them: %q", got)
+	}
+	// Each package still says where it came from.
+	for _, raw := range doc["components"].([]any) {
+		c := raw.(map[string]any)
+		props, _ := c["properties"].([]any)
+		if gitlabPropertyValue(props, gitlabInputFileProperty) == "" {
+			t.Errorf("%v lost its own manifest path", c["name"])
+		}
+	}
+}
