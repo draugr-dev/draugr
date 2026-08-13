@@ -49,8 +49,16 @@ draugr: gitlab-mr-comment publisher missing: $GITLAB_TOKEN (a project or group a
 post)
 ```
 
-Without the variable the job still finishes and still gates — only the comment is missing, and the
-run says so.
+Without the variable the job fails, because `--publish` was asked for and could not be honoured —
+but it fails **with the verdict**, not instead of it:
+
+```
+draugr: differential gate: 1 new finding(s) at or above the threshold
+  (publishing also failed: gitlab-mr-comment publisher missing: $GITLAB_TOKEN …)
+```
+
+The gate is what the job is for. A run that reported only the token would send you to fix a
+credential while the P1 the change introduced went unmentioned.
 
 ## What the job does
 

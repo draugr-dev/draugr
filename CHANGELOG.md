@@ -20,6 +20,12 @@ and move it under a version on release.
   a project-not-found error that reads like a permissions problem. The form is
   `include: remote:` with the raw URL of a pinned tag, and the guide says what to do when a runner
   has no route to it.
+- **A publisher that cannot deliver no longer hides `draugr diff`'s verdict.** With `--publish`, a
+  failure to post the comment was returned instead of the gate result, so a merge request that
+  introduced a P1 reported a missing token and never mentioned the finding — sending a reader to
+  fix a credential when what actually happened is that the change should not merge. The verdict is
+  now the outcome and the delivery problem is reported alongside it, which is how `draugr scan`
+  has always reconciled the two. A run that could not publish still exits non-zero.
 
 ## [0.86.0] - 2026-08-13
 
