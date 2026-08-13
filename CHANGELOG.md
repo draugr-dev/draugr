@@ -10,6 +10,21 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`gitlab-cyclonedx`**, so GitLab can actually read the SBOM. GitLab accepts CycloneDX 1.4–1.6
+  and Syft emits 1.7, so the SBOM was reported as *"could not be parsed"*; and the manifest each
+  package came from, plus its package manager, have to be stated in GitLab's own property namespace
+  or the Dependency List shows *Location* and *Packager* as **unknown** — and GitLab will not run
+  its own dependency scanning against it at all.
+
+  Both facts were already present, under Syft's names and inside each purl. The new format renders
+  a view of the SBOM with them translated, at a spec version GitLab reads. Draugr's own SBOM is
+  written beside it and unchanged, so nothing else that consumes it pays for this.
+
+  Enable `config.sbom` and the GitLab template does the rest. With no SBOM to render the format
+  says so rather than writing an empty document.
+
 ### Changed
 
 - **GitLab reads as a first-class target everywhere, not just in its own guide.** The README and

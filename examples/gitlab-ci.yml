@@ -4,8 +4,9 @@
 # head and the merge base and posts one sticky comment with the delta; on the default branch it
 # scans and gates the whole descriptor. Both feed GitLab's own surfaces.
 #
-# Pair it with a Saga that enables `config.sbom`, which is what fills the Dependency List and the
-# License Compliance tab (see examples/reporting.saga.yaml).
+# Pair it with a Saga that enables `config.sbom`. That is what fills the Dependency List and the
+# License Compliance tab: the template renders it as `gitlab-cyclonedx`, the dialect GitLab reads
+# (see examples/reporting.saga.yaml).
 #
 # ONE THING TO SET UP: Settings → CI/CD → Variables → add a *masked* variable named GITLAB_TOKEN
 # holding a project or group access token with `api` scope. The CI_JOB_TOKEN GitLab puts in every

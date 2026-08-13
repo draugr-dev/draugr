@@ -178,6 +178,7 @@ var reporters = map[string]Reporter{
 		controls: []string{"secrets"}, needsCommit: true,
 	},
 	"gitlab-codequality": gitlabCodeQualityReporter{},
+	"gitlab-cyclonedx":   gitlabSBOMReporter{},
 }
 
 // StreamFormats are the formats `--format` accepts: the ones whose natural destination is a
@@ -199,6 +200,7 @@ var documentFormats = map[string]bool{
 	// A GitLab runner reads these from a path declared in `artifacts: reports:`. Nobody reads one,
 	// so printing several thousand lines of JSON at somebody is not the answer to typing the name.
 	"gitlab-sast": true, "gitlab-secret-detection": true, "gitlab-codequality": true,
+	"gitlab-cyclonedx": true,
 }
 
 // StreamFormat reports whether a format may be written to stdout, and if not, why.

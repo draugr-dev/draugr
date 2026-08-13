@@ -111,9 +111,23 @@ mapping in each, and what they deliberately leave out.
 ### The Dependency List and License Compliance both come from the SBOM
 
 GitLab reads both out of a **CycloneDX SBOM** rather than a report of its own — the older
-`license_scanning` artifact is not what populates either. Draugr writes one per repository and
-image, with SPDX identifiers already in each component's `licenses`, which is the only form GitLab
-reads. Turn it on in the descriptor:
+`license_scanning` artifact is not what populates either. Two things it is strict about, and Draugr
+handles both:
+
+- **Spec version.** GitLab reads CycloneDX **1.4, 1.5 or 1.6** and rejects anything else outright.
+  Syft emits 1.7, so a raw Syft SBOM is reported as *"could not be parsed"* rather than partially
+  read.
+- **Its own property namespace.** The manifest a package came from and its package manager have to
+  be stated as `gitlab:dependency_scanning:input_file:path` and
+  `gitlab:dependency_scanning:package_manager:name`. Without the first, GitLab will not run its own
+  dependency scanning against the SBOM at all — and the Dependency List shows *Location* and
+  *Packager* as **unknown**.
+
+So Draugr renders a **`gitlab-cyclonedx`** view of the SBOM it already produces: the same packages,
+at a version GitLab accepts, with those two facts translated from what Syft recorded. Draugr's own
+SBOM is written beside it and left exactly as it is, so nothing else that consumes it is affected.
+
+Turn the SBOM on in the descriptor and the template does the rest:
 
 ```yaml
 config:
@@ -123,30 +137,13 @@ config:
     scope: both
 ```
 
-The template collects `draugr-out/sbom-*.cdx.json` for you, and that one artifact fills both
-*Secure → Dependency List* and the merge request's *License Compliance* tab — each package with its
-version and its licence. Without `config.sbom` there is nothing to collect, the runner says so, and
-the rest of the job is unaffected — so those read as empty until you enable it. Requires Syft, which
-`draugr tools install` provisions.
+The template renders `gitlab-cyclonedx` and collects `draugr-out/gl-sbom-*.cdx.json`, and that one
+artifact fills both *Secure → Dependency List* and the merge request's *License Compliance* tab —
+each package with its version, licence, packager and the file it was declared in.
 
-## The widgets need a green default branch
-
-GitLab baselines a merge request's security and Code Quality widgets against **the default branch's
-last successful pipeline**. A project whose default branch legitimately fails the gate — which is
-what a gate is for — never establishes that baseline, and those widgets stay empty however many
-reports it uploads. The reports are stored and typed correctly; there is simply nothing to compare
-them against.
-
-So you get one or the other, and it is a real choice:
-
-| `DRAUGR_GATE_DEFAULT_BRANCH` | Default branch | Merge request |
-|---|---|---|
-| `true` (default) | fails while findings remain | comment and gate work; widgets stay empty |
-| `false` | green, and reporting | comment and gate work; widgets populate |
-
-The differential gate on merge requests is unaffected either way, and it is the one that changes
-what somebody does: it fails a change for what the change introduced, rather than for the backlog
-it inherited.
+Without `config.sbom` there is nothing to render: the format says so rather than writing an empty
+document, because an SBOM report with no SBOM behind it is a clean-looking answer to a question
+nobody asked. Requires Syft, which `draugr tools install` provisions.
 
 ## Tune it
 

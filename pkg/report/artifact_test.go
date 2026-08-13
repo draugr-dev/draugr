@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sbom"
 )
 
 func TestBuildArtifact(t *testing.T) {
@@ -54,8 +55,17 @@ func TestFilenameAgreesWithWhatAPublisherDelivers(t *testing.T) {
 	// outcome: nothing looks wrong until a pipeline globs for the one format they differ on.
 	// Whatever `-o` writes and whatever a publisher hands to a destination have to be the same
 	// name, so the invariant is asserted per format rather than trusted.
+	// An SBOM, because gitlab-cyclonedx renders one rather than a view of the findings — and it
+	// refuses to write a document with no packages in it, which is the right behaviour and not
+	// something this test is about.
+	d := goldenCleanData()
+	d.Run.SBOMs = []sbom.Document{{
+		Project: true, Format: saga.SBOMCycloneDXJSON,
+		Bytes: []byte(`{"bomFormat":"CycloneDX","specVersion":"1.6","components":[
+			{"type":"library","name":"flask","version":"0.12.2","purl":"pkg:pypi/flask@0.12.2"}]}`),
+	}}
 	for format := range reporters {
-		art, err := Build(saga.ReportConfig{Format: format}, goldenCleanData())
+		art, err := Build(saga.ReportConfig{Format: format}, d)
 		if err != nil {
 			t.Errorf("%s: Build: %v", format, err)
 			continue
