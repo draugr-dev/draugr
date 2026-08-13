@@ -376,6 +376,11 @@ func TestSameRepository(t *testing.T) {
 		{"https://github.com/acme/web", "acme/web"},
 		{"https://GITHUB.com/Acme/Web.git", "acme/web"},
 		{"https://dev.azure.com/org/proj/_git/web", "proj/_git/web"},
+		// A group's project, spelled every way a descriptor and a runner might.
+		{"https://gitlab.com/acme/payments/api.git", "acme/payments/api"},
+		{"https://gitlab.com/acme/payments/api", "git@gitlab.com:acme/payments/api.git"},
+		{"https://gitlab.example.com:8443/acme/payments/api", "acme/payments/api"},
+		{"https://oauth2:token@gitlab.com/acme/payments/api", "acme/payments/api"},
 	}
 	for _, p := range same {
 		if !SameRepository(p[0], p[1]) {
@@ -387,6 +392,16 @@ func TestSameRepository(t *testing.T) {
 		{"https://github.com/acme/web", "https://github.com/other/web"},
 		{"", "acme/web"}, // nothing to compare is not a match
 		{"acme/web", ""}, // and neither is the other way round
+		// Sibling groups. Keeping only the last two segments made these one repository, and the
+		// findings of both were reported under whichever was seen last.
+		{"https://gitlab.com/payments/backend/api", "https://gitlab.com/platform/backend/api"},
+		{"git@gitlab.com:payments/backend/api.git", "git@gitlab.com:platform/backend/api.git"},
+		// A bare name says which repository only if there is exactly one of them, which is not
+		// something this can know.
+		{"https://gitlab.com/payments/backend/api", "api"},
+		// A group may legally carry a dot. Treating the first segment as a hostname because it
+		// looks like one would strip it, and collapse these two.
+		{"acme.corp/api", "other.corp/api"},
 	}
 	for _, p := range differ {
 		if SameRepository(p[0], p[1]) {
