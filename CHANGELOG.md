@@ -12,6 +12,12 @@ and move it under a version on release.
 
 ### Added
 
+- **GitLab's License Compliance tab is populated.** It reads licences out of a CycloneDX SBOM
+  rather than a report of its own, and Draugr's SBOM already carries SPDX identifiers in each
+  component's `licenses` — the only form GitLab reads. The template collects
+  `draugr-out/sbom-*.cdx.json`, so enabling `config.sbom` in the descriptor is all it takes.
+  Ultimate tier.
+
 - **`DRAUGR_GATE_DEFAULT_BRANCH`** in the GitLab template, because gating the default branch and
   populating GitLab's merge-request widgets turn out to be mutually exclusive. GitLab baselines
   those widgets against the default branch's last *successful* pipeline, so a project whose default
