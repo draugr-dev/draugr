@@ -357,3 +357,23 @@ func TestOnlyRepositoryKeepsWhatThisCheckoutCanAnchor(t *testing.T) {
 		t.Errorf("an empty reference filtered anyway: %d of 3 kept", n)
 	}
 }
+
+func TestOnlyRepositoryTellsSiblingGroupsApart(t *testing.T) {
+	// Two teams, one repository name. On a forge that nests groups this is ordinary, and the
+	// filter has to survive it: keeping only the tail of each path makes both the same repository,
+	// so a merge request annotates its own files with another team's findings — real findings, on
+	// a plausible line, describing code this checkout does not contain.
+	r := Result{New: []sarif.Result{
+		{RuleID: "OURS", Repository: "https://gitlab.com/payments/backend/api.git"},
+		{RuleID: "THEIRS", Repository: "https://gitlab.com/platform/backend/api.git"},
+	}}
+	got := r.OnlyRepository("https://gitlab.com/payments/backend/api")
+
+	var ids []string
+	for _, f := range got.New {
+		ids = append(ids, f.RuleID)
+	}
+	if want := []string{"OURS"}; !slices.Equal(ids, want) {
+		t.Errorf("new = %v, want %v", ids, want)
+	}
+}

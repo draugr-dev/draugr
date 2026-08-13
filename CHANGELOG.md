@@ -34,6 +34,16 @@ and move it under a version on release.
   as a masked CI/CD variable. The `CI_JOB_TOKEN` GitLab puts in every job is read-only on the notes
   API, so Draugr names that in the error rather than leaving you with an unexplained 401.
 
+### Fixed
+
+- **Two repositories with the same name in different groups are no longer treated as one.**
+  Repository references were matched on their last two path segments, so on a forge that nests
+  groups — GitLab most of all — `payments/backend/api` and `platform/backend/api` compared as the
+  same repository. `draugr diff --repository` then kept the wrong findings, and a pull request
+  could be annotated with another team's, on a file this checkout happens to share. Matching now
+  uses the whole path, and still accepts a short form: a CI variable saying `org/repo` matches a
+  descriptor's full clone URL, as it always did. Ports and credentials in a URL are handled too.
+
 ## [0.85.0] - 2026-08-13
 
 ### Fixed

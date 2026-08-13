@@ -524,34 +524,79 @@ func ParseLevel(s string) (Level, error) {
 // for the same repository and quietly drop its findings, which is worse than the problem this is
 // used to solve.
 //
-// Compares the last two path segments, case-insensitively, without scheme or `.git` — enough to
-// tell one project from another, and not so much that a clone URL's shape decides the answer.
+// Each reference is reduced to its path, case-insensitively, without scheme, credentials, port or
+// `.git`. Two match when they are equal, or when the shorter is a trailing run of whole segments
+// of the longer — so a CI variable saying `org/repo` still matches a descriptor's clone URL.
+//
+// The whole path, not its last two segments. A forge may nest groups arbitrarily, and keeping only
+// the tail makes `payments/backend/api` and `platform/backend/api` the same repository. Nothing
+// errors when that happens: the two sets of findings merge, and whichever is processed last
+// decides what the report says about a file both of them contain.
+//
+// Two segments is the floor for a suffix match. A bare `api` does not say which `api`, and
+// accepting it would re-open the same collapse from the other end.
 func SameRepository(a, b string) bool {
 	na, nb := normalizeRepository(a), normalizeRepository(b)
-	return na != "" && na == nb
+	if na == "" || nb == "" {
+		return false
+	}
+	return na == nb || pathSuffix(na, nb) || pathSuffix(nb, na)
 }
 
-// normalizeRepository reduces a repository reference to "org/repo", lowercased.
+// pathSuffix reports whether short is a trailing run of whole segments of long.
+func pathSuffix(long, short string) bool {
+	if !strings.Contains(short, "/") {
+		return false
+	}
+	return strings.HasSuffix(long, "/"+short)
+}
+
+// normalizeRepository reduces a repository reference to its lowercased path.
 func normalizeRepository(ref string) string {
 	s := strings.TrimSuffix(strings.TrimSpace(ref), ".git")
+	// Whether a host is present has to be known rather than guessed: a group may legally be named
+	// with a dot in it, so "looks like a hostname" would strip a real path segment from a bare
+	// reference and make two of them collide.
+	hadHost := false
 	if i := strings.Index(s, "://"); i >= 0 {
-		s = s[i+3:]
+		s, hadHost = s[i+3:], true
 	}
-	// scp-style: git@host:org/repo
+	// Credentials in a URL, and the transport user of an scp-style remote: git@host:org/repo.
 	if i := strings.LastIndex(s, "@"); i >= 0 {
-		s = s[i+1:]
+		s, hadHost = s[i+1:], true
 	}
-	s = strings.ReplaceAll(s, ":", "/")
+	s = strings.ReplaceAll(stripPort(s), ":", "/")
 	parts := []string{}
 	for _, p := range strings.Split(s, "/") {
 		if p != "" {
 			parts = append(parts, p)
 		}
 	}
-	if len(parts) > 2 {
-		parts = parts[len(parts)-2:]
+	if hadHost && len(parts) > 1 {
+		parts = parts[1:]
 	}
 	return strings.ToLower(strings.Join(parts, "/"))
+}
+
+// stripPort removes a :port, leaving an scp-style colon alone.
+//
+// Both spellings put a colon after the host — `host:8443/org/repo` separates a port and
+// `host:org/repo` separates the path — and only the port is all digits. Without the distinction a
+// port becomes a path segment, and the repository is named `8443/org/repo`.
+func stripPort(s string) string {
+	i := strings.Index(s, ":")
+	if i < 0 {
+		return s
+	}
+	rest := s[i+1:]
+	end := strings.Index(rest, "/")
+	if end < 0 {
+		end = len(rest)
+	}
+	if port := rest[:end]; port == "" || strings.TrimLeft(port, "0123456789") != "" {
+		return s
+	}
+	return s[:i] + rest[end:]
 }
 
 // RepositoryRef is the repository a scan read, and the commit it read.
