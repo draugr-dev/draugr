@@ -61,6 +61,23 @@ and move it under a version on release.
   that Draugr's findings currently carry as scanner prose, and guessing at a schema's required
   field is worse than not filling it.
 
+- **A GitLab CI template**, the counterpart of the GitHub Action and the Azure Pipelines template:
+
+  ```yaml
+  include:
+    - project: draugr-dev/draugr
+      ref: v0.86.0
+      file: /gitlab-ci/draugr.yml
+  ```
+
+  On a merge request it scans the head and the merge base and posts the delta, gated on what the
+  change introduces. On the default branch it scans and gates the whole descriptor. Both feed
+  GitLab's reports.
+
+  It fetches the merge base explicitly, because GitLab clones 20 commits deep by default and the
+  commit to compare against is usually not in the checkout — a diff that works on a small test
+  repository and fails on a real one.
+
 ### Fixed
 
 - **Two repositories with the same name in different groups are no longer treated as one.**

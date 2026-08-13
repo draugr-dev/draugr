@@ -158,6 +158,8 @@ Draugr names this in the error rather than letting the job token produce an unex
 A merge-request pipeline has to exist for there to be anything to comment on. Branch pipelines
 carry no `CI_MERGE_REQUEST_IID`, and the publisher no-ops there, so one Saga serves both.
 
+For the pipeline itself, see [use in CI with GitLab](gitlab-ci.md).
+
 The project is taken from `CI_PROJECT_ID`. Setting `repo` to a full path instead works too, groups
 and all — `group/subgroup/project` is encoded for you.
 
