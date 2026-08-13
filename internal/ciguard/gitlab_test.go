@@ -2,6 +2,7 @@ package ciguard
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -63,12 +64,11 @@ func TestTheGitLabTemplateNamesFormatsThatExist(t *testing.T) {
 	}
 
 	// GitLab's report type -> the Draugr format that fills it.
-	// cyclonedx is deliberately absent: it collects the SBOM a scan writes when the descriptor
-	// enables config.sbom, which is not a --report format and has its own filenames.
 	want := map[string]string{ // #nosec G101 -- GitLab report type names, not credentials
 		"sast":             "gitlab-sast",
 		"secret_detection": "gitlab-secret-detection",
 		"codequality":      "gitlab-codequality",
+		"cyclonedx":        "gitlab-cyclonedx",
 	}
 	formats := map[string]bool{}
 	for _, f := range report.Formats() {
@@ -86,7 +86,15 @@ func TestTheGitLabTemplateNamesFormatsThatExist(t *testing.T) {
 			t.Errorf("the template relies on the %q format, which is not in the registry", format)
 		}
 		// The file GitLab is told to collect must be the one Draugr writes under that format.
-		if filename := report.Filename(format); !strings.HasSuffix(path, filename) {
+		// GitLab accepts a filename pattern as well as a literal path, so both are honoured — what
+		// is being checked is that the two agree, not which spelling was used.
+		filename := report.Filename(format)
+		matched, err := filepath.Match(filepath.Base(path), filename)
+		if err != nil {
+			t.Errorf("artifacts.reports.%s is not a usable pattern: %v", glType, err)
+			continue
+		}
+		if !matched {
 			t.Errorf("artifacts.reports.%s points at %q, but %q writes %q — GitLab would collect nothing",
 				glType, path, format, filename)
 		}

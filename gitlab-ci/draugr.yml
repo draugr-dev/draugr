@@ -95,7 +95,7 @@ draugr:
       # adding to it, so sarif is named explicitly: the merge-request path below diffs two
       # results.sarif files, and a scan that did not write one fails on a missing file rather than
       # on anything that points at the report list.
-      reports="json,sarif,gitlab-sast,gitlab-secret-detection,gitlab-codequality"
+      reports="json,sarif,gitlab-sast,gitlab-secret-detection,gitlab-codequality,gitlab-cyclonedx"
 
       if [ -z "${CI_MERGE_REQUEST_IID:-}" ]; then
         # A branch pipeline: the whole descriptor, gated by its own policy.
@@ -144,12 +144,15 @@ draugr:
       sast: draugr-out/gl-sast-report.json
       secret_detection: draugr-out/gl-secret-detection-report.json
       codequality: draugr-out/gl-code-quality-report.json
-      # License Compliance reads licences out of a CycloneDX SBOM rather than a report of its own.
-      # Draugr writes one per repository and image when the descriptor enables `config.sbom`, with
-      # SPDX identifiers already in each component's `licenses` — which is the only form GitLab
-      # reads. Without `config.sbom` there is nothing here to collect and the runner says so; the
-      # rest of the job is unaffected.
-      cyclonedx: draugr-out/sbom-*.cdx.json
+      # The Dependency List and License Compliance read a CycloneDX SBOM rather than a report of
+      # their own. This is the `gitlab-cyclonedx` rendering of the SBOM `config.sbom` produces —
+      # the same packages at the spec version GitLab accepts, with the manifest each came from and
+      # its package manager named the way GitLab reads them. Draugr's own SBOM is written beside it
+      # and left alone, so other consumers are unaffected.
+      #
+      # Without `config.sbom` there is nothing to collect and the runner says so; the rest of the
+      # job is unaffected.
+      cyclonedx: draugr-out/gl-sbom-*.cdx.json
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

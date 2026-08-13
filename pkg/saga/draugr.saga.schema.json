@@ -1088,6 +1088,7 @@
           "enum": [
             "console",
             "gitlab-codequality",
+            "gitlab-cyclonedx",
             "gitlab-sast",
             "gitlab-secret-detection",
             "html",
