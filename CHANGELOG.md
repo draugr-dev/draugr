@@ -12,6 +12,12 @@ and move it under a version on release.
 
 ### Fixed
 
+- **The GitLab template's merge-request diff compares the right two trees.** It named the base
+  descriptor while standing in the head checkout, and a component's `url: .` resolves against the
+  working directory — so both scans read the head, every diff reported no change, and the
+  differential gate could not trip. It failed green, which is the only way a gate fails that nobody
+  notices. The base is scanned from inside its own worktree now, as the GitHub Action already did.
+
 - **The GitLab template's merge-request diff has something to diff.** `--report` replaces the
   default `json,sarif` rather than adding to it, so a job asking only for GitLab's own formats
   wrote no `results.sarif` — and the diff then failed on a missing file, which points at the diff
