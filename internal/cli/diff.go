@@ -88,17 +88,24 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 		return err
 	}
 
+	// The gate is the outcome; publishing is delivery. Returning a publish failure here would
+	// replace the verdict rather than accompany it — the run reports a missing token, and the P1
+	// this change introduced is never mentioned. That sends a reader to fix a credential when what
+	// actually happened is that the change should not merge. `scan` reconciles the two the same
+	// way, and a delivery problem still exits non-zero: a flag either does something or says why
+	// it did not.
+	var publishErr error
 	if opts.publish {
-		if err := publishDiff(ctx, result); err != nil {
-			return err
-		}
+		publishErr = publishDiff(ctx, result)
 	}
 
 	tripped := result.GateNew(failOn, opts.failOnNewPriority)
 	if len(tripped) > 0 {
-		return fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(tripped))
+		return alsoPublish(
+			fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(tripped)),
+			publishErr)
 	}
-	return nil
+	return publishErr
 }
 
 // diffPublisherKind picks the sticky-comment publisher for the CI system this is running on.

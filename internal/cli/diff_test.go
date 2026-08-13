@@ -205,3 +205,57 @@ func TestDiffComparesTwoUnscopedReports(t *testing.T) {
 		t.Errorf("two unscoped reports are comparable: %v", err)
 	}
 }
+
+// A publisher that cannot deliver must not replace the verdict it was delivering.
+//
+// The gate is what the run is for. Returning the publish failure instead sends a reader to fix a
+// credential while the P1 the change introduced goes unmentioned — and on a merge request that is
+// the difference between "your CI is misconfigured" and "this should not merge". `scan` already
+// reconciles the two this way.
+func TestDiffPublishFailureDoesNotHideTheGate(t *testing.T) {
+	// In GitLab CI with a merge request in context and no token, the publisher errors rather than
+	// no-opping: --publish was asked for and cannot be honoured.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("TF_BUILD", "")
+	t.Setenv("CI_PROJECT_ID", "1234")
+	t.Setenv("CI_MERGE_REQUEST_IID", "7")
+	t.Setenv("GITLAB_TOKEN", "")
+
+	base := writeFile(t, "base.sarif", `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Draugr"}},"results":[]}]}`)
+	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
+
+	err := runDiff(context.Background(), base, head,
+		diffOptions{format: "console", publish: true, failOnNewPriority: "P1"}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("a new P1 with a broken publisher reported success")
+	}
+	if !strings.Contains(err.Error(), "differential gate") {
+		t.Errorf("the verdict is the outcome and has to be in the error: %v", err)
+	}
+	if !strings.Contains(err.Error(), "publishing also failed") {
+		t.Errorf("the delivery problem still has to be reported: %v", err)
+	}
+}
+
+func TestDiffPublishFailureStillFailsAPassingGate(t *testing.T) {
+	// Nothing new, so the gate passes — but --publish did nothing, and a flag that silently does
+	// nothing is the thing this codebase refuses to ship.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("TF_BUILD", "")
+	t.Setenv("CI_PROJECT_ID", "1234")
+	t.Setenv("CI_MERGE_REQUEST_IID", "7")
+	t.Setenv("GITLAB_TOKEN", "")
+
+	clean := `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Draugr"}},"results":[]}]}`
+	base := writeFile(t, "base.sarif", clean)
+	head := writeFile(t, "head.sarif", clean)
+
+	err := runDiff(context.Background(), base, head,
+		diffOptions{format: "console", publish: true}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("--publish could not post and the run reported success")
+	}
+	if strings.Contains(err.Error(), "differential gate") {
+		t.Errorf("no finding tripped the gate, so it should not be named: %v", err)
+	}
+}
