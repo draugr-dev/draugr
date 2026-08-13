@@ -218,6 +218,33 @@ With `tools: true` the action provisions the scanners each control needs (Trivy,
 Semgrep). See the [GitHub Action guide](docs/guides/github-action.md) for the full workflow and
 all inputs.
 
+## Use in CI (GitLab)
+
+One include, and one variable. On a merge request Draugr scans the head and the merge base and
+posts a sticky comment with the delta; on the default branch it scans and gates the whole
+descriptor.
+
+```yaml
+include:
+  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.87.0/gitlab-ci/draugr.yml'
+
+stages: [test]
+```
+
+Then add a **masked** CI/CD variable named `GITLAB_TOKEN` holding an access token with `api`
+scope — the `CI_JOB_TOKEN` GitLab puts in every job is read-only on the notes API and cannot post
+a comment.
+
+GitLab does not read SARIF, so Draugr renders GitLab's own formats: findings reach the merge
+request's **Reports** tab on any tier, and the **Vulnerability Report**, **Dependency List** and
+**License Compliance** tab on Ultimate. See the [GitLab guide](docs/guides/gitlab-ci.md).
+
+## Use in CI (Azure Pipelines)
+
+A step template, the same shape: `- template: azure-pipelines/draugr.yml@draugr`. Findings land in
+the Tests tab and a sticky pull-request comment. See the
+[Azure Pipelines guide](docs/guides/azure-pipelines.md).
+
 ## Use from an AI coding assistant
 
 Ask an assistant to check a change for security problems and it will — by running whatever

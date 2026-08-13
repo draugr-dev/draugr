@@ -126,7 +126,8 @@ than posting a new one) and pairs with
 scanning is free for public repos; private repos need GitHub Advanced Security.
 
 See [`examples/reporting.saga.yaml`](../../examples/reporting.saga.yaml) for a multi-format,
-multi-publisher Saga and [`examples/github-actions-code-scanning.yml`](../../examples/github-actions-code-scanning.yml)
+multi-publisher Saga, [`examples/github-actions-code-scanning.yml`](../../examples/github-actions-code-scanning.yml)
+and [`examples/gitlab-ci.yml`](../../examples/gitlab-ci.yml)
 for the matching workflow. Draugr dogfoods this itself in
 [`.draugr/self.saga.yaml`](../../.draugr/self.saga.yaml) + the self-scan workflow.
 

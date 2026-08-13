@@ -10,7 +10,15 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **GitLab reads as a first-class target everywhere, not just in its own guide.** The README and
+  the quickstart named the GitHub Action as *the* way to run Draugr in CI; all three platforms now
+  sit side by side with what each one's findings land in, and the quickstart says plainly that
+  anywhere else is the binary and an exit code. `examples/gitlab-ci.yml` is a complete commented
+  pipeline to copy, `examples/reporting.saga.yaml` declares the GitLab publisher and formats
+  alongside the GitHub one, and the code-scanning guide points GitLab readers at the equivalent
+  that is not an upload.
 
 ## [0.87.0] - 2026-08-13
 

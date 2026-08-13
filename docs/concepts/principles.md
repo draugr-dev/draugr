@@ -24,9 +24,11 @@ treats the developer experience as a feature, not an afterthought.
 - **Describe *what*, not *how*.** The Saga is declarative: you describe your app's surface and
   which controls must pass; Draugr figures out which scanners to run, in what order, with
   caching and parallelism. You don't wire tools together by hand.
-- **One tool, one mental model.** The same descriptor and the same verdict drive a local run,
-  a [GitHub Action](../guides/github-action.md), and a [PR diff](../guides/pr-diff.md). What you
-  see locally is what CI enforces.
+- **One tool, one mental model.** The same descriptor and the same verdict drive a local run, a
+  [GitHub Action](../guides/github-action.md), a [GitLab pipeline](../guides/gitlab-ci.md), an
+  [Azure template](../guides/azure-pipelines.md), and a [PR diff](../guides/pr-diff.md). What you
+  see locally is what CI enforces — and a platform's own dashboards get the format they read,
+  rather than the one Draugr would rather emit.
 
 ## 2. Human-readable by default
 

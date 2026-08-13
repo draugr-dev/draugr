@@ -185,11 +185,25 @@ the [surveyors reference](../concepts/surveyors.md) for what each one discovers.
 
 ## 4. Run it in CI
 
-`scan`'s exit code is the gate. The easiest way to wire it into GitHub Actions is the
-first-party **`draugr-dev/draugr`** action, which downloads a cosign-verified Draugr release,
-runs the scan, and exposes the SARIF path for code scanning. See the
-[GitHub Action guide](../guides/github-action.md) for the full workflow and all inputs, and
-[code scanning](../guides/code-scanning.md) for publishing findings to the Security tab.
+`scan`'s exit code is the gate, so Draugr runs anywhere that can run a binary. Each of the three
+big platforms has a first-party integration that does the install, the mode selection and the
+reporting for you:
+
+| Platform | Add | Findings land in |
+|---|---|---|
+| **GitHub Actions** | `uses: draugr-dev/draugr@v0` | code scanning (Security tab), a sticky PR comment |
+| **GitLab CI** | `include: remote: …/gitlab-ci/draugr.yml` | the merge request's Reports tab, and on Ultimate the Vulnerability Report, Dependency List and License Compliance |
+| **Azure Pipelines** | `- template: azure-pipelines/draugr.yml@draugr` | the Tests tab, a sticky PR comment |
+
+All three do the same two things: scan the branch and gate it, and on a pull or merge request
+report only what the change **introduced** rather than the backlog it inherited.
+
+- [GitHub Action guide](../guides/github-action.md) · [code scanning](../guides/code-scanning.md)
+- [GitLab guide](../guides/gitlab-ci.md) — one include and one masked variable
+- [Azure Pipelines guide](../guides/azure-pipelines.md)
+
+Anywhere else — Jenkins, a laptop, a cron job — install the binary and run `draugr scan`; the exit
+code is the whole contract.
 
 ## 5. See the findings in your editor
 
