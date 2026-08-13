@@ -16,7 +16,7 @@ Include the template and add one variable.
 ```yaml
 # .gitlab-ci.yml
 include:
-  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.86.1/gitlab-ci/draugr.yml'
+  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.86.2/gitlab-ci/draugr.yml'
 
 stages: [test]
 ```
@@ -111,7 +111,7 @@ Override any variable on the job:
 draugr:
   variables:
     DRAUGR_SAGA: services/api/draugr.saga.yaml
-    DRAUGR_VERSION: v0.86.1            # empty installs the latest release
+    DRAUGR_VERSION: v0.86.2            # empty installs the latest release
     DRAUGR_FAIL_ON_NEW_PRIORITY: P2    # empty disables the differential gate
     DRAUGR_TOOLS: "false"              # a runner image that already has the scanners
 ```
