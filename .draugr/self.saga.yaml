@@ -83,6 +83,18 @@ config:
       acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
+        - "pkg/engine/engine_test.go"
+      rules:
+        - "gitlab-pat"
+      reason: >-
+        The fixture for the test that proves planning never writes a credential into a log. It has
+        to be a value a secret scanner recognises, because a token Draugr's own scanner would miss
+        is a token that proves nothing about whether the log redacts it. The literal is
+        "NOTAREALTOKEN" followed by digits, issued by nobody and valid nowhere. Finding it here is
+        the secrets control working; so is leaving it in place.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
+    - paths:
         - "pkg/report/htmldata.go"
       rules:
         - "go.lang.security.audit.net.unescaped-data-in-url.unescaped-data-in-url"

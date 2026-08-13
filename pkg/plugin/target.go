@@ -132,8 +132,12 @@ type HostTarget struct {
 // Kind returns TargetHost.
 func (HostTarget) Kind() TargetKind { return TargetHost }
 
-// Identity returns the host URL.
-func (t HostTarget) Identity() string { return t.URL }
+// Identity returns the host URL without credentials.
+//
+// A host may be reached with basic auth in the URL, and identity is what reaches reports, cache
+// keys and logs. Same rule as a repository's: credentials are how a target is reached, not which
+// target it is.
+func (t HostTarget) Identity() string { return SourceURL(t.URL) }
 
 // InfraTarget is an infrastructure surface (e.g. a Kubernetes cluster). Platform is the
 // kind of infrastructure (e.g. "kubernetes"); Ref names the concrete instance.

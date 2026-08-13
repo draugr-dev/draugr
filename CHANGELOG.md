@@ -12,6 +12,17 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`--log-level debug` no longer prints a repository's credentials.** Planning logged the whole
+  target struct, and a checkout's URL or its resolved git remote carries whatever was used to fetch
+  it — a CI runner writes a token straight into the remote, so this affected any pipeline running
+  at debug, whether or not the descriptor mentioned a credential. The log now records the target's
+  identity, which is credential-free by construction and already what reports and cache keys use.
+  A host reached with credentials in its URL is covered too.
+
+  If you have run Draugr at `--log-level debug` — or with `--log-file`, which records at debug
+  regardless — in a pipeline that clones over HTTPS with a token, treat that token as exposed and
+  rotate it.
+
 - **The GitLab template now runs the scanners it provisions.** It ran on Alpine, where the tools
   Draugr distributes are built against glibc and Semgrep's wheels do not install at all — so a
   pipeline installed Draugr, started, and reported `sast` and `secrets` as controls that could not
