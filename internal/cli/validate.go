@@ -202,7 +202,10 @@ func loadAndCheck(path string) error {
 	if err != nil {
 		return err
 	}
-	return checkControlNames(builtins.Registry(), res.Model)
+	if err := checkControlNames(builtins.Registry(), res.Model); err != nil {
+		return err
+	}
+	return checkReportNames(res.Model)
 }
 
 // isSagaFile reports whether a filename is a Saga descriptor.
