@@ -88,7 +88,8 @@ func newSurveyCommand() *cobra.Command {
 			"Each surveyor is its own subcommand. Run several against one descriptor — each\n" +
 			"folds into the Saga already at --output:\n\n" +
 			"  draugr survey k8s images --namespace prod -o draugr.saga.yaml\n" +
-			"  draugr survey github repos --org acme -o draugr.saga.yaml\n\n" +
+			"  draugr survey github repos --org acme -o draugr.saga.yaml\n" +
+			"  draugr survey gitlab projects --group acme -o draugr.saga.yaml\n\n" +
 			"An existing file is added to, never overwritten. Use --replace to start again.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -110,7 +111,8 @@ func newSurveyCommand() *cobra.Command {
 		return opts.check(c)
 	}
 
-	cmd.AddCommand(newSurveyK8sCommand(opts), newSurveyGitHubCommand(opts))
+	cmd.AddCommand(newSurveyK8sCommand(opts), newSurveyGitHubCommand(opts),
+		newSurveyGitLabCommand(opts))
 	return cmd
 }
 
@@ -250,6 +252,40 @@ func newSurveyGitHubCommand(opts *surveyOptions) *cobra.Command {
 	repos.Flags().StringVar(&org, "org", "", "the GitHub organization to discover repositories in")
 
 	cmd.AddCommand(repos)
+	return cmd
+}
+
+// newSurveyGitLabCommand groups the surveyors that read GitLab.
+func newSurveyGitLabCommand(opts *surveyOptions) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "gitlab",
+		Short: "Discover from GitLab",
+		Long: "Surveyors that read GitLab. Authentication comes from GITLAB_TOKEN, or a token\n" +
+			"named in scope config. A self-managed instance is named by GITLAB_URL (or the\n" +
+			"CI_API_V4_URL a runner already sets).",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+	}
+
+	var group string
+	projects := &cobra.Command{
+		Use:   "projects",
+		Short: "Discover the projects in a GitLab group",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if group == "" {
+				return fmt.Errorf("--group is required: it names the GitLab group to discover projects in")
+			}
+			return runSurvey(cmd.Context(), *opts, []surveyor.Request{{
+				Surveyor: "gitlab-group-projects",
+				Scope:    plugin.SurveyScope{Ref: group},
+			}}, builtins.SurveyorRegistry(), cmd.OutOrStdout())
+		},
+	}
+	projects.Flags().StringVar(&group, "group", "",
+		"the GitLab group to discover projects in; subgroups are included")
+
+	cmd.AddCommand(projects)
 	return cmd
 }
 

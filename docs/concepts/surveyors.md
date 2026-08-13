@@ -113,4 +113,5 @@ you from is a component ranked as though it does not matter.
 - [The Saga](saga.md) — what the fragments are merged into
 - [Prioritization](prioritization.md) — what `exposure` and `criticality` drive
 - [`k8s-images`](../../internal/surveyors/k8s-images.md) ·
-  [`github-org-repos`](../../internal/surveyors/github-org-repos.md) — per-surveyor detail
+  [`github-org-repos`](../../internal/surveyors/github-org-repos.md) ·
+  [`gitlab-group-projects`](../../internal/surveyors/gitlab-group-projects.md) — per-surveyor detail

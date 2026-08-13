@@ -614,6 +614,7 @@ belong to:
 | `draugr survey k8s images` | unique container images running in a cluster, with their digests | `--namespace`, `--no-exposure` |
 | `draugr survey k8s cluster` | the cluster itself, as an `infrastructure` component | `--namespace` |
 | `draugr survey github repos` | repositories in a GitHub organization | `--org` |
+| `draugr survey gitlab projects` | projects in a GitLab group, subgroups included | `--group` |
 
 Shared by all of them: `-o, --output` (default stdout), `--replace`, `--fragment`, `--name`,
 `--version`. The `k8s` group also takes `--context`, which selects the cluster for both of its
@@ -654,11 +655,14 @@ read Ingresses, Services and NetworkPolicies.
 Auth: the GitHub surveyor uses `GITHUB_TOKEN` (or a token in scope config); the Kubernetes
 surveyors use your ambient kubeconfig (`KUBECONFIG` / `~/.kube/config` / in-cluster).
 
-**Without a token, GitHub answers with the org's public repositories only** — the survey warns,
-because the descriptor that results looks complete and is missing every private repository.
+**Without a token, GitHub and GitLab both answer with the public repositories only** — the survey
+warns, because the descriptor that results looks complete and is missing every private one.
+GitHub reads `GITHUB_TOKEN`, GitLab reads `GITLAB_TOKEN`; a self-managed GitLab is named by
+`GITLAB_URL` (or the `CI_API_V4_URL` a runner already sets).
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
+draugr survey gitlab projects --group my-group -o draugr.saga.yaml
 draugr survey k8s images --namespace prod -o draugr.saga.yaml
 ```
 
