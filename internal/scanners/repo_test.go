@@ -3,6 +3,8 @@ package scanners
 import (
 	"context"
 	"errors"
+	"os"
+	"slices"
 	"sync/atomic"
 	"testing"
 
@@ -360,5 +362,67 @@ func TestRepoScannerRunsOnePassWhenNoHistoryIsWanted(t *testing.T) {
 	}
 	if ran != 1 {
 		t.Errorf("ran %d commands, want 1", ran)
+	}
+}
+
+// A tool that writes its report to a file gets a real one.
+//
+// Pointing such a tool at /dev/stdout looks equivalent and is not: that path is a symlink to the
+// process's own fd 1, and opening it is not writing to the descriptor it inherited. Where stdout
+// is a pipe — every containerised runner — the open lands somewhere the parent never reads, the
+// tool exits 0 having written nothing, and the parse blames the JSON.
+func TestRunReportingGivesTheToolARealFile(t *testing.T) {
+	const report = `{"version":"2.1.0","runs":[]}`
+
+	var gotArgv []string
+	s := repoScanner{
+		run: func(_ context.Context, _ string, argv []string) ([]byte, error) {
+			gotArgv = argv
+			// Stand in for the tool: write the report to the path it was handed, and put nothing
+			// on stdout — which is exactly what the real failure looked like.
+			for i, a := range argv {
+				if a == "--report-path" && i+1 < len(argv) {
+					if err := os.WriteFile(argv[i+1], []byte(report), 0o600); err != nil {
+						return nil, err
+					}
+				}
+			}
+			return nil, nil
+		},
+	}
+
+	out, err := s.runReporting(context.Background(), "/tmp", []string{
+		"tool", "--report-path", ReportPathToken,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != report {
+		t.Errorf("read %q from the report file, want the tool's output", out)
+	}
+	if slices.Contains(gotArgv, ReportPathToken) {
+		t.Errorf("the placeholder reached the tool: %v", gotArgv)
+	}
+	if path := gotArgv[2]; path == "" || path == "/dev/stdout" {
+		t.Errorf("the tool was handed %q rather than a real file", path)
+	}
+	if _, err := os.Stat(gotArgv[2]); !os.IsNotExist(err) {
+		t.Errorf("the temporary report was left behind at %s", gotArgv[2])
+	}
+}
+
+// A tool with no report path keeps writing to stdout, which is how every other scanner works.
+func TestRunReportingLeavesStdoutToolsAlone(t *testing.T) {
+	s := repoScanner{
+		run: func(_ context.Context, _ string, _ []string) ([]byte, error) {
+			return []byte(`{"version":"2.1.0"}`), nil
+		},
+	}
+	out, err := s.runReporting(context.Background(), "/tmp", []string{"tool", "--format", "sarif"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != `{"version":"2.1.0"}` {
+		t.Errorf("stdout was not returned: %q", out)
 	}
 }
