@@ -230,6 +230,12 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
 
+	// Not dim, unlike its neighbours. The lines above describe the run; this one qualifies the
+	// findings, and a reader deciding whether to trust a verdict should not have to notice it.
+	if line := unpinnedCacheLine(d.Run.Stats.UnpinnedCacheHits); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cMedium, line))
+	}
+
 	if len(s.findings) == 0 {
 		// "No findings ✓" after a control that didn't run would be the same false reassurance
 		// the ERROR row exists to prevent.
@@ -753,6 +759,34 @@ func exploitabilityLine(feeds []FeedProvenance, escalated int) string {
 		effect = fmt.Sprintf("%s raised", plural(escalated, "finding"))
 	}
 	return "Exploitability: " + strings.Join(parts, " · ") + " — " + effect
+}
+
+// unpinnedCacheLine names the images whose findings came from a cache entry that could not be
+// content-addressed, or "" when none did.
+//
+// The cache is content-addressed, and a report that does not say where that held is a report
+// claiming more than it knows. An image named by a tag alone has a stable key and unstable bytes:
+// the tag may have been rebuilt since the entry was written, and the findings then describe an
+// image that is no longer there — a pass over code nobody is running.
+//
+// It says what to do rather than only what happened, because both answers are one step away: pin
+// the digest in the descriptor and the entry becomes content-addressed, or refuse the entry with
+// --cache-require-digest and take the re-scan.
+func unpinnedCacheLine(refs []string) string {
+	if len(refs) == 0 {
+		return ""
+	}
+	shown := refs
+	const most = 3
+	suffix := ""
+	if len(shown) > most {
+		suffix = fmt.Sprintf(" and %d more", len(shown)-most)
+		shown = shown[:most]
+	}
+	return fmt.Sprintf(
+		"Reused from cache, keyed on a tag: %s%s — a tag can be rebuilt, so these findings may "+
+			"describe an earlier image. Pin a digest, or re-scan with --cache-require-digest.",
+		strings.Join(shown, ", "), suffix)
 }
 
 // escalationNote is the line under a finding saying why it outranks its severity, or "" when

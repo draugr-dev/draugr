@@ -171,6 +171,22 @@ cannot cover:
   unchanged, so the previous image's findings are served. Pin a `digest:` — a discovery surveyor
   records the running one for you — or pass `--cache-require-digest` to refuse to cache tag-only
   images at all.
+
+  **The report says when this happened**, so it is a caveat you are given rather than one you have
+  to remember:
+
+  ```
+  Reused from cache, keyed on a tag: acme/api:latest — a tag can be rebuilt, so these findings
+  may describe an earlier image. Pin a digest, or re-scan with --cache-require-digest.
+  ```
+
+  It appears only when a result was actually reused: a fresh scan of a tag scanned whatever that
+  tag points at now, which is the right answer whether or not it moved. `--format json` carries
+  the same list as `stats.unpinnedCacheHits`.
+
+  Draugr does not resolve the digest for you. That is a registry request and a credential the run
+  may not have, and a scan that fails because it could not reach a registry it never needed to
+  reach would be a worse trade than the caveat.
 - **A Semgrep ruleset fetched from the registry.** `p/default` is a moving target with no version
   Draugr can read, and resolving it means fetching it, which costs most of what caching saves.
   This is the case `--cache-ttl` exists for; leave it at a day or less if you rely on registry

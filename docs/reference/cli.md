@@ -285,7 +285,7 @@ draugr scan draugr.saga.yaml   # full control from a descriptor
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 | `--cache-read-only` | `false` | Read the cache, never write it — for a run whose results should not be trusted by the next one |
-| `--cache-require-digest` | `false` | Do not cache an image identified only by a tag |
+| `--cache-require-digest` | `false` | Do not cache an image identified only by a tag. Left off, such a result is still reused and the report names it — see [what a hit does and does not promise](../guides/caching-and-performance.md#what-a-hit-does-and-does-not-promise) |
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
 | `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
 | `--template` | — | inline Go `text/template` (with `--format template`) |

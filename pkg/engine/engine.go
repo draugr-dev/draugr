@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -442,6 +444,15 @@ type Stats struct {
 	Jobs      int
 	Scans     int
 	CacheHits int
+	// UnpinnedCacheHits names the targets whose result came from a cache entry that could not be
+	// content-addressed — today, images the descriptor identifies by a tag alone. Sorted and
+	// deduplicated.
+	//
+	// A hit like that is right about its key and possibly wrong about the image: the tag can have
+	// been rebuilt and repushed since, and nothing about the reused report would say so. Draugr
+	// cannot know without asking the registry, so it reports which results rest on that
+	// assumption instead of presenting them as though they did not.
+	UnpinnedCacheHits []string
 	// Deduped counts jobs that reused an identical scan already running/completed in this run
 	// (in-run singleflight), rather than scanning or hitting the persistent cache.
 	Deduped int
@@ -530,6 +541,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		ctlErrs = make(map[string][]string)
 		errs    []error
 		stats   = Stats{Jobs: len(planned), Concurrency: e.concurrency, ByControl: map[string]time.Duration{}}
+		// A set, because a component's image can be reached by more than one scanner and the
+		// point is which images the reader should distrust, not how many times each was reused.
+		unpinnedHits = map[string]struct{}{}
 		// running is what is in flight, keyed by job so two jobs of the same shape can both be
 		// in it; complete counts every job that has stopped, however it stopped.
 		running  = map[int]string{}
@@ -770,6 +784,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				stats.Deduped++
 			case res.cached:
 				stats.CacheHits++
+				// Recorded per hit rather than per job: a target only rests on this assumption
+				// when its result was actually reused. A fresh scan of a tag scanned whatever the
+				// tag points at now, which is the right answer whether or not it moved.
+				if !plugin.ContentAddressed(pj.Job.Target) {
+					unpinnedHits[pj.Job.Target.Identity()] = struct{}{}
+				}
 			default:
 				stats.Scans++
 			}
@@ -780,6 +800,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	if canceled {
 		errs = append(errs, ctx.Err())
 	}
+	stats.UnpinnedCacheHits = slices.Sorted(maps.Keys(unpinnedHits))
 
 	// Evidence, after the controls: an SBOM describes what a component contains rather than
 	// judging it, so it never reaches the verdict. A failure is still recorded, because

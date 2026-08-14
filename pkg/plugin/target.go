@@ -104,6 +104,37 @@ func (t ImageTarget) Identity() string {
 	return t.Ref
 }
 
+// ContentAddressable is an optional interface a Target may implement to say whether its identity
+// is its content. A target that does not implement it is treated as content-addressed, which is
+// the honest default: a repository at a revision and a host at a URL both are.
+//
+// It exists because the cache's correctness rests on that property, and one target kind cannot
+// guarantee it. Rather than let the engine keep a list of the kinds it should distrust — a list
+// that goes stale the moment a target is added — the target says so itself.
+type ContentAddressable interface {
+	ContentAddressed() bool
+}
+
+// ContentAddressed reports whether a target's identity is its content, for targets that say.
+func ContentAddressed(t Target) bool {
+	ca, ok := t.(ContentAddressable)
+	return !ok || ca.ContentAddressed()
+}
+
+// ContentAddressed reports whether this target's identity really is its content.
+//
+// It is when a digest is known, either declared or already written into the ref. A tag alone is
+// not: `alpine:3.19` is a name someone can repoint at different bytes, so a cache entry keyed on
+// it is right about the key and possibly wrong about the image.
+//
+// Draugr cannot tell the difference without asking the registry, which is a network call and a
+// credential the run may not have. So the answer here is what the descriptor says, and a false
+// means the result has to be reported as one that could not be content-addressed rather than
+// quietly presented as though it had been.
+func (t ImageTarget) ContentAddressed() bool {
+	return t.Digest != "" || strings.Contains(t.Ref, "@")
+}
+
 // PinnedRef returns the reference a scanner should actually pull: the ref pinned to the
 // digest (e.g. "repo:tag@sha256:…") when a digest is known, so the bytes scanned match the
 // digest the result is cached under. The tag is kept for readable scanner output. Falls back
