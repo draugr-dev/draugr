@@ -111,14 +111,14 @@ jobs:
           sudo mv gitleaks /usr/local/bin/
           gitleaks version
 
-      # pipx, still, for one release longer. The self-scan runs the latest *release*, and
-      # `draugr tools install semgrep` only exists in the build being tested here — so this
-      # switches over once a release carries it, like every other dogfooding change.
+      # Installed by the release being dogfooded, like every other scanner. The pinned version
+      # comes from that release rather than from this file, so SEMGREP_VERSION is only here for
+      # the drift guard to compare against.
       - name: Install Semgrep
         if: needs.changes.outputs.code == 'true'
         run: |
           set -euo pipefail
-          pipx install "semgrep==${SEMGREP_VERSION}"
+          draugr tools install semgrep -y
           semgrep --version
 
       # Enabled in .draugr/self.saga.yaml, so it has to be here: a control whose scanner is

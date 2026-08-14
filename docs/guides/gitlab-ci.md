@@ -162,15 +162,13 @@ draugr:
 
 ## Scanners the runner needs
 
-`draugr tools install` provisions the scanners Draugr distributes and can verify. **Semgrep is not
-one of them**, so the template installs it with pip when `DRAUGR_SEMGREP` is `true` (the default).
-Turn it off if your descriptor does not enable `sast`, or if your image already carries it — it
-costs about a minute.
+`draugr tools install` provisions every scanner the descriptor's controls need, Semgrep included.
+Semgrep publishes no release binary, so Draugr installs it from PyPI into an environment it owns —
+which needs a **Python 3.10 or newer** interpreter on the runner.
 
-The job runs on `python:3.13-slim` rather than something smaller, and both halves of that matter:
-the scanners Draugr provisions are built against glibc, and Semgrep ships manylinux wheels that do
-not install on musl. An Alpine runner will install Draugr fine and then report controls that could
-not run.
+That is why the job runs on `python:3.13-slim` rather than something smaller, along with the other
+half: the scanners Draugr provisions are built against glibc. An Alpine runner will install Draugr
+fine and then report controls that could not run.
 
 The template also runs `draugr doctor`, which names anything still missing and where it comes from,
 rather than letting a control report that it quietly found nothing.

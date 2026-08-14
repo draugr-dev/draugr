@@ -74,7 +74,7 @@ inputs:
   tools:
     description: >-
       Provision the external scanners Draugr's controls use before scanning: `draugr tools
-      install` for the binary tools (Trivy, Gitleaks, gosec) plus Semgrep via pipx. Set "true"
+      install` for every scanner the controls need (Trivy, Gitleaks, gosec, Semgrep). Set "true"
       when the runner doesn't already have them (e.g. the code-scanning starter workflow).
     required: false
     default: "false"
@@ -232,14 +232,10 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        # Binary scanners (Trivy, Gitleaks, gosec) into ~/.draugr/bin, which draugr prepends to
-        # PATH for its own scanner execution.
+        # Every scanner, into ~/.draugr/bin, which draugr prepends to PATH for its own scanner
+        # execution. Semgrep included: it publishes no release binary, so Draugr installs it from
+        # PyPI into an environment it owns and puts a launcher there with the rest.
         draugr tools install -y
-        # Semgrep ships as a Python package, so it comes via pipx (its bin dir on PATH).
-        if ! command -v semgrep >/dev/null 2>&1; then
-          pipx install semgrep
-          echo "$HOME/.local/bin" >>"$GITHUB_PATH"
-        fi
 
     - name: Fetch exploitability feeds
       if: inputs.feeds == 'true'
