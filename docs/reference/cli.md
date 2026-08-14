@@ -615,6 +615,7 @@ belong to:
 | `draugr survey k8s cluster` | the cluster itself, as an `infrastructure` component | `--namespace` |
 | `draugr survey github repos` | repositories in a GitHub organization | `--org` |
 | `draugr survey gitlab projects` | projects in a GitLab group, subgroups included | `--group` |
+| `draugr survey azure repos` | Git repositories in an Azure DevOps organization or project | `--org`, `--project` |
 
 Shared by all of them: `-o, --output` (default stdout), `--replace`, `--fragment`, `--name`,
 `--version`. The `k8s` group also takes `--context`, which selects the cluster for both of its
@@ -652,18 +653,31 @@ credential may not have, and spending them to produce warnings about a value nob
 no one. Use it when `draugr classify` is where exposure gets decided, or when the credential cannot
 read Ingresses, Services and NetworkPolicies.
 
-Auth: the GitHub surveyor uses `GITHUB_TOKEN` (or a token in scope config); the Kubernetes
+Auth: each forge surveyor reads a token from the environment (or from scope config); the Kubernetes
 surveyors use your ambient kubeconfig (`KUBECONFIG` / `~/.kube/config` / in-cluster).
 
-**Without a token, GitHub and GitLab both answer with the public repositories only** — the survey
-warns, because the descriptor that results looks complete and is missing every private one.
-GitHub reads `GITHUB_TOKEN`, GitLab reads `GITLAB_TOKEN`; a self-managed GitLab is named by
-`GITLAB_URL` (or the `CI_API_V4_URL` a runner already sets).
+**Without a token, every forge answers with the public repositories only** — the survey warns,
+because the descriptor that results looks complete and is missing every private one.
+
+| Forge | Token | Self-hosted instance |
+|---|---|---|
+| GitHub | `GITHUB_TOKEN` | — |
+| GitLab | `GITLAB_TOKEN` | `GITLAB_URL`, or the `CI_API_V4_URL` a runner already sets |
+| Azure DevOps | `AZURE_DEVOPS_EXT_PAT`, else `AZURE_DEVOPS_TOKEN` — needs the **Code (read)** scope | `AZURE_DEVOPS_URL`, including its collection |
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
 draugr survey gitlab projects --group my-group -o draugr.saga.yaml
+draugr survey azure repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod -o draugr.saga.yaml
+```
+
+**`draugr survey azure repos` takes `--project` or leaves it out**, and the two answer different
+questions: one project is a team's surface, the whole organization is the estate. Azure DevOps
+makes the project optional for that reason, so Draugr passes the choice through.
+
+```bash
+draugr survey azure repos --org my-org --project Platform -o draugr.saga.yaml
 ```
 
 **`--namespace` may be repeated, and each one becomes its own component** with its own proposed

@@ -10,7 +10,29 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`draugr survey azure repos` writes a descriptor from Azure DevOps.** One component per Git
+  repository, with its clone URL and default branch, for a whole organization or for one project:
+
+  ```bash
+  draugr survey azure repos --org acme -o draugr.saga.yaml
+  draugr survey azure repos --org acme --project Platform -o draugr.saga.yaml
+  ```
+
+  The project is optional because the two answer different questions — one project is a team's
+  surface, the organization is the estate. Authentication reads `AZURE_DEVOPS_EXT_PAT` (what the
+  `az` CLI already exports), then `AZURE_DEVOPS_TOKEN`, and needs the **Code (read)** scope. An
+  Azure DevOps Server instance is named by `AZURE_DEVOPS_URL`, including its collection.
+
+  Repositories that are disabled or have no commits are skipped and reported, rather than written
+  into a descriptor whose clone will fail. Without a token the survey warns that it saw public
+  projects only: the descriptor that results is valid and complete-looking, and missing every
+  private repository.
+
+  Azure DevOps answers an unauthenticated or under-scoped API request with `203` and a sign-in
+  page rather than a `401`, so that case says which of "missing", "expired" or "wrong scope" to
+  check instead of reporting a status code that means "this is fine, from a cache".
 
 ## [0.90.0] - 2026-08-14
 

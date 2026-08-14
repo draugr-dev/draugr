@@ -118,7 +118,7 @@ func TestSurveyCommandViaCobraListsSurveyors(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	for _, want := range []string{"k8s", "github"} {
+	for _, want := range []string{"k8s", "github", "gitlab", "azure"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("help should list %q, got %q", want, out.String())
 		}
@@ -171,6 +171,67 @@ func TestSurveyGitHubReposRequiresAnOrg(t *testing.T) {
 	err := cmd.Execute()
 	if err == nil || !strings.Contains(err.Error(), "--org") {
 		t.Errorf("want an error naming --org, got: %v", err)
+	}
+}
+
+// --org is what the surveyor scopes to; --project narrows it. Running without --org would survey
+// nothing and report success.
+func TestSurveyAzureReposRequiresAnOrg(t *testing.T) {
+	t.Parallel()
+	cmd := newSurveyCommand()
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"azure", "repos"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "--org") {
+		t.Errorf("want an error naming --org, got: %v", err)
+	}
+}
+
+// An omitted --project has to mean "the whole organization", not "a project with no name": the
+// second builds a URL with a trailing slash and asks Azure DevOps for something else.
+func TestAzureScopeRef(t *testing.T) {
+	t.Parallel()
+	cases := []struct{ name, org, project, want string }{
+		{"organization only", "acme", "", "acme"},
+		{"organization and project", "acme", "Platform", "acme/Platform"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := azureScopeRef(tc.org, tc.project); got != tc.want {
+				t.Errorf("azureScopeRef(%q, %q) = %q, want %q", tc.org, tc.project, got, tc.want)
+			}
+		})
+	}
+}
+
+// Each surveyor's options belong to it, and --project is meaningless anywhere but here.
+func TestSurveyAzureOptionsAreScopedToTheSubcommand(t *testing.T) {
+	t.Parallel()
+	var azure *cobra.Command
+	for _, group := range newSurveyCommand().Commands() {
+		if group.Name() == "azure" {
+			azure = group
+		}
+	}
+	if azure == nil {
+		t.Fatal("expected an `azure` group")
+	}
+	if azure.Flags().Lookup("org") != nil {
+		t.Error("--org belongs to `azure repos`, not to the group")
+	}
+	repos := azure.Commands()[0]
+	for _, flag := range []string{"org", "project"} {
+		if repos.Flags().Lookup(flag) == nil {
+			t.Errorf("--%s belongs to `azure repos`", flag)
+		}
+	}
+	if repos.Flags().Lookup("group") != nil {
+		t.Error("--group is GitLab's and must not be reachable here — a flag accepted where it means nothing does nothing, silently")
+	}
+	if repos.InheritedFlags().Lookup("output") == nil {
+		t.Error("--output applies to every surveyor")
 	}
 }
 
