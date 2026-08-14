@@ -248,6 +248,21 @@
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
           "type": "boolean"
         },
+        "grype": {
+          "additionalProperties": false,
+          "description": "grype — published by anchore.",
+          "properties": {
+            "byCve": {
+              "description": "Report a finding under its CVE rather than the advisory ID the source used, where a CVE exists. On by default. Turn it off to see the advisory identifier Grype matched on.",
+              "type": "boolean"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "trivy": {
           "additionalProperties": false,
           "description": "trivy — published by aquasecurity.",
@@ -489,6 +504,21 @@
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
           "type": "boolean"
+        },
+        "grypeFs": {
+          "additionalProperties": false,
+          "description": "grype-fs — published by anchore.",
+          "properties": {
+            "byCve": {
+              "description": "Report a finding under its CVE rather than the advisory ID the source used, where a CVE exists. On by default. Turn it off to see the advisory identifier Grype matched on.",
+              "type": "boolean"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
         },
         "mendSca": {
           "additionalProperties": false,

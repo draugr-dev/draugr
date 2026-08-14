@@ -9,6 +9,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -91,6 +92,19 @@ func Catalog() map[string]Tool {
 			VersionArgs: []string{"--version"},
 			InstallHint: "https://trivy.dev/latest/getting-started/installation/",
 			Category:    CategoryScanner,
+		},
+		"grype": {
+			Binary:      "grype",
+			VersionArgs: []string{"version"},
+			InstallHint: "https://github.com/anchore/grype#installation",
+			Category:    CategoryScanner,
+			// Grype is a matcher with no vulnerability data of its own, and it refuses to scan
+			// against a database more than five days old — so a binary on PATH is not yet a
+			// scanner that can run. Grype is asked rather than the disk inspected, because it is
+			// the only thing that knows whether what is on disk is current enough to be used.
+			DataArgs: []string{"db", "status", "-o", "json"},
+			DataOK:   GrypeDBOK,
+			DataHint: "run `grype db update`",
 		},
 		"gitleaks": {
 			Binary:      "gitleaks",
@@ -272,6 +286,22 @@ func defaultRun(ctx context.Context, argv []string) ([]byte, error) {
 // and, with no templates installed, prints the same line with the version blank — and exits 0
 // either way. The blank is the signal; the exit code says nothing.
 var nucleiTemplatesVersionRE = regexp.MustCompile(`nuclei-templates version:\s*(\S+)?\s*\(([^)]*)\)`)
+
+// GrypeDBOK reports whether Grype has a usable vulnerability database, and when it was built.
+//
+// `valid` is Grype's own verdict and the only one worth reporting: a database file can exist,
+// be readable, and still be one Grype will refuse to scan with because it is too old or its
+// schema belongs to a version of the tool that is no longer served.
+func GrypeDBOK(out []byte) (bool, string) {
+	var status struct {
+		Built string `json:"built"`
+		Valid bool   `json:"valid"`
+	}
+	if json.Unmarshal(out, &status) != nil || !status.Valid {
+		return false, ""
+	}
+	return true, "built " + status.Built
+}
 
 // NucleiTemplatesOK reports whether Nuclei has a template set, and which. Exported because the
 // scanner checks the same thing after asking Nuclei to download one — the tool exits 0 either

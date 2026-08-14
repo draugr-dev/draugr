@@ -44,12 +44,19 @@ Do this once, on a machine that has a network, and copy `~/.draugr` across.
 draugr tools install            # binaries and their data into ~/.draugr/bin
 draugr feeds update             # KEV and EPSS into ~/.draugr/feeds
 trivy image --download-db-only  # Trivy's vulnerability database, into its own cache
+grype db update                 # Grype's vulnerability database, if you run it
 nuclei -update-templates        # Nuclei's template set, if you run dast
 ```
 
-**Trivy's database and Nuclei's templates live in their own caches, not in `~/.draugr`.** Copy
-those too — `~/.cache/trivy` and `~/.local/nuclei-templates` by default, both relocatable with
-`TRIVY_CACHE_DIR` and `NUCLEI_TEMPLATES_DIR`.
+**These databases and template sets live in their own caches, not in `~/.draugr`.** Copy those
+too — `~/.cache/trivy`, `~/.cache/grype` and `~/.local/nuclei-templates` by default, all
+relocatable with `TRIVY_CACHE_DIR`, `GRYPE_DB_CACHE_DIR` and `NUCLEI_TEMPLATES_DIR`.
+
+**Grype refuses a database older than five days**, and copying one across takes time the clock
+keeps counting. `GRYPE_DB_UPDATE_URL` points it at an internal mirror so a runner refreshes from
+inside your network instead. Raising `GRYPE_DB_MAX_ALLOWED_BUILT_AGE` is the other lever and the
+worse one: it buys quiet by letting the scan run against data that has stopped being updated, and
+a pass earned that way is the failure this tool exists to prevent.
 
 A scan with `--offline` and no Trivy database does not silently return "no vulnerabilities". The
 control reports an error and the run fails:
