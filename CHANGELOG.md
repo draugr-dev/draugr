@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.89.0] - 2026-08-13
+
 ### Added
 
 - **`draugr tools install semgrep` works.** Semgrep was the one scanner Draugr could not provision,
@@ -3871,7 +3875,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.88.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.89.0...HEAD
+[0.89.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.89.0
 [0.88.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.88.2
 [0.88.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.88.1
 [0.88.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.88.0
