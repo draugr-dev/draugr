@@ -27,7 +27,11 @@ if [ "$tidy_before" != "$(cat go.mod go.sum)" ]; then
 fi
 
 echo "▶ go vet"
+# Twice, because the tag set decides which files exist. Without the second pass an integration
+# test that does not compile passes the gate untouched, and the first thing to notice is a CI job
+# most pull requests never run. Keep the tag list here and in .golangci.yml together.
 go vet ./...
+go vet -tags integration ./...
 
 echo "▶ golangci-lint"
 # Always use a fresh cache: the persistent golangci-lint cache can report false
