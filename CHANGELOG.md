@@ -10,17 +10,9 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-### Changed
+_Nothing yet._
 
-- **`draugr scan --help` groups its flags by what you are trying to decide** — what is scanned,
-  what fails the build, exploitability data, output, caching, and running the scan — instead of
-  listing thirty-odd of them alphabetically. Alphabetical order put `--artifact-min-priority` nine
-  lines from `--min-priority` when the two are one decision.
-
-  The CLI reference is grouped the same way, and `--report` now appears in it: it was explained in
-  prose but missing from the table listing every flag.
-
-  Nothing about parsing, precedence or completion changes — only how help is printed.
+## [0.92.0] - 2026-08-14
 
 ### Added
 
@@ -43,6 +35,18 @@ and move it under a version on release.
   fails on a choice you made is one you learn to ignore. Pass **`--fail-on-uncovered`** when you
   want it enforced — usually in CI, against a descriptor meant to be complete. A missing tool still
   outranks it: that stops the scan outright, while an uncovered surface only narrows it.
+
+### Changed
+
+- **`draugr scan --help` groups its flags by what you are trying to decide** — what is scanned,
+  what fails the build, exploitability data, output, caching, and running the scan — instead of
+  listing thirty-odd of them alphabetically. Alphabetical order put `--artifact-min-priority` nine
+  lines from `--min-priority` when the two are one decision.
+
+  The CLI reference is grouped the same way, and `--report` now appears in it: it was explained in
+  prose but missing from the table listing every flag.
+
+  Nothing about parsing, precedence or completion changes — only how help is printed.
 
 ### Fixed
 
@@ -4043,7 +4047,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.91.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.92.0...HEAD
+[0.92.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.92.0
 [0.91.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.91.0
 [0.90.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.90.0
 [0.89.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.89.0
