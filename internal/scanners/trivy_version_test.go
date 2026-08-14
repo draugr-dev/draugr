@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
 func TestTrivyVersionProbe(t *testing.T) {
@@ -31,18 +33,27 @@ func TestTrivyVersionProbeErrors(t *testing.T) {
 	}
 }
 
+// TestRepoScannerCacheVersion checks the wiring: a repo scanner whose findings can change when
+// its tool changes contributes that tool's version to the cache key, so a cached "no findings"
+// cannot outlive the build that produced it.
+//
+// The value is deliberately not asserted. CacheVersion asks the tool on PATH, so an assertion on
+// what it returns is an assertion about the machine: it passes where the tool is absent or built
+// without a version stamp, and fails where a real release is installed — which says nothing about
+// the code either way. Extraction from fixed tool output is covered by TestToolVersionProbeExtracts.
 func TestRepoScannerCacheVersion(t *testing.T) {
-	// trivy-fs wires the shared probe → implements CacheVersioner (non-panicking).
-	if _, ok := NewTrivyFS().(interface {
-		CacheVersion(context.Context) string
-	}); !ok {
-		t.Error("trivy-fs should implement CacheVersioner")
-	}
-	// gitleaks has no dynamic version → CacheVersion returns "".
-	if s, ok := NewGitleaks().(interface {
-		CacheVersion(context.Context) string
-	}); !ok || s.CacheVersion(context.Background()) != "" {
-		t.Error("gitleaks CacheVersion should be empty")
+	for _, c := range []struct {
+		name    string
+		scanner plugin.Scanner
+	}{
+		{"trivy-fs", NewTrivyFS()},
+		{"gitleaks", NewGitleaks()},
+	} {
+		if _, ok := c.scanner.(interface {
+			CacheVersion(context.Context) string
+		}); !ok {
+			t.Errorf("%s should implement CacheVersioner", c.name)
+		}
 	}
 }
 
