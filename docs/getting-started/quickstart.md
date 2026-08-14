@@ -217,6 +217,11 @@ extension. See [see findings in your editor](../guides/findings-in-your-editor.m
 - **Not sure what's installed?** — run `draugr doctor draugr.saga.yaml` for a preflight: it
   validates the descriptor and lists every scanner the Saga needs as found / missing / version,
   with an install hint for each. Use it as a CI gate: `draugr doctor saga.yaml && draugr scan saga.yaml`.
+- **Sure it ran, but did it look at everything?** — the same preflight answers that. Doctor lists
+  any surface the descriptor declares that no enabled control examines, so a component with images
+  and the `images` control switched off is reported before the scan passes over it rather than
+  after. Add `--fail-on-uncovered` to make that a failure when the descriptor is meant to be
+  complete.
 - **No findings / control didn't run** — ensure the control is `enabled` and the component
   has the relevant resources (e.g. `images` for the images control).
 - **`executable file not found`** — the scanner for a control isn't on `PATH`; run

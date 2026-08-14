@@ -51,6 +51,11 @@ The scanners each control needs (Trivy, Gitleaks, Semgrep, …) still have to be
 set `tools: true` to let Draugr provision them, install them alongside (e.g.
 `aquasecurity/setup-trivy`), or gate their presence with `draugr doctor`.
 
+`doctor` also reports any surface the descriptor declares that no enabled control looks at — the
+scan that passes having never opened your images. On a descriptor meant to be complete,
+`draugr doctor saga.yaml --fail-on-uncovered` makes that a failing step instead of a note nobody
+reads.
+
 ## Modes
 
 | `mode` | On | What it does | Needs |

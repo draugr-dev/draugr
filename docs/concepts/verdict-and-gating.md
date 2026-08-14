@@ -71,6 +71,43 @@ Pass `--allow-scan-errors` for best-effort scanning — the run then passes on f
 The errored control is still reported either way; the flag buys a passing exit code, not
 silence.
 
+### A surface nobody looked at *does* pass — so it is reported instead
+
+The third way a `PASS` can mean less than it appears is the one Draugr deliberately does **not**
+fail on. A component can declare images, or hosts, while the controls that examine them are off.
+Every enabled control runs, finds nothing wrong, and the verdict is a clean pass over a surface
+that was never opened.
+
+Unlike the two above, this is not treated as an error, because a narrow descriptor is a legitimate
+thing to have: scanning a repository you do not own for committed secrets and nothing else is a
+real use, and a tool that failed the run would be failing a decision somebody made on purpose. A
+gate that objects to intent is one people learn to work around.
+
+So it is reported rather than enforced. Every scan says what it did not look at:
+
+```
+Not checked:
+      api declares hosts, and headers, tls are not enabled
+      api declares images, and images is not enabled
+      dast is never suggested — it sends attack traffic. Enable it yourself.
+```
+
+[`draugr doctor`](../reference/cli.md#draugr-doctor-sagayaml) says the same thing **before** the
+scan, which is usually where you want to hear it, and `--fail-on-uncovered` turns it into a
+failure for a descriptor that is meant to be complete:
+
+```bash
+draugr doctor draugr.saga.yaml --fail-on-uncovered && draugr scan draugr.saga.yaml
+```
+
+The answer comes from one place, so the scan, doctor and the
+[MCP server](../guides/ai-agents-mcp.md) cannot tell you different things about the same
+descriptor.
+
+`dast` is never in the suggestion, and that is deliberate: it sends attack traffic at a live
+service, and enabling that because something noticed the service exists is not a decision Draugr
+gets to make for you.
+
 ## Understanding the report
 
 A finding is described on **three related axes** — knowing which is which removes most confusion:
