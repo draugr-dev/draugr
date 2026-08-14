@@ -226,7 +226,7 @@ descriptor.
 
 ```yaml
 include:
-  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.89.0/gitlab-ci/draugr.yml'
+  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.90.0/gitlab-ci/draugr.yml'
 
 stages: [test]
 ```
