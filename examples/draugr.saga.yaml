@@ -55,6 +55,11 @@ config:
       enabled: true          # HTTP security headers on hosts (native)
     tls:
       enabled: true          # TLS config + certificates on hosts (native)
+    infrastructure:
+      enabled: true          # Kubernetes cluster posture (native policies; kube-bench is opt-in).
+                             # nightly-etl declares one below, and a surface no control looks at
+                             # is a component that passes without being examined —
+                             # `draugr doctor` reports that, and --fail-on-uncovered enforces it
     # dast:
     #   enabled: true        # runtime probing of hosts (Nuclei) — scans a live endpoint
 
