@@ -13,8 +13,19 @@ config:
   controllers:
     images:
       enabled: true          # container images (Trivy)
+      # grype:
+      #   enabled: true      # a second matcher beside Trivy — see sca.grypeFs below for the trade
     sca:
       enabled: true          # dependencies (Trivy fs)
+      # grypeFs:
+      #   enabled: true      # Anchore Grype, beside Trivy rather than instead of it. Both sets of
+      #                      # findings arrive in one report, and where two matchers disagree that
+      #                      # is a statement about coverage neither makes alone.
+      #                      # Two things to expect. Counts rise: a flaw both find is reported
+      #                      # twice, once under each tool's rule id. And an exclusion needs a
+      #                      # trailing `*` to cover both — Grype names the package in its rule id
+      #                      # (CVE-2020-14343-pyyaml) where Trivy does not, so
+      #                      # rules: ["CVE-2020-14343"] suppresses one and leaves the other
       # trivyFs:
       #   pkgTypes: [library]                        # skip the OS layer when a platform team owns it
       #   dbRepository: [registry.internal/trivy-db:2]   # an internal mirror, for runners with no
@@ -44,6 +55,11 @@ config:
       enabled: true          # HTTP security headers on hosts (native)
     tls:
       enabled: true          # TLS config + certificates on hosts (native)
+    infrastructure:
+      enabled: true          # Kubernetes cluster posture (native policies; kube-bench is opt-in).
+                             # nightly-etl declares one below, and a surface no control looks at
+                             # is a component that passes without being examined —
+                             # `draugr doctor` reports that, and --fail-on-uncovered enforces it
     # dast:
     #   enabled: true        # runtime probing of hosts (Nuclei) — scans a live endpoint
 

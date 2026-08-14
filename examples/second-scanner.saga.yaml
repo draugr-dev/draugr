@@ -1,0 +1,60 @@
+# Example Saga — running two scanners on one control.
+# Run it with:  draugr scan examples/second-scanner.saga.yaml
+# (Requires Trivy and Grype on your PATH: `draugr tools install trivy grype`.)
+#
+# A control can be served by more than one scanner. The default runs unless you turn it off;
+# any other runs only when its block says `enabled: true`. Both run here, and both sets of
+# findings arrive in one report ranked by the same risk model.
+#
+# Why bother: two matchers draw on different advisory sources, so where they disagree that is a
+# statement about coverage neither of them makes alone. Trivy trusts a distribution's own security
+# tracker for OS packages; Grype additionally matches upstream version ranges through NVD. Neither
+# is the right answer on its own, which is the reason to be able to see both.
+#
+# What to expect, so neither is a surprise:
+#
+#   * Finding counts rise. A flaw both scanners find is reported twice, once under each tool's
+#     rule id. Nothing yet folds the pair into one finding carrying two observations, so read it
+#     as two opinions rather than two problems.
+#
+#   * An exclusion needs a trailing `*` to cover both. Grype names the package in its rule id —
+#     CVE-2020-14343-pyyaml — where Trivy reports the bare CVE, so a rule written for one
+#     silently leaves the other standing. See config.exclude below.
+
+release:
+  name: my-app
+  version: "1.0"
+
+config:
+  controllers:
+    images:
+      enabled: true
+      # trivy runs by default. Add `trivy: { enabled: false }` to run Grype alone.
+      grype:
+        enabled: true
+    sca:
+      enabled: true
+      grypeFs:
+        enabled: true
+        # byCve: false     # report the advisory id Grype matched on (GHSA-…) rather than the
+        #                  # CVE. On by default, because the CVE is what makes a finding
+        #                  # recognisable as the same one another scanner reported.
+
+  exclude:
+    # The trailing `*` is what makes this cover both scanners rather than only Trivy's.
+    - rules: ["CVE-2020-14343*"]
+      reason: "not reachable from any entry point — reviewed 2026-08-14, revisit at the next audit"
+
+components:
+  - name: api
+    exposure: public
+    criticality: critical
+    repositories:
+      - url: https://github.com/draugr-dev/draugr-demo
+        revision: main
+    images:
+      - image: alpine:3.21
+        # digest: sha256:…   # pin it, and the cache becomes content-addressed. A tag can be
+        #                    # rebuilt, so a result cached against one may describe an earlier
+        #                    # image — the report says so when that happens.
+        #                    # `draugr survey` records the running digest for you.
