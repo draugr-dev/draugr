@@ -44,7 +44,10 @@ env:
   # minor resolves to yesterday's patch and every pull request goes red for something no pull
   # request did. Bump this when govulncheck names a newer one.
   GO_VERSION: "1.26.6"
-  TRIVY_VERSION: "0.69.3" # keep in sync with internal/tools / selfscan.yml
+  # Keep in sync with the pinned manifest in internal/tools: these tests run the real Trivy, so
+  # the version they prove Draugr's parsing and argv against should be the one `draugr tools
+  # install` provisions for everybody else.
+  TRIVY_VERSION: "0.69.3"
   # The kube-bench release whose benchmark definitions the CIS catalogue is checked against.
   # Keep in sync with defaultKubeBenchImage in internal/scanners/kube_bench_job.go, so that
   # bumping the image is when a benchmark revision is discovered rather than later.
