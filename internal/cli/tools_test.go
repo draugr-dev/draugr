@@ -97,22 +97,26 @@ func TestRunToolsInstallInteractiveAbort(t *testing.T) {
 	}
 }
 
-func TestRunToolsInstallSemgrepHint(t *testing.T) {
+func TestRunToolsInstallHandlesSemgrepLikeAnyOtherTool(t *testing.T) {
 	// Stubbed absent. Without this the test asks the machine it runs on, and passes or fails
 	// depending on whether the developer happens to have semgrep — which is how it read as a
 	// regression the first time the installer learned to check.
 	stubDetect(t, map[string]string{})
 	var out bytes.Buffer
-	called := false
-	install := func(string) (tools.Installed, error) { called = true; return tools.Installed{}, nil }
+	var got []string
+	install := func(name string) (tools.Installed, error) {
+		got = append(got, name)
+		return tools.Installed{Name: name, Version: tools.SemgrepVersion(), Path: "/x/" + name}, nil
+	}
 	if err := runToolsInstall(&out, nil, []string{"semgrep"}, toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
 	}
-	if called {
-		t.Error("semgrep should not go through the binary installer")
+	if len(got) != 1 || got[0] != "semgrep" {
+		t.Errorf("semgrep should go through the installer like anything else, got %v", got)
 	}
-	if !strings.Contains(out.String(), tools.SemgrepPipxCommand()) {
-		t.Errorf("expected the pipx hint, got:\n%s", out.String())
+	// The plan has to describe an install rather than an instruction to go elsewhere.
+	if strings.Contains(out.String(), "pipx") {
+		t.Errorf("the pipx instruction should be gone:\n%s", out.String())
 	}
 }
 
@@ -143,20 +147,15 @@ func TestRunToolsInstallAllInstallsInstallable(t *testing.T) {
 		got = append(got, name)
 		return tools.Installed{Name: name, Version: "1.0.0", Path: "/x/" + name}, nil
 	}
-	// Empty names → install everything installable, then print the semgrep hint.
+	// Empty names → install everything installable, semgrep included.
 	if err := runToolsInstall(&out, nil, nil, toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
 	}
 	if len(got) == 0 {
 		t.Fatal("expected installable tools to be installed")
 	}
-	for _, name := range got {
-		if name == "semgrep" {
-			t.Error("semgrep must not be passed to the binary installer")
-		}
-	}
-	if !strings.Contains(out.String(), tools.SemgrepPipxCommand()) {
-		t.Error("installing everything should still surface the semgrep hint")
+	if !slices.Contains(got, "semgrep") {
+		t.Errorf("installing everything should install semgrep too, got %v", got)
 	}
 }
 
@@ -168,7 +167,7 @@ func TestRunToolsList(t *testing.T) {
 	s := out.String()
 	for _, want := range []string{
 		"Tool", "Category", "Controls", "Pinned",
-		"trivy", "gitleaks", "semgrep", "git", "pipx",
+		"trivy", "gitleaks", "semgrep", "git",
 		"secrets", // gitleaks → secrets control
 		"utility", // cosign/git category
 	} {
@@ -418,11 +417,13 @@ func TestPresentIgnoresEverythingUnderForce(t *testing.T) {
 func TestInstallAsksNothingWhenEverythingIsCurrent(t *testing.T) {
 	// A confirmation that gates no action teaches people to answer without reading, on the one
 	// command where reading matters.
-	current := map[string]string{"semgrep": tools.SemgrepVersion()}
+	current := map[string]string{}
 	for _, name := range tools.Installable() {
 		if spec, ok := tools.Spec(name); ok {
 			current[spec.Binary] = spec.Version
+			continue
 		}
+		current[name] = tools.PythonVersion(name)
 	}
 	stubDetect(t, current)
 
@@ -443,18 +444,36 @@ func TestInstallAsksNothingWhenEverythingIsCurrent(t *testing.T) {
 	if strings.Contains(got, "Proceed?") {
 		t.Error("a prompt that gates nothing must not be shown")
 	}
-	if strings.Contains(got, "pipx install") {
-		t.Error("semgrep is present; telling the user to install it reads as a failure")
+	if strings.Contains(got, "pipx") {
+		t.Error("semgrep is installed by Draugr now; pipx should appear nowhere")
 	}
 }
 
-func TestInstallStillPrintsTheSemgrepHintWhenAbsent(t *testing.T) {
-	stubDetect(t, map[string]string{})
+func TestInstallPlansSemgrepAsAnInstall(t *testing.T) {
+	// It used to print an instruction to go and run pipx. The plan now describes an install
+	// Draugr performs, with the verification it will do and where the tool lands.
+	current := map[string]string{}
+	for _, name := range tools.Installable() {
+		if spec, ok := tools.Spec(name); ok {
+			current[spec.Binary] = spec.Version
+		}
+	}
+	stubDetect(t, current) // everything but semgrep is current
+
 	var out bytes.Buffer
-	_ = runToolsInstall(&out, strings.NewReader(""), []string{"semgrep"}, toolsInstallOptions{},
-		func(string) (tools.Installed, error) { return tools.Installed{}, nil })
-	if !strings.Contains(out.String(), "pipx install") {
-		t.Errorf("an absent semgrep still needs its instruction:\n%s", out.String())
+	err := runToolsInstall(&out, strings.NewReader(""), nil, toolsInstallOptions{yes: true},
+		func(name string) (tools.Installed, error) {
+			return tools.Installed{Name: name, Version: tools.PythonVersion(name), Path: "/x/" + name}, nil
+		})
+	if err != nil {
+		t.Fatalf("runToolsInstall: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "semgrep") || !strings.Contains(got, "sha256 (+deps)") {
+		t.Errorf("the plan should describe installing semgrep and how it is verified:\n%s", got)
+	}
+	if strings.Contains(got, "pipx") {
+		t.Errorf("pipx should appear nowhere:\n%s", got)
 	}
 }
 
@@ -611,13 +630,15 @@ func TestInstallStillNamesAToolItReplaced(t *testing.T) {
 	}
 }
 
-// The plan's count and the log's count describe the same tools, so they have to match. semgrep is
-// where they can drift apart: it is planned like everything else but installed by pip rather than
-// by the loop, so a full install can report one fewer unchanged tool than it just called current
-// — and two numbers about the same thing disagreeing is worse than either alone.
-func TestInstallCountsAgreeAcrossSemgrep(t *testing.T) {
+// The plan's count and the log's count describe the same tools, so they have to match.
+//
+// They used to drift over semgrep, which was planned like everything else and installed by
+// something else — so a full install reported one fewer unchanged tool than the plan had just
+// called current. Two numbers about the same thing disagreeing is worse than either alone, and the
+// invariant is worth keeping now that the cause is gone.
+func TestInstallCountsAgreeAcrossEveryTool(t *testing.T) {
 	// Everything the real command would plan, current except syft — the shape the report described.
-	current := map[string]string{"semgrep": tools.SemgrepVersion()}
+	current := map[string]string{}
 	catalog := tools.Catalog()
 	for _, name := range tools.Installable() {
 		if name == "syft" {
@@ -654,49 +675,54 @@ func TestInstallCountsAgreeAcrossSemgrep(t *testing.T) {
 // present for it to count as current.
 func installVersion(t *testing.T, name string) string {
 	t.Helper()
-	spec, ok := tools.Spec(name)
-	if !ok {
-		t.Fatalf("%s is installable but has no spec", name)
+	if spec, ok := tools.Spec(name); ok {
+		return spec.Version
 	}
-	return spec.Version
+	if v := tools.PythonVersion(name); v != "" {
+		return v
+	}
+	t.Fatalf("%s is installable but has no pinned version by either method", name)
+	return ""
 }
 
-// Draugr does not install semgrep — it is a Python package — so a plan that counts it, a prompt
-// that gates it and a run that reports it are three claims about work that will not happen. The
-// command's whole job here is to print a pipx line.
-func TestInstallingSemgrepDoesNotPretendToInstallIt(t *testing.T) {
-	stubDetect(t, nil) // nothing present, so semgrep is outstanding
+// Installing semgrep is work, so it is planned, confirmed and reported as work.
+//
+// It used to be none of those: the plan named it without counting it, the prompt did not gate it,
+// and the run printed an instruction to go and run something else. Each of those was correct while
+// Draugr could not install it, and each is now a claim about work that does happen.
+func TestInstallingSemgrepIsPlannedAndConfirmedLikeAnythingElse(t *testing.T) {
+	// semgrep absent, one other tool current — the count line is only rendered when something is
+	// already satisfied, and the count is what this is about.
+	trivy, _ := tools.Spec("trivy")
+	stubDetect(t, map[string]string{"trivy": trivy.Version})
 	var out bytes.Buffer
 	called := 0
-	install := func(string) (tools.Installed, error) {
+	install := func(name string) (tools.Installed, error) {
+		if name != "semgrep" {
+			return tools.Installed{Name: name, AlreadyPresent: true}, nil
+		}
 		called++
-		return tools.Installed{}, nil
+		return tools.Installed{Name: name, Version: tools.PythonVersion(name), Path: "/x/" + name}, nil
 	}
-	// A terminal, so the prompt would appear if anything asked for one.
 	priorTTY := isTTY
 	t.Cleanup(func() { isTTY = priorTTY })
 	isTTY = func(io.Reader) bool { return true }
 
-	if err := runToolsInstall(&out, strings.NewReader(""), []string{"semgrep"},
+	// "y" on a terminal: the prompt has something to gate now.
+	if err := runToolsInstall(&out, strings.NewReader("y\n"), []string{"semgrep", "trivy"},
 		toolsInstallOptions{}, install); err != nil {
 		t.Fatal(err)
 	}
-
 	got := out.String()
-	if strings.Contains(got, "Proceed?") {
-		t.Errorf("asked to approve work Draugr will not do:\n%s", got)
+	if !strings.Contains(got, "Proceed?") {
+		t.Errorf("real work should be confirmed:\n%s", got)
 	}
-	if called != 0 {
-		t.Errorf("attempted %d install(s) of a tool it does not install", called)
+	// trivy is current, so only semgrep is actually installed.
+	if called != 1 {
+		t.Errorf("installed %d time(s), want 1", called)
 	}
-	if !strings.Contains(got, "pipx install semgrep") {
-		t.Errorf("the command that does install it is missing:\n%s", got)
-	}
-	if strings.Contains(got, "1 tool to install") {
-		t.Errorf("counted semgrep as work Draugr would do:\n%s", got)
-	}
-	if !strings.Contains(got, "not installed by Draugr") {
-		t.Errorf("the plan should say who installs it:\n%s", got)
+	if !strings.Contains(got, "1 tool to install") {
+		t.Errorf("semgrep should be counted as work:\n%s", got)
 	}
 }
 

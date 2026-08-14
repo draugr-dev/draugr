@@ -134,10 +134,18 @@ func TestDescribeForSeparatesNotInstalledFromNotDistributed(t *testing.T) {
 			want: "draugr tools install trivy",
 		},
 		{
-			// It does not distribute semgrep, and never will: pipx does.
-			name:  "a tool Draugr does not distribute",
+			// Semgrep is provisioned too, by the Python route rather than a release archive — so
+			// the line has to offer the command, exactly as it does for a downloaded binary.
+			name:  "a tool Draugr installs as a Python package",
 			level: LevelExternal, tool: "semgrep",
-			want:    "does not distribute it (pipx)",
+			want: "draugr tools install semgrep",
+		},
+		{
+			// A tool Draugr genuinely cannot provision. Naming an omission it cannot fix invites
+			// somebody to run a command that will not find it.
+			name:  "a tool Draugr does not distribute",
+			level: LevelExternal, tool: "mend",
+			want:    "does not distribute it",
 			wantNot: "draugr tools install",
 		},
 		{

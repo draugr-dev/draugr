@@ -10,6 +10,27 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`draugr tools install semgrep` works.** Semgrep was the one scanner Draugr could not provision,
+  so every integration carried its own `pipx` line and `doctor` reported it as somebody else's
+  problem. It is installed like everything else now.
+
+  It arrives by a different route because it publishes no release binary — its GitHub releases
+  carry no assets at all. Draugr builds a virtual environment it owns under `~/.draugr/venv/` and
+  installs the pinned set from PyPI with `--require-hashes`, then puts a launcher beside the other
+  tools. **Python 3.10 or newer** is required, and `doctor` names it when missing rather than
+  letting a scan fail with `sast` reporting that it could not run.
+
+  The provenance claim is the same one a pinned release archive makes, and covers more: every
+  artifact in the resolved tree — dependencies included — matches a digest recorded in this build
+  of Draugr, so `semgrep` reports as `pinned` rather than `external`. Where the pinned set does not
+  cover a platform, Draugr installs the pinned version unhashed and records `unverified` rather
+  than claiming a check it did not make.
+
+  A second install method rather than a special case, so the next scanner that ships only as a
+  package drops in instead of becoming another exception.
+
 ### Fixed
 
 - **`draugr validate` rejects a report format or publisher kind this build does not have**, and

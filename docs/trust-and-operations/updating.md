@@ -53,9 +53,18 @@ draugr tools install -y         # non-interactive
 
 It first prints the plan (tool, version, category, verification, destination). Run
 interactively it asks for confirmation; non-interactively (CI, pipes) it proceeds — pass `-y`
-to be explicit or `--dry-run` to only preview. Semgrep ships as a Python package, so
-`tools install` prints the pinned `pipx install semgrep==<version>` command rather than
-downloading it; `git` is expected from your system.
+to be explicit or `--dry-run` to only preview. `git` is expected from your system.
+
+**Semgrep is installed too**, by a different route. It publishes no release binary — its GitHub
+releases carry no assets — so Draugr builds a virtual environment it owns under `~/.draugr/venv/`
+and installs the pinned set from PyPI with `--require-hashes`, then puts a launcher beside the
+other tools. That needs **Python 3.10 or newer** on the machine, which `doctor` checks and names.
+
+The verification claim is the same one a release archive gets and covers more: every artifact in
+the resolved tree matches a digest recorded in this build of Draugr, dependencies included, rather
+than one checksum over one file. On a platform the pinned set does not cover, Draugr installs the
+pinned version without hashes and records the result as `unverified` rather than claiming a check
+it did not make.
 
 **Why cosign is in the toolbox.** cosign is a utility Draugr *uses* to verify the provenance of
 other tools (and its own releases, via `self-update`). Making it installable

@@ -95,6 +95,20 @@ config:
       acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
+        - "internal/tools/python.go"
+      rules:
+        - "go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"
+      reason: >-
+        Installing a tool that ships as a Python package means running an interpreter, and the
+        interpreter's path is discovered rather than written down — that is the finding, and it is
+        the job. What reaches exec is Draugr's own: a python3 resolved from a fixed candidate list
+        by exec.LookPath, then the pip inside the virtual environment Draugr just created, with a
+        requirements file embedded in this binary. None of it is reachable from a descriptor, a
+        scanned repository or the network. Rewriting it to satisfy the rule would mean hardcoding
+        an interpreter path, which is wrong on every machine that keeps Python somewhere else.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
+    - paths:
         - "pkg/report/htmldata.go"
       rules:
         - "go.lang.security.audit.net.unescaped-data-in-url.unescaped-data-in-url"

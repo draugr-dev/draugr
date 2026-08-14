@@ -416,7 +416,7 @@ But a report that cannot say which build produced its findings cannot be reprodu
 
 ```
 Scanners: gitleaks 8.30.1, trivy 0.69.3
-Scanner (unverified): semgrep 1.169.0 — found on PATH; Draugr does not distribute it (pipx)
+Scanners: gitleaks 8.30.1, semgrep 1.173.0, trivy 0.69.3
 ```
 
 The first line lists the builds Draugr fetched **and checked**: each sits in `~/.draugr/bin`, the
@@ -937,7 +937,7 @@ resolution.
 
 On a security tool the smaller set is the defensible one — every binary on `PATH` is one more
 thing to trust, keep patched and explain. Where a descriptor needs something Draugr cannot
-provision (`kubectl`, `git`, semgrep via pipx) the plan **names it** rather than installing the
+provision (`kubectl`, `git`) the plan **names it** rather than installing the
 rest and reporting success.
 
 The descriptor is not inferred from the working directory, even though `scan` does so. A CI job
@@ -984,14 +984,15 @@ Without `cosign`, or for tools the upstream doesn't sign (e.g. gitleaks), it deg
 SHA-256-only and says so. Each line reports what was verified (`sha256 + cosign verified` /
 `sha256 verified`). If `cosign` is present but verification fails, the install aborts.
 
-Semgrep ships as a Python package, not a standalone binary, so `tools install` prints the
-pinned `pipx install semgrep==<version>` command rather than downloading it. `git` is expected
-from your system.
+Semgrep publishes no release binary, so it is installed from PyPI into a virtual environment
+Draugr owns (`~/.draugr/venv/semgrep`), with every artifact in the resolved tree matched against a
+digest recorded in this build — dependencies included. It needs **Python 3.10 or newer**; `doctor`
+says so when it is missing. `git` is expected from your system.
 
 ### `draugr tools list`
 
 Show every tool Draugr knows about: its **category** (scanner/utility), the **controls** it
-backs, its pinned version, how it's obtained (managed install / pipx / system), and whether
+backs, its pinned version, how it's obtained (managed install / system), and whether
 it's currently found (with path + version).
 
 ```bash

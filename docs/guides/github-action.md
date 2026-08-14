@@ -80,7 +80,7 @@ what avoids a second, overlapping PR comment. See [gate PRs on new findings](pr-
 | `working-directory` | `.` | Directory to run Draugr in. |
 | `args` | — | Extra raw arguments appended to `draugr scan` (escape hatch). |
 | `verify` | `true` | Cosign-verify the release signature (the checksum is always verified). |
-| `tools` | `false` | Provision the external scanners (Trivy, Gitleaks, gosec via `draugr tools install`, Semgrep via pipx) before scanning. Set `true` when the runner doesn't already have them. |
+| `tools` | `false` | Provision the external scanners (Trivy, Gitleaks, gosec, Semgrep) with `draugr tools install` before scanning. Set `true` when the runner doesn't already have them. |
 | `feeds` | `false` | Fetch the exploitability datasets (KEV, EPSS) into the runner's cache before scanning. Set `true` when the Saga's `config.exploitability` reads them with `cache`. |
 
 ### Ranking by real-world exploitability
