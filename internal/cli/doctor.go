@@ -15,6 +15,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/selfupdate"
+	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -26,6 +27,19 @@ import (
 type doctorOptions struct {
 	json    bool
 	offline bool
+	// failOnUncovered turns the uncovered-surface note into a failure. Off by default: a
+	// deliberately narrow descriptor is a legitimate thing to have, and a preflight that fails on
+	// a choice somebody made is one people learn to ignore.
+	failOnUncovered bool
+}
+
+// doctorRun is what runDoctor needs from the command's flags.
+//
+// A struct rather than two more parameters: they are both booleans, and adjacent unlabelled
+// booleans at a call site are a thing nobody can read and everybody eventually transposes.
+type doctorRun struct {
+	json            bool
+	failOnUncovered bool
 }
 
 func newDoctorCommand() *cobra.Command {
@@ -57,10 +71,13 @@ func newDoctorCommand() *cobra.Command {
 					return selfupdate.LatestVersion(ctx, nil)
 				}
 			}
-			return runDoctor(cmd.Context(), cmd.OutOrStdout(), builtins.Registry(), sagaPath, opts.json, detect, latest)
+			run := doctorRun{json: opts.json, failOnUncovered: opts.failOnUncovered}
+			return runDoctor(cmd.Context(), cmd.OutOrStdout(), builtins.Registry(), sagaPath, run, detect, latest)
 		},
 	}
 	cmd.Flags().BoolVar(&opts.json, "json", false, "output results as JSON")
+	cmd.Flags().BoolVar(&opts.failOnUncovered, "fail-on-uncovered", false,
+		"fail if the descriptor declares a surface no enabled control looks at (reported either way)")
 	// Kept as a command-local flag as well as the root one: it is documented, it is in people's
 	// CI, and "do not check for a release" is a narrower request than "this machine has no
 	// network" that someone may still want to make on its own.
@@ -77,31 +94,33 @@ func runDoctor(
 	w io.Writer,
 	reg *engine.Registry,
 	sagaPath string,
-	asJSON bool,
+	run doctorRun,
 	detect func(context.Context, tools.Tool) tools.Status,
 	latest func(context.Context) (string, error),
 ) error {
 	dv := draugrVersionReport(ctx, latest)
-	if !asJSON {
+	if !run.json {
 		writeDraugrLine(w, dv)
 	}
 
 	// Descriptor check: loading validates (parse + env-resolve + schema).
 	var required []tools.Tool
+	var model *saga.Model
 	// inventoryOnly marks the no-descriptor run: it reports what is present without deciding
 	// that anything is missing, because nothing has asked for anything yet.
 	inventoryOnly := false
 	if sagaPath != "" {
-		model, err := saga.LoadFile(sagaPath)
+		loaded, err := saga.LoadFile(sagaPath)
 		if err != nil {
-			if asJSON {
-				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil)
+			if run.json {
+				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil)
 			} else {
 				col := tui.For(w)
 				_, _ = fmt.Fprintf(w, "Descriptor  %s — %s\n", col.Paint(tui.StyleFail, "✗ invalid"), err)
 			}
 			return fmt.Errorf("invalid descriptor: %w", err)
 		}
+		model = loaded
 		required = requiredTools(reg, model)
 	} else {
 		// No descriptor, so nothing has been selected and nothing is required. The catalogue is
@@ -112,6 +131,14 @@ func runDoctor(
 		// nobody chose.
 		required = tools.All()
 		inventoryOnly = true
+	}
+
+	// Computed before the tool table so both output paths and the verdict below read one answer.
+	// A tool that is present is only half of "will this scan tell me what I think it will": the
+	// other half is whether anything is looking at what the descriptor declares.
+	var uncovered []string
+	if model != nil {
+		uncovered = surfaces.Uncovered(model)
 	}
 
 	statuses := make([]tools.Status, 0, len(required))
@@ -130,12 +157,12 @@ func runDoctor(
 		}
 	}
 
-	if asJSON {
+	if run.json {
 		var desc *descriptorReport
 		if sagaPath != "" {
 			desc = &descriptorReport{Path: sagaPath, Valid: true}
 		}
-		if err := writeDoctorJSON(w, dv, desc, statuses); err != nil {
+		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered); err != nil {
 			return err
 		}
 	} else {
@@ -146,12 +173,15 @@ func runDoctor(
 		}
 		writeDoctorTable(w, statuses)
 		writeNetworkCalls(w)
+		if model != nil {
+			printUncoveredSurfaceNote(w, model)
+		}
 	}
 
 	if missing > 0 && inventoryOnly {
 		// Reported, not failed. Which of these matter depends on a descriptor, and there is not
 		// one — `draugr doctor <saga>` is the question with an answer.
-		if !asJSON {
+		if !run.json {
 			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleMuted,
 				fmt.Sprintf("%d of these are not installed. Which you need depends on your "+
 					"descriptor — run `draugr doctor <saga>` to check just those, or "+
@@ -160,14 +190,24 @@ func runDoctor(
 		return nil
 	}
 	if missing > 0 {
-		if !asJSON {
+		if !run.json {
 			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleFail,
 				fmt.Sprintf("%d required tool(s) missing. Install them (see notes above), "+
 					"or run `draugr tools install`.", missing)))
 		}
 		return fmt.Errorf("%d required tool(s) not found", missing)
 	}
-	if !asJSON {
+	// After the missing-tool checks, because a tool that is absent stops the scan outright while
+	// an uncovered surface only narrows it, and the more serious answer should be the one given.
+	if len(uncovered) > 0 && run.failOnUncovered {
+		if !run.json {
+			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleFail,
+				fmt.Sprintf("%d declared surface(s) no enabled control looks at, and "+
+					"--fail-on-uncovered was set.", len(uncovered))))
+		}
+		return fmt.Errorf("%d declared surface(s) not covered by an enabled control", len(uncovered))
+	}
+	if !run.json {
 		// "All required tools present" over an empty table is ambiguous: it reads the same
 		// whether nothing was needed or nothing was checked. The two are worth telling apart,
 		// because the second is a bug and looks exactly like the first.
@@ -364,13 +404,22 @@ type toolReport struct {
 	Hint    string `json:"hint,omitempty"`
 }
 
-func writeDoctorJSON(w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status) error {
+func writeDoctorJSON(
+	w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status, uncovered []string,
+) error {
 	report := struct {
 		Draugr     draugrReport      `json:"draugr"`
 		Descriptor *descriptorReport `json:"descriptor,omitempty"`
 		Tools      []toolReport      `json:"tools"`
 		Missing    int               `json:"missing"`
-	}{Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses))}
+		// UncoveredSurfaces are what the descriptor declares that no enabled control looks at.
+		// Present here because the answer a person gets and the answer a pipeline gets diverging
+		// is worse than either being absent.
+		UncoveredSurfaces []string `json:"uncoveredSurfaces,omitempty"`
+	}{
+		Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses)),
+		UncoveredSurfaces: uncovered,
+	}
 
 	for _, st := range statuses {
 		tr := toolReport{Binary: st.Tool.Binary, Found: st.Found, Version: st.Version, Path: st.Path}

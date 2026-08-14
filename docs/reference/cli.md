@@ -868,15 +868,39 @@ A tool is also reported as unusable when it is installed but its supporting data
 `kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates. Being on PATH is not
 the same as being able to run.
 
+### What nothing is looking at
+
+Every tool being present is only half of "will this scan tell me what I think it will". The other
+half is whether anything examines what the descriptor declares — and a component that declares
+images while the `images` control is off scans clean having never looked at them.
+
+Doctor reports that too, from the same place [`draugr scan`](#draugr-scan-sagayaml--dir)
+does, so the two cannot give different answers:
+
+```
+Not checked:
+      api declares hosts, and headers, tls are not enabled
+      api declares images, and images is not enabled
+      dast is never suggested — it sends attack traffic. Enable it yourself.
+```
+
+**Reported, not failed** — a deliberately narrow descriptor is a legitimate thing to have, and a
+preflight that fails on a choice you made is one you learn to ignore. Pass
+`--fail-on-uncovered` when you would rather it were enforced, which is usually in CI on a
+descriptor that is meant to be complete. A missing tool still outranks it: that stops the scan
+outright, while an uncovered surface only narrows it.
+
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--json` | `false` | Emit the report as JSON instead of a table |
+| `--json` | `false` | Emit the report as JSON instead of a table (uncovered surfaces come too, as `uncoveredSurfaces`) |
+| `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at |
 | `--offline` | `false` | Skip the check for a newer draugr release (also `DRAUGR_NO_UPDATE_CHECK=1`) |
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have
 draugr doctor draugr.saga.yaml      # check only what this Saga needs (+ validate it)
 draugr doctor --json draugr.saga.yaml
+draugr doctor --fail-on-uncovered draugr.saga.yaml   # and fail if something is unexamined
 draugr doctor --offline             # no network: skip the update check
 ```
 
