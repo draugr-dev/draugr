@@ -91,7 +91,7 @@ func TestRunDoctorSASTScannerSelection(t *testing.T) {
 	// Default sast → semgrep required, gosec not. With only semgrep+git present, doctor passes.
 	var out bytes.Buffer
 	if err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaSASTDefault), false, fakeDetect("semgrep", "git"), nil); err != nil {
+		writeSaga(t, doctorSagaSASTDefault), doctorRun{}, fakeDetect("semgrep", "git"), nil); err != nil {
 		t.Fatalf("default sast should not require gosec: %v\n%s", err, out.String())
 	}
 	if strings.Contains(out.String(), "gosec") {
@@ -101,7 +101,7 @@ func TestRunDoctorSASTScannerSelection(t *testing.T) {
 	// Opt into gosec → now it's required; missing gosec fails the check and is listed.
 	out.Reset()
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaSASTGosec), false, fakeDetect("semgrep", "git"), nil)
+		writeSaga(t, doctorSagaSASTGosec), doctorRun{}, fakeDetect("semgrep", "git"), nil)
 	if err == nil {
 		t.Fatalf("selecting gosec should require it (and it's missing)\n%s", out.String())
 	}
@@ -127,7 +127,7 @@ func fakeDetect(found ...string) func(context.Context, tools.Tool) tools.Status 
 func TestRunDoctorAllPresent(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaRepoAndImage), false, fakeDetect("trivy", "git"), nil)
+		writeSaga(t, doctorSagaRepoAndImage), doctorRun{}, fakeDetect("trivy", "git"), nil)
 	if err != nil {
 		t.Fatalf("runDoctor: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestRunDoctorMissingFails(t *testing.T) {
 	var out bytes.Buffer
 	// git present, trivy missing → non-zero.
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaRepoAndImage), false, fakeDetect("git"), nil)
+		writeSaga(t, doctorSagaRepoAndImage), doctorRun{}, fakeDetect("git"), nil)
 	if err == nil {
 		t.Fatal("expected error when a required tool is missing")
 	}
@@ -159,7 +159,7 @@ func TestRunDoctorMissingFails(t *testing.T) {
 func TestRunDoctorInvalidDescriptor(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, invalidSaga), false, fakeDetect("trivy", "git"), nil)
+		writeSaga(t, invalidSaga), doctorRun{}, fakeDetect("trivy", "git"), nil)
 	if err == nil {
 		t.Fatal("expected error for invalid descriptor")
 	}
@@ -174,7 +174,7 @@ func TestRunDoctorInvalidDescriptor(t *testing.T) {
 func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		"", false, fakeDetect("trivy", "gitleaks", "semgrep", "gosec", "git", "nuclei", "syft",
+		"", doctorRun{}, fakeDetect("trivy", "gitleaks", "semgrep", "gosec", "git", "nuclei", "syft",
 			"kube-bench", "kubectl"), nil)
 	if err != nil {
 		t.Fatalf("runDoctor: %v", err)
@@ -194,7 +194,7 @@ func TestRunDoctorNoSagaChecksAll(t *testing.T) {
 func TestRunDoctorJSON(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaRepoAndImage), true, fakeDetect("git"), nil)
+		writeSaga(t, doctorSagaRepoAndImage), doctorRun{json: true}, fakeDetect("git"), nil)
 	if err == nil {
 		t.Fatal("expected error (trivy missing)")
 	}
@@ -440,7 +440,7 @@ func TestDoctorWithoutADescriptorReportsRatherThanFails(t *testing.T) {
 	// most clearly, since the default infrastructure scanner is native and needs no binary.
 	var out bytes.Buffer
 	if err := runDoctor(context.Background(), &out, builtins.Registry(),
-		"", false, fakeDetect(), nil); err != nil {
+		"", doctorRun{}, fakeDetect(), nil); err != nil {
 		t.Fatalf("an inventory should not fail: %v\n%s", err, out.String())
 	}
 	got := out.String()
@@ -457,11 +457,122 @@ func TestDoctorWithADescriptorStillFailsOnWhatItNeeds(t *testing.T) {
 	// they are not here.
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
-		writeSaga(t, doctorSagaSASTDefault), false, fakeDetect("git"), nil)
+		writeSaga(t, doctorSagaSASTDefault), doctorRun{}, fakeDetect("git"), nil)
 	if err == nil {
 		t.Fatalf("a descriptor whose tools are absent should fail\n%s", out.String())
 	}
 	if !strings.Contains(err.Error(), "required tool(s) not found") {
 		t.Errorf("got %v", err)
+	}
+}
+
+// doctorSagaUncovered declares an image and a host while enabling only the repository controls —
+// the descriptor that scans clean having looked at neither.
+const doctorSagaUncovered = `release:
+  name: app
+  version: "1.0"
+config:
+  controllers:
+    secrets:
+      enabled: true
+components:
+  - name: web
+    repositories:
+      - url: .
+    images:
+      - image: alpine:3.19
+    hosts:
+      - name: ui
+        url: https://example.com
+`
+
+// TestDoctorReportsUncoveredSurface is the half of "will this scan tell me what I think it will"
+// that tool detection cannot answer. Every tool can be present and the run still cover less than
+// the reader assumes, because nothing is looking at what the descriptor declares.
+func TestDoctorReportsUncoveredSurface(t *testing.T) {
+	var out bytes.Buffer
+	err := runDoctor(context.Background(), &out, builtins.Registry(),
+		writeSaga(t, doctorSagaUncovered), doctorRun{}, fakeDetect("gitleaks", "git"), nil)
+	if err != nil {
+		t.Fatalf("reporting is not failing: %v\n%s", err, out.String())
+	}
+	for _, want := range []string{"Not checked", "declares images", "declares hosts"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("doctor never mentioned %q:\n%s", want, out.String())
+		}
+	}
+}
+
+// TestDoctorFailsOnUncoveredOnlyWhenAsked pins the default. A deliberately narrow descriptor is a
+// legitimate thing to have, and a preflight that fails on a choice somebody made is one people
+// learn to pass --no-verify to.
+func TestDoctorFailsOnUncoveredOnlyWhenAsked(t *testing.T) {
+	path := writeSaga(t, doctorSagaUncovered)
+	for _, c := range []struct {
+		name    string
+		run     doctorRun
+		wantErr bool
+	}{
+		{"reported by default", doctorRun{}, false},
+		{"failed when asked", doctorRun{failOnUncovered: true}, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var out bytes.Buffer
+			err := runDoctor(context.Background(), &out, builtins.Registry(),
+				path, c.run, fakeDetect("gitleaks", "git"), nil)
+			if (err != nil) != c.wantErr {
+				t.Errorf("error = %v, want error: %v\n%s", err, c.wantErr, out.String())
+			}
+		})
+	}
+}
+
+// TestDoctorMissingToolOutranksUncoveredSurface keeps the more serious answer the one given. A
+// tool that is absent stops the scan outright; an uncovered surface only narrows it, and a reader
+// sent to enable a control when the real problem is an uninstalled binary is sent the wrong way.
+func TestDoctorMissingToolOutranksUncoveredSurface(t *testing.T) {
+	var out bytes.Buffer
+	err := runDoctor(context.Background(), &out, builtins.Registry(),
+		writeSaga(t, doctorSagaUncovered), doctorRun{failOnUncovered: true}, fakeDetect("git"), nil)
+	if err == nil {
+		t.Fatal("a missing tool should still fail")
+	}
+	if !strings.Contains(err.Error(), "tool") {
+		t.Errorf("the missing tool should be the reported failure, got: %v", err)
+	}
+}
+
+// TestDoctorSaysNothingWhenEverySurfaceIsCovered keeps the note from becoming furniture. A caveat
+// that appears on every run is one nobody reads on the run that matters.
+func TestDoctorSaysNothingWhenEverySurfaceIsCovered(t *testing.T) {
+	var out bytes.Buffer
+	err := runDoctor(context.Background(), &out, builtins.Registry(),
+		writeSaga(t, doctorSagaRepoAndImage), doctorRun{failOnUncovered: true},
+		fakeDetect("trivy", "git"), nil)
+	if err != nil {
+		t.Fatalf("a covered descriptor must not fail even with the flag: %v\n%s", err, out.String())
+	}
+	if strings.Contains(out.String(), "Not checked") {
+		t.Errorf("nothing is uncovered, so nothing should be reported:\n%s", out.String())
+	}
+}
+
+// TestDoctorJSONCarriesUncoveredSurface stops the two answers diverging. A pipeline reading --json
+// and a person reading the table have to be told the same thing.
+func TestDoctorJSONCarriesUncoveredSurface(t *testing.T) {
+	var out bytes.Buffer
+	if err := runDoctor(context.Background(), &out, builtins.Registry(),
+		writeSaga(t, doctorSagaUncovered), doctorRun{json: true},
+		fakeDetect("gitleaks", "git"), nil); err != nil {
+		t.Fatalf("runDoctor: %v", err)
+	}
+	var got struct {
+		UncoveredSurfaces []string `json:"uncoveredSurfaces"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\n%s", err, out.String())
+	}
+	if len(got.UncoveredSurfaces) != 2 {
+		t.Errorf("uncoveredSurfaces = %v, want the image and the host", got.UncoveredSurfaces)
 	}
 }

@@ -10,6 +10,28 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`draugr doctor` now says what nothing is looking at.** Every tool being present is only half of
+  "will this scan tell me what I think it will" — the other half is whether any enabled control
+  examines what the descriptor declares. A component declaring images while the `images` control is
+  off scans clean having never looked at them, and doctor is the command you run *before* the scan
+  to find that out:
+
+  ```
+  Not checked:
+        api declares hosts, and headers, tls are not enabled
+        api declares images, and images is not enabled
+  ```
+
+  It comes from the same place `draugr scan` gets it, so the two cannot disagree, and `--json`
+  carries it as `uncoveredSurfaces`.
+
+  **Reported, not failed.** A deliberately narrow descriptor is legitimate, and a preflight that
+  fails on a choice you made is one you learn to ignore. Pass **`--fail-on-uncovered`** when you
+  want it enforced — usually in CI, against a descriptor meant to be complete. A missing tool still
+  outranks it: that stops the scan outright, while an uncovered surface only narrows it.
+
 ### Fixed
 
 - **A cached image scan now says when its key was a tag rather than a digest.** Draugr's cache is
