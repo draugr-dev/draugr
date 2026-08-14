@@ -114,4 +114,5 @@ you from is a component ranked as though it does not matter.
 - [Prioritization](prioritization.md) — what `exposure` and `criticality` drive
 - [`k8s-images`](../../internal/surveyors/k8s-images.md) ·
   [`github-org-repos`](../../internal/surveyors/github-org-repos.md) ·
-  [`gitlab-group-projects`](../../internal/surveyors/gitlab-group-projects.md) — per-surveyor detail
+  [`gitlab-group-projects`](../../internal/surveyors/gitlab-group-projects.md) ·
+  [`azure-devops-repos`](../../internal/surveyors/azure-devops-repos.md) — per-surveyor detail

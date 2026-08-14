@@ -19,6 +19,33 @@ func TestGitHubOrgReposInfo(t *testing.T) {
 	}
 }
 
+func TestGitHubAPIRootFollowsTheInstance(t *testing.T) {
+	cases := []struct{ name, url, want string }{
+		{"nothing means the hosted service", "", "https://api.github.com"},
+		{"an enterprise server, with the path it serves under",
+			"https://github.acme.com/api/v3", "https://github.acme.com/api/v3"},
+		{"trailing slash trimmed", "https://github.acme.com/api/v3/", "https://github.acme.com/api/v3"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("GITHUB_API_URL", tc.url)
+			if got := githubAPIRoot(); got != tc.want {
+				t.Errorf("githubAPIRoot() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestNewGitHubOrgReposUsesTheResolvedRoot is the half a test of githubAPIRoot alone cannot see: a
+// resolver nothing calls resolves nothing, and the surveyor would still go to github.com while
+// every test passed.
+func TestNewGitHubOrgReposUsesTheResolvedRoot(t *testing.T) {
+	t.Setenv("GITHUB_API_URL", "https://github.acme.com/api/v3")
+	if got := NewGitHubOrgRepos().baseURL; got != "https://github.acme.com/api/v3" {
+		t.Errorf("baseURL = %q, want the instance from GITHUB_API_URL", got)
+	}
+}
+
 func TestGitHubOrgReposRequiresOrg(t *testing.T) {
 	_, err := NewGitHubOrgRepos().Survey(context.Background(), plugin.SurveyScope{})
 	if err == nil {

@@ -661,7 +661,7 @@ because the descriptor that results looks complete and is missing every private 
 
 | Forge | Token | Self-hosted instance |
 |---|---|---|
-| GitHub | `GITHUB_TOKEN` | — |
+| GitHub | `GITHUB_TOKEN` | `GITHUB_API_URL`, including the `/api/v3` path Enterprise Server serves under — the same variable the publisher reads, and one Actions already sets on a GHES runner |
 | GitLab | `GITLAB_TOKEN` | `GITLAB_URL`, or the `CI_API_V4_URL` a runner already sets |
 | Azure DevOps | `AZURE_DEVOPS_EXT_PAT`, else `AZURE_DEVOPS_TOKEN` — needs the **Code (read)** scope | `AZURE_DEVOPS_URL`, including its collection |
 

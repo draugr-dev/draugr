@@ -34,6 +34,22 @@ and move it under a version on release.
   page rather than a `401`, so that case says which of "missing", "expired" or "wrong scope" to
   check instead of reporting a status code that means "this is fine, from a cache".
 
+### Fixed
+
+- **`draugr survey github repos` now reaches GitHub Enterprise Server.** It reads `GITHUB_API_URL`
+  — the same variable the `github-pr-comment` publisher already uses, and the one GitHub Actions
+  sets for you on a GHES runner — so a survey in CI needs nothing configured, and a survey from a
+  workstation needs one variable:
+
+  ```bash
+  GITHUB_API_URL=https://github.example.com/api/v3 \
+    draugr survey github repos --org acme -o draugr.saga.yaml
+  ```
+
+  Previously the surveyor always asked github.com, whatever the publisher was pointed at, so the
+  one command whose job is to write your descriptor for you was unavailable to the organizations
+  most likely to have hundreds of repositories to write down.
+
 ## [0.90.0] - 2026-08-14
 
 ### Added
