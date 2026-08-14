@@ -27,12 +27,10 @@ const gitlabSchemaVersion = "15.2.4"
 // merge-request widget and its approval policies all key on the scan type. A dependency CVE filed
 // as `sast` is a finding in the wrong drawer, and the drawer is what a policy looks in.
 //
-// Only the types Draugr can fill honestly are registered. `dependency_scanning` requires a
-// structured package name and version on every finding, and `container_scanning` an image and
-// operating system; Draugr's findings carry that detail as scanner prose rather than as fields, and
-// parsing prose to satisfy a schema would put a guess where a fact is expected. Those two are
-// absent until a finding carries the identity, and `gitlab-codequality` carries their findings in
-// the meantime.
+// Only the types Draugr can fill honestly are registered. `container_scanning` requires an image
+// and an operating system on every finding, which Draugr's image findings do not yet carry as
+// fields — so it is absent, and `gitlab-codequality` carries those findings in the meantime. A
+// schema's required field filled with a guess is worse than a report that does not exist.
 type gitlabSecurityReporter struct {
 	format   string
 	scanType string
@@ -40,6 +38,8 @@ type gitlabSecurityReporter struct {
 	controls []string
 	// needsCommit marks a report whose schema requires the scanned commit on every finding.
 	needsCommit bool
+	// needsPackage marks a report whose schema requires a structured package on every finding.
+	needsPackage bool
 }
 
 func (r gitlabSecurityReporter) Format() string { return r.format }
@@ -88,9 +88,21 @@ type glIdentifier struct {
 }
 
 type glLocation struct {
-	File      string    `json:"file,omitempty"`
-	StartLine int       `json:"start_line,omitempty"`
-	Commit    *glCommit `json:"commit,omitempty"`
+	File       string        `json:"file,omitempty"`
+	StartLine  int           `json:"start_line,omitempty"`
+	Commit     *glCommit     `json:"commit,omitempty"`
+	Dependency *glDependency `json:"dependency,omitempty"`
+}
+
+// glDependency is what GitLab's dependency_scanning schema requires of every finding: which
+// package, at which version.
+type glDependency struct {
+	Package glDependencyPackage `json:"package"`
+	Version string              `json:"version"`
+}
+
+type glDependencyPackage struct {
+	Name string `json:"name"`
 }
 
 type glCommit struct {
@@ -138,6 +150,21 @@ func (r gitlabSecurityReporter) vulnerabilities(d Data) ([]glVuln, error) {
 				File:      f.res.Location.URI,
 				StartLine: f.res.Location.StartLine,
 			},
+		}
+		if r.needsPackage {
+			// The schema requires the package, and a finding without one is not a dependency
+			// finding — a control reporting both would otherwise contribute rows GitLab rejects
+			// the whole document over.
+			if f.res.Package == nil || f.res.Package.Name == "" {
+				continue
+			}
+			v.Location.Dependency = &glDependency{
+				Package: glDependencyPackage{Name: f.res.Package.Name},
+				Version: f.res.Package.Version,
+			}
+			// A line number means nothing for a package declared in a manifest, and GitLab renders
+			// it as a position in a file where the package may sit on another line entirely.
+			v.Location.StartLine = 0
 		}
 		if f.helpURI != "" {
 			v.Links = []glLink{{URL: f.helpURI}}

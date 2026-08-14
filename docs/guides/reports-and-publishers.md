@@ -27,6 +27,7 @@ Scan results render through a pluggable **Reporter**, selected on the CLI with
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
 | `vex` | [OpenVEX](vex.md) — which of these vulnerabilities actually affect your product, for the people who consume your SBOM |
 | `gitlab-sast` | GitLab's own security schema, for its Vulnerability Report. Written as a build artifact, not uploaded — GitLab has no endpoint. See [below](#gitlabs-own-report-formats) |
+| `gitlab-dependency-scanning` | the same, for vulnerable dependencies — each with the package and version GitLab requires |
 | `gitlab-secret-detection` | the same, for leaked credentials |
 | `gitlab-codequality` | GitLab Code Quality — every finding, in the merge request, on **any** tier |
 | `template` | custom payload from a Go `text/template` (inline or file) — no code needed |
@@ -231,12 +232,13 @@ exposed to. The flaw's severity leads the description, so nothing is lost.
 open and wait to be dismissed, asking again for a decision your Saga records with its reason and its
 author. They stay in Draugr's own report, marked.
 
-**`dependency_scanning` and `container_scanning`.** GitLab requires a structured package name and
-version on every dependency finding, and an image and operating system on every container one.
-Draugr's findings carry that detail as the scanner's prose rather than as fields, and parsing prose
-to fill a schema would put a guess where GitLab expects a fact. Those findings reach the merge
-request through `gitlab-codequality` until a finding carries the identity —
-[issue 723](https://github.com/draugr-dev/draugr/issues/723).
+**`container_scanning`.** GitLab requires an image and an operating system on every container
+finding, which Draugr's image findings do not yet carry as fields — and filling a required field
+with a guess is worse than a report that does not exist. Those reach the merge request through
+`gitlab-codequality` in the meantime.
+
+`dependency_scanning` was in the same position and no longer is: a dependency finding carries its
+package, version and purl as fields, so the schema's requirement is met with facts.
 
 ## Compact output, for tools and agents
 

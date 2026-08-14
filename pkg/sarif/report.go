@@ -99,6 +99,12 @@ type Result struct {
 	// two repositories that share a path share everything else about a finding. Without this they
 	// are one finding, and the second repository's copy is discarded on the way in.
 	Repository string `json:"repository,omitempty"`
+	// Package identifies the dependency a finding is about, when it is about one.
+	//
+	// Nil for a finding that is not: a SAST rule is about a line of code, an IaC check about a
+	// resource. Set by the scanners that know, which is those reading a package manifest or an
+	// image's installed set.
+	Package *Package `json:"package,omitempty"`
 	// Suppression is set when a Saga exclusion matched this finding. A suppressed result is
 	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
 	// Nil for an active finding.
@@ -111,6 +117,36 @@ type Result struct {
 	// conclusion and withholds its premise is a hint rather than evidence, and "critical because
 	// CISA observed this being exploited, as of a date you can check" is the premise.
 	Escalation *Escalation `json:"escalation,omitempty"`
+}
+
+// Package is the dependency a finding is about.
+//
+// Scanners have always known this and only ever said it in prose — Trivy's message reads
+// "Package: flask\nFixed Version: 0.12.3", which is a fact formatted for a human and unavailable
+// to anything else. Three things wanted it and could not have it: GitLab's dependency and
+// container reports, which require a structured name and version; correlating a run's findings
+// with the SBOM it produced alongside them; and a VEX statement that can say which package within
+// a product carries a vulnerability rather than only that the product does.
+//
+// Deliberately not part of Fingerprint. The same flaw in the same package at the same location is
+// the same finding whether or not the scanner told us which package — so adding this must not
+// split a finding in two the day a scanner starts reporting it.
+type Package struct {
+	// Name is the package as its ecosystem names it, e.g. "flask".
+	Name string `json:"name"`
+	// Version is what is installed.
+	Version string `json:"version,omitempty"`
+	// FixedVersion is the first release that resolves the finding. Empty when there is none —
+	// which is a different and more alarming answer than "unknown", and the reason this is
+	// reported rather than inferred from the absence of a fix.
+	FixedVersion string `json:"fixedVersion,omitempty"`
+	// PURL is the package URL, e.g. "pkg:pypi/flask@0.12.2". The one identifier that is portable
+	// across ecosystems and the one every consumer of this asked for first.
+	PURL string `json:"purl,omitempty"`
+	// Ecosystem is the package manager the name belongs to, as the ecosystem calls itself:
+	// "pip", "npm", "gem". A name alone is ambiguous — there is a `request` on npm and a
+	// `requests` on PyPI, and neither is the other.
+	Ecosystem string `json:"ecosystem,omitempty"`
 }
 
 // Escalation records that exploitability data raised a finding's severity, and on what grounds.

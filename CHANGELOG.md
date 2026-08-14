@@ -10,6 +10,27 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **A dependency finding says which package it is about.** Scanners have always known — Trivy's
+  message reads `Package: flask`, `Fixed Version: 0.12.3` — and only ever said it in prose, which
+  is a fact formatted for a human and unavailable to anything else. Findings now carry the package
+  name, installed version, fixed version, purl and ecosystem as fields, through the report and the
+  SARIF file both.
+
+  Draugr reads Trivy's JSON rather than its SARIF to get them. Nothing is lost in the swap — the
+  rule documentation, the advisory link and the CVSS score behind `security-severity` are all in
+  the JSON under other names — and the location improves: it is now the manifest the package was
+  declared in (`requirements.txt`) rather than the root that was scanned.
+
+- **`gitlab-dependency-scanning`**, which that unblocked. GitLab's schema requires a structured
+  package and version on every finding, so the format could not exist while the only copy of
+  either was inside a sentence. Verified against GitLab's published schema.
+
+  `container_scanning` is still absent: it requires an image and an operating system that image
+  findings do not yet carry as fields, and a required field filled with a guess is worse than a
+  report that does not exist.
+
 ### Changed
 
 - **The Action and both CI templates provision Semgrep with `draugr tools install`**, like every
