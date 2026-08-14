@@ -18,7 +18,9 @@ func TestRegistryHasDefaults(t *testing.T) {
 
 func TestSurveyorRegistryHasDefaults(t *testing.T) {
 	reg := SurveyorRegistry()
-	for _, name := range []string{"k8s-images", "github-org-repos"} {
+	for _, name := range []string{
+		"k8s-images", "k8s-cluster", "github-org-repos", "gitlab-group-projects", "azure-devops-repos",
+	} {
 		if _, ok := reg.Get(name); !ok {
 			t.Errorf("%s surveyor should be registered", name)
 		}

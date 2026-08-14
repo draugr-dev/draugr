@@ -89,7 +89,8 @@ func newSurveyCommand() *cobra.Command {
 			"folds into the Saga already at --output:\n\n" +
 			"  draugr survey k8s images --namespace prod -o draugr.saga.yaml\n" +
 			"  draugr survey github repos --org acme -o draugr.saga.yaml\n" +
-			"  draugr survey gitlab projects --group acme -o draugr.saga.yaml\n\n" +
+			"  draugr survey gitlab projects --group acme -o draugr.saga.yaml\n" +
+			"  draugr survey azure repos --org acme -o draugr.saga.yaml\n\n" +
 			"An existing file is added to, never overwritten. Use --replace to start again.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -112,7 +113,7 @@ func newSurveyCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(newSurveyK8sCommand(opts), newSurveyGitHubCommand(opts),
-		newSurveyGitLabCommand(opts))
+		newSurveyGitLabCommand(opts), newSurveyAzureCommand(opts))
 	return cmd
 }
 
@@ -287,6 +288,55 @@ func newSurveyGitLabCommand(opts *surveyOptions) *cobra.Command {
 
 	cmd.AddCommand(projects)
 	return cmd
+}
+
+// newSurveyAzureCommand groups the surveyors that read Azure DevOps.
+func newSurveyAzureCommand(opts *surveyOptions) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "azure",
+		Short: "Discover from Azure DevOps",
+		Long: "Surveyors that read Azure DevOps. Authentication comes from AZURE_DEVOPS_EXT_PAT\n" +
+			"(or AZURE_DEVOPS_TOKEN, or a token named in scope config) — a personal access token\n" +
+			"with the Code (read) scope. An Azure DevOps Server instance is named by\n" +
+			"AZURE_DEVOPS_URL, including its collection.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+	}
+
+	var org, project string
+	repos := &cobra.Command{
+		Use:   "repos",
+		Short: "Discover the Git repositories in an Azure DevOps organization or project",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if org == "" {
+				return fmt.Errorf("--org is required: it names the Azure DevOps organization to discover repositories in")
+			}
+			return runSurvey(cmd.Context(), *opts, []surveyor.Request{{
+				Surveyor: "azure-devops-repos",
+				Scope:    plugin.SurveyScope{Ref: azureScopeRef(org, project)},
+			}}, builtins.SurveyorRegistry(), cmd.OutOrStdout())
+		},
+	}
+	repos.Flags().StringVar(&org, "org", "", "the Azure DevOps organization to discover repositories in")
+	repos.Flags().StringVar(&project, "project", "",
+		"limit discovery to one project; omit to survey every project in the organization")
+
+	cmd.AddCommand(repos)
+	return cmd
+}
+
+// azureScopeRef builds the surveyor's scope from the two names Azure DevOps uses.
+//
+// Two flags rather than one "org/project" string: they are two names, and a single flag makes a
+// project whose name contains a slash indistinguishable from an organization plus a project. The
+// surveyor takes one string because the API path does, so the join belongs here — once, where the
+// two halves are still separate.
+func azureScopeRef(org, project string) string {
+	if project == "" {
+		return org
+	}
+	return org + "/" + project
 }
 
 // runSurvey runs the requested surveyors and writes (or merges) what they discovered into a Saga.
