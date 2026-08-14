@@ -22,7 +22,25 @@ type GitHubOrgRepos struct {
 
 // NewGitHubOrgRepos returns the github-org-repos surveyor targeting github.com.
 func NewGitHubOrgRepos() *GitHubOrgRepos {
-	return &GitHubOrgRepos{baseURL: "https://api.github.com", httpClient: http.DefaultClient}
+	return &GitHubOrgRepos{baseURL: githubAPIRoot(), httpClient: http.DefaultClient}
+}
+
+// githubAPIRoot resolves the API root, so GitHub Enterprise Server needs no code change.
+//
+// GITHUB_API_URL is the same variable the github-pr-comment publisher reads, and Actions sets it
+// on a GHES runner — so one variable configures both halves of the integration and a survey run in
+// CI needs nothing configured at all. Anyone who has pointed the publisher at their own instance
+// has every reason to expect the survey to follow, and a survey that quietly went to github.com
+// instead would either fail on the org name or, worse, describe a public organization that happens
+// to share it.
+//
+// The value is used exactly as given: GHES serves its API under /api/v3 and GITHUB_API_URL already
+// carries that path, so appending a suffix would break the thing this is here to fix.
+func githubAPIRoot() string {
+	if u := os.Getenv("GITHUB_API_URL"); u != "" {
+		return trimSlash(u)
+	}
+	return "https://api.github.com"
 }
 
 // Info identifies the surveyor.
