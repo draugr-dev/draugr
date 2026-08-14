@@ -269,34 +269,64 @@ draugr scan ./service  # zero-config: scan another repo directory
 draugr scan draugr.saga.yaml   # full control from a descriptor
 ```
 
+Grouped the way `draugr scan --help` groups them.
+
+**What is scanned**
+
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
-| `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
+| `--components` | — | Scan only these components; the verdict says what it covered |
+| `--controls` | — | Run only these controls; the verdict says what it covered |
 | `--working-tree` | `false` | Scan the checkout as it is on disk, uncommitted work included — for iterating on a fix without committing |
-| `--no-gate` | `false` | Report the verdict but exit 0 on a fail — for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
+
+**What fails the build**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
-| `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
-| `--artifact-min-priority` | — | Also narrow the `-o` artifacts to this band, and record the band inside them. The deliberate opposite of `--min-priority`, and safe for the same reason it is declared — see [below](#what---min-priority-narrows) |
-| `--allow-effects` | — | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent — see [below](#scanners-that-do-more-than-read) |
+| `--no-gate` | `false` | Report the verdict but exit 0 on a fail — for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
+| `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything |
+
+**Exploitability data**
+
+| Flag | Default | Description |
+|------|---------|-------------|
 | `--kev` | — | CISA KEV catalog: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE on it is escalated to critical. Overrides `config.exploitability.kev` |
 | `--epss` | — | FIRST EPSS scores: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE at/above `--epss-threshold` is bumped one band. Overrides `config.exploitability.epss` |
 | `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump. Overrides `config.exploitability.epssThreshold` |
+
+**Output**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
+| `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
+| `--report` | `json,sarif` | Formats to write into `-o`: `console`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, and the `gitlab-*` reports. `--format` prints, `--report` writes — see [below](#--format-prints---report-writes) |
+| `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding |
+| `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
+| `--artifact-min-priority` | — | Also narrow the `-o` artifacts to this band, and record the band inside them. The deliberate opposite of `--min-priority`, and safe for the same reason it is declared — see [below](#what---min-priority-narrows) |
+| `--compact` | `false` | Strip indentation and rule documentation from `json`/`sarif` output. For a consumer that acts on the report rather than reads it — see [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
+| `--template` | — | inline Go `text/template` (with `--format template`) |
+| `--template-file` | — | Go `text/template` file (with `--format template`) |
+| `--no-tips` | `false` | Suppress the console's contextual tips (also `DRAUGR_NO_TIPS`) |
+
+**Caching**
+
+| Flag | Default | Description |
+|------|---------|-------------|
 | `--cache-dir` | — | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 | `--cache-read-only` | `false` | Read the cache, never write it — for a run whose results should not be trusted by the next one |
 | `--cache-require-digest` | `false` | Do not cache an image identified only by a tag. Left off, such a result is still reused and the report names it — see [what a hit does and does not promise](../guides/caching-and-performance.md#what-a-hit-does-and-does-not-promise) |
+
+**Running the scan**
+
+| Flag | Default | Description |
+|------|---------|-------------|
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
-| `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
-| `--template` | — | inline Go `text/template` (with `--format template`) |
-| `--template-file` | — | Go `text/template` file (with `--format template`) |
+| `--allow-effects` | — | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent — see [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
-| `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding |
-| `--no-tips` | `false` | Suppress the console's contextual tips (also `DRAUGR_NO_TIPS`) |
-| `--components` | — | Scan only these components; the verdict says what it covered |
-| `--controls` | — | Run only these controls; the verdict says what it covered |
-| `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything |
-| `--compact` | `false` | Strip indentation and rule documentation from `json`/`sarif` output. For a consumer that acts on the report rather than reads it — see [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
 
 The four `--cache-*` flags also live in [`draugr.config.yaml`](#draugr-config) under `cache:`,
 which is usually the better home: a cache directory describes a runner image, not an application,
