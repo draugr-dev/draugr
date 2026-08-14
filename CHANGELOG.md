@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.90.0] - 2026-08-14
+
 ### Added
 
 - **A dependency finding says which package it is about.** Scanners have always known — Trivy's
@@ -3907,7 +3911,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.89.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.90.0...HEAD
+[0.90.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.90.0
 [0.89.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.89.0
 [0.88.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.88.2
 [0.88.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.88.1
