@@ -114,6 +114,39 @@ func TestCatalogAndAll(t *testing.T) {
 	}
 }
 
+func TestGrypeDBOK(t *testing.T) {
+	// Grype's own verdict is the only one worth reading: a database file can exist, be readable,
+	// and still be one Grype will refuse to scan with because it is too old or its schema belongs
+	// to a version of the tool that is no longer served.
+	cases := []struct {
+		name, out  string
+		wantOK     bool
+		wantDetail string
+	}{
+		{
+			name:       "usable",
+			out:        `{"schemaVersion":"v6.1.9","built":"2026-08-14T06:39:10Z","valid":true}`,
+			wantOK:     true,
+			wantDetail: "built 2026-08-14T06:39:10Z",
+		},
+		{
+			name: "present but not valid",
+			out:  `{"schemaVersion":"v5.0.0","built":"2026-01-01T00:00:00Z","valid":false}`,
+		},
+		{name: "no database", out: `{"path":"/x/vulnerability.db","valid":false,"error":"database does not exist"}`},
+		{name: "not json", out: "database does not exist"},
+		{name: "empty", out: ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ok, detail := GrypeDBOK([]byte(c.out))
+			if ok != c.wantOK || detail != c.wantDetail {
+				t.Errorf("GrypeDBOK() = (%v, %q), want (%v, %q)", ok, detail, c.wantOK, c.wantDetail)
+			}
+		})
+	}
+}
+
 func TestNucleiTemplatesOK(t *testing.T) {
 	// Nuclei exits 0 whether or not it has templates, printing the same line with the version
 	// blank when it has none. The blank is the only signal there is.

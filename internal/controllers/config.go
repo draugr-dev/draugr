@@ -165,6 +165,7 @@ var scannerConfigKey = map[string]string{
 	"draugr-tls":          "draugrTls",
 	"draugr-headers":      "draugrHeaders",
 	"trivy-fs":            "trivyFs",
+	"grype-fs":            "grypeFs",
 	"trivy-config":        "trivyConfig",
 	"trivy-license":       "trivyLicense",
 	"mend-sca":            "mendSca",

@@ -12,6 +12,42 @@ and move it under a version on release.
 
 ### Added
 
+- **Anchore Grype as a second scanner for `images` and `sca`.** Trivy still runs by default;
+  Grype is opt-in, per project or per component, and both run together when you enable it:
+
+  ```yaml
+  config:
+    controllers:
+      images:
+        grype: { enabled: true }
+      sca:
+        grypeFs: { enabled: true }
+  ```
+
+  Two matchers over the same image or the same dependency tree draw on different advisory
+  sources — Grype's include Chainguard, Wolfi, Bitnami and the GitHub Security Advisories
+  alongside the usual distribution trackers — so where they disagree, that is worth knowing.
+
+  `draugr tools install grype` provisions it, pinned and checksum-verified, and `draugr doctor`
+  reports whether its vulnerability database is present and current enough to scan with. Grype
+  refuses a database older than five days, so a binary on `PATH` is not yet a scanner that can
+  run, and doctor says so before a scan finds out.
+
+  Findings are reported under their CVE rather than the advisory identifier the source happened
+  to use, so a vulnerability Grype and Trivy both find is recognisably the same one in both rows.
+  `byCve: false` turns that off.
+
+  Two things to know before you enable it. **Finding counts rise**, because a flaw both scanners
+  find is reported twice — once under each tool's rule identifier — and nothing yet folds the pair
+  into a single finding with two observations. And **an exclusion needs a trailing `*`** to cover
+  both: Grype names the package in its rule identifier (`CVE-2020-14343-pyyaml`) where Trivy does
+  not, so `rules: ["CVE-2020-14343"]` suppresses one and silently leaves the other standing, while
+  `rules: ["CVE-2020-14343*"]` covers both.
+
+  For an air-gapped runner, `GRYPE_DB_UPDATE_URL` points at an internal mirror and
+  `GRYPE_DB_CACHE_DIR` relocates the cache; `--offline` stops Grype checking for updates at all.
+  See the [air-gapped guide](docs/guides/air-gapped.md).
+
 - **`draugr survey azure repos` writes a descriptor from Azure DevOps.** One component per Git
   repository, with its clone URL and default branch, for a whole organization or for one project:
 
