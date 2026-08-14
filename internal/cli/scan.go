@@ -72,6 +72,24 @@ type scanOptions struct {
 	compact         bool
 }
 
+// scanFlagGroups is how `draugr scan --help` is organised: a heading per question a reader
+// arrives with, rather than one alphabetical list of thirty-odd flags.
+//
+// Order is deliberate and is not alphabetical either. It runs from what a scan looks at, through
+// what its answer means, to how the answer is delivered — the order the decisions are actually
+// made in.
+var scanFlagGroups = []flagGroup{
+	{"What is scanned", []string{"components", "controls", "working-tree"}},
+	{"What fails the build", []string{"fail-on", "fail-on-priority", "no-gate", "allow-scan-errors"}},
+	{"Exploitability data", []string{"kev", "epss", "epss-threshold"}},
+	{"Output", []string{
+		"format", "output", "report", "top", "min-priority", "artifact-min-priority",
+		"compact", "template", "template-file", "no-tips",
+	}},
+	{"Caching", []string{"cache-dir", "cache-ttl", "cache-read-only", "cache-require-digest"}},
+	{"Running the scan", []string{"jobs", "allow-effects", "no-publish"}},
+}
+
 func newScanCommand() *cobra.Command {
 	opts := &scanOptions{}
 	cmd := &cobra.Command{
@@ -138,6 +156,9 @@ func newScanCommand() *cobra.Command {
 		"treat a control that couldn't run as a warning rather than a failure (best-effort scanning)")
 	cmd.Flags().BoolVar(&opts.compact, "compact", false,
 		"strip indentation and rule documentation from json/sarif output, for a consumer that acts on the report rather than reads it")
+
+	useFlagGroups(cmd, scanFlagGroups)
+
 	return cmd
 }
 

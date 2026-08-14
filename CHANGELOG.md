@@ -10,6 +10,18 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **`draugr scan --help` groups its flags by what you are trying to decide** — what is scanned,
+  what fails the build, exploitability data, output, caching, and running the scan — instead of
+  listing thirty-odd of them alphabetically. Alphabetical order put `--artifact-min-priority` nine
+  lines from `--min-priority` when the two are one decision.
+
+  The CLI reference is grouped the same way, and `--report` now appears in it: it was explained in
+  prose but missing from the table listing every flag.
+
+  Nothing about parsing, precedence or completion changes — only how help is printed.
+
 ### Added
 
 - **`draugr doctor` now says what nothing is looking at.** Every tool being present is only half of
