@@ -41,17 +41,15 @@ variables:
   # green and reporting, and leave gating to the merge-request path — which is where a gate changes
   # what somebody does anyway.
   DRAUGR_GATE_DEFAULT_BRANCH: "true"
-  # Provision the scanners Draugr distributes. Turn off on a runner whose image already has them.
+  # Provision the scanners the descriptor's controls need. Turn off on a runner whose image
+  # already has them.
   DRAUGR_TOOLS: "true"
-  # Semgrep backs the `sast` control and Draugr does not distribute it. Turn off if your descriptor
-  # does not enable `sast`, or if your image already carries it — installing it costs about a minute.
-  DRAUGR_SEMGREP: "true"
 
 draugr:
   stage: test
-  # Debian-based and carrying pip, for two reasons the alpine equivalent does not survive: the
-  # scanners Draugr provisions are built against glibc, and Semgrep ships manylinux wheels that do
-  # not install on musl.
+  # Debian-based and carrying Python, for two reasons the alpine equivalent does not survive: the
+  # scanners Draugr provisions are built against glibc, and installing Semgrep needs a Python 3.10+
+  # interpreter to build the environment Draugr puts it in.
   image: python:3.13-slim
   variables:
     # A diff needs the merge base, and GitLab clones 20 commits deep by default — so the commit to
@@ -75,13 +73,9 @@ draugr:
       # provisions to the second. Neither is on a runner's PATH.
       export PATH="$HOME/.local/bin:$HOME/.draugr/bin:$PATH"
       if [ "${DRAUGR_TOOLS}" = "true" ]; then
+        # Every scanner the descriptor's controls need, Semgrep included — it publishes no
+        # release binary, so Draugr installs it from PyPI into an environment it owns.
         draugr tools install -y --saga "${DRAUGR_SAGA}"
-        # Draugr distributes only the scanners it can verify, and Semgrep is not one of them. A
-        # descriptor enabling `sast` needs it on PATH, so the template installs it here rather than
-        # letting the control report that it quietly found nothing.
-        if [ "${DRAUGR_SEMGREP}" = "true" ]; then
-          pip install --quiet --no-cache-dir semgrep
-        fi
       fi
       # Names anything still missing, and the source to get it from. Non-fatal: the scan below
       # reports a control that could not run, which is the error worth failing on.

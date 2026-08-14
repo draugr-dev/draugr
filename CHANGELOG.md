@@ -10,7 +10,18 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **The Action and both CI templates provision Semgrep with `draugr tools install`**, like every
+  other scanner. Each carried its own `pipx` line because Draugr could not install it; now that it
+  can, one command provisions everything the descriptor's controls need. The GitLab template's
+  `DRAUGR_SEMGREP` switch is gone with it — there is nothing left for it to turn off.
+
+  A GitLab runner still needs a **Python 3.10 or newer** image, for a different reason than before:
+  Draugr uses an interpreter to build the environment it installs Semgrep into.
+
+  Draugr's own self-scan is the exception, and structurally so: it provisions its scanners before
+  the step that downloads Draugr, so it cannot use Draugr to do it.
 
 ## [0.89.0] - 2026-08-13
 

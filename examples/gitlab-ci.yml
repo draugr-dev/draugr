@@ -38,6 +38,5 @@ draugr:
     # "false" to keep the default branch green and reporting, and leave gating to merge requests.
     DRAUGR_GATE_DEFAULT_BRANCH: "true"
 
-    # Semgrep backs the `sast` control and Draugr does not distribute it, so the template installs
-    # it. Turn off if your descriptor does not enable `sast`, or if your image already has it.
-    DRAUGR_SEMGREP: "true"
+    # Provision the scanners the descriptor's controls need, Semgrep included.
+    DRAUGR_TOOLS: "true"

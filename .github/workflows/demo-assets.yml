@@ -101,9 +101,7 @@ jobs:
       - name: Provision scanners
         run: |
           set -euo pipefail
-          draugr tools install -y           # Trivy, Gitleaks (into ~/.draugr/bin, on Draugr's PATH)
-          pipx install semgrep
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          draugr tools install -y   # every scanner, into ~/.draugr/bin, on Draugr's PATH
 
       - name: Clone the demo sandbox
         run: git clone --depth 1 https://github.com/draugr-dev/draugr-demo draugr-demo

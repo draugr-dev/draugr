@@ -111,9 +111,14 @@ jobs:
           sudo mv gitleaks /usr/local/bin/
           gitleaks version
 
-      # pipx, still, for one release longer. The self-scan runs the latest *release*, and
-      # `draugr tools install semgrep` only exists in the build being tested here — so this
-      # switches over once a release carries it, like every other dogfooding change.
+      # pipx here, and not `draugr tools install semgrep`, for a structural reason rather than a
+      # stale one: draugr is not on PATH yet. The action below is what downloads and verifies it,
+      # so every scanner this job provisions has to be provisioned without it — which is also why
+      # Trivy, Gitleaks and gosec are hand-pinned above.
+      #
+      # Replacing all four with the action's own `tools: true` is the real fix and is tracked
+      # separately; it changes what the pin guard below is guarding, so it is not a footnote to
+      # this change.
       - name: Install Semgrep
         if: needs.changes.outputs.code == 'true'
         run: |
