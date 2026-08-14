@@ -216,9 +216,6 @@ func provenanceLabel(res tools.Installed) string {
 
 // checkInstallable reports any names Draugr cannot provision, suggesting the closest match.
 func checkInstallable(names []string) error {
-	// Accept every tool Draugr knows, not just the binary-installable ones: semgrep is a Python
-	// package, so `tools install semgrep` legitimately prints a pipx command instead of
-	// downloading anything. Rejecting it here would break that.
 	known := tools.Installable()
 	set := make(map[string]bool, len(known))
 	for _, k := range known {
@@ -299,14 +296,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 	}
 
 	// Show the plan before doing anything, with what is already satisfied marked as such.
-	//
-	// planned, not names: semgrep is not in Installable() — it is a Python package, not a
-	// download — so a bulk install adds it to the plan without it ever being in the list. Asking
-	// only about names would leave the one tool most likely to be present unchecked.
 	planned := names
-	if all && !slices.Contains(planned, "semgrep") {
-		planned = append(append([]string{}, planned...), "semgrep")
-	}
 	have := present(context.Background(), planned, opts)
 	writeInstallPlan(w, names, all, have, opts)
 
@@ -322,15 +312,6 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 		_, _ = fmt.Fprintln(w, "\nEverything is already current.")
 		return nil
 	}
-	// Nothing for Draugr to download is not a decision to put to anybody. `tools install semgrep`
-	// reaches here with work outstanding and none of it Draugr's — so asking to proceed, taking a
-	// yes, and then printing a command is a prompt that gated nothing and an install that did not
-	// happen.
-	if downloads(names, all, have) == 0 {
-		_, _ = fmt.Fprintln(w)
-		printSemgrepHint(w)
-		return nil
-	}
 	if !opts.yes && isTTY(in) {
 		_, _ = fmt.Fprint(w, "\nProceed? [y/N] ")
 		if !confirmed(in) {
@@ -343,14 +324,6 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 	col := tui.For(w)
 	var failed, unchanged int
 	for _, name := range names {
-		if name == "semgrep" {
-			// Only when it is actually absent. An instruction to install something you already
-			// have reads as a failure, and the natural response is to run the command again.
-			if _, ok := have["semgrep"]; !ok {
-				printSemgrepHint(w)
-			}
-			continue
-		}
 		res, err := install(name)
 		if err != nil {
 			_, _ = fmt.Fprintf(w, "%s %s: %v\n", col.Paint(tui.StyleFail, "✗"), name, err)
@@ -372,21 +345,8 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 			res.Path, col.Paint(tui.StyleMuted, "("+provenanceLabel(res)+")"))
 	}
 
-	// semgrep is planned but not installed here — it is a Python package, so the loop above skips
-	// it. It still has to be counted, or a full install reports one fewer unchanged tool than the
-	// plan just called current, and two numbers about the same thing disagreeing is worse than
-	// either alone.
-	if _, ok := have["semgrep"]; ok && !slices.Contains(names, "semgrep") {
-		unchanged++
-	}
 	if unchanged > 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, fmt.Sprintf("%s unchanged.", plural(unchanged, "tool"))))
-	}
-
-	// Semgrep isn't a downloadable binary; when installing everything, surface how to get it —
-	// unless it is already here, in which case there is nothing to surface.
-	if _, ok := have["semgrep"]; all && !ok {
-		printSemgrepHint(w)
 	}
 
 	if failed > 0 {
@@ -400,27 +360,6 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 // Distinct from the number of tools outstanding: semgrep is planned, needed and absent, and Draugr
 // downloads none of it. The confirmation gate means *this* number, because a prompt is about what
 // the command is going to do to the machine.
-func downloads(names []string, all bool, have map[string]string) int {
-	wanted := names
-	if all {
-		wanted = tools.Installable()
-	}
-	n := 0
-	for _, name := range wanted {
-		if name == "semgrep" {
-			continue // provisioned with pipx; Draugr only prints the command
-		}
-		if _, current := have[name]; !current {
-			n++
-		}
-	}
-	return n
-}
-
-func printSemgrepHint(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "ℹ semgrep is a Python package, not a standalone binary — run:\n    %s\n",
-		tools.SemgrepPipxCommand())
-}
 
 // writeInstallPlan prints what `tools install` will do, before doing it.
 // present reports which of names are already installed at the pinned version.
@@ -472,7 +411,7 @@ func present(ctx context.Context, names []string, opts toolsInstallOptions) map[
 	return found
 }
 
-func writeInstallPlan(w io.Writer, names []string, all bool, have map[string]string, opts toolsInstallOptions) {
+func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]string, opts toolsInstallOptions) {
 	dir, _ := tools.BinDir()
 	catalog := tools.Catalog()
 	category := func(name string) string {
@@ -490,10 +429,20 @@ func writeInstallPlan(w io.Writer, names []string, all bool, have map[string]str
 	satisfied := func(name string) bool { _, ok := have[name]; return ok }
 	todo := 0
 
-	showSemgrep := all
 	for _, name := range names {
-		if name == "semgrep" {
-			showSemgrep = true
+		// A tool obtained as a Python package has no release asset to describe, so its row is
+		// built from what it does have: the pinned version, and the environment it lands in.
+		if pySpec, isPython := tools.PythonTool(name); isPython {
+			if satisfied(name) {
+				table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(tools.PythonVersion(name)),
+					tui.PlainCell(category(name)), tui.PlainCell("—"),
+					tui.Styled(tui.StyleMuted, "already at "+have[name]))
+				continue
+			}
+			todo++
+			table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(tools.PythonVersion(name)),
+				tui.PlainCell(category(name)), tui.PlainCell("sha256 (+deps)"),
+				tui.Styled(tui.StyleMuted, filepath.Join(dir, pySpec.Package)))
 			continue
 		}
 		spec, err := tools.SpecFor(name, opts.want(name))
@@ -515,22 +464,6 @@ func writeInstallPlan(w io.Writer, names []string, all bool, have map[string]str
 		table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(spec.Version),
 			tui.PlainCell(category(name)), tui.PlainCell(verify),
 			tui.Styled(tui.StyleMuted, filepath.Join(dir, spec.Binary)))
-	}
-	if showSemgrep {
-		if satisfied("semgrep") {
-			table.Row(tui.Styled(tui.StyleMuted, "semgrep"), tui.PlainCell(tools.SemgrepVersion()),
-				tui.PlainCell(category("semgrep")), tui.PlainCell("—"),
-				tui.Styled(tui.StyleMuted, "already at "+have["semgrep"]))
-		} else {
-			// Not counted as work. Draugr does not install semgrep — it is a Python package — so
-			// counting it made the plan promise a download, the confirmation gate something to
-			// approve, and the run report an install that never happened. The row stays, because
-			// a scan needs the tool and a reader deciding what to provision has to see it; what
-			// changes is that it no longer claims to be Draugr's to do.
-			table.Row(tui.Styled(tui.StyleMuted, "semgrep"), tui.PlainCell(tools.SemgrepVersion()),
-				tui.PlainCell(category("semgrep")), tui.PlainCell("—"),
-				tui.Styled(tui.StyleMuted, "not installed by Draugr — pipx"))
-		}
 	}
 	table.Render(w)
 
@@ -568,8 +501,8 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 		pinned, source := "-", "system PATH"
 		if spec, ok := tools.Spec(t.Binary); ok {
 			pinned, source = spec.Version, "draugr tools install"
-		} else if t.Binary == "semgrep" {
-			pinned, source = tools.SemgrepVersion(), "pipx"
+		} else if _, ok := tools.PythonTool(t.Binary); ok {
+			pinned, source = tools.PythonVersion(t.Binary), "draugr tools install"
 		}
 
 		status, statusStyle := "✗ not found", tui.StyleFail

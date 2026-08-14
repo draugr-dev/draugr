@@ -43,7 +43,7 @@ env:
   GITLEAKS_VERSION: "8.30.1"
   GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
   # Pinned Semgrep (pip verifies the PyPI package hash for this exact version).
-  SEMGREP_VERSION: "1.169.0"
+  SEMGREP_VERSION: "1.173.0"
   GOSEC_VERSION: "2.28.0"
   GOSEC_SHA256: "d7882e505b1ff345d458bf0e893eec8019bc849f861ad73a212869540dd505ff"
 
@@ -111,6 +111,9 @@ jobs:
           sudo mv gitleaks /usr/local/bin/
           gitleaks version
 
+      # pipx, still, for one release longer. The self-scan runs the latest *release*, and
+      # `draugr tools install semgrep` only exists in the build being tested here — so this
+      # switches over once a release carries it, like every other dogfooding change.
       - name: Install Semgrep
         if: needs.changes.outputs.code == 'true'
         run: |

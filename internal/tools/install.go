@@ -30,9 +30,16 @@ import (
 // download is verified against a SHA-256 pinned below before it touches disk, and nothing is
 // fetched during a scan. Pins come from each upstream's published `*_checksums.txt`.
 
-// semgrepVersion is the pinned Semgrep release. Semgrep ships as a Python package, not a
-// standalone binary, so it is provisioned via pipx rather than downloaded here.
-const semgrepVersion = "1.169.0"
+// semgrepVersion is the pinned Semgrep release.
+//
+// Semgrep publishes no release binary — its GitHub releases carry no assets at all — so it is
+// installed from PyPI into a virtual environment Draugr owns, with every artifact in the resolved
+// tree pinned by the digest PyPI publishes. See python.go.
+//
+// Bumping it means regenerating the pins:
+//
+//	python3 internal/tools/pythonpins/generate.py semgrep <version>
+const semgrepVersion = "1.173.0"
 
 // Download/extract size caps guard against a malicious or corrupt server (decompression
 // bombs, endless bodies). Scanner archives are tens of MB; 512 MiB is comfortably above that.
@@ -359,8 +366,11 @@ var runCosignVerify = func(ctx context.Context, cosignPath string, args []string
 
 // Installable returns the names of the tools `tools install` can provision, sorted.
 func Installable() []string {
-	names := make([]string, 0, len(installable))
+	names := make([]string, 0, len(installable)+len(pythonInstallable))
 	for name := range installable {
+		names = append(names, name)
+	}
+	for name := range pythonInstallable {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -376,9 +386,37 @@ func Spec(name string) (InstallSpec, bool) {
 // SemgrepVersion is the pinned Semgrep version.
 func SemgrepVersion() string { return semgrepVersion }
 
-// SemgrepPipxCommand returns the recommended pinned install command for Semgrep, which is a
-// Python package rather than a standalone binary.
-func SemgrepPipxCommand() string { return "pipx install semgrep==" + semgrepVersion }
+// installPythonTool provisions a tool that ships as a Python package, and reports it the way an
+// installed binary is reported.
+func installPythonTool(ctx context.Context, name, version, destDir string, spec PythonSpec) (Installed, error) {
+	if version == "" {
+		version = pythonVersions[name]
+	}
+	root := filepath.Dir(destDir)
+	path, level, err := installPython(ctx, root, name, spec, version)
+	if err != nil {
+		return Installed{}, err
+	}
+	// The shim is what ends up on PATH, so it is the file the attestation is about — the same
+	// rule the binary path follows.
+	sum, err := fileSHA256(path)
+	if err != nil {
+		return Installed{}, err
+	}
+	// LevelPinned when the embedded set applied: every artifact in the resolved tree matched a
+	// digest recorded in this binary, which is the same claim a pinned release archive makes and
+	// covers more — the dependencies as well as the tool.
+	recordInstall(destDir, name, installRecord{
+		Version: version, BinarySHA256: sum, Verified: level,
+	})
+	return Installed{Name: name, Version: version, Path: path}, nil
+}
+
+// pythonVersions pins each Python-packaged tool.
+var pythonVersions = map[string]string{"semgrep": semgrepVersion}
+
+// PythonVersion is the pinned version of a tool obtained as a Python package.
+func PythonVersion(name string) string { return pythonVersions[name] }
 
 // BinDir is Draugr's managed tool directory, ~/.draugr/bin.
 func BinDir() (string, error) {
@@ -435,6 +473,11 @@ func Install(ctx context.Context, name, destDir string, client *http.Client, for
 //
 //nolint:gocyclo // one linear sequence: resolve, download, verify, extract, record. Splitting it
 func InstallVersion(ctx context.Context, name, version, destDir string, client *http.Client, force bool) (Installed, error) {
+	// A tool that ships as a Python package is obtained differently and verified the same way.
+	// Handled first so the release-archive path below stays one linear sequence.
+	if pySpec, ok := PythonTool(name); ok {
+		return installPythonTool(ctx, name, version, destDir, pySpec)
+	}
 	spec, err := SpecFor(name, version)
 	if err != nil {
 		return Installed{}, err

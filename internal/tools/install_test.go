@@ -313,7 +313,7 @@ func TestExtractBinaryDispatch(t *testing.T) {
 
 func TestInstallableAndSpec(t *testing.T) {
 	names := Installable()
-	want := []string{"cosign", "gitleaks", "gosec", "kube-bench", "nuclei", "syft", "trivy"}
+	want := []string{"cosign", "gitleaks", "gosec", "kube-bench", "nuclei", "semgrep", "syft", "trivy"}
 	if len(names) < len(want) {
 		t.Fatalf("Installable() = %v, want at least %v", names, want)
 	}
@@ -334,12 +334,14 @@ func TestInstallableAndSpec(t *testing.T) {
 	}
 }
 
-func TestSemgrepHelpers(t *testing.T) {
+func TestSemgrepVersionIsPinned(t *testing.T) {
 	if SemgrepVersion() == "" {
 		t.Error("empty SemgrepVersion")
 	}
-	if got := SemgrepPipxCommand(); got != "pipx install semgrep=="+SemgrepVersion() {
-		t.Errorf("SemgrepPipxCommand = %q", got)
+	// The two have to agree: one drives what is installed, the other what the plan and the report
+	// say was installed.
+	if got := PythonVersion("semgrep"); got != SemgrepVersion() {
+		t.Errorf("PythonVersion(semgrep) = %q, SemgrepVersion() = %q", got, SemgrepVersion())
 	}
 }
 
