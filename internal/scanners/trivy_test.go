@@ -74,7 +74,8 @@ func TestTrivyFSInfo(t *testing.T) {
 
 func TestTrivyFSArgs(t *testing.T) {
 	argv := trivyFSArgs("/work/repo", nil)
-	want := []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "sarif", "/work/repo"}
+	// json, not sarif: Trivy's SARIF states the package only in prose. See trivy_vuln_json.go.
+	want := []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json", "/work/repo"}
 	if len(argv) != len(want) {
 		t.Fatalf("argv = %v", argv)
 	}

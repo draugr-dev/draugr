@@ -97,6 +97,7 @@ Scan results render through a pluggable **Reporter** interface (`pkg/report`), s
 | `json` | machine-readable report |
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
 | `gitlab-sast` | GitLab's own security schema, for its Vulnerability Report (a build artifact, not an upload) |
+| `gitlab-dependency-scanning` | the same, for vulnerable dependencies |
 | `gitlab-secret-detection` | the same, for leaked credentials |
 | `gitlab-codequality` | GitLab Code Quality — every finding, in the merge request, on any tier |
 | `template` | custom payload from a Go `text/template` (inline or file) — no code needed |

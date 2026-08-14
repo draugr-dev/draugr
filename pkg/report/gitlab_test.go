@@ -40,7 +40,9 @@ func gitlabData() Data {
 				res("gitleaks", "aws-access-key", sarif.LevelError, "P2", "config/app.env", 3),
 			}}},
 			"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy-fs", Results: []sarif.Result{
-				res("trivy-fs", "CVE-2024-56201", sarif.LevelError, "P1", "go.mod", 12),
+				withPackage(res("trivy-fs", "CVE-2024-56201", sarif.LevelError, "P1", "go.mod", 12),
+					&sarif.Package{Name: "jinja2", Version: "2.10", FixedVersion: "3.1.5",
+						PURL: "pkg:pypi/jinja2@2.10", Ecosystem: "pip"}),
 			}}},
 			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: []sarif.Result{
 				res("trivy-license", "AGPL-3.0", sarif.LevelWarning, "P4", "go.mod", 1),
@@ -56,6 +58,13 @@ func gitlabData() Data {
 		Generated:    time.Date(2026, 8, 13, 12, 0, 0, 0, time.UTC),
 		Repositories: []RepositoryProvenance{{URL: "https://gitlab.com/acme/app", Revision: "0f1e2d3c4b5a"}},
 	}
+}
+
+// withPackage attaches a dependency identity, which is what a dependency finding has and a SAST
+// finding does not.
+func withPackage(r sarif.Result, p *sarif.Package) sarif.Result {
+	r.Package = p
+	return r
 }
 
 func renderGitLab(t *testing.T, format string, d Data) []byte {
@@ -80,6 +89,7 @@ func TestGitLabReportsMatchTheirSchema(t *testing.T) {
 	cases := []struct{ format, schema string }{
 		{"gitlab-sast", "sast-report-format.json"},
 		{"gitlab-secret-detection", "secret-detection-report-format.json"},
+		{"gitlab-dependency-scanning", "dependency-scanning-report-format.json"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.format, func(t *testing.T) {
@@ -109,7 +119,11 @@ func TestGitLabReportsMatchTheirSchema(t *testing.T) {
 // The declared version has to be the one the vendored schemas describe, or the test above proves
 // something about a document GitLab never sees.
 func TestGitLabSchemaVersionMatchesTheVendoredSchemas(t *testing.T) {
-	for _, name := range []string{"sast-report-format.json", "secret-detection-report-format.json"} {
+	for _, name := range []string{
+		"sast-report-format.json",
+		"secret-detection-report-format.json",
+		"dependency-scanning-report-format.json",
+	} {
 		raw, err := os.ReadFile(filepath.Join("testdata", "gitlab", name)) // #nosec G304 -- fixture name from the literal list above
 		if err != nil {
 			t.Fatal(err)
@@ -435,5 +449,48 @@ func TestGitLabScanTimesBracketTheRun(t *testing.T) {
 	// reconcile with the pipeline's own timings.
 	if doc.Scan.StartTime != "2026-08-13T11:58:30" {
 		t.Errorf("start_time = %q, want the end minus the run's duration", doc.Scan.StartTime)
+	}
+}
+
+// dependency_scanning requires a package on every finding, so a finding without one cannot be in
+// it — and quietly including it would have GitLab reject the whole document rather than the row.
+func TestGitLabDependencyScanningNeedsAPackage(t *testing.T) {
+	d := gitlabData()
+	rep := d.Run.Controls["sca"].Report
+	// A second sca finding with no package: the shape a scanner produces when it reports something
+	// about a manifest rather than about a dependency in it.
+	rep.Results = append(rep.Results, sarif.Result{
+		Tool: "trivy-fs", RuleID: "NO-PACKAGE", Level: sarif.LevelWarning, Priority: "P3",
+		Message: "about the file, not a package", Location: sarif.Location{URI: "go.mod"},
+	})
+	d.Run.Controls["sca"] = plugin.ControlResult{Control: "sca", Report: rep}
+
+	doc := decodeSecurity(t, renderGitLab(t, "gitlab-dependency-scanning", d))
+	for _, v := range doc.Vulnerabilities {
+		if v.Name == "NO-PACKAGE" {
+			t.Error("a finding with no package reached a report whose schema requires one")
+		}
+		if v.Location.Dependency == nil || v.Location.Dependency.Package.Name == "" {
+			t.Errorf("%s has no dependency, which the schema requires", v.Name)
+		}
+		// A line number in a manifest points at wherever the scanner happened to look, not at the
+		// package — GitLab renders it as a position, so it is left out.
+		if v.Location.StartLine != 0 {
+			t.Errorf("%s carries start_line %d", v.Name, v.Location.StartLine)
+		}
+	}
+}
+
+func TestGitLabDependencyScanningCarriesTheVersion(t *testing.T) {
+	doc := decodeSecurity(t, renderGitLab(t, "gitlab-dependency-scanning", gitlabData()))
+	if len(doc.Vulnerabilities) != 1 {
+		t.Fatalf("want the one sca finding, got %d", len(doc.Vulnerabilities))
+	}
+	dep := doc.Vulnerabilities[0].Location.Dependency
+	if dep.Package.Name != "jinja2" || dep.Version != "2.10" {
+		t.Errorf("dependency = %+v, want jinja2 2.10", dep)
+	}
+	if doc.Vulnerabilities[0].Location.File != "go.mod" {
+		t.Errorf("file = %q, want the manifest", doc.Vulnerabilities[0].Location.File)
 	}
 }

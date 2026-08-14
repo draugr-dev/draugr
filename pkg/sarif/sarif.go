@@ -193,6 +193,11 @@ type sarifProperties struct {
 	// one. Part of a finding's identity, so it has to survive the file: a report is written and
 	// read back by `draugr diff`, and an identity that only exists in memory is not one.
 	Repository string `json:"repository,omitempty"`
+	// Package is the dependency the finding is about, when it is about one. It has to survive the
+	// file for the same reason Repository does: a report is written and read back by `draugr diff`
+	// and by the formats a platform consumes, and a fact that only exists in memory is one every
+	// one of those has to do without.
+	Package *Package `json:"package,omitempty"`
 	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
 	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
 	Tags []string `json:"tags,omitempty"`
@@ -334,7 +339,10 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			sr.Locations = append(sr.Locations, loc)
 		}
 		if tool != "" || res.HasScore || res.Priority != "" {
-			sr.Properties = &sarifProperties{Tool: tool, Priority: res.Priority, Component: res.Component, Repository: res.Repository}
+			sr.Properties = &sarifProperties{
+				Tool: tool, Priority: res.Priority, Component: res.Component,
+				Repository: res.Repository, Package: res.Package,
+			}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
 			}
@@ -529,6 +537,7 @@ func FromSARIF(data []byte) (Report, error) {
 				// component, collapse into a single finding at exactly the moment it mattered.
 				res.Component = sr.Properties.Component
 				res.Repository = sr.Properties.Repository
+				res.Package = sr.Properties.Package
 			}
 			out.Results = append(out.Results, res)
 		}

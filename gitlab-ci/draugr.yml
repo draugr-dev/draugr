@@ -89,7 +89,7 @@ draugr:
       # adding to it, so sarif is named explicitly: the merge-request path below diffs two
       # results.sarif files, and a scan that did not write one fails on a missing file rather than
       # on anything that points at the report list.
-      reports="json,sarif,gitlab-sast,gitlab-secret-detection,gitlab-codequality,gitlab-cyclonedx"
+      reports="json,sarif,gitlab-sast,gitlab-dependency-scanning,gitlab-secret-detection,gitlab-codequality,gitlab-cyclonedx"
 
       if [ -z "${CI_MERGE_REQUEST_IID:-}" ]; then
         # A branch pipeline: the whole descriptor, gated by its own policy.
@@ -136,6 +136,7 @@ draugr:
       # widget, which are Ultimate. codequality shows in the merge request's Reports tab on every
       # tier, which is why it carries every finding rather than a typed subset.
       sast: draugr-out/gl-sast-report.json
+      dependency_scanning: draugr-out/gl-dependency-scanning-report.json
       secret_detection: draugr-out/gl-secret-detection-report.json
       codequality: draugr-out/gl-code-quality-report.json
       # The Dependency List and License Compliance read a CycloneDX SBOM rather than a report of

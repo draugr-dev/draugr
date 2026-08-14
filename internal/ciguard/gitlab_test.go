@@ -65,10 +65,11 @@ func TestTheGitLabTemplateNamesFormatsThatExist(t *testing.T) {
 
 	// GitLab's report type -> the Draugr format that fills it.
 	want := map[string]string{ // #nosec G101 -- GitLab report type names, not credentials
-		"sast":             "gitlab-sast",
-		"secret_detection": "gitlab-secret-detection",
-		"codequality":      "gitlab-codequality",
-		"cyclonedx":        "gitlab-cyclonedx",
+		"sast":                "gitlab-sast",
+		"dependency_scanning": "gitlab-dependency-scanning",
+		"secret_detection":    "gitlab-secret-detection",
+		"codequality":         "gitlab-codequality",
+		"cyclonedx":           "gitlab-cyclonedx",
 	}
 	formats := map[string]bool{}
 	for _, f := range report.Formats() {

@@ -97,7 +97,7 @@ Draugr renders GitLab's formats rather than uploading anything.
 |---|---|---|
 | Merge request **Reports** tab | `gitlab-codequality` | Free, Premium, Ultimate |
 | Diff annotations, inline | `gitlab-codequality` | Ultimate |
-| **Vulnerability Report**, MR security widget | `gitlab-sast`, `gitlab-secret-detection` | Ultimate |
+| **Vulnerability Report**, MR security widget | `gitlab-sast`, `gitlab-dependency-scanning`, `gitlab-secret-detection` | Ultimate |
 | Sticky merge-request comment | the `markdown` report | any |
 | **Dependency List**, **License Compliance** | a CycloneDX SBOM, from `config.sbom` | Ultimate |
 

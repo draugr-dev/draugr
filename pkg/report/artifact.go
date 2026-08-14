@@ -30,9 +30,10 @@ var formatMeta = map[string]struct{ filename, contentType string }{
 	"vex":      {"openvex.json", "application/json"},
 	// GitLab's conventional names, so a .gitlab-ci.yml written from GitLab's own documentation
 	// finds the file Draugr wrote.
-	"gitlab-sast":             {"gl-sast-report.json", "application/json"},
-	"gitlab-secret-detection": {"gl-secret-detection-report.json", "application/json"},
-	"gitlab-codequality":      {"gl-code-quality-report.json", "application/json"},
+	"gitlab-sast":                {"gl-sast-report.json", "application/json"},
+	"gitlab-secret-detection":    {"gl-secret-detection-report.json", "application/json"},
+	"gitlab-dependency-scanning": {"gl-dependency-scanning-report.json", "application/json"},
+	"gitlab-codequality":         {"gl-code-quality-report.json", "application/json"},
 	// gl-sbom-* is the pattern GitLab's own analyzers write and its docs glob for.
 	"gitlab-cyclonedx": {"gl-sbom-draugr.cdx.json", "application/vnd.cyclonedx+json"},
 }

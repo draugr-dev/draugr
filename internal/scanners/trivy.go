@@ -58,7 +58,7 @@ func NewTrivy() plugin.Scanner {
 // repository to find dependency vulnerabilities (SCA). It serves the "sca" control.
 // (License findings are not included in Trivy's SARIF output and are tracked separately.)
 func NewTrivyFS() plugin.Scanner {
-	s := newRepoScanner(
+	s := newRepoScannerWithParser(
 		plugin.ScannerInfo{
 			Name:         "trivy-fs",
 			Origin:       "aquasecurity",
@@ -68,6 +68,7 @@ func NewTrivyFS() plugin.Scanner {
 			ConfigSchema: json.RawMessage(trivyConfigSchema),
 		},
 		trivyFSArgs,
+		parseTrivyVulns,
 	)
 	s.cacheVersion = sharedTrivyVersion.cacheVersion
 	s.prewarm = sharedTrivyDB.warm
@@ -75,9 +76,12 @@ func NewTrivyFS() plugin.Scanner {
 	return s
 }
 
-// trivyFSArgs builds `trivy fs --quiet --scanners vuln --format sarif <dir>`.
+// trivyFSArgs builds `trivy fs --quiet --scanners vuln --format json <dir>`.
+//
+// JSON rather than SARIF because the SARIF says which package only in prose. See
+// trivy_vuln_json.go for what that costs and what it buys.
 func trivyFSArgs(dir string, cfg plugin.Config) []string {
-	argv := []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "sarif"}
+	argv := []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json"}
 	return offlineTrivyArgs(append(trivyOptions(argv, cfg), dir))
 }
 
