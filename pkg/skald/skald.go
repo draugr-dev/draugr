@@ -128,11 +128,15 @@ type notMeasuredReport struct {
 }
 
 type statsInfo struct {
-	Jobs        int `json:"jobs"`
-	Scans       int `json:"scans"`
-	CacheHits   int `json:"cacheHits"`
-	Deduped     int `json:"deduped"`
-	Concurrency int `json:"concurrency"`
+	Jobs      int `json:"jobs"`
+	Scans     int `json:"scans"`
+	CacheHits int `json:"cacheHits"`
+	// UnpinnedCacheHits names images whose findings were reused from a cache entry keyed on a
+	// tag rather than a digest, so they may describe an earlier image. Omitted when empty, and
+	// present here because a machine reading this report needs the same caveat a person gets.
+	UnpinnedCacheHits []string `json:"unpinnedCacheHits,omitempty"`
+	Deduped           int      `json:"deduped"`
+	Concurrency       int      `json:"concurrency"`
 }
 
 // RenderJSON writes a JSON evidence summary combining the run result and the verdict.
@@ -155,11 +159,12 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 		Verdict: string(verdict.Verdict),
 		Scope:   scopeOf(run),
 		Stats: statsInfo{
-			Jobs:        run.Stats.Jobs,
-			Scans:       run.Stats.Scans,
-			CacheHits:   run.Stats.CacheHits,
-			Deduped:     run.Stats.Deduped,
-			Concurrency: run.Stats.Concurrency,
+			Jobs:              run.Stats.Jobs,
+			Scans:             run.Stats.Scans,
+			CacheHits:         run.Stats.CacheHits,
+			UnpinnedCacheHits: run.Stats.UnpinnedCacheHits,
+			Deduped:           run.Stats.Deduped,
+			Concurrency:       run.Stats.Concurrency,
 		},
 	}
 	seen := make(map[string]bool, len(verdict.Controls))

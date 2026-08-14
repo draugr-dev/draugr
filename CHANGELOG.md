@@ -10,6 +10,26 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A cached image scan now says when its key was a tag rather than a digest.** Draugr's cache is
+  content-addressed, which holds for a repository at a revision and for an image pinned to a
+  digest — but not for `acme/api:latest`, whose name is stable while the bytes behind it are not.
+  A rebuilt tag kept the same key, so the previous image's findings were served with nothing to
+  say so.
+
+  The findings are still reused, and the report now tells you which ones rest on that:
+
+  ```
+  Reused from cache, keyed on a tag: acme/api:latest — a tag can be rebuilt, so these findings
+  may describe an earlier image. Pin a digest, or re-scan with --cache-require-digest.
+  ```
+
+  It appears only when a result was actually reused — a fresh scan of a tag read whatever that tag
+  points at now — and `--format json` carries the same list as `stats.unpinnedCacheHits`. Pinning a
+  `digest:` in the descriptor removes the caveat, and `draugr survey` records the running digest
+  for you.
+
 _Nothing yet._
 
 ## [0.91.0] - 2026-08-14

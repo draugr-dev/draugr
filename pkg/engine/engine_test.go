@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -53,6 +54,9 @@ type fakeController struct {
 	scope    plugin.Scope
 	scanner  string
 	planFail bool
+	// digest, when set, pins the planned image target — which is what makes its cache entry
+	// content-addressed. Empty plans a tag alone, as most descriptors do.
+	digest string
 }
 
 func (c fakeController) Info() plugin.ControllerInfo {
@@ -68,7 +72,7 @@ func (c fakeController) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJ
 		if comp == nil {
 			return nil, nil
 		}
-		target = plugin.ImageTarget{Ref: comp.Name}
+		target = plugin.ImageTarget{Ref: comp.Name, Digest: c.digest}
 	}
 	return []plugin.ScanJob{{Scanner: c.scanner, Target: target}}, nil
 }
@@ -747,4 +751,55 @@ func TestPlanningNeverLogsCredentials(t *testing.T) {
 	if strings.Contains(logs.String(), secret) {
 		t.Errorf("a credential reached the log:\n%s", logs.String())
 	}
+}
+
+// TestUnpinnedCacheHitsAreRecorded covers the difference between a cache that is right and a
+// cache that only looks right. A tag-only image has a stable key and unstable bytes, so a hit on
+// one is an assumption — and the run has to say which results rest on it.
+func TestUnpinnedCacheHitsAreRecorded(t *testing.T) {
+	run := func(t *testing.T, digest string) Result {
+		t.Helper()
+		reg := NewRegistry()
+		reg.RegisterController(fakeController{
+			name: "images", scope: plugin.ScopeComponent, scanner: "s", digest: digest,
+		})
+		reg.RegisterScanner(&fakeScanner{name: "s"})
+		c := cache.NewMemory()
+
+		first, err := New(reg, WithCache(c)).Run(context.Background(), model())
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Nothing was reused, so nothing rests on the assumption yet — a fresh scan of a tag
+		// scanned whatever that tag points at now, which is the right answer either way.
+		if len(first.Stats.UnpinnedCacheHits) != 0 {
+			t.Errorf("a run that stored the entries reported %v as reused", first.Stats.UnpinnedCacheHits)
+		}
+		second, err := New(reg, WithCache(c)).Run(context.Background(), model())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if second.Stats.CacheHits == 0 {
+			t.Fatal("the second run scanned again; there is no cache hit to report on")
+		}
+		return second
+	}
+
+	t.Run("a tag alone is named", func(t *testing.T) {
+		got := run(t, "")
+		want := []string{"a", "b"}
+		if !slices.Equal(got.Stats.UnpinnedCacheHits, want) {
+			t.Errorf("UnpinnedCacheHits = %v, want %v — both components' images were reused from "+
+				"an entry keyed on a tag, and a report that does not say so claims more than it knows",
+				got.Stats.UnpinnedCacheHits, want)
+		}
+	})
+
+	t.Run("a digest is not", func(t *testing.T) {
+		got := run(t, "sha256:abc")
+		if len(got.Stats.UnpinnedCacheHits) != 0 {
+			t.Errorf("a digest-pinned image is content-addressed and needs no caveat, got %v",
+				got.Stats.UnpinnedCacheHits)
+		}
+	})
 }
