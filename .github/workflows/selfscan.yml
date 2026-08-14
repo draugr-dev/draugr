@@ -14,8 +14,7 @@ on:
   workflow_dispatch:
   # Called by release.yml before anything is built. A release is a claim about the whole
   # artifact, so the tree being tagged has to be acceptable as a whole — and asking that here
-  # rather than duplicating the job keeps one definition of the gate, and one set of pinned
-  # scanner versions that internal/tools TestSelfscanPinsMatchManifest can hold to the manifest.
+  # rather than duplicating the job keeps one definition of the gate.
   #
   # `mode: auto` resolves to a full scan rather than a diff, because a tag push is not a pull
   # request. That is the mode a release wants: a diff answers whether a change made things worse,
@@ -33,19 +32,6 @@ on:
 
 permissions:
   contents: read
-
-env:
-  # These versions are the single source of truth's mirror: they MUST match the pinned
-  # manifest in internal/tools/install.go (trivy/gitleaks) and internal/tools/tools.go
-  # (semgrep). internal/tools TestSelfscanPinsMatchManifest fails CI if they drift — so the
-  # tools Draugr ships (`draugr tools install`) are exactly the ones the self-scan validates.
-  TRIVY_VERSION: "0.69.3"
-  GITLEAKS_VERSION: "8.30.1"
-  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
-  # Pinned Semgrep (pip verifies the PyPI package hash for this exact version).
-  SEMGREP_VERSION: "1.173.0"
-  GOSEC_VERSION: "2.28.0"
-  GOSEC_SHA256: "d7882e505b1ff345d458bf0e893eec8019bc849f861ad73a212869540dd505ff"
 
 jobs:
   # Mirrors ci.yml: one cheap job decides whether there is anything to scan, and the scan job
@@ -94,54 +80,6 @@ jobs:
           ref: ${{ inputs.ref }}
         if: needs.changes.outputs.code == 'true'
 
-      - name: Install Trivy
-        if: needs.changes.outputs.code == 'true'
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v${{ env.TRIVY_VERSION }}
-
-      - name: Install Gitleaks
-        if: needs.changes.outputs.code == 'true'
-        run: |
-          set -euo pipefail
-          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -fsSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
-          echo "${GITLEAKS_SHA256}  ${tarball}" | sha256sum -c -
-          tar -xzf "$tarball" gitleaks
-          sudo mv gitleaks /usr/local/bin/
-          gitleaks version
-
-      # pipx here, and not `draugr tools install semgrep`, for a structural reason rather than a
-      # stale one: draugr is not on PATH yet. The action below is what downloads and verifies it,
-      # so every scanner this job provisions has to be provisioned without it — which is also why
-      # Trivy, Gitleaks and gosec are hand-pinned above.
-      #
-      # Replacing all four with the action's own `tools: true` is the real fix and is tracked
-      # separately; it changes what the pin guard below is guarding, so it is not a footnote to
-      # this change.
-      - name: Install Semgrep
-        if: needs.changes.outputs.code == 'true'
-        run: |
-          set -euo pipefail
-          pipx install "semgrep==${SEMGREP_VERSION}"
-          semgrep --version
-
-      # Enabled in .draugr/self.saga.yaml, so it has to be here: a control whose scanner is
-      # missing reports an error rather than a pass, which is the design working — and a red
-      # branch for a reason that is about the runner rather than about the code.
-      # TestSelfscanInstallsEveryScannerItsDescriptorEnables is what keeps the two in step.
-      - name: Install gosec
-        if: needs.changes.outputs.code == 'true'
-        run: |
-          set -euo pipefail
-          tarball="gosec_${GOSEC_VERSION}_linux_amd64.tar.gz"
-          curl -fsSL -o "$tarball" \
-            "https://github.com/securego/gosec/releases/download/v${GOSEC_VERSION}/${tarball}"
-          echo "${GOSEC_SHA256}  ${tarball}" | sha256sum -c -
-          tar -xzf "$tarball" gosec
-          sudo mv gosec /usr/local/bin/
-          gosec --version
-
       - name: Draugr self-scan
         if: needs.changes.outputs.code == 'true'
         id: draugr
@@ -155,8 +93,8 @@ jobs:
         # gate that trips on every medium gets switched off, and then protects nothing.
         #
         # Dogfood our own first-party action (the local checkout, so PRs test action changes
-        # before they ship). The action downloads + cosign-verifies the latest release and
-        # runs the scan, replacing the hand-rolled download+verify+run steps above.
+        # before they ship). The action downloads + cosign-verifies the latest release, provisions
+        # the scanners and runs the scan — the whole job, and the whole of what a user gets.
         #
         # The Saga's `github` publisher uploads the SARIF to code scanning as part of the scan
         # — dogfooding the OSS Publisher instead of a separate upload-sarif step (#58). The
@@ -165,6 +103,18 @@ jobs:
         with:
           saga: .draugr/self.saga.yaml
           output: draugr-out
+          # Draugr provisions its own scanners: `draugr tools install` fetches each pinned,
+          # checksum-verified release into a directory it owns, which is what this action offers
+          # every user and therefore what this job should be exercising.
+          #
+          # It has to be the action's step rather than one of ours because the scanners are needed
+          # after Draugr is on PATH, and the action is what puts it there — a step above this one
+          # calling `draugr tools install` gets `command not found`.
+          #
+          # A control whose scanner is missing reports an error rather than a pass, which is the
+          # design working: if this line is dropped, every control fails and the branch goes red
+          # for a reason about the runner rather than about the code.
+          tools: true
           # The Saga reads KEV and EPSS from the cache, so they have to be in it. Fetched by the
           # action as its own step, so a feed outage surfaces there rather than inside a scan.
           # A fetch that fails keeps the cached copy and says how old it is — the thing this
