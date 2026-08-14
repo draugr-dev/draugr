@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.91.0] - 2026-08-14
+
 ### Added
 
 - **Anchore Grype as a second scanner for `images` and `sca`.** Trivy still runs by default;
@@ -3985,7 +3989,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.90.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.91.0...HEAD
+[0.91.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.91.0
 [0.90.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.90.0
 [0.89.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.89.0
 [0.88.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.88.2
