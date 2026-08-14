@@ -36,6 +36,8 @@ func TestScanImageWithRealTrivy(t *testing.T) {
 	requireTool(t, "trivy", "the point of this test is the real tool adapter exec'ing a real Trivy")
 
 	out := t.TempDir()
+	// #nosec G204 -- the binary under test, from $DRAUGR_BIN or LookPath; every argument is a
+	// literal except the output directory, which is t.TempDir().
 	cmd := exec.Command(draugrBin(t),
 		"scan", "testdata/image-scan.saga.yaml",
 		"--output", out,

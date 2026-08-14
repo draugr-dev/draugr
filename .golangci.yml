@@ -2,6 +2,15 @@ version: "2"
 
 run:
   timeout: 5m
+  # Every build tag this repository uses. A file behind a tag nobody names is a file the linter
+  # opens and then reports success for, which reads exactly like a file with nothing wrong in it.
+  # Nothing else covers them either: `go vet ./...` and `go test ./...` use the default tag set,
+  # so a tagged file that does not compile passes both.
+  #
+  # Add a new tag here in the same change that introduces it — and to `go vet` in scripts/gate.sh,
+  # which needs its own copy.
+  build-tags:
+    - integration
 
 linters:
   enable:

@@ -32,6 +32,8 @@ func TestZeroConfigRepoScanWithRealScanners(t *testing.T) {
 	repo := newVulnRepo(t)
 
 	out := t.TempDir()
+	// #nosec G204 -- running the binary under test is what this test is: the path is $DRAUGR_BIN
+	// or a LookPath resolution, and repo and out are t.TempDir(). Nothing here comes from input.
 	cmd := exec.Command(draugrBin(t), "scan", repo, "--output", out, "--log-level", "warn")
 	combined, err := cmd.CombinedOutput()
 	// Non-zero exit is expected (a leaked key trips the gate); artifacts are written first.
@@ -105,6 +107,8 @@ func newVulnRepo(t *testing.T) string {
 		{"add", "."},
 		{"commit", "--quiet", "-m", "fixture"},
 	} {
+		// #nosec G204 -- a fixed binary and the literal argument lists above it; args is the loop
+		// variable over that slice and nothing else can reach it.
 		c := exec.Command("git", args...)
 		c.Dir = dir
 		if out, err := c.CombinedOutput(); err != nil {
