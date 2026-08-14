@@ -26,12 +26,8 @@ import (
 // enrich the scan when present. Exact CVEs/counts are never asserted (they drift with tool and
 // DB versions) — only the invariants above.
 func TestZeroConfigRepoScanWithRealScanners(t *testing.T) {
-	if _, err := exec.LookPath("gitleaks"); err != nil {
-		t.Skip("gitleaks not on PATH; this integration test needs a real repo scanner")
-	}
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git not on PATH")
-	}
+	requireTool(t, "gitleaks", "this test needs a real repository scanner to produce findings")
+	requireTool(t, "git", "the scan checks the repository out before scanning it")
 
 	repo := newVulnRepo(t)
 

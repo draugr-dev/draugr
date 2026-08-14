@@ -33,9 +33,7 @@ func draugrBin(t *testing.T) string {
 // CLI → engine → the tool adapter exec'ing Trivy → SARIF normalization → artifact writing —
 // which unit tests only cover with a stubbed tool runner.
 func TestScanImageWithRealTrivy(t *testing.T) {
-	if _, err := exec.LookPath("trivy"); err != nil {
-		t.Skip("trivy not on PATH; integration test requires a real Trivy")
-	}
+	requireTool(t, "trivy", "the point of this test is the real tool adapter exec'ing a real Trivy")
 
 	out := t.TempDir()
 	cmd := exec.Command(draugrBin(t),

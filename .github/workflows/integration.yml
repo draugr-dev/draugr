@@ -44,10 +44,6 @@ env:
   # minor resolves to yesterday's patch and every pull request goes red for something no pull
   # request did. Bump this when govulncheck names a newer one.
   GO_VERSION: "1.26.6"
-  # Keep in sync with the pinned manifest in internal/tools: these tests run the real Trivy, so
-  # the version they prove Draugr's parsing and argv against should be the one `draugr tools
-  # install` provisions for everybody else.
-  TRIVY_VERSION: "0.69.3"
   # The kube-bench release whose benchmark definitions the CIS catalogue is checked against.
   # Keep in sync with defaultKubeBenchImage in internal/scanners/kube_bench_job.go, so that
   # bumping the image is when a benchmark revision is discovered rather than later.
@@ -72,11 +68,6 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           check-latest: true
 
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v${{ env.TRIVY_VERSION }}
-
       - name: Create kind cluster
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
 
@@ -97,10 +88,28 @@ jobs:
       - name: Build draugr
         run: make build
 
+      - name: Provision the scanners with draugr
+        # The tools come from the same pinned, verified manifest users get, so what these tests
+        # prove Draugr's argv and parsing against is the build everybody runs — and the installer
+        # itself gets exercised by the job whose premise is real tools.
+        #
+        # Onto PATH explicitly. Draugr prepends its own bin directory when it execs a scanner, so
+        # a scan would find them regardless; these tests look the binaries up themselves to decide
+        # whether they can run, and a tool only Draugr can see leaves them skipping.
+        run: |
+          set -euo pipefail
+          ./bin/draugr tools install -y
+          echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
+
       - name: Run integration tests
         env:
           # Exercise the real built binary in the end-to-end scan test.
           DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
+          # This job provisions the scanners above, so a test that cannot find one is the
+          # provisioning being wrong rather than the test being unrunnable. Without this they skip
+          # themselves and the job reports success for having run nothing — which is the failure
+          # Draugr exists to catch, in Draugr's own pipeline.
+          DRAUGR_INTEGRATION_STRICT: "1"
         # internal/scanners carries the CIS catalogue drift check, which needs the definitions
         # fetched above. It is listed explicitly because ./test/integration/... would not reach it,
         # and a drift guard that never runs is the failure it was written to prevent.
