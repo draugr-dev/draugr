@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -148,15 +150,28 @@ func writeHeaderFile(header string) (string, func(), error) {
 //	  - -duc disables the update-check network call, keeping runs deterministic;
 //	  - -etags excludes header templates (see excludedNucleiTags).
 func nucleiArgv(url, headerFile string) []string {
-	argv := []string{
-		"nuclei",
-		"-u", url,
+	return nucleiTargetArgv([]string{"-u", url}, headerFile)
+}
+
+// nucleiSpecArgv scans the operations a rewritten OpenAPI document declares, rather than crawling.
+//
+// -sfv is not optional and not silent. Without it Nuclei refuses a specification whose required
+// parameters it cannot fill — which is most of them — and scans nothing at all. With it, those
+// requests are skipped quietly, so Draugr counts them while rewriting the document and the run
+// reports how much of the API went unexercised.
+func nucleiSpecArgv(specPath, headerFile string) []string {
+	return nucleiTargetArgv([]string{"-l", specPath, "-im", "openapi", "-sfv"}, headerFile)
+}
+
+func nucleiTargetArgv(target []string, headerFile string) []string {
+	argv := append([]string{"nuclei"}, target...)
+	argv = append(argv,
 		"-jsonl",
 		"-silent",
 		"-nc",
 		"-duc",
 		"-etags", excludedNucleiTags,
-	}
+	)
 	// A path, never the header itself. -H accepts either, and only one of them keeps the
 	// credential out of the process list.
 	if headerFile != "" {
@@ -196,7 +211,35 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 		headerFile = path
 	}
 
-	out, err := s.run(ctx, nucleiArgv(host.URL, headerFile))
+	argv := nucleiArgv(host.URL, headerFile)
+	var spec preparedSpec
+	if host.Spec != nil {
+		endpoint, err := endpointForSpec(host.URL)
+		if err != nil {
+			return sarif.Report{}, fmt.Errorf("nuclei: %w", err)
+		}
+		spec, err = prepareSpec(host.Spec.Path, endpoint, host.Spec.Methods)
+		if err != nil {
+			return sarif.Report{}, fmt.Errorf("nuclei: %w", err)
+		}
+		defer spec.Cleanup()
+		// What the scan will not cover, said before it runs rather than inferred from a short
+		// report afterwards. A spec-driven scan that quietly exercised a third of an API is the
+		// shape of pass this control exists to avoid.
+		if summary := spec.DroppedSummary(); summary != "" {
+			slog.InfoContext(ctx, "some operations are outside the methods this scan may use",
+				"endpoint", host.URL, "detail", summary,
+				"hint", "add them to spec.methods to include them")
+		}
+		if spec.Unfillable > 0 {
+			slog.WarnContext(ctx, "some operations declare required parameters the scan cannot fill, "+
+				"and will be skipped", "endpoint", host.URL, "operations", spec.Unfillable,
+				"hint", "give those parameters an example or a default in the specification")
+		}
+		argv = nucleiSpecArgv(spec.Path, headerFile)
+	}
+
+	out, err := s.run(ctx, argv)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("run nuclei: %w", err)
 	}
@@ -204,14 +247,27 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 	// Recorded so a reader can tell which of two very different scans produced this. An
 	// authenticated run reaches the application; an anonymous one reaches the login page, and
 	// their findings are not comparable.
-	report.Provenance = append(report.Provenance, nucleiProvenance(host))
+	report.Provenance = append(report.Provenance, nucleiProvenance(host, spec))
 	return report, nil
 }
 
 // nucleiProvenance says whether the scan authenticated, and as what — by naming the variable,
 // never its value.
-func nucleiProvenance(host plugin.HostTarget) sarif.Provenance {
+func nucleiProvenance(host plugin.HostTarget, spec preparedSpec) sarif.Provenance {
 	fields := []sarif.Field{{Key: "endpoint", Value: host.Identity()}}
+	if host.Spec != nil {
+		fields = append(fields,
+			sarif.Field{Key: "spec", Value: host.Spec.Path},
+			sarif.Field{Key: "methods", Value: strings.Join(plugin.NormaliseMethods(host.Spec.Methods), ", ")},
+			sarif.Field{Key: "operations", Value: strconv.Itoa(spec.Kept)})
+		if summary := spec.DroppedSummary(); summary != "" {
+			fields = append(fields, sarif.Field{Key: "excluded", Value: summary})
+		}
+		if spec.Unfillable > 0 {
+			fields = append(fields, sarif.Field{
+				Key: "unfilled", Value: strconv.Itoa(spec.Unfillable) + " with parameters the scan could not supply"})
+		}
+	}
 	if host.Auth != nil {
 		fields = append(fields,
 			sarif.Field{Key: "authenticated", Value: host.Auth.Kind},

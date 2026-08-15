@@ -10,18 +10,30 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-### Fixed
-
-- **Editors no longer offer every control name twice** under `config.controllers`. The schema
-  described the allowed keys in two places at once — once as the controls this build serves, each
-  with its own options, and again as a list of the same names — so completion had two sources for
-  one set of keys.
-
-  It now says it once, and says it more strictly: an unknown control under `controllers` is a
-  schema error in your editor rather than a shape that validates there and is rejected when Draugr
-  loads it.
-
 ### Added
+
+- **`dast` can scan an API from its OpenAPI specification.** An API has no HTML to crawl, so
+  probing it blind reaches whatever the scanner can guess. Point it at the document instead:
+
+  ```yaml
+  hosts:
+    - url: https://staging.example.com
+      spec:
+        path: ./openapi.yaml
+        methods: [get, post]      # absent → GET and HEAD only
+  ```
+
+  **The scan targets the endpoint you declared, never the one the document names.** A specification
+  whose `servers:` block says production would otherwise send probe traffic at production while
+  your descriptor said staging.
+
+  **Read-only unless you name write methods.** A specification lists `DELETE` too, and a scanner
+  handed one will use it — a default run against a three-operation document sent nine `DELETE`
+  requests. Operations whose method you have not named are removed before the scanner sees the
+  file, so the restriction does not depend on the tool behaving.
+
+  The run reports what it excluded, and how many operations declare parameters it could not supply,
+  so a scan that covered part of an API does not read like one that covered all of it.
 
 - **`dast` can authenticate.** An unauthenticated scan of an application that requires a login
   tests the login page — everything behind it goes unexamined, and the report reads as though it
@@ -46,6 +58,17 @@ and move it under a version on release.
   key carries the same marker, so adding credentials invalidates results gathered without them.
 
 _Nothing yet._
+
+### Fixed
+
+- **Editors no longer offer every control name twice** under `config.controllers`. The schema
+  described the allowed keys in two places at once — once as the controls this build serves, each
+  with its own options, and again as a list of the same names — so completion had two sources for
+  one set of keys.
+
+  It now says it once, and says it more strictly: an unknown control under `controllers` is a
+  schema error in your editor rather than a shape that validates there and is rejected when Draugr
+  loads it.
 
 ## [0.92.0] - 2026-08-14
 

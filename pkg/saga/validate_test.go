@@ -539,3 +539,70 @@ func TestValidateReportMinPriority(t *testing.T) {
 		t.Errorf("a report with no band was rejected: %v", err)
 	}
 }
+
+// TestValidateHostAuth covers the block whose whole purpose is that a credential cannot be written
+// into a committed file — so every way of getting it wrong has to be caught at load.
+func TestValidateHostAuth(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		auth *HostAuth
+		want string
+	}{
+		{"absent is fine", nil, ""},
+		{"bearer", &HostAuth{Type: "bearer", TokenEnv: "TOK"}, ""},
+		{"named header", &HostAuth{Type: "header", Header: "X-API-Key", TokenEnv: "TOK"}, ""},
+		{"header without a name", &HostAuth{Type: "header", TokenEnv: "TOK"}, "header is required"},
+		{"bearer with a name", &HostAuth{Type: "bearer", Header: "X", TokenEnv: "TOK"}, "not used with type"},
+		{"no type", &HostAuth{TokenEnv: "TOK"}, "type is required"},
+		{"unknown type", &HostAuth{Type: "oauth", TokenEnv: "TOK"}, "not a kind Draugr supports"},
+		{"no variable", &HostAuth{Type: "bearer"}, "tokenEnv is required"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			errs := validateHostAuth(c.auth, "hosts[0].auth")
+			assertValidation(t, errs, c.want)
+		})
+	}
+}
+
+// TestValidateHostSpec covers the block that decides which requests a scan may send.
+func TestValidateHostSpec(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		spec *HostSpec
+		want string
+	}{
+		{"absent is fine", nil, ""},
+		{"read-only", &HostSpec{Path: "openapi.yaml"}, ""},
+		{"writes named", &HostSpec{Path: "openapi.yaml", Methods: []string{"GET", "post"}}, ""},
+		{"no path", &HostSpec{Methods: []string{"get"}}, "path is required"},
+		// Not "no restriction": it describes a scan that sends nothing, which is a descriptor
+		// quietly not working.
+		{"empty list", &HostSpec{Path: "openapi.yaml", Methods: []string{}}, "would scan nothing"},
+		{"unknown method", &HostSpec{Path: "openapi.yaml", Methods: []string{"fetch"}},
+			"not an HTTP method Draugr will exercise"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			assertValidation(t, validateHostSpec(c.spec, "hosts[0].spec"), c.want)
+		})
+	}
+}
+
+func assertValidation(t *testing.T, errs []error, want string) {
+	t.Helper()
+	if want == "" {
+		if len(errs) != 0 {
+			t.Fatalf("expected no error, got %v", errs)
+		}
+		return
+	}
+	if len(errs) == 0 {
+		t.Fatalf("expected an error mentioning %q", want)
+	}
+	var flat string
+	for _, e := range errs {
+		flat += e.Error() + "\n"
+	}
+	if !strings.Contains(flat, want) {
+		t.Errorf("errors should mention %q, got:\n%s", want, flat)
+	}
+}

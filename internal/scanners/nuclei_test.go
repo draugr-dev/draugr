@@ -10,6 +10,8 @@ import (
 
 	"os"
 
+	"path/filepath"
+
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -460,5 +462,80 @@ func TestNucleiProvenanceNamesTheVariableNotTheValue(t *testing.T) {
 		if !strings.Contains(flat, want) {
 			t.Errorf("provenance should record %q, got: %s", want, flat)
 		}
+	}
+}
+
+func TestNucleiSpecArgv(t *testing.T) {
+	argv := nucleiSpecArgv("/tmp/prepared.yaml", "")
+	for _, want := range [][2]string{{"-l", "/tmp/prepared.yaml"}, {"-im", "openapi"}} {
+		i := slices.Index(argv, want[0])
+		if i < 0 || argv[i+1] != want[1] {
+			t.Errorf("argv missing %s %s: %v", want[0], want[1], argv)
+		}
+	}
+	// Not optional: without it Nuclei refuses a specification whose required parameters it cannot
+	// fill, which is most of them, and scans nothing at all.
+	if !slices.Contains(argv, "-sfv") {
+		t.Errorf("a spec-driven scan needs -sfv or it refuses the document: %v", argv)
+	}
+	if slices.Contains(argv, "-u") {
+		t.Errorf("a spec-driven scan takes its targets from the document, not -u: %v", argv)
+	}
+}
+
+// TestNucleiScanFromSpecUsesThePreparedDocument checks the whole path: the scanner is handed a
+// rewritten file, not the descriptor's, and reports what it left out.
+func TestNucleiScanFromSpecUsesThePreparedDocument(t *testing.T) {
+	spec := writeSpec(t, specWithWrites)
+	var argv []string
+	s := nucleiScanner{
+		info: plugin.ScannerInfo{Name: "nuclei"},
+		run: func(_ context.Context, a []string) ([]byte, error) {
+			argv = a
+			return nil, nil
+		},
+	}
+	rep, err := s.Scan(context.Background(), plugin.HostTarget{
+		URL:  "https://staging.example.com",
+		Spec: &plugin.HostSpec{Path: spec},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handed := argv[slices.Index(argv, "-l")+1]
+	if handed == spec {
+		t.Error("the descriptor's own document was handed over, so nothing was filtered or pinned")
+	}
+	if _, err := os.Stat(handed); !os.IsNotExist(err) {
+		t.Error("the rewritten document outlived the scan")
+	}
+	var flat string
+	for _, f := range rep.Provenance[0].Fields {
+		flat += f.Key + "=" + f.Value + " "
+	}
+	for _, want := range []string{"methods=get, head", "operations=2", "delete (1)", "post (1)"} {
+		if !strings.Contains(flat, want) {
+			t.Errorf("provenance should record %q, got: %s", want, flat)
+		}
+	}
+}
+
+func TestNucleiScanRejectsAnUnusableSpec(t *testing.T) {
+	s := nucleiScanner{
+		info: plugin.ScannerInfo{Name: "nuclei"},
+		run:  func(context.Context, []string) ([]byte, error) { return nil, nil },
+	}
+	for _, c := range []struct{ name, url, path string }{
+		{"missing document", "https://x.example.com", filepath.Join(t.TempDir(), "absent.yaml")},
+		{"unusable endpoint", "not-a-url", writeSpec(t, specWithWrites)},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := s.Scan(context.Background(), plugin.HostTarget{
+				URL: c.url, Spec: &plugin.HostSpec{Path: c.path},
+			}, nil)
+			if err == nil {
+				t.Error("expected an error rather than a scan of something else")
+			}
+		})
 	}
 }

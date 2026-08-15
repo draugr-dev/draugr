@@ -229,6 +229,7 @@ func validateComponents(comps []Component) []error {
 				errs = append(errs, fmt.Errorf("%s: hosts[%d].url is required", where, j))
 			}
 			errs = append(errs, validateHostAuth(h.Auth, fmt.Sprintf("%s: hosts[%d].auth", where, j))...)
+			errs = append(errs, validateHostSpec(h.Spec, fmt.Sprintf("%s: hosts[%d].spec", where, j))...)
 		}
 	}
 	return errs
@@ -268,6 +269,39 @@ func validateHostAuth(a *HostAuth, where string) []error {
 				"A descriptor is committed, so there is no field for the credential itself", where))
 	}
 	return errs
+}
+
+// validateHostSpec checks an endpoint's spec block.
+func validateHostSpec(spec *HostSpec, where string) []error {
+	if spec == nil {
+		return nil
+	}
+	var errs []error
+	if strings.TrimSpace(spec.Path) == "" {
+		errs = append(errs, fmt.Errorf("%s.path is required — the OpenAPI document to scan", where))
+	}
+	// An empty list is not "no restriction": it describes a scan that sends nothing, which is a
+	// descriptor quietly not working. Absent means read-only; present means say what you accept.
+	if spec.Methods != nil && len(spec.Methods) == 0 {
+		errs = append(errs, fmt.Errorf(
+			"%s.methods is empty, which would scan nothing. Remove it for read-only, or name the "+
+				"methods you accept", where))
+	}
+	for i, m := range spec.Methods {
+		if !validSpecMethod(m) {
+			errs = append(errs, fmt.Errorf(
+				"%s.methods[%d] %q is not an HTTP method Draugr will exercise: %s",
+				where, i, m, strings.Join(specMethodNames, ", ")))
+		}
+	}
+	return errs
+}
+
+// specMethodNames are the methods a spec-driven scan may be told to exercise.
+var specMethodNames = []string{"get", "head", "options", "post", "put", "patch", "delete"}
+
+func validSpecMethod(m string) bool {
+	return slices.Contains(specMethodNames, strings.ToLower(strings.TrimSpace(m)))
 }
 
 // validateExclusions checks an exclusion block. prefix names it, so the same errors read

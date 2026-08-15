@@ -43,7 +43,8 @@ func (DAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, erro
 			continue
 		}
 		target := plugin.HostTarget{
-			Name: host.Name, URL: host.URL, Type: host.Type, Auth: hostAuth(host.Auth),
+			Name: host.Name, URL: host.URL, Type: host.Type,
+			Auth: hostAuth(host.Auth), Spec: hostSpec(host.Spec),
 		}
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
@@ -62,6 +63,14 @@ func hostAuth(a *saga.HostAuth) *plugin.HostAuth {
 		return nil
 	}
 	return &plugin.HostAuth{Kind: a.Type, Header: a.Header, TokenEnv: a.TokenEnv}
+}
+
+// hostSpec converts a descriptor's spec block into what a scanner is given.
+func hostSpec(s *saga.HostSpec) *plugin.HostSpec {
+	if s == nil {
+		return nil
+	}
+	return &plugin.HostSpec{Path: s.Path, Methods: s.Methods}
 }
 
 // Aggregate merges the scan reports and summarizes findings by severity.
