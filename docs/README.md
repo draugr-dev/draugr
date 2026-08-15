@@ -46,6 +46,7 @@ frontmatter and is rendered by the docs site. This index and the `contributing/`
 - [Plugin API](contributing/plugin-api.md) — the Scanner / Controller / Surveyor / Reporter / Publisher interfaces.
 - [Pipeline](contributing/pipeline.md) — the run stage by stage, with a deep-dive on the gate.
 - [Naming & control taxonomy](contributing/naming.md) — what each control means and the Norse names.
+- [The cache architecture](contributing/cache.md) — the three caches, how a key is derived, and what a hit does not promise.
 
 ### Extending Draugr — how-to guides
 - [Start here](contributing/extending/README.md) — which piece you need, and the rules that apply to all of them.

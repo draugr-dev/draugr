@@ -146,6 +146,19 @@ whose only function is to authorise the behaviour — naming the environment var
 token, for instance — is a deliberate act by the operator, and a second consent gate on top of it
 adds ceremony rather than safety. Say so in the doc, so the reasoning is reviewable.
 
+## 6b. Caching, if your answer depends on downloaded data
+
+Two optional interfaces, and forgetting either is silent — the scanner works and only its cache
+behaviour is wrong:
+
+- **`plugin.CacheVersioner`** contributes the version of whatever actually decides your answer — a
+  vulnerability database, a template set — to the cache key. Without it a database refresh leaves
+  every cached entry describing the old one.
+- **`plugin.Prewarmer`** warms that data once before the run fans out, instead of every job
+  discovering it missing at the same moment.
+
+See [the cache architecture](../cache.md).
+
 ## 7. Test it
 
 Cover, at minimum:

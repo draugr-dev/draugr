@@ -37,7 +37,9 @@ tool downloads rather than on the tool itself, that data's version:
 | `draugr-headers`, `draugr-tls`, `draugr-k8s-policies` | Draugr's own version — their rules ship in the binary |
 
 So the thing that would change the answer changes the key, and a cached result is invalidated by
-the update that made it wrong rather than by waiting out the clock. A new Nuclei template set, a
+the update that made it wrong rather than by waiting out the clock. [The cache
+architecture](../contributing/cache.md) explains how the key is built and why identity has to mean
+content. A new Nuclei template set, a
 Trivy database refresh, a Semgrep upgrade, or a Draugr release that adds a check will each
 re-scan what they affect.
 
