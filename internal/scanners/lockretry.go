@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
 // Trivy keeps its analysis results in a BoltDB under the cache directory, and takes an exclusive
@@ -50,14 +52,18 @@ func retryLockedCache(ctx context.Context, tool string, fn func() ([]byte, error
 			return out, err
 		}
 		delay := wait + jitter(wait/2)
-		// Info, and phrased as queueing rather than trouble. The holder is another job in this
+		// Debug, and phrased as queueing rather than trouble. The holder is another job in this
 		// same scan — Draugr planned both — so a warning about "another process" sends a reader
 		// looking for a second Draugr they never started, and finding none, for a broken cache.
-		// Nothing is wrong: the condition clears when the other job finishes, which is why this
-		// is a wait and not an error. It stays at the default level because a scan that took
-		// three times as long deserves a reason on the screen.
-		slog.InfoContext(ctx, "waiting for the scanner cache, which another job in this scan is using",
+		//
+		// Per-attempt at debug because one line is only useful to somebody diagnosing contention.
+		// A scan that took three times as long still deserves a reason on the screen, and the
+		// reason is the total: these waits happen in concurrent jobs and overlap, so a reader
+		// adding up a line each would overstate the cost even if they were willing to. The total
+		// is recorded here and reported once, beside the run's duration.
+		slog.DebugContext(ctx, "waiting for the scanner cache, which another job in this scan is using",
 			"tool", tool, "attempt", attempt+1, "of", lockRetries, "wait", delay.Round(time.Millisecond).String())
+		plugin.RecordWait(ctx, tool, delay)
 		select {
 		case <-ctx.Done():
 			// The caller's error, not the tool's: a cancelled run did not fail to scan, it was
