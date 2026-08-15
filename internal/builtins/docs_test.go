@@ -211,3 +211,35 @@ func TestDisclosingScannersDocumentWhatTheySend(t *testing.T) {
 		}
 	}
 }
+
+// TestReadmeListsEveryControl keeps the README's table from describing a previous version of the
+// tool.
+//
+// It is the page most people read and the one nobody re-reads. A control shipped and left out
+// reads as a capability Draugr does not have; a control that was on a roadmap and has since
+// shipped leaves the README claiming it is still coming, which is worse — the reader believes the
+// thing they need is unavailable and stops looking.
+func TestReadmeListsEveryControl(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile(filepath.Clean("../../README.md"))
+	if err != nil {
+		t.Fatalf("read README.md: %v", err)
+	}
+	readme := string(raw)
+
+	for _, c := range Registry().Controllers() {
+		name := c.Info().Name
+		if !strings.Contains(readme, "| `"+name+"` |") {
+			t.Errorf("the README's table of controls has no row for %q — a control that ships and "+
+				"is not listed reads as one Draugr does not have", name)
+		}
+	}
+	// The other direction: a row for something the registry does not serve promises a control
+	// this build cannot run.
+	for _, row := range regexp.MustCompile(`(?m)^\| `+"`"+`([a-z-]+)`+"`"+` \|`).FindAllStringSubmatch(readme, -1) {
+		if _, ok := Registry().Controller(row[1]); !ok {
+			t.Errorf("the README lists a control %q this build does not provide", row[1])
+		}
+	}
+}
