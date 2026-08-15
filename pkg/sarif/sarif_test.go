@@ -767,6 +767,7 @@ func TestImageAndOSSurviveTheFile(t *testing.T) {
 			Location:        Location{URI: "debian:11-slim"},
 			Image:           "debian:11-slim",
 			OperatingSystem: "debian 11.11",
+			OSEndOfLife:     true,
 			Layer: &Layer{
 				DiffID: "sha256:36952ece", Index: 0, Of: 3,
 				CreatedBy: "# debian.sh --arch 'amd64' out/ 'bullseye'",
@@ -800,6 +801,10 @@ func TestImageAndOSSurviveTheFile(t *testing.T) {
 		if got.OperatingSystem != want.OperatingSystem {
 			t.Errorf("result %d: operating system = %q, want %q",
 				i, got.OperatingSystem, want.OperatingSystem)
+		}
+		if got.OSEndOfLife != want.OSEndOfLife {
+			t.Errorf("result %d: end of service life = %v, want %v — a permanent 'no fix' and a "+
+				"pending one are different answers", i, got.OSEndOfLife, want.OSEndOfLife)
 		}
 		switch {
 		case want.Layer == nil && got.Layer != nil:

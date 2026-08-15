@@ -19,6 +19,16 @@ and move it under a version on release.
 
 ### Added
 
+- **Findings say when their operating system is past end of service life.** Trivy reports it and
+  Draugr was parsing past it.
+
+  It changes what a finding means. On a supported release, "no fix available" is a state that
+  ends when the vendor publishes one; past end of service life no fix is ever coming, and
+  upgrading the release is the only thing that resolves those findings — usually the largest
+  single reduction available, because it moves the whole OS layer at once.
+
+  Carried on the finding and in the SARIF, alongside the image and operating system it describes.
+
 - **Image findings say which layer they came in on, and the build step that put them there.**
 
   An image's findings divide into ones this component introduced and ones it inherited, and only
