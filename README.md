@@ -10,133 +10,55 @@
 
 **Describe your app. Draugr figures out the rest.**
 
-Wiring SAST, SCA, secret, IaC and container scanners into a pipeline by hand means five
-tools to configure, five outputs to read, and no answer to "can this ship?". Draugr
-consolidates them: one descriptor, one **SARIF** report, one pass/fail gate.
+Wiring SAST, SCA, secret, IaC and container scanners into a pipeline by hand means five tools to
+configure, five outputs to read, and no answer to "can this ship?". Draugr consolidates them: one
+descriptor, one **SARIF** report, one pass/fail gate.
 
-You declare what you *know* about your software — where the repos are, what container
-images it builds, what endpoints it exposes, what infrastructure it runs on — in a single
-descriptor (`draugr.saga.yaml`). Draugr infers which checks apply, runs the right tool for
-each, and produces pass/fail evidence you can trust. Swap scanners freely — use the tools
-you already pay for, or Draugr's open-source defaults.
+You declare what you *know* — where the repos are, what images it builds, what endpoints it
+exposes, what infrastructure it runs on. Draugr infers which checks apply, runs the right tool for
+each, and produces evidence you can hand to someone else. Swap scanners freely: use the ones you
+already pay for, or the open-source defaults.
 
-Findings are **ranked**, not just listed: the same CVE is act-now on an internet-facing
-service and backlog on an internal tool, because Draugr knows which is which. And
+Findings are **ranked**, not listed. The same CVE is act-now on an internet-facing service and
+backlog on an internal tool, because the descriptor says which is which. And
 [`draugr diff`](docs/guides/pr-diff.md) gates a pull request on **new** findings only, so
-inheriting a repository with two hundred existing ones does not block every change.
+inheriting two hundred existing ones does not block every change.
 
-Both questions asked before a release ships, from the same descriptor and the same gate:
-the **security** one — SAST, SCA, secrets, IaC, DAST, TLS, headers — and the **compliance**
-one, starting with a Software Bill of Materials of everything you actually ship.
-
-This is the open-source core engine.
-
-**[Quickstart](#quickstart)** · [See it in action](#see-it-in-action) · [Status](#status) ·
-[Use in CI](#use-in-ci-github-actions) · [From an AI assistant](#use-from-an-ai-coding-assistant) ·
+**[Quickstart](#quickstart)** · [See it in action](#see-it-in-action) ·
+[What it checks](#what-it-checks) · [In your pipeline](#in-your-pipeline) ·
 [Documentation](#documentation) · [What Draugr doesn't promise](#what-draugr-doesnt-promise) ·
-[Security](#security--supply-chain) · [Development](#development)
+[Security](#security--supply-chain)
 
 ## See it in action
 
 ![Terminal output from `draugr scan .`: a FAIL verdict, counts across priorities P1 to P4, a per-control table of severities, and a ranked fix-first list giving each finding's priority, severity, score, rule, control, scanner and file location.](contrib/demo/scan.png)
 
-The verdict, priorities and severities are color-coded on a terminal (disable with `NO_COLOR`).
-Findings are ranked by **priority (P1–P4)** = severity × the component's exposure & criticality;
-**severity** (critical/high/medium/low) comes from the CVSS score when a scanner provides one,
-else from the finding's level. The gate and `--format json`/`sarif` still use SARIF levels.
+Priority (**P1–P4**) is severity weighed against the component's exposure and criticality — the
+part no scanner can compute, because it is not in the code.
 
-**[draugr-dev/draugr-demo](https://github.com/draugr-dev/draugr-demo)** is an intentionally
-vulnerable sample app wired to Draugr. Every control lights up, the findings are prioritized
-P1–P4, and results land in the repo's **Security → Code scanning** tab — a safe sandbox to see
-exactly what Draugr delivers before pointing it at your own code. The example PRs there also show
-the **new-vs-fixed PR diff** and the sticky comment.
-
-## Status
-
-🚧 **Early, and moving fast.** Working today:
-
-- **Controls:** `images` (Trivy), `sca` (Trivy fs), `licenses` (Trivy licence scanner),
-  `secrets` (Gitleaks), `sast` (Semgrep, plus opt-in gosec for Go), `iac` (Trivy config),
-  `headers` (native HTTP-header analyzer), `dast` (Nuclei), `tls` (native TLS/certificate probe),
-  `threats` (abuse.ch URLhaus — whether your hosts are already known to serve malware),
-  `infrastructure` (CIS Kubernetes Benchmark — read through the Kubernetes API by default, with
-  kube-bench and an in-cluster Job available for the node sections).
-  See the [integrations catalog](docs/reference/catalog.md).
-- **Pipeline:** end-to-end `scan` (plan → scan → judge → report), content-hash caching,
-  tunable parallelism (`-j`), results normalized to SARIF.
-- **Prioritization:** declare a component's `exposure` and `criticality` and Draugr ranks
-  every finding P1–P4 (`--min-priority` to focus, `--fail-on-priority` to gate);
-  optional KEV/EPSS enrichment for real-world exploitability.
-- **Policy:** `config.gate.controls` holds each control to its own threshold, and
-  `config.exclude` suppresses a finding **with a required reason** — it stays in the report,
-  marked, rather than disappearing.
-- **Evidence:** `config.sbom` emits an SBOM per repository and image (SPDX or CycloneDX, via
-  Syft); reports render as console, Markdown, HTML, JUnit, JSON or SARIF. The HTML report is
-  self-contained and carries its own SARIF and TSV downloads.
-- **Discovery:** `survey` for Kubernetes images, the cluster itself, and GitHub org repositories
-  — and the descriptor it writes enables the controls for what it found.
-- **Zero-config & scaffolding:** `scan .` uses the `draugr.saga.yaml` there, or scans the repo
-  with sensible defaults when there is none
-  (sca/secrets/sast/iac); `init` scaffolds a stack-detected `draugr.saga.yaml` to customize.
-- **Preflight & tooling:** `validate` (schema-check a Saga), `doctor` (which scanner tools are
-  present/missing), `tools install` (fetch pinned, checksum- and cosign-verified scanners —
-  and cosign itself — into `~/.draugr/bin`), and `self-update` (update draugr itself, verified).
-
-`threats` (threat intelligence) is on the roadmap. See
-[controls & scanners](docs/concepts/controls-and-scanners.md) for what maps to what.
+**[draugr-dev/draugr-demo](https://github.com/draugr-dev/draugr-demo)** is a deliberately
+vulnerable app wired to Draugr: every control lights up, findings land in the repo's
+**Security → Code scanning** tab, and its example pull requests show the new-vs-fixed diff.
 
 ## Quickstart
-
-**Requirements:** the external scanners for the controls you use —
-[Trivy](https://github.com/aquasecurity/trivy) (`images`, `sca`, `iac`, `licenses`),
-[Gitleaks](https://github.com/gitleaks/gitleaks) (`secrets`),
-[Semgrep](https://semgrep.dev) (`sast`),
-[Nuclei](https://github.com/projectdiscovery/nuclei) (`dast`),
-[kube-bench](https://github.com/aquasecurity/kube-bench) with `kubectl` (`infrastructure`);
-`git` for repo scans, and [Syft](https://github.com/anchore/syft) for `config.sbom`. `headers`
-and `tls` need no external tool. `threats` needs no tool either, but does need a free
-[abuse.ch](https://auth.abuse.ch/) key in `URLHAUS_AUTH_KEY` — and their free tier is
-non-commercial, so read [their terms](https://abuse.ch/terms-of-use/) first.
-
-`draugr doctor` tells you which of these your Saga actually needs, whether they are present, and
-whether anything is looking at what the descriptor declares — a component with images and the
-`images` control off is a clean pass over something nobody opened;
-`draugr tools install` fetches pinned, verified copies of the ones Draugr packages. Go 1.26+ only
-to build from source.
-
-**Install (recommended):**
 
 ```bash
 curl -fsSL https://draugr.dev/install.sh | sh
 ```
 
-Detects your OS and architecture and installs to `~/.local/bin` — no `sudo`. It **verifies before
-it installs and says which checks ran**: the archive's SHA-256 against the release's
-`checksums.txt` always, plus the cosign signature on `checksums.txt` when
-[cosign](https://docs.sigstore.dev/cosign/) is on your `PATH`. Nothing is installed if a check
-fails.
-
-Piping a script into a shell means trusting the host that served it. The script is
-[readable in the repo](install.sh), and
-[install & verifying downloads](docs/getting-started/install.md) has the manual steps, the
-`DRAUGR_*` knobs, and Homebrew. Once installed, update in place with **`draugr self-update`**.
-
-**Or build from source:**
+Installs to `~/.local/bin`, no `sudo`. It verifies before it installs and says which checks ran —
+the archive's SHA-256 against the release `checksums.txt`, plus the cosign signature on that file
+when [cosign](https://docs.sigstore.dev/cosign/) is on your `PATH` — and installs nothing if a
+check fails. The script is [readable in the repo](install.sh); other routes, including Homebrew
+and `go install`, are in the [install guide](docs/getting-started/install.md).
 
 ```bash
-git clone https://github.com/draugr-dev/draugr.git
-cd draugr && make build      # produces ./bin/draugr
-./bin/draugr version
+draugr tools install     # fetch the scanners, pinned and verified
+draugr scan .            # scan this repo with sensible defaults
+draugr init              # or scaffold a draugr.saga.yaml to customise
 ```
 
-**Fastest path — zero config.** Point Draugr at a repo and go; no descriptor needed:
-
-```bash
-draugr scan .        # scans the current repo: sca, secrets, sast, iac
-draugr init          # or scaffold a draugr.saga.yaml (stack-detected) to customize
-```
-
-For full control, write a Saga — any `*.saga.yaml` file (see [`examples/`](examples/draugr.saga.yaml)):
+Then describe what you actually ship:
 
 ```yaml
 release:
@@ -152,151 +74,111 @@ components:
       - image: alpine:3.19
 ```
 
-Scan it:
-
 ```bash
 draugr scan draugr.saga.yaml            # console summary; exits non-zero on fail
-draugr scan draugr.saga.yaml -o out/    # also writes out/report.json + out/results.sarif
-draugr scan draugr.saga.yaml --fail-on warning
+draugr scan draugr.saga.yaml -o out/    # also writes report.json + results.sarif
 draugr scan draugr.saga.yaml --format markdown   # or html, junit, json, sarif
 ```
 
 **Your editor already knows this file.** Draugr's
 [JSON Schema](https://draugr.dev/schema/draugr.saga.schema.json) is registered with
-[SchemaStore](https://www.schemastore.org/), which VS Code's YAML extension and JetBrains IDEs
-consult by default — so any `*.saga.yaml` gets completion, hover docs and typo warnings on open,
-with nothing to configure. For an editor that doesn't use the catalog, `draugr init` also writes:
+[SchemaStore](https://www.schemastore.org/), so any `*.saga.yaml` gets completion, hover docs and
+typo warnings on open with nothing to configure.
 
-```yaml
-# yaml-language-server: $schema=https://draugr.dev/schema/draugr.saga.schema.json
-```
-
-`draugr schema -o .saga.schema.json` writes the copy embedded in your binary instead, if you'd
-rather validate offline or pin to exactly the version you run. See
-[editor support](docs/reference/saga-schema.md#editor-support-autocomplete-hover-docs-validation).
-
-Compare two scans to see what a change introduced (and gate a PR on *new* findings only):
-
-```bash
-draugr diff base/results.sarif head/results.sarif                     # new / fixed / unchanged
-draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
-```
-
-Let discovery write the descriptor for you:
+Or let discovery write the descriptor for you:
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod -o draugr.saga.yaml
 ```
 
-Full walkthrough: [`docs/getting-started/quickstart.md`](docs/getting-started/quickstart.md).
+Full walkthrough: [quickstart](docs/getting-started/quickstart.md).
 
-## Use in CI (GitHub Actions)
+## What it checks
 
-Add Draugr to a repository's CI and code scanning with the first-party action. It downloads a
-cosign-verified Draugr release, runs the scan, and hands the merged SARIF to GitHub code
-scanning — one clean **Draugr** tool in the Security tab:
+Eleven controls, each backed by a tool Draugr executes rather than bundles — so every scanner
+stays under its own licence, and you can swap it.
+
+| Control | Looks at | By default |
+|---|---|---|
+| `sca` | dependencies | Trivy — Grype and Mend opt-in |
+| `secrets` | committed credentials | Gitleaks |
+| `sast` | your own source | Semgrep — gosec opt-in for Go |
+| `iac` | Terraform, Kubernetes, Dockerfiles | Trivy |
+| `images` | container images | Trivy — Grype opt-in |
+| `licenses` | dependency licences | Trivy |
+| `dast` | a running endpoint | Nuclei — authenticated, and from an OpenAPI spec |
+| `headers` | HTTP security headers | native |
+| `tls` | certificates and transport | native |
+| `infrastructure` | a Kubernetes cluster, against CIS | native — kube-bench opt-in |
+| `threats` | whether your hosts are known to serve malware | abuse.ch URLhaus |
+
+Every scanner, what it sends and whose terms it carries:
+[integrations catalog](docs/reference/catalog.md).
+
+Alongside them: content-hash caching, an SBOM per repository and image, KEV/EPSS enrichment,
+per-control gate thresholds, and suppressions that stay in the report **with the reason someone
+gave** rather than disappearing.
+
+## In your pipeline
+
+The first-party GitHub Action installs Draugr, provisions the scanners, and hands the merged
+SARIF to code scanning — one clean **Draugr** tool in the Security tab:
 
 ```yaml
 permissions:
   contents: read
-  security-events: write   # upload SARIF to code scanning
+  security-events: write
 
 steps:
   - uses: actions/checkout@v4
   - id: draugr
-    uses: draugr-dev/draugr@v0     # latest v0.x; pin @vX.Y.Z for reproducible CI (installs Draugr for you)
+    uses: draugr-dev/draugr@v0     # pin @vX.Y.Z for reproducible CI
     with:
       saga: draugr.saga.yaml
-      tools: true                       # provision the scanners the controls need
-      fail-on: warning                  # optional gate (default: error)
-  - if: always()                        # publish findings even when the gate fails
+      tools: true                  # provision the scanners the controls need
+  - if: always()                   # publish findings even when the gate fails
     uses: github/codeql-action/upload-sarif@v3
     with:
       sarif_file: ${{ steps.draugr.outputs.sarif }}
 ```
 
-With `tools: true` the action provisions the scanners each control needs (Trivy, Gitleaks,
-Semgrep). See the [GitHub Action guide](docs/guides/github-action.md) for the full workflow and
-all inputs.
+[GitHub Actions](docs/guides/github-action.md) ·
+[GitLab](docs/guides/gitlab-ci.md) — an include, GitLab's own report formats, a sticky merge-request
+comment · [Azure Pipelines](docs/guides/azure-pipelines.md) — a step template
 
-## Use in CI (GitLab)
-
-One include, and one variable. On a merge request Draugr scans the head and the merge base and
-posts a sticky comment with the delta; on the default branch it scans and gates the whole
-descriptor.
-
-```yaml
-include:
-  - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.90.0/gitlab-ci/draugr.yml'
-
-stages: [test]
-```
-
-Then add a **masked** CI/CD variable named `GITLAB_TOKEN` holding an access token with `api`
-scope — the `CI_JOB_TOKEN` GitLab puts in every job is read-only on the notes API and cannot post
-a comment.
-
-GitLab does not read SARIF, so Draugr renders GitLab's own formats: findings reach the merge
-request's **Reports** tab on any tier, and the **Vulnerability Report**, **Dependency List** and
-**License Compliance** tab on Ultimate. See the [GitLab guide](docs/guides/gitlab-ci.md).
-
-## Use in CI (Azure Pipelines)
-
-A step template, the same shape: `- template: azure-pipelines/draugr.yml@draugr`. Findings land in
-the Tests tab and a sticky pull-request comment. See the
-[Azure Pipelines guide](docs/guides/azure-pipelines.md).
-
-## Use from an AI coding assistant
-
-Ask an assistant to check a change for security problems and it will — by running whatever
-scanner it can find, over a scope it chose for itself, and reading the raw output. That answer
-has no relationship to the one your pipeline will give.
-
-`draugr mcp` serves Draugr over the [Model Context Protocol](https://modelcontextprotocol.io),
-so the assistant reads your **committed** Saga instead:
+**From an AI coding assistant.** Ask one to check a change and it will, using whatever scanner it
+finds over a scope it chose. `draugr mcp` serves Draugr over the
+[Model Context Protocol](https://modelcontextprotocol.io) so it reads your *committed* descriptor
+instead — and scanning is off by default, because it clones repositories and runs external tools.
 
 ```bash
 claude mcp add draugr -- draugr mcp
 ```
 
-It can list the controls that exist, hand back the descriptor schema *your build* enforces,
-validate a Saga before you write it, and rank an existing report by priority. Every
-`*.saga.yaml` nearby is exposed as a resource, so the assistant reads the real scope rather than
-guessing at one.
-
-**Scanning is off by default** — it clones repositories and runs external tools. Turn it on with
-`--scan=ask` to approve each call, or `--scan=always` for a sandbox. See
-[use Draugr from an AI coding assistant](docs/guides/ai-agents-mcp.md).
+See [use Draugr from an AI coding assistant](docs/guides/ai-agents-mcp.md).
 
 ## Documentation
 
-**[Full documentation index →](docs/README.md)** (grouped by task, with a "building blocks"
-glossary of Saga / Norn / Skald).
+**[Documentation index →](docs/README.md)**
 
-- [Quickstart](docs/getting-started/quickstart.md) — install, first scan, first survey, CI usage
-- [Concepts](docs/concepts/saga.md) — Saga, controllers, scanners, surveyors, the pipeline, verdicts
-- [Pipeline stages](docs/contributing/pipeline.md) — each stage in depth, incl. how the Norn (gate) works
-- [Glossary](docs/reference/glossary.md) — security categories explained (SCA, SAST, DAST, SBOM, …)
-- [Integrations catalog](docs/reference/catalog.md) — every controller/scanner/surveyor, with per-component docs + licenses
-- [Changelog](CHANGELOG.md) — user-facing release notes
-- [CLI reference](docs/reference/cli.md) — every command and flag
-- [AI coding assistants](docs/guides/ai-agents-mcp.md) — the MCP server, its tools, and the consent model
-- [Findings in your editor](docs/guides/findings-in-your-editor.md) — SARIF as inline diagnostics
-- [Reports & publishers](docs/guides/reports-and-publishers.md) — every output format and where it can go
-- [Saga schema](docs/reference/saga-schema.md) — the descriptor, field by field
-- [Architecture](docs/contributing/architecture.md) · [Plugin API](docs/contributing/plugin-api.md) · [Naming](docs/contributing/naming.md)
+- [Quickstart](docs/getting-started/quickstart.md) — install, first scan, first survey, CI
+- [Concepts](docs/concepts/saga.md) — the descriptor, controls, scanners, the verdict
+- [Saga schema](docs/reference/saga-schema.md) · [CLI reference](docs/reference/cli.md) —
+  every field, every flag
+- [Integrations catalog](docs/reference/catalog.md) — every scanner, with licences and terms
+- [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
 ## What Draugr doesn't promise
 
 A passing verdict means the controls you configured found nothing they were looking for. It is
-not a statement that your software is secure — it's silent about anything your descriptor doesn't
-declare, controls you didn't enable, and whatever the underlying scanners miss. Licence findings
-are information, not legal advice. Draugr is provided under Apache-2.0 **without warranty**.
+not a statement that your software is secure — it is silent about anything your descriptor does
+not declare, controls you did not enable, and whatever the underlying scanners miss. Licence
+findings are information, not legal advice. Draugr is provided under Apache-2.0 **without
+warranty**.
 
-The details, including whose terms the bundled scanners carry and your responsibility for
-authorisation when scanning live endpoints:
-[scope and disclaimer](docs/trust-and-operations/disclaimer.md).
+The details, including whose terms the scanners carry and your responsibility for authorisation
+when scanning live endpoints: [scope and disclaimer](docs/trust-and-operations/disclaimer.md).
 
 ## Security & supply chain
 
@@ -330,22 +212,8 @@ A security tool should hold itself to what it checks. Draugr does:
 
 ## Development
 
-Requires Go 1.26+.
-
-```bash
-make build   # build ./bin/draugr
-make gate    # full local gate: fmt, vet, golangci-lint, race tests + coverage, govulncheck
-make test    # run tests
-```
-
-### Observability
-
-Draugr uses [Cobra](https://github.com/spf13/cobra) for the CLI, `log/slog` for
-logging (human-readable and colorized by default; `--log-format json` for structured logs in
-CI/observability pipelines), and [OpenTelemetry](https://opentelemetry.io)
-for traces and metrics. Telemetry is opt-in via the standard `OTEL_*` environment variables
-(e.g. `OTEL_EXPORTER_OTLP_ENDPOINT`) — a no-op with zero overhead when unset. Logs and spans
-never carry secrets.
+Requires Go 1.26+. `make build` builds `./bin/draugr`; `make gate` runs the full local gate — fmt,
+vet, lint, race tests with coverage, and govulncheck. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
