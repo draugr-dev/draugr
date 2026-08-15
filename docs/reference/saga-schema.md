@@ -217,7 +217,7 @@ the tool, where Draugr never sees them. A finding Draugr never saw cannot be rep
 suppressed, cannot carry the reason someone gave for accepting it, and cannot be told apart from
 one that was never made. Use [`config.exclude`](#configexclude) for a finding you have judged, which keeps
 it in the report marked suppressed, and the gate thresholds for what should fail a build. Scanner
-options decide **what gets looked at**; the Norn decides what the answer means.
+options decide **what gets looked at**; the gate decides what the answer means.
 
 Paths in options — `gitleaks.config`, `trivyConfig.checks` — resolve relative to **where Draugr
 runs**, not to the repository being scanned. Repository scanners work in a temporary clone, and a
