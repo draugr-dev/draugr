@@ -10,6 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **Cache entries are named `.json.gz`**, which is what they have been since they were compressed.
+  Entries written by an earlier version are not read, so the first scan after upgrading repopulates
+  the cache — a cache is disposable and this costs one cold run. Entries under the old name are
+  removed as their keys are rewritten; deleting the cache directory clears them all at once.
+
 ### Added
 
 - **Findings say when their operating system is past end of service life.** Trivy reports it and

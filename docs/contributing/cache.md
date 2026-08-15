@@ -108,7 +108,7 @@ error, and a scan that failed because it could not write a cache would be absurd
 One file per key, in the cache directory:
 
 ```
-<cache-dir>/<hex-sha256-of-the-key>.json      0600, in a directory created 0750
+<cache-dir>/<hex-sha256-of-the-key>.json.gz   0600, in a directory created 0750
 ```
 
 The contents are **gzipped JSON** of a small envelope — the report, and when it was stored:
@@ -119,11 +119,13 @@ The contents are **gzipped JSON** of a small envelope — the report, and when i
 
 Three details that are easy to get wrong when working on this:
 
-- **The extension says `.json` and the bytes are usually gzip.** Reads sniff the two-byte gzip
-  magic and decompress only when it is there, so an uncompressed entry written by an older build
-  still loads. A cached entry is a whole SARIF report and therefore repetitive by construction —
-  one measured entry went from 375 KB to 60 KB, which is the difference between a cache that is
-  cheap to restore in CI and one that costs more than the scan it saves.
+- **The name describes the bytes.** A cached entry is a whole SARIF report and therefore
+  repetitive by construction — one measured entry went from 375 KB to 60 KB, which is the
+  difference between a cache that is cheap to restore in CI and one that costs more than the scan
+  it saves. Entries were called `.json` before they were compressed and kept that name for a
+  while afterwards; they are `.json.gz` now, and an entry under the old name is not read. Writing
+  the same key removes it, because nothing else would: expiry only makes a read miss, and the
+  cache evicts nothing on its own.
 - **The TTL is enforced on read, from `storedAt`** — not from the file's mtime, which a restore
   step or a copy would rewrite. An entry restored from a CI cache is as old as the scan that
   produced it, not as old as the restore.

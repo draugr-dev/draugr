@@ -93,8 +93,22 @@ type readOnly struct{ Cache }
 // error, and a scan that failed because it could not write a cache would be absurd.
 func (readOnly) Put(string, sarif.Report) error { return nil }
 
+// entrySuffix is the extension a cache entry is written with. It names what the bytes are: a
+// gzipped JSON envelope.
+const entrySuffix = ".json.gz"
+
+// legacySuffix is what entries were called before they were compressed. Nothing reads these —
+// the name was accurate when it was chosen and stopped being so when compression landed — but
+// Put removes the one it is replacing, because the cache evicts nothing on its own and a file
+// that is never read and never removed is a leak rather than a leftover.
+const legacySuffix = ".json"
+
 func (l *Local) pathFor(key string) string {
-	return filepath.Join(l.dir, key+".json")
+	return filepath.Join(l.dir, key+entrySuffix)
+}
+
+func (l *Local) legacyPathFor(key string) string {
+	return filepath.Join(l.dir, key+legacySuffix)
 }
 
 // Get returns the cached report for key, missing on absence, unreadable data, or expiry.
@@ -106,7 +120,7 @@ func (l *Local) Get(key string) (sarif.Report, bool) {
 	if err != nil {
 		return sarif.Report{}, false
 	}
-	if data, err = maybeGunzip(data); err != nil {
+	if data, err = gunzip(data); err != nil {
 		return sarif.Report{}, false
 	}
 	var e entry
@@ -135,11 +149,15 @@ func (l *Local) Put(key string, report sarif.Report) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(l.pathFor(key), packed, 0o600)
+	if err := os.WriteFile(l.pathFor(key), packed, 0o600); err != nil {
+		return err
+	}
+	// Best-effort: this key's entry under the pre-compression name is now superseded and would
+	// otherwise sit there forever, since expiry only makes a read miss and nothing sweeps the
+	// directory. Failing to remove it is not worth failing a scan over.
+	_ = os.Remove(l.legacyPathFor(key))
+	return nil
 }
-
-// gzipMagic is the two bytes every gzip stream starts with.
-var gzipMagic = []byte{0x1f, 0x8b}
 
 // gzipBytes compresses an entry for storage.
 //
@@ -158,15 +176,9 @@ func gzipBytes(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// maybeGunzip decompresses an entry, passing through anything that is not gzip.
-//
-// Sniffed rather than assumed so a cache written by an older Draugr still reads. Those entries
-// are plain JSON, and refusing them would silently discard a warm cache on upgrade — a
-// correctness-neutral change that costs everyone a full re-scan is not one worth making.
-func maybeGunzip(data []byte) ([]byte, error) {
-	if !bytes.HasPrefix(data, gzipMagic) {
-		return data, nil
-	}
+// gunzip decompresses an entry. Anything that does not decompress is a miss, like every other
+// unreadable entry — the file is one Draugr wrote, so the only way it is not gzip is damage.
+func gunzip(data []byte) ([]byte, error) {
 	zr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
