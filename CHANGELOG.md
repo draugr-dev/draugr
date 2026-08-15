@@ -10,6 +10,31 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`sca` can find JavaScript that never reaches a lockfile**, with an opt-in retire.js scanner:
+
+  ```yaml
+  config:
+    controllers:
+      sca:
+        retirejs: { enabled: true }
+  ```
+
+  Lockfile-based scanning answers for what the package manager installed. Front-end code routinely
+  ships JavaScript it did not — a library pulled from a CDN, a vendored `.js` under `static/`,
+  bundled output shipped without its manifest — and a repository serving a five-year-old jQuery
+  **scans clean today**: the control runs, reports, and passes.
+
+  Findings carry package identity (name, version, the version that fixes it, and a `pkg:npm/…`
+  purl), are reported under their CVE where one exists, and say how the library was recognised —
+  which is the answer to "why is this not in my lockfile".
+
+  retire.js publishes to npm rather than as a binary, so `draugr tools install` cannot provision it;
+  `draugr doctor` names it and says where it comes from (`npm install -g retire`). Its advisory
+  database is cached under `~/.draugr/data/retirejs` rather than `/tmp`, so it survives a CI job
+  and travels with an air-gapped install.
+
 _Nothing yet._
 
 ## [0.93.0] - 2026-08-15

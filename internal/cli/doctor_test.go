@@ -576,3 +576,40 @@ func TestDoctorJSONCarriesUncoveredSurface(t *testing.T) {
 		t.Errorf("uncoveredSurfaces = %v, want the image and the host", got.UncoveredSurfaces)
 	}
 }
+
+// TestMissingToolsAdviceOnlyOffersWhatWouldWork covers the difference between help and a wild
+// goose chase.
+//
+// Some scanners are execed but never distributed — retire.js publishes to npm, the Mend CLI is
+// proprietary — so `draugr tools install` cannot fetch them. Suggesting it anyway is worse than
+// saying nothing: the command runs, succeeds, and the tool is still missing.
+func TestMissingToolsAdviceOnlyOffersWhatWouldWork(t *testing.T) {
+	missing := func(binary string) tools.Status {
+		return tools.Status{Tool: tools.Tool{Binary: binary}, Found: false}
+	}
+
+	only := missingToolsAdvice([]tools.Status{missing("retire")})
+	if strings.Contains(only, "tools install") {
+		t.Errorf("retire.js is not something Draugr can fetch, so this sends the reader to a "+
+			"command that will not find it: %q", only)
+	}
+	if !strings.Contains(only, "1 required tool") {
+		t.Errorf("advice should still say how many are missing: %q", only)
+	}
+
+	both := missingToolsAdvice([]tools.Status{missing("retire"), missing("trivy")})
+	if !strings.Contains(both, "tools install") {
+		t.Errorf("trivy is installable, so the offer should stand: %q", both)
+	}
+	if !strings.Contains(both, "2 required tool") {
+		t.Errorf("advice should count both: %q", both)
+	}
+
+	// A tool that is present but has no data cannot run either, and is counted with the rest.
+	noData := missingToolsAdvice([]tools.Status{
+		{Tool: tools.Tool{Binary: "retire"}, Found: true, DataChecked: true, DataFound: false},
+	})
+	if !strings.Contains(noData, "1 required tool") {
+		t.Errorf("a tool without its data is still unusable: %q", noData)
+	}
+}

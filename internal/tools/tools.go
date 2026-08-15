@@ -106,6 +106,12 @@ func Catalog() map[string]Tool {
 			DataOK:   GrypeDBOK,
 			DataHint: "run `grype db update`",
 		},
+		"retire": {
+			Binary:      "retire",
+			VersionArgs: []string{"--version"},
+			InstallHint: "npm install -g retire — retire.js publishes to npm only, so it needs a Node runtime",
+			Category:    CategoryScanner,
+		},
 		"gitleaks": {
 			Binary:      "gitleaks",
 			VersionArgs: []string{"version"},

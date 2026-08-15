@@ -252,6 +252,7 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 | `gosec` | `include`, `exclude` — rule IDs; `tags` — Go build tags |
 | `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository` — an internal mirror |
 | `grype`, `grype-fs` | `byCve` — report under the CVE rather than the advisory ID, on by default |
+| `retirejs` | `enabled` only |
 | `trivy-config` | `checks` — paths to your own Rego; `namespaces` — the namespaces they declare |
 | `semgrep` | `config` — a registry ref, path or URL |
 | `gitleaks` | `config` — a rules file shared across repositories; `history` — scan commit history too |
