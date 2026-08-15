@@ -228,7 +228,44 @@ func validateComponents(comps []Component) []error {
 			if h.URL == "" {
 				errs = append(errs, fmt.Errorf("%s: hosts[%d].url is required", where, j))
 			}
+			errs = append(errs, validateHostAuth(h.Auth, fmt.Sprintf("%s: hosts[%d].auth", where, j))...)
 		}
+	}
+	return errs
+}
+
+// validateHostAuth checks an endpoint's auth block.
+//
+// Every failure here is one that would otherwise surface as a scan that ran, found nothing, and
+// reported a pass — because an unauthenticated scan of an authenticated application tests the
+// login page and nothing behind it.
+func validateHostAuth(a *HostAuth, where string) []error {
+	if a == nil {
+		return nil
+	}
+	var errs []error
+	switch a.Type {
+	case "bearer":
+		if a.Header != "" {
+			errs = append(errs, fmt.Errorf(
+				"%s.header is not used with type \"bearer\", which always sets Authorization; "+
+					"use type \"header\" to name your own", where))
+		}
+	case "header":
+		if strings.TrimSpace(a.Header) == "" {
+			errs = append(errs, fmt.Errorf("%s.header is required with type \"header\" "+
+				"(e.g. X-API-Key)", where))
+		}
+	case "":
+		errs = append(errs, fmt.Errorf("%s.type is required: \"bearer\" or \"header\"", where))
+	default:
+		errs = append(errs, fmt.Errorf("%s.type %q is not a kind Draugr supports: "+
+			"\"bearer\" or \"header\"", where, a.Type))
+	}
+	if strings.TrimSpace(a.TokenEnv) == "" {
+		errs = append(errs, fmt.Errorf(
+			"%s.tokenEnv is required — it names the environment variable holding the credential. "+
+				"A descriptor is committed, so there is no field for the credential itself", where))
 	}
 	return errs
 }

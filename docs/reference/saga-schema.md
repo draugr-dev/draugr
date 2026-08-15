@@ -152,6 +152,34 @@ Checked against what **this build** can run, which is also what
 [JSON Schema](#editor-support-autocomplete-hover-docs-validation) offers for autocompletion — all
 three come from one place and cannot disagree.
 
+### Authenticating a dynamic scan
+
+`dast` probes an endpoint anonymously unless a host says otherwise. Against an application that
+requires a login that means it tests the login page, finds little, and passes — a verdict about the
+least interesting part of the system.
+
+```yaml
+hosts:
+  - url: https://api.example.com
+    auth:
+      type: bearer
+      tokenEnv: DRAUGR_API_TOKEN
+```
+
+`type: bearer` sends `Authorization: Bearer <token>`; `type: header` with `header: X-API-Key` sends
+that header instead.
+
+**`tokenEnv` names a variable; there is no field for the credential.** A descriptor is committed,
+so a token in one is a leaked token. The value is read at the moment of the scan, written to a
+`0600` file for the scanner to read, and removed afterwards — never placed on a command line,
+where a process list would show it, and never in a cache key or a report.
+
+**An unset variable fails the scan** rather than falling back to anonymous, because a quiet
+fallback produces the pass this feature exists to prevent. The report records *that* the scan
+authenticated and which variable it read, so an authenticated run is never mistaken for an
+anonymous one — and the cache key carries the same marker, so adding credentials invalidates
+results gathered without them.
+
 ### Per-scanner config
 
 A control can be served by more than one scanner, and each scanner is configured under its own
@@ -1011,6 +1039,12 @@ components:
       - name: api
         url: https://api.example.com            # required
         type: api                               # browser | api (default browser); tunes header checks
+        auth:                                   # optional — authenticates the dast scan
+          type: bearer                          #   bearer | header
+          header: X-API-Key                     #   required with type: header
+          tokenEnv: DRAUGR_API_TOKEN            #   the variable holding it; there is no field
+                                                #   for the credential itself, because a
+                                                #   descriptor is committed
     infrastructure:
       - kind: kubernetes                        # e.g. kubernetes
         ref: prod-cluster

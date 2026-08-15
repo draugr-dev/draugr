@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"os"
+
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -29,7 +31,7 @@ func TestNucleiInfo(t *testing.T) {
 }
 
 func TestNucleiArgv(t *testing.T) {
-	got := nucleiArgv("https://app.example.com")
+	got := nucleiArgv("https://app.example.com", "")
 	want := []string{
 		"nuclei", "-u", "https://app.example.com",
 		"-jsonl", "-silent", "-nc", "-duc", "-etags", "headers",
@@ -311,5 +313,152 @@ func TestNucleiPrewarmDelegates(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Errorf("Prewarm ran %d commands, want 2 (download + verify)", calls)
+	}
+}
+
+// TestNucleiCredentialNeverReachesArgv is the assertion this feature exists to keep. A token on
+// the command line is readable by every user on the machine for as long as the scan runs, so it
+// travels in a file Nuclei is pointed at instead.
+func TestNucleiCredentialNeverReachesArgv(t *testing.T) {
+	t.Setenv("DRAUGR_TEST_API_TOKEN", "s3cret-value")
+	var argv []string
+	s := nucleiScanner{
+		info: plugin.ScannerInfo{Name: "nuclei"},
+		run: func(_ context.Context, a []string) ([]byte, error) {
+			argv = a
+			return nil, nil
+		},
+	}
+	target := plugin.HostTarget{
+		URL:  "https://api.example.com",
+		Auth: &plugin.HostAuth{Kind: "bearer", TokenEnv: "DRAUGR_TEST_API_TOKEN"}, // #nosec G101 -- the name of an environment variable, which is the point: no credential is expressible here
+	}
+	if _, err := s.Scan(context.Background(), target, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range argv {
+		if strings.Contains(a, "s3cret-value") {
+			t.Fatalf("the credential is in the command line, where a process list will show it: %v", argv)
+		}
+	}
+	i := slices.Index(argv, "-H")
+	if i < 0 || i == len(argv)-1 {
+		t.Fatalf("no -H pointing at a header file: %v", argv)
+	}
+	// The file is gone by now — Scan removes it — so the check is that a path was passed, not the
+	// header itself.
+	if strings.Contains(argv[i+1], ":") {
+		t.Errorf("-H was given a header rather than a path: %q", argv[i+1])
+	}
+}
+
+func TestNucleiHeaderFileIsPrivateAndRemoved(t *testing.T) {
+	path, cleanup, err := writeHeaderFile("Authorization: Bearer x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("header file mode = %o, want 600 — it holds a credential", perm)
+	}
+	body, err := os.ReadFile(path) // #nosec G304 -- a path this test just created
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(body)); got != "Authorization: Bearer x" {
+		t.Errorf("header file contains %q", got)
+	}
+	cleanup()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Error("the credential file outlived the scan")
+	}
+}
+
+// TestNucleiRefusesToScanUnauthenticatedByAccident covers the failure the whole feature is about:
+// a descriptor asking for an authenticated scan, an unset variable, and a scan that would probe
+// the login page and report a pass about the application behind it.
+func TestNucleiRefusesToScanUnauthenticatedByAccident(t *testing.T) {
+	t.Setenv("DRAUGR_TEST_MISSING_TOKEN", "")
+	ran := false
+	s := nucleiScanner{
+		info: plugin.ScannerInfo{Name: "nuclei"},
+		run:  func(context.Context, []string) ([]byte, error) { ran = true; return nil, nil },
+	}
+	target := plugin.HostTarget{
+		URL:  "https://api.example.com",
+		Auth: &plugin.HostAuth{Kind: "bearer", TokenEnv: "DRAUGR_TEST_MISSING_TOKEN"}, // #nosec G101 -- the name of an environment variable, which is the point: no credential is expressible here
+	}
+	_, err := s.Scan(context.Background(), target, nil)
+	if err == nil {
+		t.Fatal("an unset credential must fail, not quietly scan anonymously")
+	}
+	if !strings.Contains(err.Error(), "DRAUGR_TEST_MISSING_TOKEN") {
+		t.Errorf("the error should name the variable to set: %v", err)
+	}
+	if ran {
+		t.Error("nuclei ran anyway")
+	}
+}
+
+func TestAuthHeader(t *testing.T) {
+	t.Setenv("DRAUGR_TEST_TOK", "abc123")
+	for _, c := range []struct {
+		name string
+		auth *plugin.HostAuth
+		want string
+		err  bool
+	}{
+		{"anonymous", nil, "", false},
+		{"bearer", &plugin.HostAuth{Kind: "bearer", TokenEnv: "DRAUGR_TEST_TOK"}, // #nosec G101 -- the name of an environment variable, which is the point: no credential is expressible here
+			"Authorization: Bearer abc123", false},
+		{"named header", &plugin.HostAuth{Kind: "header", Header: "X-API-Key", TokenEnv: "DRAUGR_TEST_TOK"}, // #nosec G101 -- the name of an environment variable, which is the point: no credential is expressible here
+			"X-API-Key: abc123", false},
+		{"unknown kind", &plugin.HostAuth{Kind: "oauth", TokenEnv: "DRAUGR_TEST_TOK"}, "", true}, // #nosec G101 -- the name of an environment variable, which is the point: no credential is expressible here
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := authHeader(c.auth)
+			if (err != nil) != c.err {
+				t.Fatalf("err = %v, want error: %v", err, c.err)
+			}
+			if got != c.want {
+				t.Errorf("header = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// TestNucleiProvenanceNamesTheVariableNotTheValue keeps the record honest and the secret out of
+// it. A report says the scan authenticated so a reader can tell it apart from an anonymous one,
+// which reaches a different application entirely.
+func TestNucleiProvenanceNamesTheVariableNotTheValue(t *testing.T) {
+	t.Setenv("DRAUGR_TEST_TOK", "abc123")
+	s := nucleiScanner{
+		info: plugin.ScannerInfo{Name: "nuclei"},
+		run:  func(context.Context, []string) ([]byte, error) { return nil, nil },
+	}
+	rep, err := s.Scan(context.Background(), plugin.HostTarget{
+		URL:  "https://api.example.com",
+		Auth: &plugin.HostAuth{Kind: "bearer", TokenEnv: "DRAUGR_TEST_TOK"}, // #nosec G101 -- the name of an environment variable, which is the point: no credential is expressible here
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Provenance) != 1 {
+		t.Fatalf("provenance = %+v", rep.Provenance)
+	}
+	var flat string
+	for _, f := range rep.Provenance[0].Fields {
+		flat += f.Key + "=" + f.Value + " "
+	}
+	if strings.Contains(flat, "abc123") {
+		t.Fatalf("the credential is in the report: %s", flat)
+	}
+	for _, want := range []string{"authenticated=bearer", "$DRAUGR_TEST_TOK"} {
+		if !strings.Contains(flat, want) {
+			t.Errorf("provenance should record %q, got: %s", want, flat)
+		}
 	}
 }

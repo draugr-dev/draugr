@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -77,6 +78,60 @@ func (s nucleiScanner) CacheVersion(ctx context.Context) string {
 // failure is non-fatal (a real problem resurfaces at scan time).
 func (s nucleiScanner) Prewarm(ctx context.Context) error { return s.templates.warm(ctx) }
 
+// authHeader renders the header line an auth block asks for, resolving the credential from the
+// environment at the moment of the scan.
+//
+// The value is read here and nowhere earlier on purpose: it must not reach the descriptor, a
+// cache key, a report, or a log. Everything upstream carries the variable's name instead.
+func authHeader(a *plugin.HostAuth) (string, error) {
+	if a == nil {
+		return "", nil
+	}
+	token := os.Getenv(a.TokenEnv)
+	if token == "" {
+		// Loudly, because the alternative is the failure this feature exists to remove: a scan
+		// that quietly falls back to anonymous, probes the login page, and reports a pass about
+		// the application behind it.
+		return "", fmt.Errorf("nuclei: $%s is empty, so this scan would run unauthenticated and "+
+			"report on the login page rather than the application behind it", a.TokenEnv)
+	}
+	switch a.Kind {
+	case "bearer":
+		return "Authorization: Bearer " + token, nil
+	case "header":
+		return a.Header + ": " + token, nil
+	}
+	return "", fmt.Errorf("nuclei: unsupported auth type %q", a.Kind)
+}
+
+// writeHeaderFile puts the header where Nuclei can read it and a process list cannot.
+//
+// Nuclei's -H takes a file as readily as a literal, which is the whole reason this exists: a
+// credential passed on the command line is readable by every user on the machine for as long as
+// the scan runs. The file is created 0600 and removed by the caller.
+func writeHeaderFile(header string) (string, func(), error) {
+	f, err := os.CreateTemp("", "draugr-nuclei-headers-*")
+	if err != nil {
+		return "", nil, err
+	}
+	cleanup := func() { _ = os.Remove(f.Name()) }
+	if err := f.Chmod(0o600); err != nil {
+		_ = f.Close()
+		cleanup()
+		return "", nil, err
+	}
+	if _, err := f.WriteString(header + "\n"); err != nil {
+		_ = f.Close()
+		cleanup()
+		return "", nil, err
+	}
+	if err := f.Close(); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+	return f.Name(), cleanup, nil
+}
+
 // nucleiArgv builds the command line for a host URL:
 //
 //		nuclei -u <url> -jsonl -silent -nc -duc -etags headers
@@ -85,8 +140,8 @@ func (s nucleiScanner) Prewarm(ctx context.Context) error { return s.templates.w
 //	  - -silent -nc suppress the banner/progress and ANSI colors so stdout is clean JSONL;
 //	  - -duc disables the update-check network call, keeping runs deterministic;
 //	  - -etags excludes header templates (see excludedNucleiTags).
-func nucleiArgv(url string) []string {
-	return []string{
+func nucleiArgv(url, headerFile string) []string {
+	argv := []string{
 		"nuclei",
 		"-u", url,
 		"-jsonl",
@@ -95,6 +150,12 @@ func nucleiArgv(url string) []string {
 		"-duc",
 		"-etags", excludedNucleiTags,
 	}
+	// A path, never the header itself. -H accepts either, and only one of them keeps the
+	// credential out of the process list.
+	if headerFile != "" {
+		argv = append(argv, "-H", headerFile)
+	}
+	return argv
 }
 
 // Scan runs Nuclei against the host target and returns its findings as a SARIF report.
@@ -114,11 +175,42 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 			return sarif.Report{}, fmt.Errorf("nuclei has no templates: %w", err)
 		}
 	}
-	out, err := s.run(ctx, nucleiArgv(host.URL))
+	header, err := authHeader(host.Auth)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	var headerFile string
+	if header != "" {
+		path, cleanup, err := writeHeaderFile(header)
+		if err != nil {
+			return sarif.Report{}, fmt.Errorf("nuclei: prepare credential: %w", err)
+		}
+		defer cleanup()
+		headerFile = path
+	}
+
+	out, err := s.run(ctx, nucleiArgv(host.URL, headerFile))
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("run nuclei: %w", err)
 	}
-	return sarif.Report{Tool: s.info.Name, Results: nucleiToResults(out)}, nil
+	report := sarif.Report{Tool: s.info.Name, Results: nucleiToResults(out)}
+	// Recorded so a reader can tell which of two very different scans produced this. An
+	// authenticated run reaches the application; an anonymous one reaches the login page, and
+	// their findings are not comparable.
+	report.Provenance = append(report.Provenance, nucleiProvenance(host))
+	return report, nil
+}
+
+// nucleiProvenance says whether the scan authenticated, and as what — by naming the variable,
+// never its value.
+func nucleiProvenance(host plugin.HostTarget) sarif.Provenance {
+	fields := []sarif.Field{{Key: "endpoint", Value: host.Identity()}}
+	if host.Auth != nil {
+		fields = append(fields,
+			sarif.Field{Key: "authenticated", Value: host.Auth.Kind},
+			sarif.Field{Key: "credentialFrom", Value: "$" + host.Auth.TokenEnv})
+	}
+	return sarif.Provenance{Tool: "nuclei", Fields: fields}
 }
 
 // nucleiFinding is the subset of a Nuclei JSONL result line that Draugr consumes.

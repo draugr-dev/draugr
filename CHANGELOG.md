@@ -10,6 +10,30 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`dast` can authenticate.** An unauthenticated scan of an application that requires a login
+  tests the login page — everything behind it goes unexamined, and the report reads as though it
+  were checked. Declare the credential on the endpoint:
+
+  ```yaml
+  hosts:
+    - url: https://api.example.com
+      auth:
+        type: bearer                 # or: type: header, header: X-API-Key
+        tokenEnv: DRAUGR_API_TOKEN
+  ```
+
+  **There is no field for the credential itself.** `tokenEnv` names the variable holding it; a
+  descriptor is committed, so a token written into one is a leaked token. The value is read at the
+  moment of the scan, handed to the scanner in a `0600` file, and removed afterwards — never on a
+  command line, where a process list would show it, and never in a cache key or a report.
+
+  **An unset variable fails the scan** rather than quietly falling back to anonymous, which would
+  produce the exact pass this prevents. The report records that the scan authenticated and which
+  variable it read, so an authenticated run is never mistaken for an anonymous one — and the cache
+  key carries the same marker, so adding credentials invalidates results gathered without them.
+
 _Nothing yet._
 
 ## [0.92.0] - 2026-08-14

@@ -56,6 +56,47 @@ nuclei -templates-version     # a blank version means none are installed
 ```
 
 
+## Authenticated scans
+
+An unauthenticated scan of an authenticated application tests the login page. Everything behind it
+goes unexamined, and the report reads as though it were checked — a `PASS` describing a surface
+nobody looked at.
+
+Declare the credential on the endpoint, by naming the variable that holds it:
+
+```yaml
+components:
+  - name: api
+    hosts:
+      - url: https://api.example.com
+        type: api
+        auth:
+          type: bearer                 # or: type: header, header: X-API-Key
+          tokenEnv: DRAUGR_API_TOKEN
+```
+
+**There is no field for the credential itself, on purpose.** A descriptor is committed, so a token
+written into one is a leaked token — and `secrets` would rightly flag it. Making the value
+inexpressible is a stronger guarantee than warning about it.
+
+**The value never reaches the command line.** Nuclei's `-H` accepts a file as readily as a literal,
+so Draugr writes the header to a `0600` temporary file, passes the path, and removes it when the
+scan ends. A credential in argv is readable by every user on the machine for as long as the scan
+runs.
+
+**An unset variable fails the scan.** It does not fall back to anonymous — that would produce
+exactly the quiet pass this exists to prevent:
+
+```
+run nuclei: nuclei: $DRAUGR_API_TOKEN is empty, so this scan would run unauthenticated and
+report on the login page rather than the application behind it
+```
+
+**The report records that it authenticated**, naming the variable and never its value, so an
+authenticated run is distinguishable from an anonymous one. Their findings are not comparable. The
+cache key carries the same marker, so configuring credentials invalidates results gathered without
+them rather than reusing them.
+
 ## Links
 
 - Nuclei: https://github.com/projectdiscovery/nuclei
