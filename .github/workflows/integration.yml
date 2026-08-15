@@ -3,7 +3,13 @@ name: Integration
 # Integration tests exercise real external dependencies — a real Trivy binary and an
 # ephemeral kind cluster — that the unit tests stub out (see issue #39). They are heavier and
 # slower than unit tests, so they do NOT run on every PR: they run on main, on a nightly
-# schedule, on demand, and on a PR only when it carries the `ci-integration` label.
+# schedule, on demand, and on a PR that either carries the `ci-integration` label or changes the
+# suite itself.
+#
+# That second condition is not a convenience. A pull request adding an integration test would
+# otherwise merge without the job that runs it ever having run — the test looks reviewed, is
+# green, and has never executed. Nothing about that is visible in the checks: a skipped job reads
+# much like a passing one.
 #
 # Advisory on a pull request, and binding on a release. A required check on every PR would make
 # most changes wait several minutes on a kind cluster to learn something a unit test already
@@ -51,12 +57,47 @@ env:
   KUBE_BENCH_COMMIT: "92e522b9ac82d4253e8b7582de1e75f5dae1f4b5"
 
 jobs:
+  # Whether this pull request changes the suite itself. A job cannot look at the diff from an
+  # `if:`, so the answer has to be computed first and handed over.
+  suite:
+    name: Detect suite changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.filter.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Need the base commit to diff against; a shallow clone has only the tip.
+          fetch-depth: 0
+      - id: filter
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # The suite is the tests, the tag they hide behind, and the workflow that runs them.
+          # A change to any of the three is a change nobody can review by reading a green tick.
+          if git diff --name-only "$base" HEAD \
+             | grep -qE '^(test/integration/|\.github/workflows/integration\.yml$)'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
   integration:
     name: Integration (kind + real scanners)
-    # On PRs, only run when explicitly opted in with the `ci-integration` label.
+    needs: suite
+    # Always off a pull request, unless somebody opted in — or unless the pull request changes the
+    # suite, in which case running it is not optional: merging a test the job never ran is how a
+    # suite quietly stops meaning anything.
+    # No always(): if the detection job fails, this one is skipped and the workflow is red, which
+    # is visible. Running anyway on an empty output would put the decision back where it started —
+    # a suite-changing pull request merging without the suite having run, and nothing saying so.
     if: >-
       github.event_name != 'pull_request' ||
-      contains(github.event.pull_request.labels.*.name, 'ci-integration')
+      contains(github.event.pull_request.labels.*.name, 'ci-integration') ||
+      needs.suite.outputs.changed == 'true' 
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
