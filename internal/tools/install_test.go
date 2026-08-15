@@ -600,3 +600,41 @@ func TestKubeBenchSpecCarriesItsData(t *testing.T) {
 		t.Error("a tool with no data should resolve to nothing")
 	}
 }
+
+// TestInstallVersionRoutesLanguagePackages covers the dispatch every `draugr tools install <tool>`
+// goes through.
+//
+// The language-package installers are tested directly elsewhere, which proves they work and not
+// that anything reaches them. If this dispatch stopped matching, the command would fall through to
+// the release-archive path and fail looking for assets a package-managed tool has never had — and
+// no test of the installers themselves would notice.
+func TestInstallVersionRoutesLanguagePackages(t *testing.T) {
+	t.Run("python package", func(t *testing.T) {
+		root := t.TempDir()
+		fakePython(t, filepath.Join(t.TempDir(), "calls"), "--require-hashes")
+
+		got, err := InstallVersion(t.Context(), "semgrep", "", filepath.Join(root, "bin"), nil, false)
+		if err != nil {
+			t.Fatalf("semgrep did not reach the Python installer: %v", err)
+		}
+		if got.Path != filepath.Join(root, "bin", "semgrep") {
+			t.Errorf("path = %q", got.Path)
+		}
+	})
+
+	t.Run("npm package", func(t *testing.T) {
+		root := t.TempDir()
+		stubNodeTools(t, fakeNPM(t, filepath.Join(t.TempDir(), "calls"), "ci"))
+
+		got, err := InstallVersion(t.Context(), "retire", "", filepath.Join(root, "bin"), nil, false)
+		if err != nil {
+			t.Fatalf("retire did not reach the npm installer: %v", err)
+		}
+		if got.Path != filepath.Join(root, "bin", "retire") {
+			t.Errorf("path = %q", got.Path)
+		}
+		if got.Version != retireVersion {
+			t.Errorf("version = %q, want the pinned %q", got.Version, retireVersion)
+		}
+	})
+}

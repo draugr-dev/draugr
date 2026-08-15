@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -366,4 +367,175 @@ func TestInstallPythonClearsTheOldEnvironment(t *testing.T) {
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {
 		t.Error("the previous environment survived, so what is installed is not only what was pinned")
 	}
+}
+
+// fakePython writes a stand-in interpreter and puts it alone on PATH.
+//
+// It answers the two things installPython asks of a real one: the version probe, and
+// `-m venv <dir>`, which it satisfies by creating the environment the installer then reaches
+// into. The pip it drops in records how it was called and succeeds only for the subcommands
+// named in pipSucceeds.
+//
+// The point is to test Draugr's half of the install without a network: that the pins reach disk,
+// that pip is asked to honour them, that the shim is linked, and that each outcome earns the
+// right level.
+func fakePython(t *testing.T, log string, pipSucceeds ...string) {
+	t.Helper()
+	dir := t.TempDir()
+
+	var cases string
+	for _, sub := range pipSucceeds {
+		cases += "    *" + sub + "*) exit 0 ;;\n"
+	}
+	pip := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + strconv.Quote(log) + "\ncase \"$*\" in\n" +
+		cases + "  *) echo 'pip refused' >&2; exit 1 ;;\nesac\n"
+	pipPath := filepath.Join(dir, "pip-template")
+	if err := os.WriteFile(pipPath, []byte(pip), 0o700); err != nil { // #nosec G306 -- must execute
+		t.Fatal(err)
+	}
+
+	python := "#!/bin/sh\n" +
+		"case \"$1\" in\n" +
+		"  -c) echo '3.12'; exit 0 ;;\n" +
+		"  -m)\n" +
+		"    [ \"$2\" = venv ] || exit 1\n" +
+		"    mkdir -p \"$3/bin\" || exit 1\n" +
+		"    cp " + strconv.Quote(pipPath) + " \"$3/bin/pip\" && chmod +x \"$3/bin/pip\"\n" +
+		// the entry point the package would have provided
+		"    printf '#!/bin/sh\\nexit 0\\n' > \"$3/bin/semgrep\" && chmod +x \"$3/bin/semgrep\"\n" +
+		"    exit 0 ;;\n" +
+		"esac\nexit 1\n"
+	// Under every name findPython tries, newest first, so a real interpreter further along PATH
+	// cannot answer instead: the versioned candidates are probed before the bare `python3`.
+	names := []string{"python3"}
+	for minor := 10; minor <= 14; minor++ {
+		names = append(names, "python3."+strconv.Itoa(minor))
+	}
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(python), 0o700); err != nil { // #nosec G306 -- must execute
+			t.Fatal(err)
+		}
+	}
+	// Ahead of the real PATH rather than instead of it — the fake is a shell script, and it needs
+	// mkdir and friends to do its job.
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// TestInstallPythonToolRecordsWhatEndedUpOnPath is the Python sibling of the npm case: the step
+// between the install and everything that later asks what was installed.
+//
+// The attestation must describe the shim, because the shim is the file a scan executes. Digesting
+// the venv's own entry point instead would attest a file nothing runs.
+func TestInstallPythonToolRecordsWhatEndedUpOnPath(t *testing.T) {
+	root := t.TempDir()
+	destDir := filepath.Join(root, "bin")
+	log := filepath.Join(t.TempDir(), "calls")
+	fakePython(t, log, "--require-hashes")
+
+	// An empty version asks for the pinned one, which is how `tools install semgrep` arrives here.
+	got, err := installPythonTool(t.Context(), "semgrep", "", destDir, pythonInstallable["semgrep"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Version != semgrepVersion {
+		t.Errorf("version = %q, want the pinned %q", got.Version, semgrepVersion)
+	}
+	if got.Path != filepath.Join(root, "bin", "semgrep") {
+		t.Errorf("path = %q, want the shim on PATH", got.Path)
+	}
+	if sum, err := fileSHA256(got.Path); err != nil || sum == "" {
+		t.Errorf("the recorded path produced no digest, so nothing could attest it: %v", err)
+	}
+
+	calls, err := os.ReadFile(log) // #nosec G304 -- a path this test just created
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Without --require-hashes pip resolves freely while the install still claims to be pinned.
+	if !strings.Contains(string(calls), "--require-hashes") {
+		t.Errorf("pip was not asked to honour the pinned digests: %q", calls)
+	}
+}
+
+// TestInstallPythonToolDropsToUnverifiedOnFallback pins the honesty of the level.
+//
+// The pins are resolved on one platform, so another may legitimately need a different wheel. The
+// fallback keeps the tool installable there; reporting it as pinned would describe verification
+// that never happened, and both paths produce a working tool, so nothing else would notice.
+func TestInstallPythonToolDropsToUnverifiedOnFallback(t *testing.T) {
+	root := t.TempDir()
+	log := filepath.Join(t.TempDir(), "calls")
+	fakePython(t, log, "semgrep==") // the hashed install fails, the plain one works
+
+	if _, err := installPythonTool(t.Context(), "semgrep", "", filepath.Join(root, "bin"),
+		pythonInstallable["semgrep"]); err != nil {
+		t.Fatal(err)
+	}
+
+	rec, ok := loadManifest(filepath.Join(root, "bin"))["semgrep"]
+	if !ok {
+		t.Fatal("the install was not recorded")
+	}
+	if rec.Verified != LevelUnverified {
+		t.Errorf("level = %q, want %q — nothing in this binary checked what was installed",
+			rec.Verified, LevelUnverified)
+	}
+}
+
+func TestInstallPythonToolFailsWhenPipCannotInstall(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "calls")
+	fakePython(t, log) // nothing succeeds
+
+	_, err := installPythonTool(t.Context(), "semgrep", "", filepath.Join(t.TempDir(), "bin"),
+		pythonInstallable["semgrep"])
+	if err == nil {
+		t.Fatal("an install where pip failed twice must error")
+	}
+	if !strings.Contains(err.Error(), "semgrep") {
+		t.Errorf("the error should name the tool: %v", err)
+	}
+}
+
+// TestFindPythonExplainsWhatToDo covers the two messages a user without a usable interpreter
+// actually sees. Both have to name a way forward, because this is a tool Draugr can otherwise
+// install for them — "not found" alone leaves a missing scanner and no next step.
+func TestFindPythonExplainsWhatToDo(t *testing.T) {
+	t.Run("no python at all", func(t *testing.T) {
+		t.Setenv("PATH", t.TempDir())
+		_, err := findPython(t.Context(), minPythonMinor)
+		if err == nil {
+			t.Fatal("a machine with no python3 must error rather than fall through")
+		}
+		if !strings.Contains(err.Error(), "no python3 was found") {
+			t.Errorf("the error should say none was found: %v", err)
+		}
+		if !strings.Contains(err.Error(), "leave it on PATH") {
+			t.Errorf("the error should offer a way forward: %v", err)
+		}
+	})
+
+	t.Run("python too old", func(t *testing.T) {
+		dir := t.TempDir()
+		// Answers the version probe with something below the floor, under every candidate name.
+		script := "#!/bin/sh\n[ \"$1\" = -c ] && { echo '3.8'; exit 0; }\nexit 1\n"
+		names := []string{"python3"}
+		for minor := 10; minor <= 14; minor++ {
+			names = append(names, "python3."+strconv.Itoa(minor))
+		}
+		for _, name := range names {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+		_, err := findPython(t.Context(), minPythonMinor)
+		if err == nil {
+			t.Fatal("an interpreter below the floor must error rather than be used")
+		}
+		// Naming the version found is what turns this from "wrong python" into "which python".
+		if !strings.Contains(err.Error(), "3.8") {
+			t.Errorf("the error should name the version found: %v", err)
+		}
+	})
 }
