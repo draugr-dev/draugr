@@ -19,6 +19,20 @@ and move it under a version on release.
 
 ### Changed
 
+- **A contended tool cache is reported once, with its total, instead of a line per wait.** Draugr
+  plans concurrent jobs that share a scanner's cache, so they queue on it — and with three retries
+  per job, a scan with many images could fill the screen with identical `waiting for the scanner
+  cache` lines before reporting anything.
+
+  Those lines are now `debug`, where they serve whoever is diagnosing contention. What a scan that
+  took three times as long owes its reader is the total, and that now sits beside the duration:
+
+  ```
+  Ran 17 jobs in 18.2s — 4 from cache, 11s waiting for the trivy cache.
+  ```
+
+  One figure a reader can act on, rather than several that overlap and cannot honestly be added up.
+
 - **Cache entries are named `.json.gz`**, which is what they have been since they were compressed.
   Entries written by an earlier version are not read, so the first scan after upgrading repopulates
   the cache — a cache is disposable and this costs one cold run. Entries under the old name are

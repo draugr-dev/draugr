@@ -864,7 +864,42 @@ func runLine(st engine.Stats) string {
 	if len(savings) > 0 {
 		line += " — " + strings.Join(savings, ", ")
 	}
+	if w := waitSummary(st.ToolWaits); w != "" {
+		line += ", " + w
+		if len(savings) == 0 {
+			line = strings.Replace(line, ", "+w, " — "+w, 1)
+		}
+	}
 	return line + "."
+}
+
+// waitSummary says how much of the run was spent queueing for a tool's cache rather than scanning.
+//
+// The total, once, rather than a line per wait: the waits happen inside concurrent jobs and
+// overlap, so a reader adding up individual messages would overstate the cost. Reported next to
+// the duration because that is where somebody asking "why did this take so long" is looking, and
+// it is the one figure that answers them.
+//
+// Sub-second totals are not reported. A wait too short to perceive does not explain a slow scan,
+// and printing it competes with the findings for the same line.
+func waitSummary(waits map[string]time.Duration) string {
+	const worthSaying = time.Second
+	tools := make([]string, 0, len(waits))
+	for tool, d := range waits {
+		if d >= worthSaying {
+			tools = append(tools, tool)
+		}
+	}
+	if len(tools) == 0 {
+		return ""
+	}
+	sort.Strings(tools)
+	parts := make([]string, 0, len(tools))
+	for _, tool := range tools {
+		parts = append(parts, fmt.Sprintf("%s waiting for the %s cache",
+			waits[tool].Round(time.Second), tool))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // toolBuildLines reports which build of each external scanner ran, and flags the ones Draugr

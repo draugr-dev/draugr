@@ -472,6 +472,11 @@ type Stats struct {
 	// worth attention is the slowest one rather than the one with the most jobs.
 	Duration  time.Duration
 	ByControl map[string]time.Duration
+	// ToolWaits is time the run spent queueing for a tool's own cache rather than scanning,
+	// summed per tool. Reported because a run that took three times as long deserves a reason,
+	// and because these waits are Draugr's own doing: it plans concurrent jobs that share one
+	// tool cache, so the contention is a cost of the scheduling rather than a fault of the tool.
+	ToolWaits map[string]time.Duration
 }
 
 // scanOutcome is the raw result of obtaining a job's report (via cache or a fresh scan),
@@ -540,6 +545,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	ctx, runSpan := tracer.Start(ctx, "engine.run",
 		trace.WithAttributes(attribute.Int("jobs", len(planned))))
 	defer runSpan.End()
+
+	// Collects any time a scanner spends queueing for its tool's cache, so it can be reported
+	// once against the run rather than a line per wait. Installed per run, so a second Run in
+	// the same process starts from zero.
+	waits := &plugin.WaitRecorder{}
+	ctx = plugin.WithWaitRecorder(ctx, waits)
 
 	var (
 		mu      sync.Mutex
@@ -825,6 +836,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	}
 
 	stats.Duration = time.Since(runStart)
+	stats.ToolWaits = waits.Totals()
 	res := Result{
 		Controls: make(map[string]plugin.ControlResult),
 		Stats:    stats,
