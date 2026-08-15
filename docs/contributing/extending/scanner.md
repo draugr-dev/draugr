@@ -32,8 +32,9 @@ func NewRetireJS() plugin.Scanner {
 			Name:        "retirejs",
 			Origin:      "RetireJS",
 			Binary:      "retire",
-			Controls:    []string{"sca"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
+			Controls:     []string{"sca"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema: json.RawMessage(noScannerOptions),
 		},
 		retireJSArgs,
 		parseRetireJS,
@@ -56,6 +57,12 @@ The fields of `plugin.ScannerInfo` that decide behaviour:
   get to claim its own origin: the registry stamps built-ins, because “which of these is a third
   party executing on my machine” is a supply-chain question, and an answer supplied by the subject
   is not an answer.
+- **`ConfigSchema`** — a JSON Schema for the options this scanner accepts under its own
+  descriptor key. Use `noScannerOptions` when it takes none — a real declaration meaning “this
+  scanner is configured by choosing it, and by nothing else”, not an omission. Without a schema a
+  mistyped option is dropped between the YAML and the argv with no warning, and the only way to
+  find out is to notice the setting had no effect. `TestEveryScannerDeclaresItsOptions` in
+  `internal/builtins` keeps this true for scanners added later.
 - **`Effects`** — see step 6. Empty is the common and correct case.
 
 ### Never fail on findings
