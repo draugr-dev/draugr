@@ -28,6 +28,9 @@ type trivyVulnDoc struct {
 		OS struct {
 			Family string `json:"Family"`
 			Name   string `json:"Name"`
+			// EOSL is Trivy's End Of Service Life: the vendor no longer ships security updates
+			// for this release, so "no fix available" on it is permanent rather than pending.
+			EOSL bool `json:"EOSL"`
 		} `json:"OS"`
 		// DiffIDs are the image's layers, bottom first. A finding names one of these.
 		DiffIDs     []string `json:"DiffIDs"`
@@ -166,8 +169,13 @@ func trivyVulnResultOf(
 	// Only the image's own package database has an operating system to name. A language package
 	// installed on top of it belongs to its ecosystem, not to the distribution underneath.
 	var operatingSystem string
+	endOfLife := false
 	if res.Class == trivyClassOSPkgs {
 		operatingSystem = doc.operatingSystem()
+		// Only claimed alongside the OS it describes. A language package sitting on the image
+		// is not made end-of-life by the distribution underneath it, and its fix — if there is
+		// one — comes from its own ecosystem.
+		endOfLife = operatingSystem != "" && doc.Metadata.OS.EOSL
 	}
 	var layer *sarif.Layer
 	if l, ok := layers[v.Layer.DiffID]; ok {
@@ -175,6 +183,7 @@ func trivyVulnResultOf(
 	}
 	return sarif.Result{
 		OperatingSystem: operatingSystem,
+		OSEndOfLife:     endOfLife,
 		Layer:           layer,
 		Tool:            "trivy",
 		RuleID:          v.VulnerabilityID,

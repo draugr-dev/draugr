@@ -118,6 +118,14 @@ type Result struct {
 	// system package from a vulnerable application dependency sitting on top of it. Empty for a
 	// finding in a language ecosystem, where there is no OS answer to give.
 	OperatingSystem string `json:"operatingSystem,omitempty"`
+	// OSEndOfLife marks a finding whose operating system release no longer receives security
+	// updates from its vendor — Trivy's EOSL, End Of Service Life.
+	//
+	// It changes what the finding means. On a supported release, "no fix available" is a state
+	// that will end when the vendor publishes one; on a release past end of life, no fix is ever
+	// coming, and upgrading the release is the only action that resolves it. That is usually the
+	// highest-leverage move available, because it resolves every finding in the OS layer at once.
+	OSEndOfLife bool `json:"osEndOfLife,omitempty"`
 	// Layer is the image layer the finding's package arrived in. Nil for anything that is not an
 	// image finding, and for an image whose scanner did not report one.
 	//

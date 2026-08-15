@@ -357,3 +357,52 @@ func TestNoLayerWhenTheScannerReportsNone(t *testing.T) {
 		}
 	}
 }
+
+// TestEndOfServiceLifeIsCarried covers Trivy's EOSL, which changes what a finding means rather
+// than adding detail to it: past end of service life no fix is ever published, so "no fix
+// available" is permanent and upgrading the release is the only thing that resolves it.
+func TestEndOfServiceLifeIsCarried(t *testing.T) {
+	const eol = `{"ArtifactName":"debian:11-slim",
+	 "Metadata":{"OS":{"Family":"debian","Name":"11.11","EOSL":true}},
+	 "Results":[
+	  {"Target":"debian:11-slim","Class":"os-pkgs","Type":"debian","Vulnerabilities":[
+	   {"VulnerabilityID":"CVE-1","PkgName":"apt","InstalledVersion":"2.2.4","Severity":"LOW"}]},
+	  {"Target":"app/package-lock.json","Class":"lang-pkgs","Type":"npm","Vulnerabilities":[
+	   {"VulnerabilityID":"CVE-2","PkgName":"lodash","InstalledVersion":"4.17.15","Severity":"HIGH"}]}]}`
+
+	rep, err := parseTrivyVulns([]byte(eol), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !rep.Results[0].OSEndOfLife {
+		t.Error("an OS package on an end-of-service-life release should say so")
+	}
+	// The distribution being unsupported says nothing about an npm package sitting on top of it:
+	// its fix, if there is one, comes from its own ecosystem on its own schedule.
+	if rep.Results[1].OSEndOfLife {
+		t.Error("a language package was marked end-of-life by the distribution underneath it")
+	}
+}
+
+// TestEndOfServiceLifeIsNotAssumed: a supported release, and one Trivy could not identify at all,
+// must both come back false rather than empty-meaning-unknown.
+func TestEndOfServiceLifeIsNotAssumed(t *testing.T) {
+	for _, c := range []struct{ name, doc string }{
+		{"supported release", `{"Metadata":{"OS":{"Family":"debian","Name":"12.5","EOSL":false}},
+		  "Results":[{"Target":"x","Class":"os-pkgs","Type":"debian","Vulnerabilities":[
+		   {"VulnerabilityID":"CVE-1","PkgName":"p","InstalledVersion":"1","Severity":"HIGH"}]}]}`},
+		{"no OS identified", `{"Metadata":{"OS":{"EOSL":true}},
+		  "Results":[{"Target":"x","Class":"os-pkgs","Type":"","Vulnerabilities":[
+		   {"VulnerabilityID":"CVE-1","PkgName":"p","InstalledVersion":"1","Severity":"HIGH"}]}]}`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rep, err := parseTrivyVulns([]byte(c.doc), "", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if rep.Results[0].OSEndOfLife {
+				t.Error("claimed end of service life without an operating system to claim it for")
+			}
+		})
+	}
+}

@@ -206,6 +206,7 @@ type sarifProperties struct {
 	// render, attribute to Draugr, and act on in a policy.
 	Image           string `json:"image,omitempty"`
 	OperatingSystem string `json:"operatingSystem,omitempty"`
+	OSEndOfLife     bool   `json:"osEndOfLife,omitempty"`
 	// Layer survives the file for the same reason: it is what separates a finding this component
 	// introduced from one it inherited, and that answer is worth as much on the second read as
 	// on the first.
@@ -354,11 +355,12 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
 		if tool != "" || res.HasScore || res.Priority != "" || res.Image != "" ||
-			res.OperatingSystem != "" || res.Layer != nil {
+			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Priority: res.Priority, Component: res.Component,
 				Repository: res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
+				OSEndOfLife: res.OSEndOfLife,
 			}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
@@ -557,6 +559,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Image = sr.Properties.Image
 				res.OperatingSystem = sr.Properties.OperatingSystem
 				res.Layer = sr.Properties.Layer
+				res.OSEndOfLife = sr.Properties.OSEndOfLife
 				res.Package = sr.Properties.Package
 			}
 			out.Results = append(out.Results, res)
