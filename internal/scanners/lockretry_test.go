@@ -17,17 +17,23 @@ import (
 // captureWarnings redirects the default logger for the duration of a test. The retry reports
 // itself through slog, which is the only place a caller can see that a scan waited.
 //
-// Held at the CLI's own default level rather than a permissive one, so the test fails if the
-// report is demoted below what a user sees. Somewhere in the logs is not the same as on screen.
-func captureWarnings(t *testing.T) func() string {
+// captureAt collects log output at a level, restoring the previous logger afterwards.
+func captureAt(t *testing.T, level slog.Level) func() string {
 	t.Helper()
 	var mu sync.Mutex
 	buf := &lockedBuffer{mu: &mu}
 	prior := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	slog.SetDefault(slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: level})))
 	t.Cleanup(func() { slog.SetDefault(prior) })
 	return buf.String
 }
+
+// captureWarnings holds the CLI's own default level rather than a permissive one, so a test fails
+// if something a user must see is demoted. Somewhere in the logs is not the same as on screen.
+func captureWarnings(t *testing.T) func() string { return captureAt(t, slog.LevelInfo) }
+
+// captureDebug collects what is deliberately below the default level.
+func captureDebug(t *testing.T) func() string { return captureAt(t, slog.LevelDebug) }
 
 // lockedBuffer is a bytes.Buffer safe to write from the retry goroutine and read from the test.
 type lockedBuffer struct {
@@ -175,10 +181,32 @@ func TestIsLockedCacheMatchesWhatTheToolPrints(t *testing.T) {
 }
 
 // A run that retried has to say so. A scan taking three times as long for a reason nobody can see
-// is the same failure in a quieter form.
-func TestRetryLockedCacheSaysItIsWaiting(t *testing.T) {
+// is the same failure in a quieter form — but the reason is the total, not a line per wait: the
+// waits happen in concurrent jobs and overlap, so a reader adding up individual messages would
+// overstate the cost. The total is recorded for the run to report once, beside its duration.
+func TestRetryLockedCacheRecordsWhatItWaited(t *testing.T) {
 	fastBackoff(t)
-	logs := captureWarnings(t)
+	recorder := &plugin.WaitRecorder{}
+	ctx := plugin.WithWaitRecorder(t.Context(), recorder)
+	calls := 0
+	if _, err := retryLockedCache(ctx, "trivy", func() ([]byte, error) {
+		calls++
+		if calls == 1 {
+			return nil, errLocked
+		}
+		return nil, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := recorder.Totals()["trivy"]; got <= 0 {
+		t.Errorf("the wait was not recorded, so the run has no reason to give: %v", got)
+	}
+}
+
+// The per-attempt line stays, at debug, for whoever is diagnosing contention.
+func TestRetryLockedCacheExplainsItselfAtDebug(t *testing.T) {
+	fastBackoff(t)
+	logs := captureDebug(t)
 	calls := 0
 	if _, err := retryLockedCache(t.Context(), "trivy", func() ([]byte, error) {
 		calls++
@@ -191,7 +219,28 @@ func TestRetryLockedCacheSaysItIsWaiting(t *testing.T) {
 	}
 	got := logs()
 	if !strings.Contains(got, "waiting for the scanner cache") {
-		t.Errorf("the wait was not reported:\n%s", got)
+		t.Errorf("the wait was not explained at debug:\n%s", got)
+	}
+
+	// And deliberately not at the default level. One line per attempt is noise a reader cannot
+	// act on, and it multiplies: three retries per job means a scan with many jobs fills the
+	// screen before it reports anything. The reason a slow scan owes its reader is the total,
+	// which the run gives beside its duration. Asserted so restoring it here is a decision
+	// rather than an oversight.
+	atDefault := captureWarnings(t)
+	calls = 0
+	if _, err := retryLockedCache(t.Context(), "trivy", func() ([]byte, error) {
+		calls++
+		if calls == 1 {
+			return nil, errLocked
+		}
+		return nil, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(atDefault(), "waiting for the scanner cache") {
+		t.Error("the per-attempt wait is back at the default level, where it is a wall of " +
+			"identical lines nobody can act on")
 	}
 	// The holder is one of this scan's own jobs. Calling it another scan sends a reader looking
 	// for a second Draugr process, and there is never one to find.

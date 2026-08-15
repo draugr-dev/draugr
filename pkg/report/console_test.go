@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -48,5 +49,46 @@ func TestConsoleSaysWhenAResultCameFromATagKeyedEntry(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "alpine:3.19") {
 		t.Errorf("the console never told the reader which result rested on a tag:\n%s", buf.String())
+	}
+}
+
+// TestRunLineReportsWaitingOnce covers the whole point of moving the retry chatter to debug: a
+// scan that took three times as long still has to say why, and the answer is the total.
+func TestRunLineReportsWaitingOnce(t *testing.T) {
+	for _, c := range []struct {
+		name, want string
+		st         engine.Stats
+	}{
+		{
+			name: "waiting, with nothing else to report",
+			st: engine.Stats{Jobs: 17, Duration: 18200 * time.Millisecond,
+				ToolWaits: map[string]time.Duration{"trivy": 11 * time.Second}},
+			want: "Ran 17 jobs in 18.2s — 11s waiting for the trivy cache.",
+		},
+		{
+			name: "waiting, alongside a saving",
+			st: engine.Stats{Jobs: 17, Duration: 18200 * time.Millisecond, CacheHits: 4,
+				ToolWaits: map[string]time.Duration{"trivy": 11 * time.Second}},
+			want: "Ran 17 jobs in 18.2s — 4 from cache, 11s waiting for the trivy cache.",
+		},
+		{
+			// Too short to perceive, so it explains nothing and only competes with the findings.
+			name: "a wait too short to be a reason",
+			st: engine.Stats{Jobs: 2, Duration: time.Second,
+				ToolWaits: map[string]time.Duration{"trivy": 200 * time.Millisecond}},
+			want: "Ran 2 jobs in 1s.",
+		},
+		{
+			name: "two tools are named in a stable order",
+			st: engine.Stats{Jobs: 9, Duration: 30 * time.Second,
+				ToolWaits: map[string]time.Duration{"trivy": 8 * time.Second, "grype": 3 * time.Second}},
+			want: "Ran 9 jobs in 30s — 3s waiting for the grype cache, 8s waiting for the trivy cache.",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := runLine(c.st); got != c.want {
+				t.Errorf("got  %q\nwant %q", got, c.want)
+			}
+		})
 	}
 }
