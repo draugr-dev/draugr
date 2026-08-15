@@ -349,13 +349,11 @@ func TestSchemaDefinitionsAreStrict(t *testing.T) {
 func assertStrict(t *testing.T, doc map[string]any) {
 	t.Helper()
 
-	// The two maps are keyed by control and by scanner name, so their additionalProperties
-	// describes the values rather than forbidding them. Strictness for those lives in the value
-	// schema, and in the validator that rejects a control or scanner this build does not have.
-	openByDesign := map[string]string{
-		"controllers":        "a map keyed by control name",
-		"controllerSettings": "a map keyed by scanner name",
-	}
+	// Nothing is exempt any more. `controllers` used to be a map whose values were a generic
+	// per-scanner schema; it now enumerates the controls this build serves, each with its own
+	// definition, so an unknown control name is a schema error rather than a shape that validates
+	// and then fails at load.
+	openByDesign := map[string]string{}
 
 	if doc["additionalProperties"] != false {
 		t.Error("the root document accepts unknown keys")
