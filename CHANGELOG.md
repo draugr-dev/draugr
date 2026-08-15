@@ -30,10 +30,12 @@ and move it under a version on release.
   purl), are reported under their CVE where one exists, and say how the library was recognised —
   which is the answer to "why is this not in my lockfile".
 
-  retire.js publishes to npm rather than as a binary, so `draugr tools install` cannot provision it;
-  `draugr doctor` names it and says where it comes from (`npm install -g retire`). Its advisory
-  database is cached under `~/.draugr/data/retirejs` rather than `/tmp`, so it survives a CI job
-  and travels with an air-gapped install.
+  **`draugr tools install retire` provisions it**, the way Semgrep is provisioned: retire.js
+  publishes to npm rather than as a binary, so the install comes from a lockfile built into the
+  Draugr binary, with every package verified against its integrity digest and install scripts
+  disabled. It needs Node 18 or newer. Its advisory database is cached under
+  `~/.draugr/data/retirejs` rather than `/tmp`, so it survives a CI job and travels with an
+  air-gapped install.
 
 _Nothing yet._
 

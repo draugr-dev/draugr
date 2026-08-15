@@ -81,9 +81,17 @@ inventory or finding leaves the machine. The one outbound request is the advisor
 download described above, which is a fetch from a public URL and carries nothing about what is
 being scanned.
 
-**Not distributed by Draugr.** retire.js publishes to npm and ships no release binaries, so
-`draugr tools install` cannot provision it and does not pretend to — `draugr doctor` names it and
-says where it comes from. Installing it needs a Node runtime: `npm install -g retire`.
+**Provisioned the way Semgrep is.** retire.js publishes to npm and ships no release binaries — the
+position Semgrep is in on PyPI — so `draugr tools install retire` installs it from a lockfile built
+into the binary. Every package in the tree carries an integrity digest and `npm ci` verifies each
+one, which is the guarantee `pip --require-hashes` gives on the Python side; the install is
+recorded as `pinned` only when that succeeded, and `unverified` when npm had to resolve freely
+instead. Install scripts are disabled, because a provisioning step that runs whatever a dependency
+author wrote is a hole in the middle of the thing meant to close one.
+
+It needs a Node runtime — 18 or newer, for `npm ci` — and the launcher Draugr writes names that
+interpreter by absolute path, so a scan works with a trimmed `PATH` rather than only where Node
+happens to be on it.
 
 ## Links
 

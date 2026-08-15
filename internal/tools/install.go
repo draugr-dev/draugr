@@ -408,11 +408,17 @@ var runCosignVerify = func(ctx context.Context, cosignPath string, args []string
 
 // Installable returns the names of the tools `tools install` can provision, sorted.
 func Installable() []string {
-	names := make([]string, 0, len(installable)+len(pythonInstallable))
+	names := make([]string, 0, len(installable)+len(pythonInstallable)+len(nodeInstallable))
 	for name := range installable {
 		names = append(names, name)
 	}
+	// The language-package methods too. A tool missing from here is one `tools install` provisions
+	// and every caller believes it cannot — doctor stops offering it, and `tools list` reports it
+	// as something the reader has to find themselves.
 	for name := range pythonInstallable {
+		names = append(names, name)
+	}
+	for name := range nodeInstallable {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -448,6 +454,29 @@ func installPythonTool(ctx context.Context, name, version, destDir string, spec 
 	// LevelPinned when the embedded set applied: every artifact in the resolved tree matched a
 	// digest recorded in this binary, which is the same claim a pinned release archive makes and
 	// covers more — the dependencies as well as the tool.
+	recordInstall(destDir, name, installRecord{
+		Version: version, BinarySHA256: sum, Verified: level,
+	})
+	return Installed{Name: name, Version: version, Path: path}, nil
+}
+
+// installNodeTool provisions a tool that ships as an npm package, and reports it the way an
+// installed binary is reported.
+func installNodeTool(ctx context.Context, name, version, destDir string, spec NodeSpec) (Installed, error) {
+	if version == "" {
+		version = nodeVersions[name]
+	}
+	root := filepath.Dir(destDir)
+	path, level, err := installNode(ctx, root, name, spec, version)
+	if err != nil {
+		return Installed{}, err
+	}
+	// The shim is what ends up on PATH, so it is the file the attestation is about — the same
+	// rule the binary and Python paths follow.
+	sum, err := fileSHA256(path)
+	if err != nil {
+		return Installed{}, err
+	}
 	recordInstall(destDir, name, installRecord{
 		Version: version, BinarySHA256: sum, Verified: level,
 	})
@@ -519,6 +548,9 @@ func InstallVersion(ctx context.Context, name, version, destDir string, client *
 	// Handled first so the release-archive path below stays one linear sequence.
 	if pySpec, ok := PythonTool(name); ok {
 		return installPythonTool(ctx, name, version, destDir, pySpec)
+	}
+	if nodeSpec, ok := NodeTool(name); ok {
+		return installNodeTool(ctx, name, version, destDir, nodeSpec)
 	}
 	spec, err := SpecFor(name, version)
 	if err != nil {
