@@ -1,6 +1,9 @@
 package plugin
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestTargetKinds(t *testing.T) {
 	cases := []struct {
@@ -110,5 +113,61 @@ func TestContentAddressedDefaultsToTrue(t *testing.T) {
 	}
 	if ContentAddressed(ImageTarget{Ref: "alpine:3.19"}) {
 		t.Error("a tag-only image says it is not content-addressed, and the helper must pass that on")
+	}
+}
+
+func TestNormaliseMethods(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		in   []string
+		want []string
+	}{
+		{"absent means read-only", nil, []string{"get", "head"}},
+		{"blank means read-only", []string{"", "  "}, []string{"get", "head"}},
+		{"lower-cased and sorted", []string{"POST", "get"}, []string{"get", "post"}},
+		{"deduplicated", []string{"get", "GET"}, []string{"get"}},
+		// A method the scan will never send is dropped rather than carried into the cache key,
+		// where it would make two identical scans look different.
+		{"unknown dropped", []string{"get", "connect"}, []string{"get"}},
+		{"only unknown falls back", []string{"connect"}, []string{"get", "head"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := NormaliseMethods(c.in); !slices.Equal(got, c.want) {
+				t.Errorf("NormaliseMethods(%v) = %v, want %v", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+// TestHostIdentitySeparatesScansThatAreNotComparable keeps the cache honest. The same URL scanned
+// anonymously, scanned as a user, and driven from a specification are three different scans, and
+// a shared key would let one answer for another.
+func TestHostIdentitySeparatesScansThatAreNotComparable(t *testing.T) {
+	base := HostTarget{URL: "https://api.example.com"}
+	authed := base
+	authed.Auth = &HostAuth{Kind: "bearer", TokenEnv: "TOK"}
+	spec := base
+	spec.Spec = &HostSpec{Path: "openapi.yaml"}
+	writes := base
+	writes.Spec = &HostSpec{Path: "openapi.yaml", Methods: []string{"get", "delete"}}
+
+	ids := map[string]string{
+		"anonymous":     base.Identity(),
+		"authenticated": authed.Identity(),
+		"spec":          spec.Identity(),
+		"spec+writes":   writes.Identity(),
+	}
+	seen := map[string]string{}
+	for name, id := range ids {
+		if other, clash := seen[id]; clash {
+			t.Errorf("%s and %s share a cache key (%q)", name, other, id)
+		}
+		seen[id] = name
+	}
+	// Case and order are presentation, not a different scan.
+	same := base
+	same.Spec = &HostSpec{Path: "openapi.yaml", Methods: []string{"DELETE", "get"}}
+	if same.Identity() != writes.Identity() {
+		t.Errorf("case and order changed the key:\n %q\n %q", same.Identity(), writes.Identity())
 	}
 }

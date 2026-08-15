@@ -489,6 +489,25 @@ type Host struct {
 	Type string `yaml:"type,omitempty"`
 	// Auth authenticates the dynamic scan of this endpoint. Absent means probe it anonymously.
 	Auth *HostAuth `yaml:"auth,omitempty"`
+	// Spec drives the dynamic scan from an OpenAPI document instead of crawling.
+	Spec *HostSpec `yaml:"spec,omitempty"`
+}
+
+// HostSpec points the dynamic scan at an OpenAPI document describing this endpoint.
+//
+// An API usually has no HTML to crawl, so probing it blind reaches whatever a scanner can guess.
+// A specification lists every route and method the service declares, which turns guessing into
+// exercising what is actually there.
+type HostSpec struct {
+	// Path is the OpenAPI or Swagger document, resolved like every other path in a
+	// descriptor: relative to where Draugr runs, not to the descriptor or the repository.
+	Path string `yaml:"path"`
+	// Methods are the HTTP methods to exercise. Empty means GET and HEAD.
+	//
+	// A specification lists POST, PUT and DELETE too, and a scanner handed one will exercise them
+	// — a scan of a staging API that deletes its fixtures is a scan nobody runs twice. Naming a
+	// write method here is how that is accepted: explicit, per endpoint, and visible in review.
+	Methods []string `yaml:"methods,omitempty"`
 }
 
 // HostAuth says how to authenticate to an endpoint, by naming the environment variable that holds

@@ -56,6 +56,52 @@ nuclei -templates-version     # a blank version means none are installed
 ```
 
 
+## Scanning from an OpenAPI specification
+
+An API has no HTML to crawl, so probing it blind reaches whatever the scanner can guess. Point it
+at the specification instead and it exercises the routes the service declares:
+
+```yaml
+hosts:
+  - url: https://staging.example.com
+    type: api
+    spec:
+      path: ./openapi.yaml
+      methods: [get, post]      # absent → GET and HEAD only
+```
+
+**The scan targets the endpoint you declared, never the one the document names.** A scanner handed
+a specification takes its targets from that document, so a spec whose `servers:` block says
+production would send probe traffic at production while your descriptor said staging. Draugr
+rewrites `servers:` to the declared URL before the scanner sees the file. The descriptor is the
+authority on what may be scanned; a file the API team publishes is not.
+
+**Read-only unless you say otherwise.** A specification lists `POST`, `PUT` and `DELETE` too, and a
+scanner handed one will exercise them — measured against a three-operation document, a default run
+sent nine `DELETE` requests nobody asked for. Draugr removes every operation whose method is not
+named before handing the document over, so the restriction holds whatever the scanner does with it.
+
+Naming a write method in `methods` is how that is accepted: explicit, per endpoint, and visible in
+review. There is no `allowWrites` flag, because `POST` and `DELETE` are not the same risk and a
+boolean would make accepting a form submission the same decision as accepting deletion.
+
+**It says what it did not scan**, because a smaller scan that says nothing reads exactly like a
+complete one:
+
+```
+some operations are outside the methods this scan may use
+  detail="2 operations not scanned: delete (1), post (1)"
+  hint="add them to spec.methods to include them"
+```
+
+**And what it could not fill.** Nuclei refuses a specification whose required parameters it cannot
+supply, so Draugr passes `-skip-format-validation` — which makes it skip those requests silently
+instead. Draugr counts them while rewriting the document and warns, so lost coverage is reported
+rather than absorbed. Giving those parameters an `example` or `default` in the specification is the
+fix.
+
+The path resolves relative to where Draugr runs, like every other path in a descriptor.
+
 ## Authenticated scans
 
 An unauthenticated scan of an authenticated application tests the login page. Everything behind it

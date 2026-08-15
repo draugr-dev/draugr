@@ -906,6 +906,9 @@
           "description": "Label for this endpoint.",
           "type": "string"
         },
+        "spec": {
+          "$ref": "#/$defs/hostSpec"
+        },
         "type": {
           "anyOf": [
             {
@@ -960,6 +963,36 @@
       "required": [
         "type",
         "tokenEnv"
+      ],
+      "type": "object"
+    },
+    "hostSpec": {
+      "additionalProperties": false,
+      "description": "Drive the dynamic scan from an OpenAPI document instead of crawling. An API usually has no HTML to crawl, so a specification is what turns guessing into exercising the routes the service declares.",
+      "properties": {
+        "methods": {
+          "description": "HTTP methods to exercise. Absent means GET and HEAD. Naming a write method is how you accept that the scan may change data — a specification lists DELETE too, and a scanner handed one will use it.",
+          "items": {
+            "enum": [
+              "get",
+              "head",
+              "options",
+              "post",
+              "put",
+              "patch",
+              "delete"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "path": {
+          "description": "The OpenAPI or Swagger document, relative to the descriptor.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
       ],
       "type": "object"
     },

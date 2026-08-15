@@ -152,6 +152,34 @@ Checked against what **this build** can run, which is also what
 [JSON Schema](#editor-support-autocomplete-hover-docs-validation) offers for autocompletion — all
 three come from one place and cannot disagree.
 
+### Scanning an API from its specification
+
+`dast` crawls an endpoint unless a host points it at an OpenAPI document. An API usually has no
+HTML to crawl, so a specification is the difference between guessing and exercising what the
+service declares.
+
+```yaml
+hosts:
+  - url: https://staging.example.com
+    spec:
+      path: ./openapi.yaml
+      methods: [get, post]      # absent → GET and HEAD only
+```
+
+**The declared URL wins over the document's `servers:` block.** A scanner takes its targets from
+the specification it is given, so a document naming production would send probe traffic there while
+your descriptor said staging. Draugr rewrites `servers:` to your URL before the scan.
+
+**Read-only unless you name write methods.** A specification lists `DELETE` too, and a scanner
+handed one will use it. Every operation whose method is not named is removed from the copy the
+scanner receives, so the restriction does not depend on the tool behaving. Naming `post` or
+`delete` is how you accept it — per endpoint, and visible in review.
+
+**The run reports what it excluded**, and how many operations declare parameters it could not
+supply, so a scan that covered part of an API does not read like one that covered all of it.
+
+Paths resolve relative to where Draugr runs, like every other path in a descriptor.
+
 ### Authenticating a dynamic scan
 
 `dast` probes an endpoint anonymously unless a host says otherwise. Against an application that

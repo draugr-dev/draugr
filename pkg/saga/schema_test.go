@@ -84,6 +84,7 @@ func schemaCases() []schemaCase {
 		{"image", Image{}},
 		{"host", Host{}},
 		{"hostAuth", HostAuth{}},
+		{"hostSpec", HostSpec{}},
 		{"infrastructure", Infrastructure{}},
 		{"fragmentRef", FragmentRef{}},
 		{"fragmentConfig", FragmentConfig{}},

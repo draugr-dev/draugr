@@ -160,6 +160,56 @@ type HostTarget struct {
 	Type string
 	// Auth is how a scanner should authenticate to this endpoint, or nil to probe it anonymously.
 	Auth *HostAuth
+	// Spec drives the scan from an OpenAPI document instead of crawling, or nil to crawl.
+	Spec *HostSpec
+}
+
+// HostSpec points a dynamic scan at an OpenAPI document, and says which methods it may exercise.
+type HostSpec struct {
+	// Path is the document, resolved relative to where Draugr runs.
+	Path string
+	// Methods are the HTTP methods to exercise. Empty means read-only.
+	Methods []string
+}
+
+// ReadMethods are what a spec-driven scan exercises when the descriptor names none. A
+// specification lists POST, PUT and DELETE too, and a scanner handed one will exercise them.
+var ReadMethods = []string{"get", "head"}
+
+// specMethods are the methods a spec-driven scan may be told to exercise.
+var specMethods = []string{"get", "head", "options", "trace", "post", "put", "patch", "delete"}
+
+// NormaliseMethods lower-cases, de-duplicates and orders a descriptor's method list, defaulting to
+// read-only.
+//
+// Here rather than in the scanner because the cache key is built from it: "GET" and "get" describe
+// the same scan, and a key telling them apart would re-run one having already answered the other.
+func NormaliseMethods(methods []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(methods))
+	for _, m := range methods {
+		m = strings.ToLower(strings.TrimSpace(m))
+		if m == "" || seen[m] || !slices.Contains(specMethods, m) {
+			continue
+		}
+		seen[m] = true
+		out = append(out, m)
+	}
+	if len(out) == 0 {
+		return slices.Clone(ReadMethods)
+	}
+	slices.Sort(out)
+	return out
+}
+
+// Marker describes a spec-driven scan without reading the document — the file, and the methods it
+// may use. Safe for a cache key: two scans of one endpoint exercising different methods are not
+// the same scan and must not share a result.
+func (s *HostSpec) Marker() string {
+	if s == nil {
+		return ""
+	}
+	return "spec=" + s.Path + " methods=" + strings.Join(NormaliseMethods(s.Methods), ",")
 }
 
 // HostAuth says how to authenticate, and deliberately cannot say what the credential is.
@@ -200,10 +250,13 @@ func (HostTarget) Kind() TargetKind { return TargetHost }
 // The marker names the variable rather than reading it. A variable name is not a secret; its
 // value must never reach a cache key on disk.
 func (t HostTarget) Identity() string {
-	if m := t.Auth.Marker(); m != "" {
-		return SourceURL(t.URL) + " " + m
+	id := SourceURL(t.URL)
+	for _, marker := range []string{t.Auth.Marker(), t.Spec.Marker()} {
+		if marker != "" {
+			id += " " + marker
+		}
 	}
-	return SourceURL(t.URL)
+	return id
 }
 
 // InfraTarget is an infrastructure surface (e.g. a Kubernetes cluster). Platform is the
