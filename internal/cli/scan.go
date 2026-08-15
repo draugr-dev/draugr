@@ -290,6 +290,13 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// above the report that explains them.
 	run, _ := engine.New(reg, eopts...).Run(ctx, *model)
 
+	// Erased here rather than only on the way out. The deferred call runs when this function
+	// returns, which is after the report has been written — so the line describing a run in
+	// progress stays on the terminal while the report prints over it, and the verdict arrives
+	// welded to a job counter. The run is finished at this point and the line has nothing left
+	// to say; done is idempotent, so the defer remains as the path for an early return.
+	progress.done()
+
 	reports := make(map[string]sarif.Report, len(run.Controls))
 	for name, cr := range run.Controls {
 		reports[name] = cr.Report

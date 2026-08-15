@@ -10,6 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The progress line no longer prints over the report.** It was erased when the command returned,
+  which is after the report has been written — so on a terminal the verdict arrived welded to a
+  job counter (`scanning 17/17    Draugr — FAIL`). It is now cleared the moment the run finishes,
+  before anything is rendered.
+
 ### Changed
 
 - **A contended tool cache is reported once, with its total, instead of a line per wait.** Draugr
@@ -32,6 +39,15 @@ and move it under a version on release.
   removed as their keys are rewritten; deleting the cache directory clears them all at once.
 
 ### Added
+
+- **The progress line says when jobs are failing**, as they fail:
+
+  ```
+  scanning 9/17 · 8 failed · sast/semgrep
+  ```
+
+  A run whose image jobs are all failing to authenticate is one to stop and fix. Learning that
+  only from the report means waiting out a scan that was never going to cover them.
 
 - **Findings say when their operating system is past end of service life.** Trivy reports it and
   Draugr was parsing past it.

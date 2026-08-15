@@ -123,3 +123,61 @@ func TestNoProgressWhenItWouldBeNoise(t *testing.T) {
 		t.Error("--no-tips should draw nothing")
 	}
 }
+
+// TestProgressTextShowsFailuresAsTheyHappen: a run whose jobs are failing is one a reader may
+// want to stop rather than wait out, and that choice is worth nothing once the report explains
+// it — by then they have already waited.
+func TestProgressTextShowsFailuresAsTheyHappen(t *testing.T) {
+	for _, c := range []struct {
+		name, want string
+		ev         engine.ProgressEvent
+	}{
+		{
+			name: "no failures says nothing about them",
+			ev:   engine.ProgressEvent{Total: 17, Complete: 3, Running: []string{"sast/semgrep"}},
+			want: "scanning 3/17 · sast/semgrep",
+		},
+		{
+			name: "failures come before what is in flight",
+			ev: engine.ProgressEvent{Total: 17, Complete: 9, Failed: 8,
+				Running: []string{"sast/semgrep"}},
+			want: "scanning 9/17 · 8 failed · sast/semgrep",
+		},
+		{
+			name: "failures with nothing left running",
+			ev:   engine.ProgressEvent{Total: 17, Complete: 17, Failed: 8},
+			want: "scanning 17/17 · 8 failed",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := progressText(c.ev); got != c.want {
+				t.Errorf("got  %q\nwant %q", got, c.want)
+			}
+		})
+	}
+}
+
+// TestProgressDoneIsIdempotent covers the shape the fix depends on.
+//
+// The line is erased when the run finishes, so the report starts on a clean row, and again on the
+// way out for a path that returned early. Erasing twice must be harmless — and the second must
+// not emit a second row of blanks, which on a terminal is an empty line nobody asked for.
+func TestProgressDoneIsIdempotent(t *testing.T) {
+	var buf bytes.Buffer
+	p := newProgressLineFor(&buf)
+	t.Cleanup(func() { active.Store(nil) })
+
+	p.update(engine.ProgressEvent{Total: 4, Complete: 1})
+	p.done()
+	afterFirst := buf.String()
+
+	p.done()
+	if got := buf.String(); got != afterFirst {
+		t.Errorf("the second erase wrote %q", got[len(afterFirst):])
+	}
+	// And nothing is left registered, so a log line afterwards is not routed through a line that
+	// is no longer on the terminal.
+	if active.Load() != nil {
+		t.Error("the finished line is still registered as the one on the terminal")
+	}
+}
