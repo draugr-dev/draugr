@@ -47,6 +47,15 @@ frontmatter and is rendered by the docs site. This index and the `contributing/`
 - [Pipeline](contributing/pipeline.md) — the run stage by stage, with a deep-dive on the gate.
 - [Naming & control taxonomy](contributing/naming.md) — what each control means and the Norse names.
 
+### Extending Draugr — how-to guides
+- [Start here](contributing/extending/README.md) — which piece you need, and the rules that apply to all of them.
+- [Add a scanner](contributing/extending/scanner.md) — run a different tool for a control that already exists.
+- [Add a control](contributing/extending/control.md) — a controller plus a scanner, for a question Draugr can't yet answer.
+- [Add a tool](contributing/extending/tool.md) — let `draugr tools install` provision it, pinned and verified.
+- [Add a surveyor](contributing/extending/surveyor.md) — discover components and write the Saga.
+- [Add a reporter](contributing/extending/reporter.md) — render the result in another format.
+- [Add a publisher](contributing/extending/publisher.md) — deliver the result somewhere.
+
 ## Building blocks
 
 The recurring names, and where each is explained in depth:
