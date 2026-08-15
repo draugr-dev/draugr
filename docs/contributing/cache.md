@@ -103,6 +103,42 @@ stays useful, because the entries already there were written by runs that were t
 Writing is discarded silently there, deliberately: a read-only cache is a configuration, not an
 error, and a scan that failed because it could not write a cache would be absurd.
 
+### What is on disk
+
+One file per key, in the cache directory:
+
+```
+<cache-dir>/<hex-sha256-of-the-key>.json      0600, in a directory created 0750
+```
+
+The contents are **gzipped JSON** of a small envelope — the report, and when it was stored:
+
+```json
+{"report": { … the whole SARIF report … }, "storedAt": "2026-08-15T20:28:34Z"}
+```
+
+Three details that are easy to get wrong when working on this:
+
+- **The extension says `.json` and the bytes are usually gzip.** Reads sniff the two-byte gzip
+  magic and decompress only when it is there, so an uncompressed entry written by an older build
+  still loads. A cached entry is a whole SARIF report and therefore repetitive by construction —
+  one measured entry went from 375 KB to 60 KB, which is the difference between a cache that is
+  cheap to restore in CI and one that costs more than the scan it saves.
+- **The TTL is enforced on read, from `storedAt`** — not from the file's mtime, which a restore
+  step or a copy would rewrite. An entry restored from a CI cache is as old as the scan that
+  produced it, not as old as the restore.
+- **Every failure is a miss, not an error.** Absent file, unreadable bytes, malformed JSON,
+  expired entry — all return `ok=false` and the job runs normally. A cache is an optimisation, and
+  a scan that failed because its cache was corrupt would be a worse outcome than the scan it
+  avoided. This is the one place in Draugr where swallowing an error is right, because the
+  fallback is doing the work properly rather than reporting a pass.
+
+There is no index and no manifest: a key is a filename, so two processes writing different keys
+never contend. Within a process a mutex serialises access; across processes nothing does, and it
+does not need to — a write to the same key carries an equivalent report, and the one way that can
+go wrong is a reader seeing a half-written file, which is a malformed read, which is a miss. The
+fail-soft rule above is what makes the absence of cross-process locking safe rather than lucky.
+
 ### Where the settings live
 
 Cache settings are machine configuration (`pkg/config`), **not** descriptor fields — a cache
