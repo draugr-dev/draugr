@@ -794,3 +794,54 @@ func withoutProvisionedCfg(t *testing.T) {
 	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
 	provisionedKubeBenchCfg = func() string { return "" }
 }
+
+// TestProviderOperatedNarrowsToWhatTheProviderRuns is the test the framework needs most.
+//
+// Marking a whole managed cluster as somebody else's problem would hide the half that is not:
+// RBAC, Pod Security and network policy are the team's whoever runs the control plane, and they
+// are usually the findings that matter. Between over- and under-claiming, under-claiming costs
+// noise and over-claiming costs a fix nobody makes.
+func TestProviderOperatedNarrowsToWhatTheProviderRuns(t *testing.T) {
+	for _, c := range []struct {
+		nodeType string
+		want     bool
+	}{
+		{"master", true},
+		{"etcd", true},
+		{"controlplane", true},
+		{"ControlPlane", true}, // kube-bench's casing is not something to depend on
+		{"node", false},        // node pools are usually configurable by the team
+		{"policies", false},    // RBAC and Pod Security are the team's, always
+		{"", false},
+	} {
+		t.Run(c.nodeType, func(t *testing.T) {
+			if got := providerRunsIt(c.nodeType); got != c.want {
+				t.Errorf("providerRunsIt(%q) = %v, want %v", c.nodeType, got, c.want)
+			}
+		})
+	}
+}
+
+// TestProviderOperatedIsOnlyClaimedWhenDeclared: a cluster nobody said anything about is the
+// team's, and every finding on it is theirs to act on.
+func TestProviderOperatedIsOnlyClaimedWhenDeclared(t *testing.T) {
+	const doc = `{"Controls":[{"version":"cis-1.12","node_type":"master","tests":[
+	 {"section":"1.1","desc":"Control plane node configuration","results":[
+	  {"test_number":"1.1.1","test_desc":"API server pod file permissions","status":"FAIL","scored":true}]}]}]}`
+
+	declared, err := parseKubeBenchOperated([]byte(doc), "kube-bench-job", "kubernetes/c", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !declared.Results[0].ProviderOperated {
+		t.Error("a control-plane finding on a declared managed cluster is not the team's to fix")
+	}
+
+	undeclared, err := parseKubeBenchOperated([]byte(doc), "kube-bench-job", "kubernetes/c", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if undeclared.Results[0].ProviderOperated {
+		t.Error("claimed somebody else operates a cluster nobody said was managed")
+	}
+}

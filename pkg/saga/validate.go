@@ -231,6 +231,15 @@ func validateComponents(comps []Component) []error {
 			errs = append(errs, validateHostAuth(h.Auth, fmt.Sprintf("%s: hosts[%d].auth", where, j))...)
 			errs = append(errs, validateHostSpec(h.Spec, fmt.Sprintf("%s: hosts[%d].spec", where, j))...)
 		}
+		for j, infra := range c.Infrastructure {
+			// A misspelling here reads as "self", so the findings a managed control plane cannot
+			// act on stay at the top of the list — the descriptor claims a decision it is not
+			// making, and the run looks the same either way.
+			if infra.OperatedBy != "" && !infra.OperatedBy.Valid() {
+				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].operatedBy %q is not one of %v",
+					where, j, infra.OperatedBy, OperatedByValues))
+			}
+		}
 	}
 	return errs
 }

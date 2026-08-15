@@ -142,7 +142,10 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	if err := verifyBenchmark(doc, plan.platform); err != nil {
 		return sarif.Report{}, err
 	}
-	return reportFromKubeBench(doc, kubeBenchScannerName, clusterLabel(kubeContext(target, cfg))), nil
+	// false: this scanner runs the policies section, which is RBAC, Pod Security and network
+	// policy — the team's whoever operates the cluster underneath them.
+	return reportFromKubeBench(
+		doc, kubeBenchScannerName, clusterLabel(kubeContext(target, cfg)), false), nil
 }
 
 // kubeContextEnv writes a kubeconfig whose current context is the one being audited, and returns
@@ -613,11 +616,18 @@ type kubeBenchFinding struct {
 // checked, and a report listing three hundred passing checks buries the dozen that failed —
 // the same reasoning that keeps permissive licences out of the licences control.
 func parseKubeBench(out []byte, tool, location string) (sarif.Report, error) {
+	return parseKubeBenchOperated(out, tool, location, false)
+}
+
+// parseKubeBenchOperated is parseKubeBench for a cluster whose control plane somebody else runs.
+func parseKubeBenchOperated(
+	out []byte, tool, location string, providerOperated bool,
+) (sarif.Report, error) {
 	doc, err := decodeKubeBench(out)
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	return reportFromKubeBench(doc, tool, location), nil
+	return reportFromKubeBench(doc, tool, location, providerOperated), nil
 }
 
 // decodeKubeBench reads the tool's JSON. Separate from rendering so a caller that has an
@@ -631,7 +641,9 @@ func decodeKubeBench(out []byte) (kubeBenchDoc, error) {
 	return doc, nil
 }
 
-func reportFromKubeBench(doc kubeBenchDoc, tool, location string) sarif.Report {
+func reportFromKubeBench(
+	doc kubeBenchDoc, tool, location string, providerOperated bool,
+) sarif.Report {
 	report := sarif.Report{Tool: tool, Rules: map[string]sarif.Rule{}}
 	// The benchmark kube-bench reports having used, which is the thing verifyBenchmark checks and
 	// the thing a reader of the evidence needs: a report that does not name the standard it
@@ -667,11 +679,12 @@ func reportFromKubeBench(doc kubeBenchDoc, tool, location string) sarif.Report {
 				}
 				ruleID := kubeBenchCISRulePrefix + res.TestNumber
 				report.Results = append(report.Results, sarif.Result{
-					Tool:     tool,
-					RuleID:   ruleID,
-					Level:    level,
-					Message:  res.TestDesc,
-					Location: sarif.Location{URI: location},
+					Tool:             tool,
+					RuleID:           ruleID,
+					Level:            level,
+					Message:          res.TestDesc,
+					Location:         sarif.Location{URI: location},
+					ProviderOperated: providerOperated && providerRunsIt(ctl.NodeType),
 				})
 				report.Rules[ruleID] = sarif.Rule{
 					Name:             ctl.Text,
@@ -748,4 +761,25 @@ func refuseNamespaceScope(scanner string, namespaces []string) error {
 		"%s always audits the whole cluster and cannot be narrowed to a namespace. Use the "+
 			"draugrK8sPolicies scanner instead, or remove `namespaces` from the component's "+
 			"infrastructure entry", scanner)
+}
+
+// providerRunsIt says whether a managed platform, rather than the team using it, runs the part of
+// the cluster this group of checks examines.
+//
+// kube-bench groups its checks by the node type they apply to, which is exactly the split that
+// matters. On a managed cluster the API server, etcd and the controller manager are unreachable —
+// there is no host to log into and no file to chmod — so a finding about their configuration is
+// not something the team can act on however true it is.
+//
+// The worker node type is deliberately not included. Node configuration is often the team's on a
+// managed platform, through node pool settings, and marking a finding as somebody else's when it
+// is theirs hides work they could have done. Between over- and under-claiming here, under-claiming
+// costs noise and over-claiming costs a fix nobody makes.
+func providerRunsIt(nodeType string) bool {
+	switch strings.ToLower(strings.TrimSpace(nodeType)) {
+	case "master", "etcd", "controlplane":
+		return true
+	default:
+		return false
+	}
 }

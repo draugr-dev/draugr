@@ -126,6 +126,13 @@ type Result struct {
 	// coming, and upgrading the release is the only action that resolves it. That is usually the
 	// highest-leverage move available, because it resolves every finding in the OS layer at once.
 	OSEndOfLife bool `json:"osEndOfLife,omitempty"`
+	// ProviderOperated marks a finding about a surface somebody else runs — the control plane of
+	// a managed Kubernetes cluster being the case it exists for.
+	//
+	// Set from what the descriptor declares, never guessed: whether a cluster is managed is a
+	// fact about a contract, not something visible in what a scanner reads. It is the same
+	// argument that puts exposure and criticality in the descriptor.
+	ProviderOperated bool `json:"providerOperated,omitempty"`
 	// Layer is the image layer the finding's package arrived in. Nil for anything that is not an
 	// image finding, and for an image whose scanner did not report one.
 	//
@@ -146,6 +153,45 @@ type Result struct {
 	// conclusion and withholds its premise is a hint rather than evidence, and "critical because
 	// CISA observed this being exploited, as of a date you can check" is the premise.
 	Escalation *Escalation `json:"escalation,omitempty"`
+}
+
+// Remediation says who can resolve a finding and by what kind of action. It is the answer to
+// "can I do something about this", which is the question a reader has after the severity.
+type Remediation string
+
+// The kinds of remediation, most actionable first.
+const (
+	// RemediationUpgrade: a version that fixes it exists, in something the reader controls.
+	RemediationUpgrade Remediation = "upgrade"
+	// RemediationUpstream: nothing fixes it where it is, but the thing underneath can move —
+	// an operating system release past end of service life, whose successor is the fix. One
+	// action, and it resolves everything in that layer at once.
+	RemediationUpstream Remediation = "upstream"
+	// RemediationExternal: the surface is operated by somebody else. Still found, still
+	// reported, still counted — never presented as something to go and fix, because telling a
+	// reader to change a file on a control plane they cannot reach is worse than saying nothing.
+	RemediationExternal Remediation = "external"
+	// RemediationNone: no fix is published anywhere, and the thing it is in is the reader's.
+	// Mitigation or acceptance, rather than an upgrade.
+	RemediationNone Remediation = "none"
+)
+
+// Remediation classifies what can be done about the finding.
+//
+// Computed rather than stored, from facts each recorded by whoever knows them: the scanner
+// reports a fixed version, the scanner reports end of service life, the descriptor declares who
+// operates the surface. Storing the conclusion as well would let it disagree with its premises.
+func (r Result) Remediation() Remediation {
+	switch {
+	case r.ProviderOperated:
+		return RemediationExternal
+	case r.Package != nil && r.Package.FixedVersion != "":
+		return RemediationUpgrade
+	case r.OSEndOfLife:
+		return RemediationUpstream
+	default:
+		return RemediationNone
+	}
 }
 
 // Layer identifies the image layer a finding's package came from, and the build step that made it.
