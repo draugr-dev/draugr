@@ -22,15 +22,43 @@ import (
 
 // trivyVulnDoc is the slice of Trivy's JSON this reads.
 type trivyVulnDoc struct {
+	Metadata struct {
+		// OS is the distribution of the image's base layer. Absent for a filesystem scan, and
+		// for an image Trivy could not identify — in which case no OS is claimed.
+		OS struct {
+			Family string `json:"Family"`
+			Name   string `json:"Name"`
+		} `json:"OS"`
+	} `json:"Metadata"`
 	Results []trivyVulnResult `json:"Results"`
+}
+
+// operatingSystem is the OS as a consumer names it: "debian 11.11".
+//
+// Empty when Trivy identified no distribution, which is the honest answer for a scratch or
+// distroless image. Nothing downstream may invent one: GitLab's schema requires the field with a
+// minimum length, and a plausible-looking value there is a claim it will render and act on.
+func (d trivyVulnDoc) operatingSystem() string {
+	os := d.Metadata.OS
+	if os.Family == "" {
+		return ""
+	}
+	if os.Name == "" {
+		return os.Family
+	}
+	return os.Family + " " + os.Name
 }
 
 type trivyVulnResult struct {
 	// Target is the manifest or layer the packages were found in — "requirements.txt", "go.mod",
 	// an image's OS package database. More precise than the SARIF location, which points at the
 	// scanned root.
-	Target          string      `json:"Target"`
-	Type            string      `json:"Type"`
+	Target string `json:"Target"`
+	Type   string `json:"Type"`
+	// Class separates the image's own package database from the language ecosystems installed
+	// on top of it. Only the first has an operating system to name; a vulnerable npm package in
+	// a Debian image is not a Debian finding.
+	Class           string      `json:"Class"`
 	Vulnerabilities []trivyVuln `json:"Vulnerabilities"`
 }
 
@@ -53,6 +81,9 @@ type trivyVuln struct {
 	} `json:"CVSS"`
 }
 
+// trivyClassOSPkgs is Trivy's name for a result set drawn from the image's own package database.
+const trivyClassOSPkgs = "os-pkgs"
+
 // parseTrivyVulns turns Trivy's JSON into the report Draugr publishes.
 func parseTrivyVulns(out []byte, _ string, _ plugin.Config) (sarif.Report, error) {
 	var doc trivyVulnDoc
@@ -62,7 +93,7 @@ func parseTrivyVulns(out []byte, _ string, _ plugin.Config) (sarif.Report, error
 	rep := sarif.Report{Tool: "trivy", Rules: map[string]sarif.Rule{}}
 	for _, res := range doc.Results {
 		for _, v := range res.Vulnerabilities {
-			rep.Results = append(rep.Results, trivyVulnResultOf(res, v))
+			rep.Results = append(rep.Results, trivyVulnResultOf(doc, res, v))
 			if _, seen := rep.Rules[v.VulnerabilityID]; !seen {
 				rep.Rules[v.VulnerabilityID] = trivyVulnRule(v)
 			}
@@ -72,16 +103,27 @@ func parseTrivyVulns(out []byte, _ string, _ plugin.Config) (sarif.Report, error
 }
 
 // trivyVulnResultOf builds one finding.
-func trivyVulnResultOf(res trivyVulnResult, v trivyVuln) sarif.Result {
+//
+// The operating system comes from the document, because Trivy is the only party that knows it.
+// The image does not: it is the target's own identity, and is set alongside the location by the
+// scanner that knows which image it asked for. One fact, one source.
+func trivyVulnResultOf(doc trivyVulnDoc, res trivyVulnResult, v trivyVuln) sarif.Result {
 	score, hasScore := trivyVulnScore(v)
+	// Only the image's own package database has an operating system to name. A language package
+	// installed on top of it belongs to its ecosystem, not to the distribution underneath.
+	var operatingSystem string
+	if res.Class == trivyClassOSPkgs {
+		operatingSystem = doc.operatingSystem()
+	}
 	return sarif.Result{
-		Tool:     "trivy",
-		RuleID:   v.VulnerabilityID,
-		Level:    trivyVulnLevel(v.Severity),
-		Message:  trivyVulnMessage(v),
-		Location: sarif.Location{URI: res.Target},
-		Score:    score,
-		HasScore: hasScore,
+		OperatingSystem: operatingSystem,
+		Tool:            "trivy",
+		RuleID:          v.VulnerabilityID,
+		Level:           trivyVulnLevel(v.Severity),
+		Message:         trivyVulnMessage(v),
+		Location:        sarif.Location{URI: res.Target},
+		Score:           score,
+		HasScore:        hasScore,
 		Package: &sarif.Package{
 			Name:         v.PkgName,
 			Version:      v.InstalledVersion,
@@ -154,4 +196,13 @@ func trivyVulnScore(v trivyVuln) (float64, bool) {
 		}
 	}
 	return best, found
+}
+
+// parseTrivyImage adapts parseTrivyVulns to the tool adapter's signature.
+//
+// The target is unused: everything this reads is in Trivy's output, and the one fact that comes
+// from the target — the image reference — is applied by imageRefLocations alongside the location,
+// so the two can never disagree.
+func parseTrivyImage(out []byte, _ plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+	return parseTrivyVulns(out, "", cfg)
 }

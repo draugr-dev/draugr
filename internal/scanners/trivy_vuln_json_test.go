@@ -179,3 +179,80 @@ func TestTrivyVulnsOnACleanScan(t *testing.T) {
 		t.Errorf("got %d findings from a clean scan", len(rep.Results))
 	}
 }
+
+// realTrivyImageOutput is what Trivy 0.69.3 printed for debian:11-slim, abridged to two of its
+// 198 findings — one in the OS layer with no fix, and one in a language ecosystem on top of it,
+// because those are the two branches the operating system has to tell apart.
+//
+// Real output rather than an invention: a hand-written fixture tests the parser against the shape
+// its author imagined, which is the shape the parser already handles.
+const realTrivyImageOutput = `{
+ "ArtifactName": "debian:11-slim",
+ "ArtifactType": "container_image",
+ "Metadata": {"OS": {"Family": "debian", "Name": "11.11", "EOSL": true}},
+ "Results": [
+  {"Target": "debian:11-slim (debian 11.11)", "Class": "os-pkgs", "Type": "debian",
+   "Vulnerabilities": [
+    {"VulnerabilityID": "CVE-2011-3374", "PkgName": "apt", "InstalledVersion": "2.2.4",
+     "PkgIdentifier": {"PURL": "pkg:deb/debian/apt@2.2.4?arch=amd64&distro=debian-11.11"},
+     "Severity": "LOW", "Title": "apt-key does not correctly validate gpg keys",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2011-3374",
+     "CVSS": {"nvd": {"V3Score": 3.7}}}]},
+  {"Target": "app/package-lock.json", "Class": "lang-pkgs", "Type": "npm",
+   "Vulnerabilities": [
+    {"VulnerabilityID": "CVE-2020-8203", "PkgName": "lodash", "InstalledVersion": "4.17.15",
+     "FixedVersion": "4.17.19", "Severity": "HIGH", "Title": "Prototype pollution in lodash",
+     "CVSS": {"nvd": {"V3Score": 7.4}}}]}]}`
+
+// TestParseTrivyImageNamesTheOperatingSystem covers the field GitLab's container-scanning schema
+// requires and no SARIF carries.
+//
+// The distinction it pins is which findings get one. A vulnerable npm package inside a Debian
+// image is not a Debian finding: it belongs to its ecosystem, and claiming otherwise would file
+// it under an operating system that has nothing to do with it.
+func TestParseTrivyImageNamesTheOperatingSystem(t *testing.T) {
+	rep, err := parseTrivyVulns([]byte(realTrivyImageOutput), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 2 {
+		t.Fatalf("want two findings, got %d", len(rep.Results))
+	}
+
+	osFinding, langFinding := rep.Results[0], rep.Results[1]
+	if osFinding.OperatingSystem != "debian 11.11" {
+		t.Errorf("os-pkgs finding: operating system = %q, want %q",
+			osFinding.OperatingSystem, "debian 11.11")
+	}
+	if langFinding.OperatingSystem != "" {
+		t.Errorf("a language-ecosystem finding has no operating system to name, got %q",
+			langFinding.OperatingSystem)
+	}
+	// Package identity still arrives, which is the other half GitLab requires.
+	if osFinding.Package == nil || osFinding.Package.Name != "apt" {
+		t.Errorf("package = %+v", osFinding.Package)
+	}
+	if osFinding.Package.PURL == "" {
+		t.Error("the purl is what makes the package identifiable across ecosystems")
+	}
+}
+
+// TestOperatingSystemIsNeverGuessed covers the image Trivy cannot identify — a scratch or
+// distroless one.
+//
+// GitLab's schema requires the field with a minimum length, so the temptation is to fill it. A
+// plausible-looking value there is a claim GitLab renders, attributes to Draugr, and acts on in a
+// policy; an omitted finding is merely absent. The empty answer is the honest one, and what to do
+// about it belongs to the reporter.
+func TestOperatingSystemIsNeverGuessed(t *testing.T) {
+	const noOS = `{"ArtifactName":"scratch:latest","Results":[
+	 {"Target":"x","Class":"os-pkgs","Type":"","Vulnerabilities":[
+	  {"VulnerabilityID":"CVE-1","PkgName":"p","InstalledVersion":"1","Severity":"HIGH"}]}]}`
+	rep, err := parseTrivyVulns([]byte(noOS), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rep.Results[0].OperatingSystem; got != "" {
+		t.Errorf("operating system = %q, want empty — nothing identified one", got)
+	}
+}

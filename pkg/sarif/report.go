@@ -105,6 +105,19 @@ type Result struct {
 	// resource. Set by the scanners that know, which is those reading a package manifest or an
 	// image's installed set.
 	Package *Package `json:"package,omitempty"`
+	// Image is the container image a finding is about, for the scanners that scan one.
+	//
+	// It travels on the finding rather than being recovered from the component afterwards,
+	// because a component may hold several images: recovering it later can only produce one
+	// answer for all of them, which would be right whenever there is one image and silently
+	// wrong the moment there are two.
+	Image string `json:"image,omitempty"`
+	// OperatingSystem is the OS whose package set contains the finding, e.g. "debian 12".
+	//
+	// Set only for findings in an image's OS layer, which is what distinguishes a vulnerable
+	// system package from a vulnerable application dependency sitting on top of it. Empty for a
+	// finding in a language ecosystem, where there is no OS answer to give.
+	OperatingSystem string `json:"operatingSystem,omitempty"`
 	// Suppression is set when a Saga exclusion matched this finding. A suppressed result is
 	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
 	// Nil for an active finding.

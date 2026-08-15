@@ -26,7 +26,9 @@ func TestTrivyArgv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"trivy", "image", "--quiet", "--format", "sarif", "repo/app:1.0"}
+	// JSON, not SARIF: Trivy's SARIF names the package only in prose and carries no operating
+	// system at all, so an image finding built from it cannot say what it is about.
+	want := []string{"trivy", "image", "--quiet", "--format", "json", "repo/app:1.0"}
 	if len(argv) != len(want) {
 		t.Fatalf("argv = %v", argv)
 	}
@@ -153,5 +155,53 @@ func TestOfflineTrivyArgs(t *testing.T) {
 	}
 	if !slices.Contains(img, "--skip-db-update") || img[len(img)-1] != "acme/api:1" {
 		t.Errorf("image argv: %v", img)
+	}
+}
+
+// TestImageRefLocationsNamesEachImage is the two-image case.
+//
+// A component may hold several images, and Draugr plans one job per image. With one image a
+// per-image value and a per-component one are indistinguishable; with two, anything that resolves
+// the image after the fact reports whichever job finished last for both. Each report is refined
+// against its own target here, which is what keeps them apart.
+func TestImageRefLocationsNamesEachImage(t *testing.T) {
+	first := imageRefLocations(
+		plugin.ImageTarget{Ref: "registry.example.com/api:1.4"},
+		sarif.Report{Results: []sarif.Result{{RuleID: "CVE-1"}, {RuleID: "CVE-2"}}},
+	)
+	second := imageRefLocations(
+		plugin.ImageTarget{Ref: "registry.example.com/worker:2.0"},
+		sarif.Report{Results: []sarif.Result{{RuleID: "CVE-1"}}},
+	)
+
+	for _, r := range first.Results {
+		if r.Image != "registry.example.com/api:1.4" {
+			t.Errorf("first image's finding names %q", r.Image)
+		}
+	}
+	if got := second.Results[0].Image; got != "registry.example.com/worker:2.0" {
+		t.Errorf("second image's finding names %q", got)
+	}
+	// The same rule id in both, which is exactly when a collapsed image becomes indistinguishable.
+	if first.Results[0].Image == second.Results[0].Image {
+		t.Error("two images produced one image reference — a per-image value collapsed")
+	}
+	// The location keeps agreeing with the image, because they are the same answer.
+	if first.Results[0].Location.URI != first.Results[0].Image {
+		t.Errorf("location %q and image %q disagree",
+			first.Results[0].Location.URI, first.Results[0].Image)
+	}
+}
+
+// TestImageRefLocationsLeavesNonImageTargetsAlone guards the shared refine: the same function
+// runs for every scanner configured with it, and a repository target has no image to name.
+func TestImageRefLocationsLeavesNonImageTargetsAlone(t *testing.T) {
+	in := sarif.Report{Results: []sarif.Result{{RuleID: "CVE-1", Location: sarif.Location{URI: "a.go"}}}}
+	out := imageRefLocations(plugin.RepositoryTarget{URL: "https://example.com/r.git"}, in)
+	if out.Results[0].Image != "" {
+		t.Errorf("a repository finding must not claim an image, got %q", out.Results[0].Image)
+	}
+	if out.Results[0].Location.URI != "a.go" {
+		t.Errorf("the location was rewritten: %q", out.Results[0].Location.URI)
 	}
 }

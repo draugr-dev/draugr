@@ -198,6 +198,14 @@ type sarifProperties struct {
 	// and by the formats a platform consumes, and a fact that only exists in memory is one every
 	// one of those has to do without.
 	Package *Package `json:"package,omitempty"`
+	// Image and OperatingSystem describe the container a finding was found in. They survive the
+	// file for the reason Repository does — a report is written and read back by `draugr diff`
+	// and by every platform format, and a fact that exists only in memory is one all of them
+	// have to do without. GitLab's container-scanning schema requires both, and neither can be
+	// guessed: a required field filled with something plausible is a claim a platform will
+	// render, attribute to Draugr, and act on in a policy.
+	Image           string `json:"image,omitempty"`
+	OperatingSystem string `json:"operatingSystem,omitempty"`
 	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
 	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
 	Tags []string `json:"tags,omitempty"`
@@ -338,10 +346,15 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			}
 			sr.Locations = append(sr.Locations, loc)
 		}
-		if tool != "" || res.HasScore || res.Priority != "" {
+		// Image and OperatingSystem are in the condition because they are the whole content of a
+		// container-scanning finding: writing the block only for a tool, a score or a priority
+		// would drop them for any finding carrying nothing else.
+		if tool != "" || res.HasScore || res.Priority != "" || res.Image != "" ||
+			res.OperatingSystem != "" {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Priority: res.Priority, Component: res.Component,
 				Repository: res.Repository, Package: res.Package,
+				Image: res.Image, OperatingSystem: res.OperatingSystem,
 			}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
@@ -537,6 +550,8 @@ func FromSARIF(data []byte) (Report, error) {
 				// component, collapse into a single finding at exactly the moment it mattered.
 				res.Component = sr.Properties.Component
 				res.Repository = sr.Properties.Repository
+				res.Image = sr.Properties.Image
+				res.OperatingSystem = sr.Properties.OperatingSystem
 				res.Package = sr.Properties.Package
 			}
 			out.Results = append(out.Results, res)

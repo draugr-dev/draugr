@@ -36,8 +36,13 @@ const trivyConfigSchema = `{
   }
 }`
 
-// NewTrivy returns a Scanner that runs Aqua Trivy against container images and returns
-// its native SARIF output. It serves the "images" control.
+// NewTrivy returns a Scanner that runs Aqua Trivy against container images. It serves the
+// "images" control.
+//
+// JSON rather than SARIF, for the reason the filesystem scanner already reads JSON: the SARIF
+// names the package only in prose. An image finding needs three facts a consumer can act on —
+// which package, which image, and which operating system — and the last two have no SARIF field
+// at all, so a platform that files findings by report type has nothing to file these under.
 func NewTrivy() plugin.Scanner {
 	return tooladapter.New(tooladapter.Config{
 		Name:         "trivy",
@@ -48,6 +53,7 @@ func NewTrivy() plugin.Scanner {
 		ConfigSchema: json.RawMessage(trivyConfigSchema),
 		Argv:         trivyArgv,
 		Run:          retryingRun("trivy", execArgv),
+		Parse:        parseTrivyImage,
 		CacheVersion: sharedTrivyVersion.cacheVersion,
 		Prewarm:      sharedTrivyDB.warm,
 		Refine:       imageRefLocations,
@@ -115,7 +121,7 @@ func offlineTrivyArgs(argv []string) []string {
 	return append(out, argv[len(argv)-1])
 }
 
-// trivyArgv builds `trivy image --quiet --format sarif <ref>` for an image target.
+// trivyArgv builds `trivy image --quiet --format json <ref>` for an image target.
 func trivyArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 	img, ok := target.(plugin.ImageTarget)
 	if !ok {
@@ -125,11 +131,11 @@ func trivyArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 	if ref == "" {
 		return nil, errors.New("trivy: image target has neither ref nor digest")
 	}
-	argv := []string{"trivy", "image", "--quiet", "--format", "sarif"}
+	argv := []string{"trivy", "image", "--quiet", "--format", "json"}
 	return offlineTrivyArgs(append(trivyOptions(argv, cfg), ref)), nil
 }
 
-// imageRefLocations restates an image finding's location as the image that was scanned.
+// imageRefLocations restates an image finding's location, and names the image it belongs to.
 //
 // Neither scanner reports a location a reader can use. Trivy gives "library/python" at line 1:
 // the registry path with the tag dropped, and a line number that means nothing for a container
@@ -153,6 +159,10 @@ func imageRefLocations(target plugin.Target, report sarif.Report) sarif.Report {
 	}
 	for i := range report.Results {
 		report.Results[i].Location = sarif.Location{URI: ref}
+		// The same answer, kept as a field rather than only as a location. A consumer asking
+		// "which image is this finding about" should not have to parse a location string and
+		// guess whether it happens to be an image reference this time.
+		report.Results[i].Image = ref
 	}
 	return report
 }

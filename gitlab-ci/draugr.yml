@@ -89,7 +89,7 @@ draugr:
       # adding to it, so sarif is named explicitly: the merge-request path below diffs two
       # results.sarif files, and a scan that did not write one fails on a missing file rather than
       # on anything that points at the report list.
-      reports="json,sarif,gitlab-sast,gitlab-dependency-scanning,gitlab-secret-detection,gitlab-codequality,gitlab-cyclonedx"
+      reports="json,sarif,gitlab-sast,gitlab-dependency-scanning,gitlab-secret-detection,gitlab-container-scanning,gitlab-codequality,gitlab-cyclonedx"
 
       if [ -z "${CI_MERGE_REQUEST_IID:-}" ]; then
         # A branch pipeline: the whole descriptor, gated by its own policy.
@@ -138,6 +138,10 @@ draugr:
       sast: draugr-out/gl-sast-report.json
       dependency_scanning: draugr-out/gl-dependency-scanning-report.json
       secret_detection: draugr-out/gl-secret-detection-report.json
+      # container_scanning covers findings in the images the descriptor names. A finding whose
+      # image has no identifiable distribution is not in here — the schema requires an operating
+      # system on every row — and reaches the reviewer through codequality instead.
+      container_scanning: draugr-out/gl-container-scanning-report.json
       codequality: draugr-out/gl-code-quality-report.json
       # The Dependency List and License Compliance read a CycloneDX SBOM rather than a report of
       # their own. This is the `gitlab-cyclonedx` rendering of the SBOM `config.sbom` produces —

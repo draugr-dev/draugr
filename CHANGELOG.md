@@ -10,7 +10,31 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Image findings say which image and which operating system they came from**, and a new
+  `gitlab-container-scanning` report files them where GitLab looks for them.
+
+  GitLab routes findings by report type — its deduplication, its merge-request widget and its
+  approval policies all key on it. Container findings previously arrived only through Code
+  Quality, so a container-scanning approval policy looked in a report that did not exist and
+  found nothing, which reads as a clean image.
+
+  ```bash
+  draugr scan draugr.saga.yaml -o out/ --report gitlab-container-scanning
+  ```
+
+  The image reference and the operating system are now fields on every image finding, in the
+  report and in the SARIF, so `draugr diff` and every platform format still have them on the
+  second read. A finding whose image has no identifiable distribution — scratch, distroless — is
+  left out of this report rather than given an invented one, and still reaches a reviewer through
+  `gitlab-codequality`.
+
+### Changed
+
+- **Image scans read Trivy's JSON rather than its SARIF**, which is where the package identity and
+  the operating system are. Image findings now carry the same structured package — name, version,
+  the version that fixes it, and a purl — that dependency findings already did.
 
 ## [0.94.0] - 2026-08-15
 

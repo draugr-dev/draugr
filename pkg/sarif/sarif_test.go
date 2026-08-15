@@ -750,3 +750,52 @@ func TestFromSARIFWithoutProvenanceCarriesNone(t *testing.T) {
 		t.Errorf("nothing to read back: %+v", out.Provenance)
 	}
 }
+
+// TestImageAndOSSurviveTheFile is the round trip.
+//
+// A report is written and read back — by `draugr diff`, and by every platform format that reads
+// the SARIF rather than the run that produced it. A field that exists only in memory is one all
+// of those have to do without, and the loss is invisible: the first read is the one that works.
+func TestImageAndOSSurviveTheFile(t *testing.T) {
+	in := Report{
+		Tool: "trivy",
+		Results: []Result{{
+			Tool:            "trivy",
+			RuleID:          "CVE-2011-3374",
+			Level:           LevelNote,
+			Message:         "apt 2.2.4",
+			Location:        Location{URI: "debian:11-slim"},
+			Image:           "debian:11-slim",
+			OperatingSystem: "debian 11.11",
+		}, {
+			Tool:    "trivy",
+			RuleID:  "CVE-2020-8203",
+			Level:   LevelError,
+			Message: "lodash 4.17.15",
+			Image:   "debian:11-slim",
+			// No operating system: a language package is not a distribution finding.
+		}},
+	}
+
+	data, err := in.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Results) != len(in.Results) {
+		t.Fatalf("read back %d results, wrote %d", len(out.Results), len(in.Results))
+	}
+	for i, want := range in.Results {
+		got := out.Results[i]
+		if got.Image != want.Image {
+			t.Errorf("result %d: image = %q, want %q", i, got.Image, want.Image)
+		}
+		if got.OperatingSystem != want.OperatingSystem {
+			t.Errorf("result %d: operating system = %q, want %q",
+				i, got.OperatingSystem, want.OperatingSystem)
+		}
+	}
+}
