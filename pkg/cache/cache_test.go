@@ -102,11 +102,11 @@ func TestLocalCompressesEntries(t *testing.T) {
 	}
 
 	//nolint:gosec // a path under the test's own temp dir
-	stored, err := os.ReadFile(filepath.Join(dir, "k.json"))
+	stored, err := os.ReadFile(filepath.Join(dir, "k"+entrySuffix))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.HasPrefix(stored, gzipMagic) {
+	if !bytes.HasPrefix(stored, []byte{0x1f, 0x8b}) {
 		t.Fatal("entry was not compressed")
 	}
 	raw, err := json.Marshal(entry{Report: sarif.Report{Tool: "trivy", Results: results}})
@@ -123,9 +123,13 @@ func TestLocalCompressesEntries(t *testing.T) {
 	}
 }
 
-func TestLocalReadsUncompressedEntries(t *testing.T) {
-	// A cache written by an older Draugr is plain JSON. Refusing it would silently discard a warm
-	// cache on upgrade — a full re-scan for a change that alters no answer.
+// TestLocalLeavesNoEntryUnderTheOldName covers the rename.
+//
+// Entries were called `.json` when they were plain JSON and kept the name when compression
+// landed, so the extension described bytes that were not there. Renaming costs one cold cache,
+// which is what a cache is for; what it must not cost is a file that is never read again and
+// never removed, because nothing evicts anything — expiry only makes a read miss.
+func TestLocalLeavesNoEntryUnderTheOldName(t *testing.T) {
 	dir := t.TempDir()
 	data, err := json.Marshal(entry{
 		Report:   sarif.Report{Tool: "trivy", Results: []sarif.Result{{RuleID: "CVE-1"}}},
@@ -134,16 +138,26 @@ func TestLocalReadsUncompressedEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "old.json"), data, 0o600); err != nil {
+	legacy := filepath.Join(dir, "old"+legacySuffix)
+	if err := os.WriteFile(legacy, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	got, ok := NewLocal(dir, 0).Get("old")
-	if !ok {
-		t.Fatal("a pre-compression entry was discarded")
+	c := NewLocal(dir, 0)
+	// Not read: the name no longer describes an entry, and serving one would mean guessing at
+	// the encoding from the bytes rather than knowing it from the name.
+	if _, ok := c.Get("old"); ok {
+		t.Error("an entry under the pre-compression name was served")
 	}
-	if len(got.Results) != 1 || got.Results[0].RuleID != "CVE-1" {
-		t.Errorf("read back %+v", got.Results)
+	// And writing that key clears it, rather than leaving it to sit there forever.
+	if err := c.Put("old", sarif.Report{Tool: "trivy"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+		t.Errorf("the superseded entry is still on disk (%v), so the directory only grows", err)
+	}
+	if _, ok := c.Get("old"); !ok {
+		t.Error("the newly written entry should read back")
 	}
 }
 
@@ -151,10 +165,10 @@ func TestLocalIgnoresCorruptEntries(t *testing.T) {
 	dir := t.TempDir()
 	// Truncated gzip, and gzip-looking bytes that are not.
 	for name, body := range map[string][]byte{
-		"a": append(append([]byte{}, gzipMagic...), 0x08, 0x00, 0x99),
+		"a": {0x1f, 0x8b, 0x08, 0x00, 0x99},
 		"b": []byte("{not json"),
 	} {
-		if err := os.WriteFile(filepath.Join(dir, name+".json"), body, 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name+entrySuffix), body, 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if _, ok := NewLocal(dir, 0).Get(name); ok {
