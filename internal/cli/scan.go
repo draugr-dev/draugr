@@ -46,6 +46,7 @@ type scanOptions struct {
 	cacheTTL           time.Duration
 	cacheReadOnly      bool
 	cacheRequireDigest bool
+	group              string
 	minPriority        string
 	// artifactMinPriority narrows the written artifacts as well, which --min-priority
 	// deliberately does not. Separate because they answer to different readers: one trims a
@@ -83,7 +84,7 @@ var scanFlagGroups = []flagGroup{
 	{"What fails the build", []string{"fail-on", "fail-on-priority", "no-gate", "allow-scan-errors"}},
 	{"Exploitability data", []string{"kev", "epss", "epss-threshold"}},
 	{"Output", []string{
-		"format", "output", "report", "top", "min-priority", "artifact-min-priority",
+		"format", "output", "report", "group", "top", "min-priority", "artifact-min-priority",
 		"compact", "template", "template-file", "no-tips",
 	}},
 	{"Caching", []string{"cache-dir", "cache-ttl", "cache-read-only", "cache-require-digest"}},
@@ -119,6 +120,8 @@ func newScanCommand() *cobra.Command {
 			"where `draugr diff` is the gate")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.LevelError), "severity that fails the gate: error, warning, note")
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "", "also fail the gate on any finding at or above this priority (P1-P4)")
+	cmd.Flags().StringVar(&opts.group, "group", groupAction,
+		"how the fix list is organised: `action` (one row per thing to do) or none (one per finding)")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
 	cmd.Flags().BoolVar(&opts.cacheReadOnly, "cache-read-only", false,
@@ -228,6 +231,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	if opts.top < 0 {
 		return fmt.Errorf("--top must be >= 0 (0 = show all)")
+	}
+	if err := validateGroup(opts.group); err != nil {
+		return err
 	}
 
 	eopts := []engine.Option{
@@ -340,6 +346,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Verdict:              verdict,
 		MinPriority:          minPriority,
 		TopN:                 fixFirstLimit(opts.top),
+		GroupActions:         opts.group != groupNone, // "" is unset, and the default is grouped
 		Compact:              opts.compact,
 		Components:           components,
 		Scope:                reportScope(scope),
@@ -430,6 +437,30 @@ func alsoPublish(outcome, publishErr error) error {
 		return outcome
 	}
 	return fmt.Errorf("%w (publishing also failed: %w)", outcome, publishErr)
+}
+
+// How the fix list is organised.
+const (
+	// groupAction is the default: one row per thing to do, saying how many findings it clears.
+	groupAction = "action"
+	// groupNone lists every finding on its own row, which is what somebody auditing a specific
+	// finding wants.
+	groupNone = "none"
+)
+
+// validateGroup rejects a value that is not one of the two, rather than quietly choosing.
+//
+// A mistyped --group that fell through to the default would render a list the reader did not ask
+// for and say nothing about it — a flag that either does something or explains why it did not.
+func validateGroup(v string) error {
+	switch v {
+	// Empty is unset rather than mistyped: a caller building the options directly, or a test,
+	// gets the same default the flag does rather than an error about a flag it never set.
+	case "", groupAction, groupNone:
+		return nil
+	default:
+		return fmt.Errorf("--group %q is not %s or %s", v, groupAction, groupNone)
+	}
 }
 
 // fixFirstLimit maps the --top flag to report.Data.TopN: 0 (show all) becomes -1, and any

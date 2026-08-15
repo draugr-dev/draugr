@@ -38,6 +38,29 @@ and move it under a version on release.
   the cache — a cache is disposable and this costs one cold run. Entries under the old name are
   removed as their keys are rewritten; deleting the cache directory clears them all at once.
 
+### Changed
+
+- **The fix list is a list of things to do, not a list of things that are wrong.** One row per
+  action, saying how many findings it clears and where:
+
+  ```
+  Fix first — 5 actions clear 19 findings:
+    P1  Upgrade Jinja2 2.10  sca · 6 findings
+        fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases — take the latest
+    P1  Remove the credential  secrets · 4 findings
+        docs/example.yaml:65 · scripts/build.ps1:164 · test/app.yaml:75
+  ```
+
+  A library a year out of date carries a dozen findings and one upgrade; the same
+  misconfiguration in three Dockerfiles is one habit. Listing those as a dozen and three rows
+  makes the repetitive work crowd out the rest.
+
+  Findings on infrastructure your provider operates are not in this list at all — they are
+  reported and counted on their own line. Actions are ranked by the worst priority they clear,
+  never by how many: an action clearing one P1 outranks one clearing forty P4s.
+
+  `--group none` gives the old row-per-finding listing, and the report files are unchanged.
+
 ### Added
 
 - **Findings say whether you can act on them**, and a descriptor can say who operates a cluster.

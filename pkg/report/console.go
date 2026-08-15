@@ -249,6 +249,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	}
 
 	limit := consoleFixFirstLimit(d.TopN)
+
+	if d.GroupActions {
+		return writeActions(w, col, s, limit)
+	}
+
 	shown := s.findings
 	if limit >= 0 && len(shown) > limit {
 		shown = shown[:limit]
@@ -1019,4 +1024,108 @@ func scopeNote(d Data) string {
 		return ""
 	}
 	return "(scope: " + strings.Join(parts, "; ") + ")"
+}
+
+// writeActions renders the fix list as things to do rather than things that are wrong.
+//
+// One row per action, each saying how many findings it clears and where. A reader deciding what
+// to spend an afternoon on is choosing between actions, and a list of findings makes them do the
+// grouping in their head — which for a library carrying a dozen CVEs is a dozen rows describing
+// one upgrade.
+func writeActions(w io.Writer, col tui.Painter, s summary, limit int) error {
+	actions, external := groupActions(s.findings)
+
+	if len(actions) == 0 {
+		// Everything found belongs to somebody else. Saying "no findings" would be false and
+		// saying nothing would be worse, so say exactly that.
+		_, _ = fmt.Fprintln(w, col.Paint(cDim, externalLine(external)))
+		return nil
+	}
+
+	shown := actions
+	if limit >= 0 && len(shown) > limit {
+		shown = shown[:limit]
+	}
+	_, _ = fmt.Fprintf(w, "Fix first — %s %s %s:\n",
+		plural(len(shown), "action"), clears(shown), plural(cleared(shown), "finding"))
+	renderActions(w, col, shown)
+
+	if len(shown) < len(actions) {
+		_, _ = fmt.Fprintf(w, "\n… and %d more %s.\n", len(actions)-len(shown),
+			noun(len(actions)-len(shown), "action"))
+		_, _ = fmt.Fprintln(w, col.Paint(cDim,
+			"Use --top 0 to list them all, or --group none to list every finding separately."))
+	} else {
+		_, _ = fmt.Fprint(w, "\n")
+	}
+	if len(external) > 0 {
+		_, _ = fmt.Fprintln(w, col.Paint(cDim, externalLine(external)))
+	}
+	_, _ = fmt.Fprintln(w, col.Paint(cDim,
+		"Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif."))
+	return nil
+}
+
+// clears reads as a verb agreeing with the count before it.
+func clears(actions []action) string {
+	if len(actions) == 1 {
+		return "clears"
+	}
+	return "clear"
+}
+
+// cleared totals the findings a set of actions resolves.
+func cleared(actions []action) int {
+	n := 0
+	for _, a := range actions {
+		n += a.count()
+	}
+	return n
+}
+
+// externalLine reports what was found on a surface somebody else operates.
+//
+// One line however many there are, and it says why rather than only how many: "106 findings" with
+// no explanation reads as something withheld, and the reason is the useful half.
+func externalLine(external []finding) string {
+	if len(external) == 0 {
+		return ""
+	}
+	controls := map[string]bool{}
+	for _, f := range external {
+		controls[f.control] = true
+	}
+	names := make([]string, 0, len(controls))
+	for c := range controls {
+		names = append(names, c)
+	}
+	sort.Strings(names)
+	return fmt.Sprintf("%s on infrastructure operated by your provider (%s) — reported, "+
+		"and not yours to fix.", plural(len(external), "finding"), strings.Join(names, ", "))
+}
+
+// renderActions draws the action rows.
+func renderActions(w io.Writer, col tui.Painter, actions []action) {
+	const namedLocations = 3
+	for _, a := range actions {
+		band := a.priority
+		if band == "" {
+			band = "-"
+		}
+		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
+			col.Paint(priorityColor(a.priority), fmt.Sprintf("%-2s", band)),
+			a.title,
+			col.Paint(cDim, fmt.Sprintf("%s · %s", a.control, plural(a.count(), "finding"))))
+		if detail := a.detail(namedLocations); detail != "" {
+			_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(cDim, detail))
+		}
+	}
+}
+
+// noun agrees a bare noun with a count, for sentences that put the number elsewhere.
+func noun(n int, word string) string {
+	if n == 1 {
+		return word
+	}
+	return word + "s"
 }

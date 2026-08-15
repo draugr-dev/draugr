@@ -53,6 +53,13 @@ type Data struct {
 	// TopN caps how many findings the console "Fix first" table shows: 0 uses the default,
 	// a negative value shows all, and a positive value shows that many. Ignored by other formats.
 	TopN int
+	// GroupActions renders the fix list as actions rather than findings: one row per thing to do,
+	// each saying how many findings it clears.
+	//
+	// A reader deciding what to spend an afternoon on is choosing between actions, and a list of
+	// findings makes them do that grouping in their head. Off gives the finding-per-row listing,
+	// which is what somebody auditing a specific finding wants.
+	GroupActions bool
 	// Compact strips what only a human reads — indentation and relayed rule prose — from the
 	// machine formats (json, sarif), for a consumer that acts on the report rather than reads
 	// it. The human formats ignore it: making those harder to read is the opposite of the point.
@@ -361,10 +368,20 @@ type finding struct {
 	// historical marks a finding that describes a commit rather than the current tree, so its
 	// location is a path that may no longer exist.
 	historical bool
-	level      sarif.Level
-	severity   sarif.Severity
-	score      float64
-	hasScore   bool
+	// remediation is what kind of action would resolve this, which decides whether it belongs in
+	// a list of things to fix at all.
+	remediation sarif.Remediation
+	// pkg is the dependency the finding is about, when it is about one. Carried because an
+	// upgrade is one action however many findings it clears, and the package plus the version
+	// that fixes it is what says two findings share that action.
+	pkg *sarif.Package
+	// operatingSystem is the release an image finding came from, for the same reason: moving off
+	// a release past end of service life is one action for everything in that layer.
+	operatingSystem string
+	level           sarif.Level
+	severity        sarif.Severity
+	score           float64
+	hasScore        bool
 }
 
 // sevCounts tallies findings by normalized severity band.
@@ -487,6 +504,9 @@ func summarize(d Data) summary {
 				level: res.Level, severity: sev,
 				helpURI: rep.HelpURI(res.RuleID),
 				score:   res.Score, hasScore: res.HasScore,
+				remediation:     res.Remediation(),
+				pkg:             res.Package,
+				operatingSystem: res.OperatingSystem,
 			})
 		}
 	}
