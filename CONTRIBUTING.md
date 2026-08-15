@@ -11,8 +11,11 @@ docs, new scanner/controller integrations, and code.
   and what happened vs. what you expected.
 - **Improve the docs** — docs live in [`docs/`](docs/) and alongside each integration
   (`internal/scanners/*.md`, `internal/controllers/*.md`). Docs are a first-class deliverable.
-- **Add an integration** — new controls follow a repeatable shape (a controller + a scanner);
-  see the existing ones (e.g. `sca`, `secrets`) and [`docs/contributing/plugin-api.md`](docs/contributing/plugin-api.md).
+- **Add an integration** — a scanner, a control, a surveyor, a reporter, a publisher, or a tool
+  Draugr can install. Each has a step-by-step guide under
+  [`docs/contributing/extending/`](docs/contributing/extending/README.md), which starts with a
+  table for picking the right one. The interfaces themselves are in
+  [`docs/contributing/plugin-api.md`](docs/contributing/plugin-api.md).
 - **Fix or build something** — see the workflow below.
 
 ## Development
