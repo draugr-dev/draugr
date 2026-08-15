@@ -672,30 +672,8 @@
       },
       "type": "object"
     },
-    "controllerSettings": {
-      "additionalProperties": {
-        "description": "Per-scanner configuration. `enabled` turns a scanner on or off; the remaining keys are that scanner's own options, validated against its schema when the scan runs.",
-        "properties": {
-          "enabled": {
-            "description": "Run this scanner. Default scanners run unless set to false; opt-in scanners run only when set to true.",
-            "type": "boolean"
-          }
-        },
-        "type": "object"
-      },
-      "description": "Settings for one control: `enabled`, plus a block per scanner.",
-      "properties": {
-        "enabled": {
-          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
-          "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
     "controllers": {
-      "additionalProperties": {
-        "$ref": "#/$defs/controllerSettings"
-      },
+      "additionalProperties": false,
       "description": "Security controls, keyed by name. A control runs only when enabled here (or on a component). Each scanner is configured under its own key inside the control.",
       "properties": {
         "dast": {
@@ -731,9 +709,6 @@
         "tls": {
           "$ref": "#/$defs/control_tls"
         }
-      },
-      "propertyNames": {
-        "$ref": "#/$defs/controlName"
       },
       "type": "object"
     },

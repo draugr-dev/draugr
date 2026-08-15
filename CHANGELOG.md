@@ -10,6 +10,17 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Editors no longer offer every control name twice** under `config.controllers`. The schema
+  described the allowed keys in two places at once — once as the controls this build serves, each
+  with its own options, and again as a list of the same names — so completion had two sources for
+  one set of keys.
+
+  It now says it once, and says it more strictly: an unknown control under `controllers` is a
+  schema error in your editor rather than a shape that validates there and is rejected when Draugr
+  loads it.
+
 ### Added
 
 - **`dast` can authenticate.** An unauthenticated scan of an application that requires a login
