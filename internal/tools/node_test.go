@@ -3,8 +3,10 @@ package tools
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -159,5 +161,302 @@ func TestLinkNodeCommandReportsAMissingCommand(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "retire") {
 		t.Errorf("the error should name the command: %v", err)
+	}
+}
+
+// stubLookPath points execLookPath at a fake for one test, and restores it afterwards.
+func stubLookPath(t *testing.T, fn func(string) (string, error)) {
+	t.Helper()
+	original := execLookPath
+	execLookPath = fn
+	t.Cleanup(func() { execLookPath = original })
+}
+
+// fakeNode writes an executable that prints what a `node --version` would, so the version gate can
+// be tested against the answers that actually matter — too old, new enough, and unparseable —
+// without depending on which Node happens to be installed on the machine running the tests.
+func fakeNode(t *testing.T, output string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "node")
+	script := "#!/bin/sh\necho " + strconv.Quote(output) + "\n"
+	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestNodeVersionAndEnvDir(t *testing.T) {
+	if got := NodeVersion("retire"); got != retireVersion {
+		t.Errorf("NodeVersion(retire) = %q, want %q", got, retireVersion)
+	}
+	if got := NodeVersion("not-a-tool"); got != "" {
+		t.Errorf("an unknown tool should have no pinned version, got %q", got)
+	}
+	if got := nodeEnvDir("/root", "retire"); got != filepath.Join("/root", "node", "retire") {
+		t.Errorf("nodeEnvDir = %q", got)
+	}
+}
+
+// TestNodeAtLeastReadsTheRuntimeVersion covers the gate that decides whether `npm ci` is even
+// possible. Reporting a too-old Node as acceptable produces a failure inside npm instead of the
+// message naming the real problem.
+func TestNodeAtLeastReadsTheRuntimeVersion(t *testing.T) {
+	for _, c := range []struct {
+		name, output string
+		ok           bool
+		found        string
+	}{
+		{"new enough", "v22.11.0", true, "v22.11.0"},
+		{"exactly the minimum", "v18.0.0", true, "v18.0.0"},
+		{"too old", "v16.20.2", false, "v16.20.2"},
+		{"unparseable", "banana", false, "banana"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			node := fakeNode(t, c.output)
+			stubLookPath(t, func(string) (string, error) { return node, nil })
+
+			ok, found := nodeAtLeast(t.Context(), minNodeMajor)
+			if ok != c.ok || found != c.found {
+				t.Errorf("nodeAtLeast = %v, %q; want %v, %q", ok, found, c.ok, c.found)
+			}
+		})
+	}
+}
+
+func TestNodeAtLeastWithNoNode(t *testing.T) {
+	stubLookPath(t, func(string) (string, error) { return "", exec.ErrNotFound })
+	if ok, found := nodeAtLeast(t.Context(), minNodeMajor); ok || found != "not found" {
+		t.Errorf("nodeAtLeast = %v, %q; want false, \"not found\"", ok, found)
+	}
+}
+
+// TestFindNodeExplainsWhatToDo pins the two failures a user can actually act on. Both messages
+// have to name a way forward: this is a tool Draugr can install, so "not found" alone would leave
+// the reader with a missing scanner and no next step.
+func TestFindNodeExplainsWhatToDo(t *testing.T) {
+	t.Run("no npm", func(t *testing.T) {
+		stubLookPath(t, func(string) (string, error) { return "", exec.ErrNotFound })
+		_, err := findNode(t.Context())
+		if err == nil {
+			t.Fatal("a missing npm must be an error, not a silent skip")
+		}
+		if !strings.Contains(err.Error(), "npm install -g retire") {
+			t.Errorf("the error should offer a way forward: %v", err)
+		}
+	})
+
+	t.Run("node too old", func(t *testing.T) {
+		node := fakeNode(t, "v16.20.2")
+		stubLookPath(t, func(string) (string, error) { return node, nil })
+		_, err := findNode(t.Context())
+		if err == nil {
+			t.Fatal("a Node too old for `npm ci` must be an error")
+		}
+		if !strings.Contains(err.Error(), "16") || !strings.Contains(err.Error(), "18") {
+			t.Errorf("the error should name the version found and the one needed: %v", err)
+		}
+	})
+}
+
+func TestRunIn(t *testing.T) {
+	dir := t.TempDir()
+	if err := runIn(t.Context(), dir, "sh", "-c", "exit 0"); err != nil {
+		t.Errorf("a successful command should not error: %v", err)
+	}
+
+	// A failure has to carry the tool's own output. `npm ci` explains itself well, and an exit
+	// status alone would throw that away and leave the user with a number.
+	err := runIn(t.Context(), dir, "sh", "-c", "echo something-went-wrong >&2; exit 1")
+	if err == nil {
+		t.Fatal("a failing command must error")
+	}
+	if !strings.Contains(err.Error(), "something-went-wrong") {
+		t.Errorf("the error should carry the command's output: %v", err)
+	}
+
+	// Very long output is truncated rather than pasted whole into a report.
+	err = runIn(t.Context(), dir, "sh", "-c", "head -c 5000 /dev/zero | tr '\\0' 'x'; exit 1")
+	if err == nil {
+		t.Fatal("a failing command must error")
+	}
+	if !strings.Contains(err.Error(), "…") {
+		t.Errorf("output beyond the limit should be truncated: %d chars", len(err.Error()))
+	}
+
+	if err := runIn(t.Context(), dir, "definitely-not-a-real-command"); err == nil {
+		t.Error("a command that cannot start must error")
+	}
+}
+
+// TestInstallNodeRejectsAToolWithNoPins covers the guard that would otherwise install something
+// unpinned while reporting it as pinned.
+func TestInstallNodeRejectsAToolWithNoPins(t *testing.T) {
+	node := fakeNode(t, "v22.11.0")
+	stubLookPath(t, func(string) (string, error) { return node, nil })
+
+	_, _, err := installNode(t.Context(), t.TempDir(), "ghost",
+		NodeSpec{Package: "ghost", Pins: "ghost", Command: "ghost"}, "1.0.0")
+	if err == nil {
+		t.Fatal("a tool with no pins built in must not install")
+	}
+	if !strings.Contains(err.Error(), "pinned manifest") {
+		t.Errorf("the error should name what is missing: %v", err)
+	}
+}
+
+// fakeNPM writes a stand-in for npm that records how it was called and, on the subcommands named
+// in succeed, produces the command the package would have installed.
+//
+// This keeps the whole install path testable without a network: what is being checked is Draugr's
+// half of it — that the pins reach disk, that the invocation carries --ignore-scripts, that the
+// shim is linked, and that the level reported matches which invocation actually worked.
+func fakeNPM(t *testing.T, log string, succeed ...string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "npm")
+	var cases string
+	for _, sub := range succeed {
+		cases += "  " + sub + ") mkdir -p node_modules/.bin && " +
+			"printf '#!/usr/bin/env node\\n' > node_modules/.bin/retire && " +
+			"chmod +x node_modules/.bin/retire; exit 0 ;;\n"
+	}
+	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + strconv.Quote(log) + "\ncase \"$1\" in\n" +
+		cases + "  *) echo 'npm refused' >&2; exit 1 ;;\nesac\n"
+	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
+		t.Fatal(err)
+	}
+	return path
+}
+
+// stubNodeTools points execLookPath at the fake npm and a fake node.
+func stubNodeTools(t *testing.T, npm string) {
+	t.Helper()
+	node := fakeNode(t, "v22.11.0")
+	stubLookPath(t, func(name string) (string, error) {
+		if name == "npm" {
+			return npm, nil
+		}
+		return node, nil
+	})
+}
+
+// TestInstallNodeUsesTheLockfileAndReportsPinned is the good path: `npm ci` succeeds, so every
+// package was checked against a digest recorded in this binary and the install may say so.
+func TestInstallNodeUsesTheLockfileAndReportsPinned(t *testing.T) {
+	root := t.TempDir()
+	log := filepath.Join(t.TempDir(), "calls")
+	stubNodeTools(t, fakeNPM(t, log, "ci"))
+
+	shim, level, err := installNode(t.Context(), root, "retire", nodeInstallable["retire"],
+		retireVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if level != LevelPinned {
+		t.Errorf("level = %q, want %q — `npm ci` verified the tree", level, LevelPinned)
+	}
+	if shim != filepath.Join(root, "bin", "retire") {
+		t.Errorf("shim = %q", shim)
+	}
+	if _, err := os.Stat(shim); err != nil {
+		t.Errorf("the shim was not written: %v", err)
+	}
+
+	// The pins have to reach disk, or `npm ci` would resolve against whatever was already there.
+	envDir := nodeEnvDir(root, "retire")
+	for _, name := range []string{"package.json", "package-lock.json"} {
+		if _, err := os.Stat(filepath.Join(envDir, name)); err != nil {
+			t.Errorf("%s was not written into the env: %v", name, err)
+		}
+	}
+
+	calls, err := os.ReadFile(log) // #nosec G304 -- a path this test just created
+	if err != nil {
+		t.Fatal(err)
+	}
+	invocation := string(calls)
+	if !strings.Contains(invocation, "ci") {
+		t.Errorf("npm was not asked to install from the lockfile: %q", invocation)
+	}
+	// Without this an npm package runs arbitrary code during provisioning.
+	if !strings.Contains(invocation, "--ignore-scripts") {
+		t.Errorf("the install must disable package scripts: %q", invocation)
+	}
+}
+
+// TestInstallNodeDropsToUnverifiedWhenTheLockfileDoesNotApply pins the honesty of the claim.
+//
+// The fallback exists so the tool stays installable where the pinned resolution does not apply.
+// Reporting that install as pinned would describe verification that never happened.
+func TestInstallNodeDropsToUnverifiedWhenTheLockfileDoesNotApply(t *testing.T) {
+	root := t.TempDir()
+	log := filepath.Join(t.TempDir(), "calls")
+	stubNodeTools(t, fakeNPM(t, log, "install")) // `ci` fails, `install` works
+
+	_, level, err := installNode(t.Context(), root, "retire", nodeInstallable["retire"],
+		retireVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if level != LevelUnverified {
+		t.Errorf("level = %q, want %q — nothing in this binary checked what was installed",
+			level, LevelUnverified)
+	}
+	calls, err := os.ReadFile(log) // #nosec G304 -- a path this test just created
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(calls), "retire@"+retireVersion) {
+		t.Errorf("the fallback should still ask for the pinned version: %q", calls)
+	}
+}
+
+// TestInstallNodeFailsWhenNpmCannotInstall covers the case where neither invocation works: the
+// error has to name the tool and version rather than leave a missing scanner and a bare exit code.
+func TestInstallNodeFailsWhenNpmCannotInstall(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "calls")
+	stubNodeTools(t, fakeNPM(t, log)) // nothing succeeds
+
+	_, _, err := installNode(t.Context(), t.TempDir(), "retire", nodeInstallable["retire"],
+		retireVersion)
+	if err == nil {
+		t.Fatal("an install where npm failed twice must error")
+	}
+	if !strings.Contains(err.Error(), "retire") {
+		t.Errorf("the error should name the tool: %v", err)
+	}
+}
+
+// TestInstallNodeToolRecordsWhatEndedUpOnPath covers the step between the install and everything
+// that later asks what was installed.
+//
+// The attestation has to describe the shim, because the shim is the file a scan actually executes.
+// Recording the package's own launcher instead would digest a file nothing runs, and `tools list`
+// would report a version nobody could verify.
+func TestInstallNodeToolRecordsWhatEndedUpOnPath(t *testing.T) {
+	root := t.TempDir()
+	destDir := filepath.Join(root, "bin")
+	log := filepath.Join(t.TempDir(), "calls")
+	stubNodeTools(t, fakeNPM(t, log, "ci"))
+
+	// An empty version asks for the pinned one, which is how `tools install retire` arrives here.
+	got, err := installNodeTool(t.Context(), "retire", "", destDir, nodeInstallable["retire"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Version != retireVersion {
+		t.Errorf("version = %q, want the pinned %q", got.Version, retireVersion)
+	}
+	if got.Name != "retire" {
+		t.Errorf("name = %q", got.Name)
+	}
+	if got.Path != filepath.Join(root, "bin", "retire") {
+		t.Errorf("path = %q, want the shim on PATH", got.Path)
+	}
+	sum, err := fileSHA256(got.Path)
+	if err != nil {
+		t.Fatalf("the recorded path is not a readable file: %v", err)
+	}
+	if sum == "" {
+		t.Error("the shim produced no digest, so nothing could attest it")
 	}
 }
