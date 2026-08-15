@@ -15,9 +15,13 @@ import (
 // Add a field to the model, add it to the schema.
 const schemaPath = "draugr.saga.schema.json"
 
-func loadSchema(t *testing.T) map[string]any {
+const fragmentSchemaPath = "draugr.saga-fragment.schema.json"
+
+func loadSchema(t *testing.T) map[string]any { return readSchema(t, schemaPath) }
+
+func readSchema(t *testing.T, path string) map[string]any {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Clean(schemaPath))
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		t.Fatalf("read schema: %v", err)
 	}
@@ -58,14 +62,18 @@ func yamlFields(typ reflect.Type) []string {
 	return out
 }
 
-func TestSchemaCoversEveryModelField(t *testing.T) {
-	doc := loadSchema(t)
+// schemaCase pairs a Go struct with the schema definition that describes it.
+type schemaCase struct {
+	def string
+	typ any
+}
 
-	// Each Go struct that appears in a Saga, and the schema definition describing it.
-	cases := []struct {
-		def string
-		typ any
-	}{
+// schemaCases is every Go struct a Saga can contain, and its definition.
+//
+// Hand-written, and TestEveryDescriptorStructIsGuarded is what keeps it honest: a struct reachable
+// from a descriptor and absent here would have its fields checked by nothing.
+func schemaCases() []schemaCase {
+	return []schemaCase{
 		{"", Model{}},
 		{"release", Release{}},
 		{"config", Config{}},
@@ -75,13 +83,24 @@ func TestSchemaCoversEveryModelField(t *testing.T) {
 		{"repository", Repository{}},
 		{"image", Image{}},
 		{"host", Host{}},
+		{"hostAuth", HostAuth{}},
 		{"infrastructure", Infrastructure{}},
 		{"fragmentRef", FragmentRef{}},
 		{"fragmentConfig", FragmentConfig{}},
 		{"reference", Reference{}},
+		{"excludeRule", ExcludeRule{}},
+		{"gateConfig", GateConfig{}},
+		{"sbomConfig", SBOMConfig{}},
+		{"vexConfig", VEXConfig{}},
+		{"vexDecision", VEXDecision{}},
+		{"exploitabilityConfig", ExploitabilityConfig{}},
 	}
+}
 
-	for _, c := range cases {
+func TestSchemaCoversEveryModelField(t *testing.T) {
+	doc := loadSchema(t)
+
+	for _, c := range schemaCases() {
 		def := definitionFor(t, doc, c.def)
 		props, ok := def["properties"].(map[string]any)
 		if !ok {
@@ -251,6 +270,111 @@ func TestUnknownFieldErrorNamesTheSection(t *testing.T) {
 	for _, want := range []string{`"bogusField"`, "release"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error should mention %s: %v", want, err)
+		}
+	}
+}
+
+// descriptorStructs walks the model from the root, collecting every named struct a descriptor can
+// contain — through pointers, slices and map values.
+func descriptorStructs(t reflect.Type, seen map[reflect.Type]bool) {
+	for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice || t.Kind() == reflect.Map {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct || seen[t] {
+		return
+	}
+	seen[t] = true
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if !f.IsExported() || f.Tag.Get("yaml") == "-" {
+			continue
+		}
+		descriptorStructs(f.Type, seen)
+	}
+}
+
+// inlinedInSchema are model structs the schema deliberately gives no definition of their own.
+// Each needs a reason here, because "no definition" is also what an unguarded type looks like.
+var inlinedInSchema = map[string]string{
+	"Model":    "the root document, covered by the \"\" case",
+	"Fragment": "described by the generated fragment schema, kept in step by internal/schemagen",
+	"Resolved": "a load result, never written by a user",
+	"Source":   "provenance of a loaded file, never written by a user",
+}
+
+// TestEveryDescriptorStructIsGuarded stops the coverage check from silently examining less than the
+// model contains.
+//
+// schemaCases is written by hand, so a struct added to the descriptor is only checked if somebody
+// remembers to add it there. Seven were missing when this was written — each correct, and none of
+// them checked by anything. What that costs is felt in an editor first: a field Draugr accepts and
+// the schema has never heard of is underlined as an error while it works perfectly.
+func TestEveryDescriptorStructIsGuarded(t *testing.T) {
+	t.Parallel()
+
+	reachable := map[reflect.Type]bool{}
+	descriptorStructs(reflect.TypeOf(Model{}), reachable)
+
+	guarded := map[string]bool{}
+	for _, c := range schemaCases() {
+		guarded[reflect.TypeOf(c.typ).Name()] = true
+	}
+
+	for typ := range reachable {
+		name := typ.Name()
+		if guarded[name] || inlinedInSchema[name] != "" {
+			continue
+		}
+		t.Errorf("%s is reachable from a descriptor, and no schemaCases entry covers it. Add "+
+			"{\"<definition>\", %s{}} there, or record in inlinedInSchema why it has no "+
+			"definition of its own", name, name)
+	}
+}
+
+// TestSchemaDefinitionsAreStrict keeps an unknown key an error rather than a shrug.
+//
+// A descriptor is how somebody says what to scan, so a mistyped key that validates is a setting
+// they believe they made and a control that quietly never ran. additionalProperties:false is what
+// turns that into a message at load time.
+func TestSchemaDefinitionsAreStrict(t *testing.T) {
+	t.Parallel()
+	// Both files. The fragment schema is generated from this one and byte-compared to the copy in
+	// the tree, so a transform that dropped strictness on the way would leave the saga schema
+	// strict, the comparison green, and fragments accepting anything.
+	for _, path := range []string{schemaPath, fragmentSchemaPath} {
+		t.Run(path, func(t *testing.T) { assertStrict(t, readSchema(t, path)) })
+	}
+}
+
+func assertStrict(t *testing.T, doc map[string]any) {
+	t.Helper()
+
+	// The two maps are keyed by control and by scanner name, so their additionalProperties
+	// describes the values rather than forbidding them. Strictness for those lives in the value
+	// schema, and in the validator that rejects a control or scanner this build does not have.
+	openByDesign := map[string]string{
+		"controllers":        "a map keyed by control name",
+		"controllerSettings": "a map keyed by scanner name",
+	}
+
+	if doc["additionalProperties"] != false {
+		t.Error("the root document accepts unknown keys")
+	}
+	defs, _ := doc["$defs"].(map[string]any)
+	for name, raw := range defs {
+		def, ok := raw.(map[string]any)
+		if !ok || def["type"] != "object" {
+			continue
+		}
+		if reason := openByDesign[name]; reason != "" {
+			if def["additionalProperties"] == false {
+				t.Errorf("$defs.%s is %s and must describe its values, not forbid them", name, reason)
+			}
+			continue
+		}
+		if def["additionalProperties"] != false {
+			t.Errorf("$defs.%s accepts unknown keys — add \"additionalProperties\": false so a "+
+				"mistyped key is reported rather than silently accepted", name)
 		}
 	}
 }
