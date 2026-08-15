@@ -61,6 +61,15 @@ components:
 A repository scan needs `git` on your `PATH`; an image scan needs Trivy. Run
 `draugr doctor draugr.saga.yaml` to confirm the tools each enabled control needs are present.
 
+It answers a second question at the same time, and this is the moment it is most worth asking:
+whether anything is set to look at what you just declared. A descriptor that names images while
+the `images` control is off scans clean over them, and a first Saga is exactly where that happens:
+
+```
+Not checked:
+      web declares images, and images is not enabled
+```
+
 ## Classify components so priority means something
 
 Two optional attributes turn a wall of findings into a ranked list — `exposure` (how

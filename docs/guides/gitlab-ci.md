@@ -171,7 +171,10 @@ half: the scanners Draugr provisions are built against glibc. An Alpine runner w
 fine and then report controls that could not run.
 
 The template also runs `draugr doctor`, which names anything still missing and where it comes from,
-rather than letting a control report that it quietly found nothing.
+rather than letting a control report that it quietly found nothing. It also reports any surface the
+descriptor declares that no enabled control examines — the pipeline that goes green having never
+opened your images. Add `--fail-on-uncovered` to make that a failing job on a descriptor meant to
+be complete.
 
 ## Without the template
 

@@ -148,7 +148,8 @@ lossless core. Consequences:
   time-bounded). First-class, not an afterthought: at any real scale the cost of a scan is
   what decides whether it runs on every change or once a week.
 - **Plan-only mode:** emit the execution plan without running — drives CI job matrices and
-  complements `draugr doctor` (preflight: are tools/creds/config present?).
+  complements `draugr doctor` (preflight: are the tools, credentials and config present, and is
+  any enabled control looking at what the descriptor declares?).
 
 ---
 
