@@ -109,6 +109,21 @@ config:
       acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
+        - "internal/tools/node.go"
+      rules:
+        - "go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"
+      reason: >-
+        The npm form of the exclusion above, and the same argument. Installing a tool that ships as
+        an npm package means running npm, and npm's path is discovered rather than written down —
+        that is the finding, and it is the job. What reaches exec is Draugr's own: an npm resolved
+        by exec.LookPath, a node resolved the same way to read its version, and a manifest and
+        lockfile embedded in this binary. None of it is reachable from a descriptor, a scanned
+        repository or the network, and the install runs with --ignore-scripts so nothing in the
+        package tree executes either. Hardcoding an interpreter path to satisfy the rule would be
+        wrong on every machine that keeps Node somewhere else.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
+    - paths:
         - "pkg/report/htmldata.go"
       rules:
         - "go.lang.security.audit.net.unescaped-data-in-url.unescaped-data-in-url"

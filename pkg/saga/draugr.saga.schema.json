@@ -547,6 +547,17 @@
           },
           "type": "object"
         },
+        "retirejs": {
+          "additionalProperties": false,
+          "description": "retirejs — published by RetireJS.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "trivyFs": {
           "additionalProperties": false,
           "description": "trivy-fs — published by aquasecurity.",

@@ -94,10 +94,13 @@ func TestEveryInstallableCanResolveAnotherVersion(t *testing.T) {
 	// A template missing from the table is invisible until somebody pins that tool, at which
 	// point the feature simply does not work for it.
 	for _, name := range Installable() {
-		// A tool obtained as a Python package has no per-version asset table to template: pip
-		// resolves the version, and only the pinned one has hashes built in. That difference is
-		// the subject of TestEveryPythonToolHasPinsAtItsVersion rather than this.
+		// A tool obtained from a language registry has no per-version asset table to template:
+		// pip or npm resolves the version, and only the pinned one has digests built in. That
+		// difference is the subject of the pins tests rather than this.
 		if _, isPython := PythonTool(name); isPython {
+			continue
+		}
+		if _, isNode := NodeTool(name); isNode {
 			continue
 		}
 		spec, err := SpecFor(name, "1.2.3")

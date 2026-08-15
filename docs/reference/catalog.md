@@ -31,7 +31,7 @@ executing on your machine, which is a question worth being able to answer withou
 | Control | Industry term | Scope | Status | Scanner(s) | Doc |
 |---------|---------------|-------|:------:|------------|-----|
 | `images` | Container image scanning | component | ✅ | `trivy` (default), `grype` (opt-in) | [doc](../../internal/controllers/images.md) |
-| `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` (default), `grype-fs` (opt-in), `mend-sca` (opt-in) | [doc](../../internal/controllers/sca.md) |
+| `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` (default), `grype-fs` (opt-in), `retirejs` (opt-in), `mend-sca` (opt-in) | [doc](../../internal/controllers/sca.md) |
 | `sast` | Static Application Security Testing | component | ✅ | `semgrep` (default), `gosec` (opt-in) | [doc](../../internal/controllers/sast.md) |
 | `secrets` | Secret detection | component | ✅ | `gitleaks` | [doc](../../internal/controllers/secrets.md) |
 | `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../../internal/controllers/iac.md) |
@@ -60,6 +60,7 @@ configured separately as `config.sbom` and travels as evidence. See
 | `trivy-fs` | sca | Aqua Trivy (fs) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-fs.md) |
 | `grype` | images | Anchore Grype | Apache-2.0 | ✅ | [doc](../../internal/scanners/grype.md) |
 | `grype-fs` | sca | Anchore Grype (dir) | Apache-2.0 | ✅ | [doc](../../internal/scanners/grype-fs.md) |
+| `retirejs` | sca | retire.js (binary: `retire`, from npm) | Apache-2.0 | ✅ | [doc](../../internal/scanners/retirejs.md) |
 | `gitleaks` | secrets | Gitleaks | MIT | ✅ | [doc](../../internal/scanners/gitleaks.md) |
 | `semgrep` | sast | Semgrep | LGPL-2.1 | ✅ | [doc](../../internal/scanners/semgrep.md) |
 | `gosec` | sast | gosec (Go) | Apache-2.0 | ✅ | [doc](../../internal/scanners/gosec.md) |

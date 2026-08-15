@@ -445,6 +445,22 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 				tui.Styled(tui.StyleMuted, filepath.Join(dir, pySpec.Package)))
 			continue
 		}
+		// Same for an npm package: no release asset, so the row is the pinned version and the
+		// tree it lands in. Without this the plan says "(not installable)" and then installs it,
+		// which is a preflight contradicting the thing it is a preflight for.
+		if nodeSpec, isNode := tools.NodeTool(name); isNode {
+			if satisfied(name) {
+				table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(tools.NodeVersion(name)),
+					tui.PlainCell(category(name)), tui.PlainCell("—"),
+					tui.Styled(tui.StyleMuted, "already at "+have[name]))
+				continue
+			}
+			todo++
+			table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(tools.NodeVersion(name)),
+				tui.PlainCell(category(name)), tui.PlainCell("sha512 (+deps)"),
+				tui.Styled(tui.StyleMuted, filepath.Join(dir, nodeSpec.Command)))
+			continue
+		}
 		spec, err := tools.SpecFor(name, opts.want(name))
 		ok := err == nil
 		if !ok {
@@ -503,6 +519,8 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 			pinned, source = spec.Version, "draugr tools install"
 		} else if _, ok := tools.PythonTool(t.Binary); ok {
 			pinned, source = tools.PythonVersion(t.Binary), "draugr tools install"
+		} else if _, ok := tools.NodeTool(t.Binary); ok {
+			pinned, source = tools.NodeVersion(t.Binary), "draugr tools install"
 		}
 
 		status, statusStyle := "✗ not found", tui.StyleFail

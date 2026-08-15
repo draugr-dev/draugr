@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"time"
 
@@ -191,9 +192,7 @@ func runDoctor(
 	}
 	if missing > 0 {
 		if !run.json {
-			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleFail,
-				fmt.Sprintf("%d required tool(s) missing. Install them (see notes above), "+
-					"or run `draugr tools install`.", missing)))
+			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleFail, missingToolsAdvice(statuses)))
 		}
 		return fmt.Errorf("%d required tool(s) not found", missing)
 	}
@@ -488,6 +487,31 @@ func networkHeading() string {
 		return "(offline: none of these will happen)"
 	}
 	return "(what Draugr fetches, and when — suppress with --offline)"
+}
+
+// missingToolsAdvice counts what is missing and suggests `tools install` only when it could
+// actually help.
+//
+// Some scanners are execed but never distributed — retire.js publishes to npm, the Mend CLI is
+// proprietary — and telling somebody to run a command that will not find their tool is worse
+// advice than none: they run it, it succeeds, and the thing is still missing.
+func missingToolsAdvice(statuses []tools.Status) string {
+	installable := tools.Installable()
+	var missing, fetchable int
+	for _, st := range statuses {
+		if st.Tool.Optional || (st.Found && (!st.DataChecked || st.DataFound)) {
+			continue
+		}
+		missing++
+		if slices.Contains(installable, st.Tool.Binary) {
+			fetchable++
+		}
+	}
+	advice := fmt.Sprintf("%d required tool(s) missing. Install them (see notes above)", missing)
+	if fetchable > 0 {
+		advice += ", or run `draugr tools install`"
+	}
+	return advice + "."
 }
 
 // externalInstallHint says where a tool Draugr does not distribute comes from.

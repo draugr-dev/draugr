@@ -681,7 +681,10 @@ func installVersion(t *testing.T, name string) string {
 	if v := tools.PythonVersion(name); v != "" {
 		return v
 	}
-	t.Fatalf("%s is installable but has no pinned version by either method", name)
+	if v := tools.NodeVersion(name); v != "" {
+		return v
+	}
+	t.Fatalf("%s is installable but has no pinned version by any method", name)
 	return ""
 }
 
