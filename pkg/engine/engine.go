@@ -143,6 +143,13 @@ type ProgressEvent struct {
 	// Running names what is in flight as "control/scanner", sorted so the line does not reorder
 	// itself between updates for reasons that mean nothing.
 	Running []string
+	// Failed is how many jobs have failed so far.
+	//
+	// Reported while the run continues because the answer changes what a reader does with the
+	// next twenty seconds. A scan whose every image job is failing to authenticate is one to
+	// stop and fix, and learning that only from the report means waiting out a run that was
+	// never going to cover them.
+	Failed int
 }
 
 // ProgressFunc receives a snapshot whenever a job starts or finishes.
@@ -548,6 +555,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		// in it; complete counts every job that has stopped, however it stopped.
 		running  = map[int]string{}
 		complete int
+		// failed counts jobs that ended without a report, so a watcher sees trouble as it
+		// happens rather than after the run.
+		failed   int
 		effects  []plugin.Effect
 		runStart = time.Now()
 		sem      = make(chan struct{}, e.concurrency)
@@ -634,7 +644,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			inFlight = append(inFlight, name)
 		}
 		sort.Strings(inFlight)
-		e.progress(ProgressEvent{Total: len(planned), Complete: complete, Running: inFlight})
+		e.progress(ProgressEvent{
+			Total: len(planned), Complete: complete, Running: inFlight, Failed: failed,
+		})
 	}
 	if e.progress != nil {
 		mu.Lock()
@@ -699,6 +711,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				mu.Lock()
 				errs = append(errs, err)
 				ctlErrs[pj.Control] = append(ctlErrs[pj.Control], err.Error())
+				failed++
 				mu.Unlock()
 				return
 			}
@@ -764,6 +777,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					// failure ("run nuclei: …"), and adding it again reads as a stutter in
 					// the one line a reader scans to find out what broke.
 					ctlErrs[pj.Control] = append(ctlErrs[pj.Control], scanErr.Error())
+					failed++
 					mu.Unlock()
 				}
 				return

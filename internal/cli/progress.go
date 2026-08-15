@@ -125,6 +125,12 @@ func progressText(ev engine.ProgressEvent) string {
 		return ""
 	}
 	line := fmt.Sprintf("scanning %d/%d", ev.Complete, ev.Total)
+	// Immediately after the count, before what is in flight. A run whose jobs are failing is one
+	// a reader may want to stop rather than wait out, and that decision is worth nothing once the
+	// report explains it — by then they have already waited.
+	if ev.Failed > 0 {
+		line += fmt.Sprintf(" · %d failed", ev.Failed)
+	}
 	if len(ev.Running) == 0 {
 		return line
 	}
