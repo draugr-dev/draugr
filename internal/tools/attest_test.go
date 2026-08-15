@@ -167,3 +167,37 @@ func TestDescribeForSeparatesNotInstalledFromNotDistributed(t *testing.T) {
 		})
 	}
 }
+
+// TestAttestFoundResolvesFromPath covers the entry point the CLI actually calls.
+//
+// Attest itself is tested against explicit paths; this is the thin layer that finds them, and its
+// two swallowed errors are decisions rather than accidents: an unresolvable home directory or a
+// tool that is not on PATH must produce an honest attestation, not a failure. A tool Draugr did
+// not install is `external`, which is the truthful answer and the one `tools list` shows.
+func TestAttestFoundResolvesFromPath(t *testing.T) {
+	dir := t.TempDir()
+	tool := filepath.Join(dir, "pretend-scanner")
+	if err := os.WriteFile(tool, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil { // #nosec G306 -- must execute
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	got := AttestFound("pretend-scanner", "1.2.3")
+	if got.Path != tool {
+		t.Errorf("path = %q, want the copy found on PATH %q", got.Path, tool)
+	}
+	if got.Level != LevelExternal {
+		t.Errorf("level = %q, want %q for a tool Draugr did not install", got.Level, LevelExternal)
+	}
+	if got.Version != "1.2.3" {
+		t.Errorf("version = %q, want the one supplied", got.Version)
+	}
+
+	missing := AttestFound("definitely-not-a-real-tool", "")
+	if missing.Path != "" {
+		t.Errorf("a missing tool should have no path, got %q", missing.Path)
+	}
+	if missing.Reason != "not found" {
+		t.Errorf("reason = %q, want %q", missing.Reason, "not found")
+	}
+}
