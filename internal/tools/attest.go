@@ -67,7 +67,10 @@ func Provisionable(tool string) bool {
 	if _, ok := Spec(tool); ok {
 		return true
 	}
-	_, ok := PythonTool(tool)
+	if _, ok := PythonTool(tool); ok {
+		return true
+	}
+	_, ok := NodeTool(tool)
 	return ok
 }
 

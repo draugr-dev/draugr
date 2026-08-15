@@ -1,0 +1,8 @@
+{
+  "name": "draugr-retire",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "retire": "5.4.3"
+  }
+}

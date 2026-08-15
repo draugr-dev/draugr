@@ -17,6 +17,11 @@ config:
       #   enabled: true      # a second matcher beside Trivy — see sca.grypeFs below for the trade
     sca:
       enabled: true          # dependencies (Trivy fs)
+      # retirejs:
+      #   enabled: true      # retire.js, for JavaScript that never reaches a lockfile — a library
+      #                      # pulled from a CDN, a vendored .js under static/, bundled output
+      #                      # shipped without its manifest. A repository serving a five-year-old
+      #                      # jQuery scans clean without it. Needs `npm install -g retire`
       # grypeFs:
       #   enabled: true      # Anchore Grype, beside Trivy rather than instead of it. Both sets of
       #                      # findings arrive in one report, and where two matchers disagree that

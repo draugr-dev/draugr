@@ -140,8 +140,9 @@ With Draugr installed, add the scanners for the controls you use. The fastest wa
 Draugr fetch pinned, verified copies into `~/.draugr/bin` (added to your `PATH` automatically):
 
 ```bash
-draugr tools install     # trivy, gitleaks, gosec, cosign — pinned + verified
-draugr tools list        # what's pinned, which controls it backs, and what's installed
+draugr tools install            # everything Draugr can provision — pinned + verified
+draugr tools install --saga draugr.saga.yaml   # only what this descriptor's scan will run
+draugr tools list               # what's pinned, which controls it backs, and what's installed
 ```
 
 Prefer your own install (Homebrew, package manager, an existing copy)? That works too — then run
@@ -150,14 +151,20 @@ Prefer your own install (Homebrew, package manager, an existing copy)? That work
 - [Trivy](https://github.com/aquasecurity/trivy) — `images`, `sca`, `iac` and `licenses` controls.
 - [Gitleaks](https://github.com/gitleaks/gitleaks) — `secrets` control.
 - [Semgrep](https://semgrep.dev) — `sast` control (default; opt-in [gosec](https://github.com/securego/gosec) for Go).
+- [Grype](https://github.com/anchore/grype) — opt-in second scanner for `sca` and `images`.
+- [retire.js](https://github.com/RetireJS/retire.js) — opt-in for `sca`, and the one that finds
+  JavaScript no lockfile describes.
 - [Nuclei](https://github.com/projectdiscovery/nuclei) — `dast` control.
 - [kube-bench](https://github.com/aquasecurity/kube-bench) — `infrastructure` control. Needs
-  `kubectl` as well: its CIS checks are scripts that invoke it. Not fetched by
-  `draugr tools install` yet, and it needs its `cfg/` directory as well as the binary —
-  [#386](https://github.com/draugr-dev/draugr/issues/386).
+  `kubectl` as well: its CIS checks are scripts that invoke it.
 - [Syft](https://github.com/anchore/syft) — SBOM generation (`config.sbom`), which is not a
   control.
 - `git` — needed for any repository scan (`sca`, `secrets`, `sast`, `licenses`).
+
+Two of these are language packages rather than release binaries, so Draugr installs them with the
+language's own package manager and needs it present: **Semgrep** needs Python 3.10 or newer with `pip`, and
+**retire.js** needs Node 18 or newer with `npm`. Every package is checked against a digest recorded
+in Draugr, and `draugr tools list` says `pinned` only when that check actually ran.
 
 `headers` and `tls` are native and need nothing installed. `draugr doctor` reports which of these
 *your* Saga requires, so the list you have to care about is usually shorter than this one.
