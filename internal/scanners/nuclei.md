@@ -92,6 +92,12 @@ run nuclei: nuclei: $DRAUGR_API_TOKEN is empty, so this scan would run unauthent
 report on the login page rather than the application behind it
 ```
 
+**Authenticating asks for no extra permission**, and that is a decision rather than an oversight.
+Naming `tokenEnv` on an endpoint is already an explicit opt-in, in a file that is committed and
+reviewed — the consent a declared effect would ask for has been given by configuring it. Requiring
+`allowEffects` on top would put a prompt in front of every `dast` run, including the anonymous
+ones, which is how people learn to accept without reading.
+
 **The report records that it authenticated**, naming the variable and never its value, so an
 authenticated run is distinguishable from an anonymous one. Their findings are not comparable. The
 cache key carries the same marker, so configuring credentials invalidates results gathered without

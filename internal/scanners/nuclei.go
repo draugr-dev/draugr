@@ -81,6 +81,13 @@ func (s nucleiScanner) Prewarm(ctx context.Context) error { return s.templates.w
 // authHeader renders the header line an auth block asks for, resolving the credential from the
 // environment at the moment of the scan.
 //
+// Authenticating declares no additional effect, which is deliberate rather than an omission.
+// Writing `tokenEnv` into a descriptor is already an explicit, per-endpoint opt-in, committed and
+// reviewable — the consent an effect would ask for has been given by the act of configuring it.
+// Effects are also a property of a scanner rather than of a job, so declaring one here would
+// demand `allowEffects` from every dast run including the anonymous ones, which teaches people to
+// accept without reading. What the scan did is recorded in provenance instead.
+//
 // The value is read here and nowhere earlier on purpose: it must not reach the descriptor, a
 // cache key, a report, or a log. Everything upstream carries the variable's name instead.
 func authHeader(a *plugin.HostAuth) (string, error) {
