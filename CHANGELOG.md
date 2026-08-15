@@ -10,59 +10,7 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-### Fixed
-
-- **The progress line no longer prints over the report.** It was erased when the command returned,
-  which is after the report has been written — so on a terminal the verdict arrived welded to a
-  job counter (`scanning 17/17    Draugr — FAIL`). It is now cleared the moment the run finishes,
-  before anything is rendered.
-
-### Changed
-
-- **A contended tool cache is reported once, with its total, instead of a line per wait.** Draugr
-  plans concurrent jobs that share a scanner's cache, so they queue on it — and with three retries
-  per job, a scan with many images could fill the screen with identical `waiting for the scanner
-  cache` lines before reporting anything.
-
-  Those lines are now `debug`, where they serve whoever is diagnosing contention. What a scan that
-  took three times as long owes its reader is the total, and that now sits beside the duration:
-
-  ```
-  Ran 17 jobs in 18.2s — 4 from cache, 11s waiting for the trivy cache.
-  ```
-
-  One figure a reader can act on, rather than several that overlap and cannot honestly be added up.
-
-- **Cache entries are named `.json.gz`**, which is what they have been since they were compressed.
-  Entries written by an earlier version are not read, so the first scan after upgrading repopulates
-  the cache — a cache is disposable and this costs one cold run. Entries under the old name are
-  removed as their keys are rewritten; deleting the cache directory clears them all at once.
-
-### Changed
-
-- **The fix list is a list of things to do, not a list of things that are wrong.** One row per
-  action, saying how many findings it clears and where:
-
-  ```
-  Fix first — 5 actions clear 19 findings:
-    P1  Upgrade Jinja2 2.10  sca · 6 findings
-        fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases — take the latest
-    P1  Remove the credential  secrets · 4 findings
-        docs/example.yaml:65 · scripts/build.ps1:164 · test/app.yaml:75
-  ```
-
-  A library a year out of date carries a dozen findings and one upgrade; the same
-  misconfiguration in three Dockerfiles is one habit. Listing those as a dozen and three rows
-  makes the repetitive work crowd out the rest.
-
-  Findings on infrastructure your provider operates are not in this list at all — they are
-  reported and counted on their own line. Actions are ranked by the worst priority they clear,
-  never by how many: an action clearing one P1 outranks one clearing forty P4s.
-
-  `--group none` gives the old row-per-finding listing, and the report files are unchanged.
-
 ### Added
-
 - **Findings say whether you can act on them**, and a descriptor can say who operates a cluster.
 
   ```yaml
@@ -110,6 +58,55 @@ and move it under a version on release.
   Draugr does not name a base image: an image records nothing about what it was built `FROM`, and
   where a multi-layer base ends is not in there either. The layer and its build step are facts;
   a base image name would be a guess in a field a reader would trust.
+
+### Changed
+- **A contended tool cache is reported once, with its total, instead of a line per wait.** Draugr
+  plans concurrent jobs that share a scanner's cache, so they queue on it — and with three retries
+  per job, a scan with many images could fill the screen with identical `waiting for the scanner
+  cache` lines before reporting anything.
+
+  Those lines are now `debug`, where they serve whoever is diagnosing contention. What a scan that
+  took three times as long owes its reader is the total, and that now sits beside the duration:
+
+  ```
+  Ran 17 jobs in 18.2s — 4 from cache, 11s waiting for the trivy cache.
+  ```
+
+  One figure a reader can act on, rather than several that overlap and cannot honestly be added up.
+
+- **Cache entries are named `.json.gz`**, which is what they have been since they were compressed.
+  Entries written by an earlier version are not read, so the first scan after upgrading repopulates
+  the cache — a cache is disposable and this costs one cold run. Entries under the old name are
+  removed as their keys are rewritten; deleting the cache directory clears them all at once.
+
+
+
+- **The fix list is a list of things to do, not a list of things that are wrong.** One row per
+  action, saying how many findings it clears and where:
+
+  ```
+  Fix first — 5 actions clear 19 findings:
+    P1  Upgrade Jinja2 2.10  sca · 6 findings
+        fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases — take the latest
+    P1  Remove the credential  secrets · 4 findings
+        docs/example.yaml:65 · scripts/build.ps1:164 · test/app.yaml:75
+  ```
+
+  A library a year out of date carries a dozen findings and one upgrade; the same
+  misconfiguration in three Dockerfiles is one habit. Listing those as a dozen and three rows
+  makes the repetitive work crowd out the rest.
+
+  Findings on infrastructure your provider operates are not in this list at all — they are
+  reported and counted on their own line. Actions are ranked by the worst priority they clear,
+  never by how many: an action clearing one P1 outranks one clearing forty P4s.
+
+  `--group none` gives the old row-per-finding listing, and the report files are unchanged.
+
+### Fixed
+- **The progress line no longer prints over the report.** It was erased when the command returned,
+  which is after the report has been written — so on a terminal the verdict arrived welded to a
+  job counter (`scanning 17/17    Draugr — FAIL`). It is now cleared the moment the run finishes,
+  before anything is rendered.
 
 ## [0.95.0] - 2026-08-15
 
