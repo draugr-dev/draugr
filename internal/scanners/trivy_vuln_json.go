@@ -29,6 +29,17 @@ type trivyVulnDoc struct {
 			Family string `json:"Family"`
 			Name   string `json:"Name"`
 		} `json:"OS"`
+		// DiffIDs are the image's layers, bottom first. A finding names one of these.
+		DiffIDs     []string `json:"DiffIDs"`
+		ImageConfig struct {
+			// History is how the image was built, one entry per instruction. Entries that
+			// produced no filesystem change are marked empty and consume no DiffID, which is
+			// what makes lining the two lists up require care rather than an index.
+			History []struct {
+				CreatedBy  string `json:"created_by"`
+				EmptyLayer bool   `json:"empty_layer"`
+			} `json:"history"`
+		} `json:"ImageConfig"`
 	} `json:"Metadata"`
 	Results []trivyVulnResult `json:"Results"`
 }
@@ -71,6 +82,11 @@ type trivyVuln struct {
 	PkgIdentifier    struct {
 		PURL string `json:"PURL"`
 	} `json:"PkgIdentifier"`
+	// Layer is where this package entered the image. Trivy reports it per finding, which is the
+	// only reliable way to tell an inherited package from one this component installed.
+	Layer struct {
+		DiffID string `json:"DiffID"`
+	} `json:"Layer"`
 	Severity    string `json:"Severity"`
 	Title       string `json:"Title"`
 	Description string `json:"Description"`
@@ -79,6 +95,41 @@ type trivyVuln struct {
 		V3Score float64 `json:"V3Score"`
 		V40     float64 `json:"V40Score"`
 	} `json:"CVSS"`
+}
+
+// layers pairs each DiffID with its position and the build step that produced it.
+//
+// History and DiffIDs are two lists that describe the same image and do not line up: an
+// instruction that changes no files (ENV, WORKDIR, CMD) is recorded in history and produces no
+// layer. Walking history and consuming a DiffID only for the entries that made one is what keeps
+// an instruction from being attributed to the wrong layer — and a misattributed build step is
+// worse than none, because it names a line to change that did not introduce the finding.
+func (d trivyVulnDoc) layers() map[string]sarif.Layer {
+	out := make(map[string]sarif.Layer, len(d.Metadata.DiffIDs))
+	next := 0
+	for _, h := range d.Metadata.ImageConfig.History {
+		if h.EmptyLayer {
+			continue
+		}
+		if next >= len(d.Metadata.DiffIDs) {
+			break
+		}
+		out[d.Metadata.DiffIDs[next]] = sarif.Layer{
+			DiffID:    d.Metadata.DiffIDs[next],
+			Index:     next,
+			Of:        len(d.Metadata.DiffIDs),
+			CreatedBy: strings.TrimSpace(h.CreatedBy),
+		}
+		next++
+	}
+	// An image whose history is missing or shorter than its layer list still has layers, and the
+	// position alone is worth reporting: it is what says whether a finding is near the bottom.
+	for i, id := range d.Metadata.DiffIDs {
+		if _, ok := out[id]; !ok {
+			out[id] = sarif.Layer{DiffID: id, Index: i, Of: len(d.Metadata.DiffIDs)}
+		}
+	}
+	return out
 }
 
 // trivyClassOSPkgs is Trivy's name for a result set drawn from the image's own package database.
@@ -91,9 +142,10 @@ func parseTrivyVulns(out []byte, _ string, _ plugin.Config) (sarif.Report, error
 		return sarif.Report{}, fmt.Errorf("parse trivy JSON: %w", err)
 	}
 	rep := sarif.Report{Tool: "trivy", Rules: map[string]sarif.Rule{}}
+	layers := doc.layers()
 	for _, res := range doc.Results {
 		for _, v := range res.Vulnerabilities {
-			rep.Results = append(rep.Results, trivyVulnResultOf(doc, res, v))
+			rep.Results = append(rep.Results, trivyVulnResultOf(doc, res, v, layers))
 			if _, seen := rep.Rules[v.VulnerabilityID]; !seen {
 				rep.Rules[v.VulnerabilityID] = trivyVulnRule(v)
 			}
@@ -107,7 +159,9 @@ func parseTrivyVulns(out []byte, _ string, _ plugin.Config) (sarif.Report, error
 // The operating system comes from the document, because Trivy is the only party that knows it.
 // The image does not: it is the target's own identity, and is set alongside the location by the
 // scanner that knows which image it asked for. One fact, one source.
-func trivyVulnResultOf(doc trivyVulnDoc, res trivyVulnResult, v trivyVuln) sarif.Result {
+func trivyVulnResultOf(
+	doc trivyVulnDoc, res trivyVulnResult, v trivyVuln, layers map[string]sarif.Layer,
+) sarif.Result {
 	score, hasScore := trivyVulnScore(v)
 	// Only the image's own package database has an operating system to name. A language package
 	// installed on top of it belongs to its ecosystem, not to the distribution underneath.
@@ -115,8 +169,13 @@ func trivyVulnResultOf(doc trivyVulnDoc, res trivyVulnResult, v trivyVuln) sarif
 	if res.Class == trivyClassOSPkgs {
 		operatingSystem = doc.operatingSystem()
 	}
+	var layer *sarif.Layer
+	if l, ok := layers[v.Layer.DiffID]; ok {
+		layer = &l
+	}
 	return sarif.Result{
 		OperatingSystem: operatingSystem,
+		Layer:           layer,
 		Tool:            "trivy",
 		RuleID:          v.VulnerabilityID,
 		Level:           trivyVulnLevel(v.Severity),

@@ -256,3 +256,104 @@ func TestOperatingSystemIsNeverGuessed(t *testing.T) {
 		t.Errorf("operating system = %q, want empty — nothing identified one", got)
 	}
 }
+
+// realTrivyLayeredOutput is Trivy 0.69.3's output for an image built FROM debian:11-slim that
+// installs curl, abridged to one finding per layer.
+//
+// The shape that matters is the mismatch between the two lists: history has an entry that changed
+// no files (ENV) and produced no layer, so walking them in step by index would attribute the wrong
+// build instruction to every layer after it.
+const realTrivyLayeredOutput = `{
+ "ArtifactName": "draugr-baseimg-test:1",
+ "ArtifactType": "container_image",
+ "Metadata": {
+  "OS": {"Family": "debian", "Name": "11.11"},
+  "DiffIDs": ["sha256:36952ece", "sha256:676636c9", "sha256:108d9484"],
+  "ImageConfig": {"history": [
+   {"created_by": "# debian.sh --arch 'amd64' out/ 'bullseye'"},
+   {"created_by": "ENV PATH=/usr/local/bin", "empty_layer": true},
+   {"created_by": "RUN /bin/sh -c apt-get update && apt-get install -y curl"},
+   {"created_by": "COPY hello.txt /hello.txt # buildkit"}]}},
+ "Results": [
+  {"Target": "draugr-baseimg-test:1 (debian 11.11)", "Class": "os-pkgs", "Type": "debian",
+   "Vulnerabilities": [
+    {"VulnerabilityID": "CVE-2011-3374", "PkgName": "apt", "InstalledVersion": "2.2.4",
+     "Layer": {"DiffID": "sha256:36952ece"}, "Severity": "LOW"},
+    {"VulnerabilityID": "CVE-2023-38545", "PkgName": "curl", "InstalledVersion": "7.74.0",
+     "FixedVersion": "7.74.0-1.3+deb11u11",
+     "Layer": {"DiffID": "sha256:676636c9"}, "Severity": "HIGH"}]}]}`
+
+// TestParseTrivyAttributesFindingsToLayers covers the only reliable answer to "did this component
+// introduce the finding, or inherit it".
+//
+// An image records nothing about what it was built FROM, so the base cannot be named. The layer
+// and the instruction that created it are facts, and the instruction is the more useful of the
+// two: it names the line to change.
+func TestParseTrivyAttributesFindingsToLayers(t *testing.T) {
+	rep, err := parseTrivyVulns([]byte(realTrivyLayeredOutput), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 2 {
+		t.Fatalf("want two findings, got %d", len(rep.Results))
+	}
+
+	inherited, added := rep.Results[0], rep.Results[1]
+	if inherited.Layer == nil || added.Layer == nil {
+		t.Fatal("both findings must name a layer")
+	}
+	if inherited.Layer.Index != 0 || inherited.Layer.Of != 3 {
+		t.Errorf("inherited finding: layer %d of %d", inherited.Layer.Index, inherited.Layer.Of)
+	}
+	// The empty history entry must not shift the attribution: the second layer was made by the
+	// RUN, not by the ENV that produced no layer at all.
+	if added.Layer.Index != 1 {
+		t.Errorf("added finding: layer index %d, want 1", added.Layer.Index)
+	}
+	if !strings.Contains(added.Layer.CreatedBy, "apt-get install -y curl") {
+		t.Errorf("the build step should name the instruction that introduced it, got %q",
+			added.Layer.CreatedBy)
+	}
+	if !strings.Contains(inherited.Layer.CreatedBy, "debian.sh") {
+		t.Errorf("the inherited finding should name the layer it came in on, got %q",
+			inherited.Layer.CreatedBy)
+	}
+}
+
+// TestLayersSurviveAMissingHistory covers an image whose config carries no history — some
+// registries strip it. The position is still worth reporting, and inventing a build step for it
+// would be worse than leaving it empty.
+func TestLayersSurviveAMissingHistory(t *testing.T) {
+	const noHistory = `{"ArtifactName":"x","Metadata":{"DiffIDs":["sha256:aa","sha256:bb"]},
+	 "Results":[{"Target":"x","Class":"os-pkgs","Type":"debian","Vulnerabilities":[
+	  {"VulnerabilityID":"CVE-1","PkgName":"p","InstalledVersion":"1","Severity":"HIGH",
+	   "Layer":{"DiffID":"sha256:bb"}}]}]}`
+	rep, err := parseTrivyVulns([]byte(noHistory), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := rep.Results[0].Layer
+	if l == nil {
+		t.Fatal("a finding with a layer digest should still report its position")
+	}
+	if l.Index != 1 || l.Of != 2 {
+		t.Errorf("layer %d of %d, want 1 of 2", l.Index, l.Of)
+	}
+	if l.CreatedBy != "" {
+		t.Errorf("no history means no build step to name, got %q", l.CreatedBy)
+	}
+}
+
+// TestNoLayerWhenTheScannerReportsNone: a filesystem scan has no layers, and a finding must not
+// claim one.
+func TestNoLayerWhenTheScannerReportsNone(t *testing.T) {
+	rep, err := parseTrivyVulns([]byte(trivyVulnJSON), "/checkout", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, res := range rep.Results {
+		if res.Layer != nil {
+			t.Errorf("%s claims layer %+v for a filesystem scan", res.RuleID, res.Layer)
+		}
+	}
+}

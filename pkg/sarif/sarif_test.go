@@ -767,6 +767,10 @@ func TestImageAndOSSurviveTheFile(t *testing.T) {
 			Location:        Location{URI: "debian:11-slim"},
 			Image:           "debian:11-slim",
 			OperatingSystem: "debian 11.11",
+			Layer: &Layer{
+				DiffID: "sha256:36952ece", Index: 0, Of: 3,
+				CreatedBy: "# debian.sh --arch 'amd64' out/ 'bullseye'",
+			},
 		}, {
 			Tool:    "trivy",
 			RuleID:  "CVE-2020-8203",
@@ -796,6 +800,15 @@ func TestImageAndOSSurviveTheFile(t *testing.T) {
 		if got.OperatingSystem != want.OperatingSystem {
 			t.Errorf("result %d: operating system = %q, want %q",
 				i, got.OperatingSystem, want.OperatingSystem)
+		}
+		switch {
+		case want.Layer == nil && got.Layer != nil:
+			t.Errorf("result %d: invented a layer %+v", i, got.Layer)
+		case want.Layer != nil && got.Layer == nil:
+			t.Errorf("result %d: lost the layer, so nothing downstream can say whether the "+
+				"finding was inherited or introduced here", i)
+		case want.Layer != nil && *got.Layer != *want.Layer:
+			t.Errorf("result %d: layer = %+v, want %+v", i, got.Layer, want.Layer)
 		}
 	}
 }
