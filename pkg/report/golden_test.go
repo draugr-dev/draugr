@@ -38,6 +38,10 @@ func TestConsoleGolden(t *testing.T) {
 		{"full", goldenFullData()},
 		{"clean", goldenCleanData()},
 		{"enriched", goldenEnrichedData()},
+		// The default the CLI actually renders. The three above pin `--group none`, which is
+		// still reachable and still worth pinning — but a golden that covers only the path most
+		// people never take is a golden that does not describe the product.
+		{"grouped", goldenGroupedData()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var b bytes.Buffer
@@ -104,12 +108,17 @@ func goldenFullData() Data {
 			Message: "PyYAML: command execution through python/object/apply constructor in FullLoader"},
 		{RuleID: "CVE-2019-10906", Level: sarif.LevelError, Score: 8.6, HasScore: true, Priority: "P1",
 			Tool: "trivy", Component: "payments", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5},
-			Message: "python-jinja2: str.format_map allows sandbox escape"},
+			Message: "python-jinja2: str.format_map allows sandbox escape",
+			Package: &sarif.Package{Name: "jinja2", Version: "2.10", FixedVersion: "2.10.1", Ecosystem: "pip"}},
 		{RuleID: "CVE-2018-1000656", Level: sarif.LevelWarning, Score: 7.5, HasScore: true, Priority: "P2",
 			Tool: "trivy", Component: "internal-tool", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 2},
 			Message: "python-flask: Denial of Service via crafted JSON file"},
 		{RuleID: "CVE-2020-28493", Level: sarif.LevelNote, Priority: "P4", Tool: "trivy",
-			Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5}, Message: "jinja2: ReDoS"},
+			Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5}, Message: "jinja2: ReDoS",
+			// The same library as the P1 above, with a different fix. Two advisories, one
+			// upgrade — so the golden pins that they fold into one row, and that the row keeps
+			// the worse of the two bands rather than the later one.
+			Package: &sarif.Package{Name: "jinja2", Version: "2.10", FixedVersion: "2.11.3", Ecosystem: "pip"}},
 	}
 	iac := []sarif.Result{
 		{RuleID: "DS-0002", Level: sarif.LevelError, Score: 8.0, HasScore: true, Priority: "P1",
@@ -254,4 +263,11 @@ func goldenEnrichedData() Data {
 				FetchedAt: fetched.Add(-72 * time.Hour), SHA256: "41c20e9dc3cf8a71e0d2b3c4f5a6978899aabbccddeeff00112233445566778", Stale: true},
 		},
 	}
+}
+
+// goldenGroupedData is the full fixture rendered the way `draugr scan` renders it.
+func goldenGroupedData() Data {
+	d := goldenFullData()
+	d.GroupActions = true
+	return d
 }
