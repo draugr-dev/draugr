@@ -542,7 +542,43 @@ type Infrastructure struct {
 	// describe a component, so declaring them against a whole shared cluster asserts them on
 	// everybody else's workloads too.
 	Namespaces []string `yaml:"namespaces,omitempty"`
+	// OperatedBy says who runs this surface: "self", or "provider" for a managed service.
+	//
+	// It states a fact rather than a judgement, and what follows from it — that a finding about
+	// the provider's half is not something this team can go and fix — is derived rather than
+	// asserted. "managed" was the obvious word and is ambiguous: managed by whom, and a managed
+	// service is still yours to pay for.
+	//
+	// Declared rather than detected, because whether a cluster is managed is a fact about a
+	// contract and not something visible in what a scanner reads. The same argument that puts
+	// exposure and criticality here.
+	//
+	// It narrows what it excuses. On a managed cluster the provider runs the control plane, the
+	// API server and etcd; RBAC, Pod Security and network policy remain the team's, and those
+	// are usually the findings that matter. Marking a whole cluster as somebody else's problem
+	// would hide the half that is not.
+	OperatedBy OperatedBy `yaml:"operatedBy,omitempty"`
 }
+
+// OperatedBy says who runs an infrastructure surface.
+type OperatedBy string
+
+// Who operates a surface.
+const (
+	// OperatedBySelf is the default: this team runs it, so every finding is theirs to act on.
+	OperatedBySelf OperatedBy = "self"
+	// OperatedByProvider is a managed service, where part of the surface is not reachable by
+	// the team that owns the workloads on it.
+	OperatedByProvider OperatedBy = "provider"
+)
+
+// Valid reports whether the value is one Draugr defines.
+func (o OperatedBy) Valid() bool {
+	return o == OperatedBySelf || o == OperatedByProvider
+}
+
+// OperatedByValues are the values operatedBy accepts.
+var OperatedByValues = []OperatedBy{OperatedBySelf, OperatedByProvider}
 
 // FragmentRef names Saga fragments to merge into the descriptor that lists it.
 //

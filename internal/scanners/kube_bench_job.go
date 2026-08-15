@@ -206,7 +206,13 @@ func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", kubeBenchJobScannerName, err)
 	}
-	return parseKubeBench(out, kubeBenchJobScannerName, clusterLabel(kubeCtx))
+	// This scanner audits the node types a managed platform runs, so what the descriptor says
+	// about who operates the cluster decides whether its findings are the team's to act on.
+	providerOperated := false
+	if infra, ok := target.(plugin.InfraTarget); ok {
+		providerOperated = infra.ProviderOperated
+	}
+	return parseKubeBenchOperated(out, kubeBenchJobScannerName, clusterLabel(kubeCtx), providerOperated)
 }
 
 // buildJob renders the Job, following kube-bench's own manifest: host PID so it can see the

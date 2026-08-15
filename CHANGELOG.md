@@ -40,6 +40,24 @@ and move it under a version on release.
 
 ### Added
 
+- **Findings say whether you can act on them**, and a descriptor can say who operates a cluster.
+
+  ```yaml
+  infrastructure:
+    - kind: kubernetes
+      ref: prod-cluster
+      operatedBy: provider     # self (default), or provider for a managed service
+  ```
+
+  On a managed cluster the control plane, API server and etcd are not reachable — there is no host
+  to log into and no file to change — so findings about their configuration are reported and
+  counted but are not work this team can do. RBAC, Pod Security, network policy and node settings
+  stay yours whoever runs the cluster underneath, and are unaffected.
+
+  Every finding now classifies its remediation: a version to upgrade to, a release underneath to
+  move, somebody else's to fix, or nothing published yet. Machine-readable for now — what the
+  console does with it comes next.
+
 - **The progress line says when jobs are failing**, as they fail:
 
   ```

@@ -1078,6 +1078,7 @@ components:
       - kind: kubernetes                        # e.g. kubernetes
         ref: prod-cluster
         namespaces: [team-a, team-a-jobs]       # optional — the namespaces this component owns
+        operatedBy: provider                    # optional — self (default) or provider
     controllers:              # optional per-component overrides (same shape as config.controllers)
       images:
         enabled: true
@@ -1093,6 +1094,20 @@ alike — so a finding records which repository it came from, that is part of wh
 distinct finding, and the report grows a `Repository` column when findings span more than one.
 The same applies to repositories a [fragment](../guides/saga-fragments.md) contributes from another
 project.
+
+**Who operates it:** `operatedBy` says whether this team runs the surface (`self`, the default) or
+a managed platform does (`provider`). It states a fact, and what follows from it is derived rather
+than asserted: on a managed cluster the control plane, the API server and etcd are not reachable —
+there is no host to log into and no file to change — so findings about their configuration are
+reported and counted but never presented as work this team can do.
+
+It narrows what it excuses, deliberately. RBAC, Pod Security, network policy and the rest of the
+policies section stay this team's whoever runs the cluster underneath, and node configuration is
+usually theirs too through node pool settings. Marking a whole cluster as somebody else's problem
+would hide the half that is not — and those are usually the findings that matter.
+
+Whether a cluster is managed is a fact about a contract, not something a scanner can see in what
+it reads, which is why it is declared here alongside `exposure` and `criticality`.
 
 **Infrastructure namespaces:** `namespaces` narrows an infrastructure surface to the part of a
 cluster the component owns; omit it and the audit covers the whole cluster. Not every scanner can

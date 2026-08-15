@@ -1040,6 +1040,14 @@
           "type": "array",
           "uniqueItems": true
         },
+        "operatedBy": {
+          "description": "Who runs this surface. \"provider\" for a managed service, where the control plane, API server and etcd are not reachable by the team that owns the workloads — findings about those are reported but never presented as work this team can do. RBAC, Pod Security and network policy stay theirs either way. Defaults to \"self\".",
+          "enum": [
+            "self",
+            "provider"
+          ],
+          "type": "string"
+        },
         "ref": {
           "description": "Identifier, e.g. a cluster name.",
           "type": "string"

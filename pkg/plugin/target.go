@@ -266,6 +266,10 @@ type InfraTarget struct {
 	Ref      string
 	// Namespaces narrows the audit to part of the cluster. Empty means all of it.
 	Namespaces []string
+	// ProviderOperated says the surface is a managed service, so part of it is not reachable by
+	// the team that owns the workloads on it. Carried from the descriptor, because a scanner
+	// cannot see a support contract.
+	ProviderOperated bool
 }
 
 // Kind returns TargetInfra.
