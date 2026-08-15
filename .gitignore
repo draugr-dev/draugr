@@ -4,6 +4,12 @@ dist/
 
 # Test / coverage output
 *.out
+
+# Scan output. The self-scan writes here, and examples/reporting.saga.yaml names it — so it
+# appears in a working tree routinely, and `*.out` above does not match a directory called
+# draugr-out.
+draugr-out/
+.draugr-out/
 coverage.*
 
 # Release notes generated in CI from CHANGELOG (keeps the tree clean for GoReleaser)
