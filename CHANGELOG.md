@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.94.0] - 2026-08-15
+
 ### Added
 
 - **`sca` can find JavaScript that never reaches a lockfile**, with an opt-in retire.js scanner:
@@ -4136,7 +4140,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.93.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.94.0...HEAD
+[0.94.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.94.0
 [0.93.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.93.0
 [0.92.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.92.0
 [0.91.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.91.0
