@@ -98,7 +98,9 @@ and `tls` need no external tool. `threats` needs no tool either, but does need a
 [abuse.ch](https://auth.abuse.ch/) key in `URLHAUS_AUTH_KEY` — and their free tier is
 non-commercial, so read [their terms](https://abuse.ch/terms-of-use/) first.
 
-`draugr doctor` tells you which of these your Saga actually needs and whether they are present;
+`draugr doctor` tells you which of these your Saga actually needs, whether they are present, and
+whether anything is looking at what the descriptor declares — a component with images and the
+`images` control off is a clean pass over something nobody opened;
 `draugr tools install` fetches pinned, verified copies of the ones Draugr packages. Go 1.26+ only
 to build from source.
 
