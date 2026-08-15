@@ -66,9 +66,12 @@ bot's note can never be mistaken for yours.
 
 ### Escape path parameters correctly
 
-Where a platform identifies a project by a path, check which escaping it wants — GitLab requires
-`/` encoded as `%2F`, which `url.PathEscape` leaves alone and `url.QueryEscape` handles. Test with
-a nested path, because a single-segment one works under either and proves nothing.
+Where a platform identifies a project by a path, the separators have to survive as `%2F` or the
+request addresses something else entirely. Use `url.PathEscape`: it encodes them, and so does
+`url.QueryEscape`, but query escaping writes a space as `+`, which a path does not mean.
+
+Test with a **nested** path. A single-segment one needs no escaping at all, so it passes under any
+choice and proves nothing.
 
 ### Read error bodies with a limit
 

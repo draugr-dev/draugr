@@ -46,7 +46,9 @@ everything private. Warn:
 
 ```go
 // github_org_repos.go
-"surveying without a token: private repositories are omitted"
+slog.Warn("surveyed GitHub without a token — public repositories only; "+
+	"private ones are not in this descriptor. Set GITHUB_TOKEN to include them",
+	"org", org, "repositories", len(repos))
 ```
 
 The user is about to write this fragment into a descriptor and trust it. A quiet subset is the
