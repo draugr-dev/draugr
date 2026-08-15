@@ -47,6 +47,24 @@ func gitlabData() Data {
 			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: []sarif.Result{
 				res("trivy-license", "AGPL-3.0", sarif.LevelWarning, "P4", "go.mod", 1),
 			}}},
+			// Two images, because one cannot show a per-image value collapsing into a shared one.
+			// The third finding has no operating system — a distribution Trivy could not identify
+			// — and is the case container scanning has to decline rather than fill in.
+			"images": {Control: "images", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+				withImage(withPackage(
+					res("trivy", "CVE-2011-3374", sarif.LevelNote, "P4", "registry.example.com/api:1.4", 0),
+					&sarif.Package{Name: "apt", Version: "2.2.4", PURL: "pkg:deb/debian/apt@2.2.4"}),
+					"registry.example.com/api:1.4", "debian 11.11"),
+				withImage(withPackage(
+					res("trivy", "CVE-2023-4911", sarif.LevelError, "P1", "registry.example.com/worker:2.0", 0),
+					&sarif.Package{Name: "glibc", Version: "2.31", FixedVersion: "2.35",
+						PURL: "pkg:deb/ubuntu/glibc@2.31"}),
+					"registry.example.com/worker:2.0", "ubuntu 20.04"),
+				withImage(withPackage(
+					res("trivy", "CVE-2024-0001", sarif.LevelWarning, "P2", "registry.example.com/scratch:1", 0),
+					&sarif.Package{Name: "app", Version: "1.0"}),
+					"registry.example.com/scratch:1", ""),
+			}}},
 		},
 		Stats: engine.Stats{Duration: 90 * time.Second},
 	}
@@ -90,6 +108,7 @@ func TestGitLabReportsMatchTheirSchema(t *testing.T) {
 		{"gitlab-sast", "sast-report-format.json"},
 		{"gitlab-secret-detection", "secret-detection-report-format.json"},
 		{"gitlab-dependency-scanning", "dependency-scanning-report-format.json"},
+		{"gitlab-container-scanning", "container-scanning-report-format.json"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.format, func(t *testing.T) {
@@ -280,8 +299,10 @@ func TestGitLabCodeQualityCarriesEveryControl(t *testing.T) {
 	if err := json.Unmarshal(renderGitLab(t, "gitlab-codequality", gitlabData()), &out); err != nil {
 		t.Fatal(err)
 	}
-	if len(out) != 5 {
-		t.Fatalf("want all five findings, got %d", len(out))
+	// Derived from the fixture rather than written down: this report's contract is that it
+	// carries everything, so the number it should equal is however many findings the run had.
+	if want := activeFindings(gitlabData()); len(out) != want {
+		t.Fatalf("want every finding in the run (%d), got %d", want, len(out))
 	}
 	got := map[string]bool{}
 	for _, e := range out {
@@ -363,8 +384,9 @@ func TestGitLabReportsOmitSuppressedFindings(t *testing.T) {
 	if err := json.Unmarshal(renderGitLab(t, "gitlab-codequality", d), &cq); err != nil {
 		t.Fatal(err)
 	}
-	if len(cq) != 4 {
-		t.Errorf("code quality carried %d findings, want the four that are not suppressed", len(cq))
+	if want := activeFindings(d); len(cq) != want {
+		t.Errorf("code quality carried %d findings, want the %d that are not suppressed",
+			len(cq), want)
 	}
 }
 
@@ -493,4 +515,90 @@ func TestGitLabDependencyScanningCarriesTheVersion(t *testing.T) {
 	if doc.Vulnerabilities[0].Location.File != "go.mod" {
 		t.Errorf("file = %q, want the manifest", doc.Vulnerabilities[0].Location.File)
 	}
+}
+
+// withImage attaches the container identity a container-scanning finding has to carry.
+func withImage(r sarif.Result, image, operatingSystem string) sarif.Result {
+	r.Image, r.OperatingSystem = image, operatingSystem
+	return r
+}
+
+// TestGitLabContainerScanningCarriesEachImage is the assertion the schema test cannot make: a
+// document with no findings satisfies the schema perfectly.
+//
+// Two images, because that is where a per-image value collapsing into a shared one becomes
+// visible — with one image, a correct implementation and one that resolves the image afterwards
+// produce the same document.
+func TestGitLabContainerScanningCarriesEachImage(t *testing.T) {
+	var doc struct {
+		Vulnerabilities []struct {
+			Name     string `json:"name"`
+			Location struct {
+				Image           string `json:"image"`
+				OperatingSystem string `json:"operating_system"`
+				Dependency      struct {
+					Package struct {
+						Name string `json:"name"`
+					} `json:"package"`
+					Version string `json:"version"`
+				} `json:"dependency"`
+			} `json:"location"`
+		} `json:"vulnerabilities"`
+	}
+	if err := json.Unmarshal(renderGitLab(t, "gitlab-container-scanning", gitlabData()), &doc); err != nil {
+		t.Fatal(err)
+	}
+
+	byImage := map[string]string{}
+	for _, v := range doc.Vulnerabilities {
+		byImage[v.Location.Image] = v.Location.OperatingSystem
+		if v.Location.Dependency.Package.Name == "" {
+			t.Errorf("%s: the schema requires a package and this row has none", v.Name)
+		}
+	}
+	if len(byImage) != 2 {
+		t.Fatalf("want findings from two distinct images, got %d: %v", len(byImage), byImage)
+	}
+	if got := byImage["registry.example.com/api:1.4"]; got != "debian 11.11" {
+		t.Errorf("api image reported operating system %q", got)
+	}
+	if got := byImage["registry.example.com/worker:2.0"]; got != "ubuntu 20.04" {
+		t.Errorf("worker image reported operating system %q", got)
+	}
+}
+
+// TestGitLabContainerScanningOmitsWhatItCannotFill covers the finding with no identifiable
+// distribution.
+//
+// `operating_system` is required with a minimum length, so the only alternatives are to leave the
+// finding out or to invent a value. An invented one is a claim GitLab renders, attributes to
+// Draugr and applies a policy to; the finding still reaches a reviewer through
+// `gitlab-codequality`, which carries every control.
+func TestGitLabContainerScanningOmitsWhatItCannotFill(t *testing.T) {
+	out := string(renderGitLab(t, "gitlab-container-scanning", gitlabData()))
+	if strings.Contains(out, "CVE-2024-0001") {
+		t.Error("a finding with no operating system was included, so the value was invented")
+	}
+	if strings.Contains(out, "scratch") {
+		t.Error("the image with no identifiable distribution reached the report")
+	}
+	// It is not lost — the complete stream still has it.
+	quality := string(renderGitLab(t, "gitlab-codequality", gitlabData()))
+	if !strings.Contains(quality, "CVE-2024-0001") {
+		t.Error("the omitted finding should still reach the reviewer through Code Quality")
+	}
+}
+
+// activeFindings counts what a report carrying everything should carry: every finding of every
+// control, less the suppressed ones, which are reported but never filed as open.
+func activeFindings(d Data) int {
+	n := 0
+	for _, c := range d.Run.Controls {
+		for _, r := range c.Report.Results {
+			if r.Suppression == nil {
+				n++
+			}
+		}
+	}
+	return n
 }

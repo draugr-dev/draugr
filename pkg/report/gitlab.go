@@ -27,10 +27,11 @@ const gitlabSchemaVersion = "15.2.4"
 // merge-request widget and its approval policies all key on the scan type. A dependency CVE filed
 // as `sast` is a finding in the wrong drawer, and the drawer is what a policy looks in.
 //
-// Only the types Draugr can fill honestly are registered. `container_scanning` requires an image
-// and an operating system on every finding, which Draugr's image findings do not yet carry as
-// fields — so it is absent, and `gitlab-codequality` carries those findings in the meantime. A
-// schema's required field filled with a guess is worse than a report that does not exist.
+// Only the types Draugr can fill honestly are registered, and a finding that cannot fill a
+// required field is left out rather than given a plausible one: a guess in a required field is a
+// claim GitLab renders, attributes to Draugr, and acts on in a policy, where an omission is
+// merely absent. `gitlab-codequality` carries every finding whatever its control, so nothing is
+// lost from the reviewer's view by a typed report declining one.
 type gitlabSecurityReporter struct {
 	format   string
 	scanType string
@@ -40,6 +41,9 @@ type gitlabSecurityReporter struct {
 	needsCommit bool
 	// needsPackage marks a report whose schema requires a structured package on every finding.
 	needsPackage bool
+	// needsImage marks a report whose schema requires the image and its operating system on
+	// every finding — GitLab's container scanning, where both are `minLength: 1`.
+	needsImage bool
 }
 
 func (r gitlabSecurityReporter) Format() string { return r.format }
@@ -92,6 +96,10 @@ type glLocation struct {
 	StartLine  int           `json:"start_line,omitempty"`
 	Commit     *glCommit     `json:"commit,omitempty"`
 	Dependency *glDependency `json:"dependency,omitempty"`
+	// Image and OperatingSystem are what container scanning adds: which image the finding is in,
+	// and which distribution's package set contains it.
+	Image           string `json:"image,omitempty"`
+	OperatingSystem string `json:"operating_system,omitempty"`
 }
 
 // glDependency is what GitLab's dependency_scanning schema requires of every finding: which
@@ -165,6 +173,19 @@ func (r gitlabSecurityReporter) vulnerabilities(d Data) ([]glVuln, error) {
 			// A line number means nothing for a package declared in a manifest, and GitLab renders
 			// it as a position in a file where the package may sit on another line entirely.
 			v.Location.StartLine = 0
+		}
+		if r.needsImage {
+			// Both are required with a minimum length, and neither can be derived from anything
+			// else in the finding. An image scanned from a distribution Trivy could not identify
+			// — scratch, distroless — genuinely has no operating system, and that finding belongs
+			// in the Code Quality report rather than in a fabricated row here.
+			if f.res.Image == "" || f.res.OperatingSystem == "" {
+				continue
+			}
+			v.Location.Image = f.res.Image
+			v.Location.OperatingSystem = f.res.OperatingSystem
+			// The location for a container finding is the image, not a path in a workspace.
+			v.Location.File, v.Location.StartLine = "", 0
 		}
 		if f.helpURI != "" {
 			v.Links = []glLink{{URL: f.helpURI}}

@@ -181,6 +181,10 @@ var reporters = map[string]Reporter{
 		format: "gitlab-secret-detection", scanType: "secret_detection",
 		controls: []string{"secrets"}, needsCommit: true,
 	},
+	"gitlab-container-scanning": gitlabSecurityReporter{
+		format: "gitlab-container-scanning", scanType: "container_scanning",
+		controls: []string{"images"}, needsPackage: true, needsImage: true,
+	},
 	"gitlab-codequality": gitlabCodeQualityReporter{},
 	"gitlab-cyclonedx":   gitlabSBOMReporter{},
 }
@@ -205,6 +209,7 @@ var documentFormats = map[string]bool{
 	// so printing several thousand lines of JSON at somebody is not the answer to typing the name.
 	"gitlab-sast": true, "gitlab-secret-detection": true, "gitlab-codequality": true,
 	"gitlab-dependency-scanning": true,
+	"gitlab-container-scanning":  true,
 	"gitlab-cyclonedx":           true,
 }
 

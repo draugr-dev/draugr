@@ -529,7 +529,8 @@ draugr scan draugr.saga.yaml -o out/ --report html --format console
 draugr scan draugr.saga.yaml -o out/ --report gitlab-codequality
 ```
 
-The GitLab formats — `gitlab-sast`, `gitlab-secret-detection`, `gitlab-codequality` — are
+The GitLab formats — `gitlab-sast`, `gitlab-dependency-scanning`, `gitlab-secret-detection`,
+`gitlab-container-scanning`, `gitlab-codequality` — are
 `--report` only, for the same reason `junit` is: a GitLab runner reads them from a path named in
 `artifacts: reports:`, and nobody reads one. See
 [reports & publishers](../guides/reports-and-publishers.md#gitlabs-own-report-formats) for which GitLab surface each

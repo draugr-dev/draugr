@@ -70,6 +70,31 @@ func TestScanImageWithRealTrivy(t *testing.T) {
 	// The whole point of the integration test: real Trivy actually found vulnerabilities in
 	// the image, and they flowed through normalization into the merged report.
 	if len(report.Results) == 0 {
-		t.Errorf("expected real Trivy findings for the fixture image, got 0 results")
+		t.Fatalf("expected real Trivy findings for the fixture image, got 0 results")
+	}
+
+	// The facts a container finding is made of, read back from the file rather than from the run
+	// that produced it. Unit tests parse recorded output; only this proves the fields survive a
+	// real Trivy, a real scan and a real write — and the SARIF is what every platform format and
+	// `draugr diff` re-read, so a field lost here is lost everywhere downstream.
+	var withOS int
+	for _, res := range report.Results {
+		if res.Image == "" {
+			t.Errorf("%s came back with no image, so nothing downstream can say which container "+
+				"it is about", res.RuleID)
+			break
+		}
+		if res.Package == nil || res.Package.Name == "" {
+			t.Errorf("%s came back with no package identity", res.RuleID)
+			break
+		}
+		if res.OperatingSystem != "" {
+			withOS++
+		}
+	}
+	// The fixture image is a real distribution, so its OS-layer findings must name one. Without
+	// this the report GitLab reads would be silently empty while every other assertion passed.
+	if withOS == 0 {
+		t.Error("no finding named an operating system; container scanning cannot file any of them")
 	}
 }

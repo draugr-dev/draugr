@@ -29,6 +29,7 @@ Scan results render through a pluggable **Reporter**, selected on the CLI with
 | `gitlab-sast` | GitLab's own security schema, for its Vulnerability Report. Written as a build artifact, not uploaded — GitLab has no endpoint. See [below](#gitlabs-own-report-formats) |
 | `gitlab-dependency-scanning` | the same, for vulnerable dependencies — each with the package and version GitLab requires |
 | `gitlab-secret-detection` | the same, for leaked credentials |
+| `gitlab-container-scanning` | the same, for vulnerable packages in a container image — each with the image and the operating system GitLab requires |
 | `gitlab-codequality` | GitLab Code Quality — every finding, in the merge request, on **any** tier |
 | `template` | custom payload from a Go `text/template` (inline or file) — no code needed |
 
@@ -202,7 +203,7 @@ artifacts:
 |---|---|---|
 | Merge request **Reports** tab | `gitlab-codequality` | Free, Premium, Ultimate |
 | Diff annotations, inline | `gitlab-codequality` | Ultimate |
-| Vulnerability Report, MR security widget | `gitlab-sast`, `gitlab-secret-detection` | Ultimate |
+| Vulnerability Report, MR security widget | `gitlab-sast`, `gitlab-dependency-scanning`, `gitlab-secret-detection`, `gitlab-container-scanning` | Ultimate |
 
 On a Free or Premium project the security reports are produced and stored and nothing displays
 them. That is why `gitlab-codequality` carries **every** finding whatever its control, and the
