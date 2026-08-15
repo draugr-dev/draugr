@@ -10,7 +10,18 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Image findings say which layer they came in on, and the build step that put them there.**
+
+  An image's findings divide into ones this component introduced and ones it inherited, and only
+  the first are fixable without rebasing. Each finding now carries its layer — position, and the
+  instruction verbatim from the image's own history, such as
+  `RUN /bin/sh -c apt-get update && apt-get install -y curl` — which names the line to change.
+
+  Draugr does not name a base image: an image records nothing about what it was built `FROM`, and
+  where a multi-layer base ends is not in there either. The layer and its build step are facts;
+  a base image name would be a guess in a field a reader would trust.
 
 ## [0.95.0] - 2026-08-15
 

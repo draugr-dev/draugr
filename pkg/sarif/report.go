@@ -118,6 +118,14 @@ type Result struct {
 	// system package from a vulnerable application dependency sitting on top of it. Empty for a
 	// finding in a language ecosystem, where there is no OS answer to give.
 	OperatingSystem string `json:"operatingSystem,omitempty"`
+	// Layer is the image layer the finding's package arrived in. Nil for anything that is not an
+	// image finding, and for an image whose scanner did not report one.
+	//
+	// It is the only reliable answer to "is this mine or inherited". An image records nothing
+	// about what it was built FROM — the name is not in there — so a base image cannot be named,
+	// and where a multi-layer base ends is not knowable either. The layer, and the build step
+	// that created it, are facts; anything further is inference and has to be labelled as such.
+	Layer *Layer `json:"layer,omitempty"`
 	// Suppression is set when a Saga exclusion matched this finding. A suppressed result is
 	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
 	// Nil for an active finding.
@@ -130,6 +138,24 @@ type Result struct {
 	// conclusion and withholds its premise is a hint rather than evidence, and "critical because
 	// CISA observed this being exploited, as of a date you can check" is the premise.
 	Escalation *Escalation `json:"escalation,omitempty"`
+}
+
+// Layer identifies the image layer a finding's package came from, and the build step that made it.
+//
+// Index is the layer's position in the image, counting from the bottom, and Of is how many layers
+// there are — "3 of 9" is interpretable where a bare digest is not, and the low indices are the
+// inherited ones.
+type Layer struct {
+	// DiffID is the layer's content digest, as the image records it.
+	DiffID string `json:"diffId,omitempty"`
+	// Index is the layer's position from the bottom of the image, starting at 0.
+	Index int `json:"index"`
+	// Of is the number of layers in the image.
+	Of int `json:"of,omitempty"`
+	// CreatedBy is the build instruction that produced the layer, verbatim from the image's own
+	// history — "RUN /bin/sh -c apt-get install …". It names the line to change, which is more
+	// use than a layer digest and more honest than a guessed base image.
+	CreatedBy string `json:"createdBy,omitempty"`
 }
 
 // Package is the dependency a finding is about.

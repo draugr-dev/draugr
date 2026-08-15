@@ -206,6 +206,10 @@ type sarifProperties struct {
 	// render, attribute to Draugr, and act on in a policy.
 	Image           string `json:"image,omitempty"`
 	OperatingSystem string `json:"operatingSystem,omitempty"`
+	// Layer survives the file for the same reason: it is what separates a finding this component
+	// introduced from one it inherited, and that answer is worth as much on the second read as
+	// on the first.
+	Layer *Layer `json:"layer,omitempty"`
 	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
 	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
 	Tags []string `json:"tags,omitempty"`
@@ -350,11 +354,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
 		if tool != "" || res.HasScore || res.Priority != "" || res.Image != "" ||
-			res.OperatingSystem != "" {
+			res.OperatingSystem != "" || res.Layer != nil {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Priority: res.Priority, Component: res.Component,
 				Repository: res.Repository, Package: res.Package,
-				Image: res.Image, OperatingSystem: res.OperatingSystem,
+				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
 			}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
@@ -552,6 +556,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Repository = sr.Properties.Repository
 				res.Image = sr.Properties.Image
 				res.OperatingSystem = sr.Properties.OperatingSystem
+				res.Layer = sr.Properties.Layer
 				res.Package = sr.Properties.Package
 			}
 			out.Results = append(out.Results, res)
