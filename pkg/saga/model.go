@@ -487,6 +487,23 @@ type Host struct {
 	Name string `yaml:"name"`
 	URL  string `yaml:"url"`
 	Type string `yaml:"type,omitempty"`
+	// Auth authenticates the dynamic scan of this endpoint. Absent means probe it anonymously.
+	Auth *HostAuth `yaml:"auth,omitempty"`
+}
+
+// HostAuth says how to authenticate to an endpoint, by naming the environment variable that holds
+// the credential.
+//
+// There is deliberately no field for the credential itself. A descriptor is committed, so a token
+// written into one is a leaked token — and `secrets` would rightly flag it. Making the value
+// inexpressible is a stronger guarantee than warning about it.
+type HostAuth struct {
+	// Type is "bearer" — an `Authorization: Bearer <token>` header — or "header" for a named one.
+	Type string `yaml:"type"`
+	// Header is the header name, required when Type is "header" (e.g. X-API-Key).
+	Header string `yaml:"header,omitempty"`
+	// TokenEnv names the environment variable holding the credential.
+	TokenEnv string `yaml:"tokenEnv"`
 }
 
 // Infrastructure is an infrastructure surface. Kind is e.g. "kubernetes"; Ref names the

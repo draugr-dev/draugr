@@ -42,12 +42,26 @@ func (DAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, erro
 		if host.URL == "" {
 			continue
 		}
-		target := plugin.HostTarget{Name: host.Name, URL: host.URL, Type: host.Type}
+		target := plugin.HostTarget{
+			Name: host.Name, URL: host.URL, Type: host.Type, Auth: hostAuth(host.Auth),
+		}
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
 		}
 	}
 	return jobs, nil
+}
+
+// hostAuth converts a descriptor's auth block into what a scanner is given.
+//
+// Only dast reads it today. The passive host controls — headers, tls — probe the endpoint too and
+// would see a different application behind a login, but authenticating on their behalf is a
+// separate decision from authenticating a scan whose purpose is to send traffic.
+func hostAuth(a *saga.HostAuth) *plugin.HostAuth {
+	if a == nil {
+		return nil
+	}
+	return &plugin.HostAuth{Kind: a.Type, Header: a.Header, TokenEnv: a.TokenEnv}
 }
 
 // Aggregate merges the scan reports and summarizes findings by severity.

@@ -158,17 +158,53 @@ type HostTarget struct {
 	Name string
 	URL  string
 	Type string
+	// Auth is how a scanner should authenticate to this endpoint, or nil to probe it anonymously.
+	Auth *HostAuth
+}
+
+// HostAuth says how to authenticate, and deliberately cannot say what the credential is.
+//
+// It carries the *name* of an environment variable, never a value. A descriptor is committed, so
+// a token written into one is a leaked token — and the value must not reach a cache key, a report
+// or a process list either. Resolution happens in the scanner, at the moment of the scan.
+type HostAuth struct {
+	// Kind is "bearer" (an Authorization: Bearer header) or "header" (a named header).
+	Kind string
+	// Header is the header name, for Kind "header".
+	Header string
+	// TokenEnv is the environment variable holding the credential.
+	TokenEnv string
+}
+
+// Marker describes this authentication without disclosing it — the kind, the header it sets, and
+// the variable it reads. Safe to put in a cache key or a report; there is nothing secret in it.
+func (a *HostAuth) Marker() string {
+	if a == nil {
+		return ""
+	}
+	return "auth=" + a.Kind + ":" + a.Header + ":" + a.TokenEnv
 }
 
 // Kind returns TargetHost.
 func (HostTarget) Kind() TargetKind { return TargetHost }
 
-// Identity returns the host URL without credentials.
+// Identity returns the host URL without credentials, plus a marker when the scan authenticates.
 //
-// A host may be reached with basic auth in the URL, and identity is what reaches reports, cache
-// keys and logs. Same rule as a repository's: credentials are how a target is reached, not which
-// target it is.
-func (t HostTarget) Identity() string { return SourceURL(t.URL) }
+// Two different things are at play and only one is stripped. Credentials embedded in the URL are
+// how a target is *reached* and not which target it is, so they go — same rule as a repository's.
+// A declared `auth:` block is not that: an authenticated scan sees a different application from an
+// anonymous one, and the two results are not interchangeable. Identity feeds the cache key, so
+// leaving it out would let a scan run before the credential was configured answer for one run
+// after.
+//
+// The marker names the variable rather than reading it. A variable name is not a secret; its
+// value must never reach a cache key on disk.
+func (t HostTarget) Identity() string {
+	if m := t.Auth.Marker(); m != "" {
+		return SourceURL(t.URL) + " " + m
+	}
+	return SourceURL(t.URL)
+}
 
 // InfraTarget is an infrastructure surface (e.g. a Kubernetes cluster). Platform is the
 // kind of infrastructure (e.g. "kubernetes"); Ref names the concrete instance.

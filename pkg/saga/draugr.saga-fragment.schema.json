@@ -924,6 +924,9 @@
     "host": {
       "additionalProperties": false,
       "properties": {
+        "auth": {
+          "$ref": "#/$defs/hostAuth"
+        },
         "name": {
           "description": "Label for this endpoint.",
           "type": "string"
@@ -949,6 +952,39 @@
       },
       "required": [
         "url"
+      ],
+      "type": "object"
+    },
+    "hostAuth": {
+      "additionalProperties": false,
+      "description": "Authenticate the dynamic scan of this endpoint. Absent means probe it anonymously — which, against an application that requires a login, tests the login page and reports a pass about everything behind it.",
+      "properties": {
+        "header": {
+          "description": "Header name, required with type \"header\" (e.g. X-API-Key).",
+          "type": "string"
+        },
+        "tokenEnv": {
+          "description": "Environment variable holding the credential. There is deliberately no field for the credential itself: a descriptor is committed, so a token written into one is a leaked token.",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "const": "bearer",
+              "description": "Sends Authorization: Bearer \u003ctoken\u003e."
+            },
+            {
+              "const": "header",
+              "description": "Sends a header you name — e.g. X-API-Key."
+            }
+          ],
+          "description": "How to authenticate.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "tokenEnv"
       ],
       "type": "object"
     },
