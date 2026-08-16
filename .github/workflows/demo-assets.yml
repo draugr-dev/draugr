@@ -189,6 +189,15 @@ jobs:
             || { echo "::error::vhs produced no screenshot at contrib/demo/scan.png"; exit 1; }
           file contrib/demo/scan.png
 
+      # The viewport is deliberately taller than the report needs, so that a report which gains a
+      # line does not fail this job during a release. Cropping to what was actually drawn keeps
+      # that headroom without publishing it as dead space at the foot of the image.
+      #
+      # Before the palette pass, so the palette is chosen from the pixels that ship.
+      - name: Crop the margin back to the content
+        if: ${{ inputs.screenshot || github.event_name == 'push' }}
+        run: go run ./contrib/demo/cropmargin -in contrib/demo/scan.png -pad 20
+
       # Terminal output is flat colour — a few dozen distinct values across the whole frame — so
       # a palette costs nothing visible and roughly halves the file. This image is the first
       # thing the README and the home page load.
