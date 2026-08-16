@@ -195,6 +195,10 @@ var reporters = map[string]Reporter{
 		format: "gitlab-secret-detection", scanType: "secret_detection",
 		controls: []string{"secrets"}, needsCommit: true,
 	},
+	// What stands behind the verdict, as a document. Read from a path by somebody keeping it,
+	// which is why it is a document format rather than one --format prints.
+	"evidence": evidenceReporter{},
+
 	"gitlab-container-scanning": gitlabSecurityReporter{
 		format: "gitlab-container-scanning", scanType: "container_scanning",
 		controls: []string{"images"}, needsPackage: true, needsImage: true,
