@@ -11,7 +11,6 @@ and move it under a version on release.
 ## [Unreleased]
 
 ### Added
-
 - **Configuration can hold how you like the report**, and has a guide of its own.
 
   ```yaml
@@ -108,6 +107,23 @@ and move it under a version on release.
   a base image name would be a guess in a field a reader would trust.
 
 ### Changed
+- **The cache caveat is shorter, sits below the findings, and marks the rows it applies to.**
+
+  ```
+  P1  Move off debian 11.11 — past end of service life  images · 277 findings · from cache
+  ...
+  from cache: draugr-baseimg-test:1 was reused on a tag, so may describe an earlier build. Pin a digest.
+  ```
+
+  It was three lines of prose above the fix list, competing with the thing it is a caveat about
+  and leaving the reader to work out which rows it applied to. An action is marked only when
+  *every* finding in it came from a reused entry, since one stale row among three current ones is
+  not a stale action.
+
+### Fixed
+- **Effects, the SBOM line and the cache caveat reappear in the default listing.** They were
+  reachable only from the row-per-finding view, so the grouped default — what almost everyone
+  sees — silently dropped them, including the record of what a scan did to somebody's systems.
 
 - **The progress display shows every scanner and marks each one as it finishes**, instead of one
   line listing whatever is in flight:
@@ -167,7 +183,7 @@ and move it under a version on release.
 
   `--group none` gives the old row-per-finding listing, and the report files are unchanged.
 
-### Fixed
+
 
 - **A component whose scans failed no longer reports as passing.** A component whose whole surface
   is three container images, none of which could be pulled, rendered as `pass  no findings` —

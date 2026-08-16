@@ -15,10 +15,16 @@ func TestUnpinnedCacheLine(t *testing.T) {
 		t.Errorf("nothing reused from a tag-keyed entry should print nothing, got %q", got)
 	}
 	got := unpinnedCacheLine([]string{"alpine:3.19", "acme/api:latest"})
-	for _, want := range []string{"alpine:3.19", "acme/api:latest", "--cache-require-digest", "Pin a digest"} {
+	// Names what is affected and what to do about it. The flag it used to recommend is gone from
+	// the line: this qualifies findings a reader is about to act on, and the space it takes is
+	// space the fix list does not get — why a tag is not a content address is documentation.
+	for _, want := range []string{"alpine:3.19", "acme/api:latest", "Pin a digest"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the line should mention %q, got: %s", want, got)
 		}
+	}
+	if len(got) > 120 {
+		t.Errorf("the caveat is %d chars and wraps: %s", len(got), got)
 	}
 }
 
@@ -26,11 +32,11 @@ func TestUnpinnedCacheLine(t *testing.T) {
 // dozens of tag-keyed entries, and a line naming all of them is one nobody finishes reading.
 func TestUnpinnedCacheLineStaysReadable(t *testing.T) {
 	got := unpinnedCacheLine([]string{"a:1", "b:1", "c:1", "d:1", "e:1"})
-	if !strings.Contains(got, "and 2 more") {
+	if !strings.Contains(got, "and 3 more") {
 		t.Errorf("want the tail summarised, got: %s", got)
 	}
-	if strings.Contains(got, "d:1") || strings.Contains(got, "e:1") {
-		t.Errorf("only the first three should be named, got: %s", got)
+	if strings.Contains(got, "c:1") || strings.Contains(got, "e:1") {
+		t.Errorf("only the first two should be named, got: %s", got)
 	}
 }
 

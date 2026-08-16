@@ -23,6 +23,11 @@ type action struct {
 	priority string
 	// findings are every finding this action resolves, most urgent first.
 	findings []finding
+	// cached marks an action whose findings all came from a cache entry keyed on something that
+	// can be rebuilt under the same name. The row is still worth acting on; it may describe an
+	// earlier build of the thing it names, and that belongs beside the row rather than in a
+	// caveat further down that the reader has to connect back.
+	cached bool
 }
 
 // count is how many findings the action resolves.
@@ -64,7 +69,11 @@ func countDistinct(fs []finding) int {
 // Findings nobody running the scan can act on are not here at all. They are counted and reported
 // elsewhere: a list of things to fix that opens with work the reader cannot do teaches them the
 // list is not worth reading.
-func groupActions(findings []finding) (actions []action, external []finding) {
+func groupActions(findings []finding, unpinned []string) (actions []action, external []finding) {
+	fromCache := make(map[string]bool, len(unpinned))
+	for _, ref := range unpinned {
+		fromCache[ref] = true
+	}
 	order := []string{}
 	byKey := map[string]*action{}
 
@@ -86,7 +95,17 @@ func groupActions(findings []finding) (actions []action, external []finding) {
 	}
 
 	for _, key := range order {
-		actions = append(actions, *byKey[key])
+		a := *byKey[key]
+		// Every finding, not any: an action grouping one stale row with three fresh ones is not
+		// a stale action, and marking it so would tell a reader to distrust work that is current.
+		a.cached = len(a.findings) > 0
+		for _, f := range a.findings {
+			if !fromCache[f.location] {
+				a.cached = false
+				break
+			}
+		}
+		actions = append(actions, a)
 	}
 	sort.SliceStable(actions, func(i, j int) bool { return moreUrgent(actions[i], actions[j]) })
 	return actions, external
