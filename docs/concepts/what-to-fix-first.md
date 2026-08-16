@@ -40,9 +40,19 @@ three rows makes the repetitive work crowd out everything else.
 Only where the fix genuinely is one fix. Twelve benchmark checks against one cluster are twelve
 things to change, and folding them together because they share a prefix would hide eleven of them.
 
-**Grouping is a rendering.** `--group none` lists every finding on its own row, and the report
-files always carry them separately — an auditor reading `results.sarif` sees one record per
-finding whichever way the console was asked to show them.
+**Grouping is opt-in for now.** `draugr scan --group action` turns it on; the default lists one
+finding per row.
+
+Not because the list is the better view, but because grouping is only right once a descriptor
+says which images the team builds and which infrastructure it operates. Without that, an action
+row states a fix nobody can apply — *upgrade this library*, inside an image somebody else
+publishes — where a finding row merely reports something true that a reader can look up. Stating
+wrong advice is worse than listing a fact, so the annotations come first and the default follows
+them.
+
+**Grouping is a rendering either way.** The report files always carry findings separately — an
+auditor reading `results.sarif` sees one record per finding whichever way the console was asked
+to show them.
 
 ## Ranking is by the worst thing an action clears
 

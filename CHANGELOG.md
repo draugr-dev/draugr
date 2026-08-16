@@ -256,8 +256,8 @@ and move it under a version on release.
 
 
 
-- **The fix list is a list of things to do, not a list of things that are wrong.** One row per
-  action, saying how many findings it clears and where:
+- **`--group action` shows the fix list as things to do rather than things that are wrong.** One
+  row per action, saying how many findings it clears and where:
 
   ```
   Fix first — 5 actions clear 19 findings:
@@ -275,7 +275,10 @@ and move it under a version on release.
   reported and counted on their own line. Actions are ranked by the worst priority they clear,
   never by how many: an action clearing one P1 outranks one clearing forty P4s.
 
-  `--group none` gives the old row-per-finding listing, and the report files are unchanged.
+  **Opt-in for now**, with one finding per row remaining the default. Grouping is only right once
+  a descriptor says which images you build and which infrastructure you operate — without that, an
+  action row states a fix nobody can apply, where a finding row merely reports something true you
+  can look up. The report files are unchanged either way.
 
 
 
