@@ -7,7 +7,10 @@ dist/
 
 # Scan output. The self-scan writes here, and examples/reporting.saga.yaml names it — so it
 # appears in a working tree routinely, and `*.out` above does not match a directory called
-# draugr-out.
+# Everything a scan writes lives under .draugr/, beside the descriptor and the exclusions it
+# already keeps there. draugr-out/ and .draugr-out/ are the names that came before.
+.draugr/out/
+.draugr/cache/
 draugr-out/
 .draugr-out/
 coverage.*

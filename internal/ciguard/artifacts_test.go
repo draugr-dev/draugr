@@ -22,7 +22,7 @@ func trackedFiles(t *testing.T) []string {
 //
 // The directory is where the self-scan writes and what `examples/reporting.saga.yaml` names, so it
 // turns up in a working tree as a matter of course, and `*.out` in .gitignore does not match a
-// directory called `draugr-out`.
+// directory Draugr writes to — `.draugr/out` now, and the two names it used before.
 //
 // What it costs is not clutter. A committed CycloneDX document is read by other people's tooling
 // as this project's dependency manifest — OpenSSF Scorecard runs OSV over the repository, and a
@@ -38,7 +38,8 @@ func TestScanOutputIsNotCommitted(t *testing.T) {
 			continue
 		}
 		top, _, _ := strings.Cut(filepath.ToSlash(path), "/")
-		if top == "draugr-out" || top == ".draugr-out" {
+		if top == "draugr-out" || top == ".draugr-out" ||
+			strings.HasPrefix(filepath.ToSlash(path), ".draugr/out/") {
 			t.Errorf("%s is a scan's own output and is committed — add the directory to "+
 				".gitignore and `git rm -r --cached` it", path)
 		}

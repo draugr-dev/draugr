@@ -339,7 +339,7 @@ draugr scan draugr.saga.yaml
 draugr scan draugr.saga.yaml -o out/ --fail-on warning
 draugr scan draugr.saga.yaml --min-priority P2        # focus on what matters now
 draugr scan draugr.saga.yaml --fail-on-priority P1    # also block on P1 findings
-draugr scan draugr.saga.yaml --cache-dir .draugr-cache
+draugr scan draugr.saga.yaml --cache-dir .draugr/cache
 draugr scan draugr.saga.yaml -j 4                      # cap parallelism (or -j 1 for serial)
 draugr scan draugr.saga.yaml --format markdown        # portable report (MR comment, wiki)
 draugr scan draugr.saga.yaml --format json | jq .      # machine-readable
@@ -629,7 +629,7 @@ registration form in front of a PDF.
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `-r, --report` | — | The `results.sarif` to read. Defaults to `results.sarif`, then `draugr-out/results.sarif` |
+| `-r, --report` | — | The `results.sarif` to read. Defaults to `.draugr/out/results.sarif`, then `results.sarif`, then the older `draugr-out/` |
 
 The id can be given in full or by the part that is unambiguous — `4.3.1` finds
 `kube-bench/cis/4.3.1`. An abbreviation matching more than one rule lists them rather than

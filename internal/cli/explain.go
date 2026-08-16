@@ -20,7 +20,10 @@ import (
 // which is the moment somebody wants it. Naming the file explicitly is always available and never
 // required for the common case.
 var defaultSARIFNames = []string{
+	filepath.Join(".draugr", "out", "results.sarif"),
 	"results.sarif",
+	// The names Draugr recommended before everything it writes moved under .draugr/, still read
+	// so that a pipeline or a habit built on them keeps working.
 	filepath.Join("draugr-out", "results.sarif"),
 	filepath.Join(".draugr-out", "results.sarif"),
 }

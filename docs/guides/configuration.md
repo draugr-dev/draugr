@@ -19,7 +19,7 @@ tools:
     version: "0.69.3"
 
 cache:
-  dir: ~/.cache/draugr
+  dir: .draugr/cache
   ttl: 12h
 
 output:
@@ -48,6 +48,27 @@ descriptor imposes it on everybody else.
 
 If the answer would be wrong for a colleague scanning the same application on a different machine,
 it belongs here rather than in the Saga.
+
+## Where Draugr writes
+
+Everything a run produces belongs under `.draugr/` in the project, beside the descriptor and
+exclusions it already keeps there:
+
+| Path | What |
+|---|---|
+| `.draugr/out/` | reports and SARIF from `-o` |
+| `.draugr/cache/` | the result cache, when you enable one |
+| `.draugr/self.saga.yaml`, `.draugr/exclusions/` | descriptor and shared exclusions |
+
+One directory to ignore in git rather than several names, and it stays out of the way of the
+project's own files.
+
+Neither is a default Draugr imposes: `-o` writes where you point it, and caching stays opt-in —
+a cache is a promise that an unchanged input has an unchanged answer, which somebody should ask
+for. These are the paths the examples use and the ones `draugr explain` looks in first.
+
+Draugr also reads `draugr-out/` and `.draugr-out/`, the names it recommended before, so a
+pipeline built on those keeps working.
 
 ## Where it is read from
 
@@ -93,7 +114,7 @@ pinned a scanner version would be asserting something about every machine that e
 
 ```yaml
 cache:
-  dir: ~/.cache/draugr
+  dir: .draugr/cache
   ttl: 12h
   readOnly: false
   requireDigest: true
