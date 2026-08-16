@@ -39,6 +39,11 @@ and move it under a version on release.
     optionally answering whether a pull-request gate would fail. In a coding session the question
     is rarely "what is wrong with this repository" — a project with inherited findings answers
     that identically before and after a change.
+  - `survey` discovers what an application is made of — the images running in a namespace, the
+    repositories in an organization — and returns a descriptor for it, so an assistant setting
+    Draugr up reads the real system instead of guessing from the schema. Several surveyors merge
+    into one descriptor, and it returns YAML rather than writing a file. `list_surveyors` names
+    what this build can discover.
 
 - **Findings from the MCP server carry what it takes to act on them** — the remediation text, the
   package and the version that fixes it, the component, the image, whether the OS release is past

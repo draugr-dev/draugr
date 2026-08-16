@@ -57,6 +57,8 @@ looks like it has hung — it's waiting for a client.
 | `fix_list` | The same report as **things to do**, most urgent first, each saying how many findings it clears |
 | `explain_rule` | What a rule means and how to fix it, from the report the scan already wrote |
 | `diff_reports` | What a change introduced and resolved, and whether a pull-request gate would fail |
+| `list_surveyors` | What can be discovered, and what each surveyor reads |
+| `survey` | A descriptor for a live cluster, organization or project — returned, not written |
 | `scan` | A fresh scan and its verdict — **only with `--scan=ask` or `--scan=always`** |
 
 ## What it looks like
@@ -217,6 +219,21 @@ PDF.
 question as "what is wrong with this repository". A project with two hundred inherited findings
 answers the second identically before and after a change. Give it `failOnNew` and it reports
 whether the pull-request gate would fail, using the same comparison `draugr diff` makes.
+`survey` answers "what is this application made of?" against the real thing. Writing a descriptor
+from `get_saga_schema` alone is guesswork about a live system — which namespaces exist, which
+images are actually running, at which digest. Several surveyors can run in one call and merge into
+one descriptor, because the repositories in an organization and the images in a namespace are the
+same application described twice.
+
+It **returns** YAML rather than writing a file. A tool that writes has to ask first, and merging
+into an existing descriptor carries decisions — which exposure wins, what a narrower scope means —
+that belong with whoever owns the file. Validate what comes back with `validate_saga`, then write
+it where the project keeps its descriptor.
+
+Each surveyor reads a live system with whatever credentials the machine already has: a kubeconfig,
+`GITHUB_TOKEN`, `GITLAB_TOKEN`, `AZURE_DEVOPS_EXT_PAT`. A survey that could not reach part of the
+surface says so — a descriptor missing half a cluster looks exactly like one for a smaller
+cluster.
 
 `summarize_report` answers "what should I fix first?" from a scan your pipeline already ran, at
 no cost.

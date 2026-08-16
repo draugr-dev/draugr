@@ -39,8 +39,9 @@ func newMCPCommand() *cobra.Command {
 				return err
 			}
 			srv, err := draugrmcp.NewServer(draugrmcp.Options{
-				Scan:     mode,
-				Registry: builtins.Registry(),
+				Scan:      mode,
+				Registry:  builtins.Registry(),
+				Surveyors: builtins.SurveyorRegistry(),
 			})
 			if err != nil {
 				return err

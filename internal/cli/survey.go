@@ -1,18 +1,15 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/surfaces"
@@ -372,7 +369,7 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	settled := classifiedComponents(model.Components)
 	surveyor.Apply(&model, frag)
 	reportNarrowed(narrowed)
-	if added := enableControlsForSurface(&model); len(added) > 0 {
+	if added := surfaces.EnableControls(&model); len(added) > 0 {
 		// To stderr, so a descriptor written to stdout stays a descriptor.
 		slog.Info("enabled controls for the discovered surface", "controls", strings.Join(added, ", "))
 	}
@@ -382,7 +379,7 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		_, _ = fmt.Fprintln(os.Stderr, note)
 	}
 
-	out, err := marshalSaga(&model)
+	out, err := saga.Marshal(&model)
 	if err != nil {
 		return err
 	}
@@ -440,7 +437,7 @@ func surveyIntoFragment(opts surveyOptions, frag saga.Fragment, stdout io.Writer
 		_, _ = fmt.Fprintln(os.Stderr, note)
 	}
 
-	out, err := marshalSaga(&base)
+	out, err := saga.Marshal(&base)
 	if err != nil {
 		return err
 	}
@@ -494,23 +491,6 @@ func classifiedComponents(components []saga.Component) map[string]bool {
 		}
 	}
 	return settled
-}
-
-// marshalSaga writes a descriptor at the indent every other command that touches one uses.
-//
-// yaml.Marshal's default is four, which is not a choice anybody made here — and a file written
-// with it is reindented end to end the first time `draugr classify` sets a field in it.
-func marshalSaga(doc any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(saga.Indent)
-	if err := enc.Encode(doc); err != nil {
-		return nil, err
-	}
-	if err := enc.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
 
 // proposedExposures returns the exposures this survey proposed and the descriptor took, in the
@@ -647,42 +627,4 @@ func baseModel(opts surveyOptions) (saga.Model, error) {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
-}
-
-// enableControlsForSurface turns on the controls the discovered components can be checked with.
-//
-// Only controls the descriptor says nothing about are touched. A control someone set — including
-// one they set to `enabled: false` — is left exactly as it is, because `--merge` runs against a
-// descriptor people edit, and a survey that re-enabled something you had switched off would be a
-// worse failure than the one this fixes.
-//
-// Returns the controls it added, so the command can say what it did rather than changing the
-// descriptor silently.
-func enableControlsForSurface(model *saga.Model) []string {
-	wanted := map[string]bool{}
-	for i := range model.Components {
-		c := &model.Components[i]
-		for surface, controls := range surfaces.Controls {
-			if !surfaces.ComponentHas(c, surface) {
-				continue
-			}
-			for _, name := range controls {
-				wanted[name] = true
-			}
-		}
-	}
-
-	var added []string
-	for name := range wanted {
-		if _, configured := model.Config.Controllers[name]; configured {
-			continue
-		}
-		if model.Config.Controllers == nil {
-			model.Config.Controllers = map[string]saga.ControllerSettings{}
-		}
-		model.Config.Controllers[name] = saga.ControllerSettings{"enabled": true}
-		added = append(added, name)
-	}
-	sort.Strings(added)
-	return added
 }

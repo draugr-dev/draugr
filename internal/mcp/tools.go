@@ -24,6 +24,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/surveyor"
 )
 
 // EmptyInput is the argument type for tools that take none. The SDK derives a schema from the
@@ -1014,4 +1015,142 @@ func findingsFrom(rules sarif.Report, results []sarif.Result, limit int) []Findi
 		out = append(out, findingFrom(rules, res))
 	}
 	return out
+}
+
+// SurveyRequest is one surveyor and what to point it at.
+type SurveyRequest struct {
+	Surveyor string `json:"surveyor" jsonschema:"which surveyor to run; list_surveyors names them"`
+	Ref      string `json:"ref,omitempty" jsonschema:"what to survey: a Kubernetes namespace, a GitHub organization, a GitLab group, an Azure DevOps project"`
+}
+
+// SurveyInput asks one or more surveyors what is out there.
+type SurveyInput struct {
+	// Surveys is a list because an application is rarely one surface. The repositories in an
+	// organization and the images running in a namespace are the same application described
+	// twice, and merging them into one descriptor is the point — running them separately gives
+	// two descriptors that each look complete.
+	Surveys []SurveyRequest `json:"surveys" jsonschema:"the surveyors to run; results merge into one descriptor"`
+	Name    string          `json:"name,omitempty" jsonschema:"release name for the descriptor"`
+	Version string          `json:"version,omitempty" jsonschema:"release version for the descriptor; defaults to 0.0.0"`
+}
+
+// SurveyOutput is a descriptor to look at, not a file that appeared on disk.
+type SurveyOutput struct {
+	// Saga is the descriptor as YAML, for the caller to show, edit and write itself.
+	Saga string `json:"saga" jsonschema:"the descriptor this survey produced, as YAML"`
+	// Components names what was found, so a caller can say what it discovered without parsing.
+	Components []string `json:"components,omitempty"`
+	// Controls are the ones the discovered surface turned on.
+	Controls []string `json:"controls,omitempty"`
+	Note     string   `json:"note,omitempty"`
+	// Warning carries what the survey could not reach. A survey that half worked and reads as
+	// complete is the failure worth naming: the descriptor looks finished and is not.
+	Warning string `json:"warning,omitempty"`
+}
+
+// SurveyTool discovers a surface and returns a descriptor for it.
+//
+// It returns the descriptor rather than writing one. A tool that writes a file is a tool that has
+// to ask first, and merging into an existing descriptor carries decisions — which exposure wins,
+// what a narrower scope means — that belong with the person who owns the file. Handing back YAML
+// lets an assistant show it, validate it with validate_saga, and let a human decide where it goes.
+//
+// Writing a descriptor by hand from get_saga_schema is the alternative, and it is guesswork about
+// a live system: which namespaces exist, which images are actually running, at which digest.
+func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOutput] {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, in SurveyInput) (*mcp.CallToolResult, SurveyOutput, error) {
+		if len(in.Surveys) == 0 {
+			return nil, SurveyOutput{}, fmt.Errorf("surveys is required — list_surveyors names them")
+		}
+		requests := make([]surveyor.Request, 0, len(in.Surveys))
+		for _, s := range in.Surveys {
+			if s.Surveyor == "" {
+				return nil, SurveyOutput{}, fmt.Errorf("each survey needs a surveyor — list_surveyors names them")
+			}
+			requests = append(requests, surveyor.Request{
+				Surveyor: s.Surveyor,
+				Scope:    plugin.SurveyScope{Ref: s.Ref},
+			})
+		}
+		out := SurveyOutput{}
+		frag, err := reg.Run(ctx, requests)
+		if err != nil {
+			// Run returns what it did gather alongside the error, so a survey that lost one
+			// source is still worth handing back — with the loss named, because a descriptor
+			// that is missing half a cluster looks exactly like one for a smaller cluster.
+			if len(frag.Components) == 0 {
+				return nil, SurveyOutput{}, fmt.Errorf("survey: %w", err)
+			}
+			out.Warning = "the survey did not complete; this descriptor may be missing part of " +
+				"the surface: " + err.Error()
+		}
+
+		name := in.Name
+		if name == "" && len(in.Surveys) == 1 {
+			name = in.Surveys[0].Ref
+		}
+		if name == "" {
+			name = "unnamed"
+		}
+		version := in.Version
+		if version == "" {
+			version = "0.0.0"
+		}
+		model := saga.Model{Release: saga.Release{Name: name, Version: version}}
+		surveyor.Apply(&model, frag)
+		// Without this the descriptor declares images and enables nothing to look at them — a
+		// scan that examines nothing and passes, which is the verdict this project is otherwise
+		// careful never to produce.
+		out.Controls = surfaces.EnableControls(&model)
+
+		data, err := saga.Marshal(&model)
+		if err != nil {
+			return nil, SurveyOutput{}, fmt.Errorf("render descriptor: %w", err)
+		}
+		out.Saga = string(data)
+		for _, c := range model.Components {
+			out.Components = append(out.Components, c.Name)
+		}
+		out.Note = "not written to disk — validate it with validate_saga, then write it where the " +
+			"project keeps its descriptor"
+		return nil, out, nil
+	}
+}
+
+// ListSurveyorsOutput names what can be discovered.
+type ListSurveyorsOutput struct {
+	Surveyors []SurveyorInfo `json:"surveyors"`
+	Hint      string         `json:"hint"`
+}
+
+// SurveyorInfo is one surveyor and what it finds.
+type SurveyorInfo struct {
+	Name     string   `json:"name"`
+	Provides []string `json:"provides" jsonschema:"what it discovers: repositories, images, hosts"`
+}
+
+// ListSurveyorsTool names the surveyors this build has.
+//
+// From the registry rather than a list written here, so a surveyor added to Draugr is reachable
+// without anyone remembering to mention it in two places.
+func ListSurveyorsTool(reg *surveyor.Registry) mcp.ToolHandlerFor[struct{}, ListSurveyorsOutput] {
+	return func(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, ListSurveyorsOutput, error) {
+		out := ListSurveyorsOutput{
+			Hint: "run one with survey, then validate_saga the descriptor it returns. Each reads " +
+				"a live system with whatever credentials this machine already has: a kubeconfig, " +
+				"GITHUB_TOKEN, GITLAB_TOKEN, AZURE_DEVOPS_EXT_PAT.",
+		}
+		for _, name := range reg.Names() {
+			s, ok := reg.Get(name)
+			if !ok {
+				continue
+			}
+			info := SurveyorInfo{Name: name}
+			for _, k := range s.Info().Provides {
+				info.Provides = append(info.Provides, string(k))
+			}
+			out.Surveyors = append(out.Surveyors, info)
+		}
+		return nil, out, nil
+	}
 }
