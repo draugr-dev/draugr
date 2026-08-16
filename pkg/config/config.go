@@ -49,6 +49,25 @@ type File struct {
 	// runner want the same cache; one project on two runners does not want its descriptor
 	// naming a path that exists on only one of them.
 	Cache CacheSettings `yaml:"cache,omitempty"`
+	// Output is how a report is rendered for whoever reads it here.
+	//
+	// A rendering preference belongs to a person or a machine, not to an application: an auditor
+	// wants the evidence on every scan they run, and a pipeline wants the same listing for every
+	// repository it builds. Putting either in a descriptor asserts it on everyone else who scans
+	// that application.
+	Output OutputSettings `yaml:"output,omitempty"`
+}
+
+// OutputSettings configures how the console renders a run. Each has a `--flag` that overrides it.
+type OutputSettings struct {
+	// Group is how the fix list is organised: "action" (one row per thing to do) or "none".
+	Group string `yaml:"group,omitempty"`
+	// Evidence also prints what stands behind the verdict — tool provenance, what each control
+	// measured against, the scanned revision, what the run cost.
+	Evidence bool `yaml:"evidence,omitempty"`
+	// Top caps how many rows the fix list shows. Zero means the built-in default rather than
+	// "show none": a file that omits a field is not asking for an empty list.
+	Top int `yaml:"top,omitempty"`
 }
 
 // CacheSettings configures result caching.
@@ -195,6 +214,17 @@ func merge(a, b File) File {
 	}
 	if b.Cache.RequireDigest {
 		out.Cache.RequireDigest = true
+	}
+
+	out.Output = a.Output
+	if b.Output.Group != "" {
+		out.Output.Group = b.Output.Group
+	}
+	if b.Output.Evidence {
+		out.Output.Evidence = true
+	}
+	if b.Output.Top != 0 {
+		out.Output.Top = b.Output.Top
 	}
 
 	if len(out.Tools) == 0 {
