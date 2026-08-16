@@ -33,7 +33,7 @@ config:
   # Where to deliver them.
   publishers:
     - kind: file                    # write each report to a directory
-      dir: ./draugr-out             # → ./draugr-out/{results.sarif,report.md,report.html,summary.txt}
+      dir: ./.draugr/out            # → ./.draugr/out/{results.sarif,report.md,report.html,summary.txt}
 
     - kind: github                  # upload the SARIF report to GitHub code scanning
       # In GitHub Actions, repo/commit/ref/token are read from the environment

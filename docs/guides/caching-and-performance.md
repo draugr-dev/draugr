@@ -16,8 +16,8 @@ Each scan job has a cache key derived from its inputs (scanner, version, target 
 config). Enable a cache and an unchanged target is never re-scanned:
 
 ```bash
-draugr scan draugr.saga.yaml --cache-dir .draugr-cache
-draugr scan draugr.saga.yaml --cache-dir .draugr-cache --cache-ttl 12h
+draugr scan draugr.saga.yaml --cache-dir .draugr/cache
+draugr scan draugr.saga.yaml --cache-dir .draugr/cache --cache-ttl 12h
 ```
 
 | Flag | Default | Description |
@@ -145,11 +145,11 @@ data. It is the smaller saving and it introduces a real question, because **an e
 ```yaml
 - uses: actions/cache@v4
   with:
-    path: .draugr-cache
+    path: .draugr/cache
     key: draugr-${{ github.sha }}
     restore-keys: draugr-
 - uses: draugr-dev/draugr@v0
-  with: { saga: draugr.saga.yaml, cache-dir: .draugr-cache }
+  with: { saga: draugr.saga.yaml, cache-dir: .draugr/cache }
 ```
 
 **Anyone who can write the cache can make a scan report a pass it never earned.** That is an

@@ -150,6 +150,18 @@ and move it under a version on release.
 
 ### Changed
 
+- **Everything a run writes is recommended under `.draugr/`** — `.draugr/out/` for reports,
+  `.draugr/cache/` for the result cache — beside the descriptor and exclusions Draugr already
+  keeps there. One directory to ignore in git rather than several names.
+
+  `draugr explain` looks there first, and still reads `draugr-out/` and `.draugr-out/`, the names
+  that came before. Neither path is imposed: `-o` writes where you point it, and caching stays
+  opt-in.
+
+  The GitHub Action and the GitLab template keep writing to `draugr-out` for now. A pipeline that
+  uploads `draugr-out/results.sarif` would not fail if that moved — it would upload nothing, and
+  the security tab would quietly empty — so they move on their own, deliberately.
+
 - **The cache caveat counts rather than names.** It listed the image references, which repeated
   what the marked rows already say and, on a descriptor with dozens of images, put a list nobody
   reads at the foot of the one they do. What the count adds is the part the rows cannot say —
