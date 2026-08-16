@@ -5,6 +5,7 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/tui"
@@ -30,6 +31,15 @@ type progressLine struct {
 	drawn int
 	// painter decides whether the frame carries colour, which depends on the same writer.
 	painter tui.Painter
+	// last is the most recent snapshot, kept so the ticker can repaint it with the clocks moved
+	// on. Progress is reported when a job starts or finishes, so a step with one slow job
+	// produces no events while it runs — and a frozen display during a long job is exactly when
+	// somebody starts wondering whether anything is happening.
+	last  engine.ProgressEvent
+	start time.Time
+	// stop ends the repaint loop. Buffered so done never blocks on a ticker that has already
+	// gone away.
+	stop chan struct{}
 }
 
 // active is the progress line currently drawn on the terminal, if any.
@@ -92,9 +102,41 @@ func newProgressLine(w io.Writer, opts scanOptions) *progressLine {
 // newProgressLineFor builds a renderer for w unconditionally, and registers it as the one on the
 // terminal. Separated from newProgressLine so a test can exercise the drawing without a terminal.
 func newProgressLineFor(w io.Writer) *progressLine {
-	p := &progressLine{w: w, painter: tui.For(w)}
+	p := &progressLine{
+		w: w, painter: tui.For(w), start: time.Now(), stop: make(chan struct{}, 1),
+	}
 	active.Store(p)
+	go p.tick()
 	return p
+}
+
+// tick repaints once a second so the clocks move while a job runs.
+//
+// A second because that is the resolution the figures are shown at; faster would rewrite the
+// screen for no visible change, and slower makes a reader wonder whether the display has stopped
+// along with the scan.
+func (p *progressLine) tick() {
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-p.stop:
+			return
+		case <-t.C:
+			p.repaint()
+		}
+	}
+}
+
+// repaint redraws the last snapshot. Does nothing before the first one arrives, so a run that
+// fails during planning never draws a frame at all.
+func (p *progressLine) repaint() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.last.Total == 0 {
+		return
+	}
+	p.draw(p.last)
 }
 
 // update draws a snapshot.
@@ -104,7 +146,13 @@ func (p *progressLine) update(ev engine.ProgressEvent) {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	lines := progressFrame(ev, p.painter)
+	p.last = ev
+	p.draw(ev)
+}
+
+// draw renders one frame. Callers hold mu.
+func (p *progressLine) draw(ev engine.ProgressEvent) {
+	lines := progressFrame(ev, p.painter, time.Since(p.start))
 	if len(lines) == 0 {
 		return
 	}
@@ -127,6 +175,10 @@ func (p *progressLine) done() {
 		return
 	}
 	active.Store(nil)
+	select {
+	case p.stop <- struct{}{}:
+	default: // already stopped; done is idempotent
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.erase()
@@ -141,11 +193,11 @@ func (p *progressLine) done() {
 // finishes, so the reader watches work disappear and cannot tell finished from not started.
 //
 // A row that stays, and changes state, answers all three.
-func progressFrame(ev engine.ProgressEvent, col tui.Painter) []string {
+func progressFrame(ev engine.ProgressEvent, col tui.Painter, elapsed time.Duration) []string {
 	if ev.Total == 0 {
 		return nil
 	}
-	lines := []string{progressHeadline(ev, col)}
+	lines := []string{progressHeadline(ev, col, elapsed)}
 	for _, st := range ev.Steps {
 		lines = append(lines, progressStepLine(st, col))
 	}
@@ -153,8 +205,11 @@ func progressFrame(ev engine.ProgressEvent, col tui.Painter) []string {
 }
 
 // progressHeadline is the count, and the failures if there are any.
-func progressHeadline(ev engine.ProgressEvent, col tui.Painter) string {
+func progressHeadline(ev engine.ProgressEvent, col tui.Painter, elapsed time.Duration) string {
 	line := fmt.Sprintf("Scanning %d/%d", ev.Complete, ev.Total)
+	if elapsed >= time.Second {
+		line += "  " + col.Paint(tui.StyleMuted, shortDuration(elapsed))
+	}
 	if ev.Failed > 0 {
 		line += "  " + col.Paint(tui.StyleFail, fmt.Sprintf("%d failed", ev.Failed))
 	}
@@ -182,6 +237,18 @@ func progressStepLine(st engine.ProgressStep, col tui.Painter) string {
 	if st.Failed > 0 {
 		detail += fmt.Sprintf(", %d failed", st.Failed)
 	}
+	// How long this step's oldest running job has been going. The question a reader has about a
+	// step that has not moved is whether it is working, and a figure that keeps climbing answers
+	// it — a stuck run and a slow one look identical without it.
+	//
+	// Not for the first couple of seconds. A job that finishes quickly would otherwise flash a
+	// "0s" on its way past, and a figure that appears and disappears draws the eye to the steps
+	// that need it least.
+	if since := st.RunningSince; !since.IsZero() {
+		if elapsed := time.Since(since); elapsed >= slowEnoughToTime {
+			detail += "  " + shortDuration(elapsed)
+		}
+	}
 	return fmt.Sprintf("  %s %-*s %s",
 		col.Paint(style, mark), progressNameWidth, name, col.Paint(tui.StyleMuted, detail))
 }
@@ -189,3 +256,17 @@ func progressStepLine(st engine.ProgressStep, col tui.Painter) string {
 // progressNameWidth keeps the counts in a column. Names are "control/scanner" and the longest
 // built-in pair is a little under this.
 const progressNameWidth = 34
+
+// slowEnoughToTime is how long a step runs before its clock appears.
+const slowEnoughToTime = 2 * time.Second
+
+// shortDuration renders an elapsed time in the units a reader is thinking in.
+//
+// Seconds up to a minute, then minutes and seconds — "94s" makes somebody do arithmetic to decide
+// whether to wait, and a scanner that pulls a database or waits on a cluster runs into minutes.
+func shortDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	}
+	return fmt.Sprintf("%dm%02ds", int(d.Minutes()), int(d.Seconds())%60)
+}

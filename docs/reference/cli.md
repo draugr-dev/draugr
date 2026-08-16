@@ -598,6 +598,46 @@ So the flag is for reading — a terminal, or an agent asking for the short list
 
 ---
 
+## `draugr explain <rule-id>`
+
+Print what a finding means and how to fix it, from a scan's own report.
+
+```bash
+draugr scan draugr.saga.yaml -o out/
+draugr explain kube-bench/cis/4.3.1 -r out/results.sarif
+```
+
+```
+kube-bench/cis/4.3.1
+Ensure that the kube-proxy metrics service is bound to localhost (Automated)
+
+How to fix
+  Modify or remove any values which bind the metrics service to a non-localhost address.
+  The default value is 127.0.0.1:10249.
+
+Found in
+  kubernetes/prod-cluster
+
+Reference
+  https://www.cisecurity.org/benchmark/kubernetes
+```
+
+A rule id and a truncated line are enough to rank a finding and not enough to decide anything.
+Scanners publish remediation text and Draugr records it, so the answer is already in the report —
+this is somewhere to read it, instead of searching for the identifier and landing on a
+registration form in front of a PDF.
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `-r, --report` | — | The `results.sarif` to read. Defaults to `results.sarif`, then `draugr-out/results.sarif` |
+
+The id can be given in full or by the part that is unambiguous — `4.3.1` finds
+`kube-bench/cis/4.3.1`. An abbreviation matching more than one rule lists them rather than
+choosing, since explaining a rule you did not ask about is worse than asking again.
+
+Only rules the scan reported are in its report, which is what makes the remediation specific to
+what was found rather than a catalogue.
+
 ## `draugr diff <base.sarif> <head.sarif>`
 
 Compare two scans and classify every finding as **new**, **fixed**, or **unchanged** — the

@@ -17,3 +17,4 @@ All 3 findings, by priority:
             python-flask: Denial of Service via crafted JSON file
 
 Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif.
+`draugr explain <rule>` says what a finding means and how to fix it.

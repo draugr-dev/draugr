@@ -170,6 +170,13 @@ type ProgressStep struct {
 	Done    int
 	Failed  int
 	Running int
+	// RunningSince is when this step's earliest still-running job started, zero when none is.
+	//
+	// A time rather than a duration, so a display can recompute the elapsed figure whenever it
+	// repaints. Progress is reported when a job starts or finishes, and a step with one slow job
+	// produces no events at all while it runs — which is exactly when somebody is asking whether
+	// it is working.
+	RunningSince time.Time
 }
 
 // Name is how the step is identified in a display.
@@ -750,7 +757,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			// something the machine is not doing.
 			mu.Lock()
 			running[jobIndex] = pj.Control + "/" + pj.Job.Scanner
-			steps[stepKey(pj)].Running++
+			if st := steps[stepKey(pj)]; st.Running == 0 {
+				st.RunningSince = time.Now()
+				st.Running++
+			} else {
+				st.Running++
+			}
 			report()
 			mu.Unlock()
 			defer func() {
@@ -760,6 +772,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				if st := steps[stepKey(pj)]; st != nil {
 					if st.Running > 0 {
 						st.Running--
+					}
+					if st.Running == 0 {
+						st.RunningSince = time.Time{}
 					}
 					// Finished, however it finished — the same rule Complete follows. Failed is
 					// counted separately and is a subset, so a display can say "3 of 3, 2 failed"

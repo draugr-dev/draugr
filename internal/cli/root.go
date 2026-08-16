@@ -98,6 +98,7 @@ func newRootCommand() *cobra.Command {
 	cmd.AddCommand(newInitCommand())
 	cmd.AddCommand(newScanCommand())
 	cmd.AddCommand(newDiffCommand())
+	cmd.AddCommand(newExplainCommand())
 	cmd.AddCommand(newSurveyCommand())
 	cmd.AddCommand(newClassifyCommand())
 	cmd.AddCommand(newValidateCommand())

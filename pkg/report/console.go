@@ -246,6 +246,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	writeEffects(w, col, s, d)
 	_, _ = fmt.Fprintln(w, col.Paint(cDim,
 		"Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif."))
+	// The rule id in a row is enough to rank a finding and not enough to decide anything. What
+	// the check means and what to change is in the report already; without this the reader is
+	// sent to whatever a search engine offers for the identifier.
+	_, _ = fmt.Fprintln(w, col.Paint(cDim,
+		"`draugr explain <rule>` says what a finding means and how to fix it."))
 	return nil
 }
 
@@ -1091,6 +1096,11 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) er
 	writeEffects(w, col, s, d)
 	_, _ = fmt.Fprintln(w, col.Paint(cDim,
 		"Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif."))
+	// The rule id in a row is enough to rank a finding and not enough to decide anything. What
+	// the check means and what to change is in the report already; without this the reader is
+	// sent to whatever a search engine offers for the identifier.
+	_, _ = fmt.Fprintln(w, col.Paint(cDim,
+		"`draugr explain <rule>` says what a finding means and how to fix it."))
 	return nil
 }
 
