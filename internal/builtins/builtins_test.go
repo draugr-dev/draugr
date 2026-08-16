@@ -1,6 +1,11 @@
 package builtins
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/draugr-dev/draugr/internal/controllers"
+)
 
 func TestRegistryHasDefaults(t *testing.T) {
 	reg := Registry()
@@ -23,6 +28,38 @@ func TestSurveyorRegistryHasDefaults(t *testing.T) {
 	} {
 		if _, ok := reg.Get(name); !ok {
 			t.Errorf("%s surveyor should be registered", name)
+		}
+	}
+}
+
+// TestEveryHyphenatedScannerHasAConfigKey closes a gap unit tests cannot see.
+//
+// Scanner names appear in reports and rule output, and several are hyphenated. Descriptor fields
+// are camelCase, so the two diverge for any scanner whose name has more than one word — and a
+// scanner registered without an entry is one a descriptor cannot configure. Validation rejects
+// the block as naming a scanner the control does not have, which reads as the scanner not
+// existing at all.
+//
+// Nothing else catches it: a controller's own tests build a plugin.Config directly and never
+// travel through descriptor validation, so they pass with the mapping missing.
+func TestEveryHyphenatedScannerHasAConfigKey(t *testing.T) {
+	t.Parallel()
+
+	for _, s := range Registry().Scanners() {
+		name := s.Info().Name
+		if !strings.Contains(name, "-") {
+			// Key and name are equal, so there is nothing to record.
+			continue
+		}
+		key := controllers.ScannerConfigKey(name)
+		if key == name {
+			t.Errorf("scanner %q is hyphenated and has no camelCase key: a descriptor cannot "+
+				"configure it, and validation rejects the block as naming a scanner that does "+
+				"not exist. Add it to scannerConfigKey in internal/controllers/config.go", name)
+			continue
+		}
+		if strings.Contains(key, "-") {
+			t.Errorf("scanner %q maps to %q, which is not camelCase", name, key)
 		}
 	}
 }

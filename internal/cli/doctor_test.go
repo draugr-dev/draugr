@@ -614,3 +614,56 @@ func TestMissingToolsAdviceOnlyOffersWhatWouldWork(t *testing.T) {
 		t.Errorf("a tool without its data is still unusable: %q", noData)
 	}
 }
+
+// TestEveryScannerBinaryIsInstallableOrSourced closes the third gap unit tests cannot see.
+//
+// `draugr tools install` fetches pinned releases Draugr verified, which it can only do for tools
+// it vouched for. A scanner whose binary is neither in that catalog nor named here leaves doctor
+// telling somebody to run a command that will never find it — advice worse than none, because it
+// sends them looking for a bug in Draugr rather than at the tool's own documentation.
+//
+// Crossed against the live registry, so registering a scanner is what triggers the requirement.
+func TestEveryScannerBinaryIsInstallableOrSourced(t *testing.T) {
+	t.Parallel()
+
+	catalog := tools.Catalog()
+	for _, s := range builtins.Registry().Scanners() {
+		info := s.Info()
+		for _, binary := range append([]string{info.Binary}, info.AlsoRequires...) {
+			if binary == "" || binary == "git" {
+				continue // git is assumed present, not provisioned
+			}
+			if _, installable := catalog[binary]; installable {
+				continue
+			}
+			if _, sourced := externalTools[binary]; sourced {
+				continue
+			}
+			t.Errorf("scanner %q needs %q, which Draugr neither installs nor knows a source for: "+
+				"doctor will suggest `draugr tools install %s`, and that will never find it. Add "+
+				"it to externalTools in internal/cli/doctor.go, or to the tool catalog",
+				info.Name, binary, binary)
+		}
+	}
+}
+
+// TestEveryExternalToolIsStillNeeded keeps the list from outliving the scanner that required it.
+// A stale entry is harmless at runtime and misleading to read, which is how a list stops being
+// trusted as a description of anything.
+func TestEveryExternalToolIsStillNeeded(t *testing.T) {
+	t.Parallel()
+
+	needed := map[string]bool{}
+	for _, s := range builtins.Registry().Scanners() {
+		info := s.Info()
+		needed[info.Binary] = true
+		for _, extra := range info.AlsoRequires {
+			needed[extra] = true
+		}
+	}
+	for binary := range externalTools {
+		if !needed[binary] {
+			t.Errorf("externalTools names %q, which no registered scanner requires", binary)
+		}
+	}
+}

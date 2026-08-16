@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // generated decodes the schema the registry produces, which is what an editor consumes.
@@ -254,4 +258,139 @@ func TestSchemaKnowsEveryReportFormat(t *testing.T) {
 			t.Errorf("the schema does not accept %q, which this build can render", f)
 		}
 	}
+}
+
+// enumAt walks the schema to a definition's enum, accepting either an `enum` list or the
+// `anyOf` of consts the hand-written parts use to carry a description per value.
+func enumAt(t *testing.T, path ...string) []string {
+	t.Helper()
+	data, err := os.ReadFile(schemaPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	node, ok := doc["$defs"].(map[string]any)
+	if !ok {
+		t.Fatal("schema has no $defs")
+	}
+	var cur any = node
+	for _, step := range path {
+		m, ok := cur.(map[string]any)
+		if !ok {
+			t.Fatalf("schema path %v: %q is not an object", path, step)
+		}
+		if cur, ok = m[step]; !ok {
+			t.Fatalf("schema path %v: no %q", path, step)
+		}
+	}
+	m, ok := cur.(map[string]any)
+	if !ok {
+		t.Fatalf("schema path %v does not end at an object", path)
+	}
+
+	var out []string
+	if raw, ok := m["enum"].([]any); ok {
+		for _, v := range raw {
+			out = append(out, v.(string))
+		}
+		return out
+	}
+	if raw, ok := m["anyOf"].([]any); ok {
+		for _, v := range raw {
+			out = append(out, v.(map[string]any)["const"].(string))
+		}
+		return out
+	}
+	t.Fatalf("schema path %v has neither enum nor anyOf", path)
+	return nil
+}
+
+// TestHandWrittenEnumsMatchTheirSource crosses every enum the generator does not produce against
+// the Go value that decides what Draugr accepts.
+//
+// These are the parts of the schema somebody edits by hand, and the failure they produce is
+// quiet: an editor marks a descriptor red that Draugr loads without complaint, or accepts one it
+// rejects. Nothing else notices, because the schema is a data file that no Go code reads.
+//
+// The generated parts already have this guarantee — see the fragment and registry tests above.
+// This is the same guarantee for the parts a person maintains, which are the ones that drift.
+func TestHandWrittenEnumsMatchTheirSource(t *testing.T) {
+	t.Parallel()
+
+	for _, c := range []struct {
+		name string
+		path []string
+		want []string
+	}{
+		{
+			// A publisher registered but missing here is one a descriptor cannot name without an
+			// editor calling it invalid, which reads as the publisher not existing.
+			name: "publisher kinds",
+			path: []string{"publisherConfig", "properties", "kind"},
+			want: publish.Kinds(),
+		},
+		{
+			name: "priority gate bands",
+			path: []string{"gateConfig", "properties", "failOnPriority"},
+			want: saga.Priorities,
+		},
+		{
+			// Bands first, then the SARIF levels still accepted for descriptors written against
+			// the older vocabulary. Both are valid, so both belong here.
+			name: "gate thresholds",
+			path: []string{"gateConfig", "properties", "controls", "additionalProperties"},
+			want: append(append([]string{}, sarif.Severities...), "error", "warning", "note"),
+		},
+		{
+			name: "exposure",
+			path: []string{"exposure"},
+			want: exposureStrings(),
+		},
+		{
+			name: "criticality",
+			path: []string{"criticality"},
+			want: criticalityStrings(),
+		},
+		{
+			name: "who builds an image",
+			path: []string{"image", "properties", "builtBy"},
+			want: []string{string(saga.BuiltBySelf), string(saga.BuiltByUpstream)},
+		},
+		{
+			name: "who operates infrastructure",
+			path: []string{"infrastructure", "properties", "operatedBy"},
+			want: []string{string(saga.OperatedBySelf), string(saga.OperatedByProvider)},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := enumAt(t, c.path...)
+			sort.Strings(got)
+			want := append([]string{}, c.want...)
+			sort.Strings(want)
+			if !slices.Equal(got, want) {
+				t.Errorf("the schema and the code disagree about %s:\nschema %v\ncode   %v",
+					c.name, got, want)
+			}
+		})
+	}
+}
+
+// exposureStrings and criticalityStrings render the declared values as a descriptor writes them.
+func exposureStrings() []string {
+	out := make([]string, 0, len(saga.Exposures))
+	for _, e := range saga.Exposures {
+		out = append(out, string(e))
+	}
+	return out
+}
+
+func criticalityStrings() []string {
+	out := make([]string, 0, len(saga.Criticalities))
+	for _, c := range saga.Criticalities {
+		out = append(out, string(c))
+	}
+	return out
 }

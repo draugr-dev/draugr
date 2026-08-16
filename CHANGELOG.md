@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Registering something now proves it is reachable.** Guards cross the live registries against
+  the places a plugin has to appear to be usable: a hyphenated scanner without its descriptor key,
+  a scanner whose tool Draugr neither installs nor names a source for, and the hand-written parts
+  of the Saga schema drifting from the Go values that decide what Draugr accepts. Each failure
+  used to pass every test and surface as the capability appearing not to exist.
 
 ## [0.98.1] - 2026-08-16
 
