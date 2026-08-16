@@ -34,3 +34,4 @@ Use --top 0 to list them all, or --group none to list every finding separately.
 SBOM: 2 documents (spdx-json)
 
 Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif.
+`draugr explain <rule>` says what a finding means and how to fix it.

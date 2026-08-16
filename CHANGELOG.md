@@ -12,6 +12,25 @@ and move it under a version on release.
 
 ### Added
 
+- **`draugr explain <rule>` says what a finding means and how to fix it**, from the scan's own
+  report.
+
+  ```
+  kube-bench/cis/4.3.1
+  Ensure that the kube-proxy metrics service is bound to localhost (Automated)
+
+  How to fix
+    Modify or remove any values which bind the metrics service to a non-localhost address.
+    The default value is 127.0.0.1:10249.
+  ```
+
+  A rule id and a truncated line are enough to rank a finding and not enough to decide anything.
+  Scanners publish remediation text and Draugr has been recording it all along — there was just
+  nowhere to read it, so the identifier sent you to whatever a search engine offered, which for a
+  benchmark is a registration form in front of a PDF.
+
+  Takes the id in full or the part that is unambiguous: `4.3.1` finds `kube-bench/cis/4.3.1`.
+
 - **`builtBy` says whether you build an image or only run it**, and the fix list stops telling you
   to do the impossible.
 
