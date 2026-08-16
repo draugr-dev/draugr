@@ -107,3 +107,41 @@ func sortedKeys[V any](m map[string][]V) []string {
 	sort.Strings(out)
 	return out
 }
+
+// EnableControls turns on the controls the discovered components can be checked with.
+//
+// Only controls the descriptor says nothing about are touched. A control someone set — including
+// one they set to `enabled: false` — is left exactly as it is, because `--merge` runs against a
+// descriptor people edit, and a survey that re-enabled something you had switched off would be a
+// worse failure than the one this fixes.
+//
+// Returns the controls it added, so the command can say what it did rather than changing the
+// descriptor silently.
+func EnableControls(model *saga.Model) []string {
+	wanted := map[string]bool{}
+	for i := range model.Components {
+		c := &model.Components[i]
+		for surface, controls := range Controls {
+			if !ComponentHas(c, surface) {
+				continue
+			}
+			for _, name := range controls {
+				wanted[name] = true
+			}
+		}
+	}
+
+	var added []string
+	for name := range wanted {
+		if _, configured := model.Config.Controllers[name]; configured {
+			continue
+		}
+		if model.Config.Controllers == nil {
+			model.Config.Controllers = map[string]saga.ControllerSettings{}
+		}
+		model.Config.Controllers[name] = saga.ControllerSettings{"enabled": true}
+		added = append(added, name)
+	}
+	sort.Strings(added)
+	return added
+}

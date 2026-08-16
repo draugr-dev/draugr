@@ -27,6 +27,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/surveyor"
 )
 
 // ScanMode says whether, and on what terms, a client may start a scan.
@@ -69,6 +70,9 @@ type Options struct {
 	// Root is the directory searched for Saga descriptors to expose as resources. Empty means
 	// the working directory.
 	Root string
+	// Surveyors supplies the discovery plugins. Empty disables survey and list_surveyors, so a
+	// caller embedding this server chooses whether it may reach a cluster or a forge at all.
+	Surveyors *surveyor.Registry
 }
 
 // serverName is how Draugr identifies itself to a client.

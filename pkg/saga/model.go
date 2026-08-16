@@ -1,6 +1,7 @@
 package saga
 
 import (
+	"bytes"
 	"fmt"
 	"path"
 	"slices"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"gopkg.in/yaml.v3"
 )
 
 // Model is a parsed Saga descriptor — the declarative account of an application's
@@ -740,4 +742,23 @@ func settingsEnabled(settings ControllerSettings) bool {
 	}
 	enabled, ok := v.(bool)
 	return ok && enabled
+}
+
+// Marshal renders a descriptor as YAML, at the indentation Draugr writes.
+//
+// Here rather than beside any one caller, because the indent is the whole point and every writer
+// has to agree on it. yaml.Marshal's default is four spaces, which is not a choice anybody made —
+// and a file written with it is reindented end to end the first time something else edits a field
+// in it, turning a one-line change into a whole-file diff nobody can review.
+func Marshal(doc any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(Indent)
+	if err := enc.Encode(doc); err != nil {
+		return nil, err
+	}
+	if err := enc.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

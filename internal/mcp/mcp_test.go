@@ -11,11 +11,15 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"errors"
+
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/surveyor"
 )
 
 // A client should never be able to start a scan unless the operator said so: a scan clones
@@ -1205,5 +1209,132 @@ func TestDiffNamesTheReportItCouldNotRead(t *testing.T) {
 		DiffInput{BasePath: ok, HeadPath: missing})
 	if err == nil || !strings.Contains(err.Error(), "absent.sarif") {
 		t.Errorf("the error should name the path that failed, got: %v", err)
+	}
+}
+
+// fakeSurveyor stands in for a live system, so the descriptor path is exercised without one.
+type fakeSurveyor struct {
+	name string
+	frag saga.Fragment
+	err  error
+}
+
+func (f fakeSurveyor) Info() plugin.SurveyorInfo {
+	return plugin.SurveyorInfo{Name: f.name, Provides: []plugin.TargetKind{plugin.TargetImage}}
+}
+
+func (f fakeSurveyor) Survey(_ context.Context, _ plugin.SurveyScope) (saga.Fragment, error) {
+	return f.frag, f.err
+}
+
+func surveyorRegistry(s plugin.Surveyor) *surveyor.Registry {
+	reg := surveyor.NewRegistry()
+	reg.Register(s)
+	return reg
+}
+
+// TestSurveyReturnsADescriptorRatherThanWritingOne. A tool that writes a file has to ask first,
+// and merging into an existing descriptor carries decisions belonging to whoever owns it.
+func TestSurveyReturnsADescriptorRatherThanWritingOne(t *testing.T) {
+	reg := surveyorRegistry(fakeSurveyor{name: "fake", frag: saga.Fragment{
+		Components: []saga.Component{{Name: "prod", Images: []saga.Image{{Image: "nginx:1.27"}}}},
+	}})
+
+	_, out, err := SurveyTool(reg)(context.Background(), nil,
+		SurveyInput{Surveys: []SurveyRequest{{Surveyor: "fake", Ref: "prod"}}, Name: "acme", Version: "2.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"acme", "2.0", "prod", "nginx:1.27"} {
+		if !strings.Contains(out.Saga, want) {
+			t.Errorf("the descriptor is missing %q:\n%s", want, out.Saga)
+		}
+	}
+	if len(out.Components) != 1 || out.Components[0] != "prod" {
+		t.Errorf("what was discovered should be nameable without parsing: %+v", out.Components)
+	}
+	// The discovered surface turns on the controls that can examine it.
+	if len(out.Controls) == 0 {
+		t.Errorf("images were discovered and no control was enabled: %+v", out)
+	}
+	// And it says plainly that nothing was written, so a caller does not assume a file appeared.
+	if !strings.Contains(out.Note, "not written to disk") {
+		t.Errorf("the note should say nothing was written: %q", out.Note)
+	}
+}
+
+// TestSurveyedDescriptorValidates: handing back YAML that Draugr would reject makes the tool a
+// source of work rather than a shortcut.
+func TestSurveyedDescriptorValidates(t *testing.T) {
+	reg := surveyorRegistry(fakeSurveyor{name: "fake", frag: saga.Fragment{
+		Components: []saga.Component{{Name: "prod", Images: []saga.Image{{Image: "nginx:1.27"}}}},
+	}})
+	_, out, err := SurveyTool(reg)(context.Background(), nil,
+		SurveyInput{Surveys: []SurveyRequest{{Surveyor: "fake", Ref: "prod"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, v, err := ValidateSagaTool(context.Background(), nil, ValidateInput{Content: out.Saga})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !v.Valid {
+		t.Errorf("the descriptor a survey returned does not validate: %s\n%s", v.Error, out.Saga)
+	}
+}
+
+// TestSurveySaysWhatItCouldNotReach. A descriptor missing half a cluster looks exactly like one
+// for a smaller cluster, and an assistant will present it as complete.
+func TestSurveySaysWhatItCouldNotReach(t *testing.T) {
+	reg := surveyorRegistry(fakeSurveyor{
+		name: "reachable",
+		frag: saga.Fragment{Components: []saga.Component{{Name: "reached",
+			Images: []saga.Image{{Image: "nginx:1"}}}}},
+	})
+	reg.Register(fakeSurveyor{name: "forbidden", err: errors.New("namespace staging: forbidden")})
+
+	_, out, err := SurveyTool(reg)(context.Background(), nil, SurveyInput{Surveys: []SurveyRequest{
+		{Surveyor: "reachable"}, {Surveyor: "forbidden"},
+	}})
+	if err != nil {
+		t.Fatalf("a partial survey is still worth returning: %v", err)
+	}
+	if !strings.Contains(out.Warning, "forbidden") {
+		t.Errorf("what could not be reached should be named: %+v", out)
+	}
+}
+
+// TestSurveyFailsWhenItFoundNothing, rather than returning an empty descriptor that reads as an
+// application with no surface.
+func TestSurveyFailsWhenItFoundNothing(t *testing.T) {
+	reg := surveyorRegistry(fakeSurveyor{name: "fake", err: errors.New("no such cluster")})
+	if _, _, err := SurveyTool(reg)(context.Background(), nil, SurveyInput{Surveys: []SurveyRequest{{Surveyor: "fake"}}}); err == nil {
+		t.Fatal("a survey that reached nothing should be an error")
+	}
+}
+
+// TestSurveyNeedsASurveyorThatExists rather than silently running none.
+func TestSurveyNeedsASurveyorThatExists(t *testing.T) {
+	reg := surveyorRegistry(fakeSurveyor{name: "fake"})
+	if _, _, err := SurveyTool(reg)(context.Background(), nil, SurveyInput{}); err == nil {
+		t.Error("an empty surveyor name should be an error")
+	}
+	if _, _, err := SurveyTool(reg)(context.Background(), nil, SurveyInput{Surveys: []SurveyRequest{{Surveyor: "nope"}}}); err == nil {
+		t.Error("an unknown surveyor should be an error")
+	}
+}
+
+// TestListSurveyorsComesFromTheRegistry, so a surveyor added to Draugr is reachable without
+// anyone remembering to name it in a second place.
+func TestListSurveyorsComesFromTheRegistry(t *testing.T) {
+	_, out, err := ListSurveyorsTool(builtins.SurveyorRegistry())(context.Background(), nil, struct{}{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Surveyors) != len(builtins.SurveyorRegistry().Names()) {
+		t.Errorf("the listing and the registry disagree: %+v", out.Surveyors)
+	}
+	if out.Hint == "" {
+		t.Error("the listing should say these read live systems with real credentials")
 	}
 }
