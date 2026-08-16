@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.98.0] - 2026-08-16
+
 ### Added
 
 - **A descriptor can gate on priority, not only severity.** `config.gate.failOnPriority` fails the
@@ -27,7 +31,7 @@ and move it under a version on release.
   still overrides it for a single run. A scan through the MCP server applies it too, so an
   assistant and CI reach the same verdict.
 
-- **The MCP server answers "what should I do", not only "what is wrong".** Two tools for
+- **The MCP server answers "what should I do", not only "what is wrong".** Four new tools for
   assistants:
 
   - `fix_list` returns the work a report implies — one row per remediation, most urgent first,
@@ -4603,7 +4607,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.97.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.98.0...HEAD
+[0.98.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.98.0
 [0.97.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.97.0
 [0.96.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.96.0
 [0.95.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.95.0
