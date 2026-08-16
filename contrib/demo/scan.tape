@@ -30,6 +30,9 @@ Set Width 1600
 # Raised beyond what the current report needs, deliberately. The check measures the real output, so
 # a value sized exactly to it fails on the next line the report gains — and that failure lands in a
 # release, after the binaries are built and signed, which is the most expensive moment to find it.
+#
+# The headroom costs nothing in the published image: contrib/demo/cropmargin trims the render back
+# to what was drawn before it is committed. Raise this freely; do not lower it to tidy the picture.
 Set Height 1400
 Set Theme "Dracula"
 Set Padding 20
