@@ -399,6 +399,9 @@ type finding struct {
 	// upgrade is one action however many findings it clears, and the package plus the version
 	// that fixes it is what says two findings share that action.
 	pkg *sarif.Package
+	// imageBuiltUpstream marks a finding in an image somebody else publishes, which changes what
+	// the reader can do about it and therefore how it groups.
+	imageBuiltUpstream bool
 	// operatingSystem is the release an image finding came from, for the same reason: moving off
 	// a release past end of service life is one action for everything in that layer.
 	operatingSystem string
@@ -528,9 +531,10 @@ func summarize(d Data) summary {
 				level: res.Level, severity: sev,
 				helpURI: rep.HelpURI(res.RuleID),
 				score:   res.Score, hasScore: res.HasScore,
-				remediation:     res.Remediation(),
-				pkg:             res.Package,
-				operatingSystem: res.OperatingSystem,
+				remediation:        res.Remediation(),
+				imageBuiltUpstream: res.ImageBuiltUpstream,
+				pkg:                res.Package,
+				operatingSystem:    res.OperatingSystem,
 			})
 		}
 	}

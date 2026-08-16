@@ -220,6 +220,10 @@ func validateComponents(comps []Component) []error {
 			if img.Image == "" {
 				errs = append(errs, fmt.Errorf("%s: images[%d].image is required", where, j))
 			}
+			if img.BuiltBy != "" && !img.BuiltBy.Valid() {
+				errs = append(errs, fmt.Errorf("%s: images[%d].builtBy %q is not one of %v",
+					where, j, img.BuiltBy, BuiltByValues))
+			}
 			if img.Digest != "" && !validDigest(img.Digest) {
 				errs = append(errs, fmt.Errorf("%s: images[%d].digest %q must be of the form algorithm:hex (e.g. sha256:…)", where, j, img.Digest))
 			}

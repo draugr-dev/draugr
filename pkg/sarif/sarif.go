@@ -204,10 +204,11 @@ type sarifProperties struct {
 	// have to do without. GitLab's container-scanning schema requires both, and neither can be
 	// guessed: a required field filled with something plausible is a claim a platform will
 	// render, attribute to Draugr, and act on in a policy.
-	Image            string `json:"image,omitempty"`
-	OperatingSystem  string `json:"operatingSystem,omitempty"`
-	OSEndOfLife      bool   `json:"osEndOfLife,omitempty"`
-	ProviderOperated bool   `json:"providerOperated,omitempty"`
+	Image              string `json:"image,omitempty"`
+	OperatingSystem    string `json:"operatingSystem,omitempty"`
+	OSEndOfLife        bool   `json:"osEndOfLife,omitempty"`
+	ProviderOperated   bool   `json:"providerOperated,omitempty"`
+	ImageBuiltUpstream bool   `json:"imageBuiltUpstream,omitempty"`
 	// Layer survives the file for the same reason: it is what separates a finding this component
 	// introduced from one it inherited, and that answer is worth as much on the second read as
 	// on the first.
@@ -357,13 +358,14 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// would drop them for any finding carrying nothing else.
 		if tool != "" || res.HasScore || res.Priority != "" || res.Image != "" ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
-			res.ProviderOperated {
+			res.ProviderOperated || res.ImageBuiltUpstream {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Priority: res.Priority, Component: res.Component,
 				Repository: res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
-				OSEndOfLife:      res.OSEndOfLife,
-				ProviderOperated: res.ProviderOperated,
+				OSEndOfLife:        res.OSEndOfLife,
+				ProviderOperated:   res.ProviderOperated,
+				ImageBuiltUpstream: res.ImageBuiltUpstream,
 			}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
@@ -564,6 +566,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Layer = sr.Properties.Layer
 				res.OSEndOfLife = sr.Properties.OSEndOfLife
 				res.ProviderOperated = sr.Properties.ProviderOperated
+				res.ImageBuiltUpstream = sr.Properties.ImageBuiltUpstream
 				res.Package = sr.Properties.Package
 			}
 			out.Results = append(out.Results, res)

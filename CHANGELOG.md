@@ -11,6 +11,29 @@ and move it under a version on release.
 ## [Unreleased]
 
 ### Added
+
+- **`builtBy` says whether you build an image or only run it**, and the fix list stops telling you
+  to do the impossible.
+
+  ```yaml
+  images:
+    - image: registry.example.com/vendor/redis:8.2.2
+      builtBy: upstream     # self (default), or upstream for one somebody else publishes
+  ```
+
+  Nobody can upgrade a library inside an image they do not build — the fix is a newer image, or a
+  wait for whoever publishes it. Findings in an `upstream` image now group into one action per
+  image instead of one per package:
+
+  ```
+  P1  Update istio/install-cni:1.30.0  images · 184 findings · upstream
+      CVE-2026-8925 +183
+  ```
+
+  On a real cluster scan that turned 80-odd rows telling the reader to upgrade libraries they
+  cannot reach into five rows naming five images they can. `self` remains the default, because a
+  descriptor written by hand describes what a team builds; a hint points at the setting when a run
+  finds image vulnerabilities and no image has said either way.
 - **Configuration can hold how you like the report**, and has a guide of its own.
 
   ```yaml

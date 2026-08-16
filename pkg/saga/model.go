@@ -479,7 +479,38 @@ type Repository struct {
 type Image struct {
 	Image  string `yaml:"image"`
 	Digest string `yaml:"digest,omitempty"`
+	// BuiltBy says who builds this image: "self" (the default) or "upstream" for one this
+	// component runs but somebody else publishes.
+	//
+	// It decides what the report tells a reader to do about a vulnerable package inside it.
+	// Nobody running a scan can upgrade a library inside an image they do not build — the fix is
+	// a newer image, or a wait for whoever publishes it. Advice they cannot take, at the top of a
+	// list called "fix first", teaches them the list is not worth reading.
+	//
+	// Declared rather than detected, because nothing in an image says who built it. Defaults to
+	// "self" so a descriptor that says nothing keeps describing its own work, which is the common
+	// case for a hand-written one — a surveyed cluster is the case that needs saying.
+	BuiltBy BuiltBy `yaml:"builtBy,omitempty"`
 }
+
+// BuiltBy says who publishes an image.
+type BuiltBy string
+
+// Who builds an image.
+const (
+	// BuiltBySelf is the default: this team builds it, so a package inside it is theirs to
+	// upgrade.
+	BuiltBySelf BuiltBy = "self"
+	// BuiltByUpstream is an image this team runs and somebody else publishes. Upstream rather
+	// than "vendor": the publisher is as often an open-source project as a company.
+	BuiltByUpstream BuiltBy = "upstream"
+)
+
+// Valid reports whether the value is one Draugr defines.
+func (b BuiltBy) Valid() bool { return b == BuiltBySelf || b == BuiltByUpstream }
+
+// BuiltByValues are the values builtBy accepts.
+var BuiltByValues = []BuiltBy{BuiltBySelf, BuiltByUpstream}
 
 // Host is a running endpoint. Type is "browser" (browser-facing UI) or "api" (programmatic);
 // it tunes which security-header checks apply. Optional; defaults to "browser".

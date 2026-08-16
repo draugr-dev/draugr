@@ -81,6 +81,21 @@ var scanTips = []scanTip{
 		},
 	},
 	{
+		// A descriptor written by hand describes what a team builds, so "self" is the right
+		// default. One written by a surveyor describes a running cluster, where most images come
+		// from somebody else — and there the fix list tells the reader to upgrade libraries
+		// inside images they cannot rebuild, which is advice they cannot take.
+		name: "built-upstream",
+		when: func(c tipContext) bool {
+			return hasImageFindings(c.run) && !declaresBuiltBy(c.model)
+		},
+		text: func(tipContext) string {
+			return "every image is assumed to be one you build, so the fix list says to upgrade " +
+				"the packages inside them. Set `builtBy: upstream` on images you only run, and " +
+				"it will tell you to take a newer image instead."
+		},
+	},
+	{
 		name: "classify",
 		when: func(c tipContext) bool {
 			return hasFindings(c.run) && !usesRiskClassification(c.model)
@@ -212,6 +227,31 @@ func hasFindings(run engine.Result) bool {
 	for _, cr := range run.Controls {
 		if len(cr.Report.Results) > 0 {
 			return true
+		}
+	}
+	return false
+}
+
+// hasImageFindings reports whether the run found anything in a container image.
+func hasImageFindings(run engine.Result) bool {
+	c, ok := run.Controls["images"]
+	return ok && len(c.Report.Results) > 0
+}
+
+// declaresBuiltBy reports whether any image says who builds it.
+//
+// Any, not all: a descriptor that has answered the question once has been told about it, and
+// repeating the advice for the images it left at the default would be nagging about a decision
+// somebody has already made.
+func declaresBuiltBy(model *saga.Model) bool {
+	if model == nil {
+		return false
+	}
+	for _, c := range model.Components {
+		for _, img := range c.Images {
+			if img.BuiltBy != "" {
+				return true
+			}
 		}
 	}
 	return false

@@ -37,7 +37,10 @@ func (Images) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, er
 	selections := resolveScanners(model, comp, "images", []string{trivyScanner})
 	jobs := make([]plugin.ScanJob, 0, len(comp.Images)*len(selections))
 	for _, img := range comp.Images {
-		target := plugin.ImageTarget{Ref: img.Image, Digest: img.Digest}
+		target := plugin.ImageTarget{
+			Ref: img.Image, Digest: img.Digest,
+			BuiltUpstream: img.BuiltBy == saga.BuiltByUpstream,
+		}
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
 		}

@@ -163,6 +163,7 @@ func imageRefLocations(target plugin.Target, report sarif.Report) sarif.Report {
 		// "which image is this finding about" should not have to parse a location string and
 		// guess whether it happens to be an image reference this time.
 		report.Results[i].Image = ref
+		report.Results[i].ImageBuiltUpstream = img.BuiltUpstream
 	}
 	return report
 }
