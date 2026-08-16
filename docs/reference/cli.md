@@ -302,7 +302,9 @@ Grouped the way `draugr scan --help` groups them.
 |------|---------|-------------|
 | `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
 | `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
-| `--report` | `json,sarif` | Formats to write into `-o`: `console`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, and the `gitlab-*` reports. `--format` prints, `--report` writes — see [below](#--format-prints---report-writes) |
+| `--report` | `json,sarif` | Formats to write into `-o`: `console`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, `evidence`, and the `gitlab-*` reports. `--format` prints, `--report` writes — see [below](#--format-prints---report-writes) |
+| `--group` | `action` | Console: how the fix list is organised. `action` gives one row per thing to do, saying how many findings it clears; `none` gives one row per finding. Grouping is a rendering — the report files always carry every finding separately |
+| `--evidence` | `false` | Console: also print what stands behind the verdict — tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
 | `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
 | `--artifact-min-priority` | — | Also narrow the `-o` artifacts to this band, and record the band inside them. The deliberate opposite of `--min-priority`, and safe for the same reason it is declared — see [below](#what---min-priority-narrows) |
@@ -528,6 +530,10 @@ draugr scan draugr.saga.yaml -o out/ --report vex             # openvex.json
 draugr scan draugr.saga.yaml -o out/ --report html --format console
 draugr scan draugr.saga.yaml -o out/ --report gitlab-codequality
 ```
+
+`evidence` is `--report` only for the same reason, and is a companion rather than a replacement:
+it answers whether a run can be trusted, not what it found, and the findings are already in the
+report beside it.
 
 The GitLab formats — `gitlab-sast`, `gitlab-dependency-scanning`, `gitlab-secret-detection`,
 `gitlab-container-scanning`, `gitlab-codequality` — are

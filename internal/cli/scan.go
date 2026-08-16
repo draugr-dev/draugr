@@ -47,6 +47,7 @@ type scanOptions struct {
 	cacheReadOnly      bool
 	cacheRequireDigest bool
 	group              string
+	evidence           bool
 	minPriority        string
 	// artifactMinPriority narrows the written artifacts as well, which --min-priority
 	// deliberately does not. Separate because they answer to different readers: one trims a
@@ -84,8 +85,8 @@ var scanFlagGroups = []flagGroup{
 	{"What fails the build", []string{"fail-on", "fail-on-priority", "no-gate", "allow-scan-errors"}},
 	{"Exploitability data", []string{"kev", "epss", "epss-threshold"}},
 	{"Output", []string{
-		"format", "output", "report", "group", "top", "min-priority", "artifact-min-priority",
-		"compact", "template", "template-file", "no-tips",
+		"format", "output", "report", "group", "evidence", "top", "min-priority",
+		"artifact-min-priority", "compact", "template", "template-file", "no-tips",
 	}},
 	{"Caching", []string{"cache-dir", "cache-ttl", "cache-read-only", "cache-require-digest"}},
 	{"Running the scan", []string{"jobs", "allow-effects", "no-publish"}},
@@ -120,6 +121,9 @@ func newScanCommand() *cobra.Command {
 			"where `draugr diff` is the gate")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.LevelError), "severity that fails the gate: error, warning, note")
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "", "also fail the gate on any finding at or above this priority (P1-P4)")
+	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
+		"also print what stands behind the verdict: tool provenance, what each control measured "+
+			"against, the scanned revision, and what the run cost")
 	cmd.Flags().StringVar(&opts.group, "group", groupAction,
 		"how the fix list is organised: `action` (one row per thing to do) or none (one per finding)")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
@@ -347,6 +351,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		MinPriority:          minPriority,
 		TopN:                 fixFirstLimit(opts.top),
 		GroupActions:         opts.group != groupNone, // "" is unset, and the default is grouped
+		Evidence:             opts.evidence,
 		Compact:              opts.compact,
 		Components:           components,
 		Scope:                reportScope(scope),

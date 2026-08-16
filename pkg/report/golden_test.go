@@ -42,6 +42,8 @@ func TestConsoleGolden(t *testing.T) {
 		// still reachable and still worth pinning — but a golden that covers only the path most
 		// people never take is a golden that does not describe the product.
 		{"grouped", goldenGroupedData()},
+		// --evidence, which is the auditor's view: the same run with what stands behind it.
+		{"evidence", goldenEvidenceData()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var b bytes.Buffer
@@ -269,5 +271,12 @@ func goldenEnrichedData() Data {
 func goldenGroupedData() Data {
 	d := goldenFullData()
 	d.GroupActions = true
+	return d
+}
+
+// goldenEvidenceData is the full fixture rendered with --evidence.
+func goldenEvidenceData() Data {
+	d := goldenGroupedData()
+	d.Evidence = true
 	return d
 }

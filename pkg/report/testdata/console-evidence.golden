@@ -19,6 +19,12 @@ Components:
 
 2 findings suppressed by config.exclude — 1 accepted by a.reviewer, 1 unattributed
 
+
+Measured against:
+  iac       trivy 0.69.3
+  licenses  trivy-license 0.69.3 — policy deny copyleft
+Ran 11 jobs in 34.5s — 4 from cache, 1 shared with an identical job.
+
 Fix first — 5 actions clear 6 findings:
   P1  Upgrade jinja2 2.10  sca · 2 findings
       fixed in 2.10.1, 2.11.3 — take the latest

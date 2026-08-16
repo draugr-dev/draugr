@@ -5,8 +5,6 @@ Priorities:  P1 2   P2 1   P3 0   P4 0
 Controls:
   sca  FAIL   2 high  1 medium
 
-Exploitability: KEV 2026-08-01 · EPSS 2026-07-29, stale — 2 findings raised
-
 All 3 findings, by priority:
   Priority  Severity  Score  Rule              Control  Scanner  Location
   P1        high      8.1    CVE-2024-3094     sca      trivy    go.mod:12
