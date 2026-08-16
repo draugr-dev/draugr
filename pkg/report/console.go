@@ -204,12 +204,6 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		writeEvidence(w, col, d, s)
 	}
 
-	// Not dim, unlike its neighbours. The lines above describe the run; this one qualifies the
-	// findings, and a reader deciding whether to trust a verdict should not have to notice it.
-	if line := unpinnedCacheLine(d.Run.Stats.UnpinnedCacheHits); line != "" {
-		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cMedium, line))
-	}
-
 	if len(s.findings) == 0 {
 		// A clean run still did whatever it did and still produced whatever it produced, and
 		// both are worth saying: an SBOM nobody is told about is one nobody uses, and a scan
@@ -229,7 +223,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	limit := consoleFixFirstLimit(d.TopN)
 
 	if d.GroupActions {
-		return writeActions(w, col, s, limit)
+		return writeActions(w, col, s, d, limit)
 	}
 
 	shown := s.findings
@@ -265,6 +259,14 @@ func writeEffects(w io.Writer, col tui.Painter, s summary, d Data) {
 	wrote := false
 	for _, e := range s.effects {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, fmt.Sprintf("%s: %s", e.Kind, e.Detail)))
+		wrote = true
+	}
+	// Below the findings, not above them. It qualifies what was just read rather than introducing
+	// it, and a caveat placed before the fix list competes with the thing it is a caveat about.
+	// Not dim, unlike its neighbours here: a reader deciding whether to trust these findings
+	// should not have to notice it.
+	if line := unpinnedCacheLine(d.Run.Stats.UnpinnedCacheHits); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cMedium, line))
 		wrote = true
 	}
 	// The inventory is a receipt of the same kind: somebody who asked for an SBOM wants to know
@@ -806,15 +808,17 @@ func unpinnedCacheLine(refs []string) string {
 		return ""
 	}
 	shown := refs
-	const most = 3
+	const most = 2
 	suffix := ""
 	if len(shown) > most {
 		suffix = fmt.Sprintf(" and %d more", len(shown)-most)
 		shown = shown[:most]
 	}
-	return fmt.Sprintf(
-		"Reused from cache, keyed on a tag: %s%s — a tag can be rebuilt, so these findings may "+
-			"describe an earlier image. Pin a digest, or re-scan with --cache-require-digest.",
+	// The legend for the "from cache" marker on the rows above, rather than a caveat standing on
+	// its own. Short because it explains a mark the reader has already seen beside the thing it
+	// applies to — why a tag is not a content address belongs in the caching documentation, not
+	// in the space the fix list needs.
+	return fmt.Sprintf("from cache: %s%s was reused on a tag, so may describe an earlier build. Pin a digest.",
 		strings.Join(shown, ", "), suffix)
 }
 
@@ -1056,8 +1060,8 @@ func scopeNote(d Data) string {
 // to spend an afternoon on is choosing between actions, and a list of findings makes them do the
 // grouping in their head — which for a library carrying a dozen CVEs is a dozen rows describing
 // one upgrade.
-func writeActions(w io.Writer, col tui.Painter, s summary, limit int) error {
-	actions, external := groupActions(s.findings)
+func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) error {
+	actions, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits)
 
 	if len(actions) == 0 {
 		// Everything found belongs to somebody else. Saying "no findings" would be false and
@@ -1085,6 +1089,10 @@ func writeActions(w io.Writer, col tui.Painter, s summary, limit int) error {
 	if len(external) > 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(cDim, externalLine(external)))
 	}
+	// The same tail as the ungrouped listing. Both paths end a report, so both owe the record of
+	// what the run did and produced — a receipt that appears only in the view somebody is not
+	// using is one nobody sees.
+	writeEffects(w, col, s, d)
 	_, _ = fmt.Fprintln(w, col.Paint(cDim,
 		"Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif."))
 	return nil
@@ -1136,10 +1144,14 @@ func renderActions(w io.Writer, col tui.Painter, actions []action) {
 		if band == "" {
 			band = "-"
 		}
+		meta := fmt.Sprintf("%s · %s", a.control, plural(a.count(), "finding"))
+		if a.cached {
+			meta += " · from cache"
+		}
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 			col.Paint(priorityColor(a.priority), fmt.Sprintf("%-2s", band)),
 			a.title,
-			col.Paint(cDim, fmt.Sprintf("%s · %s", a.control, plural(a.count(), "finding"))))
+			col.Paint(cDim, meta))
 		if detail := a.detail(namedLocations); detail != "" {
 			_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(cDim, detail))
 		}
