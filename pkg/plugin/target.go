@@ -89,6 +89,9 @@ func scopeKey(paths, ignore []string) string {
 type ImageTarget struct {
 	Ref    string
 	Digest string
+	// BuiltUpstream marks an image this component runs and somebody else publishes, so a
+	// package inside it is not the reader's to upgrade — the fix is a newer image.
+	BuiltUpstream bool
 }
 
 // Kind returns TargetImage.

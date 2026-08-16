@@ -23,6 +23,9 @@ type action struct {
 	priority string
 	// findings are every finding this action resolves, most urgent first.
 	findings []finding
+	// upstream marks an action whose unit of work is an image somebody else publishes. The image
+	// names itself in the title, so the row has nothing to add below it.
+	upstream bool
 	// cached marks an action whose findings all came from a cache entry keyed on something that
 	// can be rebuilt under the same name. The row is still worth acting on; it may describe an
 	// earlier build of the thing it names, and that belongs beside the row rather than in a
@@ -127,6 +130,9 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 
 	for _, key := range order {
 		a := *byKey[key]
+		if f, ok := a.exemplar(); ok {
+			a.upstream = f.imageBuiltUpstream
+		}
 		// Every finding, not any: an action grouping one stale row with three fresh ones is not
 		// a stale action, and marking it so would tell a reader to distrust work that is current.
 		a.cached = len(a.findings) > 0
@@ -165,6 +171,19 @@ func moreUrgent(a, b action) bool {
 // actionFor returns the key two findings share when one fix clears both, and how to say it.
 func actionFor(f finding) (key, title string) {
 	switch {
+	// An image somebody else publishes is one action however many packages are wrong inside it,
+	// and the action is the image. Nobody running the scan can upgrade a library they do not
+	// build: the fix is a newer image, or a wait for whoever publishes it. Grouping these by
+	// package would scatter one action — take a newer redis — across every library in it, and
+	// name none of them something the reader can do.
+	//
+	// Before the package case, because a finding is both: it names a package, and the package is
+	// not the unit of work here.
+	case f.imageBuiltUpstream && f.location != "":
+		// The image is the title, so the row does not repeat it below, and the reason it is the
+		// unit of work goes in the meta as one word rather than a clause on every line.
+		return "image\x00" + f.location, "Update " + displayLocation(f)
+
 	// An upgrade is one action however many vulnerabilities it resolves, which is the case that
 	// pays off most: a library a year out of date carries a dozen findings and one fix.
 	//

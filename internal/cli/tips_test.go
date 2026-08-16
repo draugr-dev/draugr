@@ -292,7 +292,7 @@ func TestScanTipsAreCappedPerRun(t *testing.T) {
 	t.Setenv("CI", "true")
 	c := tipContext{
 		model:   unclassifiedModel(),
-		run:     engine.Result{Stats: engine.Stats{Duration: 5 * time.Minute}, Controls: priorityRun("P1").Controls},
+		run:     engine.Result{Stats: engine.Stats{Duration: 5 * time.Minute}, Controls: capRunControls()},
 		verdict: norn.Result{Verdict: norn.Pass},
 		opts:    &scanOptions{format: "console"},
 	}
@@ -336,4 +336,14 @@ func tipByName(t *testing.T, name string) scanTip {
 	}
 	t.Fatalf("no tip named %q", name)
 	return scanTip{}
+}
+
+// capRunControls is a run that satisfies every tip's condition at once, so the cap is the only
+// thing the test measures. An image finding is here because the built-upstream tip needs one.
+func capRunControls() map[string]plugin.ControlResult {
+	controls := priorityRun("P1").Controls
+	controls["images"] = plugin.ControlResult{Report: sarif.Report{Results: []sarif.Result{
+		{RuleID: "CVE-2", Level: sarif.LevelError, Priority: "P1", Image: "vendor/redis:8.2.2"},
+	}}}
+	return controls
 }

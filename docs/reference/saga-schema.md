@@ -1063,6 +1063,7 @@ components:
         ignore: ["**/testdata/**"]              # optional — remove these from the scan
     images:
       - image: registry.example.com/acme/web:1.0  # required
+        builtBy: self                             # optional — self (default) or upstream
         digest: sha256:…                          # optional — pin the immutable content digest
     hosts:
       - name: api
@@ -1094,6 +1095,18 @@ alike — so a finding records which repository it came from, that is part of wh
 distinct finding, and the report grows a `Repository` column when findings span more than one.
 The same applies to repositories a [fragment](../guides/saga-fragments.md) contributes from another
 project.
+
+**Who builds it:** `builtBy` says whether this team builds the image (`self`, the default) or
+only runs one somebody else publishes (`upstream`). It decides what the report tells you to do
+about a vulnerable package inside it.
+
+Nobody can upgrade a library inside an image they do not build. The fix is a newer image, or a
+wait for whoever publishes it — so for an `upstream` image the fix list groups every finding in it
+into one action, *take a newer image*, instead of listing each library as something to upgrade.
+
+`self` is the default because a descriptor written by hand describes what a team builds. One
+written by a surveyor describes a running cluster, where most images come from somebody else, and
+that is the case worth declaring.
 
 **Who operates it:** `operatedBy` says whether this team runs the surface (`self`, the default) or
 a managed platform does (`provider`). It states a fact, and what follows from it is derived rather

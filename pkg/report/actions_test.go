@@ -250,3 +250,55 @@ func TestDisplayLocationShortensImageReferences(t *testing.T) {
 		})
 	}
 }
+
+// TestUpstreamImagesGroupByImageNotPackage is the correction that matters most in this list.
+//
+// Nobody running a scan can upgrade a library inside an image they do not build. The fix is a
+// newer image, or a wait for whoever publishes it — so grouping those findings by package
+// scatters one action across every library in the image and names none of them something the
+// reader can do, at the top of a list called "fix first".
+func TestUpstreamImagesGroupByImageNotPackage(t *testing.T) {
+	upstream := func(rule, prio, image, pkg string) finding {
+		f := pkgFinding("images", rule, prio, image, pkg, "1.0", "1.1")
+		f.imageBuiltUpstream = true
+		return f
+	}
+	in := []finding{
+		upstream("CVE-1", "P1", "registry.example.com/vendor/redis:8.2.2", "libcrypto3"),
+		upstream("CVE-2", "P2", "registry.example.com/vendor/redis:8.2.2", "libssl3"),
+		upstream("CVE-3", "P1", "registry.example.com/vendor/argocd:3.2.11", "libcrypto3"),
+	}
+
+	got, _ := groupActions(in, nil)
+	if len(got) != 2 {
+		t.Fatalf("two images are two actions, got %d: %+v", len(got), got)
+	}
+	for _, a := range got {
+		if !strings.HasPrefix(a.title, "Update ") {
+			t.Errorf("the action should be to take a newer image, got %q", a.title)
+		}
+		if strings.Contains(a.title, "libcrypto3") || strings.Contains(a.title, "libssl3") {
+			t.Errorf("the action named a package the reader cannot upgrade: %q", a.title)
+		}
+	}
+	// And the image carrying two of them leads, because it clears more at the same band.
+	if got[0].count() != 2 {
+		t.Errorf("the image with more findings should lead: %+v", got[0])
+	}
+}
+
+// TestImagesYouBuildStillGroupByPackage: the default is that you build your images, and there the
+// package upgrade is exactly the action.
+func TestImagesYouBuildStillGroupByPackage(t *testing.T) {
+	in := []finding{
+		pkgFinding("images", "CVE-1", "P1", "acme/api:1.0", "libcrypto3", "3.6.0", "3.6.2"),
+		pkgFinding("images", "CVE-2", "P1", "acme/worker:1.0", "libcrypto3", "3.6.0", "3.6.2"),
+	}
+	got, _ := groupActions(in, nil)
+	if len(got) != 1 {
+		t.Fatalf("one library across two images you build is one upgrade, got %d", len(got))
+	}
+	if !strings.HasPrefix(got[0].title, "Upgrade libcrypto3") {
+		t.Errorf("title = %q", got[0].title)
+	}
+}

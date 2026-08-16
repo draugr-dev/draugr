@@ -133,6 +133,12 @@ type Result struct {
 	// fact about a contract, not something visible in what a scanner reads. It is the same
 	// argument that puts exposure and criticality in the descriptor.
 	ProviderOperated bool `json:"providerOperated,omitempty"`
+	// ImageBuiltUpstream marks a finding inside an image somebody else publishes.
+	//
+	// It changes the action rather than the severity. A vulnerable library in an image this team
+	// builds is theirs to upgrade; the same library in an image they only run is fixed by taking
+	// a newer image, and telling them to upgrade the library is advice they cannot act on.
+	ImageBuiltUpstream bool `json:"imageBuiltUpstream,omitempty"`
 	// Layer is the image layer the finding's package arrived in. Nil for anything that is not an
 	// image finding, and for an image whose scanner did not report one.
 	//

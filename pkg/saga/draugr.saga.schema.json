@@ -1010,6 +1010,14 @@
     "image": {
       "additionalProperties": false,
       "properties": {
+        "builtBy": {
+          "description": "Who builds this image: \"self\" (the default) or \"upstream\" for one this component runs but somebody else publishes. It decides what the report tells you to do about a vulnerable package inside it — a library in an image you build is yours to upgrade, and the same library in an image you only run is fixed by taking a newer image.",
+          "enum": [
+            "self",
+            "upstream"
+          ],
+          "type": "string"
+        },
         "digest": {
           "description": "Pin the immutable content digest, e.g. sha256:…",
           "type": "string"

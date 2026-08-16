@@ -1149,6 +1149,9 @@ func renderActions(w io.Writer, col tui.Painter, actions []action) {
 			title += " → " + v
 		}
 		meta := fmt.Sprintf("%s · %s", a.control, plural(a.count(), "finding"))
+		if a.upstream {
+			meta += " · upstream"
+		}
 		if a.cached {
 			meta += " · from cache"
 		}
@@ -1169,7 +1172,11 @@ func renderActions(w io.Writer, col tui.Painter, actions []action) {
 // scanner published about it, and the rest are counted — a reader following a link is going to
 // read one of them, and listing fifty-four identifiers to offer that choice fills the screen.
 func actionDetail(col tui.Painter, a action, locations int) string {
-	parts := a.where(locations)
+	var parts []string
+	// Not for an image action: the image is the title, and repeating it underneath says nothing.
+	if !a.upstream {
+		parts = a.where(locations)
+	}
 	if f, ok := a.exemplar(); ok && f.ruleID != "" {
 		ref := col.Link(f.helpURI, shortRuleID(f.ruleID))
 		if more := a.count() - 1; more > 0 {
