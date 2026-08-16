@@ -152,6 +152,10 @@ and move it under a version on release.
 
 ### Fixed
 
+- **`--report evidence` works.** The format was registered as a document and given a filename but
+  never added to the renderer registry, so the CLI rejected it as unknown while the renderer's own
+  tests passed — they called it directly. A test now crosses the two lists in both directions.
+
 - **A failure message no longer breaks the URL in it.** Wrapping split any token longer than the
   line at the margin, so the endpoint a scanner could not reach arrived in two halves and could
   not be copied — which is the only reason it is in the message. Long tokens now overflow whole,
