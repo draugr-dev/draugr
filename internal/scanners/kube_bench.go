@@ -684,7 +684,7 @@ func reportFromKubeBench(
 					Level:            level,
 					Message:          res.TestDesc,
 					Location:         sarif.Location{URI: location},
-					ProviderOperated: providerOperated && providerRunsIt(ctl.NodeType),
+					ProviderOperated: providerOperated && providerRunsIt(ctl.NodeType, res.TestNumber),
 				})
 				report.Rules[ruleID] = sarif.Rule{
 					Name:             ctl.Text,
@@ -764,22 +764,32 @@ func refuseNamespaceScope(scanner string, namespaces []string) error {
 }
 
 // providerRunsIt says whether a managed platform, rather than the team using it, runs the part of
-// the cluster this group of checks examines.
+// the cluster a check examines.
 //
-// kube-bench groups its checks by the node type they apply to, which is exactly the split that
-// matters. On a managed cluster the API server, etcd and the controller manager are unreachable —
-// there is no host to log into and no file to chmod — so a finding about their configuration is
-// not something the team can act on however true it is.
+// kube-bench groups its checks by node type, which is most of the split that matters. On a managed
+// cluster the API server, etcd and the controller manager are unreachable — there is no host to
+// log into and no file to chmod — so a finding about their configuration is not something the team
+// can act on however true it is.
 //
-// The worker node type is deliberately not included. Node configuration is often the team's on a
-// managed platform, through node pool settings, and marking a finding as somebody else's when it
-// is theirs hides work they could have done. Between over- and under-claiming here, under-claiming
-// costs noise and over-claiming costs a fix nobody makes.
-func providerRunsIt(nodeType string) bool {
+// The worker node type is not blanket-excused, because node configuration is often the team's
+// through node pool settings, and marking a finding as somebody else's when it is theirs hides
+// work they could have done.
+//
+// kube-proxy is the exception within it. Every managed platform runs kube-proxy as a DaemonSet it
+// owns, so its configuration is no more reachable than the control plane's — a reader told to
+// change the address it binds to has nowhere to make the change. That is section 4.3 of the
+// benchmark, and it is named by section rather than by node type because kube-bench reports it
+// under the same "node" heading as the kubelet, which is a different situation.
+func providerRunsIt(nodeType, testNumber string) bool {
 	switch strings.ToLower(strings.TrimSpace(nodeType)) {
 	case "master", "etcd", "controlplane":
 		return true
+	case "node":
+		return strings.HasPrefix(strings.TrimSpace(testNumber), kubeProxySection)
 	default:
 		return false
 	}
 }
+
+// kubeProxySection is the benchmark section covering kube-proxy, which a managed platform runs.
+const kubeProxySection = "4.3"

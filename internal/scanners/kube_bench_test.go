@@ -803,20 +803,28 @@ func withoutProvisionedCfg(t *testing.T) {
 // noise and over-claiming costs a fix nobody makes.
 func TestProviderOperatedNarrowsToWhatTheProviderRuns(t *testing.T) {
 	for _, c := range []struct {
-		nodeType string
-		want     bool
+		name, nodeType, test string
+		want                 bool
 	}{
-		{"master", true},
-		{"etcd", true},
-		{"controlplane", true},
-		{"ControlPlane", true}, // kube-bench's casing is not something to depend on
-		{"node", false},        // node pools are usually configurable by the team
-		{"policies", false},    // RBAC and Pod Security are the team's, always
-		{"", false},
+		{"api server", "master", "1.2.5", true},
+		{"etcd", "etcd", "2.1", true},
+		{"controller manager", "controlplane", "3.1.1", true},
+		{"casing is not something to depend on", "ControlPlane", "3.1.1", true},
+
+		// The kubelet is often the team's through node pool settings, so it is not excused.
+		{"kubelet on a node", "node", "4.2.1", false},
+		{"node file permissions", "node", "4.1.1", false},
+		// kube-proxy is a DaemonSet every managed platform owns. A reader told to change the
+		// address it binds to has nowhere to make the change.
+		{"kube-proxy", "node", "4.3.1", true},
+
+		// RBAC and Pod Security are the team's whoever runs the cluster underneath.
+		{"policies", "policies", "5.1.1", false},
+		{"nothing said", "", "", false},
 	} {
-		t.Run(c.nodeType, func(t *testing.T) {
-			if got := providerRunsIt(c.nodeType); got != c.want {
-				t.Errorf("providerRunsIt(%q) = %v, want %v", c.nodeType, got, c.want)
+		t.Run(c.name, func(t *testing.T) {
+			if got := providerRunsIt(c.nodeType, c.test); got != c.want {
+				t.Errorf("providerRunsIt(%q, %q) = %v, want %v", c.nodeType, c.test, got, c.want)
 			}
 		})
 	}

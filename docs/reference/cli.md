@@ -303,7 +303,7 @@ Grouped the way `draugr scan --help` groups them.
 | `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
 | `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
 | `--report` | `json,sarif` | Formats to write into `-o`: `console`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, `evidence`, and the `gitlab-*` reports. `--format` prints, `--report` writes — see [below](#--format-prints---report-writes) |
-| `--group` | `action` | Console: how the fix list is organised. `action` gives one row per thing to do, saying how many findings it clears; `none` gives one row per finding. Grouping is a rendering — the report files always carry every finding separately |
+| `--group` | `action` | Console: how the fix list is organised. `action` gives one row per thing to do, saying how many findings it clears; `none` gives one row per finding. Grouping is a rendering — the report files always carry every finding separately. See [what to fix first](../concepts/what-to-fix-first.md) |
 | `--evidence` | `false` | Console: also print what stands behind the verdict — tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
 | `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |

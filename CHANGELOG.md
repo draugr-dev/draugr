@@ -12,6 +12,9 @@ and move it under a version on release.
 
 ### Added
 
+- **A concepts page explaining the fix list** — how findings become actions, how they are ranked,
+  and how `operatedBy` and `builtBy` change what Draugr recommends. `--group` points at it.
+
 - **`draugr explain <rule>` says what a finding means and how to fix it**, from the scan's own
   report.
 
@@ -149,6 +152,12 @@ and move it under a version on release.
   a base image name would be a guess in a field a reader would trust.
 
 ### Changed
+
+- **kube-proxy checks count as the provider's on a managed cluster.** Section 4.3 of the benchmark
+  was treated as yours because kube-bench files it under the same "node" heading as the kubelet —
+  but every managed platform runs kube-proxy as a DaemonSet it owns, so a reader told to change
+  the address it binds to has nowhere to make the change. The kubelet stays yours, because node
+  pool settings usually reach it.
 
 - **Everything a run writes is recommended under `.draugr/`** — `.draugr/out/` for reports,
   `.draugr/cache/` for the result cache — beside the descriptor and exclusions Draugr already
