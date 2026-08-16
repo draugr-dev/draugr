@@ -12,6 +12,11 @@ and move it under a version on release.
 
 ### Fixed
 
+- **Draugr's own CI uses the caching Draugr offers.** The self-scan re-provisioned four scanners
+  and re-scanned an unchanged tree on every run, because the action's `cache-dir` was never set.
+  Both are cached now, which is also the point: the content-hash caching users are offered is
+  exercised by the job that judges this repository.
+
 - **Registering something now proves it is reachable.** Guards cross the live registries against
   the places a plugin has to appear to be usable: a hyphenated scanner without its descriptor key,
   a scanner whose tool Draugr neither installs nor names a source for, and the hand-written parts
