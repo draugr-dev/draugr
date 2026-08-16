@@ -1180,6 +1180,7 @@
           "description": "Report format to render.",
           "enum": [
             "console",
+            "evidence",
             "gitlab-codequality",
             "gitlab-container-scanning",
             "gitlab-cyclonedx",
