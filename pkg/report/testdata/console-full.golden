@@ -10,6 +10,10 @@ Controls:
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
+Measured against:
+  iac       trivy 0.69.3
+  licenses  trivy-license 0.69.3 — policy deny copyleft
+
 Components:
   payments       FAIL   P1 3  P2 2  P3 1  sca, secrets
   internal-tool  pass   no findings

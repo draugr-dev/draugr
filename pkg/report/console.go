@@ -146,9 +146,13 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				col.Paint(cDim, "did not run"))
 			why(name)
 		}
-		// Not measured stays in the default view: a control that was never planned is a gap in
-		// coverage, the same kind of fact as one that failed to run. What each control measured
-		// *against* is provenance and travels with the rest of the evidence — see writeEvidence.
+		// Both stay in the default view. They are coverage rather than provenance: what a control
+		// was measured against carries what it did *not* cover — a spec-driven scan that skipped
+		// the methods it was not allowed to send, a benchmark that could decide 20 of 34 checks —
+		// and a partial scan reading as a complete one is the failure this whole block exists to
+		// prevent. The tool builds, job counts and scanned revision are the provenance, and those
+		// travel with the evidence.
+		writeMeasuredAgainst(w, col, d, width)
 		writeNotMeasured(w, col, d, width)
 		_, _ = fmt.Fprintln(w)
 	}
@@ -1245,15 +1249,6 @@ func elide(msg string, width int) string {
 // evidence but warnings, and removing them would change what the report means: a control that did
 // not run, a finding suppressed with nobody accepting it, and a cache hit on a mutable reference.
 func writeEvidence(w io.Writer, col tui.Painter, d Data, s summary) {
-	// Written here rather than beside the controls table so the document and the console mode
-	// carry the same content: two call sites is how the two deliveries drift into disagreeing
-	// about what a run did.
-	width := 0
-	for _, c := range d.Verdict.Controls {
-		width = max(width, len(c.Control))
-	}
-	writeMeasuredAgainst(w, col, d, width)
-
 	if lines := toolBuildLines(d.Tools); len(lines) > 0 {
 		for _, l := range lines {
 			_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))

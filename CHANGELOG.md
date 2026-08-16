@@ -108,29 +108,30 @@ _Nothing yet._
 
 - **`--evidence` shows what stands behind the verdict, and `--report evidence` writes it down.**
 
-  Tool provenance, what each control measured against, the scanned revision, and what the run
-  cost are no longer in the default view. Each is justified on its own, and together they were
-  most of what came before the findings — a developer opening a terminal is asking what to fix,
-  and answers to questions they have not asked push the answer to the one they have off the
-  screen. An auditor is a real reader, just not the default one.
+  Tool provenance, the scanned revision, and what the run cost are no longer in the default view.
+  Each is justified on its own, and together they were most of what came before the findings — a
+  developer opening a terminal is asking what to fix, and answers to questions they have not asked
+  push the answer to the one they have off the screen. An auditor is a real reader, just not the
+  default one.
 
   Both deliveries render from the same code, so they cannot disagree about what a run did.
 
-  Three things stay in the default view because they are warnings rather than evidence: a control
-  that did not run, a finding suppressed with nobody accepting it, and a cache hit on a mutable
-  reference. So do the receipts — what the scan did to your systems, and the SBOM it produced.
+  What stays in the default view is whatever changes what the verdict means, rather than
+  supporting it: a control that did not run, a finding suppressed with nobody accepting it, a
+  cache hit on a mutable reference, and **what each control was measured against** — which carries
+  what it did not cover, such as the operations a spec-driven scan was not allowed to send. So do
+  the receipts: what the scan did to your systems, and the SBOM it produced.
 
-- **A scan that could not run a control says so before the counts.**
+- **A component whose resources could not be scanned reports `ERROR`, not `pass`.**
 
   ```
-  Draugr — FAIL   (app 0.0.0)
-
-  ! images did not complete — this verdict does not cover it.
+  Components:
+    istio-system    ERROR   3/3 images not scanned
   ```
 
-  A control that could not run found nothing by looking at nothing, so a verdict beside it covers
-  less than it appears to. That was previously readable only as a row partway down the controls
-  table, in the same weight as the controls that did run.
+  A control that could not run found nothing by looking at nothing, so a clean verdict beside it
+  covers less than it appears to. The count carries its denominator, because "3 images not
+  scanned" does not say whether that is all of them or three of ninety.
 - **Findings say whether you can act on them**, and a descriptor can say who operates a cluster.
 
   ```yaml

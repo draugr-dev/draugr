@@ -10,6 +10,10 @@ Controls:
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
+Measured against:
+  iac       trivy 0.69.3
+  licenses  trivy-license 0.69.3 — policy deny copyleft
+
 Components:
   payments       FAIL   P1 3  P2 2  P3 1  sca, secrets
   internal-tool  pass   no findings
@@ -17,10 +21,6 @@ Components:
 
 2 findings suppressed by config.exclude — 1 accepted by a.reviewer, 1 unattributed
 
-
-Measured against:
-  iac       trivy 0.69.3
-  licenses  trivy-license 0.69.3 — policy deny copyleft
 Ran 11 jobs in 34.5s — 4 from cache, 1 shared with an identical job.
 
 Fix first — 5 actions clear 6 findings:
