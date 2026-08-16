@@ -201,6 +201,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
+	if !d.Evidence {
+		writeGate(w, col, d, false)
+	}
+
 	// Everything from here to the findings answers "can I trust this run" rather than "what did
 	// it find", and the second question is the one a reader came with. Behind --evidence so the
 	// default view is the findings, and an auditor asks for the rest — see writeEvidence.
@@ -1271,6 +1275,9 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, s summary) {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
 
+	// Last, because a verdict is the thing everything above stands behind, and the gate is what
+	// turned findings into that verdict.
+	writeGate(w, col, d, true)
 }
 
 // unscannedDetail says what a component has that nothing managed to examine.
@@ -1325,4 +1332,71 @@ func them(n int) string {
 		return "it"
 	}
 	return "them"
+}
+
+// writeGate says what policy the verdict was produced under.
+//
+// In the default view only when the gate lets through something a default gate would have caught,
+// because that is the case a reader cannot see any other way: a pass under a narrowed gate looks
+// exactly like a pass under a full one, and --no-gate exits 0 on a verdict of FAIL. A stricter
+// gate needs no announcement — it can only fail more, and the failure says so itself.
+//
+// Under --evidence the gate is stated whatever it is, including when it is the default. An
+// auditor's question about a verdict is what it was measured against, and "the default" is an
+// answer only if the report says so rather than leaving it to be assumed.
+func writeGate(w io.Writer, col tui.Painter, d Data, full bool) {
+	g := d.Gate
+	if !full && !g.weakened() {
+		return
+	}
+
+	if g.Disabled {
+		// The strongest case in the file: the command exits 0 on a verdict of FAIL, so anything
+		// reading the exit code is told the opposite of what this report says.
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent,
+			"Gate off (--no-gate) — this verdict does not decide the exit code."))
+		return
+	}
+
+	threshold := g.Threshold
+	if threshold == "" {
+		threshold = sarif.SeverityHigh
+	}
+	line := fmt.Sprintf("Gate: fails on %s", threshold)
+	if g.FailOnPriority != "" {
+		line += fmt.Sprintf(" or %s", g.FailOnPriority)
+	}
+	if overrides := gateOverrides(g); overrides != "" {
+		line += ", except " + overrides
+	}
+
+	// Dimmed when it is only a record, lit when it is a caveat. A narrowed gate qualifies every
+	// pass in the report above it, and dimming it puts it below the reading threshold of the
+	// thing it qualifies.
+	style := cDim
+	if g.weakened() {
+		style = tui.StyleAccent
+	}
+	_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(style, line+"."))
+}
+
+// gateOverrides renders the per-control thresholds in a stable order.
+//
+// Named rather than counted: which control was exempted is the whole content of the exemption,
+// and "2 controls" answers nothing a reader wanted to know.
+func gateOverrides(g GateSettings) string {
+	if len(g.PerControl) == 0 {
+		return ""
+	}
+	controls := make([]string, 0, len(g.PerControl))
+	for name := range g.PerControl {
+		controls = append(controls, name)
+	}
+	sort.Strings(controls)
+
+	parts := make([]string, 0, len(controls))
+	for _, name := range controls {
+		parts = append(parts, fmt.Sprintf("%s on %s", name, g.PerControl[name]))
+	}
+	return strings.Join(parts, ", ")
 }

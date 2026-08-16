@@ -8,6 +8,7 @@ import (
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 func TestUnpinnedCacheLine(t *testing.T) {
@@ -134,5 +135,111 @@ func TestWrapMessageElidesAtAWordBoundary(t *testing.T) {
 	}
 	if strings.Contains(last, "wor…") {
 		t.Errorf("cut mid-word: %q", last)
+	}
+}
+
+// TestGateOffIsSaidInTheDefaultView is the strongest case in the file: --no-gate exits 0 on a
+// verdict of FAIL, so anything reading the exit code is told the opposite of what the report says.
+func TestGateOffIsSaidInTheDefaultView(t *testing.T) {
+	d := Data{
+		Release: saga.Release{Name: "app", Version: "1.0.0"},
+		Gate:    GateSettings{Threshold: "high", Disabled: true},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "--no-gate") {
+		t.Errorf("a disabled gate was not mentioned:\n%s", buf.String())
+	}
+	if !strings.Contains(buf.String(), "exit code") {
+		t.Errorf("the line should say what a disabled gate changes:\n%s", buf.String())
+	}
+}
+
+// TestADefaultGateSaysNothingUntilAsked. A verdict under the default gate is the ordinary case,
+// and a line restating it on every scan is one more thing between a reader and the findings.
+func TestADefaultGateSaysNothingUntilAsked(t *testing.T) {
+	d := Data{
+		Release: saga.Release{Name: "app", Version: "1.0.0"},
+		Gate:    GateSettings{Threshold: "high"},
+	}
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "Gate:") {
+		t.Errorf("the default gate should not announce itself:\n%s", buf.String())
+	}
+
+	d.Evidence = true
+	buf.Reset()
+	if err := (consoleReporter{}).Render(&buf, d); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "Gate: fails on high") {
+		t.Errorf("--evidence should state the gate whatever it is:\n%s", buf.String())
+	}
+}
+
+// TestALoosenedGateIsSaidWithoutAsking covers the case a reader cannot otherwise see: a pass under
+// a narrowed gate looks exactly like a pass under a full one.
+func TestALoosenedGateIsSaidWithoutAsking(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		gate GateSettings
+		want string
+	}{
+		{
+			name: "a threshold looser than the default",
+			gate: GateSettings{Threshold: "critical"},
+			want: "fails on critical",
+		},
+		{
+			name: "one control let off",
+			gate: GateSettings{Threshold: "high", PerControl: map[string]sarif.Severity{"licenses": "critical"}},
+			want: "except licenses on critical",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := (consoleReporter{}).Render(&buf, Data{
+				Release: saga.Release{Name: "app", Version: "1.0.0"}, Gate: c.gate,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(buf.String(), c.want) {
+				t.Errorf("want %q in:\n%s", c.want, buf.String())
+			}
+		})
+	}
+}
+
+// TestAStricterGateNeedsNoAnnouncement. It can only fail more than a reader expects, and the
+// failure says so itself — unlike a loosening, which produces a pass that looks like any other.
+func TestAStricterGateNeedsNoAnnouncement(t *testing.T) {
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, Data{
+		Release: saga.Release{Name: "app", Version: "1.0.0"},
+		Gate:    GateSettings{Threshold: "low", PerControl: map[string]sarif.Severity{"secrets": "low"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "Gate:") {
+		t.Errorf("a stricter gate should not interrupt the default view:\n%s", buf.String())
+	}
+}
+
+// TestGateOverridesAreNamedAndOrdered: which control was exempted is the content of the exemption,
+// and a map's iteration order would make two runs of one scan differ.
+func TestGateOverridesAreNamedAndOrdered(t *testing.T) {
+	g := GateSettings{Threshold: "high", PerControl: map[string]sarif.Severity{
+		"licenses": "critical", "iac": "critical", "sca": "critical",
+	}}
+	want := "iac on critical, licenses on critical, sca on critical"
+	for range 5 {
+		if got := gateOverrides(g); got != want {
+			t.Fatalf("gateOverrides = %q, want %q", got, want)
+		}
 	}
 }

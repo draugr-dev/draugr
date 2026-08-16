@@ -159,3 +159,25 @@ did not change; the consequence of it did.
 Structured logs (`log/slog`), plus OpenTelemetry traces and metrics (opt-in via `OTEL_*`).
 Logs and span attributes never carry secrets. Draugr's own CI enforces `govulncheck`,
 `gosec`, and `golangci-lint` — it meets the bar it holds others to.
+
+## The report says which gate produced the verdict
+
+A verdict means nothing without the policy behind it, and the policy can be changed by whoever
+runs the scan. So the report states it:
+
+```
+Gate: fails on critical, except licenses on critical.
+```
+
+- **A narrowed gate is stated in the default view.** A pass under a threshold looser than the
+  default looks exactly like a pass under the default one, and nothing else on the page
+  distinguishes them.
+- **`--no-gate` is stated too**, and says what it changes: the verdict is reported and the command
+  still exits 0, so anything reading the exit code is told the opposite of what the report says.
+- **A stricter gate says nothing until asked.** It can only fail more than a reader expects, and
+  the failure explains itself.
+- **`--evidence` states the gate whatever it is**, including the default, because "the default" is
+  an answer only when the report gives it rather than leaving it to be assumed.
+
+This is the same discipline as [suppression](../reference/saga-schema.md): a decision that changes
+what the verdict covers stays visible, rather than disappearing into an exit code.
