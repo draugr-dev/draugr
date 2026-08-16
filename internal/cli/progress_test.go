@@ -6,50 +6,8 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
-
-func TestProgressText(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name string
-		ev   engine.ProgressEvent
-		want string
-	}{
-		{
-			// Nothing planned is not a run to describe.
-			name: "no jobs draws nothing",
-			ev:   engine.ProgressEvent{},
-		},
-		{
-			name: "counts come first, because the question is whether it will finish",
-			ev:   engine.ProgressEvent{Total: 11, Complete: 3, Running: []string{"sca/trivy-fs"}},
-			want: "scanning 3/11 · sca/trivy-fs",
-		},
-		{
-			// Six image scans are one kind of work, and naming each fills the line with the same
-			// word while pushing off the job that is different.
-			name: "repeats collapse into a count",
-			ev: engine.ProgressEvent{Total: 8, Complete: 1, Running: []string{
-				"images/trivy", "images/trivy", "images/trivy", "sca/trivy-fs",
-			}},
-			want: "scanning 1/8 · images/trivy ×3, sca/trivy-fs",
-		},
-		{
-			// Between the last job finishing and the report being rendered.
-			name: "nothing in flight still reports the count",
-			ev:   engine.ProgressEvent{Total: 4, Complete: 4},
-			want: "scanning 4/4",
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			if got := progressText(tc.ev); got != tc.want {
-				t.Errorf("progressText = %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
 
 // A shorter line must not leave the tail of a longer one behind, or the display reads as two
 // states at once — "scanning 9/11" followed by the debris of six scanner names.
@@ -124,39 +82,6 @@ func TestNoProgressWhenItWouldBeNoise(t *testing.T) {
 	}
 }
 
-// TestProgressTextShowsFailuresAsTheyHappen: a run whose jobs are failing is one a reader may
-// want to stop rather than wait out, and that choice is worth nothing once the report explains
-// it — by then they have already waited.
-func TestProgressTextShowsFailuresAsTheyHappen(t *testing.T) {
-	for _, c := range []struct {
-		name, want string
-		ev         engine.ProgressEvent
-	}{
-		{
-			name: "no failures says nothing about them",
-			ev:   engine.ProgressEvent{Total: 17, Complete: 3, Running: []string{"sast/semgrep"}},
-			want: "scanning 3/17 · sast/semgrep",
-		},
-		{
-			name: "failures come before what is in flight",
-			ev: engine.ProgressEvent{Total: 17, Complete: 9, Failed: 8,
-				Running: []string{"sast/semgrep"}},
-			want: "scanning 9/17 · 8 failed · sast/semgrep",
-		},
-		{
-			name: "failures with nothing left running",
-			ev:   engine.ProgressEvent{Total: 17, Complete: 17, Failed: 8},
-			want: "scanning 17/17 · 8 failed",
-		},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			if got := progressText(c.ev); got != c.want {
-				t.Errorf("got  %q\nwant %q", got, c.want)
-			}
-		})
-	}
-}
-
 // TestProgressDoneIsIdempotent covers the shape the fix depends on.
 //
 // The line is erased when the run finishes, so the report starts on a clean row, and again on the
@@ -179,5 +104,71 @@ func TestProgressDoneIsIdempotent(t *testing.T) {
 	// is no longer on the terminal.
 	if active.Load() != nil {
 		t.Error("the finished line is still registered as the one on the terminal")
+	}
+}
+
+// TestProgressFrameMarksEachStepsState covers what the display is for: telling finished from not
+// started, and both from in flight.
+//
+// The one-line version listed what was running, so a scanner vanished the moment it finished and
+// a reader watching could not tell work that had completed from work that had not been reached.
+// Those call for different patience.
+func TestProgressFrameMarksEachStepsState(t *testing.T) {
+	ev := engine.ProgressEvent{
+		Total: 9, Complete: 4, Failed: 2,
+		Steps: []engine.ProgressStep{
+			{Control: "sast", Scanner: "semgrep", Total: 1, Done: 1},
+			{Control: "images", Scanner: "trivy", Total: 5, Done: 2, Failed: 2, Running: 1},
+			{Control: "sca", Scanner: "trivy-fs", Total: 3},
+		},
+	}
+	got := progressFrame(ev, tui.Painter{})
+
+	if len(got) != 4 {
+		t.Fatalf("want a headline and a row per step, got %d lines: %q", len(got), got)
+	}
+	if !strings.Contains(got[0], "Scanning 4/9") || !strings.Contains(got[0], "2 failed") {
+		t.Errorf("headline = %q", got[0])
+	}
+	// Finished, and still on the screen rather than gone.
+	if !strings.Contains(got[1], "✓") || !strings.Contains(got[1], "sast/semgrep") {
+		t.Errorf("a finished step should be marked complete: %q", got[1])
+	}
+	// In flight, with its failures visible while the rest of it runs.
+	if !strings.Contains(got[2], "▸") || !strings.Contains(got[2], "2/5, 2 failed") {
+		t.Errorf("a running step should show where it has got to: %q", got[2])
+	}
+	// Planned and not started, which is not the same as finished with nothing to say.
+	if !strings.Contains(got[3], "·") || !strings.Contains(got[3], "0/3") {
+		t.Errorf("a step that has not begun should say so: %q", got[3])
+	}
+}
+
+// TestProgressStepMarksSurviveWithoutColour: the mark carries the state and colour reinforces it.
+// The same output goes to terminals with no colour, and to people who cannot tell these apart.
+func TestProgressStepMarksSurviveWithoutColour(t *testing.T) {
+	plain := tui.Painter{}
+	for _, c := range []struct {
+		name, want string
+		step       engine.ProgressStep
+	}{
+		{"done", "✓", engine.ProgressStep{Control: "a", Scanner: "b", Total: 2, Done: 2}},
+		{"failed", "✗", engine.ProgressStep{Control: "a", Scanner: "b", Total: 2, Done: 2, Failed: 2}},
+		{"running", "▸", engine.ProgressStep{Control: "a", Scanner: "b", Total: 2, Running: 1}},
+		{"pending", "·", engine.ProgressStep{Control: "a", Scanner: "b", Total: 2}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := progressStepLine(c.step, plain); !strings.Contains(got, c.want) {
+				t.Errorf("got %q, want the %s mark %q", got, c.name, c.want)
+			}
+		})
+	}
+}
+
+// TestProgressFrameIsEmptyBeforeAnythingIsPlanned keeps the display off the screen until there is
+// something to say about.
+func TestProgressFrameIsEmptyBeforeAnythingIsPlanned(t *testing.T) {
+	if got := progressFrame(engine.ProgressEvent{}, tui.Painter{}); got != nil {
+		t.Errorf("drew %q before the plan existed", got)
 	}
 }

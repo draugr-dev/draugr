@@ -143,6 +143,10 @@ type ProgressEvent struct {
 	// Running names what is in flight as "control/scanner", sorted so the line does not reorder
 	// itself between updates for reasons that mean nothing.
 	Running []string
+	// Steps is the same run broken down by what is doing the work, so a display can show a
+	// scanner finishing rather than vanishing. Sorted by name, so it does not reorder itself
+	// between updates for reasons that mean nothing to a reader watching it.
+	Steps []ProgressStep
 	// Failed is how many jobs have failed so far.
 	//
 	// Reported while the run continues because the answer changes what a reader does with the
@@ -151,6 +155,25 @@ type ProgressEvent struct {
 	// never going to cover them.
 	Failed int
 }
+
+// ProgressStep is one control/scanner pair and how its jobs are going.
+//
+// Planned up front rather than discovered as work starts, so the display can show what has not
+// begun as well as what has: a reader watching a list that only grows cannot tell a scanner that
+// is slow from one that has not been reached.
+type ProgressStep struct {
+	// Control and Scanner name the work. Together they are how a reader recognises it.
+	Control string
+	Scanner string
+	// Total is how many jobs this pair has, and the rest is where they have got to.
+	Total   int
+	Done    int
+	Failed  int
+	Running int
+}
+
+// Name is how the step is identified in a display.
+func (s ProgressStep) Name() string { return s.Control + "/" + s.Scanner }
 
 // ProgressFunc receives a snapshot whenever a job starts or finishes.
 //
@@ -591,11 +614,14 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		failed int
 		// unscanned records what each of those jobs was going to look at.
 		unscanned []Unscanned
-		effects   []plugin.Effect
-		runStart  = time.Now()
-		sem       = make(chan struct{}, e.concurrency)
-		sf        = &sfGroup{}
-		canceled  bool
+		// steps is per control/scanner state, keyed by name and seeded from the plan so a
+		// display can show work that has not started as well as work that has finished.
+		steps    = planSteps(planned)
+		effects  []plugin.Effect
+		runStart = time.Now()
+		sem      = make(chan struct{}, e.concurrency)
+		sf       = &sfGroup{}
+		canceled bool
 	)
 	if planErr != nil {
 		// Runs before any worker goroutine starts; the concurrent appends below are
@@ -679,6 +705,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		sort.Strings(inFlight)
 		e.progress(ProgressEvent{
 			Total: len(planned), Complete: complete, Running: inFlight, Failed: failed,
+			Steps: stepSnapshot(steps),
 		})
 	}
 	if e.progress != nil {
@@ -719,12 +746,22 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			// something the machine is not doing.
 			mu.Lock()
 			running[jobIndex] = pj.Control + "/" + pj.Job.Scanner
+			steps[stepKey(pj)].Running++
 			report()
 			mu.Unlock()
 			defer func() {
 				mu.Lock()
 				delete(running, jobIndex)
 				complete++
+				if st := steps[stepKey(pj)]; st != nil {
+					if st.Running > 0 {
+						st.Running--
+					}
+					// Finished, however it finished — the same rule Complete follows. Failed is
+					// counted separately and is a subset, so a display can say "3 of 3, 2 failed"
+					// rather than leaving a step that ended badly looking unfinished forever.
+					st.Done++
+				}
 				report()
 				mu.Unlock()
 			}()
@@ -746,6 +783,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				ctlErrs[pj.Control] = append(ctlErrs[pj.Control], err.Error())
 				failed++
 				unscanned = append(unscanned, unscannedFor(pj))
+				steps[stepKey(pj)].Failed++
 				mu.Unlock()
 				return
 			}
@@ -813,6 +851,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					ctlErrs[pj.Control] = append(ctlErrs[pj.Control], scanErr.Error())
 					failed++
 					unscanned = append(unscanned, unscannedFor(pj))
+					steps[stepKey(pj)].Failed++
 					mu.Unlock()
 				}
 				return
@@ -1231,4 +1270,39 @@ func unscannedFor(pj PlannedJob) Unscanned {
 		u.Kind, u.Target = string(t.Kind()), t.Identity()
 	}
 	return u
+}
+
+// stepKey identifies the control/scanner pair a job belongs to.
+func stepKey(pj PlannedJob) string { return pj.Control + "/" + pj.Job.Scanner }
+
+// planSteps seeds a step per control/scanner in the plan, with its job count.
+//
+// From the plan rather than from work as it starts, so a display can show what has not begun. A
+// list that only grows cannot tell a scanner that is slow from one that has not been reached, and
+// those call for different patience.
+func planSteps(planned []PlannedJob) map[string]*ProgressStep {
+	steps := map[string]*ProgressStep{}
+	for _, pj := range planned {
+		key := stepKey(pj)
+		st, ok := steps[key]
+		if !ok {
+			st = &ProgressStep{Control: pj.Control, Scanner: pj.Job.Scanner}
+			steps[key] = st
+		}
+		st.Total++
+	}
+	return steps
+}
+
+// stepSnapshot copies the steps for a caller, sorted by name.
+//
+// A copy because the caller reads it outside the lock, and sorted because a display that reorders
+// itself between updates is one a reader cannot follow.
+func stepSnapshot(steps map[string]*ProgressStep) []ProgressStep {
+	out := make([]ProgressStep, 0, len(steps))
+	for _, st := range steps {
+		out = append(out, *st)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name() < out[j].Name() })
+	return out
 }
