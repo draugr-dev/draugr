@@ -23,37 +23,42 @@ const (
 
 // Policy decides verdicts from findings. A control fails when its most severe finding is
 // at least as severe as the applicable threshold. FailOn is the default threshold;
-// PerControl overrides it for named controls. The zero value fails on error.
+// PerControl overrides it for named controls. The zero value fails on high.
+//
+// Thresholds are severity bands — the ladder the report prints — rather than SARIF levels. The
+// two are not interchangeable: a finding with a CVSS score takes its band from the score, so one
+// a scanner emitted as `warning` can be `high`. Gating on the level let such a finding pass a
+// gate its reader believed was set to catch it, with the report beside it saying `high`.
 //
 // FailOnPriority adds component-aware gating: when set (e.g. "P1"), a control also fails if
 // any of its findings has a priority band at least that urgent. Because a finding's priority
 // already combines its severity with its component's exposure and criticality, this gates
 // per component without a separate per-component threshold.
 type Policy struct {
-	FailOn         sarif.Level
-	PerControl     map[string]sarif.Level
+	FailOn         sarif.Severity
+	PerControl     map[string]sarif.Severity
 	FailOnPriority string
 }
 
 // thresholdFor returns the effective failure threshold for a control.
-func (p Policy) thresholdFor(control string) sarif.Level {
-	if lvl, ok := p.PerControl[control]; ok && lvl != "" {
-		return lvl
+func (p Policy) thresholdFor(control string) sarif.Severity {
+	if sev, ok := p.PerControl[control]; ok && sev != "" {
+		return sev
 	}
 	if p.FailOn != "" {
 		return p.FailOn
 	}
-	return sarif.LevelError
+	return sarif.SeverityHigh
 }
 
 // ControlOutcome is the verdict for a single control.
 type ControlOutcome struct {
 	Control         string
 	Verdict         Verdict
-	Highest         sarif.Level
+	Highest         sarif.Severity
 	HighestPriority string
 	Counts          sarif.Counts
-	Threshold       sarif.Level
+	Threshold       sarif.Severity
 }
 
 // Result is the overall evaluation across all controls.
@@ -79,7 +84,7 @@ func (p Policy) Evaluate(reports map[string]sarif.Report) Result {
 	for _, control := range sortedControls(reports) {
 		report := reports[control]
 		threshold := p.thresholdFor(control)
-		highest := report.Highest()
+		highest := report.HighestSeverity()
 		highestPrio := highestPriority(report)
 
 		outcome := ControlOutcome{
@@ -90,11 +95,11 @@ func (p Policy) Evaluate(reports map[string]sarif.Report) Result {
 			Counts:          report.Counts(),
 			Threshold:       threshold,
 		}
-		// A control fails when it has a finding at or above the level threshold (LevelNone
-		// has rank 0, so empty reports pass) or, when priority gating is on, a finding at or
-		// above the priority threshold.
-		failedOnLevel := highest.AtLeast(threshold) && highest.Rank() > 0
-		if failedOnLevel || p.priorityFails(highestPrio) {
+		// A control fails when it has a finding at or above the severity threshold (an empty
+		// band has rank 0, so reports with nothing to judge pass) or, when priority gating is
+		// on, a finding at or above the priority threshold.
+		failedOnSeverity := highest.AtLeast(threshold) && highest.Rank() > 0
+		if failedOnSeverity || p.priorityFails(highestPrio) {
 			outcome.Verdict = Fail
 			res.Verdict = Fail
 		}

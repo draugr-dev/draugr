@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // validDigest reports whether s is an OCI content digest of the form "algorithm:hex"
@@ -56,10 +58,10 @@ func (m *Model) Validate() error {
 		}
 	}
 	if g := m.Config.Gate; g != nil {
-		for control, level := range g.Controls {
-			if !slices.Contains(GateLevels, level) {
+		for control, want := range g.Controls {
+			if _, err := sarif.ParseSeverity(want); err != nil {
 				errs = append(errs, fmt.Errorf("config.gate.controls[%q] = %q is not a threshold (want one of %v)",
-					control, level, GateLevels))
+					control, want, GateThresholds))
 			}
 		}
 	}

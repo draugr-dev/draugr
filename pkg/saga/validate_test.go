@@ -318,16 +318,22 @@ func TestValidateGateControls(t *testing.T) {
 	base := func(controls map[string]string) *Model {
 		return &Model{Release: Release{Name: "x", Version: "1"}, Config: Config{Gate: &GateConfig{Controls: controls}}}
 	}
+	// The bands the report prints, which is the vocabulary a threshold is written in.
+	if err := base(map[string]string{"licenses": "critical", "sast": "low"}).Validate(); err != nil {
+		t.Errorf("severity bands should pass: %v", err)
+	}
+	// The SARIF levels a gate used to take. Still accepted, because a descriptor written against
+	// the older vocabulary should keep working rather than fail on the day it is next validated.
 	if err := base(map[string]string{"licenses": "error", "sast": "note"}).Validate(); err != nil {
-		t.Errorf("valid thresholds should pass: %v", err)
+		t.Errorf("the levels a gate used to take should still pass: %v", err)
 	}
-	err := base(map[string]string{"licenses": "critical"}).Validate()
+	err := base(map[string]string{"licenses": "urgent"}).Validate()
 	if err == nil {
-		t.Fatal("want an error for a level that isn't a SARIF threshold")
+		t.Fatal("want an error for a word that is neither a band nor a level")
 	}
-	// "critical" is a severity, not a level — an easy and silent mistake to make, so the
-	// message has to name the real options.
-	for _, want := range []string{"error", "warning", "note"} {
+	// The message names the bands rather than every accepted spelling: the older words work, but
+	// telling somebody making a fresh mistake about them teaches the wrong vocabulary.
+	for _, want := range []string{"critical", "high", "medium", "low"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error should name %q: %v", want, err)
 		}

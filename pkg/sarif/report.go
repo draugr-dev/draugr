@@ -557,6 +557,28 @@ func (r Report) Highest() Level {
 	return highest
 }
 
+// HighestSeverity returns the most severe band present, or an empty severity when there are no
+// results to judge.
+//
+// This is what the gate compares, and it is deliberately the same number the report prints. The
+// SARIF level and the severity band are two different ladders: a finding carrying a CVSS score
+// takes its band from the score, so a scanner that reports a 7.8 as `warning` still shows as
+// `high`. Judging the level instead lets a finding the report calls high pass a gate the reader
+// believes is set to catch it — the verdict and the page disagreeing about the same finding.
+func (r Report) HighestSeverity() Severity {
+	highest := Severity("")
+	for _, res := range r.Results {
+		// Suppressed findings are reported but not judged, exactly as in Highest.
+		if res.Suppressed() {
+			continue
+		}
+		if sev := res.Severity(""); sev.Rank() > highest.Rank() {
+			highest = sev
+		}
+	}
+	return highest
+}
+
 // Dedup returns a copy with exact-duplicate results removed, preserving first-seen order.
 func (r Report) Dedup() Report {
 	return Merge(r)

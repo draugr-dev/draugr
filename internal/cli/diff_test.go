@@ -128,22 +128,36 @@ func TestDiffUsesItsOwnStickyComment(t *testing.T) {
 	}
 }
 
-func TestDiffRejectsAGateLevelItCannotRank(t *testing.T) {
-	// Before #559 the diff printed SARIF levels, so "error" was the obvious thing to type. It
-	// prints severity bands now, which makes "high" the obvious thing — and an unrecognized level
-	// ranks 0, so every new finding is at least that. The gate would quietly become "fail on
-	// anything new" while looking like it had been narrowed.
+func TestDiffRejectsAThresholdItCannotRank(t *testing.T) {
+	// An unrecognized threshold ranks 0, and every new finding is at least that — so accepting
+	// one would quietly turn the gate into "fail on anything new" while reading like a
+	// narrowing. It has to be refused rather than defaulted.
+	cmd := newRootCommand()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"diff", "a.sarif", "b.sarif", "--fail-on-new", "urgent"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("--fail-on-new urgent was accepted, and silently means something else")
+	}
+	if !strings.Contains(err.Error(), "critical") {
+		t.Errorf("the error should name the bands: %v", err)
+	}
+}
+
+// TestDiffTakesTheBandTheReportPrints: the diff lists findings by severity band, so the gate
+// beside it takes the same word. Typing what you can see used to be the one thing that failed.
+func TestDiffTakesTheBandTheReportPrints(t *testing.T) {
 	cmd := newRootCommand()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetArgs([]string{"diff", "a.sarif", "b.sarif", "--fail-on-new", "high"})
 	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("--fail-on-new high was accepted, and silently means something else")
-	}
-	if !strings.Contains(err.Error(), "severity band") {
-		t.Errorf("the error should explain the two ladders: %v", err)
+	// It gets past the flag and fails on the missing report, which is the next thing to go wrong.
+	if err != nil && strings.Contains(err.Error(), "--fail-on-new") {
+		t.Errorf("a severity band should be accepted: %v", err)
 	}
 }
 

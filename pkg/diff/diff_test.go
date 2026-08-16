@@ -74,10 +74,10 @@ func TestGateNewBySeverity(t *testing.T) {
 		res("t", "E", sarif.LevelError, "x", 0, ""),
 		res("t", "W", sarif.LevelWarning, "x", 0, ""),
 	}}
-	if got := d.GateNew(sarif.LevelError, ""); len(got) != 1 || got[0].RuleID != "E" {
+	if got := d.GateNew(sarif.SeverityHigh, ""); len(got) != 1 || got[0].RuleID != "E" {
 		t.Errorf("fail-on-new error should trip on 1, got %v", got)
 	}
-	if got := d.GateNew(sarif.LevelWarning, ""); len(got) != 2 {
+	if got := d.GateNew(sarif.SeverityMedium, ""); len(got) != 2 {
 		t.Errorf("fail-on-new warning should trip on 2, got %d", len(got))
 	}
 	if got := d.GateNew("", ""); len(got) != 0 {

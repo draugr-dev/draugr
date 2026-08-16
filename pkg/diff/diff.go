@@ -223,13 +223,13 @@ func (r Result) OnlyRepository(ref string) Result {
 // GateNew returns the new findings that meet the differential gate: level at or above failOn
 // (when set) OR priority at or above failOnPriority (when set). An empty threshold disables
 // that dimension. With both empty, nothing is returned.
-func (r Result) GateNew(failOn sarif.Level, failOnPriority string) []sarif.Result {
+func (r Result) GateNew(failOn sarif.Severity, failOnPriority string) []sarif.Result {
 	var tripped []sarif.Result
-	wantLevel := failOn != ""
+	wantSeverity := failOn != ""
 	wantPriority := failOnPriority != ""
 	prioRank := prioritization.Priority(failOnPriority).Rank()
 	for _, f := range r.New {
-		if wantLevel && f.Level.AtLeast(failOn) {
+		if wantSeverity && f.Severity("").AtLeast(failOn) {
 			tripped = append(tripped, f)
 			continue
 		}

@@ -17,7 +17,7 @@ inputs:
     default: latest
   fail-on:
     description: >-
-      Severity that fails the gate (error, warning, note). Empty uses Draugr's default (error).
+      Severity that fails the gate (critical, high, medium, low). Empty uses Draugr's default (high).
     required: false
     default: ""
   fail-on-priority:

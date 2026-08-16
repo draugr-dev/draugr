@@ -283,7 +283,7 @@ Grouped the way `draugr scan --help` groups them.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--fail-on` | `error` | Severity that fails the gate: `error`, `warning`, `note` |
+| `--fail-on` | `high` | Severity that fails the gate: `critical`, `high`, `medium`, `low` |
 | `--fail-on-priority` | — | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
 | `--no-gate` | `false` | Report the verdict but exit 0 on a fail — for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything |
@@ -336,7 +336,7 @@ and every pipeline on that runner wants the same one.
 
 ```bash
 draugr scan draugr.saga.yaml
-draugr scan draugr.saga.yaml -o out/ --fail-on warning
+draugr scan draugr.saga.yaml -o out/ --fail-on medium
 draugr scan draugr.saga.yaml --min-priority P2        # focus on what matters now
 draugr scan draugr.saga.yaml --fail-on-priority P1    # also block on P1 findings
 draugr scan draugr.saga.yaml --cache-dir .draugr/cache
@@ -367,23 +367,27 @@ big CI runner you can dial it up. `-j 1` runs serially (deterministic output; ha
 debugging). The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total
 jobs), `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence.
 
-**Two scales, and which one gates.** The console reports **severity bands** (critical / high /
-medium / low), derived from a finding's CVSS score where the scanner supplies one. `--fail-on`
-takes **SARIF levels** (`error` / `warning` / `note`), which is what scanners emit and what the
-gate evaluates. They line up like this:
+**One scale, and it is the one you can see.** The console reports **severity bands** (critical /
+high / medium / low), derived from a finding's CVSS score where the scanner supplies one, and
+`--fail-on` takes the same words:
 
-| Severity band | From CVSS | SARIF level | `--fail-on error` | `--fail-on warning` |
-|---------------|-----------|-------------|:-----------------:|:-------------------:|
-| critical | 9.0–10.0 | `error` | fails | fails |
-| high | 7.0–8.9 | `error` | fails | fails |
-| medium | 4.0–6.9 | `warning` | — | fails |
-| low | 0.1–3.9 | `note` | — | — |
+| Severity band | From CVSS | `--fail-on critical` | `--fail-on high` | `--fail-on medium` |
+|---------------|-----------|:--------------------:|:----------------:|:------------------:|
+| critical | 9.0–10.0 | fails | fails | fails |
+| high | 7.0–8.9 | — | fails | fails |
+| medium | 4.0–6.9 | — | — | fails |
+| low | 0.1–3.9 | — | — | — |
 
-Typing a band where a level belongs — `--fail-on high` — is **rejected**, with a message saying
-which ladder the flag is on. It has to be: an unrecognized level ranks below every finding, so
-accepting it would widen the gate to *everything* while reading like a narrowing.
+The SARIF levels a gate used to take — `error`, `warning`, `note` — are still accepted and mean
+`high`, `medium` and `low`, so a pipeline written against them keeps working. A word that is
+neither is **rejected** rather than defaulted: an unrecognized threshold ranks below every
+finding, so accepting one would widen the gate to *everything* while reading like a narrowing.
 
-A finding with no CVSS score keeps whatever level its scanner assigned; a control may also apply
+The band is what gates because it is what the report shows. A finding's SARIF level and its band
+are not the same ladder — a scanner can emit a CVSS 7.8 as `warning` — so judging the level let a
+finding the report called `high` pass a gate the reader believed was set to catch it.
+
+A finding with no CVSS score takes its band from the level its scanner assigned; a control may also apply
 a **floor** (a leaked secret is never reported as low, however the scanner scored it). To gate on
 business risk instead of raw severity, use `--fail-on-priority` — it accounts for the
 component's exposure and criticality, which a bare severity cannot.

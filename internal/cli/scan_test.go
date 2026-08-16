@@ -556,9 +556,15 @@ func TestPerControlThresholds(t *testing.T) {
 	if got := perControlThresholds(&saga.GateConfig{}); got != nil {
 		t.Errorf("an empty gate block is the same as none, got %v", got)
 	}
-	got := perControlThresholds(&saga.GateConfig{Controls: map[string]string{"licenses": "error", "sast": "note"}})
-	if len(got) != 2 || got["licenses"] != sarif.LevelError || got["sast"] != sarif.LevelNote {
+	got := perControlThresholds(&saga.GateConfig{Controls: map[string]string{"licenses": "critical", "sast": "low"}})
+	if len(got) != 2 || got["licenses"] != sarif.SeverityCritical || got["sast"] != sarif.SeverityLow {
 		t.Errorf("perControlThresholds = %v", got)
+	}
+	// A descriptor written against the older vocabulary keeps working, and lands on the band each
+	// level means rather than being carried through as a word the gate no longer compares.
+	legacy := perControlThresholds(&saga.GateConfig{Controls: map[string]string{"licenses": "error", "sast": "note"}})
+	if legacy["licenses"] != sarif.SeverityHigh || legacy["sast"] != sarif.SeverityLow {
+		t.Errorf("the levels a gate used to take should map onto bands, got %v", legacy)
 	}
 }
 
@@ -763,7 +769,7 @@ func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
 	// Not a second implementation of the gate. Reproducing "what counts as failing" in the
 	// reporter is how the parts come to disagree with the whole — a component reading PASS
 	// under a headline that says FAIL.
-	policy := norn.Policy{FailOn: sarif.LevelError}
+	policy := norn.Policy{FailOn: sarif.SeverityHigh}
 	model := &saga.Model{Components: []saga.Component{{Name: "payments"}, {Name: "internal-tool"}}}
 	reports := map[string]sarif.Report{
 		"sca": {Tool: "trivy", Results: []sarif.Result{
@@ -795,7 +801,7 @@ func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
 func TestComponentVerdictsIncludeAComponentWithNoFindings(t *testing.T) {
 	// Building the list from the findings drops exactly the component a reader most wants to
 	// see — the clean one they can take back to their team.
-	policy := norn.Policy{FailOn: sarif.LevelError}
+	policy := norn.Policy{FailOn: sarif.SeverityHigh}
 	model := &saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "quiet"}}}
 	reports := map[string]sarif.Report{"sca": {Results: []sarif.Result{
 		{RuleID: "x", Level: sarif.LevelError, Component: "a"},
@@ -812,7 +818,7 @@ func TestComponentVerdictsIncludeAComponentWithNoFindings(t *testing.T) {
 
 func TestComponentVerdictsSkipSuppressedFindings(t *testing.T) {
 	// The counts skip these, so the breakdown must too, or the parts and the whole disagree.
-	policy := norn.Policy{FailOn: sarif.LevelError}
+	policy := norn.Policy{FailOn: sarif.SeverityHigh}
 	model := &saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "b"}}}
 	reports := map[string]sarif.Report{"sca": {Results: []sarif.Result{
 		{RuleID: "x", Level: sarif.LevelError, Component: "a",
@@ -825,7 +831,7 @@ func TestComponentVerdictsSkipSuppressedFindings(t *testing.T) {
 }
 
 func TestComponentVerdictsAreAbsentForOneComponent(t *testing.T) {
-	policy := norn.Policy{FailOn: sarif.LevelError}
+	policy := norn.Policy{FailOn: sarif.SeverityHigh}
 	model := &saga.Model{Components: []saga.Component{{Name: "only"}}}
 	if got, _ := componentVerdicts(policy, model, nil, engine.Scope{}, nil); got != nil {
 		t.Errorf("nothing to tell apart: %+v", got)

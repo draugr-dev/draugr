@@ -1,5 +1,10 @@
 package sarif
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Severity is Draugr's normalized, cross-control severity ladder. Unlike Level (the SARIF
 // wire values error/warning/note), Severity is what prioritization ranks on: it splits a
 // numeric CVSS-style score into four bands so a dependency CVE, a leaked secret, and an IaC
@@ -91,4 +96,39 @@ func (r Result) Severity(floor Severity) Severity {
 		return floor
 	}
 	return base
+}
+
+// legacyLevelWords maps the SARIF level a gate used to be set to onto the band it means.
+//
+// The two ladders are not the same length — SARIF has three rungs and severity four — so this is
+// the direction that loses nothing: every level names exactly one band, while `critical` had no
+// level of its own and had to travel as `error`.
+var legacyLevelWords = map[string]Severity{
+	string(LevelError):   SeverityHigh,
+	string(LevelWarning): SeverityMedium,
+	string(LevelNote):    SeverityLow,
+}
+
+// ParseSeverity reads a severity band from a flag or a descriptor.
+//
+// It also accepts the SARIF levels the gate used to take, mapped to the band each one means, so a
+// pipeline written against the older vocabulary keeps working rather than failing at the point it
+// is least convenient. What it will not do is guess: an unrecognized word is an error, because a
+// threshold nobody can parse silently becoming the default is a gate that passes for a reason its
+// author never chose.
+func ParseSeverity(s string) (Severity, error) {
+	word := strings.ToLower(strings.TrimSpace(s))
+	switch sev := Severity(word); sev {
+	case SeverityCritical, SeverityHigh, SeverityMedium, SeverityLow:
+		return sev, nil
+	}
+	if sev, ok := legacyLevelWords[word]; ok {
+		return sev, nil
+	}
+	return "", fmt.Errorf("%q is not a severity: use critical, high, medium or low", s)
+}
+
+// Severities lists the bands a gate may be set to, most to least severe.
+var Severities = []string{
+	string(SeverityCritical), string(SeverityHigh), string(SeverityMedium), string(SeverityLow),
 }
