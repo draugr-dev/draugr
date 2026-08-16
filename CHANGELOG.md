@@ -12,6 +12,21 @@ and move it under a version on release.
 
 ### Added
 
+- **A descriptor can gate on priority, not only severity.** `config.gate.failOnPriority` fails the
+  build on anything at or above a band:
+
+  ```yaml
+  config:
+    gate:
+      failOnPriority: P1
+  ```
+
+  Priority folds in the exposure and criticality the descriptor declares, which severity alone
+  cannot, so it is usually what a team that has classified its components wants to gate on — and
+  until now it could only be said with a flag every pipeline had to remember. `--fail-on-priority`
+  still overrides it for a single run. A scan through the MCP server applies it too, so an
+  assistant and CI reach the same verdict.
+
 - **The MCP server answers "what should I do", not only "what is wrong".** Two tools for
   assistants:
 

@@ -58,6 +58,10 @@ func (m *Model) Validate() error {
 		}
 	}
 	if g := m.Config.Gate; g != nil {
+		if g.FailOnPriority != "" && !slices.Contains(Priorities, g.FailOnPriority) {
+			errs = append(errs, fmt.Errorf("config.gate.failOnPriority is %q, but a priority band is one of %v",
+				g.FailOnPriority, Priorities))
+		}
 		for control, want := range g.Controls {
 			if _, err := sarif.ParseSeverity(want); err != nil {
 				errs = append(errs, fmt.Errorf("config.gate.controls[%q] = %q is not a threshold (want one of %v)",

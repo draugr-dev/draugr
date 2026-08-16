@@ -367,6 +367,14 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 	return out
 }
 
+// gatePriority reads the descriptor's priority gate, which has no flag to override it here.
+func gatePriority(g *saga.GateConfig) string {
+	if g == nil {
+		return ""
+	}
+	return g.FailOnPriority
+}
+
 // remediationText returns what the scanner published about how to fix a rule.
 //
 // From the report rather than a lookup: scanners record their remediation in the rule, Draugr
@@ -500,8 +508,9 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		// fails on P1 says so for a reason, and an agent reporting a verdict under a policy the
 		// project did not choose disagrees with the project's own CI about its own descriptor.
 		verdict := norn.Policy{
-			FailOn:     sarif.SeverityHigh,
-			PerControl: scanpolicy.GateThresholds(model.Config.Gate),
+			FailOn:         sarif.SeverityHigh,
+			PerControl:     scanpolicy.GateThresholds(model.Config.Gate),
+			FailOnPriority: gatePriority(model.Config.Gate),
 		}.Evaluate(reports)
 
 		controls := make([]string, 0, len(run.Controls))

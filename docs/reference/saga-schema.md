@@ -518,9 +518,10 @@ See [scanners that do more than read](cli.md#scanners-that-do-more-than-read).
 ```yaml
 config:
   gate:
+    failOnPriority: P1     # anything the descriptor ranks P1 fails the build
     controls:
-      licenses: error      # this control fails the build on an error…
-      sast: note           # …this one fails on anything at all
+      licenses: critical   # this control fails only on a critical…
+      sast: low            # …this one fails on anything at all
 ```
 
 Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-sagayaml--dir) for the named
@@ -531,9 +532,18 @@ One threshold can't serve every control. Licence policy is owned by legal and vu
 policy by security; *"fail the build on a forbidden licence but only warn on a medium CVE"* is a
 reasonable position that a single global threshold makes unsayable.
 
-It lives in the Saga rather than in a flag because it's **policy** — it should be reviewed in a
-pull request and applied identically by every pipeline, not remembered by whoever wrote the
-workflow. Resolution order is per-control setting → `--fail-on` → `high`.
+`failOnPriority` gates on a [priority band](../concepts/prioritization.md) as well. Severity rates
+a flaw in the abstract; priority folds in what this descriptor says about the component it was
+found in, which is usually what a team that has classified its components wants to gate on.
+[`--fail-on-priority`](cli.md#draugr-scan-sagayaml--dir) overrides it for a single run — the
+descriptor is the standing policy, the flag is this run.
+
+Both live in the Saga rather than in a flag because they're **policy** — reviewed in a pull
+request and applied identically by every pipeline, not remembered by whoever wrote the workflow.
+Resolution order is per-control setting → `--fail-on` → `high`.
+
+The report says which gate produced a verdict, so a narrowed one is visible to whoever reads it —
+see [the verdict and the gate](../concepts/verdict-and-gating.md).
 
 
 ## Where a repository comes from: URLs and paths

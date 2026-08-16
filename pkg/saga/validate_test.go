@@ -612,3 +612,24 @@ func assertValidation(t *testing.T, errs []error, want string) {
 		t.Errorf("errors should mention %q, got:\n%s", want, flat)
 	}
 }
+
+// TestValidateGateFailOnPriority: a band nobody can rank would widen or narrow the gate silently,
+// depending on which way the comparison fell.
+func TestValidateGateFailOnPriority(t *testing.T) {
+	base := func(p string) *Model {
+		return &Model{Release: Release{Name: "x", Version: "1"},
+			Config: Config{Gate: &GateConfig{FailOnPriority: p}}}
+	}
+	for _, ok := range []string{"", "P1", "P4"} {
+		if err := base(ok).Validate(); err != nil {
+			t.Errorf("%q should be a valid priority gate: %v", ok, err)
+		}
+	}
+	err := base("p1").Validate()
+	if err == nil {
+		t.Fatal("a lower-case band should not be accepted silently")
+	}
+	if !strings.Contains(err.Error(), "P1") {
+		t.Errorf("the error should name the bands: %v", err)
+	}
+}
