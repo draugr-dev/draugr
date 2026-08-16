@@ -10,19 +10,9 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-### Changed
+_Nothing yet._
 
-- **The gate takes the severity words the report prints.** `--fail-on`, `--fail-on-new` and
-  `config.gate.controls` now take `critical`, `high`, `medium` or `low` — the bands in the counts
-  beside them — instead of the SARIF levels `error`, `warning` and `note`.
-
-  ```bash
-  draugr scan draugr.saga.yaml --fail-on critical   # newly expressible
-  ```
-
-  `critical` had no SARIF level of its own, so until now it could not be named: it travelled as
-  `error`, together with everything high. The old words still work everywhere and mean `high`,
-  `medium` and `low`, so pipelines and descriptors written against them keep working.
+## [0.97.0] - 2026-08-16
 
 ### Added
 
@@ -49,6 +39,20 @@ and move it under a version on release.
   and configuration remains a default a Saga overrides rather than a floor it cannot lower — a
   floor is not something a CLI running on the reader's own machine can keep, and one that can be
   quietly lowered is worth less than no floor plus a visible record.
+
+### Changed
+
+- **The gate takes the severity words the report prints.** `--fail-on`, `--fail-on-new` and
+  `config.gate.controls` now take `critical`, `high`, `medium` or `low` — the bands in the counts
+  beside them — instead of the SARIF levels `error`, `warning` and `note`.
+
+  ```bash
+  draugr scan draugr.saga.yaml --fail-on critical   # newly expressible
+  ```
+
+  `critical` had no SARIF level of its own, so until now it could not be named: it travelled as
+  `error`, together with everything high. The old words still work everywhere and mean `high`,
+  `medium` and `low`, so pipelines and descriptors written against them keep working.
 
 ### Fixed
 
@@ -4550,7 +4554,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.96.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.97.0...HEAD
+[0.97.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.97.0
 [0.96.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.96.0
 [0.95.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.95.0
 [0.94.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.94.0
