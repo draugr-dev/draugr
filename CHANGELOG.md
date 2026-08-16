@@ -107,6 +107,25 @@ and move it under a version on release.
   a base image name would be a guess in a field a reader would trust.
 
 ### Changed
+
+- **Action rows keep a way into the findings they stand for**, and lost the version noise:
+
+  ```
+  P1  Upgrade libcrypto3 3.6.0-r3  images · 54 findings
+      chainguard-sync/redis:8.2.2 · chainguard-sync/argocd:3.2.11 · CVE-2026-31789 +53
+  ```
+
+  Grouping answers *what do I do* and had taken away *what exactly is wrong*, which is the
+  question a reader has next: the rule identifier is gone from the row and with it the link to
+  what the scanner published about it. One is named and linked now, and the rest are counted.
+
+  The version to upgrade to moved into the title, and only when every advisory in the group
+  agrees on one — a list of four near-identical OS package releases said little and filled the
+  line.
+
+  Image references drop the digest and the registry host for display. A digest-pinned reference
+  from a private registry runs past 130 characters, and two of them left room for nothing else;
+  the digest is what makes a scan reproducible and is still in the report and the SARIF.
 - **The cache caveat is shorter, sits below the findings, and marks the rows it applies to.**
 
   ```

@@ -807,19 +807,17 @@ func unpinnedCacheLine(refs []string) string {
 	if len(refs) == 0 {
 		return ""
 	}
-	shown := refs
-	const most = 2
-	suffix := ""
-	if len(shown) > most {
-		suffix = fmt.Sprintf(" and %d more", len(shown)-most)
-		shown = shown[:most]
+	// Named while there are few enough to name, counted after that. A reader needs to know which
+	// image, and on a clean run the rows that would otherwise carry the mark do not exist — but a
+	// list of twenty pushes the sentence off the screen and reads as though the whole scan rests
+	// on them, when a run can reuse one entry out of thirty.
+	const nameUpTo = 2
+	subject := plural(len(refs), "image")
+	if len(refs) <= nameUpTo {
+		subject = strings.Join(refs, " and ")
 	}
-	// The legend for the "from cache" marker on the rows above, rather than a caveat standing on
-	// its own. Short because it explains a mark the reader has already seen beside the thing it
-	// applies to — why a tag is not a content address belongs in the caching documentation, not
-	// in the space the fix list needs.
-	return fmt.Sprintf("from cache: %s%s was reused on a tag, so may describe an earlier build. Pin a digest.",
-		strings.Join(shown, ", "), suffix)
+	return fmt.Sprintf("from cache: %s reused on a tag — may describe an earlier build. Pin a digest.",
+		subject)
 }
 
 // escalationNote is the line under a finding saying why it outranks its severity, or "" when
@@ -1138,11 +1136,17 @@ func externalLine(external []finding) string {
 
 // renderActions draws the action rows.
 func renderActions(w io.Writer, col tui.Painter, actions []action) {
-	const namedLocations = 3
+	const namedLocations = 2
 	for _, a := range actions {
 		band := a.priority
 		if band == "" {
 			band = "-"
+		}
+		title := a.title
+		// The version to move to, when every advisory agrees on one. In the title because it is
+		// the action, not a footnote to it.
+		if v := a.target(); v != "" {
+			title += " → " + v
 		}
 		meta := fmt.Sprintf("%s · %s", a.control, plural(a.count(), "finding"))
 		if a.cached {
@@ -1150,12 +1154,30 @@ func renderActions(w io.Writer, col tui.Painter, actions []action) {
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 			col.Paint(priorityColor(a.priority), fmt.Sprintf("%-2s", band)),
-			a.title,
+			title,
 			col.Paint(cDim, meta))
-		if detail := a.detail(namedLocations); detail != "" {
+		if detail := actionDetail(col, a, namedLocations); detail != "" {
 			_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(cDim, detail))
 		}
 	}
+}
+
+// actionDetail is the line under an action: where it applies, and a way into the findings.
+//
+// Grouping answers "what do I do" and takes away "what exactly is wrong", which is the question
+// a reader has next and the one a rule identifier answers. One is named, linked to whatever the
+// scanner published about it, and the rest are counted — a reader following a link is going to
+// read one of them, and listing fifty-four identifiers to offer that choice fills the screen.
+func actionDetail(col tui.Painter, a action, locations int) string {
+	parts := a.where(locations)
+	if f, ok := a.exemplar(); ok && f.ruleID != "" {
+		ref := col.Link(f.helpURI, shortRuleID(f.ruleID))
+		if more := a.count() - 1; more > 0 {
+			ref += fmt.Sprintf(" +%d", more)
+		}
+		parts = append(parts, ref)
+	}
+	return strings.Join(parts, " · ")
 }
 
 // noun agrees a bare noun with a count, for sentences that put the number elsewhere.

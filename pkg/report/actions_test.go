@@ -1,9 +1,11 @@
 package report
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 func pkgFinding(control, rule, prio, loc, name, version, fixed string) finding {
@@ -32,12 +34,11 @@ func TestGroupActionsFoldsOneFixIntoOneRow(t *testing.T) {
 	if got[0].title != "Upgrade cryptography 49.0.0" {
 		t.Errorf("title = %q", got[0].title)
 	}
-	// One release fixes all three, so it is named plainly. Where advisories disagree the detail
-	// lists them without picking one: version ordering is the ecosystem's, and naming the wrong
-	// release as sufficient reads as "do this and you are done" when it would leave findings
-	// behind. TestActionNamesEveryFixWithoutPickingOne covers that case.
-	if d := got[0].detail(3); d != "fixed in 50.0.1" {
-		t.Errorf("detail = %q", d)
+	// One release fixes all three, so the action can name it. Where advisories disagree it names
+	// none: version ordering is the ecosystem's, and naming the wrong release as sufficient reads
+	// as "do this and you are done" when it would leave findings behind.
+	if v := got[0].target(); v != "50.0.1" {
+		t.Errorf("target = %q, want the single release that fixes all of them", v)
 	}
 	if got[0].count() != 3 {
 		t.Errorf("the action should say it clears 3 findings, said %d", got[0].count())
@@ -136,22 +137,11 @@ func TestActionNamesEveryFixWithoutPickingOne(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("one library is one upgrade, got %d actions", len(got))
 	}
-	if d := got[0].detail(3); d != "fixed in 2.10.1, 3.1.5, 2.11.3 — take the latest" {
-		t.Errorf("detail = %q", d)
+	if v := got[0].target(); v != "" {
+		t.Errorf("target = %q, but the advisories disagree and none of them is the answer", v)
 	}
-}
-
-// TestActionDetailCapsTheReleasesItNames keeps a row inside a terminal when a library has
-// collected many advisories.
-func TestActionDetailCapsTheReleasesItNames(t *testing.T) {
-	var in []finding
-	for _, fixed := range []string{"1.1", "1.2", "1.3", "1.4", "1.5", "1.6"} {
-		in = append(in, pkgFinding("sca", "CVE-"+fixed, "P2", "req.txt", "lib", "1.0", fixed))
-	}
-	got, _ := groupActions(in, nil)
-	want := "fixed in 1.1, 1.2, 1.3 and 3 other releases — take the latest"
-	if d := got[0].detail(3); d != want {
-		t.Errorf("detail = %q\nwant     %q", d, want)
+	if fixes := got[0].fixedVersions(); len(fixes) != 3 {
+		t.Errorf("every release that fixes something should still be recorded: %v", fixes)
 	}
 }
 
@@ -191,5 +181,72 @@ func TestActionIsOnlyCachedWhenAllOfItIs(t *testing.T) {
 	}
 	if got[0].cached {
 		t.Error("an action with a freshly scanned finding in it was marked cached")
+	}
+}
+
+// TestActionRowKeepsAWayIntoTheFindings covers what grouping takes away.
+//
+// Grouping answers "what do I do" and removes "what exactly is wrong", which is the question a
+// reader has next. The rule identifier answers it, and carries the link to whatever the scanner
+// published — so one is named and the rest are counted, because a reader following a link reads
+// one of them and listing fifty-four to offer the choice fills the screen.
+func TestActionRowKeepsAWayIntoTheFindings(t *testing.T) {
+	in := []finding{
+		pkgFinding("sca", "CVE-2019-10906", "P1", "req.txt", "jinja2", "2.10", "2.10.1"),
+		pkgFinding("sca", "CVE-2020-28493", "P4", "req.txt", "jinja2", "2.10", "2.11.3"),
+	}
+	in[0].helpURI = "https://nvd.nist.gov/vuln/detail/CVE-2019-10906"
+
+	got, _ := groupActions(in, nil)
+	detail := actionDetail(tui.Painter{}, got[0], 2)
+
+	if !strings.Contains(detail, "CVE-2019-10906") {
+		t.Errorf("the row gives no way to read about any of its findings: %q", detail)
+	}
+	if !strings.Contains(detail, "+1") {
+		t.Errorf("the row should say how many more it stands for: %q", detail)
+	}
+}
+
+// TestDisplayLocationShortensImageReferences: a digest-pinned reference from a private registry
+// runs past 130 characters, and two of them leave no room for anything else on the line. The
+// digest is what makes a scan reproducible and belongs in the report; what the reader needs here
+// is which image to rebuild.
+func TestDisplayLocationShortensImageReferences(t *testing.T) {
+	for _, c := range []struct{ name, control, in, want string }{
+		{
+			name:    "digest dropped, registry host trimmed, namespace kept",
+			control: "images",
+			in:      "registry.example.com/team/sync/redis:8.2.2@sha256:c892889d1b23c30b5ab1500fa4b3850e",
+			want:    "team/sync/redis:8.2.2",
+		},
+		{
+			name:    "an official image is left alone",
+			control: "images",
+			in:      "ubuntu:22.04",
+			want:    "ubuntu:22.04",
+		},
+		{
+			// No dot and no colon in the first segment, so it is a namespace and not a host —
+			// the same rule a container runtime uses.
+			name:    "a namespace is not mistaken for a host",
+			control: "images",
+			in:      "myteam/app:1.0",
+			want:    "myteam/app:1.0",
+		},
+		{
+			// A path shortened to its basename loses the directory, which is the part that
+			// distinguishes two Dockerfiles.
+			name:    "a file path is never trimmed",
+			control: "iac",
+			in:      "deploy/overlays/production/kustomization.yaml:12",
+			want:    "deploy/overlays/production/kustomization.yaml:12",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := displayLocation(finding{control: c.control, location: c.in}); got != c.want {
+				t.Errorf("got  %q\nwant %q", got, c.want)
+			}
+		})
 	}
 }

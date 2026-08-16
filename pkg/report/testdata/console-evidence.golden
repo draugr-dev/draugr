@@ -25,15 +25,15 @@ Ran 11 jobs in 34.5s — 4 from cache, 1 shared with an identical job.
 
 Fix first — 5 actions clear 6 findings:
   P1  Upgrade jinja2 2.10  sca · 2 findings
-      fixed in 2.10.1, 2.11.3 — take the latest
+      app/requirements.txt:5 · CVE-2019-10906 +1
   P1  PyYAML: command execution through python/object/apply constructor in Fu…  sca · 1 finding
-      app/requirements.txt:4
+      app/requirements.txt:4 · CVE-2019-20477
   P1  Image user should not be 'root'  iac · 1 finding
-      app/Dockerfile:1
+      app/Dockerfile:1 · DS-0002
   P2  python-flask: Denial of Service via crafted JSON file  sca · 1 finding
-      app/requirements.txt:2
+      app/requirements.txt:2 · CVE-2018-1000656
   P2  Detected user input flowing into a raw SQL string  sast · 1 finding
-      app/main.py:42
+      app/main.py:42 · …tainted-sql-string.tainted-sql-string
 
 … and 2 more actions.
 Use --top 0 to list them all, or --group none to list every finding separately.

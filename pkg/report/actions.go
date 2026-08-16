@@ -45,9 +45,40 @@ func (a action) where(limit int) []string {
 		if len(out) == limit {
 			return append(out, fmt.Sprintf("and %d more", countDistinct(a.findings)-limit))
 		}
-		out = append(out, f.location)
+		out = append(out, displayLocation(f))
 	}
 	return out
+}
+
+// displayLocation shortens a location that is an image reference.
+//
+// A digest-pinned reference from a private registry runs past 130 characters, and two of them
+// leave no room for anything else on the line. The digest is what makes the scan reproducible and
+// belongs in the report and the SARIF; what a reader needs here is which image to rebuild, and
+// the repository and tag say that.
+//
+// Only for image findings. A file path shortened to its basename loses the directory, which is
+// the part that distinguishes two Dockerfiles.
+func displayLocation(f finding) string {
+	if f.control != "images" {
+		return f.location
+	}
+	ref := f.location
+	if at := strings.Index(ref, "@"); at > 0 {
+		ref = ref[:at]
+	}
+	// Drop the registry host, keep everything that names the image. The host is the same for
+	// every image in most descriptors, so it is the part carrying no information here — and the
+	// namespace is not: "chainguard-sync/redis" and "istio/redis" are different images.
+	//
+	// A first segment containing a dot or a colon is a host, which is the rule a container
+	// runtime itself uses to tell "myteam/app" from "registry.example.com/app".
+	if slash := strings.Index(ref, "/"); slash > 0 {
+		if head := ref[:slash]; strings.ContainsAny(head, ".:") {
+			return ref[slash+1:]
+		}
+	}
+	return ref
 }
 
 func countDistinct(fs []finding) int {
@@ -213,20 +244,23 @@ func (a action) fixedVersions() []string {
 	return out
 }
 
-// detail is the second line under an action: where it applies, or which releases fix it.
-func (a action) detail(locations int) string {
-	if fixes := a.fixedVersions(); len(fixes) > 0 {
-		if len(fixes) == 1 {
-			return "fixed in " + fixes[0]
-		}
-		// A few, then a count. The advisories disagree and the reader's package manager settles
-		// it; naming all six fills the line without changing what they type.
-		const named = 3
-		if len(fixes) > named {
-			return fmt.Sprintf("fixed in %s and %d other releases — take the latest",
-				strings.Join(fixes[:named], ", "), len(fixes)-named)
-		}
-		return "fixed in " + strings.Join(fixes, ", ") + " — take the latest"
+// target is the version to upgrade to, when every advisory in the group agrees on one.
+//
+// Only when they agree. Where they disagree there is no single answer Draugr can give — version
+// ordering belongs to the ecosystem, and naming the wrong release as sufficient reads as "do this
+// and you are done" while leaving findings behind. The reader's package manager settles it.
+func (a action) target() string {
+	fixes := a.fixedVersions()
+	if len(fixes) == 1 {
+		return fixes[0]
 	}
-	return strings.Join(a.where(locations), " · ")
+	return ""
+}
+
+// exemplar is one finding from the group, for a reader who wants to read about it.
+func (a action) exemplar() (finding, bool) {
+	if len(a.findings) == 0 {
+		return finding{}, false
+	}
+	return a.findings[0], true
 }
