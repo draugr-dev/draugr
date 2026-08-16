@@ -92,3 +92,87 @@ func TestRunLineReportsWaitingOnce(t *testing.T) {
 		})
 	}
 }
+
+// TestWrapMessageKeepsURLsWhole covers the half of a failure a reader actually uses.
+//
+// A tool's error often ends in the URL it could not reach. Split at the margin it cannot be
+// pasted anywhere, which is the only reason it is in the message. A long line is untidy; a
+// severed URL is unusable.
+func TestWrapMessageKeepsURLsWhole(t *testing.T) {
+	const url = "https://cluster.example.com:443/apis/batch/v1/namespaces/default/jobs"
+	got := wrapMessage("create job in \"default\": Post "+url+": getting credentials failed", 40)
+
+	joined := strings.Join(got, "\n")
+	if !strings.Contains(joined, url) {
+		t.Errorf("the URL was broken across lines and cannot be copied:\n%s", joined)
+	}
+	for _, line := range got {
+		if strings.HasSuffix(line, "namesp") || strings.HasPrefix(line, "aces/") {
+			t.Errorf("split mid-token: %q", line)
+		}
+	}
+}
+
+// TestWrapMessageElidesAtAWordBoundary: a fragment of a word reads as a different word, and a
+// truncated identifier looks like a real one.
+func TestWrapMessageElidesAtAWordBoundary(t *testing.T) {
+	long := strings.Repeat("word ", 60) + "final"
+	got := wrapMessage(long, 30)
+	last := got[len(got)-1]
+	if !strings.HasSuffix(last, "…") {
+		t.Fatalf("the elided line should say it was cut: %q", last)
+	}
+	if strings.Contains(last, "wor…") {
+		t.Errorf("cut mid-word: %q", last)
+	}
+}
+
+// TestIncompleteLineSaysTheVerdictIsPartial covers the most important sentence in a partial run.
+//
+// A control that could not run found nothing by looking at nothing, so a verdict beside it covers
+// less than it appears to. That is a bigger fact about the report than any single finding in it,
+// and it has to be readable before the counts rather than inferred from a row further down.
+func TestIncompleteLineSaysTheVerdictIsPartial(t *testing.T) {
+	for _, c := range []struct {
+		name, want string
+		s          summary
+	}{
+		{
+			// The common case, and it must stay silent: a line saying nothing went wrong is a
+			// line every reader learns to skip, and then they skip it on the day it says
+			// something else.
+			name: "everything ran",
+			s:    summary{},
+			want: "",
+		},
+		{
+			name: "one control could not run",
+			s:    summary{errored: []string{"images"}},
+			want: "! images did not complete — this verdict does not cover it.",
+		},
+		{
+			name: "two, named in a stable order",
+			s:    summary{errored: []string{"infrastructure", "images"}},
+			want: "! images and infrastructure did not complete — this verdict does not cover them.",
+		},
+		{
+			// A control that reported findings *and* failed is still partial: what it did report
+			// is a subset, and reading it as complete is the error this exists to prevent.
+			name: "a control that reported and still failed",
+			s:    summary{scanErrors: map[string][]string{"sca": {"registry unreachable"}}},
+			want: "! sca did not complete — this verdict does not cover it.",
+		},
+		{
+			name: "counted once when it is in both",
+			s: summary{errored: []string{"images"},
+				scanErrors: map[string][]string{"images": {"401"}}},
+			want: "! images did not complete — this verdict does not cover it.",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := incompleteLine(c.s); got != c.want {
+				t.Errorf("got  %q\nwant %q", got, c.want)
+			}
+		})
+	}
+}

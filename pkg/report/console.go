@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -73,6 +74,14 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "   %s", col.Paint(cAccent, note))
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
+
+	// Before the counts, because it changes what they mean. A control that could not run found
+	// nothing by looking at nothing, so a verdict alongside it covers less than it appears to —
+	// and that is a bigger fact about this report than any single finding in it. The row in the
+	// controls table below carries the reason; this says the verdict is partial.
+	if line := incompleteLine(s); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cFail, line))
+	}
 
 	if s.prioritized {
 		_, _ = fmt.Fprintf(w, "Priorities:  %s   %s   %s   %s\n\n",
@@ -498,7 +507,14 @@ func wrapMessage(msg string, width int) []string {
 	for len(msg) > width {
 		cut := strings.LastIndex(msg[:width], " ")
 		if cut <= 0 {
-			cut = width // one unbroken token, e.g. a path: split it rather than overflow
+			// One unbroken token longer than the line — a URL, or a path with no spaces in it.
+			// Emitted whole and overflowing rather than split at the margin: the reason a URL is
+			// in a failure message is so somebody can paste it somewhere, and one broken across
+			// two lines cannot be pasted. A long line is untidy; a severed URL is unusable.
+			cut = len(msg)
+			if end := strings.IndexByte(msg, ' '); end > 0 {
+				cut = end
+			}
 		}
 		lines = append(lines, strings.TrimSpace(msg[:cut]))
 		msg = strings.TrimSpace(msg[cut:])
@@ -507,7 +523,7 @@ func wrapMessage(msg string, width int) []string {
 		}
 	}
 	if len(msg) > width {
-		msg = strings.TrimSpace(msg[:width-1]) + "…"
+		msg = elide(msg, width)
 	}
 	return append(lines, msg)
 }
@@ -1128,4 +1144,56 @@ func noun(n int, word string) string {
 		return word
 	}
 	return word + "s"
+}
+
+// elide shortens the last line of a wrapped message, at a word boundary where there is one.
+//
+// Cutting mid-word leaves a fragment that reads as a different word — a truncated identifier or
+// version looks like a real one, and a reader cannot tell which they are looking at. Where the
+// line is a single long token there is no boundary to find, and cutting it is the only option.
+func elide(msg string, width int) string {
+	if width <= 1 {
+		return "…"
+	}
+	cut := strings.LastIndex(msg[:width-1], " ")
+	if cut <= 0 {
+		cut = width - 1
+	}
+	return strings.TrimSpace(msg[:cut]) + "…"
+}
+
+// incompleteLine names the controls that could not run, and says what that costs.
+//
+// Empty when everything ran, which is the common case and must stay silent: a line saying nothing
+// went wrong is a line every reader learns to skip, and then they skip it on the day it says
+// something else.
+func incompleteLine(s summary) string {
+	names := append([]string(nil), s.errored...)
+	for name := range s.scanErrors {
+		if !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	slices.Sort(names)
+	subject := "it"
+	if len(names) > 1 {
+		subject = "them"
+	}
+	return fmt.Sprintf("! %s did not complete — this verdict does not cover %s.",
+		joinNames(names), subject)
+}
+
+// joinNames lists control names as a reader would say them.
+func joinNames(names []string) string {
+	switch len(names) {
+	case 1:
+		return names[0]
+	case 2:
+		return names[0] + " and " + names[1]
+	default:
+		return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+	}
 }
