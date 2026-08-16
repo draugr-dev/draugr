@@ -80,6 +80,50 @@ jobs:
           ref: ${{ inputs.ref }}
         if: needs.changes.outputs.code == 'true'
 
+      # Which release the action will download, resolved here so the tool cache can be keyed on
+      # it. The pinned scanner versions travel with the Draugr build that provisions them, so a
+      # new release must re-provision rather than reuse the previous release's binaries.
+      - name: Resolve the release under test
+        id: release
+        if: needs.changes.outputs.code == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$(gh release view --repo draugr-dev/draugr --json tagName -q .tagName)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # Provisioning four scanners from their upstreams takes most of a minute on every run, and
+      # the binaries are identical until the release changes.
+      #
+      # Safe to restore because `draugr tools install` does not trust what it finds: it re-hashes
+      # each binary against the checksum it recorded when it wrote it, and a mismatch reinstalls.
+      # A cache entry cannot smuggle in a modified scanner — it can only save the download.
+      - name: Cache the provisioned scanners
+        if: needs.changes.outputs.code == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.draugr/bin
+          key: draugr-tools-${{ runner.os }}-${{ steps.release.outputs.tag }}
+
+      # Content-hash caching is the thing Draugr offers users so an unchanged component is never
+      # re-scanned, and this job was not using it — every run re-scanned a tree that had barely
+      # moved. Dogfooding it here is the point of the job.
+      #
+      # A stale entry cannot outlive the data behind it: a scanner that folds its vulnerability-DB
+      # version into the cache key (Trivy does) misses the moment that database changes, so a
+      # cached pass cannot hide a CVE published since. The action already refuses to *write* this
+      # cache from a fork's pull request, so an untrusted branch cannot decide what the next run
+      # on main reads.
+      - name: Cache scan results
+        if: needs.changes.outputs.code == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .draugr/cache
+          key: draugr-selfscan-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            draugr-selfscan-${{ runner.os }}-
+
       - name: Draugr self-scan
         if: needs.changes.outputs.code == 'true'
         id: draugr
@@ -103,6 +147,9 @@ jobs:
         with:
           saga: .draugr/self.saga.yaml
           output: draugr-out
+          # Restored and saved by the steps above. Relative to working-directory, and under
+          # .draugr/ with everything else a run reads or writes.
+          cache-dir: .draugr/cache
           # Draugr provisions its own scanners: `draugr tools install` fetches each pinned,
           # checksum-verified release into a directory it owns, which is what this action offers
           # every user and therefore what this job should be exercising.
