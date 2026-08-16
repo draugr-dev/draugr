@@ -189,13 +189,18 @@ and move it under a version on release.
   is three container images, none of which could be pulled, rendered as `pass  no findings` —
   nothing looked at it, so there were none to have, and the row invited exactly the wrong reading.
 
-  It now reports what went unexamined, beside the findings when there are both:
+  It now reports what went unexamined, against what the component has, beside the findings when
+  there are both:
 
   ```
   Components:
-    api   FAIL   P1 2  P2 2  sca   1 image not scanned
-    mesh  ERROR  3 images not scanned
+    api   FAIL   P1 2  P2 2  sca   1/4 images not scanned
+    mesh  ERROR  3/3 images not scanned
   ```
+
+  The fraction is the point: three images not scanned is a component nobody looked at when it has
+  three, and a gap in one that was mostly covered when it has thirty. A target one scanner failed
+  on and another read is not counted — it was examined.
 
   The `! … did not complete — this verdict does not cover it` line is gone with it. It was
   imprecise where this is exact: a control can fail for one target and succeed for others, so
