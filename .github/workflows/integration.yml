@@ -78,8 +78,16 @@ jobs:
           fi
           # The suite is the tests, the tag they hide behind, and the workflow that runs them.
           # A change to any of the three is a change nobody can review by reading a green tick.
+          #
+          # pkg/report is in the list because several of these tests assert on what a real scan
+          # printed — that a spec-driven scan named the operations it was not allowed to send,
+          # that a repository scan named the revision it read. Those assertions are the only
+          # place a coverage statement is checked against a real run rather than a fixture, so
+          # they break on a rendering change, and every other job stays green while they do.
+          # The next thing to run them would be the release tag, which is the most expensive
+          # moment to learn it.
           if git diff --name-only "$base" HEAD \
-             | grep -qE '^(test/integration/|\.github/workflows/integration\.yml$)'; then
+             | grep -qE '^(test/integration/|pkg/report/|\.github/workflows/integration\.yml$)'; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"

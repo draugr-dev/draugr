@@ -19,10 +19,9 @@ func TestEvidenceFormatCarriesProvenanceWithoutTheFindings(t *testing.T) {
 	out := buf.String()
 
 	for _, want := range []string{
-		"Draugr evidence",  // says what it is
-		"Measured against", // and against what
-		"Ran 11 jobs",      // and what it cost
-		"Verdict:",         // and what it stands behind
+		"Draugr evidence", // says what it is
+		"Ran 11 jobs",     // what it cost
+		"Verdict:",        // and what it stands behind
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the evidence is missing %q:\n%s", want, out)
@@ -92,13 +91,21 @@ func TestDefaultViewOmitsTheEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	for _, unwanted := range []string{"Measured against", "Ran 11 jobs", "trivy 0.69.3"} {
+	// The tool build rides along in "Measured against", which stays because it carries coverage.
+	// Splitting a line that reads "trivy 0.69.3 — policy deny copyleft" into a provenance half
+	// and a coverage half would cost more than the version string does.
+	for _, unwanted := range []string{"Ran 11 jobs", "4 from cache"} {
 		if strings.Contains(out, unwanted) {
 			t.Errorf("the default view still carries %q", unwanted)
 		}
 	}
-	// What must never be hidden: a control that did not run, and what it left unexamined.
+	// What must never be hidden. A control that could not run, and what the ones that did run
+	// were measured against — which carries what they did *not* cover, and a partial scan
+	// reading as a complete one is the failure that block exists to prevent.
 	if !strings.Contains(out, "did not run") {
 		t.Error("the default view dropped the control that could not run")
+	}
+	if !strings.Contains(out, "Measured against") {
+		t.Error("the default view dropped what each control was measured against")
 	}
 }
