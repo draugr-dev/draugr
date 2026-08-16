@@ -121,7 +121,7 @@ jobs:
         with:
           saga: draugr.saga.yaml          # a Saga with a `github` publisher in config.publishers
           tools: true
-          fail-on: error                  # optional: fail the build on error-level findings
+          fail-on: high                   # optional: fail the build on high-severity findings
 ```
 
 Because the publisher lives in the Saga, findings are uploaded even on a FAIL verdict, so you

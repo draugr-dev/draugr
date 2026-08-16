@@ -149,7 +149,7 @@ func sampleVerdict() norn.Result {
 	return norn.Result{
 		Verdict: norn.Fail,
 		Controls: []norn.ControlOutcome{
-			{Control: "images", Verdict: norn.Fail, Highest: sarif.LevelError, Threshold: sarif.LevelError,
+			{Control: "images", Verdict: norn.Fail, Highest: sarif.SeverityHigh, Threshold: sarif.SeverityHigh,
 				Counts: sarif.Counts{Error: 1}},
 		},
 	}

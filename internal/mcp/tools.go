@@ -429,7 +429,7 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		for name, cr := range run.Controls {
 			reports[name] = cr.Report
 		}
-		verdict := norn.Policy{FailOn: sarif.LevelError}.Evaluate(reports)
+		verdict := norn.Policy{FailOn: sarif.SeverityHigh}.Evaluate(reports)
 
 		controls := make([]string, 0, len(run.Controls))
 		for name := range run.Controls {

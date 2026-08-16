@@ -10,7 +10,31 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **The gate takes the severity words the report prints.** `--fail-on`, `--fail-on-new` and
+  `config.gate.controls` now take `critical`, `high`, `medium` or `low` — the bands in the counts
+  beside them — instead of the SARIF levels `error`, `warning` and `note`.
+
+  ```bash
+  draugr scan draugr.saga.yaml --fail-on critical   # newly expressible
+  ```
+
+  `critical` had no SARIF level of its own, so until now it could not be named: it travelled as
+  `error`, together with everything high. The old words still work everywhere and mean `high`,
+  `medium` and `low`, so pipelines and descriptors written against them keep working.
+
+### Fixed
+
+- **A finding the report calls `high` now fails a gate set to high.** The gate compared the SARIF
+  level a scanner wrote, while the report shows the band a finding's CVSS score puts it in. Those
+  are different ladders — a scanner can publish a 7.8 as `warning` — so a finding listed as `high`
+  could pass a gate its reader believed was set to catch it.
+
+  This can fail builds that previously passed, and that is the point: the findings it now catches
+  were always in the report. It cuts the other way too — a finding a scanner marked `error` but
+  scored as a medium is a medium, and no longer fails a gate set to `high`. The verdict and the
+  report now describe the same finding the same way.
 
 ## [0.96.0] - 2026-08-16
 

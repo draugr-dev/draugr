@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // Model is a parsed Saga descriptor — the declarative account of an application's
@@ -65,7 +67,7 @@ type Config struct {
 // GateConfig tunes which findings fail the build.
 type GateConfig struct {
 	// Controls sets a per-control severity threshold, overriding --fail-on for that control
-	// only. Values are SARIF levels: error, warning, note.
+	// only. Values are severity bands: critical, high, medium, low.
 	//
 	// This exists because one threshold cannot serve every control. Licence policy is owned by
 	// legal and vulnerability policy by security; "fail the build on a forbidden licence but
@@ -74,8 +76,12 @@ type GateConfig struct {
 	Controls map[string]string `yaml:"controls,omitempty"`
 }
 
-// GateLevels lists the severity thresholds a gate may be set to, most to least severe.
-var GateLevels = []string{"error", "warning", "note"}
+// GateThresholds lists the severity bands a gate may be set to, most to least severe.
+//
+// The bands the report prints, so a threshold reads the same as the counts beside it. The SARIF
+// levels a gate used to take — error, warning, note — are still accepted and mapped onto the band
+// each one means, so a descriptor written against the older vocabulary keeps working.
+var GateThresholds = sarif.Severities
 
 // ExcludeRule suppresses findings that match it. Every real repository has paths that are not
 // the application — fixtures, examples, generated code — and rules that do not apply to them.

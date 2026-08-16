@@ -31,7 +31,7 @@ Describe ─► Plan ─► Scan ─► Aggregate ─► Judge ─► Report
 ## Verdict & exit code
 
 The gate produces `pass` / `fail`. `draugr scan` exits non-zero on `fail`, so it gates a
-pipeline directly. The failure threshold is configurable (`--fail-on`, default `error`),
+pipeline directly. The failure threshold is configurable (`--fail-on`, default `high`),
 with optional per-control overrides, plus a component-aware priority gate
 (`--fail-on-priority`). The run fails if either gate trips.
 

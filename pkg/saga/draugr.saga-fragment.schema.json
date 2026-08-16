@@ -892,13 +892,17 @@
         "controls": {
           "additionalProperties": {
             "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
               "error",
               "warning",
               "note"
             ],
             "type": "string"
           },
-          "description": "Per-control severity threshold, overriding --fail-on for that control only.",
+          "description": "Per-control severity threshold, overriding --fail-on for that control only. Severity bands are what the report prints; the SARIF levels error, warning and note are still accepted and mean high, medium and low.",
           "propertyNames": {
             "$ref": "#/$defs/controlName"
           },

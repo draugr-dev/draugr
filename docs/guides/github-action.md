@@ -38,8 +38,8 @@ jobs:
         with:
           saga: draugr.saga.yaml
           tools: true             # provision the scanners the controls need
-          # fail-on: error        # (scan/push) gate the build
-          # fail-on-new: error    # (diff/PR)   gate only on findings this PR introduces
+          # fail-on: high         # (scan/push) gate the build
+          # fail-on-new: high     # (diff/PR)   gate only on findings this PR introduces
 ```
 
 **Versioning.** `@v0` is a moving major tag that always points at the newest `v0.x` release, so
@@ -75,7 +75,7 @@ what avoids a second, overlapping PR comment. See [gate PRs on new findings](pr-
 | `saga` | — (required) | Path to the Saga descriptor to scan. |
 | `mode` | `auto` | `auto` (diff on PRs, scan otherwise), `scan`, or `diff`. |
 | `version` | `latest` | Draugr release to use (with or without a leading `v`). Pin for reproducibility. |
-| `fail-on` | `error` | (scan) Severity that fails the gate: `error`, `warning`, `note`. |
+| `fail-on` | `high` | (scan) Severity that fails the gate: `critical`, `high`, `medium`, `low`. |
 | `fail-on-priority` | — | (scan) Also fail on any finding at or above this priority band (`P1`–`P4`). |
 | `fail-on-new` | — | (diff) Fail on a **new** finding at or above this severity. |
 | `fail-on-new-priority` | — | (diff) Fail on a **new** finding at or above this priority band. |

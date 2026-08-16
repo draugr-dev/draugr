@@ -43,7 +43,7 @@ func newDiffCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&opts.format, "format", "console", "output format: "+strings.Join(diff.Formats(), ", "))
-	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "", "fail if a new finding is at or above this severity: error, warning, note")
+	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "", "fail if a new finding is at or above this severity: critical, high, medium, low")
 	cmd.Flags().StringVar(&opts.failOnNewPriority, "fail-on-new-priority", "", "fail if a new finding is at or above this priority (P1-P4)")
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "report only new findings at or above this priority band (P1-P4); fixed and unchanged are unaffected")
 	cmd.Flags().StringVar(&opts.repository, "repository", "",
@@ -60,10 +60,10 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	// The cheap check first. A mistyped gate level should not need two readable SARIF files
 	// before it will admit to being mistyped, and it should certainly not be discovered after
 	// the comment has already been posted.
-	var failOn sarif.Level
+	var failOn sarif.Severity
 	if opts.failOnNew != "" {
 		var err error
-		if failOn, err = sarif.ParseLevel(opts.failOnNew); err != nil {
+		if failOn, err = sarif.ParseSeverity(opts.failOnNew); err != nil {
 			return fmt.Errorf("--fail-on-new: %w", err)
 		}
 	}

@@ -122,7 +122,8 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noGate, "no-gate", false,
 		"report the verdict but exit 0 on a fail — for producing a report to compare later, "+
 			"where `draugr diff` is the gate")
-	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.LevelError), "severity that fails the gate: error, warning, note")
+	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.SeverityHigh),
+		"severity that fails the gate: critical, high, medium, low")
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "", "also fail the gate on any finding at or above this priority (P1-P4)")
 	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
@@ -222,7 +223,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	// Before the scan, not after. A typo discovered once the scanners have finished is a wasted
 	// pipeline minute for a mistake that was visible on the command line.
-	failOn, err := sarif.ParseLevel(opts.failOn)
+	failOn, err := sarif.ParseSeverity(opts.failOn)
 	if err != nil {
 		return fmt.Errorf("--fail-on: %w", err)
 	}
@@ -628,13 +629,20 @@ func writeTo(path string, render func(io.Writer) error) error {
 
 // perControlThresholds converts the Saga's gate block into the norn policy's per-control map.
 // Nil when unset, which leaves every control on --fail-on.
-func perControlThresholds(g *saga.GateConfig) map[string]sarif.Level {
+//
+// Parsing here rather than trusting the string: validation has already rejected anything that is
+// not a band or one of the SARIF levels still accepted, and this is where the older word becomes
+// the band it means. An unparseable value cannot reach this point, and is dropped rather than
+// silently becoming a threshold nobody chose.
+func perControlThresholds(g *saga.GateConfig) map[string]sarif.Severity {
 	if g == nil || len(g.Controls) == 0 {
 		return nil
 	}
-	out := make(map[string]sarif.Level, len(g.Controls))
-	for control, level := range g.Controls {
-		out[control] = sarif.Level(level)
+	out := make(map[string]sarif.Severity, len(g.Controls))
+	for control, want := range g.Controls {
+		if sev, err := sarif.ParseSeverity(want); err == nil {
+			out[control] = sev
+		}
 	}
 	return out
 }

@@ -524,7 +524,8 @@ config:
 ```
 
 Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-sagayaml--dir) for the named
-control only. Values are SARIF levels: `error`, `warning`, `note`.
+control only. Values are severity bands: `critical`, `high`, `medium`, `low`. The SARIF levels
+`error`, `warning` and `note` are still accepted and mean `high`, `medium` and `low`.
 
 One threshold can't serve every control. Licence policy is owned by legal and vulnerability
 policy by security; *"fail the build on a forbidden licence but only warn on a medium CVE"* is a
@@ -532,7 +533,7 @@ reasonable position that a single global threshold makes unsayable.
 
 It lives in the Saga rather than in a flag because it's **policy** — it should be reviewed in a
 pull request and applied identically by every pipeline, not remembered by whoever wrote the
-workflow. Resolution order is per-control setting → `--fail-on` → `error`.
+workflow. Resolution order is per-control setting → `--fail-on` → `high`.
 
 
 ## Where a repository comes from: URLs and paths
