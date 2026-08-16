@@ -35,6 +35,10 @@ and move it under a version on release.
     an assistant and a terminal cannot describe one report differently.
   - `explain_rule` returns what a check means and the remediation its scanner published, read from
     the report the scan already wrote.
+  - `diff_reports` compares two scans and reports what a change introduced and what it resolved,
+    optionally answering whether a pull-request gate would fail. In a coding session the question
+    is rarely "what is wrong with this repository" — a project with inherited findings answers
+    that identically before and after a change.
 
 - **Findings from the MCP server carry what it takes to act on them** — the remediation text, the
   package and the version that fixes it, the component, the image, whether the OS release is past
