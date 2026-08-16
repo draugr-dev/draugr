@@ -31,7 +31,7 @@ _Nothing yet._
   still overrides it for a single run. A scan through the MCP server applies it too, so an
   assistant and CI reach the same verdict.
 
-- **The MCP server answers "what should I do", not only "what is wrong".** Two tools for
+- **The MCP server answers "what should I do", not only "what is wrong".** Four new tools for
   assistants:
 
   - `fix_list` returns the work a report implies — one row per remediation, most urgent first,
