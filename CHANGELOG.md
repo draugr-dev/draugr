@@ -11,6 +11,18 @@ and move it under a version on release.
 ## [Unreleased]
 
 ### Added
+
+- **A scan that could not run a control says so before the counts.**
+
+  ```
+  Draugr — FAIL   (app 0.0.0)
+
+  ! images did not complete — this verdict does not cover it.
+  ```
+
+  A control that could not run found nothing by looking at nothing, so a verdict beside it covers
+  less than it appears to. That was previously readable only as a row partway down the controls
+  table, in the same weight as the controls that did run.
 - **Findings say whether you can act on them**, and a descriptor can say who operates a cluster.
 
   ```yaml
@@ -103,6 +115,11 @@ and move it under a version on release.
   `--group none` gives the old row-per-finding listing, and the report files are unchanged.
 
 ### Fixed
+
+- **A failure message no longer breaks the URL in it.** Wrapping split any token longer than the
+  line at the margin, so the endpoint a scanner could not reach arrived in two halves and could
+  not be copied — which is the only reason it is in the message. Long tokens now overflow whole,
+  and a truncated line is cut at a word boundary rather than mid-word.
 - **The progress line no longer prints over the report.** It was erased when the command returned,
   which is after the report has been written — so on a terminal the verdict arrived welded to a
   job counter (`scanning 17/17    Draugr — FAIL`). It is now cleared the moment the run finishes,
