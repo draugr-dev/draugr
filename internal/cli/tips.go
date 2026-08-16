@@ -76,8 +76,8 @@ var scanTips = []scanTip{
 			return inCI() && c.opts.outputDir == "" && len(c.model.Config.Publishers) == 0 && !c.opts.noPublish
 		},
 		text: func(tipContext) string {
-			return "this looks like CI, and the report exists only in this log. Use -o <dir> to keep " +
-				"it as an artifact, or config.publishers to send it to code scanning or a PR comment."
+			return "this looks like CI and the report exists only in this log. Keep it with " +
+				"-o <dir>, or send it somewhere with config.publishers."
 		},
 	},
 	{
@@ -90,9 +90,8 @@ var scanTips = []scanTip{
 			return hasImageFindings(c.run) && !declaresBuiltBy(c.model)
 		},
 		text: func(tipContext) string {
-			return "every image is assumed to be one you build, so the fix list says to upgrade " +
-				"the packages inside them. Set `builtBy: upstream` on images you only run, and " +
-				"it will tell you to take a newer image instead."
+			return "images you only run need `builtBy: upstream`, or the fix list tells you to " +
+				"upgrade packages you cannot reach."
 		},
 	},
 	{
