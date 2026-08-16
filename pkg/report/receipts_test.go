@@ -52,8 +52,9 @@ func TestBothListingsCarryTheReceipts(t *testing.T) {
 			if !strings.Contains(out, "sent requests to a live endpoint") {
 				t.Errorf("the effects record is missing:\n%s", out)
 			}
-			// Whether what was read may be stale.
-			if !strings.Contains(out, "acme/api:latest") {
+			// Whether what was read may be stale. The caveat counts rather than names — the rows
+			// carry which — so this asserts it reached the reader, not that it listed anything.
+			if !strings.Contains(out, "from cache") {
 				t.Errorf("the cache caveat is missing:\n%s", out)
 			}
 		})
