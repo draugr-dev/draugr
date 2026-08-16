@@ -677,18 +677,19 @@ func reportFromKubeBench(
 				if !ok {
 					continue
 				}
+				desc := withoutAssessmentMarker(res.TestDesc)
 				ruleID := kubeBenchCISRulePrefix + res.TestNumber
 				report.Results = append(report.Results, sarif.Result{
 					Tool:             tool,
 					RuleID:           ruleID,
 					Level:            level,
-					Message:          res.TestDesc,
+					Message:          desc,
 					Location:         sarif.Location{URI: location},
 					ProviderOperated: providerOperated && providerRunsIt(ctl.NodeType, res.TestNumber),
 				})
 				report.Rules[ruleID] = sarif.Rule{
 					Name:             ctl.Text,
-					ShortDescription: res.TestDesc,
+					ShortDescription: desc,
 					FullDescription:  strings.TrimSpace(res.Remedy),
 					HelpURI:          "https://www.cisecurity.org/benchmark/kubernetes",
 					// Same taxonomy and same control id as draugr-draugr-k8s-policies, which is how the
@@ -793,3 +794,23 @@ func providerRunsIt(nodeType, testNumber string) bool {
 
 // kubeProxySection is the benchmark section covering kube-proxy, which a managed platform runs.
 const kubeProxySection = "4.3"
+
+// withoutAssessmentMarker drops the benchmark's "(Automated)" or "(Manual)" suffix from a check
+// description.
+//
+// It is CIS vocabulary about how a recommendation is *assessed* — whether a tool can decide it
+// programmatically — and it says nothing about the finding or its fix. A reader sees it beside
+// something they have been told to act on and reads it as a claim about the remediation.
+//
+// It also costs a dozen characters of a line that is already truncated, in every row, to repeat
+// a distinction Draugr already draws: a check the tool could not settle comes back as a warning
+// rather than a failure.
+func withoutAssessmentMarker(desc string) string {
+	trimmed := strings.TrimSpace(desc)
+	for _, marker := range []string{"(Automated)", "(Manual)"} {
+		if strings.HasSuffix(trimmed, marker) {
+			return strings.TrimSpace(strings.TrimSuffix(trimmed, marker))
+		}
+	}
+	return trimmed
+}
