@@ -74,6 +74,19 @@ type GateConfig struct {
 	// only warn on a medium CVE" is a reasonable position that a single global threshold makes
 	// unsayable.
 	Controls map[string]string `yaml:"controls,omitempty"`
+
+	// FailOnPriority also fails the build on any finding at or above a priority band.
+	//
+	// Severity rates a flaw in the abstract; priority folds in what the descriptor says about the
+	// component it was found in. A team that has classified its components usually wants the gate
+	// on the second, and until now could only say so with a flag — which every pipeline has to
+	// remember, and which nothing reviews.
+	//
+	// In the descriptor for the same reason as the rest of this block: it is a decision about
+	// this application, reviewed in a pull request and applied identically by every runner. A
+	// --fail-on-priority flag still overrides it, so a stricter run stays possible without
+	// editing the file.
+	FailOnPriority string `yaml:"failOnPriority,omitempty"`
 }
 
 // GateThresholds lists the severity bands a gate may be set to, most to least severe.

@@ -221,6 +221,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return err
 	}
+	// The flag wins over the descriptor, so a stricter run is possible without editing a file
+	// under review. The descriptor is the standing policy; the flag is this run.
+	if failOnPriority == "" && model.Config.Gate != nil {
+		failOnPriority = model.Config.Gate.FailOnPriority
+	}
 	// Before the scan, not after. A typo discovered once the scanners have finished is a wasted
 	// pipeline minute for a mistake that was visible on the command line.
 	failOn, err := sarif.ParseSeverity(opts.failOn)

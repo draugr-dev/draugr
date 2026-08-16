@@ -907,6 +907,16 @@
             "$ref": "#/$defs/controlName"
           },
           "type": "object"
+        },
+        "failOnPriority": {
+          "description": "Also fail the build on any finding at or above this priority band. Priority folds in the component's declared exposure and criticality, which severity alone cannot. A --fail-on-priority flag overrides this for a single run.",
+          "enum": [
+            "P1",
+            "P2",
+            "P3",
+            "P4"
+          ],
+          "type": "string"
         }
       },
       "type": "object"
