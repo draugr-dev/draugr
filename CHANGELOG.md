@@ -24,6 +24,32 @@ and move it under a version on release.
   `error`, together with everything high. The old words still work everywhere and mean `high`,
   `medium` and `low`, so pipelines and descriptors written against them keep working.
 
+### Added
+
+- **The report says what gate produced the verdict.** A verdict is only as meaningful as the
+  policy behind it, and a gate can be narrowed or switched off from the command line without
+  leaving a trace in the report:
+
+  ```
+  Draugr — PASS   (draugr-demo 1.0)
+
+  Controls:
+    secrets  pass   1 high
+
+  Gate: fails on critical.
+  ```
+
+  A narrowed gate or `--no-gate` is stated in the default view, because a pass under a narrowed
+  gate otherwise looks exactly like a pass under a full one — and `--no-gate` exits 0 on a verdict
+  of FAIL, so anything reading the exit code is told the opposite of what the report says. A
+  stricter gate says nothing until asked: it can only fail more, and the failure speaks for
+  itself. `--evidence` and `--report evidence` state the gate whatever it is.
+
+  Where the policy lives is unchanged. It stays in the descriptor beside the other gate settings,
+  and configuration remains a default a Saga overrides rather than a floor it cannot lower — a
+  floor is not something a CLI running on the reader's own machine can keep, and one that can be
+  quietly lowered is worth less than no floor plus a visible record.
+
 ### Fixed
 
 - **A finding the report calls `high` now fails a gate set to high.** The gate compared the SARIF
