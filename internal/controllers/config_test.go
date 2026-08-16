@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -161,5 +162,36 @@ func TestEnabledFlag(t *testing.T) {
 	}
 	if _, ok := enabledFlag(map[string]any{"enabled": "yes"}); ok {
 		t.Error("non-bool enabled should report unset")
+	}
+}
+
+// TestConfigKeysRoundTrip: the inverse map turns a descriptor's key back into a scanner name, so
+// a mapping that does not survive the trip selects the wrong scanner or none — and selecting none
+// is silent, producing a scan that ran one fewer scanner and said nothing about it.
+func TestConfigKeysRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	for name, key := range scannerConfigKey {
+		got, ok := scannerNameFor(key)
+		if !ok || got != name {
+			t.Errorf("scanner %q is configured as %q, which resolves back to %q (ok=%v)",
+				name, key, got, ok)
+		}
+		if strings.Contains(key, "-") {
+			t.Errorf("scanner %q maps to %q, which is not camelCase", name, key)
+		}
+	}
+}
+
+// TestAHyphenatedNameIsNotAcceptedAsAKey. Both spellings resolving would make the descriptor
+// convention advisory, and a reader copying a scanner name out of a report would get a block that
+// works here and fails review everywhere else.
+func TestAHyphenatedNameIsNotAcceptedAsAKey(t *testing.T) {
+	t.Parallel()
+
+	for name := range scannerConfigKey {
+		if _, ok := scannerNameFor(name); ok {
+			t.Errorf("the hyphenated name %q was accepted as a descriptor key", name)
+		}
 	}
 }
