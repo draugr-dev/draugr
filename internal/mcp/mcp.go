@@ -177,6 +177,23 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"image somebody else publishes is one action however many packages are wrong " +
 			"inside it.",
 	}, FixListTool)
+	if opts.Surveyors != nil {
+		mcp.AddTool(s, &mcp.Tool{
+			Name: "list_surveyors",
+			Description: "Name the surveyors this build has and what each discovers. Call it " +
+				"before survey, so the surveyor you ask for is one that exists.",
+		}, ListSurveyorsTool(opts.Surveyors))
+		mcp.AddTool(s, &mcp.Tool{
+			Name: "survey",
+			Description: "Discover what an application is made of — the images running in a " +
+				"Kubernetes namespace, the repositories in an organization — and return a Saga " +
+				"descriptor for it. Prefer this over writing a descriptor from the schema: " +
+				"which namespaces exist and which images are actually running, at which digest, " +
+				"is not something to guess at. It reads a live system with credentials this " +
+				"machine already has, and returns YAML rather than writing a file.",
+		}, SurveyTool(opts.Surveyors))
+	}
+
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "diff_reports",
 		Description: "Compare two scans and report what a change introduced and what it " +

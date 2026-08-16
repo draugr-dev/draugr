@@ -10,7 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **`survey` and `list_surveyors` are reachable.** Both existed and neither was registered with
+  the server, so no assistant could call them however the release notes read.
 
 ## [0.98.0] - 2026-08-16
 

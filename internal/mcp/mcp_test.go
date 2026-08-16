@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 
@@ -1336,5 +1337,80 @@ func TestListSurveyorsComesFromTheRegistry(t *testing.T) {
 	}
 	if out.Hint == "" {
 		t.Error("the listing should say these read live systems with real credentials")
+	}
+}
+
+// servedTools lists what a client would actually see, by asking the server rather than reading
+// the code that builds it.
+func servedTools(t *testing.T, opts Options) []string {
+	t.Helper()
+	s, err := NewServer(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ct, st := mcp.NewInMemoryTransports()
+	if _, err := s.Connect(context.Background(), st, nil); err != nil {
+		t.Fatal(err)
+	}
+	client := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1"}, nil)
+	sess, err := client.Connect(context.Background(), ct, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	res, err := sess.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, 0, len(res.Tools))
+	for _, tool := range res.Tools {
+		names = append(names, tool.Name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// TestEveryToolIsActuallyServed is the test the others could not be.
+//
+// Every tool here has a unit test that calls its handler directly, and a handler nothing
+// registers passes all of them: the function works, and no client can reach it. What a client
+// sees is the list the server returns, so that is what this asserts.
+func TestEveryToolIsActuallyServed(t *testing.T) {
+	got := servedTools(t, Options{
+		Registry:  builtins.Registry(),
+		Surveyors: builtins.SurveyorRegistry(),
+		Scan:      ScanAlways,
+		Root:      t.TempDir(),
+	})
+	want := []string{
+		"check_tools", "diff_reports", "explain_rule", "fix_list", "get_saga_schema",
+		"list_controls", "list_surveyors", "scan", "summarize_report", "survey", "validate_saga",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("the served tools are not the intended surface:\ngot  %v\nwant %v", got, want)
+	}
+}
+
+// TestScanIsNotServedUnlessAllowed: the one default that must never happen by accident.
+func TestScanIsNotServedUnlessAllowed(t *testing.T) {
+	got := servedTools(t, Options{
+		Registry:  builtins.Registry(),
+		Surveyors: builtins.SurveyorRegistry(),
+		Root:      t.TempDir(),
+	})
+	if slices.Contains(got, "scan") {
+		t.Errorf("scan was served without being enabled: %v", got)
+	}
+}
+
+// TestSurveyIsNotServedWithoutSurveyors, so an embedder that withholds the registry withholds
+// the reach into a cluster or a forge that comes with it.
+func TestSurveyIsNotServedWithoutSurveyors(t *testing.T) {
+	got := servedTools(t, Options{Registry: builtins.Registry(), Root: t.TempDir()})
+	for _, name := range []string{"survey", "list_surveyors"} {
+		if slices.Contains(got, name) {
+			t.Errorf("%s was served with no surveyor registry: %v", name, got)
+		}
 	}
 }
