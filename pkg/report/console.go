@@ -155,7 +155,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				col.Paint(cDim, "did not run"))
 			why(name)
 		}
-		writeMeasuredAgainst(w, col, d, width)
+		// Not measured stays in the default view: a control that was never planned is a gap in
+		// coverage, the same kind of fact as one that failed to run. What each control measured
+		// *against* is provenance and travels with the rest of the evidence — see writeEvidence.
 		writeNotMeasured(w, col, d, width)
 		_, _ = fmt.Fprintln(w)
 	}
@@ -204,39 +206,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
-	// What the run did, not just what it found. A scan that probed a live endpoint should say so
-	// where the verdict is read, rather than only in the docs that describe the control.
-	for _, e := range s.effects {
-		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, fmt.Sprintf("%s: %s", e.Kind, e.Detail)))
-	}
-	if len(s.effects) > 0 {
-		_, _ = fmt.Fprintln(w)
-	}
-
-	if lines := toolBuildLines(d.Tools); len(lines) > 0 {
-		for _, l := range lines {
-			_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
-		}
-		_, _ = fmt.Fprintln(w)
-	}
-
-	if l := runLine(d.Run.Stats); l != "" {
-		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, l))
-	}
-
-	for _, l := range repositoryLines(d.Repositories) {
-		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
-	}
-	if len(d.Repositories) > 0 {
-		_, _ = fmt.Fprintln(w)
-	}
-
-	if line := exploitabilityLine(d.Exploitability, s.escalated); line != "" {
-		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
-	}
-
-	if line := sbomLine(d.Run.SBOMs); line != "" {
-		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
+	// Everything from here to the findings answers "can I trust this run" rather than "what did
+	// it find", and the second question is the one a reader came with. Behind --evidence so the
+	// default view is the findings, and an auditor asks for the rest — see writeEvidence.
+	if d.Evidence {
+		writeEvidence(w, col, d, s)
 	}
 
 	// Not dim, unlike its neighbours. The lines above describe the run; this one qualifies the
@@ -246,6 +220,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	}
 
 	if len(s.findings) == 0 {
+		// A clean run still did whatever it did and still produced whatever it produced, and
+		// both are worth saying: an SBOM nobody is told about is one nobody uses, and a scan
+		// that created something in a cluster owes a record of it whatever the verdict.
+		writeEffects(w, col, s, d)
 		// "No findings ✓" after a control that didn't run would be the same false reassurance
 		// the ERROR row exists to prevent.
 		if len(errored) > 0 {
@@ -280,9 +258,33 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	} else {
 		_, _ = fmt.Fprint(w, "\n")
 	}
+	writeEffects(w, col, s, d)
 	_, _ = fmt.Fprintln(w, col.Paint(cDim,
 		"Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif."))
 	return nil
+}
+
+// writeEffects records what the run did to its targets beyond reading them.
+//
+// Not evidence and not hidden: this is what Draugr did to somebody's systems, and a scan that
+// created a Job in a cluster or sent traffic to a live endpoint should say so where the verdict
+// is read. Near the end because it is a receipt rather than an instruction — the reader acts on
+// the findings above and wants this on the way past.
+func writeEffects(w io.Writer, col tui.Painter, s summary, d Data) {
+	wrote := false
+	for _, e := range s.effects {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, fmt.Sprintf("%s: %s", e.Kind, e.Detail)))
+		wrote = true
+	}
+	// The inventory is a receipt of the same kind: somebody who asked for an SBOM wants to know
+	// it was written, and a clean scan still produced one.
+	if line := sbomLine(d.Run.SBOMs); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, line))
+		wrote = true
+	}
+	if wrote {
+		_, _ = fmt.Fprintln(w)
+	}
 }
 
 // fixFirstHeading names what the table below it actually contains.
@@ -1196,4 +1198,48 @@ func joinNames(names []string) string {
 	default:
 		return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 	}
+}
+
+// writeEvidence prints what makes a run defensible: which tools ran, what they measured against,
+// what the scan did to its targets, which revision it read, and what it cost.
+//
+// Not in the default view. Each of these is justified on its own and together they are most of
+// what precedes the findings — a developer opening a terminal is asking what to fix, and answers
+// to a question they have not asked push the answer to the one they have off the screen.
+//
+// Three things deliberately stay in the default view instead of moving here, because they are not
+// evidence but warnings, and removing them would change what the report means: a control that did
+// not run, a finding suppressed with nobody accepting it, and a cache hit on a mutable reference.
+func writeEvidence(w io.Writer, col tui.Painter, d Data, s summary) {
+	// Written here rather than beside the controls table so the document and the console mode
+	// carry the same content: two call sites is how the two deliveries drift into disagreeing
+	// about what a run did.
+	width := 0
+	for _, c := range d.Verdict.Controls {
+		width = max(width, len(c.Control))
+	}
+	writeMeasuredAgainst(w, col, d, width)
+
+	if lines := toolBuildLines(d.Tools); len(lines) > 0 {
+		for _, l := range lines {
+			_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+
+	if l := runLine(d.Run.Stats); l != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, l))
+	}
+
+	for _, l := range repositoryLines(d.Repositories) {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
+	}
+	if len(d.Repositories) > 0 {
+		_, _ = fmt.Fprintln(w)
+	}
+
+	if line := exploitabilityLine(d.Exploitability, s.escalated); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
+	}
+
 }

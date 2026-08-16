@@ -12,6 +12,20 @@ and move it under a version on release.
 
 ### Added
 
+- **`--evidence` shows what stands behind the verdict, and `--report evidence` writes it down.**
+
+  Tool provenance, what each control measured against, the scanned revision, and what the run
+  cost are no longer in the default view. Each is justified on its own, and together they were
+  most of what came before the findings — a developer opening a terminal is asking what to fix,
+  and answers to questions they have not asked push the answer to the one they have off the
+  screen. An auditor is a real reader, just not the default one.
+
+  Both deliveries render from the same code, so they cannot disagree about what a run did.
+
+  Three things stay in the default view because they are warnings rather than evidence: a control
+  that did not run, a finding suppressed with nobody accepting it, and a cache hit on a mutable
+  reference. So do the receipts — what the scan did to your systems, and the SBOM it produced.
+
 - **A scan that could not run a control says so before the counts.**
 
   ```

@@ -60,6 +60,13 @@ type Data struct {
 	// findings makes them do that grouping in their head. Off gives the finding-per-row listing,
 	// which is what somebody auditing a specific finding wants.
 	GroupActions bool
+	// Evidence restores the blocks that make a run defensible — tool provenance, what each
+	// control measured against, declared effects, the scanned revision, job and cache counts.
+	//
+	// Off by default. A developer at a terminal is asking what to fix, and answers to questions
+	// they have not asked push the answer to the one they have off the screen. An auditor is a
+	// real reader, just not the default one, and asks for this.
+	Evidence bool
 	// Compact strips what only a human reads — indentation and relayed rule prose — from the
 	// machine formats (json, sarif), for a consumer that acts on the report rather than reads
 	// it. The human formats ignore it: making those harder to read is the opposite of the point.
@@ -217,6 +224,7 @@ var documentFormats = map[string]bool{
 	"gitlab-sast": true, "gitlab-secret-detection": true, "gitlab-codequality": true,
 	"gitlab-dependency-scanning": true,
 	"gitlab-container-scanning":  true,
+	"evidence":                   true,
 	"gitlab-cyclonedx":           true,
 }
 
