@@ -97,8 +97,8 @@ func TestDefaultViewOmitsTheEvidence(t *testing.T) {
 			t.Errorf("the default view still carries %q", unwanted)
 		}
 	}
-	// What must never be hidden: a control that did not run.
-	if !strings.Contains(out, "did not complete") {
-		t.Error("the default view dropped the incomplete-scan warning")
+	// What must never be hidden: a control that did not run, and what it left unexamined.
+	if !strings.Contains(out, "did not run") {
+		t.Error("the default view dropped the control that could not run")
 	}
 }

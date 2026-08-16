@@ -321,7 +321,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		FailOnPriority: failOnPriority,
 	}
 	verdict := policy.Evaluate(reports)
-	components, unattributed := componentVerdicts(policy, model, reports, scope)
+	components, unattributed := componentVerdicts(policy, model, reports, scope, run.Stats.Unscanned)
 	// A control that couldn't run didn't find nothing — it found out nothing. Reporting that as
 	// a pass makes the gate a false negative exactly when it matters: in CI, where a scanner
 	// failing to provision is the common case and the warning scrolls past unread.
@@ -659,7 +659,10 @@ func splitScanErrors(scanErrors map[string][]string) (unwaived, waived []string)
 // Findings with no component come from project-scoped controls (infrastructure). They are
 // counted rather than assigned: a breakdown that quietly omits them makes the parts look like
 // the whole.
-func componentVerdicts(policy norn.Policy, model *saga.Model, reports map[string]sarif.Report, scope engine.Scope) ([]report.ComponentVerdict, int) {
+func componentVerdicts(
+	policy norn.Policy, model *saga.Model, reports map[string]sarif.Report,
+	scope engine.Scope, unscanned []engine.Unscanned,
+) ([]report.ComponentVerdict, int) {
 	if model == nil || len(model.Components) < 2 {
 		// One component repeats what the headline already said. The breakdown exists to tell
 		// components apart, and there is nothing to tell apart.
@@ -715,6 +718,11 @@ func componentVerdicts(policy norn.Policy, model *saga.Model, reports map[string
 				if band := priorityBand(r.Priority); band >= 0 {
 					cv.Priorities[band]++
 				}
+			}
+		}
+		for _, u := range unscanned {
+			if u.Component == name {
+				cv.Unscanned = append(cv.Unscanned, u)
 			}
 		}
 		out = append(out, cv)

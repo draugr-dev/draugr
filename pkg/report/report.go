@@ -162,6 +162,13 @@ type ComponentVerdict struct {
 	Priorities [4]int
 	// Findings is the total, suppressed ones excluded — the same rule the counts follow.
 	Findings int
+	// Unscanned is what this component has that no scanner managed to look at.
+	//
+	// A component whose every image failed to pull has had nothing examined, and without this it
+	// renders as passing with no findings — which is the report asserting something no scanner
+	// established. The same reasoning already keeps a component the scope excluded out of the
+	// pass list; a component the scan could not reach is the same situation arrived at later.
+	Unscanned []engine.Unscanned
 }
 
 // Reporter renders Data in one format.

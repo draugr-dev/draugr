@@ -472,11 +472,31 @@ type Stats struct {
 	// worth attention is the slowest one rather than the one with the most jobs.
 	Duration  time.Duration
 	ByControl map[string]time.Duration
+	// Unscanned names the jobs that could not run, and what each was going to look at.
+	//
+	// Recorded per target rather than only per control, because a control's error says a scan
+	// failed and not what went unexamined. A component whose every image failed to pull has had
+	// nothing looked at, and a report that cannot say so has to describe it as passing.
+	Unscanned []Unscanned
+
 	// ToolWaits is time the run spent queueing for a tool's own cache rather than scanning,
 	// summed per tool. Reported because a run that took three times as long deserves a reason,
 	// and because these waits are Draugr's own doing: it plans concurrent jobs that share one
 	// tool cache, so the contention is a cost of the scheduling rather than a fault of the tool.
 	ToolWaits map[string]time.Duration
+}
+
+// Unscanned is one job that did not produce a report, and the target it was for.
+type Unscanned struct {
+	// Control and Scanner say which check did not happen.
+	Control string
+	Scanner string
+	// Component is the part of the application it belonged to, empty for a project-wide control.
+	Component string
+	// Kind is the target kind — "image", "repository", "host" — and Target names the instance.
+	// Together they are what a reader needs to know what went unexamined.
+	Kind   string
+	Target string
 }
 
 // scanOutcome is the raw result of obtaining a job's report (via cache or a fresh scan),
@@ -568,12 +588,14 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		complete int
 		// failed counts jobs that ended without a report, so a watcher sees trouble as it
 		// happens rather than after the run.
-		failed   int
-		effects  []plugin.Effect
-		runStart = time.Now()
-		sem      = make(chan struct{}, e.concurrency)
-		sf       = &sfGroup{}
-		canceled bool
+		failed int
+		// unscanned records what each of those jobs was going to look at.
+		unscanned []Unscanned
+		effects   []plugin.Effect
+		runStart  = time.Now()
+		sem       = make(chan struct{}, e.concurrency)
+		sf        = &sfGroup{}
+		canceled  bool
 	)
 	if planErr != nil {
 		// Runs before any worker goroutine starts; the concurrent appends below are
@@ -723,6 +745,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				errs = append(errs, err)
 				ctlErrs[pj.Control] = append(ctlErrs[pj.Control], err.Error())
 				failed++
+				unscanned = append(unscanned, unscannedFor(pj))
 				mu.Unlock()
 				return
 			}
@@ -789,6 +812,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					// the one line a reader scans to find out what broke.
 					ctlErrs[pj.Control] = append(ctlErrs[pj.Control], scanErr.Error())
 					failed++
+					unscanned = append(unscanned, unscannedFor(pj))
 					mu.Unlock()
 				}
 				return
@@ -837,6 +861,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 
 	stats.Duration = time.Since(runStart)
 	stats.ToolWaits = waits.Totals()
+	stats.Unscanned = unscanned
 	res := Result{
 		Controls: make(map[string]plugin.ControlResult),
 		Stats:    stats,
@@ -1197,4 +1222,13 @@ func distinctScanners(planned []PlannedJob) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// unscannedFor records what a failed job was going to examine.
+func unscannedFor(pj PlannedJob) Unscanned {
+	u := Unscanned{Control: pj.Control, Scanner: pj.Job.Scanner, Component: pj.Component}
+	if t := pj.Job.Target; t != nil {
+		u.Kind, u.Target = string(t.Kind()), t.Identity()
+	}
+	return u
 }
