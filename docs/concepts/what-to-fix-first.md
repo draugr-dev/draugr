@@ -54,6 +54,21 @@ them.
 auditor reading `results.sarif` sees one record per finding whichever way the console was asked
 to show them.
 
+## Findings you can act on come first within their band
+
+Priority decides the order. Where two findings share a band, the one somebody can act on is
+listed first — a package with a fix, then a release that can be moved, then one with no published
+fix, and last the ones that belong to a provider.
+
+**This does not change the priority itself.** Priority feeds the gate, so demoting a finding
+because nobody here can fix it would weaken a build gate as a side effect of annotating a
+descriptor — and the risk is unchanged either way: a vulnerable control plane is exactly as
+dangerous whether or not the fix is yours to apply. Deciding that a finding is acceptable is what
+[exclusions](../reference/saga-schema.md) are for, and they record who decided.
+
+So `operatedBy` and `builtBy` change what is *recommended* and in what order, never what a finding
+is worth.
+
 ## Ranking is by the worst thing an action clears
 
 Actions are ordered by the highest priority among their findings, and only then by how many they

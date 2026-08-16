@@ -153,6 +153,15 @@ and move it under a version on release.
 
 ### Changed
 
+- **Findings you can act on are listed first within their priority band.** A package with a fix,
+  then a release that can be moved, then one with no published fix, and last the findings that
+  belong to a provider.
+
+  It does not change the priority. That feeds the gate, so demoting a finding because nobody here
+  can fix it would weaken a build gate as a side effect of annotating a descriptor — and the risk
+  is unchanged either way: a vulnerable control plane is exactly as dangerous whether or not the
+  fix is yours. This is what `operatedBy` and `builtBy` do when the fix list is ungrouped.
+
 - **kube-proxy checks count as the provider's on a managed cluster.** Section 4.3 of the benchmark
   was treated as yours because kube-bench files it under the same "node" heading as the kubelet —
   but every managed platform runs kube-proxy as a DaemonSet it owns, so a reader told to change

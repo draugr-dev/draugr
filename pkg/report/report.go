@@ -580,6 +580,19 @@ func sortFindings(fs []finding) {
 		if ra, rb := prioritization.Priority(a.priority).Rank(), prioritization.Priority(b.priority).Rank(); ra != rb {
 			return ra > rb
 		}
+		// Within a band, what somebody can act on comes first.
+		//
+		// Not by changing the band. Priority feeds the gate, and demoting a finding because
+		// nobody here can fix it would weaken a build gate as a side effect of annotating a
+		// descriptor — a policy change arriving as metadata, where the mechanism for "we accept
+		// this" already exists and records who decided. The risk is also unchanged: a vulnerable
+		// control plane is exactly as dangerous whether or not the fix is yours to apply.
+		//
+		// Ordering is the honest half of it. Two findings that matter equally, and one of them
+		// has somewhere for the reader to start.
+		if ao, bo := actionableRank(a), actionableRank(b); ao != bo {
+			return ao > bo
+		}
 		if a.score != b.score {
 			return a.score > b.score
 		}
@@ -793,4 +806,26 @@ func withoutRepositoryFields(fields []sarif.Field) []sarif.Field {
 		}
 	}
 	return out
+}
+
+// actionableRank orders findings of equal priority by whether the reader can do something.
+//
+// Three steps rather than a boolean, because "upgrade this" and "move the release underneath you"
+// are both actions and the first is smaller. Nothing here changes what a finding is worth — only
+// which of two equally urgent ones is worth reading first.
+func actionableRank(f finding) int {
+	switch f.remediation {
+	case sarif.RemediationUpgrade:
+		return 3
+	case sarif.RemediationUpstream:
+		return 2
+	case sarif.RemediationNone:
+		return 1
+	case sarif.RemediationExternal:
+		// Still reported, still counted, still failing the gate if policy says so — last within
+		// its band because the reader cannot start here.
+		return 0
+	default:
+		return 1
+	}
 }
