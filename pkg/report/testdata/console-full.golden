@@ -19,10 +19,10 @@ Components:
 
 Fix first (top 5 of 8, by priority):
   Priority  Severity  Score  Rule                                    Control  Scanner  Component      Location
-  P1        critical  9.8    CVE-2019-20477                          sca      trivy    payments       app/requirements.txt:4
-            PyYAML: command execution through python/object/apply constructor in FullLoader
   P1        high      8.6    CVE-2019-10906                          sca      trivy    payments       app/requirements.txt:5
             python-jinja2: str.format_map allows sandbox escape
+  P1        critical  9.8    CVE-2019-20477                          sca      trivy    payments       app/requirements.txt:4
+            PyYAML: command execution through python/object/apply constructor in FullLoader
   P1        high      8.0    DS-0002                                 iac      trivy    payments       app/Dockerfile:1
             Image user should not be 'root'
   P2        high      7.5    CVE-2018-1000656                        sca      trivy    internal-tool  app/requirements.txt:2
