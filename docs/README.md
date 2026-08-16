@@ -26,6 +26,7 @@ frontmatter and is rendered by the docs site. This index and the `contributing/`
 - [See findings in your editor](guides/findings-in-your-editor.md) — SARIF as inline diagnostics in VS Code and JetBrains.
 - [Use Draugr from an AI coding assistant](guides/ai-agents-mcp.md) — the MCP server, and why it beats letting an assistant improvise.
 - [Reports & publishers](guides/reports-and-publishers.md) — render many formats, deliver anywhere.
+- [Configure Draugr for a machine or an organisation](guides/configuration.md) — `draugr.config.yaml`, what belongs there rather than in a Saga, and fleet-wide defaults.
 - [Caching & performance](guides/caching-and-performance.md) — content-hash cache and parallelism.
 - [Classify components](guides/classify-components.md) — set `exposure` and `criticality`.
 

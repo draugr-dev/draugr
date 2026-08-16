@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -169,6 +170,17 @@ func flatten(f config.File) []kv {
 		}
 		if c.RequireDigest {
 			out = append(out, kv{"cache.requireDigest", "true"})
+		}
+	}
+	if o := f.Output; o != (config.OutputSettings{}) {
+		if o.Group != "" {
+			out = append(out, kv{"output.group", o.Group})
+		}
+		if o.Evidence {
+			out = append(out, kv{"output.evidence", "true"})
+		}
+		if o.Top != 0 {
+			out = append(out, kv{"output.top", strconv.Itoa(o.Top)})
 		}
 	}
 	for control, settings := range f.Controllers {

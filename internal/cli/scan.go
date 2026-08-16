@@ -101,7 +101,10 @@ func newScanCommand() *cobra.Command {
 			"pass/fail evidence. Exits non-zero when the policy verdict is fail.\n\n" +
 			"Zero-config: point it at a directory (or omit the argument to use the current\n" +
 			"one) and Draugr scans that repository with " + ZeroConfigControls("and") + " — no\n" +
-			"Saga required. Write a Saga (or run `draugr init`) when you need more control.",
+			"Saga required. Write a Saga (or run `draugr init`) when you need more control.\n\n" +
+			"Answers you give every time — the cache, scanner builds, how you like the report —\n" +
+			"belong in draugr.config.yaml rather than on this command line. `draugr config show`\n" +
+			"prints what is in effect and where each setting came from.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := ""
@@ -190,11 +193,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// Organisation defaults are merged *underneath* the descriptor, so the engine sees one
 	// effective Saga and nothing downstream has to know there were two files. Merged after the
 	// descriptor has been validated on its own, so an error still names what the author wrote.
-	cacheCfg, err := applyConfigDefaults(ctx, model)
+	cfg, err := applyConfigDefaults(ctx, model)
 	if err != nil {
 		return err
 	}
-	cacheOptionsFrom(&opts, cacheCfg)
+	cacheOptionsFrom(&opts, cfg.Cache)
+	outputOptionsFrom(&opts, cfg.Output)
 
 	// Validated before anything runs, and against this descriptor. A misspelled name matches
 	// nothing, scans nothing, and passes — the "we did not look" verdict the scope is otherwise
@@ -761,17 +765,17 @@ func digestPinnedOnly(t plugin.Target) bool {
 // Under, not over: a project that has an opinion keeps it, and inherits the rest. The alternative
 // — defaults that a Saga cannot override — is a guarantee a CLI cannot keep, because the config
 // lives on a machine the same person controls.
-func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.CacheSettings, error) {
+func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, error) {
 	wd, err := os.Getwd()
 	if err != nil {
-		return config.CacheSettings{}, err
+		return config.File{}, err
 	}
 	res, err := config.Load(rootConfigPath, wd)
 	if err != nil {
-		return config.CacheSettings{}, err
+		return config.File{}, err
 	}
 	if len(res.File.Controllers) == 0 {
-		return res.File.Cache, nil
+		return res.File, nil
 	}
 	if model.Config.Controllers == nil {
 		model.Config.Controllers = map[string]saga.ControllerSettings{}
@@ -783,7 +787,25 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.CacheSe
 	// second file had a say, and `draugr config show` is where the detail lives.
 	slog.DebugContext(ctx, "merged controller defaults from configuration",
 		"files", len(res.Sources), "controls", len(res.File.Controllers))
-	return res.File.Cache, nil
+	return res.File, nil
+}
+
+// outputOptionsFrom folds the configured rendering preferences under the flags.
+//
+// Same rule as the cache settings, and the same reason: a typed flag cannot tell "not passed"
+// from "passed its zero value", so the test is whether it was typed. Without that, `--top 0`
+// (show everything, deliberately) would read as absent and a configured cap would override an
+// explicit instruction.
+func outputOptionsFrom(opts *scanOptions, cfg config.OutputSettings) {
+	if cfg.Group != "" && !opts.setFlags["group"] {
+		opts.group = cfg.Group
+	}
+	if cfg.Evidence && !opts.setFlags["evidence"] {
+		opts.evidence = true
+	}
+	if cfg.Top != 0 && !opts.setFlags["top"] {
+		opts.top = cfg.Top
+	}
 }
 
 // cacheOptionsFrom folds the configured cache settings under the flags.

@@ -12,6 +12,28 @@ and move it under a version on release.
 
 ### Added
 
+- **Configuration can hold how you like the report**, and has a guide of its own.
+
+  ```yaml
+  output:
+    group: action
+    evidence: false
+    top: 20
+  ```
+
+  `draugr scan` has 27 flags and most of them answer the same question every time you run it on a
+  given machine. Rendering preferences now live in `draugr.config.yaml` alongside `tools`,
+  `cache` and `controllers` — a preference belongs to a person or a machine, not to an
+  application, and putting one in a descriptor asserts it on everyone else who scans that
+  application.
+
+  Flags still win, including when what you typed is the zero value: `--top 0` means show
+  everything, and a configured cap does not override an explicit instruction.
+
+  The new [configuration guide](docs/guides/configuration.md) covers where the file is read from,
+  the question that decides whether a setting belongs there or in a Saga, and a worked example of
+  a platform team setting defaults for every repository in a runner image.
+
 - **`--evidence` shows what stands behind the verdict, and `--report evidence` writes it down.**
 
   Tool provenance, what each control measured against, the scanned revision, and what the run
