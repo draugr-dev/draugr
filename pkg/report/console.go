@@ -807,17 +807,15 @@ func unpinnedCacheLine(refs []string) string {
 	if len(refs) == 0 {
 		return ""
 	}
-	// Named while there are few enough to name, counted after that. A reader needs to know which
-	// image, and on a clean run the rows that would otherwise carry the mark do not exist — but a
-	// list of twenty pushes the sentence off the screen and reads as though the whole scan rests
-	// on them, when a run can reuse one entry out of thirty.
-	const nameUpTo = 2
-	subject := plural(len(refs), "image")
-	if len(refs) <= nameUpTo {
-		subject = strings.Join(refs, " and ")
-	}
+	// A count, never a list. The rows carry the mark and say which findings this applies to, so
+	// naming the references again here answers a question already answered — and on a descriptor
+	// with dozens of images it is a list nobody reads at the foot of the one they do.
+	//
+	// What the count adds is scale: one image out of thirty is a different report from thirty out
+	// of thirty, and that is the part the rows cannot say. Which ones, for a run with no findings
+	// to mark, is in the JSON and in --evidence.
 	return fmt.Sprintf("from cache: %s reused on a tag — may describe an earlier build. Pin a digest.",
-		subject)
+		plural(len(refs), "image"))
 }
 
 // escalationNote is the line under a finding saying why it outranks its severity, or "" when

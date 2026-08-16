@@ -131,6 +131,12 @@ and move it under a version on release.
 
 ### Changed
 
+- **The cache caveat counts rather than names.** It listed the image references, which repeated
+  what the marked rows already say and, on a descriptor with dozens of images, put a list nobody
+  reads at the foot of the one they do. What the count adds is the part the rows cannot say —
+  one image out of thirty is a different report from thirty out of thirty. Which ones is in the
+  JSON and in `--evidence`.
+
 - **Tips are shorter and read as one voice.** They ranged from 103 to 201 characters and were
   written one at a time; a tip interrupts somebody reading a report, so it has to earn the
   interruption in the space of a glance. They now share a shape — an observation and what to do

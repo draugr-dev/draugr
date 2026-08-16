@@ -14,27 +14,30 @@ func TestUnpinnedCacheLine(t *testing.T) {
 	if got := unpinnedCacheLine(nil); got != "" {
 		t.Errorf("nothing reused from a tag-keyed entry should print nothing, got %q", got)
 	}
-	// Named while there are few enough to name — a reader needs to know which image, and on a
-	// clean run there are no rows carrying the mark to tell them.
+
+	// A count, not a list. The rows carry the mark and say which findings rest on a tag, so
+	// naming the references again answers a question already answered — and on a descriptor with
+	// dozens of images it is a list nobody reads at the foot of the one they do.
 	got := unpinnedCacheLine([]string{"alpine:3.19", "acme/api:latest"})
-	for _, want := range []string{"alpine:3.19", "acme/api:latest", "Pin a digest"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("the line should mention %q, got: %s", want, got)
-		}
+	if !strings.Contains(got, "2 images") {
+		t.Errorf("want the scale, got: %s", got)
 	}
-	// Counted past that. A list of twenty pushes the sentence off the screen, and reads as though
-	// the whole scan rests on them when a run can reuse one entry out of thirty.
-	many := unpinnedCacheLine([]string{"a:1", "b:1", "c:1", "d:1"})
-	if !strings.Contains(many, "4 images") {
-		t.Errorf("want a count once there are too many to name: %s", many)
+	if strings.Contains(got, "alpine:3.19") {
+		t.Errorf("the legend should not repeat what the rows already say: %s", got)
 	}
-	if strings.Contains(many, "a:1") {
-		t.Errorf("naming some of four is worse than naming none: %s", many)
+	if !strings.Contains(got, "Pin a digest") {
+		t.Errorf("the line should say what to do: %s", got)
 	}
-	for _, line := range []string{got, many} {
-		if len(line) > 110 {
-			t.Errorf("the caveat is %d chars and wraps: %s", len(line), line)
-		}
+	// Scale-invariant: thirty reused entries is the same one line as two.
+	many := make([]string, 30)
+	for i := range many {
+		many[i] = "img:1"
+	}
+	if len(unpinnedCacheLine(many)) > 100 {
+		t.Errorf("the line grew with the number of images: %s", unpinnedCacheLine(many))
+	}
+	if one := unpinnedCacheLine([]string{"a:1"}); !strings.Contains(one, "1 image ") {
+		t.Errorf("a single reuse should read as one: %s", one)
 	}
 }
 
@@ -51,8 +54,11 @@ func TestConsoleSaysWhenAResultCameFromATagKeyedEntry(t *testing.T) {
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "alpine:3.19") {
-		t.Errorf("the console never told the reader which result rested on a tag:\n%s", buf.String())
+	// The caveat reaches the reader. Which entry it was is on the rows that carry the mark, and
+	// on a run with no findings to mark it is in the JSON and in --evidence — repeating it here
+	// costs every reader with dozens of images a list they do not read.
+	if !strings.Contains(buf.String(), "from cache") {
+		t.Errorf("the console never told the reader a result rested on a tag:\n%s", buf.String())
 	}
 }
 
