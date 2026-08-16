@@ -54,3 +54,22 @@ func TestDefaultPrioritizerAppliesTheControlFloor(t *testing.T) {
 		t.Errorf("band = %q, want P1 for a secret on a public, critical component", got.Band)
 	}
 }
+
+func TestGateThresholds(t *testing.T) {
+	if got := GateThresholds(nil); got != nil {
+		t.Errorf("no gate block should leave every control on the default, got %v", got)
+	}
+	if got := GateThresholds(&saga.GateConfig{}); got != nil {
+		t.Errorf("an empty gate block is the same as none, got %v", got)
+	}
+	got := GateThresholds(&saga.GateConfig{Controls: map[string]string{"licenses": "critical", "sast": "low"}})
+	if len(got) != 2 || got["licenses"] != sarif.SeverityCritical || got["sast"] != sarif.SeverityLow {
+		t.Errorf("GateThresholds = %v", got)
+	}
+	// A descriptor written against the older vocabulary lands on the band each level means,
+	// rather than being carried through as a word the gate no longer compares.
+	legacy := GateThresholds(&saga.GateConfig{Controls: map[string]string{"licenses": "error", "sast": "note"}})
+	if legacy["licenses"] != sarif.SeverityHigh || legacy["sast"] != sarif.SeverityLow {
+		t.Errorf("the levels a gate used to take should map onto bands, got %v", legacy)
+	}
+}

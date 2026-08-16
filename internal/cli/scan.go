@@ -318,7 +318,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	policy := norn.Policy{
 		FailOn:         failOn,
-		PerControl:     perControlThresholds(model.Config.Gate),
+		PerControl:     scanpolicy.GateThresholds(model.Config.Gate),
 		FailOnPriority: failOnPriority,
 	}
 	verdict := policy.Evaluate(reports)
@@ -633,26 +633,6 @@ func writeTo(path string, render func(io.Writer) error) error {
 		return fmt.Errorf("write %s: %w", filepath.Base(path), err)
 	}
 	return nil
-}
-
-// perControlThresholds converts the Saga's gate block into the norn policy's per-control map.
-// Nil when unset, which leaves every control on --fail-on.
-//
-// Parsing here rather than trusting the string: validation has already rejected anything that is
-// not a band or one of the SARIF levels still accepted, and this is where the older word becomes
-// the band it means. An unparseable value cannot reach this point, and is dropped rather than
-// silently becoming a threshold nobody chose.
-func perControlThresholds(g *saga.GateConfig) map[string]sarif.Severity {
-	if g == nil || len(g.Controls) == 0 {
-		return nil
-	}
-	out := make(map[string]sarif.Severity, len(g.Controls))
-	for control, want := range g.Controls {
-		if sev, err := sarif.ParseSeverity(want); err == nil {
-			out[control] = sev
-		}
-	}
-	return out
 }
 
 // splitScanErrors separates failures --allow-scan-errors cannot accept from those it can.

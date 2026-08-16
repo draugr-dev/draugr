@@ -39,3 +39,27 @@ func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 		}
 	}
 }
+
+// GateThresholds converts a descriptor's gate block into the per-control map a Policy takes.
+// Nil when unset, which leaves every control on the default threshold.
+//
+// Here rather than beside either caller for the reason in the package doc. A verdict is the
+// answer Draugr exists to give, and one entry point applying the descriptor's gate while another
+// applied a fixed default would have an agent and CI disagree about the same descriptor — with
+// nothing in either answer to show which policy produced it.
+//
+// Validation has already rejected anything that is neither a band nor one of the SARIF levels
+// still accepted, so an unparseable value cannot reach here; it is dropped rather than becoming a
+// threshold nobody chose.
+func GateThresholds(g *saga.GateConfig) map[string]sarif.Severity {
+	if g == nil || len(g.Controls) == 0 {
+		return nil
+	}
+	out := make(map[string]sarif.Severity, len(g.Controls))
+	for control, want := range g.Controls {
+		if sev, err := sarif.ParseSeverity(want); err == nil {
+			out[control] = sev
+		}
+	}
+	return out
+}

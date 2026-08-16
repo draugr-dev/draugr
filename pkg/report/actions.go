@@ -283,3 +283,96 @@ func (a action) exemplar() (finding, bool) {
 	}
 	return a.findings[0], true
 }
+
+// Action is one thing to do and what doing it clears, for a consumer outside this package.
+//
+// Exported so the MCP server answers "what should I do" with the same grouping the console
+// prints. The keying is the subtle part — which findings are one fix and which only look alike —
+// and a second implementation of it would drift from this one silently, leaving an assistant and
+// a terminal describing the same report differently.
+type Action struct {
+	// Title is what to do, in the imperative.
+	Title string `json:"title"`
+	// Control the findings came from, and the worst priority among them.
+	Control  string `json:"control,omitempty"`
+	Priority string `json:"priority,omitempty"`
+	// Clears is how many findings this one action resolves.
+	Clears int `json:"clears"`
+	// Upstream marks an action whose unit of work is something somebody else publishes: the fix
+	// is to take a newer one, not to change anything inside it.
+	Upstream bool `json:"upstream,omitempty"`
+	// Where lists the distinct places this applies, capped.
+	Where []string `json:"where,omitempty"`
+	// RuleIDs are the rules this action resolves, capped, so a caller can look any of them up.
+	RuleIDs []string `json:"ruleIds,omitempty"`
+}
+
+// ActionsFor groups a run's findings into the fix list, most urgent first.
+//
+// Suppressed findings are left out for the same reason the console leaves them out: an excluded
+// finding is a decision somebody recorded, and proposing it as work is proposing to undo that
+// decision without the reason they gave.
+//
+// Keyed by control, as a run holds them, because the grouping keys on it: two controls reporting
+// the same rule id are two things to do. A caller holding only a merged results.sarif has no
+// control to give and can pass a single entry under "" — grouping then falls back to the rule id,
+// which is the right answer for a file that has already lost the distinction.
+func ActionsFor(reports map[string]sarif.Report) []Action {
+	const most = 5
+
+	names := make([]string, 0, len(reports))
+	for name := range reports {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var findings []finding
+	for _, name := range names {
+		rep := reports[name]
+		for _, res := range rep.Results {
+			if res.Suppressed() {
+				continue
+			}
+			findings = append(findings, finding{
+				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
+				component: res.Component, repository: res.Repository,
+				location: locationOf(res), message: res.Message,
+				level: res.Level, severity: res.Severity(""),
+				helpURI: rep.HelpURI(res.RuleID),
+				score:   res.Score, hasScore: res.HasScore,
+				remediation:        res.Remediation(),
+				imageBuiltUpstream: res.ImageBuiltUpstream,
+				pkg:                res.Package,
+				operatingSystem:    res.OperatingSystem,
+			})
+		}
+	}
+	sortFindings(findings)
+
+	grouped, external := groupActions(findings, nil)
+	out := make([]Action, 0, len(grouped)+len(external))
+	for _, a := range grouped {
+		rules := make([]string, 0, most)
+		seen := map[string]bool{}
+		for _, f := range a.findings {
+			if seen[f.ruleID] || f.ruleID == "" {
+				continue
+			}
+			seen[f.ruleID] = true
+			if len(rules) == most {
+				break
+			}
+			rules = append(rules, f.ruleID)
+		}
+		out = append(out, Action{
+			Title:    a.title,
+			Control:  a.control,
+			Priority: a.priority,
+			Clears:   a.count(),
+			Upstream: a.upstream,
+			Where:    a.where(most),
+			RuleIDs:  rules,
+		})
+	}
+	return out
+}

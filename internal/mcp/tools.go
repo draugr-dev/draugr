@@ -20,6 +20,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
+	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -227,16 +228,41 @@ type Finding struct {
 	Scanner  string  `json:"scanner,omitempty"`
 	Location string  `json:"location,omitempty" jsonschema:"file:line, image reference, or endpoint"`
 	Message  string  `json:"message"`
-	HelpURI  string  `json:"helpUri,omitempty" jsonschema:"where the rule is documented; fetch this rather than guessing what the rule means"`
+	HelpURI  string  `json:"helpUri,omitempty" jsonschema:"where the rule is documented, for background beyond the remediation below"`
+
+	// What follows is what turns a report into work. Without it an assistant can say a finding
+	// is critical and cannot say what to do about it — so it either guesses a fix or sends the
+	// reader to a search engine for text this report already contains.
+
+	// Remediation is the fix in the scanner's own words, not a summary of it.
+	Remediation string `json:"remediation,omitempty" jsonschema:"how to fix this, as the scanner published it; prefer this over inferring a fix from the message"`
+	// Action classifies what kind of fix it is, so an assistant can tell work it can do from
+	// work that belongs to whoever publishes the image or operates the cluster.
+	Action string `json:"action,omitempty" jsonschema:"upgrade (a fixed version exists here), upstream (the fix is in an image or OS somebody else publishes), external (not this project's to change), or none (no fix published anywhere)"`
+	// Package names what to upgrade and to what.
+	Package      string `json:"package,omitempty" jsonschema:"the package this finding is in"`
+	Version      string `json:"version,omitempty" jsonschema:"the version installed"`
+	FixedVersion string `json:"fixedVersion,omitempty" jsonschema:"the first release that resolves it; absent means no fix is published, which is a different answer from unknown"`
+	Ecosystem    string `json:"ecosystem,omitempty" jsonschema:"the package manager the name belongs to: pip, npm, gem. A name alone is ambiguous across ecosystems"`
+	PURL         string `json:"purl,omitempty" jsonschema:"package URL, portable across ecosystems"`
+	// Component ties a finding to the part of the system it was found in, which is what its
+	// priority was computed from.
+	Component string `json:"component,omitempty" jsonschema:"the component in the descriptor this finding belongs to"`
+	// Image and OSEndOfLife answer "why can I not just upgrade this".
+	Image       string `json:"image,omitempty" jsonschema:"the image this finding is in, when it came from one"`
+	OSEndOfLife bool   `json:"osEndOfLife,omitempty" jsonschema:"the operating system release is past end of service life, so no fix will be published for it"`
 }
 
 // SummarizeOutput is the ranked answer to "what should I fix?".
 type SummarizeOutput struct {
-	Total    int       `json:"total" jsonschema:"findings in the report before any filtering"`
-	Returned int       `json:"returned"`
-	Counts   Counts    `json:"counts"`
-	Findings []Finding `json:"findings"`
-	Note     string    `json:"note,omitempty"`
+	Total int `json:"total" jsonschema:"findings the report judged, before any priority filter; excludes suppressed"`
+	// Suppressed is reported rather than hidden: an assistant that cannot see a decision was
+	// made cannot tell an accepted risk from one nobody has looked at.
+	Suppressed int       `json:"suppressed,omitempty" jsonschema:"findings the descriptor excluded with a stated reason; reported, not ranked, and not part of total"`
+	Returned   int       `json:"returned"`
+	Counts     Counts    `json:"counts"`
+	Findings   []Finding `json:"findings"`
+	Note       string    `json:"note,omitempty"`
 }
 
 // Counts tallies the whole report, not just what was returned — a narrowed list shouldn't make
@@ -275,10 +301,18 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 	if limit <= 0 {
 		limit = defaultLimit
 	}
-	out := SummarizeOutput{Total: len(rep.Results)}
+	out := SummarizeOutput{}
 
 	findings := make([]Finding, 0, len(rep.Results))
 	for _, res := range rep.Results {
+		// A suppressed finding is a decision somebody recorded, not work to hand back. Counting
+		// it puts an accepted risk into the answer to "what should I fix", where an assistant
+		// will propose fixing something the owner signed off — and the reason they gave, which
+		// is the whole content of the decision, does not travel with the number.
+		if res.Suppressed() {
+			out.Suppressed++
+			continue
+		}
 		sev := res.Severity("")
 		switch sev {
 		case sarif.SeverityCritical:
@@ -297,19 +331,30 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 		if loc != "" && res.Location.StartLine > 0 {
 			loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
 		}
-		findings = append(findings, Finding{
-			Priority: res.Priority,
-			Severity: string(sev),
-			Score:    res.Score,
-			RuleID:   res.RuleID,
-			Scanner:  res.Tool,
-			Location: loc,
-			Message:  res.Message,
-			HelpURI:  rep.HelpURI(res.RuleID),
-		})
+		f := Finding{
+			Priority:    res.Priority,
+			Severity:    string(sev),
+			Score:       res.Score,
+			RuleID:      res.RuleID,
+			Scanner:     res.Tool,
+			Location:    loc,
+			Message:     res.Message,
+			HelpURI:     rep.HelpURI(res.RuleID),
+			Remediation: remediationText(rep, res),
+			Action:      string(res.Remediation()),
+			Component:   res.Component,
+			Image:       res.Image,
+			OSEndOfLife: res.OSEndOfLife,
+		}
+		if p := res.Package; p != nil {
+			f.Package, f.Version = p.Name, p.Version
+			f.FixedVersion, f.Ecosystem, f.PURL = p.FixedVersion, p.Ecosystem, p.PURL
+		}
+		findings = append(findings, f)
 	}
 	sortFindings(findings)
 
+	out.Total = out.Counts.Critical + out.Counts.High + out.Counts.Medium + out.Counts.Low
 	out.Returned = len(findings)
 	if len(findings) > limit {
 		out.Note = fmt.Sprintf(
@@ -320,6 +365,28 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 	}
 	out.Findings = findings
 	return out
+}
+
+// remediationText returns what the scanner published about how to fix a rule.
+//
+// From the report rather than a lookup: scanners record their remediation in the rule, Draugr
+// carries it through, and it is already on disk beside the finding. An assistant sent to a help
+// URI for the same text pays a network round trip for it, and for a benchmark that URI is a
+// registration form in front of a PDF — so the answer is reachable only to a reader who is not an
+// assistant.
+//
+// Empty when it would only repeat the message, which is the common case for a scanner that gives
+// no separate remediation. Repeating the finding as its own fix reads like advice and is not.
+func remediationText(rep sarif.Report, res sarif.Result) string {
+	rule, ok := rep.Rules[res.RuleID]
+	if !ok {
+		return ""
+	}
+	fix := strings.TrimSpace(rule.FullDescription)
+	if fix == "" || fix == strings.TrimSpace(rule.ShortDescription) || fix == strings.TrimSpace(res.Message) {
+		return ""
+	}
+	return fix
 }
 
 // atOrAbove reports whether a finding's priority clears the requested floor. An unprioritized
@@ -429,7 +496,13 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		for name, cr := range run.Controls {
 			reports[name] = cr.Report
 		}
-		verdict := norn.Policy{FailOn: sarif.SeverityHigh}.Evaluate(reports)
+		// The descriptor's gate, not a fixed default. A Saga that gates licences at critical or
+		// fails on P1 says so for a reason, and an agent reporting a verdict under a policy the
+		// project did not choose disagrees with the project's own CI about its own descriptor.
+		verdict := norn.Policy{
+			FailOn:     sarif.SeverityHigh,
+			PerControl: scanpolicy.GateThresholds(model.Config.Gate),
+		}.Evaluate(reports)
 
 		controls := make([]string, 0, len(run.Controls))
 		for name := range run.Controls {
@@ -660,4 +733,163 @@ func requiredFor(model *saga.Model) []tools.Tool {
 		}
 	}
 	return out
+}
+
+// ExplainInput asks what a rule means and how to fix it.
+type ExplainInput struct {
+	RuleID string `json:"ruleId" jsonschema:"the rule to explain, in full or by the part that is unambiguous: 4.3.1 finds kube-bench/cis/4.3.1"`
+	Path   string `json:"path" jsonschema:"path to a results.sarif produced by draugr scan"`
+}
+
+// ExplainOutput is what the scan already recorded about a rule.
+type ExplainOutput struct {
+	RuleID      string   `json:"ruleId"`
+	Description string   `json:"description,omitempty" jsonschema:"what the check is, in full rather than the truncated line a report shows"`
+	Remediation string   `json:"remediation,omitempty" jsonschema:"how to fix it, as the scanner published it"`
+	HelpURI     string   `json:"helpUri,omitempty"`
+	FoundIn     []string `json:"foundIn,omitempty" jsonschema:"where this rule fired, capped"`
+	Note        string   `json:"note,omitempty"`
+}
+
+// ExplainRuleTool answers what a finding means and what to change.
+//
+// A rule id and a truncated line is enough to rank a finding and not enough to decide anything.
+// The answer is already in the report: scanners publish remediation text and Draugr records it.
+// Without this an assistant is left to fetch a help URI — a network round trip for text on disk,
+// and for a benchmark a registration form in front of a PDF, which is not an answer at all.
+func ExplainRuleTool(_ context.Context, _ *mcp.CallToolRequest, in ExplainInput) (*mcp.CallToolResult, ExplainOutput, error) {
+	if in.RuleID == "" || in.Path == "" {
+		return nil, ExplainOutput{}, fmt.Errorf("ruleId and path are both required")
+	}
+	data, err := os.ReadFile(in.Path) //nolint:gosec // an operator-chosen path, same as the CLI takes
+	if err != nil {
+		return nil, ExplainOutput{}, fmt.Errorf("read report: %w", err)
+	}
+	rep, err := sarif.FromSARIF(data)
+	if err != nil {
+		return nil, ExplainOutput{}, fmt.Errorf("parse %s as SARIF: %w", in.Path, err)
+	}
+
+	id, rule, err := matchRule(rep, in.RuleID)
+	if err != nil {
+		return nil, ExplainOutput{}, err
+	}
+	out := ExplainOutput{
+		RuleID:      id,
+		Description: strings.TrimSpace(rule.ShortDescription),
+		Remediation: strings.TrimSpace(rule.FullDescription),
+		HelpURI:     rule.HelpURI,
+		FoundIn:     locationsOf(rep, id),
+	}
+	if out.Remediation == out.Description {
+		// Repeating the check as its own fix reads like advice and is not.
+		out.Remediation = ""
+	}
+	if out.Remediation == "" {
+		out.Note = "this scanner published no remediation for the rule; helpUri is where it documents it"
+	}
+	return nil, out, nil
+}
+
+// matchRule finds the rule a query names: exactly first, then by suffix.
+//
+// A reader — or an assistant relaying one — retypes the part that identifies the check rather
+// than the namespace in front of it. An ambiguous abbreviation lists what it could have meant
+// instead of choosing: picking one would explain a rule nobody asked about, and the caller would
+// have no way to tell.
+func matchRule(rep sarif.Report, query string) (string, sarif.Rule, error) {
+	if rule, ok := rep.Rules[query]; ok {
+		return query, rule, nil
+	}
+	var matched []string
+	for id := range rep.Rules {
+		if strings.HasSuffix(id, "/"+query) || strings.EqualFold(id, query) {
+			matched = append(matched, id)
+		}
+	}
+	sort.Strings(matched)
+	switch len(matched) {
+	case 0:
+		return "", sarif.Rule{}, fmt.Errorf("no rule %q in this report — only rules this scan "+
+			"reported are here, and the id is the one in a finding's ruleId", query)
+	case 1:
+		return matched[0], rep.Rules[matched[0]], nil
+	default:
+		return "", sarif.Rule{}, fmt.Errorf("%q matches %s — name one of them",
+			query, strings.Join(matched, ", "))
+	}
+}
+
+// locationsOf lists where a rule fired, deduplicated and capped.
+func locationsOf(rep sarif.Report, id string) []string {
+	const most = 5
+	seen := map[string]bool{}
+	var out []string
+	total := 0
+	for _, res := range rep.Results {
+		if res.RuleID != id || res.Location.URI == "" || seen[res.Location.URI] {
+			continue
+		}
+		seen[res.Location.URI] = true
+		total++
+		if len(out) < most {
+			out = append(out, res.Location.URI)
+		}
+	}
+	if total > most {
+		out = append(out, fmt.Sprintf("and %d more", total-most))
+	}
+	return out
+}
+
+// FixListInput asks what to do about a report.
+type FixListInput struct {
+	Path  string `json:"path" jsonschema:"path to a results.sarif produced by draugr scan"`
+	Limit int    `json:"limit,omitempty" jsonschema:"maximum actions to return; defaults to 20"`
+}
+
+// FixListOutput is the work a report implies, rather than the findings in it.
+type FixListOutput struct {
+	Actions []report.Action `json:"actions" jsonschema:"things to do, most urgent first; each says how many findings it clears"`
+	Clears  int             `json:"clears" jsonschema:"findings these actions resolve between them"`
+	Note    string          `json:"note,omitempty"`
+}
+
+// FixListTool answers "what should I do" with actions rather than findings.
+//
+// One remediation usually clears many findings: eight vulnerabilities in one library are one
+// upgrade, and every package inside an image somebody else publishes is one newer image. An
+// assistant handed the findings has to work that out for itself, and will do it differently each
+// time — so this uses the same grouping the terminal prints, and the two cannot disagree.
+func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*mcp.CallToolResult, FixListOutput, error) {
+	if in.Path == "" {
+		return nil, FixListOutput{}, fmt.Errorf("path is required")
+	}
+	data, err := os.ReadFile(in.Path) //nolint:gosec // an operator-chosen path, same as the CLI takes
+	if err != nil {
+		return nil, FixListOutput{}, fmt.Errorf("read report: %w", err)
+	}
+	rep, err := sarif.FromSARIF(data)
+	if err != nil {
+		return nil, FixListOutput{}, fmt.Errorf("parse %s as SARIF: %w", in.Path, err)
+	}
+
+	limit := in.Limit
+	if limit <= 0 {
+		limit = defaultLimit
+	}
+	// A merged report has already lost which control each finding came from, so the grouping
+	// falls back to the rule id — see ActionsFor.
+	actions := report.ActionsFor(map[string]sarif.Report{"": rep})
+	out := FixListOutput{}
+	for _, a := range actions {
+		out.Clears += a.Clears
+	}
+	if len(actions) > limit {
+		out.Note = fmt.Sprintf(
+			"showing the %d most urgent of %d actions; raise limit to see more", limit, len(actions))
+		actions = actions[:limit]
+	}
+	out.Actions = actions
+	return nil, out, nil
 }
