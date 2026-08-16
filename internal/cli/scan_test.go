@@ -774,7 +774,7 @@ func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
 			{RuleID: "cis/5.1.1", Level: sarif.LevelWarning}, // project-scoped: no component
 		}},
 	}
-	got, unattributed := componentVerdicts(policy, model, reports, engine.Scope{})
+	got, unattributed := componentVerdicts(policy, model, reports, engine.Scope{}, nil)
 	if len(got) != 2 {
 		t.Fatalf("want a row per declared component, got %d", len(got))
 	}
@@ -800,7 +800,7 @@ func TestComponentVerdictsIncludeAComponentWithNoFindings(t *testing.T) {
 	reports := map[string]sarif.Report{"sca": {Results: []sarif.Result{
 		{RuleID: "x", Level: sarif.LevelError, Component: "a"},
 	}}}
-	got, _ := componentVerdicts(policy, model, reports, engine.Scope{})
+	got, _ := componentVerdicts(policy, model, reports, engine.Scope{}, nil)
 	if len(got) != 2 {
 		t.Fatalf("got %d rows, want both components", len(got))
 	}
@@ -818,7 +818,7 @@ func TestComponentVerdictsSkipSuppressedFindings(t *testing.T) {
 		{RuleID: "x", Level: sarif.LevelError, Component: "a",
 			Suppression: &sarif.Suppression{Kind: "external", Justification: "accepted"}},
 	}}}
-	got, _ := componentVerdicts(policy, model, reports, engine.Scope{})
+	got, _ := componentVerdicts(policy, model, reports, engine.Scope{}, nil)
 	if got[0].Findings != 0 || got[0].Verdict != norn.Pass {
 		t.Errorf("a suppressed finding must not fail its component: %+v", got[0])
 	}
@@ -827,7 +827,7 @@ func TestComponentVerdictsSkipSuppressedFindings(t *testing.T) {
 func TestComponentVerdictsAreAbsentForOneComponent(t *testing.T) {
 	policy := norn.Policy{FailOn: sarif.LevelError}
 	model := &saga.Model{Components: []saga.Component{{Name: "only"}}}
-	if got, _ := componentVerdicts(policy, model, nil, engine.Scope{}); got != nil {
+	if got, _ := componentVerdicts(policy, model, nil, engine.Scope{}, nil); got != nil {
 		t.Errorf("nothing to tell apart: %+v", got)
 	}
 }
@@ -1162,6 +1162,40 @@ func TestReportFlagListsEveryFormat(t *testing.T) {
 	for _, f := range report.Formats() {
 		if !strings.Contains(usage, f) {
 			t.Errorf("--report help does not mention %q, so nobody finds it: %s", f, usage)
+		}
+	}
+}
+
+// TestComponentVerdictsAttributeUnscannedTargets covers the attribution the report depends on: a
+// failure recorded only against a control cannot tell a reader which component went unexamined,
+// and a component with nothing examined must not be describable as passing.
+func TestComponentVerdictsAttributeUnscannedTargets(t *testing.T) {
+	model := &saga.Model{Components: []saga.Component{{Name: "api"}, {Name: "mesh"}}}
+	unscanned := []engine.Unscanned{
+		{Control: "images", Component: "mesh", Kind: "image", Target: "r/a:1"},
+		{Control: "images", Component: "mesh", Kind: "image", Target: "r/b:1"},
+		{Control: "images", Component: "api", Kind: "image", Target: "r/c:1"},
+		{Control: "infrastructure", Component: "", Kind: "infra", Target: "kubernetes/x"},
+	}
+
+	got, _ := componentVerdicts(norn.Policy{}, model, nil, engine.Scope{}, unscanned)
+	byName := map[string][]engine.Unscanned{}
+	for _, cv := range got {
+		byName[cv.Name] = cv.Unscanned
+	}
+	if len(byName["mesh"]) != 2 {
+		t.Errorf("mesh should carry both of its unscanned images, got %d", len(byName["mesh"]))
+	}
+	if len(byName["api"]) != 1 {
+		t.Errorf("api should carry its own, got %d", len(byName["api"]))
+	}
+	// A project-wide failure belongs to no component, and attaching it to one would blame a team
+	// for a gap that is not theirs.
+	for name, us := range byName {
+		for _, u := range us {
+			if u.Component != name {
+				t.Errorf("%s was given %s's unscanned target", name, u.Component)
+			}
 		}
 	}
 }

@@ -3,7 +3,6 @@ package report
 import (
 	"fmt"
 	"io"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -74,14 +73,6 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "   %s", col.Paint(cAccent, note))
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
-
-	// Before the counts, because it changes what they mean. A control that could not run found
-	// nothing by looking at nothing, so a verdict alongside it covers less than it appears to —
-	// and that is a bigger fact about this report than any single finding in it. The row in the
-	// controls table below carries the reason; this says the verdict is partial.
-	if line := incompleteLine(s); line != "" {
-		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cFail, line))
-	}
 
 	if s.prioritized {
 		_, _ = fmt.Fprintf(w, "Priorities:  %s   %s   %s   %s\n\n",
@@ -562,12 +553,30 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 		if c.Verdict == norn.Fail {
 			verdict, style = "FAIL", cFail
 		}
+		// A component nothing was able to look at has not passed. Its scans failed, so "no
+		// findings" is true only in the sense that none were possible — which is the reading
+		// this row must not invite, and the same reason a component the scope excluded is
+		// listed apart rather than among the passes.
+		if len(c.Unscanned) > 0 && c.Findings == 0 {
+			verdict, style = "ERROR", cFail
+		}
 		detail := col.Paint(cDim, "no findings")
 		if c.Findings > 0 {
 			detail = componentBands(col, c.Priorities)
 			if len(c.Controls) > 0 {
 				detail += "  " + col.Paint(cDim, strings.Join(c.Controls, ", "))
 			}
+		}
+		// Appended rather than substituted. A component that was partly scanned has findings
+		// worth acting on *and* a gap, and either reading alone is wrong: the findings are not
+		// the whole picture, and the gap does not mean nothing was found.
+		if len(c.Unscanned) > 0 {
+			if c.Findings == 0 {
+				detail = ""
+			} else {
+				detail += "  "
+			}
+			detail += col.Paint(cFail, unscannedDetail(c.Unscanned))
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 			fmt.Sprintf("%-*s", width, c.Name),
@@ -1164,42 +1173,6 @@ func elide(msg string, width int) string {
 	return strings.TrimSpace(msg[:cut]) + "…"
 }
 
-// incompleteLine names the controls that could not run, and says what that costs.
-//
-// Empty when everything ran, which is the common case and must stay silent: a line saying nothing
-// went wrong is a line every reader learns to skip, and then they skip it on the day it says
-// something else.
-func incompleteLine(s summary) string {
-	names := append([]string(nil), s.errored...)
-	for name := range s.scanErrors {
-		if !slices.Contains(names, name) {
-			names = append(names, name)
-		}
-	}
-	if len(names) == 0 {
-		return ""
-	}
-	slices.Sort(names)
-	subject := "it"
-	if len(names) > 1 {
-		subject = "them"
-	}
-	return fmt.Sprintf("! %s did not complete — this verdict does not cover %s.",
-		joinNames(names), subject)
-}
-
-// joinNames lists control names as a reader would say them.
-func joinNames(names []string) string {
-	switch len(names) {
-	case 1:
-		return names[0]
-	case 2:
-		return names[0] + " and " + names[1]
-	default:
-		return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
-	}
-}
-
 // writeEvidence prints what makes a run defensible: which tools ran, what they measured against,
 // what the scan did to its targets, which revision it read, and what it cost.
 //
@@ -1242,4 +1215,30 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, s summary) {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
 
+}
+
+// unscannedDetail says what a component has that nothing managed to examine.
+//
+// Counted by kind, because "3 images not scanned" is what a reader needs and three lines naming
+// each registry path is not — the control's error above already carries why, and this row is
+// answering what.
+func unscannedDetail(us []engine.Unscanned) string {
+	byKind := map[string]int{}
+	for _, u := range us {
+		kind := u.Kind
+		if kind == "" {
+			kind = "target"
+		}
+		byKind[kind]++
+	}
+	kinds := make([]string, 0, len(byKind))
+	for kind := range byKind {
+		kinds = append(kinds, kind)
+	}
+	sort.Strings(kinds)
+	parts := make([]string, 0, len(kinds))
+	for _, kind := range kinds {
+		parts = append(parts, plural(byKind[kind], kind))
+	}
+	return strings.Join(parts, ", ") + " not scanned"
 }

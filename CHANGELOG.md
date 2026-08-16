@@ -152,6 +152,22 @@ and move it under a version on release.
 
 ### Fixed
 
+- **A component whose scans failed no longer reports as passing.** A component whose whole surface
+  is three container images, none of which could be pulled, rendered as `pass  no findings` —
+  nothing looked at it, so there were none to have, and the row invited exactly the wrong reading.
+
+  It now reports what went unexamined, beside the findings when there are both:
+
+  ```
+  Components:
+    api   FAIL   P1 2  P2 2  sca   1 image not scanned
+    mesh  ERROR  3 images not scanned
+  ```
+
+  The `! … did not complete — this verdict does not cover it` line is gone with it. It was
+  imprecise where this is exact: a control can fail for one target and succeed for others, so
+  saying the verdict does not cover a whole control was wrong whenever part of it ran.
+
 - **`--report evidence` works.** The format was registered as a document and given a filename but
   never added to the renderer registry, so the CLI rejected it as unknown while the renderer's own
   tests passed — they called it directly. A test now crosses the two lists in both directions.
