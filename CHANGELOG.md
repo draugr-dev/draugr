@@ -12,6 +12,30 @@ and move it under a version on release.
 
 ### Added
 
+- **`--group action` shows the fix list as things to do rather than things that are wrong.** One
+  row per action, saying how many findings it clears and where:
+
+  ```
+  Fix first — 5 actions clear 19 findings:
+    P1  Upgrade Jinja2 2.10  sca · 6 findings
+        fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases — take the latest
+    P1  Remove the credential  secrets · 4 findings
+        docs/example.yaml:65 · scripts/build.ps1:164 · test/app.yaml:75
+  ```
+
+  A library a year out of date carries a dozen findings and one upgrade; the same
+  misconfiguration in three Dockerfiles is one habit. Listing those as a dozen and three rows
+  makes the repetitive work crowd out the rest.
+
+  Findings on infrastructure your provider operates are not in this list at all — they are
+  reported and counted on their own line. Actions are ranked by the worst priority they clear,
+  never by how many: an action clearing one P1 outranks one clearing forty P4s.
+
+  **Opt-in for now**, with one finding per row remaining the default. Grouping is only right once
+  a descriptor says which images you build and which infrastructure you operate — without that, an
+  action row states a fix nobody can apply, where a finding row merely reports something true you
+  can look up. The report files are unchanged either way.
+
 - **A concepts page explaining the fix list** — how findings become actions, how they are ranked,
   and how `operatedBy` and `builtBy` change what Draugr recommends. `--group` points at it.
 
@@ -153,6 +177,11 @@ and move it under a version on release.
 
 ### Changed
 
+- **Cache entries are named `.json.gz`**, which is what they have been since they were compressed.
+  Entries written by an earlier version are not read, so the first scan after upgrading repopulates
+  the cache — a cache is disposable and this costs one cold run. Entries under the old name are
+  removed as their keys are rewritten; deleting the cache directory clears them all at once.
+
 - **Findings you can act on are listed first within their priority band.** A package with a fix,
   then a release that can be moved, then one with no published fix, and last the findings that
   belong to a provider.
@@ -275,39 +304,6 @@ and move it under a version on release.
   ```
 
   One figure a reader can act on, rather than several that overlap and cannot honestly be added up.
-
-- **Cache entries are named `.json.gz`**, which is what they have been since they were compressed.
-  Entries written by an earlier version are not read, so the first scan after upgrading repopulates
-  the cache — a cache is disposable and this costs one cold run. Entries under the old name are
-  removed as their keys are rewritten; deleting the cache directory clears them all at once.
-
-
-
-- **`--group action` shows the fix list as things to do rather than things that are wrong.** One
-  row per action, saying how many findings it clears and where:
-
-  ```
-  Fix first — 5 actions clear 19 findings:
-    P1  Upgrade Jinja2 2.10  sca · 6 findings
-        fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases — take the latest
-    P1  Remove the credential  secrets · 4 findings
-        docs/example.yaml:65 · scripts/build.ps1:164 · test/app.yaml:75
-  ```
-
-  A library a year out of date carries a dozen findings and one upgrade; the same
-  misconfiguration in three Dockerfiles is one habit. Listing those as a dozen and three rows
-  makes the repetitive work crowd out the rest.
-
-  Findings on infrastructure your provider operates are not in this list at all — they are
-  reported and counted on their own line. Actions are ranked by the worst priority they clear,
-  never by how many: an action clearing one P1 outranks one clearing forty P4s.
-
-  **Opt-in for now**, with one finding per row remaining the default. Grouping is only right once
-  a descriptor says which images you build and which infrastructure you operate — without that, an
-  action row states a fix nobody can apply, where a finding row merely reports something true you
-  can look up. The report files are unchanged either way.
-
-
 
 - **A component whose scans failed no longer reports as passing.** A component whose whole surface
   is three container images, none of which could be pulled, rendered as `pass  no findings` —
