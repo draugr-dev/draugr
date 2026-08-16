@@ -16,6 +16,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
+	"github.com/draugr-dev/draugr/pkg/diff"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -327,30 +328,7 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 		if !atOrAbove(res.Priority, minPriority) {
 			continue
 		}
-		loc := res.Location.URI
-		if loc != "" && res.Location.StartLine > 0 {
-			loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
-		}
-		f := Finding{
-			Priority:    res.Priority,
-			Severity:    string(sev),
-			Score:       res.Score,
-			RuleID:      res.RuleID,
-			Scanner:     res.Tool,
-			Location:    loc,
-			Message:     res.Message,
-			HelpURI:     rep.HelpURI(res.RuleID),
-			Remediation: remediationText(rep, res),
-			Action:      string(res.Remediation()),
-			Component:   res.Component,
-			Image:       res.Image,
-			OSEndOfLife: res.OSEndOfLife,
-		}
-		if p := res.Package; p != nil {
-			f.Package, f.Version = p.Name, p.Version
-			f.FixedVersion, f.Ecosystem, f.PURL = p.FixedVersion, p.Ecosystem, p.PURL
-		}
-		findings = append(findings, f)
+		findings = append(findings, findingFrom(rep, res))
 	}
 	sortFindings(findings)
 
@@ -373,6 +351,38 @@ func gatePriority(g *saga.GateConfig) string {
 		return ""
 	}
 	return g.FailOnPriority
+}
+
+// findingFrom converts a result into the shape this server returns.
+//
+// One conversion for every tool here, so a finding an assistant reads from a diff carries the
+// same fields as one it reads from a summary. Two of these would drift, and the drift would look
+// like a finding losing its remediation for a reason nobody could see.
+func findingFrom(rep sarif.Report, res sarif.Result) Finding {
+	loc := res.Location.URI
+	if loc != "" && res.Location.StartLine > 0 {
+		loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
+	}
+	f := Finding{
+		Priority:    res.Priority,
+		Severity:    string(res.Severity("")),
+		Score:       res.Score,
+		RuleID:      res.RuleID,
+		Scanner:     res.Tool,
+		Location:    loc,
+		Message:     res.Message,
+		HelpURI:     rep.HelpURI(res.RuleID),
+		Remediation: remediationText(rep, res),
+		Action:      string(res.Remediation()),
+		Component:   res.Component,
+		Image:       res.Image,
+		OSEndOfLife: res.OSEndOfLife,
+	}
+	if p := res.Package; p != nil {
+		f.Package, f.Version = p.Name, p.Version
+		f.FixedVersion, f.Ecosystem, f.PURL = p.FixedVersion, p.Ecosystem, p.PURL
+	}
+	return f
 }
 
 // remediationText returns what the scanner published about how to fix a rule.
@@ -901,4 +911,107 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 	}
 	out.Actions = actions
 	return nil, out, nil
+}
+
+// DiffInput compares two reports.
+type DiffInput struct {
+	BasePath string `json:"basePath" jsonschema:"path to the results.sarif from the base revision"`
+	HeadPath string `json:"headPath" jsonschema:"path to the results.sarif from the revision being proposed"`
+	// FailOnNew mirrors the flag CI uses, so an assistant can ask the question the pipeline
+	// will ask rather than a different one.
+	FailOnNew string `json:"failOnNew,omitempty" jsonschema:"report whether a new finding at or above this severity would fail a gate: critical, high, medium or low"`
+	Limit     int    `json:"limit,omitempty" jsonschema:"maximum new findings to return; defaults to 20"`
+}
+
+// DiffOutput says what a change introduced and what it resolved.
+type DiffOutput struct {
+	NewCount   int `json:"newCount" jsonschema:"findings present in head and absent from base"`
+	FixedCount int `json:"fixedCount" jsonschema:"findings present in base and absent from head"`
+	// New is what the change introduced, most urgent first, carrying the same remediation and
+	// package detail a summary does.
+	New []Finding `json:"new,omitempty"`
+	// Fixed is named rather than only counted, because it is the half of a change worth saying
+	// out loud and an assistant summarizing a diff has nothing else to praise.
+	Fixed []Finding `json:"fixed,omitempty"`
+	// WouldFail answers the question CI will ask, when failOnNew is given.
+	WouldFail   bool   `json:"wouldFail,omitempty" jsonschema:"true when a new finding meets failOnNew; only meaningful when failOnNew was given"`
+	GateApplied string `json:"gateApplied,omitempty" jsonschema:"the threshold wouldFail was computed against"`
+	Note        string `json:"note,omitempty"`
+}
+
+// DiffReportsTool compares two scans and reports what the change introduced.
+//
+// The question in a coding session is almost never "what is wrong with this repository" — it is
+// "did what I just wrote make it worse". A project with two hundred inherited findings answers the
+// first question the same way before and after a change, which tells an assistant nothing about
+// the change. This is the same comparison `draugr diff` makes, so the answer an assistant gives
+// and the answer the pull request gate gives cannot differ.
+func DiffReportsTool(_ context.Context, _ *mcp.CallToolRequest, in DiffInput) (*mcp.CallToolResult, DiffOutput, error) {
+	if in.BasePath == "" || in.HeadPath == "" {
+		return nil, DiffOutput{}, fmt.Errorf("basePath and headPath are both required")
+	}
+	base, err := readSARIF(in.BasePath)
+	if err != nil {
+		return nil, DiffOutput{}, err
+	}
+	head, err := readSARIF(in.HeadPath)
+	if err != nil {
+		return nil, DiffOutput{}, err
+	}
+
+	limit := in.Limit
+	if limit <= 0 {
+		limit = defaultLimit
+	}
+	res := diff.Compare(base, head)
+	rules := sarif.Report{Rules: res.Rules}
+
+	out := DiffOutput{NewCount: len(res.New), FixedCount: len(res.Fixed)}
+	out.New = findingsFrom(rules, res.New, limit)
+	out.Fixed = findingsFrom(rules, res.Fixed, limit)
+
+	if in.FailOnNew != "" {
+		band, err := sarif.ParseSeverity(in.FailOnNew)
+		if err != nil {
+			return nil, DiffOutput{}, fmt.Errorf("failOnNew: %w", err)
+		}
+		out.GateApplied = string(band)
+		out.WouldFail = len(res.GateNew(band, "")) > 0
+	}
+	if len(res.New) > limit {
+		out.Note = fmt.Sprintf("showing the %d most urgent of %d new findings; raise limit to see more",
+			limit, len(res.New))
+	}
+	return nil, out, nil
+}
+
+// readSARIF loads a report, saying which path failed rather than only that one did.
+func readSARIF(path string) (sarif.Report, error) {
+	// #nosec G304 -- the report to read is an argument of the tool call, and a caller that can
+	// reach this server can already read its own files. Refusing a path they named would make
+	// every read-a-report tool useless for the case it exists for.
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return sarif.Report{}, fmt.Errorf("read %s: %w", path, err)
+	}
+	rep, err := sarif.FromSARIF(data)
+	if err != nil {
+		return sarif.Report{}, fmt.Errorf("parse %s as SARIF: %w", path, err)
+	}
+	return rep, nil
+}
+
+// findingsFrom converts results into the shape this server returns everywhere, capped.
+func findingsFrom(rules sarif.Report, results []sarif.Result, limit int) []Finding {
+	out := make([]Finding, 0, min(len(results), limit))
+	for _, res := range results {
+		if res.Suppressed() {
+			continue
+		}
+		if len(out) == limit {
+			break
+		}
+		out = append(out, findingFrom(rules, res))
+	}
+	return out
 }

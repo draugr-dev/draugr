@@ -56,6 +56,7 @@ looks like it has hung — it's waiting for a client.
 | `summarize_report` | An existing `results.sarif`, ranked by priority, each finding carrying its remediation and what to upgrade to |
 | `fix_list` | The same report as **things to do**, most urgent first, each saying how many findings it clears |
 | `explain_rule` | What a rule means and how to fix it, from the report the scan already wrote |
+| `diff_reports` | What a change introduced and resolved, and whether a pull-request gate would fail |
 | `scan` | A fresh scan and its verdict — **only with `--scan=ask` or `--scan=always`** |
 
 ## What it looks like
@@ -211,6 +212,11 @@ same report differently.
 published is already in the report, so an assistant should read it rather than fetch a rule's help
 URI — which costs a network round trip, and for a benchmark is a registration form in front of a
 PDF.
+
+`diff_reports` answers "did what I just wrote make it worse?" — which is almost never the same
+question as "what is wrong with this repository". A project with two hundred inherited findings
+answers the second identically before and after a change. Give it `failOnNew` and it reports
+whether the pull-request gate would fail, using the same comparison `draugr diff` makes.
 
 `summarize_report` answers "what should I fix first?" from a scan your pipeline already ran, at
 no cost.

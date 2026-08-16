@@ -1123,3 +1123,87 @@ func TestRemediationIsNotTheFindingRepeated(t *testing.T) {
 		t.Errorf("a rule with no entry should yield no remediation, got %q", got)
 	}
 }
+
+// TestDiffAnswersWhetherTheChangeMadeItWorse. A project with inherited findings answers "what is
+// wrong" identically before and after a change, which tells an assistant nothing about the change.
+func TestDiffAnswersWhetherTheChangeMadeItWorse(t *testing.T) {
+	shared := sarif.Result{RuleID: "CVE-OLD", Priority: "P2", Level: sarif.LevelWarning,
+		Location: sarif.Location{URI: "app/requirements.txt", StartLine: 2}}
+	gone := sarif.Result{RuleID: "CVE-FIXED", Priority: "P2", Level: sarif.LevelWarning,
+		Location: sarif.Location{URI: "app/old.py", StartLine: 1}}
+	added := sarif.Result{RuleID: "CVE-NEW", Priority: "P1", Level: sarif.LevelError,
+		HasScore: true, Score: 9.1,
+		Location: sarif.Location{URI: "app/new.py", StartLine: 3},
+		Package:  &sarif.Package{Name: "flask", Version: "0.12.2", FixedVersion: "2.3.2"}}
+
+	base := writeSARIF(t, sarif.Report{Results: []sarif.Result{shared, gone}})
+	head := writeSARIF(t, sarif.Report{Results: []sarif.Result{shared, added}})
+
+	_, out, err := DiffReportsTool(context.Background(), nil,
+		DiffInput{BasePath: base, HeadPath: head, FailOnNew: "high"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.NewCount != 1 || out.FixedCount != 1 {
+		t.Fatalf("want one new and one fixed, got %+v", out)
+	}
+	if len(out.New) != 1 || out.New[0].RuleID != "CVE-NEW" {
+		t.Errorf("the introduced finding did not come back: %+v", out.New)
+	}
+	// The same detail a summary carries, so an assistant can act on a diff without a second call.
+	if out.New[0].FixedVersion != "2.3.2" {
+		t.Errorf("a new finding should say what fixes it: %+v", out.New[0])
+	}
+	// Fixed is named, not only counted: it is the half of a change worth saying out loud.
+	if len(out.Fixed) != 1 || out.Fixed[0].RuleID != "CVE-FIXED" {
+		t.Errorf("what the change resolved did not come back: %+v", out.Fixed)
+	}
+	if !out.WouldFail || out.GateApplied != "high" {
+		t.Errorf("a new critical should trip a gate set to high: %+v", out)
+	}
+}
+
+// TestDiffGateAnswersTheQuestionCIWillAsk, rather than a different one: a change that introduces
+// only a low finding does not fail a gate set to high, and saying otherwise trains people to
+// ignore the answer.
+func TestDiffGateAnswersTheQuestionCIWillAsk(t *testing.T) {
+	base := writeSARIF(t, sarif.Report{})
+	head := writeSARIF(t, sarif.Report{Results: []sarif.Result{
+		{RuleID: "LOW-1", Priority: "P4", Level: sarif.LevelNote, Location: sarif.Location{URI: "a"}},
+	}})
+
+	_, out, err := DiffReportsTool(context.Background(), nil,
+		DiffInput{BasePath: base, HeadPath: head, FailOnNew: "high"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.NewCount != 1 {
+		t.Fatalf("the new finding should still be reported: %+v", out)
+	}
+	if out.WouldFail {
+		t.Error("a low finding tripped a gate set to high")
+	}
+}
+
+// TestDiffRefusesAThresholdItCannotRank. An unrecognized band ranks below everything, so accepting
+// one would answer "yes, this would fail" for any change at all.
+func TestDiffRefusesAThresholdItCannotRank(t *testing.T) {
+	empty := writeSARIF(t, sarif.Report{})
+	_, _, err := DiffReportsTool(context.Background(), nil,
+		DiffInput{BasePath: empty, HeadPath: empty, FailOnNew: "urgent"})
+	if err == nil || !strings.Contains(err.Error(), "critical") {
+		t.Errorf("want an error naming the bands, got: %v", err)
+	}
+}
+
+// TestDiffNamesTheReportItCouldNotRead: "read: no such file" with two paths in play is a message
+// that makes the caller guess which one.
+func TestDiffNamesTheReportItCouldNotRead(t *testing.T) {
+	ok := writeSARIF(t, sarif.Report{})
+	missing := filepath.Join(t.TempDir(), "absent.sarif")
+	_, _, err := DiffReportsTool(context.Background(), nil,
+		DiffInput{BasePath: ok, HeadPath: missing})
+	if err == nil || !strings.Contains(err.Error(), "absent.sarif") {
+		t.Errorf("the error should name the path that failed, got: %v", err)
+	}
+}

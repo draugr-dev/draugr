@@ -174,6 +174,14 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"inside it.",
 	}, FixListTool)
 	mcp.AddTool(s, &mcp.Tool{
+		Name: "diff_reports",
+		Description: "Compare two scans and report what a change introduced and what it " +
+			"resolved. Ask this rather than summarize_report when the question is whether a " +
+			"change made things worse: a project with inherited findings answers 'what is " +
+			"wrong' the same way before and after, which says nothing about the change. Give " +
+			"failOnNew to learn whether a pull request gate would fail.",
+	}, DiffReportsTool)
+	mcp.AddTool(s, &mcp.Tool{
 		Name: "summarize_report",
 		Description: "Read an existing Draugr report (results.sarif or report.json) and return " +
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
