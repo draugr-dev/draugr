@@ -3,8 +3,6 @@ package cli
 import (
 	"fmt"
 	"io"
-	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -26,10 +24,12 @@ type progressLine struct {
 	// mu serialises writes. The engine reports under its own lock, but nothing promises the same
 	// goroutine each time, and two interleaved writes to one line produce something unreadable.
 	mu sync.Mutex
-	// width is the last line's length, so the next one can clear what it does not overwrite.
-	// Without it, a shorter line leaves the tail of a longer one behind and the display reads as
-	// two states at once.
-	width int
+	// drawn is how many lines are on the terminal, so the next update can move back over them
+	// and the erase can clear all of them. Without it a shorter frame leaves the tail of a longer
+	// one behind, and the display reads as two states at once.
+	drawn int
+	// painter decides whether the frame carries colour, which depends on the same writer.
+	painter tui.Painter
 }
 
 // active is the progress line currently drawn on the terminal, if any.
@@ -65,12 +65,20 @@ func (p *progressLine) writeThrough(b []byte) (int, error) {
 	return p.w.Write(b)
 }
 
-// erase clears the drawn line. Callers hold mu.
+// erase clears every drawn line. Callers hold mu.
+//
+// Moves back over the frame and clears each row rather than overwriting with spaces: the frame is
+// several lines now, and a terminal that has scrolled since would otherwise have blanks written
+// over whatever moved into their place.
 func (p *progressLine) erase() {
-	if p.width > 0 {
-		_, _ = fmt.Fprintf(p.w, "\r%s\r", strings.Repeat(" ", p.width))
-		p.width = 0
+	if p.drawn == 0 {
+		return
 	}
+	for range p.drawn {
+		_, _ = fmt.Fprint(p.w, "\r\033[2K\033[1A")
+	}
+	_, _ = fmt.Fprint(p.w, "\r\033[2K")
+	p.drawn = 0
 }
 
 // newProgressLine returns a renderer, or nil when nothing should be drawn.
@@ -84,7 +92,7 @@ func newProgressLine(w io.Writer, opts scanOptions) *progressLine {
 // newProgressLineFor builds a renderer for w unconditionally, and registers it as the one on the
 // terminal. Separated from newProgressLine so a test can exercise the drawing without a terminal.
 func newProgressLineFor(w io.Writer) *progressLine {
-	p := &progressLine{w: w}
+	p := &progressLine{w: w, painter: tui.For(w)}
 	active.Store(p)
 	return p
 }
@@ -96,10 +104,18 @@ func (p *progressLine) update(ev engine.ProgressEvent) {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	line := progressText(ev)
-	pad := max(p.width-len(line), 0)
-	_, _ = fmt.Fprintf(p.w, "\r%s%s", line, strings.Repeat(" ", pad))
-	p.width = len(line)
+	lines := progressFrame(ev, p.painter)
+	if len(lines) == 0 {
+		return
+	}
+	p.erase()
+	for i, line := range lines {
+		if i > 0 {
+			_, _ = fmt.Fprint(p.w, "\n")
+		}
+		_, _ = fmt.Fprintf(p.w, "\r\033[2K%s", line)
+	}
+	p.drawn = len(lines)
 }
 
 // done erases the line, so the report starts on a clean one.
@@ -116,49 +132,60 @@ func (p *progressLine) done() {
 	p.erase()
 }
 
-// progressText renders one snapshot.
+// progressFrame renders the whole display: a headline, then a row per control/scanner.
 //
-// Counts first, because "will this finish" is the question being asked. Then what is in flight,
-// which answers the second question — whether the wait is one slow job or many.
-func progressText(ev engine.ProgressEvent) string {
+// Several lines rather than one, because the interesting question changes as a run goes on. At
+// the start it is "will this finish"; a minute in it is "what is it waiting on"; and after a
+// failure it is "what already worked". One line can answer the first, and answers the others by
+// listing what is in flight — which changes constantly and drops each scanner the moment it
+// finishes, so the reader watches work disappear and cannot tell finished from not started.
+//
+// A row that stays, and changes state, answers all three.
+func progressFrame(ev engine.ProgressEvent, col tui.Painter) []string {
 	if ev.Total == 0 {
-		return ""
+		return nil
 	}
-	line := fmt.Sprintf("scanning %d/%d", ev.Complete, ev.Total)
-	// Immediately after the count, before what is in flight. A run whose jobs are failing is one
-	// a reader may want to stop rather than wait out, and that decision is worth nothing once the
-	// report explains it — by then they have already waited.
-	if ev.Failed > 0 {
-		line += fmt.Sprintf(" · %d failed", ev.Failed)
+	lines := []string{progressHeadline(ev, col)}
+	for _, st := range ev.Steps {
+		lines = append(lines, progressStepLine(st, col))
 	}
-	if len(ev.Running) == 0 {
-		return line
-	}
-	return line + " · " + strings.Join(collapse(ev.Running), ", ")
+	return lines
 }
 
-// collapse folds repeats into a count, so six image scans read as one item rather than six.
-//
-// A run's slow jobs are usually many of one kind — an image per container, a repository per
-// component — and listing each by name fills the line with the same word and pushes off the one
-// job that is different.
-func collapse(running []string) []string {
-	counts := map[string]int{}
-	var order []string
-	for _, name := range running {
-		if counts[name] == 0 {
-			order = append(order, name)
-		}
-		counts[name]++
+// progressHeadline is the count, and the failures if there are any.
+func progressHeadline(ev engine.ProgressEvent, col tui.Painter) string {
+	line := fmt.Sprintf("Scanning %d/%d", ev.Complete, ev.Total)
+	if ev.Failed > 0 {
+		line += "  " + col.Paint(tui.StyleFail, fmt.Sprintf("%d failed", ev.Failed))
 	}
-	sort.Strings(order)
-	out := make([]string, 0, len(order))
-	for _, name := range order {
-		if counts[name] > 1 {
-			out = append(out, fmt.Sprintf("%s ×%d", name, counts[name]))
-			continue
-		}
-		out = append(out, name)
-	}
-	return out
+	return line
 }
+
+// progressStepLine renders one control/scanner: a mark, the name, and where its jobs have got to.
+//
+// The mark carries the state and the colour reinforces it, rather than the colour carrying it
+// alone — the same output goes to terminals with no colour, and to people who cannot distinguish
+// the ones it uses.
+func progressStepLine(st engine.ProgressStep, col tui.Painter) string {
+	mark, style := "·", tui.StyleMuted // planned, not started
+	switch {
+	case st.Failed > 0 && st.Done == st.Total:
+		mark, style = "✗", tui.StyleFail
+	case st.Done == st.Total:
+		mark, style = "✓", tui.StylePass
+	case st.Running > 0:
+		mark, style = "▸", tui.StyleAccent
+	}
+
+	name := st.Name()
+	detail := fmt.Sprintf("%d/%d", st.Done, st.Total)
+	if st.Failed > 0 {
+		detail += fmt.Sprintf(", %d failed", st.Failed)
+	}
+	return fmt.Sprintf("  %s %-*s %s",
+		col.Paint(style, mark), progressNameWidth, name, col.Paint(tui.StyleMuted, detail))
+}
+
+// progressNameWidth keeps the counts in a column. Names are "control/scanner" and the longest
+// built-in pair is a little under this.
+const progressNameWidth = 34

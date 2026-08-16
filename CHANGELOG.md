@@ -108,6 +108,23 @@ and move it under a version on release.
   a base image name would be a guess in a field a reader would trust.
 
 ### Changed
+
+- **The progress display shows every scanner and marks each one as it finishes**, instead of one
+  line listing whatever is in flight:
+
+  ```
+  Scanning 7/12  2 failed
+    ✓ sast/semgrep                       1/1
+    ▸ images/trivy                       2/5, 2 failed
+    · sca/trivy-fs                       0/3
+  ```
+
+  A scanner used to vanish the moment it completed, so a reader watching could not tell work that
+  had finished from work that had not been reached — and those call for different patience. Each
+  row now stays and changes state, with colour reinforcing the mark rather than carrying it, so
+  the display reads the same without colour.
+
+  Still only on a terminal, and erased before the report.
 - **A contended tool cache is reported once, with its total, instead of a line per wait.** Draugr
   plans concurrent jobs that share a scanner's cache, so they queue on it — and with three retries
   per job, a scan with many images could fill the screen with identical `waiting for the scanner
