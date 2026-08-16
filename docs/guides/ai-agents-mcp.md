@@ -53,7 +53,9 @@ looks like it has hung — it's waiting for a client.
 | `get_saga_schema` | The descriptor schema **this build** enforces — for writing a Saga correctly |
 | `validate_saga` | Whether a descriptor is valid, by path or by content, and why not |
 | `check_tools` | Which scanners are present, what's missing, and the command that fixes it |
-| `summarize_report` | An existing `results.sarif`, ranked by priority with a doc link per rule |
+| `summarize_report` | An existing `results.sarif`, ranked by priority, each finding carrying its remediation and what to upgrade to |
+| `fix_list` | The same report as **things to do**, most urgent first, each saying how many findings it clears |
+| `explain_rule` | What a rule means and how to fix it, from the report the scan already wrote |
 | `scan` | A fresh scan and its verdict — **only with `--scan=ask` or `--scan=always`** |
 
 ## What it looks like
@@ -198,6 +200,17 @@ An assistant scanning on your behalf is the case where the artifact matters most
 conversation is the least durable place a result can land: the session closes and the finding is
 gone. A saved SARIF file is something your assistant can point you at, or read back later with
 `summarize_report` instead of paying for another scan.
+
+`fix_list` answers "what should I do?" — one row per remediation rather than per finding, because
+one change usually clears many. Eight vulnerabilities in one library are one upgrade, and every
+vulnerable package inside an image somebody else publishes is one newer image. It uses the same
+grouping `draugr scan --group action` prints, so an assistant and a terminal cannot describe the
+same report differently.
+
+`explain_rule` answers "what does this mean and what do I change?". The remediation the scanner
+published is already in the report, so an assistant should read it rather than fetch a rule's help
+URI — which costs a network round trip, and for a benchmark is a registration form in front of a
+PDF.
 
 `summarize_report` answers "what should I fix first?" from a scan your pipeline already ran, at
 no cost.

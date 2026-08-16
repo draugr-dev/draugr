@@ -302,3 +302,80 @@ func TestImagesYouBuildStillGroupByPackage(t *testing.T) {
 		t.Errorf("title = %q", got[0].title)
 	}
 }
+
+// TestActionsForGroupsByControl: the exported entry point keys on the control a run holds
+// findings under, so two controls reporting the same rule id stay two things to do.
+func TestActionsForGroupsByControl(t *testing.T) {
+	res := func(rule, loc string) sarif.Result {
+		return sarif.Result{RuleID: rule, Priority: "P2", Level: sarif.LevelWarning,
+			Location: sarif.Location{URI: loc}}
+	}
+	got := ActionsFor(map[string]sarif.Report{
+		"iac":  {Results: []sarif.Result{res("same-rule", "a.yaml")}},
+		"sast": {Results: []sarif.Result{res("same-rule", "b.py")}},
+	})
+	if len(got) != 2 {
+		t.Fatalf("two controls reporting one rule id are two actions, got %d: %+v", len(got), got)
+	}
+	if got[0].Control == got[1].Control {
+		t.Errorf("each action should name its own control: %+v", got)
+	}
+}
+
+// TestActionsForWithoutAControlFallsBackToTheRule. A merged results.sarif has already lost which
+// control each finding came from, and grouping everything together would be worse than grouping
+// by the rule it still has.
+func TestActionsForWithoutAControlFallsBackToTheRule(t *testing.T) {
+	got := ActionsFor(map[string]sarif.Report{"": {Results: []sarif.Result{
+		{RuleID: "rule-a", Priority: "P2", Level: sarif.LevelWarning, Location: sarif.Location{URI: "a"}},
+		{RuleID: "rule-a", Priority: "P3", Level: sarif.LevelWarning, Location: sarif.Location{URI: "b"}},
+		{RuleID: "rule-b", Priority: "P4", Level: sarif.LevelNote, Location: sarif.Location{URI: "c"}},
+	}}})
+	if len(got) != 2 {
+		t.Fatalf("want one action per rule, got %d: %+v", len(got), got)
+	}
+	if got[0].Clears != 2 || got[0].Priority != "P2" {
+		t.Errorf("the repeated rule should be one action at its worst priority: %+v", got[0])
+	}
+	// Two distinct places, both named, so a caller knows where to apply it.
+	if len(got[0].Where) != 2 {
+		t.Errorf("both locations should be named: %+v", got[0].Where)
+	}
+}
+
+// TestActionsForOmitsAcceptedRisk, as the console listing does: an excluded finding is a decision
+// somebody recorded, not work to propose.
+func TestActionsForOmitsAcceptedRisk(t *testing.T) {
+	got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+		{RuleID: "CVE-1", Priority: "P1", Level: sarif.LevelError, Location: sarif.Location{URI: "a"},
+			Suppression: &sarif.Suppression{Kind: "external", Justification: "accepted"}},
+	}}})
+	if len(got) != 0 {
+		t.Errorf("an accepted finding became an action: %+v", got)
+	}
+}
+
+// TestActionsForNamesAnUpstreamImageOnce: every vulnerable package inside an image somebody else
+// publishes is one action — take a newer image — not one per library.
+func TestActionsForNamesAnUpstreamImageOnce(t *testing.T) {
+	img := func(rule, pkgName string) sarif.Result {
+		return sarif.Result{
+			RuleID: rule, Priority: "P1", Level: sarif.LevelError,
+			Location: sarif.Location{URI: "python:3.8-slim"}, Image: "python:3.8-slim",
+			ImageBuiltUpstream: true,
+			Package:            &sarif.Package{Name: pkgName, Version: "1", FixedVersion: "2"},
+		}
+	}
+	got := ActionsFor(map[string]sarif.Report{"images": {Results: []sarif.Result{
+		img("CVE-1", "openssl"), img("CVE-2", "libssl3"), img("CVE-3", "zlib"),
+	}}})
+	if len(got) != 1 {
+		t.Fatalf("want one action for the image, got %d: %+v", len(got), got)
+	}
+	if !got[0].Upstream || got[0].Clears != 3 {
+		t.Errorf("the image should be one upstream action clearing all three: %+v", got[0])
+	}
+	if len(got[0].RuleIDs) != 3 {
+		t.Errorf("the rules it clears should travel with it: %+v", got[0].RuleIDs)
+	}
+}

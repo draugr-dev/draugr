@@ -10,7 +10,32 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **The MCP server answers "what should I do", not only "what is wrong".** Two tools for
+  assistants:
+
+  - `fix_list` returns the work a report implies — one row per remediation, most urgent first,
+    each saying how many findings it clears. It uses the same grouping `--group action` prints, so
+    an assistant and a terminal cannot describe one report differently.
+  - `explain_rule` returns what a check means and the remediation its scanner published, read from
+    the report the scan already wrote.
+
+- **Findings from the MCP server carry what it takes to act on them** — the remediation text, the
+  package and the version that fixes it, the component, the image, whether the OS release is past
+  end of service life, and whether the fix is an upgrade here or a newer image somebody else
+  publishes. An assistant could previously say a finding was critical and not what to do about it.
+
+### Fixed
+
+- **An accepted risk is no longer handed back as work.** `summarize_report` counted and returned
+  findings the descriptor had excluded, so an assistant would propose fixing something a security
+  owner had already signed off — without the reason they recorded. Suppressed findings are now
+  reported as a count of their own and left out of the ranking, as every other output does.
+
+- **A scan through the MCP server applies the descriptor's gate.** It used a fixed threshold and
+  ignored `config.gate`, so a descriptor gating a control at a different band got one verdict from
+  an assistant and another from its own CI.
 
 ## [0.97.0] - 2026-08-16
 

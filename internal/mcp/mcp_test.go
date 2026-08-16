@@ -12,6 +12,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/scanpolicy"
+	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -851,5 +854,272 @@ func TestConsentAsksByReturningTheQuestion(t *testing.T) {
 				t.Errorf("error = %q, want it to contain %q", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+// TestSummarizeDoesNotHandBackAcceptedRisk is the whole point of suppression surviving into this
+// layer. An excluded finding is a decision somebody recorded, with a reason and an owner; handed
+// to an assistant as work, it becomes a proposal to undo that decision, and the reason never
+// travels with it.
+func TestSummarizeDoesNotHandBackAcceptedRisk(t *testing.T) {
+	rep := sarif.Report{Results: []sarif.Result{
+		{RuleID: "CVE-ACCEPTED", Level: sarif.LevelError, HasScore: true, Score: 9.8, Priority: "P1",
+			Suppression: &sarif.Suppression{
+				Kind: "external", Justification: "not reachable", AcceptedBy: "sec@example.com",
+			}},
+		{RuleID: "CVE-LIVE", Level: sarif.LevelError, HasScore: true, Score: 9.8, Priority: "P1"},
+	}}
+
+	out := summarize(rep, "", 20)
+	if out.Counts.Critical != 1 || out.Total != 1 {
+		t.Errorf("a suppressed finding was counted as work: counts=%+v total=%d", out.Counts, out.Total)
+	}
+	if out.Returned != 1 || len(out.Findings) != 1 || out.Findings[0].RuleID != "CVE-LIVE" {
+		t.Errorf("a suppressed finding was returned as work: %+v", out.Findings)
+	}
+	// Reported, not hidden: an assistant that cannot see a decision was made cannot tell an
+	// accepted risk from one nobody has looked at.
+	if out.Suppressed != 1 {
+		t.Errorf("the accepted finding vanished entirely: suppressed=%d", out.Suppressed)
+	}
+}
+
+// TestScanUsesTheDescriptorsGate: a Saga that gates a control at a different band says so for a
+// reason, and an agent reporting a verdict under a policy the project did not choose disagrees
+// with that project's own CI about its own descriptor.
+func TestScanUsesTheDescriptorsGate(t *testing.T) {
+	reports := map[string]sarif.Report{
+		"licenses": {Results: []sarif.Result{
+			{RuleID: "GPL-3.0", Level: sarif.LevelError, HasScore: true, Score: 7.5},
+		}},
+	}
+	// The finding is high. A descriptor gating licences at critical expects a pass.
+	gate := &saga.GateConfig{Controls: map[string]string{"licenses": "critical"}}
+	got := norn.Policy{
+		FailOn:     sarif.SeverityHigh,
+		PerControl: scanpolicy.GateThresholds(gate),
+	}.Evaluate(reports)
+	if got.Verdict != norn.Pass {
+		t.Errorf("the descriptor's gate was ignored: %s", got.Verdict)
+	}
+	// And without the block, the default band applies.
+	if plain := (norn.Policy{FailOn: sarif.SeverityHigh}).Evaluate(reports); plain.Verdict != norn.Fail {
+		t.Errorf("the default gate should fail on a high finding: %s", plain.Verdict)
+	}
+}
+
+// explainFixture builds a report carrying a rule with published remediation.
+func explainFixture() sarif.Report {
+	return sarif.Report{
+		Tool: "draugr",
+		Rules: map[string]sarif.Rule{
+			"kube-bench/cis/4.3.1": {
+				ShortDescription: "Ensure the kube-proxy metrics service is bound to localhost",
+				FullDescription:  "Modify or remove any values which bind the metrics service to a non-localhost address.",
+				HelpURI:          "https://www.cisecurity.org/benchmark/kubernetes",
+			},
+			"other/cis/4.3.1": {ShortDescription: "a different benchmark"},
+		},
+		Results: []sarif.Result{
+			{RuleID: "kube-bench/cis/4.3.1", Location: sarif.Location{URI: "kubernetes/prod"}},
+			{RuleID: "other/cis/4.3.1", Location: sarif.Location{URI: "kubernetes/prod"}},
+		},
+	}
+}
+
+// TestExplainReturnsTheRemediationTheScannerPublished is why this tool exists. Sending an
+// assistant to a help URI is a network round trip for text already on disk — and for a benchmark
+// that URI is a registration form in front of a PDF, which is not an answer at all.
+func TestExplainReturnsTheRemediationTheScannerPublished(t *testing.T) {
+	path := writeSARIF(t, explainFixture())
+
+	_, out, err := ExplainRuleTool(context.Background(), nil,
+		ExplainInput{RuleID: "kube-bench/cis/4.3.1", Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.Remediation, "non-localhost address") {
+		t.Errorf("the remediation did not come back: %+v", out)
+	}
+	if !strings.Contains(out.Description, "bound to localhost") {
+		t.Errorf("the check was not described in full: %+v", out)
+	}
+	if len(out.FoundIn) != 1 || out.FoundIn[0] != "kubernetes/prod" {
+		t.Errorf("where it fired did not come back: %+v", out.FoundIn)
+	}
+}
+
+// TestExplainTakesTheIdSomebodyRetypes: callers use the part that identifies the check, not the
+// namespace in front of it.
+func TestExplainTakesTheIdSomebodyRetypes(t *testing.T) {
+	rep := explainFixture()
+	delete(rep.Rules, "other/cis/4.3.1")
+	rep.Results = rep.Results[:1]
+
+	_, out, err := ExplainRuleTool(context.Background(), nil,
+		ExplainInput{RuleID: "4.3.1", Path: writeSARIF(t, rep)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.RuleID != "kube-bench/cis/4.3.1" {
+		t.Errorf("a short id should resolve to its rule, got %q", out.RuleID)
+	}
+}
+
+// TestExplainRefusesAnAmbiguousId. Picking one would explain a rule nobody asked about, and the
+// caller would have no way to tell.
+func TestExplainRefusesAnAmbiguousId(t *testing.T) {
+	_, _, err := ExplainRuleTool(context.Background(), nil,
+		ExplainInput{RuleID: "4.3.1", Path: writeSARIF(t, explainFixture())})
+	if err == nil {
+		t.Fatal("an ambiguous id should not silently pick one")
+	}
+	for _, want := range []string{"kube-bench/cis/4.3.1", "other/cis/4.3.1"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error should list what it could have meant: %v", err)
+		}
+	}
+}
+
+// TestExplainSaysWhenNoRemediationWasPublished, rather than returning an empty field an assistant
+// reads as "no fix needed".
+func TestExplainSaysWhenNoRemediationWasPublished(t *testing.T) {
+	rep := sarif.Report{
+		Rules:   map[string]sarif.Rule{"bare": {ShortDescription: "something is wrong"}},
+		Results: []sarif.Result{{RuleID: "bare", Location: sarif.Location{URI: "x"}}},
+	}
+	_, out, err := ExplainRuleTool(context.Background(), nil,
+		ExplainInput{RuleID: "bare", Path: writeSARIF(t, rep)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Remediation != "" || out.Note == "" {
+		t.Errorf("an absent remediation should be said rather than left blank: %+v", out)
+	}
+}
+
+// TestFixListGroupsWhatOneChangeClears is the difference between a list of findings and a list of
+// work: eight vulnerabilities in one library are one upgrade.
+func TestFixListGroupsWhatOneChangeClears(t *testing.T) {
+	pkg := &sarif.Package{Name: "jinja2", Version: "2.10", FixedVersion: "3.1.6", Ecosystem: "pip"}
+	rep := sarif.Report{Results: []sarif.Result{
+		{RuleID: "CVE-1", Priority: "P1", Level: sarif.LevelError, Package: pkg,
+			Location: sarif.Location{URI: "app/requirements.txt"}},
+		{RuleID: "CVE-2", Priority: "P2", Level: sarif.LevelError, Package: pkg,
+			Location: sarif.Location{URI: "app/requirements.txt"}},
+		{RuleID: "CVE-3", Priority: "P3", Level: sarif.LevelWarning,
+			Location: sarif.Location{URI: "deploy/pod.yaml"}},
+	}}
+
+	_, out, err := FixListTool(context.Background(), nil, FixListInput{Path: writeSARIF(t, rep)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Actions) != 2 {
+		t.Fatalf("want one action per fix, got %d: %+v", len(out.Actions), out.Actions)
+	}
+	if out.Actions[0].Clears != 2 {
+		t.Errorf("the upgrade should clear both of its findings: %+v", out.Actions[0])
+	}
+	// Ordered by the worst thing each clears, not by how many. A P1 outranks volume.
+	if out.Actions[0].Priority != "P1" {
+		t.Errorf("actions should lead with the worst priority they clear: %+v", out.Actions)
+	}
+	if out.Clears != 3 {
+		t.Errorf("clears should total what the list resolves, got %d", out.Clears)
+	}
+}
+
+// TestFixListLeavesAcceptedRiskOut, for the same reason summarize_report does: proposing a
+// suppressed finding as work proposes undoing a decision, without the reason behind it.
+func TestFixListLeavesAcceptedRiskOut(t *testing.T) {
+	rep := sarif.Report{Results: []sarif.Result{
+		{RuleID: "CVE-ACCEPTED", Priority: "P1", Level: sarif.LevelError,
+			Location: sarif.Location{URI: "a"},
+			Suppression: &sarif.Suppression{
+				Kind: "external", Justification: "not reachable", AcceptedBy: "sec@example.com",
+			}},
+	}}
+	_, out, err := FixListTool(context.Background(), nil, FixListInput{Path: writeSARIF(t, rep)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Actions) != 0 {
+		t.Errorf("an accepted finding was proposed as work: %+v", out.Actions)
+	}
+}
+
+// writeSARIF puts a report on disk and returns its path.
+func writeSARIF(t *testing.T, rep sarif.Report) string {
+	t.Helper()
+	data, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "results.sarif")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// TestFindingsCarryWhatItTakesToAct: an assistant that can say a finding is critical but not what
+// to change has to guess a fix or send the reader to a search engine.
+func TestFindingsCarryWhatItTakesToAct(t *testing.T) {
+	rep := sarif.Report{
+		Rules: map[string]sarif.Rule{"CVE-1": {
+			ShortDescription: "jinja2 sandbox breakout",
+			FullDescription:  "Upgrade to 3.1.6 or later.",
+		}},
+		Results: []sarif.Result{{
+			RuleID: "CVE-1", Priority: "P1", Level: sarif.LevelWarning, HasScore: true, Score: 7.8,
+			Component: "api", Message: "jinja2 sandbox breakout",
+			Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5},
+			Package: &sarif.Package{
+				Name: "jinja2", Version: "2.10", FixedVersion: "3.1.6",
+				Ecosystem: "pip", PURL: "pkg:pypi/jinja2@2.10",
+			},
+		}},
+	}
+	out := summarize(rep, "", 20)
+	if len(out.Findings) != 1 {
+		t.Fatalf("want one finding, got %+v", out.Findings)
+	}
+	f := out.Findings[0]
+	for name, got := range map[string]string{
+		"remediation":  f.Remediation,
+		"package":      f.Package,
+		"fixedVersion": f.FixedVersion,
+		"ecosystem":    f.Ecosystem,
+		"component":    f.Component,
+		"action":       f.Action,
+	} {
+		if got == "" {
+			t.Errorf("%s did not travel with the finding: %+v", name, f)
+		}
+	}
+	if f.FixedVersion != "3.1.6" || f.Action != string(sarif.RemediationUpgrade) {
+		t.Errorf("the fix should be nameable from the finding alone: %+v", f)
+	}
+	// The band comes from the score, as everywhere else — level says warning, the score says high.
+	if f.Severity != string(sarif.SeverityHigh) {
+		t.Errorf("severity should follow the score: %q", f.Severity)
+	}
+}
+
+// TestRemediationIsNotTheFindingRepeated. A scanner that publishes no separate fix leaves the
+// description in both fields; echoing it back as remediation reads like advice and is not.
+func TestRemediationIsNotTheFindingRepeated(t *testing.T) {
+	rep := sarif.Report{
+		Rules:   map[string]sarif.Rule{"R": {ShortDescription: "same text", FullDescription: "same text"}},
+		Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelWarning, Message: "same text"}},
+	}
+	if got := summarize(rep, "", 20).Findings[0].Remediation; got != "" {
+		t.Errorf("the finding was echoed back as its own fix: %q", got)
+	}
+	// And a rule the report never described has nothing to offer rather than something wrong.
+	bare := sarif.Report{Results: []sarif.Result{{RuleID: "unknown", Level: sarif.LevelWarning}}}
+	if got := summarize(bare, "", 20).Findings[0].Remediation; got != "" {
+		t.Errorf("a rule with no entry should yield no remediation, got %q", got)
 	}
 }

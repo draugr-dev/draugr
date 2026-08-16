@@ -549,25 +549,6 @@ func TestWriteArtifactsWritesSBOMs(t *testing.T) {
 	}
 }
 
-func TestPerControlThresholds(t *testing.T) {
-	if got := perControlThresholds(nil); got != nil {
-		t.Errorf("no gate block should leave every control on --fail-on, got %v", got)
-	}
-	if got := perControlThresholds(&saga.GateConfig{}); got != nil {
-		t.Errorf("an empty gate block is the same as none, got %v", got)
-	}
-	got := perControlThresholds(&saga.GateConfig{Controls: map[string]string{"licenses": "critical", "sast": "low"}})
-	if len(got) != 2 || got["licenses"] != sarif.SeverityCritical || got["sast"] != sarif.SeverityLow {
-		t.Errorf("perControlThresholds = %v", got)
-	}
-	// A descriptor written against the older vocabulary keeps working, and lands on the band each
-	// level means rather than being carried through as a word the gate no longer compares.
-	legacy := perControlThresholds(&saga.GateConfig{Controls: map[string]string{"licenses": "error", "sast": "note"}})
-	if legacy["licenses"] != sarif.SeverityHigh || legacy["sast"] != sarif.SeverityLow {
-		t.Errorf("the levels a gate used to take should map onto bands, got %v", legacy)
-	}
-}
-
 // A directory holding a descriptor is not a directory to scan zero-config. Ignoring it discarded
 // the controls chosen, the components declared, and the exposure and criticality that drive
 // prioritization — silently, and while telling the reader to create the file they already had.

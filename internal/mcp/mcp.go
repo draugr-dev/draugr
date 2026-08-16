@@ -159,6 +159,21 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	}, CheckToolsTool)
 
 	mcp.AddTool(s, &mcp.Tool{
+		Name: "explain_rule",
+		Description: "Explain what a finding means and how to fix it, from the scan's own " +
+			"report. Returns the check in full and the remediation the scanner published. " +
+			"Prefer this over fetching a rule's help URI: the answer is already on disk, and " +
+			"for a benchmark that URI is often a registration form in front of a PDF.",
+	}, ExplainRuleTool)
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "fix_list",
+		Description: "Turn a report into the things to do about it, most urgent first, each " +
+			"saying how many findings it clears. Ask this rather than summarize_report when " +
+			"the question is what to change: one upgrade usually clears many findings, and an " +
+			"image somebody else publishes is one action however many packages are wrong " +
+			"inside it.",
+	}, FixListTool)
+	mcp.AddTool(s, &mcp.Tool{
 		Name: "summarize_report",
 		Description: "Read an existing Draugr report (results.sarif or report.json) and return " +
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
