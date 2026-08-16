@@ -239,7 +239,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	if len(shown) < len(s.findings) {
 		_, _ = fmt.Fprintf(w, "\n… and %d more finding(s).\n", len(s.findings)-len(shown))
 		_, _ = fmt.Fprintln(w, col.Paint(cDim,
-			"Use --top 0 to list them all, or --min-priority P2 to narrow to what to fix first."))
+			"Use --top 0 to list them all, or --group action to see them as things to do."))
 	} else {
 		_, _ = fmt.Fprint(w, "\n")
 	}

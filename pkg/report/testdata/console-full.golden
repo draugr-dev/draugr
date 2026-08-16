@@ -31,7 +31,7 @@ Fix first (top 5 of 8, by priority):
             Detected user input flowing into a raw SQL string
 
 … and 3 more finding(s).
-Use --top 0 to list them all, or --min-priority P2 to narrow to what to fix first.
+Use --top 0 to list them all, or --group action to see them as things to do.
 SBOM: 2 documents (spdx-json)
 
 Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif.

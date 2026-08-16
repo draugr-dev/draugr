@@ -127,8 +127,8 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
-	cmd.Flags().StringVar(&opts.group, "group", groupAction,
-		"how the fix list is organised: `action` (one row per thing to do) or none (one per finding)")
+	cmd.Flags().StringVar(&opts.group, "group", groupNone,
+		"how the fix list is organised: none (one row per finding) or `action` (one row per thing to do)")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
 	cmd.Flags().BoolVar(&opts.cacheReadOnly, "cache-read-only", false,
@@ -354,7 +354,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Verdict:              verdict,
 		MinPriority:          minPriority,
 		TopN:                 fixFirstLimit(opts.top),
-		GroupActions:         opts.group != groupNone, // "" is unset, and the default is grouped
+		GroupActions:         opts.group == groupAction, // "" is unset, and the default is a finding a row
 		Evidence:             opts.evidence,
 		Compact:              opts.compact,
 		Components:           components,
@@ -450,11 +450,16 @@ func alsoPublish(outcome, publishErr error) error {
 
 // How the fix list is organised.
 const (
-	// groupAction is the default: one row per thing to do, saying how many findings it clears.
-	groupAction = "action"
-	// groupNone lists every finding on its own row, which is what somebody auditing a specific
-	// finding wants.
+	// groupNone is the default: one row per finding.
+	//
+	// Not because it is the better view — grouping answers "what do I do" and this answers "what
+	// was found" — but because grouping is only right once a descriptor says which images the
+	// team builds and which infrastructure it operates. Without that, an action row states a fix
+	// nobody can apply, where a finding row merely reports something true that a reader can look
+	// up. Stating wrong advice is worse than listing a fact.
 	groupNone = "none"
+	// groupAction gives one row per thing to do, saying how many findings it clears.
+	groupAction = "action"
 )
 
 // validateGroup rejects a value that is not one of the two, rather than quietly choosing.
