@@ -72,13 +72,52 @@ func TestComponentWithFindingsAndAGapReportsBoth(t *testing.T) {
 	}
 }
 
-func TestUnscannedDetailCountsByKind(t *testing.T) {
-	got := unscannedDetail([]engine.Unscanned{
-		{Kind: "image"}, {Kind: "image"}, {Kind: "repository"}, {Kind: ""},
-	})
-	// Counted rather than listed: the control's error above says why, and this says what.
-	const want = "2 images, 1 repository, 1 target not scanned"
-	if got != want {
-		t.Errorf("got  %q\nwant %q", got, want)
+// TestUnscannedDetailSaysHowMuchOfTheComponent covers the difference between a component nothing
+// looked at and a gap in one that was mostly covered. The bare count reads as the first either
+// way, and only one of them is a reason to stop and fix the scan.
+func TestUnscannedDetailSaysHowMuchOfTheComponent(t *testing.T) {
+	for _, c := range []struct {
+		name, want string
+		us         []engine.Unscanned
+		declared   map[string]int
+	}{
+		{
+			name:     "all of them",
+			us:       []engine.Unscanned{{Kind: "image"}, {Kind: "image"}, {Kind: "image"}},
+			declared: map[string]int{"image": 3},
+			want:     "3/3 images not scanned",
+		},
+		{
+			name:     "some of them",
+			us:       []engine.Unscanned{{Kind: "image"}},
+			declared: map[string]int{"image": 30},
+			want:     "1/30 images not scanned",
+		},
+		{
+			name:     "one of one reads as singular",
+			us:       []engine.Unscanned{{Kind: "repository"}},
+			declared: map[string]int{"repository": 1},
+			want:     "1/1 repository not scanned",
+		},
+		{
+			name:     "several kinds",
+			us:       []engine.Unscanned{{Kind: "image"}, {Kind: "image"}, {Kind: "repository"}},
+			declared: map[string]int{"image": 2, "repository": 4},
+			want:     "2/2 images, 1/4 repositories not scanned",
+		},
+		{
+			// Nothing declared this kind — a project-wide target, say — so there is no
+			// denominator to give and inventing one would be worse than the bare count.
+			name:     "no denominator to give",
+			us:       []engine.Unscanned{{Kind: ""}},
+			declared: nil,
+			want:     "1 target not scanned",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := unscannedDetail(c.us, c.declared); got != c.want {
+				t.Errorf("got  %q\nwant %q", got, c.want)
+			}
+		})
 	}
 }

@@ -576,7 +576,7 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 			} else {
 				detail += "  "
 			}
-			detail += col.Paint(cFail, unscannedDetail(c.Unscanned))
+			detail += col.Paint(cFail, unscannedDetail(c.Unscanned, c.Declared))
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 			fmt.Sprintf("%-*s", width, c.Name),
@@ -704,11 +704,8 @@ func sortedKeys(m map[string][]string) []string {
 
 // plural renders a count with its noun, pluralized the simple way. Only used for the SBOM
 // summary line, where "1 documents" would look like a bug in the tool.
-func plural(n int, noun string) string {
-	if n == 1 {
-		return "1 " + noun
-	}
-	return fmt.Sprintf("%d %ss", n, noun)
+func plural(n int, word string) string {
+	return fmt.Sprintf("%d %s", n, noun(n, word))
 }
 
 // writeMeasuredAgainst records what each scanner measured and against what, under the controls it
@@ -1150,12 +1147,21 @@ func renderActions(w io.Writer, col tui.Painter, actions []action) {
 }
 
 // noun agrees a bare noun with a count, for sentences that put the number elsewhere.
+//
+// Handles the one irregularity the vocabulary here actually contains: a word ending in a
+// consonant and "y" takes "ies". "repositorys" is the sort of thing a reader notices and a tool
+// does not, and it makes everything around it look less carefully made than it is.
 func noun(n int, word string) string {
 	if n == 1 {
 		return word
 	}
+	if len(word) > 1 && word[len(word)-1] == 'y' && !isVowel(word[len(word)-2]) {
+		return word[:len(word)-1] + "ies"
+	}
 	return word + "s"
 }
+
+func isVowel(b byte) bool { return strings.IndexByte("aeiou", b) >= 0 }
 
 // elide shortens the last line of a wrapped message, at a word boundary where there is one.
 //
@@ -1219,10 +1225,10 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, s summary) {
 
 // unscannedDetail says what a component has that nothing managed to examine.
 //
-// Counted by kind, because "3 images not scanned" is what a reader needs and three lines naming
-// each registry path is not — the control's error above already carries why, and this row is
-// answering what.
-func unscannedDetail(us []engine.Unscanned) string {
+// Counted by kind and against what the component declared, because three lines naming each
+// registry path is not what a reader needs here — the control's error above already carries why,
+// and this row answers what, and how much of it.
+func unscannedDetail(us []engine.Unscanned, declared map[string]int) string {
 	byKind := map[string]int{}
 	for _, u := range us {
 		kind := u.Kind
@@ -1238,6 +1244,13 @@ func unscannedDetail(us []engine.Unscanned) string {
 	sort.Strings(kinds)
 	parts := make([]string, 0, len(kinds))
 	for _, kind := range kinds {
+		// "3 of 3" and "3 of 30" are different situations — one is a component nothing looked
+		// at, the other a gap in one that was mostly covered — and the bare count reads as the
+		// first either way.
+		if total := declared[kind]; total > 0 {
+			parts = append(parts, fmt.Sprintf("%d/%d %s", byKind[kind], total, noun(total, kind)))
+			continue
+		}
 		parts = append(parts, plural(byKind[kind], kind))
 	}
 	return strings.Join(parts, ", ") + " not scanned"

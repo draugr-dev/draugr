@@ -162,6 +162,11 @@ type ComponentVerdict struct {
 	Priorities [4]int
 	// Findings is the total, suppressed ones excluded — the same rule the counts follow.
 	Findings int
+	// Declared counts what the descriptor gave this component, by target kind. It is the
+	// denominator: "3 images not scanned" does not say whether that is all of them or three of
+	// thirty, and those are different situations — one is a component nobody looked at, the
+	// other is a gap in one that was mostly covered.
+	Declared map[string]int
 	// Unscanned is what this component has that no scanner managed to look at.
 	//
 	// A component whose every image failed to pull has had nothing examined, and without this it
