@@ -614,6 +614,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		failed int
 		// unscanned records what each of those jobs was going to look at.
 		unscanned []Unscanned
+		// examined is every target some scanner did produce a report for. A target one scanner
+		// failed on and another read is not unexamined, and reporting it as such would be the
+		// mirror of the bug this exists to fix: a claim about coverage nothing established.
+		examined = map[string]bool{}
 		// steps is per control/scanner state, keyed by name and seeded from the plan so a
 		// display can show work that has not started as well as work that has finished.
 		steps    = planSteps(planned)
@@ -857,6 +861,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				return
 			}
 			res := out.(scanOutcome)
+			mu.Lock()
+			examined[targetKey(pj.Job.Target)] = true
+			mu.Unlock()
 			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
 			jobTook := time.Since(jobStart)
 			recordFindings(jobCtx, pj.Control, res.report)
@@ -900,7 +907,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 
 	stats.Duration = time.Since(runStart)
 	stats.ToolWaits = waits.Totals()
-	stats.Unscanned = unscanned
+	stats.Unscanned = trulyUnscanned(unscanned, examined)
 	res := Result{
 		Controls: make(map[string]plugin.ControlResult),
 		Stats:    stats,
@@ -1304,5 +1311,34 @@ func stepSnapshot(steps map[string]*ProgressStep) []ProgressStep {
 		out = append(out, *st)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name() < out[j].Name() })
+	return out
+}
+
+// targetKey identifies a target across the scanners that look at it.
+func targetKey(t plugin.Target) string {
+	if t == nil {
+		return ""
+	}
+	return string(t.Kind()) + "\x00" + t.Identity()
+}
+
+// trulyUnscanned drops failures for targets some other scanner did read, and collapses the rest
+// to one entry per target.
+//
+// Two scanners can serve one control and both plan a job for the same image. If one fails and the
+// other succeeds, the image was examined — reporting it as unscanned would be a claim about
+// coverage that nothing established, which is exactly the failure this data exists to prevent,
+// pointed the other way. And where both fail, the target went unexamined once, not twice.
+func trulyUnscanned(unscanned []Unscanned, examined map[string]bool) []Unscanned {
+	var out []Unscanned
+	seen := map[string]bool{}
+	for _, u := range unscanned {
+		key := u.Kind + "\x00" + u.Target
+		if examined[key] || seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, u)
+	}
 	return out
 }

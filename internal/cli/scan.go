@@ -697,6 +697,10 @@ func componentVerdicts(
 	// nothing looked at it, so a `pass` beside its name would be the report asserting something
 	// no scanner established. It is listed separately as `not scanned`.
 	out := make([]report.ComponentVerdict, 0, len(model.Components))
+	byName := make(map[string]saga.Component, len(model.Components))
+	for _, c := range model.Components {
+		byName[c.Name] = c
+	}
 	names := make([]string, 0, len(model.Components))
 	for _, c := range model.Components {
 		if scope.IncludesComponent(c.Name) {
@@ -724,6 +728,9 @@ func componentVerdicts(
 			if u.Component == name {
 				cv.Unscanned = append(cv.Unscanned, u)
 			}
+		}
+		if len(cv.Unscanned) > 0 {
+			cv.Declared = declaredTargets(byName[name])
 		}
 		out = append(out, cv)
 	}
@@ -950,4 +957,24 @@ func reportScope(scope engine.Scope) *report.Scope {
 		Controls:          scope.Controls,
 		SkippedComponents: scope.SkippedComponents,
 	}
+}
+
+// declaredTargets counts what a component's descriptor gave it, by target kind.
+//
+// The denominator for what went unscanned. Taken from the descriptor rather than from the jobs,
+// because a target no scanner was planned for produced no job at all — and it is still something
+// the component has that nothing looked at.
+func declaredTargets(c saga.Component) map[string]int {
+	counts := map[string]int{}
+	for kind, n := range map[string]int{
+		string(plugin.TargetImage):      len(c.Images),
+		string(plugin.TargetRepository): len(c.Repositories),
+		string(plugin.TargetHost):       len(c.Hosts),
+		string(plugin.TargetInfra):      len(c.Infrastructure),
+	} {
+		if n > 0 {
+			counts[kind] = n
+		}
+	}
+	return counts
 }
