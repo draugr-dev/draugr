@@ -12,14 +12,6 @@ and move it under a version on release.
 
 _Nothing yet._
 
-## [Unreleased]
-
-### Fixed
-
-- **What each control was measured against stays in the default view.** It says what a scan did
-  *not* cover — the operations a spec-driven scan was not allowed to send, the benchmark checks
-  that could not be decided — so a partial scan no longer reads as a complete one.
-
 ## [0.96.0] - 2026-08-16
 
 ### Added
