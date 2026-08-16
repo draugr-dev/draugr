@@ -74,6 +74,14 @@ type Data struct {
 	// they have not asked push the answer to the one they have off the screen. An auditor is a
 	// real reader, just not the default one, and asks for this.
 	Evidence bool
+	// Gate records the policy the verdict was produced under.
+	//
+	// A verdict is only as meaningful as the gate behind it, and a gate can be narrowed or turned
+	// off entirely from the command line. Without this the report shows a verdict and no way to
+	// tell what it was measured against — the same gap that suppression closes for findings,
+	// where the question is never "did the scanner run" but "who decided this was acceptable".
+	Gate GateSettings
+
 	// Compact strips what only a human reads — indentation and relayed rule prose — from the
 	// machine formats (json, sarif), for a consumer that acts on the report rather than reads
 	// it. The human formats ignore it: making those harder to read is the opposite of the point.
@@ -828,4 +836,44 @@ func actionableRank(f finding) int {
 	default:
 		return 1
 	}
+}
+
+// GateSettings is the policy a verdict was produced under, as the report states it.
+//
+// Held here rather than recomputed from the Saga: the effective gate is the descriptor, the
+// configuration and the flags resolved together, and a reporter deriving it a second time is how
+// the report and the verdict come to disagree about the run they describe.
+type GateSettings struct {
+	// Threshold is the severity band that fails a control by default.
+	Threshold sarif.Severity
+	// PerControl overrides Threshold for named controls.
+	PerControl map[string]sarif.Severity
+	// FailOnPriority additionally fails on a priority band, when set.
+	FailOnPriority string
+	// Disabled is --no-gate: the verdict is reported and the command still exits 0.
+	Disabled bool
+}
+
+// weakened reports whether the gate lets through something the default gate would have caught.
+//
+// Only a weakening is worth interrupting the default view for. A stricter gate can only fail more
+// than a reader expects, which is visible in the verdict itself; a looser one produces a pass that
+// looks like every other pass.
+func (g GateSettings) weakened() bool {
+	if g.Disabled {
+		return true
+	}
+	if g.Threshold != "" && g.Threshold.Rank() > sarif.SeverityHigh.Rank() {
+		return true
+	}
+	effective := g.Threshold
+	if effective == "" {
+		effective = sarif.SeverityHigh
+	}
+	for _, band := range g.PerControl {
+		if band != "" && band.Rank() > effective.Rank() {
+			return true
+		}
+	}
+	return false
 }

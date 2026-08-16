@@ -350,14 +350,22 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 	}
 	data := report.Data{
-		Release:              model.Release,
-		Run:                  run,
-		Verdict:              verdict,
-		MinPriority:          minPriority,
-		TopN:                 fixFirstLimit(opts.top),
-		GroupActions:         opts.group == groupAction, // "" is unset, and the default is a finding a row
-		UndeliveredReports:   undeliveredReports(model, opts),
-		Evidence:             opts.evidence,
+		Release:            model.Release,
+		Run:                run,
+		Verdict:            verdict,
+		MinPriority:        minPriority,
+		TopN:               fixFirstLimit(opts.top),
+		GroupActions:       opts.group == groupAction, // "" is unset, and the default is a finding a row
+		UndeliveredReports: undeliveredReports(model, opts),
+		Evidence:           opts.evidence,
+		// Built from the same policy the verdict came from, so the report cannot describe a gate
+		// the run did not use.
+		Gate: report.GateSettings{
+			Threshold:      policy.FailOn,
+			PerControl:     policy.PerControl,
+			FailOnPriority: policy.FailOnPriority,
+			Disabled:       opts.noGate,
+		},
 		Compact:              opts.compact,
 		Components:           components,
 		Scope:                reportScope(scope),
