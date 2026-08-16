@@ -13,6 +13,7 @@ frontmatter and is rendered by the docs site. This index and the `contributing/`
 - [Principles](concepts/principles.md) — what Draugr optimizes for: great UX, human-readable output, and a low learning curve.
 - [The Saga](concepts/saga.md) — the `draugr.saga.yaml` descriptor.
 - [Controls & scanners](concepts/controls-and-scanners.md) — controllers, scanners, SARIF, and caching.
+- [What to fix first](concepts/what-to-fix-first.md) — how findings become a list of actions, and how `operatedBy` and `builtBy` change what it recommends.
 - [Prioritization](concepts/prioritization.md) — exposure × criticality × severity → P1–P4.
 - [Surveyors](concepts/surveyors.md) — discovery that writes the Saga for you.
 - [Verdict & gating](concepts/verdict-and-gating.md) — the pipeline, the gate, and exit codes.
