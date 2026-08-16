@@ -355,6 +355,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		MinPriority:          minPriority,
 		TopN:                 fixFirstLimit(opts.top),
 		GroupActions:         opts.group == groupAction, // "" is unset, and the default is a finding a row
+		UndeliveredReports:   undeliveredReports(model, opts),
 		Evidence:             opts.evidence,
 		Compact:              opts.compact,
 		Components:           components,
@@ -982,4 +983,24 @@ func declaredTargets(c saga.Component) map[string]int {
 		}
 	}
 	return counts
+}
+
+// undeliveredReports names the formats a descriptor declared that this run cannot write.
+//
+// Declared reports are rendered for publishers to deliver. With no publisher and no -o there is
+// nowhere for them to go, and the run says nothing — which reads exactly like a run that wrote
+// them. Not an error, because a descriptor written for a pipeline with publishers is reasonable
+// to run locally without one.
+func undeliveredReports(model *saga.Model, opts scanOptions) []string {
+	if model == nil || len(model.Config.Reports) == 0 {
+		return nil
+	}
+	if len(model.Config.Publishers) > 0 || opts.outputDir != "" {
+		return nil
+	}
+	formats := make([]string, 0, len(model.Config.Reports))
+	for _, r := range model.Config.Reports {
+		formats = append(formats, r.Format)
+	}
+	return formats
 }

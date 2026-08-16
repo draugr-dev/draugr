@@ -215,6 +215,24 @@ and move it under a version on release.
   not a stale action.
 
 ### Fixed
+
+- **A descriptor that declares `config.reports` with nowhere to write them says so.** Declared
+  reports are rendered for publishers to deliver; with no publisher and no `-o` they were built
+  and discarded in silence, which reads exactly like a run that wrote them.
+
+  ```
+  config.reports declares html, markdown and this run had nowhere to write them — pass -o <dir>, or add a publisher.
+  ```
+
+  A warning rather than an error: a descriptor written for a pipeline that has publishers is
+  reasonable to run locally without one.
+
+- **CIS check titles drop the `(Automated)` and `(Manual)` suffix.** That is the benchmark's
+  vocabulary for whether a recommendation can be *assessed* programmatically. It says nothing
+  about the finding or its fix, a reader sees it beside something they have been told to act on
+  and reads it as a claim about the remediation, and it costs a dozen characters of a line that
+  is already truncated. Draugr already draws the distinction it encodes: a check the tool could
+  not settle comes back as a warning rather than a failure.
 - **Effects, the SBOM line and the cache caveat reappear in the default listing.** They were
   reachable only from the row-per-finding view, so the grouped default — what almost everyone
   sees — silently dropped them, including the record of what a scan did to somebody's systems.

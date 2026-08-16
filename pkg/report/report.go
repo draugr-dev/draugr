@@ -60,6 +60,13 @@ type Data struct {
 	// findings makes them do that grouping in their head. Off gives the finding-per-row listing,
 	// which is what somebody auditing a specific finding wants.
 	GroupActions bool
+	// UndeliveredReports names formats the descriptor declared that this run had nowhere to put.
+	//
+	// A descriptor can reasonably declare reports for a pipeline that has publishers, and be run
+	// locally by somebody who passes no -o. That is not an error, and it is not nothing either:
+	// two formats were named, both were skipped, and without this the run looks exactly like one
+	// that wrote them.
+	UndeliveredReports []string
 	// Evidence restores the blocks that make a run defensible — tool provenance, what each
 	// control measured against, declared effects, the scanned revision, job and cache counts.
 	//
