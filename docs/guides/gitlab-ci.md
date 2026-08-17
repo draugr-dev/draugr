@@ -53,7 +53,7 @@ draugr: gitlab-mr-comment publisher missing: $GITLAB_TOKEN (a project or group a
 post)
 ```
 
-Without the variable the job fails, because `--publish` was asked for and could not be honoured —
+Without the variable the job fails, because `--publish` was asked for and could not be honored —
 but it fails **with the verdict**, not instead of it:
 
 ```
@@ -120,7 +120,7 @@ handles both:
 - **Its own property namespace, behind a required flag.** The manifest a package came from is
   stated as `gitlab:dependency_scanning:input_file:path`, and GitLab reads it only if the document
   also declares `gitlab:meta:schema_version`. Without that flag every `gitlab:` property is ignored
-  — quietly, because packages still show names, versions and licences from plain CycloneDX and
+  — quietly, because packages still show names, versions and licenses from plain CycloneDX and
   GitLab infers the packager from a purl. What goes missing is *Location*, and with it GitLab's own
   dependency scanning against the SBOM.
 
@@ -140,7 +140,7 @@ config:
 
 The template renders `gitlab-cyclonedx` and collects `draugr-out/gl-sbom-*.cdx.json`, and that one
 artifact fills both *Secure → Dependency List* and the merge request's *License Compliance* tab —
-each package with its version, licence, packager and the file it was declared in.
+each package with its version, license, packager and the file it was declared in.
 
 Without `config.sbom` there is nothing to render: the format says so rather than writing an empty
 document, because an SBOM report with no SBOM behind it is a clean-looking answer to a question

@@ -167,7 +167,7 @@ func TestNucleiTemplatesOK(t *testing.T) {
 			wantOK:     false,
 			wantDetail: "/home/u/nuclei-templates",
 		},
-		{name: "unrecognised output", out: "something else entirely"},
+		{name: "unrecognized output", out: "something else entirely"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

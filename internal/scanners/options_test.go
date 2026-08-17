@@ -231,7 +231,7 @@ func TestGitleaksRunsNoHistoryPassByDefault(t *testing.T) {
 	}
 }
 
-// Both passes take the shared ruleset, or an organisation's own rules apply to the tree and not
+// Both passes take the shared ruleset, or an organization's own rules apply to the tree and not
 // to its history — which is where the older secrets are.
 func TestBothGitleaksPassesTakeTheSharedRuleset(t *testing.T) {
 	cfg := plugin.Config{"history": true, "config": "rules.toml"}

@@ -39,7 +39,7 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 	}
 	if validate {
 		// Load has no directory to resolve a relative path against, so a descriptor that needs
-		// fragments cannot be honoured from bytes alone. Saying so beats returning a model that
+		// fragments cannot be honored from bytes alone. Saying so beats returning a model that
 		// silently describes less than the file does.
 		if len(m.Fragments) > 0 {
 			return nil, fmt.Errorf("this descriptor names %d fragment(s), which are resolved "+

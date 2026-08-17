@@ -190,7 +190,7 @@ func quotedAll(names []string) []string {
 type choice struct {
 	// value is what gets written into the descriptor.
 	value string
-	// label is the value as the reader sees it, coloured by rank.
+	// label is the value as the reader sees it, colored by rank.
 	label string
 	// gloss says what the value means without assuming a stack.
 	gloss string
@@ -243,7 +243,7 @@ func ask(sc *bufio.Scanner, out io.Writer, question string, choices []choice, fa
 	col := tui.For(out)
 	_, _ = fmt.Fprintf(out, "  %s\n", question)
 	for i, c := range choices {
-		// Padded before painting: colour codes have no width on screen but plenty in a string,
+		// Padded before painting: color codes have no width on screen but plenty in a string,
 		// so %-14s over an already-painted label aligns the escapes rather than the words.
 		_, _ = fmt.Fprintf(out, "    %d) %s %s\n",
 			i+1,

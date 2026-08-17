@@ -38,7 +38,7 @@ config:
         enabled: true
         # byCve: false     # report the advisory id Grype matched on (GHSA-…) rather than the
         #                  # CVE. On by default, because the CVE is what makes a finding
-        #                  # recognisable as the same one another scanner reported.
+        #                  # recognizable as the same one another scanner reported.
 
   exclude:
     # The trailing `*` is what makes this cover both scanners rather than only Trivy's.

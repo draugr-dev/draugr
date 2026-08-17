@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// Tree is a materialised copy of a repository, and the revision it actually holds.
+// Tree is a materialized copy of a repository, and the revision it actually holds.
 //
 // The resolved revision matters because a descriptor usually does not name one: `revision` is
 // empty far more often than not, meaning "the default branch", which is a moving answer. A report
@@ -20,7 +20,7 @@ import (
 type Tree struct {
 	// Dir is the checkout on disk.
 	Dir string
-	// Revision is the SHA that was materialised, as `git rev-parse HEAD` reports it. Empty only
+	// Revision is the SHA that was materialized, as `git rev-parse HEAD` reports it. Empty only
 	// when git could not be asked, which is not worth failing a scan over.
 	Revision string
 	// Dirty counts uncommitted files in the source. For a clone they are what the tree is
@@ -32,7 +32,7 @@ type Tree struct {
 	WorkingTree bool
 }
 
-// Checkout clones url into a fresh temporary directory, materialising only what scope allows.
+// Checkout clones url into a fresh temporary directory, materializing only what scope allows.
 // With an empty revision it does a shallow clone of the default branch; otherwise it clones and
 // checks out revision. The returned cleanup removes the directory (call it even on error paths
 // that returned a dir).
@@ -43,7 +43,7 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 	}
 	cleanup = func() { _ = os.RemoveAll(dir) }
 
-	// Both optimisations are off when history is wanted. A shallow clone has no history, and a
+	// Both optimizations are off when history is wanted. A shallow clone has no history, and a
 	// partial one has history whose blobs were never fetched — which walks commits it cannot read
 	// and finds nothing in them.
 	sparse := len(coneDirs(scope.Paths)) > 0 && !scope.History
@@ -85,7 +85,7 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 		}
 	}
 	if sparse {
-		// Cone mode is what keeps the root files: it materialises every selected directory, the
+		// Cone mode is what keeps the root files: it materializes every selected directory, the
 		// directories above them, and the repository root — which is where the manifests and the
 		// scanners' own configuration live.
 		args := append([]string{"-C", dir, "sparse-checkout", "set", "--cone"}, coneDirs(scope.Paths)...)

@@ -41,7 +41,7 @@ controllers:
     gosec:
       enabled: true
       exclude: [G104]        # rules that do not apply to this codebase
-      tags: [integration]    # code behind a build tag gosec does not build, it does not analyse
+      tags: [integration]    # code behind a build tag gosec does not build, it does not analyze
 ```
 
 | Option | What it does |

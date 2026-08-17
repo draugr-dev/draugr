@@ -36,7 +36,7 @@ type doctorOptions struct {
 
 // doctorRun is what runDoctor needs from the command's flags.
 //
-// A struct rather than two more parameters: they are both booleans, and adjacent unlabelled
+// A struct rather than two more parameters: they are both booleans, and adjacent unlabeled
 // booleans at a call site are a thing nobody can read and everybody eventually transposes.
 type doctorRun struct {
 	json            bool
@@ -124,7 +124,7 @@ func runDoctor(
 		model = loaded
 		required = requiredTools(reg, model)
 	} else {
-		// No descriptor, so nothing has been selected and nothing is required. The catalogue is
+		// No descriptor, so nothing has been selected and nothing is required. The catalog is
 		// an inventory here — "what could Draugr use, and what have you got" — and treating
 		// every entry as required told a clean machine it was missing seven tools it may never
 		// need. kube-bench is the clearest case: the default infrastructure scanner is native

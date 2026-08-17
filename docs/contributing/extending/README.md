@@ -41,7 +41,7 @@ Concretely, in the places it comes up:
 
 ### Execute third-party tools; do not link, bundle, or host them
 
-Running a tool as a subprocess keeps its licence its own. Linking or bundling can make Draugr a
+Running a tool as a subprocess keeps its license its own. Linking or bundling can make Draugr a
 derivative work. Distribution is copyleft's other trigger, so Draugr names an upstream URL rather
 than serving anyone else's bytes — including from a cache or a mirror.
 
@@ -49,7 +49,7 @@ than serving anyone else's bytes — including from a cache or a mirror.
 anything not reviewed, name what is needed and let the operator install it; the report then says
 `external`, which is true. See [tool.md](tool.md).
 
-### Read the licence, the terms and the privacy notice — all three, from the source
+### Read the license, the terms and the privacy notice — all three, from the source
 
 Before an integration merges, not after. Not the API overview, not a summary, not what the issue
 that scoped the work assumed. Free tiers carry conditions that are easy to miss when a key is
@@ -65,7 +65,7 @@ Write what you established into the colocated doc. Two parts of this are enforce
 **If you cannot identify the document that governs the tier being used, the integration does not
 ship.** A vendor owned by a larger company will point at the parent's terms, and those may govern
 a contracted enterprise service while saying nothing about the free tier a connector actually
-uses. Infer nothing from how the API behaved once: behaviour changes without notice, the contract
+uses. Infer nothing from how the API behaved once: behavior changes without notice, the contract
 is the durable statement, and the useful question is always *which* contract.
 
 ### A colocated doc, and a row in the catalog
@@ -114,7 +114,7 @@ A user-facing change is not finished until, **in the same pull request**:
 3. **`CHANGELOG.md`** under `## [Unreleased]`, written **user-first**: what you can now do, not
    which functions moved.
 4. **Tests** at ≥90% on changed packages. Pure glue, type-only packages and unreachable OS-error
-   branches are exempt — coverage theatre helps nobody, and a package left below the bar is worth
+   branches are exempt — coverage theater helps nobody, and a package left below the bar is worth
    saying out loud in the pull request rather than padding.
 
 And before you open it:

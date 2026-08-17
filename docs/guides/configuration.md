@@ -1,11 +1,11 @@
 ---
-title: Configure Draugr for a machine or an organisation
+title: Configure Draugr for a machine or an organization
 description: Where draugr.config.yaml lives, what belongs in it rather than in a Saga, and how a platform team sets defaults for every repository.
 section: Guides
 order: 95
 ---
 
-# Configure Draugr for a machine or an organisation
+# Configure Draugr for a machine or an organization
 
 `draugr scan` has a lot of flags. Most of them answer the same question every time you run it on a
 given machine — where the cache lives, which build of a scanner to use, how you like the report —
@@ -74,7 +74,7 @@ pipeline built on those keeps working.
 
 | Source | Use |
 |---|---|
-| `$DRAUGR_CONFIG` | An explicit path. The organisation-wide lever: set it in a runner image and every pipeline picks up the same defaults with no per-repository change |
+| `$DRAUGR_CONFIG` | An explicit path. The organization-wide lever: set it in a runner image and every pipeline picks up the same defaults with no per-repository change |
 | `draugr.config.yaml` beside the descriptor | This project, on this machine |
 
 Later sources win per key, and only per key: a project that sets one thing inherits the rest.
@@ -107,7 +107,7 @@ tools:
   trivy: { version: "0.69.3" }
 ```
 
-Provisioning rather than behaviour, and deliberately not readable from a Saga — a descriptor that
+Provisioning rather than behavior, and deliberately not readable from a Saga — a descriptor that
 pinned a scanner version would be asserting something about every machine that ever scans it.
 
 ### `cache`
@@ -148,9 +148,9 @@ typed is the zero value**. `--top 0` means show everything, and a configured cap
 override an explicit instruction.
 
 That is what makes a configured default safe to set: it is a default, not a policy. Whether the
-*gate* should work the same way — whether an organisation can set a floor a descriptor cannot
+*gate* should work the same way — whether an organization can set a floor a descriptor cannot
 lower — is [an open question](https://github.com/draugr-dev/draugr/issues/809) rather than settled
-behaviour, and the gate is deliberately not configurable here yet.
+behavior, and the gate is deliberately not configurable here yet.
 
 ## A worked example: one runner, many repositories
 

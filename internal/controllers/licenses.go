@@ -18,12 +18,12 @@ const (
 	warnKey = "warn"
 )
 
-// Licenses reports dependency licences that carry an obligation.
+// Licenses reports dependency licenses that carry an obligation.
 //
-// A separate control rather than part of `sca`, deliberately. Licence risk is not a
+// A separate control rather than part of `sca`, deliberately. License risk is not a
 // vulnerability: the exposure is legal and commercial, the policy is owned by different people,
 // and it changes on a different cadence. Keeping it separate is also what lets
-// `config.gate.controls` hold it to its own threshold — "fail on a forbidden licence but only
+// `config.gate.controls` hold it to its own threshold — "fail on a forbidden license but only
 // warn on a medium CVE" is a reasonable position that one shared threshold cannot express.
 type Licenses struct{}
 
@@ -35,12 +35,12 @@ func (Licenses) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            licensesControl,
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Report dependency licences that carry an obligation (copyleft, forbidden, unidentified).",
+		Summary:         "Report dependency licenses that carry an obligation (copyleft, forbidden, unidentified).",
 		DefaultScanners: []string{trivyLicenseScanner},
 	}
 }
 
-// Plan produces one scan job per repository, carrying the resolved licence policy.
+// Plan produces one scan job per repository, carrying the resolved license policy.
 func (Licenses) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {
 		return nil, nil
@@ -84,16 +84,16 @@ func (Licenses) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) 
 // licensePolicy resolves deny/warn for a component: the **union** of the project's lists and the
 // component's.
 //
-// Union, not override, and this is the one place the licences control deliberately departs from
+// Union, not override, and this is the one place the licenses control deliberately departs from
 // how every other controller merges settings. The general rule is deep-merge with the component
 // winning — which replaces a list outright. Applied here, a component that added one denied
-// licence would silently discard the organisation's:
+// license would silently discard the organization's:
 //
 //	config.controllers.licenses.deny:  [GPL-3.0-only, AGPL-3.0-only]   # the org's policy
 //	components[0].controllers.licenses.deny: [Sleepycat]               # would drop both
 //
-// A component quietly opting out of an organisation's licence policy is precisely the failure a
-// licence gate exists to prevent, and it would be invisible in review. So a component can only
+// A component quietly opting out of an organization's license policy is precisely the failure a
+// license gate exists to prevent, and it would be invisible in review. So a component can only
 // **tighten**. Loosening has exactly one route — `config.exclude`, which requires a reason and
 // leaves the finding in the report, suppressed and auditable, rather than deleted.
 func licensePolicy(model saga.Model, comp *saga.Component) plugin.Config {

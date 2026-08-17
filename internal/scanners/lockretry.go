@@ -43,7 +43,7 @@ var lockBackoffBase = 2 * time.Second
 //
 // The backoff is jittered because the contending processes are Draugr's own, started together and
 // therefore failing together: a fixed delay would have them all wake at the same moment and
-// contend again, turning one collision into a synchronised series of them.
+// contend again, turning one collision into a synchronized series of them.
 func retryLockedCache(ctx context.Context, tool string, fn func() ([]byte, error)) ([]byte, error) {
 	wait := lockBackoffBase
 	for attempt := 0; ; attempt++ {
@@ -66,7 +66,7 @@ func retryLockedCache(ctx context.Context, tool string, fn func() ([]byte, error
 		plugin.RecordWait(ctx, tool, delay)
 		select {
 		case <-ctx.Done():
-			// The caller's error, not the tool's: a cancelled run did not fail to scan, it was
+			// The caller's error, not the tool's: a canceled run did not fail to scan, it was
 			// told to stop, and reporting the lock would send the reader after the wrong thing.
 			return nil, ctx.Err()
 		case <-time.After(delay):

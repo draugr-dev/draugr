@@ -119,7 +119,7 @@ func TestKubeBenchJobSpec(t *testing.T) {
 	}
 }
 
-func TestKubeBenchJobHonoursConfig(t *testing.T) {
+func TestKubeBenchJobHonorsConfig(t *testing.T) {
 	s := NewKubeBenchJob().(kubeBenchJobScanner)
 	s.now = fixedNow
 	job := s.buildJob(plugin.Config{
@@ -292,7 +292,7 @@ func TestKubeBenchJobReportsClientFailure(t *testing.T) {
 }
 
 // The Job lands where the descriptor says, not always in default.
-func TestKubeBenchJobHonoursNamespace(t *testing.T) {
+func TestKubeBenchJobHonorsNamespace(t *testing.T) {
 	c := completedCluster()
 	s := jobScanner(c)
 	var sawNamespace string

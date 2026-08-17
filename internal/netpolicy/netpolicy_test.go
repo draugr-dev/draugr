@@ -15,7 +15,7 @@ func TestOfflineFromEnvironment(t *testing.T) {
 		"no":    false,
 		"1":     true,
 		"true":  true,
-		// Not a recognised boolean. Someone who wrote this meant it, and the safe reading of
+		// Not a recognized boolean. Someone who wrote this meant it, and the safe reading of
 		// "I could not understand your request not to use the network" is not to use it.
 		"yes":    true,
 		"please": true,

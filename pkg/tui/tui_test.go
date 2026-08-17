@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Colour is for people at terminals. Anything else — a pipe, a file, a CI log — must receive
+// Color is for people at terminals. Anything else — a pipe, a file, a CI log — must receive
 // plain text, or the escape codes end up in the artifact.
 func TestColorOnlyForTerminals(t *testing.T) {
 	if ColorEnabled(&bytes.Buffer{}) {
@@ -32,17 +32,17 @@ func TestPainterPlainByDefault(t *testing.T) {
 	// rather than escape codes.
 	var p Painter
 	if got := p.Paint(StyleCritical, "x"); got != "x" {
-		t.Errorf("zero Painter should not colour: %q", got)
+		t.Errorf("zero Painter should not color: %q", got)
 	}
 	if p.Enabled() {
-		t.Error("zero Painter should report colour disabled")
+		t.Error("zero Painter should report color disabled")
 	}
 	if got := Plain().Paint(StyleFail, "x"); got != "x" {
-		t.Errorf("Plain() should not colour: %q", got)
+		t.Errorf("Plain() should not color: %q", got)
 	}
 }
 
-func TestPainterColours(t *testing.T) {
+func TestPainterColors(t *testing.T) {
 	p := Painter{color: true}
 	got := p.Paint(StyleCritical, "boom")
 	if !strings.HasPrefix(got, "\x1b[1;31m") || !strings.HasSuffix(got, "\x1b[0m") {
@@ -62,7 +62,7 @@ func TestLink(t *testing.T) {
 		t.Errorf("expected an OSC 8 link, got %q", got)
 	}
 	if off := Plain().Link("https://example.test/x", "CVE-1"); off != "CVE-1" {
-		t.Errorf("without colour the text must stand alone: %q", off)
+		t.Errorf("without color the text must stand alone: %q", off)
 	}
 	if got := on.Link("", "CVE-1"); got != "CVE-1" {
 		t.Errorf("no url means no link: %q", got)
@@ -73,7 +73,7 @@ func TestLink(t *testing.T) {
 	}
 }
 
-// Padding is measured on the unstyled text; colouring first would inflate the length and break
+// Padding is measured on the unstyled text; coloring first would inflate the length and break
 // every column in the table.
 func TestPad(t *testing.T) {
 	if got := Pad("ab", 5); got != "ab   " {
@@ -93,7 +93,7 @@ func TestIsTerminal(t *testing.T) {
 	}
 }
 
-// For decides from the destination: a buffer is not a terminal, so nothing is coloured.
+// For decides from the destination: a buffer is not a terminal, so nothing is colored.
 func TestForPicksFromTheWriter(t *testing.T) {
 	if For(&bytes.Buffer{}).Enabled() {
 		t.Error("a buffer is not a terminal")

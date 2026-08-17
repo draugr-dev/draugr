@@ -257,7 +257,7 @@ components:
     repositories: [{url: "https://example.com/x.git"}]
 `
 
-// The point of the flag: install what this project runs, not the catalogue. On a security tool
+// The point of the flag: install what this project runs, not the catalog. On a security tool
 // every binary put on PATH is one more thing to trust and patch, so the smaller set is the
 // defensible one.
 func TestInstallNamesFromSaga(t *testing.T) {
@@ -281,7 +281,7 @@ func TestInstallNamesFromSaga(t *testing.T) {
 	}
 }
 
-// Without the flag nothing changes — a pipeline that provisions the catalogue keeps doing so.
+// Without the flag nothing changes — a pipeline that provisions the catalog keeps doing so.
 func TestInstallNamesWithoutSagaIsUnchanged(t *testing.T) {
 	t.Parallel()
 
@@ -291,7 +291,7 @@ func TestInstallNamesWithoutSagaIsUnchanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(got) != 0 {
-		t.Errorf("names = %v, want none — an empty list means the whole catalogue downstream", got)
+		t.Errorf("names = %v, want none — an empty list means the whole catalog downstream", got)
 	}
 
 	named, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{})
@@ -326,7 +326,7 @@ func TestInstallNamesReportsABadSaga(t *testing.T) {
 	}
 }
 
-// The note is the compromise that lets the default stay as it was: behaviour unchanged, the
+// The note is the compromise that lets the default stay as it was: behavior unchanged, the
 // better option surfaced where it is relevant. Its number has to match what --saga would
 // actually install, or it promises a saving the flag does not deliver.
 func TestNoteDescriptorInWorkingDir(t *testing.T) {
@@ -344,7 +344,7 @@ func TestNoteDescriptorInWorkingDir(t *testing.T) {
 	}
 	out.Reset()
 	noteDescriptorInWorkingDir(&out)
-	// Two of the catalogue, not three: git is needed but cannot be provisioned, and counting it
+	// Two of the catalog, not three: git is needed but cannot be provisioned, and counting it
 	// would advertise a saving --saga does not make.
 	want := fmt.Sprintf("would install 2 of these %d tools", len(tools.Installable()))
 	if !strings.Contains(out.String(), want) {

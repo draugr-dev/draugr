@@ -54,7 +54,7 @@ accepts content. A test asserts it has not grown another.
 Measured before relying on it: a domain VirusTotal has never seen returns 404, and **still 404
 seventy seconds later** — the lookup creates no record.
 
-**Honest limit.** That is observed behaviour, not a written guarantee. VirusTotal's documentation
+**Honest limit.** That is observed behavior, not a written guarantee. VirusTotal's documentation
 does not distinguish a lookup from a submission anywhere, so what protects you here is how the
 API behaves rather than something they have committed to. If that distinction matters to you more
 than the signal is worth, use `urlhaus` alone — which is why this scanner is opt-in.
@@ -89,9 +89,9 @@ config:
 ```
 
 Only to what your key actually permits. Their stated penalty for terms violations is a permanent
-ban of the individual or organisation.
+ban of the individual or organization.
 
-## Licence and terms of use
+## License and terms of use
 
 Free for **non-commercial** use. VirusTotal's API overview states "The API must not be used in
 commercial products or services"; commercial use needs a paid agreement with them.

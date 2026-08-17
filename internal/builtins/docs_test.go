@@ -50,8 +50,8 @@ func assertDocumented(t *testing.T, catalog, kind, dir, name string) {
 
 	if _, err := os.Stat(filepath.Join(repoRoot, rel)); err != nil {
 		t.Errorf("%s %q has no colocated doc at %s\n"+
-			"  Every %s ships one: what it does, the tool behind it, its licence and terms of\n"+
-			"  use, and integration notes. Copy the shape of an existing neighbour in %s/.",
+			"  Every %s ships one: what it does, the tool behind it, its license and terms of\n"+
+			"  use, and integration notes. Copy the shape of an existing neighbor in %s/.",
 			kind, name, rel, kind, dir)
 		return // no point reporting a missing link to a file that doesn't exist
 	}
@@ -142,7 +142,7 @@ func catalogRow(doc, control string) (string, bool) {
 	return "", false
 }
 
-// termsSection matches however a doc states the licence and terms of the thing it runs. The
+// termsSection matches however a doc states the license and terms of the thing it runs. The
 // house style is a `- **License / terms:**` bullet; a heading is equally fine.
 var termsSection = regexp.MustCompile(`(?i)licen[cs]e|terms of use`)
 
@@ -174,7 +174,7 @@ func assertStatesTerms(t *testing.T, kind, dir, name string) {
 		return // the colocated-docs test already reports a missing file, and better
 	}
 	if !termsSection.Match(body) {
-		t.Errorf("%s %q does not state the licence or terms of what it runs (%s)", kind, name, path)
+		t.Errorf("%s %q does not state the license or terms of what it runs (%s)", kind, name, path)
 		t.Log("  Every integration says what it is allowed to do with the tool or data behind it.\n" +
 			"  Native scanners say so too — \"native Draugr code (Apache-2.0)\" is an answer.")
 	}

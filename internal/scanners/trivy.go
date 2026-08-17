@@ -26,7 +26,7 @@ const trivyConfigSchema = `{
     "pkgTypes": {
       "type": "array",
       "items": { "type": "string", "enum": ["os", "library"] },
-      "description": "Which package types to analyse. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility — a base image maintained by a platform team — so the report covers what this component controls."
+      "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility — a base image maintained by a platform team — so the report covers what this component controls."
     },
     "dbRepository": {
       "type": "array",

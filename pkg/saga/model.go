@@ -71,8 +71,8 @@ type GateConfig struct {
 	// Controls sets a per-control severity threshold, overriding --fail-on for that control
 	// only. Values are severity bands: critical, high, medium, low.
 	//
-	// This exists because one threshold cannot serve every control. Licence policy is owned by
-	// legal and vulnerability policy by security; "fail the build on a forbidden licence but
+	// This exists because one threshold cannot serve every control. License policy is owned by
+	// legal and vulnerability policy by security; "fail the build on a forbidden license but
 	// only warn on a medium CVE" is a reasonable position that a single global threshold makes
 	// unsayable.
 	Controls map[string]string `yaml:"controls,omitempty"`
@@ -113,7 +113,7 @@ type ExcludeRule struct {
 	// Rules matches the finding's rule id. `*` is a wildcard for any run of characters,
 	// including separators — a rule id is an opaque string rather than a path, and the ids that
 	// most need matching are compound (`license/GPL-3.0-only/github.com/somelib/thing`), so a
-	// wildcard that stopped at `/` could not express "this licence, any package". A pattern
+	// wildcard that stopped at `/` could not express "this license, any package". A pattern
 	// with no `*` matches exactly. There is no escape for a literal `*`; no scanner emits one.
 	Rules []string `yaml:"rules,omitempty"`
 	// Reason is why this exclusion exists. Required.
@@ -139,7 +139,7 @@ type ExcludeRule struct {
 	VEX *VEXDecision `yaml:"vex,omitempty"`
 	// Source is the file this rule was read from, set by the loader rather than by the
 	// descriptor. Splitting exclusions across files is only safe if the report can still say
-	// which file authorised each one, so the provenance travels with the rule.
+	// which file authorized each one, so the provenance travels with the rule.
 	Source string `yaml:"-"`
 }
 
@@ -284,7 +284,7 @@ type SBOMConfig struct {
 	// Format is the document format. Empty means SBOMCycloneDXJSON.
 	Format SBOMFormat `yaml:"format,omitempty"`
 	// Scope is what each document covers: one target, the whole project, or both. Empty means
-	// SBOMScopeComponent, which is the behaviour a descriptor written before this field had.
+	// SBOMScopeComponent, which is the behavior a descriptor written before this field had.
 	Scope SBOMScope `yaml:"scope,omitempty"`
 }
 
@@ -340,7 +340,7 @@ const (
 	SBOMCycloneDXJSON SBOMFormat = "cyclonedx-json"
 	// SBOMCycloneDXXML is CycloneDX in XML, which some enterprise tooling still expects.
 	SBOMCycloneDXXML SBOMFormat = "cyclonedx-xml"
-	// SBOMSPDXJSON is SPDX in JSON, ISO/IEC 5962, and what a procurement or licence-compliance
+	// SBOMSPDXJSON is SPDX in JSON, ISO/IEC 5962, and what a procurement or license-compliance
 	// process is most likely to ask for by name.
 	SBOMSPDXJSON SBOMFormat = "spdx-json"
 	// SBOMSPDXTagValue is SPDX in its original tag-value encoding, still required by some
@@ -696,7 +696,7 @@ type Fragment struct {
 	// ExposureReasons explains, per component name, what topology a proposed `exposure` was read
 	// from — "an Ingress routes into it", and so on.
 	//
-	// Never serialised: it is evidence about a proposal rather than part of the descriptor, and a
+	// Never serialized: it is evidence about a proposal rather than part of the descriptor, and a
 	// fragment somebody writes by hand has no use for it. It exists so a survey can put the
 	// reasoning beside the value it wrote, where the value gets reviewed.
 	ExposureReasons map[string]string `yaml:"-" json:"-"`

@@ -36,7 +36,7 @@ engine resolves whatever is installed on the machine running the scan, which —
 checkout — reports on the CI runner instead of the component. The agent is configuration-driven
 and resolves what the project declares.
 
-## Tool, licence and terms of use
+## Tool, license and terms of use
 
 The **Mend CLI** is proprietary software distributed by Mend. Draugr **executes** it and never
 downloads, bundles or hosts it: install it yourself from Mend's documented location, and the

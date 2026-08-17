@@ -52,7 +52,7 @@ sections it accepts are Added, Changed, Deprecated, Removed, Fixed and Security;
 fine and lands nowhere the release notes look.
 
 **What `make changelog` catches** — it runs in `make gate` and in CI, so a heading nobody
-recognises never reaches `main`. Every one of these produces a file that looks right:
+recognizes never reaches `main`. Every one of these produces a file that looks right:
 
 - **Two `### Fixed` blocks under one version.** The published notes contain whichever the
   extractor reaches first, and there is no way to tell from the release page that half is missing.
@@ -133,10 +133,10 @@ make changelog-show      # exactly what a tag would publish
 It is not a gap and it is not going to be fixed by adding a tool.
 
 Static analysis runs here twice — Semgrep and gosec through Draugr's own `sast` control, and gosec
-again inside `golangci-lint`. Scorecard credits a fixed list of analysers it recognises, and ours
+again inside `golangci-lint`. Scorecard credits a fixed list of analyzers it recognizes, and ours
 are not on it.
 
-Adding CodeQL would move the number in an afternoon, and a third analyser on a repository already
+Adding CodeQL would move the number in an afternoon, and a third analyzer on a repository already
 running two is a metric improved without the property behind it improving — the same thing as a
 test that executes code without asserting anything. The score stays wrong on purpose.
 

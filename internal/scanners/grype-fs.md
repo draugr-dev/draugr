@@ -4,11 +4,11 @@
 - **Tool:** [Anchore Grype](https://github.com/anchore/grype) — `grype dir:<checkout> -q -o sarif`
 - **Status:** ✅ implemented, **opt-in** (Trivy runs by default)
 - **Targets:** source repositories
-- **License / terms:** see [licence, terms and what is sent](#licence-terms-and-what-is-sent)
+- **License / terms:** see [license, terms and what is sent](#license-terms-and-what-is-sent)
 
 ## What it does
 
-Checks out a component's repository, catalogues its dependencies with Syft, and matches them
+Checks out a component's repository, catalogs its dependencies with Syft, and matches them
 against Grype's vulnerability database — dependency vulnerabilities for the `sca` control.
 
 It is a second scanner for a control Trivy already serves, and Trivy stays the default. Enable it
@@ -61,16 +61,16 @@ separately — findings from two repositories that share a path stay two finding
 ## The database
 
 Shared with [`grype`](grype.md), including the five-day staleness refusal, the once-per-run
-download, and the offline behaviour. See that document's [database section](grype.md#the-database).
+download, and the offline behavior. See that document's [database section](grype.md#the-database).
 
-## Licence, terms and what is sent
+## License, terms and what is sent
 
-**Tool licence: Apache-2.0.** Draugr executes Grype as a subprocess and neither links nor bundles
-it, so the licence stays Anchore's. Releases are pinned by SHA-256 in `draugr tools install`, from
+**Tool license: Apache-2.0.** Draugr executes Grype as a subprocess and neither links nor bundles
+it, so the license stays Anchore's. Releases are pinned by SHA-256 in `draugr tools install`, from
 a `checksums.txt` verified out of band with `cosign verify-blob` against the `anchore/grype` release
 workflow identity.
 
-**The database is a separate artifact and is not covered by that licence.** Anchore publishes it at
+**The database is a separate artifact and is not covered by that license.** Anchore publishes it at
 `grype.anchore.io`, without authentication and at no cost. Anchore's published legal documents
 govern their website and their commercial platform; none purport to govern the open-source tools or
 this database, and there is no separate agreement gating it. What applies is Apache-2.0 over the

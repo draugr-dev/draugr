@@ -19,7 +19,7 @@ const licenseJSON = `{"Results":[{"Target":"go.mod","Class":"license","Licenses"
 ]}]}`
 
 func TestTrivyLicenseArgs(t *testing.T) {
-	// JSON, not SARIF: Trivy's SARIF output contains no licence findings at all.
+	// JSON, not SARIF: Trivy's SARIF output contains no license findings at all.
 	want := "trivy fs --quiet --scanners license --format json /src"
 	if got := strings.Join(trivyLicenseArgs("/src", nil), " "); got != want {
 		t.Errorf("argv = %q, want %q", got, want)
@@ -53,13 +53,13 @@ func TestParseTrivyLicensesReportsOnlyObligations(t *testing.T) {
 	// above under dozens that say nothing — and the SBOM already carries the full inventory.
 	for id := range got {
 		if strings.Contains(id, "Apache-2.0") {
-			t.Errorf("a permissive licence should not be a finding: %s", id)
+			t.Errorf("a permissive license should not be a finding: %s", id)
 		}
 	}
 }
 
 func TestParseTrivyLicensesPolicyBeatsCategory(t *testing.T) {
-	// Whether a licence is acceptable depends on what you do with your software, which Trivy
+	// Whether a license is acceptable depends on what you do with your software, which Trivy
 	// cannot know and the team always does.
 	cfg := plugin.Config{denyKey: []string{"Apache-2.0"}, warnKey: []string{"MPL-2.0"}}
 	rep, err := parseTrivyLicenses([]byte(licenseJSON), t.TempDir(), cfg)
@@ -74,20 +74,20 @@ func TestParseTrivyLicensesPolicyBeatsCategory(t *testing.T) {
 	}
 	// Permissive by category, denied by policy.
 	if got := lvl["license/Apache-2.0/github.com/spf13/cobra"]; got != sarif.LevelError {
-		t.Errorf("denied licence = %q, want error", got)
+		t.Errorf("denied license = %q, want error", got)
 	}
-	if !strings.Contains(msg["license/Apache-2.0/github.com/spf13/cobra"], "licence policy") {
+	if !strings.Contains(msg["license/Apache-2.0/github.com/spf13/cobra"], "license policy") {
 		t.Errorf("the message should say the policy decided it: %q", msg["license/Apache-2.0/github.com/spf13/cobra"])
 	}
 	// reciprocal would be a note; policy raises it to a warning.
 	if got := lvl["license/MPL-2.0/github.com/mid/lib"]; got != sarif.LevelWarning {
-		t.Errorf("warned licence = %q, want warning", got)
+		t.Errorf("warned license = %q, want warning", got)
 	}
 }
 
 func TestParseTrivyLicensesResolvesTheDependencyLine(t *testing.T) {
-	// Trivy gives licences no line at all, unlike its vulnerability findings. Without this
-	// every licence lands at the top of go.mod in a pile — the same failure as an image finding
+	// Trivy gives licenses no line at all, unlike its vulnerability findings. Without this
+	// every license lands at the top of go.mod in a pile — the same failure as an image finding
 	// reported at "library/python:1".
 	dir := t.TempDir()
 	manifest := "module example\n\nrequire (\n\tgithub.com/spf13/cobra v1.0.0\n\tgithub.com/copyleft/lib v2.0.0\n)\n"

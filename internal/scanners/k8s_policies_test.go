@@ -280,10 +280,10 @@ func scanPolicies(t *testing.T, client kubernetes.Interface) (sarif.Report, erro
 	return s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes", Ref: "test"}, nil)
 }
 
-// The catalogue is the coverage guarantee, so it has to be internally sound: no duplicate ids,
+// The catalog is the coverage guarantee, so it has to be internally sound: no duplicate ids,
 // nothing malformed, and a remediation on every entry — a finding with no remediation is a
 // complaint.
-func TestCISCatalogueIsWellFormed(t *testing.T) {
+func TestCISCatalogIsWellFormed(t *testing.T) {
 	t.Parallel()
 
 	idRE := regexp.MustCompile(`^5\.\d+\.\d+$`)
@@ -308,9 +308,9 @@ func TestCISCatalogueIsWellFormed(t *testing.T) {
 	}
 }
 
-// Every check the evaluator decides must exist in the catalogue, or its verdict is computed and
-// then thrown away — the report only walks the catalogue.
-func TestEveryDecidedCheckIsInTheCatalogue(t *testing.T) {
+// Every check the evaluator decides must exist in the catalog, or its verdict is computed and
+// then thrown away — the report only walks the catalog.
+func TestEveryDecidedCheckIsInTheCatalog(t *testing.T) {
 	t.Parallel()
 
 	decided, err := evaluatePolicies(context.Background(), fake.NewSimpleClientset(), nil)
@@ -322,7 +322,7 @@ func TestEveryDecidedCheckIsInTheCatalogue(t *testing.T) {
 	}
 	for id := range decided {
 		if _, ok := cisPolicyByID[id]; !ok {
-			t.Errorf("check %q is evaluated but missing from the catalogue, so its verdict is discarded", id)
+			t.Errorf("check %q is evaluated but missing from the catalog, so its verdict is discarded", id)
 		}
 	}
 }
@@ -768,7 +768,7 @@ func TestPoliciesReportDeclaresWhatItSettled(t *testing.T) {
 		t.Fatalf("declared %d settled checks, want 2: %+v", len(rep.Decided), rep.Decided)
 	}
 	for _, tx := range rep.Decided {
-		if tx.Taxonomy != cisKubernetesTaxonomy || tx.Version != cisCatalogueVersion {
+		if tx.Taxonomy != cisKubernetesTaxonomy || tx.Version != cisCatalogVersion {
 			t.Errorf("a taxon without its scheme and revision cannot correlate: %+v", tx)
 		}
 	}

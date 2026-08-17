@@ -303,7 +303,7 @@ func TestUpdateFeeds(t *testing.T) {
 	}
 
 	// A second run leaves a current copy alone. Refetching 10 MiB because someone ran the
-	// command twice is the behaviour that makes people stop running it.
+	// command twice is the behavior that makes people stop running it.
 	buf.Reset()
 	before := *calls
 	if err := updateFeeds(cmd, dir, feeds.Names(), false); err != nil {
@@ -468,7 +468,7 @@ func TestExploitSettingsThresholdTypedAtItsDefault(t *testing.T) {
 
 func TestExploitSettingsNoFlagProvenance(t *testing.T) {
 	// A programmatic caller has no flag information, so a nil setFlags cannot mean "the caller
-	// set nothing" — its values have to be honoured rather than silently dropped.
+	// set nothing" — its values have to be honored rather than silently dropped.
 	got := exploitSettings(scanOptions{kevFile: "/tmp/kev.json", epssThreshold: 0.3}, nil)
 	if got.kev != "/tmp/kev.json" || got.threshold != 0.3 {
 		t.Errorf("programmatic options were dropped: %+v", got)
@@ -485,7 +485,7 @@ func TestExploitSettingsOffByDefault(t *testing.T) {
 	}
 }
 
-func TestResolveFeedHonoursConfiguredMaxAge(t *testing.T) {
+func TestResolveFeedHonorsConfiguredMaxAge(t *testing.T) {
 	dir := cacheHome(t)
 	seed(t, dir, feeds.KEV, kevJSON, 72*time.Hour)
 
@@ -558,7 +558,7 @@ func TestLoadExploitSourceProvenanceForAFilePath(t *testing.T) {
 // A fetch that fails with a copy already on disk must not fail the run.
 //
 // This step exists so a scan cannot rank everything as though nothing were exploited. A cached
-// catalogue does not do that — it ranks on data of a known age, and the report says how old. So
+// catalog does not do that — it ranks on data of a known age, and the report says how old. So
 // blocking a pipeline on somebody else's outage buys nothing when the answer is already here,
 // which is what a release blocked on a 403 from CISA costs.
 func TestUpdateFeedsKeepsTheCachedCopyWhenAFetchFails(t *testing.T) {

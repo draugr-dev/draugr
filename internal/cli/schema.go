@@ -52,7 +52,7 @@ func newSchemaCommand() *cobra.Command {
 }
 
 // schemaRef formats a path as the YAML language server expects it: a relative path needs a
-// leading "./" to be recognised, an absolute one must not gain one.
+// leading "./" to be recognized, an absolute one must not gain one.
 func schemaRef(path string) string {
 	if filepath.IsAbs(path) || strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
 		return path

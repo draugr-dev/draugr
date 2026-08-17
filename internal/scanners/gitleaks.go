@@ -11,7 +11,7 @@ import (
 //
 // One option, and it is the case the repository cannot cover on its own: Gitleaks already reads a
 // `.gitleaks.toml` sitting in the scanned tree, so a rule or allowlist that belongs to one
-// repository needs nothing here. A ruleset shared across an organisation lives outside every
+// repository needs nothing here. A ruleset shared across an organization lives outside every
 // repository that uses it, and that is what this points at.
 const gitleaksConfigSchema = `{
   "type": "object",

@@ -243,7 +243,7 @@ func TestProvenanceRepository(t *testing.T) {
 	}}
 	got, ok := p.Repository()
 	if !ok {
-		t.Fatal("a repository entry was not recognised")
+		t.Fatal("a repository entry was not recognized")
 	}
 	if got.URL != "." || got.Revision != "abc123def4567890" || got.Uncommitted != 3 {
 		t.Errorf("Repository() = %+v", got)

@@ -19,6 +19,6 @@ result with a severity summary.
 
 ## Notes
 
-- Dependency **vulnerabilities** only. Licence findings are the [`licenses`](licenses.md)
-  control, deliberately separate: licence risk is legal rather than technical, a different
+- Dependency **vulnerabilities** only. License findings are the [`licenses`](licenses.md)
+  control, deliberately separate: license risk is legal rather than technical, a different
   team owns the policy, and `config.gate.controls` can hold it to its own threshold.

@@ -10,7 +10,7 @@ import (
 // (controllers.iac.trivyConfig). additionalProperties:false rejects mistyped keys.
 //
 // Custom Rego is the main reason teams pick this over a fixed checklist: the misconfigurations
-// that matter to an organisation are usually the ones nobody else has written a rule for. Both
+// that matter to an organization are usually the ones nobody else has written a rule for. Both
 // options add checks; neither removes findings.
 const trivyConfigCheckSchema = `{
   "type": "object",

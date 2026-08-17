@@ -52,7 +52,7 @@ Draugr emits the metadata the viewer needs to do this well:
 
 JetBrains IDEs read SARIF through the **Qodana** plugin: install it, then
 *Tools → Qodana → Open SARIF report* and pick `results.sarif`. Findings land in the Problems
-tool window with the same click-to-line behaviour.
+tool window with the same click-to-line behavior.
 
 ## Neovim and other editors
 

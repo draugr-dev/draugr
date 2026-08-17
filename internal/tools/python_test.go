@@ -377,7 +377,7 @@ func TestInstallPythonClearsTheOldEnvironment(t *testing.T) {
 // named in pipSucceeds.
 //
 // The point is to test Draugr's half of the install without a network: that the pins reach disk,
-// that pip is asked to honour them, that the shim is linked, and that each outcome earns the
+// that pip is asked to honor them, that the shim is linked, and that each outcome earns the
 // right level.
 func fakePython(t *testing.T, log string, pipSucceeds ...string) {
 	t.Helper()
@@ -453,7 +453,7 @@ func TestInstallPythonToolRecordsWhatEndedUpOnPath(t *testing.T) {
 	}
 	// Without --require-hashes pip resolves freely while the install still claims to be pinned.
 	if !strings.Contains(string(calls), "--require-hashes") {
-		t.Errorf("pip was not asked to honour the pinned digests: %q", calls)
+		t.Errorf("pip was not asked to honor the pinned digests: %q", calls)
 	}
 }
 

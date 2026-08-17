@@ -14,8 +14,8 @@ func render(t *testing.T, tb *Table) []string {
 	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
 }
 
-// The whole reason this type exists: colour must not shift a column.
-func TestColumnsAlignWhetherOrNotColoured(t *testing.T) {
+// The whole reason this type exists: color must not shift a column.
+func TestColumnsAlignWhetherOrNotColored(t *testing.T) {
 	build := func(p Painter) *Table {
 		return NewTable(p, "Tool", "Status").
 			Row(PlainCell("git"), Styled(StylePass, "✓ found")).
@@ -28,7 +28,7 @@ func TestColumnsAlignWhetherOrNotColoured(t *testing.T) {
 	}
 	for i := range plain {
 		if got := stripANSI(colored[i]); got != plain[i] {
-			t.Errorf("line %d: coloured strips to %q, want %q", i, got, plain[i])
+			t.Errorf("line %d: colored strips to %q, want %q", i, got, plain[i])
 		}
 	}
 	// And the alignment is real: the status column starts at the same offset on every row.
@@ -108,7 +108,7 @@ func TestShortRowsAndEmptyTable(t *testing.T) {
 	}
 }
 
-func TestCellLinksWhenColoured(t *testing.T) {
+func TestCellLinksWhenColored(t *testing.T) {
 	var b bytes.Buffer
 	NewTable(Colored(), "Rule").
 		Row(Cell{Text: "CVE-1", URL: "https://example.test/CVE-1"}).Render(&b)
@@ -132,7 +132,7 @@ func runeIndex(s, sub string) int {
 	return utf8.RuneCountInString(s[:i])
 }
 
-// stripANSI removes SGR sequences so a coloured line can be compared with its plain twin.
+// stripANSI removes SGR sequences so a colored line can be compared with its plain twin.
 func stripANSI(s string) string {
 	var out strings.Builder
 	for i := 0; i < len(s); i++ {

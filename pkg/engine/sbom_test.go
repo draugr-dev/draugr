@@ -143,7 +143,7 @@ func TestSBOMStopsOnContextCancellation(t *testing.T) {
 	cancel()
 	res, _ := New(NewRegistry(), WithSBOM(f)).Run(ctx, sbomModel())
 	if len(f.calls) != 0 {
-		t.Errorf("a cancelled run should not start generating: %v", f.calls)
+		t.Errorf("a canceled run should not start generating: %v", f.calls)
 	}
 	if len(res.ScanErrors[sbomPseudoControl]) == 0 {
 		t.Error("cancellation should be recorded, not silently skipped")

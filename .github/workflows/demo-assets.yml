@@ -198,7 +198,7 @@ jobs:
         if: ${{ inputs.screenshot || github.event_name == 'push' }}
         run: go run ./contrib/demo/cropmargin -in contrib/demo/scan.png -pad 20
 
-      # Terminal output is flat colour — a few dozen distinct values across the whole frame — so
+      # Terminal output is flat color — a few dozen distinct values across the whole frame — so
       # a palette costs nothing visible and roughly halves the file. This image is the first
       # thing the README and the home page load.
       - name: Reduce the palette
@@ -223,7 +223,7 @@ jobs:
       #
       # Generated, not written. The block it replaces was maintained by hand and drifted until it
       # showed a different scan from the image beside it; nothing catches that but a person
-      # noticing. A PTY is needed because Draugr colours output only for a terminal — piping the
+      # noticing. A PTY is needed because Draugr colors output only for a terminal — piping the
       # scan straight to a file would capture it plain, and the fragment would be grey.
       # Again, because rendering the tape ran a scan of its own and that scan disturbs the tree.
       # The earlier cleanup happens before the render, so by here the sandbox is dirty and the

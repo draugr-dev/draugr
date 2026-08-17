@@ -81,7 +81,7 @@ func TestCheckoutBadRevision(t *testing.T) {
 	}
 }
 
-func TestCheckoutReportsTheRevisionItMaterialised(t *testing.T) {
+func TestCheckoutReportsTheRevisionItMaterialized(t *testing.T) {
 	// A descriptor usually names no revision, so "the default branch" is what gets scanned — a
 	// moving answer. Without resolving it, a report cannot say which commit it describes, which
 	// is the entire justification for scanning a committed revision rather than a working tree.
@@ -373,7 +373,7 @@ func commitCount(t *testing.T, dir string) int {
 // Sparse checkout is off when history is wanted, so the tree has to be cut down the slow way
 // afterwards. Without this the scope silently stops applying the moment somebody asks for
 // history, and the scan quietly widens to the whole repository.
-func TestCheckoutWithHistoryStillHonoursPaths(t *testing.T) {
+func TestCheckoutWithHistoryStillHonorsPaths(t *testing.T) {
 	src, _ := initRepo(t)
 	for _, d := range []string{"keep", "drop"} {
 		if err := os.MkdirAll(filepath.Join(src, d), 0o750); err != nil {

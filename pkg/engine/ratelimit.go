@@ -43,8 +43,8 @@ func (g *rateGate) wait(ctx context.Context, now func() time.Time) error {
 	case <-timer.C:
 		return nil
 	case <-ctx.Done():
-		// The reservation is not returned. Handing it back would let a cancelled run's slot be
-		// reused instantly, which is a burst by another name — and a cancelled scan has no
+		// The reservation is not returned. Handing it back would let a canceled run's slot be
+		// reused instantly, which is a burst by another name — and a canceled scan has no
 		// remaining work to hurry.
 		return ctx.Err()
 	}

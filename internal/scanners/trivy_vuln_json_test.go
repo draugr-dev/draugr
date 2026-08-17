@@ -88,7 +88,7 @@ func TestTrivyVulnsCarryTheirPackage(t *testing.T) {
 		t.Errorf("package = %+v, want %+v", *flask.Package, want)
 	}
 	// The ecosystem comes from the result block, so a second manifest in the same run is not
-	// labelled with the first one's.
+	// labeled with the first one's.
 	if got := byRule["CVE-2024-24790"].Package.Ecosystem; got != "gomod" {
 		t.Errorf("ecosystem = %q, want gomod", got)
 	}

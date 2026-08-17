@@ -144,7 +144,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	// the tree: url, revision, scope, and whether it is a working tree.
 	//
 	// Without a pool — a scanner used directly, or a test — it clones for itself, as it always did.
-	materialise := func(ctx context.Context) (git.Tree, func(), error) {
+	materialize := func(ctx context.Context) (git.Tree, func(), error) {
 		return checkout(ctx, repo.URL, repo.Revision, scope)
 	}
 	var tree git.Tree
@@ -153,15 +153,15 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	if pool := git.PoolFrom(ctx); pool != nil {
 		// The identity comes from the target, and history is asked for by a scanner's config, so
 		// it has to be added here. Without it a run where one scanner wants history and another
-		// does not would share whichever checkout was materialised first — and half the time that
+		// does not would share whichever checkout was materialized first — and half the time that
 		// is the shallow one, which reports clean over a history nobody read.
 		key := repo.Identity()
 		if scope.History {
 			key += "+history"
 		}
-		tree, cleanup, err = pool.Checkout(ctx, key, materialise)
+		tree, cleanup, err = pool.Checkout(ctx, key, materialize)
 	} else {
-		tree, cleanup, err = materialise(ctx)
+		tree, cleanup, err = materialize(ctx)
 	}
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", s.info.Name, err)
@@ -283,7 +283,7 @@ func repoRelPath(dir, uri string) string {
 
 // execArgv and execArgvInDir are thin aliases for toolexec.Run, kept so scanner call sites read
 // the way they always have. The implementation moved to internal/toolexec when SBOM generation
-// needed the same "run it and say what you ran" behaviour without being a scanner.
+// needed the same "run it and say what you ran" behavior without being a scanner.
 func execArgv(ctx context.Context, argv []string) ([]byte, error) {
 	return toolexec.Run(ctx, "", argv)
 }

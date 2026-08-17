@@ -145,7 +145,7 @@ type Result struct {
 	// It is the only reliable answer to "is this mine or inherited". An image records nothing
 	// about what it was built FROM — the name is not in there — so a base image cannot be named,
 	// and where a multi-layer base ends is not knowable either. The layer, and the build step
-	// that created it, are facts; anything further is inference and has to be labelled as such.
+	// that created it, are facts; anything further is inference and has to be labeled as such.
 	Layer *Layer `json:"layer,omitempty"`
 	// Suppression is set when a Saga exclusion matched this finding. A suppressed result is
 	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
@@ -294,7 +294,7 @@ type Suppression struct {
 	// descriptor is one file, where naming it would be noise.
 	//
 	// Splitting exclusions across files is only safe if the report can still say which file
-	// authorised each one — otherwise composition trades a long descriptor for an unanswerable
+	// authorized each one — otherwise composition trades a long descriptor for an unanswerable
 	// one, which is the worse of the two.
 	Source string `json:"source,omitempty"`
 }
@@ -411,7 +411,7 @@ type Rule struct {
 	// Taxa are the shared classifications this rule implements — a CIS benchmark control, a
 	// CWE. Empty when the scanner claims none.
 	//
-	// This is what makes two tools' findings recognisable as being about the same thing, and it
+	// This is what makes two tools' findings recognizable as being about the same thing, and it
 	// is deliberately not the rule id. An id belongs to whoever emitted it: `draugr/cis/5.1.1`
 	// and `kube-bench/cis/5.1.1` are two tools' accounts, and collapsing them into one id — as
 	// they were — makes provenance unrecoverable. A taxon is the vocabulary both are speaking,

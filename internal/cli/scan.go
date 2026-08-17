@@ -74,7 +74,7 @@ type scanOptions struct {
 	compact         bool
 }
 
-// scanFlagGroups is how `draugr scan --help` is organised: a heading per question a reader
+// scanFlagGroups is how `draugr scan --help` is organized: a heading per question a reader
 // arrives with, rather than one alphabetical list of thirty-odd flags.
 //
 // Order is deliberate and is not alphabetical either. It runs from what a scan looks at, through
@@ -129,7 +129,7 @@ func newScanCommand() *cobra.Command {
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
 	cmd.Flags().StringVar(&opts.group, "group", groupNone,
-		"how the fix list is organised: none (one row per finding) or `action` (one row per thing to do)")
+		"how the fix list is organized: none (one row per finding) or `action` (one row per thing to do)")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
 	cmd.Flags().BoolVar(&opts.cacheReadOnly, "cache-read-only", false,
@@ -191,7 +191,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		_, _ = fmt.Fprintf(os.Stderr, "No *.saga.yaml here — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
 			"(run `draugr init` to scaffold one you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
-	// Organisation defaults are merged *underneath* the descriptor, so the engine sees one
+	// Organization defaults are merged *underneath* the descriptor, so the engine sees one
 	// effective Saga and nothing downstream has to know there were two files. Merged after the
 	// descriptor has been validated on its own, so an error still names what the author wrote.
 	cfg, err := applyConfigDefaults(ctx, model)
@@ -254,7 +254,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		engine.WithPrioritization(defaultPrioritizer(expl)),
 		engine.WithSBOM(sbomgen.New()),
 		// Name a local checkout by the repository it came from, so a scan here and a scan in a
-		// pipeline recognise each other as one source rather than two.
+		// pipeline recognize each other as one source rather than two.
 		engine.WithRemoteResolver(func(path string) string {
 			if !git.IsLocalPath(path) {
 				return ""
@@ -463,7 +463,7 @@ func alsoPublish(outcome, publishErr error) error {
 	return fmt.Errorf("%w (publishing also failed: %w)", outcome, publishErr)
 }
 
-// How the fix list is organised.
+// How the fix list is organized.
 const (
 	// groupNone is the default: one row per finding.
 	//
@@ -768,7 +768,7 @@ func priorityBand(p string) int {
 //
 // A tag is a name, not content. Rebuild and re-push `acme/api:latest` and the cache key is
 // unchanged, so the next scan reports the previous image's findings and is entirely convinced.
-// Every other target Draugr scans is content-addressed already — a commit, a digest, a normalised
+// Every other target Draugr scans is content-addressed already — a commit, a digest, a normalized
 // endpoint — which is why this is the one exception worth being able to switch off.
 //
 // Off by default: the reader who pins digests loses nothing, and refusing to cache tags outright
@@ -782,7 +782,7 @@ func digestPinnedOnly(t plugin.Target) bool {
 	return img.Digest != ""
 }
 
-// applyConfigDefaults merges the machine/organisation controller defaults under the descriptor.
+// applyConfigDefaults merges the machine/organization controller defaults under the descriptor.
 //
 // Under, not over: a project that has an opinion keeps it, and inherits the rest. The alternative
 // — defaults that a Saga cannot override — is a guarantee a CLI cannot keep, because the config
@@ -844,7 +844,7 @@ func cacheOptionsFrom(opts *scanOptions, cfg config.CacheSettings) {
 	}
 	// Booleans only ever turn on: a config that says read-only means somebody decided this
 	// machine's results should not be trusted by the next run, and a flag's absence is not an
-	// argument against that. --cache-read-only=false is still honoured, because it was typed.
+	// argument against that. --cache-read-only=false is still honored, because it was typed.
 	if cfg.ReadOnly && !opts.setFlags["cache-read-only"] {
 		opts.cacheReadOnly = true
 	}
@@ -925,7 +925,7 @@ func probeVersion(ctx context.Context, binary string) string {
 // far shorter than a reader waiting on a report will tolerate.
 const versionProbeTimeout = 2 * time.Second
 
-// checkWorkingTree refuses --working-tree for a descriptor Draugr cannot honour it for.
+// checkWorkingTree refuses --working-tree for a descriptor Draugr cannot honor it for.
 //
 // A remote repository has no working tree. Falling back to the committed revision would produce a
 // report that looks like the one asked for and describes something else — and the whole reason to
@@ -952,7 +952,7 @@ func checkWorkingTree(enabled bool, model *saga.Model) error {
 
 // reportScope describes a scoped run for the report, and returns nil for an unscoped one.
 //
-// nil rather than an empty struct so an unscoped report renders and serialises exactly as it
+// nil rather than an empty struct so an unscoped report renders and serializes exactly as it
 // always has. The presence of a scope is the signal, and inventing an empty one for every run
 // would turn that signal into a field consumers have to interpret.
 func reportScope(scope engine.Scope) *report.Scope {

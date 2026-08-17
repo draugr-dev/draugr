@@ -57,7 +57,7 @@ func WithWaitRecorder(ctx context.Context, r *WaitRecorder) context.Context {
 // RecordWait attributes time spent waiting to a tool, if anything is collecting.
 //
 // A no-op when nothing is — a scanner called outside a run, or from a test, must not have to set
-// one up, and losing the measurement is not a reason to change behaviour.
+// one up, and losing the measurement is not a reason to change behavior.
 func RecordWait(ctx context.Context, tool string, d time.Duration) {
 	if r, ok := ctx.Value(waitRecorderKey{}).(*WaitRecorder); ok {
 		r.add(tool, d)

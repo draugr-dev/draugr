@@ -17,7 +17,7 @@ entry](../../docs/reference/glossary.md#sca--software-composition-analysis).
 ## Links
 
 - Trivy filesystem scanning: https://trivy.dev/latest/docs/target/filesystem/
-- Licence scanning, in the separate [`trivy-license`](trivy-license.md) scanner: https://trivy.dev/latest/docs/scanner/license/
+- License scanning, in the separate [`trivy-license`](trivy-license.md) scanner: https://trivy.dev/latest/docs/scanner/license/
 
 ## Saga options
 
@@ -31,7 +31,7 @@ controllers:
 
 | Option | What it does |
 |---|---|
-| `pkgTypes` | Which package types to analyse: `os`, `library`, or both (`--pkg-types`). Narrow it when the OS layer is a platform team's responsibility. |
+| `pkgTypes` | Which package types to analyze: `os`, `library`, or both (`--pkg-types`). Narrow it when the OS layer is a platform team's responsibility. |
 | `dbRepository` | OCI repositories to pull the vulnerability database from, in priority order (`--db-repository`). For runners with no route to a public registry. |
 
 The same two options apply to the `trivy` image scanner and the `trivy-fs` filesystem scanner.
@@ -41,7 +41,7 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 ## Notes
 
 - Integration mode: **exec** over a local checkout; Trivy + `git` must be on `PATH`.
-- Trivy's SARIF output does **not** include licence findings — they exist only in its JSON. That
+- Trivy's SARIF output does **not** include license findings — they exist only in its JSON. That
   is why [`trivy-license`](trivy-license.md) is a separate scanner with its own JSON→SARIF
   conversion rather than another flag on this one.
 - OSV-Scanner is a planned second SCA scanner ([#49](https://github.com/draugr-dev/draugr/issues/49)); its non-zero exit-on-findings needs

@@ -1,5 +1,5 @@
 // Package tui holds the terminal-presentation rules Draugr applies everywhere it writes for a
-// person: when colour is allowed, what the colours mean, and how to link to more detail.
+// person: when color is allowed, what the colors mean, and how to link to more detail.
 //
 // It exists because those rules were being re-derived per command. The console report, the log
 // handler and the install prompt each had their own copy of the "is this a terminal" check, and
@@ -7,10 +7,10 @@
 // is a real cost for a tool whose terminal *is* the product.
 //
 // The rules, in one place:
-//   - colour only when writing to an interactive terminal, and never when NO_COLOR is set
+//   - color only when writing to an interactive terminal, and never when NO_COLOR is set
 //     (https://no-color.org)
 //   - a fixed, semantic palette — callers ask for "critical", not for red
-//   - anything that degrades (colour, hyperlinks) degrades to plain text, so piped output and
+//   - anything that degrades (color, hyperlinks) degrades to plain text, so piped output and
 //     CI logs stay readable
 package tui
 
@@ -21,11 +21,11 @@ import (
 	"strings"
 )
 
-// Style is a semantic role, not a colour: callers say what a thing *is* and the palette decides
+// Style is a semantic role, not a color: callers say what a thing *is* and the palette decides
 // how it looks, so the same concept renders identically in every command.
 type Style string
 
-// The palette. Severity styles mirror the report bands; the rest are roles, not colours.
+// The palette. Severity styles mirror the report bands; the rest are roles, not colors.
 const (
 	StyleNone     Style = ""
 	StyleCritical Style = "1;31" // bold red
@@ -36,30 +36,30 @@ const (
 	StylePass     Style = "32"
 	StyleAccent   Style = "33" // draws the eye without implying severity
 	StyleMuted    Style = "2"  // supporting detail: headers, labels, units
-	StyleStrong   Style = "1"  // the part of a line to read first, at no cost in colour
+	StyleStrong   Style = "1"  // the part of a line to read first, at no cost in color
 )
 
-// Painter renders styled text, or plain text when colour isn't appropriate for the destination.
+// Painter renders styled text, or plain text when color isn't appropriate for the destination.
 // The zero value is a valid plain-text painter, so a caller that forgets to construct one
 // degrades safely instead of emitting escape codes into a file.
 type Painter struct{ color bool }
 
-// For returns a Painter suited to w: colour only for an interactive terminal with NO_COLOR unset.
+// For returns a Painter suited to w: color only for an interactive terminal with NO_COLOR unset.
 func For(w io.Writer) Painter { return Painter{color: ColorEnabled(w)} }
 
-// Plain returns a Painter that never colours — for tests and for building strings whose
+// Plain returns a Painter that never colors — for tests and for building strings whose
 // destination isn't known yet.
 func Plain() Painter { return Painter{} }
 
-// Colored returns a Painter for a caller that has already decided, such as one whose colour
+// Colored returns a Painter for a caller that has already decided, such as one whose color
 // setting comes from configuration rather than from inspecting the writer.
 func Colored() Painter { return Painter{color: true} }
 
-// Enabled reports whether this painter emits colour, so callers can skip work that only matters
-// when coloured.
+// Enabled reports whether this painter emits color, so callers can skip work that only matters
+// when colored.
 func (p Painter) Enabled() bool { return p.color }
 
-// Paint wraps s in the style's escape codes, or returns it unchanged when colour is off.
+// Paint wraps s in the style's escape codes, or returns it unchanged when color is off.
 func (p Painter) Paint(style Style, s string) string {
 	if !p.color || style == StyleNone {
 		return s
@@ -93,7 +93,7 @@ func (p Painter) Link(url, text string) string {
 	return "\x1b]8;;" + url + "\a" + text + "\x1b]8;;\a"
 }
 
-// ColorEnabled reports whether coloured output is appropriate for w: it must be an interactive
+// ColorEnabled reports whether colored output is appropriate for w: it must be an interactive
 // terminal, and NO_COLOR must be unset.
 func ColorEnabled(w io.Writer) bool {
 	if os.Getenv("NO_COLOR") != "" {
@@ -104,7 +104,7 @@ func ColorEnabled(w io.Writer) bool {
 
 // IsTerminal reports whether v (an *os.File, in practice stdin/stdout/stderr) is a character
 // device. Accepts any value so it can answer for a reader (is the user there to be prompted?)
-// as well as a writer (should this be coloured?).
+// as well as a writer (should this be colored?).
 func IsTerminal(v any) bool {
 	f, ok := v.(*os.File)
 	if !ok {
@@ -134,5 +134,5 @@ func isDevNull(fi os.FileInfo) bool {
 }
 
 // Pad left-aligns s to width, measured on the unstyled text. Padding must be computed before
-// colour is applied, or escape codes inflate the apparent length and columns stop lining up.
+// color is applied, or escape codes inflate the apparent length and columns stop lining up.
 func Pad(s string, width int) string { return fmt.Sprintf("%-*s", width, s) }

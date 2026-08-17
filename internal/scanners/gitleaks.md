@@ -35,7 +35,7 @@ controllers:
 switches the checkout from a shallow clone to a full one. Both, together: `gitleaks git` over a
 shallow clone walks a single commit and reports clean, which is indistinguishable from a
 repository whose history holds nothing. It also turns off the sparse and partial-clone
-optimisations, because those leave historical blobs unfetched — a scan that walks commits it
+optimizations, because those leave historical blobs unfetched — a scan that walks commits it
 cannot read finds nothing in them.
 
 The tree pass is kept rather than replaced. `gitleaks git` reports the path a secret had in the
@@ -43,9 +43,9 @@ commit that introduced it, so a file since renamed is reported under a directory
 exists. Findings from the history pass are marked `historical` in the report, and the tree pass is
 what names the path a live secret is at now.
 
-A `.gitleaks.toml` committed in the repository being scanned is already honoured without this —
+A `.gitleaks.toml` committed in the repository being scanned is already honored without this —
 Gitleaks reads it from the target path. This option covers the case that file cannot: an
-organisation-wide ruleset that lives outside every repository using it.
+organization-wide ruleset that lives outside every repository using it.
 
 ## Links
 

@@ -8,7 +8,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// findCSP runs the analyser and returns the rule ids it produced, sorted.
+// findCSP runs the analyzer and returns the rule ids it produced, sorted.
 func findCSP(policy string) []string {
 	var ids []string
 	evaluateCSP(policy, func(ruleID, _ string, _ sarif.Level) {
@@ -38,7 +38,7 @@ func TestCSPParse(t *testing.T) {
 	}
 	// Directive names are case-insensitive; source values are not, because a nonce is a value.
 	if _, ok := p["object-src"]; !ok {
-		t.Error("uppercase directive name was not normalised")
+		t.Error("uppercase directive name was not normalized")
 	}
 	// An empty segment is not a directive.
 	if len(p) != 3 {
@@ -105,7 +105,7 @@ func TestCSPBroadScriptSources(t *testing.T) {
 
 func TestCSPNonceMakesUnsafeInlineInert(t *testing.T) {
 	// CSP3: a nonce or hash makes 'unsafe-inline' ignored. It is how a good policy stays
-	// compatible with old browsers, so reporting it as a flaw would penalise the people who
+	// compatible with old browsers, so reporting it as a flaw would penalize the people who
 	// did the work.
 	for _, policy := range []string{
 		"script-src 'nonce-abc123' 'unsafe-inline'",

@@ -85,7 +85,7 @@ func mustMarshal(t *testing.T, doc map[string]any) string {
 	return string(b)
 }
 
-// TestPreparedSpecIsReadOnlyByDefault covers the measured behaviour this exists for: handed the
+// TestPreparedSpecIsReadOnlyByDefault covers the measured behavior this exists for: handed the
 // whole document, a scan sent nine DELETE requests nobody asked for.
 func TestPreparedSpecIsReadOnlyByDefault(t *testing.T) {
 	got, err := prepareSpec(writeSpec(t, specWithWrites), "https://staging.example.com", nil)
@@ -205,7 +205,7 @@ func TestPrepareSpecRejectsWhatCannotBeScanned(t *testing.T) {
 	}
 }
 
-func TestPluginNormaliseMethods(t *testing.T) {
+func TestPluginNormalizeMethods(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		in   []string
@@ -217,8 +217,8 @@ func TestPluginNormaliseMethods(t *testing.T) {
 		{"deduplicated", []string{"get", "GET"}, []string{"get"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if got := plugin.NormaliseMethods(c.in); !slices.Equal(got, c.want) {
-				t.Errorf("plugin.NormaliseMethods(%v) = %v, want %v", c.in, got, c.want)
+			if got := plugin.NormalizeMethods(c.in); !slices.Equal(got, c.want) {
+				t.Errorf("plugin.NormalizeMethods(%v) = %v, want %v", c.in, got, c.want)
 			}
 		})
 	}

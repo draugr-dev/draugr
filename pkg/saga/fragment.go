@@ -60,7 +60,7 @@ type Resolved struct {
 	Sources []Source
 }
 
-// Fetcher materialises a remote fragment reference as a local directory.
+// Fetcher materializes a remote fragment reference as a local directory.
 //
 // An interface because fetching means git, which lives in internal/ and cannot be imported from
 // pkg/. The same shape as sbom.Generator: the package declares what it needs, and the wiring

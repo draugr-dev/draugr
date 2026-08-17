@@ -113,7 +113,7 @@ func TestConsoleHandlerColorWhenEnabled(t *testing.T) {
 	if !strings.Contains(s, "\x1b[") || !strings.Contains(s, "\x1b[0m") {
 		t.Errorf("expected ANSI color with color enabled: %q", s)
 	}
-	// The level takes its colour from the shared palette, so an error in the log looks like a
+	// The level takes its color from the shared palette, so an error in the log looks like a
 	// failure everywhere else Draugr writes.
 	if !strings.Contains(s, "\x1b["+string(tui.StyleFail)+"m") {
 		t.Errorf("error level should use the shared fail style: %q", s)
@@ -214,7 +214,7 @@ func TestTraceLevel(t *testing.T) {
 	h := newConsoleHandler(&buf, &slog.HandlerOptions{Level: LevelTrace}, false, 0)
 	slog.New(h).Log(context.Background(), LevelTrace, "relayed")
 	if !strings.Contains(buf.String(), "TRACE") {
-		t.Errorf("trace records should be labelled TRACE: %q", buf.String())
+		t.Errorf("trace records should be labeled TRACE: %q", buf.String())
 	}
 	// A debug-level logger must not emit trace records.
 	var quiet bytes.Buffer
@@ -263,7 +263,7 @@ func TestConsoleHandlerLeavesSingleLineValuesInline(t *testing.T) {
 }
 
 func TestConsoleHandlerStreamSurvivesNoColor(t *testing.T) {
-	// Colour changes the rendering, never the text: the plain block and the coloured one must
+	// Color changes the rendering, never the text: the plain block and the colored one must
 	// carry identical content, or grepping trace output stops working when a terminal is
 	// attached.
 	const body = "line one\nline two"
@@ -275,11 +275,11 @@ func TestConsoleHandlerStreamSurvivesNoColor(t *testing.T) {
 	}
 	plain, colored := render(false), stripANSI(render(true))
 	if plain != colored {
-		t.Errorf("colour changed the text:\nplain:   %q\ncoloured:%q", plain, colored)
+		t.Errorf("color changed the text:\nplain:   %q\ncolored:%q", plain, colored)
 	}
 }
 
-// stripANSI removes SGR escape sequences, so a coloured render can be compared with a plain one.
+// stripANSI removes SGR escape sequences, so a colored render can be compared with a plain one.
 func stripANSI(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); {
@@ -351,7 +351,7 @@ func TestConsoleHandlerSeparatesTraceFromDebug(t *testing.T) {
 
 func TestLogFileGetsEverythingTheTerminalDoesNot(t *testing.T) {
 	// The point of the file: the terminal keeps the level that was asked for, and the file gets
-	// the rest. One --log-level cannot serve a summary someone is reading now and the artefact
+	// the rest. One --log-level cannot serve a summary someone is reading now and the artifact
 	// they attach to a bug report.
 	path := filepath.Join(t.TempDir(), "draugr.log")
 	var term bytes.Buffer
@@ -444,7 +444,7 @@ func TestLogFileThatCannotBeOpenedIsFatal(t *testing.T) {
 	}
 }
 
-func TestLogFileIsNotColoured(t *testing.T) {
+func TestLogFileIsNotColored(t *testing.T) {
 	// A file is not a terminal. Escape codes in one make it unreadable in exactly the place it
 	// is most likely to be read: pasted into an issue.
 	path := filepath.Join(t.TempDir(), "draugr.log")

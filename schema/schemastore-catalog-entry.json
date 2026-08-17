@@ -11,11 +11,11 @@
     "",
     "The two file types are deliberately distinguishable. The Saga schema requires `release`, so a",
     "fragment named *.saga.yaml would be matched by the Saga entry and reported as invalid in",
-    "every editor that reads this catalogue \u2014 permanently, with no fix available to the user.",
+    "every editor that reads this catalog \u2014 permanently, with no fix available to the user.",
     "*.saga-fragment.yaml does not match *.saga.yaml, which is the point of the suffix.",
     "",
-    "Submit only once each schema is served from draugr.dev. A catalogue entry is a URL and",
-    "editors cache the catalogue, so registering ahead of publication hands out a 404 that gets",
+    "Submit only once each schema is served from draugr.dev. A catalog entry is a URL and",
+    "editors cache the catalog, so registering ahead of publication hands out a 404 that gets",
     "fixed on their refresh schedule rather than ours."
   ],
   "entries": [

@@ -125,10 +125,10 @@ func TestApplyExclusionsCountsWhatABroadGlobSwallowed(t *testing.T) {
 		sarif.Result{RuleID: "CVE-2019-1", Level: sarif.LevelError, Location: sarif.Location{URI: "go.mod"}},
 	)
 	n, _, _ := applyExclusions(ctrls, []saga.ExcludeRule{
-		{Rules: []string{"license/*"}, Reason: "licence policy handled out of band"},
+		{Rules: []string{"license/*"}, Reason: "license policy handled out of band"},
 	}, time.Now())
 	if n != 3 {
-		t.Fatalf("suppressed = %d, want all three licence findings", n)
+		t.Fatalf("suppressed = %d, want all three license findings", n)
 	}
 	res := ctrls["sca"].Report.Results
 	for i := range res[:3] {
@@ -136,7 +136,7 @@ func TestApplyExclusionsCountsWhatABroadGlobSwallowed(t *testing.T) {
 			t.Errorf("result %d should be suppressed by the glob", i)
 		}
 	}
-	// The CVE is not a licence finding and must survive an unrelated pattern.
+	// The CVE is not a license finding and must survive an unrelated pattern.
 	if res[3].Suppressed() {
 		t.Error("license/* must not sweep up a CVE")
 	}
@@ -148,7 +148,7 @@ func TestApplyExclusionsCountsWhatABroadGlobSwallowed(t *testing.T) {
 
 func TestApplyExclusionsGlobMatchesAcrossSeparators(t *testing.T) {
 	// The case the whole design turned on: package names contain slashes, so a wildcard that
-	// stopped at "/" could not express "this licence, whichever package".
+	// stopped at "/" could not express "this license, whichever package".
 	ctrls := controlsWith(sarif.Result{
 		RuleID: "license/GPL-3.0-only/github.com/somelib/thing",
 		Level:  sarif.LevelWarning, Location: sarif.Location{URI: "go.mod"},

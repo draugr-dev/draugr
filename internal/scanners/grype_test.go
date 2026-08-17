@@ -99,7 +99,7 @@ func TestGrypeFSArgs(t *testing.T) {
 }
 
 // TestGrypeByCVEIsOnUnlessRefused pins the departure from Grype's own default. Beside Trivy, an
-// un-normalised identifier makes one vulnerability arrive twice under two names, and slips past an
+// un-normalized identifier makes one vulnerability arrive twice under two names, and slips past an
 // exclusion written against the CVE.
 func TestGrypeByCVEIsOnUnlessRefused(t *testing.T) {
 	for _, c := range []struct {

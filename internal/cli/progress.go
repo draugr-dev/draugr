@@ -22,14 +22,14 @@ import (
 // turned that off has said they want the report and nothing else.
 type progressLine struct {
 	w io.Writer
-	// mu serialises writes. The engine reports under its own lock, but nothing promises the same
+	// mu serializes writes. The engine reports under its own lock, but nothing promises the same
 	// goroutine each time, and two interleaved writes to one line produce something unreadable.
 	mu sync.Mutex
 	// drawn is how many lines are on the terminal, so the next update can move back over them
 	// and the erase can clear all of them. Without it a shorter frame leaves the tail of a longer
 	// one behind, and the display reads as two states at once.
 	drawn int
-	// painter decides whether the frame carries colour, which depends on the same writer.
+	// painter decides whether the frame carries color, which depends on the same writer.
 	painter tui.Painter
 	// last is the most recent snapshot, kept so the ticker can repaint it with the clocks moved
 	// on. Progress is reported when a job starts or finishes, so a step with one slow job
@@ -218,8 +218,8 @@ func progressHeadline(ev engine.ProgressEvent, col tui.Painter, elapsed time.Dur
 
 // progressStepLine renders one control/scanner: a mark, the name, and where its jobs have got to.
 //
-// The mark carries the state and the colour reinforces it, rather than the colour carrying it
-// alone — the same output goes to terminals with no colour, and to people who cannot distinguish
+// The mark carries the state and the color reinforces it, rather than the color carrying it
+// alone — the same output goes to terminals with no color, and to people who cannot distinguish
 // the ones it uses.
 func progressStepLine(st engine.ProgressStep, col tui.Painter) string {
 	mark, style := "·", tui.StyleMuted // planned, not started

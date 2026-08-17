@@ -113,7 +113,7 @@ config:
 gate stays reproducible, and a feed outage surfaces at the fetch rather than inside a scan.
 
 A fetch that fails **keeps the cached copy** and reports how old it is — what this guards against
-is a scan ranking everything as though nothing were exploited, and a cached catalogue does not do
+is a scan ranking everything as though nothing were exploited, and a cached catalog does not do
 that: it ranks on data of a known age, which the report then carries. With nothing cached there is
 no answer to keep, and the step fails. So a pipeline is not blocked by an upstream outage it can
 already answer around. See
@@ -125,7 +125,7 @@ On a pull request the action runs a diff, and by default the SARIF it hands to c
 carries **only the findings the branch introduced** (`code-scanning: new`). An upload of the whole
 repository annotates a reviewer with hundreds of findings they did not cause, and the ones they did
 are indistinguishable among them — which is how a review surface stops being read. Set
-`code-scanning: all` for the previous behaviour. On a push there is nothing to diff against, so the
+`code-scanning: all` for the previous behavior. On a push there is nothing to diff against, so the
 upload is always the complete scan.
 
 `code-scanning-min-priority: P1` narrows it further, to what is urgent. It applies to the diff, not

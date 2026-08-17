@@ -20,10 +20,10 @@ import (
 // mendLicensesScannerName identifies the Mend scanner behind the "licenses" control.
 const mendLicensesScannerName = "mend-licenses"
 
-// mendLicensesScanner reports the licence of every dependency Mend resolved.
+// mendLicensesScanner reports the license of every dependency Mend resolved.
 //
 // The same upload as mend-sca, read differently: vulnerabilities come from the project's alerts,
-// licences from its inventory. Both go through the shared upload, so a component scanned by both
+// licenses from its inventory. Both go through the shared upload, so a component scanned by both
 // controls is sent once — which matters because an upload replaces a project's inventory rather
 // than adding to it.
 //
@@ -70,7 +70,7 @@ func NewMendLicenses() plugin.Scanner {
 // Info describes the scanner.
 func (s mendLicensesScanner) Info() plugin.ScannerInfo { return s.info }
 
-// Scan reports the licence of every dependency in this repository.
+// Scan reports the license of every dependency in this repository.
 func (s mendLicensesScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	repo, ok := target.(plugin.RepositoryTarget)
 	if !ok {
@@ -124,7 +124,7 @@ func (s mendLicensesScanner) Scan(ctx context.Context, target plugin.Target, cfg
 	return mendLicenseReport(ctx, libs, cfg), nil
 }
 
-// mendLicenseReport turns an inventory into licence findings.
+// mendLicenseReport turns an inventory into license findings.
 func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg plugin.Config) sarif.Report {
 	deny, warn := stringList(cfg, denyKey), stringList(cfg, warnKey)
 	var rep sarif.Report
@@ -150,23 +150,23 @@ func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg
 			})
 		}
 	}
-	warnUnmappedLicences(ctx, unmapped)
+	warnUnmappedLicenses(ctx, unmapped)
 	return rep
 }
 
-// mendLicenseLevel decides how loudly to report a licence.
+// mendLicenseLevel decides how loudly to report a license.
 //
-// Only what the policy names. Trivy also carries a category, so it can flag a copyleft licence a
-// project never listed; Mend supplies none, so this scanner reports exactly the licences a
+// Only what the policy names. Trivy also carries a category, so it can flag a copyleft license a
+// project never listed; Mend supplies none, so this scanner reports exactly the licenses a
 // descriptor asked about and nothing else. That is a real difference between the two scanners on
 // one control, and the colocated doc says so — a project running only this one and expecting
 // category-based flagging would get silence.
 func mendLicenseLevel(id string, deny, warn []string) (sarif.Level, string, bool) {
 	switch {
 	case slices.Contains(deny, id):
-		return sarif.LevelError, "Denied by this project's licence policy (config.controllers.licenses.deny).", true
+		return sarif.LevelError, "Denied by this project's license policy (config.controllers.licenses.deny).", true
 	case slices.Contains(warn, id):
-		return sarif.LevelWarning, "Flagged by this project's licence policy (config.controllers.licenses.warn).", true
+		return sarif.LevelWarning, "Flagged by this project's license policy (config.controllers.licenses.warn).", true
 	}
 	return "", "", false
 }
@@ -175,7 +175,7 @@ func mendLicenseLevel(id string, deny, warn []string) (sarif.Level, string, bool
 //
 // Mend's own vocabulary is used when it offers no SPDX name — "BSD 3" rather than "BSD-3-Clause".
 // Translating it was the first design and is the wrong one: a mapping table is consulted exactly
-// where there is least evidence, and a wrong entry applies a policy to the *wrong* licence, which
+// where there is least evidence, and a wrong entry applies a policy to the *wrong* license, which
 // is worse than one applying to nothing. So the finding says what Mend said, and the operator is
 // told that it did.
 func mendLicenseID(lic mendapi.InventoryLicense) (id string, isSPDX bool) {
@@ -185,12 +185,12 @@ func mendLicenseID(lic mendapi.InventoryLicense) (id string, isSPDX bool) {
 	return strings.TrimSpace(lic.Name), false
 }
 
-// warnUnmappedLicences tells the operator, once per scan, which identifiers this run produced.
+// warnUnmappedLicenses tells the operator, once per scan, which identifiers this run produced.
 //
 // The failure being avoided is not that names differ from SPDX — it is a policy that silently
 // covers less than it claims. Naming the strings that will actually appear turns that into a
 // decision somebody makes with the facts, in the vocabulary their descriptor uses.
-func warnUnmappedLicences(ctx context.Context, ids map[string]bool) {
+func warnUnmappedLicenses(ctx context.Context, ids map[string]bool) {
 	if len(ids) == 0 {
 		return
 	}
@@ -199,13 +199,13 @@ func warnUnmappedLicences(ctx context.Context, ids map[string]bool) {
 		names = append(names, `"`+id+`"`)
 	}
 	sort.Strings(names)
-	slog.WarnContext(ctx, "mend reports these licences by its own names rather than SPDX "+
+	slog.WarnContext(ctx, "mend reports these licenses by its own names rather than SPDX "+
 		"identifiers, so a policy written in SPDX will not match them — write rules against these "+
-		"strings, or use the licences control's Trivy scanner, which reports SPDX",
-		"licences", strings.Join(names, ", "))
+		"strings, or use the licenses control's Trivy scanner, which reports SPDX",
+		"licenses", strings.Join(names, ", "))
 }
 
-// mendPackageName names the dependency a licence belongs to.
+// mendPackageName names the dependency a license belongs to.
 func mendPackageName(lib mendapi.InventoryLibrary) string {
 	switch {
 	case lib.GroupID != "" && lib.ArtifactID != "":

@@ -35,7 +35,7 @@ const mendSCAScannerName = "mend-sca"
 //
 // Written directly rather than through repoScanner, whose parse hook takes bytes and a directory.
 // The second phase needs the run's context to poll an API and give up politely when the run is
-// cancelled, and no amount of shaping makes that a decoder.
+// canceled, and no amount of shaping makes that a decoder.
 type mendSCAScanner struct {
 	info plugin.ScannerInfo
 	// run executes the agent. Injectable so tests need neither the binary nor a tenant.

@@ -10,7 +10,7 @@ import "slices"
 // says so* and *what about*. Draugr can guess the second from the release and cannot guess the
 // first at all — it knows a project name, not a legal entity or a contact.
 type VEXConfig struct {
-	// Author identifies who is making these statements: an organisation, ideally with a way to
+	// Author identifies who is making these statements: an organization, ideally with a way to
 	// reach them ("Example Ltd <security@example.com>"). Defaults to the release name, which is
 	// a project rather than a party — enough to produce a valid document, not enough for one
 	// you would hand to a customer.

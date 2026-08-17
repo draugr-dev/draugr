@@ -75,7 +75,7 @@ func TestOptionsReadsAnArrayElementEnum(t *testing.T) {
 	  "properties": {
 	    "pkgTypes": {
 	      "type": "array",
-	      "description": "which package types to analyse",
+	      "description": "which package types to analyze",
 	      "items": {"type": "string", "enum": ["os", "library"]}
 	    }
 	  }

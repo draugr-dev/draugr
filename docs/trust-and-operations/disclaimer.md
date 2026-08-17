@@ -1,6 +1,6 @@
 ---
 title: Scope and disclaimer
-description: What Draugr does and does not promise — no warranty, no guarantee of completeness, and why licence output is not legal advice.
+description: What Draugr does and does not promise — no warranty, no guarantee of completeness, and why license output is not legal advice.
 section: Trust & operations
 order: 30
 ---
@@ -8,7 +8,7 @@ order: 30
 # Scope and disclaimer
 
 Draugr is open-source software provided under the [Apache License 2.0](https://github.com/draugr-dev/draugr/blob/main/LICENSE),
-**without warranty of any kind**. Sections 7 and 8 of that licence are the binding terms; this
+**without warranty of any kind**. Sections 7 and 8 of that license are the binding terms; this
 page explains what they mean in practice for a tool of this kind.
 
 ## Draugr does not guarantee your software is secure
@@ -29,15 +29,15 @@ Concretely, a `PASS` is silent about:
 - **Whole categories of risk no scanner addresses** — business logic flaws, access-control
   design, insider threat, social engineering, physical security.
 
-Draugr is one input to a security programme, not a substitute for one.
+Draugr is one input to a security program, not a substitute for one.
 
-## Licence findings are not legal advice
+## License findings are not legal advice
 
-The `licenses` control reports the licences of your dependencies and describes the obligations
+The `licenses` control reports the licenses of your dependencies and describes the obligations
 commonly associated with them. **This is information, not legal advice, and no lawyer has
 reviewed it for your situation.**
 
-Licence interpretation depends on facts Draugr cannot know: whether you distribute your software
+License interpretation depends on facts Draugr cannot know: whether you distribute your software
 and in what form, how you link to a dependency, which jurisdiction governs, and what your other
 contractual commitments are. Reasonable lawyers disagree about several of these questions, and
 some have been litigated to inconsistent conclusions.
@@ -62,13 +62,13 @@ not evaluate whether that reason is adequate.
 ## Third-party tools carry their own terms
 
 Draugr executes external scanners rather than embedding them. When you run them — whether you
-installed them yourself or via `draugr tools install` — you do so under **their** licences and
+installed them yourself or via `draugr tools install` — you do so under **their** licenses and
 terms of use, not Draugr's. Some fetch data from third-party services at scan time (Trivy's
 vulnerability database, Nuclei's template repository), which may have their own terms and
 privacy implications.
 
 `draugr tools list` names each tool. The [integrations catalog](../reference/catalog.md) links
-each one's project and licence.
+each one's project and license.
 
 ## Scanning things you are allowed to scan
 
@@ -76,7 +76,7 @@ Some controls make network requests to hosts you name. `dast` in particular prob
 endpoint for vulnerabilities, which in many jurisdictions is lawful only against systems you own
 or have written permission to test.
 
-**You are responsible for having that authorisation.** Draugr will scan whatever a descriptor
+**You are responsible for having that authorization.** Draugr will scan whatever a descriptor
 points it at; it cannot tell whether you were entitled to.
 
 ## Reporting a problem

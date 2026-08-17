@@ -110,7 +110,7 @@ func grypeArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 // GHSA-8q59-q68h-6hv4 — where Trivy reports the CVE for the same flaw. Left alone, one
 // vulnerability arrives under two identities depending on which scanner saw it, so it counts
 // twice, and an exclusion someone wrote against the CVE keeps working right up until the day a
-// second scanner starts reporting it. A qualification tool that normalises everything else to one
+// second scanner starts reporting it. A qualification tool that normalizes everything else to one
 // schema should not stop at the identifier.
 func grypeOptions(argv []string, cfg plugin.Config) []string {
 	if byCVE, ok := cfg["byCve"].(bool); ok && !byCVE {
@@ -150,7 +150,7 @@ var grypeRunInDir = func(ctx context.Context, dir string, argv []string) ([]byte
 //
 // What it costs if left: the finding is one path away from the file it describes, so GitHub code
 // scanning anchors it nowhere, and the same dependency reported by Trivy and by Grype arrives
-// under two different paths and cannot be recognised as the same thing.
+// under two different paths and cannot be recognized as the same thing.
 func parseGrypeRepoSARIF(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
 	report, err := sarif.FromSARIF(out)
 	if err != nil {

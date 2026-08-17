@@ -42,7 +42,7 @@ func TestMendLicenseUsesSPDXWhenGiven(t *testing.T) {
 
 // Where it does not, the finding carries Mend's own name rather than an invented SPDX id — a
 // mapping would be consulted exactly where there is least evidence, and a wrong entry applies a
-// policy to the wrong licence.
+// policy to the wrong license.
 func TestMendLicenseKeepsMendsNameWhenNoSPDX(t *testing.T) {
 	rep := mendLicenseReport(context.Background(),
 		[]mendapi.InventoryLibrary{lib("Jinja2", "BSD 3", "")},
@@ -73,7 +73,7 @@ func TestMendLicenseIDReportsWhetherItIsSPDX(t *testing.T) {
 	}
 }
 
-// Mend carries no licence category, so this scanner reports what the policy names and nothing
+// Mend carries no license category, so this scanner reports what the policy names and nothing
 // else. Without a policy it is silent — stated in the doc so it is not discovered.
 func TestMendLicenseReportsOnlyWhatThePolicyNames(t *testing.T) {
 	libs := []mendapi.InventoryLibrary{lib("a", "MIT", "MIT"), lib("b", "GPL-3.0-only", "GPL-3.0-only")}
@@ -95,7 +95,7 @@ func TestMendLicenseLevels(t *testing.T) {
 		t.Errorf("warn = %v %v", l, ok)
 	}
 	if _, _, ok := mendLicenseLevel("MIT", deny, warn); ok {
-		t.Error("an unlisted licence is inventory, not a finding")
+		t.Error("an unlisted license is inventory, not a finding")
 	}
 }
 

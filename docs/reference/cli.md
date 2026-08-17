@@ -15,10 +15,10 @@ All commands accept these **global flags**:
 | `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` |
 | `--log-file` | — | also append every record to this file, at `trace` level and unclamped |
 | `--offline` | `false` | make no network calls (also `DRAUGR_OFFLINE=1`) |
-| `--config` | — | machine/organisation settings file, used instead of the discovered ones (also `DRAUGR_CONFIG`) |
+| `--config` | — | machine/organization settings file, used instead of the discovered ones (also `DRAUGR_CONFIG`) |
 
 **`--offline`** says once that this machine has no network, and every place Draugr would reach out
-honours it. Optional fetches are skipped with a line saying so; a command whose whole purpose is
+honors it. Optional fetches are skipped with a line saying so; a command whose whole purpose is
 to download — `feeds update`, `tools install`, `self-update` — refuses and names what it would
 have fetched. A scan runs against whatever each tool already has on disk, and a tool with nothing
 on disk reports an error rather than a clean result.
@@ -67,7 +67,7 @@ tool wrote it:
   └
 ```
 
-Verbose by design — reach for it when the summarised line hasn't answered the question. Logs go
+Verbose by design — reach for it when the summarized line hasn't answered the question. Logs go
 to stderr, so `2>trace.log` keeps them out of a report on stdout.
 
 **`--log-file` is usually the better way to get it.** The terminal keeps whatever `--log-level`
@@ -86,17 +86,17 @@ nothing. On the same scan of a findings-rich repository, the terminal shows abou
 truncation notice and the file holds 80 KB with none.
 
 The file is **appended**, not truncated, because the second run is usually the one that
-reproduces the problem. It is written `0600` and never coloured. A `--log-file` that cannot be
+reproduces the problem. It is written `0600` and never colored. A `--log-file` that cannot be
 opened **fails the run** rather than being skipped: a log silently not written leaves the run
 looking normal and the evidence you asked for missing.
 
 **Reading a dense log.** The `console` format gives each part of a record its own weight, so the
 shape of a line is legible before its content: the **message** strongest, because it is what you
-scan for; the level coloured; timestamps and attribute keys dimmed; values plain. An `error` or a
-non-zero `exit_code` is coloured too — in a few hundred debug lines that is nearly always the one
+scan for; the level colored; timestamps and attribute keys dimmed; values plain. An `error` or a
+non-zero `exit_code` is colored too — in a few hundred debug lines that is nearly always the one
 worth finding.
 
-Colour changes the rendering and never the text, so records stay greppable. `NO_COLOR=1`, a pipe
+Color changes the rendering and never the text, so records stay greppable. `NO_COLOR=1`, a pipe
 or a redirect give the same output without the escapes, and `--log-format json` is unaffected by
 all of it.
 
@@ -303,7 +303,7 @@ Grouped the way `draugr scan --help` groups them.
 | `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
 | `-o, --output` | — | Directory to write `report.json`, `results.sarif`, and any SBOMs |
 | `--report` | `json,sarif` | Formats to write into `-o`: `console`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, `evidence`, and the `gitlab-*` reports. `--format` prints, `--report` writes — see [below](#--format-prints---report-writes) |
-| `--group` | `none` | Console: how the fix list is organised. `action` gives one row per thing to do, saying how many findings it clears; `none` gives one row per finding. Grouping is a rendering — the report files always carry every finding separately. See [what to fix first](../concepts/what-to-fix-first.md) |
+| `--group` | `none` | Console: how the fix list is organized. `action` gives one row per thing to do, saying how many findings it clears; `none` gives one row per finding. Grouping is a rendering — the report files always carry every finding separately. See [what to fix first](../concepts/what-to-fix-first.md) |
 | `--evidence` | `false` | Console: also print what stands behind the verdict — tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
 | `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding |
 | `--min-priority` | — | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set — see [below](#what---min-priority-narrows) |
@@ -502,7 +502,7 @@ draugr: html is a document, not something to print: use `--report html` with `-o
 
 An HTML report is a styled document with its CSS inlined; a JUnit file is read by a CI runner from
 a path, never by a person. Printing either because a plausible-looking flag was typed is not
-behaviour worth defending, so neither is offered here.
+behavior worth defending, so neither is offered here.
 
 ### `--working-tree`, for the loop of fixing something
 
@@ -648,7 +648,7 @@ The id can be given in full or by the part that is unambiguous — `4.3.1` finds
 choosing, since explaining a rule you did not ask about is worse than asking again.
 
 Only rules the scan reported are in its report, which is what makes the remediation specific to
-what was found rather than a catalogue.
+what was found rather than a catalog.
 
 ## `draugr diff <base.sarif> <head.sarif>`
 
@@ -1151,7 +1151,7 @@ draugr feeds update --force    # refetch regardless of age
 
 EPSS is published gzipped and is decompressed on the way in, so the cache holds a CSV the
 scanner can read directly. Each write is atomic — an interrupted fetch cannot leave half a
-catalogue behind for the next scan to read as though it were complete.
+catalog behind for the next scan to read as though it were complete.
 
 **In CI, run this as its own step.** A feed outage then fails where it happened rather than
 producing a scan that ranked everything as though nothing were exploited.
@@ -1175,7 +1175,7 @@ Set it once in the descriptor under
 [`config.exploitability`](saga-schema.md#configexploitability), or pass it per run. `--kev` and
 `--epss` accept a path, or one of two keywords:
 
-| Value | Behaviour |
+| Value | Behavior |
 |-------|-----------|
 | a path | read that file; never touches the cache or the network — the air-gapped route |
 | `cache` | read `~/.draugr/feeds`; **never** fetches. Errors if nothing is cached |
@@ -1198,11 +1198,11 @@ signals mean and how to choose a threshold.
 
 ## `draugr config`
 
-Machine and organisation settings, kept apart from the Saga.
+Machine and organization settings, kept apart from the Saga.
 
 A Saga describes an application: its repositories, how exposed a component is, which controls must
 pass. Those are facts about the software and belong in its repository. **Which build of a scanner
-runs, and what a control defaults to, are facts about a machine or an organisation** — they want
+runs, and what a control defaults to, are facts about a machine or an organization** — they want
 to be the same everywhere, which is exactly why they do not belong in a per-application
 descriptor. A descriptor that could pin its own scanner version is one that could downgrade a
 scanner until a finding disappears.
@@ -1242,7 +1242,7 @@ Discovered files are layered, project over home. An explicit one replaces both: 
 that names a config expects that config, not that one laid over whatever is in the working
 directory.
 
-For behaviour, the full order is **component → Saga → config → built-in**, deep-merged, so an
+For behavior, the full order is **component → Saga → config → built-in**, deep-merged, so an
 override replaces only the keys it names.
 
 ### Commands

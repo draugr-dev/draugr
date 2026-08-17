@@ -288,7 +288,7 @@ func TestNarrowNewKeepsOnlyTheBandAndOnlyForNew(t *testing.T) {
 	if len(got.Fixed) != 1 || len(got.Unchanged) != 1 {
 		t.Errorf("fixed/unchanged were narrowed: %d/%d", len(got.Fixed), len(got.Unchanged))
 	}
-	// No band, and an unrecognised one, both leave the result alone rather than emptying it.
+	// No band, and an unrecognized one, both leave the result alone rather than emptying it.
 	for _, band := range []string{"", "urgent"} {
 		if n := len(r.NarrowNew(band).New); n != 3 {
 			t.Errorf("band %q kept %d new findings, want all 3", band, n)

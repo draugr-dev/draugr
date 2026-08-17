@@ -178,18 +178,18 @@ func TestHostnameOf(t *testing.T) {
 	}
 }
 
-func TestSummariseEntriesStopsAtThree(t *testing.T) {
+func TestSummarizeEntriesStopsAtThree(t *testing.T) {
 	// A host can carry a hundred records. Pasting them all into a finding buries the fact that
 	// there are a hundred.
 	var many []urlhausEntry
 	for range 10 {
 		many = append(many, urlhausEntry{URL: "http://x.example/a", Threat: "malware_download"})
 	}
-	got := summariseEntries(many)
+	got := summarizeEntries(many)
 	if !strings.Contains(got, "and 7 more") {
 		t.Errorf("summary did not stop and count the rest: %q", got)
 	}
-	if got := summariseEntries([]urlhausEntry{{URL: "http://x.example/a"}}); !strings.Contains(got, "unknown threat") {
+	if got := summarizeEntries([]urlhausEntry{{URL: "http://x.example/a"}}); !strings.Contains(got, "unknown threat") {
 		t.Errorf("a record with no threat category should still read sensibly: %q", got)
 	}
 }
