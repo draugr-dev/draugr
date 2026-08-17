@@ -105,7 +105,14 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 			fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(tripped)),
 			publishErr)
 	}
-	return publishErr
+	// The gate passed and only delivery failed, which is still non-zero — but the message has to
+	// say which, because the two are the same color in a checks list and only one of them is
+	// about the code under review. Without the first clause a reader sees a red tick and a forge
+	// error and has no way to tell it from a change that introduced a finding.
+	if publishErr != nil {
+		return fmt.Errorf("the gate passed, but publishing failed: %w", publishErr)
+	}
+	return nil
 }
 
 // diffPublisherKind picks the sticky-comment publisher for the CI system this is running on.

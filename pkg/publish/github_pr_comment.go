@@ -48,7 +48,7 @@ func newGithubPRCommentPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		apiURL: firstNonEmpty(os.Getenv("GITHUB_API_URL"), "https://api.github.com"),
 		marker: firstNonEmpty(cfg.Marker, defaultPRMarker),
 		pr:     cfg.PR,
-		client: http.DefaultClient,
+		client: newRetryingClient(http.DefaultClient),
 	}
 	if p.pr == 0 {
 		if m := prRefPattern.FindStringSubmatch(os.Getenv("GITHUB_REF")); m != nil {

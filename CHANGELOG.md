@@ -10,7 +10,18 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **A forge having a bad minute no longer fails your build.** Publishers retry a refused request
+  (`429`, `502`, `503`, `504`) with a short backoff, honoring `Retry-After` when the forge sends
+  one — so a pull-request comment survives a blip instead of turning a clean gate red. A write
+  that vanished mid-flight is still not repeated, because two comments on one pull request is a
+  worse outcome than one honest failure.
+
+- **`draugr diff --publish` says which thing went wrong.** When the gate passed and only delivery
+  failed, the error now leads with `the gate passed, but publishing failed` — previously a forge
+  outage and a finding your change introduced produced the same red check and the same silence
+  about which it was.
 
 ## [0.99.0] - 2026-08-17
 

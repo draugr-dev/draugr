@@ -272,4 +272,13 @@ func TestDiffPublishFailureStillFailsAPassingGate(t *testing.T) {
 	if strings.Contains(err.Error(), "differential gate") {
 		t.Errorf("no finding tripped the gate, so it should not be named: %v", err)
 	}
+	// A red check for a forge outage and a red check for a finding this change introduced look
+	// identical in a checks list. The message is the only thing that separates them, so it says
+	// the gate passed before it says what went wrong.
+	if !strings.Contains(err.Error(), "the gate passed") {
+		t.Errorf("the error has to say the gate passed, or it reads as a failing scan: %v", err)
+	}
+	if !strings.Contains(err.Error(), "publishing failed") {
+		t.Errorf("the delivery problem is what went wrong and has to be named: %v", err)
+	}
 }
