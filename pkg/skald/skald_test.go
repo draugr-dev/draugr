@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -190,6 +191,107 @@ func TestRenderJSONStats(t *testing.T) {
 		if doc.Stats[k] != want {
 			t.Errorf("stats.%s = %d, want %d", k, doc.Stats[k], want)
 		}
+	}
+}
+
+// The run's timings are what answer "why was that slow", and CI keeps this document rather than
+// the console the numbers were also printed to. A report that carries the job count and not the
+// time it took describes the shape of the run and not its cost.
+func TestRenderJSONReportsWhereTheTimeWent(t *testing.T) {
+	run := sampleRun()
+	run.Stats = engine.Stats{
+		Jobs:        3,
+		Scans:       3,
+		Concurrency: 2,
+		Duration:    90 * time.Second,
+		ByControl: map[string]time.Duration{
+			"sca":  61*time.Second + 200*time.Millisecond,
+			"sast": 4 * time.Second,
+		},
+		ToolWaits: map[string]time.Duration{"trivy": 51 * time.Second},
+	}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Stats struct {
+			DurationMs  int64            `json:"durationMs"`
+			ByControlMs map[string]int64 `json:"byControlMs"`
+			ToolWaitsMs map[string]int64 `json:"toolWaitsMs"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	if doc.Stats.DurationMs != 90_000 {
+		t.Errorf("durationMs = %d, want 90000", doc.Stats.DurationMs)
+	}
+	if got := doc.Stats.ByControlMs["sca"]; got != 61_200 {
+		t.Errorf("byControlMs[sca] = %d, want 61200", got)
+	}
+	if got := doc.Stats.ByControlMs["sast"]; got != 4_000 {
+		t.Errorf("byControlMs[sast] = %d, want 4000", got)
+	}
+	// The wait is the figure the sum alone cannot explain: it is time inside those jobs that was
+	// queueing rather than scanning, so a reader comparing them can tell a slow tool from a
+	// contended one.
+	if got := doc.Stats.ToolWaitsMs["trivy"]; got != 51_000 {
+		t.Errorf("toolWaitsMs[trivy] = %d, want 51000", got)
+	}
+}
+
+// A control faster than a millisecond is measured, not missing. Truncating it to 0 puts a
+// "took no time" in a map whose every other entry is a real figure, and the entry that reads as
+// a bug is the one nobody trusts the rest of the map after seeing.
+func TestASubMillisecondControlIsRoundedRatherThanZeroed(t *testing.T) {
+	run := sampleRun()
+	run.Stats = engine.Stats{
+		Jobs:      1,
+		Scans:     1,
+		Duration:  600 * time.Microsecond,
+		ByControl: map[string]time.Duration{"secrets": 600 * time.Microsecond},
+	}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Stats struct {
+			DurationMs  int64            `json:"durationMs"`
+			ByControlMs map[string]int64 `json:"byControlMs"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	if doc.Stats.DurationMs != 1 {
+		t.Errorf("durationMs = %d, want 1", doc.Stats.DurationMs)
+	}
+	if got := doc.Stats.ByControlMs["secrets"]; got != 1 {
+		t.Errorf("byControlMs[secrets] = %d, want 1", got)
+	}
+}
+
+// Unmeasured is not the same as instant. `cacheHits: 0` is a measurement and belongs in the
+// document; a `durationMs: 0` beside it would be a claim no run can honestly make, and a
+// consumer charting it has no way to tell the two zeroes apart.
+func TestUnrecordedTimingsAreAbsentRatherThanZero(t *testing.T) {
+	run := sampleRun()
+	run.Stats = engine.Stats{Jobs: 2, Scans: 2, Concurrency: 2}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"durationMs", "byControlMs", "toolWaitsMs"} {
+		if strings.Contains(buf.String(), key) {
+			t.Errorf("%s present with nothing recorded:\n%s", key, buf.String())
+		}
+	}
+	// The counts that *are* measurements stay, so this is an omission of the unknown rather than
+	// of everything falsy.
+	if !strings.Contains(buf.String(), `"cacheHits": 0`) {
+		t.Errorf("cacheHits dropped along with the timings:\n%s", buf.String())
 	}
 }
 

@@ -36,3 +36,34 @@ func TestIntegrationRunsWhenItsOwnSuiteChanges(t *testing.T) {
 		t.Error("the integration job does not depend on the detection job, so its output is empty")
 	}
 }
+
+// TestIntegrationRunsWhenWhatItReadsBackChanges keeps the packages that produce a scan's output
+// inside the change filter.
+//
+// These tests are the only ones that check a claim against a real run rather than a fixture: they
+// scan something, then read the artifacts back to assert which tools actually ran and what the
+// scan recorded about the repository. That makes them the only thing that notices when the code
+// writing those artifacts changes shape — and they are opt-in, so a change outside the filter
+// leaves them skipped. A skipped job reads like a passing one, and the next run is the release
+// tag.
+//
+// Named per package with what each contributes, so a package leaving the list has to argue with
+// the reason rather than delete a path.
+func TestIntegrationRunsWhenWhatItReadsBackChanges(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile("../../.github/workflows/integration.yml")
+	if err != nil {
+		t.Fatalf("read the integration workflow: %v", err)
+	}
+	workflow := string(raw)
+
+	for path, produces := range map[string]string{
+		"pkg/report/": "renders what a scan prints, which several of these tests assert on",
+		"pkg/skald/":  "writes the SARIF and the JSON evidence these tests parse back",
+	} {
+		if !strings.Contains(workflow, path) {
+			t.Errorf("%s is not in the integration change filter, but it %s — a change there "+
+				"leaves the only tests that would catch it skipped, and green", path, produces)
+		}
+	}
+}

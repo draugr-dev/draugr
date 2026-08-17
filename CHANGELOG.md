@@ -10,6 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`report.json` says where a slow run went.** `stats` now carries `durationMs` (wall-clock),
+  `byControlMs` (each control's job time) and `toolWaitsMs` (time spent queueing for a tool's own
+  cache rather than scanning) — so `jq '.stats' report.json` answers "why did that take so long"
+  from the artifact your pipeline already keeps, not just from the terminal it scrolled past.
+  See [Finding out where a slow run went](docs/guides/caching-and-performance.md#finding-out-where-a-slow-run-went).
+
 ### Fixed
 
 - **Draugr's own CI uses the caching Draugr offers.** The self-scan re-provisioned four scanners
