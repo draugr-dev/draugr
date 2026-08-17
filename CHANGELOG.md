@@ -25,6 +25,10 @@ and move it under a version on release.
   control, format, config key or schema value changed — nothing you have written needs editing.
   If you match on Draugr's human-readable output, `--format json` remains the stable surface.
 
+- **Plugin authors: `plugin.NormaliseMethods` is now `plugin.NormalizeMethods`.** The only exported
+  name in `pkg/` that the spelling change touched, and the only thing here that can break a build.
+  It takes and returns exactly what it did; rename the call and nothing else moves.
+
 ### Fixed
 
 - **Draugr's own CI uses the caching Draugr offers.** The self-scan re-provisioned four scanners
