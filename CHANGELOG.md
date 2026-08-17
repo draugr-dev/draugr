@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.99.0] - 2026-08-17
+
 ### Added
 
 - **`report.json` says where a slow run went.** `stats` now carries `durationMs` (wall-clock),
@@ -4644,7 +4648,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.98.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.99.0...HEAD
+[0.99.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.99.0
 [0.98.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.98.1
 [0.98.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.98.0
 [0.97.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.97.0
