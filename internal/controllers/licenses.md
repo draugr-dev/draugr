@@ -56,7 +56,7 @@ auditable, rather than deleted.
 
 - Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)
 - Scope and disclaimer: [license findings are not legal advice](../../docs/trust-and-operations/disclaimer.md)
-- Learn: [Software licenses](https://www.draugr.dev/learn/software-licences/)
+- Learn: [Software licenses](https://www.draugr.dev/learn/software-licenses/)
 
 ## Notes
 

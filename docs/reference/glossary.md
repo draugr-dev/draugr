@@ -97,7 +97,7 @@ scan, written alongside the other artifacts, and never part of pass or fail.
 
 ## License compliance
 
-*Go deeper: [Software licenses](/learn/software-licences/) in Learn.*
+*Go deeper: [Software licenses](/learn/software-licenses/) in Learn.*
 
 The obligations that come attached to your open-source dependencies. Most licenses
 (**permissive** — MIT, Apache-2.0, BSD) ask for nothing but attribution. **Copyleft** licenses
