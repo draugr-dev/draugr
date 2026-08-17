@@ -254,7 +254,7 @@ func TestValidateExclude(t *testing.T) {
 }
 
 func TestExcludeRuleWildcards(t *testing.T) {
-	// A compound licence id: the package itself contains slashes, which is exactly why `*` has
+	// A compound license id: the package itself contains slashes, which is exactly why `*` has
 	// to cross separators here.
 	const lic = "license/GPL-3.0-only/github.com/somelib/thing"
 
@@ -263,10 +263,10 @@ func TestExcludeRuleWildcards(t *testing.T) {
 		ruleID  string
 		want    bool
 	}{
-		{"license/GPL-3.0-only/*", lic, true}, // this licence, any package
-		{"license/*", lic, true},              // every licence finding
+		{"license/GPL-3.0-only/*", lic, true}, // this license, any package
+		{"license/*", lic, true},              // every license finding
 		{lic, lic, true},                      // exact, no wildcard
-		{"license/MIT/*", lic, false},         // different licence
+		{"license/MIT/*", lic, false},         // different license
 		{"license/GPL-3.0-only/github.com/somelib/thing", lic, true},
 		{"*/somelib/*", lic, true},     // wildcard on both sides
 		{"license/*/thing", lic, true}, // suffix anchored

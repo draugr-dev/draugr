@@ -61,11 +61,11 @@ func (s draugrK8sPoliciesScanner) Info() plugin.ScannerInfo { return s.info }
 
 // CacheVersion ties cached results to this binary (implements plugin.CacheVersioner).
 //
-// The CIS checks are implemented natively against a catalogue that ships with Draugr, so the
-// catalogue's version is Draugr's. A cluster that has not changed can still get a different
+// The CIS checks are implemented natively against a catalog that ships with Draugr, so the
+// catalog's version is Draugr's. A cluster that has not changed can still get a different
 // answer after an upgrade that adds a control, and the cache must not hide that.
 func (s draugrK8sPoliciesScanner) CacheVersion(context.Context) string {
-	return draugrCacheVersion() + ";cis@" + cisCatalogueVersion
+	return draugrCacheVersion() + ";cis@" + cisCatalogVersion
 }
 
 // Scan evaluates the policies section against the cluster the target names.
@@ -282,7 +282,7 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 	// only alternative, and a clean report gives no hint that two thirds of the section was never
 	// decided.
 	fields := []sarif.Field{
-		{Key: "benchmark", Value: cisCatalogueVersion},
+		{Key: "benchmark", Value: cisCatalogVersion},
 		{Key: "coverage", Value: fmt.Sprintf("%d of %d checks decided", len(decided), len(cisPolicies))},
 	}
 
@@ -290,7 +290,7 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 	// a consumer tell "checked and clean" from "never examined" — which is the difference between
 	// a scanner dissenting and a scanner being silent, and the two mean opposite things.
 	//
-	// The catalogue's order, not the map's, so a report does not differ from itself between runs.
+	// The catalog's order, not the map's, so a report does not differ from itself between runs.
 	for _, check := range cisPolicies {
 		if _, settled := decided[check.ID]; !settled {
 			continue
@@ -299,7 +299,7 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 			Taxonomy: cisKubernetesTaxonomy,
 			ID:       check.ID,
 			Name:     check.Title,
-			Version:  cisCatalogueVersion,
+			Version:  cisCatalogVersion,
 		})
 	}
 	// Always, including when it covers everything. Reported only for a narrowed scan, the whole
@@ -346,7 +346,7 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 				Taxonomy: cisKubernetesTaxonomy,
 				ID:       check.ID,
 				Name:     check.Title,
-				Version:  cisCatalogueVersion,
+				Version:  cisCatalogVersion,
 			}},
 		}
 	}

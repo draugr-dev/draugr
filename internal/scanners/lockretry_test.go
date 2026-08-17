@@ -128,9 +128,9 @@ func TestRetryLockedCache(t *testing.T) {
 	}
 }
 
-// A cancelled run was told to stop; it did not fail to scan. Reporting the lock would send the
+// A canceled run was told to stop; it did not fail to scan. Reporting the lock would send the
 // reader after a cache problem they do not have.
-func TestRetryLockedCacheStopsWhenCancelled(t *testing.T) {
+func TestRetryLockedCacheStopsWhenCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	calls := 0
 	done := make(chan error, 1)
@@ -151,7 +151,7 @@ func TestRetryLockedCacheStopsWhenCancelled(t *testing.T) {
 			t.Errorf("error = %v, want context.Canceled", err)
 		}
 	case <-time.After(10 * time.Second):
-		t.Fatal("a cancelled run should not sit out its backoff")
+		t.Fatal("a canceled run should not sit out its backoff")
 	}
 	if calls != 1 {
 		t.Errorf("ran %d times after cancellation, want 1", calls)
@@ -164,7 +164,7 @@ func TestIsLockedCacheMatchesWhatTheToolPrints(t *testing.T) {
 	t.Parallel()
 	wrapped := fmt.Errorf("run trivy: %w", errLocked)
 	if !isLockedCache(wrapped) {
-		t.Error("the wrapped tool error should be recognised")
+		t.Error("the wrapped tool error should be recognized")
 	}
 	if !strings.Contains(errLocked.Error(), lockedCacheMarker) {
 		t.Errorf("the marker %q is not in the message Trivy prints", lockedCacheMarker)

@@ -41,7 +41,7 @@ func (vexReporter) Format() string { return "vex" }
 // below has been checked against a new spec, not when one is published.
 const openVEXContext = "https://openvex.dev/ns/v0.2.0"
 
-// vexDocument is an OpenVEX document. Hand-modelled rather than taken from a library because the
+// vexDocument is an OpenVEX document. Hand-modeled rather than taken from a library because the
 // surface is this small, and because every field below has to be deterministic — the same run
 // rendered twice is the same bytes, which is what lets a VEX document be committed, diffed and
 // reviewed like the descriptor that produced it.
@@ -237,7 +237,7 @@ func vexAuthor(d Data) string {
 // vexProductID is the identifier the statements are about.
 //
 // Defaults to a purl over the release, because the release *is* the product — VEX is asked for
-// per shipped thing, not per repository. `pkg:generic/` is honest about being synthesised from
+// per shipped thing, not per repository. `pkg:generic/` is honest about being synthesized from
 // the descriptor rather than taken from anywhere real, and config.vex.product replaces it with
 // whatever a consumer's SBOM calls this.
 //

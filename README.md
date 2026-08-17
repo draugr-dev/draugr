@@ -55,7 +55,7 @@ and `go install`, are in the [install guide](docs/getting-started/install.md).
 ```bash
 draugr tools install     # fetch the scanners, pinned and verified
 draugr scan .            # scan this repo with sensible defaults
-draugr init              # or scaffold a draugr.saga.yaml to customise
+draugr init              # or scaffold a draugr.saga.yaml to customize
 ```
 
 Then describe what you actually ship:
@@ -97,7 +97,7 @@ Full walkthrough: [quickstart](docs/getting-started/quickstart.md).
 ## What it checks
 
 Eleven controls, each backed by a tool Draugr executes rather than bundles — so every scanner
-stays under its own licence, and you can swap it.
+stays under its own license, and you can swap it.
 
 | Control | Looks at | By default |
 |---|---|---|
@@ -106,7 +106,7 @@ stays under its own licence, and you can swap it.
 | `sast` | your own source | Semgrep — gosec opt-in for Go |
 | `iac` | Terraform, Kubernetes, Dockerfiles | Trivy |
 | `images` | container images | Trivy — Grype opt-in |
-| `licenses` | dependency licences | Trivy |
+| `licenses` | dependency licenses | Trivy |
 | `dast` | a running endpoint | Nuclei — authenticated, and from an OpenAPI spec |
 | `headers` | HTTP security headers | native |
 | `tls` | certificates and transport | native |
@@ -166,18 +166,18 @@ See [use Draugr from an AI coding assistant](docs/guides/ai-agents-mcp.md).
 - [Concepts](docs/concepts/saga.md) — the descriptor, controls, scanners, the verdict
 - [Saga schema](docs/reference/saga-schema.md) · [CLI reference](docs/reference/cli.md) —
   every field, every flag
-- [Integrations catalog](docs/reference/catalog.md) — every scanner, with licences and terms
+- [Integrations catalog](docs/reference/catalog.md) — every scanner, with licenses and terms
 - [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
 ## What Draugr doesn't promise
 
 A passing verdict means the controls you configured found nothing they were looking for. It is
 not a statement that your software is secure — it is silent about anything your descriptor does
-not declare, controls you did not enable, and whatever the underlying scanners miss. Licence
+not declare, controls you did not enable, and whatever the underlying scanners miss. License
 findings are information, not legal advice. Draugr is provided under Apache-2.0 **without
 warranty**.
 
-The details, including whose terms the scanners carry and your responsibility for authorisation
+The details, including whose terms the scanners carry and your responsibility for authorization
 when scanning live endpoints: [scope and disclaimer](docs/trust-and-operations/disclaimer.md).
 
 ## Security & supply chain
@@ -201,9 +201,9 @@ A security tool should hold itself to what it checks. Draugr does:
   That card reports **`SAST: 0`**, and it is worth saying why we are leaving it there. Static
   analysis does run on this repository: Semgrep and gosec through Draugr's own `sast` control on
   every scan, and gosec again inside `golangci-lint` on every pull request. Scorecard looks for a
-  specific set of tools it recognises, and ours are not in it.
+  specific set of tools it recognizes, and ours are not in it.
 
-  Adding a third static analyser purely to move the number would be the same thing as writing
+  Adding a third static analyzer purely to move the number would be the same thing as writing
   tests that touch code without asserting anything — a metric improved without the property
   behind it improving. We would rather the score be wrong and the analysis be real. If you want
   to check the analysis rather than the score, the findings are in the repository's Security tab,

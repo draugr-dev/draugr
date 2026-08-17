@@ -4,11 +4,11 @@
 - **Tool:** [Anchore Grype](https://github.com/anchore/grype) — `grype registry:<ref> -q -o sarif`
 - **Status:** ✅ implemented, **opt-in** (Trivy runs by default)
 - **Targets:** container images
-- **License / terms:** see [licence, terms and what is sent](#licence-terms-and-what-is-sent)
+- **License / terms:** see [license, terms and what is sent](#license-terms-and-what-is-sent)
 
 ## What it does
 
-Runs Grype against a container image and returns its native SARIF. Grype catalogues the packages
+Runs Grype against a container image and returns its native SARIF. Grype catalogs the packages
 in the image with Syft, then matches them against its vulnerability database.
 
 It is a second scanner for a control Trivy already serves, and Trivy stays the default. Enable it
@@ -97,19 +97,19 @@ reaches out, once per job.
 **The staleness check is not disabled to keep things quiet.** A scanner that reports a pass against
 a database that stopped being updated is the failure this whole tool exists to prevent.
 
-## Licence, terms and what is sent
+## License, terms and what is sent
 
-**Tool licence: Apache-2.0.** Draugr executes Grype as a subprocess and neither links nor bundles
-it, so the licence stays Anchore's. Releases are pinned by SHA-256 in `draugr tools install`, from
+**Tool license: Apache-2.0.** Draugr executes Grype as a subprocess and neither links nor bundles
+it, so the license stays Anchore's. Releases are pinned by SHA-256 in `draugr tools install`, from
 a `checksums.txt` verified out of band with `cosign verify-blob` against the `anchore/grype` release
 workflow identity.
 
-**The database is a separate artifact and is not covered by that licence.** Anchore publishes it at
+**The database is a separate artifact and is not covered by that license.** Anchore publishes it at
 `grype.anchore.io`, without authentication and at no cost. Anchore's published legal documents —
-terms of service, the master software licence agreement, the privacy policy — govern their website
+terms of service, the master software license agreement, the privacy policy — govern their website
 and their commercial platform; none of them purport to govern the open-source tools or this
 database, and there is no separate agreement gating it. The instruments that do apply are the
-Apache-2.0 licence covering Grype and the pipeline that builds the database, and the terms of the
+Apache-2.0 license covering Grype and the pipeline that builds the database, and the terms of the
 upstream sources it aggregates: NVD, GitHub Security Advisories, the distribution security
 trackers, Bitnami, Chainguard, ECHO, MINIMOS and Wolfi, each of which carries its own.
 

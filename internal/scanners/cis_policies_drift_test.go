@@ -13,15 +13,15 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-// cisCatalogueBenchmark is the benchmark revision the catalogue is pinned to.
-const cisCatalogueBenchmark = cisCatalogueVersion
+// cisCatalogBenchmark is the benchmark revision the catalog is pinned to.
+const cisCatalogBenchmark = cisCatalogVersion
 
 // kubeBenchCfgEnv points at kube-bench's own cfg/ tree.
 const kubeBenchCfgEnv = "KUBE_BENCH_CFG"
 
-// TestCISCatalogueMatchesKubeBench holds the catalogue to the benchmark it claims to describe.
+// TestCISCatalogMatchesKubeBench holds the catalog to the benchmark it claims to describe.
 //
-// The catalogue is what makes partial coverage honest: every check in the section is reported,
+// The catalog is what makes partial coverage honest: every check in the section is reported,
 // so one this scanner cannot decide still reaches the reader instead of being absent. That
 // guarantee is only as good as the list, and the list is hand-maintained — CIS renumbers checks
 // between revisions, adds them, and retires them.
@@ -31,15 +31,15 @@ const kubeBenchCfgEnv = "KUBE_BENCH_CFG"
 // removed upstream but left here is reported forever as needing review, sending someone after a
 // requirement that no longer exists.
 //
-// Nothing about this test writes a check for us. It makes an out-of-date catalogue impossible to
+// Nothing about this test writes a check for us. It makes an out-of-date catalog impossible to
 // ship without noticing, which is the part that can be automated.
-func TestCISCatalogueMatchesKubeBench(t *testing.T) {
+func TestCISCatalogMatchesKubeBench(t *testing.T) {
 	cfgDir := os.Getenv(kubeBenchCfgEnv)
 	if cfgDir == "" {
-		t.Skipf("%s is not set — point it at kube-bench's cfg/ directory to check the catalogue for drift", kubeBenchCfgEnv)
+		t.Skipf("%s is not set — point it at kube-bench's cfg/ directory to check the catalog for drift", kubeBenchCfgEnv)
 	}
 
-	path := filepath.Join(cfgDir, cisCatalogueBenchmark, "policies.yaml")
+	path := filepath.Join(cfgDir, cisCatalogBenchmark, "policies.yaml")
 	raw, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		t.Fatalf("read %s: %v\n%s points at %q; it should be the cfg/ directory that ships with kube-bench",
@@ -83,16 +83,16 @@ func TestCISCatalogueMatchesKubeBench(t *testing.T) {
 	sort.Strings(extra)
 
 	for _, id := range missing {
-		t.Errorf("%s adds check %s (%q), which the catalogue does not list — it would never be reported",
-			cisCatalogueBenchmark, id, upstream[id])
+		t.Errorf("%s adds check %s (%q), which the catalog does not list — it would never be reported",
+			cisCatalogBenchmark, id, upstream[id])
 	}
 	for _, id := range extra {
-		t.Errorf("the catalogue lists check %s, which %s does not have — it would be reported forever as needing review",
-			id, cisCatalogueBenchmark)
+		t.Errorf("the catalog lists check %s, which %s does not have — it would be reported forever as needing review",
+			id, cisCatalogBenchmark)
 	}
 
 	// Wording drift matters less than the id set, but a check whose meaning changed under a
-	// stable number is the one a reader would never think to question. The catalogue drops the
+	// stable number is the one a reader would never think to question. The catalog drops the
 	// benchmark's trailing "(Manual)", so the upstream text should still begin with ours.
 	for _, c := range cisPolicies {
 		text, ok := upstream[c.ID]
@@ -100,13 +100,13 @@ func TestCISCatalogueMatchesKubeBench(t *testing.T) {
 			continue
 		}
 		if !strings.HasPrefix(text, c.Title) {
-			t.Errorf("check %s was reworded upstream:\n  catalogue: %q\n  %s: %q",
-				c.ID, c.Title, cisCatalogueBenchmark, text)
+			t.Errorf("check %s was reworded upstream:\n  catalog: %q\n  %s: %q",
+				c.ID, c.Title, cisCatalogBenchmark, text)
 		}
 	}
 
-	t.Logf("catalogue checked against %s: %d checks, %d decided here",
-		cisCatalogueBenchmark, len(upstream), decidedCheckCount(t))
+	t.Logf("catalog checked against %s: %d checks, %d decided here",
+		cisCatalogBenchmark, len(upstream), decidedCheckCount(t))
 }
 
 // decidedCheckCount reports how many checks this scanner answers from the cluster rather than

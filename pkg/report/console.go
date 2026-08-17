@@ -282,7 +282,7 @@ func writeEffects(w io.Writer, col tui.Painter, s summary, d Data) {
 	}
 	// Below the findings, not above them. It qualifies what was just read rather than introducing
 	// it, and a caveat placed before the fix list competes with the thing it is a caveat about.
-	// Not dim, unlike its neighbours here: a reader deciding whether to trust these findings
+	// Not dim, unlike its neighbors here: a reader deciding whether to trust these findings
 	// should not have to notice it.
 	if line := unpinnedCacheLine(d.Run.Stats.UnpinnedCacheHits); line != "" {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cMedium, line))
@@ -776,7 +776,7 @@ func writeNotMeasured(w io.Writer, col tui.Painter, d Data, width int) {
 	}
 }
 
-// exploitabilityLine summarises the feeds a run's severities were enriched from, or "" when
+// exploitabilityLine summarizes the feeds a run's severities were enriched from, or "" when
 // there were none.
 //
 // Beside the SBOM line rather than in the findings table: it describes the run, and a reader

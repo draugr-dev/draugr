@@ -779,7 +779,7 @@ func TestSurveyFragmentAddsToWhatIsAlreadyThere(t *testing.T) {
 	}
 }
 
-// A fragment is recognised by its name, so writing one under a Saga's name produces a file Draugr
+// A fragment is recognized by its name, so writing one under a Saga's name produces a file Draugr
 // reads back as a Saga and rejects for having no release. The survey knows that before it connects
 // to anything, and saying so then costs a retype rather than a survey.
 func TestSurveyFragmentRefusesAFilenameDraugrWouldMisread(t *testing.T) {

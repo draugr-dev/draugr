@@ -59,7 +59,7 @@ func TestTheActionManifestHasNoDuplicateKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read action.yml: %v", err)
 	}
-	// yaml.v3 rejects duplicate mapping keys, which is the behaviour we want to borrow.
+	// yaml.v3 rejects duplicate mapping keys, which is the behavior we want to borrow.
 	var doc map[string]any
 	if err := yaml.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("action.yml is not loadable as the runner loads it: %v", err)

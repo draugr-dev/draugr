@@ -49,4 +49,4 @@ starting point people copy, and churning the SHA gains them nothing.
 - `contrib/starter-workflow/` is excluded from our own SAST self-scan. Semgrep's
   `github-actions-mutable-action-tag` rule wants every `uses:` SHA-pinned, which is right for a
   workflow you operate and wrong for a template — and here it would also contradict the accepted
-  precedent this file is modelled on. See `.semgrepignore`.
+  precedent this file is modeled on. See `.semgrepignore`.

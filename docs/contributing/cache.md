@@ -19,7 +19,7 @@ that re-run”.
 
 Only the first is Draugr's cache in the usual sense. The second is the one that dominates a cold
 CI job — a scanner downloading its database costs far more than re-running the scan — which is why
-the CI guidance persists tool data *first* and treats the result cache as a later optimisation.
+the CI guidance persists tool data *first* and treats the result cache as a later optimization.
 
 ## The result cache
 
@@ -53,7 +53,7 @@ correctness lives:
   how a repository is fetched, not which repository it is, so including them would give two people
   scanning one repository different identities.
 - **Image** — the digest when there is one, otherwise the reference.
-- **Host** — the normalised URL, plus markers for the authentication and the spec in use. Two scans
+- **Host** — the normalized URL, plus markers for the authentication and the spec in use. Two scans
   of one URL that are not comparable — one authenticated, one not — must not share a key.
 - **Infrastructure** — the platform and the named instance.
 
@@ -130,13 +130,13 @@ Three details that are easy to get wrong when working on this:
   step or a copy would rewrite. An entry restored from a CI cache is as old as the scan that
   produced it, not as old as the restore.
 - **Every failure is a miss, not an error.** Absent file, unreadable bytes, malformed JSON,
-  expired entry — all return `ok=false` and the job runs normally. A cache is an optimisation, and
+  expired entry — all return `ok=false` and the job runs normally. A cache is an optimization, and
   a scan that failed because its cache was corrupt would be a worse outcome than the scan it
   avoided. This is the one place in Draugr where swallowing an error is right, because the
   fallback is doing the work properly rather than reporting a pass.
 
 There is no index and no manifest: a key is a filename, so two processes writing different keys
-never contend. Within a process a mutex serialises access; across processes nothing does, and it
+never contend. Within a process a mutex serializes access; across processes nothing does, and it
 does not need to — a write to the same key carries an equivalent report, and the one way that can
 go wrong is a reader seeing a half-written file, which is a malformed read, which is a miss. The
 fail-soft rule above is what makes the absence of cross-process locking safe rather than lucky.
@@ -174,7 +174,7 @@ Two consequences worth knowing when working on a scanner:
 ## What a hit does not promise
 
 A cache hit means *this scanner, at this version, with this data, over this exact input, said
-this*. It does not mean the artefact is still safe. A vulnerability disclosed an hour ago is not in
+this*. It does not mean the artifact is still safe. A vulnerability disclosed an hour ago is not in
 a report from yesterday, however unchanged the input.
 
 That is why caching is opt-in and time-bounded rather than on by default, and why the tool-data
@@ -189,4 +189,4 @@ just housekeeping: it bounds how stale a passing verdict is allowed to be.
    many times at once.
 
 Both are optional interfaces, which means forgetting them is silent — the scanner works, and only
-its cache behaviour is wrong. See [adding a scanner](extending/scanner.md).
+its cache behavior is wrong. See [adding a scanner](extending/scanner.md).

@@ -30,7 +30,7 @@ line count, deep transitive trees), so this is where a large share of real risk 
    doesn't slip into a proprietary product.
 
 **In Draugr:** the **`sca`** control, backed by [Trivy](https://trivy.dev) (filesystem mode),
-covers the first two. The third is the separate **`licenses`** control — licence risk isn't a
+covers the first two. The third is the separate **`licenses`** control — license risk isn't a
 vulnerability, so it gets its own gate threshold and its own policy. (Implemented today.)
 [OSV-Scanner](https://google.github.io/osv-scanner/) as a second SCA scanner is on the roadmap:
 [#49](https://github.com/draugr-dev/draugr/issues/49).
@@ -95,12 +95,12 @@ Note that it is **not** a control. A control checks something and returns a verd
 is an inventory and has no verdict to give. Draugr treats it as evidence: generated during a
 scan, written alongside the other artifacts, and never part of pass or fail.
 
-## Licence compliance
+## License compliance
 
-*Go deeper: [Software licences](/learn/software-licences/) in Learn.*
+*Go deeper: [Software licenses](/learn/software-licences/) in Learn.*
 
-The obligations that come attached to your open-source dependencies. Most licences
-(**permissive** — MIT, Apache-2.0, BSD) ask for nothing but attribution. **Copyleft** licences
+The obligations that come attached to your open-source dependencies. Most licenses
+(**permissive** — MIT, Apache-2.0, BSD) ask for nothing but attribution. **Copyleft** licenses
 (GPL, LGPL, AGPL) require you to offer your own source under the same terms *if you distribute*
 software that includes them — which is why the same dependency can be fine in a hosted service
 and a serious problem in a shipped binary. **File-level copyleft** (MPL, EPL) applies only to the
@@ -108,10 +108,10 @@ files you changed.
 
 Nothing here is a vulnerability, and the cost lands somewhere different: a customer's legal
 review, or diligence during an acquisition. It is also harder to undo — you fix a CVE by
-upgrading, and a licence obligation by removing the dependency and rewriting what it did.
+upgrading, and a license obligation by removing the dependency and rewriting what it did.
 
 In Draugr: the `licenses` control, backed by [Trivy](https://trivy.dev/latest/docs/scanner/license/).
-(Implemented today.) It reports licences that carry an obligation and stays quiet about
+(Implemented today.) It reports licenses that carry an obligation and stays quiet about
 permissive ones, which are inventory — the job of an SBOM. Findings are **information, not legal
 advice**; see [scope and disclaimer](../trust-and-operations/disclaimer.md).
 

@@ -31,7 +31,7 @@ type surveyOptions struct {
 
 // check rejects flag combinations that would produce a file Draugr then refuses to read.
 //
-// A fragment is recognised by its name — `draugr validate` and a `fragments:` reference both
+// A fragment is recognized by its name — `draugr validate` and a `fragments:` reference both
 // decide from the suffix — so a fragment written as `x.saga.yaml` is read as a Saga and rejected
 // for having no release. The survey knows that before it connects to anything, and saying so then
 // costs a retype rather than a survey.
@@ -40,7 +40,7 @@ func (o surveyOptions) check(cmd *cobra.Command) error {
 		return nil
 	}
 	if o.output != "" && !IsFragmentFile(filepath.Base(o.output)) {
-		return fmt.Errorf("--fragment writes a fragment, which is recognised by its name: "+
+		return fmt.Errorf("--fragment writes a fragment, which is recognized by its name: "+
 			"%q has to end in .saga-fragment.yaml (or .yml), or Draugr will read it back as a Saga",
 			o.output)
 	}

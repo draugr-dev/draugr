@@ -25,7 +25,7 @@ func fakeTree(t *testing.T) (Tree, func(), error) {
 	return Tree{Dir: dir, Revision: "abc"}, func() { _ = os.RemoveAll(dir) }, nil
 }
 
-func TestPoolMaterialisesOncePerKey(t *testing.T) {
+func TestPoolMaterializesOncePerKey(t *testing.T) {
 	// Five controls over one repository is one checkout. Before this, it was five clones — five
 	// network fetches for a remote, and five chances to resolve a moving branch differently.
 	p := NewPool()
@@ -42,11 +42,11 @@ func TestPoolMaterialisesOncePerKey(t *testing.T) {
 		}
 	}
 	if n := calls.Load(); n != 1 {
-		t.Errorf("materialised %d times, want 1", n)
+		t.Errorf("materialized %d times, want 1", n)
 	}
 }
 
-func TestPoolMaterialisesOncePerKeyUnderConcurrency(t *testing.T) {
+func TestPoolMaterializesOncePerKeyUnderConcurrency(t *testing.T) {
 	// Scanners run concurrently, so the second caller usually arrives while the first is still
 	// cloning. Without single-flight the check above would pass and the real thing would not.
 	p := NewPool()
@@ -70,7 +70,7 @@ func TestPoolMaterialisesOncePerKeyUnderConcurrency(t *testing.T) {
 	}
 	wg.Wait()
 	if n := calls.Load(); n != 1 {
-		t.Errorf("materialised %d times under concurrency, want 1", n)
+		t.Errorf("materialized %d times under concurrency, want 1", n)
 	}
 }
 
@@ -114,7 +114,7 @@ func TestPoolRemembersAFailure(t *testing.T) {
 func TestPoolSharedTreeIsReadOnly(t *testing.T) {
 	// Every scanner Draugr ships only reads what it scans, but that is a property of each tool.
 	// Sharing a directory would make one scanner's write another scanner's input, so a tool that
-	// writes fails where it writes instead of corrupting a neighbouring scan.
+	// writes fails where it writes instead of corrupting a neighboring scan.
 	p := NewPool()
 	defer p.Close()
 

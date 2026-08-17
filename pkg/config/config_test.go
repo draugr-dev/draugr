@@ -10,7 +10,7 @@ import (
 
 func TestParseRejectsUnknownKeys(t *testing.T) {
 	// A misspelled setting that is silently dropped is one somebody believes is in force — and
-	// this file exists to make behaviour uniform, so a typo that quietly opts one machine out
+	// this file exists to make behavior uniform, so a typo that quietly opts one machine out
 	// defeats the point of having it.
 	_, err := Parse([]byte("toolz:\n  trivy:\n    version: \"1\"\n"), "x.yaml")
 	if err == nil {

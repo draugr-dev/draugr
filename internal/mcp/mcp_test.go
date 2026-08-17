@@ -537,7 +537,7 @@ func TestDiscoveryStopsAtDepth(t *testing.T) {
 
 // The approval round trip, against a client that actually answers. Accept runs the scan;
 // decline must not.
-func TestAskModeHonoursTheAnswer(t *testing.T) {
+func TestAskModeHonorsTheAnswer(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "empty.saga.yaml")
 	// No control enabled, so the handshake is exercised without a scanner binary or a network.
@@ -813,7 +813,7 @@ func TestConsentAsksByReturningTheQuestion(t *testing.T) {
 	if elicit.Message != "may I scan?" {
 		t.Errorf("the description did not travel with the question: %q", elicit.Message)
 	}
-	// Not optional even though it asks for nothing: an absent schema serialises as null, and a
+	// Not optional even though it asks for nothing: an absent schema serializes as null, and a
 	// client holding to the spec rejects the request.
 	if elicit.RequestedSchema == nil {
 		t.Error("a null requestedSchema is rejected by a conforming client")
@@ -831,7 +831,7 @@ func TestConsentAsksByReturningTheQuestion(t *testing.T) {
 	}{
 		{"accepted", &mcp.ElicitResult{Action: "accept"}, ""},
 		{"declined", &mcp.ElicitResult{Action: "decline"}, "declined"},
-		{"cancelled", &mcp.ElicitResult{Action: "cancel"}, "declined"},
+		{"canceled", &mcp.ElicitResult{Action: "cancel"}, "declined"},
 		// An answer of a shape Draugr cannot read is not a yes. Treating it as one would turn a
 		// protocol mismatch into an unapproved scan.
 		// A response of a shape Draugr has no meaning for: the client answered a different
@@ -898,7 +898,7 @@ func TestScanUsesTheDescriptorsGate(t *testing.T) {
 			{RuleID: "GPL-3.0", Level: sarif.LevelError, HasScore: true, Score: 7.5},
 		}},
 	}
-	// The finding is high. A descriptor gating licences at critical expects a pass.
+	// The finding is high. A descriptor gating licenses at critical expects a pass.
 	gate := &saga.GateConfig{Controls: map[string]string{"licenses": "critical"}}
 	got := norn.Policy{
 		FailOn:     sarif.SeverityHigh,

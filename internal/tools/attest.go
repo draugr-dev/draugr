@@ -100,7 +100,7 @@ type Attestation struct {
 //
 // Attested means all three: the binary sits in Draugr's own directory, the install manifest has a
 // record for it, and the file's hash still matches what was recorded. Anything else is used and
-// labelled — a binary somewhere else on PATH, one Draugr never installed, or one that has changed
+// labeled — a binary somewhere else on PATH, one Draugr never installed, or one that has changed
 // since it did.
 //
 // The hash check is the one that earns its place. Without it "attested" would mean "in the right

@@ -171,7 +171,7 @@ func TestAwaitToleratesTheProjectNotExistingYet(t *testing.T) {
 	}
 }
 
-func TestAwaitStopsWhenTheRunIsCancelled(t *testing.T) {
+func TestAwaitStopsWhenTheRunIsCanceled(t *testing.T) {
 	c := server(t, map[string]string{
 		"getAllProjects":   `{"projects":[{"projectName":"p","projectToken":"tp"}]}`,
 		"getProjectVitals": `{"projectVitals":[{"requestToken":"other"}]}`,
@@ -182,7 +182,7 @@ func TestAwaitStopsWhenTheRunIsCancelled(t *testing.T) {
 		ProductToken: "prod", ProjectName: "p", RequestToken: "mine",
 		Timeout: time.Minute, Interval: time.Millisecond,
 	}); err == nil {
-		t.Error("a cancelled run should stop the wait")
+		t.Error("a canceled run should stop the wait")
 	}
 }
 

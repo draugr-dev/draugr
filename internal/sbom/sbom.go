@@ -116,7 +116,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 // stripCheckoutPath rewrites the temporary clone out of a generated document.
 //
 // --source-name keeps the checkout path out of what the document calls *itself*, but Syft's file
-// cataloguer records each file it hashed by absolute path, and that path is a fresh temp
+// catalogr records each file it hashed by absolute path, and that path is a fresh temp
 // directory on every run. So the same commit produced a different document each time it was
 // scanned, and the bom-refs derived from those paths moved with them — enough to make two SBOMs
 // of one revision compare unequal, which defeats diffing releases and defeats committing the

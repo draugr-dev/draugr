@@ -77,7 +77,7 @@ func TestParseRetireJSReadsRealOutput(t *testing.T) {
 	if first.Level != sarif.LevelWarning {
 		t.Errorf("medium should be a warning, got %v", first.Level)
 	}
-	// Package identity is what lets a vendored file and the npm package be recognised as one
+	// Package identity is what lets a vendored file and the npm package be recognized as one
 	// library, and what carries these findings into the platform report formats.
 	if first.Package == nil {
 		t.Fatal("no package identity")
@@ -97,7 +97,7 @@ func TestParseRetireJSReadsRealOutput(t *testing.T) {
 		t.Errorf("location = %q", first.Location.URI)
 	}
 	if !strings.Contains(first.Message, "detected by filecontent") {
-		t.Errorf("the message should say how the library was recognised, which is the answer to "+
+		t.Errorf("the message should say how the library was recognized, which is the answer to "+
 			"'why is this not in my lockfile': %q", first.Message)
 	}
 }

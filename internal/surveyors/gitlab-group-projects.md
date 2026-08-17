@@ -22,7 +22,7 @@ draugr survey gitlab projects --group acme -o draugr.saga.yaml
 
 **Subgroups are included, and that is not optional.** A GitLab group is a tree. A survey that
 stopped at the top level would return a fraction of it and say nothing about the rest, so the
-descriptor would look like the whole organisation while describing one floor of it.
+descriptor would look like the whole organization while describing one floor of it.
 
 **Archived and empty projects are skipped, and reported.** An archived project is read-only and
 usually nobody's to fix; an empty one has no commits and would fail the clone. Each is logged with

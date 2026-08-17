@@ -25,7 +25,7 @@ as you type instead of at scan time.
 [SchemaStore](https://www.schemastore.org/), the catalog that VS Code's
 [YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) and
 JetBrains IDEs consult by default. Any file named `*.saga.yaml`, `*.saga.yml` or `.saga.yaml` is
-recognised the moment you open it — no modeline, no setting, nothing committed to the repo.
+recognized the moment you open it — no modeline, no setting, nothing committed to the repo.
 
 Editors cache that catalog and some ship a snapshot inside the extension, so a copy older than the
 registration won't have it yet. Both routes below work regardless, and keep working if you'd
@@ -84,7 +84,7 @@ that caused them, see [findings in your editor](../guides/findings-in-your-edito
 A schema newer than your binary will happily autocomplete fields it doesn't understand; an older
 one will flag valid fields as errors. Three ways to control which you get, loosest to strictest:
 
-| Reference | Behaviour | Use when |
+| Reference | Behavior | Use when |
 |-----------|-----------|----------|
 | `…/schema/draugr.saga.schema.json` | tracks the newest release | you keep Draugr current |
 | `…/schema/v0.33.0/draugr.saga.schema.json` | that release, forever | you pin Draugr in CI |
@@ -236,7 +236,7 @@ config:
 ```
 
 **Every scanner declares the options it accepts**, and anything else under its block is rejected
-before the scan runs, naming the key it could not honour. That includes the scanners that accept
+before the scan runs, naming the key it could not honor. That includes the scanners that accept
 nothing: an option a scanner does not read is an error, not a setting that quietly does nothing.
 
 **Which scanners take options, and which take only `enabled`:**
@@ -364,13 +364,13 @@ and the PR number default from the GitHub Actions environment; the token comes f
 delta** (new / fixed findings) as that comment.
 
 The **`azure-pr-comment`** publisher is its Azure DevOps counterpart, with the same sticky
-behaviour. `org`, `project`, `repo` and the PR number default from the Azure Pipelines
+behavior. `org`, `project`, `repo` and the PR number default from the Azure Pipelines
 environment, so `kind: azure-pr-comment` on its own is usually the whole configuration. The token
 comes from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`), which a pipeline must map into the step
 explicitly — see [reports & publishers](../guides/reports-and-publishers.md#azure-devops) for
 that and for the repository permission the build identity needs.
 
-The **`gitlab-mr-comment`** publisher is the GitLab counterpart, with the same sticky behaviour.
+The **`gitlab-mr-comment`** publisher is the GitLab counterpart, with the same sticky behavior.
 The project and the merge-request IID default from the GitLab CI environment, so
 `kind: gitlab-mr-comment` on its own is usually the whole configuration; `repo` accepts a numeric
 project id or a full path, groups included. The token comes from `$GITLAB_TOKEN` (or `tokenEnv`)
@@ -378,7 +378,7 @@ and must carry **`api`** scope — `CI_JOB_TOKEN` is read-only on the notes API 
 which is worth knowing before reaching for the variable GitLab already provides. See
 [reports & publishers](../guides/reports-and-publishers.md#gitlab).
 
-## Licence policy (`controllers.licenses`)
+## License policy (`controllers.licenses`)
 
 ```yaml
 config:
@@ -395,9 +395,9 @@ components:
         deny: ["LGPL-3.0-only"]
 ```
 
-Reports dependency licences that carry an obligation. Requires Trivy.
+Reports dependency licenses that carry an obligation. Requires Trivy.
 
-> **Not legal advice.** Licence interpretation depends on facts Draugr can't know — whether you
+> **Not legal advice.** License interpretation depends on facts Draugr can't know — whether you
 > distribute, how you link, which jurisdiction applies. Findings are a starting point for a
 > conversation, not a determination. See
 > [scope and disclaimer](../trust-and-operations/disclaimer.md).
@@ -412,26 +412,26 @@ Reports dependency licences that carry an obligation. Requires Trivy.
 | `unknown` | note | Trivy couldn't identify it |
 | `notice`, `permissive`, `unencumbered` | *not reported* | |
 
-Permissive licences aren't findings, they're inventory — every dependency has one, and listing
+Permissive licenses aren't findings, they're inventory — every dependency has one, and listing
 them buries the few that matter under dozens that don't. On Draugr's own repository that's 77
-licences, of which zero carry an obligation. The inventory question is what
-[`config.sbom`](#sbom-generation) answers, with a licence per package.
+licenses, of which zero carry an obligation. The inventory question is what
+[`config.sbom`](#sbom-generation) answers, with a license per package.
 
 `restricted` is a **warning** rather than an error because whether copyleft matters depends on
 whether you distribute — which the Saga doesn't say. If you ship binaries to customers, raise it:
 `deny: ["GPL-3.0-only"]`.
 
-**`deny` and `warn` name SPDX ids and beat the category**, because whether a licence is acceptable
+**`deny` and `warn` name SPDX ids and beat the category**, because whether a license is acceptable
 depends on what you do with your software. Trivy can't know that; you always do.
 
-**Gate it separately from vulnerabilities** with [`config.gate`](#configgate) — licence policy is
+**Gate it separately from vulnerabilities** with [`config.gate`](#configgate) — license policy is
 usually owned by different people than security policy:
 
 ```yaml
 config:
   gate:
     controls:
-      licenses: error      # a denied licence fails the build…
+      licenses: error      # a denied license fails the build…
   # …while --fail-on stays wherever you had it for everything else
 ```
 
@@ -448,7 +448,7 @@ instead. A component can add restrictions; it cannot remove them:
 config:
   controllers:
     licenses:
-      deny: ["GPL-3.0-only", "AGPL-3.0-only"]   # the organisation's policy
+      deny: ["GPL-3.0-only", "AGPL-3.0-only"]   # the organization's policy
 
 components:
   - name: web
@@ -457,8 +457,8 @@ components:
         deny: ["Sleepycat"]      # web denies all three, not just Sleepycat
 ```
 
-Under the usual rule, `web` would have silently dropped both organisation-wide denials — a
-component opting out of company licence policy, invisible in review. That's the failure a licence
+Under the usual rule, `web` would have silently dropped both organization-wide denials — a
+component opting out of company license policy, invisible in review. That's the failure a license
 gate exists to prevent, so **components can only tighten**.
 
 There is exactly one way to loosen, and it requires a reason:
@@ -475,7 +475,7 @@ auditable, is a different thing from a list entry nobody has to explain.
 
 ### Rule ids
 
-`license/<spdx-id>/<package>`, e.g. `license/GPL-3.0-only/github.com/somelib/thing`. Licence
+`license/<spdx-id>/<package>`, e.g. `license/GPL-3.0-only/github.com/somelib/thing`. License
 first so the common exemption is `license/GPL-3.0-only/*`; the full id when you mean one
 dependency. Package names contain slashes, which is why `rules` patterns match `*` across
 separators.
@@ -528,8 +528,8 @@ Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-sag
 control only. Values are severity bands: `critical`, `high`, `medium`, `low`. The SARIF levels
 `error`, `warning` and `note` are still accepted and mean `high`, `medium` and `low`.
 
-One threshold can't serve every control. Licence policy is owned by legal and vulnerability
-policy by security; *"fail the build on a forbidden licence but only warn on a medium CVE"* is a
+One threshold can't serve every control. License policy is owned by legal and vulnerability
+policy by security; *"fail the build on a forbidden license but only warn on a medium CVE"* is a
 reasonable position that a single global threshold makes unsayable.
 
 `failOnPriority` gates on a [priority band](../concepts/prioritization.md) as well. Severity rates
@@ -561,7 +561,7 @@ repositories:
 
 A relative path resolves against **the directory holding the Saga**, not the current working
 directory, so a descriptor committed beside its code means the same thing wherever it is run
-from. `draugr scan .` with no descriptor synthesises one pointing at the directory you named, so
+from. `draugr scan .` with no descriptor synthesizes one pointing at the directory you named, so
 the zero-config path lands here too.
 
 **Both kinds are cloned.** A local path is not read in place: Draugr clones it into a temporary
@@ -587,13 +587,13 @@ both exist so that one repository reads as one thing however it was scanned.
 *A local checkout is reported as the repository it was cloned from.* Point a descriptor at `.` or
 `/srv/web` and the report names its git remote, because the path is where the code sits on one
 machine rather than which repository it is. That is what lets a scan on a laptop and a scan in a
-pipeline recognise each other: same repository, same revision, same identity — so they share a
+pipeline recognize each other: same repository, same revision, same identity — so they share a
 cache entry, and `draugr diff` can compare them. A checkout with **no** remote keeps its path,
 which is then the only name it has and the one you can act on.
 
 *Credentials and usernames are dropped.* `https://oauth2:TOKEN@github.com/acme/web.git` is
 reported, cached and named as `https://github.com/acme/web.git`, and Azure DevOps URLs stop
-carrying the organisation as a username as well as in the path. The URL used to **clone** keeps
+carrying the organization as a username as well as in the path. The URL used to **clone** keeps
 everything it had — fetching is the one thing credentials are for.
 
 That line is in the console report, the Markdown and HTML ones, and the JSON under
@@ -844,7 +844,7 @@ works without the other — set one key and omit the other.
 
 **Where the data comes from.** `kev` and `epss` each take three kinds of value:
 
-| Value | Behaviour |
+| Value | Behavior |
 |-------|-----------|
 | a path | that file. Touches neither the cache nor the network — the air-gapped route |
 | `cache` | reads `~/.draugr/feeds`; **never** fetches. Errors if nothing is cached |
@@ -882,7 +882,7 @@ config:
 
 | Field | The question it answers |
 |-------|-------------------------|
-| `author` | **Who is making this claim?** An organisation, ideally with a way to reach them. |
+| `author` | **Who is making this claim?** An organization, ideally with a way to reach them. |
 | `product` | **What will a consumer's tooling look this up by?** An IRI; a package URL is conventional. |
 
 ### `release` and `config.vex` are not the same thing
@@ -904,7 +904,7 @@ one:
 | Unset | Falls back to | Why that is not enough |
 |-------|---------------|------------------------|
 | `author` | `release.name` | A project name is not a party. A consumer with a question about your claim needs somebody to ask. |
-| `product` | `pkg:generic/<release.name>@<release.version>` | Synthesised from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
+| `product` | `pkg:generic/<release.name>@<release.version>` | Synthesized from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
 
 **A document nothing matches fails silently.** A consumer cannot tell that a statement was meant
 for it, so a wrong identifier does not error — it is read, understood, and applied to nothing.
@@ -969,7 +969,7 @@ default is decided by what a document is likely to be *used for* rather than by 
 CycloneDX (ECMA-424) composes: a document can carry nested components and state how complete it
 is, so it answers "what is in this project" and not only "what is in this repository". It is
 also what most security tooling reads first, and the format VEX is expressed in. SPDX (ISO/IEC
-5962) is the name a procurement questionnaire or licence-compliance process is more likely to
+5962) is the name a procurement questionnaire or license-compliance process is more likely to
 ask for — set `format: spdx-json` when that is who the document is for.
 
 Syft can emit more — its own `syft-json`, GitHub's dependency-snapshot format, a bare PURL list
@@ -1135,7 +1135,7 @@ it reads, which is why it is declared here alongside `exposure` and `criticality
 
 **Infrastructure namespaces:** `namespaces` narrows an infrastructure surface to the part of a
 cluster the component owns; omit it and the audit covers the whole cluster. Not every scanner can
-honour it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
+honor it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
 reads a node's own filesystem, which has no namespace — so both always describe the whole cluster.
 Neither is run against a component that sets `namespaces`. The alternative would be a report that
 looks scoped and lists somebody else's namespaces against this component, so the scan is not

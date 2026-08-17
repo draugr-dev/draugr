@@ -114,7 +114,7 @@ type ScannerInfo struct {
 	// target asked for.
 	//
 	// A component narrows its infrastructure surface with `namespaces`, and a scanner that cannot
-	// honour that has two ways to behave and only one of them is honest: report the cluster
+	// honor that has two ways to behave and only one of them is honest: report the cluster
 	// against a component that claims part of it, or refuse. Refusing is what they do — but a
 	// scanner only finds out once it has been handed a target, which is partway through a run,
 	// after a cluster has been contacted.
@@ -134,7 +134,7 @@ type ScannerInfo struct {
 	Effects []Effect
 }
 
-// EffectKind categorises what a scanner does beyond reading its target.
+// EffectKind categorizes what a scanner does beyond reading its target.
 type EffectKind string
 
 // The kinds of effect a scanner can declare.
@@ -177,7 +177,7 @@ const (
 // what you sent. A scanner that discloses also needs a credential the operator had to go and
 // obtain, so the decision was already made somewhere it could be thought about.
 //
-// An organisation wanting to forbid disclosure outright wants a policy, not a per-run prompt.
+// An organization wanting to forbid disclosure outright wants a policy, not a per-run prompt.
 // That belongs in configuration rather than here, where it would become a keystroke everybody
 // learns to skip.
 func (k EffectKind) RequiresConsent() bool {

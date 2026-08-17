@@ -159,7 +159,7 @@ const (
 // Scan creates the Job, waits for it, collects its output, and removes it.
 func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	if infra, ok := target.(plugin.InfraTarget); ok {
-		// The Job reads a node's filesystem, which has no namespace. Honouring a scope is not
+		// The Job reads a node's filesystem, which has no namespace. Honoring a scope is not
 		// merely unimplemented here — it is meaningless, and silently ignoring it would report
 		// node-wide findings against a component that asked for three namespaces.
 		if err := refuseNamespaceScope(kubeBenchJobScannerName, infra.Namespaces); err != nil {
@@ -184,7 +184,7 @@ func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg
 		return sarif.Report{}, fmt.Errorf("%s: create job in %q: %w", kubeBenchJobScannerName, namespace, err)
 	}
 
-	// Cleanup runs on every path, including a cancelled scan, and with its own context: the
+	// Cleanup runs on every path, including a canceled scan, and with its own context: the
 	// caller's may already be done, and a Job left behind in someone's cluster is the worst
 	// thing this scanner could leave.
 	defer func() {

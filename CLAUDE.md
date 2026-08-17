@@ -83,12 +83,12 @@ in the parts that have to be reproducible.
 applied three times — the line between *using* somebody else's software and *taking
 responsibility for it*.
 
-- **Exec, don't bundle.** A tool run as a subprocess keeps its licence its own. Linking or
+- **Exec, don't bundle.** A tool run as a subprocess keeps its license its own. Linking or
   bundling can make Draugr a derivative work; a subprocess does not.
 - **Point, don't host.** Copyleft's other trigger is *distribution* — ship a GPL binary and you
   owe corresponding source, and AGPL extends that to serving it over a network. Naming an
   upstream URL is an index, like a Homebrew formula. Serving the bytes is distribution, and the
-  licence attaches to us. This applies to caches and mirrors too, which is where it will be
+  license attaches to us. This applies to caches and mirrors too, which is where it will be
   tempting.
 - **Tell, don't fetch** — for anything we have not reviewed. `draugr tools install` downloads
   pinned, verified releases *because we vouched for them*. For a tool we have not, name what is
@@ -112,15 +112,15 @@ A user-facing change isn't finished until, **in the same pull request**:
    what triggers the requirement.
 3. **`CHANGELOG.md`** has an entry under `## [Unreleased]`, written **user-first**: what you can
    now do and what changed for you, not which functions moved.
-4. **Tests** cover the new behaviour. The bar is **≥90% on changed packages**; pure glue and
-   unreachable OS-error branches are exempt, and coverage theatre helps nobody.
+4. **Tests** cover the new behavior. The bar is **≥90% on changed packages**; pure glue and
+   unreachable OS-error branches are exempt, and coverage theater helps nobody.
 
 Documentation follows [Diátaxis](https://diataxis.fr/) — tutorial, how-to, reference, or
 explanation. Knowing which one you're writing prevents most documentation problems.
 
 ## Before any third-party integration ships
 
-**Read the licence, the terms of use, and the privacy notice. All three, from the source, before
+**Read the license, the terms of use, and the privacy notice. All three, from the source, before
 the connector merges.** Not the API overview, not a summary, not what the issue that scoped the
 work assumed.
 
@@ -132,7 +132,7 @@ one page.
 
 What has to be established, and written into the colocated doc:
 
-- **Licence** — of the tool, if we exec one. Exec keeps it theirs; linking or bundling does not.
+- **License** — of the tool, if we exec one. Exec keeps it theirs; linking or bundling does not.
 - **Terms of use** — what the free tier permits. *Non-commercial* is common and easy to miss when
   a key is issued in thirty seconds, and it decides whether a user may run the control at all.
 - **Privacy and data handling** — what the other party receives, keeps, and shares. This is the
@@ -150,7 +150,7 @@ company will point at the parent's terms, and those may govern a contracted ente
 while saying nothing about the free tier a connector actually uses — a document that opens
 "effective when Customer clicks to accept" is not the one binding somebody with a free API key.
 
-Infer nothing from how the API behaved once. Behaviour changes without notice; the contract is the
+Infer nothing from how the API behaved once. Behavior changes without notice; the contract is the
 durable statement, and the useful question is always *which* contract.
 
 ## Changing what `draugr scan` prints

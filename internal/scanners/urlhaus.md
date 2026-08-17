@@ -66,7 +66,7 @@ Implements `CacheVersioner`, tied to Draugr's own build. The feed changes consta
 bounds staleness here is the cache **TTL** rather than a version — a hit means "abuse.ch said this
 recently", and how recently is a setting.
 
-## Licence and terms of use
+## License and terms of use
 
 Read [abuse.ch's terms](https://abuse.ch/terms-of-use/) before enabling this. Two points decide
 whether you may use it at all, and neither is obvious from the fact that the key is free:
@@ -82,7 +82,7 @@ non-commercial or non-profit purposes". Access may be restricted without notice 
 Draugr asks **once per distinct host per scan**, which is why the controller de-duplicates by
 hostname — but a large descriptor scanned often is still your volume to manage.
 
-The terms also prohibit derivative works from the platforms without consent. Draugr normalises the
+The terms also prohibit derivative works from the platforms without consent. Draugr normalizes the
 answer into a SARIF finding in your own report; whether that matters for how you then use or
 publish that report is a question for abuse.ch and Spamhaus, not one this document can answer.
 

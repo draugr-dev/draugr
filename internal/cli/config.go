@@ -20,7 +20,7 @@ import (
 //
 // Commented rather than bare, because the question a reader has when they first see this file is
 // not "what are the keys" but "why is this separate from my Saga".
-const starterConfig = `# draugr.config.yaml — machine and organisation settings, kept apart from the Saga.
+const starterConfig = `# draugr.config.yaml — machine and organization settings, kept apart from the Saga.
 #
 # A Saga describes an application. This describes the environment scanning it: which build of a
 # scanner to run, and what a control should default to before any project says otherwise. Those
@@ -45,7 +45,7 @@ controllers: {}
 func newConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "Inspect and edit Draugr's machine and organisation settings",
+		Short: "Inspect and edit Draugr's machine and organization settings",
 		Long: "Read and write draugr.config.yaml: settings for the environment running a scan,\n" +
 			"not for the application being scanned — scanner versions, control defaults, and\n" +
 			"anything else meant to be the same across every project on this machine.",

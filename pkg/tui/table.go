@@ -32,10 +32,10 @@ type row struct {
 
 // Table renders aligned columns for a person reading a terminal.
 //
-// It exists because alignment and colour interact badly: any padding computed after styling
+// It exists because alignment and color interact badly: any padding computed after styling
 // counts escape bytes as visible width and the columns drift apart. text/tabwriter has the same
 // flaw — its Escape mechanism hides the bytes from parsing but still measures them — so every
-// command that wanted colour was going to hand-roll its own width arithmetic. Table measures
+// command that wanted color was going to hand-roll its own width arithmetic. Table measures
 // the plain text, pads, and only then paints.
 type Table struct {
 	painter Painter
@@ -45,7 +45,7 @@ type Table struct {
 }
 
 // NewTable starts a table written with p. Headers may be omitted for a table whose columns
-// need no labelling; when given, they're dimmed so they frame the data without competing.
+// need no labeling; when given, they're dimmed so they frame the data without competing.
 func NewTable(p Painter, headers ...string) *Table {
 	return &Table{painter: p, headers: headers}
 }

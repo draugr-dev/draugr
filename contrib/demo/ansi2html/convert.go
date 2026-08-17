@@ -1,4 +1,4 @@
-// Command ansi2html turns a real coloured scan into an HTML fragment for the website's home
+// Command ansi2html turns a real colored scan into an HTML fragment for the website's home
 // page.
 //
 // The home page needs the shape of an answer — one command, five controls, one verdict, a
@@ -12,7 +12,7 @@
 // trade-off — the fragment is a few hundred bytes of real output, and it cannot go stale while
 // the job that produces it keeps running.
 //
-// Reads a coloured scan on stdin (a PTY is required for Draugr to emit colour at all) and writes
+// Reads a colored scan on stdin (a PTY is required for Draugr to emit color at all) and writes
 // the fragment on stdout.
 package main
 
@@ -26,9 +26,9 @@ import (
 //
 // The map is the whole palette and nothing else. Several roles share a code — critical and fail
 // are both "1;31", accent and medium are both "33" — so the stream cannot tell them apart and
-// neither can this: the classes are named for the colour's weight rather than for a role it
-// might be carrying. An unrecognised code is an error rather than plain text, because the way
-// this fails otherwise is that the palette grows, the home page quietly loses a colour, and
+// neither can this: the classes are named for the color's weight rather than for a role it
+// might be carrying. An unrecognized code is an error rather than plain text, because the way
+// this fails otherwise is that the palette grows, the home page quietly loses a color, and
 // nothing says so.
 var styleClass = map[string]string{
 	"1;31": "t-crit",
@@ -48,7 +48,7 @@ type options struct {
 	exitCode int
 }
 
-// convert renders a coloured terminal capture as an HTML fragment.
+// convert renders a colored terminal capture as an HTML fragment.
 func convert(in string, opts options) (string, error) {
 	body, err := renderLines(trim(in, opts.stopAt))
 	if err != nil {
@@ -109,7 +109,7 @@ func renderLines(s string) (string, error) {
 	return out, nil
 }
 
-// render walks s, converting SGR colour runs and OSC 8 hyperlinks and escaping everything else.
+// render walks s, converting SGR color runs and OSC 8 hyperlinks and escaping everything else.
 func render(s string) (string, error) {
 	var b strings.Builder
 	var text strings.Builder // pending plain text, escaped on flush
@@ -149,7 +149,7 @@ func render(s string) (string, error) {
 			class, ok := styleClass[code]
 			if !ok {
 				return "", fmt.Errorf("unmapped SGR code %q at byte %d — add it to styleClass "+
-					"and give the site a rule for it, or the home page loses this colour silently", code, i)
+					"and give the site a rule for it, or the home page loses this color silently", code, i)
 			}
 			closeSpan()
 			b.WriteString(`<span class="`)
@@ -177,7 +177,7 @@ func render(s string) (string, error) {
 			openLink = true
 
 		default:
-			return "", fmt.Errorf("unrecognised escape sequence at byte %d", i)
+			return "", fmt.Errorf("unrecognized escape sequence at byte %d", i)
 		}
 	}
 	flush()
@@ -188,7 +188,7 @@ func render(s string) (string, error) {
 	return b.String(), nil
 }
 
-// stripSGR removes colour escapes so a line can be matched on its text.
+// stripSGR removes color escapes so a line can be matched on its text.
 func stripSGR(line string) string {
 	for {
 		start := strings.IndexByte(line, 0x1b)

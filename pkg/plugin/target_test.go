@@ -116,7 +116,7 @@ func TestContentAddressedDefaultsToTrue(t *testing.T) {
 	}
 }
 
-func TestNormaliseMethods(t *testing.T) {
+func TestNormalizeMethods(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		in   []string
@@ -132,8 +132,8 @@ func TestNormaliseMethods(t *testing.T) {
 		{"only unknown falls back", []string{"connect"}, []string{"get", "head"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if got := NormaliseMethods(c.in); !slices.Equal(got, c.want) {
-				t.Errorf("NormaliseMethods(%v) = %v, want %v", c.in, got, c.want)
+			if got := NormalizeMethods(c.in); !slices.Equal(got, c.want) {
+				t.Errorf("NormalizeMethods(%v) = %v, want %v", c.in, got, c.want)
 			}
 		})
 	}

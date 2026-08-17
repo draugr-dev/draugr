@@ -109,7 +109,7 @@ this is the one setting where a convenient value quietly weakens the report.
 
 ## Cleanup
 
-The Job is deleted on every path, including a failed or cancelled scan, using a context that
+The Job is deleted on every path, including a failed or canceled scan, using a context that
 survives the caller's cancellation — a Job left behind in someone's cluster is the worst thing
 this scanner could do. If the wait times out, the Job is removed and the error says so.
 

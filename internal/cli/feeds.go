@@ -64,7 +64,7 @@ func newFeedsUpdateCommand() *cobra.Command {
 // from a full one.
 //
 // A fetch that fails with a copy already on disk is different, and does not fail. This step exists
-// so a scan cannot rank everything as though nothing were exploited; a cached catalogue does not
+// so a scan cannot rank everything as though nothing were exploited; a cached catalog does not
 // do that. It ranks on data of a known age, the report says how old, and blocking a pipeline on
 // somebody else's outage buys nothing when the answer is already here.
 func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool) error {
@@ -91,7 +91,7 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 		if err != nil {
 			// A copy on disk is worth more than a failed run. The reason this step exists is to
 			// stop a scan ranking everything as though nothing were exploited — and a cached
-			// catalogue does not do that: it ranks on data of a stated age, which the report then
+			// catalog does not do that: it ranks on data of a stated age, which the report then
 			// carries. Refusing here would block a pipeline on somebody else's outage while the
 			// answer sat on disk.
 			prev, cachedOK := cached[n]

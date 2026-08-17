@@ -20,7 +20,7 @@ import (
 // the counterpart to github-pr-comment and azure-pr-comment.
 //
 // GitLab calls them notes and keeps them in one flat list per merge request, so the sticky
-// behaviour is the simplest of the three: find the note carrying Draugr's marker and edit it.
+// behavior is the simplest of the three: find the note carrying Draugr's marker and edit it.
 // Without it every pipeline run adds another copy of the report, and a reviewer scrolls past six
 // of them to reach the human conversation.
 //

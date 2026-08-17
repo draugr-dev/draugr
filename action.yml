@@ -86,7 +86,7 @@ inputs:
 
       Its own step on purpose, so a feed outage surfaces here rather than inside a scan. A
       fetch that fails keeps the cached copy and says how old it is; what this guards against is
-      a scan ranking everything as though nothing were exploited, which a cached catalogue does
+      a scan ranking everything as though nothing were exploited, which a cached catalog does
       not do. With nothing cached there is no answer to keep, and it fails.
     required: false
     default: "false"

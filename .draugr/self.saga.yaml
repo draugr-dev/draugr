@@ -16,13 +16,13 @@ config:
     sast:
       enabled: true
       # Draugr's own Go source, through Draugr's own sast control. Semgrep already runs here; the
-      # point of adding gosec is that a Go security tool that does not run a Go analyser on itself
+      # point of adding gosec is that a Go security tool that does not run a Go analyzer on itself
       # is asking users to take on faith something it will not do.
       #
       # It scans the same tree as the gosec inside golangci-lint, which is what the lint job and
       # `make gate` run — deliberately, because that one is fast and local and this one is what a
       # user would get. They agree because every suppression in this tree is written `#nosec`,
-      # which both honour; `//nolint:gosec` silences only the first, and a codebase using it would
+      # which both honor; `//nolint:gosec` silences only the first, and a codebase using it would
       # pass `make gate` and fail here on the same line.
       gosec:
         enabled: true
@@ -88,7 +88,7 @@ config:
         - "gitlab-pat"
       reason: >-
         The fixture for the test that proves planning never writes a credential into a log. It has
-        to be a value a secret scanner recognises, because a token Draugr's own scanner would miss
+        to be a value a secret scanner recognizes, because a token Draugr's own scanner would miss
         is a token that proves nothing about whether the log redacts it. The literal is
         "NOTAREALTOKEN" followed by digits, issued by nobody and valid nowhere. Finding it here is
         the secrets control working; so is leaving it in place.

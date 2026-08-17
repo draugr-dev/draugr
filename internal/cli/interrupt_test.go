@@ -33,7 +33,7 @@ func TestAnInterruptCancelsRatherThanTerminates(t *testing.T) {
 	}
 }
 
-// stop() is deferred by Execute and runs on the ordinary path, where nothing was signalled. It has
+// stop() is deferred by Execute and runs on the ordinary path, where nothing was signaled. It has
 // to release the handler and the goroutine without waiting for one.
 func TestStopReleasesTheHandlerWithoutASignal(t *testing.T) {
 	ctx, stop := onInterrupt(context.Background())

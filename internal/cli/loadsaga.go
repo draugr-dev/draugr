@@ -43,7 +43,7 @@ func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
 //
 // A directory holding a descriptor is never treated as a bare directory. Everything in that file
 // — the controls chosen, the components declared, the exposure and criticality that drive
-// prioritization — would otherwise be discarded in favour of defaults, with nothing in the output
+// prioritization — would otherwise be discarded in favor of defaults, with nothing in the output
 // saying so. Nor is it a fallback: if the descriptor is there but unreadable, that is an error.
 // Falling back would reproduce the bug this exists to prevent with an extra step, because the
 // reason a descriptor was skipped has to be reported, never shrugged at.
@@ -210,7 +210,7 @@ func syntheticSaga(dir string) *saga.Model {
 // saga.LoadFile directly — it *is* the check, so the hint would be circular.)
 func loadSaga(path string) (*saga.Model, error) { return loadSagaCtx(context.Background(), path) }
 
-// loadSagaCtx is loadSaga with a context, so fetching a remote fragment can be cancelled with the
+// loadSagaCtx is loadSaga with a context, so fetching a remote fragment can be canceled with the
 // rest of the run.
 func loadSagaCtx(ctx context.Context, path string) (*saga.Model, error) {
 	fetcher := sagafetch.New(ctx)

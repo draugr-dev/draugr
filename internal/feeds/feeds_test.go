@@ -108,7 +108,7 @@ func TestFetchErrors(t *testing.T) {
 	if _, err := Fetch(ctx, dir, KEV, nil); err == nil {
 		t.Error("a 500 was accepted")
 	}
-	// A failed fetch leaves nothing behind: a half-written catalogue read as a complete one is
+	// A failed fetch leaves nothing behind: a half-written catalog read as a complete one is
 	// the failure this guards against.
 	if _, err := os.Stat(Path(dir, KEV)); !os.IsNotExist(err) {
 		t.Error("a failed fetch left a file behind")
@@ -192,12 +192,12 @@ func TestFetchIntoAnUnwritableCache(t *testing.T) {
 	}
 }
 
-func TestFetchCancelled(t *testing.T) {
+func TestFetchCanceled(t *testing.T) {
 	serve(t, kevBody, epssBody, http.StatusOK)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := Fetch(ctx, t.TempDir(), KEV, nil); err == nil {
-		t.Error("a cancelled context still fetched")
+		t.Error("a canceled context still fetched")
 	}
 }
 

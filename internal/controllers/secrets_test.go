@@ -98,7 +98,7 @@ func TestSecretsPassesTheScannerBlockThrough(t *testing.T) {
 }
 
 // And `enabled: false` on the only scanner now means what it says.
-func TestSecretsHonoursADisabledScanner(t *testing.T) {
+func TestSecretsHonorsADisabledScanner(t *testing.T) {
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"secrets": {"gitleaks": saga.ControllerSettings{"enabled": false}},
 	}}}

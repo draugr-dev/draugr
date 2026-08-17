@@ -104,18 +104,18 @@ The 14 that remain manual are honestly manual: whether an admission control mech
 *place*, whether the CNI *supports* NetworkPolicy, whether secrets belong in an external store.
 Those are questions about intent and architecture, not cluster state.
 
-The catalogue is pinned to `cis-1.12`, deliberately: the section is renumbered between revisions,
+The catalog is pinned to `cis-1.12`, deliberately: the section is renumbered between revisions,
 and silently tracking "the latest" would change what a rule id means underneath an exclusion
 someone wrote against it.
 
-### The catalogue cannot quietly go out of date
+### The catalog cannot quietly go out of date
 
 A hand-maintained list of a benchmark someone else revises drifts, and drifts silently in both
 directions. A check added upstream and missing here is never reported at all, so a scan covers
 less than the benchmark and says nothing about it. A check retired upstream but left here is
 reported forever, sending a reader after a requirement that no longer exists.
 
-`TestCISCatalogueMatchesKubeBench` diffs the catalogue against kube-bench's own definitions and
+`TestCISCatalogMatchesKubeBench` diffs the catalog against kube-bench's own definitions and
 fails on either, naming the check. It runs in the integration suite, which fetches those
 definitions at a pinned commit — the tag is verified against it, because a benchmark that changed
 under a stable tag is precisely what the check exists to notice.
@@ -123,7 +123,7 @@ under a stable tag is precisely what the check exists to notice.
 The pin is kept in step with the image the in-cluster Job runs, so **bumping kube-bench is when a
 benchmark revision is discovered**, rather than some later scan quietly covering the wrong thing.
 
-Nothing here writes a check for us. It makes shipping an out-of-date catalogue impossible to do
+Nothing here writes a check for us. It makes shipping an out-of-date catalog impossible to do
 without noticing, which is the part that can be automated.
 
 ## Scoping to the namespaces you own
@@ -158,7 +158,7 @@ The scope is part of the finding's location (`kubernetes/prod-cluster[team-a,tea
 part of the cache key. The same rule id against the same cluster means something different
 depending on how much of it was examined.
 
-**Only this scanner can honour a scope.** kube-bench writes `--all-namespaces` into its own
+**Only this scanner can honor a scope.** kube-bench writes `--all-namespaces` into its own
 checks with no flag to change it, and the in-cluster Job reads a node filesystem that has no
 namespace at all. Both **refuse** a scoped component rather than quietly auditing everything and
 reporting it under a component that asked for three namespaces.

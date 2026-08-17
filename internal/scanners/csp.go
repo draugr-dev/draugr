@@ -106,7 +106,7 @@ func broadSources(sources []string) []string {
 // Two CSP3 rules decide whether a weakness is real, and getting them wrong is how a checker
 // becomes noise: a nonce or a hash makes 'unsafe-inline' inert, and 'strict-dynamic' makes host
 // and scheme sources inert. Both are how a *good* policy is written, so reporting them as flaws
-// would penalise exactly the people who did the work.
+// would penalize exactly the people who did the work.
 func evaluateCSP(policy string, add func(ruleID, message string, level sarif.Level)) {
 	p := parseCSP(policy)
 

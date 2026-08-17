@@ -95,7 +95,7 @@ func run(in, out string, pad int, log io.Writer) error {
 }
 
 // backgroundTolerance is how far a pixel may sit from its row's background and still count as
-// background, summed across the three channels of a 16-bit colour.
+// background, summed across the three channels of a 16-bit color.
 //
 // Chosen from the image rather than by taste. On a real render the ground is not one flat value:
 // it carries a step of 1/255 in places, worth 257 here, from the gradient the terminal draws and
@@ -112,7 +112,7 @@ const backgroundTolerance = 3000
 // The background is measured per row, from the pixel at the left edge, rather than taken from one
 // corner or hardcoded. Per row because the ground is a vertical gradient, so a single reference
 // stops matching further down the frame; from the pixel rather than a constant because the
-// terminal theme decides the colour, and a hardcoded one would quietly stop cropping the day
+// terminal theme decides the color, and a hardcoded one would quietly stop cropping the day
 // somebody changed the theme — which looks identical to a frame that needed no crop.
 //
 // That the left edge is background is guaranteed by the same tape that sets the viewport: it
@@ -137,11 +137,11 @@ func crop(img image.Image, pad int) (image.Image, error) {
 			content.Max.Y = max(content.Max.Y, y+1)
 		}
 	}
-	// A frame of one flat colour is a render that went wrong — an empty terminal, a theme that
+	// A frame of one flat color is a render that went wrong — an empty terminal, a theme that
 	// painted nothing. Cropping it to a padding-sized square would publish that as an image,
 	// where the whole point of this step is that nobody looks at the file afterwards.
 	if content.Empty() {
-		return nil, fmt.Errorf("every pixel is the background colour — the render drew nothing")
+		return nil, fmt.Errorf("every pixel is the background color — the render drew nothing")
 	}
 
 	content = content.Inset(-pad).Intersect(b)
@@ -154,10 +154,10 @@ func crop(img image.Image, pad int) (image.Image, error) {
 	return sub.SubImage(content), nil
 }
 
-// nearlyEqual reports whether two colours are within backgroundTolerance of each other, summed
-// across the three colour channels of the 16-bit values the image package returns.
+// nearlyEqual reports whether two colors are within backgroundTolerance of each other, summed
+// across the three color channels of the 16-bit values the image package returns.
 //
-// The tolerance costs nothing at the edge of a glyph. Antialiasing blends toward the text colour,
+// The tolerance costs nothing at the edge of a glyph. Antialiasing blends toward the text color,
 // which is the far end of the range from the ground, so even a tenth-strength edge pixel lands
 // well above the threshold — and the body of the glyph is on the same row regardless, so a row's
 // bounds do not depend on catching its faintest pixel.

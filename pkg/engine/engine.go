@@ -162,7 +162,7 @@ type ProgressEvent struct {
 // begun as well as what has: a reader watching a list that only grows cannot tell a scanner that
 // is slow from one that has not been reached.
 type ProgressStep struct {
-	// Control and Scanner name the work. Together they are how a reader recognises it.
+	// Control and Scanner name the work. Together they are how a reader recognizes it.
 	Control string
 	Scanner string
 	// Total is how many jobs this pair has, and the rest is where they have got to.
@@ -745,7 +745,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			// on a timer are cheap, and the semaphore below still bounds what actually runs.
 			if sc, ok := e.reg.Scanner(pj.Job.Scanner); ok {
 				if err := gates.wait(ctx, sc, pj.Job.Scanner, pj.Job.Config); err != nil {
-					return // the run was cancelled while waiting
+					return // the run was canceled while waiting
 				}
 			}
 

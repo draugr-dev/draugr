@@ -54,7 +54,7 @@ cmd_show() {
 # cmd_next prints the version [Unreleased] implies, counting from the last released one.
 #
 # The rule is the one the notes already state, read rather than remembered: anything under Added
-# or Changed is new capability or altered behaviour, so a minor. A section holding only Fixed or
+# or Changed is new capability or altered behavior, so a minor. A section holding only Fixed or
 # Security is a patch. Deprecated and Removed are minor for the same reason both headings exist —
 # a user who has to change something.
 #
@@ -70,7 +70,7 @@ cmd_next() {
 		;;
 	esac
 
-	# Refuse rather than guess. A heading nobody recognises is invisible to the rule below, so
+	# Refuse rather than guess. A heading nobody recognizes is invisible to the rule below, so
 	# `### Improvements` holding a new capability derives a patch — the version is wrong, the tag
 	# is wrong, and nothing about either says so. `check` catches the heading, but this must not
 	# depend on somebody having run it first.

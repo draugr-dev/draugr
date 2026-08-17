@@ -12,7 +12,7 @@ import (
 // The HTML report carries its own data. A reader who wants to feed the findings into a
 // spreadsheet, a ticket tracker or another tool would otherwise have to go back to whoever ran
 // the scan and ask for the artifacts — and the HTML file is usually the only thing that
-// travelled, because it is the one you can open.
+// traveled, because it is the one you can open.
 //
 // Both downloads are `data:` URIs on ordinary <a download> links, so they work with JavaScript
 // disabled and under any content-security policy. That matters more here than the bytes it

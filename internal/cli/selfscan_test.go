@@ -25,7 +25,7 @@ const selfscanWorkflow = "../../.github/workflows/selfscan.yml"
 // be exercising. That is one input, easily lost to a merge or an edit, and losing it produces no
 // error anyone reads until every control fails at once.
 //
-// Deliberately a check on the input rather than on how the action honours it — that has its own
+// Deliberately a check on the input rather than on how the action honors it — that has its own
 // tests. What nothing else can see is the self-scan quietly ceasing to ask.
 func TestSelfscanAsksTheActionToProvisionScanners(t *testing.T) {
 	t.Parallel()

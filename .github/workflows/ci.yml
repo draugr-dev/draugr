@@ -80,7 +80,7 @@ jobs:
       #
       # It ran only in `make gate` before, so it caught a mistake exactly when the author had
       # already run the thing that catches it. Now that the headings decide the released version,
-      # an unrecognised one is no longer just an entry nobody publishes — it is a minor released
+      # an unrecognized one is no longer just an entry nobody publishes — it is a minor released
       # as a patch, and the tag does not say so.
       - name: CHANGELOG structure
         run: ./scripts/changelog.sh check
@@ -105,6 +105,14 @@ jobs:
       # — those stay a human's job.
       - name: Guards explain the risk, not the incident
         run: ./scripts/check-no-defect-recounts.sh
+
+      # Ungated too: this reads prose, and a documentation-only change is precisely the one most
+      # likely to introduce a spelling. golangci-lint enforces the same locale over the Go tree,
+      # but it does not read Markdown — where nearly all of the prose lives.
+      - name: American spelling outside Go
+        run: |
+          go install github.com/client9/misspell/cmd/misspell@v0.3.4
+          MISSPELL="$(go env GOPATH)/bin/misspell" ./scripts/check-spelling.sh
 
       - name: Verify formatting
         if: needs.changes.outputs.code == 'true'

@@ -57,7 +57,7 @@ func TestDescribeScanSaysWhenItWillProbeALiveHost(t *testing.T) {
 	if !strings.Contains(got, "nuclei") {
 		t.Errorf("the prompt should name the scanner doing it:\n%s", got)
 	}
-	if !strings.Contains(got, "authorised") {
+	if !strings.Contains(got, "authorized") {
 		t.Errorf("probing a host you do not own is unlawful in many places; say so:\n%s", got)
 	}
 }

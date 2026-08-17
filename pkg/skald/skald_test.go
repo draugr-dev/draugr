@@ -322,7 +322,7 @@ func TestMergedSARIFOrders(t *testing.T) {
 
 func TestScopeProvenanceAndBack(t *testing.T) {
 	// The two halves have to agree, because one writes what the other reads: a scope written in
-	// a shape the reader does not recognise is a scoped report that looks unscoped, which is the
+	// a shape the reader does not recognize is a scoped report that looks unscoped, which is the
 	// failure the stamp exists to prevent.
 	for _, tc := range []struct {
 		name  string

@@ -35,7 +35,7 @@ and Draugr runs it and parses its SARIF. Built-in today: **Trivy** in four modes
 **Nuclei** (`dast`), **kube-bench** (`infrastructure`), and native scanners for `headers` and
 `tls` that need no external tool.
 
-`trivy-license` and `kube-bench` are the two that do not consume SARIF — Trivy reports licences
+`trivy-license` and `kube-bench` are the two that do not consume SARIF — Trivy reports licenses
 only in its JSON output, and kube-bench has no SARIF mode at all — so those scanners do the
 conversion themselves.
 
@@ -58,15 +58,15 @@ ecosystem Mend supports, and the people running it already know these keys from 
 setup. The test for adding another is whether the option space belongs to somebody else and
 changes on their schedule — not whether a passthrough would be convenient.
 
-**A scanner that accepts nothing declares that too.** An unrecognised key under any scanner's
+**A scanner that accepts nothing declares that too.** An unrecognized key under any scanner's
 block is an error naming the key, not a setting that quietly does nothing:
 
 ```
 sca/trivy-fs: config: unknown option "severity"
 ```
 
-The alternative is worse than it looks. A validator that ignores what it does not recognise
-turns a typo into a silent behaviour change: the scan is green, the log says nothing, and the
+The alternative is worse than it looks. A validator that ignores what it does not recognize
+turns a typo into a silent behavior change: the scan is green, the log says nothing, and the
 only symptom is a setting that never took effect. Someone reading the descriptor afterwards has
 every reason to believe it did.
 

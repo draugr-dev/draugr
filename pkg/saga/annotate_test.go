@@ -51,7 +51,7 @@ func TestAnnotateExposuresPutsTheReasonBesideTheValue(t *testing.T) {
 	}
 }
 
-// Re-encoding through the node tree normalises formatting, so a document with nothing to say must
+// Re-encoding through the node tree normalizes formatting, so a document with nothing to say must
 // come back exactly as it went in rather than reindented for no reason.
 func TestAnnotateExposuresLeavesADocumentItHasNothingToSayAbout(t *testing.T) {
 	for name, reasons := range map[string]map[string]string{

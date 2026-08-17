@@ -18,7 +18,7 @@ which **controls** must pass. You write what you know; Draugr works out the rest
 
 The alternative is wiring each scanner into each pipeline by hand. That works until you have
 more than a few services, and then the pipelines drift: one repo runs secret scanning and its
-neighbour doesn't, a threshold is stricter in one place than another, and nobody can answer
+neighbor doesn't, a threshold is stricter in one place than another, and nobody can answer
 "which checks actually ran against this release" without reading a dozen CI files.
 
 A descriptor moves that decision out of the pipeline and into a file that lives with the app:

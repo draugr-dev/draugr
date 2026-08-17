@@ -45,7 +45,7 @@ scanners and issue links for the planned ones.
 |------------|---------------|------------------|:------:|
 | `sast` | Static Application Security Testing | Your own source code | ✅ |
 | `sca` | Software Composition Analysis | Known vulnerabilities in third-party/OSS dependencies | ✅ |
-| `licenses` | Licence compliance | Dependency licences that carry an obligation | ✅ |
+| `licenses` | License compliance | Dependency licenses that carry an obligation | ✅ |
 | `secrets` | Secret detection | Leaked credentials/keys in code | ✅ |
 | `images` | Container image scanning | OS/library vulns in container images | ✅ |
 | `iac` | Infrastructure-as-Code scanning | Misconfigurations in Terraform/K8s/Dockerfiles | ✅ |
@@ -60,8 +60,8 @@ scanners and issue links for the planned ones.
 `pass`. It ships as evidence under `config.sbom` instead, and never affects the verdict.
 
 History: `sca` was formerly `opensource`, and `tls` was `certificates`; renamed to the standard
-terms. Licence findings were once part of `sca` and are now the separate `licenses` control,
-because licence risk is legal rather than technical and warrants its own gate threshold.
+terms. License findings were once part of `sca` and are now the separate `licenses` control,
+because license risk is legal rather than technical and warrants its own gate threshold.
 `images` maps to the Saga's `images:` resource.
 
 ---

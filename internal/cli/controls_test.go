@@ -90,7 +90,7 @@ func TestControlsShowsWhoPublishesEachScanner(t *testing.T) {
 }
 
 func TestEveryRegisteredScannerDeclaresAnOrigin(t *testing.T) {
-	// An unlabelled scanner would render as "unknown", which is honest but is a gap in the
+	// An unlabeled scanner would render as "unknown", which is honest but is a gap in the
 	// roster — and the roster is only useful if it is complete.
 	for _, s := range builtins.Registry().Scanners() {
 		if s.Info().Origin == "" {

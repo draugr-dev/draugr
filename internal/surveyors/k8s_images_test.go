@@ -305,7 +305,7 @@ func TestASurveyFailsOnANamespaceThatDoesNotExist(t *testing.T) {
 	cs := fake.NewSimpleClientset(ns("prod"), pod("prod", "a", "repo/x:1"))
 	_, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prd"})
 	if err == nil {
-		t.Fatal("a misspelt namespace surveyed silently")
+		t.Fatal("a misspelled namespace surveyed silently")
 	}
 	if !strings.Contains(err.Error(), "prd") {
 		t.Errorf("the error must name the namespace: %v", err)

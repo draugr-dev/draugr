@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-// Pool materialises each distinct checkout once per run and shares it between the scanners that
+// Pool materializes each distinct checkout once per run and shares it between the scanners that
 // asked for it.
 //
 // Every repository scanner checks out for itself, so a five-control scan of one repository used to
@@ -20,7 +20,7 @@ import (
 // The shared tree is made **read-only**. Every scanner Draugr ships only reads what it scans, but
 // "only reads" is a property of each tool, and sharing a directory would quietly make one
 // scanner's write another's input. A tool that writes now fails where it writes, which is a bug
-// report rather than a corrupted neighbouring scan.
+// report rather than a corrupted neighboring scan.
 type Pool struct {
 	mu      sync.Mutex
 	entries map[string]*entry
@@ -38,14 +38,14 @@ type entry struct {
 // NewPool returns an empty pool. Close it when the run ends.
 func NewPool() *Pool { return &Pool{entries: map[string]*entry{}} }
 
-// Checkout returns the shared tree for key, materialising it on first request.
+// Checkout returns the shared tree for key, materializing it on first request.
 //
 // Callers that arrive while the first is still cloning wait for it rather than starting their own.
 // A failed checkout is remembered too — five scanners should report one unreachable repository
 // once, not attempt it five times over.
 //
 // The returned cleanup is a no-op: the pool owns the directory until Close.
-func (p *Pool) Checkout(ctx context.Context, key string, materialise func(context.Context) (Tree, func(), error)) (Tree, func(), error) {
+func (p *Pool) Checkout(ctx context.Context, key string, materialize func(context.Context) (Tree, func(), error)) (Tree, func(), error) {
 	p.mu.Lock()
 	e, ok := p.entries[key]
 	if !ok {
@@ -55,7 +55,7 @@ func (p *Pool) Checkout(ctx context.Context, key string, materialise func(contex
 	p.mu.Unlock()
 
 	e.once.Do(func() {
-		tree, clean, err := materialise(ctx)
+		tree, clean, err := materialize(ctx)
 		e.tree, e.clean, e.err = tree, clean, err
 		if err == nil {
 			// Read-only after this point, so a tool that writes into what it is scanning fails
@@ -69,7 +69,7 @@ func (p *Pool) Checkout(ctx context.Context, key string, materialise func(contex
 	return e.tree, func() {}, nil
 }
 
-// Close removes every checkout the pool materialised.
+// Close removes every checkout the pool materialized.
 func (p *Pool) Close() {
 	p.mu.Lock()
 	defer p.mu.Unlock()

@@ -192,7 +192,7 @@ func RenderJSON(w io.Writer, release saga.Release, run engine.Result, verdict no
 	return RenderJSONWith(w, release, run, verdict, minPriority, sarif.MarshalOptions{})
 }
 
-// RenderJSONWith is RenderJSON with marshalling options; Compact drops the indentation.
+// RenderJSONWith is RenderJSON with marshaling options; Compact drops the indentation.
 func RenderJSONWith(w io.Writer, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, opts sarif.MarshalOptions) error {
 	return RenderJSONWithFeeds(w, release, run, verdict, minPriority, nil, opts)
 }
@@ -457,7 +457,7 @@ func WriteSARIF(w io.Writer, run engine.Result) error {
 	return WriteSARIFWith(w, run, sarif.MarshalOptions{})
 }
 
-// WriteSARIFWith is WriteSARIF with marshalling options.
+// WriteSARIFWith is WriteSARIF with marshaling options.
 func WriteSARIFWith(w io.Writer, run engine.Result, opts sarif.MarshalOptions) error {
 	return WriteSARIFNarrowed(w, run, "", opts)
 }

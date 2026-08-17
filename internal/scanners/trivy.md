@@ -31,7 +31,7 @@ controllers:
 
 | Option | What it does |
 |---|---|
-| `pkgTypes` | Which package types to analyse: `os`, `library`, or both (`--pkg-types`). Narrow it when the OS layer is a platform team's responsibility. |
+| `pkgTypes` | Which package types to analyze: `os`, `library`, or both (`--pkg-types`). Narrow it when the OS layer is a platform team's responsibility. |
 | `dbRepository` | OCI repositories to pull the vulnerability database from, in priority order (`--db-repository`). For runners with no route to a public registry. |
 
 The same two options apply to the `trivy` image scanner and the `trivy-fs` filesystem scanner.

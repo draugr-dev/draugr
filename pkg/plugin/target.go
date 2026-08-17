@@ -182,12 +182,12 @@ var ReadMethods = []string{"get", "head"}
 // specMethods are the methods a spec-driven scan may be told to exercise.
 var specMethods = []string{"get", "head", "options", "trace", "post", "put", "patch", "delete"}
 
-// NormaliseMethods lower-cases, de-duplicates and orders a descriptor's method list, defaulting to
+// NormalizeMethods lower-cases, de-duplicates and orders a descriptor's method list, defaulting to
 // read-only.
 //
 // Here rather than in the scanner because the cache key is built from it: "GET" and "get" describe
 // the same scan, and a key telling them apart would re-run one having already answered the other.
-func NormaliseMethods(methods []string) []string {
+func NormalizeMethods(methods []string) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, len(methods))
 	for _, m := range methods {
@@ -212,7 +212,7 @@ func (s *HostSpec) Marker() string {
 	if s == nil {
 		return ""
 	}
-	return "spec=" + s.Path + " methods=" + strings.Join(NormaliseMethods(s.Methods), ",")
+	return "spec=" + s.Path + " methods=" + strings.Join(NormalizeMethods(s.Methods), ",")
 }
 
 // HostAuth says how to authenticate, and deliberately cannot say what the credential is.

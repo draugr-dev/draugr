@@ -9,7 +9,7 @@ import (
 )
 
 // sbomMeta maps a format to the file suffix and media type its consumers expect, mirroring
-// formatMeta for reports. Not every SBOM is JSON — labelling an XML or tag-value document
+// formatMeta for reports. Not every SBOM is JSON — labeling an XML or tag-value document
 // application/json would be wrong the moment a publisher does anything with the media type.
 var sbomMeta = map[saga.SBOMFormat]struct{ ext, contentType string }{
 	saga.SBOMCycloneDXJSON: {"cdx.json", "application/vnd.cyclonedx+json"},

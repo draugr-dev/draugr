@@ -15,7 +15,7 @@ func TestLicensesInfo(t *testing.T) {
 		t.Errorf("info = %+v", info)
 	}
 	// A separate control from sca on purpose: it is what lets config.gate.controls hold
-	// licence policy to a different threshold than vulnerability policy.
+	// license policy to a different threshold than vulnerability policy.
 	if len(info.DefaultScanners) != 1 || info.DefaultScanners[0] != "trivy-license" {
 		t.Errorf("default scanners = %v", info.DefaultScanners)
 	}
@@ -51,8 +51,8 @@ func TestLicensesPlanNilComponent(t *testing.T) {
 
 func TestLicensePolicyUnionsRatherThanOverrides(t *testing.T) {
 	// The one place this control departs from how every other controller merges settings.
-	// deepMerge replaces a list outright, so a component adding one denied licence would
-	// silently discard the organisation's — a component quietly opting out of an org licence
+	// deepMerge replaces a list outright, so a component adding one denied license would
+	// silently discard the organization's — a component quietly opting out of an org license
 	// policy, invisible in review. A component can only tighten.
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"licenses": {"deny": []any{"GPL-3.0-only", "AGPL-3.0-only"}},

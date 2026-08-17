@@ -245,7 +245,7 @@ func writeScannerOrigins(w io.Writer, col tui.Painter, reg *engine.Registry, onl
 		}
 		origin := info.Origin
 		if origin == "" {
-			// Never silently attributed to us. An unlabelled scanner is a gap in the roster, and
+			// Never silently attributed to us. An unlabeled scanner is a gap in the roster, and
 			// showing it as one is the only way it gets fixed.
 			origin = "unknown"
 		}
@@ -282,7 +282,7 @@ func writeScannerOrigins(w io.Writer, col tui.Painter, reg *engine.Registry, onl
 	t.Render(w)
 	_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
 		"Draugr executes third-party tools rather than bundling them, so each stays under its own\n"+
-			"licence. `draugr tools list` shows which are installed and where."))
+			"license. `draugr tools list` shows which are installed and where."))
 }
 
 // knownControl rejects a name no controller answers to, naming the closest match.

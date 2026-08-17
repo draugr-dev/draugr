@@ -18,6 +18,17 @@ and move it under a version on release.
   from the artifact your pipeline already keeps, not just from the terminal it scrolled past.
   See [Finding out where a slow run went](docs/guides/caching-and-performance.md#finding-out-where-a-slow-run-went).
 
+### Changed
+
+- **One spelling throughout.** Command help, error messages and the documentation now use American
+  spelling consistently, so the same word reads the same way wherever you meet it. No flag,
+  control, format, config key or schema value changed — nothing you have written needs editing.
+  If you match on Draugr's human-readable output, `--format json` remains the stable surface.
+
+- **Plugin authors: `plugin.NormaliseMethods` is now `plugin.NormalizeMethods`.** The only exported
+  name in `pkg/` that the spelling change touched, and the only thing here that can break a build.
+  It takes and returns exactly what it did; rename the call and nothing else moves.
+
 ### Fixed
 
 - **Draugr's own CI uses the caching Draugr offers.** The self-scan re-provisioned four scanners

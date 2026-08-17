@@ -42,7 +42,7 @@ func NewRetireJS() plugin.Scanner {
 }
 ```
 
-The fields of `plugin.ScannerInfo` that decide behaviour:
+The fields of `plugin.ScannerInfo` that decide behavior:
 
 - **`Name`** — the identifier in reports, `draugr controls`, and rule output. Hyphenated names are
   fine, and cost you an entry in step 4.
@@ -122,12 +122,12 @@ an editor rejecting a descriptor that Draugr itself accepts.
 
 A colocated `internal/scanners/<name>.md`, plus a row in
 [`docs/reference/catalog.md`](../../reference/catalog.md). Copy the shape of an existing one; it
-must cover what the scanner does, its control, the tool and links, **licence and terms of use**,
+must cover what the scanner does, its control, the tool and links, **license and terms of use**,
 and the integration notes worth knowing.
 
-The licence and terms section is enforced by `TestEveryToolDocStatesItsTerms`, and the rules for
-establishing it are in [the shared section](README.md#read-the-licence-the-terms-and-the-privacy-notice--all-three-from-the-source).
-Keep it honest and short where there is little to say — “no terms of use beyond the licence; it is
+The license and terms section is enforced by `TestEveryToolDocStatesItsTerms`, and the rules for
+establishing it are in [the shared section](README.md#read-the-license-the-terms-and-the-privacy-notice--all-three-from-the-source).
+Keep it honest and short where there is little to say — “no terms of use beyond the license; it is
 a command-line tool, not a service” is a complete answer, and a reader can act on it.
 
 ## 6. Effects and consent
@@ -142,14 +142,14 @@ declaring the `disclosure` effect must also carry a `## What is sent` section in
 `TestDisclosingScannersDocumentWhatTheySend` checks.
 
 Configuration can itself be the consent where the configuration has no other purpose. A field
-whose only function is to authorise the behaviour — naming the environment variable holding a
+whose only function is to authorize the behavior — naming the environment variable holding a
 token, for instance — is a deliberate act by the operator, and a second consent gate on top of it
 adds ceremony rather than safety. Say so in the doc, so the reasoning is reviewable.
 
 ## 6b. Caching, if your answer depends on downloaded data
 
 Two optional interfaces, and forgetting either is silent — the scanner works and only its cache
-behaviour is wrong:
+behavior is wrong:
 
 - **`plugin.CacheVersioner`** contributes the version of whatever actually decides your answer — a
   vulnerability database, a template set — to the cache key. Without it a database refresh leaves

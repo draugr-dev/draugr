@@ -60,7 +60,7 @@ func NewLogger(w io.Writer, opts LogOptions) (*slog.Logger, func() error, error)
 		// refuses: the run would look normal and the evidence someone asked for would not exist.
 		return nil, nil, fmt.Errorf("open --log-file %q: %w", opts.File, err)
 	}
-	// Never coloured and never clamped: a file is not a terminal, and the reason to write one is
+	// Never colored and never clamped: a file is not a terminal, and the reason to write one is
 	// to keep the part a terminal had no room for.
 	file, err := handlerFor(format, f, &slog.HandlerOptions{Level: LevelTrace}, false, 0)
 	if err != nil {

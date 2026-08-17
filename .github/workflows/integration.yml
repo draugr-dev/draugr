@@ -50,7 +50,7 @@ env:
   # minor resolves to yesterday's patch and every pull request goes red for something no pull
   # request did. Bump this when govulncheck names a newer one.
   GO_VERSION: "1.26.6"
-  # The kube-bench release whose benchmark definitions the CIS catalogue is checked against.
+  # The kube-bench release whose benchmark definitions the CIS catalog is checked against.
   # Keep in sync with defaultKubeBenchImage in internal/scanners/kube_bench_job.go, so that
   # bumping the image is when a benchmark revision is discovered rather than later.
   KUBE_BENCH_VERSION: "v0.15.6"
@@ -127,7 +127,7 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
 
       - name: Fetch kube-bench's benchmark definitions
-        # Read, never executed — these are the YAML files the CIS catalogue is diffed against.
+        # Read, never executed — these are the YAML files the CIS catalog is diffed against.
         # The tag is verified against a commit because a tag can be repushed, and a benchmark
         # that changed under a stable tag is exactly what this checkout exists to detect.
         run: |
@@ -165,7 +165,7 @@ jobs:
           # themselves and the job reports success for having run nothing — which is the failure
           # Draugr exists to catch, in Draugr's own pipeline.
           DRAUGR_INTEGRATION_STRICT: "1"
-        # internal/scanners carries the CIS catalogue drift check, which needs the definitions
+        # internal/scanners carries the CIS catalog drift check, which needs the definitions
         # fetched above. It is listed explicitly because ./test/integration/... would not reach it,
         # and a drift guard that never runs is the failure it was written to prevent.
         run: go test -tags integration -v -timeout 15m ./test/integration/... ./internal/scanners/...

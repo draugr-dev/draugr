@@ -85,6 +85,9 @@ echo "▶ public-scope"
 echo "▶ no-defect-recounts"
 ./scripts/check-no-defect-recounts.sh
 
+echo "▶ spelling"
+./scripts/check-spelling.sh
+
 echo "▶ changelog"
 ./scripts/changelog.sh check
 

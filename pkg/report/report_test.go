@@ -123,7 +123,7 @@ func TestConsoleSeverityBandsNoColorOnBuffer(t *testing.T) {
 	}
 }
 
-// Colour behaviour now lives in pkg/tui and is tested there; this only asserts the report uses
+// Color behavior now lives in pkg/tui and is tested there; this only asserts the report uses
 // it — a non-TTY writer must never receive escape codes.
 func TestConsoleUsesSharedPalette(t *testing.T) {
 	var b bytes.Buffer
@@ -131,7 +131,7 @@ func TestConsoleUsesSharedPalette(t *testing.T) {
 		t.Fatal(err)
 	}
 	if strings.Contains(b.String(), "\x1b[") {
-		t.Errorf("a buffer is not a terminal; no colour expected:\n%q", b.String())
+		t.Errorf("a buffer is not a terminal; no color expected:\n%q", b.String())
 	}
 }
 
@@ -326,8 +326,8 @@ func TestConsoleNoFindings(t *testing.T) {
 	}
 }
 
-// A filter honoured by one format and ignored by the others is a flag that does nothing where
-// the reader is most likely to be looking. Every human format has to honour it.
+// A filter honored by one format and ignored by the others is a flag that does nothing where
+// the reader is most likely to be looking. Every human format has to honor it.
 func minPriorityData(band string) Data {
 	results := []sarif.Result{
 		{RuleID: "CVE-P1", Level: sarif.LevelError, Priority: "P1", Tool: "trivy"},
@@ -666,7 +666,7 @@ func TestConsoleAttachesAFailureToItsOwnControl(t *testing.T) {
 // A flag silently ignored by one format is byte-identical output with and without it. SARIF is
 // the worst place for that: the machine consumer with the strongest reason to ask for "just the
 // P1s" is also the one least able to notice it did not get them.
-func TestSARIFHonoursMinPriority(t *testing.T) {
+func TestSARIFHonorsMinPriority(t *testing.T) {
 	d := minPriorityData("P2")
 	var full, filtered bytes.Buffer
 	if err := (sarifReporter{}).Render(&full, Data{Release: d.Release, Run: d.Run, Verdict: d.Verdict}); err != nil {

@@ -17,12 +17,12 @@ import (
 //	15:04:05 LEVEL  message key=value key2="a value"
 //
 // Four weights, so the shape of a line is readable before its content: the message strongest
-// because it is what a reader scans for, the level coloured, timestamps and attribute keys
-// dimmed, values plain — and an error or a non-zero exit coloured, because in a dense debug
+// because it is what a reader scans for, the level colored, timestamps and attribute keys
+// dimmed, values plain — and an error or a non-zero exit colored, because in a dense debug
 // stream that is the line worth finding.
 //
 // A multi-line value is a relayed program output rather than a value, and is rendered as an
-// indented block beneath the record instead of a quoted attribute. Colour never changes the
+// indented block beneath the record instead of a quoted attribute. Color never changes the
 // text, only its rendering, so a record stays greppable and NO_COLOR output stays identical
 // minus the escapes.
 //
@@ -75,8 +75,8 @@ func (h *consoleHandler) Handle(_ context.Context, r slog.Record) error {
 	buf = h.paint.Append(buf, levelColor(r.Level), levelLabel(r.Level))
 	buf = append(buf, ' ', ' ')
 	// The message is what a reader scans for, so it is the one part of the line rendered
-	// stronger than plain rather than weaker. Bold is deliberate over a colour: debug output is
-	// already carrying level colours, and a fourth hue would compete with them for a job that
+	// stronger than plain rather than weaker. Bold is deliberate over a color: debug output is
+	// already carrying level colors, and a fourth hue would compete with them for a job that
 	// weight does better.
 	buf = h.paint.Append(buf, tui.StyleStrong, r.Message)
 
@@ -215,8 +215,8 @@ func (h *consoleHandler) appendStream(buf []byte, a slog.Attr) []byte {
 //
 // Only failure is called out, and only on keys Draugr itself chooses. In a debug stream every
 // line looks alike, and the one worth finding is nearly always the one carrying an error or a
-// non-zero exit — so those are the values that get a colour, and everything else stays plain.
-// A rule that guessed from the value's shape would colour a tool's own prose.
+// non-zero exit — so those are the values that get a color, and everything else stays plain.
+// A rule that guessed from the value's shape would color a tool's own prose.
 func valueStyle(a slog.Attr) tui.Style {
 	switch a.Key {
 	case "error", "err":

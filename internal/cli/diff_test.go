@@ -228,7 +228,7 @@ func TestDiffComparesTwoUnscopedReports(t *testing.T) {
 // reconciles the two this way.
 func TestDiffPublishFailureDoesNotHideTheGate(t *testing.T) {
 	// In GitLab CI with a merge request in context and no token, the publisher errors rather than
-	// no-opping: --publish was asked for and cannot be honoured.
+	// no-opping: --publish was asked for and cannot be honored.
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("TF_BUILD", "")
 	t.Setenv("CI_PROJECT_ID", "1234")

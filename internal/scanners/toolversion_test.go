@@ -142,7 +142,7 @@ func TestEveryScannerWiresACacheVersion(t *testing.T) {
 // TestNativeAndPinnedScannersAnswerWithoutATool checks the ones that can always answer.
 //
 // A probe returns "" on a machine without the tool, which is correct and untestable here. These
-// four have no such excuse: their version is this binary, a catalogue that ships with it, or a
+// four have no such excuse: their version is this binary, a catalog that ships with it, or a
 // digest written in the source.
 func TestNativeAndPinnedScannersAnswerWithoutATool(t *testing.T) {
 	ctx := context.Background()

@@ -131,7 +131,7 @@ func (c *Client) landed(ctx context.Context, projectToken string, opts AwaitOpts
 	return vitals.LastUpdatedDate != "", nil
 }
 
-// sleepCtx waits, or returns early if the run is cancelled.
+// sleepCtx waits, or returns early if the run is canceled.
 func sleepCtx(ctx context.Context, d time.Duration) error {
 	t := time.NewTimer(d)
 	defer t.Stop()

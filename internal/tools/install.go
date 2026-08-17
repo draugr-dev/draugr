@@ -933,7 +933,7 @@ func extractTree(data []byte, prefix, dest string) (int, error) {
 			continue
 		}
 		rel := strings.TrimPrefix(hdr.Name, prefix)
-		// Refuse rather than sanitise. Joining a cleaned path would neutralise `..` and write
+		// Refuse rather than sanitize. Joining a cleaned path would neutralize `..` and write
 		// the file somewhere harmless, which is safe and quiet — and quiet is wrong here. An
 		// archive is untrusted input even when its checksum matched: the pin proves it is the
 		// file upstream published, not that the file is well-behaved, and a traversal attempt in

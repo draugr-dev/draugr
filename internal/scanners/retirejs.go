@@ -77,7 +77,7 @@ type retireReport struct {
 		Results []struct {
 			Component string `json:"component"`
 			Version   string `json:"version"`
-			// Detection is how the library was recognised — "filecontent", "filename", "uri".
+			// Detection is how the library was recognized — "filecontent", "filename", "uri".
 			Detection       string             `json:"detection"`
 			Vulnerabilities []retireVulnerable `json:"vulnerabilities"`
 		} `json:"results"`
@@ -164,7 +164,7 @@ func retireMessage(component, version, detection string, v retireVulnerable) str
 	if v.Below != "" {
 		msg += fmt.Sprintf(" (fixed in %s)", v.Below)
 	}
-	// How the library was recognised, because it is the answer to "why is this not in my
+	// How the library was recognized, because it is the answer to "why is this not in my
 	// lockfile" — a file matched by content is one the package manager never installed.
 	if detection != "" {
 		msg += fmt.Sprintf(" [detected by %s]", detection)
@@ -193,7 +193,7 @@ func retirePURL(component, version string) string {
 }
 
 // retireSeverity maps retire.js's severity to a SARIF level and a CVSS-style score, set together
-// so counts and prioritization agree. An unrecognised severity gets no score and falls to a note.
+// so counts and prioritization agree. An unrecognized severity gets no score and falls to a note.
 func retireSeverity(sev string) (sarif.Level, float64, bool) {
 	switch strings.ToLower(strings.TrimSpace(sev)) {
 	case "critical":

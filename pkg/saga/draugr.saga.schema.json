@@ -140,7 +140,7 @@
         },
         {
           "const": "licenses",
-          "description": "Report dependency licences that carry an obligation (copyleft, forbidden, unidentified)."
+          "description": "Report dependency licenses that carry an obligation (copyleft, forbidden, unidentified)."
         },
         {
           "const": "sast",
@@ -276,7 +276,7 @@
               "type": "boolean"
             },
             "pkgTypes": {
-              "description": "Which package types to analyse. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility — a base image maintained by a platform team — so the report covers what this component controls.",
+              "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility — a base image maintained by a platform team — so the report covers what this component controls.",
               "items": {
                 "enum": [
                   "os",
@@ -385,7 +385,7 @@
     },
     "control_licenses": {
       "additionalProperties": false,
-      "description": "Report dependency licences that carry an obligation (copyleft, forbidden, unidentified).",
+      "description": "Report dependency licenses that carry an obligation (copyleft, forbidden, unidentified).",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
@@ -412,7 +412,7 @@
               "type": "string"
             },
             "resultTimeout": {
-              "description": "How long to wait for Mend to finish analysing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
+              "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
               "type": "string"
             },
             "settings": {
@@ -473,7 +473,7 @@
               "type": "array"
             },
             "tags": {
-              "description": "Go build tags to compile with, e.g. [\"integration\"]. Code behind a tag gosec does not build is code it does not analyse.",
+              "description": "Go build tags to compile with, e.g. [\"integration\"]. Code behind a tag gosec does not build is code it does not analyze.",
               "type": "array"
             }
           },
@@ -537,7 +537,7 @@
               "type": "string"
             },
             "resultTimeout": {
-              "description": "How long to wait for Mend to finish analysing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
+              "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
               "type": "string"
             },
             "settings": {
@@ -571,7 +571,7 @@
               "type": "boolean"
             },
             "pkgTypes": {
-              "description": "Which package types to analyse. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility — a base image maintained by a platform team — so the report covers what this component controls.",
+              "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility — a base image maintained by a platform team — so the report covers what this component controls.",
               "items": {
                 "enum": [
                   "os",
@@ -1054,7 +1054,7 @@
           "type": "string"
         },
         "namespaces": {
-          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the draugrK8sPolicies scanner can honour a scope; the others refuse rather than silently report the whole cluster.",
+          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the draugrK8sPolicies scanner can honor a scope; the others refuse rather than silently report the whole cluster.",
           "items": {
             "minLength": 1,
             "type": "string"
@@ -1311,7 +1311,7 @@
       "description": "Who is making the claims in a generated VEX document, and what product they are about. Both optional and both worth setting for a document you publish.",
       "properties": {
         "author": {
-          "description": "Who is making these statements — an organisation, ideally with a contact. Defaults to the release name, which is a project rather than a party.",
+          "description": "Who is making these statements — an organization, ideally with a contact. Defaults to the release name, which is a project rather than a party.",
           "minLength": 1,
           "type": "string"
         },

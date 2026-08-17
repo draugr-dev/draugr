@@ -58,7 +58,7 @@ proxy" to anyone who looks it up, and the actual cause — a token that is missi
 without the Code (read) scope — is named nowhere. So 203 and 401 both produce an error that says
 which of those to check.
 
-A 404 is called out for the neighbouring reason: Azure DevOps returns it for a scope the token
+A 404 is called out for the neighboring reason: Azure DevOps returns it for a scope the token
 cannot see as well as for one that does not exist, so "not found" alone sends people to check a
 spelling when the answer is a permission.
 
