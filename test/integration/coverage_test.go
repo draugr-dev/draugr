@@ -86,7 +86,7 @@ components:
 	_, sarifPath := scanTo(t, dir, "draugr.saga.yaml")
 	tools := toolsInSARIF(t, sarifPath)
 	// The report names the tool rather than the scanner — "trivy", not "trivy-fs" — because that
-	// is what a reader recognises. Only sca is enabled here, so each can only be its repository
+	// is what a reader recognizes. Only sca is enabled here, so each can only be its repository
 	// scanner.
 	for _, want := range []string{"trivy", "grype"} {
 		if tools[want] == 0 {
@@ -95,15 +95,15 @@ components:
 	}
 }
 
-// TestLicensesControlRunsOverARepository covers the licences control, which shipped with no
-// integration coverage. The fixture declares dependencies with known licences.
+// TestLicensesControlRunsOverARepository covers the licenses control, which shipped with no
+// integration coverage. The fixture declares dependencies with known licenses.
 func TestLicensesControlRunsOverARepository(t *testing.T) {
 	requireTool(t, "trivy", "trivy-license is the scanner under test")
 	requireTool(t, "git", "the scan checks the repository out before scanning it")
 
 	repo := newVulnRepo(t)
 	dir := t.TempDir()
-	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`release: { name: licences-integration, version: "1.0" }
+	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`release: { name: licenses-integration, version: "1.0" }
 config:
   controllers:
     licenses: { enabled: true }
@@ -116,7 +116,7 @@ components:
 `, repo))
 
 	console, _ := scanTo(t, dir, "draugr.saga.yaml")
-	// The control has to appear in the report. Whether this fixture's licences are worth
+	// The control has to appear in the report. Whether this fixture's licenses are worth
 	// reporting is the scanner's judgement; that the control ran is Draugr's.
 	if !strings.Contains(console, "licenses") {
 		t.Errorf("the licenses control is absent from the report, so it did not run:\n%s", console)

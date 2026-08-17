@@ -51,7 +51,7 @@ func AnnotateExposures(data []byte, reasons map[string]string) ([]byte, error) {
 			annotated = true
 		}
 	}
-	// Re-encoding normalises formatting, so a document with nothing to say is returned exactly as
+	// Re-encoding normalizes formatting, so a document with nothing to say is returned exactly as
 	// it arrived rather than rewritten to no purpose.
 	if !annotated {
 		return data, nil

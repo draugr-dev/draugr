@@ -146,9 +146,9 @@ func TestProgressFrameMarksEachStepsState(t *testing.T) {
 	}
 }
 
-// TestProgressStepMarksSurviveWithoutColour: the mark carries the state and colour reinforces it.
-// The same output goes to terminals with no colour, and to people who cannot tell these apart.
-func TestProgressStepMarksSurviveWithoutColour(t *testing.T) {
+// TestProgressStepMarksSurviveWithoutColor: the mark carries the state and color reinforces it.
+// The same output goes to terminals with no color, and to people who cannot tell these apart.
+func TestProgressStepMarksSurviveWithoutColor(t *testing.T) {
 	plain := tui.Painter{}
 	for _, c := range []struct {
 		name, want string

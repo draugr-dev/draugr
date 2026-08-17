@@ -31,7 +31,7 @@ const gosecConfigSchema = `{
     "tags": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Go build tags to compile with, e.g. [\"integration\"]. Code behind a tag gosec does not build is code it does not analyse."
+      "description": "Go build tags to compile with, e.g. [\"integration\"]. Code behind a tag gosec does not build is code it does not analyze."
     }
   }
 }`

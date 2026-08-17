@@ -317,7 +317,7 @@ func TestGitLabCodeQualityCarriesEveryControl(t *testing.T) {
 	}
 	// licenses and threats have no honest GitLab security type, so this report is where they land.
 	if !got["AGPL-3.0"] {
-		t.Error("a licence finding reaches no typed report, so it has to reach this one")
+		t.Error("a license finding reaches no typed report, so it has to reach this one")
 	}
 }
 
@@ -344,7 +344,7 @@ func TestGitLabSecurityReportCarriesTheFlawsSeverity(t *testing.T) {
 		byName[v.Name] = v.Severity
 	}
 	// A P1 whose flaw is error-level with no CVSS score is a "high", not a "critical". The band
-	// travelling here is the flaw's; the P1 came from what the component is exposed to, and putting
+	// traveling here is the flaw's; the P1 came from what the component is exposed to, and putting
 	// it in this field would hand GitLab's policies that context to apply again.
 	if byName["go.lang.security.audit"] != "High" {
 		t.Errorf("an error-level P1 rendered as %q, want the flaw's own band",

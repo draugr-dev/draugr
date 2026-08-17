@@ -598,7 +598,7 @@ func TestABrokenDescriptorFailsRatherThanFallingBack(t *testing.T) {
 	}
 }
 
-// Zero-config still applies where there is nothing to honour — that is what it is for.
+// Zero-config still applies where there is nothing to honor — that is what it is for.
 func TestScanStaysZeroConfigWithoutADescriptor(t *testing.T) {
 	dir := t.TempDir()
 	m, synthesized, err := scanModel(dir)
@@ -846,7 +846,7 @@ func TestFormatAcceptsWhatAPersonMightRead(t *testing.T) {
 	}
 }
 
-func TestWriteArtifactsHonoursReportFormats(t *testing.T) {
+func TestWriteArtifactsHonorsReportFormats(t *testing.T) {
 	dir := t.TempDir()
 	data := report.Data{Release: saga.Release{Name: "app", Version: "1"}}
 	err := writeArtifacts(dir, []string{"html", "markdown"}, data,
@@ -1018,7 +1018,7 @@ func TestCacheSettingsComeFromConfigUnlessTyped(t *testing.T) {
 		t.Errorf("an explicit --cache-ttl 0 was overridden with %v", opts.cacheTTL)
 	}
 
-	// An explicit --cache-read-only=false is honoured over a config that says true, because it
+	// An explicit --cache-read-only=false is honored over a config that says true, because it
 	// was typed. Booleans otherwise only ever turn on.
 	opts = scanOptions{setFlags: map[string]bool{"cache-read-only": true}}
 	cacheOptionsFrom(&opts, cfg)

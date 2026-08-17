@@ -1,11 +1,11 @@
-// Package config is Draugr's machine- and organisation-level configuration, kept apart from the
+// Package config is Draugr's machine- and organization-level configuration, kept apart from the
 // Saga on purpose.
 //
 // A Saga describes an application: which repositories it has, how exposed a component is, which
 // controls must pass. Those are facts about the software, they belong in its repository, and they
 // are meant to differ between projects.
 //
-// This file describes the machine or the organisation running the scan: which build of a scanner
+// This file describes the machine or the organization running the scan: which build of a scanner
 // to install, and what a control should default to before any project says otherwise. Those want
 // to be *uniform*, and putting them in a Saga makes them diverge silently — a descriptor that can
 // pin its own scanner version is a descriptor that can downgrade one until a finding disappears.
@@ -30,13 +30,13 @@ import (
 // FileName is the config a project may carry beside its Saga.
 const FileName = "draugr.config.yaml"
 
-// EnvVar names a config file explicitly, which is the organisation-wide lever: set it in a
+// EnvVar names a config file explicitly, which is the organization-wide lever: set it in a
 // runner image and every pipeline picks up the same defaults with no per-repository change.
 const EnvVar = "DRAUGR_CONFIG"
 
 // File is a parsed configuration.
 type File struct {
-	// Tools pins the build of each external scanner. Provisioning rather than behaviour, and
+	// Tools pins the build of each external scanner. Provisioning rather than behavior, and
 	// deliberately not readable from a Saga.
 	Tools map[string]ToolSettings `yaml:"tools,omitempty"`
 	// Controllers are default settings merged *underneath* the Saga's, so a project overrides
@@ -60,7 +60,7 @@ type File struct {
 
 // OutputSettings configures how the console renders a run. Each has a `--flag` that overrides it.
 type OutputSettings struct {
-	// Group is how the fix list is organised: "action" (one row per thing to do) or "none".
+	// Group is how the fix list is organized: "action" (one row per thing to do) or "none".
 	Group string `yaml:"group,omitempty"`
 	// Evidence also prints what stands behind the verdict — tool provenance, what each control
 	// measured against, the scanned revision, what the run cost.
@@ -164,7 +164,7 @@ func loadFile(path string) (File, error) {
 //
 // Strict: an unknown key is an error rather than something ignored. A misspelled setting that is
 // silently dropped is a setting somebody believes is in force, and this file exists to make
-// behaviour uniform — a typo that quietly opts one machine out defeats the point of having it.
+// behavior uniform — a typo that quietly opts one machine out defeats the point of having it.
 func Parse(data []byte, path string) (File, error) {
 	var f File
 	dec := yaml.NewDecoder(strings.NewReader(string(data)))
@@ -258,7 +258,7 @@ func DeepMerge(dst, src saga.ControllerSettings) saga.ControllerSettings {
 	return out
 }
 
-// asSettings normalises a decoded mapping. YAML decodes a nested mapping as the enclosing named
+// asSettings normalizes a decoded mapping. YAML decodes a nested mapping as the enclosing named
 // type, which a plain map[string]any assertion misses.
 func asSettings(v any) (saga.ControllerSettings, bool) {
 	switch m := v.(type) {

@@ -258,7 +258,7 @@ func nucleiProvenance(host plugin.HostTarget, spec preparedSpec) sarif.Provenanc
 	if host.Spec != nil {
 		fields = append(fields,
 			sarif.Field{Key: "spec", Value: host.Spec.Path},
-			sarif.Field{Key: "methods", Value: strings.Join(plugin.NormaliseMethods(host.Spec.Methods), ", ")},
+			sarif.Field{Key: "methods", Value: strings.Join(plugin.NormalizeMethods(host.Spec.Methods), ", ")},
 			sarif.Field{Key: "operations", Value: strconv.Itoa(spec.Kept)})
 		if summary := spec.DroppedSummary(); summary != "" {
 			fields = append(fields, sarif.Field{Key: "excluded", Value: summary})

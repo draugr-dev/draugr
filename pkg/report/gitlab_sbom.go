@@ -23,7 +23,7 @@ const gitlabInputFileProperty = "gitlab:dependency_scanning:input_file:path"
 // gitlabSchemaVersionProperty tells GitLab how to read the properties below it, and is required.
 //
 // Not optional metadata: without it GitLab ignores every `gitlab:` property in the document, and
-// does so quietly. The packages still appear — their names, versions and licences are plain
+// does so quietly. The packages still appear — their names, versions and licenses are plain
 // CycloneDX, and the package manager can be inferred from a purl — so the report looks almost
 // right. What goes missing is everything only these properties carry: the manifest each package was
 // declared in, and with it GitLab's own dependency scanning.

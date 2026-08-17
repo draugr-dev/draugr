@@ -179,7 +179,7 @@ func TestScopeKeyDistinguishesSubtrees(t *testing.T) {
 	}
 }
 
-func TestConeDirsNormalises(t *testing.T) {
+func TestConeDirsNormalizes(t *testing.T) {
 	got := coneDirs([]string{"services/web/**", "/api/", " ", ".", "lib/*"})
 	want := []string{"services/web", "api", "lib"}
 	if !slices.Equal(got, want) {

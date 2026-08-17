@@ -16,7 +16,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// sagaGlob is what Draugr recognises as a Saga: the file *type*, not one filename. A repo
+// sagaGlob is what Draugr recognizes as a Saga: the file *type*, not one filename. A repo
 // commonly holds several — one per service, or per environment.
 const sagaGlob = "*.saga.yaml"
 
@@ -217,7 +217,7 @@ func isSagaFile(name string) bool {
 //
 // A distinct file type rather than a convention, because editors decide which schema to apply
 // from the name: the Saga schema requires a release, so a fragment named `*.saga.yaml` would be
-// flagged as invalid in every editor that reads the published catalogue.
+// flagged as invalid in every editor that reads the published catalog.
 func IsFragmentFile(name string) bool {
 	return strings.HasSuffix(name, ".saga-fragment.yaml") || strings.HasSuffix(name, ".saga-fragment.yml")
 }

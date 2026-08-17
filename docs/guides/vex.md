@@ -112,7 +112,7 @@ calls the thing they are scanning. Your release is `acme-api 2.4.0`; their SBOM 
 - **`author`** — Draugr knows a project name. It does not know your legal entity or how to reach
   you, and a consumer with a question about a claim you made needs somebody to ask. Unset, this
   falls back to `release.name`, which is a project rather than a party.
-- **`product`** — unset, this becomes `pkg:generic/<release.name>@<release.version>`, synthesised
+- **`product`** — unset, this becomes `pkg:generic/<release.name>@<release.version>`, synthesized
   from your descriptor. The `pkg:generic/` prefix says so plainly.
 
 **Get `product` wrong and nothing happens — which is the problem.** A consumer cannot tell that a

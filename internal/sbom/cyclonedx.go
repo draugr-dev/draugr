@@ -9,7 +9,7 @@ import (
 
 // cycloneDX is as much of the specification as assembling a project document needs.
 //
-// Hand-modelled, and deliberately partial. Draugr does not adopt a package model — every field
+// Hand-modeled, and deliberately partial. Draugr does not adopt a package model — every field
 // below exists to move a component or an edge from one document into another, and a field nobody
 // reads is one more thing to keep in step with a spec that keeps moving. The parts of a source
 // document this does not name survive as far as they are carried; the parts it does are the ones

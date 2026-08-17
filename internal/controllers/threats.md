@@ -45,7 +45,7 @@ config:
 ```
 
 Running a second feed is a decision to disclose to a second party, so it is never implied by
-enabling the control. It is also the one whose safety rests on an **observed** behaviour rather
+enabling the control. It is also the one whose safety rests on an **observed** behavior rather
 than a documented one: VirusTotal's terms describe sharing in terms of submissions and never say a
 lookup is treated differently. The scanner only ever reads domain reports — never an endpoint that
 accepts content — and the reasoning is set out in [its doc](../scanners/virustotal.md).
@@ -78,7 +78,7 @@ consideration, and it is the reason this is stated rather than buried.
 Nothing else is sent: the hostname only, never a path, never a credential, never the contents of
 a response.
 
-## Licence and terms of use
+## License and terms of use
 
 **Free for non-commercial use, and that is a real restriction rather than boilerplate.**
 
@@ -107,7 +107,7 @@ having.
 
 One concern was **partly** answered. A VirusTotal *lookup* of a URL it has never seen returns 404
 twice, over a minute apart — so the lookup does not create a report others can retrieve. That is a
-behavioural observation, and behaviour can change without notice.
+behavioral observation, and behavior can change without notice.
 
 What has **not** been established is which terms govern the free public API, and what they say
 about retaining or sharing query data.
@@ -128,9 +128,9 @@ scanning reports "are shared with the public VirusTotal community", and "the con
 files or pages may also be shared with premium VirusTotal customers".
 
 Neither page distinguishes a **lookup** from a **submission**, which is the distinction the whole
-question turns on. Measured behaviour suggests they are different — a lookup of a URL VirusTotal
+question turns on. Measured behavior suggests they are different — a lookup of a URL VirusTotal
 has never seen returns 404 twice, over a minute apart, and creates no record. But an undocumented
-behaviour is not a guarantee, and the documented default is sharing.
+behavior is not a guarantee, and the documented default is sharing.
 
 So the risk is not hypothetical and not small: if a lookup of an unknown host ever queues it for
 analysis — today, or after a change nobody announces — that hostname enters a corpus shared with

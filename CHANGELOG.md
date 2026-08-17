@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.99.0] - 2026-08-17
+
 ### Added
 
 - **`report.json` says where a slow run went.** `stats` now carries `durationMs` (wall-clock),
@@ -17,6 +21,17 @@ and move it under a version on release.
   cache rather than scanning) — so `jq '.stats' report.json` answers "why did that take so long"
   from the artifact your pipeline already keeps, not just from the terminal it scrolled past.
   See [Finding out where a slow run went](docs/guides/caching-and-performance.md#finding-out-where-a-slow-run-went).
+
+### Changed
+
+- **One spelling throughout.** Command help, error messages and the documentation now use American
+  spelling consistently, so the same word reads the same way wherever you meet it. No flag,
+  control, format, config key or schema value changed — nothing you have written needs editing.
+  If you match on Draugr's human-readable output, `--format json` remains the stable surface.
+
+- **Plugin authors: `plugin.NormaliseMethods` is now `plugin.NormalizeMethods`.** The only exported
+  name in `pkg/` that the spelling change touched, and the only thing here that can break a build.
+  It takes and returns exactly what it did; rename the call and nothing else moves.
 
 ### Fixed
 
@@ -4633,7 +4648,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.98.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.99.0...HEAD
+[0.99.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.99.0
 [0.98.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.98.1
 [0.98.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.98.0
 [0.97.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.97.0

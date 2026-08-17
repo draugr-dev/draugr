@@ -87,7 +87,7 @@ func TestTheGitLabTemplateNamesFormatsThatExist(t *testing.T) {
 			t.Errorf("the template relies on the %q format, which is not in the registry", format)
 		}
 		// The file GitLab is told to collect must be the one Draugr writes under that format.
-		// GitLab accepts a filename pattern as well as a literal path, so both are honoured — what
+		// GitLab accepts a filename pattern as well as a literal path, so both are honored — what
 		// is being checked is that the two agree, not which spelling was used.
 		filename := report.Filename(format)
 		matched, err := filepath.Match(filepath.Base(path), filename)

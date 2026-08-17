@@ -1,6 +1,6 @@
 package scanners
 
-// The CIS Kubernetes Benchmark's policies section, as a catalogue rather than a set of
+// The CIS Kubernetes Benchmark's policies section, as a catalog rather than a set of
 // implementations.
 //
 // A scanner that evaluates some of a benchmark and stays quiet about the rest reports a clean
@@ -12,9 +12,9 @@ package scanners
 // That makes coverage additive rather than a trade. Moving a check from manual to decided is a
 // strictly better answer for that check and changes nothing about the others.
 
-// cisCatalogueVersion is the benchmark revision the catalogue describes. Reported in a scan's
+// cisCatalogVersion is the benchmark revision the catalog describes. Reported in a scan's
 // provenance, so the evidence names the standard it was measured against.
-const cisCatalogueVersion = "cis-1.12"
+const cisCatalogVersion = "cis-1.12"
 
 // cisPolicyCheck is one check in the benchmark's policies section.
 type cisPolicyCheck struct {
@@ -30,8 +30,8 @@ type cisPolicyCheck struct {
 // cisPolicies is the policies section of cis-1.12.
 //
 // Pinned to a benchmark version deliberately: the section is renumbered between revisions, and a
-// catalogue that silently tracked "whatever the latest is" would change the meaning of a rule id
-// underneath an exclusion someone wrote. TestCISCatalogueMatchesKubeBench (integration) diffs
+// catalog that silently tracked "whatever the latest is" would change the meaning of a rule id
+// underneath an exclusion someone wrote. TestCISCatalogMatchesKubeBench (integration) diffs
 // this against kube-bench's own config so a revision cannot pass unnoticed.
 var cisPolicies = []cisPolicyCheck{
 	{"5.1.1", "Ensure that the cluster-admin role is only used where required", "Remove cluster-admin bindings and grant a role scoped to what the subject actually needs."},
@@ -75,7 +75,7 @@ var cisPolicies = []cisPolicyCheck{
 	{"5.6.4", "The default namespace should not be used", "Move workloads out of the default namespace."},
 }
 
-// cisPolicyByID indexes the catalogue for lookup by rule id.
+// cisPolicyByID indexes the catalog for lookup by rule id.
 var cisPolicyByID = func() map[string]cisPolicyCheck {
 	m := make(map[string]cisPolicyCheck, len(cisPolicies))
 	for _, c := range cisPolicies {

@@ -138,7 +138,7 @@ components:
 //
 // A scanner handed an OpenAPI document takes its targets from that document. This specification
 // names api.production.invalid, and the descriptor names a local endpoint — so if the rewrite ever
-// stopped pinning `servers:`, the scan would leave for somewhere nobody authorised, and every unit
+// stopped pinning `servers:`, the scan would leave for somewhere nobody authorized, and every unit
 // test would still pass.
 //
 // The domain is `.invalid` deliberately: reserved by RFC 2606 and unresolvable, so a regression

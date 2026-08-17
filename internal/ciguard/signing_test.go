@@ -10,10 +10,10 @@ import (
 // identityRe finds the cosign certificate-identity regex a file asserts.
 var identityRe = regexp.MustCompile(`release\\?\.yml@refs/(tags|heads)/[^'"\s]*`)
 
-// normalise strips what only differs because of where the string is written: install.sh escapes
+// normalize strips what only differs because of where the string is written: install.sh escapes
 // the regex's trailing `$` for the shell, and comparing that against a YAML copy would report
 // drift on every run while both say the same thing.
-func normalise(s string) string {
+func normalize(s string) string {
 	return strings.TrimSuffix(strings.TrimSuffix(s, `\$`), "$")
 }
 
@@ -35,7 +35,7 @@ func TestEverythingVerifiesTheSameSigningIdentity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", f, err)
 		}
-		got := normalise(identityRe.FindString(string(data)))
+		got := normalize(identityRe.FindString(string(data)))
 		if got == "" {
 			t.Errorf("%s asserts no signing identity — a verifier that checks nothing passes "+
 				"anything", f)

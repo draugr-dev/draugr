@@ -111,7 +111,7 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 // ProposeExposureKey is the scope config key that turns exposure inference off. Absent — the
 // common case — means propose.
 //
-// A key rather than a field on SurveyScope: it is one surveyor's behaviour, and the scope is the
+// A key rather than a field on SurveyScope: it is one surveyor's behavior, and the scope is the
 // channel the CLI already uses to tell a surveyor how to do its job.
 const ProposeExposureKey = "proposeExposure"
 
@@ -287,7 +287,7 @@ func digestFromImageID(imageID string) string {
 //
 // The override is what makes `--context` mean something. Reading the flag and then connecting to
 // whatever the machine happens to have selected would survey one cluster while the operator
-// named another — and write a descriptor labelled with the name they gave.
+// named another — and write a descriptor labeled with the name they gave.
 func defaultClientset(scope plugin.SurveyScope) (kubernetes.Interface, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{CurrentContext: scopeContext(scope)}

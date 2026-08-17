@@ -9,7 +9,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
-func TestConvertRendersAColouredLine(t *testing.T) {
+func TestConvertRendersAColoredLine(t *testing.T) {
 	p := tui.Colored()
 	in := "Draugr — " + p.Paint(tui.StyleFail, "FAIL") + "   " + p.Paint(tui.StyleMuted, "(draugr-demo 1.0)")
 
@@ -88,7 +88,7 @@ func TestConvertStopsAtTheFindingsTable(t *testing.T) {
 	if !strings.Contains(got, "Controls:") {
 		t.Errorf("everything above it should survive:\n%s", got)
 	}
-	// Cut before the escapes are parsed, so a coloured heading is matched on its text.
+	// Cut before the escapes are parsed, so a colored heading is matched on its text.
 	if strings.Contains(got, "\x1b") {
 		t.Errorf("raw escape survived: %q", got)
 	}
@@ -120,9 +120,9 @@ func TestConvertRendersAHyperlink(t *testing.T) {
 	}
 }
 
-func TestConvertRejectsAnUnmappedColour(t *testing.T) {
+func TestConvertRejectsAnUnmappedColor(t *testing.T) {
 	// The guard that matters: if the palette grows and nobody updates the map, this fails the
-	// build rather than publishing a home page that has quietly lost a colour.
+	// build rather than publishing a home page that has quietly lost a color.
 	_, err := convert("\x1b[35mmagenta\x1b[0m", options{exitCode: -1})
 	if err == nil {
 		t.Fatal("expected an error for an unmapped SGR code")
@@ -134,9 +134,9 @@ func TestConvertRejectsAnUnmappedColour(t *testing.T) {
 
 func TestConvertRejectsAMalformedEscape(t *testing.T) {
 	for name, in := range map[string]string{
-		"unterminated colour": "red \x1b[31",
-		"unterminated link":   "\x1b]8;;https://example.test",
-		"unknown sequence":    "\x1b?weird",
+		"unterminated color": "red \x1b[31",
+		"unterminated link":  "\x1b]8;;https://example.test",
+		"unknown sequence":   "\x1b?weird",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := convert(in, options{exitCode: -1}); err == nil {
@@ -146,7 +146,7 @@ func TestConvertRejectsAMalformedEscape(t *testing.T) {
 	}
 }
 
-func TestConvertNormalisesCarriageReturns(t *testing.T) {
+func TestConvertNormalizesCarriageReturns(t *testing.T) {
 	// A PTY capture is CRLF-delimited; left in, every line would carry a stray character.
 	got, err := convert("one\r\ntwo\r\n", options{exitCode: -1})
 	if err != nil {
@@ -194,7 +194,7 @@ func TestRunReadsStdinAndWritesTheFragment(t *testing.T) {
 func TestRunReportsAConversionFailure(t *testing.T) {
 	var out bytes.Buffer
 	if err := run(strings.NewReader("\x1b[35mx\x1b[0m"), &out, options{exitCode: -1}); err == nil {
-		t.Fatal("expected the unmapped colour to fail the run")
+		t.Fatal("expected the unmapped color to fail the run")
 	}
 }
 

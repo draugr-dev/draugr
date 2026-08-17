@@ -171,7 +171,7 @@ Two consequences worth being direct about:
 
 This scanner always audits the whole cluster. Its checks are `kubectl` pipelines with the scope
 written into them — `--all-namespaces`, with no flag to change it — so a component that sets
-`namespaces` on its infrastructure entry cannot be honoured.
+`namespaces` on its infrastructure entry cannot be honored.
 
 So it is not planned for such a component, the way a controller does not plan for an
 infrastructure kind it has no benchmark for. The alternative is worse than a missing feature: the
@@ -205,7 +205,7 @@ means "manual check required" — a prompt for a human, not a defect; reporting 
 would make a clean cluster impossible.
 
 Passing checks are not findings. A report listing three hundred passes buries the dozen failures,
-which is the same reasoning that keeps permissive licences out of the `licenses` control.
+which is the same reasoning that keeps permissive licenses out of the `licenses` control.
 
 Rule ids are `kube-bench/cis/<check number>`, e.g. `kube-bench/cis/5.1.1` — namespaced because
 `draugr-draugr-k8s-policies` audits the same benchmark with the same numbering, and a bare `cis/5.1.1`

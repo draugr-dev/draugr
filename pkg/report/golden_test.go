@@ -147,7 +147,7 @@ func goldenFullData() Data {
 			"iac": {Control: "iac", Report: sarif.Report{Tool: "trivy", Results: iac,
 				Provenance: []sarif.Provenance{{Tool: "trivy", Version: "0.69.3"}}}},
 			"sast": {Control: "sast", Report: sarif.Report{Tool: "semgrep", Results: sast}},
-			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: suppressedLicences(licenses),
+			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: suppressedLicenses(licenses),
 				Provenance: []sarif.Provenance{{Tool: "trivy-license", Version: "0.69.3",
 					Fields: []sarif.Field{{Key: "policy", Value: "deny copyleft"}}}}}},
 		},
@@ -202,10 +202,10 @@ func goldenCleanData() Data {
 	}
 }
 
-// suppressedLicences appends the two set-aside findings the Suppressed count refers to: one
+// suppressedLicenses appends the two set-aside findings the Suppressed count refers to: one
 // signed, one not, because the line renders them differently and an element the fixture omits is
 // an element the golden does not pin.
-func suppressedLicences(base []sarif.Result) []sarif.Result {
+func suppressedLicenses(base []sarif.Result) []sarif.Result {
 	return append(append([]sarif.Result{}, base...),
 		sarif.Result{RuleID: "license/GPL-3.0-only/x", Level: sarif.LevelWarning,
 			Location: sarif.Location{URI: "go.mod"},

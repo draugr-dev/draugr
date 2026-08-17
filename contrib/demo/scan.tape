@@ -4,7 +4,7 @@
 # A still of the finished scan rather than a recording of it. The output is dense — a verdict,
 # four priority bands, a control table and a ranked list — and an animation gives the reader a
 # few seconds with it before looping back to an empty prompt, which is long enough to notice the
-# colours and not long enough to read the rows. A still is read at the reader's pace, weighs a
+# colors and not long enough to read the rows. A still is read at the reader's pace, weighs a
 # fraction as much on a page that has one job, and costs nothing to encode.
 #
 # It runs `draugr scan .` inside ./draugr-demo, so before rendering:

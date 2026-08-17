@@ -75,7 +75,7 @@ reg.Register(surveyors.NewGitLabGroupProjects())
 
 A colocated `internal/surveyors/<name>.md` and a row in
 [`docs/reference/catalog.md`](../../reference/catalog.md), both enforced by
-`TestEveryPluginHasColocatedDocs`. Surveyor docs must state licence and terms just as scanner docs
+`TestEveryPluginHasColocatedDocs`. Surveyor docs must state license and terms just as scanner docs
 do (`TestEveryToolDocStatesItsTerms`) — a surveyor talks to somebody's API, so what that API's
 terms permit is part of what you are shipping.
 

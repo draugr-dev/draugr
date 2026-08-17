@@ -207,7 +207,7 @@ func TestKubeBenchLevel(t *testing.T) {
 	}
 }
 
-// The Saga's `ref` names the cluster to audit, and findings are labelled with it. If it did not
+// The Saga's `ref` names the cluster to audit, and findings are labeled with it. If it did not
 // also select the cluster, a scan would name one cluster and describe another — which is the
 // worst way for a compliance report to be wrong, because it looks right.
 func TestKubeContextComesFromTheDeclaredRef(t *testing.T) {
@@ -217,7 +217,7 @@ func TestKubeContextComesFromTheDeclaredRef(t *testing.T) {
 	}
 }
 
-// An organisation's name for a cluster is not always its kubeconfig context name.
+// An organization's name for a cluster is not always its kubeconfig context name.
 func TestKubeContextSettingOverridesTheRef(t *testing.T) {
 	got := kubeContext(plugin.InfraTarget{Ref: "prod-eu-west-1"}, plugin.Config{"context": "arn:aws:eks:..."})
 	if got != "arn:aws:eks:..." {
@@ -527,7 +527,7 @@ func TestKubeBenchArgvLetsAManagedClusterPickItsOwnBenchmark(t *testing.T) {
 	}
 }
 
-// A vanilla cluster keeps the behaviour that made --version necessary in the first place.
+// A vanilla cluster keeps the behavior that made --version necessary in the first place.
 func TestKubeBenchArgvStillPinsTheVersionForAVanillaCluster(t *testing.T) {
 	withClusterFacts(t, clusterFacts{Version: "1.34"}, nil)
 
@@ -704,7 +704,7 @@ func TestPlatformFromNodes(t *testing.T) {
 
 // Reading nodes can be denied on a shared cluster. That must not fail the scan: a missed platform
 // leaves the version string to decide exactly as it did before, which is the pre-existing
-// behaviour rather than a new failure.
+// behavior rather than a new failure.
 func TestPlatformFromNodesToleratesNoNodes(t *testing.T) {
 	t.Parallel()
 	if got := platformFromNodes(context.Background(), fake.NewSimpleClientset()); got != "" {

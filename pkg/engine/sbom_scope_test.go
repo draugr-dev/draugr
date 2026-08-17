@@ -52,7 +52,7 @@ func countProject(docs []sbom.Document) (project, parts int) {
 	return
 }
 
-// The default is unchanged behaviour: a descriptor written before scope existed keeps working.
+// The default is unchanged behavior: a descriptor written before scope existed keeps working.
 func TestSBOMScopeDefaultsToPerTarget(t *testing.T) {
 	docs, errs := generate(t, assemblingGen{}, "")
 	if len(errs) != 0 {

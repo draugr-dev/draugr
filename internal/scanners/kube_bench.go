@@ -118,7 +118,7 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	//
 	// kube-bench shells out to kubectl for every policies check, and kubectl reads its cluster
 	// from the environment. Without this the scan audits whatever context the machine has
-	// selected while labelling the findings with the one the Saga declared — a report naming one
+	// selected while labeling the findings with the one the Saga declared — a report naming one
 	// cluster and describing another.
 	env, cleanup, err := kubeContextEnv(kubeContext(target, cfg))
 	if err != nil {
@@ -370,12 +370,12 @@ func clusterLabel(kubeCtx string) string {
 // kubeContext decides which cluster this scan is about.
 //
 // The Saga's `ref` names the concrete instance, so it is the natural answer — and it has to be
-// used, not merely displayed. Findings are labelled with it; if the scan actually audited
+// used, not merely displayed. Findings are labeled with it; if the scan actually audited
 // whatever context the machine happened to have selected, the report would name one cluster and
-// describe another. Mislabelled evidence is worse than none.
+// describe another. Mislabeled evidence is worse than none.
 //
 // An explicit `context` setting wins, for the case where the kubeconfig's name for a cluster is
-// not the name the organisation uses for it.
+// not the name the organization uses for it.
 func kubeContext(target plugin.Target, cfg plugin.Config) string {
 	if ctx := stringSetting(cfg, contextKey, ""); ctx != "" {
 		return ctx
@@ -614,7 +614,7 @@ type kubeBenchFinding struct {
 //
 // Only FAIL and WARN become findings. PASS and INFO are the benchmark confirming what it
 // checked, and a report listing three hundred passing checks buries the dozen that failed —
-// the same reasoning that keeps permissive licences out of the licences control.
+// the same reasoning that keeps permissive licenses out of the licenses control.
 func parseKubeBench(out []byte, tool, location string) (sarif.Report, error) {
 	return parseKubeBenchOperated(out, tool, location, false)
 }
@@ -693,7 +693,7 @@ func reportFromKubeBench(
 					FullDescription:  strings.TrimSpace(res.Remedy),
 					HelpURI:          "https://www.cisecurity.org/benchmark/kubernetes",
 					// Same taxonomy and same control id as draugr-draugr-k8s-policies, which is how the
-					// two scanners' accounts of one check stay recognisable as such now that
+					// two scanners' accounts of one check stay recognizable as such now that
 					// their rule ids are namespaced apart.
 					Taxa: []sarif.Taxon{{
 						Taxonomy: cisKubernetesTaxonomy,
@@ -740,7 +740,7 @@ func kubeBenchLevel(status string, scored bool) (sarif.Level, bool) {
 	}
 }
 
-// refuseNamespaceScope stops a scanner that cannot honour a declared namespace scope.
+// refuseNamespaceScope stops a scanner that cannot honor a declared namespace scope.
 //
 // kube-bench's checks are shell pipelines with the scope written into them — `kubectl get pods
 // --all-namespaces`, and no flag to change it. So a component that declares `namespaces:` and is

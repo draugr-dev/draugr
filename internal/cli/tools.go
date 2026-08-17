@@ -98,8 +98,8 @@ func newToolsInstallCommand() *cobra.Command {
 
 // installNames decides what to install: the tools named, everything, or what a descriptor needs.
 //
-// Installing the whole catalogue is a poor default on a security tool — every binary put on PATH
-// is one more thing to trust, patch and explain — but it is the existing behaviour and changing
+// Installing the whole catalog is a poor default on a security tool — every binary put on PATH
+// is one more thing to trust, patch and explain — but it is the existing behavior and changing
 // it silently would provision less than a pipeline expects. So --saga is opt-in, and the case for
 // it is made where it is relevant rather than in the docs.
 func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]string, error) {
@@ -179,7 +179,7 @@ func noteDescriptorInWorkingDir(w io.Writer) {
 	}
 	// Defensive: no saving means nothing worth saying. Not reachable through any descriptor
 	// today, because cosign and gosec are never *required* by a control — cosign verifies
-	// downloads and gosec is opt-in — so a Saga cannot demand the whole catalogue.
+	// downloads and gosec is opt-in — so a Saga cannot demand the whole catalog.
 	if needed >= len(installable) {
 		return
 	}

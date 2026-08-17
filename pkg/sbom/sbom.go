@@ -2,7 +2,7 @@
 // the contract for producing one.
 //
 // An SBOM is deliberately *not* a control. A control answers "did this check find anything?",
-// and its verdict feeds the gate. An SBOM finds nothing — it is an inventory. Modelling it as a
+// and its verdict feeds the gate. An SBOM finds nothing — it is an inventory. Modeling it as a
 // control would put a row in the results table that always reads "pass" without ever having
 // looked, which is exactly the meaningless green Draugr exists to remove. So SBOMs travel as
 // evidence: produced during a run, attached to the output, never consulted for the verdict.

@@ -79,7 +79,7 @@ func TestRateGateServesCallersInOrder(t *testing.T) {
 	}
 }
 
-func TestRateGateStopsWaitingWhenCancelled(t *testing.T) {
+func TestRateGateStopsWaitingWhenCanceled(t *testing.T) {
 	g := &rateGate{interval: time.Hour}
 	_ = g.wait(context.Background(), time.Now) // take the first slot
 	ctx, cancel := context.WithCancel(context.Background())
@@ -87,7 +87,7 @@ func TestRateGateStopsWaitingWhenCancelled(t *testing.T) {
 
 	start := time.Now()
 	if err := g.wait(ctx, time.Now); err == nil {
-		t.Error("a cancelled run kept waiting")
+		t.Error("a canceled run kept waiting")
 	}
 	if time.Since(start) > time.Second {
 		t.Error("cancellation did not interrupt the wait")
@@ -181,8 +181,8 @@ func TestARateLimitedScannerDoesNotHoldConcurrencySlots(t *testing.T) {
 	// scanner it has nothing to do with.
 	//
 	// Asserted by watching how many rate-limited scans are ever in flight together: if the wait
-	// held a slot, the gate would still serialise them, but the slots would be gone. Here the
-	// slots stay free, so the *only* thing serialising them is the gate.
+	// held a slot, the gate would still serialize them, but the slots would be gone. Here the
+	// slots stay free, so the *only* thing serializing them is the gate.
 	var mu sync.Mutex
 	running, peak := 0, 0
 	gates := newRateGates()

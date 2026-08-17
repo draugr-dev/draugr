@@ -89,7 +89,7 @@ func prepareSpec(specPath, endpoint string, methods []string) (preparedSpec, err
 	}
 
 	allowed := map[string]bool{}
-	for _, m := range plugin.NormaliseMethods(methods) {
+	for _, m := range plugin.NormalizeMethods(methods) {
 		allowed[m] = true
 	}
 
@@ -102,7 +102,7 @@ func prepareSpec(specPath, endpoint string, methods []string) (preparedSpec, err
 	if kept == 0 {
 		return preparedSpec{}, fmt.Errorf(
 			"%s declares no %s operation, so this scan would send no requests — add the methods you "+
-				"accept to spec.methods", specPath, strings.Join(plugin.NormaliseMethods(methods), " or "))
+				"accept to spec.methods", specPath, strings.Join(plugin.NormalizeMethods(methods), " or "))
 	}
 	doc["servers"] = []any{map[string]any{"url": endpoint}}
 

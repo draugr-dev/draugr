@@ -28,6 +28,9 @@ func TestVirusTotalOnlyEverReadsDomainReports(t *testing.T) {
 	if !strings.HasPrefix(virusTotalAPI, "https://www.virustotal.com/api/v3/domains/") {
 		t.Errorf("endpoint changed to %q — if this is deliberate, re-read what VirusTotal shares", virusTotalAPI)
 	}
+	// Spelled the way VirusTotal spells it. These are their endpoint paths, not our prose, so
+	// the American-spelling rule does not reach them — a "corrected" path matches nothing and
+	// the guard silently stops guarding.
 	for _, forbidden := range []string{"/urls", "/files", "/analyses"} {
 		if strings.Contains(virusTotalAPI, forbidden) {
 			t.Errorf("endpoint reaches %s, which accepts submissions", forbidden)

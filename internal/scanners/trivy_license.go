@@ -13,17 +13,17 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// trivyLicenseScanner reports dependency licences that carry an obligation. It serves the
+// trivyLicenseScanner reports dependency licenses that carry an obligation. It serves the
 // "licenses" control.
 //
-// This is the first scanner here that doesn't consume SARIF. Trivy only emits licence findings
+// This is the first scanner here that doesn't consume SARIF. Trivy only emits license findings
 // in its JSON output — its SARIF has none — so the conversion is ours.
 const trivyLicenseScannerName = "trivy-license"
 
-// trivyLicenseConfigSchema is the JSON Schema for the licence scanner's Saga config
+// trivyLicenseConfigSchema is the JSON Schema for the license scanner's Saga config
 // (controllers.licenses.trivyLicense). additionalProperties:false rejects mistyped keys.
 //
-// The lists hold SPDX identifiers. They are policy rather than tuning: which licences a release
+// The lists hold SPDX identifiers. They are policy rather than tuning: which licenses a release
 // may carry is a decision about the release, so it belongs in the descriptor beside the
 // component it applies to.
 const trivyLicenseConfigSchema = `{
@@ -43,7 +43,7 @@ const trivyLicenseConfigSchema = `{
   }
 }`
 
-// NewTrivyLicense returns a Scanner that reports dependency licences carrying an obligation.
+// NewTrivyLicense returns a Scanner that reports dependency licenses carrying an obligation.
 func NewTrivyLicense() plugin.Scanner {
 	s := newRepoScannerWithParser(
 		plugin.ScannerInfo{
@@ -63,13 +63,13 @@ func NewTrivyLicense() plugin.Scanner {
 
 // trivyLicenseArgs builds `trivy fs --quiet --scanners license --format json <dir>`.
 //
-// JSON rather than SARIF because Trivy's SARIF output contains no licence findings at all —
+// JSON rather than SARIF because Trivy's SARIF output contains no license findings at all —
 // they exist only under Results[].Licenses[] in the JSON.
 func trivyLicenseArgs(dir string, _ plugin.Config) []string {
 	return []string{"trivy", "fs", "--quiet", "--scanners", "license", "--format", "json", dir}
 }
 
-// Config keys carrying the Saga's licence policy into the scanner.
+// Config keys carrying the Saga's license policy into the scanner.
 const (
 	denyKey = "deny"
 	warnKey = "warn"
@@ -91,19 +91,19 @@ type trivyLicense struct {
 	Link     string `json:"Link"`
 }
 
-// categoryLevel maps Trivy's licence categories to a SARIF level, and to the sentence that
+// categoryLevel maps Trivy's license categories to a SARIF level, and to the sentence that
 // explains why anyone should care.
 //
-// A category that isn't here is not reported at all. Permissive licences are *inventory*, not
+// A category that isn't here is not reported at all. Permissive licenses are *inventory*, not
 // findings — every dependency has one, so listing them would bury the handful that carry an
 // obligation under dozens that don't. The inventory question is what an SBOM answers, and
-// `config.sbom` already produces one with a licence per package.
+// `config.sbom` already produces one with a license per package.
 var categoryLevel = map[string]struct {
 	level sarif.Level
 	why   string
 }{
 	"forbidden": {sarif.LevelError,
-		"Trivy classifies this licence as forbidden: it is generally incompatible with shipping " +
+		"Trivy classifies this license as forbidden: it is generally incompatible with shipping " +
 			"proprietary software."},
 	"restricted": {sarif.LevelWarning,
 		"Copyleft. Distributing software that includes this obliges you to offer your own source " +
@@ -113,15 +113,15 @@ var categoryLevel = map[string]struct {
 		"File-level copyleft. Changes you make to the licensed files must be shared; your own " +
 			"files are unaffected."},
 	"unknown": {sarif.LevelNote,
-		"Trivy could not identify this licence. Terms nobody has read are the ones most worth a " +
+		"Trivy could not identify this license. Terms nobody has read are the ones most worth a " +
 			"human look."},
 }
 
-// parseTrivyLicenses converts Trivy's licence JSON into a report.
+// parseTrivyLicenses converts Trivy's license JSON into a report.
 func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
 	var doc trivyLicenseDoc
 	if err := json.Unmarshal(out, &doc); err != nil {
-		return sarif.Report{}, fmt.Errorf("decode trivy licence json: %w", err)
+		return sarif.Report{}, fmt.Errorf("decode trivy license json: %w", err)
 	}
 	deny, warn := stringList(cfg, denyKey), stringList(cfg, warnKey)
 
@@ -156,15 +156,15 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 	return report, nil
 }
 
-// licenseLevel decides how loudly to report a licence, and why. The Saga's deny/warn lists name
-// SPDX ids directly and beat Trivy's category, because whether a licence is acceptable depends
+// licenseLevel decides how loudly to report a license, and why. The Saga's deny/warn lists name
+// SPDX ids directly and beat Trivy's category, because whether a license is acceptable depends
 // on what you do with your software — something Trivy cannot know and the team always does.
 func licenseLevel(lic trivyLicense, deny, warn []string) (sarif.Level, string, bool) {
 	switch {
 	case slices.Contains(deny, lic.Name):
-		return sarif.LevelError, "Denied by this project's licence policy (config.controllers.licenses.deny).", true
+		return sarif.LevelError, "Denied by this project's license policy (config.controllers.licenses.deny).", true
 	case slices.Contains(warn, lic.Name):
-		return sarif.LevelWarning, "Flagged by this project's licence policy (config.controllers.licenses.warn).", true
+		return sarif.LevelWarning, "Flagged by this project's license policy (config.controllers.licenses.warn).", true
 	}
 	meta, ok := categoryLevel[strings.ToLower(lic.Category)]
 	if !ok {
@@ -176,7 +176,7 @@ func licenseLevel(lic trivyLicense, deny, warn []string) (sarif.Level, string, b
 // licenseRuleID names a finding as `license/<spdx>/<package>`.
 //
 // The order matters, and it is a user-facing decision rather than a cosmetic one: this string is
-// what goes in a config.exclude rule. Licence first means "accept this licence anywhere" is
+// what goes in a config.exclude rule. License first means "accept this license anywhere" is
 // `license/MPL-2.0/*`, which is the common exemption; the full id stays available for "accept it
 // in this one dependency". Package names contain slashes, which is why exclusion patterns match
 // `*` across separators.
@@ -187,7 +187,7 @@ func licenseRuleID(spdx, pkg string) string {
 	return "license/" + spdx + "/" + pkg
 }
 
-// licenseHelpURI points at the licence's own text. Trivy sometimes supplies a link; SPDX is the
+// licenseHelpURI points at the license's own text. Trivy sometimes supplies a link; SPDX is the
 // stable fallback, and an id with a space or slash isn't an SPDX id (it may be an expression
 // like "MIT OR Apache-2.0"), so no link is better than a broken one.
 func licenseHelpURI(lic trivyLicense) string {
@@ -223,8 +223,8 @@ func stringList(cfg plugin.Config, key string) []string {
 
 // lineIndex finds the line a dependency is declared on, lazily and once per manifest.
 //
-// Trivy reports licences against a manifest with no line number, unlike its vulnerability
-// findings which arrive with one. Without this every licence in a project lands at the top of
+// Trivy reports licenses against a manifest with no line number, unlike its vulnerability
+// findings which arrive with one. Without this every license in a project lands at the top of
 // go.mod in a pile, which is the same failure as an image finding reported at "library/python:1":
 // technically a location, useless in an editor.
 type lineIndex struct {

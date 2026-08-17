@@ -12,7 +12,7 @@ package scanners
 //
 // So `noScannerOptions` is a real declaration rather than an omission. It says "this scanner is
 // configured by choosing it, and by nothing else", and it makes a descriptor that assumes
-// otherwise fail before the scan runs, naming the option it could not honour.
+// otherwise fail before the scan runs, naming the option it could not honor.
 //
 // `TestEveryScannerDeclaresItsOptions` in internal/builtins keeps this true for scanners added
 // later, because "remember to declare a schema" is not a rule anyone remembers.

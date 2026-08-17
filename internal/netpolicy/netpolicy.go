@@ -19,7 +19,7 @@ import (
 // EnvVar is the environment variable that says this machine has no network.
 const EnvVar = "DRAUGR_OFFLINE"
 
-// legacyUpdateEnvVar is the older, doctor-only opt-out. Still honoured: it is documented, it is
+// legacyUpdateEnvVar is the older, doctor-only opt-out. Still honored: it is documented, it is
 // in people's CI, and what it asked for is a subset of what offline means.
 const legacyUpdateEnvVar = "DRAUGR_NO_UPDATE_CHECK"
 
@@ -32,7 +32,7 @@ func SetOffline(v bool) { forced.Store(v) }
 
 // Offline reports whether this process should avoid the network.
 //
-// True when --offline was passed or DRAUGR_OFFLINE is set to anything that is not a recognised
+// True when --offline was passed or DRAUGR_OFFLINE is set to anything that is not a recognized
 // falsey value. An unparseable value counts as true: someone who wrote DRAUGR_OFFLINE=yes meant
 // yes, and the safe reading of "I could not understand your request not to use the network" is
 // not to use the network.

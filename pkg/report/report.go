@@ -46,7 +46,7 @@ type Data struct {
 	// Scope describes what the run was narrowed to, and is nil when it was not narrowed at all.
 	//
 	// A pointer so that every unscoped report — which is nearly all of them — renders and
-	// serialises exactly as it did before. Its presence is the signal: an artifact carrying a
+	// serializes exactly as it did before. Its presence is the signal: an artifact carrying a
 	// scope is a partial answer, and a consumer that finds one has been told so rather than
 	// having to infer it from a component list that looks complete.
 	Scope *Scope
@@ -695,7 +695,7 @@ func dedupeMessages(msgs []string) []string {
 	return out
 }
 
-// suppressionAttribution summarises who accepted the suppressed findings.
+// suppressionAttribution summarizes who accepted the suppressed findings.
 //
 // Returns the acceptors in a stable order with their counts, and how many nobody claimed.
 //

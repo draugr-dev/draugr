@@ -16,7 +16,7 @@ and verified, and that redistribution is not implied.
 | Publishes release binaries with checksums, ideally signed | Add it here — [release binary](#a-release-binary) |
 | Ships only as a Python package | Add it here — [a Python package](#a-python-package) |
 | Ships only as an npm package | Add it here — [an npm package](#an-npm-package) |
-| Proprietary, licence-gated, or requires an account | **Do not.** Add it to `externalTools` |
+| Proprietary, license-gated, or requires an account | **Do not.** Add it to `externalTools` |
 | Copyleft in a way that makes serving the bytes a distribution | Name the upstream URL; never mirror or cache it |
 
 For the last two, add an entry to `externalTools` in `internal/cli/doctor.go`:
@@ -130,7 +130,7 @@ install fails is one the reader meets while debugging rather than while installi
 
 - **`Installable()`** must include the tool, or `tools install` will not offer it and `doctor` will
   tell the reader to find it themselves.
-- **`Provisionable()`** (`internal/tools/attest.go`) must recognise it.
+- **`Provisionable()`** (`internal/tools/attest.go`) must recognize it.
 - **`internal/cli/tools.go`** — the install-plan row and the `tools list` source column.
 - **The catalog is keyed by binary**, not by scanner. Two scanners sharing a tool share its entry.
 - **`docs/getting-started/install.md`** lists the tools a reader may install themselves. A tool

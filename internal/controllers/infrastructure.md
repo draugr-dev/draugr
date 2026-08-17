@@ -26,11 +26,11 @@ components:
 
 **`ref` selects the cluster, it does not merely name it.** It is matched against a kubeconfig
 context, and both Draugr's version lookup and the `kubectl` calls kube-bench makes are pointed at
-that context. Findings are labelled with it, so if it did not also select the cluster a report
+that context. Findings are labeled with it, so if it did not also select the cluster a report
 would name one cluster and describe another — the worst way for a compliance artifact to be
 wrong, because it looks right. A `ref` with no matching context fails the scan.
 
-Where an organisation's name for a cluster is not its kubeconfig context name, set `context`.
+Where an organization's name for a cluster is not its kubeconfig context name, set `context`.
 
 `ref` is optional. Without it Draugr audits the kubeconfig's current context — and labels the
 findings with **that** context's name, not a blank, so the report still says which cluster it

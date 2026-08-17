@@ -15,7 +15,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// Fetcher materialises remote fragment references, reusing one checkout per repository and
+// Fetcher materializes remote fragment references, reusing one checkout per repository and
 // revision within a run.
 //
 // Sharing matters more here than it looks. A monorepo's descriptor may name several fragments

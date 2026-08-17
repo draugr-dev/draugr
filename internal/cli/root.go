@@ -89,7 +89,7 @@ func newRootCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&opts.logFile, "log-file", "",
 		"also append every record to this file, at trace level and unclamped")
 	cmd.PersistentFlags().StringVar(&opts.config, "config", "",
-		"machine/organisation settings file, used instead of the discovered ones (also DRAUGR_CONFIG)")
+		"machine/organization settings file, used instead of the discovered ones (also DRAUGR_CONFIG)")
 	cmd.PersistentFlags().BoolVar(&opts.offline, "offline", false,
 		"make no network calls: skip optional fetches, and refuse rather than download (also DRAUGR_OFFLINE=1)")
 
@@ -134,7 +134,7 @@ func Execute(ctx context.Context) int {
 //
 // The first signal cancels, which is what unwinds the stack and lets each cleanup do its work
 // against a context of its own. The second is a decision that waiting has gone on long enough, and
-// is honoured immediately — a cleanup that hangs must not be able to hold somebody's terminal, and
+// is honored immediately — a cleanup that hangs must not be able to hold somebody's terminal, and
 // the exit code is the one a shell reports for the signal itself.
 func onInterrupt(ctx context.Context) (context.Context, func()) {
 	ctx, cancel := context.WithCancel(ctx)

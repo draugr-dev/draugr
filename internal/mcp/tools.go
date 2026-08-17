@@ -515,7 +515,7 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		for name, cr := range run.Controls {
 			reports[name] = cr.Report
 		}
-		// The descriptor's gate, not a fixed default. A Saga that gates licences at critical or
+		// The descriptor's gate, not a fixed default. A Saga that gates licenses at critical or
 		// fails on P1 says so for a reason, and an agent reporting a verdict under a policy the
 		// project did not choose disagrees with the project's own CI about its own descriptor.
 		verdict := norn.Policy{
@@ -535,7 +535,7 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		// An assistant scanning on someone's behalf is the case where the artifact matters most,
 		// because a conversation is the least durable place a result can land: the session closes
 		// and the finding is gone. A descriptor declaring `publishers: [{kind: file, dir: …}]` is
-		// asking for the opposite. Honouring the controls, the exclusions and the gate from a
+		// asking for the opposite. Honoring the controls, the exclusions and the gate from a
 		// descriptor while dropping two of its blocks is also the silent no-op this project
 		// refuses everywhere else.
 		delivered, publishErr := deliver(ctx, model, run, verdict, in.MinPriority)
@@ -581,7 +581,7 @@ const consentRequestID = "draugr.scan.approve"
 //
 // Returns a result to send back while the question is unanswered, and nil once it has been
 // answered with a yes. Every other outcome is an error, and every one of them means no scan: a
-// declined prompt, a cancelled one, a client that cannot ask, an answer that does not parse. The
+// declined prompt, a canceled one, a client that cannot ask, an answer that does not parse. The
 // failure of consent is never a scan.
 //
 // Asking by returning a request rather than blocking on one is what the protocol requires from

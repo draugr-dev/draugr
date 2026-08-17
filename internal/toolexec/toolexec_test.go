@@ -27,7 +27,7 @@ func TestRunReturnsStdout(t *testing.T) {
 
 func TestRunUsesTheWorkingDirectory(t *testing.T) {
 	// Not cosmetic: gosec resolves `./...` against the cwd, so a scanner handed the wrong
-	// directory silently analyses the wrong tree rather than failing.
+	// directory silently analyzes the wrong tree rather than failing.
 	dir := t.TempDir()
 	out, err := Run(context.Background(), dir, []string{"pwd"})
 	if err != nil {
@@ -74,11 +74,11 @@ func TestRunReportsAMissingBinary(t *testing.T) {
 	}
 }
 
-func TestRunHonoursContextCancellation(t *testing.T) {
+func TestRunHonorsContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := Run(ctx, "", []string{"sleep", "10"}); err == nil {
-		t.Error("want an error when the context is already cancelled")
+		t.Error("want an error when the context is already canceled")
 	}
 }
 

@@ -22,6 +22,18 @@ linters:
     - misspell
     - revive
 
+  settings:
+    misspell:
+      # American spelling, so the vocabulary is one choice rather than whichever the author grew
+      # up with. Without a locale, misspell catches outright typos and accepts either variant of
+      # a word that has two — which lets one spelling sit beside the other, each correct alone
+      # and inconsistent together. Prose here is read far more often than it is written, and much
+      # of it is quoted into the docs and onto a public site.
+      #
+      # Go files only: golangci-lint does not read Markdown. `make gate` runs the same check over
+      # docs and the CHANGELOG separately — see scripts/check-spelling.sh.
+      locale: US
+
 formatters:
   enable:
     - gofmt

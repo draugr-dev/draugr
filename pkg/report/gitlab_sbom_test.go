@@ -244,7 +244,7 @@ func TestGitLabSBOMWillNotGuessBetweenManifests(t *testing.T) {
 
 // The one property GitLab requires before it will read any of the others.
 //
-// Its absence is quiet: packages still appear with names, versions and licences, because those are
+// Its absence is quiet: packages still appear with names, versions and licenses, because those are
 // plain CycloneDX, and GitLab infers the package manager from a purl on its own. So the list looks
 // nearly right while the manifest path — and with it GitLab's own dependency scanning — is dropped.
 // That is the failure this asserts against, and it is invisible in the rendered document unless you

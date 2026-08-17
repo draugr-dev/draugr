@@ -22,7 +22,7 @@ const mendConfigProperties = `
     },
     "resultTimeout": {
       "type": "string",
-      "description": "How long to wait for Mend to finish analysing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does."
+      "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does."
     },
     "settings": {
       "type": "object",
@@ -39,7 +39,7 @@ const mendSCAConfigSchema = `{
 }`
 
 // mendLicensesConfigSchema is the JSON Schema for controllers.licenses.mendLicenses: the shared
-// Mend options plus the licence policy the control gates on.
+// Mend options plus the license policy the control gates on.
 const mendLicensesConfigSchema = `{
   "type": "object",
   "additionalProperties": false,

@@ -77,7 +77,7 @@ func describeScan(reg *engine.Registry, model *saga.Model, path string) string {
 
 	if len(livePlan) > 0 {
 		fmt.Fprintf(&b, "\nThis sends traffic to a live service you have declared: %s. "+
-			"Only approve it for a host you are authorised to probe.\n",
+			"Only approve it for a host you are authorized to probe.\n",
 			strings.Join(sortedSet(livePlan), ", "))
 	}
 

@@ -56,7 +56,7 @@ func TestFilenameAgreesWithWhatAPublisherDelivers(t *testing.T) {
 	// Whatever `-o` writes and whatever a publisher hands to a destination have to be the same
 	// name, so the invariant is asserted per format rather than trusted.
 	// An SBOM, because gitlab-cyclonedx renders one rather than a view of the findings — and it
-	// refuses to write a document with no packages in it, which is the right behaviour and not
+	// refuses to write a document with no packages in it, which is the right behavior and not
 	// something this test is about.
 	d := goldenCleanData()
 	d.Run.SBOMs = []sbom.Document{{

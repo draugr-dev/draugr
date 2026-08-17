@@ -14,7 +14,7 @@ import (
 // findings would then describe a project that no longer matches them.
 //
 // So the upload belongs to neither control. Whichever scanner needs it first performs it; the
-// other waits on the same result. That also makes the awkward configuration work: licences
+// other waits on the same result. That also makes the awkward configuration work: licenses
 // enabled with SCA disabled still gets an upload, because the upload was never the SCA scanner's
 // to own.
 type mendUpload struct {

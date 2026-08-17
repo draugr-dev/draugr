@@ -166,7 +166,7 @@ These do more than read:
   nuclei (network): sends probing traffic to the declared host
 
 This sends traffic to a live service you have declared: nuclei. Only approve it for a host you
-are authorised to probe.
+are authorized to probe.
 
 Results will be delivered to:
   file: out/reports
@@ -190,7 +190,7 @@ way is that a refusal, a cancellation, a client that cannot ask, or an answer Dr
 all mean no scan.
 
 Everything else is read-only and safe to call freely. Leaving scanning off is a good default:
-### The scan honours your reports and publishers
+### The scan honors your reports and publishers
 
 A scan through MCP runs the descriptor's `config.reports` and `config.publishers` exactly as
 `draugr scan` does, and the result names where each one landed:

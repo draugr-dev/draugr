@@ -130,7 +130,7 @@ func skipReason(p glProject) string {
 //
 // include_subgroups is not optional. A group is a tree, and a survey that stopped at the top level
 // would return a fraction of it and say nothing about the rest — the descriptor would look like the
-// whole organisation and describe one floor of it.
+// whole organization and describe one floor of it.
 func (g GitLabGroupProjects) fetch(ctx context.Context, group, token string) ([]glProject, error) {
 	var all []glProject
 	for page := 1; page != 0; {

@@ -20,7 +20,7 @@ import (
 // azurePRCommentPublisher posts the markdown report as a sticky pull-request comment on Azure
 // DevOps, the counterpart to github-pr-comment.
 //
-// Azure models a PR comment as a *thread* containing comments, so the sticky behaviour is: find
+// Azure models a PR comment as a *thread* containing comments, so the sticky behavior is: find
 // the thread whose first comment carries Draugr's marker, and edit that comment in place.
 // Without it every push adds another thread, and a reviewer scrolls past six copies of the same
 // report to reach the human conversation.

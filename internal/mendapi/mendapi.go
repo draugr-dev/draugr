@@ -171,7 +171,7 @@ func (c *Client) Alerts(ctx context.Context, projectToken string) ([]Alert, erro
 	return out.Alerts, err
 }
 
-// InventoryLibrary is one component in a project's inventory, with the licences Mend attributes
+// InventoryLibrary is one component in a project's inventory, with the licenses Mend attributes
 // to it.
 type InventoryLibrary struct {
 	Name       string             `json:"name"`
@@ -183,10 +183,10 @@ type InventoryLibrary struct {
 	Licenses   []InventoryLicense `json:"licenses"`
 }
 
-// InventoryLicense is one licence Mend attributes to a library.
+// InventoryLicense is one license Mend attributes to a library.
 //
 // Name is Mend's own vocabulary — "BSD 3", "Apache 2.0" — and SPDXName is frequently empty, which
-// is the fact the licences scanner is built around: a policy written in SPDX cannot match a name
+// is the fact the licenses scanner is built around: a policy written in SPDX cannot match a name
 // that is not one.
 type InventoryLicense struct {
 	Name     string `json:"name"`
@@ -194,7 +194,7 @@ type InventoryLicense struct {
 	URL      string `json:"url"`
 }
 
-// Inventory returns a project's libraries and the licences attributed to them.
+// Inventory returns a project's libraries and the licenses attributed to them.
 func (c *Client) Inventory(ctx context.Context, projectToken string) ([]InventoryLibrary, error) {
 	var out struct {
 		Libraries []InventoryLibrary `json:"libraries"`

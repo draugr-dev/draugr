@@ -66,7 +66,7 @@ func TestRunInitNoOverwrite(t *testing.T) {
 
 // The comment `draugr init` writes names the file the reader can see in their own directory, so
 // the mapping is worth pinning — and the fallback wording has to stay something a reader can act
-// on when no manifest was recognised.
+// on when no manifest was recognized.
 func TestInitNamesTheManifestItFound(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"go.mod", "package.json", "pyproject.toml", "Cargo.toml"} {
@@ -79,6 +79,6 @@ func TestInitNamesTheManifestItFound(t *testing.T) {
 		}
 	}
 	if got := depManifest(t.TempDir()); got != "a lockfile" {
-		t.Errorf("depManifest with nothing recognisable = %q", got)
+		t.Errorf("depManifest with nothing recognizable = %q", got)
 	}
 }

@@ -23,9 +23,9 @@ func TestValidateRejectsAFormatThisBuildDoesNotHave(t *testing.T) {
 	if !strings.Contains(err.Error(), "jsonn") {
 		t.Errorf("the error should name the format: %v", err)
 	}
-	// A near miss is nearly always a typo, and naming the neighbour saves a trip to the reference.
+	// A near miss is nearly always a typo, and naming the neighbor saves a trip to the reference.
 	if !strings.Contains(err.Error(), `did you mean "json"`) {
-		t.Errorf("the error should suggest the neighbour: %v", err)
+		t.Errorf("the error should suggest the neighbor: %v", err)
 	}
 	// And the list, so a reader who was not typoing has somewhere to go.
 	if !strings.Contains(err.Error(), "formats:") {
@@ -41,7 +41,7 @@ func TestValidateRejectsAPublisherThisBuildDoesNotHave(t *testing.T) {
 		t.Fatal("an unknown publisher kind validated cleanly")
 	}
 	if !strings.Contains(err.Error(), `did you mean "gitlab-mr-comment"`) {
-		t.Errorf("the error should suggest the neighbour: %v", err)
+		t.Errorf("the error should suggest the neighbor: %v", err)
 	}
 }
 

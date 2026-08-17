@@ -14,7 +14,7 @@ import (
 
 // The decision tree these used to walk is gone: both questions are numbered lists now, and
 // TestClassifyMapsChoicesToValues covers every rung of both ladders. What is kept here is the
-// behaviour that is easy to lose in a rewrite — reprompting, and what happens at EOF.
+// behavior that is easy to lose in a rewrite — reprompting, and what happens at EOF.
 func TestAskCriticalityRepromptsAndDefaults(t *testing.T) {
 	cases := map[string]saga.Criticality{
 		"x\n9\n2\n": saga.CriticalityImportant, // reprompts until valid
@@ -167,7 +167,7 @@ func TestClassifyShowsTheWholeLadder(t *testing.T) {
 
 func TestClassifyWordingNamesNoPlatform(t *testing.T) {
 	// "Is its network access restricted (namespace / network policy)?" is answerable if you run
-	// Kubernetes and a guess otherwise — and a guess here silently miscolours every P1 after it.
+	// Kubernetes and a guess otherwise — and a guess here silently miscolors every P1 after it.
 	var buf bytes.Buffer
 	askExposure(bufio.NewScanner(strings.NewReader("1\n")), &buf)
 	for _, leak := range []string{"namespace", "network policy", "kubernetes", "cluster", "pod"} {

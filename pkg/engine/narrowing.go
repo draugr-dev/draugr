@@ -26,7 +26,7 @@ type SkippedJob struct {
 // asked for part of one, and says which it removed.
 //
 // A component narrows its infrastructure surface with `namespaces` because it owns part of a
-// shared cluster. Some scanners cannot honour that — kube-bench's checks are kubectl pipelines
+// shared cluster. Some scanners cannot honor that — kube-bench's checks are kubectl pipelines
 // with `--all-namespaces` written into them, and the Job-based ones read a node's own filesystem,
 // which has no namespace. Running them anyway would file the whole cluster's findings against a
 // component that claims three of its namespaces: a report that looks scoped, whose rule ids look

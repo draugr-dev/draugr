@@ -118,7 +118,7 @@ func camelCaseKey(key string) string {
 // removedControllerKeys are settings that no longer exist, and what replaced them.
 //
 // A removed key is not inert: it is read by nothing and changes nothing, so a descriptor asking
-// for behaviour it no longer has scans differently than its author believes and reports a pass
+// for behavior it no longer has scans differently than its author believes and reports a pass
 // either way. Naming the replacement costs one line here and saves the reader from discovering
 // it by comparing two reports.
 var removedControllerKeys = map[string]map[string]string{

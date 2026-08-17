@@ -40,7 +40,7 @@ Prefer reusing existing `PublisherConfig` fields over adding new ones.
 
 ### Skip loudly, fail loudly, and tell them apart
 
-Two different situations, two different behaviours:
+Two different situations, two different behaviors:
 
 - **Not applicable** — not running in that CI system, or not in a pull request. Return a
   `skipPublisher` with a reason. It logs what it skipped and why, so a user who expected a comment

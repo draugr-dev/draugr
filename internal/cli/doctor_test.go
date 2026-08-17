@@ -386,9 +386,9 @@ func TestRequiredToolsFollowsScannerSelection(t *testing.T) {
 }
 
 // A scanner needing a tool the catalog has never heard of must not vanish from the check: a
-// `doctor` that drops the names it does not recognise reports "all required tools present" for
+// `doctor` that drops the names it does not recognize reports "all required tools present" for
 // a control that cannot run. The one command whose job is answering "will a scan work?" would
-// be answering yes because it did not recognise the name.
+// be answering yes because it did not recognize the name.
 func TestRequiredToolsKeepsBinariesTheCatalogDoesNotKnow(t *testing.T) {
 	reg := engine.NewRegistry()
 	reg.RegisterController(unknownToolController{})
@@ -435,7 +435,7 @@ func (unknownToolController) Aggregate([]sarif.Report) (plugin.ControlResult, er
 }
 
 func TestDoctorWithoutADescriptorReportsRatherThanFails(t *testing.T) {
-	// Nothing has been selected, so nothing is required. Treating the whole catalogue as
+	// Nothing has been selected, so nothing is required. Treating the whole catalog as
 	// required told a clean machine it was missing seven tools it may never need — kube-bench
 	// most clearly, since the default infrastructure scanner is native and needs no binary.
 	var out bytes.Buffer

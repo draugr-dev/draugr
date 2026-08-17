@@ -144,7 +144,7 @@ func Load(dir string) map[Name]Record {
 // what it fetched. It returns the resulting cache entry.
 //
 // The write is atomic: a temporary file in the same directory, renamed into place. A fetch
-// interrupted halfway must not leave a half a catalogue behind for the next scan to parse as
+// interrupted halfway must not leave a half a catalog behind for the next scan to parse as
 // though it were complete.
 func Fetch(ctx context.Context, dir string, n Name, client *http.Client) (Record, error) {
 	src, ok := sources[n]

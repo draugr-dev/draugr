@@ -73,7 +73,7 @@ func TestCropStopsAtTheFrame(t *testing.T) {
 	}
 }
 
-// TestCropReadsTheBackgroundRatherThanAssumingIt: a hardcoded colour would stop cropping the day
+// TestCropReadsTheBackgroundRatherThanAssumingIt: a hardcoded color would stop cropping the day
 // the theme changed, and that looks identical to the tape being correctly sized.
 func TestCropReadsTheBackgroundRatherThanAssumingIt(t *testing.T) {
 	pale := color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}

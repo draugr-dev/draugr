@@ -8,7 +8,7 @@ order: 70
 # Run Draugr air-gapped
 
 Draugr reaches out from a handful of places. `--offline` — or `DRAUGR_OFFLINE=1` — says once that
-this machine has no network, and every one of them honours it.
+this machine has no network, and every one of them honors it.
 
 ```bash
 draugr scan draugr.saga.yaml --offline
@@ -67,7 +67,7 @@ INFO   offline: not refreshing scanner data, using what is on disk
        run trivy-fs: … --skip-db-update cannot be specified on the first run
 ```
 
-That is the intended behaviour: a scanner that could not run has found nothing, and nothing found
+That is the intended behavior: a scanner that could not run has found nothing, and nothing found
 is not the same as nothing there.
 
 ## Exploitability feeds

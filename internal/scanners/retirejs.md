@@ -5,7 +5,7 @@
   --outputformat json --exitwith 0`
 - **Status:** ✅ implemented, **opt-in** (Trivy runs by default)
 - **Targets:** source repositories
-- **License / terms:** see [licence, terms and what is sent](#licence-terms-and-what-is-sent)
+- **License / terms:** see [license, terms and what is sent](#license-terms-and-what-is-sent)
 
 ## What it does
 
@@ -42,14 +42,14 @@ control's job and the findings belong in the report. Same reason Trivy is run wi
 
 **Findings carry package identity**, not just prose — name, version, the version that fixes it, and
 a `pkg:npm/…` purl. That is what lets a vendored copy of a library and the npm package be
-recognised as the same thing, and what lets these findings reach the platform report formats rather
+recognized as the same thing, and what lets these findings reach the platform report formats rather
 than only the console.
 
 **The rule id is the most portable identifier the advisory has**: a CVE where there is one, then
 the GitHub advisory id, and only then retire.js's own identifier — prefixed `retirejs:` so it
 cannot be mistaken for a CVE, and stable so a suppression written against it keeps working.
 
-**The message says how the library was recognised** — `[detected by filecontent]`. That is the
+**The message says how the library was recognized** — `[detected by filecontent]`. That is the
 answer to "why is this not in my lockfile": a file matched by content is one the package manager
 never installed.
 
@@ -67,12 +67,12 @@ survives a CI job and travels with everything else [the air-gapped
 guide](../../docs/guides/air-gapped.md) says to copy across. On a machine with no route to GitHub,
 `--jsrepo <path>` on retire.js itself takes a local copy of the file.
 
-## Licence, terms and what is sent
+## License, terms and what is sent
 
-**Tool licence: Apache-2.0**, confirmed on the repository and in the published package. Draugr
-executes retire.js as a subprocess and neither links nor bundles it, so the licence stays its own.
+**Tool license: Apache-2.0**, confirmed on the repository and in the published package. Draugr
+executes retire.js as a subprocess and neither links nor bundles it, so the license stays its own.
 
-**Terms of use: none beyond the licence.** retire.js is a command-line tool, not a service. There
+**Terms of use: none beyond the license.** retire.js is a command-line tool, not a service. There
 is no account, no key, no tier, and no agreement to accept — which is why this section is short
 rather than absent.
 

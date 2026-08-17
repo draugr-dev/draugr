@@ -85,7 +85,7 @@ func TestEveryFormatHasAFileExtension(t *testing.T) {
 			t.Errorf("format %q has no file extension or media type mapped", f)
 			continue
 		}
-		// An XML or tag-value document labelled application/json would be a lie the moment a
+		// An XML or tag-value document labeled application/json would be a lie the moment a
 		// publisher acts on the media type.
 		if meta.ext == "" || meta.contentType == "" {
 			t.Errorf("format %q has an incomplete mapping: %+v", f, meta)
@@ -152,7 +152,7 @@ func TestConsoleOmitsTheSBOMLineWhenThereAreNone(t *testing.T) {
 
 func TestSBOMArtifactsCoverEveryEncoding(t *testing.T) {
 	// The point of offering four formats is that a consumer picks one. Each has to produce a
-	// distinct, recognisable filename — two of them are not JSON at all.
+	// distinct, recognizable filename — two of them are not JSON at all.
 	docs := []sbom.Document{
 		{Component: "c", Target: "t", Format: saga.SBOMSPDXJSON},
 		{Component: "c", Target: "t", Format: saga.SBOMSPDXTagValue},
