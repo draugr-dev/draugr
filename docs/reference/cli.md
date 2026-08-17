@@ -367,6 +367,14 @@ big CI runner you can dial it up. `-j 1` runs serially (deterministic output; ha
 debugging). The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total
 jobs), `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence.
 
+It also reports where the time went, in milliseconds: `durationMs` (wall-clock),
+`byControlMs` (each control's job time, summed across its jobs) and `toolWaitsMs` (time spent
+queueing for a tool's own cache rather than scanning). The first two are different numbers and
+neither substitutes for the other — jobs run concurrently, so the per-control times add up to
+more than the wall-clock. Use the sum to find the control worth looking at, and `toolWaitsMs`
+to tell a slow tool from a contended one. They are absent, not zero, when a run recorded no
+timings.
+
 **One scale, and it is the one you can see.** The console reports **severity bands** (critical /
 high / medium / low), derived from a finding's CVSS score where the scanner supplies one, and
 `--fail-on` takes the same words:

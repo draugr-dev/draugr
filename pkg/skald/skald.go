@@ -137,6 +137,51 @@ type statsInfo struct {
 	UnpinnedCacheHits []string `json:"unpinnedCacheHits,omitempty"`
 	Deduped           int      `json:"deduped"`
 	Concurrency       int      `json:"concurrency"`
+
+	// DurationMs is wall-clock for the run, ByControlMs is each control's job time summed
+	// across its jobs, and ToolWaitsMs is time spent queueing for a tool's own cache instead of
+	// scanning. Milliseconds, named in the key: a bare number of unstated units is a figure a
+	// consumer has to guess at, and the guess is silent when it is wrong.
+	//
+	// Here rather than on each control row because "why did this take so long" is one question,
+	// and answering it from three places means correlating them first. The console and the HTML
+	// report have shown these since the engine started recording them; this document is what CI
+	// keeps, which makes it the copy anyone still has when they come to ask.
+	//
+	// Wall-clock and the per-control sum are different numbers and neither substitutes: jobs run
+	// concurrently, so the parts add up to more than the whole. The sum is what identifies the
+	// control worth looking at; the wall-clock is what the person waited.
+	//
+	// Omitted rather than zero when the engine did not record them. Zero milliseconds is a claim
+	// that a run took no time, which is never true — unlike `cacheHits: 0`, where zero is a
+	// measurement and belongs in the document.
+	DurationMs  int64            `json:"durationMs,omitempty"`
+	ByControlMs map[string]int64 `json:"byControlMs,omitempty"`
+	ToolWaitsMs map[string]int64 `json:"toolWaitsMs,omitempty"`
+}
+
+// millis converts a duration for the report, rounding rather than truncating.
+//
+// Rounding because truncation reports anything under a millisecond as 0, and a 0 inside a map
+// whose presence means "measured" reads as "took no time" rather than "too fast to matter".
+func millis(d time.Duration) int64 {
+	if d <= 0 {
+		return 0
+	}
+	return int64(d.Round(time.Millisecond) / time.Millisecond)
+}
+
+// millisBy converts a per-key duration map, dropping nothing: a control that ran is a control
+// with a time, and omitting the fast ones would make the map read as a partial list.
+func millisBy(in map[string]time.Duration) map[string]int64 {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]int64, len(in))
+	for k, d := range in {
+		out[k] = millis(d)
+	}
+	return out
 }
 
 // RenderJSON writes a JSON evidence summary combining the run result and the verdict.
@@ -165,6 +210,9 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 			UnpinnedCacheHits: run.Stats.UnpinnedCacheHits,
 			Deduped:           run.Stats.Deduped,
 			Concurrency:       run.Stats.Concurrency,
+			DurationMs:        millis(run.Stats.Duration),
+			ByControlMs:       millisBy(run.Stats.ByControl),
+			ToolWaitsMs:       millisBy(run.Stats.ToolWaits),
 		},
 	}
 	seen := make(map[string]bool, len(verdict.Controls))

@@ -213,6 +213,58 @@ The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (tot
 `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence. See the
 [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for the full flag list.
 
+## Finding out where a slow run went
+
+A job count says how much was planned, not what it cost. `stats` also carries the timings, in
+milliseconds:
+
+```bash
+draugr scan draugr.saga.yaml -o out
+jq '.stats' out/report.json
+```
+
+```json
+{
+  "jobs": 6,
+  "scans": 6,
+  "cacheHits": 0,
+  "deduped": 0,
+  "concurrency": 32,
+  "durationMs": 4400,
+  "byControlMs": {
+    "iac": 1816,
+    "licenses": 1797,
+    "sast": 6876,
+    "sca": 1736,
+    "secrets": 1257
+  }
+}
+```
+
+Read it in this order:
+
+1. **`durationMs` is what you waited; `byControlMs` is not.** The per-control figures are job
+   time summed across each control's jobs, so with any parallelism they add up to more than the
+   wall-clock — 13.5 seconds of work in 4.4 seconds elapsed, above. That is the concurrency
+   working, not a bug. Compare controls against each other, never against `durationMs`.
+2. **The largest entry is the one worth attention**, whatever the job count says: one slow job
+   costs more than four fast ones. Here it is `sast`, at more than the other four together —
+   so tuning anything else would buy nothing.
+3. **`toolWaitsMs` separates a slow tool from a contended one.** Several controls can share a
+   single tool and its cache — `iac`, `licenses` and `sca` are all Trivy above — and only one
+   may use it at a time. Time recorded there was spent queueing rather than scanning, so raising
+   `-j` will not recover it. The key is absent in this run because Draugr warms shared scanner
+   state once before the fan-out; if you see it, the warm-up did not cover that tool, and the
+   fix is a warm cache rather than more parallelism.
+4. **`cacheHits: 0` with a `--cache-dir` set** means the cache was there and nothing matched.
+   Entries are keyed on content, and for a repository that includes the revision, so a run on a
+   new commit is *expected* to miss. A content cache is worth what it saves when the same input
+   is scanned again — a re-run, a retry, a second component sharing a repository — not on the
+   next commit.
+
+The timings are absent rather than zero when a run recorded none, so a consumer charting them
+can tell "not measured" from "took no time".
+
 ## Scanners that call a rate-limited API
 
 **You do not need to slow the whole run down for one of them.** A scanner that talks to a hosted
