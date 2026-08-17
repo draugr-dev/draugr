@@ -45,7 +45,7 @@ func newGitLabMRCommentPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		token:   os.Getenv(tokenEnv),
 		marker:  firstNonEmpty(cfg.Marker, defaultPRMarker),
 		mr:      cfg.PR,
-		client:  http.DefaultClient,
+		client:  newRetryingClient(http.DefaultClient),
 	}
 	if p.mr == 0 {
 		p.mr, _ = strconv.Atoi(os.Getenv("CI_MERGE_REQUEST_IID"))

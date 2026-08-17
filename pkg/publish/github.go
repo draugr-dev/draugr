@@ -35,7 +35,7 @@ func newGithubPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		ref:    firstNonEmpty(cfg.Ref, os.Getenv("GITHUB_REF")),
 		token:  os.Getenv(tokenEnv),
 		apiURL: firstNonEmpty(os.Getenv("GITHUB_API_URL"), "https://api.github.com"),
-		client: http.DefaultClient,
+		client: newRetryingClient(http.DefaultClient),
 	}
 	// The github publisher targets a CI code-scanning upload. When a Saga carries it but the
 	// scan runs outside GitHub Actions with no GitHub context resolvable (e.g. a developer

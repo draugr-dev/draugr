@@ -170,6 +170,29 @@ Draugr's own notes are told apart from GitLab's by the marker, and system notes 
 first page, so a long discussion cannot push the marker out of sight and turn the sticky comment
 into a new one each run.
 
+### When a forge is having a bad minute
+
+A publisher that a forge **refuses** — `429`, `502`, `503`, `504` — is tried again, up to three
+times, with a short backoff. If the response names a `Retry-After`, that is used instead, capped
+so a maintenance window measured in minutes cannot hold a CI runner open for a comment.
+
+Two things it deliberately does not do:
+
+- **A write that vanished is not repeated.** When a `POST` or `PATCH` never comes back at all, the
+  forge may have created the comment and lost the reply. Sending it again risks two comments on
+  one pull request, and a sticky comment exists so a reader sees one current verdict. A `GET` has
+  no such cost and is retried.
+- **An answer is not retried.** `401`, `403`, `404`, `422` are the forge telling you something —
+  usually a token or a permission. Retrying delays the message that would have explained it.
+
+If delivery still fails, the run exits non-zero: a flag either does something or says why it did
+not. The message names which of the two things happened, because they are the same color in a
+checks list and only one is about the code under review:
+
+```console
+draugr: the gate passed, but publishing failed: post PR comment failed: 503 Service Unavailable
+```
+
 ## GitLab's own report formats
 
 GitLab does not read SARIF. It reads its own schema, and there is no endpoint to upload one to — a

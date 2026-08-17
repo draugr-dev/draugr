@@ -50,7 +50,7 @@ func newAzurePRCommentPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		token:  os.Getenv(tokenEnv),
 		marker: firstNonEmpty(cfg.Marker, defaultPRMarker),
 		pr:     cfg.PR,
-		client: http.DefaultClient,
+		client: newRetryingClient(http.DefaultClient),
 	}
 	if p.pr == 0 {
 		p.pr, _ = strconv.Atoi(os.Getenv("SYSTEM_PULLREQUEST_PULLREQUESTID"))
