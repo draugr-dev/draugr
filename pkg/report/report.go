@@ -707,7 +707,10 @@ func suppressionAttribution(d Data) (acceptors []string, counts map[string]int, 
 	counts = map[string]int{}
 	for _, cr := range d.Run.Controls {
 		for _, res := range cr.Report.Results {
-			if !res.Suppressed() {
+			if !res.Suppressed() || res.Imported() {
+				// An imported claim has no acceptedBy and is not unattributed either — a named
+				// supplier asserted it. Counting it here would report somebody else's signed
+				// analysis as a decision nobody signed, which is the opposite of true.
 				continue
 			}
 			if by := res.Suppression.AcceptedBy; by != "" {
@@ -756,6 +759,54 @@ func suppressionLine(d Data) string {
 		line += " — " + strings.Join(parts, ", ")
 	}
 	return line
+}
+
+// importedLine renders the one-line account of what a supplier's own analysis excused.
+//
+// Its own line rather than folded into the suppression count, because the two answer the
+// auditor's question differently. "We accepted this" and "our supplier states it does not apply"
+// are different sentences with different people at the end of them, and a total that merges them
+// can only support the weaker one.
+func importedLine(d Data) string {
+	n := d.Run.Imported
+	if n == 0 {
+		return ""
+	}
+	authors, counts := importedAttribution(d)
+	line := fmt.Sprintf("%s excused by a supplier's VEX", plural(n, "finding"))
+	var parts []string
+	for _, who := range authors {
+		parts = append(parts, fmt.Sprintf("%d asserted by %s", counts[who], who))
+	}
+	if len(parts) > 0 {
+		line += " — " + strings.Join(parts, ", ")
+	}
+	return line
+}
+
+// importedAttribution counts imported suppressions by the author who asserted them.
+//
+// A document with no author is reported as such rather than skipped. A claim nobody signed is
+// still a claim somebody chose to accept, and its anonymity is the most interesting thing about it.
+func importedAttribution(d Data) (authors []string, counts map[string]int) {
+	counts = map[string]int{}
+	for _, cr := range d.Run.Controls {
+		for _, res := range cr.Report.Results {
+			if !res.Imported() {
+				continue
+			}
+			who := res.Suppression.Author
+			if who == "" {
+				who = "an unnamed author"
+			}
+			if _, seen := counts[who]; !seen {
+				authors = append(authors, who)
+			}
+			counts[who]++
+		}
+	}
+	sort.Strings(authors)
+	return authors, counts
 }
 
 // sourceCount is one file's contribution to the suppressions in a run.

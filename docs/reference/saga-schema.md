@@ -940,6 +940,56 @@ specification puts it (`pkg:type/name@version?qualifiers#subpath`). A `product` 
 package URL is left untouched, since VEX identifies a product by IRI and a purl is only the
 convention.
 
+## Reading a supplier's VEX (`components[].vex`, `config.vexSources`)
+
+The other direction from `config.vex`. That describes the document Draugr **writes** about your
+product; these list documents Draugr **reads** about somebody else's, applying their statements to
+your findings.
+
+```yaml
+config:
+  vexSources:                       # applies to every component
+    - url: https://platform.internal/vex/current.openvex.json
+components:
+  - name: payments-api
+    vex:                            # applies to this component only
+      - path: vendor/acme-api.openvex.json
+      - repository:
+          url:  https://github.com/acme/security
+          ref:  v2026.08
+          path: vex/api.openvex.json
+```
+
+Each entry names **exactly one** of three sources. Naming two is an error rather than a
+precedence rule: a source carrying both a path and a URL is a descriptor whose author believed two
+different things about where the document lives.
+
+| Field | Meaning |
+|-------|---------|
+| `path` | A file on disk, resolved **relative to where Draugr runs** — not to the descriptor and not to the repository, the same rule [`hosts[].spec.path`](#scanning-an-api-from-its-specification) follows. |
+| `url` | Fetched over HTTPS each run. The report records the URL, the fetch time and the digest of what came back. |
+| `repository.url` | A git repository holding the document. Cloned with whatever credentials git already has; Draugr stores none, so no token belongs here. |
+| `repository.ref` | Branch, tag or commit. Optional — the default branch otherwise. Worth pinning for a claim you gate on; the report records the commit actually read either way. |
+| `repository.path` | The document's path inside the repository. Required, and it may not climb out of it. |
+
+**Scope.** A component's own sources apply to its findings; `config.vexSources` applies to every
+component. Statements are matched by package identifier regardless, so listing a source widens
+which findings are considered — it does not let a statement claim more than it says.
+
+**Effect.** Only `not_affected` and `fixed` suppress. `affected` and `under_investigation` are
+recorded and reported but change nothing, because they concede exposure rather than excusing it.
+Where `config.exclude` already covers a finding, your own reason stands.
+
+**Attribution.** A suppression from a claim carries `origin: vex`, the document's author, and the
+date the claim was asserted — in the console, in `report.json` and in the SARIF property bag. That
+separation is the reason to read a document rather than retype it: a copied `not_affected` becomes
+a decision you are answerable for, while an imported one stays a claim somebody else made.
+
+**A source that cannot be read fails the run.** Not a warning and never a skip: a scan that
+quietly dropped a supplier's analysis would report more findings than the last one with nothing
+saying why, which reads exactly like a codebase that got worse.
+
+
 ## SBOM generation
 
 ```yaml

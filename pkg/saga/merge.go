@@ -24,7 +24,47 @@ func unionComponent(a, b Component) Component {
 	a.Images = unionImages(a.Images, b.Images)
 	a.Hosts = unionHosts(a.Hosts, b.Hosts)
 	a.Infrastructure = unionInfra(a.Infrastructure, b.Infrastructure)
+	a.VEX = unionVEX(a.VEX, b.VEX)
 	return a
+}
+
+// unionVEX keeps every supplier claim source both descriptions named.
+//
+// Here rather than left out, because a fragment is how one team hands another a description of a
+// component — and an internal supplier publishing a fragment that declares where their VEX lives
+// is the shape this feature is for. A field missing from this function is not merged, and a
+// source that is not merged is a supplier's analysis silently absent from the run: the findings
+// they already excused come back, with nothing saying a document was ignored.
+func unionVEX(a, b []VEXSource) []VEXSource {
+	if len(b) == 0 {
+		return a
+	}
+	seen := make(map[string]bool, len(a))
+	for _, s := range a {
+		seen[vexSourceKey(s)] = true
+	}
+	for _, s := range b {
+		k := vexSourceKey(s)
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		a = append(a, s)
+	}
+	return a
+}
+
+// vexSourceKey identifies a source for deduplication. Two descriptions naming the same document
+// are one source; the repository form folds in the ref, because the same path at two revisions is
+// two different claims.
+func vexSourceKey(s VEXSource) string {
+	if r := s.Repository; r != nil {
+		return "repo\x00" + r.URL + "\x00" + r.Ref + "\x00" + r.Path
+	}
+	if s.URL != "" {
+		return "url\x00" + s.URL
+	}
+	return "path\x00" + s.Path
 }
 
 func unionRepositories(a, b []Repository) []Repository {

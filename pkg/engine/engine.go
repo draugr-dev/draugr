@@ -27,6 +27,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
+	"github.com/draugr-dev/draugr/pkg/vex"
 )
 
 // Engine plans and runs scans against a registry of controllers and scanners.
@@ -45,6 +46,10 @@ type Engine struct {
 	// Nuclei's templates), which is the only part of a scan that reaches the network on its own.
 	skipPrewarm bool
 	sbomGen     sbom.Generator
+	// vex are supplier documents already resolved by the caller. Resolved outside the engine on
+	// purpose: reading one may mean a network fetch or a git clone, and the engine reaches the
+	// network only through the scanners it runs.
+	vex vex.Set
 	// progress, when set, receives a snapshot as each job starts and finishes.
 	progress ProgressFunc
 	// allowEffects are scanner effects accepted for this invocation, layered over the Saga's.
@@ -232,6 +237,16 @@ func WithRemoteResolver(r RemoteResolver) Option {
 // (the default) means a Saga asking for SBOMs gets an error rather than silence.
 func WithSBOM(g sbom.Generator) Option {
 	return func(e *Engine) { e.sbomGen = g }
+}
+
+// WithVEX supplies exploitability claims somebody else made, already resolved.
+//
+// Takes documents rather than descriptor sources because resolving a source can mean fetching a
+// URL or cloning a repository, and an engine that did either would be reaching the network on its
+// own account — the one thing the prewarm and the deterministic-core rule exist to keep out of it.
+// The caller reads them; the engine only applies them.
+func WithVEX(set vex.Set) Option {
+	return func(e *Engine) { e.vex = set }
 }
 
 // WithAllowedEffects accepts scanner effects for this invocation, on top of whatever the Saga
@@ -451,6 +466,19 @@ type Result struct {
 	// exclusion doing nothing is indistinguishable from one that is working: it is usually a
 	// typo, a rule id that moved, or a finding someone already fixed and forgot to stop excusing.
 	UnmatchedExclusions []saga.ExcludeRule
+	// Imported counts findings excused by a claim somebody else made — a supplier's VEX document
+	// rather than a rule in this descriptor. Counted apart from Suppressed because they answer
+	// the auditor's question differently: one says we accepted this, the other says our supplier
+	// states it does not apply, and a single total can only report the weaker of the two.
+	Imported int
+	// VEX is the supplier documents this run read, with what each contributed. Present even when
+	// a document excused nothing, which is the case worth seeing: a document matching no finding
+	// looks exactly like one that was never configured.
+	VEX []vex.Resolved
+	// UnmatchedClaims are supplier statements nothing in this run matched, for the same reason
+	// UnmatchedExclusions exists. Usually it means the supplier and the scanner name a package
+	// differently, which is a real finding about the document rather than a quiet no-op.
+	UnmatchedClaims []vex.Claim
 	// Effects records what this run did to its targets beyond reading them, deduplicated. Only
 	// scans that actually executed count: a cache hit means the traffic was not sent this time,
 	// and a record of effects has to describe what happened rather than what was configured.
@@ -957,6 +985,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// produced cannot be marked.
 	res.Suppressed, res.LapsedExclusions, res.UnmatchedExclusions =
 		applyExclusions(res.Controls, model.Config.Exclude, time.Now())
+	// After the descriptor's own rules, so a finding this project already decided about keeps the
+	// reason this project gave. A supplier's claim is additional evidence, not an override: where
+	// both have something to say, the local decision is the one whose author can be asked about it.
+	res.Imported, res.VEX, res.UnmatchedClaims = applyVEX(res.Controls, e.vex)
 	return res, errors.Join(errs...)
 }
 
@@ -1356,4 +1388,122 @@ func trulyUnscanned(unscanned []Unscanned, examined map[string]bool) []Unscanned
 		out = append(out, u)
 	}
 	return out
+}
+
+// applyVEX marks findings a supplier's own analysis excuses, and reports what each document did.
+//
+// The sibling of applyExclusions, and deliberately the same shape: the finding stays in the
+// report carrying who said it did not apply, so an imported claim is auditable rather than a
+// hole. What differs is whose decision it records — and that difference is the entire reason to
+// read a supplier's document instead of retyping it into config.exclude, where it would become
+// indistinguishable from a decision this project made and is answerable for.
+//
+// Only a claim that excuses exposure suppresses. A supplier saying `affected` is telling you
+// something worth reporting and must never be the reason a finding stops counting.
+func applyVEX(controls map[string]plugin.ControlResult, set vex.Set) (imported int, docs []vex.Resolved, unmatched []vex.Claim) {
+	if set.Empty() {
+		return 0, nil, nil
+	}
+	// One index per component. A supplier's claim about their artifact must not reach another
+	// component's findings — that is how one vendor's assurance becomes a suppression somewhere
+	// nobody was looking — so the index a finding is asked about is built from what its own
+	// component declared, plus whatever the project declared for everything.
+	indexes := map[string]*vex.Index{}
+	used := map[string]map[string]bool{}
+	applied := map[string]int{} // by document location, for provenance
+
+	indexFor := func(component string) *vex.Index {
+		if ix, ok := indexes[component]; ok {
+			return ix
+		}
+		var claims []vex.Claim
+		for _, r := range set.For(component) {
+			claims = append(claims, r.Document.Claims(r.Provenance.Location)...)
+		}
+		ix := vex.NewIndex(claims)
+		indexes[component] = ix
+		used[component] = map[string]bool{}
+		return ix
+	}
+
+	for name, cr := range controls {
+		n := 0
+		for i := range cr.Report.Results {
+			res := &cr.Report.Results[i]
+			if res.Suppressed() {
+				continue // this project already decided; its own reason stands
+			}
+			ix := indexFor(res.Component)
+			purl := ""
+			if res.Package != nil {
+				purl = res.Package.PURL
+			}
+			claim, key, ok := ix.Lookup(res.RuleID, purl)
+			if !ok {
+				continue
+			}
+			// Recorded as used whatever the status, because a claim that matched a finding was
+			// read and acted on — reporting `affected` as unmatched would tell a supplier their
+			// correct statement was ignored.
+			used[res.Component][key] = true
+			if !vex.Suppresses(claim.Status) {
+				continue
+			}
+			res.Suppression = &sarif.Suppression{
+				Kind:             "external",
+				Origin:           sarif.OriginVEX,
+				Justification:    claimReason(claim),
+				Author:           claim.Author,
+				Asserted:         claim.Timestamp,
+				Source:           claim.Source,
+				VEXStatus:        claim.Status,
+				VEXJustification: claim.Justification,
+			}
+			applied[claim.Source]++
+			n++
+		}
+		if n > 0 {
+			counts := cr.Report.Counts()
+			cr.Summary = plugin.Summary{Errors: counts.Error, Warnings: counts.Warning, Notes: counts.Note}
+			controls[name] = cr
+			imported += n
+		}
+	}
+
+	// Every component that declared a source gets an index even when no finding reached it, so a
+	// document whose claims matched nothing is still reported rather than silently absent.
+	for component := range set.ByComponent {
+		indexFor(component)
+	}
+	for component, ix := range indexes {
+		unmatched = append(unmatched, ix.Unmatched(used[component])...)
+	}
+	sort.Slice(unmatched, func(i, j int) bool {
+		if unmatched[i].Vulnerability != unmatched[j].Vulnerability {
+			return unmatched[i].Vulnerability < unmatched[j].Vulnerability
+		}
+		return unmatched[i].PURL < unmatched[j].PURL
+	})
+
+	docs = set.Documents()
+	for i := range docs {
+		docs[i].Provenance.Applied = applied[docs[i].Provenance.Location]
+	}
+	return imported, docs, unmatched
+}
+
+// claimReason is the prose a suppression carries for an imported claim.
+//
+// A justification from VEX's vocabulary is machine-readable and says nothing to a person reading
+// the report, so the supplier's own words are preferred where they gave any. Neither is a
+// legitimate state — a bare `not_affected` is a claim with no stated grounds — and it says so
+// rather than inventing a reason on the supplier's behalf.
+func claimReason(c vex.Claim) string {
+	switch {
+	case c.Statement != "":
+		return c.Statement
+	case c.Justification != "":
+		return c.Justification
+	}
+	return "no grounds stated"
 }

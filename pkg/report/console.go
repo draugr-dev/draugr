@@ -172,6 +172,21 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent, line))
 	}
 
+	// Findings a supplier's own analysis set aside, named separately and just as loudly. A
+	// suppression the reader cannot see is the failure this whole section exists to prevent, and
+	// one made by somebody outside the project is the case where seeing it matters most.
+	if line := importedLine(d); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent, line))
+	}
+
+	// A supplier statement that matched nothing is doing nothing and looks exactly like one that
+	// worked — usually the supplier and the scanner name a package differently, which is a real
+	// finding about the document rather than a quiet no-op.
+	if n := len(d.Run.UnmatchedClaims); n > 0 {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleMuted, fmt.Sprintf(
+			"%s in a supplier's VEX matched nothing in this scan", plural(n, "statement"))))
+	}
+
 	// An exclusion past its date stops suppressing, and says so. A finding that used to be
 	// accepted reappearing with no explanation is the confusing half of expiry; this is the
 	// other half.

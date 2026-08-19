@@ -168,6 +168,101 @@ its own content. So committing `openvex.json` gives you a diff that shows a deci
 rather than a file being regenerated — and because the `@id` moves with the content, a consumer
 caching by identifier cannot serve superseded claims.
 
+## Reading somebody else's VEX
+
+The other direction. A supplier ships a component and a document saying which of its CVEs do not
+affect it; point at the document and their analysis is applied to your findings.
+
+The value is not that findings disappear — `config.exclude` already does that. It is that the
+analysis stays **theirs**. Retyping a supplier's `not_affected` into your own descriptor makes it
+indistinguishable from a decision you made and are answerable for; read as a claim, the report
+says who asserted it and when, and an auditor can ask them rather than you.
+
+```yaml
+components:
+  - name: payments-api
+    images:
+      - image: registry.example.com/acme/api:1.4.0
+    vex:
+      - path: vendor/acme-api.openvex.json
+```
+
+Three kinds of source, exactly one per entry:
+
+| | |
+|---|---|
+| `path` | A file on disk, resolved **relative to where Draugr runs** — not to the descriptor, and not to the repository. The same rule every other path in a descriptor follows. |
+| `url` | Fetched over HTTPS each run. The report records the URL, when it was fetched and the digest of what came back. |
+| `repository` | A document inside a git repository: `url`, an optional `ref`, and the `path` inside it. |
+
+A repository source clones with whatever credentials git already has on the machine — an SSH key,
+a credential helper, the header a CI checkout configured. Draugr holds no credentials of its own,
+which is why a private supplier repository works and why no token belongs in this file.
+
+```yaml
+    vex:
+      - repository:
+          url:  https://github.com/acme/security
+          ref:  v2026.08          # optional; the default branch otherwise
+          path: vex/api.openvex.json
+```
+
+Pin the `ref` for a claim you gate on. A branch moves, and a supplier revising their analysis
+would change what your gate accepts with nothing in your descriptor having changed. Either way the
+report records the commit actually read, so a run can be reproduced after the fact.
+
+### One document for a whole project
+
+Inside one organization the supplier is usually another team, and their document covers everything
+they ship. Say it once:
+
+```yaml
+config:
+  vexSources:
+    - url: https://platform.internal/vex/current.openvex.json
+```
+
+Scoping is still done by the document. A statement names the package it is about, so a
+project-wide source widens which findings are *considered* — it does not let any statement claim
+more than it says.
+
+A team publishing a [fragment](../reference/saga-schema.md#fragments) can declare the source in it,
+and every project pulling that fragment picks it up without knowing where the document lives. Use
+`url` or `repository` there rather than `path`: a fragment travels between repositories, and a
+relative path resolved against whoever ran the scan is one that works on a laptop and misses in CI.
+
+### What a claim can and cannot do
+
+**Only `not_affected` and `fixed` suppress.** A supplier telling you that you *are* affected is
+worth reporting and must never be the reason a finding stops counting.
+
+**Your own decision wins.** Where `config.exclude` already covers a finding, the local reason
+stands — a supplier's claim is additional evidence, not an override, and the reason whose author
+you can ask about is the more useful one to keep.
+
+**Contradictions resolve toward exposure.** If two statements disagree about one package, the one
+conceding *more* exposure wins. Believing the safer of two contradictory claims is how a tool
+talks somebody into shipping something.
+
+**Nothing is silent.** The console names what was excused and by whom:
+
+```console
+1 finding excused by a supplier's VEX — 1 asserted by Platform Team <platform@example.internal>
+```
+
+And a statement that matched nothing is reported too, because a document doing nothing looks
+exactly like one that is working. Usually it means the supplier and the scanner name a package
+differently.
+
+### What you are accepting
+
+Naming a source is the opt-in — there is no separate trust setting, because pointing at a document
+is the decision. What Draugr does is make that decision visible afterwards: every finding a claim
+excused carries the author, the document, and the date the claim was asserted, so a year-old
+`not_affected` about a package that has moved on reads as old rather than as current.
+
+Draugr does not judge whether a claim is true. It records whose it was.
+
 ## What this does not do yet
 
 **Statements are about the product as a whole, not individual packages.** OpenVEX can narrow a
@@ -176,8 +271,10 @@ makes matching work in both directions. Draugr does not emit that yet, because t
 is not in the SARIF a scanner returns; recovering it means cross-referencing findings against the
 generated SBOM.
 
-**OpenVEX only.** CycloneDX VEX and CSAF are the other two dialects. OpenVEX is standalone, so it
-works whether or not you generate an SBOM, and it is the one most readily consumed.
+**OpenVEX only.** CycloneDX VEX and CSAF are the other two dialects, in both directions. OpenVEX
+is standalone, so it works whether or not you generate an SBOM, and it is the one most readily
+consumed. Reading a supplier's document *does* understand subcomponents, since that is the shape
+most real documents take — the limitation above is about what Draugr writes, not what it reads.
 
 ## Related
 

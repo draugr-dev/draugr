@@ -19,6 +19,7 @@ import (
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
+	"github.com/draugr-dev/draugr/internal/vexload"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -264,6 +265,17 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	if netpolicy.Offline() {
 		eopts = append(eopts, engine.WithoutPrewarm())
+	}
+	// Supplier claims are read here rather than inside the engine, because reading one may mean an
+	// HTTPS fetch or a git clone. A source that cannot be read fails the run: a scan that quietly
+	// dropped a supplier's analysis would report more findings than the last one with nothing
+	// saying why, which reads as a codebase that got worse.
+	vexSet, err := (&vexload.Loader{}).Load(ctx, model)
+	if err != nil {
+		return fmt.Errorf("vex: %w", err)
+	}
+	if !vexSet.Empty() {
+		eopts = append(eopts, engine.WithVEX(vexSet))
 	}
 	if opts.cacheDir != "" {
 		var c cache.Cache = cache.NewLocal(opts.cacheDir, opts.cacheTTL)
