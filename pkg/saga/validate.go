@@ -3,6 +3,7 @@ package saga
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -69,6 +70,7 @@ func (m *Model) Validate() error {
 			}
 		}
 	}
+	errs = append(errs, validateVEXSources("config", m.Config.VEXSources)...)
 	errs = append(errs, validateExclusions(m.Config.Exclude, "config.exclude")...)
 	errs = append(errs, validateFragmentRefs(m.Fragments, "fragments")...)
 
@@ -222,6 +224,7 @@ func validateComponents(comps []Component) []error {
 			}
 			errs = append(errs, validateRepoScope(fmt.Sprintf("%s: repositories[%d]", where, j), r)...)
 		}
+		errs = append(errs, validateVEXSources(where, c.VEX)...)
 		for j, img := range c.Images {
 			if img.Image == "" {
 				errs = append(errs, fmt.Errorf("%s: images[%d].image is required", where, j))
@@ -414,3 +417,52 @@ func validateFragmentRefs(refs []FragmentRef, prefix string) []error {
 
 // joinErrs collapses a slice of problems into one error, or nil.
 func joinErrs(errs []error) error { return errors.Join(errs...) }
+
+// validateVEXSources checks that each supplier VEX source names exactly one place to read from.
+//
+// Exactly one, refused rather than resolved by precedence. A source carrying both a path and a URL
+// is a descriptor whose author believed two different things about where the document lives, and
+// picking one silently means the run reads a document nobody meant — which then either excuses
+// findings nobody excused, or excuses none and looks like a supplier with nothing to say.
+func validateVEXSources(where string, sources []VEXSource) []error {
+	var errs []error
+	for j, s := range sources {
+		at := fmt.Sprintf("%s: vex[%d]", where, j)
+		named := 0
+		if s.Path != "" {
+			named++
+		}
+		if s.URL != "" {
+			named++
+		}
+		if s.Repository != nil {
+			named++
+		}
+		switch {
+		case named == 0:
+			errs = append(errs, fmt.Errorf("%s: needs one of path, url or repository", at))
+			continue
+		case named > 1:
+			errs = append(errs, fmt.Errorf(
+				"%s: names more than one of path, url and repository — a source is one document", at))
+			continue
+		}
+		if s.URL != "" && !strings.HasPrefix(s.URL, "https://") && !strings.HasPrefix(s.URL, "http://") {
+			errs = append(errs, fmt.Errorf("%s: url %q must be http(s) — use path for a local file", at, s.URL))
+		}
+		if r := s.Repository; r != nil {
+			if r.URL == "" {
+				errs = append(errs, fmt.Errorf("%s: repository.url is required", at))
+			}
+			// Without a path there is nothing to read: a repository is not a document, and
+			// guessing at a conventional filename would make the descriptor's meaning depend on
+			// what a supplier happened to call their file.
+			if r.Path == "" {
+				errs = append(errs, fmt.Errorf("%s: repository.path is required — name the document inside the repository", at))
+			} else if filepath.IsAbs(r.Path) || strings.Contains(r.Path, "..") {
+				errs = append(errs, fmt.Errorf("%s: repository.path %q must be inside the repository", at, r.Path))
+			}
+		}
+	}
+	return errs
+}

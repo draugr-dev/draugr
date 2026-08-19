@@ -52,6 +52,13 @@
             "$ref": "#/$defs/repository"
           },
           "type": "array"
+        },
+        "vex": {
+          "description": "Exploitability claims somebody else made about this component, read and applied to its findings. Scoped to the component so one supplier's assurance cannot reach another's findings.",
+          "items": {
+            "$ref": "#/$defs/vexSource"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -112,6 +119,13 @@
         },
         "vex": {
           "$ref": "#/$defs/vexConfig"
+        },
+        "vexSources": {
+          "description": "Exploitability claims applied to every component — the project-wide half of components[].vex, for one document covering everything a team ships.",
+          "items": {
+            "$ref": "#/$defs/vexSource"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -1351,6 +1365,53 @@
       "required": [
         "status"
       ],
+      "type": "object"
+    },
+    "vexRepository": {
+      "additionalProperties": false,
+      "description": "A VEX document inside a git repository, for a supplier who publishes there rather than at a stable URL. Cloned with whatever credentials git already has on the machine, so a private repository works and no token belongs here.",
+      "properties": {
+        "path": {
+          "description": "The document's path inside the repository.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "ref": {
+          "description": "The branch, tag or commit to read. Empty takes the default branch. Worth pinning for a claim you gate on; either way the report records the commit actually read.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "url": {
+          "description": "The repository holding the document.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "path"
+      ],
+      "type": "object"
+    },
+    "vexSource": {
+      "additionalProperties": false,
+      "description": "Where one supplier's VEX document comes from. Exactly one of path, url or repository — naming a source is how you accept its claims, and the report names their author on every finding they excused.",
+      "properties": {
+        "path": {
+          "description": "A document on disk, resolved relative to where Draugr runs — not to the descriptor and not to the repository, which is the rule every other path in a descriptor follows.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "repository": {
+          "$ref": "#/$defs/vexRepository"
+        },
+        "url": {
+          "description": "A document to fetch over HTTPS. Fetched once per run and cached; the report records the URL, when it was fetched and the digest of what came back.",
+          "format": "uri",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
       "type": "object"
     }
   },

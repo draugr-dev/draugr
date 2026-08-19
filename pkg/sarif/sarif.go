@@ -249,6 +249,15 @@ type sarifSuppression struct {
 type sarifSuppressionProperties struct {
 	AcceptedBy string `json:"acceptedBy,omitempty"`
 	Expires    string `json:"expires,omitempty"`
+	// Origin, Author and Asserted describe a claim imported from somebody else's VEX document.
+	//
+	// Carried into the property bag for the same reason acceptedBy is: a consumer reading this
+	// SARIF has to be able to tell a decision this project made from one it accepted on a
+	// supplier's word, and without these the two are the same "external" suppression with a
+	// reason attached.
+	Origin   string `json:"origin,omitempty"`
+	Author   string `json:"author,omitempty"`
+	Asserted string `json:"asserted,omitempty"`
 }
 
 type sarifMessage struct {
@@ -334,8 +343,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// GitHub code scanning reads this and files the alert as closed-as-suppressed.
 		if s := res.Suppression; s != nil {
 			sup := sarifSuppression{Kind: s.Kind, Justification: s.Justification}
-			if s.AcceptedBy != "" || s.Expires != "" {
-				sup.Properties = &sarifSuppressionProperties{AcceptedBy: s.AcceptedBy, Expires: s.Expires}
+			if s.AcceptedBy != "" || s.Expires != "" || s.Origin != "" || s.Author != "" || s.Asserted != "" {
+				sup.Properties = &sarifSuppressionProperties{
+					AcceptedBy: s.AcceptedBy, Expires: s.Expires,
+					Origin: s.Origin, Author: s.Author, Asserted: s.Asserted,
+				}
 			}
 			sr.Suppressions = []sarifSuppression{sup}
 		}

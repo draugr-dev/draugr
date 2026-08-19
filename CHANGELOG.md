@@ -10,6 +10,32 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **Draugr reads a supplier's VEX, not just writes one.** Point a component at an OpenVEX document
+  someone else published and their exploitability analysis is applied to your findings — from a
+  file, an HTTPS URL, or a path inside a git repository:
+
+  ```yaml
+  components:
+    - name: payments-api
+      vex:
+        - repository:
+            url:  https://github.com/acme/security
+            ref:  v2026.08
+            path: vex/api.openvex.json
+  config:
+    vexSources:                     # or once, for every component
+      - url: https://platform.internal/vex/current.openvex.json
+  ```
+
+  The point is not that findings disappear — `config.exclude` already does that. It is that the
+  analysis stays **theirs**: every finding a claim excused carries the author, the document and the
+  date it was asserted, so a supplier's `not_affected` never becomes indistinguishable from a
+  decision you made and are answerable for. Only `not_affected` and `fixed` suppress; your own
+  exclusions still win; a statement matching nothing is reported rather than passing quietly.
+  See [Reading somebody else's VEX](docs/guides/vex.md#reading-somebody-elses-vex).
+
 _Nothing yet._
 
 ## [0.99.1] - 2026-08-17

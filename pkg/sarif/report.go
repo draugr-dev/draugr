@@ -290,8 +290,24 @@ type Suppression struct {
 	// VEXJustification is why the product is not affected, from VEX's fixed vocabulary. Set
 	// only alongside a not_affected status.
 	VEXJustification string `json:"vexJustification,omitempty"`
-	// Source is the descriptor or fragment the exclusion was written in. Empty when the whole
-	// descriptor is one file, where naming it would be noise.
+	// Origin says who decided. Empty or "saga" is a rule in the descriptor; "vex" is a statement
+	// somebody else made and this project chose to accept.
+	//
+	// The distinction is the whole point of reading a supplier's document rather than retyping it.
+	// A `not_affected` you copied into `config.exclude` becomes indistinguishable from a decision
+	// you made and are answerable for; kept apart, the report can say the analysis was theirs, and
+	// an auditor can ask them rather than you.
+	Origin string `json:"origin,omitempty"`
+	// Author is who asserted an imported claim — the VEX document's author. Empty for a
+	// descriptor rule, where AcceptedBy already answers "who decided".
+	Author string `json:"author,omitempty"`
+	// Asserted is when an imported claim was made, as the document wrote it. A supplier's
+	// statement is made on a date they chose, and a year-old `not_affected` about a package that
+	// has moved on is worth seeing as old rather than reading as current.
+	Asserted string `json:"asserted,omitempty"`
+	// Source is the descriptor or fragment the exclusion was written in, or the document an
+	// imported claim came from. Empty when the whole descriptor is one file, where naming it
+	// would be noise.
 	//
 	// Splitting exclusions across files is only safe if the report can still say which file
 	// authorized each one — otherwise composition trades a long descriptor for an unanswerable
@@ -299,8 +315,26 @@ type Suppression struct {
 	Source string `json:"source,omitempty"`
 }
 
-// Suppressed reports whether this finding was excluded by a Saga rule.
+// Where a suppression's decision came from, for Suppression.Origin.
+const (
+	// OriginSaga is a rule in this project's own descriptor. The default reading of an empty
+	// Origin, so a report written before imported claims existed still means what it said.
+	OriginSaga = "saga"
+	// OriginVEX is a statement imported from a document somebody else wrote.
+	OriginVEX = "vex"
+)
+
+// Suppressed reports whether this finding was excluded — by a Saga rule or by an imported claim.
 func (r Result) Suppressed() bool { return r.Suppression != nil }
+
+// Imported reports whether the decision to suppress came from outside this project.
+//
+// Worth asking separately from Suppressed: the two are counted apart in the report, because "we
+// accepted this" and "our supplier says it does not apply" are different answers to the auditor's
+// question, and a total that merges them can only answer the weaker one.
+func (r Result) Imported() bool {
+	return r.Suppression != nil && r.Suppression.Origin == OriginVEX
+}
 
 // Fingerprint is a stable identifier for deduplication: two results with the same
 // fingerprint are considered the same finding.

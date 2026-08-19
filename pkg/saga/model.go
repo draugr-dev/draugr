@@ -49,6 +49,16 @@ type Config struct {
 	// without it Draugr falls back to the release, which produces a valid document rather than a
 	// publishable one.
 	VEX *VEXConfig `yaml:"vex,omitempty"`
+	// VEXSources are exploitability claims applied to every component in the project.
+	//
+	// The project-wide half of `components[].vex`, for the case that is common inside one
+	// organization: a platform team publishes one document covering everything they ship, and the
+	// twelve projects consuming it should say so once rather than repeat a URL on every component.
+	//
+	// Scoping is still done by the document. A statement names the package it is about, so a
+	// project-wide source excuses a finding only where the identifiers match — listing it here
+	// widens which findings are *considered*, not what a given statement is allowed to claim.
+	VEXSources []VEXSource `yaml:"vexSources,omitempty"`
 	// SBOM turns on Software Bill of Materials generation for this project's repositories and
 	// images. It is evidence rather than a control: an SBOM is an inventory, it finds nothing,
 	// and it never affects the verdict.
@@ -432,6 +442,62 @@ type Component struct {
 	Hosts          []Host                        `yaml:"hosts,omitempty"`
 	Infrastructure []Infrastructure              `yaml:"infrastructure,omitempty"`
 	Controllers    map[string]ControllerSettings `yaml:"controllers,omitempty"`
+	// VEX are exploitability claims somebody else made about this component, read and applied to
+	// its findings.
+	//
+	// Scoped to the component rather than the descriptor, and that is the whole safety argument:
+	// a claim is an assertion by one supplier about one artifact, and a document that could reach
+	// another component's findings would turn one vendor's assurance into a suppression somewhere
+	// nobody was looking.
+	//
+	// Note the asymmetry with `config.vex`, which is not a mistake: that describes the document
+	// Draugr **writes** about your product, this lists documents Draugr **reads** about a supplier's.
+	// A component does not author claims about itself.
+	VEX []VEXSource `yaml:"vex,omitempty"`
+}
+
+// VEXSource is where one supplier's VEX document comes from.
+//
+// Exactly one of Path, URL or Repository. Three ways rather than one because a supplier's document
+// is somewhere different in every arrangement that actually occurs: committed alongside your
+// descriptor, published at a URL, or living in a repository of theirs.
+//
+// Naming a source is the opt-in. There is no trust setting: a document you pointed at is one you
+// accepted, and the report names its author on every finding it excused so the judgement stays
+// with the reader rather than being made by a flag.
+type VEXSource struct {
+	// Path is a document on disk, resolved **relative to where Draugr runs** — not to the
+	// descriptor, and not to the repository. That is the same rule every other path in a
+	// descriptor follows (see HostSpec.Path), and stating it here is deliberate: a path whose
+	// base a reader has to guess is one that works on a laptop and silently misses in CI.
+	Path string `yaml:"path,omitempty"`
+	// URL is a document to fetch over HTTPS. Fetched once per run and cached; the report records
+	// the URL, when it was fetched and the digest of what came back, so a run stays reproducible
+	// from its own evidence rather than from the network still agreeing later.
+	URL string `yaml:"url,omitempty"`
+	// Repository is a document inside a git repository, for a supplier who publishes VEX there
+	// rather than at a stable URL.
+	Repository *VEXRepository `yaml:"repository,omitempty"`
+}
+
+// VEXRepository locates a VEX document inside a git repository.
+//
+// Cloned with the same machinery as any other repository Draugr reads, which means it
+// authenticates the same way: whatever credentials git already has on the machine — an SSH key, a
+// credential helper, the header a CI checkout configured. Draugr holds no credentials of its own,
+// which is why a private supplier repository works and why no token belongs in this descriptor.
+type VEXRepository struct {
+	// URL is the repository holding the document.
+	URL string `yaml:"url"`
+	// Ref is the branch, tag or commit to read. Empty takes the default branch.
+	//
+	// Worth pinning for a claim you are gating on: a branch moves, and a supplier revising their
+	// analysis would change what your gate accepts with nothing in your descriptor having
+	// changed. Either way the report records the commit actually read, so the run can be
+	// reproduced after the fact even when this was left open.
+	Ref string `yaml:"ref,omitempty"`
+	// Path is the document's path inside the repository.
+	Path string `yaml:"path"`
 }
 
 // Exposure is a component's risk-exposure level — how reachable it is to an attacker, and so
