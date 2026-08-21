@@ -519,6 +519,17 @@
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
           "type": "boolean"
         },
+        "govulncheck": {
+          "additionalProperties": false,
+          "description": "govulncheck — published by Go team.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "grypeFs": {
           "additionalProperties": false,
           "description": "grype-fs — published by anchore.",

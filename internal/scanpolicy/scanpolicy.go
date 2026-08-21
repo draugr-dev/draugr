@@ -22,6 +22,17 @@ func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 		sev := res.Severity(controllers.SeverityFloor(control))
 		// nil-safe: no-op when no source, and the escalation is nil unless something moved.
 		sev, esc := expl.Explain(sev, res.RuleID)
+		// Reachability ranks a finding down when nothing can reach it — but never one that
+		// exploitability just raised. Observed exploitation outranks a call graph's inability to
+		// find a path, for the same reason KEV outranks EPSS: one is a report of what is
+		// happening, the other a prediction about what could. Where both have something to say,
+		// the stronger claim of exposure wins.
+		var rankedAs sarif.Severity
+		if esc == nil {
+			if lowered := res.Reachability.RankAt(sev); lowered != sev {
+				sev, rankedAs = lowered, lowered
+			}
+		}
 		// The context tier first, so a control that declares exposure does not bound its findings
 		// replaces the component's tier rather than second-guessing the band that came out of it.
 		// Severity still decides the row: a critical secret and a high one must not collapse into
@@ -36,6 +47,7 @@ func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 			Band:       string(band),
 			Escalation: esc,
 			Floor:      floorReason,
+			RankedAs:   rankedAs,
 		}
 	}
 }

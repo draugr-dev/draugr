@@ -1,0 +1,59 @@
+# Example Saga — reachability for Go.
+# Run it with:  draugr scan examples/reachability.saga.yaml
+# (Requires Trivy and govulncheck on your PATH: `draugr tools install trivy`, then
+#  `go install golang.org/x/vuln/cmd/govulncheck@latest`. `draugr doctor` will tell you.)
+#
+# Every other sca scanner reads a manifest and tells you which dependencies have known
+# vulnerabilities. govulncheck builds a call graph from the packages actually in the build and
+# tells you which of those vulnerabilities your code can reach — and, where it can, the path.
+#
+# It adds no findings. Its verdicts are folded onto the findings Trivy already reported, so a Go
+# vulnerability is still reported once rather than once as its CVE and again as its GO- advisory
+# id. Anything only it finds is kept.
+#
+# What to expect:
+#
+#   * The severity column does not change. Reachability feeds the priority band; the report still
+#     shows what the scanner said, the same way exploitability enrichment works in reverse.
+#
+#   * Findings nothing can reach drop one band and stay in the report. Nothing is suppressed —
+#     a call graph does not see reflection or dynamic dispatch, and an inference is not a
+#     decision. To excuse a finding, use config.exclude or a VEX document, which carry an author.
+#
+#   * A summary line says how the analysis went, including how much of it was undetermined:
+#
+#       govulncheck: 2 reachable, 6 not — findings nothing can reach are ranked down, not removed
+#
+#   * `report.json` and the SARIF carry the call path, ordered from your code to the vulnerable
+#     symbol. That is the evidence a reachability claim is judged on.
+#
+# Go only. Reachability for other ecosystems is a different tool and a different kind of claim.
+
+release:
+  name: my-go-service
+  version: "1.0"
+
+config:
+  gate:
+    # The gate this makes practical. Break the build for what your code actually reaches; leave
+    # everything else visible in the report rather than turning the gate off to get work done.
+    failOnPriority: P1
+
+  controllers:
+    sca:
+      enabled: true
+      # trivy-fs runs by default and is what finds the vulnerabilities. govulncheck decides which
+      # of them matter here.
+      govulncheck:
+        enabled: true
+
+components:
+  - name: api
+    exposure: public
+    criticality: important
+    repositories:
+      - url: https://github.com/draugr-dev/draugr
+        revision: main
+      # Add your other repositories here. Each gets its own verdict: the same module can be called
+      # in one and merely required in another, and reachability is a fact about a repository
+      # rather than about the component that holds it.

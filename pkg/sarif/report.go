@@ -159,6 +159,12 @@ type Result struct {
 	// conclusion and withholds its premise is a hint rather than evidence, and "critical because
 	// CISA observed this being exploited, as of a date you can check" is the premise.
 	Escalation *Escalation `json:"escalation,omitempty"`
+	// Reachability is set when a reachability analyzer covered this finding's dependency, and
+	// says whether this project's code can actually reach the vulnerable code. Nil when no
+	// analyzer ran; ReachabilityUnknown when one ran but could not tell.
+	//
+	// Only ever set on a finding about a dependency, so it is nil wherever Package is.
+	Reachability *Reachability `json:"reachability,omitempty"`
 }
 
 // Remediation says who can resolve a finding and by what kind of action. It is the answer to
@@ -267,6 +273,91 @@ type Escalation struct {
 	// AsOf is the day the data was fetched, as YYYY-MM-DD. Without it the claim is "KEV said
 	// so", which is not something a reader can check or reproduce.
 	AsOf string `json:"asOf,omitempty"`
+}
+
+// ReachabilityState says whether this project's own code can reach a dependency's vulnerable
+// code. Three values rather than two, because the third is the one that keeps the other two
+// honest.
+type ReachabilityState string
+
+const (
+	// ReachabilityReachable means analysis found a route from this project's code to the
+	// vulnerable code, and the route is recorded in Paths.
+	ReachabilityReachable ReachabilityState = "reachable"
+	// ReachabilityUnreachable means analysis covered this dependency and found no such route.
+	//
+	// It is a statement about how the code is called today, not a claim that the flaw is
+	// harmless: reflection, dynamic dispatch and code generation all defeat a call graph, and
+	// the route appears the day somebody writes the call. That is why this ranks a finding
+	// lower and never removes it.
+	ReachabilityUnreachable ReachabilityState = "unreachable"
+	// ReachabilityUnknown means no analysis covered this dependency.
+	//
+	// The whole reason the state is explicit. An analyzer that never looked at a dependency
+	// produces exactly the same silence as one that looked and found nothing, and treating the
+	// two alike turns "we did not check" into "you are fine" — which is the failure this
+	// codebase refuses everywhere else. A tool that cannot say which of the two it means may
+	// only report this.
+	ReachabilityUnknown ReachabilityState = "unknown"
+)
+
+// Reachability records whether this project's code can reach a dependency's vulnerable code,
+// and on what evidence.
+//
+// The third member of a family, and it inherits both of the family's rules. Suppression records
+// that a person decided to count a finding for less; Escalation records evidence that it deserves
+// more; this records evidence about whether the code can be reached at all. Like Escalation it
+// feeds the priority matrix and never rewrites the severity the scanner reported, and like
+// Escalation it is deliberately not part of Fingerprint — a finding is the same finding whether
+// or not analysis moved it, and folding this in would churn every diff on the day a call is added
+// or removed.
+//
+// Unlike Suppression it never excuses a finding. An inference is not a decision, and a finding
+// that disappears because a call graph did not find a path has no author to ask about it.
+type Reachability struct {
+	// State is the verdict: reachable, unreachable, or unknown.
+	State ReachabilityState `json:"state"`
+	// Analyzer names the tool that decided, e.g. "govulncheck".
+	Analyzer string `json:"analyzer"`
+	// Method is how it decided, e.g. "call-graph". Buyers are told to reject reachability
+	// claims that do not say how they were reached, and they are right to: a call graph and a
+	// framework heuristic are both called reachability and are not the same evidence.
+	Method string `json:"method,omitempty"`
+	// Symbols are the vulnerable functions the advisory names, whether or not they are called.
+	// Reported for both reachable and unreachable, because "which functions would have to be
+	// called" is what makes an unreachable verdict checkable by hand.
+	Symbols []string `json:"symbols,omitempty"`
+	// Paths are the routes found from this project's code to the vulnerable code, each ordered
+	// caller first. Empty unless State is reachable.
+	Paths []CallPath `json:"paths,omitempty"`
+	// RankedAs is the severity the priority band was computed from, set only when the state
+	// moved it. The report still displays the scanner's own severity; this explains a P3 sitting
+	// on a "high" row, the way Escalation.To explains a P1 on a "medium" one.
+	RankedAs Severity `json:"rankedAs,omitempty"`
+	// AsOf is the day the analysis ran, as YYYY-MM-DD. A reachability verdict describes one
+	// revision of the code and stops being true when the code changes, so a claim without a date
+	// is not one a reader can check.
+	AsOf string `json:"asOf,omitempty"`
+}
+
+// CallPath is one route from this project's code to a vulnerable symbol, ordered caller first
+// so it reads the way a stack trace is read.
+type CallPath struct {
+	// Frames are the calls making up the route, starting in this project's own code.
+	Frames []CallFrame `json:"frames"`
+}
+
+// CallFrame is one call in a CallPath.
+type CallFrame struct {
+	// Function is the function called, qualified as its language qualifies it.
+	Function string `json:"function"`
+	// Package is the package the function belongs to, when the analyzer reports one.
+	Package string `json:"package,omitempty"`
+	// Module is the module the package belongs to, when the analyzer reports one.
+	Module string `json:"module,omitempty"`
+	// File and Line locate the call. Relative to the module root, as the analyzer reported it.
+	File string `json:"file,omitempty"`
+	Line int    `json:"line,omitempty"`
 }
 
 // Suppression records that a finding was excluded, and why.
@@ -867,4 +958,17 @@ func RepositoriesIn(reports []Report) []RepositoryRef {
 		}
 	}
 	return out
+}
+
+// RankAt returns the severity a finding's priority band should be computed from, given what
+// reachability analysis concluded.
+//
+// Only an unreachable verdict moves anything. Reachable does not raise: severity already assumes
+// the vulnerable code runs, so treating a confirmed call as an escalation would count the same
+// assumption twice. Unknown moves nothing by definition — it is the absence of a finding, not one.
+func (r *Reachability) RankAt(base Severity) Severity {
+	if r == nil || r.State != ReachabilityUnreachable {
+		return base
+	}
+	return base.Deescalate()
 }

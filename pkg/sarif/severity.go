@@ -52,6 +52,27 @@ func (s Severity) Escalate() Severity {
 	}
 }
 
+// Deescalate returns the next-lower severity band; low is already the minimum. Used by
+// reachability analysis to rank a finding one band down when nothing can reach it.
+//
+// One band, not several, and never to nothing. A call graph is evidence about how the code is
+// called today, not a proof that the flaw cannot be triggered — reflection and dynamic dispatch
+// are invisible to it, and the call that makes it reachable can be written tomorrow. Ranking it
+// below the things that are reachable is the useful part; making it disappear would be a
+// different and unsupported claim.
+func (s Severity) Deescalate() Severity {
+	switch s {
+	case SeverityCritical:
+		return SeverityHigh
+	case SeverityHigh:
+		return SeverityMedium
+	case SeverityMedium:
+		return SeverityLow
+	default: // low → low, unknown → unknown
+		return s
+	}
+}
+
 // severityFromScore maps a numeric CVSS-style score (0–10) to a band, using the standard
 // CVSS v3 ranges.
 func severityFromScore(score float64) Severity {

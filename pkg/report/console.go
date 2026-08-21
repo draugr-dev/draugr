@@ -179,6 +179,13 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent, line))
 	}
 
+	// What reachability analysis concluded, if any ran. Dimmed rather than accented: unlike a
+	// suppression it takes nothing out of the report, so it qualifies the ranking rather than
+	// warning that part of the report was set aside.
+	if line := reachabilityLine(d); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleMuted, line))
+	}
+
 	// A supplier statement that matched nothing is doing nothing and looks exactly like one that
 	// worked — usually the supplier and the scanner name a package differently, which is a real
 	// finding about the document rather than a quiet no-op.

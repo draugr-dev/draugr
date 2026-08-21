@@ -77,6 +77,10 @@ type Priority struct {
 	// because the control declared that exposure does not bound its findings. Empty when the
 	// matrices' own answer stood.
 	Floor string
+	// RankedAs is the severity the band was computed from when reachability analysis lowered it.
+	// Empty when nothing lowered it, which is every finding that is reachable, unanalyzed, or
+	// already at the bottom band.
+	RankedAs sarif.Severity
 }
 
 // Option configures an Engine.
@@ -502,6 +506,28 @@ type Result struct {
 	// than it was asked to, so its absence of findings is not evidence of absence, and callers
 	// that treat an empty report as "clean" would be wrong.
 	ScanErrors map[string][]string
+	// Reachability summarizes what a reachability analyzer concluded about this run's dependency
+	// findings, and is zero when none ran.
+	Reachability ReachabilitySummary
+}
+
+// ReachabilitySummary counts what reachability analysis concluded, so a reader can see the
+// analysis happened and how far it got.
+//
+// Unknown is reported rather than folded into a total, because it is the number that says how
+// much of the answer is missing. A run reporting forty unreachable and nothing unknown is a
+// different claim from one reporting four and thirty-six, and a single "unreachable" count cannot
+// tell them apart.
+type ReachabilitySummary struct {
+	// Analyzer names the tool that ran, empty when none did.
+	Analyzer string
+	// Reachable, Unreachable and Unknown count findings by verdict after folding.
+	Reachable   int
+	Unreachable int
+	Unknown     int
+	// Contributed counts findings the analyzer reported that no other scanner did, and which are
+	// therefore kept as findings in their own right rather than folded away.
+	Contributed int
 }
 
 // Stats summarizes execution, including cache effectiveness.
@@ -969,7 +995,6 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			continue
 		}
 		slog.Debug("aggregating control", "control", control, "reports", len(byCtl[control]))
-		slog.Debug("aggregating control", "control", control, "reports", len(byCtl[control]))
 		cr, err := ctrl.Aggregate(byCtl[control])
 		if err != nil {
 			errs = append(errs, fmt.Errorf("aggregate %s: %w", control, err))
@@ -978,6 +1003,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		}
 		res.Controls[control] = cr
 	}
+
+	// Reachability first, so a suppression decision is made against a fully enriched finding and
+	// an excused finding still carries the evidence about whether anything could reach it.
+	res.Reachability = e.applyReachability(res.Controls, model)
 
 	// Exclusions apply after aggregation, to what every consumer will see. Doing it here rather
 	// than per scanner means one syntax covers every tool, including ones added later — and it
@@ -1506,4 +1535,142 @@ func claimReason(c vex.Claim) string {
 		return c.Justification
 	}
 	return "no grounds stated"
+}
+
+// applyReachability folds a reachability analyzer's verdicts onto the findings other scanners
+// reported, and re-derives the priority band for anything it moved.
+//
+// Here rather than in a controller for two reasons. Priority is stamped per job, before a control
+// aggregates, so a controller folding this in would arrive after the band was already computed;
+// and doing it once for every control means a second reachability analyzer, or a second sca
+// scanner, needs no change here.
+//
+// The fold is what keeps a noise-reduction feature from adding noise. A reachability analyzer is
+// also a vulnerability scanner, and reporting its findings alongside the ones already present
+// would report every Go vulnerability twice under two different identifiers. So a verdict is
+// moved onto the existing finding and the analyzer's copy is dropped — except where nothing else
+// reported it, which is kept, because a vulnerability only one tool found is exactly the one that
+// must not disappear.
+func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, model saga.Model) ReachabilitySummary {
+	var summary ReachabilitySummary
+
+	// Index the analyzer's verdicts by what identifies a dependency finding everywhere else:
+	// the repository it was found in, the package it is about, and the vulnerability id.
+	//
+	// The repository is part of the key deliberately. A component may hold several, and the same
+	// module can be called in one and merely required in another; a key without it would pick
+	// whichever was indexed last and report that verdict for both.
+	verdicts := map[reachKey]*sarif.Reachability{}
+	for _, cr := range controls {
+		for i := range cr.Report.Results {
+			res := &cr.Report.Results[i]
+			if res.Reachability == nil || res.Package == nil {
+				continue
+			}
+			summary.Analyzer = res.Reachability.Analyzer
+			verdicts[reachKey{res.Repository, res.Package.Name, res.RuleID}] = res.Reachability
+		}
+	}
+	if len(verdicts) == 0 {
+		return summary
+	}
+
+	folded := map[reachKey]bool{}
+	for name, cr := range controls {
+		kept := cr.Report.Results[:0]
+		for i := range cr.Report.Results {
+			res := cr.Report.Results[i]
+			key := reachKey{res.Repository, packageName(res), res.RuleID}
+			switch {
+			case res.Reachability != nil:
+				// The analyzer's own finding. Keep it only where nothing else reported the same
+				// vulnerability in the same package.
+				if folded[key] {
+					continue
+				}
+				summary.Contributed++
+			default:
+				verdict, ok := verdicts[key]
+				if !ok {
+					break
+				}
+				folded[key] = true
+				// Copied per finding: one analyzer verdict covers every identifier the advisory
+				// is known by, but RankedAs is a fact about this finding's own severity, and a
+				// shared struct would record whichever was banded last for all of them.
+				verdictCopy := *verdict
+				res.Reachability = &verdictCopy
+				e.rebandForReachability(&res, name, model)
+			}
+			kept = append(kept, res)
+		}
+		cr.Report.Results = kept
+		counts := cr.Report.Counts()
+		cr.Summary = plugin.Summary{Errors: counts.Error, Warnings: counts.Warning, Notes: counts.Note}
+		controls[name] = cr
+	}
+
+	// Counted after the fold so the numbers describe the findings a reader will see, not the
+	// analyzer's intermediate ones.
+	for _, cr := range controls {
+		for _, res := range cr.Report.Results {
+			if res.Reachability == nil {
+				continue
+			}
+			switch res.Reachability.State {
+			case sarif.ReachabilityReachable:
+				summary.Reachable++
+			case sarif.ReachabilityUnreachable:
+				summary.Unreachable++
+			case sarif.ReachabilityUnknown:
+				summary.Unknown++
+			}
+		}
+	}
+	return summary
+}
+
+// reachKey identifies one vulnerability in one package in one repository.
+type reachKey struct {
+	repository string
+	pkg        string
+	rule       string
+}
+
+// packageName is the package a finding is about, or "" for a finding that is not about one.
+func packageName(res sarif.Result) string {
+	if res.Package == nil {
+		return ""
+	}
+	return res.Package.Name
+}
+
+// rebandForReachability recomputes a finding's priority now that reachability is attached.
+//
+// The band is derived from the component's declared exposure and criticality, which the
+// prioritizer needs and a finding does not carry, so they are read back from the descriptor by
+// the component the finding was stamped with.
+func (e *Engine) rebandForReachability(res *sarif.Result, control string, model saga.Model) {
+	if e.prioritize == nil {
+		return
+	}
+	exposure, criticality := classificationOf(model, res.Component)
+	p := e.prioritize(control, exposure, criticality, *res)
+	res.Priority = p.Band
+	res.Escalation = p.Escalation
+	res.PriorityFloor = p.Floor
+	if res.Reachability != nil {
+		res.Reachability.RankedAs = p.RankedAs
+	}
+}
+
+// classificationOf reads a component's declared exposure and criticality back out of the
+// descriptor. Zero values for a project-scoped finding, which belongs to no one component.
+func classificationOf(model saga.Model, component string) (saga.Exposure, saga.Criticality) {
+	for i := range model.Components {
+		if model.Components[i].Name == component {
+			return model.Components[i].Exposure, model.Components[i].Criticality
+		}
+	}
+	return "", ""
 }
