@@ -44,6 +44,9 @@ config:
     # One id covers both scanners. A decision about a vulnerability is a decision about the
     # vulnerability, not about one tool's report of it, so excusing it here excuses every copy —
     # including Grype's, which names the package in its rule id (CVE-2020-14343-pyyaml).
+    #
+    # A trailing `*` still works and is still the way to cover a family of rules; it is simply no
+    # longer needed to reach a second scanner's spelling of the same one.
     - rules: ["CVE-2020-14343"]
       reason: "not reachable from any entry point — reviewed 2026-08-14, revisit at the next audit"
 

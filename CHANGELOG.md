@@ -33,10 +33,25 @@ and move it under a version on release.
   plain advisory id is the one shown, because that is the one you can look up and the one your
   exclusions are already written against.
 
+  Where they disagree about how bad it is, the row says so — because two scanners drawing on
+  different advisory sources and reaching different answers is a statement about coverage that
+  neither makes alone:
+
+  ```console
+  P2  medium  4.3  CVE-2026-27205  sca  trivy  app/requirements.txt
+      flask 0.12.2: Flask: Information disclosure via improper caching of session data
+      also found by grype (low 2.3)
+  ```
+
+  Every scanner's own rule id, severity and score are kept in `report.json` and the SARIF whether
+  they agree or not; the console shows a rating only where it differs, since repeating identical
+  numbers on every row is noise.
+
   **An exclusion now covers every scanner's copy.** Excusing `CVE-2020-14343` excuses it whether
   Trivy or Grype found it — a decision about a vulnerability is about the vulnerability, not about
-  one tool's report of it. The trailing `*` that `examples/second-scanner.saga.yaml` used to
-  require is no longer needed.
+  one tool's report of it. You no longer need to write `CVE-2020-14343*` to reach both, as
+  `examples/second-scanner.saga.yaml` used to advise. Wildcards in `config.exclude` work exactly as
+  before; this is one fewer reason to need one.
 
   Correlation is on, with no setting to turn it on: reporting one vulnerability as two was a
   defect rather than a preference.

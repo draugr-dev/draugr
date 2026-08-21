@@ -381,12 +381,30 @@ type CallFrame struct {
 // about this run's scanner selection, not about the finding, and folding it in would make a diff
 // churn on the day somebody adds a second scanner.
 type Correlation struct {
-	// AlsoFoundBy names the other scanners that reported this same flaw, sorted. Set on the
-	// finding that is counted, and empty on the ones that are not.
-	AlsoFoundBy []string `json:"alsoFoundBy,omitempty"`
+	// AlsoFoundBy is what the other scanners said about this same flaw, ordered by tool name.
+	// Set on the finding that is counted, and empty on the ones that are not.
+	AlsoFoundBy []Observation `json:"alsoFoundBy,omitempty"`
 	// CountedUnder names the scanner whose finding this one is counted under, and is what makes
 	// this finding evidence rather than a count. Empty on the finding that is counted.
 	CountedUnder string `json:"countedUnder,omitempty"`
+}
+
+// Observation is another scanner's account of a flaw already counted.
+//
+// Complete rather than a name, because the interesting case is disagreement. Two scanners rating
+// the same CVE medium and low have said something neither says alone — they draw on different
+// advisory sources, and the gap is a statement about coverage. A reader who only learns that a
+// second tool "also found it" cannot see that, and the console has nothing to show them.
+type Observation struct {
+	// Tool is the scanner that made this observation.
+	Tool string `json:"tool"`
+	// RuleID is what that scanner called it, which is not always what the counted finding is
+	// called — and is the id an exclusion may already be written against.
+	RuleID string `json:"ruleId,omitempty"`
+	// Severity and Score are that scanner's own rating, kept whether or not it agrees. The
+	// report decides what is worth showing; the record does not get to be selective.
+	Severity Severity `json:"severity,omitempty"`
+	Score    float64  `json:"score,omitempty"`
 }
 
 // Correlated reports whether another scanner's finding is the one being counted for this flaw.
