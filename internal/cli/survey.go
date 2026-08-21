@@ -432,7 +432,8 @@ func surveyIntoFragment(opts surveyOptions, frag saga.Fragment, stdout io.Writer
 	// Said once, because its absence is the one difference from a Saga a reader would otherwise
 	// have to work out from an empty file. A fragment enabling controls would be a fragment
 	// deciding policy for the descriptor that includes it.
-	slog.Info("no controls enabled: a fragment describes a surface, and the descriptor that includes it decides what to run")
+	slog.Info("no controls enabled",
+		"reason", "a fragment describes a surface; the descriptor that includes it decides what runs")
 	if note := proposedExposureNote(proposedExposures(frag, settled)); note != "" {
 		_, _ = fmt.Fprintln(os.Stderr, note)
 	}
@@ -471,7 +472,8 @@ func baseFragment(opts surveyOptions) (saga.Fragment, error) {
 // reportNarrowed says which --namespace values the merge declined to apply.
 func reportNarrowed(narrowed []string) {
 	for _, target := range narrowed {
-		slog.Warn("--namespace not applied: this target already covers the whole cluster",
+		slog.Warn("--namespace not applied",
+			"reason", "this target already covers the whole cluster",
 			"target", target, "fix", "edit namespaces: in the descriptor to narrow it")
 	}
 }

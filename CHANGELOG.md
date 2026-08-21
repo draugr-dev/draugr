@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Log lines are shorter and easier to search.** A survey run without a token warned in a
+  sentence that carried its own advice inline; it is now the event `surveyed without a token`
+  with `scope` and `fix` as fields. Same information, but `grep` finds it whatever the wording
+  becomes, and a log pipeline can query the parts. The other messages that read as sentences —
+  `no controls enabled`, `no running images`, `--namespace not applied` — moved the same way.
 
 ## [0.103.0] - 2026-08-21
 

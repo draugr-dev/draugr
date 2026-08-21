@@ -81,8 +81,8 @@ func (g GitHubOrgRepos) Survey(ctx context.Context, scope plugin.SurveyScope) (s
 	// the interesting code usually is, is simply not in it. Nobody reviewing that output has a
 	// reason to suspect a gap, so the survey has to say so itself.
 	if token == "" {
-		slog.Warn("surveyed GitHub without a token — public repositories only; "+
-			"private ones are not in this descriptor. Set GITHUB_TOKEN to include them",
+		slog.Warn("surveyed without a token",
+			"scope", "public repositories only", "fix", "set GITHUB_TOKEN to include private ones",
 			"org", org, "repositories", len(repos))
 	}
 

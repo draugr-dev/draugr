@@ -201,9 +201,20 @@ Draugr is a security product, so its own operational standards must be high.
 **CLI framework.** [Cobra](https://github.com/spf13/cobra) — the de-facto Go CLI standard
 (kubectl, gh, docker). Consistent help, flags, subcommands, and shell completion.
 
-**Logging.** Structured logging via the standard library's `log/slog`. JSON by default
-(machine-readable for log pipelines), `text` for humans; level and format are global
-flags (`--log-level`, `--log-format`).
+**Logging.** Structured logging via the standard library's `log/slog`. `console` by default,
+because a person is the default reader; `json` for a log pipeline, opt-in behind `--log-format`
+alongside `--log-level`.
+
+A log line is an **event name plus fields**, never a sentence with the values folded into it:
+
+```go
+slog.Warn("surveyed without a token", "scope", "public repositories only",
+    "fix", "set GITHUB_TOKEN to include private ones", "org", org)
+```
+
+The message stays greppable and every variable stays queryable. Put the consequence in a field
+and what to do about it in `fix`; put the reasoning in the comment beside the call, where it is
+available to whoever changes the code and out of the way of whoever is being paged.
 
 **Tracing/metrics.** [OpenTelemetry](https://opentelemetry.io). Tracing is wired at the
 CLI boundary and is opt-in via the standard `OTEL_*` environment variables — a no-op with
