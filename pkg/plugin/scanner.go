@@ -110,6 +110,16 @@ type ScannerInfo struct {
 	Controls []string
 	// TargetKinds are the target kinds this scanner accepts.
 	TargetKinds []TargetKind
+	// Reachability marks a scanner that decides whether existing findings can be reached rather
+	// than producing findings of its own.
+	//
+	// It changes how the scanner is selected, and that is the point. Every other scanner under a
+	// control adds findings, so enabling one from the control's scanner block means "check this
+	// too". A reachability analyzer adds none and instead ranks findings already there *down*,
+	// which can turn a failing gate green — so it is enabled from config.reachability, beside
+	// config.exploitability, where a decision about how findings are ranked is reviewed rather
+	// than buried in a list of tools.
+	Reachability bool
 	// ClusterWide marks a scanner whose findings always describe a whole cluster, whatever the
 	// target asked for.
 	//

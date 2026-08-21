@@ -28,6 +28,7 @@ func NewGovulncheck() plugin.Scanner {
 		plugin.ScannerInfo{
 			Name:         govulncheckScanner,
 			Origin:       "Go team",
+			Reachability: true,
 			Binary:       "govulncheck",
 			Controls:     []string{"sca"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},

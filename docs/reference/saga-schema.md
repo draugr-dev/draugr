@@ -253,7 +253,6 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 | `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository` — an internal mirror |
 | `grype`, `grype-fs` | `byCve` — report under the CVE rather than the advisory ID, on by default |
 | `retirejs` | `enabled` only |
-| `govulncheck` | `enabled` only |
 | `trivy-config` | `checks` — paths to your own Rego; `namespaces` — the namespaces they declare |
 | `semgrep` | `config` — a registry ref, path or URL |
 | `gitleaks` | `config` — a rules file shared across repositories; `history` — scan commit history too |
@@ -269,12 +268,21 @@ vulnerabilities*, but *which of those vulnerabilities this code can actually rea
 
 ```yaml
 config:
+  reachability:
+    analyzers: [govulncheck]   # needs the Go toolchain, and only answers for Go
   controllers:
     sca:
       enabled: true
-      govulncheck:
-        enabled: true    # opt-in: needs the Go toolchain, and only answers for Go
 ```
+
+**Beside `config.exploitability`, not in the `sca` scanner block**, and the placement is the point.
+Every entry in a scanner block adds findings, so enabling one there means *check this too*. An
+analyzer named here adds none: it ranks findings already found, **downward**, which can turn a
+failing gate green. That is a decision about how findings are ranked — the same kind
+`config.exploitability` makes in the opposite direction — and it belongs where whoever owns the
+gate will see it in a diff.
+
+Naming an analyzer in a scanner block is rejected at load, with the line to write instead.
 
 It adds no findings of its own. Its verdicts are folded onto the findings the manifest scanner
 already produced, so a Go vulnerability is still reported once — not once as `CVE-2022-32149` and

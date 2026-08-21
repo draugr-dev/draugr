@@ -47,14 +47,22 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 	// Which scanners serve each control, by the key a descriptor writes them under.
 	keysFor := map[string]map[string]bool{}
 	scannerForKey := map[string]map[string]plugin.ScannerInfo{}
+	// Reachability analyzers, by the key a descriptor would write them under. Deliberately kept
+	// out of keysFor: they serve the control, but they are enabled by config.reachability and
+	// naming one in a scanner block has to be an error rather than a second way to say it.
+	analyzerKeys := map[string]string{}
 	for _, sc := range reg.Scanners() {
 		info := sc.Info()
+		key := controllers.ScannerConfigKey(info.Name)
+		if info.Reachability {
+			analyzerKeys[key] = info.Name
+			continue
+		}
 		for _, c := range info.Controls {
 			if keysFor[c] == nil {
 				keysFor[c] = map[string]bool{}
 				scannerForKey[c] = map[string]plugin.ScannerInfo{}
 			}
-			key := controllers.ScannerConfigKey(info.Name)
 			keysFor[c][key] = true
 			scannerForKey[c][key] = info
 		}
@@ -78,6 +86,15 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			switch settings[key].(type) {
 			case saga.ControllerSettings, map[string]any:
 			default:
+				continue
+			}
+			if analyzer, ok := analyzerKeys[key]; ok {
+				// Names something real, in the wrong place. Saying so beats "not a scanner",
+				// which sends the reader looking for a typo they did not make.
+				problems = append(problems, fmt.Sprintf(
+					"%s.%s: %q decides reachability and is enabled under config.reachability, "+
+						"not as a scanner — write `config.reachability.analyzers: [%s]`",
+					where, control, key, analyzer))
 				continue
 			}
 			problems = append(problems, fmt.Sprintf(
@@ -113,6 +130,27 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 	for _, name := range sortedKeys(model.Config.Controllers) {
 		report("config.controllers", name)
 		reportScanners("config.controllers", name, model.Config.Controllers[name])
+	}
+	// An analyzer this build cannot run is the same failure as a control it cannot run: the
+	// descriptor says findings will be ranked by reachability, and they silently are not.
+	if r := model.Config.Reachability; r != nil {
+		analyzers := map[string]bool{}
+		for _, name := range analyzerKeys {
+			analyzers[name] = true
+		}
+		for _, name := range r.Analyzers {
+			if analyzers[name] {
+				continue
+			}
+			msg := fmt.Sprintf("config.reachability.analyzers: %q is not a reachability analyzer "+
+				"this build of Draugr provides", name)
+			if near := nearestName(name, analyzers); near != "" {
+				msg += fmt.Sprintf(" — did you mean %q?", near)
+			} else if len(analyzers) > 0 {
+				msg += fmt.Sprintf(" (it has %s)", list(sortedKeys(analyzers)))
+			}
+			problems = append(problems, msg)
+		}
 	}
 	if g := model.Config.Gate; g != nil {
 		for _, name := range sortedKeys(g.Controls) {

@@ -68,6 +68,12 @@ func resolveScanners(model saga.Model, comp *saga.Component, control string, def
 			// prevent, but erroring is not this function's contract.
 			continue
 		}
+		if reachabilityAnalyzer(name) {
+			// Never selected from a scanner block. It is enabled by config.reachability, and a
+			// descriptor naming it here is rejected at load rather than quietly honored — the
+			// two surfaces mean different things and only one of them says what it does.
+			continue
+		}
 		if flag, enabled := enabledFlag(blk); enabled && flag {
 			extra = append(extra, name)
 		}
@@ -215,4 +221,43 @@ func ScannerConfigKey(scanner string) string {
 		return k
 	}
 	return scanner
+}
+
+// reachabilityAnalyzers names the scanners that decide reachability rather than finding things.
+//
+// Here rather than read from the registry because this package plans jobs and does not hold one.
+// The registry is still the authority — `TestReachabilityAnalyzersMatchTheRegistry` fails if a
+// scanner declares the capability and is missing from this list, which is what stops a new
+// analyzer from being silently selectable through a scanner block.
+var reachabilityAnalyzers = map[string]bool{
+	govulncheckScanner: true,
+}
+
+// reachabilityAnalyzer reports whether a scanner decides reachability.
+func reachabilityAnalyzer(name string) bool { return reachabilityAnalyzers[name] }
+
+// IsReachabilityAnalyzer reports whether a scanner decides reachability, for the registry check
+// that keeps this list and the scanners' own declarations in step.
+func IsReachabilityAnalyzer(name string) bool { return reachabilityAnalyzer(name) }
+
+// reachabilitySelections names the reachability analyzers this project enabled, sorted and
+// deduplicated so a run plans the same jobs twice.
+//
+// Only analyzers this control can serve: config.reachability is project-wide, and an analyzer
+// that answers for a different control would otherwise be planned as an sca job it cannot do.
+func reachabilitySelections(model saga.Model) []string {
+	if model.Config.Reachability == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, name := range model.Config.Reachability.Analyzers {
+		if !reachabilityAnalyzer(name) || seen[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }

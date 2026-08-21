@@ -279,7 +279,8 @@ func fragmentFieldHint(err error) error {
 	case "release":
 		return fmt.Errorf("a fragment has no `release:` — it is part of a product rather than a " +
 			"product of its own, and the descriptor that names it supplies the release")
-	case "gate", "controllers", "reports", "publishers", "sbom", "vex", "exploitability":
+	case "gate", "controllers", "reports", "publishers", "sbom", "vex", "exploitability",
+		"reachability":
 		return fmt.Errorf("a fragment may not set `config.%s` — a fragment adds scope and "+
 			"suppressions, and policy stays in the descriptor that names it, where a reviewer "+
 			"sees it", field)

@@ -12,6 +12,24 @@ and move it under a version on release.
 
 ### Changed
 
+- **Reachability is now enabled under `config.reachability`, beside `config.exploitability`** —
+  not as a scanner in the `sca` block:
+
+  ```yaml
+  config:
+    reachability:
+      analyzers: [govulncheck]
+  ```
+
+  The placement is the point. Every entry in a control's scanner block adds findings, so enabling
+  one there reads as *check this too*. A reachability analyzer adds none — it ranks findings you
+  already have **downward**, which can turn a failing gate green. Enabling that should look like
+  what it is, next to the setting that ranks findings in the opposite direction, where whoever
+  owns the gate sees it in a diff.
+
+  A descriptor written the old way is rejected at load and told exactly what to write instead,
+  rather than quietly honored.
+
 - **Reachability now reports as a block, with a row per analyzer, and every finding it moved says
   so.** The single summary line has become a labeled block beside the other statements about how
   findings were treated:

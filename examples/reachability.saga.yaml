@@ -39,13 +39,16 @@ config:
     # everything else visible in the report rather than turning the gate off to get work done.
     failOnPriority: P1
 
+  # Beside exploitability rather than in the sca scanner block, and that placement is the point:
+  # every entry in a scanner block adds findings, while an analyzer named here adds none and ranks
+  # findings already found downward. Enabling it can turn a failing gate green, so it belongs
+  # somewhere whoever owns the gate reviews it.
+  reachability:
+    analyzers: [govulncheck]
+
   controllers:
     sca:
-      enabled: true
-      # trivy-fs runs by default and is what finds the vulnerabilities. govulncheck decides which
-      # of them matter here.
-      govulncheck:
-        enabled: true
+      enabled: true    # trivy-fs runs by default and is what finds the vulnerabilities
 
 components:
   - name: api

@@ -107,6 +107,9 @@
           },
           "type": "array"
         },
+        "reachability": {
+          "$ref": "#/$defs/reachabilityConfig"
+        },
         "reports": {
           "description": "Report formats to render for every scan.",
           "items": {
@@ -518,17 +521,6 @@
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
           "type": "boolean"
-        },
-        "govulncheck": {
-          "additionalProperties": false,
-          "description": "govulncheck — published by Go team.",
-          "properties": {
-            "enabled": {
-              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
-              "type": "boolean"
-            }
-          },
-          "type": "object"
         },
         "grypeFs": {
           "additionalProperties": false,
@@ -1174,6 +1166,20 @@
       "required": [
         "kind"
       ],
+      "type": "object"
+    },
+    "reachabilityConfig": {
+      "additionalProperties": false,
+      "description": "Rank a dependency finding down when this project's code cannot reach the vulnerable part of it. Beside `exploitability` because both decide how findings are ranked, in opposite directions, and both can move a finding across the gate.",
+      "properties": {
+        "analyzers": {
+          "description": "Tools that decide reachability, e.g. `govulncheck`. Named rather than inferred, so the descriptor says which tool reached the verdict and `draugr doctor` can say what to install. An analyzer adds no findings: it ranks findings you already have downward.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
       "type": "object"
     },
     "reference": {
