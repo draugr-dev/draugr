@@ -191,7 +191,7 @@ func parseGovulncheck(out []byte, _ string, _ plugin.Config) (sarif.Report, erro
 				Tool: govulncheckScanner,
 				Fields: []sarif.Field{{
 					Key:   "coverage",
-					Value: "0 modules analyzed — this repository holds no go.mod",
+					Value: "this repository has no go.mod, so its findings carry no verdict",
 				}},
 			}},
 		}, nil

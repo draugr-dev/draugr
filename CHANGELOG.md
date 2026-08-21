@@ -28,7 +28,7 @@ and move it under a version on release.
 
   ```console
   Measured against:
-    sca  govulncheck — coverage 0 modules analyzed — this repository holds no go.mod
+    sca  govulncheck — coverage this repository has no go.mod, so its findings carry no verdict
   ```
 
 ## [0.102.0] - 2026-08-21
