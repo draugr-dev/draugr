@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.103.0] - 2026-08-21
+
 ### Changed
 
 - **One flaw found by two scanners is now counted once.** Point Trivy and Grype at the same
@@ -4875,7 +4879,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.102.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.103.0...HEAD
+[0.103.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.103.0
 [0.102.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.102.1
 [0.102.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.102.0
 [0.101.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.101.0
