@@ -2,6 +2,8 @@ package scanners
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -24,16 +26,57 @@ func TestGovulncheckInfo(t *testing.T) {
 	}
 }
 
-func TestGovulncheckArgs(t *testing.T) {
-	got := govulncheckArgs("/tmp/checkout", plugin.Config{})
-	want := []string{"govulncheck", "-format", "json", "./..."}
-	if len(got) != len(want) {
-		t.Fatalf("args = %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("args = %v, want %v", got, want)
+func TestGovulncheckArgsRunsOncePerModule(t *testing.T) {
+	// A repository is not required to be a Go module. A polyglot repository keeps its Go service
+	// in a subdirectory and a monorepo keeps several, so running once at the root would answer
+	// for whichever the root happens to be — or fail, when the root holds no go.mod at all.
+	root := t.TempDir()
+	for _, dir := range []string{"services/api", "services/worker", "vendor/example.com/dep", "app/testdata"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o750); err != nil {
+			t.Fatal(err)
 		}
+		if err := os.WriteFile(filepath.Join(root, dir, "go.mod"), []byte("module x\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := govulncheckArgs(root, plugin.Config{})
+	if len(got) != 2 {
+		t.Fatalf("got %d commands, want one per real module: %v", len(got), got)
+	}
+	for _, argv := range got {
+		if argv[0] != "govulncheck" || argv[1] != "-C" {
+			t.Errorf("argv = %v, want it to change into the module directory", argv)
+		}
+		if argv[len(argv)-1] != "./..." {
+			t.Errorf("argv = %v, want ./... as the pattern", argv)
+		}
+		if strings.Contains(argv[2], "vendor") || strings.Contains(argv[2], "testdata") {
+			t.Errorf("argv = %v: vendored and testdata modules are not part of the build", argv)
+		}
+	}
+}
+
+func TestGovulncheckArgsIsEmptyWithoutAGoModule(t *testing.T) {
+	if got := govulncheckArgs(t.TempDir(), plugin.Config{}); len(got) != 0 {
+		t.Fatalf("args = %v, want none for a repository with no Go module", got)
+	}
+}
+
+func TestParseGovulncheckSaysWhenThereWasNothingToAnalyze(t *testing.T) {
+	// A repository the analyzer could not answer for must not read like one where it looked and
+	// found everything unreachable.
+	report, err := parseGovulncheck(nil, "", plugin.Config{})
+	if err != nil {
+		t.Fatalf("no module should not be an error: %v", err)
+	}
+	if len(report.Results) != 0 {
+		t.Errorf("results = %v, want none", report.Results)
+	}
+	if len(report.Provenance) != 1 || len(report.Provenance[0].Fields) != 1 {
+		t.Fatalf("provenance = %+v, want one statement about coverage", report.Provenance)
+	}
+	if !strings.Contains(report.Provenance[0].Fields[0].Value, "no go.mod") {
+		t.Errorf("provenance = %q, want it to say why nothing was analyzed", report.Provenance[0].Fields[0].Value)
 	}
 }
 
