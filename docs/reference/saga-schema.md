@@ -324,6 +324,32 @@ only claimed for a module the run actually analyzed; anything else is reported a
 The call path is in the SARIF and in `report.json`, ordered from your own code to the vulnerable
 symbol. **Go only** — a reachability claim without its language is an overclaim.
 
+
+### Running two scanners on one control
+
+A flaw both of them find is **counted once**. Both findings stay in the report — each keeps its own
+rule id, severity and account, because the disagreement between two scanners is the reason to run
+two — but only one is counted in the verdict, the priority bands and the fix-first list, and the
+row you act on names the other tool:
+
+```console
+P2  medium  4.3  CVE-2026-27205  sca  trivy  app/requirements.txt
+    flask 0.12.2: Flask: Information disclosure via improper caching of session data
+    also found by grype (low 2.3)
+```
+
+Where the scanners disagree about how bad it is, the **stronger reading is the one counted** and
+the row says what the other said. Where they agree, the rating is not repeated. Every scanner's own
+rule id, severity and score are in `report.json` and the SARIF either way.
+
+Findings are matched on **repository, package and vulnerability id** — not on the rule id, because
+scanners spell an advisory differently. Grype reports `CVE-2020-14343-pyyaml` where Trivy reports
+the bare CVE, since one advisory can affect several packages in a scan.
+
+**An exclusion covers every scanner's copy.** Excusing `CVE-2020-14343` excuses it whichever tool
+found it: a decision about a vulnerability is a decision about the vulnerability, not about one
+tool's report of it.
+
 ```bash
 draugr controls --options   # the authoritative list, read from the same schemas the gate enforces
 ```

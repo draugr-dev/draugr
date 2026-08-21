@@ -65,9 +65,30 @@ cache instead of re-scanning — unchanged targets cost nothing. Scan errors are
 
 **In:** all SARIF for a control. **Out:** one merged, deduplicated report per control.
 
-Each controller merges its scanners' outputs and **deduplicates** findings by fingerprint,
-so the same issue reported by two tools (or two overlapping scans) appears once. It also
-produces a severity summary (error/warning/note counts) used by the next stage.
+Each controller merges its scanners' outputs and **deduplicates** findings by fingerprint, so a
+finding reported twice by the same tool — two overlapping scans of one target — appears once. It
+also produces a severity summary (error/warning/note counts) used by the next stage.
+
+The fingerprint **includes the tool**, deliberately: two scanners are two accounts and both belong
+in the evidence. So this stage does not collapse them, and a flaw two tools both found is still two
+findings here. Counting it once is a later step — see *Correlate* below — which keeps both accounts
+rather than discarding one.
+
+## 4b. Correlate
+
+**In:** the aggregated controls. **Out:** the same findings, with one of each flaw counted.
+
+Two scanners on one control report the same vulnerability under different rule ids, at severities
+that may disagree. Counting both reports one vulnerability as two, which is the arithmetic that
+makes a wall of findings look worse than the system is.
+
+Findings are grouped by **repository, package purl and vulnerability id**, and one of each group is
+counted: the one claiming the most exposure, breaking ties toward the plain advisory id. The others
+stay in the report as evidence, each keeping its own rule id, severity and account — the
+disagreement between two scanners is the reason to run two.
+
+Runs after exclusions and VEX, so their matching is unchanged and a decision about a flaw reaches
+every scanner's copy of it.
 
 ## 5. Judge — *the Norn*
 
