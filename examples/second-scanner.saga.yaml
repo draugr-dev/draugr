@@ -13,13 +13,13 @@
 #
 # What to expect, so neither is a surprise:
 #
-#   * Finding counts rise. A flaw both scanners find is reported twice, once under each tool's
-#     rule id. Nothing yet folds the pair into one finding carrying two observations, so read it
-#     as two opinions rather than two problems.
+#   * A flaw both scanners find is counted once. Both findings stay in the report — the
+#     disagreement between two tools is the reason to run two — but the row you act on is one row,
+#     and it names the other tool: `also found by grype`. Where they disagree on severity, the
+#     stronger reading is the one that counts.
 #
-#   * An exclusion needs a trailing `*` to cover both. Grype names the package in its rule id —
-#     CVE-2020-14343-pyyaml — where Trivy reports the bare CVE, so a rule written for one
-#     silently leaves the other standing. See config.exclude below.
+#   * Counts still rise, for the right reason: each scanner finds things the other does not, and
+#     those are additional findings rather than duplicates.
 
 release:
   name: my-app
@@ -41,8 +41,10 @@ config:
         #                  # recognizable as the same one another scanner reported.
 
   exclude:
-    # The trailing `*` is what makes this cover both scanners rather than only Trivy's.
-    - rules: ["CVE-2020-14343*"]
+    # One id covers both scanners. A decision about a vulnerability is a decision about the
+    # vulnerability, not about one tool's report of it, so excusing it here excuses every copy —
+    # including Grype's, which names the package in its rule id (CVE-2020-14343-pyyaml).
+    - rules: ["CVE-2020-14343"]
       reason: "not reachable from any entry point — reviewed 2026-08-14, revisit at the next audit"
 
 components:

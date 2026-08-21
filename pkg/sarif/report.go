@@ -166,6 +166,10 @@ type Result struct {
 	//
 	// Only ever set on a finding about a dependency, so it is nil wherever Package is.
 	Reachability *Reachability `json:"reachability,omitempty"`
+	// Correlation is set when more than one scanner reported this same flaw: on the finding that
+	// is counted it names who else found it, and on the others it names the one they are counted
+	// under. Nil when only one scanner reported it.
+	Correlation *Correlation `json:"correlation,omitempty"`
 }
 
 // Remediation says who can resolve a finding and by what kind of action. It is the answer to
@@ -359,6 +363,38 @@ type CallFrame struct {
 	// File and Line locate the call. Relative to the module root, as the analyzer reported it.
 	File string `json:"file,omitempty"`
 	Line int    `json:"line,omitempty"`
+}
+
+// Correlation records that more than one scanner reported the same flaw.
+//
+// A relationship rather than a merge, and for the reason the rest of this model is: nothing is
+// deleted. Both scanners' findings stay in the report with their own rule ids, their own severity
+// and their own account of what they saw — because the disagreement between two scanners is the
+// reason to run two, and a merge that keeps one opinion throws away the thing you were paying
+// for.
+//
+// What changes is the counting. One finding of the group is counted; the others are evidence.
+// Reporting four vulnerabilities as eight is the failure this exists to fix, and it is the test
+// buyers are told to run: point several scanners at one target and count the tickets.
+//
+// Deliberately not part of Fingerprint. Which finding of a group happens to be counted is a fact
+// about this run's scanner selection, not about the finding, and folding it in would make a diff
+// churn on the day somebody adds a second scanner.
+type Correlation struct {
+	// AlsoFoundBy names the other scanners that reported this same flaw, sorted. Set on the
+	// finding that is counted, and empty on the ones that are not.
+	AlsoFoundBy []string `json:"alsoFoundBy,omitempty"`
+	// CountedUnder names the scanner whose finding this one is counted under, and is what makes
+	// this finding evidence rather than a count. Empty on the finding that is counted.
+	CountedUnder string `json:"countedUnder,omitempty"`
+}
+
+// Correlated reports whether another scanner's finding is the one being counted for this flaw.
+//
+// True only on the copies that are not counted. The finding that is counted has a Correlation
+// too — naming who else found it — and is very much still a finding.
+func (r Result) Correlated() bool {
+	return r.Correlation != nil && r.Correlation.CountedUnder != ""
 }
 
 // Suppression records that a finding was excluded, and why.
@@ -650,6 +686,12 @@ func (r Report) Counts() Counts {
 		// A suppressed finding is evidence, not a count. Including it here would put it back
 		// into the verdict through the summary, which is the whole thing an exclusion prevents.
 		if res.Suppressed() {
+			continue
+		}
+		// The same for a second scanner's copy of a flaw already counted. Counting it again
+		// reports one vulnerability as two, which is the arithmetic that makes a wall of
+		// findings look worse than the system is.
+		if res.Correlated() {
 			continue
 		}
 		switch res.Level {

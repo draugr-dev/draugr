@@ -10,7 +10,43 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- **One flaw found by two scanners is now counted once.** Point Trivy and Grype at the same
+  manifest and four vulnerabilities were reported as eight findings — under rule ids that did not
+  match, at severities that disagreed, each counted separately in the verdict and the priority
+  bands.
+
+  Both findings still appear in the report, because the disagreement between two scanners is the
+  reason to run two and a merge that keeps one opinion throws away the thing you were paying for.
+  What changed is the arithmetic: one is counted, the other is evidence, and the row you act on
+  names the other tool.
+
+  ```console
+  P1  high  8.7  CVE-2018-1000656  sca  trivy  app/requirements.txt
+      flask 0.12.2: python-flask: Denial of Service via crafted JSON file (fixed in 0.12.3)
+      also found by grype
+  ```
+
+  Where the scanners disagree on severity the **stronger reading counts** — reporting the lower of
+  two would be the report arguing itself down. Where they agree, the finding reported under the
+  plain advisory id is the one shown, because that is the one you can look up and the one your
+  exclusions are already written against.
+
+  **An exclusion now covers every scanner's copy.** Excusing `CVE-2020-14343` excuses it whether
+  Trivy or Grype found it — a decision about a vulnerability is about the vulnerability, not about
+  one tool's report of it. The trailing `*` that `examples/second-scanner.saga.yaml` used to
+  require is no longer needed.
+
+  Correlation is on, with no setting to turn it on: reporting one vulnerability as two was a
+  defect rather than a preference.
+
 ### Fixed
+
+- **The suppression line no longer breaks down to more findings than it counts.** A run with both
+  a `config.exclude` rule and a supplier's VEX document reported, for example, "2 findings
+  suppressed — 2 from saga.yaml, 2 from supplier.openvex.json". Supplier claims are counted and
+  attributed on their own line, and were being counted a second time in this one.
 
 - **Grype's findings now carry the dependency they are about, so a supplier's VEX applies to
   them.** Grype states the package on the SARIF *rule* — a purl in its property bag, the fixing

@@ -509,6 +509,10 @@ type Result struct {
 	// Reachability summarizes what a reachability analyzer concluded about this run's dependency
 	// findings, and is zero when none ran.
 	Reachability ReachabilitySummary
+	// Correlated counts flaws that more than one scanner reported, and which are therefore
+	// counted once rather than once per scanner. Zero when no two scanners agreed on anything,
+	// which includes every run with one scanner per control.
+	Correlated int
 }
 
 // ReachabilitySummary counts what reachability analysis concluded, so a reader can see the
@@ -1037,6 +1041,11 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// reason this project gave. A supplier's claim is additional evidence, not an override: where
 	// both have something to say, the local decision is the one whose author can be asked about it.
 	res.Imported, res.VEX, res.UnmatchedClaims = applyVEX(res.Controls, e.vex)
+	// Last, so exclusions and supplier claims match exactly what they matched before a second
+	// scanner was added, and a decision about a flaw reaches every scanner's copy of it.
+	correlated, alsoSuppressed := applyCorrelation(res.Controls)
+	res.Correlated = correlated
+	res.Suppressed += alsoSuppressed
 	return res, errors.Join(errs...)
 }
 
@@ -1738,4 +1747,138 @@ func classificationOf(model saga.Model, component string) (saga.Exposure, saga.C
 		}
 	}
 	return "", ""
+}
+
+// applyCorrelation marks a flaw reported by more than one scanner so it is counted once.
+//
+// Here rather than in sarif.Merge, which deduplicates within a run on Fingerprint and deliberately
+// includes the tool: two scanners are two accounts and both belong in the evidence. That is right,
+// and its consequence is that nothing correlates across them — four CVEs found by two scanners are
+// reported as eight findings, under rule ids that do not match, at severities that disagree.
+//
+// After exclusions and VEX, so matching those is unchanged and a suppression on any member of a
+// group excuses the whole flaw. A reader who excluded a vulnerability excused the vulnerability,
+// not one tool's report of it, and leaving the other copy counted would be an exclusion that
+// silently stopped working the day a second scanner was added.
+func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSuppressed int) {
+	for name, cr := range controls {
+		byFlaw := map[correlationKey][]int{}
+		for i := range cr.Report.Results {
+			if key, ok := correlationKeyOf(cr.Report.Results[i]); ok {
+				byFlaw[key] = append(byFlaw[key], i)
+			}
+		}
+
+		for _, idxs := range byFlaw {
+			if len(idxs) < 2 {
+				continue
+			}
+			groups++
+			results := cr.Report.Results
+			primary := strongestOf(results, idxs)
+
+			// A decision about the flaw applies to every scanner's copy of it.
+			if reason := suppressionIn(results, idxs); reason != nil {
+				for _, i := range idxs {
+					if !results[i].Suppressed() {
+						copied := *reason
+						results[i].Suppression = &copied
+						extraSuppressed++
+					}
+				}
+			}
+
+			var others []string
+			for _, i := range idxs {
+				if i != primary {
+					others = append(others, results[i].Tool)
+				}
+			}
+			sort.Strings(others)
+			results[primary].Correlation = &sarif.Correlation{AlsoFoundBy: slices.Compact(others)}
+			for _, i := range idxs {
+				if i != primary {
+					results[i].Correlation = &sarif.Correlation{CountedUnder: results[primary].Tool}
+				}
+			}
+		}
+
+		counts := cr.Report.Counts()
+		cr.Summary = plugin.Summary{Errors: counts.Error, Warnings: counts.Warning, Notes: counts.Note}
+		controls[name] = cr
+	}
+	return groups, extraSuppressed
+}
+
+// correlationKey identifies one flaw in one dependency in one repository.
+type correlationKey struct {
+	repository string
+	pkg        string
+	vuln       string
+}
+
+// correlationKeyOf is the key a finding correlates on, and false for a finding that cannot.
+//
+// Three parts, each load-bearing. The vulnerability rather than the rule id, because two scanners
+// spell the same advisory differently. The package as its purl, because a name alone is ambiguous
+// across ecosystems and the purl is what both tools agree on. And the repository, because a
+// component can hold several and the same dependency in two of them is two things to fix.
+//
+// A finding with no package or no vulnerability identity does not correlate. That is most of them
+// — a leaked credential, a misconfigured resource — and inventing a key for those would collapse
+// findings that are not the same flaw.
+func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
+	vuln := res.VulnerabilityID()
+	if vuln == "" || res.Package == nil || res.Package.PURL == "" {
+		return correlationKey{}, false
+	}
+	return correlationKey{repository: res.Repository, pkg: res.Package.PURL, vuln: vuln}, true
+}
+
+// strongestOf picks the finding a group is counted under: the one claiming most exposure.
+//
+// Severity first, because that is the number a reader acts on, and reporting the lower of two
+// disagreeing opinions would be the report arguing itself down.
+//
+// Ties break toward the finding reported under the **canonical identifier** — the one whose rule
+// id is the advisory and nothing else. Scanners decorate: Grype reports CVE-2018-1000656-flask
+// because one advisory can affect several packages in a scan. Both are legitimate, but the
+// undecorated one is what a reader can look up, what an exclusion is most likely already written
+// against, and what another tool will call it. Tool name is the last resort, so the same run twice
+// produces the same report.
+func strongestOf(results []sarif.Result, idxs []int) int {
+	best := idxs[0]
+	for _, i := range idxs[1:] {
+		if strongerFinding(results[i], results[best]) {
+			best = i
+		}
+	}
+	return best
+}
+
+// strongerFinding reports whether a should be counted in preference to b.
+func strongerFinding(a, b sarif.Result) bool {
+	if ra, rb := a.Severity("").Rank(), b.Severity("").Rank(); ra != rb {
+		return ra > rb
+	}
+	if a.Score != b.Score {
+		return a.Score > b.Score
+	}
+	if a.Level.Rank() != b.Level.Rank() {
+		return a.Level.Rank() > b.Level.Rank()
+	}
+	if ca, cb := a.RuleID == a.VulnerabilityID(), b.RuleID == b.VulnerabilityID(); ca != cb {
+		return ca
+	}
+	return a.Tool < b.Tool
+}
+
+// suppressionIn returns the decision already made about this flaw, or nil when none was.
+func suppressionIn(results []sarif.Result, idxs []int) *sarif.Suppression {
+	for _, i := range idxs {
+		if results[i].Suppression != nil {
+			return results[i].Suppression
+		}
+	}
+	return nil
 }
