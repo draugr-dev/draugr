@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.102.1] - 2026-08-21
+
 ### Fixed
 
 - **Reachability no longer breaks a scan of a repository that is not a Go module.** Enabling
@@ -4800,7 +4804,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.102.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.102.1...HEAD
+[0.102.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.102.1
 [0.102.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.102.0
 [0.101.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.101.0
 [0.100.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.100.0
