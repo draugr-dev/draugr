@@ -485,7 +485,7 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 			findingSummary(f.message),
 			escalationNote(f.escalation),
 			reachabilityNote(f.reachability),
-			agreementNote(f.alsoFoundBy),
+			agreementNote(f.alsoFoundBy, f.severity),
 			priorityFloorNote(f.priorityFloor),
 			historicalNote(f.historical),
 		}, cells...)

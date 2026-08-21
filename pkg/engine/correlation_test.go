@@ -49,8 +49,18 @@ func TestCorrelationCountsTheStrongerReading(t *testing.T) {
 		if r.Tool != "trivy" || r.Score != 4.3 {
 			t.Errorf("counted %s at %v, want the stronger reading", r.Tool, r.Score)
 		}
-		if len(r.Correlation.AlsoFoundBy) != 1 || r.Correlation.AlsoFoundBy[0] != "grype" {
-			t.Errorf("alsoFoundBy = %v, want grype named", r.Correlation.AlsoFoundBy)
+		if len(r.Correlation.AlsoFoundBy) != 1 {
+			t.Fatalf("alsoFoundBy = %v, want grype named", r.Correlation.AlsoFoundBy)
+		}
+		// The other scanner's own rating is kept, not just its name. Two tools rating one CVE
+		// medium and low have said something neither says alone, and a reader who only learns
+		// that a second tool "also found it" cannot see that.
+		other := r.Correlation.AlsoFoundBy[0]
+		if other.Tool != "grype" || other.Severity != sarif.SeverityLow || other.Score != 2.3 {
+			t.Errorf("observation = %+v, want grype's own low/2.3 reading", other)
+		}
+		if other.RuleID != "CVE-2026-27205-flask" {
+			t.Errorf("ruleId = %q, want what that scanner called it", other.RuleID)
 		}
 	}
 }
@@ -151,7 +161,7 @@ func TestCorrelationIsNotPartOfFingerprint(t *testing.T) {
 	// a second scanner.
 	base := found("trivy", "CVE-2024-11111", "pkg:pypi/flask@0.12.2", sarif.LevelError, 8.7)
 	marked := base
-	marked.Correlation = &sarif.Correlation{AlsoFoundBy: []string{"grype"}}
+	marked.Correlation = &sarif.Correlation{AlsoFoundBy: []sarif.Observation{{Tool: "grype"}}}
 	if base.Fingerprint() != marked.Fingerprint() {
 		t.Error("correlation changed the fingerprint")
 	}

@@ -139,3 +139,37 @@ func TestReachabilityNoteWithoutACallPath(t *testing.T) {
 		t.Errorf("note = %q, want a bare reachable marker", got)
 	}
 }
+
+func TestAgreementNoteShowsARatingOnlyWhenItDiffers(t *testing.T) {
+	// Where the scanners agree, repeating the same numbers on every row is noise. Where they
+	// disagree, it is the one thing this line carries that a reader cannot get anywhere else.
+	agree := agreementNote([]sarif.Observation{
+		{Tool: "grype", Severity: sarif.SeverityHigh, Score: 8.7},
+	}, sarif.SeverityHigh)
+	if agree != "also found by grype" {
+		t.Errorf("note = %q, want no rating when they agree", agree)
+	}
+
+	differ := agreementNote([]sarif.Observation{
+		{Tool: "grype", Severity: sarif.SeverityLow, Score: 2.3},
+	}, sarif.SeverityMedium)
+	if differ != "also found by grype (low 2.3)" {
+		t.Errorf("note = %q, want the other scanner's own reading", differ)
+	}
+}
+
+func TestAgreementNoteHandlesSeveralScanners(t *testing.T) {
+	got := agreementNote([]sarif.Observation{
+		{Tool: "grype", Severity: sarif.SeverityLow, Score: 2.3},
+		{Tool: "osv", Severity: sarif.SeverityMedium},
+	}, sarif.SeverityMedium)
+	if got != "also found by grype (low 2.3), osv" {
+		t.Errorf("note = %q", got)
+	}
+}
+
+func TestAgreementNoteSilentWhenOnlyOneScannerFoundIt(t *testing.T) {
+	if got := agreementNote(nil, sarif.SeverityHigh); got != "" {
+		t.Errorf("note = %q, want nothing", got)
+	}
+}

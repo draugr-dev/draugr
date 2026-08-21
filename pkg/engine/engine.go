@@ -1788,14 +1788,20 @@ func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSu
 				}
 			}
 
-			var others []string
+			var others []sarif.Observation
 			for _, i := range idxs {
-				if i != primary {
-					others = append(others, results[i].Tool)
+				if i == primary {
+					continue
 				}
+				others = append(others, sarif.Observation{
+					Tool:     results[i].Tool,
+					RuleID:   results[i].RuleID,
+					Severity: results[i].Severity(""),
+					Score:    results[i].Score,
+				})
 			}
-			sort.Strings(others)
-			results[primary].Correlation = &sarif.Correlation{AlsoFoundBy: slices.Compact(others)}
+			sort.Slice(others, func(a, b int) bool { return others[a].Tool < others[b].Tool })
+			results[primary].Correlation = &sarif.Correlation{AlsoFoundBy: others}
 			for _, i := range idxs {
 				if i != primary {
 					results[i].Correlation = &sarif.Correlation{CountedUnder: results[primary].Tool}
