@@ -531,4 +531,7 @@ func externalInstallHint(binary string) string {
 var externalTools = map[string]string{
 	"mend": "proprietary; install the Mend CLI from Mend's documentation (Draugr does not " +
 		"distribute it) — see internal/scanners/mend-sca.md",
+	"govulncheck": "part of the Go toolchain; install with " +
+		"`go install golang.org/x/vuln/cmd/govulncheck@latest` (Draugr does not distribute it) " +
+		"— see internal/scanners/govulncheck.md",
 }

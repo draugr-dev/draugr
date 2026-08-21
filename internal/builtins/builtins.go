@@ -29,6 +29,7 @@ func Registry() *engine.Registry {
 	reg.RegisterScanner(scanners.NewTrivyFS())
 	reg.RegisterScanner(scanners.NewGrype())
 	reg.RegisterScanner(scanners.NewGrypeFS())
+	reg.RegisterScanner(scanners.NewGovulncheck())
 	reg.RegisterScanner(scanners.NewRetireJS())
 	reg.RegisterScanner(scanners.NewMendSCA())
 	reg.RegisterScanner(scanners.NewMendLicenses())

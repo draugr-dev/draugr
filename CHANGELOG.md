@@ -10,7 +10,42 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Reachability for Go: know which vulnerabilities your code can actually reach.** Enable
+  `govulncheck` on the `sca` control and every Go dependency finding is marked reachable,
+  unreachable or undetermined — with the call path attached where there is one:
+
+  ```yaml
+  config:
+    controllers:
+      sca:
+        enabled: true
+        govulncheck:
+          enabled: true
+  ```
+
+  Findings nothing can reach are ranked one band down, so `failOnPriority: P1` becomes a gate you
+  can leave switched on: the build breaks for what your code reaches, and everything else stays in
+  the report where you can still see it.
+
+  ```console
+  govulncheck: 2 reachable, 6 not — findings nothing can reach are ranked down, not removed
+  ```
+
+  It adds no findings of its own — a Go vulnerability is still reported once, not once as its CVE
+  and again as its `GO-` advisory id — and it never suppresses anything. An unreachable finding
+  keeps the severity its scanner gave it and stays in the report, because a suppression records
+  that a person decided and a call graph is not a person. Where exploitability data has already
+  raised a finding, that wins.
+
+  Three verdicts rather than two, and the third is the one that matters: a dependency used only
+  from tests produces no analysis at all, so "no answer" is reported as `unknown` rather than
+  quietly counted as safe. `report.json` counts all three.
+
+  The call path travels in `report.json` and the SARIF, ordered from your own code to the
+  vulnerable symbol. **Go only** — see
+  [reachability for Go](docs/reference/saga-schema.md#reachability-for-go).
 
 ## [0.100.0] - 2026-08-19
 

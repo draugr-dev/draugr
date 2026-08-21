@@ -253,11 +253,56 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 | `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository` — an internal mirror |
 | `grype`, `grype-fs` | `byCve` — report under the CVE rather than the advisory ID, on by default |
 | `retirejs` | `enabled` only |
+| `govulncheck` | `enabled` only |
 | `trivy-config` | `checks` — paths to your own Rego; `namespaces` — the namespaces they declare |
 | `semgrep` | `config` — a registry ref, path or URL |
 | `gitleaks` | `config` — a rules file shared across repositories; `history` — scan commit history too |
 | `virustotal` | `requestsPerMinute` |
 | `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus` | `enabled` only |
+
+
+### Reachability for Go
+
+The `sca` control can also run [`govulncheck`](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck),
+which asks a different question from the other scanners: not *which dependencies have known
+vulnerabilities*, but *which of those vulnerabilities this code can actually reach*.
+
+```yaml
+config:
+  controllers:
+    sca:
+      enabled: true
+      govulncheck:
+        enabled: true    # opt-in: needs the Go toolchain, and only answers for Go
+```
+
+It adds no findings of its own. Its verdicts are folded onto the findings the manifest scanner
+already produced, so a Go vulnerability is still reported once — not once as `CVE-2022-32149` and
+again as `GO-2022-1059`. A vulnerability only it reports is kept.
+
+**What a verdict does.** A finding nothing can reach is ranked one band down, and the report says
+why. The severity the scanner reported is unchanged: reachability feeds the
+[priority](../concepts/prioritization.md) matrix, exactly as exploitability enrichment does in the
+other direction, and where exploitability has already raised a finding that wins.
+
+```console
+govulncheck: 2 reachable, 6 not — findings nothing can reach are ranked down, not removed
+```
+
+**It never suppresses.** An unreachable finding stays in the report at a lower band, because a
+suppression records that a person decided and an inference is not a decision — a call graph does
+not see reflection, dynamic dispatch or code generation, and the call that makes something
+reachable can be written tomorrow. To excuse a finding, use [`config.exclude`](#configexclude) or a
+[VEX document](#reading-a-suppliers-vex-componentsvex-configvexsources), both of which carry an author.
+
+**Three verdicts, not two.** `reachable`, `unreachable`, and `unknown` — and the third is what
+keeps the other two honest. A dependency used only from test files produces no `govulncheck`
+output at all, so the absence of a verdict is not evidence of unreachability. `unreachable` is
+only claimed for a module the run actually analyzed; anything else is reported as `unknown`, and
+`report.json` counts all three so you can see how much of the answer is missing.
+
+The call path is in the SARIF and in `report.json`, ordered from your own code to the vulnerable
+symbol. **Go only** — a reachability claim without its language is an overclaim.
 
 ```bash
 draugr controls --options   # the authoritative list, read from the same schemas the gate enforces

@@ -784,6 +784,28 @@ func importedLine(d Data) string {
 	return line
 }
 
+// reachabilityLine reports what reachability analysis concluded, in one line.
+//
+// One line rather than a marker on every row. A reader scanning forty findings is deciding what
+// to do first, and forty repetitions of the same word does not help them choose — the useful
+// facts are how many were ranked down and how much of the answer is missing. Per-finding detail
+// is in the JSON and the SARIF, where something is reading rather than skimming.
+//
+// Unknown is named whenever there is any, because it is the honest qualifier on the rest of the
+// sentence: an analyzer that could not cover half the dependencies has said much less than the
+// unreachable count on its own suggests.
+func reachabilityLine(d Data) string {
+	r := d.Run.Reachability
+	if r.Analyzer == "" {
+		return ""
+	}
+	line := fmt.Sprintf("%s: %d reachable, %d not", r.Analyzer, r.Reachable, r.Unreachable)
+	if r.Unknown > 0 {
+		line += fmt.Sprintf(", %d undetermined", r.Unknown)
+	}
+	return line + " — findings nothing can reach are ranked down, not removed"
+}
+
 // importedAttribution counts imported suppressions by the author who asserted them.
 //
 // A document with no author is reported as such rather than skipped. A claim nobody signed is

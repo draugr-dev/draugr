@@ -213,6 +213,11 @@ type sarifProperties struct {
 	// introduced from one it inherited, and that answer is worth as much on the second read as
 	// on the first.
 	Layer *Layer `json:"layer,omitempty"`
+	// Reachability is what a reachability analyzer concluded about this finding, including the
+	// call path where there is one. It survives the file for the reason Package does, and for
+	// one more: a reachability verdict without its evidence is the claim readers are told to
+	// reject, and the evidence is the part a platform has no other way to get.
+	Reachability *Reachability `json:"reachability,omitempty"`
 	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
 	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
 	Tags []string `json:"tags,omitempty"`
@@ -375,6 +380,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Tool: tool, Priority: res.Priority, Component: res.Component,
 				Repository: res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
+				Reachability:       res.Reachability,
 				OSEndOfLife:        res.OSEndOfLife,
 				ProviderOperated:   res.ProviderOperated,
 				ImageBuiltUpstream: res.ImageBuiltUpstream,
@@ -580,6 +586,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.ProviderOperated = sr.Properties.ProviderOperated
 				res.ImageBuiltUpstream = sr.Properties.ImageBuiltUpstream
 				res.Package = sr.Properties.Package
+				res.Reachability = sr.Properties.Reachability
 			}
 			out.Results = append(out.Results, res)
 		}

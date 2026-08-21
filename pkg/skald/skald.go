@@ -37,6 +37,9 @@ type jsonReport struct {
 	// Exploitability names the datasets that enriched this run's severities, so a report can
 	// be checked against the data it was computed from. Absent when no enrichment ran.
 	Exploitability []FeedProvenance `json:"exploitability,omitempty"`
+	// Reachability summarizes what reachability analysis concluded, so a consumer can see the
+	// analysis ran and how much of it landed. Absent when none ran.
+	Reachability *reachabilityInfo `json:"reachability,omitempty"`
 	// Repositories is which repository was read and at which commit — what makes the report
 	// reproducible, and the answer to "does this describe my change or last week's".
 	Repositories []sarif.RepositoryRef `json:"repositories,omitempty"`
@@ -82,6 +85,10 @@ type findingReport struct {
 	// Escalation says why this finding's severity was raised, when exploitability data raised
 	// it. A consumer acting on the priority can then say what the priority rests on.
 	Escalation *sarif.Escalation `json:"escalation,omitempty"`
+	// Reachability says whether this project's code can reach the vulnerable code, and carries
+	// the call path when it can. Same reason as Escalation, in the other direction: a consumer
+	// acting on a band that reachability lowered can say what lowered it.
+	Reachability *sarif.Reachability `json:"reachability,omitempty"`
 }
 
 // FeedProvenance is one exploitability dataset as a run saw it: where it came from, when, and
@@ -256,6 +263,7 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 
 	doc.Priorities, doc.Findings = summarizePriorities(run, minPriority)
 	doc.Exploitability = feeds
+	doc.Reachability = reachabilityOf(run)
 
 	reports := make([]sarif.Report, 0, len(run.Controls))
 	for _, cr := range run.Controls {
@@ -319,15 +327,16 @@ func toFinding(control string, res sarif.Result) findingReport {
 		loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
 	}
 	return findingReport{
-		Priority:   res.Priority,
-		Level:      string(res.Level),
-		Score:      res.Score,
-		Control:    control,
-		Tool:       res.Tool,
-		RuleID:     res.RuleID,
-		Message:    res.Message,
-		Location:   loc,
-		Escalation: res.Escalation,
+		Priority:     res.Priority,
+		Level:        string(res.Level),
+		Score:        res.Score,
+		Control:      control,
+		Tool:         res.Tool,
+		RuleID:       res.RuleID,
+		Message:      res.Message,
+		Location:     loc,
+		Escalation:   res.Escalation,
+		Reachability: res.Reachability,
 	}
 }
 
@@ -493,5 +502,35 @@ func scopeOf(run engine.Result) *scopeInfo {
 		Components:        run.Scope.Components,
 		Controls:          run.Scope.Controls,
 		SkippedComponents: run.Scope.SkippedComponents,
+	}
+}
+
+// reachabilityInfo mirrors engine.ReachabilitySummary in the report document.
+//
+// Unknown is reported rather than folded into a total, because it is the number saying how much
+// of the answer is missing. Forty unreachable and no unknowns is a different claim from four and
+// thirty-six, and one "unreachable" count cannot tell them apart.
+type reachabilityInfo struct {
+	Analyzer    string `json:"analyzer"`
+	Reachable   int    `json:"reachable"`
+	Unreachable int    `json:"unreachable"`
+	Unknown     int    `json:"unknown"`
+	// Contributed counts findings the analyzer reported that no other scanner did, and which are
+	// therefore kept rather than folded away.
+	Contributed int `json:"contributed,omitempty"`
+}
+
+// reachabilityOf renders the run's reachability summary, or nil when no analyzer ran.
+func reachabilityOf(run engine.Result) *reachabilityInfo {
+	r := run.Reachability
+	if r.Analyzer == "" {
+		return nil
+	}
+	return &reachabilityInfo{
+		Analyzer:    r.Analyzer,
+		Reachable:   r.Reachable,
+		Unreachable: r.Unreachable,
+		Unknown:     r.Unknown,
+		Contributed: r.Contributed,
 	}
 }
