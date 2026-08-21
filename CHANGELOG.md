@@ -10,7 +10,26 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Reachability no longer breaks a scan of a repository that is not a Go module.** Enabling
+  `config.reachability` on a project whose repositories are Python, JavaScript or anything else
+  failed the whole `sca` control with `scan incomplete: sca could not run`, because the analyzer
+  was run at the repository root and there was no `go.mod` there.
+
+  It now runs **once per Go module found in the tree**, so a polyglot repository keeping its Go
+  service in a subdirectory is analyzed where the module actually is, and a monorepo with several
+  gets one analysis each rather than whichever the root happened to be. Vendored and `testdata`
+  modules are skipped: they are not part of the build.
+
+  A repository with no Go module at all is reported rather than passed off as clean, because a
+  repository the analyzer could not answer for must not read like one where it looked and found
+  everything unreachable:
+
+  ```console
+  Measured against:
+    sca  govulncheck — coverage 0 modules analyzed — this repository holds no go.mod
+  ```
 
 ## [0.102.0] - 2026-08-21
 

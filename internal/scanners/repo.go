@@ -19,8 +19,16 @@ import (
 // RepositoryTarget, runs the tool against the local path, and parses its SARIF output.
 // checkout and run are injectable for testing.
 type repoScanner struct {
-	info     plugin.ScannerInfo
-	args     func(dir string, cfg plugin.Config) []string
+	info plugin.ScannerInfo
+	args func(dir string, cfg plugin.Config) []string
+	// argsList, when set, replaces args with several commands run over the same checkout, whose
+	// outputs are concatenated before parsing.
+	//
+	// For a tool that answers per module rather than per repository. A repository can hold more
+	// than one, and running once at the root reports on whichever the root happens to be — or
+	// fails, when the root is not a module at all. Returning no commands means the tool has
+	// nothing to answer for here, which is different from failing and is reported as such.
+	argsList func(dir string, cfg plugin.Config) [][]string
 	checkout func(ctx context.Context, url, revision string, scope git.Scope) (git.Tree, func(), error)
 	// parse decodes the tool's output. Nil means the tool emits SARIF.
 	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
@@ -169,9 +177,21 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	defer cleanup()
 	dir := tree.Dir
 
-	out, err := s.runReporting(ctx, dir, s.args(dir, cfg))
-	if err != nil {
-		return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
+	var out []byte
+	if s.argsList != nil {
+		for _, argv := range s.argsList(dir, cfg) {
+			part, err := s.runReporting(ctx, dir, argv)
+			if err != nil {
+				return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
+			}
+			out = append(out, part...)
+		}
+	} else {
+		var err error
+		out, err = s.runReporting(ctx, dir, s.args(dir, cfg))
+		if err != nil {
+			return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
+		}
 	}
 	report, err := s.decode(out, dir, cfg)
 	if err != nil {
@@ -299,4 +319,18 @@ var execArgvInDir = func(ctx context.Context, dir string, argv []string) ([]byte
 // rather than a report — several tools write those to stderr.
 func execArgvCombined(ctx context.Context, argv []string) ([]byte, error) {
 	return toolexec.RunCombined(ctx, "", argv)
+}
+
+// newRepoScannerPerModule is newRepoScannerWithParser for a tool that answers per module rather
+// than per repository: argsList returns one command per module found, and their outputs are
+// concatenated before parse sees them.
+func newRepoScannerPerModule(
+	info plugin.ScannerInfo,
+	argsList func(dir string, cfg plugin.Config) [][]string,
+	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error),
+) repoScanner {
+	s := repoScanner{info: info, checkout: git.Checkout, run: execArgvInDir}
+	s.argsList = argsList
+	s.parse = parse
+	return s
 }

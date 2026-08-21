@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -24,7 +26,7 @@ const govulncheckScanner = "govulncheck"
 // reach. The two are complementary rather than competing, which is why what this produces is
 // folded onto existing findings rather than reported alongside them.
 func NewGovulncheck() plugin.Scanner {
-	return newRepoScannerWithParser(
+	return newRepoScannerPerModule(
 		plugin.ScannerInfo{
 			Name:         govulncheckScanner,
 			Origin:       "Go team",
@@ -39,7 +41,17 @@ func NewGovulncheck() plugin.Scanner {
 	)
 }
 
-// govulncheckArgs builds `govulncheck -format json ./...`, run inside the checkout.
+// govulncheckArgs builds one `govulncheck -C <module> -format json ./...` per Go module in the
+// checkout.
+//
+// Per module rather than once at the root, because a repository is not required to be one. A
+// polyglot repository keeps its Go service in a subdirectory, a monorepo keeps several, and
+// running once at the root answers for whichever the root happens to be — or fails outright when
+// the root holds no go.mod, which would fail the whole control for a repository that simply is
+// not Go.
+//
+// No commands when there is no Go module. That is reported rather than passed off as a clean
+// result: see the provenance parseGovulncheck writes.
 //
 // No flag makes it fail on findings, so there is no exit code to neutralize the way Trivy's
 // --exit-code 0 does; in JSON mode it reports and exits 0.
@@ -47,8 +59,40 @@ func NewGovulncheck() plugin.Scanner {
 // Deliberately not -test. Analyzing tests would report vulnerabilities reachable only from code
 // that never ships, and the finding a developer cannot act on is the one that teaches them to
 // ignore the report.
-func govulncheckArgs(_ string, _ plugin.Config) []string {
-	return []string{"govulncheck", "-format", "json", "./..."}
+func govulncheckArgs(dir string, _ plugin.Config) [][]string {
+	var out [][]string
+	for _, mod := range goModuleDirs(dir) {
+		out = append(out, []string{"govulncheck", "-C", mod, "-format", "json", "./..."})
+	}
+	return out
+}
+
+// goModuleDirs lists the directories under root holding a go.mod, outermost first.
+//
+// Nested modules are still visited: a module inside another is its own build with its own
+// dependency graph, and the outer one's analysis says nothing about it. Vendored trees and
+// testdata are not — vendor/ is a copy of somebody else's modules, and testdata is by convention
+// not part of the build.
+func goModuleDirs(root string) []string {
+	var out []string
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil //nolint:nilerr // an unreadable directory is not a reason to fail the scan
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case "vendor", "testdata", ".git":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Name() == "go.mod" {
+			out = append(out, filepath.Dir(path))
+		}
+		return nil
+	})
+	sort.Strings(out)
+	return out
 }
 
 // govulncheckMessage is one message in govulncheck's output stream.
@@ -136,6 +180,23 @@ type govulncheckFrame struct {
 // already speaks: an advisory with three CVEs is three findings to every other scanner, and
 // emitting one would leave two of them with no reachability while looking like a complete answer.
 func parseGovulncheck(out []byte, _ string, _ plugin.Config) (sarif.Report, error) {
+	if len(out) == 0 {
+		// No module was found, so nothing ran. Reported rather than returned as a clean result:
+		// a repository this analyzer could not answer for must not be indistinguishable from one
+		// where it looked and found everything unreachable. The findings keep no verdict, which
+		// is the honest outcome, and the report says why there is none.
+		return sarif.Report{
+			Tool: govulncheckScanner,
+			Provenance: []sarif.Provenance{{
+				Tool: govulncheckScanner,
+				Fields: []sarif.Field{{
+					Key:   "coverage",
+					Value: "0 modules analyzed — this repository holds no go.mod",
+				}},
+			}},
+		}, nil
+	}
+
 	msgs, err := decodeGovulncheckStream(out)
 	if err != nil {
 		return sarif.Report{}, err
