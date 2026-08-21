@@ -33,7 +33,7 @@ Set Width 1600
 #
 # The headroom costs nothing in the published image: contrib/demo/cropmargin trims the render back
 # to what was drawn before it is committed. Raise this freely; do not lower it to tidy the picture.
-Set Height 1400
+Set Height 1600
 Set Theme "Dracula"
 Set Padding 20
 
