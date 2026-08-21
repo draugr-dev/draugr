@@ -403,6 +403,8 @@ type finding struct {
 	escalation *sarif.Escalation
 	// reachability is what analysis concluded about this finding, when an analyzer covered it.
 	reachability *sarif.Reachability
+	// alsoFoundBy names the other scanners that reported this same flaw, when more than one did.
+	alsoFoundBy []string
 	// priorityFloor is why this finding outranks what the component's classification alone would
 	// give it. Empty when the classification accounts for the band.
 	priorityFloor string
@@ -501,6 +503,11 @@ func summarize(d Data) summary {
 	for _, name := range names {
 		rep := d.Run.Controls[name].Report
 		for _, res := range rep.Results {
+			// A flaw another scanner is already counted for. In the report, deliberately not
+			// a second row in the list of things to fix — the row that is there names it.
+			if res.Correlated() {
+				continue
+			}
 			// Suppressed by a Saga exclusion: still in the report, deliberately not in the
 			// list of things to fix. The count is reported separately so the reader knows
 			// findings were set aside rather than never found.
@@ -541,6 +548,7 @@ func summarize(d Data) summary {
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
 				escalation:    res.Escalation,
 				reachability:  res.Reachability,
+				alsoFoundBy:   alsoFoundBy(res),
 				priorityFloor: res.PriorityFloor,
 				historical:    res.Historical,
 				component:     res.Component,
@@ -787,6 +795,27 @@ func importedLine(d Data) string {
 	return line
 }
 
+// alsoFoundBy names the other scanners that reported this same flaw.
+func alsoFoundBy(res sarif.Result) []string {
+	if res.Correlation == nil {
+		return nil
+	}
+	return res.Correlation.AlsoFoundBy
+}
+
+// agreementNote is the line under a finding naming the other scanners that found it.
+//
+// Said rather than hidden, because two tools agreeing is itself a signal — and because a reader
+// who enabled a second scanner should be able to see it working. Without this the correlation is
+// invisible: the row looks exactly like a run with one scanner, and the second one looks as
+// though it found nothing.
+func agreementNote(tools []string) string {
+	if len(tools) == 0 {
+		return ""
+	}
+	return "also found by " + strings.Join(tools, ", ")
+}
+
 // reachabilityBlock reports what reachability analysis concluded, as a labeled block: a row per
 // analyzer, then the caveats that apply.
 //
@@ -926,6 +955,12 @@ func suppressionSources(d Data) []sourceCount {
 	for _, cr := range d.Run.Controls {
 		for _, res := range cr.Report.Results {
 			if res.Suppression == nil || res.Suppression.Source == "" {
+				continue
+			}
+			// A supplier's claim is counted and attributed by importedLine, which names the
+			// author rather than the file. Counting it here as well made the breakdown sum to
+			// more than the total it was breaking down.
+			if res.Imported() {
 				continue
 			}
 			counts[res.Suppression.Source]++

@@ -132,6 +132,12 @@ func highestPriority(r sarif.Report) string {
 	best := ""
 	bestRank := 0
 	for _, res := range r.Results {
+		// A second scanner's copy of a flaw already counted is evidence, not a finding to gate
+		// on. Counting it would let the verdict depend on how many scanners are enabled rather
+		// than on what is wrong.
+		if res.Correlated() {
+			continue
+		}
 		if res.Suppressed() {
 			continue // excluded by the Saga: reported, but not something to gate on
 		}
