@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -82,20 +81,6 @@ type vexProduct struct {
 	ID string `json:"@id"`
 }
 
-// vulnIDPattern decides which findings are vulnerabilities, and so which have anything to say in
-// VEX. A secret in a config file and a misconfigured security group are real findings with no
-// CVE to be un-affected by; putting them in a VEX document would be describing them as something
-// they are not.
-//
-// Anchored and specific rather than "anything with a dash in it": the identifier goes into a
-// document a stranger's tooling matches against, so a wrong one is worse than a missing one.
-var vulnIDPattern = regexp.MustCompile(
-	`^(CVE-\d{4}-\d{4,}` +
-		`|GHSA-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}` +
-		`|OSV-\d{4}-\d+` +
-		`|RUSTSEC-\d{4}-\d{4}` +
-		`|GO-\d{4}-\d{4,})$`)
-
 // vexStatusRank orders statuses by how much exposure they concede, least first. Used when one
 // vulnerability is seen more than once in a run and the instances disagree: the strongest claim
 // of exposure wins.
@@ -130,7 +115,7 @@ func buildVEX(d Data) vexDocument {
 	sort.Strings(controls)
 	for _, name := range controls {
 		for _, res := range d.Run.Controls[name].Report.Results {
-			if !vulnIDPattern.MatchString(res.RuleID) {
+			if res.VulnerabilityID() == "" {
 				continue
 			}
 			st := statementFor(res)

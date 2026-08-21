@@ -10,7 +10,27 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Grype's findings now carry the dependency they are about, so a supplier's VEX applies to
+  them.** Grype states the package on the SARIF *rule* — a purl in its property bag, the fixing
+  version in its help text — rather than on the finding, so every Grype finding arrived with no
+  package identity at all. That is more than a missing column: a finding with no purl cannot be
+  matched by a VEX statement, recognized as the same flaw another scanner reported, or tied back
+  to an SBOM entry.
+
+  Grype findings now report `name`, `version`, `fixedVersion`, `purl` and `ecosystem` like every
+  other scanner's, and the purl matches the one Trivy reports for the same dependency.
+
+- **A supplier's VEX statement now applies to whichever scanner found the vulnerability.** Grype
+  reports `CVE-2019-1010083-flask` — the identifier plus the package — because one advisory can
+  affect several packages in one scan. Matching on the rule id honored a statement for Trivy's
+  finding and silently ignored Grype's; the same decoration also kept those findings out of the
+  VEX document Draugr writes, so a vulnerability only Grype found was missing from it.
+
+  Anything asking *which vulnerability a finding is about* now asks once, in one place, instead of
+  comparing rule ids. Exploitability enrichment already worked this way, which is why KEV and EPSS
+  had been ranking those findings correctly all along.
 
 ## [0.102.1] - 2026-08-21
 

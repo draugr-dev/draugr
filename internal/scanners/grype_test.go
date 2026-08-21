@@ -339,3 +339,45 @@ func TestGrypeScannersAreWiredToTheSharedDatabase(t *testing.T) {
 		})
 	}
 }
+
+func TestGrypePackagesReadsWhatTheRuleCarries(t *testing.T) {
+	// Grype states the dependency on the rule rather than the result — a purl in its property
+	// bag, the fixing version in its help text — so the generic SARIF reader never saw it and
+	// every Grype finding arrived with no package identity at all.
+	out := []byte(`{"runs":[{"tool":{"driver":{"rules":[{
+	  "id":"CVE-2019-1010083-flask",
+	  "help":{"text":"Vulnerability CVE-2019-1010083\nSeverity: high\nPackage: flask\nVersion: 0.12.2\nFix Version: 1.0\nType: python\n"},
+	  "properties":{"purls":["pkg:pypi/flask@0.12.2"]}}]}}}]}`)
+	got := grypePackages(out)
+	pkg, ok := got["CVE-2019-1010083-flask"]
+	if !ok {
+		t.Fatalf("no package for the rule: %+v", got)
+	}
+	if pkg.Name != "flask" || pkg.Version != "0.12.2" {
+		t.Errorf("name/version = %q/%q", pkg.Name, pkg.Version)
+	}
+	if pkg.FixedVersion != "1.0" {
+		t.Errorf("fixedVersion = %q, want the version that resolves it", pkg.FixedVersion)
+	}
+	if pkg.PURL != "pkg:pypi/flask@0.12.2" {
+		t.Errorf("purl = %q — this is the identifier another scanner's finding is matched on", pkg.PURL)
+	}
+	if pkg.Ecosystem != "python" {
+		t.Errorf("ecosystem = %q", pkg.Ecosystem)
+	}
+}
+
+func TestGrypePackagesSkipsRulesWithNoPURL(t *testing.T) {
+	out := []byte(`{"runs":[{"tool":{"driver":{"rules":[{"id":"x","properties":{}}]}}}]}`)
+	if got := grypePackages(out); len(got) != 0 {
+		t.Errorf("got %+v, want nothing for a rule that names no package", got)
+	}
+}
+
+func TestGrypePackagesToleratesOutputItCannotRead(t *testing.T) {
+	// The report itself already parsed by this point; a property bag we cannot read is a missing
+	// detail, not a failed scan.
+	if got := grypePackages([]byte("{not json")); got != nil {
+		t.Errorf("got %+v, want nil", got)
+	}
+}
