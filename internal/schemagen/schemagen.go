@@ -104,6 +104,13 @@ func controlDefs(reg *engine.Registry) map[string]map[string]any {
 	serving := map[string][]plugin.ScannerInfo{}
 	for _, sc := range reg.Scanners() {
 		info := sc.Info()
+		if info.Reachability {
+			// Serves the control, but is enabled by config.reachability rather than from its
+			// scanner block. Offering it here would have an editor complete a key the loader
+			// rejects — which is worse than not offering it, because the descriptor looks right
+			// until it is run.
+			continue
+		}
 		for _, control := range info.Controls {
 			serving[control] = append(serving[control], info)
 		}

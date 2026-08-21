@@ -67,6 +67,13 @@ type Config struct {
 	// EPSS — before it is ranked, so "what to fix first" reflects what is being exploited
 	// rather than only what could be.
 	Exploitability *ExploitabilityConfig `yaml:"exploitability,omitempty"`
+	// Reachability ranks a dependency finding down when this project's code cannot reach the
+	// vulnerable part of it, so "what to fix first" reflects what the code actually calls.
+	//
+	// Exploitability's mirror image, and here for the same reason: both decide how findings are
+	// ranked, and a decision that can move a finding across the gate belongs somewhere a team
+	// reviews rather than in a list of tools to run.
+	Reachability *ReachabilityConfig `yaml:"reachability,omitempty"`
 	// AllowEffects acknowledges scanner effects that would otherwise stop a run — the kinds a
 	// scanner declares when it does more to a target than read it ("mutate", "privilege").
 	//
@@ -277,6 +284,27 @@ type ExploitabilityConfig struct {
 	// legitimate reason to say "do not tell me it is old" — reproducing last quarter's verdict
 	// requires last quarter's feed.
 	MaxAge string `yaml:"maxAge,omitempty"`
+}
+
+// ReachabilityConfig turns on reachability analysis and names the analyzers that do it.
+//
+// Beside ExploitabilityConfig rather than in a control's scanner block, because the two are the
+// same kind of decision pointing in opposite directions: one raises a finding's rank on evidence
+// that it is being exploited, the other lowers it on evidence that this code cannot reach it.
+// Both move findings across a gate, and both should be visible in a diff to whoever owns that
+// gate.
+//
+// It is also the honest surface. Every other entry in a control's scanner block adds findings, so
+// enabling one there means "check this too". An analyzer named here adds none — it ranks findings
+// already found, downward, which can turn a failing gate green. That is not something to discover
+// from the reference docs after the fact.
+type ReachabilityConfig struct {
+	// Analyzers names the tools that decide reachability, e.g. "govulncheck". An analyzer is
+	// named rather than inferred so the descriptor says which tool reached the verdict, and so
+	// `draugr doctor` can tell you what to install before a scan finds out for you.
+	//
+	// Empty leaves reachability off, which is the same as omitting the block.
+	Analyzers []string `yaml:"analyzers,omitempty"`
 }
 
 // ExploitabilitySources are the values KEV and EPSS accept besides a file path.

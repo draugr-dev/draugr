@@ -97,6 +97,7 @@ func schemaCases() []schemaCase {
 		{"vexSource", VEXSource{}},
 		{"vexRepository", VEXRepository{}},
 		{"exploitabilityConfig", ExploitabilityConfig{}},
+		{"reachabilityConfig", ReachabilityConfig{}},
 	}
 }
 

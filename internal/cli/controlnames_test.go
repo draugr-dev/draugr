@@ -213,3 +213,44 @@ func TestCheckControlNamesAcceptsDeclaredOptionsAndTheEnabledFlag(t *testing.T) 
 		t.Errorf("rejected a valid block: %v", err)
 	}
 }
+
+func TestReachabilityAnalyzerInAScannerBlockSaysWhereItGoes(t *testing.T) {
+	// Names something real, in the wrong place. "not a scanner" would send the reader hunting a
+	// typo they did not make.
+	model := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"sca": {"govulncheck": saga.ControllerSettings{"enabled": true}},
+	}}}
+	err := checkControlNames(builtins.Registry(), model)
+	if err == nil {
+		t.Fatal("want an error for an analyzer named as a scanner")
+	}
+	for _, want := range []string{"decides reachability", "config.reachability", "analyzers: [govulncheck]"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q", err, want)
+		}
+	}
+}
+
+func TestUnknownReachabilityAnalyzerIsRejected(t *testing.T) {
+	// A descriptor saying findings will be ranked by reachability, that silently are not, is the
+	// same failure as naming a control this build cannot run.
+	model := &saga.Model{Config: saga.Config{
+		Reachability: &saga.ReachabilityConfig{Analyzers: []string{"govulnchek"}},
+	}}
+	err := checkControlNames(builtins.Registry(), model)
+	if err == nil {
+		t.Fatal("want an error for an analyzer this build does not have")
+	}
+	if !strings.Contains(err.Error(), "did you mean \"govulncheck\"?") {
+		t.Errorf("error %q does not suggest the near miss", err)
+	}
+}
+
+func TestKnownReachabilityAnalyzerIsAccepted(t *testing.T) {
+	model := &saga.Model{Config: saga.Config{
+		Reachability: &saga.ReachabilityConfig{Analyzers: []string{"govulncheck"}},
+	}}
+	if err := checkControlNames(builtins.Registry(), model); err != nil {
+		t.Fatalf("valid descriptor rejected: %v", err)
+	}
+}

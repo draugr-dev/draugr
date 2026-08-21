@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
@@ -240,6 +241,28 @@ func TestReadmeListsEveryControl(t *testing.T) {
 	for _, row := range regexp.MustCompile(`(?m)^\| `+"`"+`([a-z-]+)`+"`"+` \|`).FindAllStringSubmatch(readme, -1) {
 		if _, ok := Registry().Controller(row[1]); !ok {
 			t.Errorf("the README lists a control %q this build does not provide", row[1])
+		}
+	}
+}
+
+// TestReachabilityAnalyzersAreNotSelectableAsScanners guards the two halves of the reachability
+// surface against drifting apart.
+//
+// A scanner declaring Reachability is enabled by config.reachability and must never be selectable
+// from a control's scanner block: the two surfaces mean different things, and the scanner block
+// is the one that reads as "run another tool" while this kind of tool ranks findings down. A new
+// analyzer missing from the controllers list would be silently selectable both ways, and the
+// descriptor accepting both is how a gate gets weakened by something that looked like a scanner.
+func TestReachabilityAnalyzersAreNotSelectableAsScanners(t *testing.T) {
+	for _, sc := range Registry().Scanners() {
+		info := sc.Info()
+		if !info.Reachability {
+			continue
+		}
+		if !controllers.IsReachabilityAnalyzer(info.Name) {
+			t.Errorf("scanner %q declares Reachability but internal/controllers does not know it", info.Name)
+			t.Log("  Add it to reachabilityAnalyzers in internal/controllers/config.go, or it stays\n" +
+				"  selectable from a scanner block — which is the surface that does not say what it does.")
 		}
 	}
 }

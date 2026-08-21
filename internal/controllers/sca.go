@@ -8,6 +8,10 @@ import (
 
 const trivyFSScanner = "trivy-fs"
 
+// govulncheckScanner decides reachability; it is enabled by config.reachability, never by a
+// scanner block. See ReachabilityConfig.
+const govulncheckScanner = "govulncheck"
+
 // SCA is the Software Composition Analysis control: dependency vulnerabilities (and, later,
 // licenses) for a component's source repositories. It plans one scan per repository.
 type SCA struct{}
@@ -34,6 +38,13 @@ func (SCA) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error
 		return nil, nil
 	}
 	selections := resolveScanners(model, comp, "sca", []string{trivyFSScanner})
+	// Reachability analyzers are planned from config.reachability rather than selected from the
+	// scanner block, because enabling one is a decision about how findings are ranked rather than
+	// about which tools run. They still plan as sca jobs: an analyzer needs the same checkout the
+	// manifest scanner reads.
+	for _, name := range reachabilitySelections(model) {
+		selections = append(selections, scannerSelection{Name: name})
+	}
 	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(selections))
 	for _, repo := range comp.Repositories {
 		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths, Ignore: repo.Ignore}
