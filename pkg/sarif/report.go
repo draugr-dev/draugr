@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -971,4 +972,32 @@ func (r *Reachability) RankAt(base Severity) Severity {
 		return base
 	}
 	return base.Deescalate()
+}
+
+// vulnerabilityID matches a vulnerability identifier at the start of a rule id, allowing whatever
+// a scanner appends to it.
+//
+// Anchored at the front and not at the back, deliberately. Grype reports `CVE-2019-1010083-flask`
+// — the identifier plus the package it found it in — because one advisory can affect several
+// packages in one scan, and collapsing those would merge two real findings into one. So the
+// decoration stays on the rule id, which is what the scanner said, and everything that needs to
+// know *which vulnerability this is* asks here instead of matching the string.
+var vulnerabilityID = regexp.MustCompile(
+	`^(CVE-\d{4}-\d{4,}` +
+		`|GHSA-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}` +
+		`|OSV-\d{4}-\d+` +
+		`|RUSTSEC-\d{4}-\d{4}` +
+		`|GO-\d{4}-\d{4,})`)
+
+// VulnerabilityID is the vulnerability this finding is about, or "" when it is not about one.
+//
+// A rule id belongs to whoever emitted it, and two scanners reporting the same advisory do not
+// spell it the same way. Anything asking "which vulnerability is this" — matching a supplier's
+// VEX statement, writing one, recognizing the same flaw found twice — has to ask that question
+// rather than compare rule ids, or it silently answers for one scanner and not the other.
+//
+// Empty for a finding that is not a vulnerability at all. A leaked credential and a misconfigured
+// security group are real findings with no advisory to be un-affected by.
+func (r Result) VulnerabilityID() string {
+	return vulnerabilityID.FindString(r.RuleID)
 }

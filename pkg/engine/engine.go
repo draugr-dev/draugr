@@ -1486,7 +1486,14 @@ func applyVEX(controls map[string]plugin.ControlResult, set vex.Set) (imported i
 			if res.Package != nil {
 				purl = res.Package.PURL
 			}
-			claim, key, ok := ix.Lookup(res.RuleID, purl)
+			// The vulnerability the finding is about, not the rule id it was reported under.
+			// Grype appends the package to the identifier, so matching the rule id honored a
+			// supplier's statement for one scanner's findings and silently ignored the other's.
+			vuln := res.VulnerabilityID()
+			if vuln == "" {
+				vuln = res.RuleID
+			}
+			claim, key, ok := ix.Lookup(vuln, purl)
 			if !ok {
 				continue
 			}

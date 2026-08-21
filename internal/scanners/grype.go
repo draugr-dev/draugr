@@ -156,10 +156,84 @@ func parseGrypeRepoSARIF(out []byte, dir string, _ plugin.Config) (sarif.Report,
 	if err != nil {
 		return sarif.Report{}, err
 	}
+	packages := grypePackages(out)
 	for i := range report.Results {
 		report.Results[i].Location.URI = grypeRepoPath(dir, report.Results[i].Location.URI)
+		if pkg, ok := packages[report.Results[i].RuleID]; ok {
+			p := pkg
+			report.Results[i].Package = &p
+		}
 	}
 	return report, nil
+}
+
+// grypePackages reads the dependency each rule is about, keyed by rule id.
+//
+// Grype states it on the *rule* rather than the result — a purl in the rule's property bag, and
+// the version that fixes it inside the rule's help text — so the generic SARIF reader does not see
+// it and every Grype finding arrived without a package.
+//
+// That is worth more than it looks. A finding with no package identity cannot be matched by a
+// supplier's VEX document, cannot be recognized as the same flaw another scanner reported, and
+// cannot be tied back to an SBOM entry. The data was there the whole time, one level up.
+func grypePackages(out []byte) map[string]sarif.Package {
+	var doc struct {
+		Runs []struct {
+			Tool struct {
+				Driver struct {
+					Rules []struct {
+						ID   string `json:"id"`
+						Help struct {
+							Text string `json:"text"`
+						} `json:"help"`
+						Properties struct {
+							PURLs []string `json:"purls"`
+						} `json:"properties"`
+					} `json:"rules"`
+				} `json:"driver"`
+			} `json:"tool"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(out, &doc); err != nil {
+		return nil // the report itself already parsed; a property bag we cannot read is not fatal
+	}
+	packages := map[string]sarif.Package{}
+	for _, run := range doc.Runs {
+		for _, rule := range run.Tool.Driver.Rules {
+			if len(rule.Properties.PURLs) == 0 {
+				continue
+			}
+			// Read from the help text rather than picked apart from the purl: what counts as
+			// the "name" inside a purl is ecosystem-specific — pkg:deb/debian/libgnutls30 names
+			// a namespace the package name is not, while pkg:golang/golang.org/x/text needs the
+			// whole path — and Grype states it plainly one line away.
+			pkg := sarif.Package{
+				Name:         grypeHelpField(rule.Help.Text, "Package"),
+				Version:      grypeHelpField(rule.Help.Text, "Version"),
+				FixedVersion: grypeHelpField(rule.Help.Text, "Fix Version"),
+				Ecosystem:    grypeHelpField(rule.Help.Text, "Type"),
+				PURL:         rule.Properties.PURLs[0],
+			}
+			if pkg.Name == "" {
+				continue
+			}
+			packages[rule.ID] = pkg
+		}
+	}
+	return packages
+}
+
+// grypeHelpField reads one "Key: value" line out of a rule's help text, which is where Grype puts
+// the facts its property bag leaves out. Empty when the field is absent — "no fix exists" and "the
+// scanner did not say" are both reported as empty by every other scanner here.
+func grypeHelpField(help, key string) string {
+	for _, line := range strings.Split(help, "\n") {
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), key+":")
+		if ok {
+			return strings.TrimSpace(rest)
+		}
+	}
+	return ""
 }
 
 // grypeRepoPath turns a scan-root-relative path into a repository-relative one.
