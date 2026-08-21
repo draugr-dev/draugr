@@ -93,8 +93,8 @@ func (g GitLabGroupProjects) Survey(ctx context.Context, scope plugin.SurveyScop
 	// interesting code usually is, is simply not in it. Nobody reviewing that output has a reason
 	// to suspect a gap, so the survey has to say so itself.
 	if token == "" {
-		slog.Warn("surveyed GitLab without a token — public projects only; "+
-			"private ones are not in this descriptor. Set GITLAB_TOKEN to include them",
+		slog.Warn("surveyed without a token",
+			"scope", "public projects only", "fix", "set GITLAB_TOKEN to include private ones",
 			"group", group, "projects", len(projects))
 	}
 

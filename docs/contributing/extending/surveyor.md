@@ -46,13 +46,18 @@ everything private. Warn:
 
 ```go
 // github_org_repos.go
-slog.Warn("surveyed GitHub without a token — public repositories only; "+
-	"private ones are not in this descriptor. Set GITHUB_TOKEN to include them",
+slog.Warn("surveyed without a token",
+	"scope", "public repositories only", "fix", "set GITHUB_TOKEN to include private ones",
 	"org", org, "repositories", len(repos))
 ```
 
 The user is about to write this fragment into a descriptor and trust it. A quiet subset is the
 one failure they will not check for.
+
+Note the shape: the message is an **event name**, and everything variable is a field. A message
+that reads as a sentence with the values folded into it is neither greppable nor queryable, and
+it changes wording every time somebody improves it. State the fact in the message, the
+consequence in a field, and what to do about it in `fix`.
 
 ### Credentials come from the environment
 

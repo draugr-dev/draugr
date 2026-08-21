@@ -104,8 +104,9 @@ func (a AzureDevOpsRepos) Survey(ctx context.Context, scope plugin.SurveyScope) 
 	// interesting code usually is, is simply not in it. Nobody reviewing that output has a reason
 	// to suspect a gap, so the survey has to say so itself.
 	if token == "" {
-		slog.Warn("surveyed Azure DevOps without a token — public projects only; "+
-			"private repositories are not in this descriptor. Set AZURE_DEVOPS_EXT_PAT to include them",
+		slog.Warn("surveyed without a token",
+			"visibility", "public projects only",
+			"fix", "set AZURE_DEVOPS_EXT_PAT to include private repositories",
 			"scope", ref, "repositories", len(repos))
 	}
 
