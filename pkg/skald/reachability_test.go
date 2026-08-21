@@ -27,19 +27,29 @@ func renderJSON(t *testing.T, run engine.Result, minPriority string) map[string]
 
 func TestReportJSONCountsAllThreeVerdicts(t *testing.T) {
 	doc := renderJSON(t, engine.Result{Reachability: engine.ReachabilitySummary{
-		Analyzer: "govulncheck", Reachable: 2, Unreachable: 6, Unknown: 3, Contributed: 1,
+		Analyzers: []engine.AnalyzerReachability{
+			{Analyzer: "govulncheck", Reachable: 2, Unreachable: 6, Unknown: 3, Contributed: 1},
+		},
+		Reachable: 2, Unreachable: 6, Unknown: 3,
 	}}, "")
 	got, ok := doc["reachability"].(map[string]any)
 	if !ok {
 		t.Fatalf("no reachability block: %v", doc)
 	}
-	for key, want := range map[string]float64{"reachable": 2, "unreachable": 6, "unknown": 3, "contributed": 1} {
+	for key, want := range map[string]float64{"reachable": 2, "unreachable": 6, "unknown": 3} {
 		if got[key] != want {
-			t.Errorf("%s = %v, want %v", key, got[key], want)
+			t.Errorf("total %s = %v, want %v", key, got[key], want)
 		}
 	}
-	if got["analyzer"] != "govulncheck" {
-		t.Errorf("analyzer = %v", got["analyzer"])
+	// Per analyzer as well as in total: a consumer asking which tool said so, and how, cannot
+	// answer that from a sum.
+	as, ok := got["analyzers"].([]any)
+	if !ok || len(as) != 1 {
+		t.Fatalf("analyzers = %v", got["analyzers"])
+	}
+	a := as[0].(map[string]any)
+	if a["analyzer"] != "govulncheck" || a["contributed"] != float64(1) {
+		t.Errorf("analyzer breakdown = %v", a)
 	}
 }
 
@@ -52,7 +62,10 @@ func TestReportJSONOmitsReachabilityWhenNoneRan(t *testing.T) {
 func TestReportJSONFindingCarriesTheCallPath(t *testing.T) {
 	// The evidence a reachability claim is judged on has to reach whatever reads the file.
 	run := engine.Result{
-		Reachability: engine.ReachabilitySummary{Analyzer: "govulncheck", Reachable: 1},
+		Reachability: engine.ReachabilitySummary{
+			Analyzers: []engine.AnalyzerReachability{{Analyzer: "govulncheck", Reachable: 1}},
+			Reachable: 1,
+		},
 		Controls: map[string]plugin.ControlResult{"sca": {Control: "sca", Report: sarif.Report{
 			Tool: "trivy", Results: []sarif.Result{{
 				RuleID: "CVE-2022-32149", Level: sarif.LevelError, Priority: "P1",

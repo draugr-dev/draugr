@@ -10,7 +10,34 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Reachability now reports as a block, with a row per analyzer, and every finding it moved says
+  so.** The single summary line has become a labeled block beside the other statements about how
+  findings were treated:
+
+  ```console
+  Reachability:
+    govulncheck  2 reachable, 6 unreachable
+    Unreachable findings are ranked down in priority, not removed from the report.
+  ```
+
+  A finding whose band moved now carries the reason, the way one raised by KEV or EPSS already
+  did — so a high-severity finding sitting at P2 accounts for itself rather than asking you to
+  take the ranking on trust:
+
+  ```console
+  ↓ ranked as medium — the vulnerable code is never called (govulncheck, 2026-08-21)
+  → reachable: main → ParseAcceptLanguage (govulncheck, 2026-08-21)
+  ```
+
+  **More than one analyzer can now be reported correctly.** Counts are kept per analyzer instead
+  of summed, because two analyzers cover different ecosystems and reach their answers by different
+  methods — a call graph and a framework heuristic are both reachability and are not the same
+  evidence. Where two of them cover the same dependency and disagree, the stronger claim of
+  exposure wins: an analyzer that found a call path outranks one that failed to find it.
+
+  `report.json` follows: `reachability` now carries `analyzers[]` alongside the totals.
 
 ## [0.101.0] - 2026-08-21
 

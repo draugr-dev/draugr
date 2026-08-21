@@ -285,8 +285,20 @@ why. The severity the scanner reported is unchanged: reachability feeds the
 [priority](../concepts/prioritization.md) matrix, exactly as exploitability enrichment does in the
 other direction, and where exploitability has already raised a finding that wins.
 
+The report carries a block of its own, with a row per analyzer:
+
 ```console
-govulncheck: 2 reachable, 6 not — findings nothing can reach are ranked down, not removed
+Reachability:
+  govulncheck  2 reachable, 6 unreachable
+  Unreachable findings are ranked down in priority, not removed from the report.
+```
+
+and every finding whose band moved says so, the way an escalated one does:
+
+```console
+  P2        high      7.5    CVE-2020-14040  sca      trivy    go.mod
+            golang.org/x/text v0.3.0: possibility to trigger an infinite loop…
+            ↓ ranked as medium — the vulnerable code is never called (govulncheck, 2026-08-21)
 ```
 
 **It never suppresses.** An unreachable finding stays in the report at a lower band, because a

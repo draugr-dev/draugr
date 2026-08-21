@@ -45,7 +45,7 @@ func TestApplyReachabilityFoldsRatherThanDuplicating(t *testing.T) {
 	if res[0].Reachability == nil || res[0].Reachability.State != sarif.ReachabilityReachable {
 		t.Fatalf("verdict did not move onto the finding: %+v", res[0].Reachability)
 	}
-	if got.Reachable != 1 || got.Analyzer != "govulncheck" {
+	if got.Reachable != 1 || len(got.Analyzers) != 1 || got.Analyzers[0].Analyzer != "govulncheck" {
 		t.Errorf("summary = %+v, want 1 reachable from govulncheck", got)
 	}
 }
@@ -62,8 +62,8 @@ func TestApplyReachabilityKeepsWhatNothingElseReported(t *testing.T) {
 	if n := len(ctrls["sca"].Report.Results); n != 1 {
 		t.Fatalf("results = %d, want the unmatched finding kept", n)
 	}
-	if got.Contributed != 1 {
-		t.Errorf("contributed = %d, want 1", got.Contributed)
+	if len(got.Analyzers) != 1 || got.Analyzers[0].Contributed != 1 {
+		t.Errorf("summary = %+v, want 1 contributed", got)
 	}
 }
 
@@ -159,7 +159,7 @@ func TestApplyReachabilityNoAnalyzerIsANoop(t *testing.T) {
 	ctrls := controlsWith(scanned("repo-a", "CVE-2022-32149", "golang.org/x/text"))
 	e := &Engine{}
 	got := e.applyReachability(ctrls, saga.Model{})
-	if got.Analyzer != "" || got.Reachable+got.Unreachable+got.Unknown != 0 {
+	if got.Ran() || got.Reachable+got.Unreachable+got.Unknown != 0 {
 		t.Errorf("summary = %+v, want zero when nothing analyzed", got)
 	}
 	if len(ctrls["sca"].Report.Results) != 1 {
@@ -200,5 +200,59 @@ func TestPackageNameHandlesFindingsThatAreNotAboutAPackage(t *testing.T) {
 	}
 	if got := packageName(sarif.Result{Package: &sarif.Package{Name: "flask"}}); got != "flask" {
 		t.Errorf("packageName = %q, want flask", got)
+	}
+}
+
+func TestApplyReachabilityKeepsAnalyzersApartInTheSummary(t *testing.T) {
+	// Two analyzers can run — they cover different ecosystems — and a summary naming one is a
+	// report that is right about half of itself.
+	a := analyzed("repo-a", "CVE-1111-1", "golang.org/x/text", sarif.ReachabilityReachable)
+	b := analyzed("repo-a", "CVE-2222-2", "lodash", sarif.ReachabilityUnreachable)
+	b.Tool = "dep-scan"
+	b.Reachability.Analyzer = "dep-scan"
+	ctrls := controlsWith(
+		scanned("repo-a", "CVE-1111-1", "golang.org/x/text"),
+		scanned("repo-a", "CVE-2222-2", "lodash"),
+		a, b,
+	)
+	e := &Engine{}
+	got := e.applyReachability(ctrls, saga.Model{})
+
+	if len(got.Analyzers) != 2 {
+		t.Fatalf("analyzers = %+v, want both", got.Analyzers)
+	}
+	if got.Analyzers[0].Analyzer != "dep-scan" || got.Analyzers[1].Analyzer != "govulncheck" {
+		t.Errorf("analyzers not in name order: %+v", got.Analyzers)
+	}
+	if got.Analyzers[0].Unreachable != 1 || got.Analyzers[1].Reachable != 1 {
+		t.Errorf("counts landed on the wrong analyzer: %+v", got.Analyzers)
+	}
+	if got.Reachable != 1 || got.Unreachable != 1 {
+		t.Errorf("totals = %+v", got)
+	}
+}
+
+func TestApplyReachabilityTakesTheStrongerVerdictWhenAnalyzersDisagree(t *testing.T) {
+	// Two analyzers covering the same dependency and disagreeing means one found a path the
+	// other could not follow. Failing to find something is much weaker evidence than finding it,
+	// so the stronger claim of exposure wins — the direction every conflict here resolves in.
+	weak := analyzed("repo-a", "CVE-1111-1", "m", sarif.ReachabilityUnreachable)
+	weak.Tool = "dep-scan"
+	weak.Reachability.Analyzer = "dep-scan"
+	strong := analyzed("repo-a", "CVE-1111-1", "m", sarif.ReachabilityReachable)
+
+	for _, order := range [][]sarif.Result{{weak, strong}, {strong, weak}} {
+		ctrls := controlsWith(append([]sarif.Result{scanned("repo-a", "CVE-1111-1", "m")}, order...)...)
+		e := &Engine{}
+		e.applyReachability(ctrls, saga.Model{})
+		var got sarif.ReachabilityState
+		for _, r := range ctrls["sca"].Report.Results {
+			if r.Tool == "trivy" && r.Reachability != nil {
+				got = r.Reachability.State
+			}
+		}
+		if got != sarif.ReachabilityReachable {
+			t.Errorf("state = %q, want reachable whichever analyzer was indexed first", got)
+		}
 	}
 }

@@ -401,6 +401,8 @@ type finding struct {
 	justification string
 	// escalation is why this finding's severity was raised, if it was.
 	escalation *sarif.Escalation
+	// reachability is what analysis concluded about this finding, when an analyzer covered it.
+	reachability *sarif.Reachability
 	// priorityFloor is why this finding outranks what the component's classification alone would
 	// give it. Empty when the classification accounts for the band.
 	priorityFloor string
@@ -538,6 +540,7 @@ func summarize(d Data) summary {
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
 				escalation:    res.Escalation,
+				reachability:  res.Reachability,
 				priorityFloor: res.PriorityFloor,
 				historical:    res.Historical,
 				component:     res.Component,
@@ -784,26 +787,105 @@ func importedLine(d Data) string {
 	return line
 }
 
-// reachabilityLine reports what reachability analysis concluded, in one line.
+// reachabilityBlock reports what reachability analysis concluded, as a labeled block: a row per
+// analyzer, then the caveats that apply.
 //
-// One line rather than a marker on every row. A reader scanning forty findings is deciding what
-// to do first, and forty repetitions of the same word does not help them choose — the useful
-// facts are how many were ranked down and how much of the answer is missing. Per-finding detail
-// is in the JSON and the SARIF, where something is reading rather than skimming.
+// A block rather than a sentence, and a row per analyzer rather than a total, because more than
+// one analyzer can run and they do not answer the same question the same way — one may follow a
+// call graph and another a framework's routing, over different ecosystems. Summed into a single
+// figure they would read as one verdict of uniform strength, which is the claim readers are told
+// to be most careful of.
 //
-// Unknown is named whenever there is any, because it is the honest qualifier on the rest of the
-// sentence: an analyzer that could not cover half the dependencies has said much less than the
-// unreachable count on its own suggests.
-func reachabilityLine(d Data) string {
+// The caveats are printed once beneath the rows rather than per analyzer, because they describe
+// what Draugr does with a verdict, which does not vary by tool.
+func reachabilityBlock(d Data) (rows []string, notes []string) {
 	r := d.Run.Reachability
+	if !r.Ran() {
+		return nil, nil
+	}
+	width := 0
+	for _, a := range r.Analyzers {
+		if n := len(a.Analyzer); n > width {
+			width = n
+		}
+	}
+	for _, a := range r.Analyzers {
+		row := fmt.Sprintf("%-*s  %d reachable, %d unreachable", width, a.Analyzer, a.Reachable, a.Unreachable)
+		if a.Unknown > 0 {
+			row += fmt.Sprintf(", %d undetermined", a.Unknown)
+		}
+		if a.Contributed > 0 {
+			row += fmt.Sprintf(" (%s only it reported)", plural(a.Contributed, "finding"))
+		}
+		rows = append(rows, row)
+	}
+	notes = append(notes, "Unreachable findings are ranked down in priority, not removed from the report.")
+	if r.Unknown > 0 {
+		// Named whenever there is any, because it is the qualifier on everything above it: an
+		// analyzer that could not cover a dependency has not found it safe.
+		notes = append(notes, "Undetermined findings were not analyzed and are ranked as reported.")
+	}
+	return rows, notes
+}
+
+// reachabilityNote is the line under a finding saying that reachability moved its band, or named
+// the path that keeps it where it is. Empty when analysis had nothing to say about it.
+//
+// The counterpart of escalationNote, and it exists for the same reason: a band a reader cannot
+// account for is one they have to take on trust, and the ranking is the thing they are being
+// asked to act on. Downward movement needs it most — a high-severity finding sitting low is the
+// one somebody will ask about.
+func reachabilityNote(r *sarif.Reachability) string {
+	if r == nil {
+		return ""
+	}
+	switch r.State {
+	case sarif.ReachabilityReachable:
+		out := "→ reachable"
+		if p := shortestCallPath(r.Paths); p != "" {
+			out += ": " + p
+		}
+		return out + attribution(r)
+	case sarif.ReachabilityUnreachable:
+		if r.RankedAs == "" {
+			// Already at the lowest band, so nothing moved and there is nothing to account for.
+			return ""
+		}
+		return "↓ ranked as " + string(r.RankedAs) + " — the vulnerable code is never called" + attribution(r)
+	default:
+		return ""
+	}
+}
+
+// attribution names the analyzer and the day it ran. A reachability verdict describes one
+// revision of the code, so a claim without a date is not one a reader can check.
+func attribution(r *sarif.Reachability) string {
 	if r.Analyzer == "" {
 		return ""
 	}
-	line := fmt.Sprintf("%s: %d reachable, %d not", r.Analyzer, r.Reachable, r.Unreachable)
-	if r.Unknown > 0 {
-		line += fmt.Sprintf(", %d undetermined", r.Unknown)
+	if r.AsOf == "" {
+		return " (" + r.Analyzer + ")"
 	}
-	return line + " — findings nothing can reach are ranked down, not removed"
+	return " (" + r.Analyzer + ", " + r.AsOf + ")"
+}
+
+// shortestCallPath renders the shortest route as one line, which is what a reader needs before
+// deciding whether to open the full evidence in the JSON or the SARIF.
+func shortestCallPath(paths []sarif.CallPath) string {
+	if len(paths) == 0 {
+		return ""
+	}
+	shortest := paths[0]
+	for _, p := range paths {
+		if len(p.Frames) < len(shortest.Frames) {
+			shortest = p
+		}
+	}
+	names := make([]string, 0, len(shortest.Frames))
+	for _, f := range shortest.Frames {
+		names = append(names, f.Function)
+	}
+	return strings.Join(names, " → ")
 }
 
 // importedAttribution counts imported suppressions by the author who asserted them.

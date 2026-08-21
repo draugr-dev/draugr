@@ -507,30 +507,48 @@ func scopeOf(run engine.Result) *scopeInfo {
 
 // reachabilityInfo mirrors engine.ReachabilitySummary in the report document.
 //
-// Unknown is reported rather than folded into a total, because it is the number saying how much
-// of the answer is missing. Forty unreachable and no unknowns is a different claim from four and
-// thirty-six, and one "unreachable" count cannot tell them apart.
+// Totals plus a breakdown per analyzer. Both are needed: a consumer gating on "how much of this
+// run is undetermined" wants the total, and one asking "which tool said so, and how" needs the
+// analyzer, because more than one can run and they do not reach their answers the same way.
 type reachabilityInfo struct {
+	Analyzers []analyzerReachabilityInfo `json:"analyzers"`
+	// Reachable, Unreachable and Unknown are the totals across every analyzer. Unknown is
+	// reported rather than folded into a total, because it says how much of the answer is
+	// missing, and an unreachable count alone cannot express that.
+	Reachable   int `json:"reachable"`
+	Unreachable int `json:"unreachable"`
+	Unknown     int `json:"unknown"`
+}
+
+// analyzerReachabilityInfo is one analyzer's contribution.
+type analyzerReachabilityInfo struct {
 	Analyzer    string `json:"analyzer"`
 	Reachable   int    `json:"reachable"`
 	Unreachable int    `json:"unreachable"`
 	Unknown     int    `json:"unknown"`
-	// Contributed counts findings the analyzer reported that no other scanner did, and which are
-	// therefore kept rather than folded away.
+	// Contributed counts findings only this analyzer reported, kept rather than folded away.
 	Contributed int `json:"contributed,omitempty"`
 }
 
 // reachabilityOf renders the run's reachability summary, or nil when no analyzer ran.
 func reachabilityOf(run engine.Result) *reachabilityInfo {
 	r := run.Reachability
-	if r.Analyzer == "" {
+	if !r.Ran() {
 		return nil
 	}
-	return &reachabilityInfo{
-		Analyzer:    r.Analyzer,
+	out := &reachabilityInfo{
 		Reachable:   r.Reachable,
 		Unreachable: r.Unreachable,
 		Unknown:     r.Unknown,
-		Contributed: r.Contributed,
 	}
+	for _, a := range r.Analyzers {
+		out.Analyzers = append(out.Analyzers, analyzerReachabilityInfo{
+			Analyzer:    a.Analyzer,
+			Reachable:   a.Reachable,
+			Unreachable: a.Unreachable,
+			Unknown:     a.Unknown,
+			Contributed: a.Contributed,
+		})
+	}
+	return out
 }

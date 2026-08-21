@@ -518,15 +518,34 @@ type Result struct {
 // much of the answer is missing. A run reporting forty unreachable and nothing unknown is a
 // different claim from one reporting four and thirty-six, and a single "unreachable" count cannot
 // tell them apart.
+//
+// Broken down per analyzer rather than summed, because more than one can run: they cover
+// different ecosystems and reach their answers by different methods, and a single total would
+// present a framework heuristic and a call graph as one number. It is also the shape that cannot
+// silently pick a winner — one analyzer named for a run that used two is a report that is right
+// about half of itself.
 type ReachabilitySummary struct {
-	// Analyzer names the tool that ran, empty when none did.
-	Analyzer string
-	// Reachable, Unreachable and Unknown count findings by verdict after folding.
+	// Analyzers are the per-tool breakdowns, ordered by name. Empty when none ran.
+	Analyzers []AnalyzerReachability
+	// Reachable, Unreachable and Unknown are the totals across every analyzer.
 	Reachable   int
 	Unreachable int
 	Unknown     int
-	// Contributed counts findings the analyzer reported that no other scanner did, and which are
-	// therefore kept as findings in their own right rather than folded away.
+}
+
+// Ran reports whether any reachability analyzer contributed to this run.
+func (r ReachabilitySummary) Ran() bool { return len(r.Analyzers) > 0 }
+
+// AnalyzerReachability is one analyzer's contribution.
+type AnalyzerReachability struct {
+	// Analyzer names the tool, e.g. "govulncheck".
+	Analyzer string
+	// Reachable, Unreachable and Unknown count findings this analyzer decided.
+	Reachable   int
+	Unreachable int
+	Unknown     int
+	// Contributed counts findings this analyzer reported that no other scanner did, and which
+	// are therefore kept as findings in their own right rather than folded away.
 	Contributed int
 }
 
@@ -1552,27 +1571,29 @@ func claimReason(c vex.Claim) string {
 // reported it, which is kept, because a vulnerability only one tool found is exactly the one that
 // must not disappear.
 func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, model saga.Model) ReachabilitySummary {
-	var summary ReachabilitySummary
-
-	// Index the analyzer's verdicts by what identifies a dependency finding everywhere else:
+	// Index the analyzers' verdicts by what identifies a dependency finding everywhere else:
 	// the repository it was found in, the package it is about, and the vulnerability id.
 	//
 	// The repository is part of the key deliberately. A component may hold several, and the same
 	// module can be called in one and merely required in another; a key without it would pick
 	// whichever was indexed last and report that verdict for both.
 	verdicts := map[reachKey]*sarif.Reachability{}
+	analyzers := map[string]*AnalyzerReachability{}
 	for _, cr := range controls {
 		for i := range cr.Report.Results {
 			res := &cr.Report.Results[i]
 			if res.Reachability == nil || res.Package == nil {
 				continue
 			}
-			summary.Analyzer = res.Reachability.Analyzer
-			verdicts[reachKey{res.Repository, res.Package.Name, res.RuleID}] = res.Reachability
+			if _, ok := analyzers[res.Reachability.Analyzer]; !ok {
+				analyzers[res.Reachability.Analyzer] = &AnalyzerReachability{Analyzer: res.Reachability.Analyzer}
+			}
+			key := reachKey{res.Repository, res.Package.Name, res.RuleID}
+			verdicts[key] = strongerReachability(verdicts[key], res.Reachability)
 		}
 	}
 	if len(verdicts) == 0 {
-		return summary
+		return ReachabilitySummary{}
 	}
 
 	folded := map[reachKey]bool{}
@@ -1583,12 +1604,12 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 			key := reachKey{res.Repository, packageName(res), res.RuleID}
 			switch {
 			case res.Reachability != nil:
-				// The analyzer's own finding. Keep it only where nothing else reported the same
+				// An analyzer's own finding. Keep it only where nothing else reported the same
 				// vulnerability in the same package.
 				if folded[key] {
 					continue
 				}
-				summary.Contributed++
+				analyzers[res.Reachability.Analyzer].Contributed++
 			default:
 				verdict, ok := verdicts[key]
 				if !ok {
@@ -1611,23 +1632,60 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 	}
 
 	// Counted after the fold so the numbers describe the findings a reader will see, not the
-	// analyzer's intermediate ones.
+	// analyzers' intermediate ones.
+	var summary ReachabilitySummary
 	for _, cr := range controls {
 		for _, res := range cr.Report.Results {
 			if res.Reachability == nil {
 				continue
 			}
+			a := analyzers[res.Reachability.Analyzer]
 			switch res.Reachability.State {
 			case sarif.ReachabilityReachable:
+				a.Reachable++
 				summary.Reachable++
 			case sarif.ReachabilityUnreachable:
+				a.Unreachable++
 				summary.Unreachable++
 			case sarif.ReachabilityUnknown:
+				a.Unknown++
 				summary.Unknown++
 			}
 		}
 	}
+	for _, name := range slices.Sorted(maps.Keys(analyzers)) {
+		summary.Analyzers = append(summary.Analyzers, *analyzers[name])
+	}
 	return summary
+}
+
+// strongerReachability keeps the verdict that claims more exposure, for the case where two
+// analyzers cover the same dependency.
+//
+// Reachable outranks unreachable, and unreachable outranks undetermined — the same direction as
+// every other conflict this codebase resolves, and the only safe one. Two analyzers disagreeing
+// about whether a path exists means one of them found a path the other could not follow, and an
+// analysis that failed to find something is much weaker evidence than one that found it.
+func strongerReachability(existing, candidate *sarif.Reachability) *sarif.Reachability {
+	if existing == nil {
+		return candidate
+	}
+	if reachabilityRank(candidate.State) > reachabilityRank(existing.State) {
+		return candidate
+	}
+	return existing
+}
+
+// reachabilityRank orders verdicts by how much exposure they claim.
+func reachabilityRank(s sarif.ReachabilityState) int {
+	switch s {
+	case sarif.ReachabilityReachable:
+		return 2
+	case sarif.ReachabilityUnreachable:
+		return 1
+	default:
+		return 0
+	}
 }
 
 // reachKey identifies one vulnerability in one package in one repository.
