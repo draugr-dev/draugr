@@ -159,6 +159,21 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 
 	writeComponents(w, col, d)
 
+	// How findings were ranked, which belongs with the other statements about how they were
+	// treated rather than up beside the counts. Its own labeled block because more than one
+	// analyzer can run, and a row each is the only shape that does not present two different
+	// methods as one number.
+	if rows, notes := reachabilityBlock(d); len(rows) > 0 {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, "Reachability:"))
+		for _, r := range rows {
+			_, _ = fmt.Fprintf(w, "  %s\n", r)
+		}
+		for _, n := range notes {
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, n))
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+
 	// Evidence, not a control — so a line rather than a row in the table above, where every
 	// entry means "checked, and here is the verdict". Printed before the early returns below,
 	// because a clean scan still produced the inventory and should say so.
@@ -177,13 +192,6 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// one made by somebody outside the project is the case where seeing it matters most.
 	if line := importedLine(d); line != "" {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent, line))
-	}
-
-	// What reachability analysis concluded, if any ran. Dimmed rather than accented: unlike a
-	// suppression it takes nothing out of the report, so it qualifies the ranking rather than
-	// warning that part of the report was set aside.
-	if line := reachabilityLine(d); line != "" {
-		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleMuted, line))
 	}
 
 	// A supplier statement that matched nothing is doing nothing and looks exactly like one that
@@ -476,6 +484,7 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 		t.RowWithNotes([]string{
 			findingSummary(f.message),
 			escalationNote(f.escalation),
+			reachabilityNote(f.reachability),
 			priorityFloorNote(f.priorityFloor),
 			historicalNote(f.historical),
 		}, cells...)
