@@ -33,6 +33,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # Pinned to an exact patch for the reason ci.yml gives: govulncheck reports stdlib
+  # vulnerabilities fixed in a patch release, and a floating minor resolves to whatever
+  # setup-go's manifest has today. Keep this in step with ci.yml.
+  GO_VERSION: "1.26.6"
+
 jobs:
   # Mirrors ci.yml: one cheap job decides whether there is anything to scan, and the scan job
   # reports either way so the required check always resolves.
@@ -123,6 +129,21 @@ jobs:
           key: draugr-selfscan-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             draugr-selfscan-${{ runner.os }}-
+
+      # govulncheck is the one analyzer this Saga names that Draugr does not distribute, so the
+      # action's `tools: true` step below will never provision it — `draugr doctor` says as much
+      # and names this install line instead. Before the scan rather than after, unlike the
+      # provisioned scanners: this one does not need Draugr on PATH, and a control whose scanner is
+      # missing reports an error, so getting it here keeps the failure about the code.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: needs.changes.outputs.code == 'true'
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+      - name: Install govulncheck
+        if: needs.changes.outputs.code == 'true'
+        # Pinned, like every other tool this pipeline runs. Keep in step with ci.yml.
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
 
       - name: Draugr self-scan
         if: needs.changes.outputs.code == 'true'

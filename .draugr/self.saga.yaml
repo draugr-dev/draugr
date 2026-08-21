@@ -41,6 +41,19 @@ config:
     kev: cache
     epss: cache
 
+  # Reachability for this repository's own Go dependencies. Trivy says which are vulnerable;
+  # govulncheck says which of those this code can actually reach, and the report carries the call
+  # path for the ones it can.
+  #
+  # Beside exploitability deliberately: both decide how findings are ranked, in opposite
+  # directions, and both can move a finding across the gate below. This one only ranks down, so it
+  # cannot newly fail the gate — what it changes is which findings are worth the P1 it blocks on.
+  #
+  # Not provisioned by `draugr tools install`: it is the Go toolchain's own analyzer, so the
+  # workflow installs it as its own step and `draugr doctor` says where it comes from.
+  reachability:
+    analyzers: [govulncheck]
+
   # Replaces a .semgrepignore and a .gitleaks.toml: two files, two syntaxes, two discovery
   # rules. Worth knowing why that matters — a .semgrepignore *replaces* Semgrep's built-in
   # ignore list rather than extending it, so any file using one has to restate the defaults or
