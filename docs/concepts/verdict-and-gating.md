@@ -21,7 +21,8 @@ Describe ─► Plan ─► Scan ─► Aggregate ─► Judge ─► Report
 
 - **Plan** — expand enabled controllers × components into scan jobs (deterministic order).
 - **Scan** — run jobs with bounded concurrency; results normalized to SARIF.
-- **Aggregate** — merge and **deduplicate** each control's findings.
+- **Aggregate** — merge and **deduplicate** each control's findings, then **correlate**: a flaw
+  two scanners both found is counted once, with both accounts kept.
 - **Judge (the gate)** — apply policy thresholds to produce a pass/fail verdict per control
   and overall.
 - **Report** — render the run: a human summary to stdout (console by default, or `markdown`),
