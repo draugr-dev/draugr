@@ -7,8 +7,9 @@ order: 30
 
 # Gate PRs on new findings
 
-`draugr diff` compares two scans and classifies every finding as **new**, **fixed**, or
-**unchanged** — the security delta of a change, typically a PR's head vs its base branch. This
+`draugr diff` compares two scans and classifies every finding as **new**, **fixed**, **accepted**,
+**reopened** or **unchanged** — the security delta of a change, typically a PR's head vs its base
+branch. This
 lets you gate a PR only on the findings it *introduces*, not the pre-existing backlog, so the
 gate stays adoptable where a whole-backlog gate would block every PR.
 
@@ -37,6 +38,25 @@ problem. A CVE that gets re-scored is still the same CVE.
 
 Whatever is in `head` and not in `base` is **new**; in `base` and not in `head` is **fixed**; in
 both is **unchanged**.
+
+Two more, for the findings somebody decided about rather than changed:
+
+- **accepted** — suppressed in `head` and not in `base`. Somebody added an exclusion, or a finding
+  arrived that an existing rule already covers. **Accepting a risk is not fixing it**, and this is
+  the line most worth a reviewer's attention: nothing was removed, somebody chose to live with it.
+- **reopened** — suppressed in `base` and counting again in `head`. An exclusion was removed, or it
+  reached its `expires` date. Nobody introduced this finding; a decision about it lapsed, and
+  reporting it as new would lose the part that needs acting on.
+
+Both are printed only when they are not zero, so a diff with neither reads exactly as it always
+has.
+
+```console
+Draugr diff — 0 new, 0 fixed, 1 accepted, 0 unchanged
+
+Accepted (1) — still present, somebody decided to live with them:
+  ~  high  CVE-2024-11111  requirements.txt:3
+```
 
 ### Where the base comes from
 

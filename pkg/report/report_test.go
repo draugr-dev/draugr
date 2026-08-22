@@ -1579,3 +1579,51 @@ func TestMarkdownNamesAScannerThatCouldNotAnswer(t *testing.T) {
 		}
 	}
 }
+
+func TestSilencedFindingsGetTheirOwnLine(t *testing.T) {
+	// The weakest form of acceptance, added by whoever was editing the file, and the easiest to
+	// add without anybody noticing. Folding it into a total with reviewed decisions would let it
+	// hide inside a stronger answer.
+	d := Data{Run: engine.Result{Silenced: 3}}
+	line := silencedLine(d)
+
+	if line == "" {
+		t.Fatal("three silenced findings produced no line")
+	}
+	if !strings.Contains(line, "3") {
+		t.Errorf("line = %q, want the count", line)
+	}
+	// The reader has to be able to tell this apart from a decision somebody signed.
+	if !strings.Contains(line, "nobody signed") {
+		t.Errorf("line = %q, want it to say nobody signed these", line)
+	}
+}
+
+func TestNothingSilencedPrintsNothing(t *testing.T) {
+	// The common case. A line reading "0 findings silenced" is noise in every clean report.
+	if line := silencedLine(Data{Run: engine.Result{}}); line != "" {
+		t.Errorf("line = %q, want empty", line)
+	}
+}
+
+func TestTheThreeKindsOfAcceptanceStayApart(t *testing.T) {
+	// A descriptor rule, a supplier's claim and a comment in the code have different people at the
+	// end of them. One total could only support the weakest.
+	d := Data{Run: engine.Result{Suppressed: 2, Imported: 1, Silenced: 4}}
+
+	suppressed, imported, silenced := suppressionLine(d), importedLine(d), silencedLine(d)
+	for name, line := range map[string]string{
+		"suppressed": suppressed, "imported": imported, "silenced": silenced,
+	} {
+		if line == "" {
+			t.Errorf("%s produced no line", name)
+		}
+	}
+	if suppressed == silenced || imported == silenced {
+		t.Error("two kinds of acceptance render identically")
+	}
+	// And each carries its own count rather than a shared total.
+	if !strings.Contains(suppressed, "2") || !strings.Contains(imported, "1") || !strings.Contains(silenced, "4") {
+		t.Errorf("counts merged:\n  %s\n  %s\n  %s", suppressed, imported, silenced)
+	}
+}

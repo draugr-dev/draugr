@@ -652,10 +652,18 @@ what was found rather than a catalog.
 
 ## `draugr diff <base.sarif> <head.sarif>`
 
-Compare two scans and classify every finding as **new**, **fixed**, or **unchanged** — the
-security delta of a change, typically a PR's head vs its base branch. Inputs are the
-`results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are always
-complete regardless of `--min-priority`.
+Compare two scans and classify every finding as **new**, **fixed**, **accepted**, **reopened** or
+**unchanged** — the security delta of a change, typically a PR's head vs its base branch. Inputs
+are the `results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are
+always complete regardless of `--min-priority`.
+
+**Accepted** is a finding somebody excused rather than fixed — an exclusion added, or a finding
+that arrived already covered by one. **Reopened** is a finding whose exclusion was removed or
+reached its `expires` date: nobody introduced it, a decision about it lapsed. Both are printed only
+when they are not zero, so a diff with neither reads as it always has.
+
+Accepting a risk is not fixing it, and the two are counted apart for that reason: the first is a
+decision worth a reviewer's attention and the second is work somebody did.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -664,6 +672,11 @@ complete regardless of `--min-priority`.
 | `--repository` | — | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
 | `--fail-on-new` | — | fail if a **new** finding is at or above this severity: `error`, `warning`, `note` |
 | `--fail-on-new-priority` | — | fail if a **new** finding is at or above this priority (`P1`–`P4`) |
+
+Both gates read **new** only. An accepted finding does not trip them, which is the point of
+accepting it; a reopened one does not either, because the gate exists to stop a change introducing
+something and a lapsed exclusion is a decision to revisit rather than a regression in the diff.
+They are reported in the output regardless, which is where somebody should see them.
 | `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
 ```bash

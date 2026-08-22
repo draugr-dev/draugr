@@ -66,6 +66,39 @@ and move it under a version on release.
   becomes, and a log pipeline can query the parts. The other messages that read as sentences —
   `no controls enabled`, `no running images`, `--namespace not applied` — moved the same way.
 
+### Fixed
+
+- **Accepting a risk is no longer reported as fixing it.** `draugr diff` classified a finding that
+  became suppressed between two scans as **fixed** — so a pull request whose only change was adding
+  an exclusion read as `1 fixed`, and the pull-request comment said so. The reviewer was told the
+  opposite of what happened on the change that most deserved their attention.
+
+  A diff now has five outcomes. `accepted` is a finding somebody decided to live with, including
+  one that arrived already covered by an existing rule — which previously appeared in no category
+  at all, so nobody was told it had arrived. `reopened` is a finding whose exclusion lapsed or was
+  removed: it was known and accepted, and reporting it as new lost the part that needs acting on.
+
+  Both are printed only when they are not zero, so an ordinary diff reads exactly as before.
+
+- **A finding silenced by a comment in the code is now visible.** A Semgrep `nosem`, a linter
+  pragma — Draugr dropped these while reading a report, which made them indistinguishable from
+  findings that were never made. They now appear, counted on their own line:
+
+  ```console
+  1 finding silenced in the source by a scanner directive — nobody signed these
+  ```
+
+  Counted apart from `config.exclude` suppressions and from a supplier's VEX claims, because the
+  three have different people at the end of them. A descriptor rule was written where whoever owns
+  the descriptor can see it; a supplier's claim is answerable by the supplier; this one was written
+  by whoever was editing the file. They still do not count toward the verdict and do not appear in
+  the findings table — what changed is that you can see they exist.
+
+  Two things follow. `draugr explain <rule>` now works for a rule that only appears in findings you
+  suppressed, which is often exactly when you want to know what it means. And the MCP
+  `summarize_report` tool's suppressed count is now complete, so an assistant asked *what should I
+  fix* accounts for everything set aside rather than only the part written in the descriptor.
+
 ## [0.103.0] - 2026-08-21
 
 ### Changed

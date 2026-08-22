@@ -470,6 +470,15 @@ type Result struct {
 	// exclusion doing nothing is indistinguishable from one that is working: it is usually a
 	// typo, a rule id that moved, or a finding someone already fixed and forgot to stop excusing.
 	UnmatchedExclusions []saga.ExcludeRule
+	// Silenced counts findings a scanner reported as suppressed because somebody wrote a comment
+	// in the source — a Semgrep `nosem`, a linter pragma.
+	//
+	// Counted apart from Suppressed and Imported because it is the weakest of the three and the
+	// only one nobody reviewed. A descriptor rule was written where whoever owns the descriptor
+	// can see it; a supplier's claim is answerable by the supplier. This one was written by
+	// whoever was editing the file, possibly to get a build green, and folding it into either
+	// total would let that hide inside a stronger answer.
+	Silenced int
 	// Imported counts findings excused by a claim somebody else made — a supplier's VEX document
 	// rather than a rule in this descriptor. Counted apart from Suppressed because they answer
 	// the auditor's question differently: one says we accepted this, the other says our supplier
@@ -1046,6 +1055,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	correlated, alsoSuppressed := applyCorrelation(res.Controls)
 	res.Correlated = correlated
 	res.Suppressed += alsoSuppressed
+	// Counted after everything that creates suppressions, so what is left carrying the tool's own
+	// origin is exactly what a scanner silenced rather than what this project decided.
+	res.Silenced = countSilenced(res.Controls)
 	return res, errors.Join(errs...)
 }
 
@@ -1747,6 +1759,23 @@ func classificationOf(model saga.Model, component string) (saga.Exposure, saga.C
 		}
 	}
 	return "", ""
+}
+
+// countSilenced counts findings a scanner suppressed on the author's instruction.
+//
+// These arrive already suppressed, from a comment in the file rather than from anything in the
+// descriptor — so nothing in the engine creates them, and counting them is the only thing that
+// makes them visible. A form of acceptance that reaches no total is one nobody can audit.
+func countSilenced(controls map[string]plugin.ControlResult) int {
+	n := 0
+	for _, cr := range controls {
+		for _, res := range cr.Report.Results {
+			if res.SilencedInSource() {
+				n++
+			}
+		}
+	}
+	return n
 }
 
 // applyCorrelation marks a flaw reported by more than one scanner so it is counted once.

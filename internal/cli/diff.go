@@ -31,10 +31,12 @@ func newDiffCommand() *cobra.Command {
 	opts := &diffOptions{}
 	cmd := &cobra.Command{
 		Use:   "diff <base.sarif> <head.sarif>",
-		Short: "Compare two scans and classify findings as new, fixed, or unchanged",
+		Short: "Compare two scans and classify findings as new, fixed, accepted, reopened or unchanged",
 		Long: "Compare two Draugr SARIF results (the results.sarif that `draugr scan -o` writes)\n" +
-			"and classify every finding as new / fixed / unchanged — the security delta of a\n" +
-			"change, typically a PR's head vs its base branch.\n\n" +
+			"and classify every finding as new / fixed / accepted / reopened / unchanged — the\n" +
+			"security delta of a change, typically a PR's head vs its base branch.\n\n" +
+			"Accepted is a finding somebody excused rather than fixed; reopened is one whose\n" +
+			"exclusion lapsed. Both are printed only when they are not zero.\n\n" +
 			"--fail-on-new and --fail-on-new-priority gate on findings the change introduces, not\n" +
 			"on the existing backlog. Exits non-zero when that gate trips.",
 		Args: cobra.ExactArgs(2),

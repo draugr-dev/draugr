@@ -202,17 +202,22 @@ func TestFromSARIFResultLevelOverridesRule(t *testing.T) {
 	}
 }
 
-// A result the tool marks as suppressed (e.g. Semgrep's in-source `nosem`) is not an active
-// finding and must be dropped during parsing.
-func TestFromSARIFSkipsSuppressed(t *testing.T) {
+// A result the tool marks as suppressed — Semgrep's in-source `nosem`, a linter pragma — is kept
+// and marked rather than dropped.
+//
+// Dropping it made it indistinguishable from a finding nobody ever made, which is the one thing
+// the suppression model exists to prevent. It stays out of the counts and out of the verdict
+// because everything downstream already treats a suppressed result as evidence rather than as a
+// count; what changes is that somebody can now see it was silenced, and by what.
+func TestFromSARIFKeepsSuppressedAndMarksThem(t *testing.T) {
 	data := []byte(`{
 		"version": "2.1.0",
 		"runs": [{
 			"tool": {"driver": {"name": "semgrep"}},
 			"results": [
 				{"ruleId": "kept", "level": "error", "message": {"text": "real"}},
-				{"ruleId": "hidden", "level": "error", "message": {"text": "nosem"},
-				 "suppressions": [{"kind": "inSource"}]}
+				{"ruleId": "silenced", "level": "error", "message": {"text": "nosem"},
+				 "suppressions": [{"kind": "inSource", "justification": "reviewed, false positive"}]}
 			]
 		}]
 	}`)
@@ -220,11 +225,116 @@ func TestFromSARIFSkipsSuppressed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Results) != 1 {
-		t.Fatalf("results = %d, want 1 (suppressed dropped)", len(got.Results))
+	if len(got.Results) != 2 {
+		t.Fatalf("results = %d, want 2 — a silenced finding is still a finding", len(got.Results))
 	}
-	if got.Results[0].RuleID != "kept" {
-		t.Errorf("kept the wrong result: %q", got.Results[0].RuleID)
+
+	byRule := map[string]Result{}
+	for _, r := range got.Results {
+		byRule[r.RuleID] = r
+	}
+	if byRule["kept"].Suppressed() {
+		t.Error("an ordinary finding came back suppressed")
+	}
+
+	silenced := byRule["silenced"]
+	if !silenced.Suppressed() {
+		t.Fatal("a suppressed finding came back active")
+	}
+	if !silenced.SilencedInSource() {
+		t.Errorf("origin = %q, want %q — a comment in the code is not a decision anybody recorded",
+			silenced.Suppression.Origin, OriginTool)
+	}
+	if silenced.Suppression.Justification != "reviewed, false positive" {
+		t.Errorf("justification = %q, want what the author wrote", silenced.Suppression.Justification)
+	}
+
+	// And it is out of the counts, which is what keeps it out of the verdict.
+	if c := got.Counts(); c.Error != 1 {
+		t.Errorf("counts = %+v, want the silenced one excluded", c)
+	}
+}
+
+func TestDraugrsOwnSuppressionsSurviveARoundTrip(t *testing.T) {
+	// Draugr writes who accepted a finding and when. Reading its own report back and losing that
+	// is how "who decided this was acceptable" stops being answerable.
+	rep := Report{Tool: "trivy", Results: []Result{{
+		RuleID: "CVE-2024-11111", Level: LevelError, Message: "vulnerable",
+		Suppression: &Suppression{
+			Kind: "external", Justification: "not reachable",
+			AcceptedBy: "wilson@draugr.dev", Expires: "2027-01-01", Origin: OriginSaga,
+		},
+	}}}
+	data, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Results) != 1 {
+		t.Fatalf("results = %d", len(back.Results))
+	}
+	sup := back.Results[0].Suppression
+	if sup == nil {
+		t.Fatal("the decision did not survive being written and read")
+	}
+	if sup.AcceptedBy != "wilson@draugr.dev" || sup.Expires != "2027-01-01" {
+		t.Errorf("suppression = %+v, want who and until when", sup)
+	}
+	if sup.Origin != OriginSaga || back.Results[0].SilencedInSource() {
+		t.Errorf("origin = %q, want a recorded decision rather than a comment", sup.Origin)
+	}
+}
+
+func TestAnImportedClaimReadsBackAsImported(t *testing.T) {
+	// A supplier's analysis must not become indistinguishable from a decision this project made
+	// and is answerable for.
+	rep := Report{Tool: "trivy", Results: []Result{{
+		RuleID: "CVE-2024-11111", Level: LevelError, Message: "vulnerable",
+		Suppression: &Suppression{
+			Kind: "external", Justification: "not affected",
+			Origin: OriginVEX, Author: "ACME Security <sec@acme.example>", Asserted: "2026-06-01",
+		},
+	}}}
+	data, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !back.Results[0].Imported() {
+		t.Errorf("origin = %q, want it still to be theirs", back.Results[0].Suppression.Origin)
+	}
+	if back.Results[0].Suppression.Author == "" {
+		t.Error("the author of the claim was lost")
+	}
+}
+
+func TestAnOlderReportsSuppressionIsReadAsADecision(t *testing.T) {
+	// Origin arrived after suppressions did. A report written before it, carrying an acceptedBy,
+	// is a descriptor rule — reading it as an in-source comment would demote somebody's recorded
+	// decision to a pragma.
+	data := []byte(`{
+		"version": "2.1.0",
+		"runs": [{"tool": {"driver": {"name": "trivy"}}, "results": [
+			{"ruleId": "CVE-2024-11111", "level": "error", "message": {"text": "old"},
+			 "suppressions": [{"kind": "external", "justification": "accepted",
+			   "properties": {"acceptedBy": "someone@acme.example"}}]}
+		]}]
+	}`)
+	got, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Results[0].SilencedInSource() {
+		t.Error("a recorded decision was read back as a comment in the code")
+	}
+	if got.Results[0].Suppression.Origin != OriginSaga {
+		t.Errorf("origin = %q, want %q", got.Results[0].Suppression.Origin, OriginSaga)
 	}
 }
 

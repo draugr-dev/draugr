@@ -106,6 +106,20 @@ This is deliberate. A finding that vanishes is indistinguishable from one that w
 and the question an auditor asks is never "did the scanner run" — it's "who decided this was
 acceptable, and when". See [`config.exclude`](../reference/saga-schema.md#configexclude).
 
+The same holds for acceptances Draugr did not make. A **supplier's VEX claim** and a **comment in
+the code** — a Semgrep `nosem`, a linter pragma — both set a finding aside, and both are reported
+rather than dropped. They are counted on their own lines because the three have different people at
+the end of them:
+
+| | Who decided | Where you can see it |
+|---|---|---|
+| `config.exclude` | whoever owns the descriptor, named in `acceptedBy` | the descriptor, in review |
+| A supplier's VEX | the document's author, on a date they chose | their document |
+| `nosem` in the source | whoever was editing the file | nowhere, until Draugr prints it |
+
+The last one is the weakest and the easiest to add without anybody noticing, which is exactly why
+it gets its own line instead of being folded into a total with the others.
+
 ## Writing one
 
 Three ways in, in rough order of how much you already know:

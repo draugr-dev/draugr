@@ -16,9 +16,24 @@ import (
 
 // Result is the classified delta between a base and a head report.
 type Result struct {
-	New       []sarif.Result // present in head, absent in base
-	Fixed     []sarif.Result // present in base, absent in head
-	Unchanged []sarif.Result // present in both (head copy)
+	New       []sarif.Result // present and active in head, absent from base
+	Fixed     []sarif.Result // active in base, absent from head
+	Unchanged []sarif.Result // active in both (head copy)
+	// Accepted is a finding somebody excused between the two scans, and one that arrived already
+	// excused by a rule that was already there.
+	//
+	// Its own category because accepting a risk is not fixing it, and reporting it as a fix tells
+	// a reviewer the opposite of what happened: nobody removed the finding, somebody decided to
+	// live with it. That decision is the change most worth a second pair of eyes, and it used to
+	// read as good news.
+	Accepted []sarif.Result
+	// Reopened is a finding that was excused in the base and counts again in the head — an
+	// exclusion removed, or one that reached its expiry date.
+	//
+	// Distinct from New because nobody introduced it. It was known, it was accepted, and the
+	// acceptance ran out; reporting it as a fresh discovery loses the part somebody needs to act
+	// on, which is that a decision lapsed and has to be made again.
+	Reopened []sarif.Result
 	// Rules is what the scanners said about the rules these findings cite, carried over from the
 	// reports being compared.
 	//
@@ -37,20 +52,40 @@ func (r Result) HelpURI(ruleID string) string {
 }
 
 // Compare classifies every finding across the two reports by stable identity.
+//
+// Five outcomes rather than three, because a suppression is a state a finding can be in and not a
+// reason to stop tracking it. A finding that became suppressed was accepted, not fixed; one that
+// stopped being suppressed came back, and nobody introduced it.
 func Compare(base, head sarif.Report) Result {
 	baseIdx := index(base.Results)
 	headIdx := index(head.Results)
 
 	var r Result
 	for k, res := range headIdx {
-		if _, ok := baseIdx[k]; ok {
+		was, inBase := baseIdx[k]
+		switch {
+		case res.Suppressed() && (!inBase || !was.Suppressed()):
+			// Excused in this change: either somebody wrote a rule for a finding that was
+			// counting, or a finding arrived that an existing rule already covers. Both are a
+			// decision to live with something, and the second is the one with nothing else to
+			// announce it — no line moved, no count rose, and a reader is told a finding arrived
+			// only if this says so.
+			r.Accepted = append(r.Accepted, res)
+		case res.Suppressed():
+			// Suppressed in both. The decision did not change, so neither did anything.
 			r.Unchanged = append(r.Unchanged, res)
-		} else {
+		case inBase && was.Suppressed():
+			r.Reopened = append(r.Reopened, res)
+		case inBase:
+			r.Unchanged = append(r.Unchanged, res)
+		default:
 			r.New = append(r.New, res)
 		}
 	}
 	for k, res := range baseIdx {
-		if _, ok := headIdx[k]; !ok {
+		if _, ok := headIdx[k]; !ok && !res.Suppressed() {
+			// A finding that was suppressed in the base and is gone from the head was not
+			// counting either way, so calling it fixed would inflate the good news.
 			r.Fixed = append(r.Fixed, res)
 		}
 	}
@@ -58,6 +93,8 @@ func Compare(base, head sarif.Report) Result {
 	sortResults(r.New)
 	sortResults(r.Fixed)
 	sortResults(r.Unchanged)
+	sortResults(r.Accepted)
+	sortResults(r.Reopened)
 	// Head first, so a rule the change updated is described as it is now; base fills in whatever
 	// only the old scan saw, which is every fixed finding's rule.
 	r.Rules = map[string]sarif.Rule{}
