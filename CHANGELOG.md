@@ -16,7 +16,10 @@ _Nothing yet._
 
 ### Added
 
-**Every finding says which control found it.** `results.sarif` now carries `properties.control` — `sca`, `sast`, `secrets` — beside the scanner in `properties.tool`. Anything that reads the report and groups findings, from your editor to a platform to a script, can tell a dependency finding from a code finding without inferring it from the rule id.
+- **Every finding says which control found it.** `results.sarif` now carries
+  `properties.control` — `sca`, `sast`, `secrets` — beside the scanner in `properties.tool`.
+  Anything that reads the report and groups findings, from your editor to a platform to a script,
+  can tell a dependency finding from a code finding without inferring it from the rule id.
 
 - **One endpoint for the whole organization.** `draugr.config.yaml` gained a `publish.apiUrl`
   field, so forty repositories pointing at one install no longer repeat the endpoint in forty
