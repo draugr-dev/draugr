@@ -83,6 +83,15 @@ type Result struct {
 	// Set only when the floor actually raised the band, so a reader asking "why is this P2 on a
 	// supporting internal component" has the answer in the report rather than in the source.
 	PriorityFloor string `json:"priorityFloor,omitempty"`
+	// Control names the check this finding came from — sca, sast, secrets — stamped when a run's
+	// per-control reports are merged into one document.
+	//
+	// The merged file is the only thing a downstream consumer sees, and until a finding carries
+	// its control that consumer cannot tell two controls apart: one rule id reported by two
+	// checks is two separate things to do, and grouping by rule id alone silently makes it one.
+	// The control is also what a reader is being asked to act on ("your dependency scan found
+	// this"), which no other field states.
+	Control string `json:"control,omitempty"`
 	// Component names the part of the application this finding belongs to, stamped by the engine
 	// from the component whose scan produced it. Empty for a project-scoped control, which has
 	// no one component to attribute to.

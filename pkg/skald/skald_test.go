@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -567,5 +568,54 @@ func TestMinPriorityProvenanceRoundTrips(t *testing.T) {
 	}
 	if band, narrowed := MinPriorityOfReport(sarif.Report{}); narrowed || band != "" {
 		t.Errorf("a report with no provenance read as narrowed to %q", band)
+	}
+}
+
+func TestEveryMergedFindingSaysWhichControlFoundIt(t *testing.T) {
+	// The merged document is all a downstream consumer gets, and a run holds its reports keyed by
+	// control rather than stamped with it. Two controls reporting one rule id are two separate
+	// things to do; without the control on the finding, anything grouping by rule id makes them
+	// one and reports half the work.
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "SHARED-1", Tool: "trivy", Message: "from the dependency scan"},
+		}}},
+		"sast": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "SHARED-1", Tool: "semgrep", Message: "from the code scan"},
+		}}},
+	}}
+
+	got := map[string]string{}
+	for _, res := range MergedSARIF(run).Results {
+		got[res.Message] = res.Control
+	}
+	want := map[string]string{
+		"from the dependency scan": "sca",
+		"from the code scan":       "sast",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("controls = %v, want %v", got, want)
+	}
+}
+
+func TestAControlSurvivesTheFile(t *testing.T) {
+	// A report is written and read back — by `draugr diff`, by a platform, by anything consuming
+	// the artifact. A field that only exists in memory is one every one of those does without.
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"secrets": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "gitleaks.aws-key", Tool: "gitleaks", Message: "a key"},
+		}}},
+	}}
+
+	encoded, err := MergedSARIF(run).MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := sarif.FromSARIF(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Results) != 1 || back.Results[0].Control != "secrets" {
+		t.Errorf("read back %+v, want the control preserved", back.Results)
 	}
 }

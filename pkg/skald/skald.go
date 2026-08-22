@@ -372,7 +372,19 @@ func MergedSARIF(run engine.Result) sarif.Report {
 	names := sortedControlNames(run)
 	reports := make([]sarif.Report, 0, len(names))
 	for _, name := range names {
-		reports = append(reports, run.Controls[name].Report)
+		rep := run.Controls[name].Report
+		// Stamped here because this is the last place the control is known. A run holds reports
+		// keyed by control and the merged document holds none, so a finding that does not carry
+		// its own control arrives downstream unable to say which check made it.
+		stamped := make([]sarif.Result, len(rep.Results))
+		copy(stamped, rep.Results)
+		for i := range stamped {
+			if stamped[i].Control == "" {
+				stamped[i].Control = name
+			}
+		}
+		rep.Results = stamped
+		reports = append(reports, rep)
 	}
 	merged := sarif.Merge(reports...)
 	// A scoped run stamps what it covered. SARIF carries the results and nothing about what was
