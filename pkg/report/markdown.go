@@ -147,6 +147,12 @@ func writeEvidenceNotes(w io.Writer, d Data, s summary) {
 	if line := suppressionLine(d); line != "" {
 		_, _ = fmt.Fprintf(w, "**%s**\n\n", line)
 	}
+	if line := importedLine(d); line != "" {
+		_, _ = fmt.Fprintf(w, "**%s**\n\n", line)
+	}
+	if line := silencedLine(d); line != "" {
+		_, _ = fmt.Fprintf(w, "**%s**\n\n", line)
+	}
 	if s.sboms > 0 {
 		_, _ = fmt.Fprintf(w, "_SBOM: %s (%s)._\n\n", plural(s.sboms, "document"), s.sbomFormat)
 	}

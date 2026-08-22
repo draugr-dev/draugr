@@ -487,6 +487,40 @@ func parseSecuritySeverity(p *sarifProperties) (float64, bool) {
 	return score, true
 }
 
+// readSuppression turns a SARIF suppression into the decision it records, or nil.
+//
+// Kept rather than dropped, and that is the whole of this. A suppressed finding discarded at parse
+// is indistinguishable from a finding nobody ever made, which is the one thing the suppression
+// model exists to prevent — and the discard is invisible, because the report that results looks
+// exactly like a clean one. Downstream already treats a suppressed result as evidence rather than
+// as a count: it stays out of Counts, out of the verdict, and appears in the report marked. So
+// keeping it costs nothing and carries the record it would otherwise throw away.
+//
+// Draugr writes its own suppressions with a property bag naming who accepted the finding and when.
+// A scanner's carries none of that, because there was no decision to record — somebody wrote a
+// comment in the file. That is a real distinction and it survives here as Origin: a `nosem` is
+// acceptance by whoever was editing, which is not the same as a rule somebody reviewed.
+func readSuppression(sups []sarifSuppression) *Suppression {
+	if len(sups) == 0 {
+		return nil
+	}
+	first := sups[0]
+	sup := &Suppression{Kind: first.Kind, Justification: first.Justification, Origin: OriginTool}
+	if p := first.Properties; p != nil {
+		sup.AcceptedBy, sup.Expires = p.AcceptedBy, p.Expires
+		sup.Author, sup.Asserted = p.Author, p.Asserted
+		if p.Origin != "" {
+			// Draugr's own, read back as what it was written as.
+			sup.Origin = p.Origin
+		} else if p.AcceptedBy != "" {
+			// A decision with somebody's name on it and no origin recorded: a descriptor rule
+			// from a Draugr that predates imported claims, which is what an empty Origin means.
+			sup.Origin = OriginSaga
+		}
+	}
+	return sup
+}
+
 // FromSARIF parses standard SARIF 2.1.0 JSON into a Report, flattening all runs and
 // setting each result's Tool from its run's driver name.
 func FromSARIF(data []byte) (Report, error) {
@@ -535,11 +569,6 @@ func FromSARIF(data []byte) (Report, error) {
 			})
 		}
 		for _, sr := range run.Results {
-			// Skip results the tool reports as suppressed (e.g. Semgrep in-source `nosem`
-			// comments). Per SARIF, a result with any suppression is not an active finding.
-			if len(sr.Suppressions) > 0 {
-				continue
-			}
 			level := Level(sr.Level)
 			if level == "" {
 				// Resolution order per SARIF 2.1.0: the result's own level, then its rule's
@@ -597,6 +626,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Package = sr.Properties.Package
 				res.Reachability = sr.Properties.Reachability
 			}
+			res.Suppression = readSuppression(sr.Suppressions)
 			out.Results = append(out.Results, res)
 		}
 	}

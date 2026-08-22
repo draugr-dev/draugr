@@ -796,6 +796,23 @@ func importedLine(d Data) string {
 	return line
 }
 
+// silencedLine renders the one-line account of what a comment in the source set aside.
+//
+// A third line rather than a third number on an existing one, and for the same reason the imported
+// count is its own: the three answer the auditor's question with different people at the end of
+// them. A descriptor rule was written where whoever owns the descriptor can see it. A supplier's
+// claim is answerable by the supplier. This one was written by whoever was editing the file, and
+// nobody else necessarily knows it is there — which is exactly why it is the one most worth
+// printing.
+func silencedLine(d Data) string {
+	n := d.Run.Silenced
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%s silenced in the source by a scanner directive — nobody signed these",
+		plural(n, "finding"))
+}
+
 // alsoFoundBy is what the other scanners said about this same flaw.
 func alsoFoundBy(res sarif.Result) []sarif.Observation {
 	if res.Correlation == nil {

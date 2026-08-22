@@ -79,8 +79,18 @@ func headline(r Result) string {
 	if len(parts) > 0 {
 		bands = " (" + strings.Join(parts, ", ") + ")"
 	}
-	return fmt.Sprintf("%d new%s, %d fixed, %d unchanged",
-		len(r.New), bands, len(r.Fixed), len(r.Unchanged))
+	// Accepted and reopened only when there are any. Most diffs have neither, and five numbers
+	// where three would do makes the two that matter harder to see rather than easier — while a
+	// diff that does have them is exactly the one where they should be unmissable.
+	middle := ""
+	if len(r.Accepted) > 0 {
+		middle += fmt.Sprintf(", %d accepted", len(r.Accepted))
+	}
+	if len(r.Reopened) > 0 {
+		middle += fmt.Sprintf(", %d reopened", len(r.Reopened))
+	}
+	return fmt.Sprintf("%d new%s, %d fixed%s, %d unchanged",
+		len(r.New), bands, len(r.Fixed), middle, len(r.Unchanged))
 }
 
 func loc(f string, line int) string {
@@ -120,7 +130,7 @@ func renderConsole(w io.Writer, r Result) error {
 	}
 	_, _ = fmt.Fprintln(w)
 
-	if len(r.New) == 0 && len(r.Fixed) == 0 {
+	if len(r.New) == 0 && len(r.Fixed) == 0 && len(r.Accepted) == 0 && len(r.Reopened) == 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StylePass, "No change in the finding footprint. ✓"))
 		return nil
 	}
@@ -129,6 +139,19 @@ func renderConsole(w io.Writer, r Result) error {
 	if len(r.New) > 0 {
 		_, _ = fmt.Fprintf(w, "New (%d):\n", len(r.New))
 		renderDiffFindings(w, col, "+", tui.StyleFail, r.New, withComponent, r.HelpURI)
+		_, _ = fmt.Fprintln(w)
+	}
+	// Before fixed, because a reviewer reading top-down should meet the decisions before the good
+	// news. Nothing here was removed by anybody; these are the lines that need a person.
+	if len(r.Reopened) > 0 {
+		_, _ = fmt.Fprintf(w, "Reopened (%d) — an exclusion lapsed or was removed:\n", len(r.Reopened))
+		renderDiffFindings(w, col, "!", tui.StyleFail, r.Reopened, withComponent, r.HelpURI)
+		_, _ = fmt.Fprintln(w)
+	}
+	if len(r.Accepted) > 0 {
+		_, _ = fmt.Fprintf(w, "Accepted (%d) — still present, somebody decided to live with them:\n",
+			len(r.Accepted))
+		renderDiffFindings(w, col, "~", tui.StyleAccent, r.Accepted, withComponent, r.HelpURI)
 		_, _ = fmt.Fprintln(w)
 	}
 	if len(r.Fixed) > 0 {
@@ -188,7 +211,7 @@ func anyComponent(lists ...[]sarif.Result) bool {
 func renderMarkdown(w io.Writer, r Result) error {
 	_, _ = fmt.Fprintf(w, "## Draugr diff\n\n**%s**\n\n", headline(r))
 
-	if len(r.New) == 0 && len(r.Fixed) == 0 {
+	if len(r.New) == 0 && len(r.Fixed) == 0 && len(r.Accepted) == 0 && len(r.Reopened) == 0 {
 		_, _ = fmt.Fprintln(w, "No change in the finding footprint. ✓")
 		return nil
 	}
@@ -197,6 +220,18 @@ func renderMarkdown(w io.Writer, r Result) error {
 	if len(r.New) > 0 {
 		_, _ = fmt.Fprintf(w, "### 🔺 New (%d)\n\n", len(r.New))
 		mdTable(w, r.New, withComponent, r.HelpURI)
+		_, _ = fmt.Fprintln(w)
+	}
+	if len(r.Reopened) > 0 {
+		_, _ = fmt.Fprintf(w, "### ♻️ Reopened (%d)\n\n_An exclusion lapsed or was removed; these count again._\n\n",
+			len(r.Reopened))
+		mdTable(w, r.Reopened, withComponent, r.HelpURI)
+		_, _ = fmt.Fprintln(w)
+	}
+	if len(r.Accepted) > 0 {
+		_, _ = fmt.Fprintf(w, "### 🤝 Accepted (%d)\n\n_Still present. Somebody decided to live with them._\n\n",
+			len(r.Accepted))
+		mdTable(w, r.Accepted, withComponent, r.HelpURI)
 		_, _ = fmt.Fprintln(w)
 	}
 	if len(r.Fixed) > 0 {

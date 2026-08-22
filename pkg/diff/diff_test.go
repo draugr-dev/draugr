@@ -377,3 +377,111 @@ func TestOnlyRepositoryTellsSiblingGroupsApart(t *testing.T) {
 		t.Errorf("new = %v, want %v", ids, want)
 	}
 }
+
+// suppressed is a copy of a result carrying a decision to live with it.
+func suppressed(r sarif.Result, by string) sarif.Result {
+	r.Suppression = &sarif.Suppression{
+		Kind: "external", Justification: "reviewed, accepted", AcceptedBy: by,
+		Origin: sarif.OriginSaga,
+	}
+	return r
+}
+
+// finding is a plain active result.
+func finding(rule, uri string, line int) sarif.Result {
+	return sarif.Result{
+		Tool: "trivy", RuleID: rule, Level: sarif.LevelError, Message: rule,
+		Location: sarif.Location{URI: uri, StartLine: line},
+	}
+}
+
+func TestAcceptingARiskIsNotFixingIt(t *testing.T) {
+	// The bug this category exists for. A pull request whose only change is adding an exclusion
+	// used to read as "1 fixed" — the reviewer told the opposite of what happened, on the one
+	// change that most deserves their attention.
+	f := finding("CVE-2024-11111", "requirements.txt", 3)
+	r := Compare(
+		sarif.Report{Results: []sarif.Result{f}},
+		sarif.Report{Results: []sarif.Result{suppressed(f, "wilson@draugr.dev")}},
+	)
+
+	if len(r.Fixed) != 0 {
+		t.Errorf("reported %d fixed; nobody fixed anything", len(r.Fixed))
+	}
+	if len(r.Accepted) != 1 {
+		t.Fatalf("accepted = %d, want 1", len(r.Accepted))
+	}
+	if r.Accepted[0].Suppression.AcceptedBy != "wilson@draugr.dev" {
+		t.Error("the decision arrived without the person who made it")
+	}
+}
+
+func TestALapsedExclusionIsReopenedRatherThanNew(t *testing.T) {
+	// Nobody introduced it. It was known, it was accepted, and the acceptance ran out — and
+	// "new" loses the part somebody has to act on, which is that a decision needs making again.
+	f := finding("CVE-2024-11111", "requirements.txt", 3)
+	r := Compare(
+		sarif.Report{Results: []sarif.Result{suppressed(f, "wilson@draugr.dev")}},
+		sarif.Report{Results: []sarif.Result{f}},
+	)
+
+	if len(r.New) != 0 {
+		t.Errorf("reported %d new; this one was already known", len(r.New))
+	}
+	if len(r.Reopened) != 1 {
+		t.Errorf("reopened = %d, want 1", len(r.Reopened))
+	}
+}
+
+func TestAFindingThatArrivesAlreadyExcusedIsVisible(t *testing.T) {
+	// The quietest of the three defects: a new finding that an existing rule already covers used
+	// to appear in no category at all. Nobody was told it arrived.
+	f := finding("CVE-2024-22222", "requirements.txt", 7)
+	r := Compare(
+		sarif.Report{},
+		sarif.Report{Results: []sarif.Result{suppressed(f, "wilson@draugr.dev")}},
+	)
+
+	if len(r.Accepted) != 1 {
+		t.Fatalf("accepted = %d, want 1 — it appeared nowhere before", len(r.Accepted))
+	}
+	if len(r.New) != 0 || len(r.Fixed) != 0 {
+		t.Errorf("new = %d, fixed = %d, want neither", len(r.New), len(r.Fixed))
+	}
+}
+
+func TestADecisionThatDidNotChangeIsUnchanged(t *testing.T) {
+	f := suppressed(finding("CVE-2024-11111", "requirements.txt", 3), "wilson@draugr.dev")
+	r := Compare(
+		sarif.Report{Results: []sarif.Result{f}},
+		sarif.Report{Results: []sarif.Result{f}},
+	)
+	if len(r.Unchanged) != 1 || len(r.Accepted) != 0 || len(r.Reopened) != 0 {
+		t.Errorf("unchanged=%d accepted=%d reopened=%d", len(r.Unchanged), len(r.Accepted), len(r.Reopened))
+	}
+}
+
+func TestAFindingSuppressedThenGoneIsNotCountedAsFixed(t *testing.T) {
+	// It was not counting either way, so calling it fixed inflates the good news.
+	f := suppressed(finding("CVE-2024-11111", "requirements.txt", 3), "wilson@draugr.dev")
+	r := Compare(sarif.Report{Results: []sarif.Result{f}}, sarif.Report{})
+
+	if len(r.Fixed) != 0 {
+		t.Errorf("fixed = %d, want 0", len(r.Fixed))
+	}
+}
+
+func TestTheOrdinaryCasesAreUnchanged(t *testing.T) {
+	// Most diffs have no accepted and no reopened, and must read exactly as they did before.
+	f := finding("CVE-2024-11111", "requirements.txt", 3)
+	g := finding("CVE-2024-22222", "go.mod", 9)
+
+	fixedOnly := Compare(sarif.Report{Results: []sarif.Result{f}}, sarif.Report{})
+	if len(fixedOnly.Fixed) != 1 || len(fixedOnly.Accepted) != 0 {
+		t.Errorf("a real fix: fixed=%d accepted=%d", len(fixedOnly.Fixed), len(fixedOnly.Accepted))
+	}
+	newOnly := Compare(sarif.Report{}, sarif.Report{Results: []sarif.Result{g}})
+	if len(newOnly.New) != 1 || len(newOnly.Reopened) != 0 {
+		t.Errorf("a genuinely new finding: new=%d reopened=%d", len(newOnly.New), len(newOnly.Reopened))
+	}
+}

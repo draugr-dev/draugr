@@ -479,10 +479,25 @@ const (
 	OriginSaga = "saga"
 	// OriginVEX is a statement imported from a document somebody else wrote.
 	OriginVEX = "vex"
+	// OriginTool is a suppression the author wrote into the source and the scanner honored — a
+	// Semgrep `nosem`, a `# noqa`, a linter's inline pragma.
+	//
+	// The weakest of the three, and kept apart for that reason. A descriptor rule was reviewed by
+	// whoever owns the descriptor and a supplier's claim is answerable by the supplier; this one
+	// was written by whoever was editing the file, possibly to get a build green, and nothing
+	// about it went past a second person. Counting it with the others would let the weakest form
+	// of acceptance hide inside the strongest.
+	OriginTool = "tool"
 )
 
 // Suppressed reports whether this finding was excluded — by a Saga rule or by an imported claim.
 func (r Result) Suppressed() bool { return r.Suppression != nil }
+
+// SilencedInSource reports whether a suppression came from a comment in the code rather than from
+// a decision anybody recorded.
+func (r Result) SilencedInSource() bool {
+	return r.Suppression != nil && r.Suppression.Origin == OriginTool
+}
 
 // Imported reports whether the decision to suppress came from outside this project.
 //

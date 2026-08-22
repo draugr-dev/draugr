@@ -469,43 +469,6 @@ and must carry **`api`** scope — `CI_JOB_TOKEN` is read-only on the notes API 
 which is worth knowing before reaching for the variable GitLab already provides. See
 [reports & publishers](../guides/reports-and-publishers.md#gitlab).
 
-The **`draugr-api`** publisher posts the run to any server implementing Draugr's run-ingest API.
-[Draugr Cloud](https://draugr.dev) is one — hosted, or installed where you want it, the same
-artifact either way — and the three calls are documented in
-[reports & publishers](../guides/reports-and-publishers.md#the-three-calls) so anything else can
-be another.
-
-```yaml
-config:
-  reports:
-    - format: json      # the run
-    - format: sarif     # its evidence
-  publishers:
-    - kind: draugr-api
-      # url: https://draugr.acme.example   # or $DRAUGR_API_URL
-```
-
-Both formats are required and the publisher says which is missing, because they are separate
-mistakes with separate fixes. The token comes from `$DRAUGR_API_TOKEN` (or `tokenEnv`) and never
-from the descriptor, which is a file people commit.
-
-`report.json` travels in the request; **`results.sarif` does not travel through the API at all**.
-The plane answers with a URL and the publisher uploads the evidence directly to storage. At roughly
-2.5 KB of SARIF per finding, a descriptor covering twenty images is around 20 MB before anything
-unusual happens, and a request body is the wrong place for it.
-
-Two things follow that are worth knowing when reading a build log:
-
-- **A re-run that produced the same findings uploads nothing.** The plane addresses evidence by its
-  content, so it can say it already holds it.
-- **A retried job does not become a second run.** The run is keyed on the CI job id where the
-  platform provides one — GitHub Actions, GitLab CI, Azure Pipelines, CircleCI and Buildkite — and
-  on the digest of the report where nothing does.
-
-With neither the URL nor the token set, the publisher **skips**, so the same descriptor a pipeline
-uses still runs on a developer's machine. Setting one without the other is an error: a scan that
-silently did not publish is one somebody believes was published.
-
 ## License policy (`controllers.licenses`)
 
 ```yaml
@@ -933,6 +896,20 @@ express "this rule, whichever package".
 A wide pattern is safe to use because it is **loud**. Nothing is deleted, so `rules: ["*"]`
 reports `N findings suppressed by config.exclude` and every one of them sits in the SARIF with
 your justification. An exclusion that swallowed more than you meant shows up in the count.
+
+The report counts three kinds of acceptance separately, because they have different people at the
+end of them and one total could only support the weakest:
+
+```console
+5 findings suppressed by config.exclude — 3 accepted by you@example.com, 2 unattributed
+1 finding excused by a supplier's VEX — 1 asserted by ACME Security <sec@acme.example>
+2 findings silenced in the source by a scanner directive — nobody signed these
+```
+
+The last is a `# nosemgrep`, a linter pragma, or anything else a scanner honors from a comment in
+the file. It is the weakest of the three — written by whoever was editing, reviewed by nobody in
+particular — which is exactly why it is printed rather than folded into a total with decisions
+somebody signed.
 
 **When both `paths` and `rules` are set, a finding must match both.** That's the narrow reading —
 "this rule, in this place" — and the safe one: the alternative would quietly widen *ignore the

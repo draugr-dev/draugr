@@ -194,6 +194,13 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent, line))
 	}
 
+	// And findings a comment in the code set aside. Without this line a `nosem` is the one form of
+	// acceptance that leaves no trace anywhere — the weakest of the three, added by whoever was
+	// editing the file, and the easiest to add without anybody noticing.
+	if line := silencedLine(d); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent, line))
+	}
+
 	// A supplier statement that matched nothing is doing nothing and looks exactly like one that
 	// worked — usually the supplier and the scanner name a package differently, which is a real
 	// finding about the document rather than a quiet no-op.
