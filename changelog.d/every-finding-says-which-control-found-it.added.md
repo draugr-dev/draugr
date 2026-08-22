@@ -1,1 +1,0 @@
-**Every finding says which control found it.** `results.sarif` now carries `properties.control` — `sca`, `sast`, `secrets` — beside the scanner in `properties.tool`. Anything that reads the report and groups findings, from your editor to a platform to a script, can tell a dependency finding from a code finding without inferring it from the rule id.
