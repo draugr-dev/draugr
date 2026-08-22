@@ -63,7 +63,7 @@ func newDraugrAPIPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		client:   newRetryingClient(http.DefaultClient),
 	}
 
-	// Both or neither. A descriptor naming this publisher on a machine with no plane configured
+	// Both or neither. A descriptor naming this publisher on a machine with no endpoint configured
 	// is somebody running the same Saga locally, and failing their scan over it would make the
 	// descriptor unusable outside CI — which is the opposite of the point.
 	if p.endpoint == "" && p.token == "" {
