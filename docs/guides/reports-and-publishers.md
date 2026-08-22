@@ -84,6 +84,7 @@ bespoke summary line, a Slack payload, or any custom text without writing code.
 | `github-pr-comment` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `azure-pr-comment` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 | `gitlab-mr-comment` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
+| `draugr-api` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga — every token comes from an environment variable, and
 each no-ops outside its own context (not in CI, or no PR) so the same Saga still runs locally.
@@ -91,6 +92,83 @@ Every comment publisher upserts one **sticky** comment, updated in place on each
 pairs with
 [`draugr diff --publish`](pr-diff.md) for a PR security delta. The `github` publisher pairs with
 [code scanning](code-scanning.md).
+
+### A server that keeps your runs
+
+`draugr-api` sends the run somewhere it can be compared with the ones before it. The terminal shows
+one scan; a server that keeps them shows the same findings across an organization and over time —
+which are new since last week, which have been there for months, which somebody accepted and who.
+That is the part a screenshot cannot show.
+
+```yaml
+config:
+  reports:
+    - format: json      # the run
+    - format: sarif     # its evidence
+  publishers:
+    - kind: draugr-api
+```
+
+```bash
+export DRAUGR_API_URL=https://draugr.acme.example
+export DRAUGR_API_TOKEN=drgr_ci_…      # write-only, scoped to one project
+```
+
+**Named for the protocol, not for a product.** [Draugr Cloud](https://draugr.dev) implements it,
+hosted and as an install you run yourself — the same artifact either way, so `url` points at either
+and nothing else changes. Anything else that implements the three calls below works identically.
+The publisher does not know or care which it is talking to.
+
+With neither variable set it skips, so the descriptor a pipeline uses still runs on a laptop.
+Setting one without the other fails the scan, because a publish that silently did not happen is one
+somebody believes did.
+
+#### The three calls
+
+Written down so the endpoint is an interface rather than a private arrangement. A server that
+implements these receives Draugr runs from any pipeline, with no change to the descriptor beyond
+its URL.
+
+**1 — `POST /v1/runs`** with `report.json` as the body:
+
+```
+Authorization: Bearer <token>
+Idempotency-Key: <a CI job id, or the digest of the report>
+X-Draugr-Evidence-Sha256: <hex>     ← both or neither
+X-Draugr-Evidence-Bytes: <n>
+```
+
+Answer `201` with a run id, or `200` and `"duplicate": true` if that key already made one — CI
+retries, and a retry must not become a second run.
+
+```json
+{"run": "…", "duplicate": false,
+ "evidence": {"held": false, "upload": "https://…", "complete": "/v1/runs/…/complete"}}
+```
+
+Answer `"held": true` and no URL when you already have an object with that digest. Draugr then
+uploads nothing, which is what makes a re-run that found the same things almost free.
+
+**2 — `PUT` to the URL you returned**, with `results.sarif` as the body. It goes straight there and
+never through the API. At roughly 2.5 KB of SARIF per finding, a descriptor covering twenty images
+is around 20 MB before anything unusual happens, and a request body is the wrong place for it.
+
+A presigned object-storage URL is the obvious implementation; a URL pointing back at your own
+server is equally valid, and is how an install with no object store works.
+
+**3 — `POST /v1/runs/{id}/complete`** once the upload lands.
+
+Failures answer a stable `error` code and a short human `detail`, and Draugr reports both — a build
+log saying `400 Bad Request` tells the reader nothing they can act on.
+
+```json
+{"error": "invalid_field", "detail": "verdict: required; post report.json, not results.sarif"}
+```
+
+Two lines worth recognizing in a build log:
+
+- `evidence already held` — a re-run produced the same findings, so there was nothing to upload.
+- `run already recorded` — a retried job, recognized as the same run rather than counted twice.
 
 ### Azure DevOps
 
