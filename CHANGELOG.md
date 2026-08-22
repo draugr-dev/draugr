@@ -51,7 +51,7 @@ and move it under a version on release.
   publisher will not know the difference.
 
   Two things you will see in a build log. **A re-run that produced the same findings uploads
-  nothing**, because the plane addresses evidence by its content and can say it already has it.
+  nothing**, because the server addresses evidence by its content and can say it already has it.
   **A retried job does not become a second run**, because the run is keyed on the CI job id where
   the platform gives one and on the report's digest where it does not.
 

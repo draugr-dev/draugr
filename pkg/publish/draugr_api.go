@@ -261,7 +261,7 @@ func digestOf(b []byte) string {
 // would call the second a duplicate of the first.
 //
 // The digest of the report when nothing names the job — the local case, where the same report
-// posted twice is a retry by any reasonable reading. Never empty: the plane refuses a run without
+// posted twice is a retry by any reasonable reading. Never empty: the API refuses a run without
 // a key, correctly, and a publisher that let one through would fail every scan run outside CI.
 func (p draugrAPIPublisher) runKeyFor(runReport []byte) string {
 	if p.jobID != "" {
