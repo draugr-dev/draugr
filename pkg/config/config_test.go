@@ -173,8 +173,9 @@ func TestCacheReadOnlyOnlyEverTurnsOn(t *testing.T) {
 func TestMergeCarriesEveryField(t *testing.T) {
 	// merge names each field explicitly, so a field added to File and forgotten here is dropped on
 	// every load — not overridden, not defaulted, just gone, while the file on disk plainly
-	// contains it and `config show` reports that it sets nothing. That is a quiet failure with a
-	// long diagnosis, and it has happened.
+	// contains it and `config show` reports that it sets nothing. A setting that is present, valid
+	// and ignored is the hardest kind to diagnose, because every place a reader looks says it is
+	// fine.
 	//
 	// So this walks the struct rather than listing what to check: a new field fails here until
 	// merge handles it, and the failure names the field.
