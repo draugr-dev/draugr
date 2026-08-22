@@ -12,6 +12,39 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.105.0] - 2026-08-22
+
+### Added
+
+- **Every finding says which control found it.** `results.sarif` now carries
+  `properties.control` — `sca`, `sast`, `secrets` — beside the scanner in `properties.tool`.
+  Anything that reads the report and groups findings, from your editor to a platform to a script,
+  can tell a dependency finding from a code finding without inferring it from the rule id.
+
+- **One endpoint for the whole organization.** `draugr.config.yaml` gained a `publish.apiUrl`
+  field, so forty repositories pointing at one install no longer repeat the endpoint in forty
+  descriptors — set it once in a runner image and every pipeline picks it up.
+
+  It is the least specific answer and loses to everything more specific:
+  `~/.draugr/config.yaml` → `./draugr.config.yaml` → `$DRAUGR_API_URL` → `url:` in the Saga.
+  Ambient-broad, ambient-narrow, ambient-immediate, then explicit — an environment variable is
+  context, and a `url:` somebody wrote is intent.
+
+  No token there, and there never will be: that file is committed, and a credential in it is a
+  credential in somebody's git history.
+
+### Fixed
+
+- **The reference now documents the `draugr-api` publisher again.** Its section in the Saga
+  schema reference went missing in 0.104.0; the publisher itself, its JSON schema entry and the
+  how-to guide were unaffected, so a descriptor using it always worked. A test now checks every
+  registered publisher appears in the catalog, the guide and the schema reference, because a
+  publisher missing from any one of them is invisible to whoever started there.
+
+  The reference also states where a setting comes from, least specific first:
+  `~/.draugr/config.yaml` → `./draugr.config.yaml` → `$DRAUGR_API_URL` → `url:` in the Saga.
+  Explicit wins: an environment variable is context, and a `url:` somebody wrote is intent.
+
 ## [0.104.0] - 2026-08-22
 
 ### Added
@@ -4970,7 +5003,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.104.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.105.0...HEAD
+[0.105.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.105.0
 [0.104.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.104.0
 [0.103.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.103.0
 [0.102.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.102.1
