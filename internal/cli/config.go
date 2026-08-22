@@ -40,6 +40,14 @@ controllers: {}
   # sast:
   #   semgrep:
   #     config: p/owasp-top-ten
+
+# Where runs are delivered, for the whole organization rather than per project.
+#
+# The least specific answer: $DRAUGR_API_URL overrides it for one pipeline, and a url: in a Saga
+# overrides both because somebody wrote it there on purpose. No token here — this file is
+# committed, and a credential in it is a credential in somebody's git history.
+publish: {}
+  # apiUrl: https://draugr.acme.example
 `
 
 func newConfigCommand() *cobra.Command {
@@ -158,6 +166,11 @@ func flatten(f config.File) []kv {
 	// Only what was actually set. A zero field here is the absence of a setting, not a setting
 	// whose value is zero — and printing `cache.ttl 0s` beside a file that never mentions caching
 	// would invite someone to wonder why their cache expires immediately.
+	//
+	// Every field of the config has to be reachable from here, though. This is the command that
+	// answers "why is my setting not taking effect", and one it cannot see reports that the file
+	// sets nothing — which sends somebody looking everywhere except at the one place that would
+	// have told them. TestConfigShowReachesEveryField holds it to that.
 	if c := f.Cache; c != (config.CacheSettings{}) {
 		if c.Dir != "" {
 			out = append(out, kv{"cache.dir", c.Dir})
@@ -170,6 +183,11 @@ func flatten(f config.File) []kv {
 		}
 		if c.RequireDigest {
 			out = append(out, kv{"cache.requireDigest", "true"})
+		}
+	}
+	if pb := f.Publish; pb != (config.PublishSettings{}) {
+		if pb.APIURL != "" {
+			out = append(out, kv{"publish.apiUrl", pb.APIURL})
 		}
 	}
 	if o := f.Output; o != (config.OutputSettings{}) {

@@ -141,6 +141,33 @@ The same shape as `config.controllers` in a Saga, merged underneath it. A platfo
 default for every repository — a scanner's options, a database mirror an internal network requires
 — without editing a descriptor anywhere.
 
+### `publish`
+
+Where runs are delivered, for the organization rather than per project.
+
+```yaml
+publish:
+  apiUrl: https://draugr.acme.example
+```
+
+Forty repositories pointing at one install would otherwise repeat the endpoint in forty
+descriptors, and change it in forty places when the host moves. Set it once in a runner image and
+every pipeline picks it up.
+
+**It is the least specific answer, and loses to everything more specific:**
+
+```
+~/.draugr/config.yaml  →  ./draugr.config.yaml  →  $DRAUGR_API_URL  →  url: in the Saga
+```
+
+Ambient-broad, ambient-narrow, ambient-immediate, then explicit. An environment variable is
+context — *this pipeline talks to staging* — and a `url:` somebody wrote in a descriptor is
+intent. Context does not override intent, which is the same order every publisher already uses for
+its other fields.
+
+**No token, here or anywhere in this file.** It is committed alongside a project, and a credential
+in it is a credential in somebody's git history. `$DRAUGR_API_TOKEN` is the only way in.
+
 ## Flags always win
 
 Every setting here has a `--flag` that overrides it, and typing the flag wins **even when what you

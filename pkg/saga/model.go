@@ -461,6 +461,15 @@ type PublisherConfig struct {
 	// comes from $DRAUGR_API_TOKEN (or TokenEnv) and never from this file, which is one people
 	// commit.
 	URL string `yaml:"url,omitempty"`
+	// DefaultURL is what draugr.config.yaml said, carried here so a publisher can consult it
+	// last. Never read from a descriptor — `yaml:"-"`, so writing it in a Saga does nothing and
+	// the schema does not offer it.
+	//
+	// A separate field rather than filling URL, because the two sit at opposite ends of the
+	// precedence chain: URL is somebody's explicit choice for this project and beats the
+	// environment, while this is the organization's default and loses to it. Merging them would
+	// make an ambient value indistinguishable from an intentional one.
+	DefaultURL string `yaml:"-"`
 }
 
 // Component is one logical part of an application: its repositories, images, hosts, and

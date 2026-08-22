@@ -808,6 +808,16 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, e
 	if err != nil {
 		return config.File{}, err
 	}
+	// The organization's default endpoint, carried to the publishers that may want it. Applied
+	// here rather than merged into the descriptor's url: the two sit at opposite ends of the
+	// precedence chain, and a default that overwrote an explicit choice would be the wrong way
+	// round.
+	if url := res.File.Publish.APIURL; url != "" {
+		for i := range model.Config.Publishers {
+			model.Config.Publishers[i].DefaultURL = url
+		}
+	}
+
 	if len(res.File.Controllers) == 0 {
 		return res.File, nil
 	}

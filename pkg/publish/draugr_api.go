@@ -57,7 +57,9 @@ const (
 func newDraugrAPIPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 	tokenEnv := firstNonEmpty(cfg.TokenEnv, apiTokenEnv)
 	p := draugrAPIPublisher{
-		endpoint: strings.TrimRight(firstNonEmpty(cfg.URL, os.Getenv(apiURLEnv)), "/"),
+		// Explicit, then ambient-immediate, then the organization's default. Documented in the
+		// Saga reference under the draugr-api publisher.
+		endpoint: strings.TrimRight(firstNonEmpty(cfg.URL, os.Getenv(apiURLEnv), cfg.DefaultURL), "/"),
 		token:    os.Getenv(tokenEnv),
 		jobID:    ciJobID(),
 		client:   newRetryingClient(http.DefaultClient),
