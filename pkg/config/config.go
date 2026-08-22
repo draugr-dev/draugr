@@ -49,6 +49,12 @@ type File struct {
 	// runner want the same cache; one project on two runners does not want its descriptor
 	// naming a path that exists on only one of them.
 	Cache CacheSettings `yaml:"cache,omitempty"`
+	// Publish holds defaults for where a run is delivered.
+	//
+	// Here rather than in a Saga because an endpoint is a fact about an organization, not about
+	// an application: forty projects pointing at one install would otherwise repeat the URL in
+	// forty descriptors and change it in forty places when the host moves.
+	Publish PublishSettings `yaml:"publish,omitempty"`
 	// Output is how a report is rendered for whoever reads it here.
 	//
 	// A rendering preference belongs to a person or a machine, not to an application: an auditor
@@ -56,6 +62,23 @@ type File struct {
 	// repository it builds. Putting either in a descriptor asserts it on everyone else who scans
 	// that application.
 	Output OutputSettings `yaml:"output,omitempty"`
+}
+
+// PublishSettings holds defaults for the publishers a run delivers to.
+type PublishSettings struct {
+	// APIURL is where the draugr-api publisher posts when nothing more specific says otherwise.
+	//
+	// The least specific answer in the chain, and deliberately so:
+	//
+	//	~/.draugr/config.yaml -> ./draugr.config.yaml -> $DRAUGR_API_URL -> url: in the Saga
+	//
+	// Ambient-broad, ambient-narrow, ambient-immediate, then explicit — and explicit wins. An
+	// environment variable is context; a url somebody wrote in a descriptor is intent, and
+	// context does not override intent.
+	//
+	// No token here, and there never will be. This file is committed alongside a project, and a
+	// credential in it is a credential in somebody's git history.
+	APIURL string `yaml:"apiUrl,omitempty"`
 }
 
 // OutputSettings configures how the console renders a run. Each has a `--flag` that overrides it.
@@ -182,6 +205,11 @@ func Parse(data []byte, path string) (File, error) {
 }
 
 // merge lays b over a, most specific winning per key.
+//
+// Field by field, and every field has to be named here. A new one added to File and forgotten is
+// dropped on every load — not overridden, not defaulted, just absent, with the file on disk
+// plainly containing it and `config show` reporting that it sets nothing. TestMergeCarriesEvery
+// Field walks the struct so the omission fails a test rather than a user's afternoon.
 func merge(a, b File) File {
 	out := File{
 		Tools:       map[string]ToolSettings{},
@@ -214,6 +242,11 @@ func merge(a, b File) File {
 	}
 	if b.Cache.RequireDigest {
 		out.Cache.RequireDigest = true
+	}
+
+	out.Publish = a.Publish
+	if b.Publish.APIURL != "" {
+		out.Publish.APIURL = b.Publish.APIURL
 	}
 
 	out.Output = a.Output

@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -270,5 +271,70 @@ func TestConfigShowOmitsCacheSettingsNobodySet(t *testing.T) {
 	got := flatten(config.File{Cache: config.CacheSettings{Dir: "x"}})
 	if len(got) != 1 || got[0].key != "cache.dir" {
 		t.Errorf("only the set field should render, got %+v", got)
+	}
+}
+
+func TestConfigShowReachesEveryField(t *testing.T) {
+	// `config show` is the command somebody runs when a setting is not taking effect. A field it
+	// cannot see is reported as "they set nothing", which is the most misleading answer available:
+	// the file plainly contains the setting, and the tool built to explain it denies it exists.
+	//
+	// Walks the struct rather than listing fields, so one added and forgotten fails here.
+	populated := reflect.New(reflect.TypeOf(config.File{})).Elem()
+	fillConfig(t, populated)
+
+	flat := flatten(populated.Interface().(config.File))
+	shown := map[string]bool{}
+	for _, entry := range flat {
+		// "publish.apiUrl" -> "publish"
+		shown[strings.SplitN(entry.key, ".", 2)[0]] = true
+	}
+
+	typ := reflect.TypeOf(config.File{})
+	for i := range typ.NumField() {
+		name := typ.Field(i).Tag.Get("yaml")
+		name = strings.SplitN(name, ",", 2)[0]
+		if name == "" || name == "-" {
+			continue
+		}
+		if !shown[name] {
+			t.Errorf("`config show` never prints anything under %q — a setting there reads as "+
+				"'they set nothing', which is the opposite of true", name)
+		}
+	}
+}
+
+// fillConfig gives every field a non-zero value, recursively.
+func fillConfig(t *testing.T, v reflect.Value) {
+	t.Helper()
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString("x")
+	case reflect.Bool:
+		v.SetBool(true)
+	case reflect.Int, reflect.Int64:
+		v.SetInt(1)
+	case reflect.Map:
+		v.Set(reflect.MakeMap(v.Type()))
+		key := reflect.New(v.Type().Key()).Elem()
+		fillConfig(t, key)
+		val := reflect.New(v.Type().Elem()).Elem()
+		switch val.Kind() {
+		case reflect.Struct:
+			fillConfig(t, val)
+		case reflect.Interface, reflect.Map:
+			// ControllerSettings is map[string]any, so there is no typed shape to walk — a
+			// synthetic nested value stands in for the free-form tree a real one holds.
+			val.Set(reflect.ValueOf(map[string]any{"scanner": map[string]any{"key": "value"}}))
+		default:
+			fillConfig(t, val)
+		}
+		v.SetMapIndex(key, val)
+	case reflect.Struct:
+		for i := range v.NumField() {
+			if v.Field(i).CanSet() {
+				fillConfig(t, v.Field(i))
+			}
+		}
 	}
 }

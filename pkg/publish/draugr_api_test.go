@@ -384,3 +384,58 @@ func TestTheKindIsRegistered(t *testing.T) {
 	}
 	t.Errorf("draugr-api is not among %v", Kinds())
 }
+
+func TestTheOrganizationsDefaultIsUsedLast(t *testing.T) {
+	// The whole point of the chain: config file, then environment, then the descriptor, with
+	// explicit winning. A default that beat an environment variable, or an environment variable
+	// that beat somebody's written choice, would each be the wrong way round.
+	p := &server{}
+	srv := p.server(t)
+	t.Setenv(apiTokenEnv, "drgr_ci_test")
+
+	for name, tc := range map[string]struct {
+		descriptor, env, orgDefault string
+		want                        string
+	}{
+		"only the org default":      {"", "", srv.URL, srv.URL},
+		"env beats the org default": {"", srv.URL, "https://never.example", srv.URL},
+		"the descriptor beats both": {srv.URL, "https://never.example", "https://never.example", srv.URL},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(apiURLEnv, tc.env)
+			pub, err := For(saga.PublisherConfig{
+				Kind: "draugr-api", URL: tc.descriptor, DefaultURL: tc.orgDefault,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := len(p.runs)
+			if err := pub.Publish(context.Background(), artifacts(`{"verdict":"pass"}`, `{"runs":[]}`)); err != nil {
+				t.Fatalf("publishing to %s: %v", tc.want, err)
+			}
+			if len(p.runs) != before+1 {
+				t.Errorf("the run did not reach %s", tc.want)
+			}
+		})
+	}
+}
+
+func TestAnOrganizationDefaultAloneIsEnoughToPublish(t *testing.T) {
+	// A team whose runner image sets the endpoint once should not have to write it in every
+	// descriptor, and must not have their scan skip for want of a URL nobody typed.
+	p := &server{}
+	srv := p.server(t)
+	t.Setenv(apiURLEnv, "")
+	t.Setenv(apiTokenEnv, "drgr_ci_test")
+
+	pub, err := For(saga.PublisherConfig{Kind: "draugr-api", DefaultURL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, skipped := pub.(skipPublisher); skipped {
+		t.Fatal("a configured endpoint was treated as no endpoint at all")
+	}
+	if err := pub.Publish(context.Background(), artifacts(`{"verdict":"pass"}`, `{"runs":[]}`)); err != nil {
+		t.Fatal(err)
+	}
+}

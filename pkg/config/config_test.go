@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -166,5 +167,72 @@ func TestCacheReadOnlyOnlyEverTurnsOn(t *testing.T) {
 	got := merge(File{Cache: CacheSettings{ReadOnly: true}}, File{Cache: CacheSettings{Dir: "x"}}).Cache
 	if !got.ReadOnly {
 		t.Error("read-only was silently cleared")
+	}
+}
+
+func TestMergeCarriesEveryField(t *testing.T) {
+	// merge names each field explicitly, so a field added to File and forgotten here is dropped on
+	// every load — not overridden, not defaulted, just gone, while the file on disk plainly
+	// contains it and `config show` reports that it sets nothing. That is a quiet failure with a
+	// long diagnosis, and it has happened.
+	//
+	// So this walks the struct rather than listing what to check: a new field fails here until
+	// merge handles it, and the failure names the field.
+	populated := reflect.New(reflect.TypeOf(File{})).Elem()
+	fill(t, populated)
+	source := populated.Interface().(File)
+
+	// Laid over an empty base: everything set must survive.
+	merged := merge(File{}, source)
+	assertEveryFieldSet(t, reflect.ValueOf(merged), "merge(empty, set)")
+
+	// And laid under an empty overlay: a more specific file that mentions nothing must not erase
+	// what the less specific one said.
+	kept := merge(source, File{})
+	assertEveryFieldSet(t, reflect.ValueOf(kept), "merge(set, empty)")
+}
+
+// fill gives every field of a struct a non-zero value, recursively.
+func fill(t *testing.T, v reflect.Value) {
+	t.Helper()
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString("x")
+	case reflect.Bool:
+		v.SetBool(true)
+	case reflect.Int, reflect.Int64:
+		v.SetInt(1)
+	case reflect.Map:
+		v.Set(reflect.MakeMap(v.Type()))
+		key := reflect.New(v.Type().Key()).Elem()
+		fill(t, key)
+		val := reflect.New(v.Type().Elem()).Elem()
+		if val.Kind() == reflect.Struct {
+			fill(t, val)
+		}
+		v.SetMapIndex(key, val)
+	case reflect.Struct:
+		for i := range v.NumField() {
+			if v.Field(i).CanSet() {
+				fill(t, v.Field(i))
+			}
+		}
+	}
+}
+
+// assertEveryFieldSet reports any field that came back at its zero value.
+func assertEveryFieldSet(t *testing.T, v reflect.Value, what string) {
+	t.Helper()
+	typ := v.Type()
+	for i := range v.NumField() {
+		field, name := v.Field(i), typ.Field(i).Name
+		if field.Kind() == reflect.Struct {
+			assertEveryFieldSet(t, field, what+"."+name)
+			continue
+		}
+		if field.IsZero() {
+			t.Errorf("%s dropped %s — add it to merge(), or every config file that sets it is "+
+				"silently ignored", what, name)
+		}
 	}
 }
