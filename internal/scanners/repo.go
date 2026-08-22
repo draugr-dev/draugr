@@ -233,6 +233,10 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		// reported once, and nothing to say the second exists.
 		report.Results[i].Repository = repo.Source()
 	}
+	// After the paths are repository-relative, and while the checkout still exists. Both matter:
+	// the fingerprint is looked up by the path a consumer will see, and the file it hashes is only
+	// on disk until this function returns.
+	stampLineHashes(report.Results, dir)
 	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
 	return report, nil
 }

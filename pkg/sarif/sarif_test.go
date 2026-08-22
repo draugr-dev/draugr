@@ -822,3 +822,33 @@ func TestImageAndOSSurviveTheFile(t *testing.T) {
 		}
 	}
 }
+
+func TestPartialFingerprintsRoundTrip(t *testing.T) {
+	// A field that survives writing but not reading is one that silently disappears the first time
+	// anything re-reads a report — and `draugr diff` re-reads reports.
+	rep := Report{Tool: "semgrep", Results: []Result{{
+		RuleID: "hardcoded-secret", Level: LevelError, Message: "a secret",
+		Location:            Location{URI: "app/main.go", StartLine: 6},
+		PartialFingerprints: map[string]string{LineHashKey: "abc123"},
+	}}}
+
+	data, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// SARIF's own field, not Draugr's property bag: consumers read it from there.
+	if !strings.Contains(string(data), `"partialFingerprints"`) {
+		t.Fatalf("not written as a SARIF field: %s", data)
+	}
+
+	back, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Results) != 1 {
+		t.Fatalf("got %d results", len(back.Results))
+	}
+	if got := back.Results[0].PartialFingerprints[LineHashKey]; got != "abc123" {
+		t.Errorf("read back %q, want %q", got, "abc123")
+	}
+}

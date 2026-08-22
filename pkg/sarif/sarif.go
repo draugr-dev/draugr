@@ -224,12 +224,16 @@ type sarifProperties struct {
 }
 
 type sarifResult struct {
-	RuleID       string             `json:"ruleId,omitempty"`
-	Level        string             `json:"level,omitempty"`
-	Message      sarifMessage       `json:"message"`
-	Locations    []sarifLocation    `json:"locations,omitempty"`
-	Suppressions []sarifSuppression `json:"suppressions,omitempty"`
-	Properties   *sarifProperties   `json:"properties,omitempty"`
+	RuleID  string       `json:"ruleId,omitempty"`
+	Level   string       `json:"level,omitempty"`
+	Message sarifMessage `json:"message"`
+	// PartialFingerprints is SARIF's own field, not a Draugr property. It goes here rather than in
+	// the property bag because consumers read it from here — GitHub code scanning uses it to
+	// decide that an alert in this run is the same alert as one in the last.
+	PartialFingerprints map[string]string  `json:"partialFingerprints,omitempty"`
+	Locations           []sarifLocation    `json:"locations,omitempty"`
+	Suppressions        []sarifSuppression `json:"suppressions,omitempty"`
+	Properties          *sarifProperties   `json:"properties,omitempty"`
 }
 
 // sarifSuppression marks a result the author or tool has suppressed (e.g. Semgrep's
@@ -339,9 +343,10 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			}
 		}
 		sr := sarifResult{
-			RuleID:  res.RuleID,
-			Level:   string(res.Level),
-			Message: sarifMessage{Text: res.Message},
+			RuleID:              res.RuleID,
+			Level:               string(res.Level),
+			Message:             sarifMessage{Text: res.Message},
+			PartialFingerprints: res.PartialFingerprints,
 		}
 		// A suppressed finding is still emitted, marked. Deleting it would leave no trace that
 		// anything was excluded; this way the evidence survives and only the verdict changes.
@@ -558,6 +563,10 @@ func FromSARIF(data []byte) (Report, error) {
 				RuleID:  sr.RuleID,
 				Level:   level,
 				Message: readableMessage(sr.Message.Text, ruleSummary[sr.RuleID]),
+				// Read back, so a report Draugr wrote and then re-read carries the same identity
+				// it left with. A field that survives writing but not reading is one that silently
+				// disappears the first time anything round-trips a report.
+				PartialFingerprints: sr.PartialFingerprints,
 			}
 			if len(sr.Locations) > 0 {
 				res.Location.URI = sr.Locations[0].PhysicalLocation.ArtifactLocation.URI

@@ -10,6 +10,24 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **Findings keep their identity when code moves.** Draugr now emits SARIF
+  `partialFingerprints`, computed from the code around a finding rather than the line it sits on.
+
+  Adding an import at the top of a file used to change the line number of every finding below it,
+  which made each one look like a finding that was fixed and a new one that appeared. Anything
+  tracking findings over time — GitHub code scanning's alerts, a run comparison — read that as
+  churn.
+
+  Reformatting and reindenting do not change it either, since each line is normalized before
+  hashing. An edit *immediately* next to a finding does change it, because the surrounding lines
+  are part of what identifies it; without that, every bare closing brace in a repository would
+  share one fingerprint.
+
+  Findings about a dependency carry no fingerprint and need none — a vulnerable package is
+  identified by the package.
+
 ### Changed
 
 - **Log lines are shorter and easier to search.** A survey run without a token warned in a

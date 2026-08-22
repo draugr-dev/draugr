@@ -100,6 +100,17 @@ type Result struct {
 	// two repositories that share a path share everything else about a finding. Without this they
 	// are one finding, and the second repository's copy is discarded on the way in.
 	Repository string `json:"repository,omitempty"`
+	// PartialFingerprints are SARIF's own mechanism for identity across runs, keyed by name.
+	//
+	// Distinct from Fingerprint, and the difference is what each is for. Fingerprint deduplicates
+	// *within* a run and hashes the line number to do it, which is exactly right there and useless
+	// across runs: adding an import at the top of a file changes the line of every finding below
+	// it. These hash what the code says rather than where it sits.
+	//
+	// Empty for a finding with no file and line — a vulnerable dependency is identified by its
+	// package, which is already on the finding. Absent means "no content-based identity", and a
+	// fabricated one would be worse than none.
+	PartialFingerprints map[string]string `json:"partialFingerprints,omitempty"`
 	// Package identifies the dependency a finding is about, when it is about one.
 	//
 	// Nil for a finding that is not: a SAST rule is about a line of code, an IaC check about a
