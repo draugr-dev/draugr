@@ -305,8 +305,17 @@ cmd_add() {
 	# one is unhelpful.
 	local slug="${2:-}"
 	if [ -z "$slug" ]; then
+		# `|| true` is load-bearing under `set -e -o pipefail`: an entry with no bold phrase makes
+		# grep exit 1, which would abort the whole script with nothing printed — a helper that
+		# refuses a valid entry and does not say so is worse than no helper.
 		slug=$(printf '%s' "$entry" | grep -oPm1 '\*\*\K[^*]+' | head -1 |
-			tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-*//; s/-*$//' | cut -c1-48)
+			tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-*//; s/-*$//' | cut -c1-48 || true)
+	fi
+	# Falling back to the first few words rather than a hash: a directory listing is meant to read
+	# as a list of changes, and a hash tells a reader nothing about which change it is.
+	if [ -z "$slug" ]; then
+		slug=$(printf '%s' "$entry" | head -1 | tr '[:upper:]' '[:lower:]' |
+			tr -cs 'a-z0-9' '-' | sed 's/^-*//; s/-*$//' | cut -c1-48 | sed 's/-*$//')
 	fi
 	[ -n "$slug" ] || slug=$(printf '%s' "$entry" | sha256sum | cut -c1-12)
 

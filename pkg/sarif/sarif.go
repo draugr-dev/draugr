@@ -185,6 +185,11 @@ type sarifProperties struct {
 	// Tool is the originating scanner (e.g. "trivy", "semgrep"). Draugr reports as a single
 	// "Draugr" SARIF tool; this preserves per-finding attribution to the scanner that found it.
 	Tool string `json:"tool,omitempty"`
+	// Control is the check that produced the finding. It survives the file because the merged
+	// document is all a consumer gets: without it, two controls reporting one rule id are
+	// indistinguishable, and anything grouping by rule alone reports one item of work where
+	// there are two.
+	Control string `json:"control,omitempty"`
 	// Component is the part of the application the finding belongs to. A location alone is
 	// ambiguous once a descriptor has more than one component, and it is what makes the priority
 	// checkable — the band comes from that component's declared classification.
@@ -378,11 +383,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// Image and OperatingSystem are in the condition because they are the whole content of a
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
-		if tool != "" || res.HasScore || res.Priority != "" || res.Image != "" ||
+		if tool != "" || res.Control != "" || res.HasScore || res.Priority != "" || res.Image != "" ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.ImageBuiltUpstream {
 			sr.Properties = &sarifProperties{
-				Tool: tool, Priority: res.Priority, Component: res.Component,
+				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
 				Repository: res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
 				Reachability:       res.Reachability,
@@ -615,6 +620,7 @@ func FromSARIF(data []byte) (Report, error) {
 				// written and re-read by `draugr diff` on every pull request — so dropping them
 				// here made two components sharing a repository, or two repositories in one
 				// component, collapse into a single finding at exactly the moment it mattered.
+				res.Control = sr.Properties.Control
 				res.Component = sr.Properties.Component
 				res.Repository = sr.Properties.Repository
 				res.Image = sr.Properties.Image

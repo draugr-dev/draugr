@@ -367,6 +367,22 @@ renders those same fields on an alert.
 `--compact` has no effect on `console`, `markdown`, `html` or `junit` — making the human formats
 harder to read would be the opposite of the point.
 
+### What each finding carries
+
+Draugr reports as one SARIF tool, so every finding keeps its own attribution in its property bag:
+
+| Property | What it says |
+|---|---|
+| `control` | The check that produced it — `sca`, `sast`, `secrets`, `iac`, `images`, `licenses` |
+| `tool` | The scanner that found it — `trivy`, `semgrep`, `gitleaks` |
+| `component` | The part of the application it belongs to |
+| `repository` | Which repository it was found in, for a component holding more than one |
+| `priority` | The band Draugr computed from that component's exposure and criticality |
+| `security-severity` | The numeric score, where the scanner gave one |
+
+`control` and `tool` answer different questions, and both matter to anything grouping findings:
+one rule id reported by two controls is two separate things to do.
+
 The `sarif` report is also what your editor reads — see
 [see findings in your editor](findings-in-your-editor.md) for inline diagnostics in VS Code
 and JetBrains.
