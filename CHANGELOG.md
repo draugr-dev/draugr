@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.104.0] - 2026-08-22
+
 ### Added
 
 - **Findings keep their identity when code moves.** Draugr now emits SARIF
@@ -4966,7 +4970,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.103.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.104.0...HEAD
+[0.104.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.104.0
 [0.103.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.103.0
 [0.102.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.102.1
 [0.102.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.102.0
