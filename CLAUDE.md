@@ -189,6 +189,11 @@ VirusTotal's non-commercial terms. `make public-scope` (in `make gate`) checks t
 - **Markdown:** write issue references as full URLs
   (`https://github.com/draugr-dev/draugr/issues/N`). GitHub doesn't auto-link `#N` inside files.
   Don't linkify ordinals ("the number-one complaint") or `#anchors`.
+- **CHANGELOG:** never edit `CHANGELOG.md` by hand. Write an entry with
+  `./scripts/changelog.sh add <section>`, which puts it in `changelog.d/` as its own file — no
+  conflict with anybody else's, and the release assembles them in the right order. Editing the file
+  directly is how a section ends up out of order and how two pull requests collide over the same
+  three lines.
 - **Commits:** explain the *why*, not just the what.
 - **Go:** Cobra for the CLI, `log/slog` for logging, OpenTelemetry for traces and metrics. Doc
   comments on exported symbols (revive enforces this).
