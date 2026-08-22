@@ -44,6 +44,7 @@ var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
 	"github-pr-comment": newGithubPRCommentPublisher,
 	"azure-pr-comment":  newAzurePRCommentPublisher,
 	"gitlab-mr-comment": newGitLabMRCommentPublisher,
+	"draugr-api":        newDraugrAPIPublisher,
 }
 
 // For resolves a configured publisher, validating its kind and required fields.

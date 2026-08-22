@@ -28,6 +28,36 @@ and move it under a version on release.
   Findings about a dependency carry no fingerprint and need none — a vulnerable package is
   identified by the package.
 
+- **`draugr-api` publisher: send runs somewhere they can be compared.** A terminal shows one scan.
+  Pointing a pipeline at a server that keeps them shows the same findings across an organization
+  and over time — which are new since last week, which have been there for months, which somebody
+  accepted and who.
+
+  ```yaml
+  config:
+    reports:
+      - format: json      # the run
+      - format: sarif     # its evidence
+    publishers:
+      - kind: draugr-api
+  ```
+
+  Two environment variables and nothing in the descriptor: `DRAUGR_API_URL` and `DRAUGR_API_TOKEN`.
+  The token is write-only and scoped to one project — it can post runs and cannot read a finding,
+  list another project, or waive anything.
+
+  **Named for the protocol rather than a product.** Draugr Cloud implements it, hosted or installed
+  where you want it; the three calls are documented, so anything else can implement it too and this
+  publisher will not know the difference.
+
+  Two things you will see in a build log. **A re-run that produced the same findings uploads
+  nothing**, because the plane addresses evidence by its content and can say it already has it.
+  **A retried job does not become a second run**, because the run is keyed on the CI job id where
+  the platform gives one and on the report's digest where it does not.
+
+  With neither variable set the publisher skips, so the descriptor your pipeline uses still runs on
+  your laptop.
+
 ### Changed
 
 - **Log lines are shorter and easier to search.** A survey run without a token warned in a

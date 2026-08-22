@@ -456,6 +456,11 @@ type PublisherConfig struct {
 	// $BUILD_REPOSITORY_NAME and the token to $SYSTEM_ACCESSTOKEN (or TokenEnv).
 	Org     string `yaml:"org,omitempty"`
 	Project string `yaml:"project,omitempty"`
+
+	// draugr-api: URL is where the server is reached, defaulting to $DRAUGR_API_URL. The token
+	// comes from $DRAUGR_API_TOKEN (or TokenEnv) and never from this file, which is one people
+	// commit.
+	URL string `yaml:"url,omitempty"`
 }
 
 // Component is one logical part of an application: its repositories, images, hosts, and

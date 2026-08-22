@@ -1129,6 +1129,10 @@
             {
               "const": "gitlab-mr-comment",
               "description": "Post the Markdown report as a sticky GitLab merge-request comment."
+            },
+            {
+              "const": "draugr-api",
+              "description": "Post the run to any server implementing Draugr's run-ingest API, such as Draugr Cloud. Requires the json and sarif report formats."
             }
           ],
           "description": "Where to deliver reports.",
@@ -1160,6 +1164,10 @@
         },
         "tokenEnv": {
           "description": "Environment variable holding the token (default GITHUB_TOKEN; SYSTEM_ACCESSTOKEN for azure-pr-comment; GITLAB_TOKEN for gitlab-mr-comment). The token itself is never stored in the Saga.",
+          "type": "string"
+        },
+        "url": {
+          "description": "draugr-api: where the server is reached. Defaults to $DRAUGR_API_URL. The token comes from $DRAUGR_API_TOKEN (or tokenEnv) and never from this file.",
           "type": "string"
         }
       },

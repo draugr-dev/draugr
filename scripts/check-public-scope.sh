@@ -8,6 +8,12 @@
 # knowing which capability is reserved, and a roadmap that names a commercial tier reads as a
 # list of things deliberately withheld.
 #
+# **Naming a companion product is not the same thing, and is allowed.** A publisher that sends a
+# run to Draugr Cloud is a capability of this tool: the reader gains an endpoint they can point at,
+# including one they run themselves, and nothing is withheld from them by its existing. What stays
+# out is the framing — tiers, what costs money, which capability sits behind a paywall. The test is
+# whether a sentence tells a reader what they can do, or tells them what they cannot have.
+#
 # Terms about *third parties* are fine and sometimes necessary — Semgrep's commercial edition,
 # VirusTotal's non-commercial terms — so the patterns below name our own framing rather than the
 # words themselves.
@@ -22,7 +28,6 @@ patterns=(
   'enterprise (feature|connector|tier|control plane)'
   'commercial (layer|tier|control plane|offering)'
   '(the )?cloud backlog'
-  'Draugr Cloud'
   'paid tier'
   'Yggdrasil'
 )
