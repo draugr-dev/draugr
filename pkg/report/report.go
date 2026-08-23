@@ -38,8 +38,21 @@ type Scope struct {
 	SkippedComponents []string `json:"skippedComponents,omitempty"`
 }
 
+// ProjectName is which project this run belongs to, falling back to the deprecated release.name
+// so a descriptor that has not moved yet still files under something.
+func (d Data) ProjectName() string {
+	if d.Project != "" {
+		return d.Project
+	}
+	return d.Release.Name
+}
+
 // Data is everything a reporter needs to render a scan.
 type Data struct {
+	// Project is which project this run belongs to, and what a platform files it under. Empty
+	// only for a descriptor still using the deprecated release.name, which ProjectName falls
+	// back to.
+	Project     string
 	Release     saga.Release
 	Run         engine.Result
 	Verdict     norn.Result
@@ -298,7 +311,7 @@ type jsonReporter struct{}
 
 func (jsonReporter) Format() string { return "json" }
 func (jsonReporter) Render(w io.Writer, d Data) error {
-	return skald.RenderJSONWithFeeds(w, d.Release, d.Run, d.Verdict, d.MinPriority,
+	return skald.RenderJSONFor(w, d.ProjectName(), d.Release, d.Run, d.Verdict, d.MinPriority,
 		skaldFeeds(d.Exploitability), d.marshalOptions())
 }
 

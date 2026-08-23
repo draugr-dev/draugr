@@ -5,7 +5,6 @@
 release:
   name: my-app
   version: "1.0"
-  # stage: dev            # optional, free-form
 
 # Global controller configuration. A controller only runs when it is enabled here
 # (or enabled on a component below). Run `draugr controls` for the full list.

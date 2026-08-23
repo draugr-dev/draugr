@@ -247,6 +247,23 @@ components:
 	}
 }
 
+// A field that used to parse arrives as an unknown one, and "check the spelling" is the wrong
+// advice for a line somebody copied from our own reference. The error has to name the removal.
+func TestRemovedFieldSaysSo(t *testing.T) {
+	_, err := Load([]byte("release: {version: \"1\", stage: dev}\nproject: p"))
+	if err == nil {
+		t.Fatal("release.stage still parses")
+	}
+	for _, want := range []string{"release.stage was removed", "nothing read it"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error does not mention %q: %v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "check the spelling") {
+		t.Errorf("removed field got the typo hint: %v", err)
+	}
+}
+
 // …and conversely, that strictness must not reach into scanner options, which are deliberately
 // open: each scanner validates its own block against its ConfigSchema when the scan is planned.
 func TestScannerOptionsStayFreeForm(t *testing.T) {

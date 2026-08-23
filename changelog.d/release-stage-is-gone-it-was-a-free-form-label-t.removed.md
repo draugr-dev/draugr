@@ -1,0 +1,1 @@
+`release.stage` is gone. It was a free-form label that nothing read, so a descriptor that set it got no behavior from it; deleting the line changes no result. Where a scan is pointed is a property of the target, not of the release. A descriptor that still sets it now names the removal instead of reporting an unknown field.

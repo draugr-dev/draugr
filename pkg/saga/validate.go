@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -36,6 +37,10 @@ func validDigest(s string) bool {
 func isLowerAlnum(r rune) bool { return r >= 'a' && r <= 'z' || r >= '0' && r <= '9' }
 func isLowerHex(r rune) bool   { return r >= 'a' && r <= 'f' || r >= '0' && r <= '9' }
 
+// projectName is what a project may be called: the shape of a slug, because it is what a platform
+// files runs under and what appears in a URL.
+var projectName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
+
 // Validate checks the descriptor for structural correctness, returning all problems at
 // once (joined) rather than only the first.
 func (m *Model) Validate() error {
@@ -43,6 +48,19 @@ func (m *Model) Validate() error {
 
 	if m.Release.Version == "" {
 		errs = append(errs, errors.New("release.version is required"))
+	}
+
+	// Both set and disagreeing is the one case that cannot be resolved by preferring either: the
+	// descriptor states two different projects and no reading of it is the author's intent.
+	if m.Project != "" && m.Release.Name != "" && m.Project != m.Release.Name {
+		errs = append(errs, fmt.Errorf(
+			"project is %q and release.name is %q — they name the same thing, so remove "+
+				"release.name", m.Project, m.Release.Name))
+	}
+	if m.Project != "" && !projectName.MatchString(m.Project) {
+		errs = append(errs, fmt.Errorf(
+			"project %q: lowercase letters, digits and dashes, starting and ending with a letter "+
+				"or digit", m.Project))
 	}
 
 	errs = append(errs, validateControllerKeys("", m.Config.Controllers)...)

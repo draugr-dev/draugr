@@ -109,7 +109,8 @@ draugr schema -o .saga.schema.json
 ## Top level
 
 ```yaml
-release: { ... }              # required
+project: payments-api         # which project this describes
+release: { ... }              # required — the version being assessed
 config: { ... }               # optional — controllers, reports, and publishers
 components: [ ... ]           # the app's parts
 fragments: [ ... ]            # optional — merge other Saga files into this one
@@ -119,13 +120,36 @@ references: [ ... ]           # optional — links to manual/human controls
 Any string value may reference an environment variable with `${{ VAR_NAME }}`; loading
 fails fast if a referenced variable is unset.
 
+## `project`
+
+Which project this descriptor describes: lowercase letters, digits and dashes.
+
+It is the identity of the thing being assessed, and it does not change between builds. A platform
+receiving runs files them under it, and a run whose project does not match the one its credential
+writes to is refused — two descriptors publishing into one project close each other's findings as
+fixed, which is a misconfiguration nothing else detects.
+
+```yaml
+project: payments-api
+release:
+  version: "2.4.0"
+```
+
+> **`release.name` is deprecated and is removed after 2026-08-30.** It named the same thing —
+> this reference used to call it "what Draugr is qualifying", and elsewhere a project name — and
+> two fields for one identity meant a platform had to remember an arbitrary string per project and
+> could not tell a renamed project from a pipeline pointed at the wrong one.
+>
+> Replace `release.name: payments-api` with `project: payments-api`. `draugr validate` says so on
+> every run until you do. Setting both to different values is an error; setting both to the same
+> value is redundant and still warns.
+
 ## `release` (required)
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | — | Release/app name |
-| `version` | ✅ | Release version |
-| `stage` | — | Free-form stage label (e.g. `dev`) |
+| `name` | — | **Deprecated**, removed after 2026-08-30 — use `project` |
+| `version` | ✅ | The version being assessed. What changes between builds |
 
 ## `config.controllers`
 

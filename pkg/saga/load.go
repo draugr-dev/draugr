@@ -88,8 +88,21 @@ func unknownFieldHint(err error) error {
 		// The root document isn't a named section to a reader; "model" is our Go type.
 		section = "the top level"
 	}
+	if why, ok := removedFields[section+"."+field]; ok {
+		return fmt.Errorf("%s.%s was removed: %s", section, field, why)
+	}
 	return fmt.Errorf("unknown field %q in %s — check the spelling, or see "+
 		"https://draugr.dev/docs/latest/reference/saga-schema/", field, section)
+}
+
+// removedFields explains a field that used to parse, keyed by "section.field".
+//
+// A removed field arrives as an unknown one, and "unknown field" sends someone hunting for a typo
+// in a line they copied from our own documentation. Naming the removal costs one map entry and
+// answers the question the error otherwise raises.
+var removedFields = map[string]string{
+	"release.stage": "nothing read it, so deleting the line changes no result. " +
+		"Where a scan is pointed is a property of the target, not of the release",
 }
 
 var unknownField = regexp.MustCompile(`field (\S+) not found in type (\S+)`)

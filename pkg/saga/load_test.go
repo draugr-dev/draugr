@@ -11,7 +11,6 @@ const validSaga = `
 release:
   name: my-app
   version: "1.0"
-  stage: dev
 config:
   controllers:
     images:
