@@ -38,7 +38,6 @@ type Release struct {
 	// read and defer. Accepted until then, warned about on every validate, and gone after.
 	Name    string `yaml:"name,omitempty"`
 	Version string `yaml:"version"`
-	Stage   string `yaml:"stage,omitempty"`
 }
 
 // ProjectName is which project this descriptor describes.

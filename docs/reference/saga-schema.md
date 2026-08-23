@@ -150,7 +150,6 @@ release:
 |-------|----------|-------------|
 | `name` | — | **Deprecated**, removed after 2026-08-30 — use `project` |
 | `version` | ✅ | The version being assessed. What changes between builds |
-| `stage` | — | Free-form label (e.g. `dev`). **Recorded and not yet acted on** — nothing in Draugr reads it |
 
 ## `config.controllers`
 
