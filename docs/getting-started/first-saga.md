@@ -18,11 +18,12 @@ see the [Saga schema](../reference/saga-schema.md).
 
 ## The smallest thing that runs
 
-A Saga needs a `release` and at least one component with an enabled control:
+A Saga names its project, gives a version, and declares at least one component with an
+enabled control:
 
 ```yaml
+project: my-app
 release:
-  name: my-app
   version: "1.0"
 config:
   controllers:
@@ -94,8 +95,8 @@ Any string value may reference an environment variable with `${{ VAR_NAME }}`; l
 fast if a referenced variable is unset. Never put a token in the Saga itself:
 
 ```yaml
+project: my-app
 release:
-  name: my-app
   version: "${{ RELEASE_VERSION }}"
 ```
 

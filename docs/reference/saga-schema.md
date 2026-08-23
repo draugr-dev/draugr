@@ -135,10 +135,9 @@ release:
   version: "2.4.0"
 ```
 
-> **`release.name` is deprecated and is removed after 2026-08-30.** It named the same thing —
-> this reference used to call it "what Draugr is qualifying", and elsewhere a project name — and
-> two fields for one identity meant a platform had to remember an arbitrary string per project and
-> could not tell a renamed project from a pipeline pointed at the wrong one.
+> **`release.name` is deprecated and is removed after 2026-08-30.** It named the same thing, and
+> two fields for one identity mean a platform has to remember an arbitrary string per project and
+> cannot tell a renamed project from a pipeline pointed at the wrong one.
 >
 > Replace `release.name: payments-api` with `project: payments-api`. `draugr validate` says so on
 > every run until you do. Setting both to different values is an error; setting both to the same
@@ -1107,8 +1106,8 @@ Names the party making the claims in a generated [VEX document](../guides/vex.md
 (`--report vex`), and the product they are about.
 
 ```yaml
+project: acme-api         # what you call this internally
 release:
-  name: acme-api          # what you call this internally
   version: "2.4.0"
 
 config:
@@ -1155,7 +1154,8 @@ A VEX statement is about a *version* of a product: `not_affected` in 2.3 says no
 recommended form, and it cannot go stale — the identifier moves when the release does.
 
 ```yaml
-release:  { name: acme-api, version: "2.4.0" }
+project: acme-api
+release: { version: "2.4.0" }
 config:
   vex:
     product: "pkg:oci/acme/api"     # → pkg:oci/acme/api@2.4.0

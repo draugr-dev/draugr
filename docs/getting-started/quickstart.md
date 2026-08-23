@@ -39,8 +39,8 @@ Create `draugr.saga.yaml`. The **Saga** is the one artifact that maps your softw
 controls that must pass. A minimal, runnable example:
 
 ```yaml
+project: my-app
 release:
-  name: my-app
   version: "1.0"
 config:
   controllers:

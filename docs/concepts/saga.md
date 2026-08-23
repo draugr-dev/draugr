@@ -38,8 +38,8 @@ A descriptor moves that decision out of the pipeline and into a file that lives 
 ## Anatomy
 
 ```yaml
+project: acme-platform
 release:                      # required — what is being qualified
-  name: acme-platform
   version: "1.4.0"
 
 config:                       # optional — controls, thresholds, reports, publishers

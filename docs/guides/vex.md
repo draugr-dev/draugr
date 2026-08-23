@@ -86,8 +86,8 @@ config:
 ## Name yourself and your product
 
 ```yaml
+project: acme-api                                 # what you call this internally
 release:
-  name: acme-api                                 # what you call this internally
   version: "2.4.0"
 
 config:
@@ -128,7 +128,8 @@ which means a product identifier that has gone stale is making a claim about the
 **Leave the version out and Draugr appends `release.version`:**
 
 ```yaml
-release:  { name: acme-api, version: "2.4.0" }
+project: acme-api
+release: { version: "2.4.0" }
 config:
   vex:
     product: "pkg:oci/acme/api"      # → pkg:oci/acme/api@2.4.0
