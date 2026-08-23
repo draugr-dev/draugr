@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
@@ -46,8 +47,17 @@ type jsonReport struct {
 	// Repositories is which repository was read and at which commit — what makes the report
 	// reproducible, and the answer to "does this describe my change or last week's".
 	Repositories []sarif.RepositoryRef `json:"repositories,omitempty"`
-	Findings     []findingReport       `json:"findings,omitempty"`
-	Stats        statsInfo             `json:"stats"`
+	// Descriptor is the Saga that turned a repository into this set of checks.
+	//
+	// Without it the report says what was found and never what was asked for, so "why did this
+	// run cover sca and not images" has no answer from the artifact — and an exclusion that
+	// suppressed a finding came from a file nobody can name.
+	Descriptor *DescriptorRef `json:"descriptor,omitempty"`
+	// CI is the job this scan ran in. Absent outside CI, and absent rather than guessed on a
+	// platform Draugr does not recognize.
+	CI       *ci.Context     `json:"ci,omitempty"`
+	Findings []findingReport `json:"findings,omitempty"`
+	Stats    statsInfo       `json:"stats"`
 }
 
 // sortedControls names the controls in a scan-error map, in a stable order.
@@ -92,6 +102,64 @@ type findingReport struct {
 	// the call path when it can. Same reason as Escalation, in the other direction: a consumer
 	// acting on a band that reachability lowered can say what lowered it.
 	Reachability *sarif.Reachability `json:"reachability,omitempty"`
+}
+
+// Provenance is what produced a run, as opposed to what it found.
+//
+// Grouped rather than added as two more parameters: these travel together, they are both absent
+// together in the common local case, and the renderer's signature is already long enough that a
+// caller passing them in the wrong order would compile.
+type Provenance struct {
+	Descriptor *DescriptorRef
+	CI         *ci.Context
+}
+
+// DescriptorRef identifies the descriptor a run was produced from.
+//
+// Both halves are needed and neither substitutes for the other: Digest says whether two runs were
+// asked the same question, and Sources says which files that question was assembled from.
+type DescriptorRef struct {
+	// Digest is over the merged, environment-substituted descriptor, serialized canonically.
+	//
+	// No file on disk has this content. A digest over the root file alone would call two runs
+	// identical when a fragment between them changed, and different when a comment moved.
+	Digest string `json:"digest,omitempty"`
+	// Sources are the files it was assembled from, root first.
+	Sources []DescriptorSource `json:"sources,omitempty"`
+}
+
+// DescriptorSource is one file a descriptor was assembled from.
+type DescriptorSource struct {
+	// Path is the file as the descriptor that named it wrote it.
+	Path string `json:"path,omitempty"`
+	// URL, Revision and Resolved locate a fragment fetched from another repository. Revision is
+	// what was asked for and Resolved is the commit that turned out to be — a branch moves, so
+	// only the second makes the run reproducible.
+	URL      string `json:"url,omitempty"`
+	Revision string `json:"revision,omitempty"`
+	Resolved string `json:"resolved,omitempty"`
+	// Digest is over the file as committed, before ${{ VAR }} substitution: it answers "is this
+	// the same file somebody reviewed", which is a question about the text, not the run.
+	Digest string `json:"digest,omitempty"`
+	// Root marks the descriptor the resolution started from.
+	Root bool `json:"root,omitempty"`
+}
+
+// DescriptorFrom renders a resolution as the report's descriptor block, or nil when there was
+// none — a scan driven entirely from flags has no descriptor to record, and an empty block would
+// claim otherwise.
+func DescriptorFrom(res *saga.Resolved) *DescriptorRef {
+	if res == nil || len(res.Sources) == 0 {
+		return nil
+	}
+	out := &DescriptorRef{Digest: res.Digest(), Sources: make([]DescriptorSource, 0, len(res.Sources))}
+	for _, s := range res.Sources {
+		out.Sources = append(out.Sources, DescriptorSource{
+			Path: s.Path, URL: s.URL, Revision: s.Revision, Resolved: s.Resolved,
+			Digest: s.Digest, Root: s.Root,
+		})
+	}
+	return out
 }
 
 // FeedProvenance is one exploitability dataset as a run saw it: where it came from, when, and
@@ -212,7 +280,7 @@ func RenderJSONWith(w io.Writer, release saga.Release, run engine.Result, verdic
 // Deprecated: use RenderJSONFor, which carries the project. This one emits a document with no
 // project in it, which a platform files under nothing.
 func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions) error {
-	return RenderJSONFor(w, "", release, run, verdict, minPriority, feeds, opts)
+	return RenderJSONFor(w, "", release, run, verdict, minPriority, feeds, opts, Provenance{})
 }
 
 // RenderJSONFor is RenderJSONWithFeeds with the project the run belongs to.
@@ -220,12 +288,14 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 // A separate function rather than another parameter on the three above: release.name is being
 // removed, and those signatures go with it. Changing them twice — once to add the project and
 // again to drop the release name — is two breaks for one decision.
-func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions) error {
+func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions, prov Provenance) error {
 	doc := jsonReport{
-		Project: project,
-		Release: releaseInfo{Name: release.Name, Version: release.Version},
-		Verdict: string(verdict.Verdict),
-		Scope:   scopeOf(run),
+		Descriptor: prov.Descriptor,
+		CI:         prov.CI,
+		Project:    project,
+		Release:    releaseInfo{Name: release.Name, Version: release.Version},
+		Verdict:    string(verdict.Verdict),
+		Scope:      scopeOf(run),
 		Stats: statsInfo{
 			Jobs:              run.Stats.Jobs,
 			Scans:             run.Stats.Scans,

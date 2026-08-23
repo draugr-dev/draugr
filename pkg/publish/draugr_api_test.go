@@ -13,6 +13,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
@@ -317,14 +318,17 @@ func TestTheKeyIsTheJobWhereThereIsOneAndTheReportOtherwise(t *testing.T) {
 		"local":          {nil, digest},
 	} {
 		t.Run(name, func(t *testing.T) {
+			// The marker variables too, and not only the run ids: this suite runs inside CI,
+			// where the real platform's marker is set and would win the detection.
 			for _, v := range []string{"GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "CI_JOB_ID",
-				"BUILD_BUILDID", "CIRCLE_WORKFLOW_ID", "BUILDKITE_BUILD_ID"} {
+				"BUILD_BUILDID", "CIRCLE_WORKFLOW_ID", "BUILDKITE_BUILD_ID",
+				"GITHUB_ACTIONS", "GITLAB_CI", "TF_BUILD", "CIRCLECI", "BUILDKITE"} {
 				t.Setenv(v, "")
 			}
 			for k, v := range tc.env {
 				t.Setenv(k, v)
 			}
-			p := draugrAPIPublisher{jobID: ciJobID()}
+			p := draugrAPIPublisher{jobID: ci.Detect().JobID()}
 			if got := p.runKeyFor(runReport); got != tc.want {
 				t.Errorf("key = %q, want %q", got, tc.want)
 			}

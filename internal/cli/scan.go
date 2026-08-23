@@ -21,6 +21,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/internal/vexload"
 	"github.com/draugr-dev/draugr/pkg/cache"
+	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
@@ -177,10 +178,11 @@ func newScanCommand() *cobra.Command {
 // runScan executes the full pipeline: describe → plan → scan → aggregate → judge → report.
 // target is a Saga file, a directory to scan zero-config, or "" for the current directory.
 func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.Registry, w io.Writer) error {
-	model, synthesized, err := scanModel(target)
+	resolved, synthesized, err := scanResolved(target)
 	if err != nil {
 		return err
 	}
+	model := resolved.Model
 	if synthesized {
 		// To stderr so it never pollutes a machine-readable stdout format (json/sarif).
 		// Only reachable when the directory has no descriptor, which is what makes suggesting one
@@ -392,6 +394,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Tools:                toolBuilds(ctx, run),
 		Repositories:         report.RepositoriesFrom(run),
 		VEX:                  model.Config.VEX,
+		// What produced this run, as opposed to what it found. Both are known only here and are
+		// gone when the process exits: a platform reading the report can see which controls ran
+		// and not what enabled them, and can see a repository and not which pipeline scanned it.
+		Descriptor: skald.DescriptorFrom(resolved),
+		CI:         detectedCI(),
 		// Stamped so a rendered report can say when it ran and what produced it. A report
 		// offered as evidence has to answer both, and only the CLI knows either.
 		Generated: time.Now(),
@@ -1027,4 +1034,15 @@ func undeliveredReports(model *saga.Model, opts scanOptions) []string {
 		formats = append(formats, r.Format)
 	}
 	return formats
+}
+
+// detectedCI is the CI job this scan is running in, or nil.
+//
+// A pointer so that "not in CI" is absent from a report rather than an empty object, which a
+// consumer would have to distinguish from a platform that was recognized and told us nothing.
+func detectedCI() *ci.Context {
+	if c := ci.Detect(); c.Detected() {
+		return &c
+	}
+	return nil
 }

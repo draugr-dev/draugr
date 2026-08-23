@@ -20,6 +20,19 @@ import (
 // zeroConfigControls over that repo); a file target is loaded as a Saga descriptor. Returns whether the
 // model was synthesized so the caller can note it.
 func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
+	res, synthesized, err := scanResolved(target)
+	if err != nil {
+		return nil, synthesized, err
+	}
+	return res.Model, synthesized, nil
+}
+
+// scanResolved is scanModel keeping the resolution, for the caller that reports which files the
+// scan was driven by.
+//
+// A synthesized model has none, and its Resolved carries no sources rather than one naming a file
+// that was never read.
+func scanResolved(target string) (*saga.Resolved, bool, error) {
 	path, found, err := resolveDescriptor(target, "scan")
 	if err != nil {
 		return nil, false, err
@@ -28,10 +41,10 @@ func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
 		if target == "" {
 			target = "."
 		}
-		return syntheticSaga(target), true, nil
+		return &saga.Resolved{Model: syntheticSaga(target)}, true, nil
 	}
-	m, err = loadSaga(path)
-	return m, false, err
+	res, err := loadResolvedCtx(context.Background(), path)
+	return res, false, err
 }
 
 // resolveDescriptor turns a path that may be a directory into the descriptor to act on. An empty
@@ -213,6 +226,20 @@ func loadSaga(path string) (*saga.Model, error) { return loadSagaCtx(context.Bac
 // loadSagaCtx is loadSaga with a context, so fetching a remote fragment can be canceled with the
 // rest of the run.
 func loadSagaCtx(ctx context.Context, path string) (*saga.Model, error) {
+	res, err := loadResolvedCtx(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	return res.Model, nil
+}
+
+// loadResolvedCtx is loadSagaCtx keeping the resolution: which files the descriptor was assembled
+// from, and their digests.
+//
+// A caller that only needs the model should use loadSagaCtx. A run that will be published needs
+// the sources, because a report recording what was found and not what was asked for cannot answer
+// why a control ran — and the resolution is discarded the moment the process exits.
+func loadResolvedCtx(ctx context.Context, path string) (*saga.Resolved, error) {
 	fetcher := sagafetch.New(ctx)
 	defer fetcher.Close()
 
@@ -234,7 +261,7 @@ func loadSagaCtx(ctx context.Context, path string) (*saga.Model, error) {
 		return nil, fmt.Errorf("%q names a control Draugr cannot run:\n  %s",
 			path, strings.ReplaceAll(err.Error(), "\n", "\n  "))
 	}
-	return model, nil
+	return res, nil
 }
 
 // zeroConfigControllers enables each zero-config control in a fresh settings map.

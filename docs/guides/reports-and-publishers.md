@@ -53,6 +53,45 @@ draugr scan draugr.saga.yaml -o out/
 jq -e '[.controls[].scanErrors // empty] | length == 0' out/report.json   # fail the build on a partial run
 ```
 
+### What produced the run
+
+`report.json` records what a scan found. Two blocks record what was asked for, and both exist only
+in the process that ran the scan — nothing downstream can recover them.
+
+`descriptor` is the Saga the run came from:
+
+```json
+"descriptor": {
+  "digest": "sha256:b32eab97bd2d…",
+  "sources": [
+    {"path": "draugr.saga.yaml", "digest": "sha256:1cd43153e6c0…", "root": true},
+    {"path": ".draugr/exclusions.saga-fragment.yaml", "digest": "sha256:eedd6b25aed0…"}
+  ]
+}
+```
+
+The two kinds of digest answer different questions and neither substitutes for the other.
+`descriptor.digest` is over the **merged, effective** descriptor with `${{ VAR }}` substituted, so
+two runs carrying the same one were asked the same thing — it moves when a fragment changes, and
+does not move when a comment does. Each `sources[].digest` is over that **file as committed**, so
+it answers whether the text somebody reviewed is the text that ran.
+
+A fragment fetched from another repository also carries `url`, `revision` and `resolved`. Pin on
+`resolved`: a branch moves, so it is the commit, not the reference, that makes the run reproducible.
+
+`ci` is the job the scan ran in — `system`, `repository`, `ref`, `workflow`, `job`, `runId`,
+`attempt` and, where the platform publishes enough to build one, `url`. GitHub Actions, GitLab CI,
+Azure Pipelines, CircleCI and Buildkite are recognized; outside them the block is absent rather
+than guessed at.
+
+```bash
+# Two runs, one question: did anything about the descriptor change between them?
+jq -r '.descriptor.digest' a/report.json b/report.json | uniq | wc -l
+```
+
+Both blocks are absent when there is nothing to record — a scan with no descriptor, or one run
+outside CI — so a document that has them is one that knows, rather than one that defaulted.
+
 ## Declare formats and destinations
 
 ```yaml

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -88,6 +89,17 @@ type Data struct {
 	// they have not asked push the answer to the one they have off the screen. An auditor is a
 	// real reader, just not the default one, and asks for this.
 	Evidence bool
+	// Descriptor is the Saga this run was produced from: the digest of the merged, effective
+	// document and the files it was assembled from.
+	//
+	// Nil for a scan with no descriptor, which is a real case and not an error.
+	Descriptor *skald.DescriptorRef
+	// CI is the job the scan ran in, and nil outside one.
+	//
+	// It exists once, in the process doing the work, and is gone when that process exits. A
+	// platform receiving this report can see a repository URL and cannot see which workflow
+	// produced the scan.
+	CI *ci.Context
 	// Gate records the policy the verdict was produced under.
 	//
 	// A verdict is only as meaningful as the gate behind it, and a gate can be narrowed or turned
@@ -312,7 +324,8 @@ type jsonReporter struct{}
 func (jsonReporter) Format() string { return "json" }
 func (jsonReporter) Render(w io.Writer, d Data) error {
 	return skald.RenderJSONFor(w, d.ProjectName(), d.Release, d.Run, d.Verdict, d.MinPriority,
-		skaldFeeds(d.Exploitability), d.marshalOptions())
+		skaldFeeds(d.Exploitability), d.marshalOptions(),
+		skald.Provenance{Descriptor: d.Descriptor, CI: d.CI})
 }
 
 // skaldFeeds converts the report's feed provenance into the JSON document's shape.

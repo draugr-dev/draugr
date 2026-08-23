@@ -33,6 +33,12 @@ type Source struct {
 	Resolved string
 	// Root marks the descriptor the resolution started from.
 	Root bool
+	// Digest is the content digest of the file, before ${{ VAR }} substitution.
+	//
+	// Per source rather than only over the merged result, because "which files was this assembled
+	// from, and were they these ones" is the question an exclusion raises: a suppression arriving
+	// from a fragment somebody cannot pin is a decision with no author.
+	Digest string
 }
 
 // String renders a source the way a report or an error should name it.
@@ -103,7 +109,7 @@ func ResolveFile(path string, fetcher Fetcher) (*Resolved, error) {
 		abs = path
 	}
 	r.seen[abs] = true
-	r.sources = append(r.sources, Source{Path: path, Root: true})
+	r.sources = append(r.sources, Source{Path: path, Root: true, Digest: digestFile(path)})
 	stampExclusions(model.Config.Exclude, path)
 
 	if err := r.apply(model, model.Fragments, filepath.Dir(path), 0); err != nil {
@@ -194,6 +200,7 @@ func (r *resolver) mergeFrom(model *Model, ref FragmentRef, dir string, src Sour
 		if err != nil {
 			return err
 		}
+		named.Digest = digestFile(full)
 		r.sources = append(r.sources, named)
 		stampExclusions(frag.Config.Exclude, named.String())
 		Merge(model, frag)

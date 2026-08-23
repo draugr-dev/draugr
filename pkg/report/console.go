@@ -7,11 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
+	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -1314,6 +1316,20 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, s summary) {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, line))
 	}
 
+	var provenance []string
+	if line := descriptorLine(d.Descriptor); line != "" {
+		provenance = append(provenance, line)
+	}
+	if line := ciLine(d.CI); line != "" {
+		provenance = append(provenance, line)
+	}
+	for _, l := range provenance {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cDim, l))
+	}
+	if len(provenance) > 0 {
+		_, _ = fmt.Fprintln(w)
+	}
+
 	// Last, because a verdict is the thing everything above stands behind, and the gate is what
 	// turned findings into that verdict.
 	writeGate(w, col, d, true)
@@ -1438,4 +1454,66 @@ func gateOverrides(g GateSettings) string {
 		parts = append(parts, fmt.Sprintf("%s on %s", name, g.PerControl[name]))
 	}
 	return strings.Join(parts, ", ")
+}
+
+// descriptorLine says which descriptor drove the run and whether it was one file.
+//
+// The digest first, because it is the part that answers a question: two runs carrying the same one
+// were asked the same thing. Fragments are counted rather than listed — the full list is in
+// report.json, and an auditor comparing files is reading that, not a terminal.
+func descriptorLine(d *skald.DescriptorRef) string {
+	if d == nil || len(d.Sources) == 0 {
+		return ""
+	}
+	root := d.Sources[0].Path
+	for _, s := range d.Sources {
+		if s.Root {
+			root = s.Path
+			break
+		}
+	}
+	line := "Descriptor: " + root
+	if n := len(d.Sources) - 1; n > 0 {
+		line += fmt.Sprintf(" + %s", plural(n, "fragment"))
+	}
+	if d.Digest != "" {
+		line += " · " + shortDigest(d.Digest)
+	}
+	return line
+}
+
+// shortDigest keeps a digest recognizable without spending a line on it. Twelve hex characters is
+// what git settled on for the same job.
+func shortDigest(d string) string {
+	hex := strings.TrimPrefix(d, "sha256:")
+	if len(hex) > 12 {
+		hex = hex[:12]
+	}
+	return hex
+}
+
+// ciLine names the job, so a report read later can be traced back to the pipeline that produced it.
+func ciLine(c *ci.Context) string {
+	if c == nil || !c.Detected() {
+		return ""
+	}
+	line := "CI: " + c.System
+	for _, part := range []string{c.Repository, jobPath(c), c.JobID()} {
+		if part != "" {
+			line += " · " + part
+		}
+	}
+	return line
+}
+
+// jobPath is "workflow/job", or whichever of the two the platform names.
+func jobPath(c *ci.Context) string {
+	switch {
+	case c.Workflow != "" && c.Job != "":
+		return c.Workflow + "/" + c.Job
+	case c.Workflow != "":
+		return c.Workflow
+	default:
+		return c.Job
+	}
 }
