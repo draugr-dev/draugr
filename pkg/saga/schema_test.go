@@ -317,10 +317,11 @@ func descriptorStructs(t reflect.Type, seen map[reflect.Type]bool) {
 // inlinedInSchema are model structs the schema deliberately gives no definition of their own.
 // Each needs a reason here, because "no definition" is also what an unguarded type looks like.
 var inlinedInSchema = map[string]string{
-	"Model":    "the root document, covered by the \"\" case",
-	"Fragment": "described by the generated fragment schema, kept in step by internal/schemagen",
-	"Resolved": "a load result, never written by a user",
-	"Source":   "provenance of a loaded file, never written by a user",
+	"Model":             "the root document, covered by the \"\" case",
+	"Fragment":          "described by the generated fragment schema, kept in step by internal/schemagen",
+	"Resolved":          "a load result, never written by a user",
+	"Source":            "provenance of a loaded file, never written by a user",
+	"EffectPermissions": "two shapes behind one key, described inline by config.allowEffects's oneOf",
 }
 
 // TestEveryDescriptorStructIsGuarded stops the coverage check from silently examining less than the

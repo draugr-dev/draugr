@@ -637,7 +637,7 @@ func TestConsentNamesEveryUnacceptedEffect(t *testing.T) {
 		},
 	}
 
-	err := consentFor(info, nil)
+	err := consentFor(info, nil, "")
 	if err == nil {
 		t.Fatal("want a refusal")
 	}
@@ -649,7 +649,7 @@ func TestConsentNamesEveryUnacceptedEffect(t *testing.T) {
 	}
 
 	// Accepting one leaves the other, named on its own rather than as a list of one.
-	err = consentFor(info, map[plugin.EffectKind]bool{plugin.EffectMutate: true})
+	err = consentFor(info, map[plugin.EffectKind]bool{plugin.EffectMutate: true}, "")
 	if err == nil {
 		t.Fatal("want a refusal for the remaining effect")
 	}
@@ -662,7 +662,7 @@ func TestConsentNamesEveryUnacceptedEffect(t *testing.T) {
 
 	if err := consentFor(info, map[plugin.EffectKind]bool{
 		plugin.EffectMutate: true, plugin.EffectPrivilege: true,
-	}); err != nil {
+	}, ""); err != nil {
 		t.Errorf("everything accepted should pass: %v", err)
 	}
 }

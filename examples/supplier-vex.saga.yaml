@@ -4,8 +4,9 @@
 # failure worth designing against is one vendor's assurance quietly excusing a finding somewhere
 # else — so `payments-api` sees Acme's document and `worker` does not, while the platform team's
 # project-wide document reaches both.
+project: payments
+
 release:
-  name: payments
   version: 2.4.0
 
 config:

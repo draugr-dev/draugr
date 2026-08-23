@@ -3,6 +3,8 @@ package cli
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 // TestShippedExamplesValidate holds the examples to the same rules a user's descriptor is held to.
@@ -42,6 +44,35 @@ func TestShippedExamplesValidate(t *testing.T) {
 				t.Errorf("%s is not a descriptor Draugr accepts: %v\n"+
 					"It is shipped as the file to copy, so this is wrong for every reader before "+
 					"it is wrong for us.", path, err)
+			}
+		})
+	}
+}
+
+// TestShippedExamplesUseNothingDeprecated keeps the files we hand people ahead of the deprecations
+// we ship, not behind them.
+//
+// An example that trips a deprecation teaches the thing being removed, and does it to exactly the
+// reader who has no way to know better. It also makes the notice itself worthless: somebody who
+// copied our example and then saw us warn about it reads the warning as noise.
+func TestShippedExamplesUseNothingDeprecated(t *testing.T) {
+	t.Parallel()
+
+	paths, err := filepath.Glob("../../examples/*.saga.yaml")
+	if err != nil {
+		t.Fatalf("glob examples: %v", err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("no descriptors found under examples/ — this guard has been checking nothing")
+	}
+	for _, path := range paths {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			model, err := saga.LoadFile(path)
+			if err != nil {
+				t.Fatalf("load: %v", err)
+			}
+			for _, d := range model.Deprecations() {
+				t.Errorf("%s", d)
 			}
 		})
 	}

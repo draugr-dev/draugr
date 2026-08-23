@@ -102,6 +102,12 @@ type Result struct {
 	// criticality, so a report showing the band without naming the component states a conclusion
 	// and withholds its premise.
 	Component string `json:"component,omitempty"`
+	// Environment is which environment the target was in, for a finding about a live system.
+	//
+	// Empty for a repository or an image: those are artifacts, and the same image digest may be
+	// deployed in every environment or in none. A finding that claimed one would assert a
+	// deployment that has not happened.
+	Environment string `json:"environment,omitempty"`
 	// Repository is the repository this finding was found in, for a component that has more than
 	// one — or a fragment that contributed one from somewhere else.
 	//

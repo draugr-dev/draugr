@@ -17,8 +17,9 @@
 # hosted, or installed where you want it — and so can anything else: the three calls are in
 # docs/guides/reports-and-publishers.md, and this publisher does not know which it is talking to.
 
+project: my-app
+
 release:
-  name: my-app
   version: "1.0"
 
 config:

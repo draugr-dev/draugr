@@ -41,10 +41,8 @@ func TestDescribeScanNamesWhatThisDescriptorDoes(t *testing.T) {
 func TestDescribeScanSaysWhenItWillProbeALiveHost(t *testing.T) {
 	model := &saga.Model{
 		Config: saga.Config{
-			Controllers: map[string]saga.ControllerSettings{"dast": {"enabled": true}},
-			AllowEffects: []string{
-				string("network"),
-			},
+			Controllers:  map[string]saga.ControllerSettings{"dast": {"enabled": true}},
+			AllowEffects: saga.EffectPermissions{Everywhere: []string{"network"}},
 		},
 		Components: []saga.Component{
 			{Name: "api", Hosts: []saga.Host{{URL: "https://api.example.com"}}},

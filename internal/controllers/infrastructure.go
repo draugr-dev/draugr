@@ -73,6 +73,7 @@ func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.Sca
 				Target: plugin.InfraTarget{
 					Platform: kubernetesPlatform, Ref: infra.Ref, Namespaces: infra.Namespaces,
 					ProviderOperated: infra.OperatedBy == saga.OperatedByProvider,
+					Environment:      infra.Environment,
 				},
 				Config: withShared(shared, sel.Config),
 			})

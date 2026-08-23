@@ -153,11 +153,28 @@ func TestSchemaAllowsEveryEffectKind(t *testing.T) {
 	cfg := defs["config"].(map[string]any)
 	props := cfg["properties"].(map[string]any)
 	allow := props["allowEffects"].(map[string]any)
-	items := allow["items"].(map[string]any)
+	// Two shapes, and both have to accept every kind: an enum that drifts in only one of them is
+	// an editor that accepts `[network]` and underlines `production: [network]`.
+	shapes := allow["oneOf"].([]any)
+	if len(shapes) != 2 {
+		t.Fatalf("allowEffects has %d shapes, want 2 (a list, and a mapping by environment)", len(shapes))
+	}
+	asList := shapes[0].(map[string]any)
+	byEnv := shapes[1].(map[string]any)["additionalProperties"].(map[string]any)
 
 	got := map[string]bool{}
-	for _, v := range items["enum"].([]any) {
-		got[v.(string)] = true
+	for _, shape := range []map[string]any{asList, byEnv} {
+		items := shape["items"].(map[string]any)
+		seen := map[string]bool{}
+		for _, v := range items["enum"].([]any) {
+			seen[v.(string)] = true
+			got[v.(string)] = true
+		}
+		for _, k := range plugin.EffectKinds() {
+			if !seen[string(k)] {
+				t.Errorf("effect %q is declarable but one allowEffects shape rejects it", k)
+			}
+		}
 	}
 	for _, k := range plugin.EffectKinds() {
 		if !got[string(k)] {
@@ -168,9 +185,12 @@ func TestSchemaAllowsEveryEffectKind(t *testing.T) {
 		t.Errorf("schema lists %d kinds, the taxonomy has %d", len(got), len(plugin.EffectKinds()))
 	}
 	// A constraint the hand-written definition carried; a generator that drops one silently is
-	// worse than the drift it replaced.
-	if allow["uniqueItems"] != true {
-		t.Error("allowEffects no longer requires unique items")
+	// worse than the drift it replaced. Checked on both shapes, because a repeated kind is the
+	// same typo in either.
+	for i, shape := range []map[string]any{asList, byEnv} {
+		if shape["uniqueItems"] != true {
+			t.Errorf("allowEffects shape %d no longer requires unique items", i)
+		}
 	}
 }
 

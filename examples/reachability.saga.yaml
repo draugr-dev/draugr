@@ -29,8 +29,9 @@
 #
 # Go only. Reachability for other ecosystems is a different tool and a different kind of claim.
 
+project: my-go-service
+
 release:
-  name: my-go-service
   version: "1.0"
 
 config:

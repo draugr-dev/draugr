@@ -441,6 +441,29 @@ config:
 or `--allow-effects mutate` for a single run. A scanner whose effect has not been accepted stops
 the run *before* it does anything, and the refusal says what it would have done.
 
+**Where the permission applies.** An effect happens to a target, and a descriptor can name targets
+in more than one environment. Keyed by
+[environment](saga-schema.md#which-environment-a-target-is-in), the permission follows them:
+
+```yaml
+config:
+  allowEffects:
+    staging: [mutate]
+    production: []
+```
+
+The refusal then names the environment that refused, so the fix is `config.allowEffects.production`
+rather than widening the permission to everything:
+
+```
+infrastructure/platform/kube-bench-job: this scanner has effects that have not been accepted
+  against production: mutate (creates a short-lived Job in the cluster and deletes it when the
+  scan finishes); privilege (that Job runs with hostPID and mounts host paths read-only…)
+```
+
+A plain list means every environment. `--allow-effects` also applies to the whole run: it is one
+person accepting one scan, not a policy.
+
 **`network` is declared, not gated.** A dynamic scanner exists to send traffic; requiring consent
 per run for the thing the control is *for* teaches people to accept without reading. It is stated
 and recorded instead — and the obligation it carries, that you are entitled to probe the host, is
