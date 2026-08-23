@@ -19,6 +19,9 @@ import (
 
 // jsonReport is the JSON evidence document.
 type jsonReport struct {
+	// Project is what a platform files this run under. First, because it is the identity of the
+	// thing the rest of the document is about.
+	Project string      `json:"project,omitempty"`
 	Release releaseInfo `json:"release"`
 	Verdict string      `json:"verdict"`
 	// Scope is what the run was narrowed to, absent when it was not narrowed at all.
@@ -205,8 +208,21 @@ func RenderJSONWith(w io.Writer, release saga.Release, run engine.Result, verdic
 }
 
 // RenderJSONWithFeeds is RenderJSONWith plus the exploitability datasets the run used.
+//
+// Deprecated: use RenderJSONFor, which carries the project. This one emits a document with no
+// project in it, which a platform files under nothing.
 func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions) error {
+	return RenderJSONFor(w, "", release, run, verdict, minPriority, feeds, opts)
+}
+
+// RenderJSONFor is RenderJSONWithFeeds with the project the run belongs to.
+//
+// A separate function rather than another parameter on the three above: release.name is being
+// removed, and those signatures go with it. Changing them twice — once to add the project and
+// again to drop the release name — is two breaks for one decision.
+func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions) error {
 	doc := jsonReport{
+		Project: project,
 		Release: releaseInfo{Name: release.Name, Version: release.Version},
 		Verdict: string(verdict.Verdict),
 		Scope:   scopeOf(run),

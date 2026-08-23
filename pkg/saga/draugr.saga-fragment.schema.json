@@ -1213,7 +1213,8 @@
       "description": "Identifies what is being assessed.",
       "properties": {
         "name": {
-          "description": "Release or application name.",
+          "deprecated": true,
+          "description": "Deprecated and removed after 2026-08-30: use the top-level `project`, which names the same thing.",
           "type": "string"
         },
         "stage": {

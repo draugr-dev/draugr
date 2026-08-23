@@ -367,6 +367,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 	}
 	data := report.Data{
+		Project:            model.ProjectName(),
 		Release:            model.Release,
 		Run:                run,
 		Verdict:            verdict,

@@ -15,6 +15,14 @@ import (
 // Model is a parsed Saga descriptor — the declarative account of an application's
 // security surface plus the controller configuration that drives a scan.
 type Model struct {
+	// Project is which project this descriptor describes, and the name a platform files its runs
+	// under. Lowercase letters, digits and dashes.
+	//
+	// It replaces release.name, which named the same thing: the reference called that "what
+	// Draugr is qualifying", and in one place a project name. Two fields for one thing meant a
+	// platform had to remember an arbitrary string per project and could not tell a renamed
+	// project from a misconfigured pipeline.
+	Project    string        `yaml:"project,omitempty"`
 	Release    Release       `yaml:"release"`
 	Config     Config        `yaml:"config,omitempty"`
 	Components []Component   `yaml:"components,omitempty"`
@@ -24,9 +32,59 @@ type Model struct {
 
 // Release identifies what is being assessed.
 type Release struct {
-	Name    string `yaml:"name"`
+	// Name is deprecated and is removed after 2026-08-30: use the top-level `project`.
+	//
+	// A date rather than "a future release", because a deprecation without one is a warning people
+	// read and defer. Accepted until then, warned about on every validate, and gone after.
+	Name    string `yaml:"name,omitempty"`
 	Version string `yaml:"version"`
 	Stage   string `yaml:"stage,omitempty"`
+}
+
+// ProjectName is which project this descriptor describes.
+//
+// `project` when it is set, otherwise the deprecated release.name. One accessor rather than the
+// fallback written at each call site, because the day release.name goes there is exactly one place
+// to change.
+func (m *Model) ProjectName() string {
+	if m.Project != "" {
+		return m.Project
+	}
+	return m.Release.Name
+}
+
+// Deprecations lists what this descriptor uses that is going away, in the words somebody needs to
+// fix it.
+//
+// Returned rather than printed, so the CLI decides where a notice belongs and a library caller is
+// not writing to somebody's stdout.
+func (m *Model) Deprecations() []string {
+	var out []string
+	if m.Release.Name != "" {
+		out = append(out, fmt.Sprintf(
+			"release.name is deprecated and is removed after 2026-08-30. "+
+				"Replace it with a top-level `project: %s` — it names the project a platform "+
+				"files runs under, which is what release.name already meant.",
+			slugify(m.Release.Name)))
+	}
+	return out
+}
+
+// slugify offers a project name from a release name, for the suggestion above.
+func slugify(s string) string {
+	var b strings.Builder
+	dash := false
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+			dash = false
+		case !dash && b.Len() > 0:
+			b.WriteByte('-')
+			dash = true
+		}
+	}
+	return strings.TrimRight(b.String(), "-")
 }
 
 // Config holds global, per-controller configuration. Each controller's config tree is

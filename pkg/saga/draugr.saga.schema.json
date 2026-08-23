@@ -1213,7 +1213,8 @@
       "description": "Identifies what is being assessed.",
       "properties": {
         "name": {
-          "description": "Release or application name.",
+          "deprecated": true,
+          "description": "Deprecated and removed after 2026-08-30: use the top-level `project`, which names the same thing.",
           "type": "string"
         },
         "stage": {
@@ -1461,6 +1462,11 @@
         "$ref": "#/$defs/fragmentRef"
       },
       "type": "array"
+    },
+    "project": {
+      "description": "Which project this descriptor describes: lowercase letters, digits and dashes. A platform files runs under it. Replaces release.name, which is deprecated and removed after 2026-08-30.",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "type": "string"
     },
     "references": {
       "description": "Links to manual or human-performed controls (threat model, architecture diagram, …).",
