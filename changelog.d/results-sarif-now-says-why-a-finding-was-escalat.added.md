@@ -1,0 +1,1 @@
+**`results.sarif` now says why a finding was escalated.** A finding whose band was raised by exploitability data carries `properties.escalation` — the dataset that fired, the fact it asserted, and the day it was fetched. Anything reading the report can now explain a P1 sitting on a "high" row, instead of showing the band and asking you to take it on trust.

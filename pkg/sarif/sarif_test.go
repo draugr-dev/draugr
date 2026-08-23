@@ -962,3 +962,57 @@ func TestPartialFingerprintsRoundTrip(t *testing.T) {
 		t.Errorf("read back %q, want %q", got, "abc123")
 	}
 }
+
+func TestEscalationSurvivesTheFile(t *testing.T) {
+	// The enrichment most likely to be argued with, because it moves a finding up. A consumer that
+	// can see the band and not the reason has to take the band on trust — and "KEV said so" is not
+	// something a reader can check, while "on KEV, as of 2026-08-22" is.
+	rep := Report{Results: []Result{{
+		RuleID: "CVE-2026-1234", Level: LevelWarning, Message: "an old library",
+		Score: 6.5, HasScore: true, Priority: "P1",
+		Escalation: &Escalation{
+			From: SeverityMedium, To: SeverityCritical,
+			Signal: "kev", Detail: "on KEV", AsOf: "2026-08-22",
+		},
+	}}}
+
+	encoded, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := FromSARIF(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Results) != 1 {
+		t.Fatalf("read back %d results", len(back.Results))
+	}
+	got := back.Results[0].Escalation
+	if got == nil {
+		t.Fatal("the escalation did not survive: a P1 on a medium finding with no reason given")
+	}
+	if got.Signal != "kev" || got.Detail != "on KEV" || got.AsOf != "2026-08-22" {
+		t.Errorf("escalation = %+v, want the dataset, the fact and the date", got)
+	}
+	if got.From != SeverityMedium || got.To != SeverityCritical {
+		t.Errorf("escalation moved %s→%s, want medium→critical", got.From, got.To)
+	}
+}
+
+func TestAnEscalationAloneIsEnoughToWriteProperties(t *testing.T) {
+	// The property bag is written only when there is something to put in it, and the condition
+	// listing every field is exactly the kind that gets a new field added above it and not into
+	// it — which drops the field silently for any finding carrying nothing else.
+	rep := Report{Results: []Result{{
+		RuleID: "CVE-2026-9999", Level: LevelNote, Message: "a finding with nothing else",
+		Escalation: &Escalation{Signal: "epss", Detail: "EPSS 0.87", AsOf: "2026-08-22"},
+	}}}
+
+	encoded, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), "EPSS 0.87") {
+		t.Errorf("the escalation was dropped for a finding with no other properties:\n%s", encoded)
+	}
+}
