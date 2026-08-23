@@ -60,11 +60,17 @@ func (m *Model) ProjectName() string {
 func (m *Model) Deprecations() []string {
 	var out []string
 	if m.Release.Name != "" {
-		out = append(out, fmt.Sprintf(
-			"release.name is deprecated and is removed after 2026-08-30. "+
-				"Replace it with a top-level `project: %s` — it names the project a platform "+
-				"files runs under, which is what release.name already meant.",
-			slugify(m.Release.Name)))
+		const why = "release.name is deprecated and is removed after 2026-08-30. " +
+			"Replace it with a top-level %s — it names the project a platform files runs " +
+			"under, which is what release.name already meant."
+		// The suggestion is there to be pasted, so it carries the whole line. A name with no
+		// letters or digits in it slugifies to nothing, and `project: ` is worse than no
+		// suggestion at all.
+		suggestion := "`project`"
+		if slug := slugify(m.Release.Name); slug != "" {
+			suggestion = fmt.Sprintf("`project: %s`", slug)
+		}
+		out = append(out, fmt.Sprintf(why, suggestion))
 	}
 	return out
 }
