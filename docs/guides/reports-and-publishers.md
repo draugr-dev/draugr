@@ -379,9 +379,17 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `repository` | Which repository it was found in, for a component holding more than one |
 | `priority` | The band Draugr computed from that component's exposure and criticality |
 | `security-severity` | The numeric score, where the scanner gave one |
+| `escalation` | Why the band is higher than the severity: the dataset, the fact, and the day it was fetched |
+| `reachability` | Whether your code can reach the vulnerable code, which analyzer decided, and how |
 
 `control` and `tool` answer different questions, and both matter to anything grouping findings:
 one rule id reported by two controls is two separate things to do.
+
+**`escalation` and `reachability` are why a band is not what the severity alone would give.** One
+moves a finding up and one moves it down, and both carry the evidence rather than only the verdict
+— the analyzer and method for reachability, the dataset and the date for escalation. A reader is
+told to reject a reachability claim that does not say how it was reached; the same standard applies
+to a claim that something is more urgent than its score.
 
 The `sarif` report is also what your editor reads — see
 [see findings in your editor](findings-in-your-editor.md) for inline diagnostics in VS Code

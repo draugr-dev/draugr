@@ -223,6 +223,14 @@ type sarifProperties struct {
 	// one more: a reachability verdict without its evidence is the claim readers are told to
 	// reject, and the evidence is the part a platform has no other way to get.
 	Reachability *Reachability `json:"reachability,omitempty"`
+	// Escalation is why a finding's band is higher than its own severity would give — the dataset
+	// that fired, the fact it asserted, and the day it was fetched.
+	//
+	// It survives the file for the reason Reachability does, and for one more: escalation is the
+	// enrichment most likely to be argued with, because it moves a finding up. "KEV said so" is
+	// not something a reader can check; "on KEV, as of 2026-08-22" is. A consumer that can see the
+	// band and not the reason has to take the band on trust.
+	Escalation *Escalation `json:"escalation,omitempty"`
 	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
 	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
 	Tags []string `json:"tags,omitempty"`
@@ -383,11 +391,13 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// Image and OperatingSystem are in the condition because they are the whole content of a
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
-		if tool != "" || res.Control != "" || res.HasScore || res.Priority != "" || res.Image != "" ||
+		if tool != "" || res.Control != "" || res.Escalation != nil || res.HasScore ||
+			res.Priority != "" || res.Image != "" ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.ImageBuiltUpstream {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
+				Escalation: res.Escalation,
 				Repository: res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
 				Reachability:       res.Reachability,
@@ -631,6 +641,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.ImageBuiltUpstream = sr.Properties.ImageBuiltUpstream
 				res.Package = sr.Properties.Package
 				res.Reachability = sr.Properties.Reachability
+				res.Escalation = sr.Properties.Escalation
 			}
 			res.Suppression = readSuppression(sr.Suppressions)
 			out.Results = append(out.Results, res)
