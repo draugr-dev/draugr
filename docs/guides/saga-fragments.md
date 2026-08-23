@@ -16,7 +16,8 @@ accepting a CVE should not be the same review.
 
 ```yaml
 # draugr.saga.yaml
-release: { name: acme, version: "3.1.0" }
+project: acme
+release: { version: "3.1.0" }
 fragments:
   - path: ".draugr/exclusions/*.saga-fragment.yaml"
 components:
@@ -68,7 +69,8 @@ services/ledger/
 
 ```yaml
 # azure.saga.yaml
-release: { name: acme-azure, version: "3.1.0" }
+project: acme-azure
+release: { version: "3.1.0" }
 fragments:
   - path: "**/draugr.saga-fragment.yaml"
   - path: "**/azure.saga-fragment.yaml"
@@ -76,7 +78,8 @@ fragments:
 
 ```yaml
 # gcp.saga.yaml
-release: { name: acme-gcp, version: "3.1.0" }
+project: acme-gcp
+release: { version: "3.1.0" }
 fragments:
   - path: "**/draugr.saga-fragment.yaml"
   - path: "**/gcp.saga-fragment.yaml"

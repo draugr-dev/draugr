@@ -56,8 +56,8 @@ never re-scanned.
 The Saga is the source of truth: a *security bill of materials for a running application*.
 
 ```yaml
+project: my-app
 release:
-  name: my-app
   version: "${{ RELEASE_VERSION }}"   # env-var substitution
 
 config:                                # global controller config, overridable per component
