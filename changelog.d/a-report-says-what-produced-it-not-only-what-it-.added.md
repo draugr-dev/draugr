@@ -1,0 +1,3 @@
+**A report says what produced it, not only what it found.** `report.json` gained two blocks: `descriptor` — the digest of the merged, effective Saga plus every file it was assembled from, each with its own digest — and `ci`, the job the scan ran in on GitHub Actions, GitLab CI, Azure Pipelines, CircleCI or Buildkite.
+
+Two runs carrying the same `descriptor.digest` were asked the same question, including through their fragments, which is not something a digest over one file can tell you. `draugr scan --evidence` prints both; anything reading the report, including a platform you publish to, receives them without asking.

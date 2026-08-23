@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
@@ -61,7 +62,7 @@ func newDraugrAPIPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		// Saga reference under the draugr-api publisher.
 		endpoint: strings.TrimRight(firstNonEmpty(cfg.URL, os.Getenv(apiURLEnv), cfg.DefaultURL), "/"),
 		token:    os.Getenv(tokenEnv),
-		jobID:    ciJobID(),
+		jobID:    ci.Detect().JobID(),
 		client:   newRetryingClient(http.DefaultClient),
 	}
 
@@ -270,25 +271,4 @@ func (p draugrAPIPublisher) runKeyFor(runReport []byte) string {
 		return p.jobID
 	}
 	return digestOf(runReport)
-}
-
-// ciJobID is what the platform calls this job, or "".
-func ciJobID() string {
-	for _, name := range []string{
-		"GITHUB_RUN_ID", // GitHub Actions
-		"CI_JOB_ID",     // GitLab CI
-		"BUILD_BUILDID", // Azure Pipelines
-		"CIRCLE_WORKFLOW_ID",
-		"BUILDKITE_BUILD_ID",
-	} {
-		if v := os.Getenv(name); v != "" {
-			// Attempt-qualified where the platform says so, or a re-attempt of a failed job would
-			// be refused as a duplicate of the attempt that failed.
-			if attempt := os.Getenv("GITHUB_RUN_ATTEMPT"); attempt != "" && name == "GITHUB_RUN_ID" {
-				return v + "-" + attempt
-			}
-			return v
-		}
-	}
-	return ""
 }
