@@ -165,7 +165,12 @@ type HostTarget struct {
 	Auth *HostAuth
 	// Spec drives the scan from an OpenAPI document instead of crawling, or nil to crawl.
 	Spec *HostSpec
+	// Environment is which environment this endpoint is in, or "" when the descriptor did not say.
+	Environment string
 }
+
+// TargetEnvironment implements the optional interface EnvironmentOf reads.
+func (t HostTarget) TargetEnvironment() string { return t.Environment }
 
 // HostSpec points a dynamic scan at an OpenAPI document, and says which methods it may exercise.
 type HostSpec struct {
@@ -273,7 +278,12 @@ type InfraTarget struct {
 	// the team that owns the workloads on it. Carried from the descriptor, because a scanner
 	// cannot see a support contract.
 	ProviderOperated bool
+	// Environment is which environment this surface is in, or "" when the descriptor did not say.
+	Environment string
 }
+
+// TargetEnvironment implements the optional interface EnvironmentOf reads.
+func (t InfraTarget) TargetEnvironment() string { return t.Environment }
 
 // Kind returns TargetInfra.
 func (InfraTarget) Kind() TargetKind { return TargetInfra }
@@ -292,4 +302,18 @@ func (t InfraTarget) Identity() string {
 	ns := slices.Clone(t.Namespaces)
 	slices.Sort(ns)
 	return id + "[" + strings.Join(ns, ",") + "]"
+}
+
+// EnvironmentOf reports which environment a target is in, or "" for one that is not in an
+// environment at all.
+//
+// An optional interface rather than a method on Target: a repository and an image are artifacts,
+// and the same image digest may be deployed everywhere or nowhere — giving them an environment
+// would assert a deployment that has not happened. Adding a method to Target would also break
+// every target type defined outside this package.
+func EnvironmentOf(t Target) string {
+	if e, ok := t.(interface{ TargetEnvironment() string }); ok {
+		return e.TargetEnvironment()
+	}
+	return ""
 }

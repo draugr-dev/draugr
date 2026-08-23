@@ -45,6 +45,7 @@ func (DAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, erro
 		target := plugin.HostTarget{
 			Name: host.Name, URL: host.URL, Type: host.Type,
 			Auth: hostAuth(host.Auth), Spec: hostSpec(host.Spec),
+			Environment: host.Environment,
 		}
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})

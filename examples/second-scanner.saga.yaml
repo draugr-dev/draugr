@@ -21,8 +21,9 @@
 #   * Counts still rise, for the right reason: each scanner finds things the other does not, and
 #     those are additional findings rather than duplicates.
 
+project: my-app
+
 release:
-  name: my-app
   version: "1.0"
 
 config:

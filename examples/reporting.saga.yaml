@@ -5,8 +5,9 @@
 # Every rendered report is delivered to every publisher. Reports are produced even when the gate
 # fails, so you always get evidence.
 
+project: my-app
+
 release:
-  name: my-app
   version: "1.0"
 
 config:

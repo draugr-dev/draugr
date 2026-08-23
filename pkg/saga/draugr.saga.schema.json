@@ -72,17 +72,41 @@
       "properties": {
         "allowEffects": {
           "description": "Scanner effects the project accepts. A scanner that does more to a target than read it declares an effect; kinds that require consent (\"mutate\", \"privilege\") will not run unless listed here or allowed with --allow-effects.",
-          "items": {
-            "enum": [
-              "mutate",
-              "privilege",
-              "network",
-              "disclosure"
-            ],
-            "type": "string"
-          },
-          "type": "array",
-          "uniqueItems": true
+          "oneOf": [
+            {
+              "items": {
+                "enum": [
+                  "mutate",
+                  "privilege",
+                  "network",
+                  "disclosure"
+                ],
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "additionalProperties": {
+                "items": {
+                  "enum": [
+                    "mutate",
+                    "privilege",
+                    "network",
+                    "disclosure"
+                  ],
+                  "type": "string"
+                },
+                "type": "array",
+                "uniqueItems": true
+              },
+              "description": "Effects accepted per environment, keyed by the environment name a target declares. An environment with an empty list accepts nothing.",
+              "propertyNames": {
+                "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+              },
+              "type": "object"
+            }
+          ]
         },
         "controllers": {
           "$ref": "#/$defs/controllers"
@@ -944,6 +968,11 @@
         "auth": {
           "$ref": "#/$defs/hostAuth"
         },
+        "environment": {
+          "description": "Which of the organization's environments this endpoint is. A target is in exactly one; a release reaches several. Matched by `config.allowEffects` to decide what a scanner may do here.",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+          "type": "string"
+        },
         "name": {
           "description": "Label for this endpoint.",
           "type": "string"
@@ -1066,6 +1095,11 @@
     "infrastructure": {
       "additionalProperties": false,
       "properties": {
+        "environment": {
+          "description": "Which of the organization's environments this surface is. Matched by `config.allowEffects` to decide what a scanner may do here.",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+          "type": "string"
+        },
         "kind": {
           "description": "Infrastructure type, e.g. kubernetes.",
           "type": "string"

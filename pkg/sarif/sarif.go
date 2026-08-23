@@ -193,7 +193,8 @@ type sarifProperties struct {
 	// Component is the part of the application the finding belongs to. A location alone is
 	// ambiguous once a descriptor has more than one component, and it is what makes the priority
 	// checkable — the band comes from that component's declared classification.
-	Component string `json:"component,omitempty"`
+	Component   string `json:"component,omitempty"`
+	Environment string `json:"environment,omitempty"`
 	// Repository is which repository the finding was found in, for a component holding more than
 	// one. Part of a finding's identity, so it has to survive the file: a report is written and
 	// read back by `draugr diff`, and an identity that only exists in memory is not one.
@@ -397,8 +398,9 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			res.ProviderOperated || res.ImageBuiltUpstream {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
-				Escalation: res.Escalation,
-				Repository: res.Repository, Package: res.Package,
+				Environment: res.Environment,
+				Escalation:  res.Escalation,
+				Repository:  res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
 				Reachability:       res.Reachability,
 				OSEndOfLife:        res.OSEndOfLife,
@@ -632,6 +634,7 @@ func FromSARIF(data []byte) (Report, error) {
 				// component, collapse into a single finding at exactly the moment it mattered.
 				res.Control = sr.Properties.Control
 				res.Component = sr.Properties.Component
+				res.Environment = sr.Properties.Environment
 				res.Repository = sr.Properties.Repository
 				res.Image = sr.Properties.Image
 				res.OperatingSystem = sr.Properties.OperatingSystem
