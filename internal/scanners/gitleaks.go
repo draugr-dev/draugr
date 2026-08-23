@@ -88,8 +88,17 @@ func gitleaksCommand(mode, dir string, cfg plugin.Config) []string {
 		"--exit-code", "0",
 		"--no-banner",
 	}
-	if path := configPath(cfg, "config"); path != "" {
-		argv = append(argv, "--config", path)
+	// Always a configuration, and always ours: it extends whatever the scan would otherwise have
+	// used — Gitleaks' own ruleset, or the one the descriptor named — and adds Draugr's.
+	//
+	// Composing it can fail on a machine with no writable home, and that is not a reason to skip
+	// the scan. Falling back to the descriptor's own configuration keeps the secrets control
+	// working; what is lost is one rule, and the run says nothing false about what it looked for.
+	userConfig := configPath(cfg, "config")
+	if composed, err := gitleaksConfigFor(userConfig); err == nil {
+		argv = append(argv, "--config", composed)
+	} else if userConfig != "" {
+		argv = append(argv, "--config", userConfig)
 	}
 	return argv
 }

@@ -1,0 +1,26 @@
+# Rules Draugr adds to whatever Gitleaks is already configured with.
+#
+# One rule, for Draugr's own ingest token. A tool that scans for other people's leaked credentials
+# while issuing unrecognizable ones of its own is holding itself to the lower standard.
+#
+# This file is a template. The placeholder below is replaced before Gitleaks reads it, with either
+# Gitleaks' built-in ruleset or the ruleset the descriptor named — so the rule is added in both
+# cases. A detection that disappears the moment somebody brings their own configuration is one that
+# is absent from every repository configured most carefully.
+
+title = "Draugr"
+
+@@EXTEND@@
+
+[[rules]]
+id = "draugr-ingest-token"
+# What it protects, said plainly. Somebody reading this in a report has found one in a file and
+# needs to know what it opens and what to do, not what product it belongs to.
+description = "Draugr ingest token — publishes scan results, and grants write access to one project's run history"
+# The marker is fixed and sits outside the random part, so it never varies: a pattern matching only
+# some of the tokens is a pattern that misses the leak it was written for.
+#
+# 43 characters is 32 bytes in unpadded base64url, which is the whole of the secret. Anchoring the
+# length keeps a prose mention of the prefix from reading as a leaked credential.
+regex = '''\bdrgr_ci_[A-Za-z0-9_-]{43}\b'''
+keywords = ["drgr_ci_"]
