@@ -12,24 +12,52 @@ import (
 )
 
 func TestGitleaksTakesASharedRuleset(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	got := gitleaksArgs("/tree", plugin.Config{"config": "rules/gitleaks.toml"})
 	i := slices.Index(got, "--config")
 	if i < 0 || i+1 >= len(got) {
 		t.Fatalf("--config not passed: %v", got)
 	}
+	// The flag now points at a ruleset Draugr composed, which extends the operator's rather than
+	// replacing it — so their rules apply and so does the one for Draugr's own ingest token.
+	body, err := os.ReadFile(got[i+1])
+	if err != nil {
+		t.Fatalf("read the composed ruleset: %v", err)
+	}
 	// Absolute, because the tool runs with the checkout as its working directory and a relative
 	// path would resolve inside a temporary clone that does not contain the operator's file.
-	if !filepath.IsAbs(got[i+1]) {
-		t.Errorf("config path %q should be absolute", got[i+1])
+	extended := ""
+	for _, line := range strings.Split(string(body), "\n") {
+		if strings.HasPrefix(line, "path = ") {
+			extended = strings.Trim(strings.TrimPrefix(line, "path = "), `"`)
+		}
 	}
-	if !strings.HasSuffix(got[i+1], "rules/gitleaks.toml") {
-		t.Errorf("config path %q lost the value", got[i+1])
+	if !filepath.IsAbs(extended) {
+		t.Errorf("extended path %q should be absolute", extended)
+	}
+	if !strings.HasSuffix(extended, "rules/gitleaks.toml") {
+		t.Errorf("extended path %q lost the value", extended)
 	}
 }
 
-func TestGitleaksWithoutAConfigIsUnchanged(t *testing.T) {
-	if got := gitleaksArgs("/tree", nil); slices.Contains(got, "--config") {
-		t.Errorf("no config option should mean no flag: %v", got)
+// Every scan carries a ruleset now, because that is what carries the rule for Draugr's own
+// credential. Previously the flag was absent unless the descriptor named a file.
+func TestGitleaksWithoutAConfigStillCarriesOurs(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	got := gitleaksArgs("/tree", nil)
+	i := slices.Index(got, "--config")
+	if i < 0 || i+1 >= len(got) {
+		t.Fatalf("--config not passed: %v", got)
+	}
+	body, err := os.ReadFile(got[i+1])
+	if err != nil {
+		t.Fatalf("read the composed ruleset: %v", err)
+	}
+	if !strings.Contains(string(body), "useDefault = true") {
+		t.Error("Gitleaks' own ruleset must still be in play")
+	}
+	if !strings.Contains(string(body), "draugr-ingest-token") {
+		t.Error("the rule is missing")
 	}
 }
 
@@ -234,14 +262,24 @@ func TestGitleaksRunsNoHistoryPassByDefault(t *testing.T) {
 // Both passes take the shared ruleset, or an organization's own rules apply to the tree and not
 // to its history — which is where the older secrets are.
 func TestBothGitleaksPassesTakeTheSharedRuleset(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	cfg := plugin.Config{"history": true, "config": "rules.toml"}
 	for name, argv := range map[string][]string{
 		"tree":    gitleaksArgs("/tree", cfg),
 		"history": gitleaksHistoryArgs("/tree", cfg),
 	} {
 		i := slices.Index(argv, "--config")
-		if i < 0 || !strings.HasSuffix(argv[i+1], "rules.toml") {
-			t.Errorf("%s pass did not get the ruleset: %v", name, argv)
+		if i < 0 || i+1 >= len(argv) {
+			t.Fatalf("%s pass got no ruleset: %v", name, argv)
+		}
+		// Reached through the composed file, which extends it. Checking the flag's own value would
+		// pass against a configuration that named the file and dropped Draugr's rule.
+		body, err := os.ReadFile(argv[i+1])
+		if err != nil {
+			t.Fatalf("%s pass: read the composed ruleset: %v", name, err)
+		}
+		if !strings.Contains(string(body), "rules.toml") {
+			t.Errorf("%s pass did not reach the ruleset: %s", name, body)
 		}
 	}
 }

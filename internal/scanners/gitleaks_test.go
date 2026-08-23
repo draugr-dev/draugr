@@ -20,6 +20,7 @@ func TestGitleaksInfo(t *testing.T) {
 }
 
 func TestGitleaksArgs(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	argv := gitleaksArgs("/work/repo", nil)
 	want := []string{
 		"gitleaks", "dir", "/work/repo",
@@ -28,7 +29,10 @@ func TestGitleaksArgs(t *testing.T) {
 		"--exit-code", "0",
 		"--no-banner",
 	}
-	if len(argv) != len(want) {
+	// Plus `--config <composed ruleset>`, which every invocation carries and which
+	// TestEveryGitleaksInvocationCarriesTheRuleset checks the contents of. Compared as a prefix so
+	// this test stays about the invocation's shape.
+	if len(argv) != len(want)+2 {
 		t.Fatalf("argv = %v", argv)
 	}
 	for i := range want {
