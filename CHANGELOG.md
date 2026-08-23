@@ -12,6 +12,43 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.106.0] - 2026-08-23
+
+### Added
+
+**A report says what produced it, not only what it found.** `report.json` gained two blocks: `descriptor` — the digest of the merged, effective Saga plus every file it was assembled from, each with its own digest — and `ci`, the job the scan ran in on GitHub Actions, GitLab CI, Azure Pipelines, CircleCI or Buildkite.
+
+Two runs carrying the same `descriptor.digest` were asked the same question, including through their fragments, which is not something a digest over one file can tell you. `draugr scan --evidence` prints both; anything reading the report, including a platform you publish to, receives them without asking.
+
+**A target says which environment it is in, and what a scanner may do there.** `hosts[]` and `infrastructure[]` take an `environment`, and `config.allowEffects` can be keyed by it:
+
+```yaml
+config:
+  allowEffects:
+    staging: [mutate]
+    production: []      # named, and accepting nothing
+```
+
+An effect happens to a target, so the permission is now resolved per target. A descriptor listing a staging endpoint and a production one used to permit an intrusive scan against both from one review of one file. A refusal names the environment that refused, so the fix is `config.allowEffects.production` rather than widening the permission to everything.
+
+A plain `allowEffects: [mutate]` still means every environment, and `--allow-effects` still applies to the whole run. Findings from a target that declares an environment carry it, so a report can be read by where the finding actually is. Repositories and images take no environment: the same image digest may be deployed everywhere or nowhere.
+
+**A Saga names its project directly.** `project: payments-api` at the top level says which project a descriptor describes, and a platform files its runs under it. `release.name` named the same thing and is deprecated: `draugr validate` says so, and it is removed after 2026-08-30. Two fields for one identity meant a platform had to remember an arbitrary string per project and could not tell a renamed project from a pipeline pointed at the wrong one.
+
+**`results.sarif` now says why a finding was escalated.** A finding whose band was raised by exploitability data carries `properties.escalation` — the dataset that fired, the fact it asserted, and the day it was fetched. Anything reading the report can now explain a P1 sitting on a "high" row, instead of showing the band and asking you to take it on trust.
+
+**`secrets` now recognizes Draugr's own ingest token.** The credential a pipeline presents to publish a run carries a fixed marker, and `draugr scan` catches one the moment it is pasted into a repository — as it would anybody else's leaked credential.
+
+Draugr's rules **extend** whatever ruleset the scan would otherwise have used rather than replacing it, so a `gitleaks.config` you already set keeps working and gains this. Replacing yours would lose your rules; skipping ours when you have one would leave the token undetected in exactly the repositories configured most carefully.
+
+### Deprecated
+
+**`release.name` is deprecated** and is removed after 2026-08-30. Use the top-level `project` instead. Descriptors keep working until then; `draugr validate` names the file and the replacement.
+
+### Removed
+
+`release.stage` is gone. It was a free-form label that nothing read, so a descriptor that set it got no behavior from it; deleting the line changes no result. Where a scan is pointed is a property of the target, not of the release. A descriptor that still sets it now names the removal instead of reporting an unknown field.
+
 ## [0.105.0] - 2026-08-22
 
 ### Added
@@ -5003,7 +5040,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.105.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.106.0...HEAD
+[0.106.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.106.0
 [0.105.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.105.0
 [0.104.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.104.0
 [0.103.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.103.0
