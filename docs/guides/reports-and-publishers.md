@@ -70,6 +70,22 @@ in the process that ran the scan — nothing downstream can recover them.
 }
 ```
 
+`descriptor.effective` is the merged descriptor itself, as YAML — the same bytes the digest is
+taken over, so a reader can check one against the other rather than being asked to trust that a
+number describes a file they cannot see:
+
+```bash
+jq -r '.descriptor.effective' report.json | sha256sum   # equals descriptor.digest
+```
+
+It is the **merged** form, so it is not any file in your repository. That is what makes it worth
+having: it answers *what did this run actually apply*, including the exclusions a fragment
+contributed — which is the question somebody has when a finding was suppressed and the descriptor
+they have open does not say why.
+
+It carries no credential. A descriptor has a field for the **name** of an environment variable and
+none for a value, and `${{ VAR }}` substitution does not reach `tokenEnv`.
+
 The two kinds of digest answer different questions and neither substitutes for the other.
 `descriptor.digest` is over the **merged, effective** descriptor with `${{ VAR }}` substituted, so
 two runs carrying the same one were asked the same thing — it moves when a fragment changes, and

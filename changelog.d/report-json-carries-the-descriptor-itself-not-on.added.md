@@ -1,0 +1,3 @@
+**`report.json` carries the descriptor itself, not only its digest.** `descriptor.effective` is the merged, environment-substituted Saga as YAML — the same bytes the digest is taken over, so `jq -r '.descriptor.effective' report.json | sha256sum` equals `descriptor.digest`.
+
+A digest is worth nothing to somebody who cannot reproduce it, and the question a reader has is *what did this run apply* — which no list of filenames answers, and which the file in front of them may not either once a fragment has contributed an exclusion. It carries no credential: a descriptor has a field for the name of an environment variable and none for a value.

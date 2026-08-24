@@ -126,6 +126,17 @@ type DescriptorRef struct {
 	Digest string `json:"digest,omitempty"`
 	// Sources are the files it was assembled from, root first.
 	Sources []DescriptorSource `json:"sources,omitempty"`
+	// Effective is the merged, environment-substituted descriptor as YAML — the same bytes Digest
+	// is taken over.
+	//
+	// Sent because a digest is worth nothing to somebody who cannot reproduce it, and because the
+	// question a reader actually has is "what did this run apply", which no list of filenames
+	// answers. It holds less than the report beside it: the findings, their locations and every
+	// suppression's reason and accepter are already in that, and a descriptor never carries a
+	// credential — the schema has no field for one, only for the name of a variable.
+	//
+	// A few kilobytes against a report that is already larger.
+	Effective string `json:"effective,omitempty"`
 }
 
 // DescriptorSource is one file a descriptor was assembled from.
@@ -152,7 +163,11 @@ func DescriptorFrom(res *saga.Resolved) *DescriptorRef {
 	if res == nil || len(res.Sources) == 0 {
 		return nil
 	}
-	out := &DescriptorRef{Digest: res.Digest(), Sources: make([]DescriptorSource, 0, len(res.Sources))}
+	out := &DescriptorRef{
+		Digest:    res.Digest(),
+		Effective: res.Effective(),
+		Sources:   make([]DescriptorSource, 0, len(res.Sources)),
+	}
 	for _, s := range res.Sources {
 		out.Sources = append(out.Sources, DescriptorSource{
 			Path: s.Path, URL: s.URL, Revision: s.Revision, Resolved: s.Resolved,

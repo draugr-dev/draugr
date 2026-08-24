@@ -9,8 +9,12 @@ import (
 )
 
 // digestOf is the content digest of a descriptor file or of a serialized model, in the form every
-// other digest in a report takes.
+// other digest in a report takes. Empty input has no digest rather than the digest of nothing,
+// which is a real and entirely wrong sha256.
 func digestOf(data []byte) string {
+	if len(data) == 0 {
+		return ""
+	}
 	sum := sha256.Sum256(data)
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
@@ -38,6 +42,20 @@ func digestFile(path string) string {
 // only in comments or key order produce the same one. Neither is true of a digest over the root
 // file.
 func (r *Resolved) Digest() string {
+	return digestOf([]byte(r.Effective()))
+}
+
+// Effective is the descriptor that actually ran: root and fragments merged, environment
+// substituted, serialized canonically.
+//
+// The same bytes Digest is taken over, which is the point of returning them. A digest is only worth
+// something to somebody who can reproduce it, and a reader holding this can — rather than being
+// asked to trust that a number describes a file they cannot see.
+//
+// It is the merged form, so it is not any file in the repository. Reading it answers "what did this
+// run actually apply", which is a different question from "what is committed" and the one somebody
+// asks when a finding was suppressed and they cannot see why.
+func (r *Resolved) Effective() string {
 	if r == nil || r.Model == nil {
 		return ""
 	}
@@ -45,5 +63,5 @@ func (r *Resolved) Digest() string {
 	if err != nil {
 		return ""
 	}
-	return digestOf(data)
+	return string(data)
 }

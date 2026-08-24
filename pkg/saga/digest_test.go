@@ -1,8 +1,11 @@
 package saga
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -106,5 +109,63 @@ func TestNoModelNoDigest(t *testing.T) {
 func TestUnreadableFileHasNoDigest(t *testing.T) {
 	if got := digestFile(filepath.Join(t.TempDir(), "absent.yaml")); got != "" {
 		t.Errorf("digestFile(absent) = %q, want empty", got)
+	}
+}
+
+// The digest is only worth something to somebody who can reproduce it. Shipping the bytes it is
+// taken over is what makes it checkable rather than a number a reader has to trust.
+func TestTheDigestIsReproducibleFromTheEffectiveDescriptor(t *testing.T) {
+	res, err := ResolveFile(writePair(t, rootWithFragment, "config: {exclude: [{rules: [a], reason: r}]}"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	effective := res.Effective()
+	if effective == "" {
+		t.Fatal("no effective descriptor")
+	}
+	sum := sha256.Sum256([]byte(effective))
+	if want := "sha256:" + hex.EncodeToString(sum[:]); res.Digest() != want {
+		t.Errorf("the digest does not describe the bytes shipped beside it:\n got %s\nwant %s",
+			res.Digest(), want)
+	}
+}
+
+// It is the merged form, so it carries what the fragments contributed. A reader asking why a
+// finding was suppressed is asking about a rule that may not be in the file they have open.
+func TestTheEffectiveDescriptorCarriesTheFragments(t *testing.T) {
+	res, err := ResolveFile(writePair(t, rootWithFragment,
+		"config: {exclude: [{rules: [CVE-2024-9999], reason: waiting on upstream}]}"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res.Effective(), "CVE-2024-9999") {
+		t.Errorf("a fragment's exclusion is not in the effective descriptor:\n%s", res.Effective())
+	}
+}
+
+// A descriptor never carries a credential — the schema has a field for the name of an environment
+// variable and none for a value. This is the assertion that keeps that true of what is published.
+func TestTheEffectiveDescriptorCarriesNoCredential(t *testing.T) {
+	const withAuth = `
+project: p
+release: {version: "1"}
+components:
+  - name: c
+    hosts:
+      - name: api
+        url: https://api.example.com
+        auth: {type: bearer, tokenEnv: SECRET_TOKEN}
+`
+	t.Setenv("SECRET_TOKEN", "a-real-looking-credential-value")
+	res, err := ResolveFile(writePair(t, withAuth, ""), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	effective := res.Effective()
+	if strings.Contains(effective, "a-real-looking-credential-value") {
+		t.Errorf("the credential reached the effective descriptor:\n%s", effective)
+	}
+	if !strings.Contains(effective, "SECRET_TOKEN") {
+		t.Error("the variable's name should survive: it says where the credential came from")
 	}
 }
