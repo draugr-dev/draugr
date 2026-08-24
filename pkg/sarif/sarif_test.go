@@ -1016,3 +1016,60 @@ func TestAnEscalationAloneIsEnoughToWriteProperties(t *testing.T) {
 		t.Errorf("the escalation was dropped for a finding with no other properties:\n%s", encoded)
 	}
 }
+
+// A floor that raised a band has to survive the file, for the same reason an escalation does: the
+// merged report is the only thing a downstream reader sees, and a P2 on a supporting internal
+// component with nothing accounting for it is a number somebody stops trusting.
+func TestThePriorityFloorSurvivesTheFile(t *testing.T) {
+	rep := Report{Results: []Result{{
+		RuleID: "generic-api-key", Level: LevelError, Message: "a credential",
+		Priority:      "P2",
+		PriorityFloor: "a leaked credential is high priority wherever it is found",
+	}}}
+
+	encoded, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), "priorityFloor") {
+		t.Fatalf("the floor was dropped on the way out:\n%s", encoded)
+	}
+	back, err := FromSARIF(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Results) != 1 {
+		t.Fatalf("read back %d results", len(back.Results))
+	}
+	if got := back.Results[0].PriorityFloor; got != rep.Results[0].PriorityFloor {
+		t.Errorf("PriorityFloor = %q, want %q", got, rep.Results[0].PriorityFloor)
+	}
+}
+
+// A floor on its own is enough to write a property bag — the same rule escalation already has,
+// because a finding whose only enrichment is the floor would otherwise carry none of it.
+func TestAFloorAloneIsEnoughToWriteProperties(t *testing.T) {
+	rep := Report{Results: []Result{{
+		RuleID: "r", Level: LevelNote, PriorityFloor: "wherever it is found",
+	}}}
+	encoded, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), "priorityFloor") {
+		t.Errorf("a finding whose only enrichment is the floor lost it:\n%s", encoded)
+	}
+}
+
+// A finding whose band no floor raised carries nothing, so the common case does not gain a field
+// saying that nothing happened.
+func TestNoFloorMeansNoField(t *testing.T) {
+	rep := Report{Results: []Result{{RuleID: "r", Level: LevelNote}}}
+	encoded, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "priorityFloor") {
+		t.Errorf("a finding with no floor carries the field anyway:\n%s", encoded)
+	}
+}
