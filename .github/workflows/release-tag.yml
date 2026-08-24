@@ -99,7 +99,11 @@ jobs:
             exit 1
           fi
 
-          summary=$(printf '%s\n' "$notes" | grep -m1 '^- ' | sed 's/^- //; s/\*\*//g; s/\.$//' | cut -c1-72)
+          # Derived by the script, not here. A pipeline in a workflow cannot be tested, and this
+          # one failed silently when a section's entries were written as paragraphs rather than
+          # list items: its grep matched nothing, `pipefail` failed the step, and the tag was not
+          # pushed with nothing said about why.
+          summary=$(./scripts/changelog.sh summary "$version")
 
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"

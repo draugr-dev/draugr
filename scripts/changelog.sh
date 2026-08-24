@@ -13,6 +13,7 @@
 #
 #   ./scripts/changelog.sh check              structure + released sections unchanged
 #   ./scripts/changelog.sh show [version]     print what a tag would publish (default: Unreleased)
+#   ./scripts/changelog.sh summary 0.59.0     one line describing that section, for a tag message
 #   ./scripts/changelog.sh add fixed          read an entry from stdin into [Unreleased]
 #   ./scripts/changelog.sh promote 0.59.0     [Unreleased] -> a dated section, links updated
 #
@@ -126,6 +127,31 @@ cmd_show() {
 	fi
 	[ -n "$body" ] || die "no section for [$version] in $FILE"
 	printf '%s\n' "$body"
+}
+
+# cmd_summary prints a one-line description of a released section, for a tag message.
+#
+# Its own command rather than a pipeline in the workflow, because the workflow could not test it
+# and the failure mode is silent: an entry written as a paragraph rather than a list item made the
+# pipeline's grep match nothing, which under `pipefail` failed the step that pushes the tag — with
+# no message, after the release had already been merged.
+#
+# Reads whichever shape the notes are in. Both occur, both are correct, and which one a release
+# happens to have is not something the tag should depend on.
+cmd_summary() {
+	local version="${1:?usage: changelog.sh summary <version>}"
+	local body
+	body=$(section_of "$version")
+	[ -n "$body" ] || die "no section for [$version] in $FILE"
+
+	# sed rather than grep throughout: it exits 0 when nothing matches, so a section this cannot
+	# summarize yields an empty string the caller can substitute for, rather than a failed step.
+	printf '%s\n' "$body" |
+		sed -e 's/^- //' |
+		sed -n '/^[^#[:space:]]/p' |
+		head -1 |
+		sed -e 's/\*\*//g' -e 's/`//g' -e 's/\.$//' |
+		cut -c1-72
 }
 
 # cmd_next prints the version [Unreleased] implies, counting from the last released one.
@@ -398,9 +424,10 @@ PY
 case "${1:-}" in
 check) shift; cmd_check "$@" ;;
 show) shift; cmd_show "$@" ;;
+summary) shift; cmd_summary "$@" ;;
 add) shift; cmd_add "$@" ;;
 next) shift; cmd_next "$@" ;;
 promote) shift; cmd_promote "$@" ;;
 -h | --help | help | "") usage 0 ;;
-*) die "unknown command '$1' (try: check, show, add, next, promote)" ;;
+*) die "unknown command '$1' (try: check, show, summary, add, next, promote)" ;;
 esac

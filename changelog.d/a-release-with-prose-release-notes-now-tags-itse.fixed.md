@@ -1,0 +1,1 @@
+**A release with prose release notes now tags itself.** The tag message was derived by a pipeline that looked for a list item; a section whose entries are written as paragraphs matched nothing, and the step that pushes the tag exited without saying why. `changelog.sh summary` reads either shape, and a section it cannot summarize yields an empty string rather than a failure.
