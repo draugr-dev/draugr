@@ -20,7 +20,7 @@ func (TLS) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "tls",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Check TLS configuration and certificates on a component's running endpoints.",
+		Summary:         "Check the certificates and encryption a component's running endpoints offer visitors.",
 		DefaultScanners: []string{draugrTLSScanner},
 	}
 }

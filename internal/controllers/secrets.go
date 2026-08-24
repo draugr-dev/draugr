@@ -21,7 +21,7 @@ func (Secrets) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "secrets",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Detect committed secrets and credentials in a repo.",
+		Summary:         "Find passwords and keys committed by accident, history included.",
 		DefaultScanners: []string{"gitleaks"},
 	}
 }

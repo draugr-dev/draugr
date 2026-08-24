@@ -32,7 +32,7 @@ func (Threats) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "threats",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Check whether a component's hosts are known to threat-intelligence feeds.",
+		Summary:         "Check whether a component's hosts appear on public lists of known-hostile addresses.",
 		DefaultScanners: []string{urlhausScannerName},
 	}
 }

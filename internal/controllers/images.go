@@ -20,7 +20,7 @@ func (Images) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "images",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Scan container images for known OS/package vulnerabilities.",
+		Summary:         "Find known flaws in the operating system and packages baked into a container image.",
 		DefaultScanners: []string{"trivy"},
 	}
 }

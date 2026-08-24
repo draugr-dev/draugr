@@ -21,7 +21,7 @@ func (IAC) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "iac",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Scan Infrastructure-as-Code for insecure misconfigurations.",
+		Summary:         "Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles.",
 		DefaultScanners: []string{"trivy-config"},
 	}
 }
