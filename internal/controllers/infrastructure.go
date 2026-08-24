@@ -43,7 +43,7 @@ func (Infrastructure) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            infrastructureControl,
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Audit a Kubernetes cluster against the CIS Kubernetes Benchmark.",
+		Summary:         "Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust.",
 		DefaultScanners: []string{draugrK8sPoliciesScanner},
 	}
 }

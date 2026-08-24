@@ -35,7 +35,7 @@ func (Licenses) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            licensesControl,
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Report dependency licenses that carry an obligation (copyleft, forbidden, unidentified).",
+		Summary:         "Report license terms attached to code you did not write, where they carry an obligation.",
 		DefaultScanners: []string{trivyLicenseScanner},
 	}
 }

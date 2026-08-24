@@ -24,7 +24,7 @@ func (SCA) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "sca",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Scan a repo's dependencies for known vulnerabilities (Software Composition Analysis).",
+		Summary:         "Find known flaws in the libraries a repo depends on (software composition analysis).",
 		DefaultScanners: []string{"trivy-fs"},
 	}
 }

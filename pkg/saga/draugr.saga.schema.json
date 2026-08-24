@@ -161,47 +161,47 @@
       "anyOf": [
         {
           "const": "dast",
-          "description": "Probe a component's running endpoints for runtime vulnerabilities."
+          "description": "Find problems only visible from outside a running app (dynamic testing)."
         },
         {
           "const": "headers",
-          "description": "Check HTTP security headers on a component's running endpoints."
+          "description": "Check how a running site answers a browser — the settings that stop a page being abused."
         },
         {
           "const": "iac",
-          "description": "Scan Infrastructure-as-Code for insecure misconfigurations."
+          "description": "Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles."
         },
         {
           "const": "images",
-          "description": "Scan container images for known OS/package vulnerabilities."
+          "description": "Find known flaws in the operating system and packages baked into a container image."
         },
         {
           "const": "infrastructure",
-          "description": "Audit a Kubernetes cluster against the CIS Kubernetes Benchmark."
+          "description": "Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust."
         },
         {
           "const": "licenses",
-          "description": "Report dependency licenses that carry an obligation (copyleft, forbidden, unidentified)."
+          "description": "Report license terms attached to code you did not write, where they carry an obligation."
         },
         {
           "const": "sast",
-          "description": "Static analysis of a repo's own source code for security bugs."
+          "description": "Find patterns in a repo's own code that let somebody in (static analysis)."
         },
         {
           "const": "sca",
-          "description": "Scan a repo's dependencies for known vulnerabilities (Software Composition Analysis)."
+          "description": "Find known flaws in the libraries a repo depends on (software composition analysis)."
         },
         {
           "const": "secrets",
-          "description": "Detect committed secrets and credentials in a repo."
+          "description": "Find passwords and keys committed by accident, history included."
         },
         {
           "const": "threats",
-          "description": "Check whether a component's hosts are known to threat-intelligence feeds."
+          "description": "Check whether a component's hosts appear on public lists of known-hostile addresses."
         },
         {
           "const": "tls",
-          "description": "Check TLS configuration and certificates on a component's running endpoints."
+          "description": "Check the certificates and encryption a component's running endpoints offer visitors."
         }
       ],
       "description": "A control this build of Draugr implements. A name that is not here is rejected: a control Draugr cannot run is a check that will not happen, and a descriptor should not be able to ask for one quietly.",
@@ -209,7 +209,7 @@
     },
     "control_dast": {
       "additionalProperties": false,
-      "description": "Probe a component's running endpoints for runtime vulnerabilities.",
+      "description": "Find problems only visible from outside a running app (dynamic testing).",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
@@ -231,7 +231,7 @@
     },
     "control_headers": {
       "additionalProperties": false,
-      "description": "Check HTTP security headers on a component's running endpoints.",
+      "description": "Check how a running site answers a browser — the settings that stop a page being abused.",
       "properties": {
         "draugrHeaders": {
           "additionalProperties": false,
@@ -253,7 +253,7 @@
     },
     "control_iac": {
       "additionalProperties": false,
-      "description": "Scan Infrastructure-as-Code for insecure misconfigurations.",
+      "description": "Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles.",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
@@ -283,7 +283,7 @@
     },
     "control_images": {
       "additionalProperties": false,
-      "description": "Scan container images for known OS/package vulnerabilities.",
+      "description": "Find known flaws in the operating system and packages baked into a container image.",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
@@ -334,7 +334,7 @@
     },
     "control_infrastructure": {
       "additionalProperties": false,
-      "description": "Audit a Kubernetes cluster against the CIS Kubernetes Benchmark.",
+      "description": "Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust.",
       "properties": {
         "draugrK8sPolicies": {
           "additionalProperties": false,
@@ -426,7 +426,7 @@
     },
     "control_licenses": {
       "additionalProperties": false,
-      "description": "Report dependency licenses that carry an obligation (copyleft, forbidden, unidentified).",
+      "description": "Report license terms attached to code you did not write, where they carry an obligation.",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
@@ -491,7 +491,7 @@
     },
     "control_sast": {
       "additionalProperties": false,
-      "description": "Static analysis of a repo's own source code for security bugs.",
+      "description": "Find patterns in a repo's own code that let somebody in (static analysis).",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
@@ -540,7 +540,7 @@
     },
     "control_sca": {
       "additionalProperties": false,
-      "description": "Scan a repo's dependencies for known vulnerabilities (Software Composition Analysis).",
+      "description": "Find known flaws in the libraries a repo depends on (software composition analysis).",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
@@ -629,7 +629,7 @@
     },
     "control_secrets": {
       "additionalProperties": false,
-      "description": "Detect committed secrets and credentials in a repo.",
+      "description": "Find passwords and keys committed by accident, history included.",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
@@ -659,7 +659,7 @@
     },
     "control_threats": {
       "additionalProperties": false,
-      "description": "Check whether a component's hosts are known to threat-intelligence feeds.",
+      "description": "Check whether a component's hosts appear on public lists of known-hostile addresses.",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
@@ -696,7 +696,7 @@
     },
     "control_tls": {
       "additionalProperties": false,
-      "description": "Check TLS configuration and certificates on a component's running endpoints.",
+      "description": "Check the certificates and encryption a component's running endpoints offer visitors.",
       "properties": {
         "draugrTls": {
           "additionalProperties": false,
