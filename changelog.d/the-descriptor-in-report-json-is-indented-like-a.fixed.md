@@ -1,0 +1,1 @@
+**The descriptor in `report.json` is indented like a descriptor.** `descriptor.effective` was serialized with four-space indentation, so the copy a reader is asked to compare against their own file did not look like it. Two spaces now, which is what every descriptor uses and what the reference shows.
