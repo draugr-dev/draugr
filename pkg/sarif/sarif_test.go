@@ -1073,3 +1073,67 @@ func TestNoFloorMeansNoField(t *testing.T) {
 		t.Errorf("a finding with no floor carries the field anyway:\n%s", encoded)
 	}
 }
+
+func TestWhatARunConsultedSurvivesTheFile(t *testing.T) {
+	// The whole value is in a consumer reading it back. Written and not read is the same as not
+	// written: whoever reloads the evidence still cannot tell "not on KEV" from "KEV was never
+	// loaded", which is the distinction this carries.
+	//
+	// Two feeds, not one — with one, a value read from the wrong entry still looks right.
+	in := Report{
+		Tool:    "draugr",
+		Results: []Result{{RuleID: "CVE-2021-44228", Message: "log4j"}},
+		Consulted: []Consulted{
+			{Signal: "epss", AsOf: "2026-08-02", Entries: 280000, Threshold: 0.5},
+			{Signal: "kev", AsOf: "2026-08-01", Entries: 1100},
+		},
+		Decided: []Taxon{{Taxonomy: "CIS", ID: "5.1.1", Version: "1.9"}},
+	}
+	raw, err := in.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := FromSARIF(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(out.Consulted, in.Consulted) {
+		t.Errorf("consulted came back as\n %+v\nwant\n %+v", out.Consulted, in.Consulted)
+	}
+	// The run's account of what it settled travels the same way, and for the same reason.
+	if !reflect.DeepEqual(out.Decided, in.Decided) {
+		t.Errorf("decided came back as\n %+v\nwant\n %+v", out.Decided, in.Decided)
+	}
+}
+
+func TestARunThatConsultedNothingSaysNothing(t *testing.T) {
+	// An empty list and an absent one must not both appear, or a reader has two spellings of
+	// the same claim to reconcile — and the absent one is what every report before this looked
+	// like.
+	raw, err := Report{Tool: "draugr", Results: []Result{{RuleID: "R1"}}}.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "consulted") {
+		t.Errorf("a run with no exploitability data still wrote a consulted block:\n%s", raw)
+	}
+}
+
+func TestMergingKeepsOneEntryPerSignal(t *testing.T) {
+	// A run loads each dataset once. Two entries naming "kev" would leave whoever reads them to
+	// decide which is true, which is exactly what a merged document must not hand anybody.
+	merged := Merge(
+		Report{Consulted: []Consulted{{Signal: "kev", AsOf: "2026-08-01", Entries: 1100}}},
+		Report{Consulted: []Consulted{
+			{Signal: "kev", AsOf: "2026-08-01", Entries: 1100},
+			{Signal: "epss", AsOf: "2026-08-02", Entries: 280000},
+		}},
+		Report{Consulted: []Consulted{{Signal: ""}}},
+	)
+	if len(merged.Consulted) != 2 {
+		t.Fatalf("merged consulted = %+v, want one entry each for kev and epss", merged.Consulted)
+	}
+	if merged.Consulted[0].Signal != "kev" || merged.Consulted[1].Signal != "epss" {
+		t.Errorf("merged consulted = %+v, want kev then epss", merged.Consulted)
+	}
+}

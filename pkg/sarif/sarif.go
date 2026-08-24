@@ -49,6 +49,9 @@ type sarifRunProperties struct {
 	// control that was checked and found clean from one nobody examined. SARIF has no field for
 	// it; the property bag is where a producer puts what the schema does not model.
 	Decided []sarifDecidedTaxon `json:"decided,omitempty"`
+	// Consulted lists the exploitability datasets the run had loaded. Same argument as Decided:
+	// a consumer cannot tell "not on KEV" from "KEV was not consulted" without it.
+	Consulted []Consulted `json:"consulted,omitempty"`
 }
 
 // sarifProvenance mirrors Provenance in the property bag. Written as an object per tool rather
@@ -64,8 +67,8 @@ type sarifProvenance struct {
 // The fields become an object here, unlike the ordered slice they are internally: JSON object
 // keys have no order a consumer can rely on, so pretending otherwise would be a promise the
 // format cannot keep. Order is a rendering concern, and this is not the rendering.
-func runProperties(entries []Provenance, decided []Taxon) *sarifRunProperties {
-	if len(entries) == 0 && len(decided) == 0 {
+func runProperties(entries []Provenance, decided []Taxon, consulted []Consulted) *sarifRunProperties {
+	if len(entries) == 0 && len(decided) == 0 && len(consulted) == 0 {
 		return nil
 	}
 	out := make([]sarifProvenance, 0, len(entries))
@@ -79,7 +82,7 @@ func runProperties(entries []Provenance, decided []Taxon) *sarifRunProperties {
 		}
 		out = append(out, sp)
 	}
-	props := &sarifRunProperties{Provenance: out}
+	props := &sarifRunProperties{Provenance: out, Consulted: consulted}
 	for _, t := range decided {
 		props.Decided = append(props.Decided, sarifDecidedTaxon{
 			Taxonomy: t.Taxonomy, ID: t.ID, Version: t.Version,
@@ -344,7 +347,7 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 // MarshalSARIFWith is MarshalSARIF with explicit options.
 func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 	run := sarifRun{Tool: sarifTool{Driver: sarifDriver{Name: driverName}}, Results: []sarifResult{}}
-	run.Properties = runProperties(r.Provenance, r.Decided)
+	run.Properties = runProperties(r.Provenance, r.Decided, r.Consulted)
 	// Track which scanner(s) produced each ruleId so the emitted rules[] can carry a
 	// "scanner:<name>" tag — the only place GitHub code scanning surfaces the underlying tool.
 	ruleScanners := map[string]map[string]bool{}
@@ -562,6 +565,11 @@ func FromSARIF(data []byte) (Report, error) {
 		// reloads a report — `draugr diff`, most of all — has to be able to tell a scan of
 		// everything from a scan of part of it, and the results alone never say which it was.
 		out.Provenance = append(out.Provenance, provenanceFrom(run.Properties)...)
+		// And the rest of the run's account: which controls it settled, and which exploitability
+		// datasets it had loaded. Both exist to separate "looked and found nothing" from "never
+		// looked", and a read that drops them turns every reloaded report into the second.
+		out.addDecided(decidedFrom(run.Properties))
+		out.addConsulted(consultedFrom(run.Properties))
 		// SARIF lets a result omit its level and inherit it from the rule's
 		// defaultConfiguration. Some tools (e.g. Semgrep) rely on this. Index the rules so
 		// we can resolve a result's severity from its ruleId.
@@ -777,6 +785,26 @@ func (t *taxonomyIndex) emit() []sarifTaxonomy {
 }
 
 // provenanceFrom reads a run's property bag back into the provenance entries that wrote it.
+// decidedFrom reads the classifications a run settled back out of the property bag.
+func decidedFrom(props *sarifRunProperties) []Taxon {
+	if props == nil {
+		return nil
+	}
+	out := make([]Taxon, 0, len(props.Decided))
+	for _, d := range props.Decided {
+		out = append(out, Taxon{Taxonomy: d.Taxonomy, ID: d.ID, Version: d.Version})
+	}
+	return out
+}
+
+// consultedFrom reads the exploitability datasets a run had loaded back out of the property bag.
+func consultedFrom(props *sarifRunProperties) []Consulted {
+	if props == nil {
+		return nil
+	}
+	return props.Consulted
+}
+
 func provenanceFrom(props *sarifRunProperties) []Provenance {
 	if props == nil {
 		return nil

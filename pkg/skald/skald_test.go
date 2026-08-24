@@ -619,3 +619,28 @@ func TestAControlSurvivesTheFile(t *testing.T) {
 		t.Errorf("read back %+v, want the control preserved", back.Results)
 	}
 }
+
+func TestMergedSARIFCarriesWhatTheRunConsulted(t *testing.T) {
+	// The evidence a pipeline uploads is the SARIF, not report.json, so anything explaining a
+	// band to somebody downstream has to find it here.
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{
+			"sca": {Report: sarif.Report{Results: []sarif.Result{{RuleID: "CVE-2021-44228"}}}},
+		},
+		Consulted: []sarif.Consulted{
+			{Signal: "kev", AsOf: "2026-08-01", Entries: 1100},
+			{Signal: "epss", AsOf: "2026-08-02", Entries: 280000, Threshold: 0.5},
+		},
+	}
+	got := MergedSARIF(run).Consulted
+	if len(got) != 2 || got[0].Signal != "kev" || got[1].Threshold != 0.5 {
+		t.Errorf("merged consulted = %+v, want both feeds with the EPSS threshold", got)
+	}
+
+	// And a run that enriched nothing says nothing, rather than an empty block that reads like
+	// a feed with no entries.
+	run.Consulted = nil
+	if got := MergedSARIF(run).Consulted; len(got) != 0 {
+		t.Errorf("a run with no exploitability data reported %+v", got)
+	}
+}

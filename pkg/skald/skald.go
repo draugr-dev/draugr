@@ -495,6 +495,9 @@ func MergedSARIF(run engine.Result) sarif.Report {
 	if prov, ok := ScopeProvenance(run.Scope); ok {
 		merged.Provenance = append(merged.Provenance, prov)
 	}
+	// And which exploitability data the run had loaded. A consumer explaining a band needs to
+	// tell "not on KEV" from "KEV was not consulted", and only the run knows which it was.
+	merged.Consulted = run.Consulted
 	return merged
 }
 
