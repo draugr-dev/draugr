@@ -1,6 +1,7 @@
 package saga
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -59,9 +60,17 @@ func (r *Resolved) Effective() string {
 	if r == nil || r.Model == nil {
 		return ""
 	}
-	data, err := yaml.Marshal(r.Model)
-	if err != nil {
+	// Two spaces, which is what every descriptor anybody writes uses and what the reference shows.
+	// yaml.Marshal defaults to four, so the text a reader is shown would not look like the file
+	// they have open — and this is the copy they are asked to compare against it.
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(r.Model); err != nil {
 		return ""
 	}
-	return string(data)
+	if err := enc.Close(); err != nil {
+		return ""
+	}
+	return buf.String()
 }

@@ -169,3 +169,26 @@ components:
 		t.Error("the variable's name should survive: it says where the credential came from")
 	}
 }
+
+// Two spaces, because that is what every descriptor anybody writes uses and what the reference
+// shows. The effective text is the copy a reader is asked to compare against the file they have
+// open, and four-space output does not look like that file.
+func TestTheEffectiveDescriptorIsIndentedLikeADescriptor(t *testing.T) {
+	res, err := ResolveFile(writePair(t, rootWithFragment, "config: {exclude: [{rules: [a], reason: r}]}"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(res.Effective(), "\n") {
+		trimmed := strings.TrimLeft(line, " ")
+		if trimmed == "" {
+			continue
+		}
+		if indent := len(line) - len(trimmed); indent%2 != 0 {
+			t.Errorf("line indented by %d, which is not a multiple of two: %q", indent, line)
+		}
+	}
+	// The nesting every descriptor has, at the depth it should be.
+	if !strings.Contains(res.Effective(), "\n  - name: c") {
+		t.Errorf("a component is not indented two spaces:\n%s", res.Effective())
+	}
+}
