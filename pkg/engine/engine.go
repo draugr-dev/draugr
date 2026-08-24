@@ -56,6 +56,10 @@ type Engine struct {
 	allowEffects []string
 	// scope narrows the run to named components and controls; the zero value scans everything.
 	scope Scope
+	// consulted names the exploitability datasets available to the prioritizer. Told to the
+	// engine rather than derived from it: the prioritizer is a closure, and what it can answer
+	// from is not something the engine can inspect.
+	consulted []sarif.Consulted
 }
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
@@ -136,6 +140,17 @@ func WithWorkingTree() Option {
 // applied per run (never cached), since it depends on the component's current classification.
 func WithPrioritization(p Prioritizer) Option {
 	return func(e *Engine) { e.prioritize = p }
+}
+
+// WithConsulted records which exploitability datasets the prioritizer could answer from, so the
+// result can say so whether or not any of them moved a finding.
+//
+// Separate from WithPrioritization because the prioritizer is a function: what it consults is
+// closed over and cannot be read back out. A caller that enriches without calling this produces
+// a run whose evidence cannot distinguish "not on KEV" from "KEV was never loaded" — which is
+// the distinction that makes a band explainable.
+func WithConsulted(feeds []sarif.Consulted) Option {
+	return func(e *Engine) { e.consulted = feeds }
 }
 
 // ProgressEvent is what a run is doing at one moment: how much is done, and what is in flight.
@@ -538,6 +553,10 @@ type Result struct {
 	// SBOMs are the Software Bills of Materials produced when the Saga enables config.sbom.
 	// Evidence rather than judgement: they carry no findings and never affect the verdict.
 	SBOMs []sbom.Document
+	// Consulted names the exploitability datasets this run had loaded, whether or not any of
+	// them moved a finding. Carried for the same reason VEX documents are carried even when they
+	// excused nothing: a dataset that fired for nothing looks exactly like one nobody loaded.
+	Consulted []sarif.Consulted
 	// ScanErrors records, per control, what stopped it completing — a missing scanner binary, a
 	// tool that exited badly, a plan that couldn't be built. A control listed here checked less
 	// than it was asked to, so its absence of findings is not evidence of absence, and callers
@@ -1038,12 +1057,13 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	stats.ToolWaits = waits.Totals()
 	stats.Unscanned = trulyUnscanned(unscanned, examined)
 	res := Result{
-		Controls: make(map[string]plugin.ControlResult),
-		Stats:    stats,
-		Scope:    e.scope,
-		Effects:  dedupeEffects(effects),
-		Scanners: distinctScanners(planned),
-		SBOMs:    docs,
+		Controls:  make(map[string]plugin.ControlResult),
+		Stats:     stats,
+		Scope:     e.scope,
+		Consulted: e.consulted,
+		Effects:   dedupeEffects(effects),
+		Scanners:  distinctScanners(planned),
+		SBOMs:     docs,
 	}
 	res.Skipped = skipped
 	if len(ctlErrs) > 0 {

@@ -446,6 +446,31 @@ moves a finding up and one moves it down, and both carry the evidence rather tha
 told to reject a reachability claim that does not say how it was reached; the same standard applies
 to a claim that something is more urgent than its score.
 
+### What the run carries
+
+Some statements are about the scan rather than about any one finding, and those live in the run's
+own property bag:
+
+| Property | What it says |
+|---|---|
+| `draugr/provenance` | What each scanner said about its own run — the standard applied, the scope, how much of it could be decided |
+| `decided` | The classifications this run settled, whether or not a finding resulted |
+| `consulted` | The exploitability datasets the run had loaded: the signal, the day the copy was obtained, how many records it held, and the EPSS threshold |
+
+**`decided` and `consulted` both exist to separate "looked and found nothing" from "never
+looked."** A scanner that reports nothing about a control has either examined it and been
+satisfied or never examined it; `escalation` appears on a finding only when a signal *raised* it,
+so its absence covers a CVE that is not listed, one that is listed but was already at the top
+band, and a dataset nobody loaded at all.
+
+Without `consulted`, anything explaining a priority — a dashboard, a pull-request comment, a
+person reading the file — cannot tell *not on KEV* from *KEV was not consulted*, and silence reads
+as the second. `asOf` is empty when you supplied a feed file by hand, which has no fetch to
+record; `entries` is there because a dataset that loaded and turned out to be empty answers every
+lookup with "not listed" and looks exactly like one that is working.
+
+A run that loaded no exploitability data writes no `consulted` block at all.
+
 The `sarif` report is also what your editor reads — see
 [see findings in your editor](findings-in-your-editor.md) for inline diagnostics in VS Code
 and JetBrains.

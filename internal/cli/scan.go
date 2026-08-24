@@ -255,6 +255,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 
 	eopts := []engine.Option{
 		engine.WithPrioritization(defaultPrioritizer(expl)),
+		// Beside the prioritizer, because they describe the same decision from two sides: what
+		// it did, and what it had to work from. A run that enriched without saying what it
+		// consulted produces evidence nobody can check the ranking against.
+		engine.WithConsulted(expl.Consulted()),
 		engine.WithSBOM(sbomgen.New()),
 		// Name a local checkout by the repository it came from, so a scan here and a scan in a
 		// pipeline recognize each other as one source rather than two.

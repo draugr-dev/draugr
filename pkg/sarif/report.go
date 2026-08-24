@@ -574,6 +574,36 @@ type Report struct {
 	// "Decided" rather than "examined" on purpose: a check a scanner looked at and could not
 	// settle — a CIS control that requires human judgement — is not a dissent either.
 	Decided []Taxon `json:"decided,omitempty"`
+	// Consulted names the exploitability datasets this run had loaded, whether or not any of
+	// them moved a finding.
+	//
+	// The same argument as Decided, one level up. An Escalation is written only when a signal
+	// raised a severity, so its absence on a finding covers three unrelated cases: the CVE is
+	// not in the dataset, it is but the finding was already at the top band, and the dataset was
+	// never loaded. A consumer explaining a priority to somebody cannot tell "not on KEV" from
+	// "KEV was not consulted" without this — and silence reads as the second, which makes the
+	// whole ranking look like it came from nowhere.
+	Consulted []Consulted `json:"consulted,omitempty"`
+}
+
+// Consulted is one exploitability dataset a run had available.
+//
+// Deliberately not the full provenance: where the copy came from and what its checksum was
+// belong to the human-facing report, which has room for them. What a consumer of the evidence
+// needs to explain a band is narrower — which signals could have fired, and as of when.
+type Consulted struct {
+	// Signal names the dataset: "kev" or "epss".
+	Signal string `json:"signal"`
+	// AsOf is the day the copy was obtained, as YYYY-MM-DD. Empty when the caller supplied a
+	// file with no fetch to record, which is itself worth seeing.
+	AsOf string `json:"asOf,omitempty"`
+	// Entries is how many records the dataset held. A feed that loaded and turned out to be
+	// empty answers every lookup with "not listed", which is indistinguishable from a working
+	// one unless somebody can see the count.
+	Entries int `json:"entries,omitempty"`
+	// Threshold is the EPSS probability at or above which a finding was raised. Zero for KEV,
+	// which has no threshold — being on it is the whole signal.
+	Threshold float64 `json:"threshold,omitempty"`
 }
 
 // Provenance is one scanner's account of a run it performed.
@@ -825,6 +855,7 @@ func Merge(reports ...Report) Report {
 		}
 		out.addProvenance(rep.Provenance)
 		out.addDecided(rep.Decided)
+		out.addConsulted(rep.Consulted)
 		for _, res := range rep.Results {
 			if res.Tool == "" {
 				res.Tool = rep.Tool
@@ -876,6 +907,25 @@ func (r *Report) addDecided(taxa []Taxon) {
 			continue
 		}
 		r.Decided = append(r.Decided, t)
+	}
+}
+
+// addConsulted appends datasets that are not already present, keyed by signal.
+//
+// One entry per signal, because a run loads each dataset once and two entries naming "kev" would
+// have to be reconciled by whoever reads them — which is the failure addProvenance's per-tool
+// slice exists to avoid, and it does not apply here.
+func (r *Report) addConsulted(feeds []Consulted) {
+	for _, f := range feeds {
+		if f.Signal == "" {
+			continue
+		}
+		if slices.ContainsFunc(r.Consulted, func(existing Consulted) bool {
+			return existing.Signal == f.Signal
+		}) {
+			continue
+		}
+		r.Consulted = append(r.Consulted, f)
 	}
 }
 
