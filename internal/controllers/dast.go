@@ -22,7 +22,7 @@ func (DAST) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "dast",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Probe a component's running endpoints for runtime vulnerabilities.",
+		Summary:         "Find problems only visible from outside a running app (dynamic testing).",
 		DefaultScanners: []string{nucleiScanner},
 	}
 }
