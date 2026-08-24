@@ -232,6 +232,13 @@ type sarifProperties struct {
 	// not something a reader can check; "on KEV, as of 2026-08-22" is. A consumer that can see the
 	// band and not the reason has to take the band on trust.
 	Escalation *Escalation `json:"escalation,omitempty"`
+	// PriorityFloor is why a band did not fall as far as the component's classification alone
+	// would have taken it — the control that said this finding is not bounded by where it sits.
+	//
+	// Computed, printed on the terminal, and until now dropped on the way out. A reader of the
+	// report saw a P2 on a supporting internal component with nothing accounting for it, which is
+	// the same gap `escalation` was added to close for the other direction.
+	PriorityFloor string `json:"priorityFloor,omitempty"`
 	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
 	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
 	Tags []string `json:"tags,omitempty"`
@@ -392,15 +399,16 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// Image and OperatingSystem are in the condition because they are the whole content of a
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
-		if tool != "" || res.Control != "" || res.Escalation != nil || res.HasScore ||
+		if tool != "" || res.Control != "" || res.Escalation != nil || res.PriorityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.ImageBuiltUpstream {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
-				Environment: res.Environment,
-				Escalation:  res.Escalation,
-				Repository:  res.Repository, Package: res.Package,
+				Environment:   res.Environment,
+				Escalation:    res.Escalation,
+				PriorityFloor: res.PriorityFloor,
+				Repository:    res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
 				Reachability:       res.Reachability,
 				OSEndOfLife:        res.OSEndOfLife,
@@ -645,6 +653,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Package = sr.Properties.Package
 				res.Reachability = sr.Properties.Reachability
 				res.Escalation = sr.Properties.Escalation
+				res.PriorityFloor = sr.Properties.PriorityFloor
 			}
 			res.Suppression = readSuppression(sr.Suppressions)
 			out.Results = append(out.Results, res)
