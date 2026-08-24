@@ -10,17 +10,22 @@
 
 **Describe your app. Draugr figures out the rest.**
 
-Wiring SAST, SCA, secret, IaC and container scanners into a pipeline by hand means five tools to
-configure, five outputs to read, and no answer to "can this ship?". Draugr consolidates them: one
-descriptor, one **SARIF** report, one pass/fail gate.
+Every application carries problems nobody put there on purpose: a library that turned out to have
+a hole in it, a password committed by accident, a server setting that leaves a door open. Draugr
+finds them, works out which ones actually matter for *your* app, and answers the question you are
+really asking before a release — **is this safe to ship?**
 
-You declare what you *know* — where the repos are, what images it builds, what endpoints it
-exposes, what infrastructure it runs on. Draugr infers which checks apply, runs the right tool for
-each, and produces evidence you can hand to someone else. Swap scanners freely: use the ones you
-already pay for, or the open-source defaults.
+It runs the established open-source scanners for you — Trivy, Semgrep, Gitleaks and others — so
+there is nothing to choose between, wire up, or read five of. You describe what you built, once,
+in one file: where the repositories are, what images it builds, what it exposes, what
+infrastructure it runs on. Draugr picks the checks that apply, runs the right tool for each, and
+produces evidence you can hand to somebody else. Bring the scanners you already pay for, or use
+the open-source defaults.
 
-Findings are **ranked**, not listed. The same CVE is act-now on an internet-facing service and
-backlog on an internal tool, because the descriptor says which is which. And
+Findings are **ranked**, not listed. A scanner's "critical" describes a flaw in the abstract — how
+bad it could be at its worst, anywhere. The same flaw is act-now in the service strangers can
+reach and backlog in the internal tool three people use, and no scanner can tell those apart
+because the difference is not in the code. It is in the file you wrote. And
 [`draugr diff`](docs/guides/pr-diff.md) gates a pull request on **new** findings only, so
 inheriting two hundred existing ones does not block every change.
 
@@ -31,10 +36,11 @@ inheriting two hundred existing ones does not block every change.
 
 ## See it in action
 
-![Terminal output from `draugr scan .`: a FAIL verdict, counts across priorities P1 to P4, a per-control table of severities, and a ranked fix-first list giving each finding's priority, severity, score, rule, control, scanner and file location.](contrib/demo/scan.png)
+![Terminal output from a Draugr scan. A large FAIL, then how many problems fall into each of four bands from act-now to track. Below that, one line per kind of check saying whether it passed, and a list of what to fix first — each row naming the problem, how serious it is, and the file and line it is in.](contrib/demo/scan.png)
 
-Priority (**P1–P4**) is severity weighed against the component's exposure and criticality — the
-part no scanner can compute, because it is not in the code.
+**Priority (P1–P4) is not severity.** Severity says how bad a flaw is at its worst, anywhere.
+Priority weighs that against how exposed and how important the part of your app it sits in is —
+which no scanner can work out, because it is not in the code.
 
 **[draugr-dev/draugr-demo](https://github.com/draugr-dev/draugr-demo)** is a deliberately
 vulnerable app wired to Draugr: every control lights up, findings land in the repo's
@@ -99,19 +105,19 @@ Full walkthrough: [quickstart](docs/getting-started/quickstart.md).
 Eleven controls, each backed by a tool Draugr executes rather than bundles — so every scanner
 stays under its own license, and you can swap it.
 
-| Control | Looks at | By default |
+| Control | Looks for | By default |
 |---|---|---|
-| `sca` | dependencies | Trivy — Grype and Mend opt-in |
-| `secrets` | committed credentials | Gitleaks |
-| `sast` | your own source | Semgrep — gosec opt-in for Go |
-| `iac` | Terraform, Kubernetes, Dockerfiles | Trivy |
-| `images` | container images | Trivy — Grype opt-in |
-| `licenses` | dependency licenses | Trivy |
-| `dast` | a running endpoint | Nuclei — authenticated, and from an OpenAPI spec |
-| `headers` | HTTP security headers | native |
-| `tls` | certificates and transport | native |
-| `infrastructure` | a Kubernetes cluster, against CIS | native — kube-bench opt-in |
-| `threats` | whether your hosts are known to serve malware | abuse.ch URLhaus |
+| `sca` | known flaws in the libraries you depend on | Trivy — Grype and Mend opt-in |
+| `secrets` | passwords and keys committed by accident, history included | Gitleaks |
+| `sast` | patterns in the code you wrote that let somebody in | Semgrep — gosec opt-in for Go |
+| `iac` | settings that leave a door open, in Terraform, Kubernetes and Dockerfiles | Trivy |
+| `images` | what is baked into your container images | Trivy — Grype opt-in |
+| `licenses` | terms attached to code you did not write | Trivy |
+| `dast` | problems only visible from outside a running app | Nuclei — authenticated, and from an OpenAPI spec |
+| `headers` | how your site answers a browser | native |
+| `tls` | certificates and encryption | native |
+| `infrastructure` | your Kubernetes cluster, against the CIS benchmarks | native — kube-bench opt-in |
+| `threats` | whether anything you talk to is on a public blocklist | abuse.ch URLhaus |
 
 Every scanner, what it sends and whose terms it carries:
 [integrations catalog](docs/reference/catalog.md).

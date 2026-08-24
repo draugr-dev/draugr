@@ -21,7 +21,7 @@ func (SAST) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "sast",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Static analysis of a repo's own source code for security bugs.",
+		Summary:         "Find patterns in a repo's own code that let somebody in (static analysis).",
 		DefaultScanners: []string{"semgrep"},
 	}
 }
