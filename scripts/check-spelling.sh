@@ -40,8 +40,14 @@ fi
 # fails the build if one changes, because what a tagged release said is what shipped. Checking
 # them here would demand an edit the other guard forbids — two checks that cannot both pass. The
 # `[Unreleased]` section is checked below, which is the part still being written.
+#
+# `--others` includes files that are not tracked yet, because a new file is exactly the one a
+# spelling check is worth running on. Checking only what is committed means a file's first run of
+# `make gate` never looks at it, and the first thing that does is CI, after the push.
+# `--exclude-standard` keeps .gitignore honored, so build output and local scratch stay out.
 mapfile -t files < <(
-  git ls-files '*.md' '*.yml' '*.yaml' '*.sh' '*.txt' '*.go' '*.json' '*.py' '*.tape' |
+  git ls-files --cached --others --exclude-standard \
+    '*.md' '*.yml' '*.yaml' '*.sh' '*.txt' '*.go' '*.json' '*.py' '*.tape' |
     grep -v '^CHANGELOG\.md$' |
     grep -v '^pkg/report/testdata/gitlab/' |
     # This script states every spelling it rejects, so it cannot be held to its own rule without
@@ -49,7 +55,7 @@ mapfile -t files < <(
     grep -v '^scripts/check-spelling\.sh$'
 )
 
-# A tracked file that is not on disk stops the readers below partway through — awk treats it as
+# A listed file that is not on disk stops the readers below partway through — awk treats it as
 # fatal and abandons every file after it, which prints nothing and exits 0. That is a check that
 # reports a pass for the half of the tree it never opened, so it is refused outright rather than
 # worked around. It happens after a rename whose deletion is staged and whose addition is not.
@@ -58,7 +64,7 @@ for f in "${files[@]}"; do
   [ -f "$f" ] || missing+=("$f")
 done
 if [ "${#missing[@]}" -gt 0 ]; then
-  printf 'check-spelling: tracked but not on disk: %s\n' "${missing[@]}" >&2
+  printf 'check-spelling: listed but not on disk: %s\n' "${missing[@]}" >&2
   echo "  Refusing to check a subset — stage the rename (git add -A) and run again." >&2
   exit 1
 fi

@@ -28,7 +28,7 @@
 #   * The long form written without a reason is refused, not accepted. It exists to carry the
 #     argument, and a rule whose reason went missing reads worse than one that never had it.
 #
-#   * A misspelt key inside it is refused by name, because a rule somebody believes is in force
+#   * A misspelled key inside it is refused by name, because a rule somebody believes is in force
 #     and is not is exactly what this is guarding against.
 
 project: policy-with-reasons
