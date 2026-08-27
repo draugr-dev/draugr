@@ -207,7 +207,7 @@ func TestCheckControlNamesAcceptsDeclaredOptionsAndTheEnabledFlag(t *testing.T) 
 	// additionalProperties:false would reject it if it reached the validator.
 	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"tls":      {"draugrTls": saga.ControllerSettings{"enabled": true, "expiryWarnDays": 21}},
-		"licenses": {"trivyLicense": saga.ControllerSettings{"deny": []any{"AGPL-3.0-only"}}},
+		"licenses": {"trivyLicense": saga.ControllerSettings{"deny": []any{map[string]any{"id": "AGPL-3.0-only"}}}},
 	}}}
 	if err := checkControlNames(builtins.Registry(), m); err != nil {
 		t.Errorf("rejected a valid block: %v", err)
@@ -275,15 +275,22 @@ func TestCheckControlNamesChecksTheControlsOwnPolicy(t *testing.T) {
 		t.Errorf("error should name the key: %v", err)
 	}
 
-	err = checkControlNames(builtins.Registry(), entry(map[string]any{"id": "AGPL-3.0-only"}))
-	if err == nil || !strings.Contains(err.Error(), `missing required option "reason"`) {
-		t.Errorf("an entry written long with no reason: %v", err)
+	// The reason is optional: an entry with nothing to add is complete.
+	if err := checkControlNames(builtins.Registry(), entry(map[string]any{"id": "AGPL-3.0-only"})); err != nil {
+		t.Errorf("rejected an entry with no reason: %v", err)
 	}
 
-	// Both forms in one list, which is the shape a real policy has.
+	// The shape a rule had before it could carry one is refused here rather than dropped later.
+	bare := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"licenses": {"enabled": true, "deny": []any{"SSPL-1.0"}},
+	}}}
+	if err := checkControlNames(builtins.Registry(), bare); err == nil {
+		t.Error("a bare identifier reaches the controller as an entry it cannot read, and the policy is one license shorter")
+	}
+
 	ok := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"licenses": {"enabled": true, "deny": []any{
-			"SSPL-1.0",
+			map[string]any{"id": "SSPL-1.0"},
 			map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries to customers"},
 		}},
 	}}}
@@ -295,13 +302,13 @@ func TestCheckControlNamesChecksTheControlsOwnPolicy(t *testing.T) {
 // Each scanner of a control is asked, and a reader with one thing to fix is told once.
 func TestCheckControlNamesReportsOnePolicyProblemOnce(t *testing.T) {
 	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
-		"licenses": {"enabled": true, "deny": []any{map[string]any{"id": "AGPL-3.0-only"}}},
+		"licenses": {"enabled": true, "deny": []any{map[string]any{"id": "AGPL-3.0-only", "reasn": "typo"}}},
 	}}}
 	err := checkControlNames(builtins.Registry(), m)
 	if err == nil {
 		t.Fatal("expected the entry to be reported")
 	}
-	if got := strings.Count(err.Error(), `missing required option "reason"`); got != 1 {
+	if got := strings.Count(err.Error(), `unknown option "reasn"`); got != 1 {
 		t.Errorf("reported %d times, want once — trivy-license and mend-licenses both declare deny", got)
 	}
 }

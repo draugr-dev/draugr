@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"slices"
 	"sort"
 	"strings"
 )
@@ -32,7 +31,7 @@ func ValidateConfig(schema json.RawMessage, cfg Config) error {
 
 // schemaNode is the supported subset of a JSON Schema node.
 type schemaNode struct {
-	Type                 typeSet               `json:"type"`
+	Type                 string                `json:"type"`
 	Properties           map[string]schemaNode `json:"properties"`
 	Required             []string              `json:"required"`
 	Enum                 []any                 `json:"enum"`
@@ -41,7 +40,7 @@ type schemaNode struct {
 }
 
 func validateValue(node schemaNode, val any, path string) error {
-	if len(node.Type) > 0 {
+	if node.Type != "" {
 		if err := checkType(node.Type, val, path); err != nil {
 			return err
 		}
@@ -50,10 +49,7 @@ func validateValue(node schemaNode, val any, path string) error {
 		return fmt.Errorf("%s: must be one of %s", optionLabel(path), formatEnum(node.Enum))
 	}
 
-	// Keyed off the value rather than the declared type, because a node may permit more than one.
-	// An option written either as an identifier or as that identifier with a reason beside it is
-	// two shapes for one rule, and the walk has to follow whichever one is actually there.
-	if m, isObject := asMap(val); isObject && node.Type.allows("object") {
+	if m, isObject := asMap(val); isObject && node.Type == "object" {
 		if node.AdditionalProperties != nil && !*node.AdditionalProperties {
 			for _, k := range sortedKeys(m) {
 				if _, known := node.Properties[k]; !known {
@@ -76,7 +72,7 @@ func validateValue(node schemaNode, val any, path string) error {
 			}
 		}
 	}
-	if items := asSlice(val); items != nil && node.Items != nil && node.Type.allows("array") {
+	if items := asSlice(val); items != nil && node.Items != nil && node.Type == "array" {
 		for i, item := range items {
 			if err := validateValue(*node.Items, item, fmt.Sprintf("%s[%d]", path, i)); err != nil {
 				return err
@@ -86,40 +82,13 @@ func validateValue(node schemaNode, val any, path string) error {
 	return nil
 }
 
-// typeSet is a JSON Schema "type" keyword, which is either one name or a list of them.
-//
-// The list form is what lets one option accept an identifier or that identifier written long,
-// with the reason somebody had for it. Both are the same rule, so both belong under one key
-// rather than two that can disagree.
-type typeSet []string
-
-// UnmarshalJSON accepts "type": "string" and "type": ["string", "object"] alike.
-func (t *typeSet) UnmarshalJSON(b []byte) error {
-	var one string
-	if err := json.Unmarshal(b, &one); err == nil {
-		*t = typeSet{one}
-		return nil
-	}
-	var many []string
-	if err := json.Unmarshal(b, &many); err != nil {
-		return fmt.Errorf("schema: \"type\" must be a name or a list of names: %w", err)
-	}
-	*t = many
-	return nil
-}
-
-// allows reports whether the node permits a named JSON type.
-func (t typeSet) allows(name string) bool { return slices.Contains(t, name) }
-
 // checkType reports whether val matches a JSON Schema type, mapping the Go types produced by
 // YAML/JSON decoding of a Saga (string, bool, int/float, []any, map[string]any).
-func checkType(types typeSet, val any, path string) error {
-	for _, typ := range types {
-		if matchesType(typ, val) {
-			return nil
-		}
+func checkType(typ string, val any, path string) error {
+	if matchesType(typ, val) {
+		return nil
 	}
-	return fmt.Errorf("%s: expected %s, got %s", optionLabel(path), strings.Join(types, " or "), jsonType(val))
+	return fmt.Errorf("%s: expected %s, got %s", optionLabel(path), typ, jsonType(val))
 }
 
 // matchesType reports whether val is one named JSON type. An unsupported keyword matches

@@ -42,9 +42,10 @@ func TestEntryID(t *testing.T) {
 		want  string
 		ok    bool
 	}{
-		{"the identifier alone", "AGPL-3.0-only", "AGPL-3.0-only", true},
-		{"written long", map[string]any{"id": "SSPL-1.0", "reason": "not OSI-approved"}, "SSPL-1.0", true},
-		{"an empty identifier", "", "", false},
+		{"an entry with no reason", map[string]any{"id": "AGPL-3.0-only"}, "AGPL-3.0-only", true},
+		{"an entry with one", map[string]any{"id": "SSPL-1.0", "reason": "not OSI-approved"}, "SSPL-1.0", true},
+		{"an empty identifier", map[string]any{"id": ""}, "", false},
+		{"the identifier on its own", "AGPL-3.0-only", "", false},
 		{"long with no id", map[string]any{"reason": "we forgot the license"}, "", false},
 		{"an id that is not a string", map[string]any{"id": 7}, "", false},
 		{"neither shape", []any{"AGPL-3.0-only"}, "", false},

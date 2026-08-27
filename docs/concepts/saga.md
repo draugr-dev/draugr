@@ -48,8 +48,10 @@ config:                       # optional — controls, thresholds, reports, publ
 
 components:                   # the app's parts
   - name: web
-    exposure: public          # how reachable it is
-    criticality: critical     # what its failure costs
+    exposure:
+      value: public         # how reachable it is
+    criticality:
+      value: critical       # what its failure costs
     repositories:
       - url: https://github.com/acme/web.git
     images:

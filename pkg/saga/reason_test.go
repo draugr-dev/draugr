@@ -7,8 +7,28 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// The short form is the common case and has to stay exactly as cheap to write as it was.
-func TestReasonedShortForm(t *testing.T) {
+// The reason is optional. A rule with nothing to say is written without one and is complete.
+func TestReasonedWithoutAReason(t *testing.T) {
+	t.Parallel()
+
+	var got struct {
+		Exposure Reasoned[Exposure] `yaml:"exposure"`
+	}
+	if err := yaml.Unmarshal([]byte("exposure:\n  value: public\n"), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Exposure.Value != ExposurePublic {
+		t.Errorf("value = %q, want %q", got.Exposure.Value, ExposurePublic)
+	}
+	if got.Exposure.Reason != "" || got.Exposure.WrittenShort() {
+		t.Errorf("got %+v, want a rule with no reason and not the older shape", got.Exposure)
+	}
+}
+
+// The shape a rule had before it could carry a reason still loads until the removal date, and
+// says so — an upgrade that stopped every existing pipeline on the same afternoon would be a
+// worse answer than a date somebody can plan around.
+func TestReasonedAcceptsTheOlderShapeAndSaysSo(t *testing.T) {
 	t.Parallel()
 
 	var got struct {
@@ -17,15 +37,12 @@ func TestReasonedShortForm(t *testing.T) {
 	if err := yaml.Unmarshal([]byte("exposure: public\n"), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Exposure.Value != ExposurePublic {
-		t.Errorf("value = %q, want %q", got.Exposure.Value, ExposurePublic)
-	}
-	if got.Exposure.Reason != "" {
-		t.Errorf("reason = %q, want none", got.Exposure.Reason)
+	if got.Exposure.Value != ExposurePublic || !got.Exposure.WrittenShort() {
+		t.Errorf("got %+v, want the value read and the older shape recorded", got.Exposure)
 	}
 }
 
-func TestReasonedLongForm(t *testing.T) {
+func TestReasonedWithAReason(t *testing.T) {
 	t.Parallel()
 
 	const src = `
@@ -58,9 +75,7 @@ func TestReasonedRejectsWhatCannotBeActedOn(t *testing.T) {
 	}{
 		{"an unknown key", "exposure:\n  value: public\n  why: because\n", `unknown key "why"`},
 		{"no value", "exposure:\n  reason: because\n", "no `value`"},
-		{"no reason", "exposure:\n  value: public\n", "no `reason`"},
-		{"a blank reason", "exposure:\n  value: public\n  reason: \"   \"\n", "no `reason`"},
-		{"neither form", "exposure: [public]\n", "expected a value or a mapping"},
+		{"neither shape", "exposure: [public]\n", "expected a mapping"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -96,13 +111,13 @@ func TestReasonedReportsABadValueByItsKey(t *testing.T) {
 	}
 }
 
-// The digest a run publishes is taken over these bytes. A field changing shape in Go must not
-// move it for every descriptor that never used the long form.
+// The digest a run publishes is taken over these bytes, so what a rule marshals to has to be
+// what was read — with the reason when there is one, and without it when there is not.
 func TestReasonedRoundTripsToWhatWasWritten(t *testing.T) {
 	t.Parallel()
 
 	for _, src := range []string{
-		"exposure: public\n",
+		"exposure:\n    value: public\n",
 		"exposure:\n    value: public\n    reason: Downloadable by anyone.\n",
 	} {
 		var got struct {
@@ -148,5 +163,82 @@ func TestReasonedHelpers(t *testing.T) {
 	}
 	if !(Reasoned[Exposure]{}).IsZero() || (Unstated(ExposurePublic)).IsZero() {
 		t.Error("IsZero disagrees with what omitempty needs")
+	}
+}
+
+// The notice has to name every rule written the older way, found by walking the model — a rule
+// added later would otherwise be missing from it, and the first anybody would hear is the
+// release that stops loading their descriptor.
+func TestRuleDeprecationsNamesEveryOlderRule(t *testing.T) {
+	t.Parallel()
+
+	const src = `
+project: p
+release:
+  version: "1"
+config:
+  gate:
+    failOnPriority: P1
+    controls:
+      licenses: critical
+components:
+  - name: api
+    exposure: public
+    criticality:
+      value: critical
+      reason: it holds the payment path
+  - name: web
+    exposure:
+      value: internal
+`
+	m, err := Load([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := RuleDeprecations(m)
+	// Only the three written as bare values. components[0].criticality and components[1].exposure
+	// are written as rules and must not appear.
+	want := []string{"components[0].exposure", "config.gate.controls.licenses", "config.gate.failOnPriority"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("RuleDeprecations = %v, want %v", got, want)
+	}
+
+	// And the descriptor still loads, with the values read.
+	if m.Components[0].Exposure.Value != ExposurePublic || m.Config.Gate.FailOnPriority.Value != "P1" {
+		t.Errorf("the older shape should still load: %+v", m.Components[0].Exposure)
+	}
+
+	// The notice carries the removal date and the shape to write instead.
+	notices := strings.Join(m.Deprecations(), "\n")
+	for _, want := range []string{"components[0].exposure", RuleShapeRemoval, "`value:`", "`reason:`"} {
+		if !strings.Contains(notices, want) {
+			t.Errorf("the notice should mention %q:\n%s", want, notices)
+		}
+	}
+}
+
+// What Draugr writes back is the shape a rule has now, whichever shape it read — so a descriptor
+// that round-trips through the plane stops carrying the older one.
+func TestRuleDeprecationsDoNotSurviveAMarshal(t *testing.T) {
+	t.Parallel()
+
+	m, err := Load([]byte("project: p\nrelease:\n  version: \"1\"\ncomponents:\n  - name: api\n    exposure: public\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := yaml.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), "exposure:\n            value: public") &&
+		!strings.Contains(string(out), "value: public") {
+		t.Errorf("marshaled to something other than a rule:\n%s", out)
+	}
+	again, err := Load(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := RuleDeprecations(again); len(got) != 0 {
+		t.Errorf("still reports the older shape after a round trip: %v", got)
 	}
 }

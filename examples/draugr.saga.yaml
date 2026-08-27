@@ -81,8 +81,10 @@ components:
   # A public web app: source, the image it builds, and the endpoint it serves.
   # exposure + criticality are what turn severities into P1–P4 — see the prioritization docs.
   - name: web
-    exposure: public         # public | authenticated | internal | restricted
-    criticality: critical    # critical | important | supporting
+    exposure:  # public | authenticated | internal | restricted
+      value: public
+    criticality:  # critical | important | supporting
+      value: critical
     labels:
       team: platform         # free-form metadata, yours to use
     repositories:
@@ -111,8 +113,10 @@ components:
   # both are scanned. Every control runs once per repository, and the findings merge into one
   # component's result.
   - name: api
-    exposure: internal
-    criticality: important
+    exposure:
+      value: internal
+    criticality:
+      value: important
     repositories:
       - url: https://github.com/acme/api.git
       - url: https://github.com/acme/api-client.git
@@ -124,8 +128,10 @@ components:
 
   # A batch job: source only, and one control turned off just for this component.
   - name: nightly-etl
-    exposure: restricted
-    criticality: supporting
+    exposure:
+      value: restricted
+    criticality:
+      value: supporting
     repositories:
       - url: https://github.com/acme/etl.git
     controllers:             # per-component overrides win over config.controllers

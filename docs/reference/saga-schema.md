@@ -445,18 +445,10 @@ matters most, because it is what lets a descriptor outlive any particular tool.
 
 Every value in this file is a decision, and the decision outlives whoever took it. A threshold,
 a priority band, a component's exposure — each changes what a scan reports and what fails a
-build, and none of them says why anybody wanted it. The person who meets the consequence six
+build, and none of them said why anybody wanted it. The person who meets the consequence six
 months later is rarely the one who chose it.
 
-So a rule may be written two ways. The short form is the value alone:
-
-```yaml
-config:
-  gate:
-    failOnPriority: P1
-```
-
-The long form carries the argument with it:
+So a rule is written as a value with a place for its reason:
 
 ```yaml
 config:
@@ -469,26 +461,37 @@ config:
         classified its components wants to gate on.
 ```
 
-Both are the same rule and Draugr treats them identically. What changes is that the reason
-travels: it is part of the descriptor, so it reaches the report, anything reading the report, and
-anybody asking why a finding was ranked the way it was.
+**The reason is optional. The shape is not.** A rule with nothing to say is written without one
+and is complete:
+
+```yaml
+    failOnPriority:
+      value: P1
+```
+
+One shape whether or not anybody had something to say, so an editor can complete it, a reviewer
+knows where to look, and nobody has to learn that a field is written two ways depending on
+whether it carries an argument.
+
+Where a reason is given, it travels: it is part of the descriptor, so it reaches the report,
+anything reading the report, and anybody asking why a finding was ranked the way it was.
 
 **A comment does not do this.** Draugr merges a descriptor with its fragments and re-serializes
 the result before publishing it, and comments do not survive that. A reason written beside the
 rule does.
 
-### Where the long form is accepted
+### Where rules are written this way
 
-| Rule | Short | Long |
-|---|---|---|
-| [`config.gate.failOnPriority`](#configgate) | `failOnPriority: P1` | `{value, reason}` |
-| [`config.gate.controls.<control>`](#configgate) | `licenses: critical` | `{value, reason}` |
-| [`components[].exposure`](#components) | `exposure: public` | `{value, reason}` |
-| [`components[].criticality`](#components) | `criticality: critical` | `{value, reason}` |
-| [`controllers.licenses.deny` / `.warn`](#license-policy-controllerslicenses) | `deny: [AGPL-3.0-only]` | `{id, reason}` per entry |
+| Rule | Example |
+|---|---|
+| [`config.gate.failOnPriority`](#configgate) | `failOnPriority: {value: P1}` |
+| [`config.gate.controls.<control>`](#configgate) | `licenses: {value: critical}` |
+| [`components[].exposure`](#components) | `exposure: {value: public}` |
+| [`components[].criticality`](#components) | `criticality: {value: critical}` |
 
-The license lists take the reason **per entry**, because two licenses are usually denied for
-different reasons:
+The license lists are the same idea applied to a list, where the key is `id` rather than `value`
+because an entry names a license. A reason belongs **per entry**, since two licenses are usually
+denied for different ones:
 
 ```yaml
 config:
@@ -499,24 +502,42 @@ config:
           reason: >-
             We ship binaries to customers. A network-copyleft dependency would put
             obligations on them that nobody has agreed to.
-        - SSPL-1.0            # still fine on its own
+        - id: SSPL-1.0        # nothing to add, and still an entry
 ```
 
-`config.exclude` already worked this way and is unchanged: a suppression has always required a
-`reason`, because excusing a finding is the decision that most needs one.
+`config.exclude` already worked this way and is unchanged, except that its `reason` stays
+**required**: excusing a finding is the one decision that has to be argued for.
 
 ### What is refused
 
-The long form exists to carry the argument, so writing it without one is refused rather than
-accepted as an elaborate short form:
+A misspelled key inside a rule is refused by name. A rule somebody believes is in force and is
+not is the failure this is guarding against, and loading the file is the cheap moment to find
+out.
 
 ```
-config.gate.failOnPriority: written as a mapping but with no `reason` —
-write the value on its own if there is nothing to say
+config.gate.failOnPriority: unknown key "valu" — a rule takes a required `value`
+and an optional `reason`
 ```
 
-A misspelled key is refused too, and by name. A rule somebody believes is in force and is not is
-the failure this is guarding against, and loading the file is the cheap moment to find out.
+### Rules written the older way
+
+Before a rule could carry a reason it was the value on its own:
+
+```yaml
+exposure: public          # loads, with a notice, until 2026-12-31
+```
+
+That still loads and `draugr validate` names each one with the date it stops:
+
+```
+components[0].exposure is written as a bare value and is removed after 2026-12-31.
+A rule now has a place for the reason somebody had for it, so write it as `value:`
+with an optional `reason:` beneath.
+```
+
+A license entry has no such window: `deny: [AGPL-3.0-only]` is refused now, because a policy that
+reached the scanner one license shorter than written is a worse outcome than a descriptor that
+does not load.
 
 ## `config.reports` and `config.publishers`
 
@@ -817,10 +838,16 @@ See [scanners that do more than read](cli.md#scanners-that-do-more-than-read).
 ```yaml
 config:
   gate:
-    failOnPriority: P1     # anything the descriptor ranks P1 fails the build
+    failOnPriority:
+      value: P1            # anything the descriptor ranks P1 fails the build
     controls:
-      licenses: critical   # this control fails only on a critical…
-      sast: low            # …this one fails on anything at all
+      licenses:
+        value: critical    # this control fails only on a critical…
+        reason: >-         # optional, and this is where it earns its place
+          Owned by legal rather than security, and a denied license is a decision
+          somebody takes during working hours.
+      sast:
+        value: low         # …this one fails on anything at all
 ```
 
 Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-sagayaml--dir) for the named
@@ -1432,8 +1459,11 @@ what applies.
 components:
   - name: web                 # required, unique
     labels: { team: platform } # optional key/value metadata
-    exposure: public          # optional — risk exposure
-    criticality: critical     # optional — business criticality
+    exposure:                 # optional — risk exposure
+      value: public
+      reason: why  # optional
+    criticality:              # optional — business criticality
+      value: critical
     repositories:
       - url: https://github.com/acme/web.git   # required
         revision: main                          # optional

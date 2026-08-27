@@ -113,7 +113,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 	if err := json.Unmarshal(out, &doc); err != nil {
 		return sarif.Report{}, fmt.Errorf("decode trivy license json: %w", err)
 	}
-	deny, warn := stringList(cfg, denyKey), stringList(cfg, warnKey)
+	deny, warn := policyIDs(cfg, denyKey), policyIDs(cfg, warnKey)
 
 	report := sarif.Report{Tool: trivyLicenseScannerName, Rules: map[string]sarif.Rule{}}
 	lines := newLineIndex(dir)
@@ -202,13 +202,36 @@ func stringList(cfg plugin.Config, key string) []string {
 	case []any:
 		out := make([]string, 0, len(v))
 		for _, item := range v {
-			if id, ok := plugin.EntryID(item); ok {
-				out = append(out, id)
+			if s, ok := item.(string); ok {
+				out = append(out, s)
 			}
 		}
 		return out
 	}
 	return nil
+}
+
+// policyIDs reads the identifiers out of a license policy list, whose entries carry an optional
+// reason and so are not plain strings.
+//
+// Separate from stringList, which serves the plain string options other scanners take — gosec's
+// rule ids, Trivy's package types. One helper for both would mean a policy entry and a rule id
+// were the same kind of thing, and they are not: only one of them is a decision somebody made.
+func policyIDs(cfg plugin.Config, key string) []string {
+	if cfg == nil {
+		return nil
+	}
+	items, ok := cfg[key].([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if id, ok := plugin.EntryID(item); ok {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // lineIndex finds the line a dependency is declared on, lazily and once per manifest.

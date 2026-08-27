@@ -104,12 +104,26 @@ func licensePolicy(model saga.Model, comp *saga.Component) plugin.Config {
 	}
 	cfg := plugin.Config{}
 	if len(deny) > 0 {
-		cfg[denyKey] = deny
+		cfg[denyKey] = entries(deny)
 	}
 	if len(warn) > 0 {
-		cfg[warnKey] = warn
+		cfg[warnKey] = entries(warn)
 	}
 	return cfg
+}
+
+// entries rebuilds a resolved list as the entries a policy is written in, so one shape reaches
+// the scanner and the schema that checks it describes exactly that.
+//
+// Without the reasons, deliberately. Nothing downstream judges by one — the scanner needs the
+// identifier — and a scan's cache key is computed over this config, so carrying the prose would
+// re-run every license scan in a project because somebody rewrote a sentence.
+func entries(ids []string) []any {
+	out := make([]any, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, map[string]any{"id": id})
+	}
+	return out
 }
 
 // unionSetting collects a string list from the project and component blocks for the licenses

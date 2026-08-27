@@ -77,9 +77,9 @@ func setScalarAfter(m *yaml.Node, afterKey, key, val string) {
 		if m.Content[i].Value != key {
 			continue
 		}
-		// The long form: `exposure: {value: …, reason: …}`. Write into its `value` and leave the
-		// argument alone. Overwriting the mapping with a scalar would delete somebody's reasoning
-		// as a side effect of re-classifying, and the file would look right afterwards.
+		// A rule is a mapping of value and an optional reason. Write into its `value` and leave
+		// the argument alone: overwriting the mapping would delete somebody's reasoning as a side
+		// effect of re-classifying, and the file would look right afterwards.
 		if node := m.Content[i+1]; node.Kind == yaml.MappingNode {
 			for j := 0; j+1 < len(node.Content); j += 2 {
 				if node.Content[j].Value == "value" {
@@ -89,20 +89,14 @@ func setScalarAfter(m *yaml.Node, afterKey, key, val string) {
 					return
 				}
 			}
-			// A mapping with no `value` never decodes, so it cannot reach here from a descriptor
-			// Draugr loaded. Replacing it outright is then the honest repair.
 		}
-		m.Content[i+1].Kind = yaml.ScalarNode
-		m.Content[i+1].Content = nil
-		m.Content[i+1].Value = val
-		m.Content[i+1].Tag = "!!str"
-		m.Content[i+1].Style = 0
+		// Anything else here is a rule written the older way, as the value on its own — a file
+		// Draugr refuses to load, so this is reached only by a caller holding raw bytes.
+		// Replacing it with the shape a rule has now is the repair.
+		m.Content[i+1] = ruleNode(val)
 		return
 	}
-	pair := []*yaml.Node{
-		{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
-		{Kind: yaml.ScalarNode, Tag: "!!str", Value: val},
-	}
+	pair := []*yaml.Node{{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, ruleNode(val)}
 	idx := len(m.Content)
 	for i := 0; i+1 < len(m.Content); i += 2 {
 		if m.Content[i].Value == afterKey {
@@ -111,4 +105,13 @@ func setScalarAfter(m *yaml.Node, afterKey, key, val string) {
 		}
 	}
 	m.Content = append(m.Content[:idx:idx], append(pair, m.Content[idx:]...)...)
+}
+
+// ruleNode builds `{value: <val>}` — the shape a rule has, with no reason, because a tool that
+// classified a component has no argument to offer. The place for one is there for a person.
+func ruleNode(val string) *yaml.Node {
+	return &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: []*yaml.Node{
+		{Kind: yaml.ScalarNode, Tag: "!!str", Value: "value"},
+		{Kind: yaml.ScalarNode, Tag: "!!str", Value: val},
+	}}
 }

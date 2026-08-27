@@ -30,37 +30,37 @@ const noScannerOptions = `{
 // Two copies of the shape could disagree, and the descriptor a reader was told is valid would be
 // the one the other scanner refuses.
 //
-// An entry is an SPDX identifier, or that identifier written with the reason somebody had for
-// taking that position on it. The reason changes nothing about a scan — what it changes is that
-// whoever meets the finding can read the argument for the rule that produced it.
+// An entry is an SPDX identifier with a place for the reason somebody had for taking that
+// position on it. The reason is optional and the shape is not: one entry has one schema, so an
+// editor can complete it and a reader never has to learn that a list is written two ways
+// depending on whether anybody had something to say.
 //
-// The entry is spelled out under both keys rather than shared with a $ref: plugin.ValidateConfig
-// resolves no references, and a reference it does not resolve is a constraint that silently stops
-// applying — an editor would still reject a bad entry, and the scan would not.
+// The reason changes nothing about a scan. What it changes is that whoever meets the finding can
+// read the argument for the rule that produced it.
 const licensePolicyProperties = `
     "deny": {
       "type": "array",
       "items": {
-        "type": ["string", "object"],
+        "type": "object",
         "additionalProperties": false,
-        "required": ["id", "reason"],
+        "required": ["id"],
         "properties": {
           "id": { "type": "string", "description": "The SPDX identifier." },
-          "reason": { "type": "string", "description": "Why this project will not accept it." }
+          "reason": { "type": "string", "description": "Why this project will not accept it. Optional." }
         }
       },
-      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. An entry may instead be written {id, reason} to record why."
+      "description": "SPDX identifiers that fail the gate, written as {id} or {id, reason}, e.g. [{\"id\": \"AGPL-3.0-only\"}]."
     },
     "warn": {
       "type": "array",
       "items": {
-        "type": ["string", "object"],
+        "type": "object",
         "additionalProperties": false,
-        "required": ["id", "reason"],
+        "required": ["id"],
         "properties": {
           "id": { "type": "string", "description": "The SPDX identifier." },
-          "reason": { "type": "string", "description": "Why this project wants to be told about it." }
+          "reason": { "type": "string", "description": "Why this project wants to be told about it. Optional." }
         }
       },
-      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]. An entry may instead be written {id, reason}."
+      "description": "SPDX identifiers reported as warnings rather than failures, written as {id} or {id, reason}."
     }`

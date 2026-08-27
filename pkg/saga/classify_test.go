@@ -23,7 +23,7 @@ components:
 	}
 	s := string(out)
 	// Values written with semantic labels, right after name.
-	if !strings.Contains(s, "exposure: public") || !strings.Contains(s, "criticality: critical") {
+	if !strings.Contains(s, "exposure:\n      value: public") || !strings.Contains(s, "criticality:\n      value: critical") {
 		t.Fatalf("classification not written:\n%s", s)
 	}
 	// Comment and ${{ }} token preserved (not substituted).
@@ -61,7 +61,7 @@ components:
 	if strings.Count(s, "exposure:") != 1 || strings.Count(s, "criticality:") != 1 {
 		t.Errorf("keys duplicated:\n%s", s)
 	}
-	if !strings.Contains(s, "exposure: public") || !strings.Contains(s, "criticality: critical") {
+	if !strings.Contains(s, "exposure:\n      value: public") || !strings.Contains(s, "criticality:\n      value: critical") {
 		t.Errorf("values not updated:\n%s", s)
 	}
 }

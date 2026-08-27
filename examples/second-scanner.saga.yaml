@@ -53,8 +53,10 @@ config:
 
 components:
   - name: api
-    exposure: public
-    criticality: critical
+    exposure:
+      value: public
+    criticality:
+      value: critical
     repositories:
       - url: https://github.com/draugr-dev/draugr-demo
         revision: main

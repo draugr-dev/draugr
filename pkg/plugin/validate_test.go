@@ -210,9 +210,9 @@ func TestElementsAreCheckedInEitherShape(t *testing.T) {
 	}
 }
 
-// An option that accepts an identifier or that identifier written long is one rule in two shapes.
-// A schema saying so has to constrain both, or the long form becomes a place unknown keys hide.
-func TestValidateConfigTypeList(t *testing.T) {
+// A policy entry is an object with a required id and an optional reason. One shape, so an editor
+// can complete it and a reader never has to learn that a list is written two ways.
+func TestValidateConfigPolicyEntries(t *testing.T) {
 	t.Parallel()
 
 	const schema = `{
@@ -222,9 +222,9 @@ func TestValidateConfigTypeList(t *testing.T) {
 	    "deny": {
 	      "type": "array",
 	      "items": {
-	        "type": ["string", "object"],
+	        "type": "object",
 	        "additionalProperties": false,
-	        "required": ["id", "reason"],
+	        "required": ["id"],
 	        "properties": {
 	          "id": { "type": "string" },
 	          "reason": { "type": "string" }
@@ -238,10 +238,9 @@ func TestValidateConfigTypeList(t *testing.T) {
 		name string
 		cfg  Config
 	}{
-		{"the identifier alone", Config{"deny": []any{"AGPL-3.0-only"}}},
-		{"written long", Config{"deny": []any{map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries"}}}},
-		{"both in one list", Config{"deny": []any{"SSPL-1.0", map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries"}}}},
-		{"a controller's []string", Config{"deny": []string{"AGPL-3.0-only"}}},
+		{"an entry with no reason", Config{"deny": []any{map[string]any{"id": "AGPL-3.0-only"}}}},
+		{"an entry with one", Config{"deny": []any{map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries"}}}},
+		{"a resolved list, which is entries too", Config{"deny": []any{map[string]any{"id": "AGPL-3.0-only"}}}},
 	}
 	for _, tc := range ok {
 		t.Run(tc.name, func(t *testing.T) {
@@ -256,12 +255,12 @@ func TestValidateConfigTypeList(t *testing.T) {
 		name, want string
 		cfg        Config
 	}{
-		{"a misspelled key in the long form", `unknown option "why"`,
+		{"a misspelled key", `unknown option "why"`,
 			Config{"deny": []any{map[string]any{"id": "AGPL-3.0-only", "why": "we ship binaries"}}}},
-		{"the long form with no reason", `missing required option "reason"`,
-			Config{"deny": []any{map[string]any{"id": "AGPL-3.0-only"}}}},
-		{"an identifier that is a number", "expected string or object, got integer",
-			Config{"deny": []any{7}}},
+		{"an entry with no id", `missing required option "id"`,
+			Config{"deny": []any{map[string]any{"reason": "we forgot the license"}}}},
+		{"the identifier on its own", "expected object, got string",
+			Config{"deny": []any{"AGPL-3.0-only"}}},
 		{"the list written as one value", "expected array, got string",
 			Config{"deny": "AGPL-3.0-only"}},
 	}
@@ -276,16 +275,6 @@ func TestValidateConfigTypeList(t *testing.T) {
 				t.Errorf("error = %v, want it to mention %q", err, tc.want)
 			}
 		})
-	}
-}
-
-// A schema whose "type" is neither a name nor a list of them is a schema nobody can act on.
-func TestValidateConfigRejectsAMalformedTypeKeyword(t *testing.T) {
-	t.Parallel()
-
-	err := ValidateConfig([]byte(`{"type": 7}`), Config{})
-	if err == nil || !strings.Contains(err.Error(), "invalid config schema") {
-		t.Fatalf("error = %v, want the schema itself reported", err)
 	}
 }
 

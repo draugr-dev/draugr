@@ -39,9 +39,11 @@ reason travels into the descriptor beside the value:
 ```yaml
 components:
     - name: checkout
-      exposure: public # a Service of type LoadBalancer exposes it
+      exposure:              # a Service of type LoadBalancer exposes it
+        value: public
     - name: batch
-      exposure: internal # no Ingress, external Service or NetworkPolicy found
+      exposure:              # no Ingress, external Service or NetworkPolicy found
+        value: internal
 ```
 
 Written into a file a proposal looks exactly like a decision, and exposure is what turns a
