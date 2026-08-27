@@ -18,7 +18,7 @@ func TestCheckControlNamesAcceptsWhatIsRegistered(t *testing.T) {
 			},
 			// A threshold for a control that is not enabled here is fine: a descriptor may be
 			// shared, and the name is real either way.
-			Gate: &saga.GateConfig{Controls: map[string]string{"secrets": "error"}},
+			Gate: &saga.GateConfig{Controls: map[string]saga.Reasoned[string]{"secrets": saga.Unstated("error")}},
 		},
 		Components: []saga.Component{
 			{Name: "app", Controllers: map[string]saga.ControllerSettings{"iac": {"enabled": true}}},
@@ -45,7 +45,7 @@ func TestCheckControlNamesRejectsTypos(t *testing.T) {
 		{
 			"config.gate.controls",
 			&saga.Model{Config: saga.Config{
-				Gate: &saga.GateConfig{Controls: map[string]string{"iaac": "error"}}}},
+				Gate: &saga.GateConfig{Controls: map[string]saga.Reasoned[string]{"iaac": saga.Unstated("error")}}}},
 			"config.gate.controls",
 		},
 		{
@@ -79,7 +79,7 @@ func TestCheckControlNamesReportsEveryMistake(t *testing.T) {
 	// One per re-run would make fixing three typos a three-round trip.
 	m := &saga.Model{Config: saga.Config{
 		Controllers: map[string]saga.ControllerSettings{"scaa": {}, "imagez": {}},
-		Gate:        &saga.GateConfig{Controls: map[string]string{"iaac": "error"}},
+		Gate:        &saga.GateConfig{Controls: map[string]saga.Reasoned[string]{"iaac": saga.Unstated("error")}},
 	}}
 	err := checkControlNames(builtins.Registry(), m)
 	if err == nil {
@@ -252,5 +252,56 @@ func TestKnownReachabilityAnalyzerIsAccepted(t *testing.T) {
 	}}
 	if err := checkControlNames(builtins.Registry(), model); err != nil {
 		t.Fatalf("valid descriptor rejected: %v", err)
+	}
+}
+
+// A control's own options are where a policy is written, and they reach a scanner only after the
+// controller has resolved them. An entry the controller could not read is simply not in the list
+// by then: a policy quietly one license shorter, with a passing validate behind it.
+func TestCheckControlNamesChecksTheControlsOwnPolicy(t *testing.T) {
+	entry := func(kv map[string]any) *saga.Model {
+		return &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+			"licenses": {"enabled": true, "deny": []any{kv}},
+		}}}
+	}
+
+	err := checkControlNames(builtins.Registry(), entry(map[string]any{
+		"id": "AGPL-3.0-only", "reasn": "we ship binaries",
+	}))
+	if err == nil {
+		t.Fatal("a misspelled key inside a license entry was accepted")
+	}
+	if !strings.Contains(err.Error(), `unknown option "reasn"`) {
+		t.Errorf("error should name the key: %v", err)
+	}
+
+	err = checkControlNames(builtins.Registry(), entry(map[string]any{"id": "AGPL-3.0-only"}))
+	if err == nil || !strings.Contains(err.Error(), `missing required option "reason"`) {
+		t.Errorf("an entry written long with no reason: %v", err)
+	}
+
+	// Both forms in one list, which is the shape a real policy has.
+	ok := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"licenses": {"enabled": true, "deny": []any{
+			"SSPL-1.0",
+			map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries to customers"},
+		}},
+	}}}
+	if err := checkControlNames(builtins.Registry(), ok); err != nil {
+		t.Errorf("rejected a valid policy: %v", err)
+	}
+}
+
+// Each scanner of a control is asked, and a reader with one thing to fix is told once.
+func TestCheckControlNamesReportsOnePolicyProblemOnce(t *testing.T) {
+	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		"licenses": {"enabled": true, "deny": []any{map[string]any{"id": "AGPL-3.0-only"}}},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("expected the entry to be reported")
+	}
+	if got := strings.Count(err.Error(), `missing required option "reason"`); got != 1 {
+		t.Errorf("reported %d times, want once — trivy-license and mend-licenses both declare deny", got)
 	}
 }

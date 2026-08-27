@@ -162,11 +162,11 @@ func TestSchemaEnumsMatchConstants(t *testing.T) {
 		}
 	}
 
-	check("exposure", []string{
+	check("exposureValue", []string{
 		string(ExposurePublic), string(ExposureAuthenticated),
 		string(ExposureInternal), string(ExposureRestricted),
 	})
-	check("criticality", []string{
+	check("criticalityValue", []string{
 		string(CriticalityCritical), string(CriticalityImportant), string(CriticalitySupporting),
 	})
 }
@@ -322,6 +322,13 @@ var inlinedInSchema = map[string]string{
 	"Resolved":          "a load result, never written by a user",
 	"Source":            "provenance of a loaded file, never written by a user",
 	"EffectPermissions": "two shapes behind one key, described inline by config.allowEffects's oneOf",
+	// A rule may be written as the value alone or with the reason beside it. Both shapes are
+	// described where the rule is — exposure, criticality, failOnPriority, a gate threshold — as
+	// a oneOf over that key's own value definition, because the constraint on the value differs
+	// at every one of them and a shared definition could not carry it.
+	"Reasoned[github.com/draugr-dev/draugr/pkg/saga.Exposure]":    "described inline by the exposure key's oneOf",
+	"Reasoned[github.com/draugr-dev/draugr/pkg/saga.Criticality]": "described inline by the criticality key's oneOf",
+	"Reasoned[string]": "described inline by the oneOf on each key that takes one",
 }
 
 // TestEveryDescriptorStructIsGuarded stops the coverage check from silently examining less than the

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -124,5 +125,58 @@ func TestLicensesAggregateEmpty(t *testing.T) {
 	}
 	if got.Summary != (plugin.Summary{}) {
 		t.Errorf("summary = %+v, want zero", got.Summary)
+	}
+}
+
+// A policy entry written with its reason names the same license, and one written short still
+// does. Two components, because a rule that collapses per-component policy into one is invisible
+// with a single component and picks a winner with two.
+func TestLicensePolicyReadsBothEntryForms(t *testing.T) {
+	model := saga.Model{
+		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+			licensesControl: {denyKey: []any{
+				map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries to customers"},
+			}},
+		}},
+	}
+	api := &saga.Component{
+		Name:         "api",
+		Repositories: []saga.Repository{{URL: "https://example.test/api.git"}},
+		Controllers: map[string]saga.ControllerSettings{
+			licensesControl: {denyKey: []any{"SSPL-1.0"}},
+		},
+	}
+	web := &saga.Component{
+		Name:         "web",
+		Repositories: []saga.Repository{{URL: "https://example.test/web.git"}},
+		Controllers: map[string]saga.ControllerSettings{
+			licensesControl: {warnKey: []any{
+				map[string]any{"id": "MPL-2.0", "reason": "file-level copyleft, worth a look"},
+			}},
+		},
+	}
+
+	// The project's denial reaches both, and neither component's own list replaces it.
+	for _, tc := range []struct {
+		comp *saga.Component
+		deny []string
+		warn []string
+	}{
+		{api, []string{"AGPL-3.0-only", "SSPL-1.0"}, nil},
+		{web, []string{"AGPL-3.0-only"}, []string{"MPL-2.0"}},
+	} {
+		got := licensePolicy(model, tc.comp)
+		if deny := got[denyKey]; !slices.Equal(deny.([]string), tc.deny) {
+			t.Errorf("%s: deny = %v, want %v", tc.comp.Name, deny, tc.deny)
+		}
+		if tc.warn == nil {
+			if _, ok := got[warnKey]; ok {
+				t.Errorf("%s: warn = %v, want none", tc.comp.Name, got[warnKey])
+			}
+			continue
+		}
+		if warn := got[warnKey]; !slices.Equal(warn.([]string), tc.warn) {
+			t.Errorf("%s: warn = %v, want %v", tc.comp.Name, warn, tc.warn)
+		}
 	}
 }

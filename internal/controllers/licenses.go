@@ -133,8 +133,13 @@ func unionSetting(project map[string]saga.ControllerSettings, comp *saga.Compone
 	return out
 }
 
-// settingStrings reads a list of strings from a controller settings block, tolerating the []any
-// that YAML decoding produces.
+// settingStrings reads the identifiers out of a policy list on a controller settings block,
+// tolerating the []any that YAML decoding produces and the entry written long — `{id, reason}` —
+// which carries the same identifier with the argument for it.
+//
+// The reason goes no further than the descriptor, deliberately. Nothing about a scan changes
+// because somebody explained a rule; what changes is that whoever meets the finding can read why
+// the rule is there.
 func settingStrings(settings saga.ControllerSettings, key string) []string {
 	if settings == nil {
 		return nil
@@ -145,8 +150,8 @@ func settingStrings(settings saga.ControllerSettings, key string) []string {
 	case []any:
 		out := make([]string, 0, len(v))
 		for _, item := range v {
-			if s, ok := item.(string); ok {
-				out = append(out, s)
+			if id, ok := plugin.EntryID(item); ok {
+				out = append(out, id)
 			}
 		}
 		return out

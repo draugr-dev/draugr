@@ -441,6 +441,83 @@ matters most, because it is what lets a descriptor outlive any particular tool.
 > JSON Schema do, so it cannot be out of date with the binary you are running. This one is prose,
 > and prose drifts.
 
+## Saying why a rule is there
+
+Every value in this file is a decision, and the decision outlives whoever took it. A threshold,
+a priority band, a component's exposure — each changes what a scan reports and what fails a
+build, and none of them says why anybody wanted it. The person who meets the consequence six
+months later is rarely the one who chose it.
+
+So a rule may be written two ways. The short form is the value alone:
+
+```yaml
+config:
+  gate:
+    failOnPriority: P1
+```
+
+The long form carries the argument with it:
+
+```yaml
+config:
+  gate:
+    failOnPriority:
+      value: P1
+      reason: >-
+        Severity rates a flaw in the abstract. Priority folds in what this descriptor
+        says about the component it was found in, which is what a team that has
+        classified its components wants to gate on.
+```
+
+Both are the same rule and Draugr treats them identically. What changes is that the reason
+travels: it is part of the descriptor, so it reaches the report, anything reading the report, and
+anybody asking why a finding was ranked the way it was.
+
+**A comment does not do this.** Draugr merges a descriptor with its fragments and re-serializes
+the result before publishing it, and comments do not survive that. A reason written beside the
+rule does.
+
+### Where the long form is accepted
+
+| Rule | Short | Long |
+|---|---|---|
+| [`config.gate.failOnPriority`](#configgate) | `failOnPriority: P1` | `{value, reason}` |
+| [`config.gate.controls.<control>`](#configgate) | `licenses: critical` | `{value, reason}` |
+| [`components[].exposure`](#components) | `exposure: public` | `{value, reason}` |
+| [`components[].criticality`](#components) | `criticality: critical` | `{value, reason}` |
+| [`controllers.licenses.deny` / `.warn`](#license-policy-controllerslicenses) | `deny: [AGPL-3.0-only]` | `{id, reason}` per entry |
+
+The license lists take the reason **per entry**, because two licenses are usually denied for
+different reasons:
+
+```yaml
+config:
+  controllers:
+    licenses:
+      deny:
+        - id: AGPL-3.0-only
+          reason: >-
+            We ship binaries to customers. A network-copyleft dependency would put
+            obligations on them that nobody has agreed to.
+        - SSPL-1.0            # still fine on its own
+```
+
+`config.exclude` already worked this way and is unchanged: a suppression has always required a
+`reason`, because excusing a finding is the decision that most needs one.
+
+### What is refused
+
+The long form exists to carry the argument, so writing it without one is refused rather than
+accepted as an elaborate short form:
+
+```
+config.gate.failOnPriority: written as a mapping but with no `reason` —
+write the value on its own if there is nothing to say
+```
+
+A misspelled key is refused too, and by name. A rule somebody believes is in force and is not is
+the failure this is guarding against, and loading the file is the cheap moment to find out.
+
 ## `config.reports` and `config.publishers`
 
 Declare which report **formats** a scan renders and **where** they're delivered. Reports are the
@@ -763,6 +840,9 @@ descriptor is the standing policy, the flag is this run.
 Both live in the Saga rather than in a flag because they're **policy** — reviewed in a pull
 request and applied identically by every pipeline, not remembered by whoever wrote the workflow.
 Resolution order is per-control setting → `--fail-on` → `high`.
+
+Either may be written with the reason for it — see
+[saying why a rule is there](#saying-why-a-rule-is-there).
 
 The report says which gate produced a verdict, so a narrowed one is visible to whoever reads it —
 see [the verdict and the gate](../concepts/verdict-and-gating.md).

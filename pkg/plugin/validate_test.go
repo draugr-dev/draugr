@@ -209,3 +209,151 @@ func TestElementsAreCheckedInEitherShape(t *testing.T) {
 		})
 	}
 }
+
+// An option that accepts an identifier or that identifier written long is one rule in two shapes.
+// A schema saying so has to constrain both, or the long form becomes a place unknown keys hide.
+func TestValidateConfigTypeList(t *testing.T) {
+	t.Parallel()
+
+	const schema = `{
+	  "type": "object",
+	  "additionalProperties": false,
+	  "properties": {
+	    "deny": {
+	      "type": "array",
+	      "items": {
+	        "type": ["string", "object"],
+	        "additionalProperties": false,
+	        "required": ["id", "reason"],
+	        "properties": {
+	          "id": { "type": "string" },
+	          "reason": { "type": "string" }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	ok := []struct {
+		name string
+		cfg  Config
+	}{
+		{"the identifier alone", Config{"deny": []any{"AGPL-3.0-only"}}},
+		{"written long", Config{"deny": []any{map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries"}}}},
+		{"both in one list", Config{"deny": []any{"SSPL-1.0", map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries"}}}},
+		{"a controller's []string", Config{"deny": []string{"AGPL-3.0-only"}}},
+	}
+	for _, tc := range ok {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if err := ValidateConfig([]byte(schema), tc.cfg); err != nil {
+				t.Errorf("rejected a valid policy: %v", err)
+			}
+		})
+	}
+
+	bad := []struct {
+		name, want string
+		cfg        Config
+	}{
+		{"a misspelled key in the long form", `unknown option "why"`,
+			Config{"deny": []any{map[string]any{"id": "AGPL-3.0-only", "why": "we ship binaries"}}}},
+		{"the long form with no reason", `missing required option "reason"`,
+			Config{"deny": []any{map[string]any{"id": "AGPL-3.0-only"}}}},
+		{"an identifier that is a number", "expected string or object, got integer",
+			Config{"deny": []any{7}}},
+		{"the list written as one value", "expected array, got string",
+			Config{"deny": "AGPL-3.0-only"}},
+	}
+	for _, tc := range bad {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidateConfig([]byte(schema), tc.cfg)
+			if err == nil {
+				t.Fatalf("accepted %#v", tc.cfg)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error = %v, want it to mention %q", err, tc.want)
+			}
+		})
+	}
+}
+
+// A schema whose "type" is neither a name nor a list of them is a schema nobody can act on.
+func TestValidateConfigRejectsAMalformedTypeKeyword(t *testing.T) {
+	t.Parallel()
+
+	err := ValidateConfig([]byte(`{"type": 7}`), Config{})
+	if err == nil || !strings.Contains(err.Error(), "invalid config schema") {
+		t.Fatalf("error = %v, want the schema itself reported", err)
+	}
+}
+
+// ValidateOption judges one option without asking the rest of the schema to be satisfied — a
+// control's policy is written where the scanner's other options are somebody else's to supply.
+func TestValidateOption(t *testing.T) {
+	t.Parallel()
+
+	const schema = `{
+	  "type": "object",
+	  "required": ["productToken"],
+	  "properties": {
+	    "productToken": { "type": "string" },
+	    "deny": { "type": "array", "items": { "type": "string" } }
+	  }
+	}`
+
+	declared, err := ValidateOption([]byte(schema), "deny", []any{"AGPL-3.0-only"})
+	if !declared || err != nil {
+		t.Errorf("a valid option: declared=%v err=%v — required options elsewhere are not its business", declared, err)
+	}
+	declared, err = ValidateOption([]byte(schema), "deny", "AGPL-3.0-only")
+	if !declared || err == nil || !strings.Contains(err.Error(), "expected array") {
+		t.Errorf("a list written as one value: declared=%v err=%v", declared, err)
+	}
+	// An option this scanner has never heard of is not an error: a control served by several
+	// scanners has options only some of them know, and naming one is a correct descriptor.
+	if declared, err := ValidateOption([]byte(schema), "severity", "high"); declared || err != nil {
+		t.Errorf("an option the schema does not declare: declared=%v err=%v", declared, err)
+	}
+	if declared, err := ValidateOption(nil, "deny", []any{"MIT"}); declared || err != nil {
+		t.Errorf("no schema: declared=%v err=%v", declared, err)
+	}
+	if _, err := ValidateOption([]byte("{"), "deny", nil); err == nil {
+		t.Error("a schema that is not JSON should be reported as such")
+	}
+}
+
+// A mapping nested inside a typed block decodes as that block's own named map type. A check that
+// recognizes only map[string]any calls it "not an object" while the descriptor is correct.
+func TestValidateConfigAcceptsANamedMapType(t *testing.T) {
+	t.Parallel()
+
+	type settings map[string]any
+	const schema = `{
+	  "type": "object",
+	  "properties": {
+	    "trivyLicense": {
+	      "type": "object",
+	      "additionalProperties": false,
+	      "properties": { "deny": { "type": "array", "items": { "type": "string" } } }
+	    }
+	  }
+	}`
+
+	if err := ValidateConfig([]byte(schema), Config{"trivyLicense": settings{"deny": []any{"MIT"}}}); err != nil {
+		t.Errorf("rejected a nested block decoded as its own map type: %v", err)
+	}
+	// And it is still walked, rather than waved through for having an unfamiliar type.
+	err := ValidateConfig([]byte(schema), Config{"trivyLicense": settings{"dney": []any{"MIT"}}})
+	if err == nil || !strings.Contains(err.Error(), `unknown option "dney"`) {
+		t.Errorf("error = %v, want the misspelled key named", err)
+	}
+	// An empty block is an object. A config somebody left blank is not a config of the wrong type.
+	if err := ValidateConfig([]byte(schema), Config{"trivyLicense": settings(nil)}); err != nil {
+		t.Errorf("rejected an empty block: %v", err)
+	}
+	if err := ValidateConfig([]byte(schema), Config{"trivyLicense": "deny"}); err == nil {
+		t.Error("a scalar where a block belongs should be reported")
+	}
+}

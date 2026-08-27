@@ -19,10 +19,10 @@ func TestUpsertComponentUnionsSurfaces(t *testing.T) {
 // Scalars come from the component already present. This is what keeps the root descriptor
 // authoritative about classification when a fragment describes the same component.
 func TestUpsertComponentKeepsTheFirstClassification(t *testing.T) {
-	comps := UpsertComponent(nil, Component{Name: "web", Exposure: "internal", Criticality: "supporting"})
-	comps = UpsertComponent(comps, Component{Name: "web", Exposure: "public", Criticality: "critical"})
+	comps := UpsertComponent(nil, Component{Name: "web", Exposure: Unstated(Exposure("internal")), Criticality: Unstated(Criticality("supporting"))})
+	comps = UpsertComponent(comps, Component{Name: "web", Exposure: Unstated(Exposure("public")), Criticality: Unstated(Criticality("critical"))})
 
-	if comps[0].Exposure != "internal" || comps[0].Criticality != "supporting" {
+	if comps[0].Exposure.Value != "internal" || comps[0].Criticality.Value != "supporting" {
 		t.Errorf("a later fragment reclassified the component: %+v", comps[0])
 	}
 }

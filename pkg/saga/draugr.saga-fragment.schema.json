@@ -437,7 +437,7 @@
           "description": "mend-licenses — published by mend.io.",
           "properties": {
             "deny": {
-              "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"].",
+              "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. An entry may instead be written {id, reason} to record why.",
               "type": "array"
             },
             "enabled": {
@@ -461,7 +461,7 @@
               "type": "object"
             },
             "warn": {
-              "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"].",
+              "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]. An entry may instead be written {id, reason}.",
               "type": "array"
             }
           },
@@ -472,7 +472,7 @@
           "description": "trivy-license — published by aquasecurity.",
           "properties": {
             "deny": {
-              "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"].",
+              "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. An entry may instead be written {id, reason} to record why.",
               "type": "array"
             },
             "enabled": {
@@ -480,7 +480,7 @@
               "type": "boolean"
             },
             "warn": {
-              "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"].",
+              "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]. An entry may instead be written {id, reason}.",
               "type": "array"
             }
           },
@@ -765,6 +765,31 @@
       "type": "object"
     },
     "criticality": {
+      "description": "Business impact if this component fails — the impact axis of risk prioritization.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/criticalityValue"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The criticality level, written with the reason somebody had for it.",
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/reason"
+            },
+            "value": {
+              "$ref": "#/$defs/criticalityValue"
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "criticalityValue": {
       "anyOf": [
         {
           "const": "critical",
@@ -779,7 +804,6 @@
           "description": "Limited operational impact."
         }
       ],
-      "description": "Business impact if this component fails — the impact axis of risk prioritization.",
       "type": "string"
     },
     "excludeRule": {
@@ -866,6 +890,31 @@
       "type": "object"
     },
     "exposure": {
+      "description": "How reachable this component is — the likelihood axis of risk prioritization.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/exposureValue"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The exposure level, written with the reason somebody had for it.",
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/reason"
+            },
+            "value": {
+              "$ref": "#/$defs/exposureValue"
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "exposureValue": {
       "anyOf": [
         {
           "const": "public",
@@ -884,7 +933,6 @@
           "description": "Namespace- or network-policy-scoped."
         }
       ],
-      "description": "How reachable this component is — the likelihood axis of risk prioritization.",
       "type": "string"
     },
     "fragmentConfig": {
@@ -932,16 +980,28 @@
       "properties": {
         "controls": {
           "additionalProperties": {
-            "enum": [
-              "critical",
-              "high",
-              "medium",
-              "low",
-              "error",
-              "warning",
-              "note"
-            ],
-            "type": "string"
+            "oneOf": [
+              {
+                "$ref": "#/$defs/gateThreshold"
+              },
+              {
+                "additionalProperties": false,
+                "description": "The threshold, written with the reason somebody had for it.",
+                "properties": {
+                  "reason": {
+                    "$ref": "#/$defs/reason"
+                  },
+                  "value": {
+                    "$ref": "#/$defs/gateThreshold"
+                  }
+                },
+                "required": [
+                  "value",
+                  "reason"
+                ],
+                "type": "object"
+              }
+            ]
           },
           "description": "Per-control severity threshold, overriding --fail-on for that control only. Severity bands are what the report prints; the SARIF levels error, warning and note are still accepted and mean high, medium and low.",
           "propertyNames": {
@@ -951,16 +1011,43 @@
         },
         "failOnPriority": {
           "description": "Also fail the build on any finding at or above this priority band. Priority folds in the component's declared exposure and criticality, which severity alone cannot. A --fail-on-priority flag overrides this for a single run.",
-          "enum": [
-            "P1",
-            "P2",
-            "P3",
-            "P4"
-          ],
-          "type": "string"
+          "oneOf": [
+            {
+              "$ref": "#/$defs/priorityBand"
+            },
+            {
+              "additionalProperties": false,
+              "description": "The priority band, written with the reason somebody had for it.",
+              "properties": {
+                "reason": {
+                  "$ref": "#/$defs/reason"
+                },
+                "value": {
+                  "$ref": "#/$defs/priorityBand"
+                }
+              },
+              "required": [
+                "value",
+                "reason"
+              ],
+              "type": "object"
+            }
+          ]
         }
       },
       "type": "object"
+    },
+    "gateThreshold": {
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "error",
+        "warning",
+        "note"
+      ],
+      "type": "string"
     },
     "host": {
       "additionalProperties": false,
@@ -1131,6 +1218,15 @@
       ],
       "type": "object"
     },
+    "priorityBand": {
+      "enum": [
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "type": "string"
+    },
     "publisherConfig": {
       "additionalProperties": false,
       "properties": {
@@ -1223,6 +1319,11 @@
         }
       },
       "type": "object"
+    },
+    "reason": {
+      "description": "Why somebody set this rule. Kept beside the value so whoever meets a finding it shaped can read the argument for it, rather than a comment that does not survive the descriptor being merged.",
+      "minLength": 1,
+      "type": "string"
     },
     "reference": {
       "additionalProperties": false,

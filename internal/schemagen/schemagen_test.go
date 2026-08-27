@@ -354,24 +354,24 @@ func TestHandWrittenEnumsMatchTheirSource(t *testing.T) {
 		},
 		{
 			name: "priority gate bands",
-			path: []string{"gateConfig", "properties", "failOnPriority"},
+			path: []string{"priorityBand"},
 			want: saga.Priorities,
 		},
 		{
 			// Bands first, then the SARIF levels still accepted for descriptors written against
 			// the older vocabulary. Both are valid, so both belong here.
 			name: "gate thresholds",
-			path: []string{"gateConfig", "properties", "controls", "additionalProperties"},
+			path: []string{"gateThreshold"},
 			want: append(append([]string{}, sarif.Severities...), "error", "warning", "note"),
 		},
 		{
 			name: "exposure",
-			path: []string{"exposure"},
+			path: []string{"exposureValue"},
 			want: exposureStrings(),
 		},
 		{
 			name: "criticality",
-			path: []string{"criticality"},
+			path: []string{"criticalityValue"},
 			want: criticalityStrings(),
 		},
 		{

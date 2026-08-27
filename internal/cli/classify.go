@@ -87,7 +87,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 		// Naming a component is itself the instruction to redo it: someone who typed the name is
 		// asking about that component, and answering "already classified" to a question they asked
 		// explicitly would leave them reaching for --all and reclassifying everything else too.
-		if !opts.all && len(opts.components) == 0 && comp.Exposure != "" && comp.Criticality != "" {
+		if !opts.all && len(opts.components) == 0 && comp.Exposure.Value != "" && comp.Criticality.Value != "" {
 			continue
 		}
 		_, _ = fmt.Fprintf(out, "\nComponent: %s\n", comp.Name)

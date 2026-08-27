@@ -1,0 +1,1 @@
+`draugr validate` now checks a control's own options — `licenses.deny` and `licenses.warn` among them — against what the control's scanners accept. A malformed entry there used to reach the scanner as a policy silently one license shorter.

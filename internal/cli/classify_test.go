@@ -61,11 +61,11 @@ func TestRunClassifyWritesUnclassified(t *testing.T) {
 	for _, c := range m.Components {
 		byName[c.Name] = c
 	}
-	if byName["gateway"].Exposure != saga.ExposurePublic || byName["gateway"].Criticality != saga.CriticalityCritical {
+	if byName["gateway"].Exposure.Value != saga.ExposurePublic || byName["gateway"].Criticality.Value != saga.CriticalityCritical {
 		t.Errorf("gateway = %+v", byName["gateway"])
 	}
 	// dashboard untouched.
-	if byName["dashboard"].Exposure != saga.ExposureInternal {
+	if byName["dashboard"].Exposure.Value != saga.ExposureInternal {
 		t.Errorf("dashboard should be untouched: %+v", byName["dashboard"])
 	}
 	if !strings.Contains(out.String(), "Classified 1 component") {
@@ -108,7 +108,7 @@ func TestClassifyCommandViaCobra(t *testing.T) {
 		t.Fatal(err)
 	}
 	m, _ := saga.LoadFile(path)
-	if m.Components[0].Exposure != saga.ExposureInternal {
+	if m.Components[0].Exposure.Value != saga.ExposureInternal {
 		t.Errorf("gateway = %+v", m.Components[0])
 	}
 }
@@ -229,7 +229,7 @@ func TestClassifyFindsTheDescriptorInADirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Components[0].Exposure != saga.ExposurePublic {
+	if m.Components[0].Exposure.Value != saga.ExposurePublic {
 		t.Errorf("the descriptor in the directory was not the one written: %+v", m.Components[0])
 	}
 	if !strings.Contains(out.String(), "web.saga.yaml") {
@@ -272,10 +272,10 @@ func TestClassifyComponentsPicksOneAndRedoesIt(t *testing.T) {
 	for _, c := range m.Components {
 		byName[c.Name] = c
 	}
-	if byName["dashboard"].Exposure != saga.ExposurePublic {
+	if byName["dashboard"].Exposure.Value != saga.ExposurePublic {
 		t.Errorf("dashboard was not reclassified: %+v", byName["dashboard"])
 	}
-	if byName["gateway"].Exposure != "" {
+	if byName["gateway"].Exposure.Value != "" {
 		t.Errorf("gateway was not asked about and must be untouched: %+v", byName["gateway"])
 	}
 	if !strings.Contains(out.String(), "Classified 1 component") {

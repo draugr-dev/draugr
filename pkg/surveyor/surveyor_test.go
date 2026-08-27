@@ -120,11 +120,11 @@ func TestApplyIntoModel(t *testing.T) {
 func TestMergeFragmentsKeepsWhyEachExposureWasProposed(t *testing.T) {
 	merged := MergeFragments(
 		saga.Fragment{
-			Components:      []saga.Component{{Name: "front", Exposure: saga.ExposurePublic}},
+			Components:      []saga.Component{{Name: "front", Exposure: saga.Unstated(saga.ExposurePublic)}},
 			ExposureReasons: map[string]string{"front": "an Ingress routes into it"},
 		},
 		saga.Fragment{
-			Components:      []saga.Component{{Name: "back", Exposure: saga.ExposureInternal}},
+			Components:      []saga.Component{{Name: "back", Exposure: saga.Unstated(saga.ExposureInternal)}},
 			ExposureReasons: map[string]string{"back": "no Ingress, external Service or NetworkPolicy found"},
 		},
 	)
@@ -141,11 +141,11 @@ func TestMergeFragmentsKeepsWhyEachExposureWasProposed(t *testing.T) {
 func TestMergeFragmentsKeepsTheReasonBelongingToTheExposureItKept(t *testing.T) {
 	merged := MergeFragments(
 		saga.Fragment{
-			Components:      []saga.Component{{Name: "app", Exposure: saga.ExposurePublic}},
+			Components:      []saga.Component{{Name: "app", Exposure: saga.Unstated(saga.ExposurePublic)}},
 			ExposureReasons: map[string]string{"app": "an Ingress routes into it"},
 		},
 		saga.Fragment{
-			Components:      []saga.Component{{Name: "app", Exposure: saga.ExposureInternal}},
+			Components:      []saga.Component{{Name: "app", Exposure: saga.Unstated(saga.ExposureInternal)}},
 			ExposureReasons: map[string]string{"app": "no Ingress, external Service or NetworkPolicy found"},
 		},
 	)

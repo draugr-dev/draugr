@@ -31,3 +31,30 @@ func TestComputeCacheKeySensitivity(t *testing.T) {
 		}
 	}
 }
+
+// A policy list may be written either way, and a scanner judges by the identifier in both.
+func TestEntryID(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		entry any
+		want  string
+		ok    bool
+	}{
+		{"the identifier alone", "AGPL-3.0-only", "AGPL-3.0-only", true},
+		{"written long", map[string]any{"id": "SSPL-1.0", "reason": "not OSI-approved"}, "SSPL-1.0", true},
+		{"an empty identifier", "", "", false},
+		{"long with no id", map[string]any{"reason": "we forgot the license"}, "", false},
+		{"an id that is not a string", map[string]any{"id": 7}, "", false},
+		{"neither shape", []any{"AGPL-3.0-only"}, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := EntryID(tc.entry)
+			if got != tc.want || ok != tc.ok {
+				t.Errorf("EntryID(%#v) = %q, %v; want %q, %v", tc.entry, got, ok, tc.want, tc.ok)
+			}
+		})
+	}
+}

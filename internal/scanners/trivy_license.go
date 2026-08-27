@@ -29,17 +29,7 @@ const trivyLicenseScannerName = "trivy-license"
 const trivyLicenseConfigSchema = `{
   "type": "object",
   "additionalProperties": false,
-  "properties": {
-    "deny": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]."
-    },
-    "warn": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]."
-    }
+  "properties": {` + licensePolicyProperties + `
   }
 }`
 
@@ -212,8 +202,8 @@ func stringList(cfg plugin.Config, key string) []string {
 	case []any:
 		out := make([]string, 0, len(v))
 		for _, item := range v {
-			if s, ok := item.(string); ok {
-				out = append(out, s)
+			if id, ok := plugin.EntryID(item); ok {
+				out = append(out, id)
 			}
 		}
 		return out

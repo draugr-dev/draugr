@@ -183,7 +183,7 @@ func TestApplyReachabilityCountsUndetermined(t *testing.T) {
 
 func TestClassificationOfReadsTheDescriptor(t *testing.T) {
 	model := saga.Model{Components: []saga.Component{
-		{Name: "api", Exposure: saga.Exposure("public"), Criticality: saga.Criticality("important")},
+		{Name: "api", Exposure: saga.Unstated(saga.Exposure("public")), Criticality: saga.Unstated(saga.Criticality("important"))},
 	}}
 	if exp, crit := classificationOf(model, "api"); exp != "public" || crit != "important" {
 		t.Errorf("got %q/%q, want public/important", exp, crit)

@@ -214,7 +214,7 @@ func tipsDisabled() bool { return os.Getenv("DRAUGR_NO_TIPS") != "" }
 // inputs that make priority ranking risk-aware rather than severity-only.
 func usesRiskClassification(model *saga.Model) bool {
 	for _, c := range model.Components {
-		if c.Exposure != "" || c.Criticality != "" {
+		if c.Exposure.Value != "" || c.Criticality.Value != "" {
 			return true
 		}
 	}

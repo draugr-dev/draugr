@@ -74,12 +74,30 @@ func mappingValue(m *yaml.Node, key string) *yaml.Node {
 // is afterKey (appending if afterKey is absent).
 func setScalarAfter(m *yaml.Node, afterKey, key, val string) {
 	for i := 0; i+1 < len(m.Content); i += 2 {
-		if m.Content[i].Value == key {
-			m.Content[i+1].Value = val
-			m.Content[i+1].Tag = "!!str"
-			m.Content[i+1].Style = 0
-			return
+		if m.Content[i].Value != key {
+			continue
 		}
+		// The long form: `exposure: {value: …, reason: …}`. Write into its `value` and leave the
+		// argument alone. Overwriting the mapping with a scalar would delete somebody's reasoning
+		// as a side effect of re-classifying, and the file would look right afterwards.
+		if node := m.Content[i+1]; node.Kind == yaml.MappingNode {
+			for j := 0; j+1 < len(node.Content); j += 2 {
+				if node.Content[j].Value == "value" {
+					node.Content[j+1].Value = val
+					node.Content[j+1].Tag = "!!str"
+					node.Content[j+1].Style = 0
+					return
+				}
+			}
+			// A mapping with no `value` never decodes, so it cannot reach here from a descriptor
+			// Draugr loaded. Replacing it outright is then the honest repair.
+		}
+		m.Content[i+1].Kind = yaml.ScalarNode
+		m.Content[i+1].Content = nil
+		m.Content[i+1].Value = val
+		m.Content[i+1].Tag = "!!str"
+		m.Content[i+1].Style = 0
+		return
 	}
 	pair := []*yaml.Node{
 		{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},

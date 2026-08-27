@@ -44,16 +44,6 @@ const mendLicensesConfigSchema = `{
   "type": "object",
   "additionalProperties": false,
   "required": ["productToken"],
-  "properties": {` + mendConfigProperties + `,
-    "deny": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]."
-    },
-    "warn": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]."
-    }
+  "properties": {` + mendConfigProperties + `,` + licensePolicyProperties + `
   }
 }`

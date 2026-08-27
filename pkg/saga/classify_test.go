@@ -35,7 +35,7 @@ components:
 	if err != nil {
 		t.Fatalf("output should re-parse: %v", err)
 	}
-	if m.Components[0].Exposure != ExposurePublic || m.Components[0].Criticality != CriticalityCritical {
+	if m.Components[0].Exposure.Value != ExposurePublic || m.Components[0].Criticality.Value != CriticalityCritical {
 		t.Errorf("round-trip classification = %+v", m.Components[0])
 	}
 }
@@ -83,10 +83,10 @@ components:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Components[0].Exposure != ExposureRestricted {
+	if m.Components[0].Exposure.Value != ExposureRestricted {
 		t.Errorf("component a should be classified: %+v", m.Components[0])
 	}
-	if m.Components[1].Exposure != "" || m.Components[1].Criticality != "" {
+	if m.Components[1].Exposure.Value != "" || m.Components[1].Criticality.Value != "" {
 		t.Errorf("component b should be untouched: %+v", m.Components[1])
 	}
 }

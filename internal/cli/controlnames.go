@@ -81,8 +81,9 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			}
 			// A scanner block is a mapping; a scalar is a control-level option and not this
 			// check's business. YAML decodes the nested mapping as saga.ControllerSettings
-			// rather than a bare map, so both shapes are accepted — asserting only the bare one
-			// is why the first version of this check silently matched nothing.
+			// rather than a bare map, so both shapes have to be accepted — a check that asserts
+			// only the bare one matches nothing at all, and reports no problems for the same
+			// reason a working one would.
 			switch settings[key].(type) {
 			case saga.ControllerSettings, map[string]any:
 			default:
@@ -122,6 +123,33 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			}
 			if err := plugin.ValidateConfig(scanner.ConfigSchema, cfg); err != nil {
 				problems = append(problems, fmt.Sprintf("%s.%s.%s: %v", where, control, key, err))
+				optionProblem = true
+			}
+		}
+
+		// And the control's own options, which are the ones a policy is usually written in:
+		// `licenses.deny` belongs to the control, and every scanner serving it judges by the
+		// same list. They reach a scanner only after the controller has resolved them, by which
+		// point an entry it could not read is simply not there — a policy quietly one license
+		// shorter, with a passing validate behind it.
+		for _, key := range sortedKeys(settings) {
+			if key == "enabled" || keysFor[control][key] {
+				continue
+			}
+			switch settings[key].(type) {
+			case saga.ControllerSettings, map[string]any:
+				continue // a scanner block, checked above
+			}
+			seen := map[string]bool{}
+			for _, name := range sortedKeys(scannerForKey[control]) {
+				declared, err := plugin.ValidateOption(scannerForKey[control][name].ConfigSchema, key, settings[key])
+				if !declared || err == nil || seen[err.Error()] {
+					continue
+				}
+				// Once per distinct complaint. Several scanners of one control declare the same
+				// policy option, and a reader with one thing to fix should be told once.
+				seen[err.Error()] = true
+				problems = append(problems, fmt.Sprintf("%s.%s: %v", where, control, err))
 				optionProblem = true
 			}
 		}
