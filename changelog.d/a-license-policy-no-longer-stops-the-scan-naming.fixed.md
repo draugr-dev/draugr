@@ -1,0 +1,1 @@
+A license policy no longer stops the scan. Naming a license under `config.controllers.licenses.deny` or `warn` made every scan fail with `option "deny": expected array, got []string`, and no scanner ran at all — so the control worked only with no policy set, which is the one way nobody uses it.
