@@ -75,7 +75,7 @@ func validateValue(node schemaNode, val any, path string) error {
 		}
 	case "array":
 		if node.Items != nil {
-			for i, item := range val.([]any) { // safe: checkType passed
+			for i, item := range asSlice(val) { // non-nil: checkType passed
 				if err := validateValue(*node.Items, item, fmt.Sprintf("%s[%d]", path, i)); err != nil {
 					return err
 				}
@@ -99,7 +99,7 @@ func checkType(typ string, val any, path string) error {
 	case "number":
 		ok = isInteger(val) || isFloat(val)
 	case "array":
-		_, ok = val.([]any)
+		ok = asSlice(val) != nil
 	case "object":
 		_, ok = val.(map[string]any)
 	default:
@@ -109,6 +109,31 @@ func checkType(typ string, val any, path string) error {
 		return fmt.Errorf("%s: expected %s, got %s", optionLabel(path), typ, jsonType(val))
 	}
 	return nil
+}
+
+// asSlice returns a value's elements when it is any kind of slice, and nil when it is not.
+//
+// Not a type assertion on []any, which is what a decoded Saga produces and not what a controller
+// does. A controller computes a scanner's configuration in Go — the licenses control hands its
+// scanner the deny and warn lists as []string — and a validator that only recognized the decoded
+// shape refused it as "expected array, got []string". The scanner then could not run at all,
+// which is the loudest possible failure for the most ordinary use of that control.
+func asSlice(v any) []any {
+	switch typed := v.(type) {
+	case nil:
+		return nil
+	case []any:
+		return typed
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
+		return nil
+	}
+	out := make([]any, rv.Len())
+	for i := range out {
+		out[i] = rv.Index(i).Interface()
+	}
+	return out
 }
 
 func isInteger(v any) bool {

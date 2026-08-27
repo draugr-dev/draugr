@@ -134,3 +134,78 @@ func TestValidateConfigRootTypeMismatchIsObject(t *testing.T) {
 		t.Errorf("unexpected: %v", err)
 	}
 }
+
+// A controller computes a scanner's configuration in Go, and Go does not produce []any.
+//
+// The licenses control hands trivy-license its deny and warn lists as []string, and a validator
+// that recognized only the decoded shape refused them — so the most ordinary use of that control,
+// naming a license the project will not accept, made the scan fail with "expected array, got
+// []string" and no scanner ran at all.
+func TestAnArrayIsAnArrayWhateverSliceItArrivedAs(t *testing.T) {
+	schema := json.RawMessage(`{
+		"type": "object",
+		"additionalProperties": false,
+		"properties": {
+			"deny": { "type": "array", "items": { "type": "string" } }
+		}
+	}`)
+
+	for name, value := range map[string]any{
+		"as a descriptor decodes it": []any{"AGPL-3.0-only", "SSPL-1.0"},
+		"as a controller builds it":  []string{"AGPL-3.0-only", "SSPL-1.0"},
+		"empty, built in Go":         []string{},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := ValidateConfig(schema, Config{"deny": value}); err != nil {
+				t.Errorf("refused a valid list: %v", err)
+			}
+		})
+	}
+}
+
+func TestWhatIsNotAListIsStillRefused(t *testing.T) {
+	schema := json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"deny": { "type": "array", "items": { "type": "string" } }
+		}
+	}`)
+
+	for name, value := range map[string]any{
+		"a bare string": "AGPL-3.0-only",
+		"a number":      7,
+		"a map":         map[string]any{"AGPL-3.0-only": true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := ValidateConfig(schema, Config{"deny": value}); err == nil {
+				t.Error("accepted something that is not a list")
+			}
+		})
+	}
+}
+
+// The elements are checked whichever slice carried them: a policy naming a number is a policy
+// somebody mistyped, and finding out at scan time is the whole point of validating first.
+func TestElementsAreCheckedInEitherShape(t *testing.T) {
+	schema := json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"deny": { "type": "array", "items": { "type": "string" } }
+		}
+	}`)
+
+	for name, value := range map[string]any{
+		"decoded": []any{"AGPL-3.0-only", 7},
+		"built":   []int{7},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := ValidateConfig(schema, Config{"deny": value})
+			if err == nil {
+				t.Fatal("accepted a list whose element is not a string")
+			}
+			if !strings.Contains(err.Error(), "deny[") {
+				t.Errorf("error does not name the element: %v", err)
+			}
+		})
+	}
+}
