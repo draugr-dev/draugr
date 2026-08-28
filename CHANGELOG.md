@@ -12,6 +12,50 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.107.0] - 2026-08-28
+
+### Added
+
+A rule in the Saga can now carry the reason somebody had for it. A rule is written as a value with a place for its reason — `failOnPriority: {value: P1, reason: "…"}` — and the argument travels with the rule into the report, where anybody asking why a finding was ranked that way can read it. The reason is optional; the shape is not, so an editor can complete it and nobody has to learn that a field is written two ways. The same applies to `config.gate.controls`, a component's `exposure` and `criticality`, and each entry in `controllers.licenses.deny` and `.warn`, which take `{id, reason}` because two licenses are rarely refused for the same reason. A YAML comment cannot do this: descriptors are merged and re-serialized before they are published, and comments do not survive that.
+
+**`report.json` carries the descriptor itself, not only its digest.** `descriptor.effective` is the merged, environment-substituted Saga as YAML — the same bytes the digest is taken over, so `jq -r '.descriptor.effective' report.json | sha256sum` equals `descriptor.digest`.
+
+A digest is worth nothing to somebody who cannot reproduce it, and the question a reader has is *what did this run apply* — which no list of filenames answers, and which the file in front of them may not either once a fragment has contributed an exclusion. It carries no credential: a descriptor has a field for the name of an environment variable and none for a value.
+
+The SARIF report now records which exploitability datasets a scan had loaded, so anything reading it can tell *this CVE is not on KEV* from *KEV was never consulted*. The run's property bag gains `consulted`: the signal, the day the copy was obtained, how many records it held, and the EPSS threshold it was compared against. A scan with no exploitability data writes nothing, exactly as before.
+
+### Changed
+
+A license policy entry is now written `{id: AGPL-3.0-only}`, with an optional `reason`, rather than as a bare identifier. There is no deprecation window here: an entry Draugr could not read reached the scanner as a policy silently one license shorter, and a descriptor that does not load is the better outcome.
+
+A rule written as a bare value — `exposure: public` — still loads and now says so, naming each one and the date it stops: **2026-12-31**. Write it as `value:` with an optional `reason:` beneath. `draugr classify` writes the new shape and leaves any reason already there untouched.
+
+`draugr controls` now says what each control looks for in plain terms rather than
+in security vocabulary — and so do the descriptions your editor shows while you
+edit a Saga, and the ones an AI assistant reads over MCP, because all three come
+from the same string.
+
+`draugr validate` now checks a control's own options — `licenses.deny` and `licenses.warn` among them — against what the control's scanners accept, rather than only a scanner's own block.
+
+For anyone importing `pkg/saga`: a rule is now a `Reasoned[T]` rather than a bare string, so `component.Exposure` reads as `component.Exposure.Value`. `saga.Unstated(v)` builds one with no reason attached. This affects `Component.Exposure`, `Component.Criticality`, `GateConfig.FailOnPriority` and `GateConfig.Controls`.
+
+The README and the terminal screenshot's description now explain what each check
+looks for in plain terms, rather than assuming you already know what SAST, SCA
+and IaC mean. The terms are still there — introduced after the meaning rather
+than in place of it.
+
+### Fixed
+
+A license policy no longer stops the scan. Naming a license under `config.controllers.licenses.deny` or `warn` made every scan fail with `option "deny": expected array, got []string`, and no scanner ran at all — so the control worked only with no policy set, which is the one way nobody uses it.
+
+**A release with prose release notes now tags itself.** The tag message was derived by a pipeline that looked for a list item; a section whose entries are written as paragraphs matched nothing, and the step that pushes the tag exited without saying why. `changelog.sh summary` reads either shape, and a section it cannot summarize yields an empty string rather than a failure.
+
+`make gate` now spell-checks files you have added but not yet committed. It read only tracked files, so a new page's first gate never looked at it and the first check that did was CI, after the push.
+
+**`results.sarif` now says why a band did not fall.** A finding whose priority was held above what its component's exposure and criticality alone would give — a leaked credential, which is valid wherever it is valid — carries `properties.priorityFloor` with the reason. It was computed and printed on the terminal, and dropped on the way into the file, so anything reading the report saw a P2 on a supporting internal component with nothing accounting for it.
+
+**The descriptor in `report.json` is indented like a descriptor.** `descriptor.effective` was serialized with four-space indentation, so the copy a reader is asked to compare against their own file did not look like it. Two spaces now, which is what every descriptor uses and what the reference shows. **`descriptor.digest` is taken over that text, so it changes for every descriptor in this release** — a run before and after will report different digests for a Saga nobody edited. Verifying a digest against the text served with it still works, because both moved together; comparing digests across this release does not.
+
 ## [0.106.0] - 2026-08-23
 
 ### Added
@@ -5040,7 +5084,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.106.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.107.0...HEAD
+[0.107.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.107.0
 [0.106.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.106.0
 [0.105.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.105.0
 [0.104.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.104.0

@@ -1,1 +1,0 @@
-For anyone importing `pkg/saga`: a rule is now a `Reasoned[T]` rather than a bare string, so `component.Exposure` reads as `component.Exposure.Value`. `saga.Unstated(v)` builds one with no reason attached. This affects `Component.Exposure`, `Component.Criticality`, `GateConfig.FailOnPriority` and `GateConfig.Controls`.
