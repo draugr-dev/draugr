@@ -74,10 +74,10 @@ func (m *Model) Deprecations() []string {
 	}
 	for _, path := range RuleDeprecations(m) {
 		out = append(out, fmt.Sprintf(
-			"%s is written as a bare value and is removed after %s. A rule now has a place for "+
-				"the reason somebody had for it, so write it as `value:` with an optional "+
-				"`reason:` beneath. Nothing about the scan changes; what changes is that the "+
-				"argument reaches whoever reads the report.", path, RuleShapeRemoval))
+			"%s is written as a bare value and %s. A rule now has a place for the reason "+
+				"somebody had for it, so write it as `value:` with an optional `reason:` "+
+				"beneath. Nothing about the scan changes; what changes is that the argument "+
+				"reaches whoever reads the report.", path, ruleShapeWindow))
 	}
 	return out
 }

@@ -524,16 +524,20 @@ and an optional `reason`
 Before a rule could carry a reason it was the value on its own:
 
 ```yaml
-exposure: public          # loads, with a notice, until 2026-12-31
+exposure: public          # loads, with a notice, for one release
 ```
 
-That still loads and `draugr validate` names each one with the date it stops:
+That still loads and `draugr validate` names each one:
 
 ```
-components[0].exposure is written as a bare value and is removed after 2026-12-31.
-A rule now has a place for the reason somebody had for it, so write it as `value:`
-with an optional `reason:` beneath.
+components[0].exposure is written as a bare value and stops loading in the next
+release. A rule now has a place for the reason somebody had for it, so write it
+as `value:` with an optional `reason:` beneath.
 ```
+
+**One release, not a date.** The window exists so a descriptor can be converted at all — until a
+published Draugr reads the new shape, a file scanned by the latest release cannot be moved to it.
+It is not there to give anybody a year, and naming a month would promise one.
 
 A license entry has no such window: `deny: [AGPL-3.0-only]` is refused now, because a policy that
 reached the scanner one license shorter than written is a worse outcome than a descriptor that
