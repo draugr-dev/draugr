@@ -694,7 +694,7 @@ func TestASurveyedDescriptorSurvivesClassifyUnreformatted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saga.Marshal: %v", err)
 	}
-	classified, err := saga.WriteClassifications(written, map[string]saga.Classification{
+	classified, _, err := saga.WriteClassifications(written, map[string]saga.Classification{
 		"front": {Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical},
 	})
 	if err != nil {

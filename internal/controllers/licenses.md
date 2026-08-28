@@ -25,7 +25,7 @@ It's the wrong one:
 - **License risk is not a vulnerability.** The exposure is legal and commercial — a blocked
   acquisition, a customer's legal review — not a breach.
 - **A different team owns the policy**, and it changes on a different cadence.
-- **It needs its own threshold.** `config.gate.controls` can hold `licenses: error` while
+- **It needs its own threshold.** `config.gate.controls` can hold `licenses: {value: error}` while
   vulnerabilities stay at `warning`. *"Fail on a forbidden license but only warn on a medium
   CVE"* is a coherent position that one shared threshold cannot express.
 
@@ -40,8 +40,13 @@ config:
   controllers:
     licenses:
       enabled: true
-      deny: ["AGPL-3.0-only", "GPL-3.0-only"]
-      warn: ["MPL-2.0"]
+      deny:
+        - id: AGPL-3.0-only
+          reason: >-                # optional, per entry
+            We ship binaries to customers.
+        - id: GPL-3.0-only
+      warn:
+        - id: MPL-2.0
 ```
 
 Project and component lists **union** rather than override. This is the one place the licenses

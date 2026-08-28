@@ -15,7 +15,7 @@ components:
     images:
       - image: registry/${{ IMG }}:1
 `
-	out, err := WriteClassifications([]byte(src), map[string]Classification{
+	out, _, err := WriteClassifications([]byte(src), map[string]Classification{
 		"web": {Exposure: ExposurePublic, Criticality: CriticalityCritical},
 	})
 	if err != nil {
@@ -50,7 +50,7 @@ components:
     criticality:
       value: supporting
 `
-	out, err := WriteClassifications([]byte(src), map[string]Classification{
+	out, _, err := WriteClassifications([]byte(src), map[string]Classification{
 		"api": {Exposure: ExposurePublic, Criticality: CriticalityCritical},
 	})
 	if err != nil {
@@ -75,7 +75,7 @@ components:
   - name: a
   - name: b
 `
-	out, err := WriteClassifications([]byte(src), map[string]Classification{
+	out, _, err := WriteClassifications([]byte(src), map[string]Classification{
 		"a": {Exposure: ExposureRestricted, Criticality: CriticalitySupporting},
 	})
 	if err != nil {
@@ -90,5 +90,51 @@ components:
 	}
 	if m.Components[1].Exposure.Value != "" || m.Components[1].Criticality.Value != "" {
 		t.Errorf("component b should be untouched: %+v", m.Components[1])
+	}
+}
+
+// A reason argues for a value. Change the value and the argument is not merely stale — it is a
+// false statement sitting beside the thing it contradicts, and it is published with the findings
+// that value shapes.
+func TestWriteClassificationsNamesAReasonThatArguedForAnotherValue(t *testing.T) {
+	const src = `components:
+  - name: argued
+    exposure:
+      value: restricted
+      reason: Namespace-scoped, and a NetworkPolicy keeps it there.
+    criticality:
+      value: supporting
+      reason: Limited blast radius.
+  - name: agrees
+    exposure:
+      value: public
+      reason: Anyone can reach it.
+`
+	out, stale, err := WriteClassifications([]byte(src), map[string]Classification{
+		// exposure moves and criticality does not; only the first has been contradicted.
+		"argued": {Exposure: ExposurePublic, Criticality: CriticalitySupporting},
+		// The value is unchanged, so its reason still argues for what is written.
+		"agrees": {Exposure: ExposurePublic, Criticality: CriticalityCritical},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stale) != 1 {
+		t.Fatalf("stale = %v, want only the exposure somebody moved away from", stale)
+	}
+	for _, want := range []string{"argued", "exposure", "public", "restricted"} {
+		if !strings.Contains(stale[0], want) {
+			t.Errorf("%q should mention %q", stale[0], want)
+		}
+	}
+
+	// Kept, not deleted: it is somebody's prose, and a tool that drops it teaches people not to
+	// write any.
+	if !strings.Contains(string(out), "NetworkPolicy keeps it there") {
+		t.Errorf("deleted the reason instead of reporting it:\n%s", out)
+	}
+	// And a component gaining a rule it never had is not reported as contradicted.
+	if strings.Contains(strings.Join(stale, " "), "agrees") {
+		t.Errorf("reported a value nobody changed: %v", stale)
 	}
 }
