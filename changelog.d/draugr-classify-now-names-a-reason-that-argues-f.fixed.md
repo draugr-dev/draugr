@@ -1,0 +1,1 @@
+`draugr classify` now names a reason that argues for a value you just changed. Re-classifying a component left its `reason` in place — correct, in that a tool should not delete somebody's prose — but silently, so a descriptor could assert a component was namespace-scoped while its exposure said `public`, and that argument was published beside the findings the new value shaped.

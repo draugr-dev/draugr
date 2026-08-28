@@ -674,14 +674,20 @@ config:
   controllers:
     licenses:
       enabled: true
-      deny: ["AGPL-3.0-only", "GPL-3.0-only"]   # → error, whatever category Trivy assigned
-      warn: ["MPL-2.0"]                          # → warning
+      deny:                                  # → error, whatever category Trivy assigned
+        - id: AGPL-3.0-only
+          reason: >-                         # optional, per entry
+            We ship binaries to customers, and the network clause would reach them.
+        - id: GPL-3.0-only
+      warn:                                  # → warning
+        - id: MPL-2.0
 
 components:
   - name: shipped-cli          # distributed to customers, so stricter
     controllers:
       licenses:
-        deny: ["LGPL-3.0-only"]
+        deny:
+          - id: LGPL-3.0-only
 ```
 
 Reports dependency licenses that carry an obligation. Requires Trivy.
@@ -708,7 +714,7 @@ licenses, of which zero carry an obligation. The inventory question is what
 
 `restricted` is a **warning** rather than an error because whether copyleft matters depends on
 whether you distribute — which the Saga doesn't say. If you ship binaries to customers, raise it:
-`deny: ["GPL-3.0-only"]`.
+`deny: [{id: GPL-3.0-only}]`.
 
 **`deny` and `warn` name SPDX ids and beat the category**, because whether a license is acceptable
 depends on what you do with your software. Trivy can't know that; you always do.
@@ -720,7 +726,8 @@ usually owned by different people than security policy:
 config:
   gate:
     controls:
-      licenses: error      # a denied license fails the build…
+      licenses:
+        value: error       # a denied license fails the build…
   # …while --fail-on stays wherever you had it for everything else
 ```
 
@@ -737,13 +744,16 @@ instead. A component can add restrictions; it cannot remove them:
 config:
   controllers:
     licenses:
-      deny: ["GPL-3.0-only", "AGPL-3.0-only"]   # the organization's policy
+      deny:                      # the organization's policy
+        - id: GPL-3.0-only
+        - id: AGPL-3.0-only
 
 components:
   - name: web
     controllers:
       licenses:
-        deny: ["Sleepycat"]      # web denies all three, not just Sleepycat
+        deny:
+          - id: Sleepycat        # web denies all three, not just Sleepycat
 ```
 
 Under the usual rule, `web` would have silently dropped both organization-wide denials — a
