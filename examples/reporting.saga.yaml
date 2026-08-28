@@ -61,15 +61,19 @@ config:
 # one of those repeats the headline.
 components:
   - name: web
-    exposure: public
-    criticality: important
+    exposure:
+      value: public
+    criticality:
+      value: important
     images:
       - image: alpine:3.19
 
   - name: batch
     # The same finding ranks lower here — nothing external reaches it. Exposure and criticality
     # are the inputs that turn severity into priority.
-    exposure: internal
-    criticality: supporting
+    exposure:
+      value: internal
+    criticality:
+      value: supporting
     images:
       - image: alpine:3.18

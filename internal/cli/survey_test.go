@@ -567,7 +567,7 @@ func TestSurveySummaryVerbFollowsWhatHappened(t *testing.T) {
 // A proposal that arrives silently is indistinguishable from a decision once it is in the file,
 // and exposure is what turns a severity into a P1 or a P3.
 func TestSurveyNamesTheExposuresItProposed(t *testing.T) {
-	proposed := saga.Component{Name: "payments", Exposure: saga.ExposurePublic}
+	proposed := saga.Component{Name: "payments", Exposure: saga.Unstated(saga.ExposurePublic)}
 	for _, tc := range []struct {
 		name     string
 		existing string
@@ -723,7 +723,7 @@ func TestSurveyFragmentWritesComponentsAndNothingElse(t *testing.T) {
 	out := filepath.Join(dir, "team.saga-fragment.yaml")
 	opts := surveyOptions{output: out, fragment: true}
 	frag := saga.Fragment{Components: []saga.Component{
-		{Name: "team-a", Images: []saga.Image{{Image: "repo/a:1"}}, Exposure: saga.ExposureInternal},
+		{Name: "team-a", Images: []saga.Image{{Image: "repo/a:1"}}, Exposure: saga.Unstated(saga.ExposureInternal)},
 	}}
 	if err := surveyIntoFragment(opts, frag, io.Discard); err != nil {
 		t.Fatalf("surveyIntoFragment: %v", err)

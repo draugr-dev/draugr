@@ -59,7 +59,7 @@ func TestPrintScanTipsSuppressed(t *testing.T) {
 
 func TestPrintScanTipsSkippedWhenClassified(t *testing.T) {
 	t.Setenv("CI", "")
-	m := &saga.Model{Components: []saga.Component{{Name: "web", Exposure: saga.Exposure("public")}}}
+	m := &saga.Model{Components: []saga.Component{{Name: "web", Exposure: saga.Unstated(saga.Exposure("public"))}}}
 	var b bytes.Buffer
 	printScanTips(&b, tips(m, runWithFindings(), nil))
 	if b.Len() != 0 {
@@ -152,7 +152,7 @@ func TestPriorityGateTipFiresOnAPassCarryingP1s(t *testing.T) {
 	// The one tip here that corrects the reader's model of the run rather than extending it: a
 	// PASS that a priority gate would have failed.
 	c := tipContext{
-		model:   &saga.Model{Components: []saga.Component{{Name: "web", Exposure: saga.Exposure("public")}}},
+		model:   &saga.Model{Components: []saga.Component{{Name: "web", Exposure: saga.Unstated(saga.Exposure("public"))}}},
 		run:     priorityRun("P1"),
 		verdict: norn.Result{Verdict: norn.Pass},
 		opts:    &scanOptions{format: "console"},

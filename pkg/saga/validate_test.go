@@ -73,7 +73,7 @@ func TestValidateAcceptsValidClassification(t *testing.T) {
 	if err != nil {
 		t.Fatalf("valid classification should load, got %v", err)
 	}
-	if m.Components[0].Exposure != ExposurePublic || m.Components[0].Criticality != CriticalityCritical {
+	if m.Components[0].Exposure.Value != ExposurePublic || m.Components[0].Criticality.Value != CriticalityCritical {
 		t.Fatalf("classification not parsed: %+v", m.Components[0])
 	}
 }
@@ -95,7 +95,7 @@ func TestClassificationOptional(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Components[0].Exposure != "" || m.Components[0].Criticality != "" {
+	if m.Components[0].Exposure.Value != "" || m.Components[0].Criticality.Value != "" {
 		t.Fatalf("unset classification should be empty, got %+v", m.Components[0])
 	}
 }
@@ -316,7 +316,11 @@ func TestExcludeRulePathsStillUsePathSemantics(t *testing.T) {
 
 func TestValidateGateControls(t *testing.T) {
 	base := func(controls map[string]string) *Model {
-		return &Model{Release: Release{Name: "x", Version: "1"}, Config: Config{Gate: &GateConfig{Controls: controls}}}
+		reasoned := make(map[string]Reasoned[string], len(controls))
+		for control, want := range controls {
+			reasoned[control] = Unstated(want)
+		}
+		return &Model{Release: Release{Name: "x", Version: "1"}, Config: Config{Gate: &GateConfig{Controls: reasoned}}}
 	}
 	// The bands the report prints, which is the vocabulary a threshold is written in.
 	if err := base(map[string]string{"licenses": "critical", "sast": "low"}).Validate(); err != nil {
@@ -618,7 +622,7 @@ func assertValidation(t *testing.T, errs []error, want string) {
 func TestValidateGateFailOnPriority(t *testing.T) {
 	base := func(p string) *Model {
 		return &Model{Release: Release{Name: "x", Version: "1"},
-			Config: Config{Gate: &GateConfig{FailOnPriority: p}}}
+			Config: Config{Gate: &GateConfig{FailOnPriority: Unstated(p)}}}
 	}
 	for _, ok := range []string{"", "P1", "P4"} {
 		if err := base(ok).Validate(); err != nil {

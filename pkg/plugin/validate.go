@@ -49,9 +49,7 @@ func validateValue(node schemaNode, val any, path string) error {
 		return fmt.Errorf("%s: must be one of %s", optionLabel(path), formatEnum(node.Enum))
 	}
 
-	switch node.Type {
-	case "object":
-		m := val.(map[string]any) // safe: checkType passed
+	if m, isObject := asMap(val); isObject && node.Type == "object" {
 		if node.AdditionalProperties != nil && !*node.AdditionalProperties {
 			for _, k := range sortedKeys(m) {
 				if _, known := node.Properties[k]; !known {
@@ -73,12 +71,11 @@ func validateValue(node schemaNode, val any, path string) error {
 				return err
 			}
 		}
-	case "array":
-		if node.Items != nil {
-			for i, item := range asSlice(val) { // non-nil: checkType passed
-				if err := validateValue(*node.Items, item, fmt.Sprintf("%s[%d]", path, i)); err != nil {
-					return err
-				}
+	}
+	if items := asSlice(val); items != nil && node.Items != nil && node.Type == "array" {
+		for i, item := range items {
+			if err := validateValue(*node.Items, item, fmt.Sprintf("%s[%d]", path, i)); err != nil {
+				return err
 			}
 		}
 	}
@@ -88,6 +85,15 @@ func validateValue(node schemaNode, val any, path string) error {
 // checkType reports whether val matches a JSON Schema type, mapping the Go types produced by
 // YAML/JSON decoding of a Saga (string, bool, int/float, []any, map[string]any).
 func checkType(typ string, val any, path string) error {
+	if matchesType(typ, val) {
+		return nil
+	}
+	return fmt.Errorf("%s: expected %s, got %s", optionLabel(path), typ, jsonType(val))
+}
+
+// matchesType reports whether val is one named JSON type. An unsupported keyword matches
+// anything, so a schema using a construct this subset does not model does not reject valid input.
+func matchesType(typ string, val any) bool {
 	ok := false
 	switch typ {
 	case "string":
@@ -101,14 +107,11 @@ func checkType(typ string, val any, path string) error {
 	case "array":
 		ok = asSlice(val) != nil
 	case "object":
-		_, ok = val.(map[string]any)
+		_, ok = asMap(val)
 	default:
-		return nil // unsupported type keyword: don't constrain
+		return true // unsupported type keyword: don't constrain
 	}
-	if !ok {
-		return fmt.Errorf("%s: expected %s, got %s", optionLabel(path), typ, jsonType(val))
-	}
-	return nil
+	return ok
 }
 
 // asSlice returns a value's elements when it is any kind of slice, and nil when it is not.
@@ -134,6 +137,34 @@ func asSlice(v any) []any {
 		out[i] = rv.Index(i).Interface()
 	}
 	return out
+}
+
+// asMap returns a value's entries when it is any kind of string-keyed map, and nil when it is
+// not.
+//
+// Not a type assertion on map[string]any, for the same reason asSlice is not one on []any. A
+// mapping nested inside a typed block decodes as that block's own named map type — a controller's
+// settings, for one — and a check that recognizes only the bare shape reports a mapping as
+// "not an object" while the descriptor beside it is perfectly correct.
+// The second result, rather than a nil map, because an empty object is a real one: a config
+// somebody left blank is still an object, and reporting it as "not an object" rejects a
+// descriptor for saying nothing.
+func asMap(v any) (map[string]any, bool) {
+	switch typed := v.(type) {
+	case nil:
+		return nil, false
+	case map[string]any:
+		return typed, true
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Map || rv.Type().Key().Kind() != reflect.String {
+		return nil, false
+	}
+	out := make(map[string]any, rv.Len())
+	for _, k := range rv.MapKeys() {
+		out[k.String()] = rv.MapIndex(k).Interface()
+	}
+	return out, true
 }
 
 func isInteger(v any) bool {
@@ -171,11 +202,14 @@ func jsonType(v any) string {
 		return "boolean"
 	case []any:
 		return "array"
-	case map[string]any:
-		return "object"
-	default:
-		return reflect.TypeOf(v).String()
 	}
+	if asSlice(v) != nil {
+		return "array"
+	}
+	if _, ok := asMap(v); ok {
+		return "object"
+	}
+	return reflect.TypeOf(v).String()
 }
 
 func enumContains(enum []any, val any) bool {
@@ -217,4 +251,28 @@ func optionLabel(path string) string {
 		return "config"
 	}
 	return fmt.Sprintf("option %q", path)
+}
+
+// ValidateOption checks one option against the sub-schema a scanner declares for it. The first
+// result says whether the schema declares the option at all, which is a different answer from
+// the option being wrong: a control served by several scanners has options only some of them
+// have heard of, and a descriptor naming one of those is correct.
+//
+// Separate from ValidateConfig because the two answer different questions. ValidateConfig judges
+// a complete config, so it enforces `required` — right for a scanner's own block, and wrong for a
+// single option lifted out of a control's policy, where the other options are somebody else's to
+// supply. Applied there it reports what is missing from a config nobody wrote.
+func ValidateOption(schema json.RawMessage, key string, val any) (declared bool, err error) {
+	if len(schema) == 0 {
+		return false, nil
+	}
+	var node schemaNode
+	if err := json.Unmarshal(schema, &node); err != nil {
+		return false, fmt.Errorf("invalid config schema: %w", err)
+	}
+	sub, ok := node.Properties[key]
+	if !ok {
+		return false, nil
+	}
+	return true, validateValue(sub, val, key)
 }

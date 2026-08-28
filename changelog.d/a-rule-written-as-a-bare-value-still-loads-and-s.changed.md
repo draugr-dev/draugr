@@ -1,0 +1,1 @@
+A rule written as a bare value — `exposure: public` — still loads and now says so, naming each one and the date it stops: **2026-12-31**. Write it as `value:` with an optional `reason:` beneath. `draugr classify` writes the new shape and leaves any reason already there untouched.

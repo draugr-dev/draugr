@@ -72,6 +72,13 @@ func (m *Model) Deprecations() []string {
 		}
 		out = append(out, fmt.Sprintf(why, suggestion))
 	}
+	for _, path := range RuleDeprecations(m) {
+		out = append(out, fmt.Sprintf(
+			"%s is written as a bare value and is removed after %s. A rule now has a place for "+
+				"the reason somebody had for it, so write it as `value:` with an optional "+
+				"`reason:` beneath. Nothing about the scan changes; what changes is that the "+
+				"argument reaches whoever reads the report.", path, RuleShapeRemoval))
+	}
 	return out
 }
 
@@ -155,7 +162,7 @@ type GateConfig struct {
 	// legal and vulnerability policy by security; "fail the build on a forbidden license but
 	// only warn on a medium CVE" is a reasonable position that a single global threshold makes
 	// unsayable.
-	Controls map[string]string `yaml:"controls,omitempty"`
+	Controls map[string]Reasoned[string] `yaml:"controls,omitempty"`
 
 	// FailOnPriority also fails the build on any finding at or above a priority band.
 	//
@@ -168,7 +175,7 @@ type GateConfig struct {
 	// this application, reviewed in a pull request and applied identically by every runner. A
 	// --fail-on-priority flag still overrides it, so a stricter run stays possible without
 	// editing the file.
-	FailOnPriority string `yaml:"failOnPriority,omitempty"`
+	FailOnPriority Reasoned[string] `yaml:"failOnPriority,omitempty"`
 }
 
 // GateThresholds lists the severity bands a gate may be set to, most to least severe.
@@ -540,8 +547,8 @@ type PublisherConfig struct {
 type Component struct {
 	Name           string                        `yaml:"name"`
 	Labels         map[string]string             `yaml:"labels,omitempty"`
-	Exposure       Exposure                      `yaml:"exposure,omitempty"`
-	Criticality    Criticality                   `yaml:"criticality,omitempty"`
+	Exposure       Reasoned[Exposure]            `yaml:"exposure,omitempty"`
+	Criticality    Reasoned[Criticality]         `yaml:"criticality,omitempty"`
 	Repositories   []Repository                  `yaml:"repositories,omitempty"`
 	Images         []Image                       `yaml:"images,omitempty"`
 	Hosts          []Host                        `yaml:"hosts,omitempty"`

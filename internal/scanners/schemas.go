@@ -21,3 +21,46 @@ const noScannerOptions = `{
   "additionalProperties": false,
   "properties": {}
 }`
+
+// licensePolicyProperties are the `deny` and `warn` lists, written once and used by every scanner
+// that serves the licenses control.
+//
+// Shared rather than repeated, because these two are not the scanner's own options: they are the
+// control's policy, and the controller hands the same resolved lists to whichever scanner runs.
+// Two copies of the shape could disagree, and the descriptor a reader was told is valid would be
+// the one the other scanner refuses.
+//
+// An entry is an SPDX identifier with a place for the reason somebody had for taking that
+// position on it. The reason is optional and the shape is not: one entry has one schema, so an
+// editor can complete it and a reader never has to learn that a list is written two ways
+// depending on whether anybody had something to say.
+//
+// The reason changes nothing about a scan. What it changes is that whoever meets the finding can
+// read the argument for the rule that produced it.
+const licensePolicyProperties = `
+    "deny": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "description": "The SPDX identifier." },
+          "reason": { "type": "string", "description": "Why this project will not accept it. Optional." }
+        }
+      },
+      "description": "SPDX identifiers that fail the gate, written as {id} or {id, reason}, e.g. [{\"id\": \"AGPL-3.0-only\"}]."
+    },
+    "warn": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "description": "The SPDX identifier." },
+          "reason": { "type": "string", "description": "Why this project wants to be told about it. Optional." }
+        }
+      },
+      "description": "SPDX identifiers reported as warnings rather than failures, written as {id} or {id, reason}."
+    }`

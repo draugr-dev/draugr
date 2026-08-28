@@ -58,7 +58,7 @@ func TestK8sClusterEmitsAnInfrastructureComponent(t *testing.T) {
 	}
 	// Judgements a cluster does not hold. Guessing them would put a number on risk that nobody
 	// decided.
-	if c.Exposure != "" || c.Criticality != "" {
+	if c.Exposure.Value != "" || c.Criticality.Value != "" {
 		t.Errorf("exposure/criticality should be left for `draugr classify`, got %q/%q", c.Exposure, c.Criticality)
 	}
 }

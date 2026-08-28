@@ -351,7 +351,7 @@ func gatePriority(g *saga.GateConfig) string {
 	if g == nil {
 		return ""
 	}
-	return g.FailOnPriority
+	return g.FailOnPriority.Value
 }
 
 // findingFrom converts a result into the shape this server returns.

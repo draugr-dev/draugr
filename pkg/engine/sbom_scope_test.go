@@ -29,7 +29,7 @@ func scopeModel(scope saga.SBOMScope) saga.Model {
 		Release: saga.Release{Name: "acme", Version: "1.0.0"},
 		Config:  saga.Config{SBOM: &saga.SBOMConfig{Enabled: true, Scope: scope}},
 		Components: []saga.Component{{
-			Name: "api", Criticality: "supporting", Exposure: "internal",
+			Name: "api", Criticality: saga.Unstated(saga.Criticality("supporting")), Exposure: saga.Unstated(saga.Exposure("internal")),
 			Repositories: []saga.Repository{{URL: "repo-a"}, {URL: "repo-b"}},
 		}},
 	}

@@ -488,7 +488,7 @@ type exposureProposal struct {
 func classifiedComponents(components []saga.Component) map[string]bool {
 	settled := map[string]bool{}
 	for _, c := range components {
-		if c.Exposure != "" {
+		if c.Exposure.Value != "" {
 			settled[c.Name] = true
 		}
 	}
@@ -510,10 +510,10 @@ func classifiedComponents(components []saga.Component) map[string]bool {
 func proposedExposures(frag saga.Fragment, settled map[string]bool) []exposureProposal {
 	var out []exposureProposal
 	for _, c := range frag.Components {
-		if c.Exposure == "" || settled[c.Name] {
+		if c.Exposure.Value == "" || settled[c.Name] {
 			continue
 		}
-		out = append(out, exposureProposal{component: c.Name, exposure: c.Exposure})
+		out = append(out, exposureProposal{component: c.Name, exposure: c.Exposure.Value})
 	}
 	return out
 }

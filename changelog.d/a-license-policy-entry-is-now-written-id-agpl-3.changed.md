@@ -1,0 +1,1 @@
+A license policy entry is now written `{id: AGPL-3.0-only}`, with an optional `reason`, rather than as a bare identifier. There is no deprecation window here: an entry Draugr could not read reached the scanner as a policy silently one license shorter, and a descriptor that does not load is the better outcome.

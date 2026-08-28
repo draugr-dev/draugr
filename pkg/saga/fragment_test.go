@@ -74,7 +74,7 @@ components:
 	if len(payments.Repositories) != 1 || len(payments.Images) != 1 {
 		t.Errorf("surfaces not unioned: %+v", payments)
 	}
-	if payments.Exposure != "public" || payments.Criticality != "critical" {
+	if payments.Exposure.Value != "public" || payments.Criticality.Value != "critical" {
 		t.Errorf("classification lost: %+v", payments)
 	}
 }
@@ -103,7 +103,7 @@ components:
 		t.Fatalf("ResolveFile: %v", err)
 	}
 	c := res.Model.Components[0]
-	if c.Exposure != "restricted" || c.Criticality != "supporting" {
+	if c.Exposure.Value != "restricted" || c.Criticality.Value != "supporting" {
 		t.Errorf("a fragment reclassified a component the root declared: %+v", c)
 	}
 	if len(c.Repositories) != 1 {
