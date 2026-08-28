@@ -1,6 +1,7 @@
 package saga
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -20,25 +21,8 @@ func TestReasonedWithoutAReason(t *testing.T) {
 	if got.Exposure.Value != ExposurePublic {
 		t.Errorf("value = %q, want %q", got.Exposure.Value, ExposurePublic)
 	}
-	if got.Exposure.Reason != "" || got.Exposure.WrittenShort() {
-		t.Errorf("got %+v, want a rule with no reason and not the older shape", got.Exposure)
-	}
-}
-
-// The shape a rule had before it could carry a reason still loads for one release, and says so.
-// It exists so a descriptor can be converted at all: until a published Draugr reads the new
-// shape, nothing scanned by the latest release can be moved to it.
-func TestReasonedAcceptsTheOlderShapeAndSaysSo(t *testing.T) {
-	t.Parallel()
-
-	var got struct {
-		Exposure Reasoned[Exposure] `yaml:"exposure"`
-	}
-	if err := yaml.Unmarshal([]byte("exposure: public\n"), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.Exposure.Value != ExposurePublic || !got.Exposure.WrittenShort() {
-		t.Errorf("got %+v, want the value read and the older shape recorded", got.Exposure)
+	if got.Exposure.Reason != "" {
+		t.Errorf("got %+v, want a rule with no reason", got.Exposure)
 	}
 }
 
@@ -76,6 +60,9 @@ func TestReasonedRejectsWhatCannotBeActedOn(t *testing.T) {
 		{"an unknown key", "exposure:\n  value: public\n  why: because\n", `unknown key "why"`},
 		{"no value", "exposure:\n  reason: because\n", "no `value`"},
 		{"neither shape", "exposure: [public]\n", "expected a mapping"},
+		// The shape a rule had before it could carry a reason, shown the two lines that replace
+		// it — "expected a mapping" sends somebody to the schema to work out which one.
+		{"the value on its own", "exposure: public\n", "value: public"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -166,79 +153,43 @@ func TestReasonedHelpers(t *testing.T) {
 	}
 }
 
-// The notice has to name every rule written the older way, found by walking the model — a rule
-// added later would otherwise be missing from it, and the first anybody would hear is the
-// release that stops loading their descriptor.
-func TestRuleDeprecationsNamesEveryOlderRule(t *testing.T) {
+// The older shape is refused wherever a rule appears, not only on a component — a descriptor
+// half-converted is the case somebody actually hits, and finding out one key at a time is worse
+// than being told on the first.
+func TestOlderShapeIsRefusedAtEveryRule(t *testing.T) {
 	t.Parallel()
 
-	const src = `
-project: p
-release:
-  version: "1"
-config:
-  gate:
-    failOnPriority: P1
-    controls:
-      licenses: critical
-components:
-  - name: api
-    exposure: public
-    criticality:
-      value: critical
-      reason: it holds the payment path
-  - name: web
-    exposure:
-      value: internal
-`
-	m, err := Load([]byte(src))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := RuleDeprecations(m)
-	// Only the three written as bare values. components[0].criticality and components[1].exposure
-	// are written as rules and must not appear.
-	want := []string{"components[0].exposure", "config.gate.controls.licenses", "config.gate.failOnPriority"}
-	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Errorf("RuleDeprecations = %v, want %v", got, want)
-	}
-
-	// And the descriptor still loads, with the values read.
-	if m.Components[0].Exposure.Value != ExposurePublic || m.Config.Gate.FailOnPriority.Value != "P1" {
-		t.Errorf("the older shape should still load: %+v", m.Components[0].Exposure)
-	}
-
-	// The notice carries the removal date and the shape to write instead.
-	notices := strings.Join(m.Deprecations(), "\n")
-	for _, want := range []string{"components[0].exposure", ruleShapeWindow, "`value:`", "`reason:`"} {
-		if !strings.Contains(notices, want) {
-			t.Errorf("the notice should mention %q:\n%s", want, notices)
+	for _, src := range []string{
+		"project: p\nrelease:\n  version: \"1\"\nconfig:\n  gate:\n    failOnPriority: P1\n",
+		"project: p\nrelease:\n  version: \"1\"\nconfig:\n  gate:\n    controls:\n      licenses: critical\n",
+		"project: p\nrelease:\n  version: \"1\"\ncomponents:\n  - name: api\n    exposure: public\n",
+		"project: p\nrelease:\n  version: \"1\"\ncomponents:\n  - name: api\n    criticality: critical\n",
+	} {
+		if _, err := Load([]byte(src)); err == nil {
+			t.Errorf("loaded a rule written as a bare value:\n%s", src)
+		} else if !strings.Contains(err.Error(), "value:") {
+			t.Errorf("error should show what to write instead: %v", err)
 		}
 	}
 }
 
-// What Draugr writes back is the shape a rule has now, whichever shape it read — so a descriptor
-// that round-trips through the plane stops carrying the older one.
-func TestRuleDeprecationsDoNotSurviveAMarshal(t *testing.T) {
+// The descriptor this repository scans itself with is the one that should demonstrate the point:
+// the arguments for its classification were comments, and a comment does not survive being
+// merged and re-serialized.
+func TestSelfDescriptorStatesItsReasons(t *testing.T) {
 	t.Parallel()
 
-	m, err := Load([]byte("project: p\nrelease:\n  version: \"1\"\ncomponents:\n  - name: api\n    exposure: public\n"))
+	b, err := os.ReadFile("../../.draugr/self.saga.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := yaml.Marshal(m)
+	m, err := Load(b)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(out), "exposure:\n            value: public") &&
-		!strings.Contains(string(out), "value: public") {
-		t.Errorf("marshaled to something other than a rule:\n%s", out)
-	}
-	again, err := Load(out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := RuleDeprecations(again); len(got) != 0 {
-		t.Errorf("still reports the older shape after a round trip: %v", got)
+	c := m.Components[0]
+	if c.Exposure.Reason == "" || c.Criticality.Reason == "" {
+		t.Errorf("%s: classification with no argument attached — exposure %q, criticality %q",
+			c.Name, c.Exposure.Reason, c.Criticality.Reason)
 	}
 }

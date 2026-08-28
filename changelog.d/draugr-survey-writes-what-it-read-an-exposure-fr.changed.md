@@ -1,0 +1,1 @@
+`draugr survey` writes what it read an exposure from into the rule's own `reason` rather than a trailing comment. A comment is read by whoever reviews the file and by nobody afterwards — descriptors are merged and re-serialized before a run is published — so the evidence for a guess now reaches the report that guess went on to shape.

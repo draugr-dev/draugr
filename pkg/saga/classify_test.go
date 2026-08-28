@@ -45,8 +45,10 @@ func TestWriteClassificationsUpdatesInPlace(t *testing.T) {
   version: "1"
 components:
   - name: api
-    exposure: internal
-    criticality: supporting
+    exposure:
+      value: internal
+    criticality:
+      value: supporting
 `
 	out, err := WriteClassifications([]byte(src), map[string]Classification{
 		"api": {Exposure: ExposurePublic, Criticality: CriticalityCritical},

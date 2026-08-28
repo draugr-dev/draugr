@@ -168,14 +168,20 @@ components:
   # today — which is the point of writing them down. A default we merely benefit from is one that
   # can be re-tuned underneath us, and the gate would weaken without a line changing here.
   #
-  # public: the binary is downloadable and runnable by anyone, no sign-in, and what it reads is
-  # not ours either — repositories it clones, scanner output it parses, threat-feed responses.
-  #
-  # critical: it runs inside other people's pipelines holding their credentials, and its whole
-  # job is to be believed. A wrong PASS means somebody shipped thinking they had been checked,
-  # which is a worse failure than the scan not running at all.
+  # The arguments for each are below rather than here. They were comments until a rule had
+  # somewhere to put them, which meant they were gone by the time anybody read a report shaped by
+  # them — and this is the descriptor that ought to demonstrate it.
   - name: draugr
-    exposure: public
-    criticality: critical
+    exposure:
+      value: public
+      reason: >-
+        The binary is downloadable and runnable by anyone, no sign-in — and what it reads is not
+        ours either: repositories it clones, scanner output it parses, threat-feed responses.
+    criticality:
+      value: critical
+      reason: >-
+        It runs inside other people's pipelines holding their credentials, and its whole job is to
+        be believed. A wrong PASS means somebody shipped thinking they had been checked, which is
+        a worse failure than the scan not running at all.
     repositories:
       - url: .

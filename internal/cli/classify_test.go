@@ -36,8 +36,10 @@ components:
     images:
       - image: repo/gw:1
   - name: dashboard
-    exposure: internal
-    criticality: supporting
+    exposure:
+      value: internal
+    criticality:
+      value: supporting
 `
 
 func TestRunClassifyWritesUnclassified(t *testing.T) {
@@ -115,7 +117,7 @@ func TestClassifyCommandViaCobra(t *testing.T) {
 
 func TestRunClassifyAllAlreadyClassified(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "s.yaml")
-	body := "release:\n  version: \"1\"\ncomponents:\n  - name: a\n    exposure: public\n    criticality: critical\n"
+	body := "release:\n  version: \"1\"\ncomponents:\n  - name: a\n    exposure:\n      value: public\n    criticality:\n      value: critical\n"
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}

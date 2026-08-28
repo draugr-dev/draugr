@@ -125,8 +125,10 @@ config:
     dast: { enabled: true }
 components:
   - name: api
-    exposure: public
-    criticality: critical
+    exposure:
+      value: public
+    criticality:
+      value: critical
     hosts:
       - name: api
         url: %s
@@ -241,8 +243,10 @@ config:
     headers: { enabled: true }
 components:
   - name: api
-    exposure: public
-    criticality: critical
+    exposure:
+      value: public
+    criticality:
+      value: critical
     hosts:
       - name: api
         url: %s
