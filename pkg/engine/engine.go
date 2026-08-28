@@ -1203,6 +1203,11 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 	copy(out.Results, report.Results)
 	for i := range out.Results {
 		out.Results[i].Component = pj.Component
+		// The classification that produced the band, traveling with the finding it explains. The
+		// prioritizer below reads the same two values; recording them is what lets a reader check
+		// its arithmetic without the descriptor in hand.
+		out.Results[i].Exposure = string(pj.Exposure)
+		out.Results[i].Criticality = string(pj.Criticality)
 		// Where the scan looked, for a target that is somewhere. Stamped by the engine rather
 		// than by each controller, so a controller written next cannot forget it.
 		out.Results[i].Environment = plugin.EnvironmentOf(pj.Job.Target)
@@ -1792,6 +1797,9 @@ func (e *Engine) rebandForReachability(res *sarif.Result, control string, model 
 		return
 	}
 	exposure, criticality := classificationOf(model, res.Component)
+	// Re-stamped as well as re-read: a reband that changed the working must not leave the finding
+	// carrying the inputs to the band it used to have.
+	res.Exposure, res.Criticality = string(exposure), string(criticality)
 	p := e.prioritize(control, exposure, criticality, *res)
 	res.Priority = p.Band
 	res.Escalation = p.Escalation

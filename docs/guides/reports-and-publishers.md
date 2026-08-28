@@ -433,12 +433,22 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `component` | The part of the application it belongs to |
 | `repository` | Which repository it was found in, for a component holding more than one |
 | `priority` | The band Draugr computed from that component's exposure and criticality |
+| `exposure`, `criticality` | That component's declared classification — the two inputs to the band that do not come from the scanner |
 | `security-severity` | The numeric score, where the scanner gave one |
 | `escalation` | Why the band is higher than the severity: the dataset, the fact, and the day it was fetched |
 | `reachability` | Whether your code can reach the vulnerable code, which analyzer decided, and how |
 
 `control` and `tool` answer different questions, and both matter to anything grouping findings:
 one rule id reported by two controls is two separate things to do.
+
+**`exposure` and `criticality` are what makes the band arithmetic checkable.** Priority folds a
+component's classification into the scanner's severity, so the same CVE is P1 on an internet-facing
+service and P3 on a restricted one. Naming the component is not the same as stating that premise:
+without these two, reconstructing a band means fetching the descriptor — and the descriptor in the
+repository today is not necessarily the one that produced this finding. Both are empty for a
+project-scoped finding, which belongs to no one component, and for a component that declares
+neither, which Draugr reads as public and critical so that an unclassified component surfaces
+rather than hides.
 
 **`escalation` and `reachability` are why a band is not what the severity alone would give.** One
 moves a finding up and one moves it down, and both carry the evidence rather than only the verdict
@@ -455,7 +465,7 @@ own property bag:
 |---|---|
 | `draugr/provenance` | What each scanner said about its own run — the standard applied, the scope, how much of it could be decided |
 | `decided` | The classifications this run settled, whether or not a finding resulted |
-| `consulted` | The exploitability datasets the run had loaded: the signal, the day the copy was obtained, how many records it held, and the EPSS threshold |
+| `consulted` | The exploitability datasets the run had loaded: the signal, the day the copy was obtained, how many records it held, the EPSS threshold, and what set it |
 
 **`decided` and `consulted` both exist to separate "looked and found nothing" from "never
 looked."** A scanner that reports nothing about a control has either examined it and been
@@ -468,6 +478,11 @@ person reading the file — cannot tell *not on KEV* from *KEV was not consulted
 as the second. `asOf` is empty when you supplied a feed file by hand, which has no fetch to
 record; `entries` is there because a dataset that loaded and turned out to be empty answers every
 lookup with "not listed" and looks exactly like one that is working.
+
+`thresholdFrom` names what set the EPSS threshold — `the default`, `config.exploitability.epssThreshold`,
+or `--epss-threshold`. The number alone is the one input to an escalation that arrives anonymous:
+the dataset names itself and the day its copy was obtained, while the line a score was measured
+against does not say who drew it. Whether a band is a policy or an accident depends on the answer.
 
 A run that loaded no exploitability data writes no `consulted` block at all.
 

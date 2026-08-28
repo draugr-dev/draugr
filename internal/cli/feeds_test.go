@@ -606,3 +606,41 @@ func TestUpdateFeedsStillFailsWithAnEmptyCache(t *testing.T) {
 		t.Fatal("a failed fetch with no cache was reported as success")
 	}
 }
+
+// Whichever source won has to name itself. A threshold in a report without its source is a line
+// somebody drew that nobody can attribute — and the answer decides whether a band a reader
+// disputes is a policy or an accident.
+func TestExploitSettingsThresholdNamesWhatSetIt(t *testing.T) {
+	th := 0.1
+	for _, tc := range []struct {
+		name string
+		opts scanOptions
+		cfg  *saga.ExploitabilityConfig
+		want string
+	}{
+		{
+			"nothing set it",
+			scanOptions{epssThreshold: 0.5, setFlags: map[string]bool{}},
+			&saga.ExploitabilityConfig{EPSS: "cache"},
+			"the default",
+		},
+		{
+			"the descriptor set it",
+			scanOptions{epssThreshold: 0.5, setFlags: map[string]bool{}},
+			&saga.ExploitabilityConfig{EPSS: "cache", EPSSThreshold: &th},
+			"config.exploitability.epssThreshold",
+		},
+		{
+			"the flag set it, over a descriptor that also did",
+			scanOptions{epssThreshold: 0.9, setFlags: map[string]bool{"epss-threshold": true}},
+			&saga.ExploitabilityConfig{EPSS: "cache", EPSSThreshold: &th},
+			"--epss-threshold",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := exploitSettings(tc.opts, tc.cfg); got.thresholdFrom != tc.want {
+				t.Errorf("thresholdFrom = %q, want %q", got.thresholdFrom, tc.want)
+			}
+		})
+	}
+}

@@ -196,7 +196,14 @@ type sarifProperties struct {
 	// Component is the part of the application the finding belongs to. A location alone is
 	// ambiguous once a descriptor has more than one component, and it is what makes the priority
 	// checkable — the band comes from that component's declared classification.
-	Component   string `json:"component,omitempty"`
+	Component string `json:"component,omitempty"`
+	// Exposure and Criticality are that component's declared classification — the two inputs to
+	// the band that come from the descriptor rather than from the scanner. They survive the file
+	// for the reason Repository does, and for one more: naming the component makes the band
+	// checkable only if the reader also has the descriptor, and the descriptor in the repository
+	// today is not necessarily the one that produced this finding.
+	Exposure    string `json:"exposure,omitempty"`
+	Criticality string `json:"criticality,omitempty"`
 	Environment string `json:"environment,omitempty"`
 	// Repository is which repository the finding was found in, for a component holding more than
 	// one. Part of a finding's identity, so it has to survive the file: a report is written and
@@ -408,6 +415,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			res.ProviderOperated || res.ImageBuiltUpstream {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
+				Exposure: res.Exposure, Criticality: res.Criticality,
 				Environment:   res.Environment,
 				Escalation:    res.Escalation,
 				PriorityFloor: res.PriorityFloor,
@@ -650,6 +658,8 @@ func FromSARIF(data []byte) (Report, error) {
 				// component, collapse into a single finding at exactly the moment it mattered.
 				res.Control = sr.Properties.Control
 				res.Component = sr.Properties.Component
+				res.Exposure = sr.Properties.Exposure
+				res.Criticality = sr.Properties.Criticality
 				res.Environment = sr.Properties.Environment
 				res.Repository = sr.Properties.Repository
 				res.Image = sr.Properties.Image
