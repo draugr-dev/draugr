@@ -102,6 +102,27 @@ type Result struct {
 	// criticality, so a report showing the band without naming the component states a conclusion
 	// and withholds its premise.
 	Component string `json:"component,omitempty"`
+	// Exposure and Criticality are that component's declared classification — how reachable it is
+	// to an attacker, and how much depends on it. The half of the priority calculation that comes
+	// from the descriptor rather than from the scanner.
+	//
+	// Carried on the finding because naming the component is not the same as stating its premise.
+	// Every other input to a band already travels with it: the scanner's score, the dataset that
+	// raised it and the day that copy was obtained, the analyzer that ranked it down and how. A
+	// report that records all of those and then requires a descriptor to be fetched before the
+	// two remaining inputs can be read is one an auditor cannot settle from the evidence in front
+	// of them — and the descriptor they would fetch is the one in the repository today, not
+	// necessarily the one that produced this band.
+	//
+	// Empty for a project-scoped finding, which belongs to no one component, and for a component
+	// that declares neither — which Draugr reads as public and critical, so that an unclassified
+	// component surfaces rather than hides.
+	//
+	// Strings rather than the descriptor's own types: `saga` imports this package, so the
+	// dependency cannot run the other way. These carry `saga.Exposure` and `saga.Criticality`
+	// values.
+	Exposure    string `json:"exposure,omitempty"`
+	Criticality string `json:"criticality,omitempty"`
 	// Environment is which environment the target was in, for a finding about a live system.
 	//
 	// Empty for a repository or an image: those are artifacts, and the same image digest may be
@@ -604,6 +625,15 @@ type Consulted struct {
 	// Threshold is the EPSS probability at or above which a finding was raised. Zero for KEV,
 	// which has no threshold — being on it is the whole signal.
 	Threshold float64 `json:"threshold,omitempty"`
+	// ThresholdFrom names what set that threshold: the default, a descriptor key, or a flag.
+	//
+	// A number without its source is the one part of an escalation a reader cannot check. Every
+	// other input says where it came from — the dataset names itself and the day its copy was
+	// obtained — while the line a score was measured against arrives anonymous, and the answer to
+	// "who decided 0.5" decides whether a band is a policy or an accident. It is also the value
+	// most worth governing: a threshold reachable by the team being gated is a gate that can be
+	// loosened without a record.
+	ThresholdFrom string `json:"thresholdFrom,omitempty"`
 }
 
 // Provenance is one scanner's account of a run it performed.
