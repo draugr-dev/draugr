@@ -584,7 +584,7 @@ func TestSurveyNamesTheExposuresItProposed(t *testing.T) {
 			// The merge keeps the exposure already in the descriptor, so this proposal was
 			// discarded. Naming it would ask someone to confirm a value that is not in their file.
 			name:     "a component somebody has already classified",
-			existing: "components:\n  - name: payments\n    exposure: restricted\n",
+			existing: "components:\n  - name: payments\n    exposure:\n      value: restricted\n",
 			frag:     proposed,
 			silent:   true,
 		},

@@ -48,12 +48,12 @@ func TestValidateErrors(t *testing.T) {
 		},
 		{
 			name: "invalid exposure",
-			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure: web\n",
+			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure:\n      value: web\n",
 			want: "invalid exposure \"web\"",
 		},
 		{
 			name: "invalid criticality",
-			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    criticality: bc9\n",
+			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    criticality:\n      value: bc9\n",
 			want: "invalid criticality \"bc9\"",
 		},
 	}
@@ -68,7 +68,7 @@ func TestValidateErrors(t *testing.T) {
 }
 
 func TestValidateAcceptsValidClassification(t *testing.T) {
-	yaml := "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure: public\n    criticality: critical\n"
+	yaml := "release:\n  version: '1'\ncomponents:\n  - name: a\n    exposure:\n      value: public\n    criticality:\n      value: critical\n"
 	m, err := Load([]byte(yaml))
 	if err != nil {
 		t.Fatalf("valid classification should load, got %v", err)

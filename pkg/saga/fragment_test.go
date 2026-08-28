@@ -40,8 +40,10 @@ fragments:
 	write(t, dir, "services/payments/draugr.saga-fragment.yaml", `
 components:
   - name: payments
-    exposure: public
-    criticality: critical
+    exposure:
+      value: public
+    criticality:
+      value: critical
     repositories: [{ url: "." }]
 `)
 	write(t, dir, "services/payments/azure.saga-fragment.yaml", `
@@ -86,16 +88,20 @@ func TestResolveKeepsTheRootAuthoritativeOnClassification(t *testing.T) {
 	write(t, dir, "draugr.saga.yaml", rootHeader+`
 components:
   - name: web
-    exposure: restricted
-    criticality: supporting
+    exposure:
+      value: restricted
+    criticality:
+      value: supporting
 fragments:
   - path: "f.saga-fragment.yaml"
 `)
 	write(t, dir, "f.saga-fragment.yaml", `
 components:
   - name: web
-    exposure: public
-    criticality: critical
+    exposure:
+      value: public
+    criticality:
+      value: critical
     repositories: [{ url: "." }]
 `)
 	res, err := resolveIn(t, dir)
@@ -555,7 +561,7 @@ func TestLoadFragmentRejectsBrokenYAMLAndUndefinedVars(t *testing.T) {
 }
 
 func TestLoadFragmentRejectsAnInvalidComponent(t *testing.T) {
-	_, err := LoadFragment([]byte("components: [{ name: web, exposure: nonsense }]"), "f.saga-fragment.yaml")
+	_, err := LoadFragment([]byte("components: [{ name: web, exposure: { value: nonsense } }]"), "f.saga-fragment.yaml")
 	if err == nil || !strings.Contains(err.Error(), "exposure") {
 		t.Errorf("a fragment's components should be validated: %v", err)
 	}

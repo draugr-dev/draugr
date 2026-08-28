@@ -77,8 +77,10 @@ config:
       grypeFs: { enabled: true }
 components:
   - name: app
-    exposure: internal
-    criticality: supporting
+    exposure:
+      value: internal
+    criticality:
+      value: supporting
     repositories:
       - url: %s
 `, repo))
@@ -109,8 +111,10 @@ config:
     licenses: { enabled: true }
 components:
   - name: app
-    exposure: internal
-    criticality: supporting
+    exposure:
+      value: internal
+    criticality:
+      value: supporting
     repositories:
       - url: %s
 `, repo))
@@ -143,8 +147,10 @@ config:
     infrastructure: { enabled: true }
 components:
   - name: cluster
-    exposure: internal
-    criticality: critical
+    exposure:
+      value: internal
+    criticality:
+      value: critical
     infrastructure:
       - kind: kubernetes
         ref: %s
