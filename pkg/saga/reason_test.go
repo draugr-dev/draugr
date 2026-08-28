@@ -25,9 +25,9 @@ func TestReasonedWithoutAReason(t *testing.T) {
 	}
 }
 
-// The shape a rule had before it could carry a reason still loads until the removal date, and
-// says so — an upgrade that stopped every existing pipeline on the same afternoon would be a
-// worse answer than a date somebody can plan around.
+// The shape a rule had before it could carry a reason still loads for one release, and says so.
+// It exists so a descriptor can be converted at all: until a published Draugr reads the new
+// shape, nothing scanned by the latest release can be moved to it.
 func TestReasonedAcceptsTheOlderShapeAndSaysSo(t *testing.T) {
 	t.Parallel()
 
@@ -210,7 +210,7 @@ components:
 
 	// The notice carries the removal date and the shape to write instead.
 	notices := strings.Join(m.Deprecations(), "\n")
-	for _, want := range []string{"components[0].exposure", RuleShapeRemoval, "`value:`", "`reason:`"} {
+	for _, want := range []string{"components[0].exposure", ruleShapeWindow, "`value:`", "`reason:`"} {
 		if !strings.Contains(notices, want) {
 			t.Errorf("the notice should mention %q:\n%s", want, notices)
 		}

@@ -39,9 +39,8 @@ type Reasoned[T ~string] struct {
 	// Reason is why somebody set it. Optional, and empty when nobody wrote one.
 	Reason string
 	// short records that the descriptor wrote this rule as the value on its own — the shape a
-	// rule had before it could carry a reason. Kept so the loader can say so once, by name, with
-	// the removal date; it is never written back, because what Draugr emits is the shape a rule
-	// has now.
+	// rule had before it could carry a reason. Kept so the loader can say so once, by name; it is
+	// never written back, because what Draugr emits is the shape a rule has now.
 	short bool
 }
 
@@ -131,9 +130,14 @@ func Stated[T ~string](value T, reason string) Reasoned[T] {
 // guess, shown while somebody reviews it; this is a decision, and it outlives the review.
 func Unstated[T ~string](value T) Reasoned[T] { return Reasoned[T]{Value: value} }
 
-// RuleShapeRemoval is when a rule written as a bare value stops loading. Far enough out that a
-// pipeline pinned to a release has a version of Draugr that warns before it has one that refuses.
-const RuleShapeRemoval = "2026-12-31"
+// ruleShapeWindow says how long a rule written as a bare value keeps loading.
+//
+// One release, and no date. The window exists for one reason: a descriptor cannot be converted
+// until a published Draugr can read the new shape, and this repository's own is scanned by the
+// latest release. Naming a date would promise a window nobody needs and this project does not
+// intend to keep — the shape is gone in the next release, and the notice says so rather than
+// pointing at a month.
+const ruleShapeWindow = "stops loading in the next release"
 
 // RuleDeprecations names every rule in a descriptor still written as a bare value.
 //
