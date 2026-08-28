@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.108.0] - 2026-08-28
+
+### Changed
+
+A rule in the Saga is written as the value on its own again: `exposure: public`, `failOnPriority: P1`, `deny: ["AGPL-3.0-only"]`. The `{value, reason}` shape introduced in 0.107.0 is gone. It made every descriptor longer to enable something almost nobody wrote — across the descriptors shipped with Draugr, nineteen rules gained a line each and one carried a reason. `config.exclude` is untouched and still requires a reason, which is the place a decision genuinely needs arguing for.
+
+### Fixed
+
+`make gate` spell-checks files you have added but not yet committed. It read only tracked files, so a new page's first gate never looked at it and the first check that did was CI, after the push.
+
 ## [0.107.0] - 2026-08-28
 
 ### Added
@@ -5084,7 +5094,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.107.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.108.0...HEAD
+[0.108.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.108.0
 [0.107.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.107.0
 [0.106.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.106.0
 [0.105.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.105.0
