@@ -102,10 +102,8 @@ audience in the file's stem means each product globs **exact stems** and never h
 ```yaml
 components:
   - name: payments
-    exposure:
-      value: public
-    criticality:
-      value: critical
+    exposure: public
+    criticality: critical
     repositories: [{ url: "services/payments" }]
 ```
 

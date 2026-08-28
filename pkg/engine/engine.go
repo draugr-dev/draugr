@@ -343,7 +343,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				}
 				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs, permitted)
 				errs = append(errs, verrs...)
-				planned = appendJobs(planned, name, comp.Name, comp.Exposure.Value, comp.Criticality.Value,
+				planned = appendJobs(planned, name, comp.Name, comp.Exposure, comp.Criticality,
 					e.resolveRemotes(e.markWorkingTree(jobs)))
 			}
 		}
@@ -1806,7 +1806,7 @@ func (e *Engine) rebandForReachability(res *sarif.Result, control string, model 
 func classificationOf(model saga.Model, component string) (saga.Exposure, saga.Criticality) {
 	for i := range model.Components {
 		if model.Components[i].Name == component {
-			return model.Components[i].Exposure.Value, model.Components[i].Criticality.Value
+			return model.Components[i].Exposure, model.Components[i].Criticality
 		}
 	}
 	return "", ""

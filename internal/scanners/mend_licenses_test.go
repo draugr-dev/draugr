@@ -31,7 +31,7 @@ func TestMendLicensesInfo(t *testing.T) {
 func TestMendLicenseUsesSPDXWhenGiven(t *testing.T) {
 	rep := mendLicenseReport(context.Background(),
 		[]mendapi.InventoryLibrary{lib("requests", "Apache 2.0", "Apache-2.0")},
-		plugin.Config{denyKey: []any{map[string]any{"id": "Apache-2.0"}}})
+		plugin.Config{denyKey: []any{"Apache-2.0"}})
 	if len(rep.Results) != 1 {
 		t.Fatalf("results = %d", len(rep.Results))
 	}
@@ -46,7 +46,7 @@ func TestMendLicenseUsesSPDXWhenGiven(t *testing.T) {
 func TestMendLicenseKeepsMendsNameWhenNoSPDX(t *testing.T) {
 	rep := mendLicenseReport(context.Background(),
 		[]mendapi.InventoryLibrary{lib("Jinja2", "BSD 3", "")},
-		plugin.Config{denyKey: []any{map[string]any{"id": "BSD 3"}}})
+		plugin.Config{denyKey: []any{"BSD 3"}})
 	if len(rep.Results) != 1 || rep.Results[0].RuleID != "license/BSD 3/Jinja2" {
 		t.Fatalf("results = %+v", rep.Results)
 	}
@@ -56,7 +56,7 @@ func TestMendLicenseKeepsMendsNameWhenNoSPDX(t *testing.T) {
 func TestMendLicenseSPDXPolicyDoesNotMatchAMendName(t *testing.T) {
 	rep := mendLicenseReport(context.Background(),
 		[]mendapi.InventoryLibrary{lib("Jinja2", "BSD 3", "")},
-		plugin.Config{denyKey: []any{map[string]any{"id": "BSD-3-Clause"}}})
+		plugin.Config{denyKey: []any{"BSD-3-Clause"}})
 	if len(rep.Results) != 0 {
 		t.Errorf("an SPDX rule matched a non-SPDX name — the mapping is back: %+v", rep.Results)
 	}
@@ -80,7 +80,7 @@ func TestMendLicenseReportsOnlyWhatThePolicyNames(t *testing.T) {
 	if rep := mendLicenseReport(context.Background(), libs, plugin.Config{}); len(rep.Results) != 0 {
 		t.Errorf("no policy should mean no findings, got %+v", rep.Results)
 	}
-	rep := mendLicenseReport(context.Background(), libs, plugin.Config{warnKey: []any{map[string]any{"id": "GPL-3.0-only"}}})
+	rep := mendLicenseReport(context.Background(), libs, plugin.Config{warnKey: []any{"GPL-3.0-only"}})
 	if len(rep.Results) != 1 || rep.Results[0].Level != sarif.LevelWarning {
 		t.Errorf("results = %+v", rep.Results)
 	}

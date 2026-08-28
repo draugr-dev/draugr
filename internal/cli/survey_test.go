@@ -567,7 +567,7 @@ func TestSurveySummaryVerbFollowsWhatHappened(t *testing.T) {
 // A proposal that arrives silently is indistinguishable from a decision once it is in the file,
 // and exposure is what turns a severity into a P1 or a P3.
 func TestSurveyNamesTheExposuresItProposed(t *testing.T) {
-	proposed := saga.Component{Name: "payments", Exposure: saga.Unstated(saga.ExposurePublic)}
+	proposed := saga.Component{Name: "payments", Exposure: saga.ExposurePublic}
 	for _, tc := range []struct {
 		name     string
 		existing string
@@ -584,7 +584,7 @@ func TestSurveyNamesTheExposuresItProposed(t *testing.T) {
 			// The merge keeps the exposure already in the descriptor, so this proposal was
 			// discarded. Naming it would ask someone to confirm a value that is not in their file.
 			name:     "a component somebody has already classified",
-			existing: "components:\n  - name: payments\n    exposure:\n      value: restricted\n",
+			existing: "components:\n  - name: payments\n    exposure: restricted\n",
 			frag:     proposed,
 			silent:   true,
 		},
@@ -694,7 +694,7 @@ func TestASurveyedDescriptorSurvivesClassifyUnreformatted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saga.Marshal: %v", err)
 	}
-	classified, _, err := saga.WriteClassifications(written, map[string]saga.Classification{
+	classified, err := saga.WriteClassifications(written, map[string]saga.Classification{
 		"front": {Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical},
 	})
 	if err != nil {
@@ -723,7 +723,7 @@ func TestSurveyFragmentWritesComponentsAndNothingElse(t *testing.T) {
 	out := filepath.Join(dir, "team.saga-fragment.yaml")
 	opts := surveyOptions{output: out, fragment: true}
 	frag := saga.Fragment{Components: []saga.Component{
-		{Name: "team-a", Images: []saga.Image{{Image: "repo/a:1"}}, Exposure: saga.Unstated(saga.ExposureInternal)},
+		{Name: "team-a", Images: []saga.Image{{Image: "repo/a:1"}}, Exposure: saga.ExposureInternal},
 	}}
 	if err := surveyIntoFragment(opts, frag, io.Discard); err != nil {
 		t.Fatalf("surveyIntoFragment: %v", err)

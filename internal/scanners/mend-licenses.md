@@ -14,8 +14,7 @@ config:
       mendLicenses:
         enabled: true
         productToken: "…"
-      deny:                      # the control's policy, applied by every scanner serving it
-        - id: GPL-3.0-only
+      deny: ["GPL-3.0-only"]     # the control's policy, applied by every scanner serving it
 ```
 
 ## One upload, two controls

@@ -61,7 +61,7 @@ func TestParseTrivyLicensesReportsOnlyObligations(t *testing.T) {
 func TestParseTrivyLicensesPolicyBeatsCategory(t *testing.T) {
 	// Whether a license is acceptable depends on what you do with your software, which Trivy
 	// cannot know and the team always does.
-	cfg := plugin.Config{denyKey: []any{map[string]any{"id": "Apache-2.0"}}, warnKey: []any{map[string]any{"id": "MPL-2.0"}}}
+	cfg := plugin.Config{denyKey: []string{"Apache-2.0"}, warnKey: []string{"MPL-2.0"}}
 	rep, err := parseTrivyLicenses([]byte(licenseJSON), t.TempDir(), cfg)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
@@ -151,36 +151,15 @@ func TestParseTrivyLicensesRejectsGarbage(t *testing.T) {
 	}
 }
 
-// stringList serves the plain string options other scanners take — gosec's rule ids, Trivy's
-// package types. A license policy is not one of those, and reads through policyIDs instead.
 func TestStringListTolerAtesYAMLDecoding(t *testing.T) {
-	if got := stringList(plugin.Config{"checks": []any{"MIT", 7, "ISC"}}, "checks"); strings.Join(got, ",") != "MIT,ISC" {
+	// YAML gives []any; a caller constructing Config in Go gives []string.
+	if got := stringList(plugin.Config{denyKey: []any{"MIT", 7, "ISC"}}, denyKey); strings.Join(got, ",") != "MIT,ISC" {
 		t.Errorf("stringList = %v, want the strings only", got)
 	}
-	if got := stringList(plugin.Config{"checks": []string{"MIT"}}, "checks"); len(got) != 1 {
+	if got := stringList(plugin.Config{denyKey: []string{"MIT"}}, denyKey); len(got) != 1 {
 		t.Errorf("stringList = %v", got)
 	}
-	if got := stringList(nil, "checks"); got != nil {
+	if got := stringList(nil, denyKey); got != nil {
 		t.Errorf("stringList(nil) = %v", got)
-	}
-}
-
-// A policy list is entries, and an entry Draugr cannot read is not quietly skipped: a list one
-// license shorter is a policy weakened with nothing to show for it.
-func TestPolicyIDsReadsEntries(t *testing.T) {
-	cfg := plugin.Config{denyKey: []any{
-		map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries"},
-		map[string]any{"id": "SSPL-1.0"},
-	}}
-	if got := policyIDs(cfg, denyKey); strings.Join(got, ",") != "AGPL-3.0-only,SSPL-1.0" {
-		t.Errorf("policyIDs = %v", got)
-	}
-	// The shape a policy had before an entry could carry a reason. The descriptor's schema
-	// refuses it, so this is only ever reached by a caller building Config by hand.
-	if got := policyIDs(plugin.Config{denyKey: []any{"AGPL-3.0-only"}}, denyKey); len(got) != 0 {
-		t.Errorf("policyIDs = %v, want nothing read from a bare identifier", got)
-	}
-	if got := policyIDs(nil, denyKey); got != nil {
-		t.Errorf("policyIDs(nil) = %v", got)
 	}
 }

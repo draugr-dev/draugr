@@ -83,14 +83,14 @@ func (m *Model) Validate() error {
 		}
 	}
 	if g := m.Config.Gate; g != nil {
-		if p := g.FailOnPriority.Value; p != "" && !slices.Contains(Priorities, p) {
+		if g.FailOnPriority != "" && !slices.Contains(Priorities, g.FailOnPriority) {
 			errs = append(errs, fmt.Errorf("config.gate.failOnPriority is %q, but a priority band is one of %v",
-				p, Priorities))
+				g.FailOnPriority, Priorities))
 		}
 		for control, want := range g.Controls {
-			if _, err := sarif.ParseSeverity(want.Value); err != nil {
+			if _, err := sarif.ParseSeverity(want); err != nil {
 				errs = append(errs, fmt.Errorf("config.gate.controls[%q] = %q is not a threshold (want one of %v)",
-					control, want.Value, GateThresholds))
+					control, want, GateThresholds))
 			}
 		}
 	}
@@ -235,11 +235,11 @@ func validateComponents(comps []Component) []error {
 			where = fmt.Sprintf("component %q", c.Name)
 		}
 
-		if e := c.Exposure.Value; e != "" && !e.Valid() {
-			errs = append(errs, fmt.Errorf("%s: invalid exposure %q (want one of %v)", where, e, Exposures))
+		if c.Exposure != "" && !c.Exposure.Valid() {
+			errs = append(errs, fmt.Errorf("%s: invalid exposure %q (want one of %v)", where, c.Exposure, Exposures))
 		}
-		if cr := c.Criticality.Value; cr != "" && !cr.Valid() {
-			errs = append(errs, fmt.Errorf("%s: invalid criticality %q (want one of %v)", where, cr, Criticalities))
+		if c.Criticality != "" && !c.Criticality.Valid() {
+			errs = append(errs, fmt.Errorf("%s: invalid criticality %q (want one of %v)", where, c.Criticality, Criticalities))
 		}
 
 		for j, r := range c.Repositories {

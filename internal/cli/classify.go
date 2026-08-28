@@ -87,7 +87,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 		// Naming a component is itself the instruction to redo it: someone who typed the name is
 		// asking about that component, and answering "already classified" to a question they asked
 		// explicitly would leave them reaching for --all and reclassifying everything else too.
-		if !opts.all && len(opts.components) == 0 && comp.Exposure.Value != "" && comp.Criticality.Value != "" {
+		if !opts.all && len(opts.components) == 0 && comp.Exposure != "" && comp.Criticality != "" {
 			continue
 		}
 		_, _ = fmt.Fprintf(out, "\nComponent: %s\n", comp.Name)
@@ -106,7 +106,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 	if err != nil {
 		return err
 	}
-	updated, stale, err := saga.WriteClassifications(data, class)
+	updated, err := saga.WriteClassifications(data, class)
 	if err != nil {
 		return err
 	}
@@ -114,17 +114,6 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 		return err
 	}
 	_, _ = fmt.Fprintf(out, "\nClassified %d component(s) in %s.\n", len(class), path)
-	// A reason written for the previous value is left in place — it is somebody's prose, and a
-	// tool that deletes it teaches people not to write any. But it now argues for a
-	// classification this run moved away from, and it will be shown beside the findings the new
-	// one shapes, so it is named here rather than left to be found by whoever believes it.
-	if len(stale) > 0 {
-		_, _ = fmt.Fprintf(out, "\nA reason that no longer matches its value:\n")
-		for _, line := range stale {
-			_, _ = fmt.Fprintf(out, "  %s\n", line)
-		}
-		_, _ = fmt.Fprintln(out, "  Rewrite or remove it — it is published with the findings it explains.")
-	}
 	return nil
 }
 

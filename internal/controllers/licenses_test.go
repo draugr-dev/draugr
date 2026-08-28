@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"slices"
 	"strings"
 	"testing"
 
@@ -56,13 +55,13 @@ func TestLicensePolicyUnionsRatherThanOverrides(t *testing.T) {
 	// silently discard the organization's — a component quietly opting out of an org license
 	// policy, invisible in review. A component can only tighten.
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
-		"licenses": {"deny": []any{map[string]any{"id": "GPL-3.0-only"}, map[string]any{"id": "AGPL-3.0-only"}}},
+		"licenses": {"deny": []any{"GPL-3.0-only", "AGPL-3.0-only"}},
 	}}}
 	comp := &saga.Component{Name: "c", Controllers: map[string]saga.ControllerSettings{
-		"licenses": {"deny": []any{map[string]any{"id": "Sleepycat"}}},
+		"licenses": {"deny": []any{"Sleepycat"}},
 	}}
 	cfg := licensePolicy(model, comp)
-	deny := ids(cfg["deny"])
+	deny, _ := cfg["deny"].([]string)
 	if strings.Join(deny, ",") != "AGPL-3.0-only,GPL-3.0-only,Sleepycat" {
 		t.Errorf("deny = %v, want the org's policy plus the component's, sorted", deny)
 	}
@@ -72,12 +71,12 @@ func TestLicensePolicyDeduplicatesAndSorts(t *testing.T) {
 	// Sorted and deduplicated so the job's config — and therefore its cache key — is stable
 	// across runs regardless of how the Saga was written.
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
-		"licenses": {"warn": []any{map[string]any{"id": "MPL-2.0"}, map[string]any{"id": "EPL-2.0"}}},
+		"licenses": {"warn": []any{"MPL-2.0", "EPL-2.0"}},
 	}}}
 	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
-		"licenses": {"warn": []any{map[string]any{"id": "MPL-2.0"}}},
+		"licenses": {"warn": []any{"MPL-2.0"}},
 	}}
-	warn := ids(licensePolicy(model, comp)["warn"])
+	warn, _ := licensePolicy(model, comp)["warn"].([]string)
 	if strings.Join(warn, ",") != "EPL-2.0,MPL-2.0" {
 		t.Errorf("warn = %v, want deduplicated and sorted", warn)
 	}
@@ -92,9 +91,9 @@ func TestLicensePolicyEmptyIsNil(t *testing.T) {
 
 func TestLicensePolicyComponentOnly(t *testing.T) {
 	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
-		"licenses": {"deny": []any{map[string]any{"id": "GPL-2.0-only"}}},
+		"licenses": {"deny": []any{"GPL-2.0-only"}},
 	}}
-	deny := ids(licensePolicy(saga.Model{}, comp)["deny"])
+	deny, _ := licensePolicy(saga.Model{}, comp)["deny"].([]string)
 	if len(deny) != 1 || deny[0] != "GPL-2.0-only" {
 		t.Errorf("deny = %v", deny)
 	}
@@ -126,73 +125,4 @@ func TestLicensesAggregateEmpty(t *testing.T) {
 	if got.Summary != (plugin.Summary{}) {
 		t.Errorf("summary = %+v, want zero", got.Summary)
 	}
-}
-
-// A policy entry written with its reason names the same license, and one written short still
-// does. Two components, because a rule that collapses per-component policy into one is invisible
-// with a single component and picks a winner with two.
-func TestLicensePolicyReadsBothEntryForms(t *testing.T) {
-	model := saga.Model{
-		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
-			licensesControl: {denyKey: []any{
-				map[string]any{"id": "AGPL-3.0-only", "reason": "we ship binaries to customers"},
-			}},
-		}},
-	}
-	api := &saga.Component{
-		Name:         "api",
-		Repositories: []saga.Repository{{URL: "https://example.test/api.git"}},
-		Controllers: map[string]saga.ControllerSettings{
-			licensesControl: {denyKey: []any{map[string]any{"id": "SSPL-1.0"}}},
-		},
-	}
-	web := &saga.Component{
-		Name:         "web",
-		Repositories: []saga.Repository{{URL: "https://example.test/web.git"}},
-		Controllers: map[string]saga.ControllerSettings{
-			licensesControl: {warnKey: []any{
-				map[string]any{"id": "MPL-2.0", "reason": "file-level copyleft, worth a look"},
-			}},
-		},
-	}
-
-	// The project's denial reaches both, and neither component's own list replaces it.
-	for _, tc := range []struct {
-		comp *saga.Component
-		deny []string
-		warn []string
-	}{
-		{api, []string{"AGPL-3.0-only", "SSPL-1.0"}, nil},
-		{web, []string{"AGPL-3.0-only"}, []string{"MPL-2.0"}},
-	} {
-		got := licensePolicy(model, tc.comp)
-		if deny := ids(got[denyKey]); !slices.Equal(deny, tc.deny) {
-			t.Errorf("%s: deny = %v, want %v", tc.comp.Name, deny, tc.deny)
-		}
-		if tc.warn == nil {
-			if _, ok := got[warnKey]; ok {
-				t.Errorf("%s: warn = %v, want none", tc.comp.Name, got[warnKey])
-			}
-			continue
-		}
-		if warn := ids(got[warnKey]); !slices.Equal(warn, tc.warn) {
-			t.Errorf("%s: warn = %v, want %v", tc.comp.Name, warn, tc.warn)
-		}
-	}
-}
-
-// ids reads the identifiers out of a resolved policy list, which is entries rather than strings
-// so that one shape reaches the scanner and the schema describes exactly that.
-func ids(v any) []string {
-	items, ok := v.([]any)
-	if !ok {
-		return nil
-	}
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		if id, ok := plugin.EntryID(item); ok {
-			out = append(out, id)
-		}
-	}
-	return out
 }

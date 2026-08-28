@@ -104,26 +104,12 @@ func licensePolicy(model saga.Model, comp *saga.Component) plugin.Config {
 	}
 	cfg := plugin.Config{}
 	if len(deny) > 0 {
-		cfg[denyKey] = entries(deny)
+		cfg[denyKey] = deny
 	}
 	if len(warn) > 0 {
-		cfg[warnKey] = entries(warn)
+		cfg[warnKey] = warn
 	}
 	return cfg
-}
-
-// entries rebuilds a resolved list as the entries a policy is written in, so one shape reaches
-// the scanner and the schema that checks it describes exactly that.
-//
-// Without the reasons, deliberately. Nothing downstream judges by one — the scanner needs the
-// identifier — and a scan's cache key is computed over this config, so carrying the prose would
-// re-run every license scan in a project because somebody rewrote a sentence.
-func entries(ids []string) []any {
-	out := make([]any, 0, len(ids))
-	for _, id := range ids {
-		out = append(out, map[string]any{"id": id})
-	}
-	return out
 }
 
 // unionSetting collects a string list from the project and component blocks for the licenses
@@ -147,13 +133,8 @@ func unionSetting(project map[string]saga.ControllerSettings, comp *saga.Compone
 	return out
 }
 
-// settingStrings reads the identifiers out of a policy list on a controller settings block,
-// tolerating the []any that YAML decoding produces and the entry written long — `{id, reason}` —
-// which carries the same identifier with the argument for it.
-//
-// The reason goes no further than the descriptor, deliberately. Nothing about a scan changes
-// because somebody explained a rule; what changes is that whoever meets the finding can read why
-// the rule is there.
+// settingStrings reads a list of strings from a controller settings block, tolerating the []any
+// that YAML decoding produces.
 func settingStrings(settings saga.ControllerSettings, key string) []string {
 	if settings == nil {
 		return nil
@@ -164,8 +145,8 @@ func settingStrings(settings saga.ControllerSettings, key string) []string {
 	case []any:
 		out := make([]string, 0, len(v))
 		for _, item := range v {
-			if id, ok := plugin.EntryID(item); ok {
-				out = append(out, id)
+			if s, ok := item.(string); ok {
+				out = append(out, s)
 			}
 		}
 		return out

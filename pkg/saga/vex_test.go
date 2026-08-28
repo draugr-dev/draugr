@@ -11,7 +11,7 @@ func vexModel(v *VEXDecision) Model {
 			Rules: []string{"CVE-2024-0001"}, Reason: "accepted", VEX: v,
 		}}},
 		Components: []Component{{
-			Name: "api", Criticality: Unstated(Criticality("supporting")), Exposure: Unstated(Exposure("internal")),
+			Name: "api", Criticality: "supporting", Exposure: "internal",
 			Repositories: []Repository{{URL: "."}},
 		}},
 	}

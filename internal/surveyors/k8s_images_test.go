@@ -228,7 +228,7 @@ func TestInferExposurePublicFromIngress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if frag.Components[0].Exposure.Value != saga.ExposurePublic {
+	if frag.Components[0].Exposure != saga.ExposurePublic {
 		t.Errorf("ingress → exposure = %q, want public", frag.Components[0].Exposure)
 	}
 }
@@ -243,7 +243,7 @@ func TestInferExposurePublicFromLoadBalancer(t *testing.T) {
 		},
 	)
 	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
-	if frag.Components[0].Exposure.Value != saga.ExposurePublic {
+	if frag.Components[0].Exposure != saga.ExposurePublic {
 		t.Errorf("LoadBalancer → exposure = %q, want public", frag.Components[0].Exposure)
 	}
 }
@@ -259,7 +259,7 @@ func TestInferExposureRestrictedFromNetworkPolicy(t *testing.T) {
 		&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: "np", Namespace: "prod"}},
 	)
 	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
-	if frag.Components[0].Exposure.Value != saga.ExposureRestricted {
+	if frag.Components[0].Exposure != saga.ExposureRestricted {
 		t.Errorf("network policy → exposure = %q, want restricted", frag.Components[0].Exposure)
 	}
 }
@@ -267,7 +267,7 @@ func TestInferExposureRestrictedFromNetworkPolicy(t *testing.T) {
 func TestInferExposureInternalByDefault(t *testing.T) {
 	cs := fake.NewSimpleClientset(ns("prod"), pod("prod", "a", "repo/x:1")) // no ingress/svc/netpol
 	frag, _ := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prod"})
-	if frag.Components[0].Exposure.Value != saga.ExposureInternal {
+	if frag.Components[0].Exposure != saga.ExposureInternal {
 		t.Errorf("no topology signal → exposure = %q, want internal", frag.Components[0].Exposure)
 	}
 }
@@ -291,7 +291,7 @@ func TestExposureIsProposedPerNamespaceAcrossAWholeCluster(t *testing.T) {
 	}
 	want := map[string]saga.Exposure{"back": saga.ExposureInternal, "front": saga.ExposurePublic}
 	for _, c := range frag.Components {
-		if c.Exposure.Value != want[c.Name] {
+		if c.Exposure != want[c.Name] {
 			t.Errorf("%s exposure = %q, want %q", c.Name, c.Exposure, want[c.Name])
 		}
 	}
@@ -344,7 +344,7 @@ func TestK8sImagesSkipsExposureEntirelyWhenAskedTo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if frag.Components[0].Exposure.Value != "" {
+	if frag.Components[0].Exposure != "" {
 		t.Errorf("exposure = %q, want none proposed", frag.Components[0].Exposure)
 	}
 	if len(frag.ExposureReasons) != 0 {
@@ -369,7 +369,7 @@ func TestK8sImagesProposesExposureByDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if frag.Components[0].Exposure.Value != saga.ExposurePublic {
+	if frag.Components[0].Exposure != saga.ExposurePublic {
 		t.Errorf("exposure = %q, want public", frag.Components[0].Exposure)
 	}
 }

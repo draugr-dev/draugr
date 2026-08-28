@@ -17,10 +17,8 @@ nothing else to say for it is simply a component with no repositories, images or
 ```yaml
 components:
   - name: prod-cluster
-    exposure:
-      value: public
-    criticality:
-      value: critical
+    exposure: public
+    criticality: critical
     infrastructure:
       - kind: kubernetes
         ref: prod-eu-west-1

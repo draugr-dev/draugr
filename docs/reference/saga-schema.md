@@ -441,97 +441,6 @@ matters most, because it is what lets a descriptor outlive any particular tool.
 > JSON Schema do, so it cannot be out of date with the binary you are running. This one is prose,
 > and prose drifts.
 
-## Saying why a rule is there
-
-Every value in this file is a decision, and the decision outlives whoever took it. A threshold,
-a priority band, a component's exposure — each changes what a scan reports and what fails a
-build, and none of them said why anybody wanted it. The person who meets the consequence six
-months later is rarely the one who chose it.
-
-So a rule is written as a value with a place for its reason:
-
-```yaml
-config:
-  gate:
-    failOnPriority:
-      value: P1
-      reason: >-
-        Severity rates a flaw in the abstract. Priority folds in what this descriptor
-        says about the component it was found in, which is what a team that has
-        classified its components wants to gate on.
-```
-
-**The reason is optional. The shape is not.** A rule with nothing to say is written without one
-and is complete:
-
-```yaml
-    failOnPriority:
-      value: P1
-```
-
-One shape whether or not anybody had something to say, so an editor can complete it, a reviewer
-knows where to look, and nobody has to learn that a field is written two ways depending on
-whether it carries an argument.
-
-Where a reason is given, it travels: it is part of the descriptor, so it reaches the report,
-anything reading the report, and anybody asking why a finding was ranked the way it was.
-
-**A comment does not do this.** Draugr merges a descriptor with its fragments and re-serializes
-the result before publishing it, and comments do not survive that. A reason written beside the
-rule does.
-
-### Where rules are written this way
-
-| Rule | Example |
-|---|---|
-| [`config.gate.failOnPriority`](#configgate) | `failOnPriority: {value: P1}` |
-| [`config.gate.controls.<control>`](#configgate) | `licenses: {value: critical}` |
-| [`components[].exposure`](#components) | `exposure: {value: public}` |
-| [`components[].criticality`](#components) | `criticality: {value: critical}` |
-
-The license lists are the same idea applied to a list, where the key is `id` rather than `value`
-because an entry names a license. A reason belongs **per entry**, since two licenses are usually
-denied for different ones:
-
-```yaml
-config:
-  controllers:
-    licenses:
-      deny:
-        - id: AGPL-3.0-only
-          reason: >-
-            We ship binaries to customers. A network-copyleft dependency would put
-            obligations on them that nobody has agreed to.
-        - id: SSPL-1.0        # nothing to add, and still an entry
-```
-
-`config.exclude` already worked this way and is unchanged, except that its `reason` stays
-**required**: excusing a finding is the one decision that has to be argued for.
-
-### What is refused
-
-A misspelled key inside a rule is refused by name. A rule somebody believes is in force and is
-not is the failure this is guarding against, and loading the file is the cheap moment to find
-out.
-
-```
-config.gate.failOnPriority: unknown key "valu" — a rule takes a required `value`
-and an optional `reason`
-```
-
-### The shape a rule had before
-
-Before a rule could carry a reason it was the value on its own. That no longer loads, and the
-error carries the two lines that replace it:
-
-```
-components[0].exposure: a rule is written as a value with a place for its reason,
-not as the value on its own. Replace `public` with:
-    value: public
-    reason: >-        # optional
-      why this is set
-```
-
 ## `config.reports` and `config.publishers`
 
 Declare which report **formats** a scan renders and **where** they're delivered. Reports are the
@@ -674,20 +583,14 @@ config:
   controllers:
     licenses:
       enabled: true
-      deny:                                  # → error, whatever category Trivy assigned
-        - id: AGPL-3.0-only
-          reason: >-                         # optional, per entry
-            We ship binaries to customers, and the network clause would reach them.
-        - id: GPL-3.0-only
-      warn:                                  # → warning
-        - id: MPL-2.0
+      deny: ["AGPL-3.0-only", "GPL-3.0-only"]   # → error, whatever category Trivy assigned
+      warn: ["MPL-2.0"]                          # → warning
 
 components:
   - name: shipped-cli          # distributed to customers, so stricter
     controllers:
       licenses:
-        deny:
-          - id: LGPL-3.0-only
+        deny: ["LGPL-3.0-only"]
 ```
 
 Reports dependency licenses that carry an obligation. Requires Trivy.
@@ -714,7 +617,7 @@ licenses, of which zero carry an obligation. The inventory question is what
 
 `restricted` is a **warning** rather than an error because whether copyleft matters depends on
 whether you distribute — which the Saga doesn't say. If you ship binaries to customers, raise it:
-`deny: [{id: GPL-3.0-only}]`.
+`deny: ["GPL-3.0-only"]`.
 
 **`deny` and `warn` name SPDX ids and beat the category**, because whether a license is acceptable
 depends on what you do with your software. Trivy can't know that; you always do.
@@ -726,8 +629,7 @@ usually owned by different people than security policy:
 config:
   gate:
     controls:
-      licenses:
-        value: error       # a denied license fails the build…
+      licenses: error      # a denied license fails the build…
   # …while --fail-on stays wherever you had it for everything else
 ```
 
@@ -744,16 +646,13 @@ instead. A component can add restrictions; it cannot remove them:
 config:
   controllers:
     licenses:
-      deny:                      # the organization's policy
-        - id: GPL-3.0-only
-        - id: AGPL-3.0-only
+      deny: ["GPL-3.0-only", "AGPL-3.0-only"]   # the organization's policy
 
 components:
   - name: web
     controllers:
       licenses:
-        deny:
-          - id: Sleepycat        # web denies all three, not just Sleepycat
+        deny: ["Sleepycat"]      # web denies all three, not just Sleepycat
 ```
 
 Under the usual rule, `web` would have silently dropped both organization-wide denials — a
@@ -841,16 +740,10 @@ See [scanners that do more than read](cli.md#scanners-that-do-more-than-read).
 ```yaml
 config:
   gate:
-    failOnPriority:
-      value: P1            # anything the descriptor ranks P1 fails the build
+    failOnPriority: P1     # anything the descriptor ranks P1 fails the build
     controls:
-      licenses:
-        value: critical    # this control fails only on a critical…
-        reason: >-         # optional, and this is where it earns its place
-          Owned by legal rather than security, and a denied license is a decision
-          somebody takes during working hours.
-      sast:
-        value: low         # …this one fails on anything at all
+      licenses: critical   # this control fails only on a critical…
+      sast: low            # …this one fails on anything at all
 ```
 
 Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-sagayaml--dir) for the named
@@ -870,9 +763,6 @@ descriptor is the standing policy, the flag is this run.
 Both live in the Saga rather than in a flag because they're **policy** — reviewed in a pull
 request and applied identically by every pipeline, not remembered by whoever wrote the workflow.
 Resolution order is per-control setting → `--fail-on` → `high`.
-
-Either may be written with the reason for it — see
-[saying why a rule is there](#saying-why-a-rule-is-there).
 
 The report says which gate produced a verdict, so a narrowed one is visible to whoever reads it —
 see [the verdict and the gate](../concepts/verdict-and-gating.md).
@@ -1462,11 +1352,8 @@ what applies.
 components:
   - name: web                 # required, unique
     labels: { team: platform } # optional key/value metadata
-    exposure:                 # optional — risk exposure
-      value: public
-      reason: why  # optional
-    criticality:              # optional — business criticality
-      value: critical
+    exposure: public          # optional — risk exposure
+    criticality: critical     # optional — business criticality
     repositories:
       - url: https://github.com/acme/web.git   # required
         revision: main                          # optional
