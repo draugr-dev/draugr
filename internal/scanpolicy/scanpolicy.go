@@ -69,7 +69,7 @@ func GateThresholds(g *saga.GateConfig) map[string]sarif.Severity {
 	}
 	out := make(map[string]sarif.Severity, len(g.Controls))
 	for control, want := range g.Controls {
-		if sev, err := sarif.ParseSeverity(want.Value); err == nil {
+		if sev, err := sarif.ParseSeverity(want); err == nil {
 			out[control] = sev
 		}
 	}

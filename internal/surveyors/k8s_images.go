@@ -100,7 +100,7 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 		// A suggestion for a human to confirm or adjust, not a measurement — so it travels with
 		// what it was read from, and the descriptor says so beside the value.
 		if sig, ok := signals[ns]; ok {
-			comp.Exposure = saga.Unstated(sig.exposure)
+			comp.Exposure = sig.exposure
 			reasons[ns] = sig.reason
 		}
 		comps = append(comps, comp)

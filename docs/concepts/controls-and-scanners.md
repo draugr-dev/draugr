@@ -48,7 +48,7 @@ around somebody else's command line. Draugr takes the first, with one deliberate
 one is declared in a JSON Schema, validated before the scan runs, listed by
 `draugr controls --options`, and means the same thing in every release. The tool's flags are
 Draugr's business; the option is the contract. This is what makes a Saga survive a scanner being
-swapped for a different one — `deny: [{id: AGPL-3.0-only}]` is a statement about the release, and it
+swapped for a different one — `deny: [AGPL-3.0-only]` is a statement about the release, and it
 holds whichever tool answers the `licenses` control.
 
 **Verbatim passthrough**, where curating would mean tracking a surface that is not ours. Mend's

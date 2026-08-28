@@ -21,8 +21,7 @@ const invalidSaga = `release:
   name: app
 components:
   - name: web
-    exposure:
-      value: bogus
+    exposure: bogus
 `
 
 func TestRunValidateValid(t *testing.T) {

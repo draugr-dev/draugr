@@ -899,7 +899,7 @@ func TestScanUsesTheDescriptorsGate(t *testing.T) {
 		}},
 	}
 	// The finding is high. A descriptor gating licenses at critical expects a pass.
-	gate := &saga.GateConfig{Controls: map[string]saga.Reasoned[string]{"licenses": saga.Unstated("critical")}}
+	gate := &saga.GateConfig{Controls: map[string]string{"licenses": "critical"}}
 	got := norn.Policy{
 		FailOn:     sarif.SeverityHigh,
 		PerControl: scanpolicy.GateThresholds(gate),

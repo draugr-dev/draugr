@@ -38,8 +38,7 @@ config:
   gate:
     # The gate this makes practical. Break the build for what your code actually reaches; leave
     # everything else visible in the report rather than turning the gate off to get work done.
-    failOnPriority:
-      value: P1
+    failOnPriority: P1
 
   # Beside exploitability rather than in the sca scanner block, and that placement is the point:
   # every entry in a scanner block adds findings, while an analyzer named here adds none and ranks
@@ -54,10 +53,8 @@ config:
 
 components:
   - name: api
-    exposure:
-      value: public
-    criticality:
-      value: important
+    exposure: public
+    criticality: important
     repositories:
       - url: https://github.com/draugr-dev/draugr
         revision: main

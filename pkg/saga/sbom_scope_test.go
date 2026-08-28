@@ -12,7 +12,7 @@ func scopeModel(scope SBOMScope) Model {
 		Release: Release{Name: "app", Version: "1.0.0"},
 		Config:  Config{SBOM: &SBOMConfig{Enabled: true, Scope: scope}},
 		Components: []Component{{
-			Name: "api", Criticality: Unstated(Criticality("supporting")), Exposure: Unstated(Exposure("internal")),
+			Name: "api", Criticality: "supporting", Exposure: "internal",
 			Repositories: []Repository{{URL: "."}},
 		}},
 	}

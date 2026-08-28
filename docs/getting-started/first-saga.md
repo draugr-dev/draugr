@@ -79,10 +79,8 @@ reachable the component is) and `criticality` (the business impact if it fails):
 ```yaml
 components:
   - name: web
-    exposure:
-      value: public       # public | authenticated | internal | restricted
-    criticality:
-      value: critical     # critical | important | supporting
+    exposure: public          # public | authenticated | internal | restricted
+    criticality: critical     # critical | important | supporting
     images:
       - image: registry.example.com/acme/web:1.0
 ```

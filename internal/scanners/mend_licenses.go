@@ -126,7 +126,7 @@ func (s mendLicensesScanner) Scan(ctx context.Context, target plugin.Target, cfg
 
 // mendLicenseReport turns an inventory into license findings.
 func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg plugin.Config) sarif.Report {
-	deny, warn := policyIDs(cfg, denyKey), policyIDs(cfg, warnKey)
+	deny, warn := stringList(cfg, denyKey), stringList(cfg, warnKey)
 	var rep sarif.Report
 	unmapped := map[string]bool{}
 

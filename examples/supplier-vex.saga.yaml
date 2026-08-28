@@ -23,10 +23,8 @@ config:
 
 components:
   - name: payments-api
-    exposure:
-      value: public
-    criticality:
-      value: critical
+    exposure: public
+    criticality: critical
     repositories:
       - url: https://github.com/example/payments-api
     images:
@@ -45,10 +43,8 @@ components:
           path: vex/api.openvex.json
 
   - name: worker
-    exposure:
-      value: internal
-    criticality:
-      value: supporting
+    exposure: internal
+    criticality: supporting
     repositories:
       - url: https://github.com/example/worker
     # No `vex:` of its own. It still gets config.vexSources above, and none of Acme's claims.

@@ -40,10 +40,8 @@ fragments:
 	write(t, dir, "services/payments/draugr.saga-fragment.yaml", `
 components:
   - name: payments
-    exposure:
-      value: public
-    criticality:
-      value: critical
+    exposure: public
+    criticality: critical
     repositories: [{ url: "." }]
 `)
 	write(t, dir, "services/payments/azure.saga-fragment.yaml", `
@@ -76,7 +74,7 @@ components:
 	if len(payments.Repositories) != 1 || len(payments.Images) != 1 {
 		t.Errorf("surfaces not unioned: %+v", payments)
 	}
-	if payments.Exposure.Value != "public" || payments.Criticality.Value != "critical" {
+	if payments.Exposure != "public" || payments.Criticality != "critical" {
 		t.Errorf("classification lost: %+v", payments)
 	}
 }
@@ -88,20 +86,16 @@ func TestResolveKeepsTheRootAuthoritativeOnClassification(t *testing.T) {
 	write(t, dir, "draugr.saga.yaml", rootHeader+`
 components:
   - name: web
-    exposure:
-      value: restricted
-    criticality:
-      value: supporting
+    exposure: restricted
+    criticality: supporting
 fragments:
   - path: "f.saga-fragment.yaml"
 `)
 	write(t, dir, "f.saga-fragment.yaml", `
 components:
   - name: web
-    exposure:
-      value: public
-    criticality:
-      value: critical
+    exposure: public
+    criticality: critical
     repositories: [{ url: "." }]
 `)
 	res, err := resolveIn(t, dir)
@@ -109,7 +103,7 @@ components:
 		t.Fatalf("ResolveFile: %v", err)
 	}
 	c := res.Model.Components[0]
-	if c.Exposure.Value != "restricted" || c.Criticality.Value != "supporting" {
+	if c.Exposure != "restricted" || c.Criticality != "supporting" {
 		t.Errorf("a fragment reclassified a component the root declared: %+v", c)
 	}
 	if len(c.Repositories) != 1 {
@@ -561,7 +555,7 @@ func TestLoadFragmentRejectsBrokenYAMLAndUndefinedVars(t *testing.T) {
 }
 
 func TestLoadFragmentRejectsAnInvalidComponent(t *testing.T) {
-	_, err := LoadFragment([]byte("components: [{ name: web, exposure: { value: nonsense } }]"), "f.saga-fragment.yaml")
+	_, err := LoadFragment([]byte("components: [{ name: web, exposure: nonsense }]"), "f.saga-fragment.yaml")
 	if err == nil || !strings.Contains(err.Error(), "exposure") {
 		t.Errorf("a fragment's components should be validated: %v", err)
 	}

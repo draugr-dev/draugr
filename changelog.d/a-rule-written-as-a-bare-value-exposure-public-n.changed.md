@@ -1,1 +1,0 @@
-A rule written as a bare value — `exposure: public` — no longer loads. Write it as `value:` with an optional `reason:` beneath; the error carries the two lines that replace it. This was accepted for one release so that a descriptor scanned by the previous release could be converted at all, and that is done.
