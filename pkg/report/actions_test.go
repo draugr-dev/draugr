@@ -1,6 +1,7 @@
 package report
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -377,5 +378,76 @@ func TestActionsForNamesAnUpstreamImageOnce(t *testing.T) {
 	}
 	if len(got[0].RuleIDs) != 3 {
 		t.Errorf("the rules it clears should travel with it: %+v", got[0].RuleIDs)
+	}
+}
+
+// An action's Key is what a caller matches membership on, and Title is not.
+//
+// A package upgrade groups on the package, not on the control that reported it — so one action can
+// be fed by two controls and takes one of their names. A caller working out which findings belong
+// to which action from Title and Control silently drops the other control's half: the row says it
+// clears six and opens to two, and four findings with a published fix appear on no list at all.
+func TestAnActionsKeyIdentifiesItWhereItsTitleCannot(t *testing.T) {
+	pkg := func(fixed string) *sarif.Package {
+		return &sarif.Package{Name: "flask", Ecosystem: "pypi", Version: "0.12.2", FixedVersion: fixed}
+	}
+	res := func(rule, fixed string) sarif.Result {
+		return sarif.Result{RuleID: rule, Priority: "P1", Level: sarif.LevelError,
+			Location: sarif.Location{URI: "requirements.txt"}, Package: pkg(fixed)}
+	}
+	// The same library, found by two controls: one reading the manifest, one reading the image.
+	reports := map[string]sarif.Report{
+		"sca":    {Results: []sarif.Result{res("CVE-1", "2.3.2")}},
+		"images": {Results: []sarif.Result{res("CVE-2", "1.0")}},
+	}
+
+	got := ActionsFor(reports)
+	if len(got) != 1 {
+		t.Fatalf("one library is one upgrade, got %d: %+v", len(got), got)
+	}
+	if got[0].Clears != 2 {
+		t.Errorf("clears = %d, want both findings", got[0].Clears)
+	}
+	if got[0].Key == "" {
+		t.Fatal("the action carries no key to match on")
+	}
+
+	// Each finding on its own produces the key of the action it belongs to. This is the whole of
+	// what membership needs, and it holds across the control boundary that Title does not.
+	for control, rep := range reports {
+		alone := ActionsFor(map[string]sarif.Report{control: rep})
+		if len(alone) != 1 || alone[0].Key != got[0].Key {
+			t.Errorf("%s alone keyed as %q, want %q", control, alone[0].Key, got[0].Key)
+		}
+	}
+}
+
+// Every release the advisories named, not the newest.
+//
+// Advisories disagree about which release resolves them, and version ordering belongs to the
+// ecosystem. One entry is an answer a caller can print; several says the reader's package manager
+// settles it, and naming one of them as sufficient would read as "do this and you are done" while
+// leaving findings behind.
+func TestAnActionCarriesEveryVersionThatClearsIt(t *testing.T) {
+	res := func(rule, fixed string) sarif.Result {
+		return sarif.Result{RuleID: rule, Priority: "P1", Level: sarif.LevelError,
+			Location: sarif.Location{URI: "go.mod"},
+			Package: &sarif.Package{
+				Name: "golang.org/x/text", Ecosystem: "golang",
+				Version: "0.3.0", FixedVersion: fixed,
+			}}
+	}
+	agreed := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+		res("CVE-1", "0.3.8"), res("CVE-2", "0.3.8"),
+	}}})
+	if len(agreed) != 1 || !reflect.DeepEqual(agreed[0].FixedVersions, []string{"0.3.8"}) {
+		t.Errorf("fixedVersions = %+v, want the one they agree on", agreed[0].FixedVersions)
+	}
+
+	split := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+		res("CVE-1", "0.3.8"), res("CVE-2", "0.4.0"),
+	}}})
+	if len(split) != 1 || len(split[0].FixedVersions) != 2 {
+		t.Errorf("fixedVersions = %+v, want both releases named", split[0].FixedVersions)
 	}
 }
