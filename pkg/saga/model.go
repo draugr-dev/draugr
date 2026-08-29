@@ -710,16 +710,6 @@ type Host struct {
 	Name string `yaml:"name"`
 	URL  string `yaml:"url"`
 	Type string `yaml:"type,omitempty"`
-	// Environment is which of the organization's environments this endpoint is, and it is the
-	// only place that fact has a single value.
-	//
-	// Not on the release: a descriptor can list a staging endpoint and a production one in the
-	// same file, and a version reaches several environments and moves between them with no scan
-	// involved. A target is in exactly one, always.
-	//
-	// Absent means unstated. Deliberately not defaulted — a default would label somebody's
-	// production endpoint with whatever we picked, and permissions are matched on this.
-	Environment string `yaml:"environment,omitempty"`
 	// Auth authenticates the dynamic scan of this endpoint. Absent means probe it anonymously.
 	Auth *HostAuth `yaml:"auth,omitempty"`
 	// Spec drives the dynamic scan from an OpenAPI document instead of crawling.
@@ -763,9 +753,6 @@ type HostAuth struct {
 type Infrastructure struct {
 	Kind string `yaml:"kind"`
 	Ref  string `yaml:"ref,omitempty"`
-	// Environment is which of the organization's environments this surface is. See Host.Environment
-	// — same field, same reason, and here the cluster usually *is* the environment.
-	Environment string `yaml:"environment,omitempty"`
 	// Namespaces narrows the audit to the namespaces this component owns. Empty means the whole
 	// cluster.
 	//

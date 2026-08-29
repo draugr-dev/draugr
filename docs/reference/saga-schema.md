@@ -203,37 +203,6 @@ supply, so a scan that covered part of an API does not read like one that covere
 
 Paths resolve relative to where Draugr runs, like every other path in a descriptor.
 
-### Which environment a target is in
-
-```yaml
-components:
-  - name: payments-api
-    hosts:
-      - url: https://staging.api.example.com
-        environment: staging
-      - url: https://api.example.com
-        environment: production
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-eu-1
-        environment: production
-```
-
-Lowercase letters, digits and dashes. Optional, and absent means unstated rather than defaulted —
-a default would label somebody's production endpoint with whatever we picked, and permissions are
-matched on this.
-
-**On the target, not on the release.** A descriptor can list a staging endpoint and a production
-one in the same file, and a version reaches several environments and moves between them with no
-scan involved. A target is in exactly one, always.
-
-`repositories` and `images` take no environment. They are artifacts: the same image digest may be
-deployed in every environment or in none, so a finding claiming one would assert a deployment that
-has not happened.
-
-Findings from a target that declares an environment carry it, so a report can be read — or ranked —
-by where the finding actually is.
-
 ### Authenticating a dynamic scan
 
 `dast` probes an endpoint anonymously unless a host says otherwise. Against an application that
@@ -708,32 +677,6 @@ config:
 In the descriptor rather than only a flag because it is a decision about what may be done to your
 systems: reviewed in a pull request, and applied identically by every pipeline instead of
 remembered by whoever wrote the workflow. `--allow-effects` does the same for a single run.
-
-#### Per environment
-
-A list accepts an effect against every target. Where targets declare an
-[environment](#which-environment-a-target-is-in), the permission can follow it:
-
-```yaml
-config:
-  allowEffects:
-    staging: [mutate]
-    production: []      # named, and accepting nothing
-```
-
-An effect happens to a target, so the permission is resolved per target. Without this, a descriptor
-listing a staging endpoint and a production one permits an intrusive scan against **both**, from
-one review of one file.
-
-A target whose environment is unstated gets only what the list form granted; it does not inherit
-the most permissive entry. An environment named with an empty list accepts nothing, which is a
-decision rather than an omission — and a refusal names the environment that refused, so the fix is
-`config.allowEffects.production` rather than widening the permission to everything.
-
-`--allow-effects` still applies to the whole run: it is one person at one terminal accepting one
-scan, and asking them to name an environment would be asking them to repeat the descriptor.
-
-See [scanners that do more than read](cli.md#scanners-that-do-more-than-read).
 
 ## `config.gate`
 

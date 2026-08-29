@@ -69,30 +69,19 @@ func allowEffectsDef() map[string]any {
 			consent = append(consent, strconv.Quote(string(k)))
 		}
 	}
-	// The list shape, used on its own and again as the value of each environment.
-	list := map[string]any{
-		"type":  "array",
-		"items": map[string]any{"type": "string", "enum": enum},
-		// Listing a kind twice accepts nothing extra, so it is a typo rather than an intention.
-		"uniqueItems": true,
-	}
 	return map[string]any{
 		"description": "Scanner effects the project accepts. A scanner that does more to a " +
 			"target than read it declares an effect; kinds that require consent (" +
 			strings.Join(consent, ", ") + ") will not run unless listed here or allowed with " +
 			"--allow-effects.",
-		// Two shapes. A list accepts an effect in every environment; a mapping accepts it per
-		// environment, which is what makes the permission match the decision — a scan allowed
-		// against staging is not thereby allowed against production.
-		"oneOf": []any{
-			list,
-			map[string]any{
-				"type":                 "object",
-				"description":          "Effects accepted per environment, keyed by the environment name a target declares. An environment with an empty list accepts nothing.",
-				"additionalProperties": list,
-				"propertyNames":        map[string]any{"pattern": `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`},
-			},
-		},
+		// One shape. It was briefly also a mapping keyed by environment, which put two shapes
+		// behind one key and made how strict a permission is depend on which one an author
+		// reached for. A scan that may do different things to different targets is a second
+		// descriptor.
+		"type":  "array",
+		"items": map[string]any{"type": "string", "enum": enum},
+		// Listing a kind twice accepts nothing extra, so it is a typo rather than an intention.
+		"uniqueItems": true,
 	}
 }
 

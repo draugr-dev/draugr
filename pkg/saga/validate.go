@@ -41,11 +41,6 @@ func isLowerHex(r rune) bool   { return r >= 'a' && r <= 'f' || r >= '0' && r <=
 // files runs under and what appears in a URL.
 var projectName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
 
-// environmentName is the same shape as a project name, and deliberately so: both are keys an
-// organization uses across many descriptors, and a name that differs only in case or punctuation
-// between two files is two environments as far as anything reading them is concerned.
-var environmentName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
-
 // Validate checks the descriptor for structural correctness, returning all problems at
 // once (joined) rather than only the first.
 func (m *Model) Validate() error {
@@ -267,17 +262,11 @@ func validateComponents(comps []Component) []error {
 			}
 			errs = append(errs, validateHostAuth(h.Auth, fmt.Sprintf("%s: hosts[%d].auth", where, j))...)
 			errs = append(errs, validateHostSpec(h.Spec, fmt.Sprintf("%s: hosts[%d].spec", where, j))...)
-			if err := validateEnvironment(h.Environment, fmt.Sprintf("%s: hosts[%d]", where, j)); err != nil {
-				errs = append(errs, err)
-			}
 		}
 		for j, infra := range c.Infrastructure {
 			// A misspelling here reads as "self", so the findings a managed control plane cannot
 			// act on stay at the top of the list — the descriptor claims a decision it is not
 			// making, and the run looks the same either way.
-			if err := validateEnvironment(infra.Environment, fmt.Sprintf("%s: infrastructure[%d]", where, j)); err != nil {
-				errs = append(errs, err)
-			}
 			if infra.OperatedBy != "" && !infra.OperatedBy.Valid() {
 				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].operatedBy %q is not one of %v",
 					where, j, infra.OperatedBy, OperatedByValues))
@@ -495,16 +484,4 @@ func validateVEXSources(where string, sources []VEXSource) []error {
 		}
 	}
 	return errs
-}
-
-// validateEnvironment checks an environment name on a target.
-//
-// Names are matched between a target and config.allowEffects, and between one descriptor and the
-// next, so "Production" and "production" being two environments is a permission that silently does
-// not apply.
-func validateEnvironment(name, where string) error {
-	if name == "" || environmentName.MatchString(name) {
-		return nil
-	}
-	return fmt.Errorf("%s: environment %q must be lowercase letters, digits and dashes", where, name)
 }

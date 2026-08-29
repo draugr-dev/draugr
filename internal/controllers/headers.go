@@ -42,7 +42,6 @@ func (Headers) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, e
 		}
 		target := plugin.HostTarget{
 			Name: host.Name, URL: host.URL, Type: host.Type,
-			Environment: host.Environment,
 		}
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})

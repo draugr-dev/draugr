@@ -39,7 +39,6 @@ func (TLS) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error
 		}
 		target := plugin.HostTarget{
 			Name: host.Name, URL: host.URL, Type: host.Type,
-			Environment: host.Environment,
 		}
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{

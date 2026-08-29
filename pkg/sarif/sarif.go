@@ -204,7 +204,6 @@ type sarifProperties struct {
 	// today is not necessarily the one that produced this finding.
 	Exposure    string `json:"exposure,omitempty"`
 	Criticality string `json:"criticality,omitempty"`
-	Environment string `json:"environment,omitempty"`
 	// Repository is which repository the finding was found in, for a component holding more than
 	// one. Part of a finding's identity, so it has to survive the file: a report is written and
 	// read back by `draugr diff`, and an identity that only exists in memory is not one.
@@ -416,7 +415,6 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
 				Exposure: res.Exposure, Criticality: res.Criticality,
-				Environment:   res.Environment,
 				Escalation:    res.Escalation,
 				PriorityFloor: res.PriorityFloor,
 				Repository:    res.Repository, Package: res.Package,
@@ -660,7 +658,6 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Component = sr.Properties.Component
 				res.Exposure = sr.Properties.Exposure
 				res.Criticality = sr.Properties.Criticality
-				res.Environment = sr.Properties.Environment
 				res.Repository = sr.Properties.Repository
 				res.Image = sr.Properties.Image
 				res.OperatingSystem = sr.Properties.OperatingSystem
