@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.111.0] - 2026-08-29
+
+### Added
+
+**`fix_list` says which release clears each action.** An action groups every advisory one upgrade resolves, and the version to move to was the one thing it did not carry — an assistant reading the list could say what to do and not what to do it to. Every release the advisories named is listed, not the newest: they disagree, version ordering belongs to the ecosystem, and naming one of them as sufficient reads as "do this and you are done" while leaving findings behind.
+
 ## [0.110.0] - 2026-08-29
 
 ### Removed
@@ -5110,7 +5116,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.110.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.111.0...HEAD
+[0.111.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.111.0
 [0.110.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.110.0
 [0.109.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.109.0
 [0.108.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.108.0
