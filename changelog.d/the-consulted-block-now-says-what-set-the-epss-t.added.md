@@ -1,1 +1,0 @@
-The `consulted` block now says what set the EPSS threshold — `thresholdFrom` names the default, the descriptor key, or the flag. A score raised a finding because it crossed a line somebody drew, and the report already named the dataset and the day its copy was obtained while leaving the line itself anonymous.
