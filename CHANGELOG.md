@@ -12,6 +12,14 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.109.0] - 2026-08-29
+
+### Added
+
+Every finding now carries the component classification that produced its band. `exposure` and `criticality` sit on the finding beside `priority`, so a report explains its own bands with nothing else in hand — until now the two inputs that come from your descriptor rather than from the scanner could only be recovered by fetching the descriptor, and the one in your repository today is not necessarily the one that produced the finding you are reading.
+
+The `consulted` block now says what set the EPSS threshold — `thresholdFrom` names the default, the descriptor key, or the flag. A score raised a finding because it crossed a line somebody drew, and the report already named the dataset and the day its copy was obtained while leaving the line itself anonymous.
+
 ## [0.108.0] - 2026-08-28
 
 ### Changed
@@ -5094,7 +5102,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.108.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.109.0...HEAD
+[0.109.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.109.0
 [0.108.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.108.0
 [0.107.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.107.0
 [0.106.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.106.0
