@@ -295,6 +295,15 @@ func FragmentSchema(sagaJSON []byte) ([]byte, error) {
 	if err := json.Unmarshal(sagaJSON, &doc); err != nil {
 		return nil, fmt.Errorf("parse schema: %w", err)
 	}
+	// Its own note, replacing the Saga schema's. That one tells a reader which definitions are
+	// safe to edit by hand, and none of them are here: this file is derived in full, so the
+	// inherited advice would send somebody to edit a file that is overwritten on the next
+	// `go generate`.
+	doc["$comment"] = "Generated in full from draugr.saga.schema.json by internal/schemagen — " +
+		"every edit here is lost. Change the Saga schema or the generator instead, then run " +
+		"`go generate ./pkg/saga/...`. A fragment adds scope or attributed suppressions and " +
+		"cannot change policy, which is the rule this file expresses so an editor can enforce it."
+
 	props, ok := doc["properties"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("schema has no properties object")

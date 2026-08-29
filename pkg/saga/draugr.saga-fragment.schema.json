@@ -1,4 +1,5 @@
 {
+  "$comment": "Generated in full from draugr.saga.schema.json by internal/schemagen — every edit here is lost. Change the Saga schema or the generator instead, then run `go generate ./pkg/saga/...`. A fragment adds scope or attributed suppressions and cannot change policy, which is the rule this file expresses so an editor can enforce it.",
   "$defs": {
     "component": {
       "additionalProperties": false,
