@@ -54,7 +54,7 @@ looks like it has hung — it's waiting for a client.
 | `validate_saga` | Whether a descriptor is valid, by path or by content, and why not |
 | `check_tools` | Which scanners are present, what's missing, and the command that fixes it |
 | `summarize_report` | An existing `results.sarif`, ranked by priority, each finding carrying its remediation and what to upgrade to |
-| `fix_list` | The same report as **things to do**, most urgent first, each saying how many findings it clears |
+| `fix_list` | The same report as **things to do**, most urgent first, each saying how many findings it clears and which release clears them |
 | `explain_rule` | What a rule means and how to fix it, from the report the scan already wrote |
 | `diff_reports` | What a change introduced and resolved, and whether a pull-request gate would fail |
 | `list_surveyors` | What can be discovered, and what each surveyor reads |
@@ -205,7 +205,7 @@ gone. A saved SARIF file is something your assistant can point you at, or read b
 `summarize_report` instead of paying for another scan.
 
 `fix_list` answers "what should I do?" — one row per remediation rather than per finding, because
-one change usually clears many. Eight vulnerabilities in one library are one upgrade, and every
+one change usually clears many, and each row names the release to move to. Eight vulnerabilities in one library are one upgrade, and every
 vulnerable package inside an image somebody else publishes is one newer image. It uses the same
 grouping `draugr scan --group action` prints, so an assistant and a terminal cannot describe the
 same report differently.
