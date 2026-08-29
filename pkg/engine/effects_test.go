@@ -55,7 +55,7 @@ func effectModel(allow ...string) saga.Model {
 	return saga.Model{
 		Config: saga.Config{
 			Controllers:  map[string]saga.ControllerSettings{"images": {"enabled": true}},
-			AllowEffects: saga.EffectPermissions{Everywhere: allow},
+			AllowEffects: saga.EffectPermissions(allow),
 		},
 		Components: []saga.Component{{Name: "app", Images: []saga.Image{{Image: "alpine:3"}}}},
 	}

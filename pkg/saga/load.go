@@ -103,7 +103,19 @@ func unknownFieldHint(err error) error {
 var removedFields = map[string]string{
 	"release.stage": "nothing read it, so deleting the line changes no result. " +
 		"Where a scan is pointed is a property of the target, not of the release",
+	"host.environment":           environmentRemoved,
+	"infrastructure.environment": environmentRemoved,
 }
+
+// environmentRemoved explains a target that still labels itself.
+//
+// The label existed to be matched by a per-environment `config.allowEffects`, and with that gone
+// nothing read it — a field that changes no result is one a reader can only be misled by. A
+// descriptor that needs different permissions for different targets is two descriptors, which is
+// also two files to review and two runs to point at something.
+const environmentRemoved = "nothing read it once config.allowEffects stopped being keyed by " +
+	"environment, so deleting the line changes no result. A scan that may do different things " +
+	"to different targets is a second descriptor"
 
 var unknownField = regexp.MustCompile(`field (\S+) not found in type (\S+)`)
 

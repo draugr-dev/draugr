@@ -310,7 +310,7 @@ type PlannedJob struct {
 func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 	var planned []PlannedJob
 	var errs []error
-	permitted := effectPermits{saga: model.Config.AllowEffects, flag: e.allowEffects}
+	permitted := allowedEffects(model.Config.AllowEffects, e.allowEffects)
 
 	for _, name := range sortedControllerNames(e.reg.controllers) {
 		ctrl := e.reg.controllers[name]
@@ -365,7 +365,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 // mistyped or ill-typed Saga option is rejected before scanning rather than silently ignored.
 // It returns the surviving jobs and one error per rejected job. Jobs for an unregistered scanner
 // pass through (the run reports the missing scanner); scanners without a schema are not checked.
-func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob, permitted effectPermits) ([]plugin.ScanJob, []error) {
+func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob, permitted map[plugin.EffectKind]bool) ([]plugin.ScanJob, []error) {
 	var kept []plugin.ScanJob
 	var errs []error
 	for _, job := range jobs {
@@ -377,11 +377,7 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob, permitted 
 					continue
 				}
 			}
-			// Per job, because an effect happens to a target. One descriptor can list a
-			// staging endpoint and a production one, and a permission read once for the whole
-			// model grants both from one review.
-			env := plugin.EnvironmentOf(job.Target)
-			if err := consentFor(info, permitted.in(env), env); err != nil {
+			if err := consentFor(info, permitted); err != nil {
 				errs = append(errs, fmt.Errorf("%s/%s: %w", label, job.Scanner, err))
 				continue
 			}
@@ -397,7 +393,7 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob, permitted 
 // checks out a repository or reaches a cluster — and the message says what the scanner would
 // have done rather than only that it was blocked, because a refusal nobody can act on is its own
 // kind of dead end.
-func consentFor(info plugin.ScannerInfo, allowed map[plugin.EffectKind]bool, environment string) error {
+func consentFor(info plugin.ScannerInfo, allowed map[plugin.EffectKind]bool) error {
 	// Every unaccepted effect, not the first. A scanner may declare several — the kube-bench Job
 	// both creates something and runs it privileged — and reporting one at a time makes accepting
 	// them a sequence of scans, each ending in a refusal naming an effect the previous run did not
@@ -414,23 +410,13 @@ func consentFor(info plugin.ScannerInfo, allowed map[plugin.EffectKind]bool, env
 	if len(kinds) == 0 {
 		return nil
 	}
-	// The environment is in the message and in the fix, because the fix is different: a
-	// descriptor that permits per environment must be told which one refused, or the reader
-	// widens the permission to every environment to get past it.
-	where, fix := "", "config.allowEffects"
-	if environment != "" {
-		where = " against " + environment
-		fix = "config.allowEffects." + environment
-	}
 	return fmt.Errorf(
-		"this scanner has %s that %s not been accepted%s: %s. Add %s to %s in "+
+		"this scanner has %s that %s not been accepted: %s. Add %s to config.allowEffects in "+
 			"your Saga, or pass --allow-effects %s",
 		plural2(len(kinds), "an effect", "effects"),
 		plural2(len(kinds), "has", "have"),
-		where,
 		strings.Join(described, "; "),
 		plural2(len(kinds), "it", "them"),
-		fix,
 		strings.Join(kinds, ","))
 }
 
@@ -465,20 +451,6 @@ func dedupeEffects(all []plugin.Effect) []plugin.Effect {
 }
 
 // allowedEffects merges what the descriptor accepts with what this invocation was told to allow.
-// effectPermits answers "may this scanner do that, here" — the descriptor's permissions plus
-// whatever --allow-effects added for this invocation.
-type effectPermits struct {
-	saga saga.EffectPermissions
-	flag []string
-}
-
-// in resolves the permissions for one environment. The flag applies everywhere: it is one person
-// at one terminal accepting one run, and asking them to name an environment as well would be
-// asking them to repeat what the descriptor already says.
-func (p effectPermits) in(environment string) map[plugin.EffectKind]bool {
-	return allowedEffects(p.saga.In(environment), p.flag)
-}
-
 func allowedEffects(fromSaga, fromFlag []string) map[plugin.EffectKind]bool {
 	allowed := make(map[plugin.EffectKind]bool, len(fromSaga)+len(fromFlag))
 	for _, list := range [][]string{fromSaga, fromFlag} {
@@ -1208,9 +1180,6 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		// its arithmetic without the descriptor in hand.
 		out.Results[i].Exposure = string(pj.Exposure)
 		out.Results[i].Criticality = string(pj.Criticality)
-		// Where the scan looked, for a target that is somewhere. Stamped by the engine rather
-		// than by each controller, so a controller written next cannot forget it.
-		out.Results[i].Environment = plugin.EnvironmentOf(pj.Job.Target)
 		if e.prioritize != nil {
 			p := e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
 			out.Results[i].Priority = p.Band

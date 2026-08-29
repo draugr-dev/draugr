@@ -10,14 +10,18 @@ release:
 # Global controller configuration. A controller only runs when it is enabled here
 # (or enabled on a component below). Run `draugr controls` for the full list.
 config:
-  # What a scanner may do beyond reading a target, per environment. A scan allowed to write to
-  # staging is not thereby allowed to write to production: the permission is resolved against the
-  # environment each target declares, and production named with an empty list accepts nothing.
+  # What a scanner may do beyond reading a target. A scanner that would do more than read
+  # declares it, and Draugr refuses to run it unless the effect is listed here — so nothing
+  # below needs this line, and it is commented out.
   #
-  # A plain list — `allowEffects: [mutate]` — accepts an effect in every environment instead.
-  allowEffects:
-    staging: [mutate]
-    production: []
+  # Two kinds require consent. `mutate` creates or changes something that outlives the scan:
+  # kube-bench runs a short-lived Job in your cluster and deletes it, and the Mend connectors
+  # create a project in your Mend account. `privilege` means a scanner needs more access than a
+  # reader — the same kube-bench Job mounts host paths read-only to read a node's configuration.
+  #
+  # It applies to everything this descriptor points at. A scan that may do different things to
+  # different targets is a second descriptor.
+  # allowEffects: [mutate, privilege]
 
   controllers:
     images:
@@ -99,11 +103,9 @@ components:
       - name: web-ui-staging
         url: https://staging.app.example.com
         type: browser        # full browser security-header suite (default)
-        environment: staging # which environment this endpoint is; matched by config.allowEffects
       - name: web-ui
         url: https://app.example.com
         type: browser
-        environment: production
 
   # An internal API: no image here, and its endpoint is typed `api` so browser-only
   # header checks don't fire.
@@ -120,7 +122,6 @@ components:
       - name: api
         url: https://api.internal.example.com
         type: api            # skips browser-only headers
-        environment: production
 
   # A batch job: source only, and one control turned off just for this component.
   - name: nightly-etl
