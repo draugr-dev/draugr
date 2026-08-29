@@ -16,6 +16,9 @@ import (
 // makes a list that is long, repetitive, and — because the repetitive part crowds out the rest —
 // worse at the one job it has.
 type action struct {
+	// key is the identity findings group under — what makes two of them one action. Held so a
+	// caller can be told it, rather than having to work out membership from a title.
+	key string
 	// title is what to do, in the imperative.
 	title string
 	// control the findings came from, and the worst priority among them.
@@ -119,7 +122,7 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		key, title := actionFor(f)
 		a, seen := byKey[key]
 		if !seen {
-			a = &action{title: title, control: f.control, priority: f.priority}
+			a = &action{key: key, title: title, control: f.control, priority: f.priority}
 			byKey[key] = a
 			order = append(order, key)
 		}
@@ -305,6 +308,24 @@ type Action struct {
 	Where []string `json:"where,omitempty"`
 	// RuleIDs are the rules this action resolves, capped, so a caller can look any of them up.
 	RuleIDs []string `json:"ruleIds,omitempty"`
+	// Key is what these findings grouped under: the identity that makes two of them one action.
+	//
+	// Opaque, and deliberately — its shape is this package's business and changes when the
+	// grouping does. What it is for is membership: a caller holding the findings can ask this
+	// package which action each one belongs to and match on this, instead of inferring it from a
+	// title. Title is written for a reader and is not an identity — an action fed by two controls
+	// takes one of their names, and matching on that silently drops the other's findings.
+	//
+	// Not serialized. It is an identity for a caller holding this package's own output in memory,
+	// and it contains a separator that has no business in a JSON document an assistant reads.
+	Key string `json:"-"`
+	// FixedVersions are the releases that clear this, in the order the advisories named them.
+	//
+	// Every one of them, not the newest: advisories disagree about which release resolves them,
+	// and version ordering belongs to the ecosystem rather than here. One entry is the answer;
+	// several means the reader's package manager settles it, and naming one of them as sufficient
+	// would read as "do this and you are done" while leaving findings behind.
+	FixedVersions []string `json:"fixedVersions,omitempty"`
 }
 
 // ActionsFor groups a run's findings into the fix list, most urgent first.
@@ -365,13 +386,15 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			rules = append(rules, f.ruleID)
 		}
 		out = append(out, Action{
-			Title:    a.title,
-			Control:  a.control,
-			Priority: a.priority,
-			Clears:   a.count(),
-			Upstream: a.upstream,
-			Where:    a.where(most),
-			RuleIDs:  rules,
+			Title:         a.title,
+			Control:       a.control,
+			Priority:      a.priority,
+			Clears:        a.count(),
+			Upstream:      a.upstream,
+			Where:         a.where(most),
+			RuleIDs:       rules,
+			Key:           a.key,
+			FixedVersions: a.fixedVersions(),
 		})
 	}
 	return out
