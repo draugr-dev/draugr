@@ -1,3 +1,0 @@
-**`environment` is gone from `hosts[]` and `infrastructure[]`, and `config.allowEffects` is a list only.** A permission is a property of the descriptor rather than of a target inside it: `allowEffects: [mutate]` applies to everything the descriptor points at. A scan that may do different things to different targets is a second descriptor — which is also a second file to review and a second run to point at something.
-
-`allowEffects` had two shapes behind one key, so how strict a permission was depended on which one an author had reached for, and `environment` existed to be matched by the mapping. Nothing else read it. A descriptor that still sets either is refused by name, with the replacement in the message.
