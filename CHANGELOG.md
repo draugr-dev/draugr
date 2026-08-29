@@ -12,6 +12,14 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.110.0] - 2026-08-29
+
+### Removed
+
+**`environment` is gone from `hosts[]` and `infrastructure[]`, and `config.allowEffects` is a list only.** A permission is a property of the descriptor rather than of a target inside it: `allowEffects: [mutate]` applies to everything the descriptor points at. A scan that may do different things to different targets is a second descriptor — which is also a second file to review and a second run to point at something.
+
+`allowEffects` had two shapes behind one key, so how strict a permission was depended on which one an author had reached for, and `environment` existed to be matched by the mapping. Nothing else read it. A descriptor that still sets either is refused by name, with the replacement in the message.
+
 ## [0.109.0] - 2026-08-29
 
 ### Added
@@ -5102,7 +5110,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.109.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.110.0...HEAD
+[0.110.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.110.0
 [0.109.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.109.0
 [0.108.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.108.0
 [0.107.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.107.0
