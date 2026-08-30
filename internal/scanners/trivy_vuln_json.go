@@ -17,8 +17,14 @@ import (
 // fields, plus a purl, plus the manifest the package was declared in — so it is read instead, and
 // the SARIF Draugr publishes is built here rather than by Trivy.
 //
-// Nothing is lost in the swap. Everything the SARIF carried — rule documentation, the advisory
-// link, the CVSS score behind `security-severity` — is in the JSON under another name.
+// One thing is lost in the swap and put back here: the line. Trivy's SARIF writer resolves a
+// package to its line in the manifest; its JSON does not, so a dependency finding pointed at
+// `app/requirements.txt` and no further, and a reader had to search the file for the name. The
+// same index the license scanner already uses answers it — the manifest is on disk, and finding a
+// package's own name in it is what both scanners need.
+//
+// Everything else the SARIF carried — rule documentation, the advisory link, the CVSS score behind
+// `security-severity` — is in the JSON under another name.
 
 // trivyVulnDoc is the slice of Trivy's JSON this reads.
 type trivyVulnDoc struct {
@@ -139,16 +145,22 @@ func (d trivyVulnDoc) layers() map[string]sarif.Layer {
 const trivyClassOSPkgs = "os-pkgs"
 
 // parseTrivyVulns turns Trivy's JSON into the report Draugr publishes.
-func parseTrivyVulns(out []byte, _ string, _ plugin.Config) (sarif.Report, error) {
+func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
 	var doc trivyVulnDoc
 	if err := json.Unmarshal(out, &doc); err != nil {
 		return sarif.Report{}, fmt.Errorf("parse trivy JSON: %w", err)
 	}
 	rep := sarif.Report{Tool: "trivy", Rules: map[string]sarif.Rule{}}
 	layers := doc.layers()
+	// The manifest is on disk — this is a filesystem scan — so the line Trivy's JSON leaves out
+	// can be read back from it. Zero where it cannot, which is honest: the finding still points
+	// at the file.
+	lines := newLineIndex(dir)
 	for _, res := range doc.Results {
 		for _, v := range res.Vulnerabilities {
-			rep.Results = append(rep.Results, trivyVulnResultOf(doc, res, v, layers))
+			found := trivyVulnResultOf(doc, res, v, layers)
+			found.Location.StartLine = lines.find(res.Target, v.PkgName)
+			rep.Results = append(rep.Results, found)
 			if _, seen := rep.Rules[v.VulnerabilityID]; !seen {
 				rep.Rules[v.VulnerabilityID] = trivyVulnRule(v)
 			}

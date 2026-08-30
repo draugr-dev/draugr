@@ -1,6 +1,8 @@
 package scanners
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -404,5 +406,63 @@ func TestEndOfServiceLifeIsNotAssumed(t *testing.T) {
 				t.Error("claimed end of service life without an operating system to claim it for")
 			}
 		})
+	}
+}
+
+// A dependency finding says which line of the manifest declared the package.
+//
+// Trivy's SARIF writer resolves it; its JSON does not, and the JSON is what Draugr reads — for
+// the package identity the SARIF only states in prose. So the line was quietly lost in that swap,
+// and a finding pointed at `requirements.txt` and no further, leaving a reader to search the file
+// for the name Draugr already knew.
+func TestADependencyFindingNamesTheLineThatDeclaredIt(t *testing.T) {
+	dir := t.TempDir()
+	manifest := "# pinned deliberately\nFlask==0.12.2\nrequests==2.19.1\n"
+	if err := os.WriteFile(filepath.Join(dir, "requirements.txt"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	doc := `{"Results":[{"Target":"requirements.txt","Type":"pip","Class":"lang-pkgs",
+	  "Vulnerabilities":[
+	    {"VulnerabilityID":"CVE-1","PkgName":"Flask","InstalledVersion":"0.12.2","Severity":"HIGH"},
+	    {"VulnerabilityID":"CVE-2","PkgName":"requests","InstalledVersion":"2.19.1","Severity":"HIGH"}
+	  ]}]}`
+
+	rep, err := parseTrivyVulns([]byte(doc), dir, plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 2 {
+		t.Fatalf("results = %d", len(rep.Results))
+	}
+	for _, want := range []struct {
+		rule string
+		line int
+	}{{"CVE-1", 2}, {"CVE-2", 3}} {
+		var got int
+		for _, r := range rep.Results {
+			if r.RuleID == want.rule {
+				got = r.Location.StartLine
+			}
+		}
+		if got != want.line {
+			t.Errorf("%s at line %d, want %d", want.rule, got, want.line)
+		}
+	}
+}
+
+// A manifest that is not there degrades the finding rather than invalidating it: it still names
+// the file, which is more than nothing and all that can honestly be said.
+func TestALineIsZeroWhenTheManifestCannotBeRead(t *testing.T) {
+	doc := `{"Results":[{"Target":"requirements.txt","Type":"pip","Class":"lang-pkgs",
+	  "Vulnerabilities":[{"VulnerabilityID":"CVE-1","PkgName":"Flask","Severity":"HIGH"}]}]}`
+	rep, err := parseTrivyVulns([]byte(doc), t.TempDir(), plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rep.Results[0].Location.StartLine; got != 0 {
+		t.Errorf("line = %d, want 0", got)
+	}
+	if got := rep.Results[0].Location.URI; got != "requirements.txt" {
+		t.Errorf("uri = %q, want the file it still points at", got)
 	}
 }
