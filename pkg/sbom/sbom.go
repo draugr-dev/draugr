@@ -57,5 +57,9 @@ type Generator interface {
 // they relate; this one is handed the release and the components, which is the hierarchy the
 // assembled document needs and the reason its output can be more than a concatenation.
 type Assembler interface {
-	Assemble(release saga.Release, format saga.SBOMFormat, docs []Document) (Document, error)
+	//
+	// `project` is the name the document describes itself by, and is passed separately because it
+	// is not part of the release: `release` carries the version, and the name it used to carry is
+	// gone. An assembler handed only the release could not name what it had assembled.
+	Assemble(project string, release saga.Release, format saga.SBOMFormat, docs []Document) (Document, error)
 }

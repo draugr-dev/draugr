@@ -42,11 +42,13 @@ func parse(t *testing.T, d sbom.Document) cycloneDX {
 	return got
 }
 
-func release() saga.Release { return saga.Release{Name: "acme-platform", Version: "3.1.0"} }
+// The version only. `release.name` named the project and is gone; the project's name is passed to
+// Assemble separately, which is what the root component is named by.
+func release() saga.Release { return saga.Release{Version: "3.1.0"} }
 
 func assemble(t *testing.T, docs ...sbom.Document) cycloneDX {
 	t.Helper()
-	out, err := New().Assemble(release(), saga.SBOMCycloneDXJSON, docs)
+	out, err := New().Assemble("acme-platform", release(), saga.SBOMCycloneDXJSON, docs)
 	if err != nil {
 		t.Fatalf("Assemble: %v", err)
 	}
@@ -66,12 +68,18 @@ func dependsOn(d cycloneDX, ref string) []string {
 	return nil
 }
 
-func TestAssembleRootIsTheRelease(t *testing.T) {
+func TestAssembleRootNamesTheProject(t *testing.T) {
 	got := assemble(t, doc("api", "repo-a", cdxDoc("root-a", pkg("requests", "2.19.1", "pkg:pypi/requests@2.19.1", "r1"))))
 
 	root := got.Metadata.Component
 	if root == nil || root.Name != "acme-platform" || root.Version != "3.1.0" {
-		t.Fatalf("root component = %+v, want the release", root)
+		t.Fatalf("root component = %+v, want the project at the version assessed", root)
+	}
+	// A bill of materials has to say what it is a bill of materials for. Read from the removed
+	// release.name, this was `draugr:project/` with an empty name beside it, in a published
+	// artifact — and nothing about the document looked wrong.
+	if root.BOMRef != "draugr:project/acme-platform" {
+		t.Errorf("root bom-ref = %q", root.BOMRef)
 	}
 	if root.Type != "application" {
 		t.Errorf("root type = %q, want application", root.Type)
@@ -90,8 +98,8 @@ func TestAssembleBuildsTheDeclaredHierarchy(t *testing.T) {
 		doc("worker", "repo-c", cdxDoc("root-c", pkg("pyyaml", "5.1", "pkg:pypi/pyyaml@5.1", "y1"))),
 	)
 
-	if want := []string{"draugr:component/api", "draugr:component/worker"}; !equal(dependsOn(got, "draugr:release/acme-platform"), want) {
-		t.Errorf("release depends on %v, want %v", dependsOn(got, "draugr:release/acme-platform"), want)
+	if want := []string{"draugr:component/api", "draugr:component/worker"}; !equal(dependsOn(got, "draugr:project/acme-platform"), want) {
+		t.Errorf("release depends on %v, want %v", dependsOn(got, "draugr:project/acme-platform"), want)
 	}
 	if want := []string{"draugr:target/api/repo-a", "draugr:target/api/repo-b"}; !equal(dependsOn(got, "draugr:component/api"), want) {
 		t.Errorf("api depends on %v, want %v", dependsOn(got, "draugr:component/api"), want)
@@ -231,12 +239,12 @@ func TestAssembleIsDeterministic(t *testing.T) {
 			pkg("requests", "2.19.1", "pkg:pypi/requests@2.19.1", "r1"),
 			pkg("urllib3", "1.24.1", "pkg:pypi/urllib3@1.24.1", "u1"))),
 	}
-	first, err := New().Assemble(release(), saga.SBOMCycloneDXJSON, in)
+	first, err := New().Assemble("acme-platform", release(), saga.SBOMCycloneDXJSON, in)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 3; i++ {
-		again, err := New().Assemble(release(), saga.SBOMCycloneDXJSON, in)
+		again, err := New().Assemble("acme-platform", release(), saga.SBOMCycloneDXJSON, in)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -250,7 +258,7 @@ func TestAssembleIsDeterministic(t *testing.T) {
 // half-right SPDX document would be worse than declining, because nothing about it looks wrong.
 func TestAssembleRefusesAFormatItCannotAssemble(t *testing.T) {
 	for _, f := range []saga.SBOMFormat{saga.SBOMSPDXJSON, saga.SBOMSPDXTagValue, saga.SBOMCycloneDXXML} {
-		_, err := New().Assemble(release(), f, []sbom.Document{doc("api", "repo-a", cdxDoc("root-a"))})
+		_, err := New().Assemble("acme-platform", release(), f, []sbom.Document{doc("api", "repo-a", cdxDoc("root-a"))})
 		if err == nil {
 			t.Fatalf("format %s was accepted", f)
 		}
@@ -261,13 +269,13 @@ func TestAssembleRefusesAFormatItCannotAssemble(t *testing.T) {
 }
 
 func TestAssembleDefaultsAnEmptyFormat(t *testing.T) {
-	if _, err := New().Assemble(release(), "", []sbom.Document{doc("api", "repo-a", cdxDoc("root-a"))}); err != nil {
+	if _, err := New().Assemble("acme-platform", release(), "", []sbom.Document{doc("api", "repo-a", cdxDoc("root-a"))}); err != nil {
 		t.Errorf("empty format should resolve to the default: %v", err)
 	}
 }
 
 func TestAssembleRefusesWithNothingToAssemble(t *testing.T) {
-	if _, err := New().Assemble(release(), saga.SBOMCycloneDXJSON, nil); err == nil {
+	if _, err := New().Assemble("acme-platform", release(), saga.SBOMCycloneDXJSON, nil); err == nil {
 		t.Error("assembling nothing should be an error")
 	}
 }
@@ -275,7 +283,7 @@ func TestAssembleRefusesWithNothingToAssemble(t *testing.T) {
 // A document that cannot be read is named, so the failure points at the target to look at rather
 // than at the assembly step.
 func TestAssembleNamesTheDocumentItCannotRead(t *testing.T) {
-	_, err := New().Assemble(release(), saga.SBOMCycloneDXJSON,
+	_, err := New().Assemble("acme-platform", release(), saga.SBOMCycloneDXJSON,
 		[]sbom.Document{doc("api", "repo-a", []byte("not json"))})
 	if err == nil {
 		t.Fatal("unreadable document was accepted")

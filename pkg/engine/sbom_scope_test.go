@@ -20,7 +20,7 @@ func (partsOnlyGen) Generate(_ context.Context, component string, t plugin.Targe
 // assemblingGen also implements sbom.Assembler.
 type assemblingGen struct{ partsOnlyGen }
 
-func (assemblingGen) Assemble(_ saga.Release, f saga.SBOMFormat, _ []sbom.Document) (sbom.Document, error) {
+func (assemblingGen) Assemble(_ string, _ saga.Release, f saga.SBOMFormat, _ []sbom.Document) (sbom.Document, error) {
 	return sbom.Document{Project: true, Format: f, Bytes: []byte("{assembled}")}, nil
 }
 

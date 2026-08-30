@@ -98,7 +98,13 @@ func (c cdxComponent) ref() string {
 
 // newCycloneDX starts an assembled document whose root component is the release — because the
 // release is the product, and the product is what an SBOM is asked for.
-func newCycloneDX(release saga.Release) cycloneDX {
+// The root component is what this document is about: the project, at the version being assessed.
+//
+// Named by the project rather than by the release. `release.name` named the same thing and is
+// gone, and an assembler reading it produced a published artifact whose root component had an
+// empty name and a bom-ref of "draugr:release/" — a bill of materials that does not say what it is
+// a bill of materials for.
+func newCycloneDX(project string, release saga.Release) cycloneDX {
 	return cycloneDX{
 		BOMFormat:   "CycloneDX",
 		SpecVersion: assembledSpecVersion,
@@ -106,8 +112,8 @@ func newCycloneDX(release saga.Release) cycloneDX {
 		Metadata: cdxMetadata{
 			Component: &cdxComponent{
 				Type:    "application",
-				BOMRef:  "draugr:release/" + release.Name,
-				Name:    release.Name,
+				BOMRef:  "draugr:project/" + project,
+				Name:    project,
 				Version: release.Version,
 			},
 		},
