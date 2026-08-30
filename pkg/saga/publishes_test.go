@@ -11,12 +11,17 @@ func TestPublishesHasToBeSomethingThatCanBeLookedUp(t *testing.T) {
 		publishes string
 		ok        bool
 	}{
-		"a package URL":     {"pkg:oci/acme/api", true},
-		"an image":          {"registry.example.com/acme/api@sha256:abc", true},
+		"a package URL":       {"pkg:oci/acme/api", true},
+		"a purl with no type": {"pkg:npm/left-pad", true},
+		"an image by digest":  {"registry.example.com/acme/api@sha256:abc", true},
+		// A namespace is structure too. Refusing this would be Draugr insisting on the format it
+		// finds convenient rather than the identifier a consumer holds.
+		"an image by name":  {"ghcr.io/acme/api", true},
+		"a short image ref": {"acme/api", true},
 		"a URI":             {"https://acme.example/products/api", true},
 		"unset":             {"", true},
 		"the project again": {"acme-api", false},
-		"a path":            {"acme/api", false},
+		"a bare word":       {"payments", false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			m := &Model{Project: "acme-api", Publishes: tc.publishes, Release: Release{Version: "2.4.0"}}

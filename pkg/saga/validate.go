@@ -67,11 +67,18 @@ func (m *Model) Validate() error {
 	// word is the project's own name written twice, and it is the mistake this field exists to
 	// stop: a VEX statement or a dependency edge matched on it finds nothing, and nothing errors
 	// on either side.
-	if m.Publishes != "" && !strings.Contains(m.Publishes, ":") {
+	//
+	// Structure is the test, not a format. Every shape a consumer actually holds carries a scheme
+	// or a namespace — `pkg:npm/left-pad`, `ghcr.io/acme/api`, `https://acme.example/api` — and a
+	// name with neither is a word. Deliberately not a purl parser: an image reference is a valid
+	// answer and is not a purl, and refusing one would be Draugr insisting on the format it finds
+	// most convenient rather than the identifier a consumer holds.
+	if m.Publishes != "" && !strings.ContainsAny(m.Publishes, ":/") {
 		errs = append(errs, fmt.Errorf(
-			"publishes %q is not an identifier anything can look up — a package URL "+
-				"(pkg:oci/acme/api), an image reference or a URI. It is what a consumer's own "+
-				"bill of materials calls this; `project` is what you call it", m.Publishes))
+			"publishes %q is a bare name, and nothing can look one up. It wants a package URL "+
+				"(pkg:oci/acme/api), an image reference (ghcr.io/acme/api) or a URI — whatever a "+
+				"consumer's own bill of materials calls this. `project` is what you call it",
+			m.Publishes))
 	}
 
 	errs = append(errs, validateControllerKeys("", m.Config.Controllers)...)

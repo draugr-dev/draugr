@@ -87,13 +87,13 @@ config:
 
 ```yaml
 project: acme-api                                 # what you call this internally
+publishes: pkg:oci/acme/api                       # what a consumer matches on
 release:
   version: "2.4.0"
 
 config:
   vex:
     author: "Acme Ltd <security@acme.example>"   # who is making the claim
-    product: "pkg:oci/acme/api"                  # what a consumer matches on
 ```
 
 Both are optional. Both are worth setting for a document you publish, because the defaults
@@ -101,24 +101,31 @@ produce something valid rather than something useful.
 
 ### These are two different names for one product
 
-`release` is **what you call this internally** — it names what Draugr is qualifying and heads
-your report. `config.vex` is **how the outside world refers to it**.
+`project` is **what you call this internally** — it names what Draugr is qualifying and heads your
+report. [`publishes`](../reference/saga-schema.md#publishes) is **how the outside world refers to
+it**.
 
 They are rarely the same string, and the difference matters because of how VEX is consumed. A
 statement is applied by **matching the product identifier** against what the consumer's own SBOM
-calls the thing they are scanning. Your release is `acme-api 2.4.0`; their SBOM says
+calls the thing they are scanning. Your project is `acme-api 2.4.0`; their SBOM says
 `pkg:oci/acme/api@2.4.0`, or a digest, or a CPE. Only you know which.
 
+- **`publishes`** — unset, the product becomes `pkg:generic/<project>@<release.version>`,
+  synthesized from your descriptor. The `pkg:generic/` prefix says so plainly. A package URL is
+  conventional; an image reference or a URI is equally valid, and a bare name is refused because
+  nothing can look one up.
 - **`author`** — Draugr knows a project name. It does not know your legal entity or how to reach
   you, and a consumer with a question about a claim you made needs somebody to ask. Unset, this
-  falls back to `release.name`, which is a project rather than a party.
-- **`product`** — unset, this becomes `pkg:generic/<release.name>@<release.version>`, synthesized
-  from your descriptor. The `pkg:generic/` prefix says so plainly.
+  falls back to the project name, which is a project rather than a party.
 
-**Get `product` wrong and nothing happens — which is the problem.** A consumer cannot tell that a
-statement was meant for it, so a mismatched identifier produces no error anywhere. The document
-is read, understood, and applied to nothing. Check it against an SBOM a consumer actually holds
+**Get the product identifier wrong and nothing happens — which is the problem.** A consumer cannot
+tell that a statement was meant for it, so a mismatch produces no error anywhere. The document is
+read, understood, and applied to nothing. Check it against an SBOM a consumer actually holds
 before you publish.
+
+`config.vex.product` overrides `publishes` **for this document alone**, and is worth setting only
+where a VEX document has to name the product differently from everything else. Two identifiers are
+two things to keep in step.
 
 ### Let the version track your release
 
@@ -129,10 +136,8 @@ which means a product identifier that has gone stale is making a claim about the
 
 ```yaml
 project: acme-api
+publishes: "pkg:oci/acme/api"      # → pkg:oci/acme/api@2.4.0
 release: { version: "2.4.0" }
-config:
-  vex:
-    product: "pkg:oci/acme/api"      # → pkg:oci/acme/api@2.4.0
 ```
 
 Ship 2.5.0 and the identifier follows. Nothing to remember.
@@ -141,7 +146,7 @@ A version you write yourself is left exactly as given, because pinning to someth
 often what you want:
 
 ```yaml
-    product: "pkg:oci/acme/api@sha256:0123…"
+publishes: "pkg:oci/acme/api@sha256:0123…"   # used as written
 ```
 
 The cost of that escape hatch is worth knowing: **a literal version does not follow the

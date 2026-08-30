@@ -26,6 +26,10 @@ type Model struct {
 	// Publishes is the identifier the outside world knows this project by: a package URL, an
 	// image reference, a URI. What a consumer's own bill of materials calls the thing you ship.
 	//
+	// Anything carrying a scheme or a namespace is accepted, because every shape a consumer
+	// actually holds has one and Draugr is not the party that decides which. What is refused is a
+	// bare name, which is the project's own written twice.
+	//
 	// Distinct from `project`, which is your name for it internally, and they are rarely the same
 	// string. A platform files runs under the project; a consumer matches a VEX statement, or
 	// finds you inside their dependency tree, by this.

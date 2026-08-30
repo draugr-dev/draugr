@@ -1466,8 +1466,8 @@
       "type": "string"
     },
     "publishes": {
-      "description": "The identifier the outside world knows this project by: a package URL (pkg:oci/acme/api), an image reference, or a URI. What a consumer's own bill of materials calls the thing you ship, as against `project`, which is what you call it. Leave the version out and Draugr appends release.version where it is needed. Declared rather than derived, because an identifier nothing matches is read, understood and applied to nothing — with no error on either side.",
-      "pattern": ".*:.*",
+      "description": "The identifier the outside world knows this project by — what a consumer's own bill of materials calls the thing you ship, as against `project`, which is what you call it. A package URL is conventional (pkg:oci/acme/api, pkg:npm/@acme/client, pkg:pypi/acme-payments); an image reference (ghcr.io/acme/api) or a URI is equally valid. Anything with a scheme or a namespace is accepted; a bare name is refused, because nothing can look one up and it is almost always `project` written twice. Leave the version out and Draugr appends release.version, so the identifier moves when the release does.",
+      "pattern": "[:/]",
       "type": "string"
     },
     "references": {

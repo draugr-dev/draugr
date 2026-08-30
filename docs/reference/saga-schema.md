@@ -148,7 +148,7 @@ release:
 ## `publishes`
 
 **The identifier the outside world knows this project by**, as against `project`, which is what
-you call it. A package URL is conventional; an image reference or a URI is fine.
+you call it.
 
 ```yaml
 publishes: pkg:oci/acme/payments-api
@@ -162,14 +162,75 @@ publishes: pkg:oci/acme/payments-api
 They are rarely the same string, and a descriptor that answers the second with the first has
 answered neither.
 
-**Declared rather than derived**, because a derived identifier fails silently in both directions.
-Nothing errors when a VEX statement matches no component, and nothing errors when a consumer's
-dependency tree fails to recognize you inside it — the claim is simply never applied.
+### What goes here
+
+Whatever a consumer would find this under. A [package URL](https://github.com/package-url/purl-spec)
+is the conventional choice because it names an ecosystem as well as a package, but an image
+reference or a URI is a real answer and is accepted as one.
+
+| You ship | Write |
+|---|---|
+| A container image | `pkg:oci/acme/payments-api` or `ghcr.io/acme/payments-api` |
+| An npm package | `pkg:npm/@acme/payments-client` |
+| A Python package | `pkg:pypi/acme-payments` |
+| A Maven artifact | `pkg:maven/com.acme/payments-api` |
+| A Go module | `pkg:golang/github.com/acme/payments-api` |
+| A hosted service, with nothing to install | `https://api.acme.example` |
+
+**The rule is structure, not format.** Anything carrying a scheme (`pkg:`, `https:`) or a namespace
+(`ghcr.io/acme/api`) is accepted. A bare name is refused, because it is the one thing that cannot
+be looked up — and because it is almost always `project` written a second time:
+
+```
+$ draugr validate draugr.saga.yaml
+draugr: publishes "payments" is a bare name, and nothing can look one up. It wants a package URL
+(pkg:oci/acme/api), an image reference (ghcr.io/acme/api) or a URI — whatever a consumer's own
+bill of materials calls this. `project` is what you call it
+```
+
+Draugr deliberately does not parse this as a purl. An image reference is a valid answer and is not
+a purl, and refusing one would be Draugr insisting on the format it finds most convenient over the
+identifier a consumer actually holds.
+
+### Finding the right value
+
+Two places, in order of how much they settle it:
+
+1. **Ask a consumer what their scan calls you.** This is the only answer that is certainly right,
+   and one line of their SBOM settles it.
+2. **Read your own SBOM.** `config.sbom` generates one; the root component's `purl` is what your
+   own tooling calls this artifact, and it is usually what theirs will too.
+
+Getting it wrong is not an error anywhere — see below — so it is worth one message to check.
+
+### Why it is declared rather than worked out
+
+A derived identifier fails silently in both directions. Nothing errors when a VEX statement matches
+no component, and nothing errors when a consumer's dependency tree fails to recognize you inside
+it — the claim is read, understood, and applied to nothing.
+
+Unset, Draugr synthesizes `pkg:generic/<project>@<version>` and the `pkg:generic/` says plainly
+that it was made up from your descriptor. That produces a valid document rather than a publishable
+one: unless a consumer happens to call your product exactly that, nothing will match it.
+
+### Versions
 
 **Leave the version out.** Draugr appends `release.version` wherever the identifier needs one, so
-it moves when the release does. A version you write is left exactly as given: pinning to a digest
-is better practice than pinning to a tag, and overriding it would be Draugr deciding it knows the
-artifact better than you do.
+it moves when the release does and cannot go stale.
+
+```yaml
+project: payments-api
+publishes: pkg:oci/acme/payments-api    # becomes pkg:oci/acme/payments-api@2.4.0
+release:
+  version: "2.4.0"
+```
+
+A version you write is left exactly as given — pinning to a digest is better practice than pinning
+to a tag, and overriding it would be Draugr deciding it knows the artifact better than you do:
+
+```yaml
+publishes: pkg:oci/acme/payments-api@sha256:9f2e…   # used as written
+```
 
 `config.vex.product` overrides this **for a VEX document alone**, and is worth setting only where a
 document genuinely has to name the product differently from everything else — two identifiers are
