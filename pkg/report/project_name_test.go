@@ -44,3 +44,33 @@ func TestAReportStillNamesADescriptorThatHasNotMovedYet(t *testing.T) {
 		t.Errorf("releaseLabel = %q", got)
 	}
 }
+
+// The identifier a consumer looks this up by, when the descriptor declared one.
+//
+// The synthesized `pkg:generic/…` is honest about being made up from the descriptor, and the
+// schema reference is explicit that nothing will match it unless a consumer happens to call the
+// product exactly that. A declaration replaces it, and a declaration without a version gets the
+// release's — so the identifier moves when the release does rather than quietly claiming an old
+// one.
+func TestAVEXProductUsesWhatTheProjectSaysItPublishes(t *testing.T) {
+	base := Data{Project: "acme-api", Release: saga.Release{Version: "2.4.0"}}
+
+	if got := vexProductID(base); got != "pkg:generic/acme-api@2.4.0" {
+		t.Errorf("undeclared = %q, want the synthesized purl", got)
+	}
+
+	declared := base
+	declared.Publishes = "pkg:oci/acme/api"
+	if got := vexProductID(declared); got != "pkg:oci/acme/api@2.4.0" {
+		t.Errorf("declared = %q, want the release's version appended", got)
+	}
+
+	// A version somebody wrote is left exactly as given: pinning to a digest is better practice
+	// than pinning to a tag, and overriding it would be Draugr deciding it knows the artifact
+	// better than the person who named it.
+	pinned := base
+	pinned.Publishes = "pkg:oci/acme/api@sha256:abc"
+	if got := vexProductID(pinned); got != "pkg:oci/acme/api@sha256:abc" {
+		t.Errorf("pinned = %q, want it left alone", got)
+	}
+}

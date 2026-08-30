@@ -22,7 +22,20 @@ type Model struct {
 	// Draugr is qualifying", and in one place a project name. Two fields for one thing meant a
 	// platform had to remember an arbitrary string per project and could not tell a renamed
 	// project from a misconfigured pipeline.
-	Project    string        `yaml:"project,omitempty"`
+	Project string `yaml:"project,omitempty"`
+	// Publishes is the identifier the outside world knows this project by: a package URL, an
+	// image reference, a URI. What a consumer's own bill of materials calls the thing you ship.
+	//
+	// Distinct from `project`, which is your name for it internally, and they are rarely the same
+	// string. A platform files runs under the project; a consumer matches a VEX statement, or
+	// finds you inside their dependency tree, by this.
+	//
+	// Declared rather than derived, because a derived one fails silently. An identifier nothing
+	// matches is read, understood, and applied to nothing — no error anywhere, on either side.
+	//
+	// Leave the version out and Draugr appends `release.version` where it is needed, so the
+	// identifier moves when the release does rather than quietly claiming an old one.
+	Publishes  string        `yaml:"publishes,omitempty"`
 	Release    Release       `yaml:"release"`
 	Config     Config        `yaml:"config,omitempty"`
 	Components []Component   `yaml:"components,omitempty"`

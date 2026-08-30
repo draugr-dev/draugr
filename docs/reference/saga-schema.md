@@ -110,6 +110,7 @@ draugr schema -o .saga.schema.json
 
 ```yaml
 project: payments-api         # which project this describes
+publishes: pkg:oci/…          # optional — what the outside world calls it
 release: { ... }              # required — the version being assessed
 config: { ... }               # optional — controllers, reports, and publishers
 components: [ ... ]           # the app's parts
@@ -131,6 +132,7 @@ fixed, which is a misconfiguration nothing else detects.
 
 ```yaml
 project: payments-api
+publishes: pkg:oci/acme/payments-api    # optional — what the outside world calls it
 release:
   version: "2.4.0"
 ```
@@ -142,6 +144,37 @@ release:
 > Replace `release.name: payments-api` with `project: payments-api`. `draugr validate` says so on
 > every run until you do. Setting both to different values is an error; setting both to the same
 > value is redundant and still warns.
+
+## `publishes`
+
+**The identifier the outside world knows this project by**, as against `project`, which is what
+you call it. A package URL is conventional; an image reference or a URI is fine.
+
+```yaml
+publishes: pkg:oci/acme/payments-api
+```
+
+| | Answers |
+|---|---|
+| `project` | **What do I file this under?** Your name for it, and the one a platform groups runs by. |
+| `publishes` | **What will somebody else's tooling look this up by?** What a consumer's own bill of materials calls the thing you ship. |
+
+They are rarely the same string, and a descriptor that answers the second with the first has
+answered neither.
+
+**Declared rather than derived**, because a derived identifier fails silently in both directions.
+Nothing errors when a VEX statement matches no component, and nothing errors when a consumer's
+dependency tree fails to recognize you inside it — the claim is simply never applied.
+
+**Leave the version out.** Draugr appends `release.version` wherever the identifier needs one, so
+it moves when the release does. A version you write is left exactly as given: pinning to a digest
+is better practice than pinning to a tag, and overriding it would be Draugr deciding it knows the
+artifact better than you do.
+
+`config.vex.product` overrides this **for a VEX document alone**, and is worth setting only where a
+document genuinely has to name the product differently from everything else — two identifiers are
+two things to keep in step. It is scoped to that document by design: a setting made for one
+consumer's tooling should not decide what this project publishes everywhere else.
 
 ## `release` (required)
 
@@ -1062,7 +1095,7 @@ config:
 | Field | The question it answers |
 |-------|-------------------------|
 | `author` | **Who is making this claim?** An organization, ideally with a way to reach them. |
-| `product` | **What will a consumer's tooling look this up by?** An IRI; a package URL is conventional. |
+| `product` | **What will a consumer's tooling look this up by?** An IRI; a package URL is conventional. Overrides the top-level [`publishes`](#publishes) for this document alone. |
 
 ### `release` and `config.vex` are not the same thing
 
@@ -1083,7 +1116,7 @@ one:
 | Unset | Falls back to | Why that is not enough |
 |-------|---------------|------------------------|
 | `author` | `release.name` | A project name is not a party. A consumer with a question about your claim needs somebody to ask. |
-| `product` | `pkg:generic/<release.name>@<release.version>` | Synthesized from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
+| `product` | [`publishes`](#publishes), then `pkg:generic/<project>@<release.version>` | Synthesized from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
 
 **A document nothing matches fails silently.** A consumer cannot tell that a statement was meant
 for it, so a wrong identifier does not error — it is read, understood, and applied to nothing.

@@ -63,6 +63,17 @@ func (m *Model) Validate() error {
 				"or digit", m.Project))
 	}
 
+	// An identifier a consumer's tooling can look up, which is what "publishes" is for. A bare
+	// word is the project's own name written twice, and it is the mistake this field exists to
+	// stop: a VEX statement or a dependency edge matched on it finds nothing, and nothing errors
+	// on either side.
+	if m.Publishes != "" && !strings.Contains(m.Publishes, ":") {
+		errs = append(errs, fmt.Errorf(
+			"publishes %q is not an identifier anything can look up — a package URL "+
+				"(pkg:oci/acme/api), an image reference or a URI. It is what a consumer's own "+
+				"bill of materials calls this; `project` is what you call it", m.Publishes))
+	}
+
 	errs = append(errs, validateControllerKeys("", m.Config.Controllers)...)
 
 	errs = append(errs, validateComponents(m.Components)...)

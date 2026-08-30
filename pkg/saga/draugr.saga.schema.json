@@ -1465,6 +1465,11 @@
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "type": "string"
     },
+    "publishes": {
+      "description": "The identifier the outside world knows this project by: a package URL (pkg:oci/acme/api), an image reference, or a URI. What a consumer's own bill of materials calls the thing you ship, as against `project`, which is what you call it. Leave the version out and Draugr appends release.version where it is needed. Declared rather than derived, because an identifier nothing matches is read, understood and applied to nothing — with no error on either side.",
+      "pattern": ".*:.*",
+      "type": "string"
+    },
     "references": {
       "description": "Links to manual or human-performed controls (threat model, architecture diagram, …).",
       "items": {

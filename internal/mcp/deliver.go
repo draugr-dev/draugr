@@ -34,6 +34,10 @@ func deliver(
 		return nil, nil
 	}
 	data := report.Data{
+		// The same two the CLI sets. Left off, a report delivered through an assistant names no
+		// project and publishes a VEX document with no product — the descriptor said both.
+		Project:      model.ProjectName(),
+		Publishes:    model.Publishes,
 		Release:      model.Release,
 		Run:          run,
 		Verdict:      verdict,

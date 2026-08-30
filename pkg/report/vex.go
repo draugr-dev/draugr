@@ -223,8 +223,8 @@ func vexAuthor(d Data) string {
 //
 // Defaults to a purl over the release, because the release *is* the product — VEX is asked for
 // per shipped thing, not per repository. `pkg:generic/` is honest about being synthesized from
-// the descriptor rather than taken from anywhere real, and config.vex.product replaces it with
-// whatever a consumer's SBOM calls this.
+// the descriptor rather than taken from anywhere real, and `publishes` replaces it with whatever
+// a consumer's SBOM calls this.
 //
 // A configured purl carrying no version gets the release's appended. That is what keeps the
 // identifier from going stale: a VEX statement is about a *version* of a product — a
@@ -236,8 +236,14 @@ func vexAuthor(d Data) string {
 // than pinning to a tag, and a digest belongs in that position; overriding it would be Draugr
 // deciding it knows the artifact better than the person who named it.
 func vexProductID(d Data) string {
+	// config.vex.product first: it is scoped to this document by name and by documentation, and
+	// exists for the case where a VEX statement has to name the product differently from
+	// everything else. Then `publishes`, which is the same fact for everybody who needs it.
 	if d.VEX != nil && d.VEX.Product != "" {
 		return withReleaseVersion(d.VEX.Product, d.Release.Version)
+	}
+	if d.Publishes != "" {
+		return withReleaseVersion(d.Publishes, d.Release.Version)
 	}
 	id := "pkg:generic/" + d.ProjectName()
 	if d.Release.Version != "" {

@@ -18,9 +18,13 @@ type VEXConfig struct {
 	// Product identifies the thing the statements are about, as an IRI — a package URL is the
 	// conventional choice ("pkg:oci/example/api@sha256:…").
 	//
-	// Defaults to a purl built from the release name and version. Set it to whatever the SBOM
-	// a consumer holds calls this product: a VEX statement is matched to a component by
-	// identifier, so a document naming the product differently is one nothing will apply.
+	// Defaults to the top-level `publishes`, and to a purl built from the project name and
+	// version where that is unset too. Set it only where a VEX document has to name this product
+	// differently from everything else that identifies it, which is rare: an identifier is an
+	// identifier, and two of them are two things to keep in step.
+	//
+	// A VEX statement is matched to a component by identifier, so a document naming the product
+	// differently from a consumer's own bill of materials is one nothing will apply.
 	Product string `yaml:"product,omitempty"`
 }
 

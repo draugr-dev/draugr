@@ -123,6 +123,11 @@ type Data struct {
 	// so a caller that does not set them still renders a valid report.
 	Generated time.Time
 	Version   string
+	// Publishes is what the outside world knows this project by, resolved from the descriptor —
+	// `config.vex.product` where a VEX document has to differ, otherwise the top-level
+	// `publishes`. Empty means the descriptor did not say, and the VEX document synthesizes one
+	// that says so in its own type.
+	Publishes string
 	// VEX names the author and product for the "vex" format. Nil falls back to the release,
 	// which is enough for a valid document and not enough for a publishable one.
 	VEX *saga.VEXConfig
