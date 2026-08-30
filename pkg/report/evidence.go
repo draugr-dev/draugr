@@ -41,11 +41,12 @@ func (evidenceReporter) Render(w io.Writer, d Data) error {
 
 // releaseLabel names what was scanned, or says plainly that the descriptor did not.
 func releaseLabel(d Data) string {
-	if d.Release.Name == "" {
+	name := d.ProjectName()
+	if name == "" {
 		return "unnamed release"
 	}
 	if d.Release.Version == "" {
-		return d.Release.Name
+		return name
 	}
-	return d.Release.Name + " " + d.Release.Version
+	return name + " " + d.Release.Version
 }

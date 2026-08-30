@@ -216,7 +216,7 @@ func vexAuthor(d Data) string {
 	if d.VEX != nil && d.VEX.Author != "" {
 		return d.VEX.Author
 	}
-	return d.Release.Name
+	return d.ProjectName()
 }
 
 // vexProductID is the identifier the statements are about.
@@ -239,7 +239,7 @@ func vexProductID(d Data) string {
 	if d.VEX != nil && d.VEX.Product != "" {
 		return withReleaseVersion(d.VEX.Product, d.Release.Version)
 	}
-	id := "pkg:generic/" + d.Release.Name
+	id := "pkg:generic/" + d.ProjectName()
 	if d.Release.Version != "" {
 		id += "@" + d.Release.Version
 	}

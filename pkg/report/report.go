@@ -41,6 +41,11 @@ type Scope struct {
 
 // ProjectName is which project this run belongs to, falling back to the deprecated release.name
 // so a descriptor that has not moved yet still files under something.
+//
+// The one accessor. Everything that renders the name of the thing being scanned reads this rather
+// than release.name — the field it replaced is removed after 2026-08-30, and every direct read of
+// it is a report that goes blank the day a descriptor moves to `project:`, which is the form the
+// reference tells people to write.
 func (d Data) ProjectName() string {
 	if d.Project != "" {
 		return d.Project

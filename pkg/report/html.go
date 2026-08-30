@@ -131,8 +131,8 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	if s.verdict == norn.Fail {
 		view.Verdict = "FAIL"
 	}
-	if d.Release.Name != "" {
-		view.Release = d.Release.Name
+	if name := d.ProjectName(); name != "" {
+		view.Release = name
 		if d.Release.Version != "" {
 			view.Release += " " + d.Release.Version
 		}
