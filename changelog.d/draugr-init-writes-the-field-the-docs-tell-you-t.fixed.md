@@ -1,1 +1,0 @@
-**`draugr init` writes the field the docs tell you to use.** The scaffold wrote `release.name`, which `draugr validate` — the very next step of the quickstart — then warned about, on a descriptor Draugr had just written itself. `draugr survey` and the MCP server's descriptor scaffold did the same, and both name the flag "project name" now rather than "release name".

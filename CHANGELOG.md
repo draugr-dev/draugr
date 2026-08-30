@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.111.1] - 2026-08-30
+
+### Fixed
+
+**A dependency finding names the line that declared the package again.** Draugr reads Trivy's JSON rather than its SARIF, because the SARIF states the package only in prose — but the JSON carries no line, so an `sca` finding pointed at `requirements.txt` and no further, and a reader had to search the file for a name Draugr already knew. The line is read back from the manifest, the same way license findings already resolve theirs. Where it cannot be, it is absent rather than guessed: the finding still names the file.
+
+**A project SBOM says what it is a bill of materials for.** The assembled document named its root component from `release.name`, which `project:` replaced — so a descriptor written the way the reference recommends produced a published artifact whose root had an empty name and a `bom-ref` of `draugr:release/`. Nothing about the document looked wrong. It is named from the project now, and the assembler is handed it rather than having to find it in a field that no longer carries it.
+
+**A report names its project again when the descriptor uses `project:`.** Six places rendered the deprecated `release.name` directly, so a descriptor written the way the reference recommends — `project:` at the top level, no `release.name` — produced a console, Markdown and HTML report with no release line, an evidence bundle labeled "unnamed release", and a VEX document with **no author** and a product identifier of `pkg:generic/@2.4.0`, which is not a package URL. A VEX statement nothing matches is read, understood and applied to nothing.
+
+**`draugr init` writes the field the docs tell you to use.** The scaffold wrote `release.name`, which `draugr validate` — the very next step of the quickstart — then warned about, on a descriptor Draugr had just written itself. `draugr survey` and the MCP server's descriptor scaffold did the same, and both name the flag "project name" now rather than "release name".
+
 ## [0.111.0] - 2026-08-29
 
 ### Added
@@ -5116,7 +5128,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.111.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.111.1...HEAD
+[0.111.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.111.1
 [0.111.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.111.0
 [0.110.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.110.0
 [0.109.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.109.0
