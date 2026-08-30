@@ -62,8 +62,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		verdict, vcol = "FAIL", cFail
 	}
 	_, _ = fmt.Fprintf(w, "Draugr — %s", col.Paint(vcol, verdict))
-	if d.Release.Name != "" {
-		rel := d.Release.Name
+	if rel := d.ProjectName(); rel != "" {
 		if d.Release.Version != "" {
 			rel += " " + d.Release.Version
 		}

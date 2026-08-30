@@ -25,8 +25,8 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		verdict = "❌ FAIL"
 	}
 	_, _ = fmt.Fprintf(w, "## Draugr — %s\n\n", verdict)
-	if d.Release.Name != "" {
-		_, _ = fmt.Fprintf(w, "**Release:** %s %s\n\n", d.Release.Name, d.Release.Version)
+	if name := d.ProjectName(); name != "" {
+		_, _ = fmt.Fprintf(w, "**Release:** %s %s\n\n", name, d.Release.Version)
 	}
 
 	if s.prioritized {
