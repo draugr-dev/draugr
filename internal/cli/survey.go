@@ -96,7 +96,7 @@ func newSurveyCommand() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVarP(&opts.output, "output", "o", "", "write the Saga here (default stdout)")
-	cmd.PersistentFlags().StringVar(&opts.name, "name", "", "release name for a newly created Saga")
+	cmd.PersistentFlags().StringVar(&opts.name, "name", "", "project name for a newly created Saga")
 	cmd.PersistentFlags().StringVar(&opts.version, "version", "0.0.0", "release version for a newly created Saga")
 	cmd.PersistentFlags().BoolVar(&opts.replace, "replace", false,
 		"overwrite the Saga at --output instead of adding to it")
@@ -623,7 +623,7 @@ func baseModel(opts surveyOptions) (saga.Model, error) {
 		}
 		return *m, nil
 	}
-	return saga.Model{Release: saga.Release{Name: opts.name, Version: opts.version}}, nil
+	return saga.Model{Project: opts.name, Release: saga.Release{Version: opts.version}}, nil
 }
 
 func fileExists(path string) bool {

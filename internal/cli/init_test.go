@@ -6,6 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 func TestRunInitWritesFileWithDetection(t *testing.T) {
@@ -80,5 +84,29 @@ func TestInitNamesTheManifestItFound(t *testing.T) {
 	}
 	if got := depManifest(t.TempDir()); got != "a lockfile" {
 		t.Errorf("depManifest with nothing recognizable = %q", got)
+	}
+}
+
+// A descriptor Draugr writes must not be one Draugr's own next command warns about.
+//
+// `draugr init` then `draugr validate` are the first two steps of the quickstart, and the
+// scaffold wrote the field the deprecation notice tells the reader to stop using — so a new
+// user's very first run contradicted the tutorial that sent them there.
+func TestTheScaffoldWritesTheFieldTheDocsTellPeopleToUse(t *testing.T) {
+	out := scaffoldSaga(t.TempDir(), "acme-api")
+
+	if !strings.Contains(out, "project: acme-api") {
+		t.Errorf("scaffold does not name the project:\n%s", out)
+	}
+	if strings.Contains(out, "name: acme-api\n  version") {
+		t.Errorf("scaffold still writes release.name:\n%s", out)
+	}
+
+	var m saga.Model
+	if err := yaml.Unmarshal([]byte(out), &m); err != nil {
+		t.Fatalf("scaffold is not valid YAML: %v", err)
+	}
+	if got := m.Deprecations(); len(got) != 0 {
+		t.Errorf("what init wrote is deprecated on arrival: %v", got)
 	}
 }

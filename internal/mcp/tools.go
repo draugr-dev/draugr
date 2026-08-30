@@ -1030,7 +1030,7 @@ type SurveyInput struct {
 	// twice, and merging them into one descriptor is the point — running them separately gives
 	// two descriptors that each look complete.
 	Surveys []SurveyRequest `json:"surveys" jsonschema:"the surveyors to run; results merge into one descriptor"`
-	Name    string          `json:"name,omitempty" jsonschema:"release name for the descriptor"`
+	Name    string          `json:"name,omitempty" jsonschema:"project name for the descriptor"`
 	Version string          `json:"version,omitempty" jsonschema:"release version for the descriptor; defaults to 0.0.0"`
 }
 
@@ -1096,7 +1096,7 @@ func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOu
 		if version == "" {
 			version = "0.0.0"
 		}
-		model := saga.Model{Release: saga.Release{Name: name, Version: version}}
+		model := saga.Model{Project: name, Release: saga.Release{Version: version}}
 		surveyor.Apply(&model, frag)
 		// Without this the descriptor declares images and enables nothing to look at them — a
 		// scan that examines nothing and passes, which is the verdict this project is otherwise
