@@ -1360,7 +1360,8 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 		scope = saga.SBOMScopeComponent
 	}
 	if scope.Project() {
-		docs, errs = appendProjectSBOM(e.sbomGen, model.Release, cfg.Format, scope, docs, errs)
+		docs, errs = appendProjectSBOM(
+			e.sbomGen, model.ProjectName(), model.Release, cfg.Format, scope, docs, errs)
 	}
 	slog.DebugContext(ctx, "generated SBOMs", "documents", len(docs), "errors", len(errs))
 	return docs, errs
@@ -1372,24 +1373,24 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 // A generator that cannot assemble produces an error rather than the per-target documents it can
 // manage. The descriptor asked for a document covering the product; quietly delivering seven
 // documents covering repositories would be a green run that answered a different question.
-func appendProjectSBOM(gen sbom.Generator, release saga.Release, format saga.SBOMFormat,
-	scope saga.SBOMScope, docs []sbom.Document, errs []string,
+func appendProjectSBOM(gen sbom.Generator, project string, release saga.Release,
+	format saga.SBOMFormat, scope saga.SBOMScope, docs []sbom.Document, errs []string,
 ) ([]sbom.Document, []string) {
 	asm, ok := gen.(sbom.Assembler)
 	if !ok {
 		return docs, append(errs, "config.sbom.scope asks for a project document, "+
 			"but the configured SBOM generator cannot assemble one")
 	}
-	project, err := asm.Assemble(release, format, docs)
+	assembled, err := asm.Assemble(project, release, format, docs)
 	if err != nil {
 		return docs, append(errs, err.Error())
 	}
 	if scope == saga.SBOMScopeProject {
 		// The parts were generated because assembling needs them; the descriptor asked only for
 		// the whole. scope: both is how you keep the evidence alongside the summary.
-		return []sbom.Document{project}, errs
+		return []sbom.Document{assembled}, errs
 	}
-	return append(docs, project), errs
+	return append(docs, assembled), errs
 }
 
 // distinctScanners names the scanners a run used, sorted.

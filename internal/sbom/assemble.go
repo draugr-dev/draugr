@@ -27,7 +27,9 @@ import (
 // and makes any consumer that counts packages report a number that means nothing. Neither is
 // necessary: CycloneDX keeps one entry per package and a dependency graph saying which containers
 // hold it, and both questions are answerable from the same document.
-func (g *Generator) Assemble(release saga.Release, format saga.SBOMFormat, docs []sbom.Document) (sbom.Document, error) {
+func (g *Generator) Assemble(
+	project string, release saga.Release, format saga.SBOMFormat, docs []sbom.Document,
+) (sbom.Document, error) {
 	if format == "" {
 		format = sbom.DefaultFormat
 	}
@@ -44,7 +46,7 @@ func (g *Generator) Assemble(release saga.Release, format saga.SBOMFormat, docs 
 		return sbom.Document{}, fmt.Errorf("config.sbom.scope: nothing to assemble into a project document")
 	}
 
-	out := newCycloneDX(release)
+	out := newCycloneDX(project, release)
 	a := &assembly{seenComponent: map[string]bool{}, seenRef: map[string]bool{}}
 
 	for _, d := range docs {
