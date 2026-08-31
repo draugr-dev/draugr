@@ -1,0 +1,109 @@
+# Example Saga — deciding to live with a finding, on the record.
+# Run it with:  draugr scan examples/accepting-a-finding.saga.yaml
+#
+# An excluded finding is not removed. It stays in the report marked suppressed, carrying the
+# reason somebody gave, who gave it, and when it stops applying. The question an auditor asks of
+# a suppression is never "did the scanner run" — it is who decided this was acceptable, and when.
+#
+# Everything below is under `config.exclude`, which is also available in a fragment so a team can
+# accept a finding in its own repository without editing the root descriptor.
+
+project: my-app
+
+release:
+  version: "1.0"
+
+config:
+  controllers:
+    sca:
+      enabled: true
+    images:
+      enabled: true
+
+  exclude:
+    # The smallest complete exclusion: what it matches, and why.
+    #
+    # `reason` is required. A suppression with no reason is a finding somebody made disappear,
+    # which is the mechanism this one exists to replace.
+    - rules: [CVE-2023-45853]
+      reason: zlib is linked but the vulnerable inflate path is never reached
+
+    # Attributed and dated, which is what makes it a governance record rather than a mute button.
+    #
+    # `acceptedBy` is optional and a suppression without one is reported as unattributed rather
+    # than rejected — but a name buried in the prose of `reason` cannot be reported on, and being
+    # able to list every standing decision by who made it is the point.
+    #
+    # `expires` brings the finding back. An exclusion accepted "until the upstream fix lands" has
+    # nothing that returns it, so the temporary ones become permanent by default. Past this date
+    # the finding is open again and the report says the exclusion lapsed, rather than silently
+    # producing a finding that used to be accepted.
+    - rules: [CVE-2024-6119]
+      reason: waiting on the base image rebuild, tracked in PLATFORM-4412
+      acceptedBy: alice@example.com
+      expires: "2026-12-31"
+
+    # Narrowed to where the judgement holds. `paths` and `rules` are an AND: this suppresses the
+    # hardcoded-credential rule in test fixtures and nowhere else, so the same rule firing in
+    # `src/` still fails the gate.
+    #
+    # A trailing `/` is a directory prefix. Without `paths` this would accept the finding
+    # everywhere, which is a much larger decision than the reason describes.
+    - rules: [gitleaks.generic-api-key]
+      paths: [testdata/, "**/fixtures/**"]
+      reason: fixtures hold deliberately fake credentials
+
+    # A claim about the product, not just a note to ourselves.
+    #
+    # `vex` turns the suppression into a machine-readable statement that `--report vex` emits for
+    # consumers of your software to act on. Separate from `reason` because they answer different
+    # questions: a reason is written for a human reviewing this file, a status is something a
+    # downstream tool can apply without reading English.
+    #
+    # Without `vex` a suppressed finding is reported as `affected` — the claim that is never an
+    # overstatement.
+    - rules: [CVE-2022-40897]
+      reason: setuptools is a build-time dependency and is not present at runtime
+      acceptedBy: security@example.com
+      vex:
+        status: not_affected          # not_affected | affected | fixed
+        # Why, from VEX's fixed vocabulary. Valid only with not_affected, and a closed vocabulary
+        # because the whole value of the field is that a consumer can act on it without reading
+        # the sentence above. Without it, `reason` is emitted as the prose form instead.
+        justification: vulnerable_code_not_in_execute_path
+
+  # Who is making these claims, and what they are about.
+  #
+  # A VEX document is an assertion by a supplier about their own product, so the two things a
+  # consumer needs are who says so and what about. Draugr can guess the second from the release
+  # and cannot guess the first at all — it knows a project name, not a legal entity or a contact.
+  vex:
+    author: Example Ltd <security@example.com>
+    product: pkg:oci/example/my-app@sha256:3f8e4a1c9d2b5e7a0c6f8b1d4e7a9c2f5b8e1d4a7c0f3b6e9d2a5c8f1b4e7a0c
+    # Set `product` to whatever the SBOM your consumer holds calls this thing. A VEX statement is
+    # matched to a component by identifier, so a document naming the product differently is a
+    # document nothing will ever apply.
+
+  # The report that carries those claims to whoever consumes your software.
+  reports:
+    - format: vex
+
+  publishers:
+    - kind: file
+      dir: ./.draugr/out
+
+# Two components, because an exclusion is a decision about the whole descriptor and the failure
+# worth seeing is one team's judgement quietly excusing another team's finding. Both are scanned;
+# the rules above apply to both, which is exactly why `paths` matters.
+components:
+  - name: web
+    exposure: public
+    criticality: critical
+    images:
+      - image: alpine:3.19
+
+  - name: batch
+    exposure: internal
+    criticality: supporting
+    images:
+      - image: alpine:3.18
