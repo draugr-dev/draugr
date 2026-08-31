@@ -39,7 +39,7 @@ executing on your machine, which is a question worth being able to answer withou
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
 | `infrastructure` | CIS benchmarks / posture | component | ✅ | `draugr-k8s-policies` (default), `kube-bench` and `kube-bench-job` (opt-in) | [doc](../../internal/controllers/infrastructure.md) |
 | `tls` | TLS/certificate assessment | component | ✅ | `draugr-tls` (native) | [doc](../../internal/controllers/tls.md) |
-| `licenses` | Dependency license compliance | component | ✅ | `trivy-license` (default), `mend-licenses` (opt-in) | [doc](../../internal/controllers/licenses.md) |
+| `licenses` | Dependency license compliance, in repositories and images | component | ✅ | `trivy-license` (default), `mend-licenses` (opt-in) | [doc](../../internal/controllers/licenses.md) |
 | `threats` | Threat intelligence | component | ✅ | `urlhaus` (default), `virustotal` (opt-in) | [doc](../../internal/controllers/threats.md) |
 
 `licenses` is a control rather than part of `sca` because license risk isn't a vulnerability —

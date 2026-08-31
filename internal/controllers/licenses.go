@@ -40,18 +40,36 @@ func (Licenses) Info() plugin.ControllerInfo {
 	}
 }
 
-// Plan produces one scan job per repository, carrying the resolved license policy.
+// Plan produces one scan job per repository and per image, carrying the resolved license policy.
+//
+// Both, because the question the control answers — what am I obliged by — has no target kind in
+// it. A license obligation inside an image was invisible while this planned repositories only, and
+// silently so: the control ran, reported covered, and the surface it had not examined had no name
+// in the output.
+//
+// The same policy reaches both. Which licenses a release may carry is a decision about the
+// release, not about where the code happens to sit, so a component whose deny list differs by
+// target kind is not a thing this control lets anybody express.
 func (Licenses) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {
 		return nil, nil
 	}
 	policy := licensePolicy(model, comp)
 	selections := resolveScanners(model, comp, "licenses", []string{trivyLicenseScanner})
-	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(selections))
+	// Repositories first, so a component declaring both reports its own tree before what it runs.
+	targets := make([]plugin.Target, 0, len(comp.Repositories)+len(comp.Images))
 	for _, repo := range comp.Repositories {
-		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision,
+		targets = append(targets, plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision,
 			Paths: repo.Paths, Ignore: repo.Ignore,
-			Upstream: comp.PublishedBy(repo) == saga.BuiltByUpstream}
+			Upstream: comp.PublishedBy(repo) == saga.BuiltByUpstream})
+	}
+	for _, img := range comp.Images {
+		targets = append(targets, plugin.ImageTarget{Ref: img.Image, Digest: img.Digest,
+			Upstream: comp.PublishesImage(img) == saga.BuiltByUpstream})
+	}
+
+	jobs := make([]plugin.ScanJob, 0, len(targets)*len(selections))
+	for _, target := range targets {
 		for _, sel := range selections {
 			// The policy is the control's, so every scanner serving it judges by the same lists;
 			// a scanner's own block adds to that rather than replacing it.

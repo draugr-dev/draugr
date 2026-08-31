@@ -4,7 +4,7 @@
 - **Scope:** component
 - **Status:** ✅ implemented (0.43.0)
 - **Scanners:** [`trivy-license`](../scanners/trivy-license.md)
-- **Resource:** a component's `repositories:`
+- **Resource:** a component's `repositories:` **and** `images:`
 
 ## What it does
 
@@ -16,6 +16,41 @@ Permissive licenses are **inventory, not findings**. Every dependency has a lice
 them all buries the handful that matter under dozens that don't; on Draugr's own repository that
 is the difference between 77 rows saying "MIT is fine" and none. The inventory question is what
 [`config.sbom`](../../docs/reference/saga-schema.md) answers, with a license per package.
+
+Both kinds, because the question the control answers — *what am I obliged by* — has no target kind
+in it. While this read repositories only, a license obligation inside a deployed image was invisible
+and silently so: the control ran, reported covered, and the surface it had not examined had no name
+in the output. A third-party image is exactly where the source repository is not declared, because
+the team does not build it, so the gap landed hardest where the question was least answerable by
+hand.
+
+The same policy reaches both. Which licenses a release may carry is a decision about the release,
+not about where the code happens to sit, so a component whose deny list differs by target kind is
+not a thing this control lets anybody express.
+
+Expect a component declaring both a repository and the image built from it to report the same
+package twice — once from the manifest, once from the layer. Those are two findings by the same
+rule that makes one leaked credential per repository two findings: they are independently
+actionable, and fixing the manifest without rebuilding the image still ships the obligation.
+
+## Full scanning
+
+`full: true` on the scanner adds Trivy's `--license-full`, which reads `LICENSE` files and source
+headers rather than only package metadata. It finds licenses no manifest declares — vendored code,
+a snippet pasted into a file, a dependency whose metadata lies — and it is markedly slower, because
+it walks every file rather than the dependency list.
+
+```yaml
+config:
+  controllers:
+    licenses:
+      enabled: true
+      trivyLicense:
+        full: true
+```
+
+Opt-in rather than default, because it changes what the scan reads. A pull-request gate wants the
+fast answer; a release or a diligence pass is where the slow one earns its time.
 
 ## Why it isn't part of `sca`
 

@@ -2,7 +2,9 @@ package scanners
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/tooladapter"
 )
 
 // trivyLicenseScanner reports dependency licenses that carry an obligation. It serves the
@@ -30,6 +33,10 @@ const trivyLicenseConfigSchema = `{
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "full": {
+      "type": "boolean",
+      "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower — it reads every file rather than the dependency list."
+    },
     "deny": {
       "type": "array",
       "items": { "type": "string" },
@@ -43,30 +50,125 @@ const trivyLicenseConfigSchema = `{
   }
 }`
 
-// NewTrivyLicense returns a Scanner that reports dependency licenses carrying an obligation.
+// NewTrivyLicense returns a Scanner that reports licenses carrying an obligation, in a
+// component's repositories and in its images.
+//
+// Both, because the reader's question — what am I obliged by — has no target kind in it. A license
+// obligation inside an image was invisible while this read repositories only, and silently so: the
+// control ran, reported covered, and the surface it had not examined had no name in the output. A
+// third-party image is exactly where the source repository is not declared, because the team does
+// not build it, so the gap landed hardest where the question was least answerable by hand.
+//
+// One scanner over two kinds rather than two scanners, so a component's license policy cannot
+// differ by where the code happens to live, and `doctor` lists one tool.
 func NewTrivyLicense() plugin.Scanner {
-	s := newRepoScannerWithParser(
-		plugin.ScannerInfo{
-			Name:         trivyLicenseScannerName,
-			Origin:       "aquasecurity",
-			Binary:       "trivy",
-			Controls:     []string{"licenses"},
-			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
-			ConfigSchema: json.RawMessage(trivyLicenseConfigSchema),
+	info := plugin.ScannerInfo{
+		Name:     trivyLicenseScannerName,
+		Origin:   "aquasecurity",
+		Binary:   "trivy",
+		Controls: []string{"licenses"},
+		TargetKinds: []plugin.TargetKind{
+			plugin.TargetRepository, plugin.TargetImage,
 		},
-		trivyLicenseArgs,
-		parseTrivyLicenses,
-	)
-	s.cacheVersion = sharedTrivyVersion.cacheVersion
-	return s
+		ConfigSchema: json.RawMessage(trivyLicenseConfigSchema),
+	}
+
+	repo := newRepoScannerWithParser(info, trivyLicenseArgs, parseTrivyLicenses)
+	repo.cacheVersion = sharedTrivyVersion.cacheVersion
+	repo.run = retryingRunInDir("trivy", repo.run)
+
+	image := tooladapter.New(tooladapter.Config{
+		Name:         info.Name,
+		Origin:       info.Origin,
+		Binary:       info.Binary,
+		Controls:     info.Controls,
+		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
+		ConfigSchema: info.ConfigSchema,
+		Argv:         trivyLicenseImageArgv,
+		Run:          retryingRun("trivy", execArgv),
+		Parse: func(out []byte, _ plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+			// No directory: an image has no checkout to resolve a line number against, and Trivy
+			// reports an OS package's license without a file path at all.
+			return parseTrivyLicenses(out, "", cfg)
+		},
+		CacheVersion: sharedTrivyVersion.cacheVersion,
+		Prewarm:      sharedTrivyDB.warm,
+		Refine:       imageRefLocations,
+	})
+
+	return licenseScanner{info: info, repo: repo, image: image}
 }
+
+// licenseScanner runs the right Trivy mode for the target it is handed.
+//
+// A dispatcher rather than a scanner that branches inside Scan, because the two modes genuinely
+// differ in everything but the parser: one checks out a tree and runs `trivy fs` in it, the other
+// names an image on the command line. Sharing the parser is the point — a license means the same
+// thing wherever it was found, and two parsers would eventually disagree about that.
+type licenseScanner struct {
+	info  plugin.ScannerInfo
+	repo  plugin.Scanner
+	image plugin.Scanner
+}
+
+// Info describes the scanner.
+func (s licenseScanner) Info() plugin.ScannerInfo { return s.info }
+
+// Scan sends the target to whichever mode reads it.
+func (s licenseScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+	switch target.(type) {
+	case plugin.ImageTarget:
+		return s.image.Scan(ctx, target, cfg)
+	case plugin.RepositoryTarget:
+		return s.repo.Scan(ctx, target, cfg)
+	default:
+		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want repository or image)",
+			s.info.Name, target)
+	}
+}
+
+// CacheVersion folds Trivy's version into the cache key, whichever mode ran.
+func (s licenseScanner) CacheVersion(ctx context.Context) string {
+	return sharedTrivyVersion.cacheVersion(ctx)
+}
+
+// Prewarm downloads Trivy's database once before the fan-out. Image mode needs it; repository mode
+// is unharmed by it, and asking the question twice is what a thundering herd is made of.
+func (s licenseScanner) Prewarm(ctx context.Context) error { return sharedTrivyDB.warm(ctx) }
 
 // trivyLicenseArgs builds `trivy fs --quiet --scanners license --format json <dir>`.
 //
 // JSON rather than SARIF because Trivy's SARIF output contains no license findings at all —
 // they exist only under Results[].Licenses[] in the JSON.
-func trivyLicenseArgs(dir string, _ plugin.Config) []string {
-	return []string{"trivy", "fs", "--quiet", "--scanners", "license", "--format", "json", dir}
+func trivyLicenseArgs(dir string, cfg plugin.Config) []string {
+	argv := []string{"trivy", "fs", "--quiet", "--scanners", "license", "--format", "json"}
+	return offlineTrivyArgs(append(licenseFullArg(argv, cfg), dir))
+}
+
+// trivyLicenseImageArgv builds `trivy image --quiet --scanners license --format json <ref>`.
+func trivyLicenseImageArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
+	img, ok := target.(plugin.ImageTarget)
+	if !ok {
+		return nil, fmt.Errorf("%s: unsupported target %T (want image)", trivyLicenseScannerName, target)
+	}
+	ref := img.PinnedRef()
+	if ref == "" {
+		return nil, errors.New(trivyLicenseScannerName + ": image target has neither ref nor digest")
+	}
+	argv := []string{"trivy", "image", "--quiet", "--scanners", "license", "--format", "json"}
+	return offlineTrivyArgs(append(licenseFullArg(argv, cfg), ref)), nil
+}
+
+// licenseFullArg adds --license-full when the descriptor asked for it.
+//
+// Opt-in because it changes what the scan reads rather than how it reports: package metadata is a
+// dependency list, and full scanning walks every file for a LICENSE or a header. It finds licenses
+// no manifest declares — which is the point — at a cost proportional to the size of the tree.
+func licenseFullArg(argv []string, cfg plugin.Config) []string {
+	if full, _ := cfg["full"].(bool); full {
+		return append(argv, "--license-full")
+	}
+	return argv
 }
 
 // Config keys carrying the Saga's license policy into the scanner.
