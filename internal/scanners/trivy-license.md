@@ -1,20 +1,33 @@
 # Scanner: `trivy-license` (dependency licenses)
 
 - **Control:** [`licenses`](../controllers/licenses.md)
-- **Tool:** Aqua **Trivy** (filesystem mode, license scanner) — https://trivy.dev
+- **Tool:** Aqua **Trivy** (filesystem and image modes, license scanner) — https://trivy.dev
 - **Status:** ✅ implemented (0.43.0)
-- **Target:** source repository (`RepositoryTarget`) — checked out via `internal/git`
+- **Target:** source repository (`RepositoryTarget`) — checked out via `internal/git` — and
+  container image (`ImageTarget`), named on the command line
 - **License / terms:** **Apache-2.0** (permissive). Run via **exec**.
 
 ## What it does
 
-Checks out the component's repository, then runs
+Two modes, chosen by the target it is handed. A repository is checked out and read in place:
 
 ```
 trivy fs --quiet --scanners license --format json <dir>
 ```
 
-and converts the result to SARIF.
+An image is named rather than fetched by us, and Trivy pulls it:
+
+```
+trivy image --quiet --scanners license --format json <ref>
+```
+
+Both convert to SARIF through the same parser. That sharing is the point: a license means the same
+thing wherever it was found, and two parsers would eventually disagree about that.
+
+One scanner over two target kinds rather than two scanners, so a component's license policy cannot
+differ by where the code happens to sit and `doctor` names one tool. `--license-full` is available
+in both modes behind `full: true` — it reads `LICENSE` files and source headers instead of only
+package metadata, which finds licenses no manifest declares and costs a walk of every file.
 
 **JSON rather than SARIF, and that is the whole reason this scanner exists separately.** Trivy's
 SARIF output contains no license findings at all — they live only under `Results[].Licenses[]` in

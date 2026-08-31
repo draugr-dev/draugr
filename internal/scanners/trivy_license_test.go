@@ -1,8 +1,10 @@
 package scanners
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -161,5 +163,72 @@ func TestStringListTolerAtesYAMLDecoding(t *testing.T) {
 	}
 	if got := stringList(nil, denyKey); got != nil {
 		t.Errorf("stringList(nil) = %v", got)
+	}
+}
+
+// The image mode names the image on the command line rather than a directory.
+func TestTrivyLicenseImageArgv(t *testing.T) {
+	argv, err := trivyLicenseImageArgv(plugin.ImageTarget{Ref: "ghcr.io/acme/api:1.4"}, plugin.Config{})
+	if err != nil {
+		t.Fatalf("argv: %v", err)
+	}
+	want := []string{"trivy", "image", "--quiet", "--scanners", "license", "--format", "json",
+		"ghcr.io/acme/api:1.4"}
+	if !slices.Equal(argv, want) {
+		t.Errorf("argv = %v, want %v", argv, want)
+	}
+
+	// The digest wins where there is one: a tag moves and a scan keyed on it describes whichever
+	// image was current, which is the wrong one as soon as anybody rebuilds.
+	argv, err = trivyLicenseImageArgv(plugin.ImageTarget{
+		Ref: "ghcr.io/acme/api:1.4", Digest: "sha256:" + strings.Repeat("a", 64)}, plugin.Config{})
+	if err != nil {
+		t.Fatalf("argv: %v", err)
+	}
+	if last := argv[len(argv)-1]; !strings.Contains(last, "@sha256:") {
+		t.Errorf("target = %q, want the digest pinned", last)
+	}
+
+	if _, err := trivyLicenseImageArgv(plugin.RepositoryTarget{URL: "x"}, plugin.Config{}); err == nil {
+		t.Error("a repository target was accepted by the image mode")
+	}
+	if _, err := trivyLicenseImageArgv(plugin.ImageTarget{}, plugin.Config{}); err == nil {
+		t.Error("an image with neither ref nor digest was accepted")
+	}
+}
+
+// Full scanning is opt-in, in both modes and by the same key.
+//
+// It changes what the scan reads rather than how it reports — package metadata is a dependency
+// list, and full scanning walks every file for a LICENSE or a header — so a descriptor that did
+// not ask for it must not pay for it.
+func TestLicenseFullIsOptInInBothModes(t *testing.T) {
+	repo := trivyLicenseArgs("/tmp/tree", plugin.Config{})
+	if slices.Contains(repo, "--license-full") {
+		t.Error("repository mode asked for full scanning without being told to")
+	}
+	if repo = trivyLicenseArgs("/tmp/tree", plugin.Config{"full": true}); !slices.Contains(repo, "--license-full") {
+		t.Errorf("full: true did not reach the command line: %v", repo)
+	}
+
+	img, err := trivyLicenseImageArgv(plugin.ImageTarget{Ref: "alpine:3.19"}, plugin.Config{"full": true})
+	if err != nil {
+		t.Fatalf("argv: %v", err)
+	}
+	if !slices.Contains(img, "--license-full") {
+		t.Errorf("full: true did not reach the image command line: %v", img)
+	}
+}
+
+// One scanner, two modes, and the dispatch is on the target rather than on a flag.
+func TestTheLicenseScannerRefusesATargetItCannotRead(t *testing.T) {
+	s := NewTrivyLicense()
+	info := s.Info()
+	if !slices.Contains(info.TargetKinds, plugin.TargetRepository) ||
+		!slices.Contains(info.TargetKinds, plugin.TargetImage) {
+		t.Errorf("target kinds = %v, want both — the question has no target kind in it", info.TargetKinds)
+	}
+	if _, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://example.com"}, plugin.Config{}); err == nil {
+		t.Error("a host target was accepted; nothing there has a dependency tree to read")
 	}
 }

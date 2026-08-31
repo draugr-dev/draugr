@@ -172,3 +172,83 @@ func TestALicenseFindingInSomebodyElsesRepositoryIsMarkedUpstream(t *testing.T) 
 		}
 	}
 }
+
+// A component's images are scanned for licenses too.
+//
+// Two repositories and two images, per the rule that one of anything proves the loop runs and two
+// prove it does not collapse — and because a component holding both is the case this exists for: a
+// license obligation inside an image was invisible while this planned repositories only.
+func TestLicensesPlansImagesAsWellAsRepositories(t *testing.T) {
+	comp := &saga.Component{
+		Name: "analytics",
+		Repositories: []saga.Repository{
+			{URL: "https://github.com/acme/console.git"},
+			{URL: "https://github.com/acme/console-shared.git"},
+		},
+		Images: []saga.Image{
+			{Image: "ghcr.io/acme/console:4.2"},
+			{Image: "docker.io/library/alpine:3.19", BuiltBy: saga.BuiltByUpstream},
+		},
+	}
+	model := saga.Model{Config: saga.Config{
+		Controllers: map[string]saga.ControllerSettings{
+			"licenses": {"enabled": true, "deny": []any{"AGPL-3.0-only"}},
+		},
+	}}
+
+	jobs, err := Licenses{}.Plan(model, comp)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if len(jobs) != 4 {
+		t.Fatalf("planned %d jobs, want one per repository and one per image", len(jobs))
+	}
+
+	var repos, images []string
+	for _, job := range jobs {
+		// The same policy reaches every job. Which licenses a release may carry is a decision
+		// about the release, not about where the code happens to sit.
+		deny, _ := job.Config["deny"].([]string)
+		if len(deny) != 1 || deny[0] != "AGPL-3.0-only" {
+			t.Errorf("job carries deny=%v, want the component's policy", job.Config["deny"])
+		}
+		switch target := job.Target.(type) {
+		case plugin.RepositoryTarget:
+			repos = append(repos, target.URL)
+		case plugin.ImageTarget:
+			images = append(images, target.Ref)
+			// Who publishes it travels with the image, so a license in one somebody else builds
+			// is not reported as something to change here.
+			if want := target.Ref == "docker.io/library/alpine:3.19"; target.Upstream != want {
+				t.Errorf("%s: upstream = %v, want %v", target.Ref, target.Upstream, want)
+			}
+		default:
+			t.Errorf("unexpected target %T", job.Target)
+		}
+	}
+	if len(repos) != 2 || len(images) != 2 {
+		t.Errorf("planned %d repositories and %d images, want two of each", len(repos), len(images))
+	}
+}
+
+// A component with images and no repositories still gets scanned. It is the ordinary shape for
+// something a team runs and does not build, and it is exactly where the source tree is unavailable
+// to answer the license question by hand.
+func TestLicensesScansAComponentThatOnlyRunsImages(t *testing.T) {
+	jobs, err := Licenses{}.Plan(
+		saga.Model{Config: saga.Config{
+			Controllers: map[string]saga.ControllerSettings{"licenses": {"enabled": true}},
+		}},
+		&saga.Component{Name: "vendor-console", BuiltBy: saga.BuiltByUpstream,
+			Images: []saga.Image{{Image: "ghcr.io/vendor/console:4.2"}}})
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if len(jobs) != 1 {
+		t.Fatalf("planned %d jobs, want one for the image", len(jobs))
+	}
+	target, ok := jobs[0].Target.(plugin.ImageTarget)
+	if !ok || !target.Upstream {
+		t.Errorf("target = %+v, want the image marked as somebody else's", jobs[0].Target)
+	}
+}

@@ -464,6 +464,10 @@
               "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
               "type": "boolean"
             },
+            "full": {
+              "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower — it reads every file rather than the dependency list.",
+              "type": "boolean"
+            },
             "warn": {
               "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"].",
               "type": "array"
