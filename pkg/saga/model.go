@@ -538,10 +538,17 @@ type PublisherConfig struct {
 // Component is one logical part of an application: its repositories, images, hosts, and
 // infrastructure, plus optional per-component controller overrides and risk classification.
 type Component struct {
-	Name           string                        `yaml:"name"`
-	Labels         map[string]string             `yaml:"labels,omitempty"`
-	Exposure       Exposure                      `yaml:"exposure,omitempty"`
-	Criticality    Criticality                   `yaml:"criticality,omitempty"`
+	Name        string            `yaml:"name"`
+	Labels      map[string]string `yaml:"labels,omitempty"`
+	Exposure    Exposure          `yaml:"exposure,omitempty"`
+	Criticality Criticality       `yaml:"criticality,omitempty"`
+	// BuiltBy is who publishes this component's targets, unless one of them says otherwise.
+	//
+	// Here as well as on each target because a component that is entirely somebody else's software
+	// — a vendor console, an open-source service you run from source — otherwise needs the field
+	// written on every repository and every image, and a target added later silently defaults back
+	// to `self`.
+	BuiltBy        BuiltBy                       `yaml:"builtBy,omitempty"`
 	Repositories   []Repository                  `yaml:"repositories,omitempty"`
 	Images         []Image                       `yaml:"images,omitempty"`
 	Hosts          []Host                        `yaml:"hosts,omitempty"`
@@ -662,6 +669,23 @@ type Repository struct {
 	// one. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment,
 	// `**` across them.
 	Ignore []string `yaml:"ignore,omitempty"`
+	// BuiltBy says who publishes this repository: "self" (the default) or "upstream" for one this
+	// component uses and somebody else maintains. Falls back to the component's own `builtBy`.
+	//
+	// It decides what the report tells a reader to do. A denied license in the dependency tree of
+	// a repository this team does not publish is not a license they chose and not one they can
+	// swap out: the answers are to stop using the component or to record an exception, and
+	// "change the code" is neither. The same holds for a vulnerable dependency, a flaw in the
+	// source, and a credential committed there — the declaration is about who can change the
+	// thing, which does not vary by what found the problem.
+	//
+	// Declared rather than detected, for the reason an image's is: a git remote is not a statement
+	// of ownership. Plenty of teams publish from a fork and plenty consume from one.
+	//
+	// It changes the action and nothing else. The finding keeps its severity and its band — a flaw
+	// in somebody else's software is exactly as dangerous — and it is still counted and still
+	// reaches the gate.
+	BuiltBy BuiltBy `yaml:"builtBy,omitempty"`
 }
 
 // Image is a container image reference. Digest is the immutable content digest
@@ -685,7 +709,8 @@ type Image struct {
 	BuiltBy BuiltBy `yaml:"builtBy,omitempty"`
 }
 
-// BuiltBy says who publishes an image.
+// BuiltBy says who publishes a thing Draugr scans: a repository, an image, or every target on a
+// component at once.
 type BuiltBy string
 
 // Who builds an image.
@@ -932,4 +957,29 @@ func Marshal(doc any) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// PublishedBy resolves who publishes a repository: what it declares, else what its component
+// declares, else self.
+//
+// Most specific wins, which is the rule `controllers:` already follows — one answer to "how do
+// overrides work" rather than one per field.
+func (comp Component) PublishedBy(repo Repository) BuiltBy {
+	return resolveBuiltBy(repo.BuiltBy, comp.BuiltBy)
+}
+
+// PublishesImage resolves the same for an image.
+func (comp Component) PublishesImage(img Image) BuiltBy {
+	return resolveBuiltBy(img.BuiltBy, comp.BuiltBy)
+}
+
+// resolveBuiltBy takes the first value anybody set, and self when nobody did.
+func resolveBuiltBy(own, fallback BuiltBy) BuiltBy {
+	if own != "" {
+		return own
+	}
+	if fallback != "" {
+		return fallback
+	}
+	return BuiltBySelf
 }

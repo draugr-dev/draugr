@@ -219,11 +219,16 @@ type sarifProperties struct {
 	// have to do without. GitLab's container-scanning schema requires both, and neither can be
 	// guessed: a required field filled with something plausible is a claim a platform will
 	// render, attribute to Draugr, and act on in a policy.
-	Image              string `json:"image,omitempty"`
-	OperatingSystem    string `json:"operatingSystem,omitempty"`
-	OSEndOfLife        bool   `json:"osEndOfLife,omitempty"`
-	ProviderOperated   bool   `json:"providerOperated,omitempty"`
-	ImageBuiltUpstream bool   `json:"imageBuiltUpstream,omitempty"`
+	Image            string `json:"image,omitempty"`
+	OperatingSystem  string `json:"operatingSystem,omitempty"`
+	OSEndOfLife      bool   `json:"osEndOfLife,omitempty"`
+	ProviderOperated bool   `json:"providerOperated,omitempty"`
+	BuiltUpstream    bool   `json:"builtUpstream,omitempty"`
+	// ImageBuiltUpstream is what BuiltUpstream was called while it only described images. Read on
+	// input and never written, so a report produced by an older release still loads with the fact
+	// intact — a finding that silently became the reader's to fix is worse than one that fails to
+	// parse.
+	ImageBuiltUpstream bool `json:"imageBuiltUpstream,omitempty"`
 	// Layer survives the file for the same reason: it is what separates a finding this component
 	// introduced from one it inherited, and that answer is worth as much on the second read as
 	// on the first.
@@ -411,7 +416,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		if tool != "" || res.Control != "" || res.Escalation != nil || res.PriorityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
-			res.ProviderOperated || res.ImageBuiltUpstream {
+			res.ProviderOperated || res.BuiltUpstream {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
 				Exposure: res.Exposure, Criticality: res.Criticality,
@@ -419,10 +424,10 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				PriorityFloor: res.PriorityFloor,
 				Repository:    res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
-				Reachability:       res.Reachability,
-				OSEndOfLife:        res.OSEndOfLife,
-				ProviderOperated:   res.ProviderOperated,
-				ImageBuiltUpstream: res.ImageBuiltUpstream,
+				Reachability:     res.Reachability,
+				OSEndOfLife:      res.OSEndOfLife,
+				ProviderOperated: res.ProviderOperated,
+				BuiltUpstream:    res.BuiltUpstream,
 			}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
@@ -664,7 +669,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Layer = sr.Properties.Layer
 				res.OSEndOfLife = sr.Properties.OSEndOfLife
 				res.ProviderOperated = sr.Properties.ProviderOperated
-				res.ImageBuiltUpstream = sr.Properties.ImageBuiltUpstream
+				res.BuiltUpstream = sr.Properties.BuiltUpstream || sr.Properties.ImageBuiltUpstream
 				res.Package = sr.Properties.Package
 				res.Reachability = sr.Properties.Reachability
 				res.Escalation = sr.Properties.Escalation

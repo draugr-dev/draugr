@@ -163,6 +163,26 @@ components:
           # exercise them. A scan of a staging API that deletes its own fixtures is a scan
           # nobody runs twice — so a write method is listed here or it is not exercised.
 
+  # A component that is entirely somebody else's software: a vendor console we run and do not
+  # maintain. `builtBy` on the component covers every target under it, so a repository or image
+  # added later does not silently default back to being ours.
+  #
+  # It changes what the report tells you to do and nothing else — the findings keep their severity
+  # and their band, are still counted, and still reach the gate. A denied license in the dependency
+  # tree of a repository we do not publish is not a license we chose and not one we can swap out:
+  # the answers are to stop using the console or to record an exception, and "change the code" is
+  # neither.
+  - name: analytics-console
+    exposure: internal
+    criticality: supporting
+    builtBy: upstream        # self (default) | upstream — for every target below
+    repositories:
+      - url: https://github.com/vendor/console.git
+      - url: https://github.com/acme/console-config.git
+        builtBy: self        # …except this one, which we do publish
+    images:
+      - image: ghcr.io/vendor/console:4.2
+
   # A batch job: source only, and one control turned off just for this component.
   - name: nightly-etl
     exposure: restricted

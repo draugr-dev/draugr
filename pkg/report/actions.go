@@ -134,7 +134,7 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 	for _, key := range order {
 		a := *byKey[key]
 		if f, ok := a.exemplar(); ok {
-			a.upstream = f.imageBuiltUpstream
+			a.upstream = f.builtUpstream
 		}
 		// Every finding, not any: an action grouping one stale row with three fresh ones is not
 		// a stale action, and marking it so would tell a reader to distrust work that is current.
@@ -182,10 +182,20 @@ func actionFor(f finding) (key, title string) {
 	//
 	// Before the package case, because a finding is both: it names a package, and the package is
 	// not the unit of work here.
-	case f.imageBuiltUpstream && f.location != "":
+	case f.builtUpstream && f.control == "images" && f.location != "":
 		// The image is the title, so the row does not repeat it below, and the reason it is the
 		// unit of work goes in the meta as one word rather than a clause on every line.
 		return "image\x00" + f.location, "Update " + displayLocation(f)
+
+	// The same argument one level up, for a repository somebody else publishes. The unit of work
+	// is their software, not a file inside it: keying on the location here would title the action
+	// "Update requirements.txt", which is an instruction to edit a file in a repository the reader
+	// cannot push to — precisely the advice declaring `builtBy: upstream` exists to stop.
+	//
+	// Falls back to the component when the repository is a local path, which is what a scan of a
+	// checkout reports. "Update ." names nothing.
+	case f.builtUpstream && upstreamUnit(f) != "":
+		return "upstream\x00" + upstreamUnit(f), "Update " + upstreamUnit(f)
 
 	// An upgrade is one action however many vulnerabilities it resolves, which is the case that
 	// pays off most: a library a year out of date carries a dozen findings and one fix.
@@ -361,10 +371,10 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 				level: res.Level, severity: res.Severity(""),
 				helpURI: rep.HelpURI(res.RuleID),
 				score:   res.Score, hasScore: res.HasScore,
-				remediation:        res.Remediation(),
-				imageBuiltUpstream: res.ImageBuiltUpstream,
-				pkg:                res.Package,
-				operatingSystem:    res.OperatingSystem,
+				remediation:     res.Remediation(),
+				builtUpstream:   res.BuiltUpstream,
+				pkg:             res.Package,
+				operatingSystem: res.OperatingSystem,
 			})
 		}
 	}
@@ -398,4 +408,17 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 		})
 	}
 	return out
+}
+
+// upstreamUnit names the thing a reader would have to take a newer version of.
+//
+// The repository where it identifies one, and the component otherwise — a scan of a local checkout
+// records the path it was given, and "." is not something anybody can go and update. Empty when
+// neither is known, which leaves the finding to the ordinary package and code cases below rather
+// than titling an action after nothing.
+func upstreamUnit(f finding) string {
+	if r := f.repository; r != "" && r != "." && !strings.HasPrefix(r, "/") && !strings.HasPrefix(r, ".") {
+		return shortRepository(r)
+	}
+	return f.component
 }

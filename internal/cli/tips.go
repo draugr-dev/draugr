@@ -242,11 +242,18 @@ func hasImageFindings(run engine.Result) bool {
 // Any, not all: a descriptor that has answered the question once has been told about it, and
 // repeating the advice for the images it left at the default would be nagging about a decision
 // somebody has already made.
+// declaresBuiltBy reports whether anything in the descriptor says who publishes it.
+//
+// A component-wide declaration counts: it covers every target under it, and a descriptor that has
+// said who publishes its images should not be nagged to say it again per image.
 func declaresBuiltBy(model *saga.Model) bool {
 	if model == nil {
 		return false
 	}
 	for _, c := range model.Components {
+		if c.BuiltBy != "" {
+			return true
+		}
 		for _, img := range c.Images {
 			if img.BuiltBy != "" {
 				return true

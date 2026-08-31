@@ -40,6 +40,10 @@ type RepositoryTarget struct {
 	// Set by the engine rather than by each controller, so a controller written next cannot
 	// forget it.
 	Remote string
+	// Upstream marks a repository this component uses and somebody else publishes, so a finding
+	// inside it is not the reader's to fix where it is — a denied license in its dependency tree
+	// is not one they chose, and telling them to change the code is advice they cannot take.
+	Upstream bool
 	// WorkingTree scans the checkout as it is on disk, uncommitted work included, instead of the
 	// committed revision. Set only by `draugr scan --working-tree`, and only meaningful for a
 	// local path.
@@ -76,6 +80,9 @@ func (t RepositoryTarget) Identity() string {
 	return id
 }
 
+// BuiltUpstream reports who publishes this repository.
+func (t RepositoryTarget) BuiltUpstream() bool { return t.Upstream }
+
 // scopeKey renders a repository scope for an identity. Empty when nothing is restricted, so an
 // unscoped target keeps the identity it always had.
 func scopeKey(paths, ignore []string) string {
@@ -85,14 +92,29 @@ func scopeKey(paths, ignore []string) string {
 	return "paths=" + strings.Join(paths, ",") + ";ignore=" + strings.Join(ignore, ",")
 }
 
+// UpstreamPublished is an optional interface a Target implements when the descriptor may declare
+// that somebody else publishes it.
+//
+// An interface rather than a field on every target, because it is not true of every kind: a host
+// is somebody's endpoint and a cluster has `operatedBy`, which answers the same question in the
+// vocabulary that surface uses. The engine asks; a target that cannot answer is the reader's own.
+type UpstreamPublished interface {
+	// BuiltUpstream reports whether somebody else publishes this target, so a finding inside it
+	// is not the reader's to fix where it is.
+	BuiltUpstream() bool
+}
+
 // ImageTarget is a container image. Identity prefers the immutable digest.
 type ImageTarget struct {
 	Ref    string
 	Digest string
-	// BuiltUpstream marks an image this component runs and somebody else publishes, so a
-	// package inside it is not the reader's to upgrade — the fix is a newer image.
-	BuiltUpstream bool
+	// Upstream marks an image this component runs and somebody else publishes, so a package
+	// inside it is not the reader's to upgrade — the fix is a newer image.
+	Upstream bool
 }
+
+// BuiltUpstream reports who publishes this image.
+func (t ImageTarget) BuiltUpstream() bool { return t.Upstream }
 
 // Kind returns TargetImage.
 func (ImageTarget) Kind() TargetKind { return TargetImage }

@@ -1297,14 +1297,16 @@ components:
     labels: { team: platform } # optional key/value metadata
     exposure: public          # optional — risk exposure
     criticality: critical     # optional — business criticality
+    builtBy: self             # optional — self (default) or upstream, for every target below
     repositories:
       - url: https://github.com/acme/web.git   # required
         revision: main                          # optional
         paths: ["services/web"]                 # optional — scan only this subtree
         ignore: ["**/testdata/**"]              # optional — remove these from the scan
+        builtBy: self                           # optional — overrides the component's
     images:
       - image: registry.example.com/acme/web:1.0  # required
-        builtBy: self                             # optional — self (default) or upstream
+        builtBy: self                             # optional — overrides the component's
         digest: sha256:…                          # optional — pin the immutable content digest
     hosts:
       - name: api
@@ -1337,17 +1339,46 @@ distinct finding, and the report grows a `Repository` column when findings span 
 The same applies to repositories a [fragment](../guides/saga-fragments.md) contributes from another
 project.
 
-**Who builds it:** `builtBy` says whether this team builds the image (`self`, the default) or
-only runs one somebody else publishes (`upstream`). It decides what the report tells you to do
-about a vulnerable package inside it.
+**Who publishes it:** `builtBy` says whether this team publishes the thing being scanned (`self`,
+the default) or somebody else does (`upstream`). It may be declared on a **repository**, on an
+**image**, or on the **component**, where it covers every target that does not say otherwise —
+most specific wins, the same rule `controllers:` follows.
+
+It decides what the report tells you to do, and nothing else. The finding keeps its severity and
+its band, is still counted, and still reaches the gate: a flaw in somebody else's software is
+exactly as dangerous, and what differs is who can end it.
 
 Nobody can upgrade a library inside an image they do not build. The fix is a newer image, or a
 wait for whoever publishes it — so for an `upstream` image the fix list groups every finding in it
 into one action, *take a newer image*, instead of listing each library as something to upgrade.
 
+The same holds for a repository, and licenses are where it is felt most. A denied license in the
+dependency tree of a repository you do not publish is not a license you chose and not one you can
+swap out — the answers are to stop using the component or to record an exception, and "change the
+code" is neither. It applies to every control for the same reason: the declaration is about who
+can change the thing, which does not vary by what found the problem.
+
+**It is declared, never detected.** Nothing inside an image says who built it, and a git remote is
+not a statement of ownership — plenty of teams publish from a fork, and plenty consume from one.
+
 `self` is the default because a descriptor written by hand describes what a team builds. One
 written by a surveyor describes a running cluster, where most images come from somebody else, and
 that is the case worth declaring.
+
+**Component-wide is the form to reach for** when the whole component is somebody else's software —
+a vendor console, an open-source service you run from source. Writing it on each target instead
+means a repository or image added later silently defaults back to `self`.
+
+```yaml
+- name: analytics-console
+  builtBy: upstream            # everything here is the vendor's
+  repositories:
+    - url: https://github.com/vendor/console.git
+    - url: https://github.com/acme/console-config.git
+      builtBy: self            # …except this, which we do publish
+  images:
+    - image: ghcr.io/vendor/console:4.2
+```
 
 **Who operates it:** `operatedBy` says whether this team runs the surface (`self`, the default) or
 a managed platform does (`provider`). It states a fact, and what follows from it is derived rather
