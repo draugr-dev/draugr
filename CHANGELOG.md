@@ -12,6 +12,38 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.112.0] - 2026-08-31
+
+### Added
+
+- `builtBy` now works on a **repository** and on a **component**, not only on an image. Declare it
+  once on a component that is entirely somebody else's software and it covers every target under
+  it; a repository or an image may override it. It changes what the report tells you to do and
+  nothing else — the finding keeps its severity and its band, is still counted, and still reaches
+  the gate. Licenses are where it is felt most: a denied license in the dependency tree of a
+  repository you do not publish is not one you chose and not one you can swap out, so the report
+  stops telling you to change code you do not own.
+
+- The `licenses` control now scans a component's **images** as well as its repositories. A license
+  obligation inside a deployed image used to be invisible — and silently so, because the control
+  ran and reported covered — which landed hardest on third-party images, where the source
+  repository is not declared because the team does not build it. Nothing to change in your
+  descriptor: `licenses: enabled: true` covers both, with the same policy.
+- `licenses` gained `trivyLicense.full: true`, which turns on Trivy's `--license-full` to read
+  `LICENSE` files and source headers rather than only package metadata. It finds licenses no
+  manifest declares, and walks every file to do it — so a pull-request gate probably wants the
+  fast answer and a release probably wants this one.
+
+### Fixed
+
+- `examples/` now writes every field a Saga descriptor has. `builtBy` on an image somebody else
+  publishes, exclusions carrying `acceptedBy`, `expires` and a VEX status, exploitability feeds,
+  fragments, SBOM scope, per-control gate thresholds, host authentication and OpenAPI-driven
+  scans, and `operatedBy` on a managed cluster were all documented and in the schema without
+  appearing in a single file anybody could copy. New examples: accepting a finding on the record,
+  ranking on exploitability, and a root descriptor collecting fragments from the teams that own
+  the code.
+
 ## [0.111.1] - 2026-08-30
 
 ### Fixed
@@ -5128,7 +5160,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.111.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.112.0...HEAD
+[0.112.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.112.0
 [0.111.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.111.1
 [0.111.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.111.0
 [0.110.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.110.0
