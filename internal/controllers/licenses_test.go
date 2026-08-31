@@ -126,3 +126,49 @@ func TestLicensesAggregateEmpty(t *testing.T) {
 		t.Errorf("summary = %+v, want zero", got.Summary)
 	}
 }
+
+// A repository somebody else publishes reaches the scanner saying so.
+//
+// Through the licenses controller because it is the control the case was reported against: a
+// denied license in the dependency tree of a repository this team does not publish is not a
+// license they chose and not one they can swap out, and a report telling them to change the code
+// is telling them to do something impossible.
+//
+// Two repositories, one declared on the component and one overriding it, because a single
+// repository cannot tell a resolved value from a hardcoded one.
+func TestALicenseFindingInSomebodyElsesRepositoryIsMarkedUpstream(t *testing.T) {
+	comp := &saga.Component{
+		Name:    "analytics-console",
+		BuiltBy: saga.BuiltByUpstream,
+		Repositories: []saga.Repository{
+			{URL: "https://github.com/vendor/console.git"},
+			{URL: "https://github.com/acme/console-config.git", BuiltBy: saga.BuiltBySelf},
+		},
+	}
+	model := saga.Model{Config: saga.Config{
+		Controllers: map[string]saga.ControllerSettings{"licenses": {"enabled": true}},
+	}}
+
+	jobs, err := Licenses{}.Plan(model, comp)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if len(jobs) != 2 {
+		t.Fatalf("planned %d jobs, want one per repository", len(jobs))
+	}
+
+	want := map[string]bool{
+		"https://github.com/vendor/console.git":      true,
+		"https://github.com/acme/console-config.git": false,
+	}
+	for _, job := range jobs {
+		target, ok := job.Target.(plugin.RepositoryTarget)
+		if !ok {
+			t.Fatalf("target is %T, want a repository", job.Target)
+		}
+		if target.Upstream != want[target.URL] {
+			t.Errorf("%s: upstream = %v, want %v — the component declares upstream and the "+
+				"second repository overrides it", target.URL, target.Upstream, want[target.URL])
+		}
+	}
+}

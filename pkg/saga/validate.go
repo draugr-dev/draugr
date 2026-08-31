@@ -236,10 +236,17 @@ func validateComponents(comps []Component) []error {
 		if c.Criticality != "" && !c.Criticality.Valid() {
 			errs = append(errs, fmt.Errorf("%s: invalid criticality %q (want one of %v)", where, c.Criticality, Criticalities))
 		}
+		if c.BuiltBy != "" && !c.BuiltBy.Valid() {
+			errs = append(errs, fmt.Errorf("%s: builtBy %q is not one of %v", where, c.BuiltBy, BuiltByValues))
+		}
 
 		for j, r := range c.Repositories {
 			if r.URL == "" {
 				errs = append(errs, fmt.Errorf("%s: repositories[%d].url is required", where, j))
+			}
+			if r.BuiltBy != "" && !r.BuiltBy.Valid() {
+				errs = append(errs, fmt.Errorf("%s: repositories[%d].builtBy %q is not one of %v",
+					where, j, r.BuiltBy, BuiltByValues))
 			}
 			errs = append(errs, validateRepoScope(fmt.Sprintf("%s: repositories[%d]", where, j), r)...)
 		}

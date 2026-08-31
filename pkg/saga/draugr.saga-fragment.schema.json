@@ -5,6 +5,14 @@
       "additionalProperties": false,
       "description": "One logical part of the app. All surface lists are optional — declare what applies.",
       "properties": {
+        "builtBy": {
+          "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image — where a target added later silently defaults back to self.",
+          "enum": [
+            "self",
+            "upstream"
+          ],
+          "type": "string"
+        },
         "controllers": {
           "$ref": "#/$defs/controllers",
           "description": "Per-component control overrides. Same shape as config.controllers; component settings win."
@@ -1283,6 +1291,14 @@
     "repository": {
       "additionalProperties": false,
       "properties": {
+        "builtBy": {
+          "description": "Who publishes this repository: \"self\" (the default) or \"upstream\" for one this component uses and somebody else maintains. Falls back to the component's own builtBy. It decides what the report tells you to do — a denied license in the dependency tree of a repository you do not publish is not one you chose and not one you can swap out, so \"change the code\" is the wrong advice.",
+          "enum": [
+            "self",
+            "upstream"
+          ],
+          "type": "string"
+        },
         "ignore": {
           "description": "Remove matching paths from the scan, applied after `paths`. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment, `**` across them.",
           "items": {

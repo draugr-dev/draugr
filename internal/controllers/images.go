@@ -39,7 +39,7 @@ func (Images) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, er
 	for _, img := range comp.Images {
 		target := plugin.ImageTarget{
 			Ref: img.Image, Digest: img.Digest,
-			BuiltUpstream: img.BuiltBy == saga.BuiltByUpstream,
+			Upstream: comp.PublishesImage(img) == saga.BuiltByUpstream,
 		}
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})

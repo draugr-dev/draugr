@@ -1161,20 +1161,36 @@ func appendJobs(dst []PlannedJob, control, component string, exposure saga.Expos
 }
 
 // stampJobFields returns a copy of report with the per-run facts about the job that produced it:
-// which component it belongs to, and the priority band its classification earns.
+// which component it belongs to, who publishes what was scanned, and the priority band its
+// classification earns.
 //
-// Both are per-run rather than cached, and for the same reason — two jobs can share a cache key
-// while belonging to different components with different classifications, so the cached findings
-// must never be mutated. The slice is copied for that.
+// All of them are per-run rather than cached, and for the same reason — two jobs can share a cache
+// key while belonging to different components with different classifications, and two components
+// can share a repository while disagreeing about who publishes it. The cached findings must never
+// be mutated, so the slice is copied.
 func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report {
 	if len(report.Results) == 0 {
 		return report
+	}
+	// Asked of the target rather than written by whichever scanner produced the finding. It was
+	// set inside the Trivy scanner while it only described images, which made remembering it the
+	// duty of every scanner written next — and a scanner that forgets does not fail, it reports
+	// somebody else's software as the reader's to fix.
+	upstream := false
+	if u, ok := pj.Job.Target.(plugin.UpstreamPublished); ok {
+		upstream = u.BuiltUpstream()
 	}
 	out := report
 	out.Results = make([]sarif.Result, len(report.Results))
 	copy(out.Results, report.Results)
 	for i := range out.Results {
 		out.Results[i].Component = pj.Component
+		// Never cleared: a scanner that already knows more than the descriptor does — kube-bench
+		// deciding which controls the provider runs — must not have that answer overwritten by a
+		// target that simply does not declare one.
+		if upstream {
+			out.Results[i].BuiltUpstream = true
+		}
 		// The classification that produced the band, traveling with the finding it explains. The
 		// prioritizer below reads the same two values; recording them is what lets a reader check
 		// its arithmetic without the descriptor in hand.

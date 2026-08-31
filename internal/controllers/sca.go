@@ -47,7 +47,9 @@ func (SCA) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error
 	}
 	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(selections))
 	for _, repo := range comp.Repositories {
-		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision, Paths: repo.Paths, Ignore: repo.Ignore}
+		target := plugin.RepositoryTarget{URL: repo.URL, Revision: repo.Revision,
+			Paths: repo.Paths, Ignore: repo.Ignore,
+			Upstream: comp.PublishedBy(repo) == saga.BuiltByUpstream}
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: sel.Config})
 		}

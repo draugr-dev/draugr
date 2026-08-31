@@ -64,3 +64,33 @@ func TestSlugifyDegenerate(t *testing.T) {
 		t.Errorf("notice offers an empty project name: %s", got[0])
 	}
 }
+
+// Who publishes a target is declared in up to three places, and the most specific wins. The rule
+// matters because getting it backwards makes a component-wide declaration unsayable: a component
+// that is entirely somebody else's software would need the field on every target, and a target
+// added later would silently default back to being the reader's own.
+func TestWhoPublishesATargetResolvesMostSpecificFirst(t *testing.T) {
+	for name, tc := range map[string]struct {
+		component, target BuiltBy
+		want              BuiltBy
+	}{
+		"nobody says":                {"", "", BuiltBySelf},
+		"the component says":         {BuiltByUpstream, "", BuiltByUpstream},
+		"the target says":            {"", BuiltByUpstream, BuiltByUpstream},
+		"the target overrides":       {BuiltByUpstream, BuiltBySelf, BuiltBySelf},
+		"the target agrees":          {BuiltByUpstream, BuiltByUpstream, BuiltByUpstream},
+		"self on the component only": {BuiltBySelf, "", BuiltBySelf},
+	} {
+		t.Run(name, func(t *testing.T) {
+			comp := Component{BuiltBy: tc.component}
+			if got := comp.PublishedBy(Repository{BuiltBy: tc.target}); got != tc.want {
+				t.Errorf("repository = %q, want %q", got, tc.want)
+			}
+			// The same rule for both kinds of target, because a reader who learns it once should
+			// not find that images answer differently.
+			if got := comp.PublishesImage(Image{BuiltBy: tc.target}); got != tc.want {
+				t.Errorf("image = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

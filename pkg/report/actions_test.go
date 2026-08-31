@@ -261,7 +261,7 @@ func TestDisplayLocationShortensImageReferences(t *testing.T) {
 func TestUpstreamImagesGroupByImageNotPackage(t *testing.T) {
 	upstream := func(rule, prio, image, pkg string) finding {
 		f := pkgFinding("images", rule, prio, image, pkg, "1.0", "1.1")
-		f.imageBuiltUpstream = true
+		f.builtUpstream = true
 		return f
 	}
 	in := []finding{
@@ -363,8 +363,8 @@ func TestActionsForNamesAnUpstreamImageOnce(t *testing.T) {
 		return sarif.Result{
 			RuleID: rule, Priority: "P1", Level: sarif.LevelError,
 			Location: sarif.Location{URI: "python:3.8-slim"}, Image: "python:3.8-slim",
-			ImageBuiltUpstream: true,
-			Package:            &sarif.Package{Name: pkgName, Version: "1", FixedVersion: "2"},
+			BuiltUpstream: true,
+			Package:       &sarif.Package{Name: pkgName, Version: "1", FixedVersion: "2"},
 		}
 	}
 	got := ActionsFor(map[string]sarif.Report{"images": {Results: []sarif.Result{
@@ -449,5 +449,64 @@ func TestAnActionCarriesEveryVersionThatClearsIt(t *testing.T) {
 	}}})
 	if len(split) != 1 || len(split[0].FixedVersions) != 2 {
 		t.Errorf("fixedVersions = %+v, want both releases named", split[0].FixedVersions)
+	}
+}
+
+// A repository somebody else publishes is one action: theirs.
+//
+// The unit of work is their software, not a file inside it. Keying on the location would title the
+// action after `requirements.txt` — an instruction to edit a file in a repository the reader cannot
+// push to, which is exactly the advice `builtBy: upstream` exists to stop. Three packages here, so
+// the test can tell one action from three.
+func TestFindingsInSomebodyElsesRepositoryBecomeOneAction(t *testing.T) {
+	fs := []finding{
+		{control: "sca", ruleID: "CVE-1", location: "requirements.txt:1", repository: "https://github.com/vendor/console.git",
+			component: "analytics", builtUpstream: true, priority: "P2", pkg: &sarif.Package{Name: "Flask", Version: "0.12.2"}},
+		{control: "sca", ruleID: "CVE-2", location: "requirements.txt:2", repository: "https://github.com/vendor/console.git",
+			component: "analytics", builtUpstream: true, priority: "P2", pkg: &sarif.Package{Name: "PyYAML", Version: "5.1"}},
+		{control: "licenses", ruleID: "license/GPL-3.0-only/x", location: "requirements.txt:3",
+			repository: "https://github.com/vendor/console.git", component: "analytics", builtUpstream: true, priority: "P3"},
+	}
+
+	got, _ := groupActions(fs, nil)
+	if len(got) != 1 {
+		t.Fatalf("grouped into %d actions, want one — their software is the unit: %+v", len(got), got)
+	}
+	// Named as a reader would say it, not as a clone URL. The license finding is in there too:
+	// the declaration is about who can change the thing, not about what found the problem.
+	if got[0].title != "Update vendor/console" {
+		t.Errorf("title = %q, want the repository named", got[0].title)
+	}
+	if len(got[0].findings) != 3 {
+		t.Errorf("clears %d, want all three", len(got[0].findings))
+	}
+	if !got[0].upstream {
+		t.Error("the action does not say it is somebody else's")
+	}
+}
+
+// A checkout scanned by path records the path as its repository, and "Update ." names nothing. The
+// component is the fallback, because it is the thing the reader actually decided to depend on.
+func TestAnUpstreamCheckoutIsNamedByItsComponent(t *testing.T) {
+	got, _ := groupActions([]finding{
+		{control: "sca", ruleID: "CVE-1", location: "requirements.txt:1", repository: ".",
+			component: "vendor-console", builtUpstream: true, priority: "P2",
+			pkg: &sarif.Package{Name: "Flask", Version: "0.12.2"}},
+	}, nil)
+	if len(got) != 1 || got[0].title != "Update vendor-console" {
+		t.Errorf("actions = %+v, want one named after the component", got)
+	}
+}
+
+// An image keeps the action it always had: the image is the thing to take a newer copy of, and it
+// is already the location, so the two upstream cases must not collapse into one another.
+func TestAnUpstreamImageIsStillNamedByTheImage(t *testing.T) {
+	got, _ := groupActions([]finding{
+		{control: "images", ruleID: "CVE-1", location: "ghcr.io/vendor/console:4.2",
+			repository: "https://github.com/vendor/console.git", component: "analytics",
+			builtUpstream: true, priority: "P2", pkg: &sarif.Package{Name: "openssl", Version: "1.1.1n"}},
+	}, nil)
+	if len(got) != 1 || got[0].title != "Update vendor/console:4.2" {
+		t.Errorf("actions = %+v, want one named after the image", got)
 	}
 }
