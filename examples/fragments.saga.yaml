@@ -1,0 +1,46 @@
+# Example Saga — a root descriptor that collects fragments from the teams that own the code.
+# Run it with:  draugr scan examples/fragments.saga.yaml
+#
+# One descriptor for a whole organization means one file every team has to edit, reviewed by
+# whoever owns that file. A fragment lets a team declare its own component, and accept its own
+# findings, in its own repository — while the root still decides what runs and what the gate is.
+#
+# What a fragment may set is deliberately smaller than what a root may: components, its own
+# exclusions, and further fragments. It cannot turn a control off, change the gate, or alter a
+# report. A team accepting a finding is a decision they are entitled to make and one that stays
+# visible; a team quietly disabling the secrets scanner is not.
+
+project: acme
+release:
+  version: "2026.8"
+
+# Where the fragments are. Globs use the same dialect as `paths:` and `ignore:` — `*` within a
+# path segment, `**` across them — so one line collects a fragment from every service in a
+# monorepo. Relative to the file that names them, so a fragment keeps working when it moves.
+fragments:
+  - path: fragments/*.saga-fragment.yaml
+
+  # A fragment from another repository, for an organization whose services do not share one tree.
+  # `revision` is required and deliberately not defaulted to the default branch: a fragment that
+  # tracks a moving branch is a gate that changes with no commit in this repository. The revision
+  # a run resolved to is recorded in the report, so a tag that moves is visible afterwards.
+  # - url: https://github.com/acme/platform-descriptors.git
+  #   revision: v3.2.0
+  #   path: services/**/draugr.saga-fragment.yaml
+
+config:
+  controllers:
+    sca:
+      enabled: true
+    images:
+      enabled: true
+    secrets:
+      enabled: true
+
+# The root may declare components too. Fragments are appended to these rather than replacing them.
+components:
+  - name: gateway
+    exposure: public
+    criticality: critical
+    images:
+      - image: alpine:3.19

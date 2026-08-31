@@ -1,0 +1,30 @@
+# A fragment — one team's part of the descriptor, living in the repository they own.
+#
+# Collected by examples/fragments.saga.yaml. It declares a component and accepts one finding
+# against it, which is the whole shape of what a team owns: what we ship, and what we have
+# decided to live with.
+#
+# There is no `project`, no `release` and no `config.controllers` here, and that is not an
+# omission. A fragment cannot set them — which is what makes collecting fragments from repositories
+# this team controls a safe thing for the organization to do.
+
+components:
+  - name: payments-api
+    exposure: public
+    criticality: critical
+    labels:
+      team: payments
+    images:
+      - image: alpine:3.19
+      - image: docker.io/library/redis:7-alpine
+        builtBy: upstream
+
+config:
+  # Appended to whatever the root and the other fragments already carry, and the report says which
+  # file authorized each one. Splitting exclusions across files is only safe if the provenance
+  # travels with the rule.
+  exclude:
+    - rules: [CVE-2023-45853]
+      reason: zlib is present but the vulnerable path is not reachable from our handlers
+      acceptedBy: payments@example.com
+      expires: "2026-12-31"

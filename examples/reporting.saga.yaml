@@ -30,6 +30,16 @@ config:
     - format: template              # a custom payload — e.g. a one-line summary
       template: "{{.Verdict}}: P1={{.Priorities.P1}} P2={{.Priorities.P2}}\n"
       filename: summary.txt
+    - format: template              # the same, from a file rather than inline
+      templateFile: contrib/report.tmpl   # relative to where Draugr runs
+      filename: report.txt                # a template past a line or two is unreadable in YAML,
+                                          # and a file can be reviewed, diffed and reused
+    # Narrowed to what somebody will act on. A markdown report of four hundred findings pasted
+    # into a merge request is a report nobody reads to the end — and the ones below the fold are
+    # the ones this format exists to surface. The full set is still in the SARIF above.
+    - format: markdown
+      filename: fix-first.md
+      minPriority: P2               # P1 | P2 | P3 | P4 — this report carries P1 and P2 only
 
   # Where to deliver them.
   publishers:
@@ -43,8 +53,26 @@ config:
       #
       # Optional explicit overrides (e.g. running from another CI):
       # repo: acme/my-app
+      # commit: ${{ GIT_SHA }}      # the revision the results are attached to
       # ref: refs/heads/main
       # tokenEnv: GH_PAT            # name the env var that holds the token
+
+    - kind: azure-pr-comment        # the same, on Azure DevOps
+      # Everything here is read from the pipeline — the collection URI, the team project, the
+      # repository and $SYSTEM_ACCESSTOKEN — so these are overrides for running from elsewhere.
+      # org: https://dev.azure.com/acme
+      # project: payments
+      # pr: 4412                    # the pull request to comment on, when it cannot be detected
+
+    - kind: github-pr-comment       # a sticky pull-request comment on GitHub
+      # The pull request is read from $GITHUB_REF, so this line is usually the whole thing. On a
+      # push to a branch it no-ops, which is what lets one Saga serve both.
+      #
+      # marker: "<!-- draugr:nightly -->"
+      # What makes the comment sticky: Draugr finds its own previous comment by this string and
+      # edits it rather than adding another. Change it only to run two Draugr jobs against one
+      # pull request — a nightly sweep and a per-commit gate posting under one marker would take
+      # turns overwriting each other's verdict.
 
     - kind: gitlab-mr-comment       # a sticky merge-request comment on GitLab
       # The project and the merge request are read from the runner (CI_PROJECT_ID /

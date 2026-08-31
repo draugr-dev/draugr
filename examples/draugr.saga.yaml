@@ -23,6 +23,27 @@ config:
   # different targets is a second descriptor.
   # allowEffects: [mutate, privilege]
 
+  # What fails the build. `--fail-on` sets one threshold for everything; this says where that one
+  # threshold does not fit.
+  gate:
+    controls:
+      licenses: high         # critical | high | medium | low, per control
+      sca: critical
+      # One threshold cannot serve every control: license policy is owned by legal and
+      # vulnerability policy by security, and "fail on a forbidden license but only warn on a
+      # medium CVE" is a reasonable position a single global threshold makes unsayable.
+    # failOnPriority: P1     # also fail on priority, which folds in what you declared below
+
+  # An inventory of what you ship, rendered alongside the findings.
+  sbom:
+    enabled: true            # one document per repository and image
+    format: cyclonedx-json   # cyclonedx-json | cyclonedx-xml | spdx-json
+    scope: both              # component (default) | project | both
+    # `component` is one document per target, which is what a consumer asking about one image
+    # wants. `project` is a single document covering everything this descriptor names, which is
+    # what an auditor asking what the product is made of wants. They answer different questions,
+    # so `both` renders each.
+
   controllers:
     images:
       enabled: true          # container images (Trivy)
@@ -99,6 +120,14 @@ components:
     images:
       - image: registry.example.com/acme/web:1.4.0
         digest: sha256:3f8e4a1c9d2b5e7a0c6f8b1d4e7a9c2f5b8e1d4a7c0f3b6e9d2a5c8f1b4e7a0c
+        # builtBy: self is the default and does not need writing.
+      - image: docker.io/library/nginx:1.27-alpine
+        builtBy: upstream    # self (default) | upstream
+        # An image this component runs and somebody else publishes. It decides what the report
+        # tells you to do about a vulnerable package inside it: nobody can upgrade a library in an
+        # image they do not build, so the fix is a newer image or a wait for whoever ships it.
+        # Advice you cannot take, at the top of a list called "fix first", teaches you the list is
+        # not worth reading — so declare this on every base and sidecar image you did not build.
     hosts:
       - name: web-ui-staging
         url: https://staging.app.example.com
@@ -122,6 +151,17 @@ components:
       - name: api
         url: https://api.internal.example.com
         type: api            # skips browser-only headers
+        auth:                # how to authenticate the probe; omit to probe anonymously
+          type: bearer       # bearer (Authorization: Bearer <token>) | header
+          tokenEnv: API_TOKEN   # the environment variable holding it — never the token itself
+          # type: header
+          # header: X-API-Key
+        spec:                # drive the scan from an OpenAPI document instead of crawling
+          path: api/openapi.yaml       # relative to where Draugr runs
+          methods: [GET, HEAD, POST]   # empty means GET and HEAD only
+          # A specification lists POST, PUT and DELETE too, and a scanner handed one will
+          # exercise them. A scan of a staging API that deletes its own fixtures is a scan
+          # nobody runs twice — so a write method is listed here or it is not exercised.
 
   # A batch job: source only, and one control turned off just for this component.
   - name: nightly-etl
@@ -135,6 +175,12 @@ components:
     infrastructure:
       - kind: kubernetes
         ref: prod-cluster
+        namespaces: [etl]        # the namespaces this component owns; empty means the whole cluster
+        operatedBy: provider     # self (default) | provider, for a managed service
+        # It states a fact rather than a judgement: on a managed cluster the provider runs the
+        # control plane, the API server and etcd. RBAC, Pod Security and network policy stay
+        # yours, and those are usually the findings that matter — so this narrows what it
+        # excuses rather than marking the whole cluster somebody else's problem.
 
 # Links to human-performed controls, recorded alongside the automated ones.
 references:
