@@ -75,7 +75,7 @@ func writeDescriptors(t *testing.T, names ...string) string {
 	t.Helper()
 	dir := t.TempDir()
 	for i, name := range names {
-		body := fmt.Sprintf("release:\n  name: app-%d\n  version: \"1.0\"\ncomponents:\n  - name: c\n", i)
+		body := fmt.Sprintf("project: app-%d\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: c\n", i)
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -96,8 +96,8 @@ func TestScanModelFindsAnyNamedDescriptor(t *testing.T) {
 			if synthesized {
 				t.Errorf("%s was ignored — the scan fell back to zero-config", name)
 			}
-			if m.Release.Name != "app-0" {
-				t.Errorf("loaded the wrong file: %q", m.Release.Name)
+			if m.Project != "app-0" {
+				t.Errorf("loaded the wrong file: %q", m.Project)
 			}
 		})
 	}
@@ -136,7 +136,7 @@ func TestScanModelUsesAnInteractiveChoice(t *testing.T) {
 	if err != nil || synthesized {
 		t.Fatalf("scanModel: err=%v synthesized=%v", err, synthesized)
 	}
-	if m.Release.Name == "" {
+	if m.Project == "" {
 		t.Error("the chosen descriptor should have been loaded")
 	}
 }

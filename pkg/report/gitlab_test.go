@@ -69,7 +69,7 @@ func gitlabData() Data {
 		Stats: engine.Stats{Duration: 90 * time.Second},
 	}
 	return Data{
-		Release:      saga.Release{Name: "app", Version: "1.0"},
+		Release:      saga.Release{Version: "1.0"},
 		Run:          run,
 		Verdict:      norn.Result{Verdict: norn.Fail},
 		Version:      "0.86.0",

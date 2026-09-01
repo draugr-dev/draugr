@@ -39,25 +39,15 @@ type Scope struct {
 	SkippedComponents []string `json:"skippedComponents,omitempty"`
 }
 
-// ProjectName is which project this run belongs to, falling back to the deprecated release.name
-// so a descriptor that has not moved yet still files under something.
+// ProjectName is which project this run belongs to.
 //
-// The one accessor. Everything that renders the name of the thing being scanned reads this rather
-// than release.name — the field it replaced is removed after 2026-08-30, and every direct read of
-// it is a report that goes blank the day a descriptor moves to `project:`, which is the form the
-// reference tells people to write.
-func (d Data) ProjectName() string {
-	if d.Project != "" {
-		return d.Project
-	}
-	return d.Release.Name
-}
+// The one accessor. Everything that renders the name of the thing being scanned reads this, which
+// is why the field it used to fall back to could be removed in one place rather than in thirty.
+func (d Data) ProjectName() string { return d.Project }
 
 // Data is everything a reporter needs to render a scan.
 type Data struct {
-	// Project is which project this run belongs to, and what a platform files it under. Empty
-	// only for a descriptor still using the deprecated release.name, which ProjectName falls
-	// back to.
+	// Project is which project this run belongs to, and what a platform files it under.
 	Project     string
 	Release     saga.Release
 	Run         engine.Result

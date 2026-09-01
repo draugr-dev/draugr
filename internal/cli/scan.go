@@ -618,7 +618,11 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 		switch format {
 		case "json":
 			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
-				return skald.RenderJSON(w, release, run, verdict, firstNonEmpty(declared, minPriority))
+				// Named, because a document with no project in it is one a platform files under
+				// nothing — and there is no release name left for it to be recovered from.
+				return skald.RenderJSONFor(w, data.ProjectName(), release, run, verdict,
+					firstNonEmpty(declared, minPriority), nil, sarif.MarshalOptions{},
+					skald.Provenance{})
 			}); err != nil {
 				return err
 			}

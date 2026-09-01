@@ -119,7 +119,8 @@ paths:
 `
 
 func dastSaga(url, extra string) string {
-	return fmt.Sprintf(`release: { name: dast-integration, version: "1.0" }
+	return fmt.Sprintf(`project: dast-integration
+release: { version: "1.0" }
 config:
   controllers:
     dast: { enabled: true }
@@ -235,7 +236,8 @@ func TestDastAuthenticatedScanSendsTheCredential(t *testing.T) {
 func TestNativeHostControlsReachAnEndpoint(t *testing.T) {
 	rec := newRecorder(t)
 	dir := t.TempDir()
-	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`release: { name: headers-integration, version: "1.0" }
+	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`project: headers-integration
+release: { version: "1.0" }
 config:
   controllers:
     headers: { enabled: true }

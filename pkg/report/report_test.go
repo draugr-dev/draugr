@@ -33,7 +33,7 @@ func sampleData() Data {
 		{Control: "images", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1, Warning: 1}},
 		{Control: "secrets", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1}},
 	}}
-	return Data{Release: saga.Release{Name: "app", Version: "1.0"}, Run: run, Verdict: verdict}
+	return Data{Project: "app", Release: saga.Release{Version: "1.0"}, Run: run, Verdict: verdict}
 }
 
 // Every advertised format resolves, and answers to the name it is advertised under.
@@ -167,7 +167,7 @@ func TestHTMLRender(t *testing.T) {
 
 func TestHTMLEscapesFindingContent(t *testing.T) {
 	d := Data{
-		Release: saga.Release{Name: "app"},
+		Release: saga.Release{},
 		Run: engine.Result{Controls: map[string]plugin.ControlResult{"images": {Report: sarif.Report{Results: []sarif.Result{
 			{RuleID: "R", Level: sarif.LevelError, Tool: "t", Message: "<script>alert(1)</script>"},
 		}}}}},
@@ -209,7 +209,7 @@ func TestJUnitRender(t *testing.T) {
 
 func TestJUnitCleanControlPasses(t *testing.T) {
 	d := Data{
-		Release: saga.Release{Name: "app"},
+		Release: saga.Release{},
 		Run:     engine.Result{Controls: map[string]plugin.ControlResult{"images": {Report: sarif.Report{}}}},
 		Verdict: norn.Result{Verdict: norn.Pass, Controls: []norn.ControlOutcome{{Control: "images", Verdict: norn.Pass}}},
 	}
@@ -264,7 +264,7 @@ func TestConsoleTruncatesUnprioritized(t *testing.T) {
 		results = append(results, sarif.Result{RuleID: "R", Level: sarif.LevelWarning, Tool: "t"})
 	}
 	d := Data{
-		Release: saga.Release{Name: "app"},
+		Release: saga.Release{},
 		Run:     engine.Result{Controls: map[string]plugin.ControlResult{"images": {Report: sarif.Report{Results: results}}}},
 		Verdict: norn.Result{Verdict: norn.Pass},
 	}
@@ -287,7 +287,7 @@ func TestConsoleTopN(t *testing.T) {
 		results = append(results, sarif.Result{RuleID: "R", Level: sarif.LevelWarning, Tool: "t"})
 	}
 	base := Data{
-		Release: saga.Release{Name: "app"},
+		Release: saga.Release{},
 		Run:     engine.Result{Controls: map[string]plugin.ControlResult{"images": {Report: sarif.Report{Results: results}}}},
 		Verdict: norn.Result{Verdict: norn.Pass},
 	}
@@ -316,7 +316,7 @@ func TestConsoleTopN(t *testing.T) {
 }
 
 func TestConsoleNoFindings(t *testing.T) {
-	d := Data{Release: saga.Release{Name: "app"}, Verdict: norn.Result{Verdict: norn.Pass}}
+	d := Data{Release: saga.Release{}, Verdict: norn.Result{Verdict: norn.Pass}}
 	var b bytes.Buffer
 	if err := (consoleReporter{}).Render(&b, d); err != nil {
 		t.Fatal(err)
@@ -336,7 +336,7 @@ func minPriorityData(band string) Data {
 		{RuleID: "CVE-P4", Level: sarif.LevelNote, Priority: "P4", Tool: "trivy"},
 	}
 	return Data{
-		Release:     saga.Release{Name: "app"},
+		Release:     saga.Release{},
 		Run:         engine.Result{Controls: map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: results}}}},
 		Verdict:     norn.Result{Verdict: norn.Fail},
 		MinPriority: band,
@@ -405,7 +405,7 @@ func TestAtOrAbove(t *testing.T) {
 // care about most. The message belongs in the table.
 func TestConsoleShowsTheFindingMessage(t *testing.T) {
 	d := Data{
-		Release: saga.Release{Name: "app"},
+		Release: saga.Release{},
 		Run: engine.Result{Controls: map[string]plugin.ControlResult{"iac": {Report: sarif.Report{Results: []sarif.Result{
 			{RuleID: "DS-0002", Level: sarif.LevelError, Priority: "P1", Tool: "trivy-config",
 				Message: "Default Seccomp profile not set — the container runs unconfined"},
@@ -726,7 +726,7 @@ func TestSARIFFilterLeavesTheRunIntact(t *testing.T) {
 // Verdict.Controls omits it, and the report describes a thinner run rather than a broken one.
 func erroredRunData() Data {
 	return Data{
-		Release: saga.Release{Name: "app", Version: "1.0"},
+		Release: saga.Release{Version: "1.0"},
 		Run: engine.Result{
 			Controls: map[string]plugin.ControlResult{
 				"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{

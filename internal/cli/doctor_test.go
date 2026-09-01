@@ -17,8 +17,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-const doctorSagaRepoAndImage = `release:
-  name: app
+const doctorSagaRepoAndImage = `project: app
+release:
   version: "1.0"
 config:
   controllers:
@@ -34,8 +34,8 @@ components:
       - image: alpine:3.19
 `
 
-const doctorSagaImagesOnly = `release:
-  name: app
+const doctorSagaImagesOnly = `project: app
+release:
   version: "1.0"
 config:
   controllers:
@@ -47,8 +47,8 @@ components:
       - image: alpine:3.19
 `
 
-const doctorSagaNoControls = `release:
-  name: app
+const doctorSagaNoControls = `project: app
+release:
   version: "1.0"
 components:
   - name: web
@@ -57,8 +57,8 @@ components:
 `
 
 // doctorSagaSAST enables sast; the scanners list controls whether gosec is required.
-const doctorSagaSASTDefault = `release:
-  name: app
+const doctorSagaSASTDefault = `project: app
+release:
   version: "1.0"
 config:
   controllers:
@@ -70,8 +70,8 @@ components:
       - url: .
 `
 
-const doctorSagaSASTGosec = `release:
-  name: app
+const doctorSagaSASTGosec = `project: app
+release:
   version: "1.0"
 config:
   controllers:
@@ -302,7 +302,7 @@ func TestRequiredToolsIncludesSyftOnlyWhenSBOMIsEnabled(t *testing.T) {
 	// a Saga could ask for SBOMs and doctor would report a ready environment.
 	reg := builtins.Registry()
 
-	off := &saga.Model{Release: saga.Release{Name: "a", Version: "1"}}
+	off := &saga.Model{Release: saga.Release{Version: "1"}}
 	for _, tl := range requiredTools(reg, off) {
 		if tl.Binary == "syft" {
 			t.Error("syft should not be required when config.sbom is absent")
@@ -310,7 +310,7 @@ func TestRequiredToolsIncludesSyftOnlyWhenSBOMIsEnabled(t *testing.T) {
 	}
 
 	on := &saga.Model{
-		Release: saga.Release{Name: "a", Version: "1"},
+		Release: saga.Release{Version: "1"},
 		Config:  saga.Config{SBOM: &saga.SBOMConfig{Enabled: true}},
 	}
 	var found bool
@@ -325,7 +325,7 @@ func TestRequiredToolsIncludesSyftOnlyWhenSBOMIsEnabled(t *testing.T) {
 
 	// enabled:false is a deliberate off switch, not a request.
 	paused := &saga.Model{
-		Release: saga.Release{Name: "a", Version: "1"},
+		Release: saga.Release{Version: "1"},
 		Config:  saga.Config{SBOM: &saga.SBOMConfig{Enabled: false}},
 	}
 	for _, tl := range requiredTools(reg, paused) {
@@ -335,7 +335,8 @@ func TestRequiredToolsIncludesSyftOnlyWhenSBOMIsEnabled(t *testing.T) {
 	}
 }
 
-const doctorSagaInfrastructure = `release: {name: platform, version: "1.0"}
+const doctorSagaInfrastructure = `project: platform
+release: {version: "1.0"}
 config:
   controllers:
     infrastructure:
@@ -348,7 +349,8 @@ components:
 
 // The same control with its default scanner, which reads the Kubernetes API and shells out to
 // nothing.
-const doctorSagaInfrastructureDefault = `release: {name: platform, version: "1.0"}
+const doctorSagaInfrastructureDefault = `project: platform
+release: {version: "1.0"}
 config:
   controllers:
     infrastructure: {enabled: true}
@@ -468,8 +470,8 @@ func TestDoctorWithADescriptorStillFailsOnWhatItNeeds(t *testing.T) {
 
 // doctorSagaUncovered declares an image and a host while enabling only the repository controls —
 // the descriptor that scans clean having looked at neither.
-const doctorSagaUncovered = `release:
-  name: app
+const doctorSagaUncovered = `project: app
+release:
   version: "1.0"
 config:
   controllers:

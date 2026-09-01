@@ -17,7 +17,7 @@ import (
 // saying so beside the word "pass" is the report asserting something no scanner established.
 func TestComponentWithNothingScannedDoesNotPass(t *testing.T) {
 	d := Data{
-		Release: saga.Release{Name: "app", Version: "1.0"},
+		Release: saga.Release{Version: "1.0"},
 		Verdict: norn.Result{Verdict: norn.Fail},
 		Components: []ComponentVerdict{{
 			Name:    "mesh",
@@ -51,7 +51,7 @@ func TestComponentWithNothingScannedDoesNotPass(t *testing.T) {
 // worth acting on *and* a gap, and dropping either reading is wrong.
 func TestComponentWithFindingsAndAGapReportsBoth(t *testing.T) {
 	d := Data{
-		Release: saga.Release{Name: "app", Version: "1.0"},
+		Release: saga.Release{Version: "1.0"},
 		Verdict: norn.Result{Verdict: norn.Fail},
 		Components: []ComponentVerdict{{
 			Name: "api", Verdict: norn.Fail, Findings: 4, Priorities: [4]int{2, 2, 0, 0},

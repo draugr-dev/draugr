@@ -42,8 +42,8 @@ func parse(t *testing.T, d sbom.Document) cycloneDX {
 	return got
 }
 
-// The version only. `release.name` named the project and is gone; the project's name is passed to
-// Assemble separately, which is what the root component is named by.
+// The version only. A release carries no name; the project's is passed to Assemble separately,
+// and that is what the root component is named by.
 func release() saga.Release { return saga.Release{Version: "3.1.0"} }
 
 func assemble(t *testing.T, docs ...sbom.Document) cycloneDX {
@@ -75,9 +75,9 @@ func TestAssembleRootNamesTheProject(t *testing.T) {
 	if root == nil || root.Name != "acme-platform" || root.Version != "3.1.0" {
 		t.Fatalf("root component = %+v, want the project at the version assessed", root)
 	}
-	// A bill of materials has to say what it is a bill of materials for. Read from the removed
-	// release.name, this was `draugr:project/` with an empty name beside it, in a published
-	// artifact — and nothing about the document looked wrong.
+	// A bill of materials has to say what it is a bill of materials for. A name read from
+	// anywhere but the project is empty, and `draugr:project/` with nothing beside it is a
+	// document that parses, validates and identifies no product.
 	if root.BOMRef != "draugr:project/acme-platform" {
 		t.Errorf("root bom-ref = %q", root.BOMRef)
 	}

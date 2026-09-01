@@ -13,7 +13,7 @@ func TestValidateErrors(t *testing.T) {
 	}{
 		{
 			name: "missing version",
-			yaml: "release:\n  name: x\n",
+			yaml: "project: x\nrelease:\n",
 			want: "release.version is required",
 		},
 		{
@@ -161,7 +161,7 @@ func TestValidateAggregatesMultiple(t *testing.T) {
 func TestValidateSBOMFormat(t *testing.T) {
 	base := func(f SBOMFormat) *Model {
 		return &Model{
-			Release: Release{Name: "x", Version: "1"},
+			Release: Release{Version: "1"},
 			Config:  Config{SBOM: &SBOMConfig{Enabled: true, Format: f}},
 		}
 	}
@@ -189,7 +189,7 @@ func TestValidateSBOMFormat(t *testing.T) {
 }
 
 func TestSBOMConfigRoundTripsThroughLoad(t *testing.T) {
-	m, err := Load([]byte("release:\n  name: x\n  version: \"1\"\nconfig:\n  sbom:\n    enabled: true\n    format: cyclonedx-json\n"))
+	m, err := Load([]byte("project: x\nrelease:\n  version: \"1\"\nconfig:\n  sbom:\n    enabled: true\n    format: cyclonedx-json\n"))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestExcludeRuleMatching(t *testing.T) {
 
 func TestValidateExclude(t *testing.T) {
 	base := func(e ExcludeRule) *Model {
-		return &Model{Release: Release{Name: "x", Version: "1"}, Config: Config{Exclude: []ExcludeRule{e}}}
+		return &Model{Release: Release{Version: "1"}, Config: Config{Exclude: []ExcludeRule{e}}}
 	}
 	if err := base(ExcludeRule{Paths: []string{"examples/"}, Reason: "templates"}).Validate(); err != nil {
 		t.Errorf("a well-formed exclusion should validate: %v", err)
@@ -316,7 +316,7 @@ func TestExcludeRulePathsStillUsePathSemantics(t *testing.T) {
 
 func TestValidateGateControls(t *testing.T) {
 	base := func(controls map[string]string) *Model {
-		return &Model{Release: Release{Name: "x", Version: "1"}, Config: Config{Gate: &GateConfig{Controls: controls}}}
+		return &Model{Release: Release{Version: "1"}, Config: Config{Gate: &GateConfig{Controls: controls}}}
 	}
 	// The bands the report prints, which is the vocabulary a threshold is written in.
 	if err := base(map[string]string{"licenses": "critical", "sast": "low"}).Validate(); err != nil {
@@ -440,7 +440,7 @@ func TestValidateAcceptsCamelCaseControllerKeys(t *testing.T) {
 }
 
 func TestExploitabilityConfigRoundTripsThroughLoad(t *testing.T) {
-	m, err := Load([]byte("release:\n  name: x\n  version: \"1\"\n" +
+	m, err := Load([]byte("project: x\nrelease:\n  version: \"1\"\n" +
 		"config:\n  exploitability:\n    kev: cache\n    epss: auto\n" +
 		"    epssThreshold: 0.1\n    maxAge: 168h\n"))
 	if err != nil {
@@ -458,7 +458,7 @@ func TestExploitabilityConfigRoundTripsThroughLoad(t *testing.T) {
 func TestExploitabilityThresholdZeroIsNotAbsent(t *testing.T) {
 	// Zero disables the EPSS bump while leaving KEV in force, which is a thing someone might
 	// mean. It has to survive the round trip as a set value rather than as "unspecified".
-	m, err := Load([]byte("release:\n  name: x\n  version: \"1\"\n" +
+	m, err := Load([]byte("project: x\nrelease:\n  version: \"1\"\n" +
 		"config:\n  exploitability:\n    kev: cache\n    epssThreshold: 0\n"))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -490,7 +490,7 @@ func TestExploitabilityConfigValidation(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := Load([]byte("release:\n  name: x\n  version: \"1\"\n" + c.yaml))
+			_, err := Load([]byte("project: x\nrelease:\n  version: \"1\"\n" + c.yaml))
 			if err == nil {
 				t.Fatal("accepted")
 			}
@@ -502,7 +502,7 @@ func TestExploitabilityConfigValidation(t *testing.T) {
 
 	// A path is not checkable here: a shared descriptor may name a file this machine does not
 	// have, which is a scan-time error rather than a validation one.
-	if _, err := Load([]byte("release:\n  name: x\n  version: \"1\"\n" +
+	if _, err := Load([]byte("project: x\nrelease:\n  version: \"1\"\n" +
 		"config:\n  exploitability:\n    kev: ./kev.json\n    maxAge: 24h\n")); err != nil {
 		t.Errorf("a file path should validate: %v", err)
 	}
@@ -617,7 +617,7 @@ func assertValidation(t *testing.T, errs []error, want string) {
 // depending on which way the comparison fell.
 func TestValidateGateFailOnPriority(t *testing.T) {
 	base := func(p string) *Model {
-		return &Model{Release: Release{Name: "x", Version: "1"},
+		return &Model{Release: Release{Version: "1"},
 			Config: Config{Gate: &GateConfig{FailOnPriority: p}}}
 	}
 	for _, ok := range []string{"", "P1", "P4"} {

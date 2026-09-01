@@ -75,8 +75,8 @@ func failingRegistry() *engine.Registry {
 }
 
 const sagaWithImage = `
+project: app
 release:
-  name: app
   version: "1.0"
 config:
   controllers:
@@ -134,8 +134,8 @@ func TestRunScanMinPriorityListsFindings(t *testing.T) {
 func TestRunScanPublishesConfiguredReports(t *testing.T) {
 	dir := t.TempDir()
 	saga := `
+project: app
 release:
-  name: app
   version: "1.0"
 config:
   controllers:
@@ -168,8 +168,8 @@ components:
 func TestRunScanNoPublishSkipsPublishers(t *testing.T) {
 	dir := t.TempDir()
 	saga := `
+project: app
 release:
-  name: app
   version: "1.0"
 config:
   controllers:
@@ -219,8 +219,8 @@ func TestRunScanTemplateMissingSource(t *testing.T) {
 
 func TestRunScanUnknownPublisherErrors(t *testing.T) {
 	saga := `
+project: app
 release:
-  name: app
   version: "1.0"
 config:
   controllers:
@@ -303,8 +303,8 @@ func TestScanModelLoadsFile(t *testing.T) {
 	if err != nil || synth {
 		t.Fatalf("file should load (not synthesize): synth=%v err=%v", synth, err)
 	}
-	if m.Release.Name != "app" {
-		t.Errorf("loaded wrong saga: %+v", m.Release)
+	if m.Project != "app" {
+		t.Errorf("loaded wrong saga: project=%q release=%+v", m.Project, m.Release)
 	}
 }
 
@@ -503,7 +503,7 @@ func TestScanCommandViaCobra(t *testing.T) {
 	// No components → no jobs → nothing was checked, which must not read as a pass. A descriptor
 	// that scans nothing is far more often unfinished than genuinely empty, and a clean verdict
 	// renders the two identically.
-	path := writeSaga(t, "release:\n  name: app\n  version: \"1.0\"\n")
+	path := writeSaga(t, "project: app\nrelease:\n  version: \"1.0\"\n")
 	cmd := newRootCommand()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
@@ -525,7 +525,7 @@ func TestWriteArtifactsWritesSBOMs(t *testing.T) {
 		{Component: "web", Target: "https://git/web", Format: saga.SBOMSPDXJSON, Bytes: []byte(`{"spdxVersion":"SPDX-2.3"}`)},
 		{Component: "api", Target: "api:1", Format: saga.SBOMCycloneDXJSON, Bytes: []byte(`{"bomFormat":"CycloneDX"}`)},
 	}}
-	if err := writeArtifacts(dir, nil, report.Data{}, saga.Release{Name: "app", Version: "1"}, run, norn.Result{Verdict: norn.Pass}, "", ""); err != nil {
+	if err := writeArtifacts(dir, nil, report.Data{}, saga.Release{Version: "1"}, run, norn.Result{Verdict: norn.Pass}, "", ""); err != nil {
 		t.Fatalf("writeArtifacts: %v", err)
 	}
 	for name, want := range map[string]string{
@@ -554,7 +554,7 @@ func TestWriteArtifactsWritesSBOMs(t *testing.T) {
 // prioritization — silently, and while telling the reader to create the file they already had.
 func TestScanUsesTheDescriptorInTheDirectory(t *testing.T) {
 	dir := t.TempDir()
-	saga := "release:\n  name: real\n  version: \"2.0\"\nconfig:\n  controllers:\n    images: {enabled: true}\n" +
+	saga := "project: real\nrelease:\n  version: \"2.0\"\nconfig:\n  controllers:\n    images: {enabled: true}\n" +
 		"components:\n  - name: web\n    images: [{image: \"nginx:1\"}]\n"
 	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte(saga), 0o600); err != nil {
 		t.Fatal(err)
@@ -567,8 +567,8 @@ func TestScanUsesTheDescriptorInTheDirectory(t *testing.T) {
 	if synthesized {
 		t.Fatal("a directory with a descriptor must not be scanned zero-config")
 	}
-	if m.Release.Name != "real" {
-		t.Errorf("release = %q, want the descriptor's", m.Release.Name)
+	if m.Project != "real" {
+		t.Errorf("project = %q, want the descriptor's", m.Project)
 	}
 	// The controls it declares, not the zero-config four.
 	if !m.Config.ControllerEnabled("images") || m.Config.ControllerEnabled("sca") {
@@ -581,7 +581,7 @@ func TestScanUsesTheDescriptorInTheDirectory(t *testing.T) {
 func TestABrokenDescriptorFailsRatherThanFallingBack(t *testing.T) {
 	dir := t.TempDir()
 	// The typo that surfaced this: a misspelled component key.
-	broken := "release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - namfe: web\n"
+	broken := "project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - namfe: web\n"
 	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte(broken), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -630,8 +630,8 @@ func TestRunScanReportsTheVerdictAheadOfAPublisherFailure(t *testing.T) {
 	// happened is that the build should not ship — so the verdict leads and the publisher
 	// follows it, rather than replacing it.
 	saga := `
+project: app
 release:
-  name: app
   version: "1.0"
 config:
   controllers:
@@ -679,8 +679,8 @@ func TestRunScanAllowScanErrorsCannotPassAScanThatDidNothing(t *testing.T) {
 	// descriptor enabling no control produced (planning) "no controls ran", and
 	// --allow-scan-errors turned that into a green PASS over a scan that checked nothing.
 	saga := `
+project: app
 release:
-  name: app
   version: "1.0"
 components:
   - name: c
@@ -704,8 +704,8 @@ components:
 func TestRunScanStillOffersTheFlagForARealScannerFailure(t *testing.T) {
 	// The flag has to keep working for what it is actually for, and keep being suggested there.
 	saga := `
+project: app
 release:
-  name: app
   version: "1.0"
 config:
   controllers:
@@ -848,9 +848,9 @@ func TestFormatAcceptsWhatAPersonMightRead(t *testing.T) {
 
 func TestWriteArtifactsHonorsReportFormats(t *testing.T) {
 	dir := t.TempDir()
-	data := report.Data{Release: saga.Release{Name: "app", Version: "1"}}
+	data := report.Data{Release: saga.Release{Version: "1"}}
 	err := writeArtifacts(dir, []string{"html", "markdown"}, data,
-		saga.Release{Name: "app", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
+		saga.Release{Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -867,7 +867,7 @@ func TestWriteArtifactsHonorsReportFormats(t *testing.T) {
 
 func TestWriteArtifactsDefaultsToWhatPipelinesExpect(t *testing.T) {
 	dir := t.TempDir()
-	err := writeArtifacts(dir, nil, report.Data{}, saga.Release{Name: "app", Version: "1"},
+	err := writeArtifacts(dir, nil, report.Data{}, saga.Release{Version: "1"},
 		engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
 	if err != nil {
 		t.Fatal(err)
@@ -938,8 +938,8 @@ func TestWriteArtifactsUsesTheSameNamesAPublisherWould(t *testing.T) {
 	// stays green with no results in it.
 	dir := t.TempDir()
 	formats := []string{"json", "sarif", "html", "markdown", "junit"}
-	err := writeArtifacts(dir, formats, report.Data{Release: saga.Release{Name: "app", Version: "1"}},
-		saga.Release{Name: "app", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
+	err := writeArtifacts(dir, formats, report.Data{Release: saga.Release{Version: "1"}},
+		saga.Release{Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

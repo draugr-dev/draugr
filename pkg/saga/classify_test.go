@@ -7,8 +7,8 @@ import (
 
 func TestWriteClassificationsInsertsAndPreserves(t *testing.T) {
 	src := `# my app
+project: app
 release:
-  name: app
   version: "1.0"
 components:
   - name: web   # the frontend

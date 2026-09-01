@@ -98,7 +98,7 @@ func TestEveryFormatHasAFileExtension(t *testing.T) {
 
 func TestConsoleReportsSBOMsWithoutMakingThemAControl(t *testing.T) {
 	d := Data{
-		Release: saga.Release{Name: "app", Version: "1"},
+		Release: saga.Release{Version: "1"},
 		Run: engine.Result{SBOMs: []sbom.Document{
 			{Component: "web", Target: "https://git/web", Format: saga.SBOMSPDXJSON},
 			{Component: "api", Target: "api:1", Format: saga.SBOMSPDXJSON},
@@ -126,7 +126,7 @@ func TestConsoleReportsSBOMsOnACleanRun(t *testing.T) {
 	// The early return for "no findings" must not swallow the evidence line — a clean scan
 	// still produced the inventory.
 	d := Data{
-		Release: saga.Release{Name: "app", Version: "1"},
+		Release: saga.Release{Version: "1"},
 		Run:     engine.Result{SBOMs: []sbom.Document{{Component: "web", Target: "r", Format: saga.SBOMSPDXJSON}}},
 		Verdict: norn.Result{Verdict: norn.Pass},
 	}
@@ -141,7 +141,7 @@ func TestConsoleReportsSBOMsOnACleanRun(t *testing.T) {
 
 func TestConsoleOmitsTheSBOMLineWhenThereAreNone(t *testing.T) {
 	var buf bytes.Buffer
-	d := Data{Release: saga.Release{Name: "app", Version: "1"}, Verdict: norn.Result{Verdict: norn.Pass}}
+	d := Data{Release: saga.Release{Version: "1"}, Verdict: norn.Result{Verdict: norn.Pass}}
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestConsoleReportsSuppressionsAndKeepsThemOutOfFixFirst(t *testing.T) {
 			Suppression: &sarif.Suppression{Kind: "external", Justification: "deliberate fixture"}},
 	}}
 	d := Data{
-		Release: saga.Release{Name: "app", Version: "1"},
+		Release: saga.Release{Version: "1"},
 		Run:     engine.Result{Controls: map[string]plugin.ControlResult{"secrets": {Control: "secrets", Report: rep}}, Suppressed: 1},
 		Verdict: norn.Result{Verdict: norn.Pass},
 	}
@@ -216,7 +216,7 @@ func TestConsoleReportsSuppressionsAndKeepsThemOutOfFixFirst(t *testing.T) {
 
 func TestConsoleSaysNothingWhenNothingWasSuppressed(t *testing.T) {
 	var buf bytes.Buffer
-	d := Data{Release: saga.Release{Name: "a", Version: "1"}, Verdict: norn.Result{Verdict: norn.Pass}}
+	d := Data{Release: saga.Release{Version: "1"}, Verdict: norn.Result{Verdict: norn.Pass}}
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatalf("Render: %v", err)
 	}

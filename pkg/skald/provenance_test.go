@@ -110,7 +110,7 @@ func TestProvenanceTravelsInTheDocument(t *testing.T) {
 // The deprecated renderers stay usable and simply carry no provenance.
 func TestTheOlderRenderersStillWork(t *testing.T) {
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "a", Version: "1"}, sampleRun(), norn.Result{}, ""); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, sampleRun(), norn.Result{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(buf.String(), `"descriptor"`) {

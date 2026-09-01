@@ -10,7 +10,26 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Removed
+
+- **`release.name` is gone.** It named the project, which is what the top-level `project` names,
+  and two fields for one identity meant a descriptor could state two. Move the value up —
+  `project: payments-api` — and a release keeps only its version. A descriptor still carrying it is
+  refused, with that sentence.
+
+  `draugr validate` no longer prints deprecation notices, because there is nothing left to
+  deprecate; it prints the error instead, on the file, when the field is still there.
+
+  A report a template renders gains `{{.Project}}`. `{{.Release.Name}}` was the only way to print
+  what a scan was about, and a release now carries a version and nothing else.
+
+### Fixed
+
+- `report.json` written by `draugr scan -o <dir>` names the project. It carried the release's name
+  and nothing else, so a platform reading the file had nothing to file the run under.
+- A VEX document for a descriptor that names no project omits the product identifier rather than
+  publishing `pkg:generic/@2.4.0` — a package URL with no name in it, which a consumer reads,
+  understands, and matches against nothing.
 
 ## [0.112.0] - 2026-08-31
 

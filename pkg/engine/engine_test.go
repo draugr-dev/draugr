@@ -320,7 +320,7 @@ func TestRunAttributesScanErrorsToTheirControl(t *testing.T) {
 	reg.RegisterScanner(&fakeScanner{name: "broken", fail: true})
 
 	res, err := New(reg).Run(context.Background(), saga.Model{
-		Release: saga.Release{Name: "app", Version: "1"},
+		Release: saga.Release{Version: "1"},
 		Components: []saga.Component{
 			{Name: "c", Controllers: map[string]saga.ControllerSettings{"sca": {}}},
 		},
@@ -347,7 +347,7 @@ func TestRunReportsNoScanErrorsOnSuccess(t *testing.T) {
 	reg.RegisterController(fakeController{name: "sca", scope: plugin.ScopeComponent, scanner: "ok"})
 	reg.RegisterScanner(&fakeScanner{name: "ok"})
 	res, err := New(reg).Run(context.Background(), saga.Model{
-		Release: saga.Release{Name: "app", Version: "1"},
+		Release: saga.Release{Version: "1"},
 		Components: []saga.Component{
 			{Name: "c", Controllers: map[string]saga.ControllerSettings{"sca": {}}},
 		},
@@ -367,7 +367,7 @@ func TestRunReportsThatNothingWasChecked(t *testing.T) {
 	t.Parallel()
 
 	model := saga.Model{
-		Release:    saga.Release{Name: "app", Version: "1.0"},
+		Release:    saga.Release{Version: "1.0"},
 		Components: []saga.Component{{Name: "web", Repositories: []saga.Repository{{URL: "https://example.test/x.git"}}}},
 	}
 	res, err := New(NewRegistry()).Run(context.Background(), model)
@@ -395,7 +395,7 @@ func TestRunDoesNotComplainAboutAnSBOMOnlyDescriptor(t *testing.T) {
 	t.Parallel()
 
 	model := saga.Model{
-		Release:    saga.Release{Name: "app", Version: "1.0"},
+		Release:    saga.Release{Version: "1.0"},
 		Config:     saga.Config{SBOM: &saga.SBOMConfig{Enabled: true}},
 		Components: []saga.Component{{Name: "web", Repositories: []saga.Repository{{URL: "https://example.test/x.git"}}}},
 	}

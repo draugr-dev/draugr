@@ -172,7 +172,8 @@ func goldenFullData() Data {
 		{Control: "sca", Verdict: norn.Fail, Counts: sarif.Counts{Error: 2, Warning: 1, Note: 1}},
 	}}
 	return Data{
-		Release: saga.Release{Name: "draugr-demo", Version: "0.0.0"},
+		Project: "draugr-demo",
+		Release: saga.Release{Version: "0.0.0"},
 		Run:     run,
 		Verdict: verdict,
 		TopN:    5, // fewer than the findings above, so the truncation line is pinned too
@@ -192,7 +193,8 @@ func goldenFullData() Data {
 // without implying more than it checked.
 func goldenCleanData() Data {
 	return Data{
-		Release: saga.Release{Name: "my-app", Version: "1.0"},
+		Project: "my-app",
+		Release: saga.Release{Version: "1.0"},
 		Run: engine.Result{Controls: map[string]plugin.ControlResult{
 			"images": {Control: "images", Report: sarif.Report{Tool: "trivy"}},
 		}},
@@ -251,7 +253,8 @@ func goldenEnrichedData() Data {
 		},
 	}
 	return Data{
-		Release: saga.Release{Name: "acme-api", Version: "1.4.0"},
+		Project: "acme-api",
+		Release: saga.Release{Version: "1.4.0"},
 		Run:     run,
 		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
 			{Control: "sca", Verdict: norn.Fail, Counts: sarif.Counts{Error: 2, Warning: 1}},
