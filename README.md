@@ -67,8 +67,8 @@ draugr init              # or scaffold a draugr.saga.yaml to customize
 Then describe what you actually ship:
 
 ```yaml
+project: my-app
 release:
-  name: my-app
   version: "1.0"
 config:
   controllers:

@@ -15,7 +15,7 @@ import (
 func renderJSON(t *testing.T, run engine.Result, minPriority string) map[string]any {
 	t.Helper()
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "x", Version: "1"}, run, norn.Result{}, minPriority); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, norn.Result{}, minPriority); err != nil {
 		t.Fatal(err)
 	}
 	var doc map[string]any

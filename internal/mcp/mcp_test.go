@@ -158,7 +158,7 @@ func TestValidateSaga(t *testing.T) {
 	dir := t.TempDir()
 	good := filepath.Join(dir, "good.saga.yaml")
 	if err := os.WriteFile(good, []byte(
-		"release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - name: api\n    repositories:\n      - url: .\nconfig:\n  controllers:\n    secrets:\n      enabled: true\n"), 0o600); err != nil {
+		"project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: api\n    repositories:\n      - url: .\nconfig:\n  controllers:\n    secrets:\n      enabled: true\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -337,7 +337,7 @@ func TestScanToolReturnsAVerdict(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "empty.saga.yaml")
 	if err := os.WriteFile(path, []byte(
-		"release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
+		"project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, out, err := scanTool(builtins.Registry(), ScanAlways)(context.Background(), nil, ScanInput{Path: path})
@@ -359,7 +359,7 @@ func TestScanToolSaysWhatItDidNotLookAt(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "uncovered.saga.yaml")
 	if err := os.WriteFile(path, []byte(
-		"release:\n  name: app\n  version: \"1.0\"\ncomponents:\n"+
+		"project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n"+
 			"  - name: api\n    images:\n      - image: registry.example.com/api:1.0\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -436,7 +436,7 @@ func TestAskModeRefusesWithoutApproval(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "empty.saga.yaml")
 	if err := os.WriteFile(path, []byte(
-		"release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
+		"project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	h := scanTool(builtins.Registry(), ScanAsk)
@@ -467,7 +467,7 @@ func TestSagaDescriptorsAreExposedAsResources(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(p, []byte("release:\n  name: app\n  version: \"1.0\"\n"), 0o600); err != nil {
+		if err := os.WriteFile(p, []byte("project: app\nrelease:\n  version: \"1.0\"\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -543,7 +543,7 @@ func TestAskModeHonorsTheAnswer(t *testing.T) {
 	// No control enabled, so the handshake is exercised without a scanner binary or a network.
 	// What the prompt says about a real descriptor is TestDescribeScan's job.
 	if err := os.WriteFile(path, []byte(
-		"release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
+		"project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -665,7 +665,7 @@ func TestCheckToolsReportsWhatIsMissing(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "t.saga.yaml")
 	if err := os.WriteFile(path, []byte(
-		"release:\n  name: app\n  version: \"1\"\ncomponents:\n  - name: c\n    repositories:\n"+
+		"project: app\nrelease:\n  version: \"1\"\ncomponents:\n  - name: c\n    repositories:\n"+
 			"      - url: .\nconfig:\n  controllers:\n    sca:\n      enabled: true\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}

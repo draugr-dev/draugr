@@ -98,15 +98,14 @@ func TestTheScaffoldWritesTheFieldTheDocsTellPeopleToUse(t *testing.T) {
 	if !strings.Contains(out, "project: acme-api") {
 		t.Errorf("scaffold does not name the project:\n%s", out)
 	}
+	// `release:` carries a version and nothing else, so a scaffold naming the project under it
+	// would be a file `draugr validate` refuses on the quickstart's second step.
 	if strings.Contains(out, "name: acme-api\n  version") {
-		t.Errorf("scaffold still writes release.name:\n%s", out)
+		t.Errorf("the scaffold names the project under release:\n%s", out)
 	}
 
 	var m saga.Model
 	if err := yaml.Unmarshal([]byte(out), &m); err != nil {
 		t.Fatalf("scaffold is not valid YAML: %v", err)
-	}
-	if got := m.Deprecations(); len(got) != 0 {
-		t.Errorf("what init wrote is deprecated on arrival: %v", got)
 	}
 }

@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-const annotateDoc = `release:
-  name: app
+const annotateDoc = `project: app
+release:
   version: "1"
 components:
   - name: front

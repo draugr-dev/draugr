@@ -48,7 +48,7 @@ func prioritizedRun() engine.Result {
 
 func TestRenderJSONPriorityCounts(t *testing.T) {
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "a", Version: "1"}, prioritizedRun(), sampleVerdict(), ""); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, prioritizedRun(), sampleVerdict(), ""); err != nil {
 		t.Fatal(err)
 	}
 	var doc struct {
@@ -68,7 +68,7 @@ func TestRenderJSONPriorityCounts(t *testing.T) {
 
 func TestRenderJSONMinPriorityFilterAndOrder(t *testing.T) {
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "a", Version: "1"}, prioritizedRun(), sampleVerdict(), "P2"); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, prioritizedRun(), sampleVerdict(), "P2"); err != nil {
 		t.Fatal(err)
 	}
 	var doc struct {
@@ -93,7 +93,7 @@ func TestRenderJSONMinPriorityFilterAndOrder(t *testing.T) {
 
 func TestRenderJSONNoPriorityWhenUnprioritized(t *testing.T) {
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "a", Version: "1"}, sampleRun(), sampleVerdict(), "P1"); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, sampleRun(), sampleVerdict(), "P1"); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(buf.String(), "\"priorities\"") {
@@ -159,7 +159,7 @@ func sampleVerdict() norn.Result {
 
 func TestRenderJSON(t *testing.T) {
 	var buf bytes.Buffer
-	err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, sampleRun(), sampleVerdict(), "")
+	err := RenderJSON(&buf, saga.Release{Version: "1.0"}, sampleRun(), sampleVerdict(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestRenderJSONStats(t *testing.T) {
 	run := sampleRun()
 	run.Stats = engine.Stats{Jobs: 12, Scans: 9, CacheHits: 2, Deduped: 1, Concurrency: 4}
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
 		t.Fatal(err)
 	}
 	var doc struct {
@@ -212,7 +212,7 @@ func TestRenderJSONReportsWhereTheTimeWent(t *testing.T) {
 		ToolWaits: map[string]time.Duration{"trivy": 51 * time.Second},
 	}
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
 		t.Fatal(err)
 	}
 	var doc struct {
@@ -254,7 +254,7 @@ func TestASubMillisecondControlIsRoundedRatherThanZeroed(t *testing.T) {
 		ByControl: map[string]time.Duration{"secrets": 600 * time.Microsecond},
 	}
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
 		t.Fatal(err)
 	}
 	var doc struct {
@@ -281,7 +281,7 @@ func TestUnrecordedTimingsAreAbsentRatherThanZero(t *testing.T) {
 	run := sampleRun()
 	run.Stats = engine.Stats{Jobs: 2, Scans: 2, Concurrency: 2}
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, key := range []string{"durationMs", "byControlMs", "toolWaitsMs"} {
@@ -392,7 +392,7 @@ func TestJSONReportCarriesTheScope(t *testing.T) {
 	run := engine.Result{Scope: engine.Scope{
 		Components: []string{"app"}, SkippedComponents: []string{"frontend"},
 	}}
-	if err := RenderJSON(&b, saga.Release{Name: "r", Version: "1"}, run, norn.Result{Verdict: norn.Pass}, ""); err != nil {
+	if err := RenderJSON(&b, saga.Release{Version: "1"}, run, norn.Result{Verdict: norn.Pass}, ""); err != nil {
 		t.Fatal(err)
 	}
 	var doc struct {
@@ -416,7 +416,7 @@ func TestJSONReportCarriesTheScope(t *testing.T) {
 
 	// And an unscoped run has no such field, so the presence of one is what carries the meaning.
 	b.Reset()
-	if err := RenderJSON(&b, saga.Release{Name: "r", Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, ""); err != nil {
+	if err := RenderJSON(&b, saga.Release{Version: "1"}, engine.Result{}, norn.Result{Verdict: norn.Pass}, ""); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(b.String(), `"scope"`) {
@@ -447,7 +447,7 @@ func TestJSONNamesAControlThatCouldNotRun(t *testing.T) {
 	}}
 
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1"}, run, verdict, ""); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, verdict, ""); err != nil {
 		t.Fatalf("RenderJSON: %v", err)
 	}
 	var doc struct {
@@ -494,7 +494,7 @@ func TestJSONOmitsTheCaveatsWhenThereAreNone(t *testing.T) {
 	verdict := norn.Result{Verdict: norn.Pass, Controls: []norn.ControlOutcome{
 		{Control: "sca", Verdict: norn.Pass},
 	}}
-	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1"}, run, verdict, ""); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, verdict, ""); err != nil {
 		t.Fatalf("RenderJSON: %v", err)
 	}
 	for _, absent := range []string{"scanErrors", "notMeasured"} {
@@ -517,7 +517,7 @@ func TestJSONCarriesWhatWasNotMeasured(t *testing.T) {
 		{Control: "infrastructure", Verdict: norn.Pass},
 	}}
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, saga.Release{Name: "app", Version: "1"}, run, verdict, ""); err != nil {
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, verdict, ""); err != nil {
 		t.Fatalf("RenderJSON: %v", err)
 	}
 	var doc struct {

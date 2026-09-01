@@ -89,31 +89,23 @@ func runValidate(args []string, w io.Writer) error {
 	// it as `draugr: <problem>`. Fanning out to a per-file report only helps when there are files
 	// to tell apart.
 	if len(paths) == 1 {
-		notes, err := loadAndReport(paths[0])
-		if err != nil {
+		if err := loadAndCheck(paths[0]); err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(w, "✓ %s is valid\n", paths[0])
-		writeDeprecations(w, paths[0], notes)
 		return nil
 	}
 
 	var failed int
-	var notes []string
 	for _, p := range paths {
-		found, err := loadAndReport(p)
-		if err != nil {
+		if err := loadAndCheck(p); err != nil {
 			failed++
 			// Strip the loader's own path prefix: the file is already the line's subject.
 			_, _ = fmt.Fprintf(w, "✗ %s\n    %s\n", p, strings.TrimPrefix(err.Error(), p+": "))
 			continue
 		}
 		_, _ = fmt.Fprintf(w, "✓ %s is valid\n", p)
-		for _, n := range found {
-			notes = append(notes, p+": "+n)
-		}
 	}
-	writeDeprecations(w, "", notes)
 
 	if failed > 0 {
 		return fmt.Errorf("%d of %d Saga file(s) invalid", failed, len(paths))
@@ -191,27 +183,7 @@ func discoverSagas(root string) ([]string, error) {
 //
 // Separate from loadSaga because validate *is* the check — loadSaga's error tells the reader to
 // run validate, which would be circular here.
-func loadAndCheck(path string) error { _, err := loadAndReport(path); return err }
-
-// loadAndReport is loadAndCheck, returning what the descriptor uses that is going away.
-//
-// A deprecation nobody sees is a deprecation nobody acts on, and the removal then arrives as a
-// broken build rather than as a thing they had been told about for a release.
-func loadAndReport(path string) ([]string, error) {
-	if err := loadAndCheckInner(path); err != nil {
-		return nil, err
-	}
-	if IsFragmentFile(filepath.Base(path)) {
-		return nil, nil
-	}
-	fetcher := sagafetch.New(context.Background())
-	defer fetcher.Close()
-	res, err := saga.ResolveFile(path, fetcher)
-	if err != nil {
-		return nil, err
-	}
-	return res.Model.Deprecations(), nil
-}
+func loadAndCheck(path string) error { return loadAndCheckInner(path) }
 
 func loadAndCheckInner(path string) error {
 	// A fragment is checked as a fragment. Held to the Saga's rules it would fail on a missing
@@ -236,24 +208,6 @@ func loadAndCheckInner(path string) error {
 		return err
 	}
 	return checkReportNames(res.Model)
-}
-
-// writeDeprecations prints what a descriptor uses that is going away.
-//
-// Valid and deprecated at once, so it is not an error and does not change the exit code — a build
-// that starts failing on the day a warning appears teaches people to suppress warnings.
-func writeDeprecations(w io.Writer, path string, notes []string) {
-	if len(notes) == 0 {
-		return
-	}
-	_, _ = fmt.Fprintln(w)
-	for _, n := range notes {
-		if path != "" {
-			_, _ = fmt.Fprintf(w, "! %s\n  %s\n", path, n)
-			continue
-		}
-		_, _ = fmt.Fprintf(w, "! %s\n", n)
-	}
 }
 
 // isSagaFile reports whether a filename is a Saga descriptor.

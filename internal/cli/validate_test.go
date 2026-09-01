@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-const validSaga = `release:
-  name: app
+const validSaga = `project: app
+release:
   version: "1.0"
 components:
   - name: web
@@ -17,8 +17,8 @@ components:
       - image: alpine:3.19
 `
 
-const invalidSaga = `release:
-  name: app
+const invalidSaga = `project: app
+release:
 components:
   - name: web
     exposure: bogus

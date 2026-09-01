@@ -111,9 +111,10 @@ calls the thing they are scanning. Your release is `acme-api 2.4.0`; their SBOM 
 
 - **`author`** — Draugr knows a project name. It does not know your legal entity or how to reach
   you, and a consumer with a question about a claim you made needs somebody to ask. Unset, this
-  falls back to `release.name`, which is a project rather than a party.
-- **`product`** — unset, this becomes `pkg:generic/<release.name>@<release.version>`, synthesized
-  from your descriptor. The `pkg:generic/` prefix says so plainly.
+  falls back to `project`, which is a project rather than a party.
+- **`product`** — unset, this becomes `pkg:generic/<project>@<release.version>`, synthesized from
+  your descriptor. The `pkg:generic/` prefix says so plainly. A descriptor naming no project
+  produces no identifier at all rather than `pkg:generic/@2.4.0`, which matches nothing.
 
 **Get `product` wrong and nothing happens — which is the problem.** A consumer cannot tell that a
 statement was meant for it, so a mismatched identifier produces no error anywhere. The document

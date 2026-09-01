@@ -247,7 +247,8 @@ func TestClosestName(t *testing.T) {
 	}
 }
 
-const toolsSagaTwoControls = `release: {name: t, version: "1.0"}
+const toolsSagaTwoControls = `project: t
+release: {version: "1.0"}
 config:
   controllers:
     sca: {enabled: true}

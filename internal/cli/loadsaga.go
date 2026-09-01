@@ -207,9 +207,9 @@ func syntheticSaga(dir string) *saga.Model {
 		name = "repo"
 	}
 	return &saga.Model{
-		// `project`, not the deprecated release.name. A descriptor Draugr wrote itself must not be
-		// one Draugr's own next command warns about — which is exactly what `init` then `validate`
-		// did, on the first two steps of the quickstart.
+		// The project at the top level, which is the only place it is named. A descriptor Draugr
+		// synthesized must be one Draugr's own next command accepts — which is exactly what
+		// `init` then `validate` walks through.
 		Project: name,
 		Release: saga.Release{Version: "0.0.0"},
 		Config:  saga.Config{Controllers: zeroConfigControllers()},

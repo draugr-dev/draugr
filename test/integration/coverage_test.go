@@ -69,7 +69,8 @@ func TestGrypeRunsBesideTrivy(t *testing.T) {
 
 	repo := newVulnRepo(t)
 	dir := t.TempDir()
-	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`release: { name: grype-integration, version: "1.0" }
+	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`project: grype-integration
+release: { version: "1.0" }
 config:
   controllers:
     sca:
@@ -103,7 +104,8 @@ func TestLicensesControlRunsOverARepository(t *testing.T) {
 
 	repo := newVulnRepo(t)
 	dir := t.TempDir()
-	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`release: { name: licenses-integration, version: "1.0" }
+	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`project: licenses-integration
+release: { version: "1.0" }
 config:
   controllers:
     licenses: { enabled: true }
@@ -137,7 +139,8 @@ func TestInfrastructureControlAuditsTheCluster(t *testing.T) {
 	// cluster — kind calls it "kind-<cluster>" — so hard-coding one would pass on the machine it
 	// was written on and fail everywhere else.
 	dir := t.TempDir()
-	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`release: { name: infra-integration, version: "1.0" }
+	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`project: infra-integration
+release: { version: "1.0" }
 config:
   controllers:
     infrastructure: { enabled: true }

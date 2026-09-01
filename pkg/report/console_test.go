@@ -46,7 +46,7 @@ func TestUnpinnedCacheLine(t *testing.T) {
 // only that the function can build it.
 func TestConsoleSaysWhenAResultCameFromATagKeyedEntry(t *testing.T) {
 	d := Data{
-		Release: saga.Release{Name: "app", Version: "1.0.0"},
+		Release: saga.Release{Version: "1.0.0"},
 		Run: engine.Result{
 			Stats: engine.Stats{Jobs: 1, CacheHits: 1, UnpinnedCacheHits: []string{"alpine:3.19"}},
 		},
@@ -142,7 +142,7 @@ func TestWrapMessageElidesAtAWordBoundary(t *testing.T) {
 // verdict of FAIL, so anything reading the exit code is told the opposite of what the report says.
 func TestGateOffIsSaidInTheDefaultView(t *testing.T) {
 	d := Data{
-		Release: saga.Release{Name: "app", Version: "1.0.0"},
+		Release: saga.Release{Version: "1.0.0"},
 		Gate:    GateSettings{Threshold: "high", Disabled: true},
 	}
 	var buf bytes.Buffer
@@ -161,7 +161,7 @@ func TestGateOffIsSaidInTheDefaultView(t *testing.T) {
 // and a line restating it on every scan is one more thing between a reader and the findings.
 func TestADefaultGateSaysNothingUntilAsked(t *testing.T) {
 	d := Data{
-		Release: saga.Release{Name: "app", Version: "1.0.0"},
+		Release: saga.Release{Version: "1.0.0"},
 		Gate:    GateSettings{Threshold: "high"},
 	}
 	var buf bytes.Buffer
@@ -204,7 +204,7 @@ func TestALoosenedGateIsSaidWithoutAsking(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			if err := (consoleReporter{}).Render(&buf, Data{
-				Release: saga.Release{Name: "app", Version: "1.0.0"}, Gate: c.gate,
+				Release: saga.Release{Version: "1.0.0"}, Gate: c.gate,
 			}); err != nil {
 				t.Fatal(err)
 			}
@@ -220,7 +220,7 @@ func TestALoosenedGateIsSaidWithoutAsking(t *testing.T) {
 func TestAStricterGateNeedsNoAnnouncement(t *testing.T) {
 	var buf bytes.Buffer
 	if err := (consoleReporter{}).Render(&buf, Data{
-		Release: saga.Release{Name: "app", Version: "1.0.0"},
+		Release: saga.Release{Version: "1.0.0"},
 		Gate:    GateSettings{Threshold: "low", PerControl: map[string]sarif.Severity{"secrets": "low"}},
 	}); err != nil {
 		t.Fatal(err)

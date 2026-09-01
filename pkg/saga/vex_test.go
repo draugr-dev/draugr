@@ -6,7 +6,7 @@ import "testing"
 // come from the VEX block under test.
 func vexModel(v *VEXDecision) Model {
 	return Model{
-		Release: Release{Name: "app", Version: "1.0.0"},
+		Release: Release{Version: "1.0.0"},
 		Config: Config{Exclude: []ExcludeRule{{
 			Rules: []string{"CVE-2024-0001"}, Reason: "accepted", VEX: v,
 		}}},

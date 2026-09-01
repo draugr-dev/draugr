@@ -135,19 +135,14 @@ release:
   version: "2.4.0"
 ```
 
-> **`release.name` is deprecated and is removed after 2026-08-30.** It named the same thing, and
-> two fields for one identity mean a platform has to remember an arbitrary string per project and
-> cannot tell a renamed project from a pipeline pointed at the wrong one.
->
-> Replace `release.name: payments-api` with `project: payments-api`. `draugr validate` says so on
-> every run until you do. Setting both to different values is an error; setting both to the same
-> value is redundant and still warns.
+> **`release.name` was removed.** It named the project, which is what `project` names. Move the
+> value up — `project: payments-api` — and a release keeps only its version. A descriptor still
+> carrying it is refused, with that sentence.
 
 ## `release` (required)
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | — | **Deprecated**, removed after 2026-08-30 — use `project` |
 | `version` | ✅ | The version being assessed. What changes between builds |
 
 ## `config.controllers`
@@ -1082,8 +1077,8 @@ one:
 
 | Unset | Falls back to | Why that is not enough |
 |-------|---------------|------------------------|
-| `author` | `release.name` | A project name is not a party. A consumer with a question about your claim needs somebody to ask. |
-| `product` | `pkg:generic/<release.name>@<release.version>` | Synthesized from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
+| `author` | `project` | A project name is not a party. A consumer with a question about your claim needs somebody to ask. |
+| `product` | `pkg:generic/<project>@<release.version>` | Synthesized from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
 
 **A document nothing matches fails silently.** A consumer cannot tell that a statement was meant
 for it, so a wrong identifier does not error — it is read, understood, and applied to nothing.

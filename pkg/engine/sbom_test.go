@@ -28,7 +28,7 @@ func (f *fakeSBOM) Generate(_ context.Context, component string, t plugin.Target
 
 func sbomModel() saga.Model {
 	return saga.Model{
-		Release: saga.Release{Name: "app", Version: "1"},
+		Release: saga.Release{Version: "1"},
 		Config:  saga.Config{SBOM: &saga.SBOMConfig{Enabled: true, Format: saga.SBOMCycloneDXJSON}},
 		Components: []saga.Component{
 			{

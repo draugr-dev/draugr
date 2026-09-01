@@ -16,7 +16,8 @@ import (
 // vexData builds a run with the given results under one control.
 func vexData(results ...sarif.Result) Data {
 	return Data{
-		Release:   saga.Release{Name: "acme-api", Version: "2.4.0"},
+		Project:   "acme-api",
+		Release:   saga.Release{Version: "2.4.0"},
 		Generated: time.Date(2026, 8, 5, 10, 0, 0, 0, time.UTC),
 		Version:   "0.68.0",
 		Run: engine.Result{Controls: map[string]plugin.ControlResult{
@@ -200,10 +201,10 @@ func TestVEXOnlyVulnerabilityFindingsBecomeStatements(t *testing.T) {
 	}
 }
 
-func TestVEXProductAndAuthorDefaultToTheRelease(t *testing.T) {
+func TestVEXProductAndAuthorDefaultToTheProject(t *testing.T) {
 	doc := buildVEX(vexData(vexResult("CVE-2024-0001", nil)))
 	if doc.Author != "acme-api" {
-		t.Errorf("author = %q, want the release name", doc.Author)
+		t.Errorf("author = %q, want the project", doc.Author)
 	}
 	if got := doc.Statements[0].Products[0].ID; got != "pkg:generic/acme-api@2.4.0" {
 		t.Errorf("product = %q", got)
@@ -225,7 +226,7 @@ func TestVEXConfigOverridesAuthorAndProduct(t *testing.T) {
 // A release with no version must not produce a purl ending in a bare "@".
 func TestVEXProductOmitsAnEmptyVersion(t *testing.T) {
 	d := vexData(vexResult("CVE-2024-0001", nil))
-	d.Release = saga.Release{Name: "acme-api"}
+	d.Release = saga.Release{}
 	if got := buildVEX(d).Statements[0].Products[0].ID; got != "pkg:generic/acme-api" {
 		t.Errorf("product = %q", got)
 	}

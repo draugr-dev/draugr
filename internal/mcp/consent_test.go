@@ -102,7 +102,7 @@ func TestScanDeliversTheDescriptorsPublishers(t *testing.T) {
 	// No control enabled, so this needs no scanner binary and no network — the publisher still
 	// has a complete run to render, which is the part under test.
 	if err := os.WriteFile(path, []byte(
-		"release:\n  name: app\n  version: \"1.0\"\n"+
+		"project: app\nrelease:\n  version: \"1.0\"\n"+
 			"config:\n  reports:\n    - format: sarif\n  publishers:\n    - kind: file\n      dir: "+out+"\n"+
 			"components:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -128,7 +128,7 @@ func TestScanReportsNoDeliveryWhenNoneIsConfigured(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "plain.saga.yaml")
 	if err := os.WriteFile(path, []byte(
-		"release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
+		"project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, res, err := scanTool(builtins.Registry(), ScanAlways)(context.Background(), nil, ScanInput{Path: path})

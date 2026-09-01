@@ -91,7 +91,7 @@ func TestRunSurveyMerge(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "draugr.saga.yaml")
 	// Pre-existing Saga with a hand-written component.
-	existing := "release:\n  name: app\n  version: \"1.0\"\ncomponents:\n  - name: existing\n"
+	existing := "project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: existing\n"
 	if err := os.WriteFile(out, []byte(existing), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -488,7 +488,7 @@ func TestSurveySaysWhenANamespaceScopeWasNotApplied(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "draugr.saga.yaml")
 	if err := os.WriteFile(out, []byte(
-		"release:\n  name: app\n  version: \"1.0\"\n"+
+		"project: app\nrelease:\n  version: \"1.0\"\n"+
 			"components:\n  - name: prod\n    infrastructure:\n      - kind: kubernetes\n        ref: prod\n",
 	), 0o600); err != nil {
 		t.Fatal(err)
@@ -533,7 +533,7 @@ func TestSurveySaysWhenANamespaceScopeWasNotApplied(t *testing.T) {
 func TestSurveyAddsToAnExistingDescriptorUnlessToldOtherwise(t *testing.T) {
 	dir := t.TempDir()
 	existing := filepath.Join(dir, "draugr.saga.yaml")
-	if err := os.WriteFile(existing, []byte("release:\n  name: app\n  version: \"1.0\"\n"), 0o600); err != nil {
+	if err := os.WriteFile(existing, []byte("project: app\nrelease:\n  version: \"1.0\"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	absent := filepath.Join(dir, "new.saga.yaml")
@@ -597,7 +597,7 @@ func TestSurveyNamesTheExposuresItProposed(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			out := filepath.Join(dir, "draugr.saga.yaml")
-			body := "release:\n  name: app\n  version: \"1.0\"\n" + tc.existing
+			body := "project: app\nrelease:\n  version: \"1.0\"\n" + tc.existing
 			if err := os.WriteFile(out, []byte(body), 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -684,7 +684,7 @@ func captureStderr(t *testing.T) func() string {
 // writes a Saga now shares saga.Indent, and this is what notices if one stops.
 func TestASurveyedDescriptorSurvivesClassifyUnreformatted(t *testing.T) {
 	model := saga.Model{
-		Release: saga.Release{Name: "app", Version: "1"},
+		Release: saga.Release{Version: "1"},
 		Components: []saga.Component{
 			{Name: "front", Images: []saga.Image{{Image: "repo/a:1"}}},
 			{Name: "back", Images: []saga.Image{{Image: "repo/b:1"}}},

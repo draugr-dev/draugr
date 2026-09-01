@@ -100,10 +100,9 @@ func (c cdxComponent) ref() string {
 // release is the product, and the product is what an SBOM is asked for.
 // The root component is what this document is about: the project, at the version being assessed.
 //
-// Named by the project rather than by the release. `release.name` named the same thing and is
-// gone, and an assembler reading it produced a published artifact whose root component had an
-// empty name and a bom-ref of "draugr:release/" — a bill of materials that does not say what it is
-// a bill of materials for.
+// Named by the project rather than by the release, which carries a version and nothing else. A
+// name read from anywhere else is empty, and an empty one here is a bom-ref of "draugr:release/"
+// on a document that parses, validates and does not say what it is a bill of materials for.
 func newCycloneDX(project string, release saga.Release) cycloneDX {
 	return cycloneDX{
 		BOMFormat:   "CycloneDX",

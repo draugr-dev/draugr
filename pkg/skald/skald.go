@@ -187,8 +187,9 @@ type FeedProvenance struct {
 	Stale     bool       `json:"stale,omitempty"`
 }
 
+// releaseInfo is what was assessed. Its version, and nothing else: what a release is called is
+// the project's name, and it is `project` at the top of this document.
 type releaseInfo struct {
-	Name    string `json:"name"`
 	Version string `json:"version"`
 }
 
@@ -292,23 +293,23 @@ func RenderJSONWith(w io.Writer, release saga.Release, run engine.Result, verdic
 
 // RenderJSONWithFeeds is RenderJSONWith plus the exploitability datasets the run used.
 //
-// Deprecated: use RenderJSONFor, which carries the project. This one emits a document with no
-// project in it, which a platform files under nothing.
+// Deprecated: use RenderJSONFor, which carries the project. This one emits a document naming no
+// project at all — a platform files it under nothing, and there is no longer a release name for
+// one to fall back to.
 func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions) error {
 	return RenderJSONFor(w, "", release, run, verdict, minPriority, feeds, opts, Provenance{})
 }
 
 // RenderJSONFor is RenderJSONWithFeeds with the project the run belongs to.
 //
-// A separate function rather than another parameter on the three above: release.name is being
-// removed, and those signatures go with it. Changing them twice — once to add the project and
-// again to drop the release name — is two breaks for one decision.
+// A separate function rather than another parameter on the three above, which are kept for callers
+// outside this repository and say what they leave out.
 func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions, prov Provenance) error {
 	doc := jsonReport{
 		Descriptor: prov.Descriptor,
 		CI:         prov.CI,
 		Project:    project,
-		Release:    releaseInfo{Name: release.Name, Version: release.Version},
+		Release:    releaseInfo{Version: release.Version},
 		Verdict:    string(verdict.Verdict),
 		Scope:      scopeOf(run),
 		Stats: statsInfo{

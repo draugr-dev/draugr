@@ -8,8 +8,8 @@ import (
 )
 
 const validSaga = `
+project: my-app
 release:
-  name: my-app
   version: "1.0"
 config:
   controllers:
@@ -47,8 +47,8 @@ func TestLoadValid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if m.Release.Name != "my-app" || m.Release.Version != "1.0" {
-		t.Errorf("release = %+v", m.Release)
+	if m.Project != "my-app" || m.Release.Version != "1.0" {
+		t.Errorf("project = %q, release = %+v", m.Project, m.Release)
 	}
 	if len(m.Components) != 1 || m.Components[0].Name != "backend" {
 		t.Fatalf("components = %+v", m.Components)
@@ -98,8 +98,8 @@ func TestEnvSubstitution(t *testing.T) {
 	t.Setenv("RELEASE_VERSION", "9.9")
 	t.Setenv("IMG_TAG", "abc")
 	src := `
+project: x
 release:
-  name: x
   version: "${{ RELEASE_VERSION }}"
 components:
   - name: c
@@ -121,8 +121,8 @@ components:
 func TestEnvSubstitutionIgnoresComments(t *testing.T) {
 	// Tokens inside YAML comments must NOT trigger substitution (regression: #44).
 	src := `
+project: x
 release:
-  name: x
   version: "1.0"
 # Tip: string values support ${{ SOME_UNDEFINED_VAR }} substitution.
 components:

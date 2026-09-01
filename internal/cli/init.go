@@ -146,9 +146,9 @@ func scaffoldSaga(dir, name string) string {
 	if len(detected) > 0 {
 		b.WriteString("# Detected: " + strings.Join(detected, ", ") + "\n")
 	}
-	// `project`, not the deprecated release.name. A descriptor Draugr wrote itself must not be one
-	// Draugr's own next command warns about — and `init` then `validate` are the first two steps
-	// of the quickstart.
+	// The project at the top level, which is the only place it is named. A descriptor Draugr
+	// wrote itself must be one Draugr's own next command accepts — and `init` then `validate` are
+	// the first two steps of the quickstart.
 	fmt.Fprintf(&b, "project: %s\nrelease:\n  version: \"0.0.0\"\n", name)
 	b.WriteString("config:\n  controllers:\n")
 	b.WriteString("    sca:\n      enabled: true       # dependency vulnerabilities (Trivy)\n")

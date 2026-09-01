@@ -23,7 +23,7 @@ func sampleData() report.Data {
 		}}},
 	}}
 	verdict := norn.Result{Verdict: norn.Fail}
-	return report.Data{Release: saga.Release{Name: "app", Version: "1.0"}, Run: run, Verdict: verdict}
+	return report.Data{Release: saga.Release{Version: "1.0"}, Run: run, Verdict: verdict}
 }
 
 func TestForKnownAndUnknown(t *testing.T) {

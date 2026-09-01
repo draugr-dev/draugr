@@ -28,8 +28,8 @@ func TestAskCriticalityRepromptsAndDefaults(t *testing.T) {
 	}
 }
 
-const classifySaga = `release:
-  name: app
+const classifySaga = `project: app
+release:
   version: "1.0"
 components:
   - name: gateway

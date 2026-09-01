@@ -220,17 +220,21 @@ func TestEmbeddedSchemaMatchesFile(t *testing.T) {
 func TestLoaderRejectsWhatTheSchemaRejects(t *testing.T) {
 	cases := map[string]string{
 		"unknown field at the root": `
-release: {name: a, version: "1"}
+project: a
+release: {version: "1"}
 bogus: true`,
 		"unknown field in release": `
-release: {name: a, version: "1", bogusField: x}`,
+project: a
+release: {version: "1", bogusField: x}`,
 		"unknown field in a component": `
-release: {name: a, version: "1"}
+project: a
+release: {version: "1"}
 components:
   - name: web
     repositores: []`,
 		"unknown field in a repository": `
-release: {name: a, version: "1"}
+project: a
+release: {version: "1"}
 components:
   - name: web
     repositories:
@@ -268,7 +272,8 @@ func TestRemovedFieldSaysSo(t *testing.T) {
 // open: each scanner validates its own block against its ConfigSchema when the scan is planned.
 func TestScannerOptionsStayFreeForm(t *testing.T) {
 	doc := `
-release: {name: a, version: "1"}
+project: a
+release: {version: "1"}
 config:
   controllers:
     sast:
@@ -284,7 +289,7 @@ config:
 
 // The error has to tell a reader which part of their file is wrong.
 func TestUnknownFieldErrorNamesTheSection(t *testing.T) {
-	_, err := Load([]byte("release: {name: a, version: \"1\", bogusField: x}"))
+	_, err := Load([]byte("project: a\nrelease: {version: \"1\", bogusField: x}"))
 	if err == nil {
 		t.Fatal("expected an error")
 	}

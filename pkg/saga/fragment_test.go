@@ -21,7 +21,7 @@ func write(t *testing.T, dir, rel, body string) string {
 	return full
 }
 
-const rootHeader = "release: { name: acme, version: \"1.0.0\" }\n"
+const rootHeader = "project: acme\nrelease: { version: \"1.0.0\" }\n"
 
 func resolveIn(t *testing.T, dir string) (*Resolved, error) {
 	t.Helper()
@@ -240,7 +240,7 @@ func dirName(i int) string { return fmt.Sprintf("d%d", i) }
 // as unknown.
 func TestFragmentRejectsSectionsItMayNotCarry(t *testing.T) {
 	for _, tc := range []struct{ name, body, want string }{
-		{"release", "release: { name: x, version: \"1\" }", "has no `release:`"},
+		{"release", "release: { version: \"1\" }", "has no `release:`"},
 		{"gate", "config:\n  gate:\n    failOn: high", "may not set `config.gate`"},
 		{"controllers", "config:\n  controllers:\n    sca: { enabled: false }", "may not set `config.controllers`"},
 		{"publishers", "config:\n  publishers: [{ kind: github }]", "may not set `config.publishers`"},

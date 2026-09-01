@@ -12,7 +12,7 @@ import (
 func TestTemplateInline(t *testing.T) {
 	cfg := saga.ReportConfig{
 		Format:   "template",
-		Template: "{{.Verdict}} {{.Release.Name}} P1={{.Priorities.P1}}\n{{range .Findings}}- {{.RuleID}} ({{.Priority}})\n{{end}}",
+		Template: "{{.Verdict}} {{.Project}} P1={{.Priorities.P1}}\n{{range .Findings}}- {{.RuleID}} ({{.Priority}})\n{{end}}",
 	}
 	a, err := Build(cfg, sampleData())
 	if err != nil {

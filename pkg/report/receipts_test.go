@@ -20,7 +20,7 @@ import (
 // what it read may be stale.
 func TestBothListingsCarryTheReceipts(t *testing.T) {
 	base := Data{
-		Release: saga.Release{Name: "app", Version: "1.0"},
+		Release: saga.Release{Version: "1.0"},
 		Verdict: norn.Result{Verdict: norn.Fail},
 		Run: engine.Result{
 			Effects: []plugin.Effect{{Kind: "network", Detail: "sent requests to a live endpoint"}},

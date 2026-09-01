@@ -9,7 +9,7 @@ import (
 // block under test.
 func scopeModel(scope SBOMScope) Model {
 	return Model{
-		Release: Release{Name: "app", Version: "1.0.0"},
+		Release: Release{Version: "1.0.0"},
 		Config:  Config{SBOM: &SBOMConfig{Enabled: true, Scope: scope}},
 		Components: []Component{{
 			Name: "api", Criticality: "supporting", Exposure: "internal",

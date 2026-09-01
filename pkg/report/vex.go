@@ -239,7 +239,14 @@ func vexProductID(d Data) string {
 	if d.VEX != nil && d.VEX.Product != "" {
 		return withReleaseVersion(d.VEX.Product, d.Release.Version)
 	}
-	id := "pkg:generic/" + d.ProjectName()
+	// A descriptor naming no project has no product to identify, and `pkg:generic/@2.4.0` is not
+	// a package URL — it parses, it is understood, and it matches nothing, which is worse than an
+	// absent identifier because a consumer cannot tell it apart from one that should have matched.
+	name := d.ProjectName()
+	if name == "" {
+		return ""
+	}
+	id := "pkg:generic/" + name
 	if d.Release.Version != "" {
 		id += "@" + d.Release.Version
 	}

@@ -50,13 +50,6 @@ func (m *Model) Validate() error {
 		errs = append(errs, errors.New("release.version is required"))
 	}
 
-	// Both set and disagreeing is the one case that cannot be resolved by preferring either: the
-	// descriptor states two different projects and no reading of it is the author's intent.
-	if m.Project != "" && m.Release.Name != "" && m.Project != m.Release.Name {
-		errs = append(errs, fmt.Errorf(
-			"project is %q and release.name is %q — they name the same thing, so remove "+
-				"release.name", m.Project, m.Release.Name))
-	}
 	if m.Project != "" && !projectName.MatchString(m.Project) {
 		errs = append(errs, fmt.Errorf(
 			"project %q: lowercase letters, digits and dashes, starting and ending with a letter "+

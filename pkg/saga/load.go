@@ -101,6 +101,8 @@ func unknownFieldHint(err error) error {
 // in a line they copied from our own documentation. Naming the removal costs one map entry and
 // answers the question the error otherwise raises.
 var removedFields = map[string]string{
+	"release.name": "it named the project, which is what the top-level `project` names. Move " +
+		"the value there — `project: payments-api` — and a release keeps only its version",
 	"release.stage": "nothing read it, so deleting the line changes no result. " +
 		"Where a scan is pointed is a property of the target, not of the release",
 	"host.environment":           environmentRemoved,
