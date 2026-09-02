@@ -10,7 +10,13 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- The prioritization guide now prints both ranking matrices in full, the CVSS score ranges behind
+  each severity band, and four findings worked through from score to band — including the same CVE
+  landing in two different bands on two components. It also names the difference between
+  `criticality: critical`, which describes a component, and `severity: critical`, which describes a
+  flaw.
 
 ## [0.113.0] - 2026-09-01
 
