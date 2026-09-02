@@ -21,8 +21,10 @@ control floor) combines with the component's `exposure × criticality` through t
 lookup matrices to yield the priority. So the *same* CVE is P1 on a public, business-critical
 gateway and P3 on an internal dev tool — same finding, different risk.
 
+Both matrices are printed in full below, with four findings worked through them.
+
 **Exploitability enrichment (optional).** Severity can be raised by real-world signals before
-ranking — see [Exploitability: KEV and EPSS](#exploitability-kev-and-epss) below.
+ranking — see **Exploitability: KEV and EPSS** below.
 
 - **Focus:** `--min-priority P2` lists only the findings worth acting on now
   (P1 = act now · P2 = this cycle · P3 = backlog · P4 = track).
@@ -32,6 +34,103 @@ ranking — see [Exploitability: KEV and EPSS](#exploitability-kev-and-epss) bel
 
 Set `exposure` and `criticality` by hand (see the [Saga schema](../reference/saga-schema.md))
 or with the guided [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory) wizard.
+
+## The two matrices
+
+Nothing here is inferred at runtime. These are the shipped defaults
+(`pkg/prioritization/prioritization.go`), and a descriptor can override individual cells.
+
+### Two different meanings of "critical"
+
+`critical` is a value on both axes and means something different on each. It is the one thing worth
+pinning before reading the tables.
+
+| | describes | values |
+| --- | --- | --- |
+| `criticality` | the **component** — how much the organization depends on it | `critical` · `important` · `supporting` |
+| `severity` | the **flaw** — how much harm it could cause if exploited | `critical` · `high` · `medium` · `low` |
+
+`criticality: critical` says the organization depends on this component. `severity: critical`
+says this flaw could cause serious harm if it were exploited. Neither implies the other: a
+component the organization depends on carries low-severity findings like anything else, and a
+supporting one can carry a critical flaw.
+
+The two meet in step 2 — a critical component with a critical finding is P1, and the same critical
+component with a low finding is P3. Each table below names its row axis and its column axis for
+that reason.
+
+### Step 1 — the component's context tier
+
+What the descriptor declares about the component, crossed into one of four tiers. This step does
+not look at the finding at all.
+
+**Rows are `exposure`. Columns are `criticality`.**
+
+| exposure | `critical` | `important` | `supporting` |
+| --- | --- | --- | --- |
+| `public` | C1 | C1 | C2 |
+| `authenticated` | C1 | C2 | C3 |
+| `internal` | C2 | C3 | C4 |
+| `restricted` | C3 | C4 | C4 |
+
+### Step 2 — the band
+
+The tier crossed with the finding's normalized severity.
+
+**Rows are the tier from step 1. Columns are `severity`** — the flaw's own badness, not the
+component's importance.
+
+| tier | `critical` | `high` | `medium` | `low` |
+| --- | --- | --- | --- | --- |
+| C1 | **P1** | **P1** | P2 | P3 |
+| C2 | **P1** | P2 | P2 | P3 |
+| C3 | P2 | P3 | P3 | P4 |
+| C4 | P2 | P3 | P4 | P4 |
+
+Both are monotonic: raising exposure, criticality or severity never lowers a band. Of the 48
+combinations, **9 land in P1 and 9 in P4**. P1 is deliberately scarce — a band that a third of
+findings reach is not a queue anybody works from.
+
+### Where the severity in step 2 comes from
+
+A scanner reporting a CVSS score is banded on the standard v3 ranges:
+
+| score | severity |
+| --- | --- |
+| 9.0 – 10.0 | `critical` |
+| 7.0 – 8.9 | `high` |
+| 4.0 – 6.9 | `medium` |
+| below 4.0 | `low` |
+
+A finding with no score — a secret, a static-analysis rule, an IaC check — is banded from the SARIF
+level instead: `error` is high, `warning` is medium, `note` and `none` are low.
+
+### Four findings, worked through
+
+**A P1.** `CVE-2021-44228` scores 10.0, so its **severity** is `critical`. The component declares
+`exposure: public` and `criticality: critical` — it is one the organization depends on — so its
+tier is **C1**. C1 crossed with a critical severity = **P1**. Both `critical`s are in play here,
+and they are answering different questions.
+
+**Another P1, from a lower score.** A CVE scoring 7.5 is `high`, not critical. On the same public,
+business-critical component the tier is still C1, and C1 × high = **P1**. A high on something
+public and depended on outranks a critical on something nobody can reach.
+
+**The same 10.0, two bands lower.** Put `CVE-2021-44228` on a component declaring
+`exposure: internal` and `criticality: important`. The tier is **C3**, and C3 × critical = **P2**.
+Nothing about the flaw changed; the answer to "how much does this matter here" did.
+
+**A P4.** A CVE scoring 3.7 is `low`. On `exposure: restricted` and `criticality: supporting` the
+tier is **C4**, and C4 × low = **P4**. Still reported, still counted, and not something to
+interrupt anybody for.
+
+### An unclassified component
+
+A component that declares neither field is read as **`public` and `critical`** — tier C1, the most
+concerning. An unclassified component surfaces rather than hides, and both rows read `not declared`
+in the report so the band is traceable to the gap that produced it.
+
+The fix is a descriptor edit rather than an argument with the tool.
 
 ## Exploitability: KEV and EPSS
 

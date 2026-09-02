@@ -55,6 +55,12 @@ Both are fixed ladders (an organization can redefine the meaning; the levels sta
 | `internal` | reachable within the environment | | `supporting` | limited operational impact |
 | `restricted` | namespace- / network-policy-scoped | | | |
 
+**`criticality: critical` is not `severity: critical`.** This ladder describes the *component* —
+how much the organization depends on it. Severity describes a *flaw*, and a scanner assigns it: how
+much harm it could cause if it were exploited. A component you mark `critical` will still carry
+low-severity findings, and both words appear on the same finding. See
+[prioritization](../concepts/prioritization.md) for the tables where the two meet.
+
 ## By hand, or from discovery
 
 Prefer to hand-edit? Set `exposure` and `criticality` directly on a component — see the
