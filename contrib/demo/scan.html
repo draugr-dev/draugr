@@ -1,21 +1,30 @@
 <pre class="term"><span class="t-prompt">$</span> draugr scan .
 Draugr — <span class="t-crit">FAIL</span>   <span class="t-dim">(draugr-demo 1.0)</span>
 
-Priorities:  <span class="t-crit">P1 153</span>   <span class="t-warn">P2 248</span>   P3 55   <span class="t-dim">P4 18</span>
+Priorities:  <span class="t-crit">P1 165</span>   <span class="t-warn">P2 629</span>   P3 261   <span class="t-dim">P4 18</span>
 
 Controls:
   iac       <span class="t-crit">FAIL </span>  <span class="t-high">7 high</span>  <span class="t-warn">10 medium</span>  <span class="t-dim">23 low</span>
-  images    <span class="t-crit">FAIL </span>  <span class="t-crit">20 critical</span>  <span class="t-high">111 high</span>  <span class="t-warn">224 medium</span>  <span class="t-dim">39 low</span>
-  licenses  <span class="t-dim">pass </span>  <span class="t-dim">no findings</span>
-  sast      <span class="t-crit">FAIL </span>  <span class="t-high">7 high</span>  <span class="t-warn">8 medium</span>
-  sca       <span class="t-crit">FAIL </span>  <span class="t-crit">4 critical</span>  <span class="t-high">6 high</span>  <span class="t-warn">13 medium</span>  <span class="t-dim">1 low</span>
+  images    <span class="t-crit">FAIL </span>  <span class="t-crit">20 critical</span>  <span class="t-high">121 high</span>  <span class="t-warn">248 medium</span>  <span class="t-dim">69 low</span>
+  licenses  <span class="t-dim">pass </span>  <span class="t-warn">353 medium</span>  <span class="t-dim">176 low</span>
+  sast      <span class="t-crit">FAIL </span>  <span class="t-high">7 high</span>  <span class="t-warn">10 medium</span>
+  sca       <span class="t-crit">FAIL </span>  <span class="t-crit">4 critical</span>  <span class="t-high">10 high</span>  <span class="t-warn">13 medium</span>  <span class="t-dim">1 low</span>
   secrets   <span class="t-crit">FAIL </span>  <span class="t-high">1 high</span>
 
+Measured against:
+  sca       <span class="t-dim">govulncheck — coverage this repository has no go.mod, so its findings carry no verdict</span>
+
 Components:
-  api       <span class="t-crit">FAIL </span>  <span class="t-crit">P1 153</span>  <span class="t-warn">P2 248</span>  P3 52  <span class="t-dim">iac, images, sast, sca, secrets</span>
+  api       <span class="t-crit">FAIL </span>  <span class="t-crit">P1 165</span>  <span class="t-warn">P2 629</span>  P3 258  <span class="t-dim">iac, images, sast, sca, secrets</span>
   platform  <span class="t-crit">FAIL </span>  P3 3  <span class="t-dim">P4 18</span>  <span class="t-dim">iac</span>
 
+<span class="t-warn">Reachability:</span>
+  govulncheck  2 reachable, 2 unreachable
+  <span class="t-dim">Unreachable findings are ranked down in priority, not removed from the report.</span>
+
 <span class="t-warn">1 finding suppressed by config.exclude — 1 accepted by demo@example.com</span>
+
+<span class="t-warn">1 finding excused by a supplier&#39;s VEX — 1 asserted by Example Base Images &lt;security@example.com&gt;</span>
 
 <span class="t-prompt">$</span> echo $?
 1</pre>
