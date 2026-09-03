@@ -18,6 +18,12 @@ and move it under a version on release.
   `criticality: critical`, which describes a component, and `severity: critical`, which describes a
   flaw.
 
+### Security
+
+- Draugr's own build takes `google.golang.org/grpc` 1.83.1, which fixes CVE-2026-84304. The
+  package arrives through the OpenTelemetry OTLP exporter, so it is only reached when a Draugr
+  run is configured to export traces or metrics over gRPC.
+
 ## [0.113.0] - 2026-09-01
 
 ### Removed
