@@ -408,7 +408,7 @@ var runCosignVerify = func(ctx context.Context, cosignPath string, args []string
 
 // Installable returns the names of the tools `tools install` can provision, sorted.
 func Installable() []string {
-	names := make([]string, 0, len(installable)+len(pythonInstallable)+len(nodeInstallable))
+	names := make([]string, 0, len(installable)+len(pythonInstallable)+len(nodeInstallable)+len(goInstallable))
 	for name := range installable {
 		names = append(names, name)
 	}
@@ -419,6 +419,9 @@ func Installable() []string {
 		names = append(names, name)
 	}
 	for name := range nodeInstallable {
+		names = append(names, name)
+	}
+	for name := range goInstallable {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -483,8 +486,46 @@ func installNodeTool(ctx context.Context, name, version, destDir string, spec No
 	return Installed{Name: name, Version: version, Path: path}, nil
 }
 
+// installGoTool provisions a tool built with the Go toolchain, and reports it the way an
+// installed binary is reported.
+func installGoTool(ctx context.Context, name, version, destDir string, spec GoSpec) (Installed, error) {
+	if version == "" {
+		version = goVersions[name]
+	}
+	root := filepath.Dir(destDir)
+	path, level, err := installGo(ctx, root, name, spec, version)
+	if err != nil {
+		return Installed{}, err
+	}
+	sum, err := fileSHA256(path)
+	if err != nil {
+		return Installed{}, err
+	}
+	// LevelPinned when the checksum database verified the module and everything it builds with,
+	// which is the same claim a pinned release archive makes and covers more.
+	recordInstall(destDir, name, installRecord{
+		Version: version, BinarySHA256: sum, Verified: level,
+	})
+	return Installed{Name: name, Version: version, Path: path}, nil
+}
+
 // pythonVersions pins each Python-packaged tool.
 var pythonVersions = map[string]string{"semgrep": semgrepVersion}
+
+// ManagedVersion is the pinned version of a tool provisioned through one of the language-package
+// paths, or "" for anything obtained as a release archive or not managed at all.
+//
+// One place to ask, because the callers that need it — the install plan, `tools list`, the
+// up-to-date check — each named the paths individually, and a path added later joined none of
+// them.
+func ManagedVersion(name string) string {
+	for _, v := range []string{pythonVersions[name], nodeVersions[name], goVersions[name]} {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
 
 // PythonVersion is the pinned version of a tool obtained as a Python package.
 func PythonVersion(name string) string { return pythonVersions[name] }
@@ -551,6 +592,9 @@ func InstallVersion(ctx context.Context, name, version, destDir string, client *
 	}
 	if nodeSpec, ok := NodeTool(name); ok {
 		return installNodeTool(ctx, name, version, destDir, nodeSpec)
+	}
+	if goSpec, ok := GoTool(name); ok {
+		return installGoTool(ctx, name, version, destDir, goSpec)
 	}
 	spec, err := SpecFor(name, version)
 	if err != nil {

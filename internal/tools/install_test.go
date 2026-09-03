@@ -313,7 +313,8 @@ func TestExtractBinaryDispatch(t *testing.T) {
 
 func TestInstallableAndSpec(t *testing.T) {
 	names := Installable()
-	want := []string{"cosign", "gitleaks", "gosec", "grype", "kube-bench", "nuclei", "retire", "semgrep", "syft", "trivy"}
+	want := []string{"cosign", "gitleaks", "gosec", "govulncheck", "grype", "kube-bench",
+		"nuclei", "retire", "semgrep", "syft", "trivy"}
 	if len(names) < len(want) {
 		t.Fatalf("Installable() = %v, want at least %v", names, want)
 	}

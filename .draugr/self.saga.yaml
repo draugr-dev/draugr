@@ -137,6 +137,21 @@ config:
       acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
+        - "internal/tools/gotool.go"
+      rules:
+        - "go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"
+      reason: >-
+        The Go form of the two exclusions above, and the same argument. A tool that publishes no
+        release binary has to be built to be obtained, building it means running the Go toolchain,
+        and the toolchain's path is discovered rather than written down — that is the finding, and
+        it is the job. What reaches exec is Draugr's own: a go resolved by exec.LookPath, a package
+        path and version that are constants in this binary, and an environment this code sets
+        rather than inherits. None of it is reachable from a descriptor, a scanned repository or
+        the network. Hardcoding a toolchain path to satisfy the rule would be wrong on every
+        machine that keeps Go somewhere else.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
+    - paths:
         - "pkg/report/htmldata.go"
       rules:
         - "go.lang.security.audit.net.unescaped-data-in-url.unescaped-data-in-url"

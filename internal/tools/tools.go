@@ -32,6 +32,9 @@ type Tool struct {
 	// Optional marks a tool whose absence should not fail `doctor` — a nice-to-have that
 	// enhances behavior (e.g. cosign for signature verification) rather than a requirement.
 	Optional bool
+	// VersionFrom reads the version out of the probe's output, for a tool that names more than
+	// one. Nil takes the first semver-looking token, which is right for almost everything.
+	VersionFrom func([]byte) string
 	// DataArgs probes for data the tool needs beyond its own binary — Nuclei's template set,
 	// for instance. Empty means the binary is all there is.
 	//
@@ -123,6 +126,14 @@ func Catalog() map[string]Tool {
 			VersionArgs: []string{"--version"},
 			InstallHint: "https://semgrep.dev/docs/getting-started/",
 			Category:    CategoryScanner,
+		},
+		"govulncheck": {
+			Binary:      "govulncheck",
+			VersionArgs: []string{"-version"},
+			VersionFrom: GovulncheckVersion,
+			InstallHint: "draugr tools install govulncheck — it is distributed as a Go package " +
+				"and needs a Go toolchain to build",
+			Category: CategoryScanner,
 		},
 		"gosec": {
 			Binary:      "gosec",
@@ -233,7 +244,11 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 		st.Err = err // found, but couldn't read version — report it, don't fail detection
 		return st
 	}
-	st.Version = semverRE.FindString(string(out))
+	if t.VersionFrom != nil {
+		st.Version = t.VersionFrom(out)
+	} else {
+		st.Version = semverRE.FindString(string(out))
+	}
 
 	switch {
 	case len(t.DataArgs) > 0 && t.DataOK != nil:
@@ -255,6 +270,28 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 		}
 	}
 	return st
+}
+
+// GovulncheckVersion reads govulncheck's own version from its `-version` output.
+//
+// That output names two versions, the toolchain's first:
+//
+//	Go: go1.26.7
+//	Scanner: govulncheck@v1.5.0
+//
+// Taking the first semver-looking token reports the Go toolchain as the scanner's version — a
+// number that is real, plausible, and about something else, which then travels into every report
+// the scanner produces. The Scanner line is read instead, and an output without one yields
+// nothing rather than the wrong thing.
+func GovulncheckVersion(out []byte) string {
+	for _, line := range strings.Split(string(out), "\n") {
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "Scanner:")
+		if !ok {
+			continue
+		}
+		return semverRE.FindString(rest)
+	}
+	return ""
 }
 
 // fileExists reports whether path is a readable file or directory.
