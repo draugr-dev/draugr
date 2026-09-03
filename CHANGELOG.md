@@ -35,6 +35,15 @@ and move it under a version on release.
   `criticality: critical`, which describes a component, and `severity: critical`, which describes a
   flaw.
 
+### Fixed
+
+- **`draugr doctor` now asks for the reachability analyzer a descriptor names.** A Saga with
+  `config.reachability.analyzers` passed `doctor` clean and the scan then stopped on a missing
+  analyzer — the one command whose job is answering "will this run?" answering yes because the
+  analyzer is deliberately not selectable from a scanner block and so was filtered out with every
+  scanner the control would not run. It is asked for when the control that would run it is
+  enabled, and not otherwise.
+
 ### Security
 
 - Draugr's own build takes `google.golang.org/grpc` 1.83.1, which fixes CVE-2026-84304. The

@@ -104,6 +104,11 @@ need network access to that host, or a mirror pointed at with the tool's own `-d
   reporting otherwise would claim evidence nobody gathered. With no Go on PATH, the error names
   the toolchain and the `go install` line that does the same job by hand.
 
+  `draugr doctor` asks for it whenever a descriptor names it under `config.reachability`, so a
+  missing analyzer is reported before a scan rather than by one. It is not required when the `sca`
+  control is switched off, because `config.reachability` is project-wide and an analyzer whose
+  control never runs is a tool nobody needs to install.
+
 ## Scope of the claim
 
 **Go only.** The docs say *reachability for Go* every time, because a reachability claim without
