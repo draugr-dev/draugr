@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.114.0] - 2026-09-03
+
 ### Added
 
 - **`draugr tools install govulncheck` works.** govulncheck was the one scanner Draugr could not
@@ -5221,7 +5225,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.113.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.114.0...HEAD
+[0.114.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.114.0
 [0.113.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.113.0
 [0.112.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.112.0
 [0.111.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.111.1
