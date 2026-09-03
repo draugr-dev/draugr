@@ -424,7 +424,10 @@ func TestInstallAsksNothingWhenEverythingIsCurrent(t *testing.T) {
 			current[spec.Binary] = spec.Version
 			continue
 		}
-		current[name] = tools.PythonVersion(name)
+		// Every managed path, not the Python one alone. Asking only that one stubbed the others
+		// at "", and the version check that would have noticed did not cover them either — so a
+		// tool at any version at all counted as current.
+		current[name] = tools.ManagedVersion(name)
 	}
 	stubDetect(t, current)
 
@@ -679,10 +682,9 @@ func installVersion(t *testing.T, name string) string {
 	if spec, ok := tools.Spec(name); ok {
 		return spec.Version
 	}
-	if v := tools.PythonVersion(name); v != "" {
-		return v
-	}
-	if v := tools.NodeVersion(name); v != "" {
+	// One place to ask, rather than a branch per install path — this helper listed them
+	// individually and so did not know about the one added after it was written.
+	if v := tools.ManagedVersion(name); v != "" {
 		return v
 	}
 	t.Fatalf("%s is installable but has no pinned version by any method", name)

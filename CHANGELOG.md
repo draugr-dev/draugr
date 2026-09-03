@@ -10,6 +10,23 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- **`draugr tools install govulncheck` works.** govulncheck was the one scanner Draugr could not
+  provision — it publishes no release binary, existing only as a Go package path — so a descriptor
+  asking for reachability meant installing a scanner by hand beside the tool that manages
+  scanners. It now installs like every other: pinned, and verified against the Go checksum
+  database, which covers every module in the build rather than one archive.
+
+  It needs a Go toolchain, since building it is how it is obtained. Without one the error names
+  Go and the `go install` line that does the same job; an install that cannot reach the checksum
+  database still succeeds and is recorded as `unverified` rather than claiming a check that did
+  not happen.
+
+  `draugr tools list` also reports govulncheck's own version now. Its `-version` output names the
+  Go toolchain first, so it had been reporting that instead — a number that is real, plausible,
+  and about something else.
+
 ### Changed
 
 - The prioritization guide now prints both ranking matrices in full, the CVSS score ranges behind

@@ -287,7 +287,7 @@ vulnerabilities*, but *which of those vulnerabilities this code can actually rea
 ```yaml
 config:
   reachability:
-    analyzers: [govulncheck]   # needs the Go toolchain, and only answers for Go
+    analyzers: [govulncheck]   # `draugr tools install govulncheck`; Go only, and needs a Go toolchain
   controllers:
     sca:
       enabled: true

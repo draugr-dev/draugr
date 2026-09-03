@@ -96,9 +96,13 @@ need network access to that host, or a mirror pointed at with the tool's own `-d
 - **Tests are not analyzed.** Reporting a vulnerability reachable only from code that never ships
   produces a finding a developer cannot act on, which is the kind that teaches people to stop
   reading the report.
-- **Requires a Go module.** The tool is not distributed by Draugr; `draugr doctor` names
-  `go install golang.org/x/vuln/cmd/govulncheck@latest` rather than suggesting
-  `draugr tools install`, which would never find it.
+- **Requires a Go module, and a Go toolchain to install.** `draugr tools install govulncheck`
+  provisions it at the pinned version, building it with the `go` on PATH — govulncheck publishes
+  no release binary, so there is no archive to download. The build is verified against the Go
+  checksum database, which covers every module it is built from and not only the tool; an install
+  that could not reach the database still succeeds and is recorded as `unverified`, because
+  reporting otherwise would claim evidence nobody gathered. With no Go on PATH, the error names
+  the toolchain and the `go install` line that does the same job by hand.
 
 ## Scope of the claim
 
