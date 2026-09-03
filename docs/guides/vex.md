@@ -175,7 +175,7 @@ caching by identifier cannot serve superseded claims.
 The other direction. A supplier ships a component and a document saying which of its CVEs do not
 affect it; point at the document and their analysis is applied to your findings.
 
-The value is not that findings disappear — `config.exclude` already does that. It is that the
+The value is not that findings disappear — `config.exclude` already does that — but that the
 analysis stays **theirs**. Retyping a supplier's `not_affected` into your own descriptor makes it
 indistinguishable from a decision you made and are answerable for; read as a claim, the report
 says who asserted it and when, and an auditor can ask them rather than you.
