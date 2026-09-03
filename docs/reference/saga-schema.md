@@ -515,7 +515,7 @@ from the descriptor, which is a file people commit.
 
 Ambient-broad, then ambient-narrow, then ambient-immediate, then explicit — and **explicit wins**.
 An environment variable is context; a `url:` somebody wrote in a descriptor is intent, and context
-does not override intent. It is the order every other publisher already uses — `repo`, `commit`
+does not override intent, and it is the order every other publisher already uses — `repo`, `commit`
 and the rest all beat their environment equivalents — so it is one rule for the whole of Draugr
 rather than a special case here.
 
@@ -939,7 +939,7 @@ reason — true, since you did find it and did decide to accept it. Draugr will 
 to work out whether you meant `not_affected`: that is a claim of safety made on your behalf,
 inferred from prose, and published over your name.
 
-`under_investigation` is not accepted here. It is what an untriaged finding already reports, and
+`under_investigation` is not accepted here, because it is what an untriaged finding already reports, and
 claiming it for something you have suppressed says the matter is both open and settled.
 
 **An expiry is enforced, not advisory.** On the day after `expires` the exclusion stops

@@ -9,7 +9,7 @@ LDFLAGS := -X $(PKG)/internal/version.Version=$(VERSION) \
            -X $(PKG)/internal/version.Commit=$(COMMIT) \
            -X $(PKG)/internal/version.Date=$(DATE)
 
-.PHONY: build run test vet fmt tidy clean gate install-latest examples changelog-guard public-scope
+.PHONY: build run test vet fmt tidy clean gate install-latest examples changelog-guard public-scope slop
 
 build: ## Build the draugr binary into bin/
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/draugr
@@ -68,6 +68,9 @@ changelog-guard: ## Fail if a released CHANGELOG section has been edited
 
 public-scope: ## Fail if a tracked file describes the business around Draugr rather than the tool
 	@./scripts/check-public-scope.sh
+
+slop: ## Fail if published prose announces its point instead of making it
+	@./scripts/check-slop.py
 
 clean: ## Remove build artifacts
 	rm -rf bin

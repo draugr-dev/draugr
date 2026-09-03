@@ -25,7 +25,7 @@ the open-source defaults.
 Findings are **ranked**, not listed. A scanner's "critical" describes a flaw in the abstract — how
 bad it could be at its worst, anywhere. The same flaw is act-now in the service strangers can
 reach and backlog in the internal tool three people use, and no scanner can tell those apart
-because the difference is not in the code. It is in the file you wrote. And
+because the difference is in the file you wrote, not in the code. And
 [`draugr diff`](docs/guides/pr-diff.md) gates a pull request on **new** findings only, so
 inheriting two hundred existing ones does not block every change.
 

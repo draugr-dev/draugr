@@ -82,6 +82,12 @@ echo "▶ doc-anchors"
 echo "▶ public-scope"
 ./scripts/check-public-scope.sh
 
+echo "▶ slop"
+# The throat-clearing openers that announce a point instead of making it. Narrow deliberately:
+# the structural half of this check is precise on marketing prose and wrong four times in ten on
+# reference documentation, so it runs where it is right and the site runs the rest.
+./scripts/check-slop.py
+
 echo "▶ no-defect-recounts"
 ./scripts/check-no-defect-recounts.sh
 
