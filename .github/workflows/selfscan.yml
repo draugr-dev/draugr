@@ -295,10 +295,17 @@ jobs:
           # it can be triaged, and a body that restates it goes stale the moment somebody does.
           summary="(the run's log has the detail)"
           if [ -f draugr-out/report.json ]; then
+            # `.controls[].total` counts what is open; `.priorities` counts every finding in the
+            # report, suppressed ones included -- by design, since a suppressed finding stays in
+            # the report and that is the point of suppressing rather than deleting. Summing
+            # priorities and presenting it as the finding count overstates by however many have
+            # been accepted, which on this repository is most of them.
             summary=$(jq -r '
-              "P1 \(.priorities.p1 // 0) · P2 \(.priorities.p2 // 0) · P3 \(.priorities.p3 // 0) · P4 \(.priorities.p4 // 0)",
+              (([.controls[].total] | add) // 0) as $open
+              | (([.priorities[]] | add) // 0) as $all
+              | "**\($open) open** · \(if $all > $open then $all - $open else 0 end) suppressed · verdict `\(.verdict)`",
               "",
-              "| Control | Verdict | Highest | Findings |",
+              "| Control | Verdict | Highest | Open |",
               "|---|---|---|---|",
               (.controls[] | select(.verdict == "fail")
                 | "| `\(.name)` | \(.verdict) | \(.highestPriority // .highest) | \(.total) |")
