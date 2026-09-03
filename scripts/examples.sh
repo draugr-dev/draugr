@@ -36,7 +36,7 @@ echo "Cloning the demo sandbox…" >&2
 git clone --quiet --depth 1 "$DEMO_REPO" "$workdir/draugr-demo"
 
 # Warm Trivy's database off-camera so the first scan's progress bar doesn't land in the output
-# anyone is about to copy. Same reason contrib/demo/scan.tape does it before recording.
+# anyone is about to copy.
 echo "Warming the scanner databases (first run downloads Trivy's, which is slow)…" >&2
 (cd "$workdir/draugr-demo" && "$DRAUGR" scan . >/dev/null 2>&1) || true
 
@@ -52,6 +52,5 @@ cat >&2 <<'EOF'
 
 
 Done. The README and docs/concepts/verdict-and-gating.md quote abridged versions of the first
-block — keep the abridgement, refresh the numbers and any column that moved. Re-record the
-screenshot separately:  gh workflow run 'Demo assets' --repo draugr-dev/draugr
+block — keep the abridgement, refresh the numbers and any column that moved.
 EOF

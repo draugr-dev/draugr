@@ -36,7 +36,38 @@ inheriting two hundred existing ones does not block every change.
 
 ## See it in action
 
-![Terminal output from a Draugr scan. A large FAIL, then how many problems fall into each of four bands from act-now to track. Below that, one line per kind of check saying whether it passed, and a list of what to fix first — each row naming the problem, how serious it is, and the file and line it is in.](contrib/demo/scan.png)
+```console
+$ draugr scan .
+Draugr — FAIL   (draugr-demo 1.0)
+
+Priorities:  P1 197   P2 629   P3 229   P4 18
+
+Controls:
+  iac       FAIL   7 high  10 medium  23 low
+  images    FAIL   20 critical  153 high  248 medium  37 low
+  licenses  pass   353 medium  176 low
+  sast      FAIL   7 high  10 medium
+  sca       FAIL   4 critical  10 high  13 medium  1 low
+  secrets   FAIL   1 high
+
+Reachability:
+  govulncheck  2 reachable, 2 unreachable
+  Unreachable findings are ranked down in priority, not removed from the report.
+
+1 finding suppressed by config.exclude — 1 accepted by demo@example.com
+
+Fix first (top 10 of 1073, by priority):
+  Priority  Severity  Score  Rule            Control  Scanner  Location
+  P1        critical  9.8    CVE-2026-42010  images   trivy    python:3.8-slim
+            libgnutls30: gnutls: Authentication Bypass via NUL Character in Username
+  P1        critical  9.8    CVE-2026-31789  images   trivy    python:3.8-slim
+            libssl3: OpenSSL: Heap buffer overflow on 32-bit systems from large X.509
+  P1        critical  9.8    CVE-2019-20477  sca      trivy    app/requirements.txt:4
+            PyYAML 5.1: command execution through python/object/apply in FullLoader
+```
+
+Abridged: the real run lists ten and says how many it did not. That last block is the point — a
+thousand findings, ordered, with the three that matter this week at the top.
 
 **Priority (P1–P4) is not severity.** Severity says how bad a flaw is at its worst, anywhere.
 Priority weighs that against how exposed and how important the part of your app it sits in is —
