@@ -169,7 +169,7 @@ export DRAUGR_API_URL=https://draugr.acme.example
 export DRAUGR_API_TOKEN=drgr_ci_…      # write-only, scoped to one project
 ```
 
-**Named for the protocol, not for a product.** [Draugr Cloud](https://draugr.dev) implements it,
+**Named for the protocol, not for a product.** [Draugr Server](https://draugr.dev) implements it,
 hosted and as an install you run yourself — the same artifact either way, so `url` points at either
 and nothing else changes. Anything else that implements the three calls below works identically.
 The publisher does not know or care which it is talking to.

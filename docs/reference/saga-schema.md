@@ -488,7 +488,7 @@ which is worth knowing before reaching for the variable GitLab already provides.
 [reports & publishers](../guides/reports-and-publishers.md#gitlab).
 
 The **`draugr-api`** publisher posts the run to any server implementing Draugr's run-ingest API.
-[Draugr Cloud](https://draugr.dev) is one — hosted, or installed where you want it, the same
+[Draugr Server](https://draugr.dev) is one — hosted, or installed where you want it, the same
 artifact either way — and the three calls are documented in
 [reports & publishers](../guides/reports-and-publishers.md#the-three-calls) so anything else can
 be another.
