@@ -335,6 +335,66 @@ func TestRequiredToolsIncludesSyftOnlyWhenSBOMIsEnabled(t *testing.T) {
 	}
 }
 
+// TestRequiredToolsIncludesAReachabilityAnalyzer is the mirror of the syft test above, for the
+// other requirement no scanner block declares. A reachability analyzer is named in
+// config.reachability and is deliberately not selectable from a scanner block, so the scanner
+// selection filters it out with everything the control will not run — and doctor reported a ready
+// environment for a descriptor whose scan then stopped on a missing analyzer.
+func TestRequiredToolsIncludesAReachabilityAnalyzer(t *testing.T) {
+	reg := builtins.Registry()
+	sca := saga.Config{
+		Controllers: map[string]saga.ControllerSettings{"sca": {"enabled": true}},
+	}
+	requires := func(m *saga.Model, binary string) bool {
+		for _, tl := range requiredTools(reg, m) {
+			if tl.Binary == binary {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("named, with its control enabled", func(t *testing.T) {
+		on := &saga.Model{Release: saga.Release{Version: "1"}, Config: sca}
+		on.Config.Reachability = &saga.ReachabilityConfig{Analyzers: []string{"govulncheck"}}
+		if !requires(on, "govulncheck") {
+			t.Error("an analyzer named in config.reachability is a tool the scan will run")
+		}
+	})
+
+	t.Run("not named", func(t *testing.T) {
+		off := &saga.Model{Release: saga.Release{Version: "1"}, Config: sca}
+		if requires(off, "govulncheck") {
+			t.Error("govulncheck is opt-in; an absent reachability block does not ask for it")
+		}
+	})
+
+	// config.reachability is project-wide, so an analyzer whose control is switched off is a tool
+	// this scan will never reach for. Asking for it sends somebody to install a scanner that would
+	// not have run.
+	t.Run("named, with its control disabled", func(t *testing.T) {
+		paused := &saga.Model{
+			Release: saga.Release{Version: "1"},
+			Config: saga.Config{
+				Controllers:  map[string]saga.ControllerSettings{"sca": {"enabled": false}},
+				Reachability: &saga.ReachabilityConfig{Analyzers: []string{"govulncheck"}},
+			},
+		}
+		if requires(paused, "govulncheck") {
+			t.Error("an analyzer for a disabled control is not required")
+		}
+	})
+
+	// An empty list is the same as omitting the block, which is what the field documents.
+	t.Run("named as an empty list", func(t *testing.T) {
+		empty := &saga.Model{Release: saga.Release{Version: "1"}, Config: sca}
+		empty.Config.Reachability = &saga.ReachabilityConfig{}
+		if requires(empty, "govulncheck") {
+			t.Error("no analyzers named means none required")
+		}
+	})
+}
+
 const doctorSagaInfrastructure = `project: platform
 release: {version: "1.0"}
 config:

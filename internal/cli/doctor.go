@@ -273,12 +273,31 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 		selected[ci.Name] = controllers.SelectedScanners(*model, ci.Name, ci.DefaultScanners)
 	}
 
+	// An analyzer named in config.reachability is required and is not selectable from a scanner
+	// block — resolveScanners refuses it there deliberately, so the selection above filters it out
+	// with every scanner the control will not run. The descriptor field exists for this: it names
+	// the analyzer "so `draugr doctor` can tell you what to install before a scan finds out for
+	// you", and until now the scan found out.
+	analyzer := map[string]bool{}
+	if r := model.Config.Reachability; r != nil {
+		for _, name := range r.Analyzers {
+			analyzer[name] = true
+		}
+	}
+
 	for _, s := range reg.Scanners() {
 		info := s.Info()
 		serves := false
 		for _, c := range info.Controls {
 			if !enabled(c) {
 				continue
+			}
+			// Named as an analyzer, so the control runs it whatever its scanner block says. Still
+			// inside the enabled check: config.reachability is project-wide, and an analyzer whose
+			// control is switched off is a tool this scan will never reach for.
+			if analyzer[info.Name] {
+				serves = true
+				break
 			}
 			if set, selectable := selected[c]; selectable && !set[info.Name] {
 				continue // a scanner this control will not run for this model
