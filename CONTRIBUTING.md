@@ -196,9 +196,8 @@ make examples                                        # real output from the demo
 
 If the golden fails, the failure lists the documents to refresh; `make examples` prints a real
 scan of [`draugr-demo`](https://github.com/draugr-dev/draugr-demo) to paste from (it clones the
-sandbox and needs Trivy, Gitleaks and Semgrep on PATH). The demo assets re-render themselves
-after every release — you don't need to run vhs locally, though
-`gh workflow run 'Demo assets'` will do it on demand.
+sandbox and needs Trivy, Gitleaks and Semgrep on PATH). Paste it into the README's console block;
+it is text, so a stale one shows up in a diff.
 
 Two blog posts on the website quote console output as well. They live in a different repository,
 so no test here can catch them; the golden's failure message names them so they don't get missed.

@@ -19,8 +19,6 @@ on:
   push:
     branches: [main]
     paths:
-      - contrib/demo/scan.html
-      - contrib/demo/scan.png
   workflow_dispatch:
 
 permissions:

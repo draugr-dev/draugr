@@ -85,13 +85,10 @@ func goldenMismatch(path string) string {
 		"     docs/concepts/verdict-and-gating.md (pasted output),\n" +
 		"     docs/reference/cli.md, docs/concepts/principles.md,\n" +
 		"     docs/guides/findings-in-your-editor.md (described, not pasted)\n" +
-		"     the README shows the layout only as the demo screenshot — step 5 covers it\n" +
+		"     README.md — the console block under \"See it in action\"\n" +
 		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
 		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
-		"     (grep for 'Draugr — ' there; they are a separate repo, so nothing else will catch them)\n" +
-		"  5. regenerate the demo assets — the README screenshot and the home page's\n" +
-		"     terminal fragment, which is also vendored into the draugr.dev repo:\n" +
-		"     gh workflow run 'Demo assets' --repo draugr-dev/draugr\n"
+		"     (grep for 'Draugr — ' there; they are a separate repo, so nothing else will catch them)\n"
 }
 
 // goldenFullData exercises every element of the frame at once: a failing verdict with a release,
