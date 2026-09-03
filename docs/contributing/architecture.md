@@ -82,7 +82,7 @@ components:
       - kind: kubernetes
         ref: prod-cluster
     controllers:                       # per-component overrides
-      sast: { sonarqube: { projectKey: acme.backend } }
+      sast: { semgrep: { config: p/owasp-top-ten } }
 
 references:      # links to manual/human controls (threat model, arch diagram, …)
 ```
