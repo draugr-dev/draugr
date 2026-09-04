@@ -10,6 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Changed
+
+- The hosted and self-hosted control plane is called **Draugr Server**. It was "Draugr Cloud",
+  which was wrong for the deployment it names in the same sentence: the same artifact runs hosted
+  and on your own infrastructure, and half of that is not a cloud. The product is Draugr either
+  way; how you run it is the only difference.
+
+
 _Nothing yet._
 
 ## [0.114.0] - 2026-09-03
