@@ -22,7 +22,7 @@ import (
 // draugrAPIPublisher posts a run to anything implementing Draugr's run-ingest API.
 //
 // Named for the protocol rather than for one server, because the protocol is the interesting part.
-// Draugr Cloud implements it, hosted and on-premise; so can anybody else — the three calls are
+// Draugr Server implements it, hosted and on-premise; so can anybody else — the three calls are
 // documented in the reports-and-publishers guide, and nothing here privileges one implementation
 // over another. A publisher named after a product would have made the endpoint look like a
 // configuration detail of that product rather than an interface.

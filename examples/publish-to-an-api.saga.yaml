@@ -13,7 +13,7 @@
 # The token is deliberately not a descriptor field. A Saga is a file people commit, and a
 # credential in one is a credential in their git history.
 #
-# The publisher is named for the protocol rather than for a product. Draugr Cloud implements it —
+# The publisher is named for the protocol rather than for a product. Draugr Server implements it —
 # hosted, or installed where you want it — and so can anything else: the three calls are in
 # docs/guides/reports-and-publishers.md, and this publisher does not know which it is talking to.
 
