@@ -9,7 +9,7 @@
 # list of things deliberately withheld.
 #
 # **Naming a companion product is not the same thing, and is allowed.** A publisher that sends a
-# run to Draugr Cloud is a capability of this tool: the reader gains an endpoint they can point at,
+# run to Draugr Server is a capability of this tool: the reader gains an endpoint they can point at,
 # including one they run themselves, and nothing is withheld from them by its existing. What stays
 # out is the framing — tiers, what costs money, which capability sits behind a paywall. The test is
 # whether a sentence tells a reader what they can do, or tells them what they cannot have.
