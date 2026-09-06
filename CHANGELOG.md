@@ -10,6 +10,14 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+- A finding raised by KEV now also records what EPSS said about it, where EPSS reached the same
+  CVE. KEV still decides the rating — observed exploitation outranks a prediction about it — but
+  the prediction is no longer discarded, so anything counting how often EPSS matters counts what
+  it reached rather than what it won. It appears as `alsoMatched` on the escalation in
+  `--format sarif` and in published evidence.
+
 ### Changed
 
 - The hosted and self-hosted control plane is called **Draugr Server**. It was "Draugr Cloud",
