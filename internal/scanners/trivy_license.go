@@ -19,8 +19,8 @@ import (
 // trivyLicenseScanner reports dependency licenses that carry an obligation. It serves the
 // "licenses" control.
 //
-// This is the first scanner here that doesn't consume SARIF. Trivy only emits license findings
-// in its JSON output — its SARIF has none — so the conversion is ours.
+// This is the first scanner here that doesn't consume SARIF. Trivy only emits license findings in
+// its JSON output. Its SARIF has none. So the conversion is ours.
 const trivyLicenseScannerName = "trivy-license"
 
 // trivyLicenseConfigSchema is the JSON Schema for the license scanner's Saga config
@@ -35,7 +35,7 @@ const trivyLicenseConfigSchema = `{
   "properties": {
     "full": {
       "type": "boolean",
-      "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower — it reads every file rather than the dependency list."
+      "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower, it reads every file rather than the dependency list."
     },
     "deny": {
       "type": "array",
@@ -53,7 +53,7 @@ const trivyLicenseConfigSchema = `{
 // NewTrivyLicense returns a Scanner that reports licenses carrying an obligation, in a
 // component's repositories and in its images.
 //
-// Both, because the reader's question — what am I obliged by — has no target kind in it. A license
+// Both, because the reader's question, what am I obliged by. Has no target kind in it. A license
 // obligation inside an image was invisible while this read repositories only, and silently so: the
 // control ran, reported covered, and the surface it had not examined had no name in the output. A
 // third-party image is exactly where the source repository is not declared, because the team does
@@ -103,7 +103,7 @@ func NewTrivyLicense() plugin.Scanner {
 //
 // A dispatcher rather than a scanner that branches inside Scan, because the two modes genuinely
 // differ in everything but the parser: one checks out a tree and runs `trivy fs` in it, the other
-// names an image on the command line. Sharing the parser is the point — a license means the same
+// names an image on the command line. Sharing the parser is the point. A license means the same
 // thing wherever it was found, and two parsers would eventually disagree about that.
 type licenseScanner struct {
 	info  plugin.ScannerInfo
@@ -138,8 +138,8 @@ func (s licenseScanner) Prewarm(ctx context.Context) error { return sharedTrivyD
 
 // trivyLicenseArgs builds `trivy fs --quiet --scanners license --format json <dir>`.
 //
-// JSON rather than SARIF because Trivy's SARIF output contains no license findings at all —
-// they exist only under Results[].Licenses[] in the JSON.
+// JSON rather than SARIF because Trivy's SARIF output contains no license findings at all. They
+// exist only under Results[].Licenses[] in the JSON.
 func trivyLicenseArgs(dir string, cfg plugin.Config) []string {
 	argv := []string{"trivy", "fs", "--quiet", "--scanners", "license", "--format", "json"}
 	return offlineTrivyArgs(append(licenseFullArg(argv, cfg), dir))
@@ -163,7 +163,7 @@ func trivyLicenseImageArgv(target plugin.Target, cfg plugin.Config) ([]string, e
 //
 // Opt-in because it changes what the scan reads rather than how it reports: package metadata is a
 // dependency list, and full scanning walks every file for a LICENSE or a header. It finds licenses
-// no manifest declares — which is the point — at a cost proportional to the size of the tree.
+// no manifest declares. Which is the point. At a cost proportional to the size of the tree.
 func licenseFullArg(argv []string, cfg plugin.Config) []string {
 	if full, _ := cfg["full"].(bool); full {
 		return append(argv, "--license-full")
@@ -197,7 +197,7 @@ type trivyLicense struct {
 // explains why anyone should care.
 //
 // A category that isn't here is not reported at all. Permissive licenses are *inventory*, not
-// findings — every dependency has one, so listing them would bury the handful that carry an
+// findings. Every dependency has one, so listing them would bury the handful that carry an
 // obligation under dozens that don't. The inventory question is what an SBOM answers, and
 // `config.sbom` already produces one with a license per package.
 var categoryLevel = map[string]struct {
@@ -209,7 +209,7 @@ var categoryLevel = map[string]struct {
 			"proprietary software."},
 	"restricted": {sarif.LevelWarning,
 		"Copyleft. Distributing software that includes this obliges you to offer your own source " +
-			"under the same terms. Running it as a hosted service usually does not trigger that — " +
+			"under the same terms. Running it as a hosted service usually does not trigger that, " +
 			"which is why this is a warning rather than a failure by default."},
 	"reciprocal": {sarif.LevelNote,
 		"File-level copyleft. Changes you make to the licensed files must be shared; your own " +
@@ -259,8 +259,8 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 }
 
 // licenseLevel decides how loudly to report a license, and why. The Saga's deny/warn lists name
-// SPDX ids directly and beat Trivy's category, because whether a license is acceptable depends
-// on what you do with your software — something Trivy cannot know and the team always does.
+// SPDX ids directly and beat Trivy's category, because whether a license is acceptable depends on
+// what you do with your software. Something Trivy cannot know and the team always does.
 func licenseLevel(lic trivyLicense, deny, warn []string) (sarif.Level, string, bool) {
 	switch {
 	case slices.Contains(deny, lic.Name):
@@ -338,8 +338,8 @@ func newLineIndex(dir string) *lineIndex {
 	return &lineIndex{dir: dir, files: map[string][]string{}}
 }
 
-// maxManifestBytes caps what will be read looking for a declaration. A lockfile can be large,
-// and a line number is a nicety — never worth reading an unbounded file into memory for.
+// maxManifestBytes caps what will be read looking for a declaration. A lockfile can be large, and
+// a line number is a nicety, never worth reading an unbounded file into memory for.
 const maxManifestBytes = 4 << 20 // 4 MiB
 
 // find returns the 1-based line where pkg is mentioned in the manifest, or 0 if it can't be
@@ -361,7 +361,7 @@ func (l *lineIndex) find(relPath, pkg string) int {
 	return 0
 }
 
-// readLines reads a manifest, returning nil on any problem — a missing line number degrades the
+// readLines reads a manifest, returning nil on any problem, a missing line number degrades the
 // finding, it doesn't invalidate it.
 func readLines(path string) []string {
 	f, err := os.Open(path) // #nosec G304 -- a manifest inside the checkout Draugr just made

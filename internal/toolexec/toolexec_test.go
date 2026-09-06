@@ -102,7 +102,7 @@ func TestLogRecordsTheCommand(t *testing.T) {
 	}
 }
 
-// The tool's own stderr is usually where the answer is, so trace must relay it — and debug must
+// The tool's own stderr is usually where the answer is, so trace must relay it. And debug must
 // not, since it's verbose.
 func TestLogRelaysStderrAtTraceOnly(t *testing.T) {
 	run := func(level slog.Level) string {
@@ -160,8 +160,8 @@ func TestRunWithNoStderrKeepsTheBareError(t *testing.T) {
 	}
 }
 
-// A tool that shells out to another tool cannot be told which target to use through argv —
-// kube-bench invokes kubectl, which reads its cluster from the environment.
+// A tool that shells out to another tool cannot be told which target to use through argv.
+// Kube-bench invokes kubectl, which reads its cluster from the environment.
 func TestRunWithEnvReachesTheChild(t *testing.T) {
 	out, err := RunWithEnv(context.Background(), "", []string{"sh", "-c", "printf %s \"$DRAUGR_TEST_VAR\""},
 		[]string{"DRAUGR_TEST_VAR=hello"})
@@ -239,9 +239,9 @@ func TestRunCombinedSurfacesAFailure(t *testing.T) {
 }
 
 func TestLogRelaysStdoutAtTrace(t *testing.T) {
-	// Not every tool explains itself on stderr, and ours are configured not to fail on findings
-	// — so err == nil is the normal path, and a tool that produced nothing useful looked
-	// identical to one that found nothing.
+	// Not every tool explains itself on stderr, and ours are configured not to fail on findings. So
+	// err == nil is the normal path, and a tool that produced nothing useful looked identical to one
+	// that found nothing.
 	var buf bytes.Buffer
 	restore := captureLogs(t, &buf, observability.LevelTrace)
 	defer restore()
@@ -300,8 +300,8 @@ func notFound() error {
 
 func TestExplainNamesTheFixForAMissingTool(t *testing.T) {
 	// A missing binary is the one failure whose fix is a single command, and it is the likeliest
-	// state for somebody on their first scan — Draugr installed, nothing else yet. The error said
-	// only that the file was not found.
+	// state for somebody on their first scan, Draugr installed, nothing else yet. The error said only
+	// that the file was not found.
 	//
 	// Built from a synthetic not-found rather than by running a binary that is absent: whether
 	// gitleaks is installed is a property of the machine, and a test that passes only on a clean
@@ -342,7 +342,7 @@ func TestExplainLeavesOtherFailuresAlone(t *testing.T) {
 }
 
 // A tool's error runs from general to specific, and Draugr has already said which scanner, which
-// control and which component. So what has to survive is the end of the chain — the part naming
+// control and which component. So what has to survive is the end of the chain, the part naming
 // this failure rather than the tool's own account of what it was doing.
 func TestFirstLineKeepsWhatIdentifiesTheFailure(t *testing.T) {
 	t.Parallel()
@@ -445,7 +445,7 @@ func TestFirstLineClampsOnRunes(t *testing.T) {
 	}
 }
 
-// A line that fits is returned whole — no ellipsis on a message that was never shortened.
+// A line that fits is returned whole, no ellipsis on a message that was never shortened.
 func TestFirstLineLeavesAShortLineAlone(t *testing.T) {
 	t.Parallel()
 	const short = "trivy: no such image"
@@ -456,7 +456,7 @@ func TestFirstLineLeavesAShortLineAlone(t *testing.T) {
 
 // A tool that tried several ways to do one thing reports the attempt and then the reasons, and the
 // reasons are the answer. Given only the first line, a reader is told an image could not be found
-// in any of four places — not that the registry answered 401, which is the difference between
+// in any of four places, not that the registry answered 401, which is the difference between
 // checking the image name and logging in.
 func TestFirstLineKeepsTheCausesOfAMultiError(t *testing.T) {
 	t.Parallel()

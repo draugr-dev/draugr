@@ -39,8 +39,9 @@ func TestTrivyVersionProbeErrors(t *testing.T) {
 //
 // The value is deliberately not asserted. CacheVersion asks the tool on PATH, so an assertion on
 // what it returns is an assertion about the machine: it passes where the tool is absent or built
-// without a version stamp, and fails where a real release is installed — which says nothing about
-// the code either way. Extraction from fixed tool output is covered by TestToolVersionProbeExtracts.
+// without a version stamp, and fails where a real release is installed. Which says nothing about
+// the code either way. Extraction from fixed tool output is covered by
+// TestToolVersionProbeExtracts.
 func TestRepoScannerCacheVersion(t *testing.T) {
 	for _, c := range []struct {
 		name    string

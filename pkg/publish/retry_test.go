@@ -85,7 +85,7 @@ func TestARefusedRequestIsSentAgain(t *testing.T) {
 }
 
 // The body has to survive the rewind, or the retry posts an empty comment and the failure is
-// silent — a comment appears, so nothing looks wrong, and it says nothing.
+// silent, a comment appears, so nothing looks wrong, and it says nothing.
 func TestARetriedPostSendsTheSameBody(t *testing.T) {
 	st := &stubTransport{codes: []int{http.StatusServiceUnavailable, http.StatusCreated}}
 	sl := &recordingSleeper{}
@@ -134,7 +134,7 @@ func TestAStatusThatIsAnAnswerIsNotRetried(t *testing.T) {
 
 // The one that decides between one comment and two.
 //
-// A POST that never came back may still have created the comment — the forge could have lost the
+// A POST that never came back may still have created the comment. The forge could have lost the
 // reply, not the request. Sending it again would post a second copy of a comment whose whole
 // purpose is to be the single current verdict, so a write that vanished is reported rather than
 // repeated. A GET has no such cost and is retried.
@@ -152,7 +152,7 @@ func TestAWriteThatVanishedIsNotRepeated(t *testing.T) {
 			t.Fatalf("%s: expected the transport error to surface", method)
 		}
 		if got := st.calls.Load(); got != 1 {
-			t.Errorf("%s: sent %d times, want 1 — a lost write must not be repeated", method, got)
+			t.Errorf("%s: sent %d times, want 1, a lost write must not be repeated", method, got)
 		}
 	}
 
@@ -165,7 +165,7 @@ func TestAWriteThatVanishedIsNotRepeated(t *testing.T) {
 		t.Fatal("expected the transport error to surface")
 	}
 	if got := st.calls.Load(); got != retryAttempts {
-		t.Errorf("GET sent %d times, want %d — reading is safe to repeat", got, retryAttempts)
+		t.Errorf("GET sent %d times, want %d, reading is safe to repeat", got, retryAttempts)
 	}
 }
 

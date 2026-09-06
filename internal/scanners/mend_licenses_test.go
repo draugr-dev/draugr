@@ -40,7 +40,7 @@ func TestMendLicenseUsesSPDXWhenGiven(t *testing.T) {
 	}
 }
 
-// Where it does not, the finding carries Mend's own name rather than an invented SPDX id — a
+// Where it does not, the finding carries Mend's own name rather than an invented SPDX id. A
 // mapping would be consulted exactly where there is least evidence, and a wrong entry applies a
 // policy to the wrong license.
 func TestMendLicenseKeepsMendsNameWhenNoSPDX(t *testing.T) {
@@ -58,7 +58,7 @@ func TestMendLicenseSPDXPolicyDoesNotMatchAMendName(t *testing.T) {
 		[]mendapi.InventoryLibrary{lib("Jinja2", "BSD 3", "")},
 		plugin.Config{denyKey: []any{"BSD-3-Clause"}})
 	if len(rep.Results) != 0 {
-		t.Errorf("an SPDX rule matched a non-SPDX name — the mapping is back: %+v", rep.Results)
+		t.Errorf("an SPDX rule matched a non-SPDX name, the mapping is back: %+v", rep.Results)
 	}
 	// The warning is what makes that visible; it is asserted through mendLicenseID below and by
 	// the identifier being reported unchanged, which is what an operator writes a rule against.
@@ -74,7 +74,7 @@ func TestMendLicenseIDReportsWhetherItIsSPDX(t *testing.T) {
 }
 
 // Mend carries no license category, so this scanner reports what the policy names and nothing
-// else. Without a policy it is silent — stated in the doc so it is not discovered.
+// else. Without a policy it is silent, stated in the doc so it is not discovered.
 func TestMendLicenseReportsOnlyWhatThePolicyNames(t *testing.T) {
 	libs := []mendapi.InventoryLibrary{lib("a", "MIT", "MIT"), lib("b", "GPL-3.0-only", "GPL-3.0-only")}
 	if rep := mendLicenseReport(context.Background(), libs, plugin.Config{}); len(rep.Results) != 0 {
@@ -116,7 +116,7 @@ func TestMendLicensesRejectsANonRepositoryTarget(t *testing.T) {
 }
 
 // The upload is shared, so a second control asking for the same repository and project must reuse
-// it — an upload replaces a project's inventory, so two would race.
+// it, an upload replaces a project's inventory, so two would race.
 func TestSharedUploadRunsOncePerRepositoryAndProject(t *testing.T) {
 	sharedMendUploads.reset()
 	calls := 0

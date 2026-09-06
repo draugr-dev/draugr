@@ -2,7 +2,7 @@
 // with: CISA's Known Exploited Vulnerabilities catalog and FIRST's EPSS scores.
 //
 // Fetching is never implicit. A scan that silently reaches the internet is not reproducible,
-// and the gate has to be — so the network is touched when someone asks for it, by running
+// and the gate has to be. So the network is touched when someone asks for it, by running
 // `draugr feeds update` or by passing `auto`, and a scan otherwise reads a local cache with no
 // network access at all. That keeps the air-gapped path and the connected path the same code.
 //
@@ -39,15 +39,15 @@ const (
 func Names() []Name { return []Name{KEV, EPSS} }
 
 // maxFeedBytes caps a download. EPSS is the larger of the two at roughly 250k rows; 256 MiB is
-// far above anything either feed has been, and bounded is the point — an unbounded read of a
-// URL is a memory-exhaustion bug waiting for a bad day upstream.
+// far above anything either feed has been, and bounded is the point. An unbounded read of a URL
+// is a memory-exhaustion bug waiting for a bad day upstream.
 const maxFeedBytes = 256 << 20
 
 // DefaultMaxAge is how old a cached feed may be before `auto` refetches it and a scan warns.
 //
 // One day, because EPSS is republished daily: a score is a 30-day probability recomputed every
 // morning, so a week-old copy silently mis-ranks. KEV changes far less often and is held to the
-// same bar deliberately — two staleness rules to explain is worse than one that is slightly
+// same bar deliberately, two staleness rules to explain is worse than one that is slightly
 // strict for one feed.
 const DefaultMaxAge = 24 * time.Hour
 
@@ -62,8 +62,8 @@ type source struct {
 }
 
 // sources is the pinned upstream for each feed. Both are published at stable URLs by their
-// respective owners, over HTTPS with certificate verification — which is the integrity story
-// for data that has no signature to check.
+// respective owners, over HTTPS with certificate verification. Which is the integrity story for
+// data that has no signature to check.
 var sources = map[Name]source{
 	KEV: {
 		url:        "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
@@ -100,7 +100,7 @@ type Record struct {
 func (r Record) Age(now time.Time) time.Duration { return now.Sub(r.FetchedAt) }
 
 // Stale reports whether the feed is older than maxAge. A maxAge of zero or less means never
-// stale — the caller has said it does not care, which is a legitimate thing to say on a runner
+// stale. The caller has said it does not care, which is a legitimate thing to say on a runner
 // that is deliberately pinned to a known copy.
 func (r Record) Stale(now time.Time, maxAge time.Duration) bool {
 	return maxAge > 0 && r.Age(now) > maxAge
@@ -122,7 +122,7 @@ func Dir() (string, error) {
 func Path(dir string, n Name) string { return filepath.Join(dir, sources[n].file) }
 
 // Load reads the manifest. A missing or unreadable manifest is an empty one: the feeds it
-// described are then treated as absent, which is the safe direction — worst case a refetch.
+// described are then treated as absent, which is the safe direction, worst case a refetch.
 func Load(dir string) map[Name]Record {
 	out := map[Name]Record{}
 	data, err := os.ReadFile(filepath.Join(dir, manifestName)) // #nosec G304 -- path is ours
@@ -203,8 +203,8 @@ func get(ctx context.Context, client *http.Client, url string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, maxFeedBytes))
 }
 
-// gunzip decompresses a gzip stream, bounded like the download it came from — a compressed
-// feed can expand to far more than it weighed on the wire.
+// gunzip decompresses a gzip stream, bounded like the download it came from. A compressed feed
+// can expand to far more than it weighed on the wire.
 func gunzip(data []byte) ([]byte, error) {
 	zr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {

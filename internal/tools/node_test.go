@@ -14,7 +14,7 @@ import (
 // TestEveryNodeToolHasPinsAtItsVersion is the npm form of the Python pins check.
 //
 // The drift it catches is the obvious one: bump the version constant, forget to regenerate the
-// lockfile. Nothing fails at build time — the install resolves a different version from the one
+// lockfile. Nothing fails at build time, the install resolves a different version from the one
 // Draugr reports, and records it as `pinned` while the pins described something else. A wrong
 // provenance claim is worse than none.
 func TestEveryNodeToolHasPinsAtItsVersion(t *testing.T) {
@@ -40,7 +40,7 @@ func TestEveryNodeToolHasPinsAtItsVersion(t *testing.T) {
 			continue
 		}
 		if got := pkg.Dependencies[spec.Package]; got != version {
-			t.Errorf("%s: the manifest asks for %s@%s but the pinned version is %s — regenerate "+
+			t.Errorf("%s: the manifest asks for %s@%s but the pinned version is %s, regenerate "+
 				"the pins for %s", name, spec.Package, got, version, version)
 		}
 
@@ -56,7 +56,7 @@ func TestEveryNodeToolHasPinsAtItsVersion(t *testing.T) {
 // assertLockfileIsFullyPinned checks the property `npm ci` relies on.
 //
 // Every package must carry an integrity digest. One without is one npm fetches without checking,
-// and the install would still be reported as `pinned` — the level is decided by whether `npm ci`
+// and the install would still be reported as `pinned`. The level is decided by whether `npm ci`
 // succeeded, not by how much of the tree it actually verified.
 func assertLockfileIsFullyPinned(t *testing.T, name string, lock []byte) {
 	t.Helper()
@@ -90,7 +90,7 @@ func assertLockfileIsFullyPinned(t *testing.T, name string, lock []byte) {
 }
 
 // TestNodeToolsAreInstallable stops the npm method from being invisible to everything that asks
-// what Draugr can provision — doctor's advice, `tools list`, and the install plan all read these.
+// what Draugr can provision, doctor's advice, `tools list`, and the install plan all read these.
 func TestNodeToolsAreInstallable(t *testing.T) {
 	t.Parallel()
 
@@ -109,9 +109,9 @@ func TestNodeToolsAreInstallable(t *testing.T) {
 // that works only where Node happens to be on PATH.
 //
 // npm's own launcher begins `#!/usr/bin/env node`, which resolves against whatever PATH the scan
-// runs with. A pipeline that provisions the tool and then runs with a trimmed PATH would get
-// `env: 'node': No such file or directory` — the control reporting an error about the runtime
-// rather than about the code.
+// runs with. A pipeline that provisions the tool and then runs with a trimmed PATH would get `env:
+// 'node': No such file or directory`, the control reporting an error about the runtime rather than
+// about the code.
 func TestLinkNodeCommandNamesTheInterpreter(t *testing.T) {
 	envDir := t.TempDir()
 	binDir := filepath.Join(envDir, "node_modules", ".bin")
@@ -173,7 +173,7 @@ func stubLookPath(t *testing.T, fn func(string) (string, error)) {
 }
 
 // fakeNode writes an executable that prints what a `node --version` would, so the version gate can
-// be tested against the answers that actually matter — too old, new enough, and unparseable —
+// be tested against the answers that actually matter, too old, new enough, and unparseable,
 // without depending on which Node happens to be installed on the machine running the tests.
 func fakeNode(t *testing.T, output string) string {
 	t.Helper()
@@ -308,7 +308,7 @@ func TestInstallNodeRejectsAToolWithNoPins(t *testing.T) {
 // in succeed, produces the command the package would have installed.
 //
 // This keeps the whole install path testable without a network: what is being checked is Draugr's
-// half of it — that the pins reach disk, that the invocation carries --ignore-scripts, that the
+// half of it. That the pins reach disk, that the invocation carries --ignore-scripts, that the
 // shim is linked, and that the level reported matches which invocation actually worked.
 func fakeNPM(t *testing.T, log string, succeed ...string) string {
 	t.Helper()
@@ -352,7 +352,7 @@ func TestInstallNodeUsesTheLockfileAndReportsPinned(t *testing.T) {
 		t.Fatal(err)
 	}
 	if level != LevelPinned {
-		t.Errorf("level = %q, want %q — `npm ci` verified the tree", level, LevelPinned)
+		t.Errorf("level = %q, want %q, `npm ci` verified the tree", level, LevelPinned)
 	}
 	if shim != filepath.Join(root, "bin", "retire") {
 		t.Errorf("shim = %q", shim)
@@ -398,7 +398,7 @@ func TestInstallNodeDropsToUnverifiedWhenTheLockfileDoesNotApply(t *testing.T) {
 		t.Fatal(err)
 	}
 	if level != LevelUnverified {
-		t.Errorf("level = %q, want %q — nothing in this binary checked what was installed",
+		t.Errorf("level = %q, want %q, nothing in this binary checked what was installed",
 			level, LevelUnverified)
 	}
 	calls, err := os.ReadFile(log) // #nosec G304 -- a path this test just created

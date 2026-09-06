@@ -13,7 +13,7 @@ import (
 // TestComponentWithNothingScannedDoesNotPass is the false negative this exists to remove.
 //
 // A component whose whole surface is three images, none of which could be pulled, was rendering
-// as `pass  no findings`. Nothing looked at it, so there were no findings to have — and a row
+// as `pass  no findings`. Nothing looked at it, so there were no findings to have, and a row
 // saying so beside the word "pass" is the report asserting something no scanner established.
 func TestComponentWithNothingScannedDoesNotPass(t *testing.T) {
 	d := Data{
@@ -106,8 +106,8 @@ func TestUnscannedDetailSaysHowMuchOfTheComponent(t *testing.T) {
 			want:     "2/2 images, 1/4 repositories not scanned",
 		},
 		{
-			// Nothing declared this kind — a project-wide target, say — so there is no
-			// denominator to give and inventing one would be worse than the bare count.
+			// Nothing declared this kind. A project-wide target, say. So there is no denominator to give
+			// and inventing one would be worse than the bare count.
 			name:     "no denominator to give",
 			us:       []engine.Unscanned{{Kind: ""}},
 			declared: nil,

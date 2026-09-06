@@ -13,8 +13,8 @@ import (
 
 // checkReportNames rejects a report format or publisher kind this build does not have.
 //
-// `validate` answers "will this descriptor work", and it said yes to one that fails every run —
-// the format registry lives in pkg/report, which cannot be reached from pkg/saga without an import
+// `validate` answers "will this descriptor work", and it said yes to one that fails every run. The
+// format registry lives in pkg/report, which cannot be reached from pkg/saga without an import
 // cycle, so the descriptor's own validation can only check that the fields are present. The same
 // split is why a publisher kind was checked for emptiness and nothing else.
 //
@@ -46,7 +46,7 @@ func checkReportNames(model *saga.Model) error {
 		msg := fmt.Sprintf("config.reports[%d].format: %q is not a format this build of Draugr renders",
 			i, r.Format)
 		if near := nearestName(r.Format, formats); near != "" {
-			msg += fmt.Sprintf(" — did you mean %q?", near)
+			msg += fmt.Sprintf(", did you mean %q?", near)
 		}
 		problems = append(problems, msg)
 	}
@@ -62,7 +62,7 @@ func checkReportNames(model *saga.Model) error {
 		msg := fmt.Sprintf("config.publishers[%d].kind: %q is not a publisher this build of Draugr has",
 			i, p.Kind)
 		if near := nearestName(p.Kind, kinds); near != "" {
-			msg += fmt.Sprintf(" — did you mean %q?", near)
+			msg += fmt.Sprintf(", did you mean %q?", near)
 		}
 		problems = append(problems, msg)
 	}

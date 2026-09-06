@@ -26,7 +26,7 @@ func fakeTree(t *testing.T) (Tree, func(), error) {
 }
 
 func TestPoolMaterializesOncePerKey(t *testing.T) {
-	// Five controls over one repository is one checkout. Before this, it was five clones — five
+	// Five controls over one repository is one checkout. Before this, it was five clones, five
 	// network fetches for a remote, and five chances to resolve a moving branch differently.
 	p := NewPool()
 	defer p.Close()
@@ -136,7 +136,7 @@ func TestPoolSharedTreeIsReadOnly(t *testing.T) {
 
 func TestPoolCloseRemovesEvenAFrozenTree(t *testing.T) {
 	// A directory without write permission cannot have its entries removed, so cleanup has to
-	// undo the freeze first — otherwise every run leaves its checkouts on disk.
+	// undo the freeze first. Otherwise every run leaves its checkouts on disk.
 	p := NewPool()
 	tree, _, err := p.Checkout(context.Background(), "repo@rev", func(context.Context) (Tree, func(), error) { return fakeTree(t) })
 	if err != nil {
@@ -146,7 +146,7 @@ func TestPoolCloseRemovesEvenAFrozenTree(t *testing.T) {
 	if _, err := os.Stat(tree.Dir); !os.IsNotExist(err) {
 		t.Errorf("the checkout survived Close: %v", err)
 	}
-	// Closing twice is not an error — a deferred Close after an early return should be safe.
+	// Closing twice is not an error, a deferred Close after an early return should be safe.
 	p.Close()
 }
 

@@ -1,6 +1,6 @@
 // Package publish delivers rendered reports (report.Artifact) to destinations. A Publisher is
-// the "where" of reporting — separate from the Reporter (the "what", pkg/report) — so a scan
-// can render several formats once and deliver them to several destinations.
+// the "where" of reporting, separate from the Reporter (the "what", pkg/report). So a scan can
+// render several formats once and deliver them to several destinations.
 //
 // Each publisher is configured from a saga.PublisherConfig and named by its kind; Kinds lists
 // the built-in set.
@@ -77,10 +77,10 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 	// A publisher delivers the record, so it gets the whole record. --min-priority narrows what
 	// this invocation shows you; it must not narrow what is filed.
 	//
-	// This matters most for code scanning, where GitHub resolves any alert absent from an upload
-	// as fixed — so publishing a filtered report would quietly close real findings, and the
-	// filtering would be invisible in the place it did the damage. Said out loud rather than
-	// dropped silently, because a flag that does nothing is the thing this exists to prevent.
+	// This matters most for code scanning, where GitHub resolves any alert absent from an upload as
+	// fixed, so publishing a filtered report would quietly close real findings, and the filtering
+	// would be invisible in the place it did the damage. Said out loud rather than dropped silently,
+	// because a flag that does nothing is the thing this exists to prevent.
 	if data.MinPriority != "" {
 		slog.Info("publishers ignore --min-priority",
 			"reason", "an upload missing findings resolves them as fixed",
@@ -88,11 +88,11 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 		data.MinPriority = ""
 	}
 
-	// Build what can be built and deliver it, rather than returning on the first format that
-	// fails. One unrenderable format used to cost every report from the run — a scan that took
-	// four minutes produced nothing, because of something a descriptor check catches in
-	// milliseconds. The publisher loop below has always tolerated one destination failing; this is
-	// the same reasoning applied one step earlier.
+	// Build what can be built and deliver it, rather than returning on the first format that fails.
+	// One unrenderable format used to cost every report from the run, a scan that took four minutes
+	// produced nothing, because of something a descriptor check catches in milliseconds. The
+	// publisher loop below has always tolerated one destination failing; this is the same reasoning
+	// applied one step earlier.
 	artifacts := make([]report.Artifact, 0, len(reports))
 	var buildErrs []error
 	for _, r := range reports {

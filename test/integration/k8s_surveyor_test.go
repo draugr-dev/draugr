@@ -40,7 +40,7 @@ func clientset(t *testing.T) kubernetes.Interface {
 }
 
 // TestK8sImagesSurveyor deploys a known pod to a real cluster and runs the k8s-images
-// surveyor against it, proving the real client-go wiring (which unit tests fake) — including
+// surveyor against it, proving the real client-go wiring (which unit tests fake), including
 // the running-image digest capture read from the pod's container status.
 func TestK8sImagesSurveyor(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)

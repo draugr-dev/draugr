@@ -75,14 +75,14 @@ func TestAzureDevOpsReposSurvey(t *testing.T) {
 		}
 	}
 	if wantAuth := "Basic " + base64.StdEncoding.EncodeToString([]byte(":pat-secret")); gotAuth != wantAuth {
-		t.Errorf("Authorization = %q, want %q — Azure DevOps carries the PAT in the password "+
+		t.Errorf("Authorization = %q, want %q, Azure DevOps carries the PAT in the password "+
 			"field of Basic auth, and a bearer is one of the ways to get a 203", gotAuth, wantAuth)
 	}
 	if want := "/acme/_apis/git/repositories"; gotPath != want {
-		t.Errorf("path = %q, want %q — no project segment means the whole organization", gotPath, want)
+		t.Errorf("path = %q, want %q, no project segment means the whole organization", gotPath, want)
 	}
 	if !strings.Contains(gotQuery, "api-version=7.1") {
-		t.Errorf("query = %q — Azure DevOps requires an explicit api-version on every request", gotQuery)
+		t.Errorf("query = %q, Azure DevOps requires an explicit api-version on every request", gotQuery)
 	}
 }
 
@@ -142,7 +142,7 @@ func TestAzureDevOpsReposRejectsATooDeepScope(t *testing.T) {
 
 func TestAzureDevOpsReposShortensTheDefaultBranch(t *testing.T) {
 	// Azure DevOps reports refs/heads/main where the other forges report main. Passed through it
-	// reaches `git clone --branch refs/heads/main`, which fails at scan time — in a descriptor a
+	// reaches `git clone --branch refs/heads/main`, which fails at scan time, in a descriptor a
 	// survey wrote, that looks correct in review.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprint(w, `{"count":1,"value":[{"name":"api","remoteUrl":"https://d/api",
@@ -317,7 +317,7 @@ func TestAzureDevOpsReposExplainsAnAuthFailure(t *testing.T) {
 
 func TestAzureDevOpsReposSurfacesAnUnreadableResponse(t *testing.T) {
 	// A 200 carrying something that is not the envelope. Decoded as a bare array this would yield
-	// zero repositories and no error — an empty descriptor with nothing to explain it.
+	// zero repositories and no error, an empty descriptor with nothing to explain it.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprint(w, `<html>sign in</html>`)
 	}))

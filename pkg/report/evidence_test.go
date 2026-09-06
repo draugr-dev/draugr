@@ -37,7 +37,7 @@ func TestEvidenceFormatCarriesProvenanceWithoutTheFindings(t *testing.T) {
 }
 
 // TestEvidenceAndTheModeAgree: the two deliveries render from one function, so they cannot drift
-// into disagreeing about what a run did. Checked both ways — a one-directional comparison passes
+// into disagreeing about what a run did. Checked both ways, a one-directional comparison passes
 // happily while one side quietly carries a block the other does not.
 func TestEvidenceAndTheModeAgree(t *testing.T) {
 	d := goldenFullData()
@@ -64,9 +64,9 @@ func TestEvidenceAndTheModeAgree(t *testing.T) {
 		}
 	}
 
-	// And the other way. Anything the mode shows and the default view does not is provenance,
-	// so it belongs in the document as well — this is the direction that catches a block wired
-	// into one delivery and not the other.
+	// And the other way. Anything the mode shows and the default view does not is provenance, so it
+	// belongs in the document as well. This is the direction that catches a block wired into one
+	// delivery and not the other.
 	var plain bytes.Buffer
 	d.Evidence = false
 	if err := (consoleReporter{}).Render(&plain, d); err != nil {
@@ -92,16 +92,16 @@ func TestDefaultViewOmitsTheEvidence(t *testing.T) {
 	}
 	out := buf.String()
 	// The tool build rides along in "Measured against", which stays because it carries coverage.
-	// Splitting a line that reads "trivy 0.69.3 — policy deny copyleft" into a provenance half
+	// Splitting a line that reads "trivy 0.69.3 · policy deny copyleft" into a provenance half
 	// and a coverage half would cost more than the version string does.
 	for _, unwanted := range []string{"Ran 11 jobs", "4 from cache"} {
 		if strings.Contains(out, unwanted) {
 			t.Errorf("the default view still carries %q", unwanted)
 		}
 	}
-	// What must never be hidden. A control that could not run, and what the ones that did run
-	// were measured against — which carries what they did *not* cover, and a partial scan
-	// reading as a complete one is the failure that block exists to prevent.
+	// What must never be hidden. A control that could not run, and what the ones that did run were
+	// measured against. Which carries what they did *not* cover, and a partial scan reading as a
+	// complete one is the failure that block exists to prevent.
 	if !strings.Contains(out, "did not run") {
 		t.Error("the default view dropped the control that could not run")
 	}

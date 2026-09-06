@@ -88,8 +88,8 @@ func TestRetryLockedCache(t *testing.T) {
 			wantCall: 3,
 		},
 		{
-			// A cache genuinely stuck must still fail, and with the tool's own message — a
-			// retried error that arrives renamed sends the reader after the wrong thing.
+			// A cache genuinely stuck must still fail, and with the tool's own message, a retried error
+			// that arrives renamed sends the reader after the wrong thing.
 			name:     "a cache that never frees fails with the tool's error",
 			errs:     []error{errLocked, errLocked, errLocked, errLocked},
 			wantCall: lockRetries + 1,
@@ -181,7 +181,7 @@ func TestIsLockedCacheMatchesWhatTheToolPrints(t *testing.T) {
 }
 
 // A run that retried has to say so. A scan taking three times as long for a reason nobody can see
-// is the same failure in a quieter form — but the reason is the total, not a line per wait: the
+// is the same failure in a quieter form. But the reason is the total, not a line per wait: the
 // waits happen in concurrent jobs and overlap, so a reader adding up individual messages would
 // overstate the cost. The total is recorded for the run to report once, beside its duration.
 func TestRetryLockedCacheRecordsWhatItWaited(t *testing.T) {
@@ -250,7 +250,7 @@ func TestRetryLockedCacheExplainsItselfAtDebug(t *testing.T) {
 }
 
 // Registering the retry is not the same as reaching it. Every Trivy-backed scanner shares the
-// cache, so each one has to be wrapped — and a constructor that forgets is invisible until a
+// cache, so each one has to be wrapped, and a constructor that forgets is invisible until a
 // contended run in somebody's CI.
 func TestEveryTrivyScannerRetriesALockedCache(t *testing.T) {
 	fastBackoff(t)

@@ -22,7 +22,7 @@ func normalize(s string) string {
 // A release is signed keylessly, so the certificate records the workflow and the ref it ran on,
 // and that string is the whole of what a verifier checks. install.sh refusing to install and
 // action.yml refusing to run are the same assertion written twice, and the docs write it a third
-// time — three copies of one string, none of which fails when another changes.
+// time, three copies of one string, none of which fails when another changes.
 func TestEverythingVerifiesTheSameSigningIdentity(t *testing.T) {
 	files := []string{
 		"../../install.sh",
@@ -37,7 +37,7 @@ func TestEverythingVerifiesTheSameSigningIdentity(t *testing.T) {
 		}
 		got := normalize(identityRe.FindString(string(data)))
 		if got == "" {
-			t.Errorf("%s asserts no signing identity — a verifier that checks nothing passes "+
+			t.Errorf("%s asserts no signing identity, a verifier that checks nothing passes "+
 				"anything", f)
 			continue
 		}
@@ -46,7 +46,7 @@ func TestEverythingVerifiesTheSameSigningIdentity(t *testing.T) {
 			continue
 		}
 		if got != want {
-			t.Errorf("%s verifies %q, but an earlier file verifies %q — one of them will reject a "+
+			t.Errorf("%s verifies %q, but an earlier file verifies %q, one of them will reject a "+
 				"release the other accepts", f, got, want)
 		}
 	}
@@ -90,7 +90,7 @@ func TestReleaseIsNotCallable(t *testing.T) {
 //
 // GitHub raises no workflow-starting event for anything the built-in GITHUB_TOKEN did. A checkout
 // that falls back to it pushes a tag nobody acts on: the workflow is green, the tag is real, and
-// no release exists — and because the tag *is* there, the next run finds the version already
+// no release exists. And because the tag *is* there, the next run finds the version already
 // tagged and does nothing either. Nothing anywhere reports a problem.
 //
 // The same token is what lets `gh pr create` work without granting Actions the right to approve

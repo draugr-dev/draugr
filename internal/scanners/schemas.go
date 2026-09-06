@@ -1,13 +1,13 @@
 package scanners
 
 // A scanner's config schema is the contract between a descriptor and the tool behind it, and
-// every registered scanner declares one — including the scanners that accept nothing.
+// every registered scanner declares one, including the scanners that accept nothing.
 //
 // The reason is what happens without one. `plugin.ValidateConfig` treats an absent schema as
 // "accept anything", so a descriptor writing an option a scanner does not read produces no error,
 // no warning, and a green run: the option is dropped between the YAML and the argv, and the only
 // way to find out is to notice that the setting had no effect. That is precisely the silent
-// failure this project refuses everywhere else — a flag either does something or says why it
+// failure this project refuses everywhere else. A flag either does something or says why it
 // didn't.
 //
 // So `noScannerOptions` is a real declaration rather than an omission. It says "this scanner is

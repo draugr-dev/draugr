@@ -83,17 +83,16 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 
 	for _, n := range names {
 		if rec, ok := cached[n]; ok && !force && !rec.Stale(now, feeds.DefaultMaxAge) {
-			_, _ = fmt.Fprintf(out, "%-5s current (%s old) — --force to fetch anyway\n", n, humanAge(rec.Age(now)))
+			_, _ = fmt.Fprintf(out, "%-5s current (%s old) · --force to fetch anyway\n", n, humanAge(rec.Age(now)))
 			continue
 		}
 		_, _ = fmt.Fprintf(out, "%-5s fetching %s…\n", n, feeds.URL(n))
 		rec, err := fetchFeed(cmd.Context(), dir, n, nil)
 		if err != nil {
-			// A copy on disk is worth more than a failed run. The reason this step exists is to
-			// stop a scan ranking everything as though nothing were exploited — and a cached
-			// catalog does not do that: it ranks on data of a stated age, which the report then
-			// carries. Refusing here would block a pipeline on somebody else's outage while the
-			// answer sat on disk.
+			// A copy on disk is worth more than a failed run. The reason this step exists is to stop a scan
+			// ranking everything as though nothing were exploited. And a cached catalog does not do that:
+			// it ranks on data of a stated age, which the report then carries. Refusing here would block a
+			// pipeline on somebody else's outage while the answer sat on disk.
 			prev, cachedOK := cached[n]
 			if !cachedOK {
 				return err
@@ -155,7 +154,7 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 
 	_, _ = fmt.Fprintf(out, "\ncache: %s\n", dir)
 	for _, n := range feeds.Names() {
-		_, _ = fmt.Fprintf(out, "  %-5s %s — %s\n", n, feeds.Describe(n), feeds.URL(n))
+		_, _ = fmt.Fprintf(out, "  %-5s %s · %s\n", n, feeds.Describe(n), feeds.URL(n))
 	}
 
 	switch {

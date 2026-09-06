@@ -27,9 +27,9 @@ var update = flag.Bool("update", false, "rewrite the console golden files")
 // lines and ordering are exactly what a reader compares against their own terminal, and exactly
 // what a `strings.Contains` check cannot see.
 //
-// So the whole frame is pinned. Any change to it fails here, at the pull request that made it,
-// with a list of the artifacts that now disagree — see goldenMismatch below. Regenerating is one
-// flag; the point is that it can't happen by accident.
+// So the whole frame is pinned. Any change to it fails here, at the pull request that made it, with
+// a list of the artifacts that now disagree. See goldenMismatch below. Regenerating is one flag;
+// the point is that it can't happen by accident.
 func TestConsoleGolden(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -38,9 +38,9 @@ func TestConsoleGolden(t *testing.T) {
 		{"full", goldenFullData()},
 		{"clean", goldenCleanData()},
 		{"enriched", goldenEnrichedData()},
-		// The default the CLI actually renders. The three above pin `--group none`, which is
-		// still reachable and still worth pinning — but a golden that covers only the path most
-		// people never take is a golden that does not describe the product.
+		// The default the CLI actually renders. The three above pin `--group none`, which is still
+		// reachable and still worth pinning, but a golden that covers only the path most people never
+		// take is a golden that does not describe the product.
 		{"grouped", goldenGroupedData()},
 		// --evidence, which is the auditor's view: the same run with what stands behind it.
 		{"evidence", goldenEvidenceData()},
@@ -77,7 +77,7 @@ func assertGolden(t *testing.T, path string, got []byte) {
 // the only moment anyone is looking at this, so it carries the checklist rather than a doc
 // pointing at one.
 func goldenMismatch(path string) string {
-	return "console output changed — " + path + " is stale.\n\n" +
+	return "console output changed, " + path + " is stale.\n\n" +
 		"If the change is intended, regenerate and refresh what copies this layout:\n" +
 		"  1. go test ./pkg/report -update\n" +
 		"  2. make examples          # real output from the demo sandbox, to paste into docs\n" +
@@ -85,10 +85,10 @@ func goldenMismatch(path string) string {
 		"     docs/concepts/verdict-and-gating.md (pasted output),\n" +
 		"     docs/reference/cli.md, docs/concepts/principles.md,\n" +
 		"     docs/guides/findings-in-your-editor.md (described, not pasted)\n" +
-		"     README.md — the console block under \"See it in action\"\n" +
+		"     README.md, the console block under \"See it in action\"\n" +
 		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
 		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
-		"     (grep for 'Draugr — ' there; they are a separate repo, so nothing else will catch them)\n"
+		"     (grep for 'Draugr · ' there; they are a separate repo, so nothing else will catch them)\n"
 }
 
 // goldenFullData exercises every element of the frame at once: a failing verdict with a release,
@@ -97,9 +97,9 @@ func goldenMismatch(path string) string {
 // the table shows, findings attributed to two different components, and a scanner's account of
 // what it measured.
 //
-// Every element, because an element the fixture omits is an element the golden does not pin —
-// and the layout is copied into six documents, two blog posts and a screenshot that nothing
-// else checks.
+// Every element, because an element the fixture omits is an element the golden does not pin. And
+// the layout is copied into six documents, two blog posts and a screenshot that nothing else
+// checks.
 func goldenFullData() Data {
 	sca := []sarif.Result{
 		{RuleID: "CVE-2019-20477", Level: sarif.LevelError, Score: 9.8, HasScore: true, Priority: "P1",
@@ -114,9 +114,9 @@ func goldenFullData() Data {
 			Message: "python-flask: Denial of Service via crafted JSON file"},
 		{RuleID: "CVE-2020-28493", Level: sarif.LevelNote, Priority: "P4", Tool: "trivy",
 			Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5}, Message: "jinja2: ReDoS",
-			// The same library as the P1 above, with a different fix. Two advisories, one
-			// upgrade — so the golden pins that they fold into one row, and that the row keeps
-			// the worse of the two bands rather than the later one.
+			// The same library as the P1 above, with a different fix. Two advisories, one upgrade, so the
+			// golden pins that they fold into one row, and that the row keeps the worse of the two bands
+			// rather than the later one.
 			Package: &sarif.Package{Name: "jinja2", Version: "2.10", FixedVersion: "2.11.3", Ecosystem: "pip"}},
 	}
 	iac := []sarif.Result{
@@ -174,9 +174,9 @@ func goldenFullData() Data {
 		Run:     run,
 		Verdict: verdict,
 		TopN:    5, // fewer than the findings above, so the truncation line is pinned too
-		// A failing component, a clean one, and findings belonging to neither — the three states
-		// the breakdown has to render, including the clean row, which is the one a reader takes
-		// back to their team.
+		// A failing component, a clean one, and findings belonging to neither, the three states the
+		// breakdown has to render, including the clean row, which is the one a reader takes back to their
+		// team.
 		Components: []ComponentVerdict{
 			{Name: "payments", Verdict: norn.Fail, Controls: []string{"sca", "secrets"},
 				Priorities: [4]int{3, 2, 1, 0}, Findings: 6},

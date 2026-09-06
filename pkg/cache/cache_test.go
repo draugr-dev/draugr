@@ -114,7 +114,7 @@ func TestLocalCompressesEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 	if ratio := float64(len(raw)) / float64(len(stored)); ratio < 3 {
-		t.Errorf("compression ratio %.1fx — expected SARIF to squash much harder", ratio)
+		t.Errorf("compression ratio %.1fx, expected SARIF to squash much harder", ratio)
 	}
 
 	got, ok := c.Get("k")
@@ -128,7 +128,7 @@ func TestLocalCompressesEntries(t *testing.T) {
 // Entries were called `.json` when they were plain JSON and kept the name when compression
 // landed, so the extension described bytes that were not there. Renaming costs one cold cache,
 // which is what a cache is for; what it must not cost is a file that is never read again and
-// never removed, because nothing evicts anything — expiry only makes a read miss.
+// never removed, because nothing evicts anything. Expiry only makes a read miss.
 func TestLocalLeavesNoEntryUnderTheOldName(t *testing.T) {
 	dir := t.TempDir()
 	data, err := json.Marshal(entry{
@@ -189,7 +189,7 @@ func TestReadOnlyServesButDoesNotStore(t *testing.T) {
 	if _, ok := ro.Get("known"); !ok {
 		t.Error("a read-only cache should still serve what is there")
 	}
-	// Writing is discarded silently — a read-only cache is a configuration, not an error, and a
+	// Writing is discarded silently. A read-only cache is a configuration, not an error, and a
 	// scan failing because it could not write a cache would be absurd.
 	if err := ro.Put("new", sarif.Report{Tool: "trivy"}); err != nil {
 		t.Errorf("Put returned an error: %v", err)

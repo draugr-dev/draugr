@@ -42,7 +42,7 @@ func TestApplyExclusionsSuppressesRatherThanDeletes(t *testing.T) {
 		t.Errorf("justification = %q, want the Saga's reason", res[0].Suppression.Justification)
 	}
 	if res[0].Suppression.Kind != "external" {
-		t.Errorf("kind = %q, want external — the decision came from the Saga", res[0].Suppression.Kind)
+		t.Errorf("kind = %q, want external, the decision came from the Saga", res[0].Suppression.Kind)
 	}
 	if res[1].Suppressed() {
 		t.Error("the unmatched finding must be untouched")
@@ -50,7 +50,7 @@ func TestApplyExclusionsSuppressesRatherThanDeletes(t *testing.T) {
 }
 
 func TestApplyExclusionsRemovesTheFindingFromTheVerdict(t *testing.T) {
-	// Suppressing without recomputing the summary would leave the finding counted — the gate
+	// Suppressing without recomputing the summary would leave the finding counted. The gate
 	// would still fail on something the Saga said to set aside.
 	ctrls := controlsWith(
 		sarif.Result{RuleID: "k", Level: sarif.LevelError, Location: sarif.Location{URI: "test/f.go"}},
@@ -90,7 +90,7 @@ func TestApplyExclusionsLeavesAnUpstreamSuppressionAlone(t *testing.T) {
 		Suppression: &sarif.Suppression{Kind: "inSource", Justification: "nosem comment"},
 	})
 	if n, _, _ := applyExclusions(ctrls, []saga.ExcludeRule{{Paths: []string{"*.go"}, Reason: "ours"}}, time.Now()); n != 0 {
-		t.Errorf("suppressed = %d, want 0 — it was already suppressed", n)
+		t.Errorf("suppressed = %d, want 0, it was already suppressed", n)
 	}
 	if got := ctrls["sca"].Report.Results[0].Suppression.Justification; got != "nosem comment" {
 		t.Errorf("justification = %q, want the original preserved", got)
@@ -114,10 +114,10 @@ func TestApplyExclusionsFirstMatchWins(t *testing.T) {
 }
 
 func TestApplyExclusionsCountsWhatABroadGlobSwallowed(t *testing.T) {
-	// Wildcards in `rules` are only safe because a wide pattern is loud. Nothing is deleted:
-	// the count is reported and every suppressed finding stays in the report carrying the
-	// justification. This test is the reason globs were acceptable at all — if suppression
-	// were silent, `*` would be a way to make a security control disappear.
+	// Wildcards in `rules` are only safe because a wide pattern is loud. Nothing is deleted: the
+	// count is reported and every suppressed finding stays in the report carrying the
+	// justification. This test is the reason globs were acceptable at all. If suppression were
+	// silent, `*` would be a way to make a security control disappear.
 	ctrls := controlsWith(
 		sarif.Result{RuleID: "license/MIT/a", Level: sarif.LevelWarning, Location: sarif.Location{URI: "go.mod"}},
 		sarif.Result{RuleID: "license/MIT/b", Level: sarif.LevelWarning, Location: sarif.Location{URI: "go.mod"}},
@@ -162,7 +162,7 @@ func TestApplyExclusionsGlobMatchesAcrossSeparators(t *testing.T) {
 
 func TestApplyExclusionsReportsARuleThatMatchedNothing(t *testing.T) {
 	// An exclusion doing nothing reads exactly like one that is working. Usually a typo, a rule
-	// id that moved, or a finding someone fixed and forgot to stop excusing — and in every case
+	// id that moved, or a finding someone fixed and forgot to stop excusing, and in every case
 	// the descriptor claims a decision it is not making.
 	ctrls := controlsWith(
 		sarif.Result{RuleID: "draugr/cis/5.1.1", Level: sarif.LevelError, Location: sarif.Location{URI: "cluster"}},

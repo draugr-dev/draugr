@@ -21,8 +21,8 @@ const minGoMinor = 21
 
 // GoSpec describes a tool built from its module with the Go toolchain.
 //
-// Some tools publish no release binary at all. govulncheck is distributed only as a package path —
-// `go install golang.org/x/vuln/cmd/govulncheck` — with no archives on any release page, which is
+// Some tools publish no release binary at all. govulncheck is distributed only as a package path,
+// `go install golang.org/x/vuln/cmd/govulncheck`, with no archives on any release page, which is
 // the same position Semgrep is in on PyPI and retire.js is in on npm. A tool Draugr asks a control
 // to run and then cannot obtain is a control that needs a separate installation story, and most
 // people will simply not have the control.
@@ -72,12 +72,12 @@ func installGo(ctx context.Context, root, tool string, spec GoSpec, version stri
 
 	target := spec.Command + "@v" + strings.TrimPrefix(version, "v")
 
-	// The checksum database is what makes this path verifiable, so it is set rather than
-	// inherited. `go help environment` names GOPRIVATE, GONOPROXY and GONOSUMDB as the ways to
-	// switch that validation off, and GOINSECURE and GOFLAGS can weaken the fetch around it — a
-	// host with any of them already set would otherwise skip verification while this code
-	// reported that it happened. Every module in the build is checked, not only the tool, which
-	// is the same guarantee --require-hashes gives on PyPI and `npm ci` gives from a lockfile.
+	// The checksum database is what makes this path verifiable, so it is set rather than inherited.
+	// `go help environment` names GOPRIVATE, GONOPROXY and GONOSUMDB as the ways to switch that
+	// validation off, and GOINSECURE and GOFLAGS can weaken the fetch around it, a host with any of
+	// them already set would otherwise skip verification while this code reported that it happened.
+	// Every module in the build is checked, not only the tool, which is the same guarantee
+	// --require-hashes gives on PyPI and `npm ci` gives from a lockfile.
 	verified := append(os.Environ(),
 		"GOBIN="+binDir,
 		"GOSUMDB=sum.golang.org",
@@ -127,13 +127,13 @@ func runEnv(ctx context.Context, env []string, name string, args ...string) erro
 func findGo(ctx context.Context, tool string) (string, error) {
 	goBin, err := execLookPath("go")
 	if err != nil {
-		return "", fmt.Errorf("%s is distributed as a Go package and no `go` is on PATH — "+
+		return "", fmt.Errorf("%s is distributed as a Go package and no `go` is on PATH, "+
 			"install Go %d or newer from https://go.dev/dl/, or install it yourself with "+
 			"`go install %s@v%s`", tool, minGoMinor, goInstallable[tool].Command, goVersions[tool])
 	}
 	if ok, found := goAtLeast(ctx, goBin, minGoMinor); !ok {
 		return "", fmt.Errorf("go %s is older than 1.%d, which is needed to fetch the toolchain "+
-			"%s asks for — upgrade Go, or install it yourself with `go install %s@v%s`",
+			"%s asks for. Upgrade Go, or install it yourself with `go install %s@v%s`",
 			found, minGoMinor, tool, goInstallable[tool].Command, goVersions[tool])
 	}
 	return goBin, nil

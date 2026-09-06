@@ -34,14 +34,14 @@ type Config struct {
 	ConfigSchema json.RawMessage
 	// Argv builds the command line (argv[0] is the executable) for a target and config.
 	Argv func(target plugin.Target, cfg plugin.Config) ([]string, error)
-	// Run executes argv and returns the tool's output. Optional; defaults to executing the
-	// command and capturing stdout. Draugr's built-in scanners pass a shared implementation
-	// that puts the tool's own first line of stderr into the error — `exit status 1` on its own
-	// tells a reader nothing, and that string is what reaches the terminal and the report.
+	// Run executes argv and returns the tool's output. Optional; defaults to executing the command
+	// and capturing stdout. Draugr's built-in scanners pass a shared implementation that puts the
+	// tool's own first line of stderr into the error, `exit status 1` on its own tells a reader
+	// nothing, and that string is what reaches the terminal and the report.
 	Run func(ctx context.Context, argv []string) ([]byte, error)
-	// Parse decodes the tool's output. Optional — nil means the tool emits SARIF, which most
-	// do. A tool that reports in its own JSON supplies the conversion here rather than needing
-	// a scanner type of its own.
+	// Parse decodes the tool's output. Optional. Nil means the tool emits SARIF, which most do. A
+	// tool that reports in its own JSON supplies the conversion here rather than needing a scanner
+	// type of its own.
 	Parse func(out []byte, target plugin.Target, cfg plugin.Config) (sarif.Report, error)
 	// CacheVersion, when set, contributes a tool/data version to the cache key (see
 	// plugin.CacheVersioner). Optional.

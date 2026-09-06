@@ -69,9 +69,9 @@ func resolveScanners(model saga.Model, comp *saga.Component, control string, def
 			continue
 		}
 		if reachabilityAnalyzer(name) {
-			// Never selected from a scanner block. It is enabled by config.reachability, and a
-			// descriptor naming it here is rejected at load rather than quietly honored — the
-			// two surfaces mean different things and only one of them says what it does.
+			// Never selected from a scanner block. It is enabled by config.reachability, and a descriptor
+			// naming it here is rejected at load rather than quietly honored. The two surfaces mean
+			// different things and only one of them says what it does.
 			continue
 		}
 		if flag, enabled := enabledFlag(blk); enabled && flag {
@@ -159,9 +159,9 @@ func deepMerge(dst, src map[string]any) map[string]any {
 // scannerConfigKey is the camelCase key a scanner is configured under in the descriptor.
 //
 // Scanner names are identifiers that appear in reports, `draugr controls` and rule output, and
-// several of them are hyphenated. Descriptor fields are camelCase, without exception — so the
-// two diverge for any scanner whose name has more than one word, and the descriptor keeps its
-// own convention rather than borrowing the report's.
+// several of them are hyphenated. Descriptor fields are camelCase, without exception, so the two
+// diverge for any scanner whose name has more than one word, and the descriptor keeps its own
+// convention rather than borrowing the report's.
 //
 // Single-word scanners (semgrep, gosec, trivy, nuclei) need no entry: key and name are equal.
 var scannerConfigKey = map[string]string{
@@ -226,7 +226,7 @@ func ScannerConfigKey(scanner string) string {
 // reachabilityAnalyzers names the scanners that decide reachability rather than finding things.
 //
 // Here rather than read from the registry because this package plans jobs and does not hold one.
-// The registry is still the authority — `TestReachabilityAnalyzersMatchTheRegistry` fails if a
+// The registry is still the authority. `TestReachabilityAnalyzersMatchTheRegistry` fails if a
 // scanner declares the capability and is missing from this list, which is what stops a new
 // analyzer from being silently selectable through a scanner block.
 var reachabilityAnalyzers = map[string]bool{

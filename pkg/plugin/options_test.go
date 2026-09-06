@@ -45,8 +45,8 @@ func TestOptionsReadsWhatAScannerDeclares(t *testing.T) {
 	}
 }
 
-// A scanner that accepts nothing still declares a schema — that is what makes an unknown key an
-// error rather than a silent drop — so an empty option list must not be confused with an absent
+// A scanner that accepts nothing still declares a schema. That is what makes an unknown key an
+// error rather than a silent drop, so an empty option list must not be confused with an absent
 // declaration. Both return no options here; the caller distinguishes them by the schema itself.
 func TestOptionsIsEmptyForASchemaWithNoProperties(t *testing.T) {
 	if got := Options(json.RawMessage(`{"type":"object","additionalProperties":false,"properties":{}}`)); len(got) != 0 {
@@ -67,7 +67,7 @@ func TestOptionsToleratesAnUnparseableSchema(t *testing.T) {
 }
 
 // An array option constrains its elements, not itself. Reading only the property-level enum loses
-// the accepted values entirely — so a caller rendering the option shows none while the validator
+// the accepted values entirely, so a caller rendering the option shows none while the validator
 // still enforces them, and the two disagree in front of the user.
 func TestOptionsReadsAnArrayElementEnum(t *testing.T) {
 	schema := json.RawMessage(`{

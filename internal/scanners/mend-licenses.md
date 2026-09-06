@@ -2,7 +2,7 @@
 
 Dependency license reporting by [Mend](https://www.mend.io), for the `licenses` control.
 
-**Opt-in**, and it shares everything with [`mend-sca`](mend-sca.md) — the same tool, the same
+**Opt-in**, and it shares everything with [`mend-sca`](mend-sca.md), the same tool, the same
 credentials, the same upload. Read that document first: the license, the terms of use, what is
 sent, and the `mutate` effect are identical and are stated there.
 
@@ -20,7 +20,7 @@ config:
 ## One upload, two controls
 
 Mend produces vulnerability and license data from a single scan. `mend-sca` reads the project's
-alerts; this reads its inventory — a different call against the same uploaded project.
+alerts; this reads its inventory, a different call against the same uploaded project.
 
 The upload belongs to neither. It happens once per repository per run, whichever scanner needs it
 first, so enabling both costs one upload rather than two. That is a correctness requirement rather
@@ -47,13 +47,13 @@ finding carries Mend's name** and the scan warns, listing the identifiers that r
 
 ```
 WARN  mend reports these licenses by its own names rather than SPDX identifiers, so a policy
-      written in SPDX will not match them — write rules against these strings, or use the
+      written in SPDX will not match them. Write rules against these strings, or use the
       licenses control's Trivy scanner, which reports SPDX
       licenses="Apache 2.0", "BSD 3", "MIT"
 ```
 
 Draugr does not translate them. A mapping table would be consulted exactly where there is least
-evidence — the cases Mend itself declined to map — and a wrong entry applies your policy to the
+evidence, the cases Mend itself declined to map, and a wrong entry applies your policy to the
 *wrong* license, which is worse than a policy that applies to nothing. Reporting what Mend said
 and telling you it did leaves the decision where the evidence is.
 
@@ -69,13 +69,13 @@ than discovered.
 
 ## Tool, license and terms of use
 
-Identical to [`mend-sca`](mend-sca.md) — the same proprietary Mend CLI, executed and never
+Identical to [`mend-sca`](mend-sca.md), the same proprietary Mend CLI, executed and never
 distributed, governed by the [Mend Terms of Service](https://www.mend.io/terms-of-service/), and
 reported at `external` attestation because you installed it.
 
 ## What is sent
 
 Identical to [`mend-sca`](mend-sca.md), because it is the same upload: the resolved dependency
-inventory — names, versions, ecosystems, checksums, and the absolute paths on the scanning machine
+inventory, names, versions, ecosystems, checksums, and the absolute paths on the scanning machine
 where they were found. See that document for Mend's published position on source code, and for
 what their privacy notice does and does not address.

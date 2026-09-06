@@ -93,8 +93,8 @@ func TestEverySourceIsDigested(t *testing.T) {
 	}
 }
 
-// A nil resolution has no digest to give, and must not answer with the digest of nothing — which
-// is a real, constant, entirely wrong sha256.
+// A nil resolution has no digest to give, and must not answer with the digest of nothing. Which is
+// a real, constant, entirely wrong sha256.
 func TestNoModelNoDigest(t *testing.T) {
 	var nilRes *Resolved
 	if got := nilRes.Digest(); got != "" {
@@ -143,7 +143,7 @@ func TestTheEffectiveDescriptorCarriesTheFragments(t *testing.T) {
 	}
 }
 
-// A descriptor never carries a credential — the schema has a field for the name of an environment
+// A descriptor never carries a credential. The schema has a field for the name of an environment
 // variable and none for a value. This is the assertion that keeps that true of what is published.
 func TestTheEffectiveDescriptorCarriesNoCredential(t *testing.T) {
 	const withAuth = `

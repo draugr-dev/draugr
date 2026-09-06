@@ -14,7 +14,7 @@ import (
 // Rendered from the same function so the two cannot drift into disagreeing about what a run did.
 //
 // A companion rather than a replacement. It answers "can I trust this run", not "what did it
-// find" — duplicating hundreds of findings into it would make it unreadable for its own purpose,
+// find", duplicating hundreds of findings into it would make it unreadable for its own purpose,
 // and they are already in the report and the SARIF beside it.
 type evidenceReporter struct{}
 
@@ -24,7 +24,7 @@ func (evidenceReporter) Render(w io.Writer, d Data) error {
 	s := summarize(d)
 	col := tui.For(w)
 
-	_, _ = fmt.Fprintf(w, "Draugr evidence — %s", releaseLabel(d))
+	_, _ = fmt.Fprintf(w, "Draugr evidence · %s", releaseLabel(d))
 	if !d.Generated.IsZero() {
 		_, _ = fmt.Fprintf(w, "\nGenerated %s by Draugr %s",
 			d.Generated.UTC().Format("2006-01-02 15:04:05 UTC"), d.Version)

@@ -34,7 +34,7 @@ func Render(w io.Writer, format string, r Result) error {
 //
 // For code scanning on a pull request. An upload of the whole repository annotates a reviewer with
 // hundreds of findings the branch did not cause, and the ones it did are indistinguishable among
-// them — which is how a review surface stops being read. This is the answer to the question a pull
+// them. Which is how a review surface stops being read. This is the answer to the question a pull
 // request actually asks.
 //
 // Fixed and unchanged are deliberately absent rather than empty. A fixed finding is no longer
@@ -79,9 +79,9 @@ func headline(r Result) string {
 	if len(parts) > 0 {
 		bands = " (" + strings.Join(parts, ", ") + ")"
 	}
-	// Accepted and reopened only when there are any. Most diffs have neither, and five numbers
-	// where three would do makes the two that matter harder to see rather than easier — while a
-	// diff that does have them is exactly the one where they should be unmissable.
+	// Accepted and reopened only when there are any. Most diffs have neither, and five numbers where
+	// three would do makes the two that matter harder to see rather than easier. While a diff that
+	// does have them is exactly the one where they should be unmissable.
 	middle := ""
 	if len(r.Accepted) > 0 {
 		middle += fmt.Sprintf(", %d accepted", len(r.Accepted))
@@ -121,7 +121,7 @@ func renderConsole(w io.Writer, r Result) error {
 	if len(r.New) > 0 {
 		headlineStyle = tui.StyleFail
 	}
-	_, _ = fmt.Fprintf(w, "Draugr diff — %s\n", col.Paint(headlineStyle, headline(r)))
+	_, _ = fmt.Fprintf(w, "Draugr diff · %s\n", col.Paint(headlineStyle, headline(r)))
 
 	np, fp := countPriorities(r.New), countPriorities(r.Fixed)
 	if np != (PriorityCounts{}) || fp != (PriorityCounts{}) {
@@ -144,12 +144,12 @@ func renderConsole(w io.Writer, r Result) error {
 	// Before fixed, because a reviewer reading top-down should meet the decisions before the good
 	// news. Nothing here was removed by anybody; these are the lines that need a person.
 	if len(r.Reopened) > 0 {
-		_, _ = fmt.Fprintf(w, "Reopened (%d) — an exclusion lapsed or was removed:\n", len(r.Reopened))
+		_, _ = fmt.Fprintf(w, "Reopened (%d) · an exclusion lapsed or was removed:\n", len(r.Reopened))
 		renderDiffFindings(w, col, "!", tui.StyleFail, r.Reopened, withComponent, r.HelpURI)
 		_, _ = fmt.Fprintln(w)
 	}
 	if len(r.Accepted) > 0 {
-		_, _ = fmt.Fprintf(w, "Accepted (%d) — still present, somebody decided to live with them:\n",
+		_, _ = fmt.Fprintf(w, "Accepted (%d) · still present, somebody decided to live with them:\n",
 			len(r.Accepted))
 		renderDiffFindings(w, col, "~", tui.StyleAccent, r.Accepted, withComponent, r.HelpURI)
 		_, _ = fmt.Fprintln(w)
@@ -167,8 +167,8 @@ func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Sty
 	t := tui.NewTable(col).Indent("  ")
 	for _, f := range fs {
 		cells := []tui.Cell{
-			// The sign and the priority travel together — both answer "what is this finding
-			// in this diff" — so they share a cell and the spacing stays tight.
+			// The sign and the priority travel together. Both answer "what is this finding in this diff",
+			// so they share a cell and the spacing stays tight.
 			tui.Styled(style, sign+" "+dash(f.Priority)),
 			// Severity, not Level. A scan reports critical/high/medium/low; printing the SARIF
 			// wire value here made the same finding read as "error" in a diff and "critical" in
@@ -191,7 +191,7 @@ func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Sty
 // Shown only when there is something to say. A single-component project would get a column
 // repeating itself, which is the rule the scan report already follows.
 //
-// It matters most here: a pull-request comment is the multi-component case — one PR touches one
+// It matters most here: a pull-request comment is the multi-component case, one PR touches one
 // service in a monorepo, and the first question is whether the finding is yours. Without it two
 // components sharing a dependency produce rows identical in every visible column, and a reviewer
 // reasonably reads the second as the tool repeating itself.
@@ -242,7 +242,7 @@ func renderMarkdown(w io.Writer, r Result) error {
 }
 
 // ruleCell renders a rule id, linked to what the scanner published about it where the terminal
-// supports it. The URL costs no width, which is what makes it usable in a table this wide — the
+// supports it. The URL costs no width, which is what makes it usable in a table this wide, the
 // scan report's findings table does the same, so the two read alike.
 func ruleCell(ruleID, helpURI string) tui.Cell {
 	return tui.Cell{Text: ruleID, URL: helpURI}
@@ -263,9 +263,9 @@ func mdTable(w io.Writer, rs []sarif.Result, showComponent bool, help func(strin
 		if showComponent {
 			component = " " + dash(f.Component) + " |"
 		}
-		// Linked to what the scanner published about it — Trivy's advisory page for a CVE, the
-		// rule's documentation for a static-analysis finding. A reader deciding whether a new
-		// finding matters is one click from the answer rather than one search.
+		// Linked to what the scanner published about it, Trivy's advisory page for a CVE, the rule's
+		// documentation for a static-analysis finding. A reader deciding whether a new finding matters
+		// is one click from the answer rather than one search.
 		rule := "`" + f.RuleID + "`"
 		if u := help(f.RuleID); u != "" {
 			rule = "[" + rule + "](" + u + ")"

@@ -1,11 +1,11 @@
-# Draugr — Plugin API
+# Draugr, Plugin API
 
 Reference for the plugin interfaces as implemented in [`pkg/plugin`](../../pkg/plugin) (and the
 `Reporter` in [`pkg/report`](../../pkg/report)). See [`architecture.md`](architecture.md) for context.
 
-The plugin kinds — **Scanner**, **Controller**, **Surveyor**, **Reporter**, **Publisher** — share a small set
-of value types. Scanners are transported in-process (built-ins) or declaratively (tool adapters
-that satisfy the Scanner contract at runtime); an out-of-process gRPC transport is planned.
+The plugin kinds, **Scanner**, **Controller**, **Surveyor**, **Reporter**, **Publisher**, share a
+small set of value types. Scanners are transported in-process (built-ins) or declaratively (tool
+adapters that satisfy the Scanner contract at runtime); an out-of-process gRPC transport is planned.
 
 ## Shared types
 
@@ -153,7 +153,7 @@ type Data struct {
 }
 
 // report.Build renders Data in a format and returns it as an Artifact (bytes + filename +
-// content type) — the unit a Publisher delivers.
+// content type), the unit a Publisher delivers.
 type Artifact struct {
     Format      string // e.g. "sarif"
     Filename    string // e.g. "results.sarif"
@@ -164,12 +164,11 @@ type Artifact struct {
 
 ## Publisher
 
-Delivers rendered reports to a destination — the "where" of reporting, separate from the Reporter
+Delivers rendered reports to a destination, the "where" of reporting, separate from the Reporter
 (the "what"). Lives in [`pkg/publish`](../../pkg/publish); configured from the Saga's
-`config.publishers`. Built-in kinds: `file`, `github` (uploads the SARIF report to code
-scanning), and `github-pr-comment` (posts the markdown report as a sticky PR comment). Every
-rendered report is delivered to every configured publisher, so a publisher takes only the
-artifacts it needs.
+`config.publishers`. Built-in kinds: `file`, `github` (uploads the SARIF report to code scanning),
+and `github-pr-comment` (posts the markdown report as a sticky PR comment). Every rendered report is
+delivered to every configured publisher, so a publisher takes only the artifacts it needs.
 
 ```go
 type Publisher interface {

@@ -12,7 +12,7 @@ import (
 
 // Both guards below protect the same failure, from two sides: the self-scan running against a
 // runner that lacks a scanner its descriptor enables. A control whose scanner is missing reports
-// an error rather than a pass — the design working — so the branch goes red for a reason that is
+// an error rather than a pass, the design working. So the branch goes red for a reason that is
 // about the runner rather than about the code, and the pull request that would fix it is blocked
 // by the thing it fixes.
 
@@ -25,7 +25,7 @@ const selfscanWorkflow = "../../.github/workflows/selfscan.yml"
 // be exercising. That is one input, easily lost to a merge or an edit, and losing it produces no
 // error anyone reads until every control fails at once.
 //
-// Deliberately a check on the input rather than on how the action honors it — that has its own
+// Deliberately a check on the input rather than on how the action honors it. That has its own
 // tests. What nothing else can see is the self-scan quietly ceasing to ask.
 func TestSelfscanAsksTheActionToProvisionScanners(t *testing.T) {
 	t.Parallel()
@@ -40,8 +40,8 @@ func TestSelfscanAsksTheActionToProvisionScanners(t *testing.T) {
 // TestSelfscanInstallsEveryScannerItsDescriptorEnables catches what `tools: true` cannot cover.
 //
 // `draugr tools install` provisions the tools Draugr has pinned and verified, and nothing else. A
-// control backed by a tool Draugr does not distribute — a proprietary one, or an environment
-// prerequisite — is enabled in the descriptor, valid, registered, and simply absent from the
+// control backed by a tool Draugr does not distribute, a proprietary one, or an environment
+// prerequisite. Is enabled in the descriptor, valid, registered, and simply absent from the
 // runner. Nothing about it looks wrong beforehand.
 //
 // So: a tool the descriptor requires is either installable by Draugr, or named in the workflow.
@@ -67,7 +67,7 @@ func TestSelfscanInstallsEveryScannerItsDescriptorEnables(t *testing.T) {
 		named := regexp.MustCompile(`\b` + regexp.QuoteMeta(tool.Binary) + `\b`)
 		if !named.MatchString(workflow) {
 			t.Errorf("%s is required by a control .draugr/self.saga.yaml enables and `draugr tools "+
-				"install` cannot provision it, but selfscan.yml never mentions it — the scan will "+
+				"install` cannot provision it, but selfscan.yml never mentions it, the scan will "+
 				"report that control as an error, and main goes red for a reason that is not "+
 				"about the code", tool.Binary)
 		}

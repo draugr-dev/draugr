@@ -20,7 +20,7 @@ func (Headers) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "headers",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Check how a running site answers a browser — the settings that stop a page being abused.",
+		Summary:         "Check how a running site answers a browser, the settings that stop a page being abused.",
 		DefaultScanners: []string{"draugr-headers"},
 	}
 }
@@ -32,7 +32,7 @@ func (Headers) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, e
 	}
 	// Through resolveScanners rather than named directly, even with one scanner to choose from.
 	// Naming it here would discard the descriptor's headers block before anything could look at it,
-	// so an option written there would neither take effect nor be reported — and the scanner's
+	// so an option written there would neither take effect nor be reported, and the scanner's
 	// declared schema, which exists to make that an error, would never be consulted.
 	selections := resolveScanners(model, comp, "headers", []string{draugrHeadersScanner})
 	jobs := make([]plugin.ScanJob, 0, len(comp.Hosts)*len(selections))

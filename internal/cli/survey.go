@@ -31,9 +31,9 @@ type surveyOptions struct {
 
 // check rejects flag combinations that would produce a file Draugr then refuses to read.
 //
-// A fragment is recognized by its name — `draugr validate` and a `fragments:` reference both
-// decide from the suffix — so a fragment written as `x.saga.yaml` is read as a Saga and rejected
-// for having no release. The survey knows that before it connects to anything, and saying so then
+// A fragment is recognized by its name, `draugr validate` and a `fragments:` reference both decide
+// from the suffix, so a fragment written as `x.saga.yaml` is read as a Saga and rejected for
+// having no release. The survey knows that before it connects to anything, and saying so then
 // costs a retype rather than a survey.
 func (o surveyOptions) check(cmd *cobra.Command) error {
 	if !o.fragment {
@@ -48,7 +48,7 @@ func (o surveyOptions) check(cmd *cobra.Command) error {
 	// believing they had named the thing they are describing.
 	for _, name := range []string{"name", "version"} {
 		if cmd.Flags().Changed(name) {
-			return fmt.Errorf("--%s sets the release, and a fragment has none — it is part of a "+
+			return fmt.Errorf("--%s sets the release, and a fragment has none, it is part of a "+
 				"descriptor rather than a thing to release", name)
 		}
 	}
@@ -72,7 +72,7 @@ func (o surveyOptions) check(cmd *cobra.Command) error {
 // folds into the Saga already at `--output`, which is how a descriptor is added to anyway.
 //
 // Merging is the default because the alternative loses work silently. A descriptor is edited by
-// hand — exposure, criticality, exclusions, controls somebody chose — and none of that is
+// hand, exposure, criticality, exclusions, controls somebody chose. And none of that is
 // rediscoverable by a survey. Overwriting it needs to be something you ask for, not something you
 // get by forgetting a flag, because the failure is a file you have to reconstruct from memory and
 // the success looks identical at the moment it happens.
@@ -82,7 +82,7 @@ func newSurveyCommand() *cobra.Command {
 		Use:   "survey",
 		Short: "Discover an application's surface and write it to a Saga",
 		Long: "Discover what an application is made of and write it into a Saga descriptor.\n\n" +
-			"Each surveyor is its own subcommand. Run several against one descriptor — each\n" +
+			"Each surveyor is its own subcommand. Run several against one descriptor, each\n" +
 			"folds into the Saga already at --output:\n\n" +
 			"  draugr survey k8s images --namespace prod -o draugr.saga.yaml\n" +
 			"  draugr survey github repos --org acme -o draugr.saga.yaml\n" +
@@ -101,7 +101,7 @@ func newSurveyCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&opts.replace, "replace", false,
 		"overwrite the Saga at --output instead of adding to it")
 	cmd.PersistentFlags().BoolVar(&opts.fragment, "fragment", false,
-		"write a Saga fragment — components only, for a descriptor to include")
+		"write a Saga fragment, components only, for a descriptor to include")
 
 	// Checked here rather than per subcommand: --fragment is shared, and so are the flags it
 	// contradicts. A flag that quietly does nothing is the failure this file is arranged to avoid.
@@ -147,7 +147,7 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 			"runs and an exposure proposed from its own topology. Review the exposures, then set\n" +
 			"criticality with `draugr classify`.\n\n" +
 			"--namespace narrows which ones are described, and may be repeated. Without it every\n" +
-			"namespace is described, which on a large cluster is a lot of components — name the\n" +
+			"namespace is described, which on a large cluster is a lot of components. Name the\n" +
 			"ones you own.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -179,9 +179,9 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 			"apply to it. Separate from `k8s images`: those are the application, this is what it\n" +
 			"runs on, and they will differ in criticality.\n\n" +
 			"With --namespace, the component owns that namespace rather than the whole cluster.\n" +
-			"Repeat it for several, and each becomes its own component — they are audited\n" +
+			"Repeat it for several, and each becomes its own component, they are audited\n" +
 			"separately because they are usually owned separately.\n\n" +
-			"exposure and criticality are left unset — they are judgements no cluster holds; run\n" +
+			"exposure and criticality are left unset, they are judgements no cluster holds; run\n" +
 			"`draugr classify` for those.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -202,7 +202,7 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 //
 // A surveyor scoped to a namespace describes that namespace: it names the component after it and
 // proposes an exposure from its topology. Passing several as one scope would collapse them back
-// into a single component and lose both — so the loop is here, at the boundary between what the
+// into a single component and lose both. So the loop is here, at the boundary between what the
 // caller asked for and what a surveyor is asked to do, and the surveyor keeps answering one
 // question at a time.
 //
@@ -293,7 +293,7 @@ func newSurveyAzureCommand(opts *surveyOptions) *cobra.Command {
 		Use:   "azure",
 		Short: "Discover from Azure DevOps",
 		Long: "Surveyors that read Azure DevOps. Authentication comes from AZURE_DEVOPS_EXT_PAT\n" +
-			"(or AZURE_DEVOPS_TOKEN, or a token named in scope config) — a personal access token\n" +
+			"(or AZURE_DEVOPS_TOKEN, or a token named in scope config), a personal access token\n" +
 			"with the Code (read) scope. An Azure DevOps Server instance is named by\n" +
 			"AZURE_DEVOPS_URL, including its collection.",
 		Args: cobra.NoArgs,
@@ -327,7 +327,7 @@ func newSurveyAzureCommand(opts *surveyOptions) *cobra.Command {
 //
 // Two flags rather than one "org/project" string: they are two names, and a single flag makes a
 // project whose name contains a slash indistinguishable from an organization plus a project. The
-// surveyor takes one string because the API path does, so the join belongs here — once, where the
+// surveyor takes one string because the API path does, so the join belongs here, once, where the
 // two halves are still separate.
 func azureScopeRef(org, project string) string {
 	if project == "" {
@@ -338,9 +338,9 @@ func azureScopeRef(org, project string) string {
 
 // runSurvey runs the requested surveyors and writes (or merges) what they discovered into a Saga.
 func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Request, reg *surveyor.Registry, stdout io.Writer) error {
-	// Run always returns the fragments it did gather alongside a joined error, so a survey that
-	// lost one source is still worth writing out. Reading frag after err is the contract here,
-	// not an oversight — which is what the rule below would otherwise flag.
+	// Run always returns the fragments it did gather alongside a joined error, so a survey that lost
+	// one source is still worth writing out. Reading frag after err is the contract here, not an
+	// oversight. Which is what the rule below would otherwise flag.
 	// nosemgrep: trailofbits.go.invalid-usage-of-modified-variable.invalid-usage-of-modified-variable
 	frag, err := reg.Run(ctx, requests)
 	if err != nil {
@@ -374,7 +374,7 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		slog.Info("enabled controls for the discovered surface", "controls", strings.Join(added, ", "))
 	}
 	// stderr for the same reason. Also after the merge, so it describes the file rather than the
-	// survey — a proposal the merge declined to apply is not a proposal anyone has to act on.
+	// survey, a proposal the merge declined to apply is not a proposal anyone has to act on.
 	if note := proposedExposureNote(proposedExposures(frag, settled)); note != "" {
 		_, _ = fmt.Fprintln(os.Stderr, note)
 	}
@@ -385,7 +385,7 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	}
 	// The reasoning goes beside the value, because that is where it is read. The note above is a
 	// terminal that scrolls; the descriptor is opened later, in an editor, by somebody who may not
-	// have run the survey — and a proposed exposure and a decided one look identical in a file.
+	// have run the survey, and a proposed exposure and a decided one look identical in a file.
 	//
 	// Filtered by the same rule the note uses: a component whose exposure the descriptor already
 	// carried keeps its own value, and commenting that would describe somebody's decision as a
@@ -397,10 +397,10 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 		if err := os.WriteFile(opts.output, out, 0o600); err != nil {
 			return err
 		}
-		// Say what was produced. A command whose whole purpose is to write a file has to name
-		// the file, count what it found, and say where it went — otherwise the only evidence of
-		// a successful survey is the absence of an error, and `-o .saga.yaml` is a name `ls`
-		// does not show. Silence and failure look identical, and the reader picks the wrong one.
+		// Say what was produced. A command whose whole purpose is to write a file has to name the file,
+		// count what it found, and say where it went, otherwise the only evidence of a successful survey
+		// is the absence of an error, and `-o .saga.yaml` is a name `ls` does not show. Silence and
+		// failure look identical, and the reader picks the wrong one.
 		//
 		// stderr, so a descriptor written to stdout stays a descriptor.
 		_, _ = fmt.Fprintln(os.Stderr, surveySummary(opts, frag, model.Components, merged))
@@ -412,8 +412,8 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 
 // surveyIntoFragment writes what a survey found as a Saga fragment rather than a whole descriptor.
 //
-// A fragment is components and nothing else. It carries no `release:` — it is not a thing to be
-// released, it is part of one — and no `config.controllers`, because FragmentConfig deliberately
+// A fragment is components and nothing else. It carries no `release:`. It is not a thing to be
+// released, it is part of one, and no `config.controllers`, because FragmentConfig deliberately
 // cannot express them: the descriptor that includes a fragment decides what to run against it.
 // That is the point of the option, for a team that owns a namespace and hands its surface to a
 // descriptor somebody else maintains.
@@ -498,11 +498,11 @@ func classifiedComponents(components []saga.Component) map[string]bool {
 // proposedExposures returns the exposures this survey proposed and the descriptor took, in the
 // order the surveyor reported them.
 //
-// A surveyor reads topology, which is evidence about reachability rather than a decision about
-// it: an Ingress says a route exists, not who may take it, and a namespace with no external
-// Service may still be reachable through a gateway the cluster cannot see. The value is still
-// worth writing — it is right more often than nothing is, and an unclassified component is
-// treated as high-risk, which skews a report in its own direction.
+// A surveyor reads topology, which is evidence about reachability rather than a decision about it:
+// an Ingress says a route exists, not who may take it, and a namespace with no external Service
+// may still be reachable through a gateway the cluster cannot see. The value is still worth
+// writing. It is right more often than nothing is, and an unclassified component is treated as
+// high-risk, which skews a report in its own direction.
 //
 // What it must not do is arrive silently. Written into a file, a proposal is indistinguishable
 // from a value somebody chose, while being the input that decides whether a finding is P1 or P3.
@@ -543,7 +543,7 @@ func proposedExposureNote(proposals []exposureProposal) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("exposure proposed from cluster topology, not confirmed — run `draugr classify` to set it:\n")
+	b.WriteString("exposure proposed from cluster topology, not confirmed. Run `draugr classify` to set it:\n")
 	width := 0
 	for _, p := range proposals {
 		width = max(width, len(p.component))
@@ -579,7 +579,7 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, components []saga.Com
 		}
 	}
 
-	line := fmt.Sprintf("%s %s — %s", verb, opts.output, strings.Join(parts, ", "))
+	line := fmt.Sprintf("%s %s · %s", verb, opts.output, strings.Join(parts, ", "))
 	// On a merge the total says little on its own; the reader wants to know what this run added.
 	if merged {
 		line += fmt.Sprintf(" (this survey found %s)", plural(len(frag.Components), "component"))
@@ -587,7 +587,7 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, components []saga.Com
 	if len(components) == 0 {
 		// A descriptor describing nothing is almost always a scope or credentials problem, and
 		// it is the one case where the count alone reads as success.
-		line += " — nothing was discovered, so this descriptor scans nothing"
+		line += ", nothing was discovered, so this descriptor scans nothing"
 	}
 	return line
 }

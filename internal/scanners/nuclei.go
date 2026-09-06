@@ -17,9 +17,9 @@ import (
 )
 
 // excludedNucleiTags are template tags Nuclei should skip so the native "headers" control owns
-// HTTP security-header findings — dast covers what headers doesn't (XSS, cookies, info
-// disclosure, exposures, outdated libraries, default creds). Only "headers" is excluded; never
-// "http", which would suppress almost every template.
+// HTTP security-header findings, dast covers what headers doesn't (XSS, cookies, info disclosure,
+// exposures, outdated libraries, default creds). Only "headers" is excluded; never "http", which
+// would suppress almost every template.
 const excludedNucleiTags = "headers"
 
 // nucleiScanner runs ProjectDiscovery Nuclei against a running endpoint (a component's host) and
@@ -43,11 +43,11 @@ func NewNuclei() plugin.Scanner {
 			Controls:     []string{"dast"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
 			ConfigSchema: json.RawMessage(noScannerOptions),
-			// Declared rather than gated. A dynamic scanner exists to send traffic, so asking
-			// per run for permission to do the thing the control is for would train people to
-			// agree without reading. Stating it is still worth doing: probing a host you do not
-			// own is unlawful in many jurisdictions, and until now nothing in the tool said so —
-			// only the scope and disclaimer, which nobody reads mid-scan.
+			// Declared rather than gated. A dynamic scanner exists to send traffic, so asking per run for
+			// permission to do the thing the control is for would train people to agree without reading.
+			// Stating it is still worth doing: probing a host you do not own is unlawful in many
+			// jurisdictions, and until now nothing in the tool said so, only the scope and disclaimer,
+			// which nobody reads mid-scan.
 			Effects: []plugin.Effect{{
 				Kind: plugin.EffectNetwork,
 				Detail: "sends probe traffic to the endpoint, which is lawful only against " +
@@ -65,7 +65,7 @@ func (s nucleiScanner) Info() plugin.ScannerInfo { return s.info }
 // CacheVersion reports the *template* version, not the binary's (implements
 // plugin.CacheVersioner).
 //
-// The templates are what decide the answer, and they are republished daily — so a cached "no
+// The templates are what decide the answer, and they are republished daily, so a cached "no
 // findings" against last week's set is a claim about a question nobody asked. The binary changes
 // rarely enough that keying on it instead would be close to keying on nothing.
 func (s nucleiScanner) CacheVersion(ctx context.Context) string {
@@ -85,7 +85,7 @@ func (s nucleiScanner) Prewarm(ctx context.Context) error { return s.templates.w
 //
 // Authenticating declares no additional effect, which is deliberate rather than an omission.
 // Writing `tokenEnv` into a descriptor is already an explicit, per-endpoint opt-in, committed and
-// reviewable — the consent an effect would ask for has been given by the act of configuring it.
+// reviewable. The consent an effect would ask for has been given by the act of configuring it.
 // Effects are also a property of a scanner rather than of a job, so declaring one here would
 // demand `allowEffects` from every dast run including the anonymous ones, which teaches people to
 // accept without reading. What the scan did is recorded in provenance instead.
@@ -156,7 +156,7 @@ func nucleiArgv(url, headerFile string) []string {
 // nucleiSpecArgv scans the operations a rewritten OpenAPI document declares, rather than crawling.
 //
 // -sfv is not optional and not silent. Without it Nuclei refuses a specification whose required
-// parameters it cannot fill — which is most of them — and scans nothing at all. With it, those
+// parameters it cannot fill. Which is most of them, and scans nothing at all. With it, those
 // requests are skipped quietly, so Draugr counts them while rewriting the document and the run
 // reports how much of the API went unexercised.
 func nucleiSpecArgv(specPath, headerFile string) []string {
@@ -190,7 +190,7 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 		return sarif.Report{}, errors.New("nuclei: host target has no url")
 	}
 	// If the template set could not be obtained, say that rather than letting Nuclei report the
-	// symptom. Its own message — "no templates provided for scan" — reads like a mistake in the
+	// symptom. Its own message, "no templates provided for scan". Reads like a mistake in the
 	// descriptor, and sends the reader to the wrong place entirely.
 	if s.templates != nil {
 		if err := s.templates.templatesErr(); err != nil {
@@ -251,8 +251,8 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 	return report, nil
 }
 
-// nucleiProvenance says whether the scan authenticated, and as what — by naming the variable,
-// never its value.
+// nucleiProvenance says whether the scan authenticated, and as what, by naming the variable, never
+// its value.
 func nucleiProvenance(host plugin.HostTarget, spec preparedSpec) sarif.Provenance {
 	fields := []sarif.Field{{Key: "endpoint", Value: host.Identity()}}
 	if host.Spec != nil {
@@ -383,8 +383,8 @@ type nucleiTemplateWarmer struct {
 // No -duc here, though the scan invocation uses it and should. On a scan it disables the update
 // check, which is what keeps a run deterministic. On `-update-templates` it disables the update
 // itself: the command exits 0, downloads nothing, and leaves the directory as it found it. The
-// result was a control that could never run — Nuclei is a template engine, and with no templates
-// it fails with "no templates provided for scan", which reads like a descriptor mistake.
+// result was a control that could never run. Nuclei is a template engine, and with no templates it
+// fails with "no templates provided for scan", which reads like a descriptor mistake.
 //
 // The exit code is checked and then disbelieved. Nuclei exits 0 whether or not it fetched
 // anything, so the only honest confirmation is to ask afterwards what it has.
@@ -400,7 +400,7 @@ func (w *nucleiTemplateWarmer) warm(ctx context.Context) error {
 			return
 		}
 		if ok, _ := tools.NucleiTemplatesOK(out); !ok {
-			w.err = errors.New("nuclei reported no template set after -update-templates — " +
+			w.err = errors.New("nuclei reported no template set after -update-templates, " +
 				"dast cannot run without one; try `nuclei -update-templates` by hand to see why")
 		}
 	})

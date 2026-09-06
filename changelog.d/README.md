@@ -16,10 +16,10 @@ Nothing here can collide with anything.
 
 ## The rules
 
-- **The name ends `.<section>.md`** — one of `added`, `changed`, `deprecated`, `removed`, `fixed`,
+- **The name ends `.<section>.md`**, one of `added`, `changed`, `deprecated`, `removed`, `fixed`,
   `security`. `changelog.sh check` refuses anything else, because a fragment that matches no
   section sits here looking queued and ships in no release at all.
-- **The content is the entry**, exactly as it should read in the notes: a `-` bullet, user-first —
+- **The content is the entry**, exactly as it should read in the notes: a `-` bullet, user-first,
   what you can now do, not which functions moved.
 - **Fragments assemble in filename order** within a section, so two people writing on the same
   afternoon get the same notes whichever order their pull requests merged.

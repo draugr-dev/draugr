@@ -6,7 +6,7 @@ package scanners
 // A scanner that evaluates some of a benchmark and stays quiet about the rest reports a clean
 // result for checks it never ran, which is the failure this whole control exists to avoid. So
 // the section is listed in full and every entry is answered: the ones this scanner can decide
-// get a verdict, and the ones it cannot are reported as needing a human — the same answer
+// get a verdict, and the ones it cannot are reported as needing a human. The same answer
 // kube-bench gives them, since CIS marks the entire section manual.
 //
 // That makes coverage additive rather than a trade. Moving a check from manual to decided is a

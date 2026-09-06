@@ -26,7 +26,7 @@ func changelogScript(t *testing.T, changelog string, args ...string) (string, er
 // reads best. Both shapes occur.
 //
 // A version whose summary cannot be derived does not fail: the step substitutes a fallback. What
-// it must never do is exit non-zero, because that step is the one that pushes the tag — and it
+// it must never do is exit non-zero, because that step is the one that pushes the tag. And it
 // runs after the release has already been merged, so failing there leaves a promoted CHANGELOG
 // with no tag and no release.
 func TestATagMessageCanBeDerivedFromEitherNoteShape(t *testing.T) {
@@ -76,7 +76,7 @@ func TestTheTagWorkflowDerivesItsSummaryFromTheScript(t *testing.T) {
 	}
 	body := string(data)
 	if !strings.Contains(body, `changelog.sh summary "$version"`) {
-		t.Error("the tag message is no longer derived by changelog.sh summary — a pipeline here " +
+		t.Error("the tag message is no longer derived by changelog.sh summary, a pipeline here " +
 			"cannot be tested, and it runs after the release is merged")
 	}
 	// Any grep in a `pipefail` step is a step that fails when its pattern does not match, which
@@ -95,7 +95,7 @@ func TestTheTagWorkflowDerivesItsSummaryFromTheScript(t *testing.T) {
 // The placeholder marking an empty [Unreleased] must not travel into the release.
 //
 // `promote` writes it back over the section it just emptied, and an entry added afterwards lands
-// above it rather than replacing it — so without this the notes a tag publishes end with a line
+// above it rather than replacing it, so without this the notes a tag publishes end with a line
 // saying nothing is here, underneath the list of things that are.
 func TestPromoteDropsThePlaceholderForAnEmptySection(t *testing.T) {
 	const changelog = `# Changelog

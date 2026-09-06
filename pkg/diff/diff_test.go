@@ -110,7 +110,7 @@ func TestRenderConsole(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"Draugr diff —", "1 new", "New (1):", "NEW", "Fixed (1):", "OLD"} {
+	for _, want := range []string{"Draugr diff ·", "1 new", "New (1):", "NEW", "Fixed (1):", "OLD"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console diff missing %q\n%s", want, s)
 		}
@@ -301,7 +301,7 @@ func TestNarrowNewKeepsOnlyTheBandAndOnlyForNew(t *testing.T) {
 // identity deliberately drops the line and the level, because both drift without the finding
 // changing. Component and repository are the opposite: they do not drift, they are the subject.
 // Keyed without them a diff keeps whichever it saw first, and the other is reported as neither new
-// nor fixed — it is simply absent, on the surface a reviewer is told to trust.
+// nor fixed. It is simply absent, on the surface a reviewer is told to trust.
 func TestIdentitySeparatesComponentsAndRepositories(t *testing.T) {
 	at := func(component, repository string) sarif.Result {
 		return sarif.Result{
@@ -316,7 +316,7 @@ func TestIdentitySeparatesComponentsAndRepositories(t *testing.T) {
 		at("platform", "repo-b"), // and a third project entirely
 	}}
 	if got := Compare(sarif.Report{}, head); len(got.New) != 3 {
-		t.Fatalf("new = %d, want 3 — one per component/repository", len(got.New))
+		t.Fatalf("new = %d, want 3, one per component/repository", len(got.New))
 	}
 
 	// And a finding that only moved is still the same finding: the line is not part of identity.
@@ -334,7 +334,7 @@ func TestIdentitySeparatesComponentsAndRepositories(t *testing.T) {
 // A code-scanning upload carries only what the reviewed checkout can anchor.
 //
 // Paths are repository-relative, so a finding from another repository resolves to a same-named
-// file here — an annotation on a line that does not have that problem. Findings belonging to no
+// file here, an annotation on a line that does not have that problem. Findings belonging to no
 // repository are kept: an image finding is located at an image reference, and dropping those would
 // take most of a container scan off the surface a reviewer reads.
 func TestOnlyRepositoryKeepsWhatThisCheckoutCanAnchor(t *testing.T) {
@@ -359,10 +359,10 @@ func TestOnlyRepositoryKeepsWhatThisCheckoutCanAnchor(t *testing.T) {
 }
 
 func TestOnlyRepositoryTellsSiblingGroupsApart(t *testing.T) {
-	// Two teams, one repository name. On a forge that nests groups this is ordinary, and the
-	// filter has to survive it: keeping only the tail of each path makes both the same repository,
-	// so a merge request annotates its own files with another team's findings — real findings, on
-	// a plausible line, describing code this checkout does not contain.
+	// Two teams, one repository name. On a forge that nests groups this is ordinary, and the filter
+	// has to survive it: keeping only the tail of each path makes both the same repository, so a
+	// merge request annotates its own files with another team's findings, real findings, on a
+	// plausible line, describing code this checkout does not contain.
 	r := Result{New: []sarif.Result{
 		{RuleID: "OURS", Repository: "https://gitlab.com/payments/backend/api.git"},
 		{RuleID: "THEIRS", Repository: "https://gitlab.com/platform/backend/api.git"},
@@ -396,9 +396,9 @@ func finding(rule, uri string, line int) sarif.Result {
 }
 
 func TestAcceptingARiskIsNotFixingIt(t *testing.T) {
-	// The bug this category exists for. A pull request whose only change is adding an exclusion
-	// used to read as "1 fixed" — the reviewer told the opposite of what happened, on the one
-	// change that most deserves their attention.
+	// The bug this category exists for. A pull request whose only change is adding an exclusion used
+	// to read as "1 fixed", the reviewer told the opposite of what happened, on the one change that
+	// most deserves their attention.
 	f := finding("CVE-2024-11111", "requirements.txt", 3)
 	r := Compare(
 		sarif.Report{Results: []sarif.Result{f}},
@@ -417,8 +417,8 @@ func TestAcceptingARiskIsNotFixingIt(t *testing.T) {
 }
 
 func TestALapsedExclusionIsReopenedRatherThanNew(t *testing.T) {
-	// Nobody introduced it. It was known, it was accepted, and the acceptance ran out — and
-	// "new" loses the part somebody has to act on, which is that a decision needs making again.
+	// Nobody introduced it. It was known, it was accepted, and the acceptance ran out, and "new"
+	// loses the part somebody has to act on, which is that a decision needs making again.
 	f := finding("CVE-2024-11111", "requirements.txt", 3)
 	r := Compare(
 		sarif.Report{Results: []sarif.Result{suppressed(f, "wilson@draugr.dev")}},
@@ -443,7 +443,7 @@ func TestAFindingThatArrivesAlreadyExcusedIsVisible(t *testing.T) {
 	)
 
 	if len(r.Accepted) != 1 {
-		t.Fatalf("accepted = %d, want 1 — it appeared nowhere before", len(r.Accepted))
+		t.Fatalf("accepted = %d, want 1, it appeared nowhere before", len(r.Accepted))
 	}
 	if len(r.New) != 0 || len(r.Fixed) != 0 {
 		t.Errorf("new = %d, fixed = %d, want neither", len(r.New), len(r.Fixed))

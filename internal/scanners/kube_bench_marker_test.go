@@ -6,7 +6,7 @@ import "testing"
 //
 // "(Automated)" says the benchmark's recommendation can be assessed programmatically. It says
 // nothing about the finding or its remediation, and a reader seeing it beside something they have
-// been told to act on reads it as one — while it costs a dozen characters of a line that is
+// been told to act on reads it as one. While it costs a dozen characters of a line that is
 // already truncated, in every row.
 func TestWithoutAssessmentMarker(t *testing.T) {
 	for _, c := range []struct{ in, want string }{

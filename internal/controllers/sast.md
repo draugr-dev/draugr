@@ -10,7 +10,7 @@
 ## What it does
 
 Plans one scan per repository × selected scanner (each repo is checked out and analyzed for
-security bugs in the project's **own source code** — not its dependencies), then aggregates +
+security bugs in the project's **own source code**, not its dependencies), then aggregates +
 deduplicates findings into a per-control result with a severity summary.
 
 Semgrep runs by default. Each scanner is configured under its own key in
@@ -24,12 +24,12 @@ The SAST scanners report per-rule severity, so findings are counted as reported 
 
 ## Links
 
-- Glossary: [SAST](../../docs/reference/glossary.md#sast--static-application-security-testing)
+- Glossary: [SAST](../../docs/reference/glossary.md#sast-static-application-security-testing)
 - Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)
 
 ## Notes
 
-- Distinct from [`sca`](sca.md) (third-party dependencies) and `images` (built containers) —
+- Distinct from [`sca`](sca.md) (third-party dependencies) and `images` (built containers),
   `sast` analyzes first-party source.
 - Semgrep's ruleset is `--config p/default` today (see [`semgrep.md`](../scanners/semgrep.md));
   per-component custom rules are a natural follow-up.

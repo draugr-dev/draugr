@@ -87,7 +87,7 @@ func TestOneSuppliersClaimDoesNotReachAnotherComponent(t *testing.T) {
 
 	n, _, _ := applyVEX(controls, set)
 	if n != 1 {
-		t.Fatalf("imported = %d, want 1 — only the component that declared the source", n)
+		t.Fatalf("imported = %d, want 1, only the component that declared the source", n)
 	}
 	for _, res := range controls["sca"].Report.Results {
 		switch res.Component {
@@ -97,7 +97,7 @@ func TestOneSuppliersClaimDoesNotReachAnotherComponent(t *testing.T) {
 			}
 		case "worker":
 			if res.Suppressed() {
-				t.Error("worker declared nothing — another component's supplier must not excuse its findings")
+				t.Error("worker declared nothing, another component's supplier must not excuse its findings")
 			}
 		}
 	}
@@ -115,7 +115,7 @@ func TestAProjectWideClaimReachesEveryComponent(t *testing.T) {
 
 	n, _, _ := applyVEX(controls, set)
 	if n != 2 {
-		t.Fatalf("imported = %d, want 2 — a project-wide document applies to every component", n)
+		t.Fatalf("imported = %d, want 2, a project-wide document applies to every component", n)
 	}
 }
 
@@ -129,13 +129,13 @@ func TestAnAffectedClaimChangesNothingAndIsNotReportedUnmatched(t *testing.T) {
 
 	n, _, unmatched := applyVEX(controls, set)
 	if n != 0 {
-		t.Errorf("imported = %d, want 0 — affected concedes exposure", n)
+		t.Errorf("imported = %d, want 0, affected concedes exposure", n)
 	}
 	if controls["sca"].Report.Results[0].Suppressed() {
 		t.Error("an affected claim must not suppress")
 	}
 	if len(unmatched) != 0 {
-		t.Errorf("unmatched = %+v — the claim matched a finding and was acted on", unmatched)
+		t.Errorf("unmatched = %+v, the claim matched a finding and was acted on", unmatched)
 	}
 }
 
@@ -153,7 +153,7 @@ func TestALocalDecisionIsNotOverwrittenByASupplier(t *testing.T) {
 
 	n, _, _ := applyVEX(controls, set)
 	if n != 0 {
-		t.Errorf("imported = %d, want 0 — the local decision already covered it", n)
+		t.Errorf("imported = %d, want 0, the local decision already covered it", n)
 	}
 	got := controls["sca"].Report.Results[0].Suppression
 	if got.AcceptedBy != "A. Engineer" || got.Origin == sarif.OriginVEX {
@@ -175,8 +175,8 @@ func TestAClaimThatMatchesNothingIsReported(t *testing.T) {
 	if len(unmatched) != 1 || unmatched[0].Vulnerability != "CVE-999" {
 		t.Fatalf("unmatched = %+v, want the statement nothing matched", unmatched)
 	}
-	// And the document is still reported, credited with nothing — a document that excused nothing
-	// is otherwise indistinguishable from one that was never configured.
+	// And the document is still reported, credited with nothing, a document that excused nothing is
+	// otherwise indistinguishable from one that was never configured.
 	if len(docs) != 1 || docs[0].Provenance.Applied != 0 {
 		t.Errorf("provenance = %+v, want the document present and credited with 0", docs)
 	}

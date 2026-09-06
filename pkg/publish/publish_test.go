@@ -160,10 +160,10 @@ func TestRunDeliversSBOMsEvenWithNoReportsConfigured(t *testing.T) {
 	}
 }
 
-// A publisher delivers the record, so it gets the whole record. GitHub code scanning resolves
-// any alert absent from an upload as fixed — so if --min-priority reached a publisher, running
-// a scan with the flag would quietly close every finding below the band, in the one place the
-// filtering is invisible.
+// A publisher delivers the record, so it gets the whole record. GitHub code scanning resolves any
+// alert absent from an upload as fixed, so if --min-priority reached a publisher, running a scan
+// with the flag would quietly close every finding below the band, in the one place the filtering is
+// invisible.
 //
 // This is the guard for that. It asserts on delivered bytes rather than on the flag, because the
 // flag being cleared is an implementation detail and the alerts being closed is the harm.
@@ -192,7 +192,7 @@ func TestPublishersIgnoreMinPriority(t *testing.T) {
 	}
 	for _, want := range []string{"CVE-P1", "CVE-P4"} {
 		if !strings.Contains(string(got), want) {
-			t.Errorf("published SARIF is missing %s — a filtered upload resolves it as fixed:\n%s", want, got)
+			t.Errorf("published SARIF is missing %s, a filtered upload resolves it as fixed:\n%s", want, got)
 		}
 	}
 }
@@ -216,7 +216,7 @@ func TestRunDoesNotClearTheCallersMinPriority(t *testing.T) {
 // One format that cannot render must not cost the ones that can.
 //
 // A scan that took four minutes used to produce no evidence at all because of a typo a descriptor
-// check catches in milliseconds — Run returned on the first failed render, before any publisher saw
+// check catches in milliseconds. Run returned on the first failed render, before any publisher saw
 // anything. The destination loop has always tolerated one failure; this is the same reasoning one
 // step earlier.
 func TestRunDeliversTheReportsThatRendered(t *testing.T) {

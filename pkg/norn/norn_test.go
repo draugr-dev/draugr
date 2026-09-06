@@ -93,8 +93,8 @@ func reportWithPriority(level sarif.Level, priority string) sarif.Report {
 }
 
 func TestPriorityGateFailsBelowLevelThreshold(t *testing.T) {
-	// A note-level finding would pass a fail-on-error level gate, but its P1 priority trips
-	// the priority gate — component-aware gating in action.
+	// A note-level finding would pass a fail-on-error level gate, but its P1 priority trips the
+	// priority gate, component-aware gating in action.
 	p := Policy{FailOn: sarif.SeverityHigh, FailOnPriority: "P2"}
 	res := p.Evaluate(map[string]sarif.Report{
 		"images": reportWithPriority(sarif.LevelNote, "P1"),
@@ -142,7 +142,7 @@ func TestVerdictIgnoresSuppressedFindings(t *testing.T) {
 	p := Policy{FailOn: sarif.SeverityHigh, FailOnPriority: "P1"}
 	res := p.Evaluate(map[string]sarif.Report{"secrets": rep})
 	if res.Verdict != Pass {
-		t.Errorf("verdict = %v, want Pass — the only finding is suppressed", res.Verdict)
+		t.Errorf("verdict = %v, want Pass, the only finding is suppressed", res.Verdict)
 	}
 	if res.Controls[0].HighestPriority != "" {
 		t.Errorf("HighestPriority = %q, want empty", res.Controls[0].HighestPriority)
@@ -161,7 +161,7 @@ func TestVerdictStillFailsOnAnUnsuppressedFinding(t *testing.T) {
 }
 
 // Go randomizes map iteration, so an Evaluate that returned controls in map order would order
-// them differently on every run — reaching the console, report.json, and the markdown and HTML
+// them differently on every run, reaching the console, report.json, and the markdown and HTML
 // reports, and making two scans of an unchanged repository diff against each other.
 //
 // Asserted directly rather than by evaluating twice and comparing: with a handful of controls,
@@ -190,8 +190,8 @@ func TestEvaluateOrdersControlsAlphabetically(t *testing.T) {
 // TestGateJudgesTheBandTheReportPrints is the reason thresholds are severities.
 //
 // A finding carrying a CVSS score takes its band from the score, not from the level the scanner
-// wrote. Real scanners emit high-scoring findings as `warning` — a 7.8 sandbox breakout among
-// them — so a gate comparing levels passed a finding the report beside it called `high`. The
+// wrote. Real scanners emit high-scoring findings as `warning`, a 7.8 sandbox breakout among
+// them, so a gate comparing levels passed a finding the report beside it called `high`. The
 // verdict and the page have to agree about the same finding.
 func TestGateJudgesTheBandTheReportPrints(t *testing.T) {
 	// Level says warning; the score says 7.8, so the band is high.

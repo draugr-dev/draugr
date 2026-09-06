@@ -16,7 +16,7 @@ import (
 // version pin would teach people not to use it, and they would go back to hand-editing the file
 // this command exists to keep valid.
 //
-// The key is a dotted path — `tools.trivy.version`, `controllers.sca.mend.policy`. Intermediate
+// The key is a dotted path, `tools.trivy.version`, `controllers.sca.mend.policy`. Intermediate
 // mappings are created as needed.
 func Set(doc []byte, key, value string) ([]byte, error) {
 	path, err := splitKey(key)
@@ -171,15 +171,15 @@ func setScalar(m *yaml.Node, key, value string) {
 }
 
 // scalarTag keeps a version like "0.69.3" a string while letting true/false and numbers be
-// themselves — `enabled: "true"` is not the same setting as `enabled: true`, and a config file
+// themselves. `enabled: "true"` is not the same setting as `enabled: true`, and a config file
 // that quietly turns one into the other is worse than one that refuses to write.
 func scalarTag(v string) string {
 	switch strings.ToLower(v) {
 	case "true", "false":
 		return "!!bool"
 	}
-	// Integer before float: "30" round-trips through both, and %g would make it 30.0 — a
-	// timeout that reads differently from the one that was typed.
+	// Integer before float: "30" round-trips through both, and %g would make it 30.0. A timeout
+	// that reads differently from the one that was typed.
 	if i, err := strconv.ParseInt(v, 10, 64); err == nil && strconv.FormatInt(i, 10) == v {
 		return "!!int"
 	}

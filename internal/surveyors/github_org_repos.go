@@ -28,7 +28,7 @@ func NewGitHubOrgRepos() *GitHubOrgRepos {
 // githubAPIRoot resolves the API root, so GitHub Enterprise Server needs no code change.
 //
 // GITHUB_API_URL is the same variable the github-pr-comment publisher reads, and Actions sets it
-// on a GHES runner — so one variable configures both halves of the integration and a survey run in
+// on a GHES runner, so one variable configures both halves of the integration and a survey run in
 // CI needs nothing configured at all. Anyone who has pointed the publisher at their own instance
 // has every reason to expect the survey to follow, and a survey that quietly went to github.com
 // instead would either fail on the org name or, worse, describe a public organization that happens
@@ -77,9 +77,9 @@ func (g GitHubOrgRepos) Survey(ctx context.Context, scope plugin.SurveyScope) (s
 
 	// Unauthenticated, GitHub answers with the org's public repositories and nothing else. The
 	// descriptor that results is syntactically fine, every control is enabled, and the scan that
-	// follows passes or fails on real findings — while every private repository, which is where
-	// the interesting code usually is, is simply not in it. Nobody reviewing that output has a
-	// reason to suspect a gap, so the survey has to say so itself.
+	// follows passes or fails on real findings, while every private repository, which is where the
+	// interesting code usually is, is simply not in it. Nobody reviewing that output has a reason to
+	// suspect a gap, so the survey has to say so itself.
 	if token == "" {
 		slog.Warn("surveyed without a token",
 			"scope", "public repositories only", "fix", "set GITHUB_TOKEN to include private ones",

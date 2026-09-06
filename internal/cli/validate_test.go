@@ -64,7 +64,7 @@ func TestValidateCommandViaCobra(t *testing.T) {
 	}
 }
 
-// A repo can hold many Sagas — one per service, per environment — so validating them one command
+// A repo can hold many Sagas, one per service, per environment, so validating them one command
 // at a time doesn't scale, and CI wants a single exit code over all of them.
 func writeSagaAt(t *testing.T, dir, name, body string) string {
 	t.Helper()

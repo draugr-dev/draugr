@@ -84,7 +84,7 @@ func TestGitLabMRCommentEditsTheExistingNoteInPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 	if method != http.MethodPut {
-		t.Errorf("method = %s, want PUT — a second pipeline run must not add a second note", method)
+		t.Errorf("method = %s, want PUT, a second pipeline run must not add a second note", method)
 	}
 	if !strings.HasSuffix(path, "/notes/11") {
 		t.Errorf("edited %q, want the marked note", path)
@@ -112,14 +112,14 @@ func TestGitLabMRCommentIgnoresSystemNotes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if method != http.MethodPost {
-		t.Errorf("method = %s, want POST — a system note is not Draugr's own comment", method)
+		t.Errorf("method = %s, want POST, a system note is not Draugr's own comment", method)
 	}
 }
 
 func TestGitLabMRCommentFollowsPagination(t *testing.T) {
 	// GitLab answers 20 notes at a time. Reading only the first page finds nothing as soon as a
 	// merge request has a normal amount of discussion, and the publisher posts a fresh report every
-	// run — the sticky comment failing by multiplying, exactly where the thread is long enough to
+	// run, the sticky comment failing by multiplying, exactly where the thread is long enough to
 	// need it.
 	var pages []string
 	var method, path string
@@ -173,7 +173,7 @@ func TestGitLabMRCommentStopsPagingAtTheLastPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	if gets != 1 {
-		t.Errorf("listed %d pages, want 1 — no x-next-page means there is no next page", gets)
+		t.Errorf("listed %d pages, want 1, no x-next-page means there is no next page", gets)
 	}
 }
 
@@ -189,7 +189,7 @@ func TestGitLabMRCommentSendsThePrivateTokenHeader(t *testing.T) {
 	p, _ := For(saga.PublisherConfig{Kind: "gitlab-mr-comment"})
 	_ = p.Publish(context.Background(), []report.Artifact{mdArtifact()})
 	if got != "glpat-token" {
-		t.Errorf("PRIVATE-TOKEN = %q — GitLab authenticates access tokens with this header", got)
+		t.Errorf("PRIVATE-TOKEN = %q, GitLab authenticates access tokens with this header", got)
 	}
 }
 
@@ -212,7 +212,7 @@ func TestGitLabMRCommentExplicitConfigBeatsTheEnvironment(t *testing.T) {
 	}
 	_ = p.Publish(context.Background(), []report.Artifact{mdArtifact()})
 	// A project inside a group is addressed by its full path, and every slash in it has to reach
-	// GitLab as %2F or the request names something else — a 404 that reads like a missing project.
+	// GitLab as %2F or the request names something else. A 404 that reads like a missing project.
 	want := "/projects/group%2Fsub%2Fproject/merge_requests/99/notes"
 	if path != want {
 		t.Errorf("path = %q, want %q", path, want)
@@ -320,7 +320,7 @@ func TestGitLabMRCommentRequiresMarkdown(t *testing.T) {
 }
 
 func TestGitLabMRCommentSurfacesARefusalAsAPermission(t *testing.T) {
-	// 401 and 403 both mean the request reached GitLab and the token was not enough — a token
+	// 401 and 403 both mean the request reached GitLab and the token was not enough, a token
 	// problem, not a Saga problem. Saying so beats leaving someone re-reading their descriptor.
 	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {

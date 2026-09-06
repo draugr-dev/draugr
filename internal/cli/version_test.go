@@ -9,7 +9,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/version"
 )
 
-// The version is this command's output, so it must go to stdout — `v=$(draugr version)` is the
+// The version is this command's output, so it must go to stdout. `v=$(draugr version)` is the
 // canonical usage. Cobra's cmd.Print* helpers write to stderr, which silently broke that.
 func TestVersionGoesToStdout(t *testing.T) {
 	var stdout, stderr bytes.Buffer

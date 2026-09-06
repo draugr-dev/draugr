@@ -33,7 +33,7 @@ func newDiffCommand() *cobra.Command {
 		Use:   "diff <base.sarif> <head.sarif>",
 		Short: "Compare two scans and classify findings as new, fixed, accepted, reopened or unchanged",
 		Long: "Compare two Draugr SARIF results (the results.sarif that `draugr scan -o` writes)\n" +
-			"and classify every finding as new / fixed / accepted / reopened / unchanged — the\n" +
+			"and classify every finding as new / fixed / accepted / reopened / unchanged, the\n" +
 			"security delta of a change, typically a PR's head vs its base branch.\n\n" +
 			"Accepted is a finding somebody excused rather than fixed; reopened is one whose\n" +
 			"exclusion lapsed. Both are printed only when they are not zero.\n\n" +
@@ -50,7 +50,7 @@ func newDiffCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "report only new findings at or above this priority band (P1-P4); fixed and unchanged are unaffected")
 	cmd.Flags().StringVar(&opts.repository, "repository", "",
 		"keep only new findings from this repository, plus those belonging to none (an image, a "+
-			"host). For a code-scanning upload, whose paths anchor to one checkout — a finding "+
+			"host). For a code-scanning upload, whose paths anchor to one checkout, a finding "+
 			"from elsewhere would annotate a same-named file here")
 	cmd.Flags().BoolVar(&opts.publish, "publish", false, "post the diff as a sticky pull-request comment (GitHub, GitLab or Azure DevOps, detected from the CI environment)")
 	return cmd
@@ -91,7 +91,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	}
 
 	// The gate is the outcome; publishing is delivery. Returning a publish failure here would
-	// replace the verdict rather than accompany it — the run reports a missing token, and the P1
+	// replace the verdict rather than accompany it. The run reports a missing token, and the P1
 	// this change introduced is never mentioned. That sends a reader to fix a credential when what
 	// actually happened is that the change should not merge. `scan` reconciles the two the same
 	// way, and a delivery problem still exits non-zero: a flag either does something or says why
@@ -107,10 +107,10 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 			fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(tripped)),
 			publishErr)
 	}
-	// The gate passed and only delivery failed, which is still non-zero — but the message has to
-	// say which, because the two are the same color in a checks list and only one of them is
-	// about the code under review. Without the first clause a reader sees a red tick and a forge
-	// error and has no way to tell it from a change that introduced a finding.
+	// The gate passed and only delivery failed, which is still non-zero. But the message has to
+	// say which, because the two are the same color in a checks list and only one of them is about
+	// the code under review. Without the first clause a reader sees a red tick and a forge error
+	// and has no way to tell it from a change that introduced a finding.
 	if publishErr != nil {
 		return fmt.Errorf("the gate passed, but publishing failed: %w", publishErr)
 	}
@@ -139,9 +139,9 @@ func publishDiff(ctx context.Context, result diff.Result) error {
 	if err := diff.Render(&md, "markdown", result); err != nil {
 		return err
 	}
-	// A distinct marker from the Saga's own PR-comment publisher. A pipeline running both — a
-	// full report and the delta this pull request introduced — wants two comments, and sharing
-	// the default meant the second silently replaced the first.
+	// A distinct marker from the Saga's own PR-comment publisher. A pipeline running both, a full
+	// report and the delta this pull request introduced. Wants two comments, and sharing the
+	// default meant the second silently replaced the first.
 	pub, err := publish.For(saga.PublisherConfig{
 		Kind: diffPublisherKind(), Marker: publish.DiffMarker,
 	})
@@ -173,7 +173,7 @@ func loadSARIF(path string) (sarif.Report, error) {
 // components' worth of findings were resolved, and a gate on new findings passes it.
 //
 // Refusing rather than warning, because the failure is silent and the output is not obviously
-// wrong — it is a list of fixes, which is the thing a reader was hoping to see. A warning above
+// wrong. It is a list of fixes, which is the thing a reader was hoping to see. A warning above
 // a plausible answer is a warning that gets read after the decision.
 func comparableScopes(basePath string, base sarif.Report, headPath string, head sarif.Report) error {
 	baseScope, baseScoped := skald.ScopeOfReport(base)
@@ -188,7 +188,7 @@ func comparableScopes(basePath string, base sarif.Report, headPath string, head 
 		return path + " was scoped to " + scope
 	}
 	return fmt.Errorf("these reports do not describe the same scan:\n  %s\n  %s\n"+
-		"a finding the head did not look for would be reported as fixed — re-run the scoped side "+
+		"a finding the head did not look for would be reported as fixed. Re-run the scoped side "+
 		"unscoped, or scope both the same way",
 		describe(basePath, baseScope, baseScoped), describe(headPath, headScope, headScoped))
 }

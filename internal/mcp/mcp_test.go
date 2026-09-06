@@ -43,7 +43,7 @@ func TestScanIsNotExposedUnlessAllowed(t *testing.T) {
 	}
 }
 
-// The instructions are what a client shows the model, so a read-only server has to say so —
+// The instructions are what a client shows the model, so a read-only server has to say so,
 // otherwise the model plans around a scan it can't run.
 func TestInstructionsDescribeTheScanMode(t *testing.T) {
 	if off := instructions(ScanOff); !strings.Contains(off, "not enabled") {
@@ -127,7 +127,7 @@ func TestListControls(t *testing.T) {
 	if len(sast.DefaultScanners) == 0 {
 		t.Error("sast should report its default scanners")
 	}
-	// gosec backs sast but isn't a default, so it must be reported as opt-in — an agent that
+	// gosec backs sast but isn't a default, so it must be reported as opt-in. An agent that
 	// enables it as if it were a default writes a Saga that silently does nothing.
 	if len(sast.OptInScanners) == 0 {
 		t.Errorf("sast should report opt-in scanners, got %+v", sast)
@@ -146,7 +146,7 @@ func TestGetSchemaReturnsTheEmbeddedSchema(t *testing.T) {
 		t.Errorf("no $schema key; this should be a JSON Schema document: %v", out.Schema)
 	}
 	if out.Version == "" {
-		t.Error("the schema must say which build it came from — that's the point of asking Draugr rather than the web")
+		t.Error("the schema must say which build it came from, that's the point of asking Draugr rather than the web")
 	}
 }
 
@@ -176,8 +176,8 @@ func TestValidateSaga(t *testing.T) {
 		t.Errorf("controls = %v", out.Controls)
 	}
 
-	// A bad descriptor is an answer, not a tool failure — an error would tell the agent the
-	// call went wrong rather than the file.
+	// A bad descriptor is an answer, not a tool failure. An error would tell the agent the call went
+	// wrong rather than the file.
 	_, bad, err := ValidateSagaTool(context.Background(), nil, ValidateInput{Content: "release:\n  " + misspelledKey + ": typo\n"})
 	if err != nil {
 		t.Fatalf("an invalid descriptor should not be a tool error: %v", err)
@@ -289,8 +289,8 @@ func TestScanToolRejectsAMissingPath(t *testing.T) {
 	}
 }
 
-// Exercise the registered handlers the way a client does — the wiring between a tool's
-// declared schema and its handler is exactly what a unit test on the handler can't catch.
+// Exercise the registered handlers the way a client does, the wiring between a tool's declared
+// schema and its handler is exactly what a unit test on the handler can't catch.
 func TestToolsAnswerOverASession(t *testing.T) {
 	ctx := context.Background()
 	sess := connect(t, Options{Registry: builtins.Registry(), Root: t.TempDir()})
@@ -331,8 +331,8 @@ func TestToolsAnswerOverASession(t *testing.T) {
 	}
 }
 
-// A Saga with no controls enabled exercises the whole scan path — load, run, evaluate, rank —
-// without needing a scanner binary or a network.
+// A Saga with no controls enabled exercises the whole scan path. Load, run, evaluate, rank, without
+// needing a scanner binary or a network.
 func TestScanToolReturnsAVerdict(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "empty.saga.yaml")
@@ -352,7 +352,7 @@ func TestScanToolReturnsAVerdict(t *testing.T) {
 	}
 }
 
-// The failure this guards against is not a wrong verdict — it is a right one being read as the
+// The failure this guards against is not a wrong verdict. It is a right one being read as the
 // answer to a broader question than Draugr asked. A component declaring an image with the images
 // control off passes, and the pass must arrive saying so.
 func TestScanToolSaysWhatItDidNotLookAt(t *testing.T) {
@@ -428,8 +428,8 @@ func decode(t *testing.T, res *mcp.CallToolResult, into any) {
 	}
 }
 
-// In ask mode a scan must not happen unless the user agreed. Fail closed, and say how to
-// proceed — a client that can't prompt is common, and "unsupported" alone helps nobody.
+// In ask mode a scan must not happen unless the user agreed. Fail closed, and say how to proceed. A
+// client that can't prompt is common, and "unsupported" alone helps nobody.
 func TestAskModeRefusesWithoutApproval(t *testing.T) {
 	// A readable descriptor, because the prompt is built from one: a missing file would fail on
 	// the load and never reach the consent path this test is about.
@@ -651,8 +651,8 @@ func connectWith(t *testing.T, opts Options, copts *mcp.ClientOptions) *mcp.Clie
 }
 
 func TestCheckToolsIsAlwaysAvailable(t *testing.T) {
-	// Diagnosing the machine is read-only, so it's offered regardless of the scan mode — an
-	// assistant on a read-only server still needs to explain why a scan would fail.
+	// Diagnosing the machine is read-only, so it's offered regardless of the scan mode. An assistant
+	// on a read-only server still needs to explain why a scan would fail.
 	for _, mode := range []ScanMode{ScanOff, ScanAsk, ScanAlways} {
 		if !toolNames(t, Options{Registry: builtins.Registry(), Scan: mode, Root: t.TempDir()})["check_tools"] {
 			t.Errorf("scan=%q: check_tools missing", mode)
@@ -754,21 +754,21 @@ func TestServerAdvertisesItsIcon(t *testing.T) {
 
 // assertWellFormedElicit checks the request we send, not only the reply we get back.
 //
-// The Go SDK's client allows a nil schema and returns early, so the in-memory transport these
-// tests use accepts a request the protocol does not — and a handler that answers without reading
-// the question cannot tell the difference. That gap shipped --scan=ask in a state where the
-// approval never reached the user: the client rejected the request as malformed, and the mode
-// was unusable from the documentation's first example.
+// The Go SDK's client allows a nil schema and returns early, so the in-memory transport these tests
+// use accepts a request the protocol does not. And a handler that answers without reading the
+// question cannot tell the difference. That gap shipped --scan=ask in a state where the approval
+// never reached the user: the client rejected the request as malformed, and the mode was unusable
+// from the documentation's first example.
 func assertWellFormedElicit(t *testing.T, p *mcp.ElicitParams) {
 	t.Helper()
 	if p == nil {
 		t.Fatal("no elicitation was sent")
 	}
 	if p.Mode != "form" {
-		t.Errorf("mode = %q, want %q — inference is not something to rely on across clients", p.Mode, "form")
+		t.Errorf("mode = %q, want %q, inference is not something to rely on across clients", p.Mode, "form")
 	}
 	if p.RequestedSchema == nil {
-		t.Fatal("requestedSchema is nil — it has no omitempty, so this reaches the client as " +
+		t.Fatal("requestedSchema is nil, it has no omitempty, so this reaches the client as " +
 			"`\"requestedSchema\": null` and a spec-conformant client rejects the request")
 	}
 	// Round-trip it the way the wire does, so the assertion is about what is sent.
@@ -781,7 +781,7 @@ func assertWellFormedElicit(t *testing.T, p *mcp.ElicitParams) {
 		t.Fatalf("requestedSchema is not a JSON object: %v", err)
 	}
 	if schema["type"] != "object" {
-		t.Errorf("requestedSchema.type = %v, want \"object\" — the spec allows no other root", schema["type"])
+		t.Errorf("requestedSchema.type = %v, want \"object\", the spec allows no other root", schema["type"])
 	}
 	if _, ok := schema["properties"]; !ok {
 		t.Error("requestedSchema has no properties key; an empty object is how \"nothing to fill in\" is said")
@@ -832,13 +832,12 @@ func TestConsentAsksByReturningTheQuestion(t *testing.T) {
 		{"accepted", &mcp.ElicitResult{Action: "accept"}, ""},
 		{"declined", &mcp.ElicitResult{Action: "decline"}, "declined"},
 		{"canceled", &mcp.ElicitResult{Action: "cancel"}, "declined"},
-		// An answer of a shape Draugr cannot read is not a yes. Treating it as one would turn a
-		// protocol mismatch into an unapproved scan.
-		// A response of a shape Draugr has no meaning for: the client answered a different
-		// question, or the protocol grew one this build predates. Any non-elicitation response
-		// serves, and every one of them is deprecated — SEP-2577 retired roots and sampling, so
-		// an elicitation is currently the only live kind. The deprecation is the reason this
-		// type is here, not a reason to stop testing the case: an answer Draugr cannot read must
+		// An answer of a shape Draugr cannot read is not a yes. Treating it as one would turn a protocol
+		// mismatch into an unapproved scan. A response of a shape Draugr has no meaning for: the client
+		// answered a different question, or the protocol grew one this build predates. Any
+		// non-elicitation response serves, and every one of them is deprecated, SEP-2577 retired roots
+		// and sampling, so an elicitation is currently the only live kind. The deprecation is the reason
+		// this type is here, not a reason to stop testing the case: an answer Draugr cannot read must
 		// never be taken for a yes.
 		//nolint:staticcheck // deliberately a deprecated response; the point is that it is not an *ElicitResult
 		{"unreadable", &mcp.CreateMessageWithToolsResult{}, "does not understand"},
@@ -932,9 +931,9 @@ func explainFixture() sarif.Report {
 	}
 }
 
-// TestExplainReturnsTheRemediationTheScannerPublished is why this tool exists. Sending an
-// assistant to a help URI is a network round trip for text already on disk — and for a benchmark
-// that URI is a registration form in front of a PDF, which is not an answer at all.
+// TestExplainReturnsTheRemediationTheScannerPublished is why this tool exists. Sending an assistant
+// to a help URI is a network round trip for text already on disk, and for a benchmark that URI is a
+// registration form in front of a PDF, which is not an answer at all.
 func TestExplainReturnsTheRemediationTheScannerPublished(t *testing.T) {
 	path := writeSARIF(t, explainFixture())
 
@@ -1106,7 +1105,7 @@ func TestFindingsCarryWhatItTakesToAct(t *testing.T) {
 	if f.FixedVersion != "3.1.6" || f.Action != string(sarif.RemediationUpgrade) {
 		t.Errorf("the fix should be nameable from the finding alone: %+v", f)
 	}
-	// The band comes from the score, as everywhere else — level says warning, the score says high.
+	// The band comes from the score, as everywhere else. Level says warning, the score says high.
 	if f.Severity != string(sarif.SeverityHigh) {
 		t.Errorf("severity should follow the score: %q", f.Severity)
 	}

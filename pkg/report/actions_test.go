@@ -189,8 +189,8 @@ func TestActionIsOnlyCachedWhenAllOfItIs(t *testing.T) {
 //
 // Grouping answers "what do I do" and removes "what exactly is wrong", which is the question a
 // reader has next. The rule identifier answers it, and carries the link to whatever the scanner
-// published — so one is named and the rest are counted, because a reader following a link reads
-// one of them and listing fifty-four to offer the choice fills the screen.
+// published. So one is named and the rest are counted, because a reader following a link reads one
+// of them and listing fifty-four to offer the choice fills the screen.
 func TestActionRowKeepsAWayIntoTheFindings(t *testing.T) {
 	in := []finding{
 		pkgFinding("sca", "CVE-2019-10906", "P1", "req.txt", "jinja2", "2.10", "2.10.1"),
@@ -228,8 +228,8 @@ func TestDisplayLocationShortensImageReferences(t *testing.T) {
 			want:    "ubuntu:22.04",
 		},
 		{
-			// No dot and no colon in the first segment, so it is a namespace and not a host —
-			// the same rule a container runtime uses.
+			// No dot and no colon in the first segment, so it is a namespace and not a host, the same rule a
+			// container runtime uses.
 			name:    "a namespace is not mistaken for a host",
 			control: "images",
 			in:      "myteam/app:1.0",
@@ -254,10 +254,10 @@ func TestDisplayLocationShortensImageReferences(t *testing.T) {
 
 // TestUpstreamImagesGroupByImageNotPackage is the correction that matters most in this list.
 //
-// Nobody running a scan can upgrade a library inside an image they do not build. The fix is a
-// newer image, or a wait for whoever publishes it — so grouping those findings by package
-// scatters one action across every library in the image and names none of them something the
-// reader can do, at the top of a list called "fix first".
+// Nobody running a scan can upgrade a library inside an image they do not build. The fix is a newer
+// image, or a wait for whoever publishes it, so grouping those findings by package scatters one
+// action across every library in the image and names none of them something the reader can do, at
+// the top of a list called "fix first".
 func TestUpstreamImagesGroupByImageNotPackage(t *testing.T) {
 	upstream := func(rule, prio, image, pkg string) finding {
 		f := pkgFinding("images", rule, prio, image, pkg, "1.0", "1.1")
@@ -357,7 +357,7 @@ func TestActionsForOmitsAcceptedRisk(t *testing.T) {
 }
 
 // TestActionsForNamesAnUpstreamImageOnce: every vulnerable package inside an image somebody else
-// publishes is one action — take a newer image — not one per library.
+// publishes is one action. Take a newer image, not one per library.
 func TestActionsForNamesAnUpstreamImageOnce(t *testing.T) {
 	img := func(rule, pkgName string) sarif.Result {
 		return sarif.Result{
@@ -383,7 +383,7 @@ func TestActionsForNamesAnUpstreamImageOnce(t *testing.T) {
 
 // An action's Key is what a caller matches membership on, and Title is not.
 //
-// A package upgrade groups on the package, not on the control that reported it — so one action can
+// A package upgrade groups on the package, not on the control that reported it. So one action can
 // be fed by two controls and takes one of their names. A caller working out which findings belong
 // to which action from Title and Control silently drops the other control's half: the row says it
 // clears six and opens to two, and four findings with a published fix appear on no list at all.
@@ -455,7 +455,7 @@ func TestAnActionCarriesEveryVersionThatClearsIt(t *testing.T) {
 // A repository somebody else publishes is one action: theirs.
 //
 // The unit of work is their software, not a file inside it. Keying on the location would title the
-// action after `requirements.txt` — an instruction to edit a file in a repository the reader cannot
+// action after `requirements.txt`, an instruction to edit a file in a repository the reader cannot
 // push to, which is exactly the advice `builtBy: upstream` exists to stop. Three packages here, so
 // the test can tell one action from three.
 func TestFindingsInSomebodyElsesRepositoryBecomeOneAction(t *testing.T) {
@@ -470,7 +470,7 @@ func TestFindingsInSomebodyElsesRepositoryBecomeOneAction(t *testing.T) {
 
 	got, _ := groupActions(fs, nil)
 	if len(got) != 1 {
-		t.Fatalf("grouped into %d actions, want one — their software is the unit: %+v", len(got), got)
+		t.Fatalf("grouped into %d actions, want one, their software is the unit: %+v", len(got), got)
 	}
 	// Named as a reader would say it, not as a clone URL. The license finding is in there too:
 	// the declaration is about who can change the thing, not about what found the problem.

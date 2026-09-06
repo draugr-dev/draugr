@@ -20,7 +20,7 @@ import (
 //
 // Commented rather than bare, because the question a reader has when they first see this file is
 // not "what are the keys" but "why is this separate from my Saga".
-const starterConfig = `# draugr.config.yaml — machine and organization settings, kept apart from the Saga.
+const starterConfig = `# draugr.config.yaml, machine and organization settings, kept apart from the Saga.
 #
 # A Saga describes an application. This describes the environment scanning it: which build of a
 # scanner to run, and what a control should default to before any project says otherwise. Those
@@ -44,7 +44,7 @@ controllers: {}
 # Where runs are delivered, for the whole organization rather than per project.
 #
 # The least specific answer: $DRAUGR_API_URL overrides it for one pipeline, and a url: in a Saga
-# overrides both because somebody wrote it there on purpose. No token here — this file is
+# overrides both because somebody wrote it there on purpose. No token here. This file is
 # committed, and a credential in it is a credential in somebody's git history.
 publish: {}
   # apiUrl: https://draugr.acme.example
@@ -55,7 +55,7 @@ func newConfigCommand() *cobra.Command {
 		Use:   "config",
 		Short: "Inspect and edit Draugr's machine and organization settings",
 		Long: "Read and write draugr.config.yaml: settings for the environment running a scan,\n" +
-			"not for the application being scanned — scanner versions, control defaults, and\n" +
+			"not for the application being scanned, scanner versions, control defaults, and\n" +
 			"anything else meant to be the same across every project on this machine.",
 	}
 	cmd.AddCommand(newConfigShowCommand(), newConfigGetCommand(), newConfigSetCommand(),
@@ -123,7 +123,7 @@ func writeConfigShow(w io.Writer, res config.Resolved) {
 	}
 
 	// Provenance is computed by asking which is the *last* source to set a key, which is the one
-	// that won — the same rule the merge follows, rather than a second implementation of it.
+	// that won, the same rule the merge follows, rather than a second implementation of it.
 	rows := map[string]string{}
 	for _, s := range res.Sources {
 		for _, k := range flatten(s.File) {
@@ -164,13 +164,13 @@ func flatten(f config.File) []kv {
 		}
 	}
 	// Only what was actually set. A zero field here is the absence of a setting, not a setting
-	// whose value is zero — and printing `cache.ttl 0s` beside a file that never mentions caching
+	// whose value is zero, and printing `cache.ttl 0s` beside a file that never mentions caching
 	// would invite someone to wonder why their cache expires immediately.
 	//
 	// Every field of the config has to be reachable from here, though. This is the command that
 	// answers "why is my setting not taking effect", and one it cannot see reports that the file
-	// sets nothing — which sends somebody looking everywhere except at the one place that would
-	// have told them. TestConfigShowReachesEveryField holds it to that.
+	// sets nothing, which sends somebody looking everywhere except at the one place that would have
+	// told them. TestConfigShowReachesEveryField holds it to that.
 	if c := f.Cache; c != (config.CacheSettings{}) {
 		if c.Dir != "" {
 			out = append(out, kv{"cache.dir", c.Dir})
@@ -210,7 +210,7 @@ func flatten(f config.File) []kv {
 
 func flattenAny(prefix string, v any) []kv {
 	// Both shapes: YAML decodes a nested mapping as the enclosing named type, so matching only
-	// map[string]any prints a whole subtree as one unreadable value — which is what the first
+	// map[string]any prints a whole subtree as one unreadable value. Which is what the first
 	// version of this did.
 	var m map[string]any
 	switch t := v.(type) {
@@ -380,7 +380,7 @@ func newConfigValidateCommand() *cobra.Command {
 				}
 				if len(paths) == 0 {
 					_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
-						"No configuration found — nothing to check."))
+						"No configuration found, nothing to check."))
 					return nil
 				}
 			}

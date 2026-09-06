@@ -160,7 +160,7 @@ func TestAdapterUsesTheConfiguredParser(t *testing.T) {
 	}
 }
 
-// A parser that fails should say which tool's output it choked on — the caller has several.
+// A parser that fails should say which tool's output it choked on. The caller has several.
 func TestAdapterReportsParserFailures(t *testing.T) {
 	a := New(Config{
 		Name:        "custom",
@@ -180,7 +180,7 @@ func TestAdapterReportsParserFailures(t *testing.T) {
 	}
 }
 
-// The default Run path — used by any adapter that does not supply its own. Draugr's built-in
+// The default Run path, used by any adapter that does not supply its own. Draugr's built-in
 // scanners inject a shared implementation, so without this nothing would exercise it.
 func TestAdapterDefaultRunExecutesTheTool(t *testing.T) {
 	a := New(Config{

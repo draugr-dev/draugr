@@ -67,10 +67,10 @@ func TestGitLabGroupProjectsSurvey(t *testing.T) {
 		t.Errorf("second component = %+v", frag.Components[1])
 	}
 	if gotToken != "glpat-secret" {
-		t.Errorf("PRIVATE-TOKEN = %q — GitLab authenticates access tokens with this header", gotToken)
+		t.Errorf("PRIVATE-TOKEN = %q, GitLab authenticates access tokens with this header", gotToken)
 	}
 	if !strings.Contains(gotQuery, "include_subgroups=true") {
-		t.Errorf("query = %q — a group is a tree, and stopping at the top level returns a fraction of it", gotQuery)
+		t.Errorf("query = %q, a group is a tree, and stopping at the top level returns a fraction of it", gotQuery)
 	}
 	if want := "/groups/acme/projects"; gotPath != want {
 		t.Errorf("path = %q, want %q", gotPath, want)
@@ -79,7 +79,7 @@ func TestGitLabGroupProjectsSurvey(t *testing.T) {
 
 func TestGitLabGroupProjectsEscapesANestedGroup(t *testing.T) {
 	// A group may itself sit inside another, and every slash has to reach GitLab as %2F or the
-	// request names something else — a 404 that reads like a missing group.
+	// request names something else. A 404 that reads like a missing group.
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.EscapedPath()
@@ -100,7 +100,7 @@ func TestGitLabGroupProjectsEscapesANestedGroup(t *testing.T) {
 
 func TestGitLabGroupProjectsSkipsWhatCannotBeScanned(t *testing.T) {
 	// An archived project is read-only and usually nobody's to fix; an empty one has no commits and
-	// would fail the clone. Both are skipped, and both are reported — a component absent for a good
+	// would fail the clone. Both are skipped, and both are reported, a component absent for a good
 	// reason still looks like one that was missed.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprint(w, `[
@@ -136,7 +136,7 @@ func TestGitLabGroupProjectsSkipsWhatCannotBeScanned(t *testing.T) {
 
 func TestGitLabGroupProjectsWarnsWhenUnauthenticated(t *testing.T) {
 	// Without a token GitLab returns the group's public projects and nothing else. The descriptor
-	// is valid, the scan runs, and every private project is simply not in it — nobody reading that
+	// is valid, the scan runs, and every private project is simply not in it. Nobody reading that
 	// output has a reason to suspect a gap.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprint(w, `[{"path":"public","http_url_to_repo":"https://g/p.git","default_branch":"main"}]`)

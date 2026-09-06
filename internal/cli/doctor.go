@@ -88,8 +88,8 @@ func newDoctorCommand() *cobra.Command {
 }
 
 // runDoctor validates the descriptor (when given) and reports tool availability. detect is
-// injectable for testing. It returns an error — mapped to a non-zero exit — when the
-// descriptor is invalid or any required tool is missing.
+// injectable for testing. It returns an error, mapped to a non-zero exit. When the descriptor
+// is invalid or any required tool is missing.
 func runDoctor(
 	ctx context.Context,
 	w io.Writer,
@@ -117,19 +117,18 @@ func runDoctor(
 				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil)
 			} else {
 				col := tui.For(w)
-				_, _ = fmt.Fprintf(w, "Descriptor  %s — %s\n", col.Paint(tui.StyleFail, "✗ invalid"), err)
+				_, _ = fmt.Fprintf(w, "Descriptor  %s · %s\n", col.Paint(tui.StyleFail, "✗ invalid"), err)
 			}
 			return fmt.Errorf("invalid descriptor: %w", err)
 		}
 		model = loaded
 		required = requiredTools(reg, model)
 	} else {
-		// No descriptor, so nothing has been selected and nothing is required. The catalog is
-		// an inventory here — "what could Draugr use, and what have you got" — and treating
-		// every entry as required told a clean machine it was missing seven tools it may never
-		// need. kube-bench is the clearest case: the default infrastructure scanner is native
-		// and needs no binary at all, so demanding it is asking for a tool to run a scanner
-		// nobody chose.
+		// No descriptor, so nothing has been selected and nothing is required. The catalog is an
+		// inventory here. "what could Draugr use, and what have you got", and treating every entry as
+		// required told a clean machine it was missing seven tools it may never need. kube-bench is
+		// the clearest case: the default infrastructure scanner is native and needs no binary at all,
+		// so demanding it is asking for a tool to run a scanner nobody chose.
 		required = tools.All()
 		inventoryOnly = true
 	}
@@ -180,12 +179,12 @@ func runDoctor(
 	}
 
 	if missing > 0 && inventoryOnly {
-		// Reported, not failed. Which of these matter depends on a descriptor, and there is not
-		// one — `draugr doctor <saga>` is the question with an answer.
+		// Reported, not failed. Which of these matter depends on a descriptor, and there is not one.
+		// `draugr doctor <saga>` is the question with an answer.
 		if !run.json {
 			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleMuted,
 				fmt.Sprintf("%d of these are not installed. Which you need depends on your "+
-					"descriptor — run `draugr doctor <saga>` to check just those, or "+
+					"descriptor. Run `draugr doctor <saga>` to check just those, or "+
 					"`draugr tools install` to fetch them all.", missing)))
 		}
 		return nil
@@ -243,8 +242,8 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 	var out []tools.Tool
 	// A binary the catalog does not describe is still checked. Skipping it silently is how
 	// `doctor` came to report "all required tools present" for a control whose scanner was not
-	// installed at all — the one command whose job is answering "will a scan work?" answering
-	// yes because it had never heard of the tool.
+	// installed at all, the one command whose job is answering "will a scan work?" answering yes
+	// because it had never heard of the tool.
 	add := func(binary string) {
 		if binary == "" || seen[binary] {
 			return
@@ -274,7 +273,7 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 	}
 
 	// An analyzer named in config.reachability is required and is not selectable from a scanner
-	// block — resolveScanners refuses it there deliberately, so the selection above filters it out
+	// block, resolveScanners refuses it there deliberately, so the selection above filters it out
 	// with every scanner the control will not run. The descriptor field exists for this: it names
 	// the analyzer "so `draugr doctor` can tell you what to install before a scan finds out for
 	// you", and until now the scan found out.
@@ -319,8 +318,8 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 		}
 	}
 
-	// SBOM generation is not a control, so no scanner declares it — it is required by the
-	// Saga's config.sbom block instead.
+	// SBOM generation is not a control, so no scanner declares it. It is required by the Saga's
+	// config.sbom block instead.
 	if s := model.Config.SBOM; s != nil && s.Enabled {
 		add(sbom.Binary)
 	}
@@ -398,7 +397,7 @@ func writeDraugrLine(w io.Writer, r draugrReport) {
 	case r.UpdateAvailable:
 		col := tui.For(w)
 		_, _ = fmt.Fprintf(w, "Draugr      %s  %s\n\n", displayVersion(r.Version),
-			col.Paint(tui.StyleAccent, fmt.Sprintf("(latest: %s — run 'draugr self-update')",
+			col.Paint(tui.StyleAccent, fmt.Sprintf("(latest: %s. Run 'draugr self-update')",
 				displayVersion(r.Latest))))
 	default:
 		_, _ = fmt.Fprintf(w, "Draugr      %s  %s\n\n", displayVersion(r.Version),
@@ -505,14 +504,14 @@ func networkHeading() string {
 	if netpolicy.Offline() {
 		return "(offline: none of these will happen)"
 	}
-	return "(what Draugr fetches, and when — suppress with --offline)"
+	return "(what Draugr fetches, and when, suppress with --offline)"
 }
 
 // missingToolsAdvice counts what is missing and suggests `tools install` only when it could
 // actually help.
 //
-// Some scanners are execed but never distributed — retire.js publishes to npm, the Mend CLI is
-// proprietary — and telling somebody to run a command that will not find their tool is worse
+// Some scanners are execed but never distributed, retire.js publishes to npm, the Mend CLI is
+// proprietary. And telling somebody to run a command that will not find their tool is worse
 // advice than none: they run it, it succeeds, and the thing is still missing.
 func missingToolsAdvice(statuses []tools.Status) string {
 	installable := tools.Installable()
@@ -536,7 +535,7 @@ func missingToolsAdvice(statuses []tools.Status) string {
 // externalInstallHint says where a tool Draugr does not distribute comes from.
 //
 // `draugr tools install` fetches pinned releases Draugr has verified, which it can only do for
-// tools it vouched for. For the rest — proprietary ones especially — naming the source is the
+// tools it vouched for. For the rest, proprietary ones especially. Naming the source is the
 // whole of the help available, and it is much more use than telling somebody to run a command
 // that will not find it.
 func externalInstallHint(binary string) string {
@@ -549,5 +548,5 @@ func externalInstallHint(binary string) string {
 // externalTools names where to get a tool Draugr execs but never downloads.
 var externalTools = map[string]string{
 	"mend": "proprietary; install the Mend CLI from Mend's documentation (Draugr does not " +
-		"distribute it) — see internal/scanners/mend-sca.md",
+		"distribute it). See internal/scanners/mend-sca.md",
 }

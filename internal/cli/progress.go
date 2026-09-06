@@ -15,7 +15,7 @@ import (
 //
 // Written to stderr and only when stderr is a terminal. A scan's report goes to stdout and is
 // piped, redirected and diffed; a progress line that reached it would corrupt every one of those.
-// And a line that redraws itself is noise in a CI log, where the file keeps every frame — so the
+// And a line that redraws itself is noise in a CI log, where the file keeps every frame, so the
 // same output that helps a person watching costs a reader of the log a screen of carriage returns.
 //
 // Suppressed by --no-tips and DRAUGR_NO_TIPS alongside the other advisory output: somebody who has
@@ -31,10 +31,10 @@ type progressLine struct {
 	drawn int
 	// painter decides whether the frame carries color, which depends on the same writer.
 	painter tui.Painter
-	// last is the most recent snapshot, kept so the ticker can repaint it with the clocks moved
-	// on. Progress is reported when a job starts or finishes, so a step with one slow job
-	// produces no events while it runs — and a frozen display during a long job is exactly when
-	// somebody starts wondering whether anything is happening.
+	// last is the most recent snapshot, kept so the ticker can repaint it with the clocks moved on.
+	// Progress is reported when a job starts or finishes, so a step with one slow job produces no
+	// events while it runs, and a frozen display during a long job is exactly when somebody starts
+	// wondering whether anything is happening.
 	last  engine.ProgressEvent
 	start time.Time
 	// stop ends the repaint loop. Buffered so done never blocks on a ticker that has already
@@ -47,7 +47,7 @@ type progressLine struct {
 // Package-level because it models something that is genuinely single: there is one terminal, and
 // anything writing to it has to agree about whose line is on it. The logger is configured before a
 // scan exists and writes from wherever a warning happens, so passing the renderer down to it is
-// not available — the alternative is a log line landing in the middle of the progress line, which
+// not available. The alternative is a log line landing in the middle of the progress line, which
 // is what happens without this.
 var active atomic.Pointer[progressLine]
 
@@ -186,11 +186,11 @@ func (p *progressLine) done() {
 
 // progressFrame renders the whole display: a headline, then a row per control/scanner.
 //
-// Several lines rather than one, because the interesting question changes as a run goes on. At
-// the start it is "will this finish"; a minute in it is "what is it waiting on"; and after a
-// failure it is "what already worked". One line can answer the first, and answers the others by
-// listing what is in flight — which changes constantly and drops each scanner the moment it
-// finishes, so the reader watches work disappear and cannot tell finished from not started.
+// Several lines rather than one, because the interesting question changes as a run goes on. At the
+// start it is "will this finish"; a minute in it is "what is it waiting on"; and after a failure
+// it is "what already worked". One line can answer the first, and answers the others by listing
+// what is in flight, which changes constantly and drops each scanner the moment it finishes, so
+// the reader watches work disappear and cannot tell finished from not started.
 //
 // A row that stays, and changes state, answers all three.
 func progressFrame(ev engine.ProgressEvent, col tui.Painter, elapsed time.Duration) []string {
@@ -218,9 +218,9 @@ func progressHeadline(ev engine.ProgressEvent, col tui.Painter, elapsed time.Dur
 
 // progressStepLine renders one control/scanner: a mark, the name, and where its jobs have got to.
 //
-// The mark carries the state and the color reinforces it, rather than the color carrying it
-// alone — the same output goes to terminals with no color, and to people who cannot distinguish
-// the ones it uses.
+// The mark carries the state and the color reinforces it, rather than the color carrying it alone.
+// The same output goes to terminals with no color, and to people who cannot distinguish the ones
+// it uses.
 func progressStepLine(st engine.ProgressStep, col tui.Painter) string {
 	mark, style := "·", tui.StyleMuted // planned, not started
 	switch {
@@ -237,9 +237,9 @@ func progressStepLine(st engine.ProgressStep, col tui.Painter) string {
 	if st.Failed > 0 {
 		detail += fmt.Sprintf(", %d failed", st.Failed)
 	}
-	// How long this step's oldest running job has been going. The question a reader has about a
-	// step that has not moved is whether it is working, and a figure that keeps climbing answers
-	// it — a stuck run and a slow one look identical without it.
+	// How long this step's oldest running job has been going. The question a reader has about a step
+	// that has not moved is whether it is working, and a figure that keeps climbing answers it. A
+	// stuck run and a slow one look identical without it.
 	//
 	// Not for the first couple of seconds. A job that finishes quickly would otherwise flash a
 	// "0s" on its way past, and a figure that appears and disappears draws the eye to the steps
@@ -262,7 +262,7 @@ const slowEnoughToTime = 2 * time.Second
 
 // shortDuration renders an elapsed time in the units a reader is thinking in.
 //
-// Seconds up to a minute, then minutes and seconds — "94s" makes somebody do arithmetic to decide
+// Seconds up to a minute, then minutes and seconds. "94s" makes somebody do arithmetic to decide
 // whether to wait, and a scanner that pulls a database or waits on a cluster runs into minutes.
 func shortDuration(d time.Duration) string {
 	if d < time.Minute {

@@ -11,7 +11,7 @@ import (
 //
 // The requirement is easy to satisfy and easy to lose: a publisher with no documentation still
 // compiles, still registers, and still runs, and nothing about the repository looks wrong until
-// somebody goes looking. It has been lost by accident too — a branch rebuilt from an older base
+// somebody goes looking. It has been lost by accident too, a branch rebuilt from an older base
 // carried an older copy of a shared docs file, and the merge reverted another change's section
 // with git reporting no conflict at all. Nobody reviewing either pull request would have seen it.
 //

@@ -9,7 +9,7 @@
 - **License / terms:** uses the GitLab REST API v4 over HTTPS (stdlib `net/http`). Subject to
   GitLab's [Terms of Use](https://about.gitlab.com/terms/) and its API rate limits, which apply per
   token and per IP. Nothing is sent beyond the group path and the token; no repository content
-  leaves the machine — this surveyor reads a project list and clones nothing.
+  leaves the machine. This surveyor reads a project list and clones nothing.
 
 ## What it does
 
@@ -30,7 +30,7 @@ the reason, because a component absent for a good reason still looks like one th
 
 **A tokenless survey warns.** Without a token GitLab answers with the group's public projects and
 nothing else. The resulting descriptor is valid, every control is enabled, and the scan passes or
-fails on real findings — while every private project, which is where the interesting code usually
+fails on real findings, while every private project, which is where the interesting code usually
 is, is simply not in it. Nobody reading that output has a reason to suspect a gap, so the survey
 says so itself.
 

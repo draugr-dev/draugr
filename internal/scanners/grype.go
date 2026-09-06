@@ -87,7 +87,7 @@ func grypeFSArgs(dir string, cfg plugin.Config) []string {
 // The `registry:` scheme, not a bare reference: bare, Grype tries a local Docker daemon first and
 // only then the registry. On a CI runner there is no daemon, so that is a failed connection before
 // every scan; where there *is* one, it silently scans whatever the daemon happens to have cached
-// under that tag rather than what the registry serves now — and a scan of the wrong bytes is worse
+// under that tag rather than what the registry serves now, and a scan of the wrong bytes is worse
 // than a slow one. Draugr resolves images to a digest where it can, and a digest is meaningless to
 // a daemon that never pulled it.
 func grypeArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
@@ -106,8 +106,8 @@ func grypeArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 // repository scanners: the option means the same thing to both.
 //
 // --by-cve unless the descriptor turns it off, which is a departure from Grype's own default and
-// is deliberate. Grype reports a language-ecosystem finding under the advisory that described it —
-// GHSA-8q59-q68h-6hv4 — where Trivy reports the CVE for the same flaw. Left alone, one
+// is deliberate. Grype reports a language-ecosystem finding under the advisory that described it,
+// GHSA-8q59-q68h-6hv4, where Trivy reports the CVE for the same flaw. Left alone, one
 // vulnerability arrives under two identities depending on which scanner saw it, so it counts
 // twice, and an exclusion someone wrote against the CVE keeps working right up until the day a
 // second scanner starts reporting it. A qualification tool that normalizes everything else to one
@@ -121,10 +121,10 @@ func grypeOptions(argv []string, cfg plugin.Config) []string {
 
 // grypeEnv is the environment Grype runs with, layered over the parent's.
 //
-// Offline, GRYPE_DB_AUTO_UPDATE=false. Skipping the prewarm is not enough on its own: Grype
-// checks for a newer database when it starts a scan too, so without this an offline run still
-// reaches out, once per job. With it, Grype uses its local database and says plainly when there
-// isn't one — a better message than anything Draugr could write on its behalf.
+// Offline, GRYPE_DB_AUTO_UPDATE=false. Skipping the prewarm is not enough on its own: Grype checks
+// for a newer database when it starts a scan too, so without this an offline run still reaches
+// out, once per job. With it, Grype uses its local database and says plainly when there isn't one,
+// a better message than anything Draugr could write on its behalf.
 func grypeEnv() []string {
 	if !netpolicy.Offline() {
 		return nil
@@ -143,7 +143,7 @@ var grypeRunInDir = func(ctx context.Context, dir string, argv []string) ([]byte
 
 // parseGrypeRepoSARIF decodes Grype's SARIF and makes its paths repo-relative.
 //
-// Grype reports a directory finding at "/app/requirements.txt" — rooted at the directory it
+// Grype reports a directory finding at "/app/requirements.txt", rooted at the directory it
 // scanned, which is not the same as rooted at the filesystem. The leading slash survives the
 // checkout-relative rewrite every repository scanner does, because that rewrite correctly leaves
 // an absolute path outside the checkout alone, and this path only looks like one.
@@ -169,9 +169,9 @@ func parseGrypeRepoSARIF(out []byte, dir string, _ plugin.Config) (sarif.Report,
 
 // grypePackages reads the dependency each rule is about, keyed by rule id.
 //
-// Grype states it on the *rule* rather than the result — a purl in the rule's property bag, and
-// the version that fixes it inside the rule's help text — so the generic SARIF reader does not see
-// it and every Grype finding arrived without a package.
+// Grype states it on the *rule* rather than the result, a purl in the rule's property bag, and the
+// version that fixes it inside the rule's help text, so the generic SARIF reader does not see it
+// and every Grype finding arrived without a package.
 //
 // That is worth more than it looks. A finding with no package identity cannot be matched by a
 // supplier's VEX document, cannot be recognized as the same flaw another scanner reported, and
@@ -203,10 +203,10 @@ func grypePackages(out []byte) map[string]sarif.Package {
 			if len(rule.Properties.PURLs) == 0 {
 				continue
 			}
-			// Read from the help text rather than picked apart from the purl: what counts as
-			// the "name" inside a purl is ecosystem-specific — pkg:deb/debian/libgnutls30 names
-			// a namespace the package name is not, while pkg:golang/golang.org/x/text needs the
-			// whole path — and Grype states it plainly one line away.
+			// Read from the help text rather than picked apart from the purl: what counts as the "name"
+			// inside a purl is ecosystem-specific, pkg:deb/debian/libgnutls30 names a namespace the package
+			// name is not, while pkg:golang/golang.org/x/text needs the whole path, and Grype states it
+			// plainly one line away.
 			pkg := sarif.Package{
 				Name:         grypeHelpField(rule.Help.Text, "Package"),
 				Version:      grypeHelpField(rule.Help.Text, "Version"),
@@ -224,7 +224,7 @@ func grypePackages(out []byte) map[string]sarif.Package {
 }
 
 // grypeHelpField reads one "Key: value" line out of a rule's help text, which is where Grype puts
-// the facts its property bag leaves out. Empty when the field is absent — "no fix exists" and "the
+// the facts its property bag leaves out. Empty when the field is absent, "no fix exists" and "the
 // scanner did not say" are both reported as empty by every other scanner here.
 func grypeHelpField(help, key string) string {
 	for _, line := range strings.Split(help, "\n") {
@@ -248,11 +248,11 @@ func grypeRepoPath(dir, uri string) string {
 	return strings.TrimPrefix(uri, "/")
 }
 
-// grypeVersionProbe derives a cache-version string for the Grype-backed scanners that changes
-// when the tool or its vulnerability database updates — so a database refresh invalidates cached
-// results instead of waiting out the TTL. A cache that outlives the data it was computed from
-// reports yesterday's answer about today's advisories, which is the one thing a vulnerability
-// scanner must not do. The probe runs at most once (memoized); run is injectable for tests.
+// grypeVersionProbe derives a cache-version string for the Grype-backed scanners that changes when
+// the tool or its vulnerability database updates, so a database refresh invalidates cached results
+// instead of waiting out the TTL. A cache that outlives the data it was computed from reports
+// yesterday's answer about today's advisories, which is the one thing a vulnerability scanner must
+// not do. The probe runs at most once (memoized); run is injectable for tests.
 type grypeVersionProbe struct {
 	once sync.Once
 	val  string
@@ -263,9 +263,9 @@ func newGrypeVersionProbe() *grypeVersionProbe {
 	return &grypeVersionProbe{run: execArgv}
 }
 
-// cacheVersion returns a string like "grype@0.117.0;db@2026-08-14T06:39:10Z", or "" when it
-// can't be determined (Grype absent, or no database yet) — callers then fall back to a
-// version-less cache key.
+// cacheVersion returns a string like "grype@0.117.0;db@2026-08-14T06:39:10Z", or "" when it can't
+// be determined (Grype absent, or no database yet), callers then fall back to a version-less cache
+// key.
 //
 // Two commands, because Grype reports the tool and the database separately. Both matter and for
 // different reasons: a new database changes which advisories exist, and a new Grype changes how
@@ -312,12 +312,12 @@ type grypeDBWarmer struct {
 }
 
 // warm runs `grype db update -q` at most once and returns any error (best-effort: callers treat
-// failure as non-fatal — a real problem resurfaces at scan time, where it can name the scan it
+// failure as non-fatal, a real problem resurfaces at scan time, where it can name the scan it
 // stopped).
 //
 // Offline it does nothing rather than failing. There is nothing to warm without a network, and a
-// prewarm that failed would be the first thing an air-gapped run reported — about a download it
-// was configured never to attempt.
+// prewarm that failed would be the first thing an air-gapped run reported. About a download it was
+// configured never to attempt.
 func (w *grypeDBWarmer) warm(ctx context.Context) error {
 	w.once.Do(func() {
 		if netpolicy.Offline() {

@@ -50,8 +50,8 @@ func argvString(argv []string) string { return strings.Join(argv, " ") }
 // in CI, and on a node. See defaultKubeBenchTargets.
 func TestKubeBenchArgvDefaults(t *testing.T) {
 	withClusterVersion(t, "1.34", nil)
-	// Stubbed absent, or the argv depends on whether the developer has run
-	// `draugr tools install kube-bench` — which is a fact about the machine, not the default.
+	// Stubbed absent, or the argv depends on whether the developer has run `draugr tools install
+	// kube-bench`. Which is a fact about the machine, not the default.
 	withoutProvisionedCfg(t)
 	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"}, nil)
 	if err != nil {
@@ -91,8 +91,8 @@ func TestKubeBenchArgvRefusesToGuessTheVersion(t *testing.T) {
 	}
 }
 
-// An explicit benchmark names a config directly — including the platform ones (gke-*, rke2-*)
-// that no Kubernetes version maps to — so it must not be overridden by detection.
+// An explicit benchmark names a config directly, including the platform ones (gke-*, rke2-*) that
+// no Kubernetes version maps to. So it must not be overridden by detection.
 func TestKubeBenchArgvExplicitBenchmarkWins(t *testing.T) {
 	withClusterVersion(t, "1.34", errors.New("should not be consulted"))
 	plan, err := kubeBenchArgv(plugin.InfraTarget{}, plugin.Config{
@@ -208,8 +208,8 @@ func TestKubeBenchLevel(t *testing.T) {
 }
 
 // The Saga's `ref` names the cluster to audit, and findings are labeled with it. If it did not
-// also select the cluster, a scan would name one cluster and describe another — which is the
-// worst way for a compliance report to be wrong, because it looks right.
+// also select the cluster, a scan would name one cluster and describe another. Which is the worst
+// way for a compliance report to be wrong, because it looks right.
 func TestKubeContextComesFromTheDeclaredRef(t *testing.T) {
 	got := kubeContext(plugin.InfraTarget{Platform: "kubernetes", Ref: "prod-eu-west-1"}, nil)
 	if got != "prod-eu-west-1" {
@@ -364,7 +364,7 @@ func TestKubeBenchScanReportsUnreadableOutput(t *testing.T) {
 	}
 }
 
-// GKE and EKS report a minor version with a trailing "+" — "1.30+" meaning vendor patches on top
+// GKE and EKS report a minor version with a trailing "+", "1.30+" meaning vendor patches on top
 // of 1.30. kube-bench's version_mapping has no "30+" key, so passing it through would match no
 // benchmark and drop the tool back to the stale default this whole path exists to avoid.
 func TestMajorMinor(t *testing.T) {
@@ -411,7 +411,7 @@ func TestClusterLabelNamesTheAmbientContext(t *testing.T) {
 	}
 }
 
-// No ref, and no current context either — an in-cluster service account, say. There is nothing
+// No ref, and no current context either. An in-cluster service account, say. There is nothing
 // honest to name, and a trailing slash is not a name.
 func TestClusterLabelWithNothingToName(t *testing.T) {
 	withCurrentContext(t, "")
@@ -486,10 +486,10 @@ func TestPlatformFrom(t *testing.T) {
 		{"rke2", "v1.27.6+rke2r1", "rke2r"},
 		{"aliyun", "v1.18.8-aliyun.1", "aliyun"},
 
-		// A vanilla cluster must stay vanilla. kind and kubeadm report a bare version, and a
-		// release candidate parses exactly like a platform suffix would — "rc" is a token in the
-		// same position as "eks". Treating it as a platform would send the scan looking for a
-		// benchmark that does not exist.
+		// A vanilla cluster must stay vanilla. kind and kubeadm report a bare version, and a release
+		// candidate parses exactly like a platform suffix would. "rc" is a token in the same position
+		// as "eks". Treating it as a platform would send the scan looking for a benchmark that does not
+		// exist.
 		{"kind", "v1.34.0", ""},
 		{"release candidate", "v1.31.0-rc.1", ""},
 		{"unknown distribution", "v1.30.1-acme.4", ""},
@@ -507,8 +507,8 @@ func TestPlatformFrom(t *testing.T) {
 // The bug: kube-bench only consults its platform detection when neither --benchmark nor
 // --version is set (cmd/common.go, getBenchmarkVersion). Supplying --version to avoid the stale
 // 1.18 fallback therefore forced every managed cluster onto the generic cis-* benchmark, which
-// is not a subset of the provider one — it fails a cluster for control-plane settings that are
-// not the customer's to make, and skips the provider checks that are.
+// is not a subset of the provider one. It fails a cluster for control-plane settings that are not
+// the customer's to make, and skips the provider checks that are.
 func TestKubeBenchArgvLetsAManagedClusterPickItsOwnBenchmark(t *testing.T) {
 	withClusterFacts(t, clusterFacts{Version: "1.30", Platform: "eks"}, nil)
 
@@ -523,7 +523,7 @@ func TestKubeBenchArgvLetsAManagedClusterPickItsOwnBenchmark(t *testing.T) {
 		}
 	}
 	if plan.platform != "eks" {
-		t.Errorf("plan.platform = %q, want %q — without it the output cannot be checked", plan.platform, "eks")
+		t.Errorf("plan.platform = %q, want %q, without it the output cannot be checked", plan.platform, "eks")
 	}
 }
 
@@ -549,8 +549,7 @@ func benchDoc(version string) kubeBenchDoc {
 
 // Withholding the flags hands the choice to a tool that has its own fallback: when kube-bench
 // cannot detect the cluster it assumes Kubernetes 1.18, audits against cis-1.6, and reports the
-// result as though it were the one asked for. The input is therefore not the guarantee — this
-// is.
+// result as though it were the one asked for. The input is therefore not the guarantee. This is.
 func TestVerifyBenchmark(t *testing.T) {
 	t.Parallel()
 
@@ -602,7 +601,7 @@ func TestVerifyBenchmarkIgnoresAnEmptyDocument(t *testing.T) {
 // benchmark it uses when its own detection fails, and a scan that must not return findings.
 //
 // The unit test covers the comparison; this covers the wiring, which is where a check like this
-// usually dies — computed correctly, then never consulted on the path that matters.
+// usually dies, computed correctly, then never consulted on the path that matters.
 func TestKubeBenchScanRefusesTheWrongBenchmark(t *testing.T) {
 	withClusterFacts(t, clusterFacts{Version: "1.30", Platform: "eks"}, nil)
 
@@ -714,7 +713,7 @@ func TestPlatformFromNodesToleratesNoNodes(t *testing.T) {
 
 // The ordering that protects every distribution which stamps its own version: node inspection is
 // a fallback, not an override. An RKE2 cluster on Azure VMs carries an azure:// provider ID and
-// is emphatically not AKS — auditing it against the AKS benchmark would drop the control-plane
+// is emphatically not AKS, auditing it against the AKS benchmark would drop the control-plane
 // checks that are the whole point of running the benchmark on a cluster you manage yourself.
 func TestVersionStringWinsOverNodeInspection(t *testing.T) {
 	t.Parallel()

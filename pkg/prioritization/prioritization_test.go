@@ -103,8 +103,8 @@ func TestPriorityOfUnknownSeverity(t *testing.T) {
 }
 
 func TestIncompleteMatricesFallBackSafely(t *testing.T) {
-	// An override that dropped cells must not misrank — it falls back to worst-case concern
-	// (C1) and a mid priority (P2) rather than returning an empty band.
+	// An override that dropped cells must not misrank. It falls back to worst-case concern (C1) and
+	// a mid priority (P2) rather than returning an empty band.
 	empty := Matrices{
 		ContextTier:  map[saga.Exposure]map[saga.Criticality]Context{},
 		PriorityBand: map[Context]map[sarif.Severity]Priority{},

@@ -32,8 +32,8 @@ type Context struct {
 	// would make every first attempt look like a retry.
 	RunID   string `json:"runId,omitempty" yaml:"runId,omitempty"`
 	Attempt string `json:"attempt,omitempty" yaml:"attempt,omitempty"`
-	// URL is where a person can go and read the job's own logs. Absent where the platform does
-	// not publish enough to build one — a guessed URL is worse than none.
+	// URL is where a person can go and read the job's own logs. Absent where the platform does not
+	// publish enough to build one. A guessed URL is worse than none.
 	URL string `json:"url,omitempty" yaml:"url,omitempty"`
 }
 
@@ -124,7 +124,7 @@ func detect(env func(string) string) Context {
 	return Context{}
 }
 
-// repoOf joins an owner and a repository, and returns neither half on its own — "acme" is not a
+// repoOf joins an owner and a repository, and returns neither half on its own. "acme" is not a
 // repository, and a field that is sometimes a path and sometimes an owner is one nothing can read.
 func repoOf(owner, name string) string {
 	if owner == "" || name == "" {

@@ -23,9 +23,9 @@ type EffectPermissions []string
 // UnmarshalYAML accepts a list, and refuses a mapping by name.
 //
 // It exists only to refuse. A mapping of environment to effects used to parse here, so leaving it
-// to the default decoder means somebody who wrote a correct descriptor last week gets
-// "cannot unmarshal !!map into saga.EffectPermissions" — a type error about a Go type they have
-// never heard of, for a shape our own documentation told them to write.
+// to the default decoder means somebody who wrote a correct descriptor last week gets "cannot
+// unmarshal !!map into saga.EffectPermissions", a type error about a Go type they have never
+// heard of, for a shape our own documentation told them to write.
 func (p *EffectPermissions) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind == yaml.MappingNode {
 		return fmt.Errorf("config.allowEffects was a mapping of environment to effects and is " +

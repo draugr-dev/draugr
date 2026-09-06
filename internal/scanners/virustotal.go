@@ -19,8 +19,8 @@ import (
 
 // virusTotalAPI is the domain-report endpoint.
 //
-// Domain reports and nothing else. VirusTotal's terms attach sharing to "Sample submissions" —
-// files and URLs sent for analysis — and their own documentation says reports are shared with the
+// Domain reports and nothing else. VirusTotal's terms attach sharing to "Sample submissions",
+// files and URLs sent for analysis. And their own documentation says reports are shared with the
 // community and sample contents may reach premium customers. A domain report is a lookup of an
 // aggregate they already maintain; there is no submitting a domain. Using any endpoint that
 // accepts content would put a customer's data into that corpus, so this scanner has exactly one
@@ -39,8 +39,8 @@ const virusTotalKeyEnv = "VIRUSTOTAL_API_KEY" //nolint:gosec // the name of a va
 // virusTotalFreeRate is the published public-API allowance: 4 requests a minute.
 //
 // The conservative default on purpose. A paid key allows far more, and someone holding one raises
-// it in configuration — a scanner that assumed the generous limit would earn a throttle, or worse
-// a ban, for a user who never chose it.
+// it in configuration, a scanner that assumed the generous limit would earn a throttle, or worse a
+// ban, for a user who never chose it.
 var virusTotalFreeRate = plugin.Rate{Requests: 4, Per: time.Minute}
 
 const virusTotalConfigSchema = `{
@@ -49,7 +49,7 @@ const virusTotalConfigSchema = `{
   "properties": {
     "requestsPerMinute": {
       "type": "integer",
-      "description": "Override the assumed API allowance. Defaults to the public tier's 4. Raise it only to what your key actually permits — exceeding VirusTotal's limit risks losing access, and their stated penalty for terms violations is a permanent ban."
+      "description": "Override the assumed API allowance. Defaults to the public tier's 4. Raise it only to what your key actually permits, exceeding VirusTotal's limit risks losing access, and their stated penalty for terms violations is a permanent ban."
     }
   }
 }`
@@ -112,7 +112,7 @@ func (s virusTotalScanner) Scan(ctx context.Context, target plugin.Target, _ plu
 	if s.key() == "" {
 		return sarif.Report{}, fmt.Errorf(
 			"virustotal: no API key. Get one free at https://www.virustotal.com/gui/my-apikey "+
-				"and put it in $%s — note their free tier forbids commercial use", virusTotalKeyEnv)
+				"and put it in $%s, note their free tier forbids commercial use", virusTotalKeyEnv)
 	}
 
 	report, known, err := s.lookup(ctx, name)
@@ -147,7 +147,7 @@ type virusTotalStats struct {
 }
 
 // virusTotalLookup fetches a domain report. The bool reports whether VirusTotal knows the domain
-// at all — a 404 is an answer ("never seen it"), not a failure.
+// at all. A 404 is an answer ("never seen it"), not a failure.
 func virusTotalLookup(ctx context.Context, domain string) (virusTotalDomain, bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, virusTotalEndpoint+url.PathEscape(domain), nil)
 	if err != nil {
@@ -198,7 +198,7 @@ const (
 // vtMaliciousThreshold is how many engines must agree before it is an error rather than a warning.
 //
 // Two, not one. VirusTotal aggregates seventy-odd engines and a single detection on a legitimate
-// domain is routine — newly registered domains, shared hosting, and anything a heuristic dislikes.
+// domain is routine, newly registered domains, shared hosting, and anything a heuristic dislikes.
 // Failing a build on one engine's opinion is how a control gets switched off. Two independent
 // engines agreeing is a different claim.
 const vtMaliciousThreshold = 2
@@ -229,7 +229,7 @@ func virusTotalResults(rawURL string, d virusTotalDomain, known bool) []sarif.Re
 			RuleID: ruleVTSuspicious,
 			Level:  sarif.LevelWarning,
 			Message: fmt.Sprintf("one of VirusTotal's engines calls this domain malicious (%s). "+
-				"A single detection is often a false positive — worth checking, not worth blocking on",
+				"A single detection is often a false positive, worth checking, not worth blocking on",
 				namesOrCount(flagged)),
 			Location: sarif.Location{URI: rawURL},
 		})
@@ -248,7 +248,7 @@ func virusTotalResults(rawURL string, d virusTotalDomain, known bool) []sarif.Re
 }
 
 // engineNames lists the engines that returned a category, sorted so a report is stable between
-// runs — a map's order is not, and an unstable message makes every diff show the same finding as
+// runs. A map's order is not, and an unstable message makes every diff show the same finding as
 // fixed and new.
 func engineNames(d virusTotalDomain, category string) []string {
 	var names []string
@@ -284,7 +284,7 @@ func virusTotalRules() map[string]sarif.Rule {
 		},
 		ruleVTSuspicious: {
 			Name:             "Domain flagged by a minority of engines",
-			ShortDescription: "One engine calls it malicious, or some call it suspicious — often a false positive.",
+			ShortDescription: "One engine calls it malicious, or some call it suspicious, often a false positive.",
 			HelpURI:          "https://www.virustotal.com/",
 		},
 	}

@@ -13,7 +13,7 @@ import (
 // A reusable workflow cannot request a permission its caller did not grant. When it does, the
 // whole run fails at startup: no jobs, no logs, no annotation naming the scope that was missing.
 // The workflow file is valid, actionlint is clean, and the only symptom is a run that produced
-// nothing — which on a tag looks identical to a release that was never triggered.
+// nothing, which on a tag looks identical to a release that was never triggered.
 //
 // The two drift apart naturally, because a job added to the called workflow is a change to a file
 // the caller does not mention.
@@ -46,7 +46,7 @@ func TestCallersGrantEveryPermissionTheCalledWorkflowDeclares(t *testing.T) {
 			for scope := range declared[called] {
 				if !granted[scope] {
 					t.Errorf("%s calls %s, which declares %q on one of its jobs, but grants only "+
-						"%v — the run fails at startup with no job and no message naming the scope",
+						"%v, the run fails at startup with no job and no message naming the scope",
 						name, called, scope, keys(granted))
 				}
 			}

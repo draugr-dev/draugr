@@ -54,9 +54,9 @@ func scanResolved(target string) (*saga.Resolved, bool, error) {
 // one outcome commands differ on: `scan` synthesizes one and says so, and everything that reads
 // or edits a descriptor has nothing to work with and must say that instead.
 //
-// A directory holding a descriptor is never treated as a bare directory. Everything in that file
-// — the controls chosen, the components declared, the exposure and criticality that drive
-// prioritization — would otherwise be discarded in favor of defaults, with nothing in the output
+// A directory holding a descriptor is never treated as a bare directory. Everything in that file,
+// the controls chosen, the components declared, the exposure and criticality that drive
+// prioritization. Would otherwise be discarded in favor of defaults, with nothing in the output
 // saying so. Nor is it a fallback: if the descriptor is there but unreadable, that is an error.
 // Falling back would reproduce the bug this exists to prevent with an extra step, because the
 // reason a descriptor was skipped has to be reported, never shrugged at.
@@ -90,16 +90,16 @@ func resolveDescriptor(target, cmdName string) (path string, found bool, err err
 	}
 }
 
-// DescriptorName is the file `draugr init` writes. It is one of several names a scan will find,
-// not the only one — see descriptorsIn.
+// DescriptorName is the file `draugr init` writes. It is one of several names a scan will find, not
+// the only one. See descriptorsIn.
 const DescriptorName = "draugr.saga.yaml"
 
 // descriptorSuffixes are the endings that make a file a Saga descriptor.
 //
-// Any `*.saga.yaml` counts, not just `draugr.saga.yaml`. These are the names our SchemaStore
-// entry claims, so an editor already offers completion and validation on all of them — a scan
-// that then ignored three of the four would be contradicting our own editor integration. It also
-// covers the dotfile form on its own, since `.saga.yaml` has no stem before the suffix.
+// Any `*.saga.yaml` counts, not just `draugr.saga.yaml`. These are the names our SchemaStore entry
+// claims, so an editor already offers completion and validation on all of them, a scan that then
+// ignored three of the four would be contradicting our own editor integration. It also covers the
+// dotfile form on its own, since `.saga.yaml` has no stem before the suffix.
 var descriptorSuffixes = []string{".saga.yaml", ".saga.yml"}
 
 // descriptorsIn returns every Saga descriptor directly in dir, sorted for a stable message.
@@ -140,14 +140,14 @@ var chooser = promptForDescriptor
 // merging them answers a question nobody asked, and running two and reporting twice is a
 // different command from the one that was typed.
 //
-// Reached only when there was nobody to ask — a prompt in CI would hang a pipeline, which is the
-// one outcome worse than stopping.
+// Reached only when there was nobody to ask. A prompt in CI would hang a pipeline, which is the one
+// outcome worse than stopping.
 func ambiguousDescriptors(dir, cmdName string, found []string) error {
 	names := make([]string, len(found))
 	for i, p := range found {
 		names[i] = filepath.Base(p)
 	}
-	return fmt.Errorf("%s holds %d descriptors (%s) — name the one to use, e.g. `draugr %s %s`",
+	return fmt.Errorf("%s holds %d descriptors (%s). Name the one to use, e.g. `draugr %s %s`",
 		dir, len(found), strings.Join(names, ", "), cmdName, filepath.Join(dir, names[0]))
 }
 
@@ -173,10 +173,10 @@ func promptForDescriptor(found []string) (string, bool) {
 	return found[n-1], true
 }
 
-// zeroConfigControls are the controls a zero-config scan enables: the repository-based ones,
-// which need nothing but the directory in front of them. This is the single source of truth —
-// the help text and the run notice render it rather than restating it, so adding a control here
-// can't leave stale prose behind.
+// zeroConfigControls are the controls a zero-config scan enables: the repository-based ones, which
+// need nothing but the directory in front of them. This is the single source of truth, the help
+// text and the run notice render it rather than restating it, so adding a control here can't leave
+// stale prose behind.
 var zeroConfigControls = []string{"sca", "secrets", "sast", "iac"}
 
 // ZeroConfigControls lists those controls in a readable form, e.g. "sca, secrets, sast, and iac".
@@ -208,8 +208,8 @@ func syntheticSaga(dir string) *saga.Model {
 	}
 	return &saga.Model{
 		// The project at the top level, which is the only place it is named. A descriptor Draugr
-		// synthesized must be one Draugr's own next command accepts — which is exactly what
-		// `init` then `validate` walks through.
+		// synthesized must be one Draugr's own next command accepts. Which is exactly what `init` then
+		// `validate` walks through.
 		Project: name,
 		Release: saga.Release{Version: "0.0.0"},
 		Config:  saga.Config{Controllers: zeroConfigControllers()},
@@ -220,11 +220,11 @@ func syntheticSaga(dir string) *saga.Model {
 	}
 }
 
-// loadSaga loads a Saga for a command that needs it, presenting any parse/validation failure
-// with consistent, actionable context: which file was bad, every problem (Validate aggregates
-// them), and a nudge to `draugr validate`. Commands should use this instead of saga.LoadFile
-// directly so a bad descriptor reads the same everywhere. (`draugr validate` itself calls
-// saga.LoadFile directly — it *is* the check, so the hint would be circular.)
+// loadSaga loads a Saga for a command that needs it, presenting any parse/validation failure with
+// consistent, actionable context: which file was bad, every problem (Validate aggregates them), and
+// a nudge to `draugr validate`. Commands should use this instead of saga.LoadFile directly so a bad
+// descriptor reads the same everywhere. (`draugr validate` itself calls saga.LoadFile directly. It
+// *is* the check, so the hint would be circular.)
 func loadSaga(path string) (*saga.Model, error) { return loadSagaCtx(context.Background(), path) }
 
 // loadSagaCtx is loadSaga with a context, so fetching a remote fragment can be canceled with the
@@ -240,9 +240,9 @@ func loadSagaCtx(ctx context.Context, path string) (*saga.Model, error) {
 // loadResolvedCtx is loadSagaCtx keeping the resolution: which files the descriptor was assembled
 // from, and their digests.
 //
-// A caller that only needs the model should use loadSagaCtx. A run that will be published needs
-// the sources, because a report recording what was found and not what was asked for cannot answer
-// why a control ran — and the resolution is discarded the moment the process exits.
+// A caller that only needs the model should use loadSagaCtx. A run that will be published needs the
+// sources, because a report recording what was found and not what was asked for cannot answer why a
+// control ran. And the resolution is discarded the moment the process exits.
 func loadResolvedCtx(ctx context.Context, path string) (*saga.Resolved, error) {
 	fetcher := sagafetch.New(ctx)
 	defer fetcher.Close()
@@ -259,7 +259,7 @@ func loadResolvedCtx(ctx context.Context, path string) (*saga.Resolved, error) {
 			path, detail, path)
 	}
 	// Checked here rather than in pkg/saga: only the registry knows what this build can run, and
-	// pkg/saga cannot import it without a cycle — which is also why the schema's control list is
+	// pkg/saga cannot import it without a cycle. Which is also why the schema's control list is
 	// generated from the registry rather than written beside it.
 	if err := checkControlNames(builtins.Registry(), model); err != nil {
 		return nil, fmt.Errorf("%q names a control Draugr cannot run:\n  %s",

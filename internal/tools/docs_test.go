@@ -18,7 +18,7 @@ const catalogDoc = "../../docs/reference/catalog.md"
 //
 // The registry is what `draugr doctor` checks and what a scan actually needs; the table is
 // where someone looks to find out what to install before running one. Nothing links the two,
-// so a tool can join the registry and never appear in the docs — the scan then fails on a
+// so a tool can join the registry and never appear in the docs. The scan then fails on a
 // binary the reader was never told to install, and the omission is invisible from either side.
 //
 // Utilities are matched against their own section, because a bare binary name like `git`
@@ -35,7 +35,7 @@ func TestCatalogDocumentsEveryTool(t *testing.T) {
 
 	utilities, ok := section(doc, "## Utilities")
 	if !ok {
-		t.Fatalf("%s has no '## Utilities' section — the heading moved, so this test is no longer checking anything", catalogDoc)
+		t.Fatalf("%s has no '## Utilities' section, the heading moved, so this test is no longer checking anything", catalogDoc)
 	}
 
 	for name, tool := range tools.Catalog() {
@@ -52,7 +52,7 @@ func TestCatalogDocumentsEveryTool(t *testing.T) {
 				t.Errorf("scanner binary %q is in the tool catalog but is not mentioned in %s", name, catalogDoc)
 			}
 		default:
-			t.Errorf("tool %q has category %q, which is neither %q nor %q — the catalog table it belongs in is undefined",
+			t.Errorf("tool %q has category %q, which is neither %q nor %q, the catalog table it belongs in is undefined",
 				name, tool.Category, tools.CategoryScanner, tools.CategoryUtility)
 		}
 	}

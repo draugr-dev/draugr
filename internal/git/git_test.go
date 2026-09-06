@@ -82,9 +82,9 @@ func TestCheckoutBadRevision(t *testing.T) {
 }
 
 func TestCheckoutReportsTheRevisionItMaterialized(t *testing.T) {
-	// A descriptor usually names no revision, so "the default branch" is what gets scanned — a
-	// moving answer. Without resolving it, a report cannot say which commit it describes, which
-	// is the entire justification for scanning a committed revision rather than a working tree.
+	// A descriptor usually names no revision, so "the default branch" is what gets scanned. A
+	// moving answer. Without resolving it, a report cannot say which commit it describes, which is
+	// the entire justification for scanning a committed revision rather than a working tree.
 	src, sha := initRepo(t)
 
 	co, cleanup, err := Checkout(context.Background(), src, "", Scope{})
@@ -124,8 +124,8 @@ func TestCheckoutReportsUncommittedWorkItLeftBehind(t *testing.T) {
 }
 
 func TestCheckoutOfARemoteReportsNoUncommittedWork(t *testing.T) {
-	// There is no working copy to compare against, and inventing a 0 from a failed git call is
-	// the same answer for a different reason — worth pinning so it stays deliberate.
+	// There is no working copy to compare against, and inventing a 0 from a failed git call is the
+	// same answer for a different reason. Worth pinning so it stays deliberate.
 	src, _ := initRepo(t)
 	co, cleanup, err := Checkout(context.Background(), src, "", Scope{})
 	if err != nil {
@@ -171,8 +171,8 @@ func TestCheckoutWorkingTreeIncludesUncommittedWork(t *testing.T) {
 }
 
 func TestCheckoutWorkingTreeLeavesIgnoredFilesBehind(t *testing.T) {
-	// The file list is git's own answer to "what is in this working tree", so a build directory
-	// or a local .env is left out for the same reason a commit would leave it out — not by a rule
+	// The file list is git's own answer to "what is in this working tree", so a build directory or
+	// a local .env is left out for the same reason a commit would leave it out, not by a rule
 	// Draugr invented and would have to keep in step with .gitignore.
 	src, _ := initRepo(t)
 	if err := os.WriteFile(filepath.Join(src, ".gitignore"), []byte("secret.env\n"), 0o600); err != nil {
@@ -238,9 +238,9 @@ func TestCheckoutWorkingTreeRefusesARemote(t *testing.T) {
 }
 
 func TestCopyIntoRefusesAPathThatEscapes(t *testing.T) {
-	// git does not emit paths that leave a repository, but this reads a list from a subprocess
-	// and then writes files from it — the one place where being wrong writes outside the
-	// temporary directory.
+	// git does not emit paths that leave a repository, but this reads a list from a subprocess and
+	// then writes files from it, the one place where being wrong writes outside the temporary
+	// directory.
 	root := t.TempDir()
 	if err := copyInto(root, root, "../escaped.txt"); err == nil {
 		t.Error("a path escaping the copy was accepted")
@@ -266,7 +266,7 @@ func TestCopyIntoRefusesAPathThatEscapes(t *testing.T) {
 
 func TestCheckoutWorkingTreeSkipsWhatItCannotCopy(t *testing.T) {
 	// A tree somebody is actively editing changes underneath the scan. A symlink, a file that
-	// vanished between the listing and the read — one of those is not a reason to refuse to scan
+	// vanished between the listing and the read. One of those is not a reason to refuse to scan
 	// the rest of it.
 	src, _ := initRepo(t)
 	if err := os.Symlink("file.txt", filepath.Join(src, "link.txt")); err != nil {
@@ -278,8 +278,8 @@ func TestCheckoutWorkingTreeSkipsWhatItCannotCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer cleanup()
-	// The link is not copied — copied as a link it could point outside the copy, which would put
-	// a scanner back in the real checkout.
+	// The link is not copied, copied as a link it could point outside the copy, which would put a
+	// scanner back in the real checkout.
 	if _, err := os.Lstat(filepath.Join(co.Dir, "link.txt")); err == nil {
 		t.Error("a symlink was copied into the scan")
 	}
@@ -343,9 +343,9 @@ func TestCheckoutWithHistoryKeepsRemovedCommits(t *testing.T) {
 
 	ctx := context.Background()
 
-	// The default clone is not asserted to be shallow here: git ignores --depth for a clone from
-	// a local path, so a fixture cannot distinguish the two. What matters and is testable is the
-	// guarantee in the other direction — asking for history gets history.
+	// The default clone is not asserted to be shallow here: git ignores --depth for a clone from a
+	// local path, so a fixture cannot distinguish the two. What matters and is testable is the
+	// guarantee in the other direction, asking for history gets history.
 	deep, cleanDeep, err := Checkout(ctx, src, "", Scope{History: true})
 	if err != nil {
 		t.Fatal(err)

@@ -421,7 +421,7 @@ func TestExploitSettingsDescriptorOnly(t *testing.T) {
 		t.Errorf("descriptor sources ignored: %+v", got)
 	}
 	if got.threshold != 0.1 {
-		t.Errorf("threshold = %v, want the descriptor's 0.1 — the flag's default must not win", got.threshold)
+		t.Errorf("threshold = %v, want the descriptor's 0.1, the flag's default must not win", got.threshold)
 	}
 	if got.maxAge != 168*time.Hour {
 		t.Errorf("maxAge = %v, want 168h", got.maxAge)
@@ -462,13 +462,13 @@ func TestExploitSettingsThresholdTypedAtItsDefault(t *testing.T) {
 		scanOptions{epssThreshold: 0.5, setFlags: map[string]bool{"epss-threshold": true}},
 		&saga.ExploitabilityConfig{EPSS: "cache", EPSSThreshold: &th})
 	if got.threshold != 0.5 {
-		t.Errorf("threshold = %v, want 0.5 — an explicit flag at its default value still wins", got.threshold)
+		t.Errorf("threshold = %v, want 0.5, an explicit flag at its default value still wins", got.threshold)
 	}
 }
 
 func TestExploitSettingsNoFlagProvenance(t *testing.T) {
-	// A programmatic caller has no flag information, so a nil setFlags cannot mean "the caller
-	// set nothing" — its values have to be honored rather than silently dropped.
+	// A programmatic caller has no flag information, so a nil setFlags cannot mean "the caller set
+	// nothing". Its values have to be honored rather than silently dropped.
 	got := exploitSettings(scanOptions{kevFile: "/tmp/kev.json", epssThreshold: 0.3}, nil)
 	if got.kev != "/tmp/kev.json" || got.threshold != 0.3 {
 		t.Errorf("programmatic options were dropped: %+v", got)
@@ -558,7 +558,7 @@ func TestLoadExploitSourceProvenanceForAFilePath(t *testing.T) {
 // A fetch that fails with a copy already on disk must not fail the run.
 //
 // This step exists so a scan cannot rank everything as though nothing were exploited. A cached
-// catalog does not do that — it ranks on data of a known age, and the report says how old. So
+// catalog does not do that. It ranks on data of a known age, and the report says how old. So
 // blocking a pipeline on somebody else's outage buys nothing when the answer is already here,
 // which is what a release blocked on a 403 from CISA costs.
 func TestUpdateFeedsKeepsTheCachedCopyWhenAFetchFails(t *testing.T) {
@@ -608,7 +608,7 @@ func TestUpdateFeedsStillFailsWithAnEmptyCache(t *testing.T) {
 }
 
 // Whichever source won has to name itself. A threshold in a report without its source is a line
-// somebody drew that nobody can attribute — and the answer decides whether a band a reader
+// somebody drew that nobody can attribute. And the answer decides whether a band a reader
 // disputes is a policy or an accident.
 func TestExploitSettingsThresholdNamesWhatSetIt(t *testing.T) {
 	th := 0.1

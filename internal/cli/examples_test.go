@@ -30,9 +30,9 @@ func TestShippedExamplesValidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("glob examples: %v", err)
 	}
-	// Fragments live beside the descriptor that collects them and also one directory down, which
-	// is the shape a real repository has — so both are checked. A fragment is a descriptor a user
-	// copies too.
+	// Fragments live beside the descriptor that collects them and also one directory down, which is
+	// the shape a real repository has. So both are checked. A fragment is a descriptor a user copies
+	// too.
 	for _, pattern := range []string{
 		"../../examples/*.saga-fragment.yaml",
 		"../../examples/*/*.saga-fragment.yaml",
@@ -47,7 +47,7 @@ func TestShippedExamplesValidate(t *testing.T) {
 	// A guard that checks nothing passes. If the examples move or the suffix changes, this should
 	// say so rather than report success over an empty list.
 	if len(paths) == 0 {
-		t.Fatal("no descriptors found under examples/ — either they moved, or their suffix " +
+		t.Fatal("no descriptors found under examples/. Either they moved, or their suffix " +
 			"changed and this guard has been checking nothing")
 	}
 
@@ -76,7 +76,7 @@ func TestShippedExamplesUseNothingDeprecated(t *testing.T) {
 		t.Fatalf("glob examples: %v", err)
 	}
 	if len(paths) == 0 {
-		t.Fatal("no descriptors found under examples/ — this guard has been checking nothing")
+		t.Fatal("no descriptors found under examples/, this guard has been checking nothing")
 	}
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
@@ -110,10 +110,10 @@ func TestEveryDescriptorFieldAppearsInAnExample(t *testing.T) {
 	corpus := readExamples(t)
 	var missing []string
 	for _, key := range sagaKeys() {
-		// Written as a key, not merely mentioned. A commented-out key counts — several options are
-		// only ever shown that way, and a reader copies a commented line as readily as a live one
-		// — but a name inside an English sentence does not. Prose satisfying this guard is how it
-		// would come to pass while the field it names appears nowhere anybody could copy.
+		// Written as a key, not merely mentioned. A commented-out key counts. Several options are only
+		// ever shown that way, and a reader copies a commented line as readily as a live one, but a name
+		// inside an English sentence does not. Prose satisfying this guard is how it would come to pass
+		// while the field it names appears nowhere anybody could copy.
 		if !regexp.MustCompile(`(?m)^[\t ]*(#[\t ]*)?`+regexp.QuoteMeta(key)+`:`).MatchString(corpus) &&
 			!regexp.MustCompile(`(?m)^[\t ]*(#[\t ]*)?- `+regexp.QuoteMeta(key)+`:`).MatchString(corpus) {
 			missing = append(missing, key)
@@ -182,7 +182,7 @@ func readExamples(t *testing.T) string {
 		}
 	}
 	if b.Len() == 0 {
-		t.Fatal("no examples read — this guard has been checking nothing")
+		t.Fatal("no examples read, this guard has been checking nothing")
 	}
 	return b.String()
 }

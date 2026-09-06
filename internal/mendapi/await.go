@@ -35,15 +35,15 @@ const (
 // project's alerts.
 //
 // The reason this exists: Mend accepts an upload and processes it afterwards, so a query made too
-// early is answered — honestly — with nothing. Nothing is indistinguishable from a clean project,
+// early is answered, honestly, with nothing. Nothing is indistinguishable from a clean project,
 // so without this an eager poll turns "has not finished reading your code" into "no
 // vulnerabilities", and does it most reliably on the largest components, because those take
 // longest.
 //
 // The check is a correlation, not a guess about timing. Where the agent reports an update-request
 // token, the project's vitals carry it once the upload has been applied, which answers "has *my*
-// scan landed" rather than "has *something* happened recently". Where it does not — and the CLI's
-// agent does not print one — the fallback compares the inventory against the number of
+// scan landed" rather than "has *something* happened recently". Where it does not. And the CLI's
+// agent does not print one, the fallback compares the inventory against the number of
 // dependencies the agent said it resolved, which is still evidence about *this* upload rather
 // than about the clock.
 //
@@ -81,7 +81,7 @@ func (c *Client) Await(ctx context.Context, opts AwaitOpts) ([]Alert, error) {
 
 		if time.Now().After(deadline) {
 			return nil, fmt.Errorf(
-				"mend: results for project %q were not ready within %s — the scan uploaded but "+
+				"mend: results for project %q were not ready within %s, the scan uploaded but "+
 					"Mend had not finished processing it, so there is nothing to report yet "+
 					"rather than nothing to find. Raise resultTimeout for a component this large. "+
 					"(last state: %v)", opts.ProjectName, timeout, lastErr)
@@ -100,7 +100,7 @@ func (c *Client) Await(ctx context.Context, opts AwaitOpts) ([]Alert, error) {
 
 // landed reports whether the upload has been applied to the project.
 //
-// With a request token this is exact. Without one — an agent version that did not report it — the
+// With a request token this is exact. Without one. An agent version that did not report it. The
 // weaker fallback is that the project exists and has been updated at all, which cannot tell our
 // upload from somebody else's. The caller is told which of the two it got by the token being
 // empty, and the scanner passes one whenever the agent gives it.

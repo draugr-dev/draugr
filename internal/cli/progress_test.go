@@ -12,7 +12,7 @@ import (
 )
 
 // A shorter line must not leave the tail of a longer one behind, or the display reads as two
-// states at once — "scanning 9/11" followed by the debris of six scanner names.
+// states at once, "scanning 9/11" followed by the debris of six scanner names.
 func TestProgressClearsWhatItNoLongerCovers(t *testing.T) {
 	var buf bytes.Buffer
 	p := &progressLine{w: &buf}
@@ -60,7 +60,7 @@ func TestALogLineErasesTheProgressLineFirst(t *testing.T) {
 	}
 }
 
-// With no line drawn — piped output, --no-tips — the writer must not touch what it passes through.
+// With no line drawn, piped output, --no-tips. The writer must not touch what it passes through.
 func TestLogWriterIsTransparentWithoutAProgressLine(t *testing.T) {
 	active.Store(nil)
 	var buf bytes.Buffer
@@ -87,8 +87,8 @@ func TestNoProgressWhenItWouldBeNoise(t *testing.T) {
 // TestProgressDoneIsIdempotent covers the shape the fix depends on.
 //
 // The line is erased when the run finishes, so the report starts on a clean row, and again on the
-// way out for a path that returned early. Erasing twice must be harmless — and the second must
-// not emit a second row of blanks, which on a terminal is an empty line nobody asked for.
+// way out for a path that returned early. Erasing twice must be harmless. And the second must not
+// emit a second row of blanks, which on a terminal is an empty line nobody asked for.
 func TestProgressDoneIsIdempotent(t *testing.T) {
 	var buf bytes.Buffer
 	p := newProgressLineFor(&buf)
@@ -178,9 +178,9 @@ func TestProgressFrameIsEmptyBeforeAnythingIsPlanned(t *testing.T) {
 // TestProgressShowsHowLongAStepHasBeenRunning answers the question a stalled-looking scan
 // provokes: is this working?
 //
-// A step with one slow job produces no progress events at all while it runs — a scanner that
-// creates a Job in a cluster and waits for it can take minutes — so a stuck run and a slow one
-// look identical unless something keeps counting.
+// A step with one slow job produces no progress events at all while it runs, a scanner that
+// creates a Job in a cluster and waits for it can take minutes. So a stuck run and a slow one look
+// identical unless something keeps counting.
 func TestProgressShowsHowLongAStepHasBeenRunning(t *testing.T) {
 	ev := engine.ProgressEvent{
 		Total: 2, Complete: 1,
@@ -233,7 +233,7 @@ func TestProgressHeadlineStaysQuietForAFastRun(t *testing.T) {
 	}
 }
 
-// elapsedFigure matches the durations the display renders — "45s", "1m35s" — and nothing else.
+// elapsedFigure matches the durations the display renders, "45s", "1m35s", and nothing else.
 var elapsedFigure = regexp.MustCompile(`\b\d+(m\d{2})?s\b`)
 
 // TestProgressDoesNotTimeAJobThatJustStarted: a job that finishes quickly would flash a "0s" on

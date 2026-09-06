@@ -68,22 +68,22 @@ type Result struct {
 	// Historical marks a finding that describes a commit rather than the current tree.
 	//
 	// A history scan reports the path a secret had in the commit that introduced it, and after a
-	// rename that path no longer exists. Unmarked, the finding reads as something already cleaned
-	// up — which is exactly backwards, because a credential in history is still fetchable by
-	// anyone who can clone and still needs rotating, whatever the tree looks like now.
+	// rename that path no longer exists. Unmarked, the finding reads as something already cleaned up.
+	// Which is exactly backwards, because a credential in history is still fetchable by anyone who
+	// can clone and still needs rotating, whatever the tree looks like now.
 	Historical bool `json:"historical,omitempty"`
 	// PriorityFloor explains a band the component's classification alone does not account for.
 	//
 	// Some findings are not bounded by where the component sits. A leaked credential is valid
-	// wherever it is valid — a cloud account, a registry, an artifact store — and git history is
-	// often readable by more people than the service is reachable by, so an `internal` component
-	// can understate who can obtain the thing. Where a control says so, the band it produces is
-	// not damped below a floor.
+	// wherever it is valid, a cloud account, a registry, an artifact store. And git history is often
+	// readable by more people than the service is reachable by, so an `internal` component can
+	// understate who can obtain the thing. Where a control says so, the band it produces is not
+	// damped below a floor.
 	//
 	// Set only when the floor actually raised the band, so a reader asking "why is this P2 on a
 	// supporting internal component" has the answer in the report rather than in the source.
 	PriorityFloor string `json:"priorityFloor,omitempty"`
-	// Control names the check this finding came from — sca, sast, secrets — stamped when a run's
+	// Control names the check this finding came from, sca, sast, secrets. Stamped when a run's
 	// per-control reports are merged into one document.
 	//
 	// The merged file is the only thing a downstream consumer sees, and until a finding carries
@@ -96,35 +96,35 @@ type Result struct {
 	// from the component whose scan produced it. Empty for a project-scoped control, which has
 	// no one component to attribute to.
 	//
-	// A location alone is ambiguous the moment a descriptor has two components: three components
-	// have three go.mod files, and two can carry the same path. It is also what makes the
-	// priority checkable — the band is computed from the component's declared exposure and
-	// criticality, so a report showing the band without naming the component states a conclusion
-	// and withholds its premise.
+	// A location alone is ambiguous the moment a descriptor has two components: three components have
+	// three go.mod files, and two can carry the same path. It is also what makes the priority
+	// checkable. The band is computed from the component's declared exposure and criticality, so a
+	// report showing the band without naming the component states a conclusion and withholds its
+	// premise.
 	Component string `json:"component,omitempty"`
-	// Exposure and Criticality are that component's declared classification — how reachable it is
-	// to an attacker, and how much depends on it. The half of the priority calculation that comes
-	// from the descriptor rather than from the scanner.
+	// Exposure and Criticality are that component's declared classification. How reachable it is to
+	// an attacker, and how much depends on it. The half of the priority calculation that comes from
+	// the descriptor rather than from the scanner.
 	//
 	// Carried on the finding because naming the component is not the same as stating its premise.
 	// Every other input to a band already travels with it: the scanner's score, the dataset that
 	// raised it and the day that copy was obtained, the analyzer that ranked it down and how. A
-	// report that records all of those and then requires a descriptor to be fetched before the
-	// two remaining inputs can be read is one an auditor cannot settle from the evidence in front
-	// of them — and the descriptor they would fetch is the one in the repository today, not
-	// necessarily the one that produced this band.
+	// report that records all of those and then requires a descriptor to be fetched before the two
+	// remaining inputs can be read is one an auditor cannot settle from the evidence in front of
+	// them. And the descriptor they would fetch is the one in the repository today, not necessarily
+	// the one that produced this band.
 	//
-	// Empty for a project-scoped finding, which belongs to no one component, and for a component
-	// that declares neither — which Draugr reads as public and critical, so that an unclassified
-	// component surfaces rather than hides.
+	// Empty for a project-scoped finding, which belongs to no one component, and for a component that
+	// declares neither. Which Draugr reads as public and critical, so that an unclassified component
+	// surfaces rather than hides.
 	//
 	// Strings rather than the descriptor's own types: `saga` imports this package, so the
 	// dependency cannot run the other way. These carry `saga.Exposure` and `saga.Criticality`
 	// values.
 	Exposure    string `json:"exposure,omitempty"`
 	Criticality string `json:"criticality,omitempty"`
-	// Repository is the repository this finding was found in, for a component that has more than
-	// one — or a fragment that contributed one from somewhere else.
+	// Repository is the repository this finding was found in, for a component that has more than one,
+	// or a fragment that contributed one from somewhere else.
 	//
 	// Paths are rewritten repository-relative so a finding can be anchored to a file, which means
 	// two repositories that share a path share everything else about a finding. Without this they
@@ -137,7 +137,7 @@ type Result struct {
 	// across runs: adding an import at the top of a file changes the line of every finding below
 	// it. These hash what the code says rather than where it sits.
 	//
-	// Empty for a finding with no file and line — a vulnerable dependency is identified by its
+	// Empty for a finding with no file and line. A vulnerable dependency is identified by its
 	// package, which is already on the finding. Absent means "no content-based identity", and a
 	// fabricated one would be worse than none.
 	PartialFingerprints map[string]string `json:"partialFingerprints,omitempty"`
@@ -160,23 +160,23 @@ type Result struct {
 	// system package from a vulnerable application dependency sitting on top of it. Empty for a
 	// finding in a language ecosystem, where there is no OS answer to give.
 	OperatingSystem string `json:"operatingSystem,omitempty"`
-	// OSEndOfLife marks a finding whose operating system release no longer receives security
-	// updates from its vendor — Trivy's EOSL, End Of Service Life.
+	// OSEndOfLife marks a finding whose operating system release no longer receives security updates
+	// from its vendor, Trivy's EOSL, End Of Service Life.
 	//
 	// It changes what the finding means. On a supported release, "no fix available" is a state
 	// that will end when the vendor publishes one; on a release past end of life, no fix is ever
 	// coming, and upgrading the release is the only action that resolves it. That is usually the
 	// highest-leverage move available, because it resolves every finding in the OS layer at once.
 	OSEndOfLife bool `json:"osEndOfLife,omitempty"`
-	// ProviderOperated marks a finding about a surface somebody else runs — the control plane of
-	// a managed Kubernetes cluster being the case it exists for.
+	// ProviderOperated marks a finding about a surface somebody else runs, the control plane of a
+	// managed Kubernetes cluster being the case it exists for.
 	//
 	// Set from what the descriptor declares, never guessed: whether a cluster is managed is a
 	// fact about a contract, not something visible in what a scanner reads. It is the same
 	// argument that puts exposure and criticality in the descriptor.
 	ProviderOperated bool `json:"providerOperated,omitempty"`
-	// BuiltUpstream marks a finding inside something somebody else publishes — an image this team
-	// only runs, or a repository it uses and does not maintain.
+	// BuiltUpstream marks a finding inside something somebody else publishes, an image this team only
+	// runs, or a repository it uses and does not maintain.
 	//
 	// It changes the action rather than the severity. A vulnerable library in an image this team
 	// builds is theirs to upgrade; the same library in an image they only run is fixed by taking
@@ -189,10 +189,10 @@ type Result struct {
 	// Layer is the image layer the finding's package arrived in. Nil for anything that is not an
 	// image finding, and for an image whose scanner did not report one.
 	//
-	// It is the only reliable answer to "is this mine or inherited". An image records nothing
-	// about what it was built FROM — the name is not in there — so a base image cannot be named,
-	// and where a multi-layer base ends is not knowable either. The layer, and the build step
-	// that created it, are facts; anything further is inference and has to be labeled as such.
+	// It is the only reliable answer to "is this mine or inherited". An image records nothing about
+	// what it was built FROM. The name is not in there, so a base image cannot be named, and where a
+	// multi-layer base ends is not knowable either. The layer, and the build step that created it,
+	// are facts; anything further is inference and has to be labeled as such.
 	Layer *Layer `json:"layer,omitempty"`
 	// Suppression is set when a Saga exclusion matched this finding. A suppressed result is
 	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
@@ -202,9 +202,9 @@ type Result struct {
 	// which signal did it. Nil when nothing moved it.
 	//
 	// Suppression's twin: one records a decision to count a finding for less, this one records
-	// evidence that it deserves more. Both answer the same question — a report that states a
-	// conclusion and withholds its premise is a hint rather than evidence, and "critical because
-	// CISA observed this being exploited, as of a date you can check" is the premise.
+	// evidence that it deserves more. Both answer the same question, a report that states a
+	// conclusion and withholds its premise is a hint rather than evidence, and "critical because CISA
+	// observed this being exploited, as of a date you can check" is the premise.
 	Escalation *Escalation `json:"escalation,omitempty"`
 	// Reachability is set when a reachability analyzer covered this finding's dependency, and
 	// says whether this project's code can actually reach the vulnerable code. Nil when no
@@ -226,13 +226,13 @@ type Remediation string
 const (
 	// RemediationUpgrade: a version that fixes it exists, in something the reader controls.
 	RemediationUpgrade Remediation = "upgrade"
-	// RemediationUpstream: nothing fixes it where it is, but the thing underneath can move —
-	// an operating system release past end of service life, whose successor is the fix. One
-	// action, and it resolves everything in that layer at once.
+	// RemediationUpstream: nothing fixes it where it is, but the thing underneath can move, an
+	// operating system release past end of service life, whose successor is the fix. One action, and
+	// it resolves everything in that layer at once.
 	RemediationUpstream Remediation = "upstream"
-	// RemediationExternal: the surface is operated by somebody else. Still found, still
-	// reported, still counted — never presented as something to go and fix, because telling a
-	// reader to change a file on a control plane they cannot reach is worse than saying nothing.
+	// RemediationExternal: the surface is operated by somebody else. Still found, still reported,
+	// still counted, never presented as something to go and fix, because telling a reader to change a
+	// file on a control plane they cannot reach is worse than saying nothing.
 	RemediationExternal Remediation = "external"
 	// RemediationNone: no fix is published anywhere, and the thing it is in is the reader's.
 	// Mitigation or acceptance, rather than an upgrade.
@@ -260,7 +260,7 @@ func (r Result) Remediation() Remediation {
 // Layer identifies the image layer a finding's package came from, and the build step that made it.
 //
 // Index is the layer's position in the image, counting from the bottom, and Of is how many layers
-// there are — "3 of 9" is interpretable where a bare digest is not, and the low indices are the
+// there are. "3 of 9" is interpretable where a bare digest is not, and the low indices are the
 // inherited ones.
 type Layer struct {
 	// DiffID is the layer's content digest, as the image records it.
@@ -270,38 +270,38 @@ type Layer struct {
 	// Of is the number of layers in the image.
 	Of int `json:"of,omitempty"`
 	// CreatedBy is the build instruction that produced the layer, verbatim from the image's own
-	// history — "RUN /bin/sh -c apt-get install …". It names the line to change, which is more
-	// use than a layer digest and more honest than a guessed base image.
+	// history. "RUN /bin/sh -c apt-get install …". It names the line to change, which is more use
+	// than a layer digest and more honest than a guessed base image.
 	CreatedBy string `json:"createdBy,omitempty"`
 }
 
 // Package is the dependency a finding is about.
 //
-// Scanners have always known this and only ever said it in prose — Trivy's message reads
-// "Package: flask\nFixed Version: 0.12.3", which is a fact formatted for a human and unavailable
-// to anything else. Three things wanted it and could not have it: GitLab's dependency and
-// container reports, which require a structured name and version; correlating a run's findings
-// with the SBOM it produced alongside them; and a VEX statement that can say which package within
-// a product carries a vulnerability rather than only that the product does.
+// Scanners have always known this and only ever said it in prose. Trivy's message reads "Package:
+// flask\nFixed Version: 0.12.3", which is a fact formatted for a human and unavailable to anything
+// else. Three things wanted it and could not have it: GitLab's dependency and container reports,
+// which require a structured name and version; correlating a run's findings with the SBOM it
+// produced alongside them; and a VEX statement that can say which package within a product carries
+// a vulnerability rather than only that the product does.
 //
 // Deliberately not part of Fingerprint. The same flaw in the same package at the same location is
-// the same finding whether or not the scanner told us which package — so adding this must not
-// split a finding in two the day a scanner starts reporting it.
+// the same finding whether or not the scanner told us which package. So adding this must not split
+// a finding in two the day a scanner starts reporting it.
 type Package struct {
 	// Name is the package as its ecosystem names it, e.g. "flask".
 	Name string `json:"name"`
 	// Version is what is installed.
 	Version string `json:"version,omitempty"`
-	// FixedVersion is the first release that resolves the finding. Empty when there is none —
-	// which is a different and more alarming answer than "unknown", and the reason this is
-	// reported rather than inferred from the absence of a fix.
+	// FixedVersion is the first release that resolves the finding. Empty when there is none. Which is
+	// a different and more alarming answer than "unknown", and the reason this is reported rather
+	// than inferred from the absence of a fix.
 	FixedVersion string `json:"fixedVersion,omitempty"`
 	// PURL is the package URL, e.g. "pkg:pypi/flask@0.12.2". The one identifier that is portable
 	// across ecosystems and the one every consumer of this asked for first.
 	PURL string `json:"purl,omitempty"`
-	// Ecosystem is the package manager the name belongs to, as the ecosystem calls itself:
-	// "pip", "npm", "gem". A name alone is ambiguous — there is a `request` on npm and a
-	// `requests` on PyPI, and neither is the other.
+	// Ecosystem is the package manager the name belongs to, as the ecosystem calls itself: "pip",
+	// "npm", "gem". A name alone is ambiguous. There is a `request` on npm and a `requests` on PyPI,
+	// and neither is the other.
 	Ecosystem string `json:"ecosystem,omitempty"`
 }
 
@@ -310,8 +310,8 @@ type Package struct {
 // Deliberately not part of Fingerprint: a finding is the same finding whether or not a feed
 // moved it, and folding this in would make every diff churn on the day EPSS reprices a CVE.
 type Escalation struct {
-	// From is the severity before enrichment — the scanner's own rating, and the one the report
-	// still displays, because it is what the scanner actually said.
+	// From is the severity before enrichment, the scanner's own rating, and the one the report still
+	// displays, because it is what the scanner actually said.
 	From Severity `json:"from"`
 	// To is the severity the finding was *ranked* as. Enrichment feeds the priority matrix
 	// rather than rewriting what the scanner reported, so this is the value the band was
@@ -327,10 +327,10 @@ type Escalation struct {
 	// AlsoMatched are the datasets that applied to this finding without being the one that set
 	// its rating.
 	//
-	// Only one signal can raise a severity, so without this the others leave no trace at all —
-	// and the one that loses is always the same one. KEV outranks EPSS wherever both fire, so
-	// anything counting how often a dataset reached a finding reads EPSS as having done less
-	// than it did, by an amount nothing in the record reveals.
+	// Only one signal can raise a severity, so without this the others leave no trace at all, and the
+	// one that loses is always the same one. KEV outranks EPSS wherever both fire, so anything
+	// counting how often a dataset reached a finding reads EPSS as having done less than it did, by
+	// an amount nothing in the record reveals.
 	AlsoMatched []Match `json:"alsoMatched,omitempty"`
 }
 
@@ -366,11 +366,10 @@ const (
 	ReachabilityUnreachable ReachabilityState = "unreachable"
 	// ReachabilityUnknown means no analysis covered this dependency.
 	//
-	// The whole reason the state is explicit. An analyzer that never looked at a dependency
-	// produces exactly the same silence as one that looked and found nothing, and treating the
-	// two alike turns "we did not check" into "you are fine" — which is the failure this
-	// codebase refuses everywhere else. A tool that cannot say which of the two it means may
-	// only report this.
+	// The whole reason the state is explicit. An analyzer that never looked at a dependency produces
+	// exactly the same silence as one that looked and found nothing, and treating the two alike turns
+	// "we did not check" into "you are fine". Which is the failure this codebase refuses everywhere
+	// else. A tool that cannot say which of the two it means may only report this.
 	ReachabilityUnknown ReachabilityState = "unknown"
 )
 
@@ -381,9 +380,9 @@ const (
 // that a person decided to count a finding for less; Escalation records evidence that it deserves
 // more; this records evidence about whether the code can be reached at all. Like Escalation it
 // feeds the priority matrix and never rewrites the severity the scanner reported, and like
-// Escalation it is deliberately not part of Fingerprint — a finding is the same finding whether
-// or not analysis moved it, and folding this in would churn every diff on the day a call is added
-// or removed.
+// Escalation it is deliberately not part of Fingerprint. A finding is the same finding whether or
+// not analysis moved it, and folding this in would churn every diff on the day a call is added or
+// removed.
 //
 // Unlike Suppression it never excuses a finding. An inference is not a decision, and a finding
 // that disappears because a call graph did not find a path has no author to ask about it.
@@ -437,9 +436,8 @@ type CallFrame struct {
 //
 // A relationship rather than a merge, and for the reason the rest of this model is: nothing is
 // deleted. Both scanners' findings stay in the report with their own rule ids, their own severity
-// and their own account of what they saw — because the disagreement between two scanners is the
-// reason to run two, and a merge that keeps one opinion throws away the thing you were paying
-// for.
+// and their own account of what they saw, because the disagreement between two scanners is the
+// reason to run two, and a merge that keeps one opinion throws away the thing you were paying for.
 //
 // What changes is the counting. One finding of the group is counted; the others are evidence.
 // Reporting four vulnerabilities as eight is the failure this exists to fix, and it is the test
@@ -460,14 +458,14 @@ type Correlation struct {
 // Observation is another scanner's account of a flaw already counted.
 //
 // Complete rather than a name, because the interesting case is disagreement. Two scanners rating
-// the same CVE medium and low have said something neither says alone — they draw on different
+// the same CVE medium and low have said something neither says alone. They draw on different
 // advisory sources, and the gap is a statement about coverage. A reader who only learns that a
 // second tool "also found it" cannot see that, and the console has nothing to show them.
 type Observation struct {
 	// Tool is the scanner that made this observation.
 	Tool string `json:"tool"`
-	// RuleID is what that scanner called it, which is not always what the counted finding is
-	// called — and is the id an exclusion may already be written against.
+	// RuleID is what that scanner called it, which is not always what the counted finding is called.
+	// And is the id an exclusion may already be written against.
 	RuleID string `json:"ruleId,omitempty"`
 	// Severity and Score are that scanner's own rating, kept whether or not it agrees. The
 	// report decides what is worth showing; the record does not get to be selective.
@@ -477,8 +475,8 @@ type Observation struct {
 
 // Correlated reports whether another scanner's finding is the one being counted for this flaw.
 //
-// True only on the copies that are not counted. The finding that is counted has a Correlation
-// too — naming who else found it — and is very much still a finding.
+// True only on the copies that are not counted. The finding that is counted has a Correlation too,
+// naming who else found it. And is very much still a finding.
 func (r Result) Correlated() bool {
 	return r.Correlation != nil && r.Correlation.CountedUnder != ""
 }
@@ -492,14 +490,14 @@ type Suppression struct {
 	// it to be absent.
 	Justification string `json:"justification"`
 	// AcceptedBy is who decided this was acceptable, when the exclusion said. Empty means the
-	// suppression is unattributed — reported as such, because "who decided" is half the question
-	// an auditor is asking and a blank is an answer worth seeing.
+	// suppression is unattributed, reported as such, because "who decided" is half the question an
+	// auditor is asking and a blank is an answer worth seeing.
 	AcceptedBy string `json:"acceptedBy,omitempty"`
 	// Expires is when the acceptance lapses, as YYYY-MM-DD. Empty means it does not.
 	Expires string `json:"expires,omitempty"`
-	// VEXStatus is what the exclusion declared this suppression means as a claim about the
-	// product: not_affected, affected, or fixed. Empty when the exclusion said nothing, which
-	// is the common case and reports as affected — the reading that is never an overstatement.
+	// VEXStatus is what the exclusion declared this suppression means as a claim about the product:
+	// not_affected, affected, or fixed. Empty when the exclusion said nothing, which is the common
+	// case and reports as affected. The reading that is never an overstatement.
 	VEXStatus string `json:"vexStatus,omitempty"`
 	// VEXJustification is why the product is not affected, from VEX's fixed vocabulary. Set
 	// only alongside a not_affected status.
@@ -512,8 +510,8 @@ type Suppression struct {
 	// you made and are answerable for; kept apart, the report can say the analysis was theirs, and
 	// an auditor can ask them rather than you.
 	Origin string `json:"origin,omitempty"`
-	// Author is who asserted an imported claim — the VEX document's author. Empty for a
-	// descriptor rule, where AcceptedBy already answers "who decided".
+	// Author is who asserted an imported claim, the VEX document's author. Empty for a descriptor
+	// rule, where AcceptedBy already answers "who decided".
 	Author string `json:"author,omitempty"`
 	// Asserted is when an imported claim was made, as the document wrote it. A supplier's
 	// statement is made on a date they chose, and a year-old `not_affected` about a package that
@@ -524,8 +522,8 @@ type Suppression struct {
 	// would be noise.
 	//
 	// Splitting exclusions across files is only safe if the report can still say which file
-	// authorized each one — otherwise composition trades a long descriptor for an unanswerable
-	// one, which is the worse of the two.
+	// authorized each one, otherwise composition trades a long descriptor for an unanswerable one,
+	// which is the worse of the two.
 	Source string `json:"source,omitempty"`
 }
 
@@ -536,8 +534,8 @@ const (
 	OriginSaga = "saga"
 	// OriginVEX is a statement imported from a document somebody else wrote.
 	OriginVEX = "vex"
-	// OriginTool is a suppression the author wrote into the source and the scanner honored — a
-	// Semgrep `nosem`, a `# noqa`, a linter's inline pragma.
+	// OriginTool is a suppression the author wrote into the source and the scanner honored, a Semgrep
+	// `nosem`, a `# noqa`, a linter's inline pragma.
 	//
 	// The weakest of the three, and kept apart for that reason. A descriptor rule was reviewed by
 	// whoever owns the descriptor and a supplier's claim is answerable by the supplier; this one
@@ -547,7 +545,7 @@ const (
 	OriginTool = "tool"
 )
 
-// Suppressed reports whether this finding was excluded — by a Saga rule or by an imported claim.
+// Suppressed reports whether this finding was excluded, by a Saga rule or by an imported claim.
 func (r Result) Suppressed() bool { return r.Suppression != nil }
 
 // SilencedInSource reports whether a suppression came from a comment in the code rather than from
@@ -571,17 +569,15 @@ func (r Result) Fingerprint() string {
 	sum := sha256.Sum256([]byte(strings.Join([]string{
 		r.Tool, r.RuleID, string(r.Level), r.Message,
 		r.Location.URI, strconv.Itoa(r.Location.StartLine),
-		// The component is part of the identity, not decoration. Two components sharing a
-		// repository produce the same flaw at the same line, and it is not the same finding:
-		// each carries its component's exposure and criticality, so one can be P1 and the other
-		// P4. Collapsing them keeps whichever merged first and silently discards the other —
-		// which can be the urgent one, and contradicts the whole claim that context decides
-		// priority.
+		// The component is part of the identity, not decoration. Two components sharing a repository
+		// produce the same flaw at the same line, and it is not the same finding: each carries its
+		// component's exposure and criticality, so one can be P1 and the other P4. Collapsing them keeps
+		// whichever merged first and silently discards the other. Which can be the urgent one, and
+		// contradicts the whole claim that context decides priority.
 		r.Component,
-		// And the repository, for the same reason one level down: a component may hold several,
-		// and a fragment may contribute one from another project entirely. Two of them with the
-		// same file at the same line are two findings — one leaked credential per repository, not
-		// one between them.
+		// And the repository, for the same reason one level down: a component may hold several, and a
+		// fragment may contribute one from another project entirely. Two of them with the same file at
+		// the same line are two findings, one leaked credential per repository, not one between them.
 		r.Repository,
 	}, "\x00")))
 	return hex.EncodeToString(sum[:])
@@ -593,46 +589,46 @@ func (r Result) Fingerprint() string {
 type Report struct {
 	Tool    string   `json:"tool,omitempty"`
 	Results []Result `json:"results"`
-	// Rules is the metadata the scanner published about the rules it applied, keyed by rule id.
-	// A result names its rule; the rule is what explains it. Carrying this through is what lets
-	// a reader — in a terminal, an editor, or a pull request — find out what "DS-0002" means.
-	// Not every scanner publishes it, so entries may be missing.
+	// Rules is the metadata the scanner published about the rules it applied, keyed by rule id. A
+	// result names its rule; the rule is what explains it. Carrying this through is what lets a
+	// reader, in a terminal, an editor, or a pull request. Find out what "DS-0002" means. Not every
+	// scanner publishes it, so entries may be missing.
 	Rules map[string]Rule `json:"rules,omitempty"`
 	// Provenance is what the scanners said about the run itself, as opposed to what they found:
 	// which standard was applied, how much of it could be decided, what the scan was scoped to.
 	//
-	// A finding answers "what is wrong". Evidence also has to answer "what was measured, and
-	// against what" — and that was not recorded anywhere, so a compliance report could not say
-	// which benchmark produced it. One entry per tool run; see Provenance.
+	// A finding answers "what is wrong". Evidence also has to answer "what was measured, and against
+	// what". And that was not recorded anywhere, so a compliance report could not say which benchmark
+	// produced it. One entry per tool run; see Provenance.
 	Provenance []Provenance `json:"provenance,omitempty"`
 	// Decided are the classifications this run reached a verdict on, whether or not a finding
 	// resulted. A taxon here with no finding means the scanner looked and found nothing wrong.
 	//
 	// The distinction this exists for: a scanner that reports nothing about a control has either
-	// examined it and been satisfied, or never examined it at all, and those mean opposite
-	// things. Without this, a report that says "1 of 2 scanners found it" is guessing that the
-	// other dissented — when far more often the other simply does not check that control.
+	// examined it and been satisfied, or never examined it at all, and those mean opposite things.
+	// Without this, a report that says "1 of 2 scanners found it" is guessing that the other
+	// dissented, when far more often the other simply does not check that control.
 	//
-	// "Decided" rather than "examined" on purpose: a check a scanner looked at and could not
-	// settle — a CIS control that requires human judgement — is not a dissent either.
+	// "Decided" rather than "examined" on purpose: a check a scanner looked at and could not settle,
+	// a CIS control that requires human judgement. Is not a dissent either.
 	Decided []Taxon `json:"decided,omitempty"`
 	// Consulted names the exploitability datasets this run had loaded, whether or not any of
 	// them moved a finding.
 	//
-	// The same argument as Decided, one level up. An Escalation is written only when a signal
-	// raised a severity, so its absence on a finding covers three unrelated cases: the CVE is
-	// not in the dataset, it is but the finding was already at the top band, and the dataset was
-	// never loaded. A consumer explaining a priority to somebody cannot tell "not on KEV" from
-	// "KEV was not consulted" without this — and silence reads as the second, which makes the
-	// whole ranking look like it came from nowhere.
+	// The same argument as Decided, one level up. An Escalation is written only when a signal raised
+	// a severity, so its absence on a finding covers three unrelated cases: the CVE is not in the
+	// dataset, it is but the finding was already at the top band, and the dataset was never loaded. A
+	// consumer explaining a priority to somebody cannot tell "not on KEV" from "KEV was not
+	// consulted" without this. And silence reads as the second, which makes the whole ranking look
+	// like it came from nowhere.
 	Consulted []Consulted `json:"consulted,omitempty"`
 }
 
 // Consulted is one exploitability dataset a run had available.
 //
-// Deliberately not the full provenance: where the copy came from and what its checksum was
-// belong to the human-facing report, which has room for them. What a consumer of the evidence
-// needs to explain a band is narrower — which signals could have fired, and as of when.
+// Deliberately not the full provenance: where the copy came from and what its checksum was belong
+// to the human-facing report, which has room for them. What a consumer of the evidence needs to
+// explain a band is narrower. Which signals could have fired, and as of when.
 type Consulted struct {
 	// Signal names the dataset: "kev" or "epss".
 	Signal string `json:"signal"`
@@ -643,45 +639,45 @@ type Consulted struct {
 	// empty answers every lookup with "not listed", which is indistinguishable from a working
 	// one unless somebody can see the count.
 	Entries int `json:"entries,omitempty"`
-	// Threshold is the EPSS probability at or above which a finding was raised. Zero for KEV,
-	// which has no threshold — being on it is the whole signal.
+	// Threshold is the EPSS probability at or above which a finding was raised. Zero for KEV, which
+	// has no threshold. Being on it is the whole signal.
 	Threshold float64 `json:"threshold,omitempty"`
 	// ThresholdFrom names what set that threshold: the default, a descriptor key, or a flag.
 	//
-	// A number without its source is the one part of an escalation a reader cannot check. Every
-	// other input says where it came from — the dataset names itself and the day its copy was
-	// obtained — while the line a score was measured against arrives anonymous, and the answer to
-	// "who decided 0.5" decides whether a band is a policy or an accident. It is also the value
-	// most worth governing: a threshold reachable by the team being gated is a gate that can be
-	// loosened without a record.
+	// A number without its source is the one part of an escalation a reader cannot check. Every other
+	// input says where it came from, the dataset names itself and the day its copy was obtained,
+	// while the line a score was measured against arrives anonymous, and the answer to "who decided
+	// 0.5" decides whether a band is a policy or an accident. It is also the value most worth
+	// governing: a threshold reachable by the team being gated is a gate that can be loosened without
+	// a record.
 	ThresholdFrom string `json:"thresholdFrom,omitempty"`
 }
 
 // Provenance is one scanner's account of a run it performed.
 //
-// A slice on Report rather than a map of fields, because a control can be served by more than
-// one scanner and each has its own answer — two scanners auditing a cluster apply two different
+// A slice on Report rather than a map of fields, because a control can be served by more than one
+// scanner and each has its own answer, two scanners auditing a cluster apply two different
 // benchmarks. Flattening them into one map keeps whichever was written last, silently, which is
 // the failure this type exists to prevent.
 type Provenance struct {
 	// Tool is the scanner that produced this account.
 	Tool string `json:"tool"`
-	// Version is the scanner's version as the engine resolved it — the same value that goes into
-	// its cache key, so the evidence and the cache cannot disagree about what ran. Empty when the
-	// scanner does not report one.
+	// Version is the scanner's version as the engine resolved it. The same value that goes into its
+	// cache key, so the evidence and the cache cannot disagree about what ran. Empty when the scanner
+	// does not report one.
 	Version string `json:"version,omitempty"`
 	// Fields are the scanner's own statements about the run, in the order it considers useful.
 	//
-	// Untyped, because the interesting ones are domain knowledge — "benchmark", "coverage",
-	// "scope" — and this package is the finding currency for every scanner Draugr will ever
-	// have. It should not learn what a CIS benchmark is to carry the fact that one was applied.
+	// Untyped, because the interesting ones are domain knowledge, "benchmark", "coverage", "scope".
+	// And this package is the finding currency for every scanner Draugr will ever have. It should not
+	// learn what a CIS benchmark is to carry the fact that one was applied.
 	Fields []Field `json:"fields,omitempty"`
 }
 
 // Field is one statement in a Provenance entry.
 //
 // A slice of pairs rather than a map: rendering needs a stable order, and alphabetical is the
-// wrong one — it puts "coverage" before "benchmark". The scanner knows which matters most to a
+// wrong one. It puts "coverage" before "benchmark". The scanner knows which matters most to a
 // reader, so it decides.
 type Field struct {
 	Key   string `json:"key"`
@@ -710,14 +706,14 @@ type Rule struct {
 	Help string `json:"help,omitempty"`
 	// HelpURI points at the rule's documentation or advisory.
 	HelpURI string `json:"helpUri,omitempty"`
-	// Taxa are the shared classifications this rule implements — a CIS benchmark control, a
-	// CWE. Empty when the scanner claims none.
+	// Taxa are the shared classifications this rule implements, a CIS benchmark control, a CWE. Empty
+	// when the scanner claims none.
 	//
-	// This is what makes two tools' findings recognizable as being about the same thing, and it
-	// is deliberately not the rule id. An id belongs to whoever emitted it: `draugr/cis/5.1.1`
-	// and `kube-bench/cis/5.1.1` are two tools' accounts, and collapsing them into one id — as
-	// they were — makes provenance unrecoverable. A taxon is the vocabulary both are speaking,
-	// so the correspondence is stated rather than inferred from a string collision.
+	// This is what makes two tools' findings recognizable as being about the same thing, and it is
+	// deliberately not the rule id. An id belongs to whoever emitted it: `draugr/cis/5.1.1` and
+	// `kube-bench/cis/5.1.1` are two tools' accounts, and collapsing them into one id. As they were.
+	// Makes provenance unrecoverable. A taxon is the vocabulary both are speaking, so the
+	// correspondence is stated rather than inferred from a string collision.
 	//
 	// SARIF models exactly this with `taxonomies` and `taxa`, so a consumer that has never heard
 	// of Draugr can group by CIS control, and a third-party scanner can participate by emitting
@@ -754,9 +750,9 @@ func (r Rule) empty() bool {
 		r.Help == "" && r.HelpURI == "" && len(r.Taxa) == 0
 }
 
-// HelpURI returns where a reader can look up ruleID: what the scanner published, or a URL
-// derived from a well-known identifier scheme when it published nothing. Empty when we can't
-// say — a wrong link is worse than none.
+// HelpURI returns where a reader can look up ruleID: what the scanner published, or a URL derived
+// from a well-known identifier scheme when it published nothing. Empty when we can't say. A wrong
+// link is worse than none.
 func (r Report) HelpURI(ruleID string) string {
 	if u := r.Rules[ruleID].HelpURI; u != "" {
 		return u
@@ -852,9 +848,9 @@ func (r Report) Counts() Counts {
 func (r Report) Highest() Level {
 	highest := LevelNone
 	for _, res := range r.Results {
-		// Suppressed findings are reported but not judged. Missing this is how a Saga
-		// exclusion appears to work — the count drops to zero — while the gate still fails on
-		// the finding it was supposed to set aside.
+		// Suppressed findings are reported but not judged. Missing this is how a Saga exclusion appears
+		// to work, the count drops to zero. While the gate still fails on the finding it was supposed to
+		// set aside.
 		if res.Suppressed() {
 			continue
 		}
@@ -872,7 +868,7 @@ func (r Report) Highest() Level {
 // SARIF level and the severity band are two different ladders: a finding carrying a CVSS score
 // takes its band from the score, so a scanner that reports a 7.8 as `warning` still shows as
 // `high`. Judging the level instead lets a finding the report calls high pass a gate the reader
-// believes is set to catch it — the verdict and the page disagreeing about the same finding.
+// believes is set to catch it, the verdict and the page disagreeing about the same finding.
 func (r Report) HighestSeverity() Severity {
 	highest := Severity("")
 	for _, res := range r.Results {
@@ -925,8 +921,8 @@ func Merge(reports ...Report) Report {
 // addProvenance appends entries that are not already present.
 //
 // Appends rather than replaces, because two scanners serving one control each have their own
-// account and both belong in the evidence. Deduplicated so that merging a report with itself —
-// which aggregation does — does not double every entry.
+// account and both belong in the evidence. Deduplicated so that merging a report with itself.
+// Which aggregation does. Does not double every entry.
 func (r *Report) addProvenance(entries []Provenance) {
 	for _, p := range entries {
 		if len(p.Fields) == 0 && p.Version == "" {
@@ -964,8 +960,8 @@ func (r *Report) addDecided(taxa []Taxon) {
 // addConsulted appends datasets that are not already present, keyed by signal.
 //
 // One entry per signal, because a run loads each dataset once and two entries naming "kev" would
-// have to be reconciled by whoever reads them — which is the failure addProvenance's per-tool
-// slice exists to avoid, and it does not apply here.
+// have to be reconciled by whoever reads them. Which is the failure addProvenance's per-tool slice
+// exists to avoid, and it does not apply here.
 func (r *Report) addConsulted(feeds []Consulted) {
 	for _, f := range feeds {
 		if f.Signal == "" {
@@ -982,8 +978,8 @@ func (r *Report) addConsulted(feeds []Consulted) {
 
 // ParseLevel converts a user-supplied gate level, rejecting anything it does not recognize.
 //
-// Rejecting matters more than it looks. An unknown level ranks 0, and every finding is at least
-// 0 — so a typo, or a plausible-sounding value like "high", silently turns a gate into "fail on
+// Rejecting matters more than it looks. An unknown level ranks 0, and every finding is at least 0,
+// so a typo, or a plausible-sounding value like "high", silently turns a gate into "fail on
 // anything at all" rather than failing to parse. A flag either does something or says why not.
 func ParseLevel(s string) (Level, error) {
 	switch l := Level(strings.ToLower(strings.TrimSpace(s))); l {
@@ -1011,7 +1007,7 @@ func ParseLevel(s string) (Level, error) {
 //
 // Each reference is reduced to its path, case-insensitively, without scheme, credentials, port or
 // `.git`. Two match when they are equal, or when the shorter is a trailing run of whole segments
-// of the longer — so a CI variable saying `org/repo` still matches a descriptor's clone URL.
+// of the longer, so a CI variable saying `org/repo` still matches a descriptor's clone URL.
 //
 // The whole path, not its last two segments. A forge may nest groups arbitrarily, and keeping only
 // the tail makes `payments/backend/api` and `platform/backend/api` the same repository. Nothing
@@ -1065,8 +1061,8 @@ func normalizeRepository(ref string) string {
 
 // stripPort removes a :port, leaving an scp-style colon alone.
 //
-// Both spellings put a colon after the host — `host:8443/org/repo` separates a port and
-// `host:org/repo` separates the path — and only the port is all digits. Without the distinction a
+// Both spellings put a colon after the host, `host:8443/org/repo` separates a port and
+// `host:org/repo` separates the path. And only the port is all digits. Without the distinction a
 // port becomes a path segment, and the repository is named `8443/org/repo`.
 func stripPort(s string) string {
 	i := strings.Index(s, ":")
@@ -1088,8 +1084,8 @@ func stripPort(s string) string {
 //
 // Recorded by repository scanners as Provenance fields rather than as a typed member of Report,
 // because Provenance is already the channel for "what this scanner says about its own run" and
-// this package should not grow a field per domain fact. Parsed back out here so every consumer —
-// console, markdown, HTML, JSON — reads it the same way instead of each learning the key names.
+// this package should not grow a field per domain fact. Parsed back out here so every consumer,
+// console, markdown, HTML, JSON. Reads it the same way instead of each learning the key names.
 type RepositoryRef struct {
 	// URL is the repository as the descriptor named it.
 	URL string `json:"url"`
@@ -1131,17 +1127,17 @@ func (p Provenance) Repository() (RepositoryRef, bool) {
 			r.WorkingTree = f.Value == "true"
 		}
 	}
-	// A scanner that recorded no repository is describing something else — a cluster, a benchmark
-	// — and belongs in the per-control provenance rather than here.
+	// A scanner that recorded no repository is describing something else, a cluster, a benchmark. And
+	// belongs in the per-control provenance rather than here.
 	return r, r.URL != ""
 }
 
 // RepositoriesIn collects the distinct repository/revision pairs the reports recorded.
 //
 // Keyed on the pair rather than the scanner: five controls reading one commit is one fact. When
-// two controls disagree, both are kept — each repository scanner checks out independently, so on
-// a branch that moves mid-scan they can genuinely read different commits, and collapsing that
-// would be an assumption presented as evidence.
+// two controls disagree, both are kept, each repository scanner checks out independently, so on a
+// branch that moves mid-scan they can genuinely read different commits, and collapsing that would
+// be an assumption presented as evidence.
 func RepositoriesIn(reports []Report) []RepositoryRef {
 	type key struct{ url, rev string }
 	seen := map[key]bool{}
@@ -1168,7 +1164,7 @@ func RepositoriesIn(reports []Report) []RepositoryRef {
 //
 // Only an unreachable verdict moves anything. Reachable does not raise: severity already assumes
 // the vulnerable code runs, so treating a confirmed call as an escalation would count the same
-// assumption twice. Unknown moves nothing by definition — it is the absence of a finding, not one.
+// assumption twice. Unknown moves nothing by definition. It is the absence of a finding, not one.
 func (r *Reachability) RankAt(base Severity) Severity {
 	if r == nil || r.State != ReachabilityUnreachable {
 		return base
@@ -1179,11 +1175,11 @@ func (r *Reachability) RankAt(base Severity) Severity {
 // vulnerabilityID matches a vulnerability identifier at the start of a rule id, allowing whatever
 // a scanner appends to it.
 //
-// Anchored at the front and not at the back, deliberately. Grype reports `CVE-2019-1010083-flask`
-// — the identifier plus the package it found it in — because one advisory can affect several
-// packages in one scan, and collapsing those would merge two real findings into one. So the
-// decoration stays on the rule id, which is what the scanner said, and everything that needs to
-// know *which vulnerability this is* asks here instead of matching the string.
+// Anchored at the front and not at the back, deliberately. Grype reports `CVE-2019-1010083-flask`,
+// the identifier plus the package it found it in. Because one advisory can affect several packages
+// in one scan, and collapsing those would merge two real findings into one. So the decoration
+// stays on the rule id, which is what the scanner said, and everything that needs to know *which
+// vulnerability this is* asks here instead of matching the string.
 var vulnerabilityID = regexp.MustCompile(
 	`^(CVE-\d{4}-\d{4,}` +
 		`|GHSA-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}` +
@@ -1194,9 +1190,9 @@ var vulnerabilityID = regexp.MustCompile(
 // VulnerabilityID is the vulnerability this finding is about, or "" when it is not about one.
 //
 // A rule id belongs to whoever emitted it, and two scanners reporting the same advisory do not
-// spell it the same way. Anything asking "which vulnerability is this" — matching a supplier's
-// VEX statement, writing one, recognizing the same flaw found twice — has to ask that question
-// rather than compare rule ids, or it silently answers for one scanner and not the other.
+// spell it the same way. Anything asking "which vulnerability is this", matching a supplier's VEX
+// statement, writing one, recognizing the same flaw found twice. Has to ask that question rather
+// than compare rule ids, or it silently answers for one scanner and not the other.
 //
 // Empty for a finding that is not a vulnerability at all. A leaked credential and a misconfigured
 // security group are real findings with no advisory to be un-affected by.

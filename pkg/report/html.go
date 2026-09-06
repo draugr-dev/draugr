@@ -11,8 +11,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/norn"
 )
 
-// htmlReporter renders a self-contained HTML report — a single file with inline CSS, viewable
-// in any browser and shareable as a build artifact. Leads with the verdict, priority counts,
+// htmlReporter renders a self-contained HTML report, a single file with inline CSS, viewable in
+// any browser and shareable as a build artifact. Leads with the verdict, priority counts,
 // per-control severity, and the full ranked finding list.
 type htmlReporter struct{}
 
@@ -27,17 +27,17 @@ type htmlView struct {
 	P1, P2, P3, P4 int
 	Controls       []htmlControl
 	Findings       []htmlFinding
-	// Provenance is what each scanner said about its own run — the standard applied, how much of
-	// it was decided, what it was scoped to. A shared HTML report is the copy that reaches
-	// someone who did not run the scan, so it is the one that most needs to say what was
-	// measured rather than only what was found.
+	// Provenance is what each scanner said about its own run, the standard applied, how much of it
+	// was decided, what it was scoped to. A shared HTML report is the copy that reaches someone who
+	// did not run the scan, so it is the one that most needs to say what was measured rather than
+	// only what was found.
 	Provenance []provenanceLine
-	// Repositories is which repository was read and at which commit — the thing that makes the
+	// Repositories is which repository was read and at which commit. The thing that makes the
 	// report reproducible, and the answer to "does this describe my change or the last release".
 	Repositories []RepositoryProvenance
-	// Exploitability names the datasets that raised severities, with the date each was obtained.
-	// A shared report claiming a finding is critical has to be able to say on what data — and
-	// this is the copy most likely to be read by someone who cannot re-run the scan.
+	// Exploitability names the datasets that raised severities, with the date each was obtained. A
+	// shared report claiming a finding is critical has to be able to say on what data. And this is
+	// the copy most likely to be read by someone who cannot re-run the scan.
 	Exploitability []htmlFeed
 	// Errors, Suppressed and SBOM describe what the run couldn't do and what it set aside. A
 	// shared report that omits them describes a thinner run rather than a broken one, and the
@@ -55,8 +55,8 @@ type htmlView struct {
 	// Facets are the distinct values the filter controls offer, so the toolbar only ever shows
 	// options that match something.
 	Priorities, Severities, ControlNames []string
-	// SARIFHref and TSVHref are data: URIs — downloads that work with no JavaScript and under
-	// any content-security policy.
+	// SARIFHref and TSVHref are data: URIs. Downloads that work with no JavaScript and under any
+	// content-security policy.
 	SARIFHref, TSVHref template.URL
 	SARIFTooBig        bool
 	Generated, Version string
@@ -242,7 +242,7 @@ const htmlDoc = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Draugr report{{if .Release}} — {{.Release}}{{end}}</title>
+<title>Draugr report{{if .Release}} · {{.Release}}{{end}}</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem auto; max-width: 60rem; padding: 0 1rem; }
@@ -272,7 +272,7 @@ const htmlDoc = `<!doctype html>
   a { color: inherit; }
   footer { color: #888; font-size: .82rem; margin-top: 2rem; border-top: 1px solid #8883; padding-top: .6rem; }
   /* The page declares color-scheme: light dark, so the browser paints dark chrome in dark mode.
-     These keep the text legible against it — greys tuned for white are unreadable on near-black. */
+     These keep the text legible against it, since greys tuned for white are unreadable on near-black. */
   @media (prefers-color-scheme: dark) {
     .rel, .note { color: #aaa; }
     .sev-low { color: #999; }
@@ -309,7 +309,7 @@ const htmlDoc = `<!doctype html>
 </style>
 </head>
 <body>
-<h1>Draugr — <span class="verdict {{if .Pass}}pass{{else}}fail{{end}}">{{.Verdict}}</span></h1>
+<h1>Draugr · <span class="verdict {{if .Pass}}pass{{else}}fail{{end}}">{{.Verdict}}</span></h1>
 {{if .Release}}<p class="rel">{{.Release}}</p>{{end}}
 
 <nav class="nav">
@@ -330,7 +330,7 @@ const htmlDoc = `<!doctype html>
   <span>P4 {{.P4}}</span>
 </p>
 <p class="note">Priority combines how severe a finding is with how exposed and how business-critical
-the component is — so the same issue ranks differently on a public API than on an internal tool.
+the component is, so the same issue ranks differently on a public API than on an internal tool.
 <strong>P1</strong> is act now, <strong>P4</strong> is track it. Counts cover the whole run.</p>
 {{end}}
 
@@ -386,20 +386,20 @@ about what they would have found. For everything the tool printed, re-run with t
 <code class="cmd">--log-level trace</code> flag:</p>
 <pre class="cmd">draugr scan &lt;saga.yaml&gt; --log-level trace</pre>
 <ul class="errors">
-{{range .Errors}}<li><strong>{{.Control}}</strong> — {{.Message}}</li>{{end}}
+{{range .Errors}}<li><strong>{{.Control}}</strong> · {{.Message}}</li>{{end}}
 </ul>
 {{end}}
 
-{{if .Suppressed}}<p class="note">{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code> — reported, not deleted; each carries the reason it was set aside.</p>{{end}}
+{{if .Suppressed}}<p class="note">{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code> · reported, not deleted; each carries the reason it was set aside.</p>{{end}}
 {{if .SBOMCount}}<p class="note">SBOM: {{.SBOMCount}} document(s) ({{.SBOMFormat}}).</p>{{end}}
 
-<h2 id="findings-h">Findings{{if .MinPriority}} — {{.MinPriority}} and above{{end}}</h2>
+<h2 id="findings-h">Findings{{if .MinPriority}} · {{.MinPriority}} and above{{end}}</h2>
 {{if .MinPriority}}<p class="note">The counts above describe the whole run{{if .Hidden}}; {{.Hidden}} lower-priority finding(s) are not listed{{end}}.</p>{{end}}
 
 <p class="dl">
   {{if .SARIFHref}}<a href="{{.SARIFHref}}" download="results.sarif">⬇ SARIF</a>{{end}}
   {{if .TSVHref}}<a href="{{.TSVHref}}" download="findings.tsv">⬇ TSV</a>{{end}}
-  {{if .SARIFTooBig}}<span class="note">SARIF too large to embed — re-run with <code class="cmd">-o &lt;dir&gt;</code>.</span>{{end}}
+  {{if .SARIFTooBig}}<span class="note">SARIF too large to embed · re-run with <code class="cmd">-o &lt;dir&gt;</code>.</span>{{end}}
 </p>
 
 <div id="tools" hidden>
@@ -437,7 +437,7 @@ about what they would have found. For everything the tool printed, re-run with t
 </table>
 <p class="empty" id="none" hidden>No findings match this filter.</p>
 {{else if .Errors}}
-<p>No findings from the controls that ran — see the errors above.</p>
+<p>No findings from the controls that ran. See the errors reported above.</p>
 {{else}}
 <p>No findings. ✓</p>
 {{end}}
@@ -463,7 +463,7 @@ about what they would have found. For everything the tool printed, re-run with t
 {{if .Slowest}}
 <h2 id="timing">Where the time went</h2>
 <p class="note">Time spent per control, worst first. Controls run in parallel, so these sum to
-more than the elapsed time — the shares are of the total work, not of the wall clock.</p>
+more than the elapsed time, because the shares are of the total work rather than of the wall clock.</p>
 <table>
 <thead><tr><th scope="col">Control</th><th scope="col" class="num">Time</th><th scope="col">Share</th></tr></thead>
 <tbody>
@@ -483,9 +483,9 @@ more than the elapsed time — the shares are of the total work, not of the wall
 </footer>
 <script>
 // Progressive enhancement, and deliberately so: everything above renders complete without this.
-// The toolbar starts hidden and is revealed here, so a reader with scripts disabled — or an
-// email client or artifact viewer that strips them — sees the full table rather than dead
-// controls that do nothing.
+// The toolbar starts hidden and is revealed here, so a reader with scripts disabled, or an email
+// client or artifact viewer that strips them, sees the full table rather than dead controls that
+// do nothing.
 (function () {
   var tools = document.getElementById("tools");
   var rows = Array.prototype.slice.call(document.querySelectorAll("tbody.f"));
@@ -497,7 +497,7 @@ more than the elapsed time — the shares are of the total work, not of the wall
   var none = document.getElementById("none");
   var boxes = Array.prototype.slice.call(document.querySelectorAll("input.f"));
 
-  // A facet with nothing ticked means "no constraint" rather than "match nothing" — unticking
+  // A facet with nothing ticked means "no constraint" rather than "match nothing", unticking
   // every priority to be shown an empty table is nobody's intent.
   function allowed(kind) {
     var on = boxes.filter(function (b) { return b.dataset.k === kind && b.checked; });

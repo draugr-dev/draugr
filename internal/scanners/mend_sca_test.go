@@ -129,7 +129,7 @@ Request Token: 4f2c8a91-0b3d-4e6f-9a1c-2d3e4f5a6b7c
 	}
 }
 
-// Only security vulnerabilities become findings — the other alert types are a different kind of
+// Only security vulnerabilities become findings. The other alert types are a different kind of
 // statement, and one of them is policy from somebody else's console.
 func TestMendReportKeepsOnlyVulnerabilities(t *testing.T) {
 	rep := mendReport([]mendapi.Alert{
@@ -298,7 +298,7 @@ func TestMendSCAScanEndToEnd(t *testing.T) {
 	}
 }
 
-// A scan whose agent resolved nothing must not reach the API at all — asking would get an honest
+// A scan whose agent resolved nothing must not reach the API at all. Asking would get an honest
 // "no vulnerabilities" for a project whose inventory was just emptied.
 func TestMendSCAScanStopsBeforeQueryingWhenNothingResolved(t *testing.T) {
 	dir := t.TempDir()

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Color is for people at terminals. Anything else — a pipe, a file, a CI log — must receive
+// Color is for people at terminals. Anything else, a pipe, a file, a CI log. Must receive
 // plain text, or the escape codes end up in the artifact.
 func TestColorOnlyForTerminals(t *testing.T) {
 	if ColorEnabled(&bytes.Buffer{}) {
@@ -53,7 +53,7 @@ func TestPainterColors(t *testing.T) {
 	}
 }
 
-// A hyperlink costs no visible width, which is what makes it usable in an already-wide table —
+// A hyperlink costs no visible width, which is what makes it usable in an already-wide table,
 // but only where the terminal will render it.
 func TestLink(t *testing.T) {
 	on := Painter{color: true}
@@ -118,9 +118,9 @@ func TestAppendMatchesPaint(t *testing.T) {
 }
 
 func TestIsTerminalRejectsTheNullDevice(t *testing.T) {
-	// /dev/null is a character device, so the mode test alone says yes — and it is exactly what
-	// a script redirects stdin from when it means there is nobody here. Prompting into that
-	// prints a question nothing can answer, then acts on the answer it invents.
+	// /dev/null is a character device, so the mode test alone says yes. And it is exactly what a
+	// script redirects stdin from when it means there is nobody here. Prompting into that prints
+	// a question nothing can answer, then acts on the answer it invents.
 	null, err := os.Open(os.DevNull)
 	if err != nil {
 		t.Skipf("no %s on this platform: %v", os.DevNull, err)

@@ -17,7 +17,7 @@ import (
 // Controls names, for each surface a component can declare, the controls that examine it.
 //
 // Discovery's promise is that the descriptor writes itself, and a descriptor enabling no control
-// has not written itself — it has written a shape, whose first scan reports PASS having checked
+// has not written itself. It has written a shape, whose first scan reports PASS having checked
 // nothing. This map is what turns a declared surface into the controls that would look at it.
 //
 // `dast` is deliberately absent from the host list. The passive host controls read a response;
@@ -50,7 +50,7 @@ func ComponentHas(c *saga.Component, surface string) bool {
 //
 // A descriptor that declares a `hosts:` entry with the host controls off scans everything about
 // that component except the thing it exposes to the internet, and says nothing. The run is a
-// clean pass over a surface nobody looked at — the same shape as a scan that enables no control
+// clean pass over a surface nobody looked at, the same shape as a scan that enables no control
 // at all, which fails loudly, but with a smaller blast radius and no signal whatsoever.
 //
 // Advisory rather than fatal: the choice may be deliberate, and refusing to scan because a
@@ -110,8 +110,8 @@ func sortedKeys[V any](m map[string][]V) []string {
 
 // EnableControls turns on the controls the discovered components can be checked with.
 //
-// Only controls the descriptor says nothing about are touched. A control someone set — including
-// one they set to `enabled: false` — is left exactly as it is, because `--merge` runs against a
+// Only controls the descriptor says nothing about are touched. A control someone set, including
+// one they set to `enabled: false`. Is left exactly as it is, because `--merge` runs against a
 // descriptor people edit, and a survey that re-enabled something you had switched off would be a
 // worse failure than the one this fixes.
 //

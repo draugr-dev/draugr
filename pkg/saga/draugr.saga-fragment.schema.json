@@ -1,5 +1,5 @@
 {
-  "$comment": "Generated in full from draugr.saga.schema.json by internal/schemagen — every edit here is lost. Change the Saga schema or the generator instead, then run `go generate ./pkg/saga/...`. A fragment adds scope or attributed suppressions and cannot change policy, which is the rule this file expresses so an editor can enforce it.",
+  "$comment": "Generated in full from draugr.saga.schema.json by internal/schemagen, every edit here is lost. Change the Saga schema or the generator instead, then run `go generate ./pkg/saga/...`. A fragment adds scope or attributed suppressions and cannot change policy, which is the rule this file expresses so an editor can enforce it.",
   "$defs": {
     "component": {
       "additionalProperties": false,
@@ -150,7 +150,7 @@
         },
         {
           "const": "headers",
-          "description": "Check how a running site answers a browser — the settings that stop a page being abused."
+          "description": "Check how a running site answers a browser, the settings that stop a page being abused."
         },
         {
           "const": "iac",
@@ -202,7 +202,7 @@
         },
         "nuclei": {
           "additionalProperties": false,
-          "description": "nuclei — published by projectdiscovery.",
+          "description": "nuclei, published by projectdiscovery.",
           "properties": {
             "enabled": {
               "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
@@ -216,11 +216,11 @@
     },
     "control_headers": {
       "additionalProperties": false,
-      "description": "Check how a running site answers a browser — the settings that stop a page being abused.",
+      "description": "Check how a running site answers a browser, the settings that stop a page being abused.",
       "properties": {
         "draugrHeaders": {
           "additionalProperties": false,
-          "description": "draugr-headers — published by draugr.",
+          "description": "draugr-headers, published by draugr.",
           "properties": {
             "enabled": {
               "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
@@ -246,7 +246,7 @@
         },
         "trivyConfig": {
           "additionalProperties": false,
-          "description": "trivy-config — published by aquasecurity.",
+          "description": "trivy-config, published by aquasecurity.",
           "properties": {
             "checks": {
               "description": "Paths to Rego check files, or directories of them, relative to where Draugr runs. Adds your own misconfiguration rules to Trivy's built-in ones.",
@@ -276,7 +276,7 @@
         },
         "grype": {
           "additionalProperties": false,
-          "description": "grype — published by anchore.",
+          "description": "grype, published by anchore.",
           "properties": {
             "byCve": {
               "description": "Report a finding under its CVE rather than the advisory ID the source used, where a CVE exists. On by default. Turn it off to see the advisory identifier Grype matched on.",
@@ -291,7 +291,7 @@
         },
         "trivy": {
           "additionalProperties": false,
-          "description": "trivy — published by aquasecurity.",
+          "description": "trivy, published by aquasecurity.",
           "properties": {
             "dbRepository": {
               "description": "OCI repositories to pull the vulnerability database from, in priority order. Point it at an internal mirror where the runner cannot reach a public registry.",
@@ -302,7 +302,7 @@
               "type": "boolean"
             },
             "pkgTypes": {
-              "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility — a base image maintained by a platform team — so the report covers what this component controls.",
+              "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls.",
               "items": {
                 "enum": [
                   "os",
@@ -323,7 +323,7 @@
       "properties": {
         "draugrK8sPolicies": {
           "additionalProperties": false,
-          "description": "draugr-k8s-policies — published by draugr.",
+          "description": "draugr-k8s-policies, published by draugr.",
           "properties": {
             "enabled": {
               "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
@@ -338,7 +338,7 @@
         },
         "kubeBench": {
           "additionalProperties": false,
-          "description": "kube-bench — published by aquasecurity.",
+          "description": "kube-bench, published by aquasecurity.",
           "properties": {
             "benchmark": {
               "description": "kube-bench benchmark to run, e.g. cis-1.9 or eks-1.5.0. Defaults to letting kube-bench detect the cluster's version.",
@@ -369,7 +369,7 @@
         },
         "kubeBenchJob": {
           "additionalProperties": false,
-          "description": "kube-bench-job — published by aquasecurity.",
+          "description": "kube-bench-job, published by aquasecurity.",
           "properties": {
             "benchmark": {
               "description": "kube-bench benchmark to run, e.g. cis-1.9. Defaults to letting kube-bench detect the cluster's version.",
@@ -419,7 +419,7 @@
         },
         "mendLicenses": {
           "additionalProperties": false,
-          "description": "mend-licenses — published by mend.io.",
+          "description": "mend-licenses, published by mend.io.",
           "properties": {
             "deny": {
               "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"].",
@@ -454,7 +454,7 @@
         },
         "trivyLicense": {
           "additionalProperties": false,
-          "description": "trivy-license — published by aquasecurity.",
+          "description": "trivy-license, published by aquasecurity.",
           "properties": {
             "deny": {
               "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"].",
@@ -465,7 +465,7 @@
               "type": "boolean"
             },
             "full": {
-              "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower — it reads every file rather than the dependency list.",
+              "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower, it reads every file rather than the dependency list.",
               "type": "boolean"
             },
             "warn": {
@@ -488,14 +488,14 @@
         },
         "gosec": {
           "additionalProperties": false,
-          "description": "gosec — published by securego.",
+          "description": "gosec, published by securego.",
           "properties": {
             "enabled": {
               "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
               "type": "boolean"
             },
             "exclude": {
-              "description": "Skip these gosec rules, by ID, e.g. [\"G104\"]. For rules that do not apply to the codebase — a finding you have judged and accepted belongs in exclusions, where it stays in the report marked suppressed.",
+              "description": "Skip these gosec rules, by ID, e.g. [\"G104\"]. For rules that do not apply to the codebase, a finding you have judged and accepted belongs in exclusions, where it stays in the report marked suppressed.",
               "type": "array"
             },
             "include": {
@@ -511,7 +511,7 @@
         },
         "semgrep": {
           "additionalProperties": false,
-          "description": "semgrep — published by semgrep.",
+          "description": "semgrep, published by semgrep.",
           "properties": {
             "config": {
               "description": "Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten) or a path/URL to a rules file. Defaults to p/default.",
@@ -537,7 +537,7 @@
         },
         "grypeFs": {
           "additionalProperties": false,
-          "description": "grype-fs — published by anchore.",
+          "description": "grype-fs, published by anchore.",
           "properties": {
             "byCve": {
               "description": "Report a finding under its CVE rather than the advisory ID the source used, where a CVE exists. On by default. Turn it off to see the advisory identifier Grype matched on.",
@@ -552,7 +552,7 @@
         },
         "mendSca": {
           "additionalProperties": false,
-          "description": "mend-sca — published by mend.io.",
+          "description": "mend-sca, published by mend.io.",
           "properties": {
             "enabled": {
               "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
@@ -579,7 +579,7 @@
         },
         "retirejs": {
           "additionalProperties": false,
-          "description": "retirejs — published by RetireJS.",
+          "description": "retirejs, published by RetireJS.",
           "properties": {
             "enabled": {
               "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
@@ -590,7 +590,7 @@
         },
         "trivyFs": {
           "additionalProperties": false,
-          "description": "trivy-fs — published by aquasecurity.",
+          "description": "trivy-fs, published by aquasecurity.",
           "properties": {
             "dbRepository": {
               "description": "OCI repositories to pull the vulnerability database from, in priority order. Point it at an internal mirror where the runner cannot reach a public registry.",
@@ -601,7 +601,7 @@
               "type": "boolean"
             },
             "pkgTypes": {
-              "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility — a base image maintained by a platform team — so the report covers what this component controls.",
+              "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls.",
               "items": {
                 "enum": [
                   "os",
@@ -626,7 +626,7 @@
         },
         "gitleaks": {
           "additionalProperties": false,
-          "description": "gitleaks — published by gitleaks.",
+          "description": "gitleaks, published by gitleaks.",
           "properties": {
             "config": {
               "description": "Path to a Gitleaks TOML rules file, relative to where Draugr runs. Use it for a ruleset shared across repositories; a .gitleaks.toml committed in the scanned repository is already picked up without this.",
@@ -637,7 +637,7 @@
               "type": "boolean"
             },
             "history": {
-              "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised — this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced.",
+              "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced.",
               "type": "boolean"
             }
           },
@@ -656,7 +656,7 @@
         },
         "urlhaus": {
           "additionalProperties": false,
-          "description": "urlhaus — published by abuse.ch.",
+          "description": "urlhaus, published by abuse.ch.",
           "properties": {
             "enabled": {
               "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
@@ -667,14 +667,14 @@
         },
         "virustotal": {
           "additionalProperties": false,
-          "description": "virustotal — published by VirusTotal (Google).",
+          "description": "virustotal, published by VirusTotal (Google).",
           "properties": {
             "enabled": {
               "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
               "type": "boolean"
             },
             "requestsPerMinute": {
-              "description": "Override the assumed API allowance. Defaults to the public tier's 4. Raise it only to what your key actually permits — exceeding VirusTotal's limit risks losing access, and their stated penalty for terms violations is a permanent ban.",
+              "description": "Override the assumed API allowance. Defaults to the public tier's 4. Raise it only to what your key actually permits, exceeding VirusTotal's limit risks losing access, and their stated penalty for terms violations is a permanent ban.",
               "type": "integer"
             }
           },
@@ -689,7 +689,7 @@
       "properties": {
         "draugrTls": {
           "additionalProperties": false,
-          "description": "draugr-tls — published by draugr.",
+          "description": "draugr-tls, published by draugr.",
           "properties": {
             "enabled": {
               "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",

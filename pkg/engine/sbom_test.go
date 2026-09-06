@@ -56,9 +56,9 @@ func TestSBOMDisabledDoesNothing(t *testing.T) {
 	if len(res.SBOMs) != 0 {
 		t.Errorf("want no SBOMs, got %d", len(res.SBOMs))
 	}
-	// With SBOM off and no control enabled, this run does nothing at all — which is reported
-	// rather than passing quietly. The exemption only covers a descriptor that asks for
-	// evidence; this one asks for neither.
+	// With SBOM off and no control enabled, this run does nothing at all. Which is reported rather
+	// than passing quietly. The exemption only covers a descriptor that asks for evidence; this
+	// one asks for neither.
 	if len(res.ScanErrors) == 0 {
 		t.Error("a run that neither scans nor produces evidence should say so")
 	}
@@ -105,8 +105,8 @@ func TestSBOMDeduplicatesRepeatedTargets(t *testing.T) {
 }
 
 func TestSBOMFailureIsReportedAndMakesTheRunIncomplete(t *testing.T) {
-	// Asking for an inventory and not getting one must not pass quietly — the same rule that
-	// makes a missing scanner fail the gate rather than reporting a clean pass.
+	// Asking for an inventory and not getting one must not pass quietly. The same rule that makes
+	// a missing scanner fail the gate rather than reporting a clean pass.
 	f := &fakeSBOM{fail: true}
 	res, err := New(NewRegistry(), WithSBOM(f)).Run(context.Background(), sbomModel())
 	if err != nil {

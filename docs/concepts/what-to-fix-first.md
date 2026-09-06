@@ -14,11 +14,11 @@ it can do.
 Draugr's fix list answers a different question: **what should I do, and what will it clear?**
 
 ```
-Fix first — 5 actions clear 616 findings:
+Fix first · 5 actions clear 616 findings:
   P1  Update istio/install-cni:1.30.0  images · 184 findings · upstream
       CVE-2026-8925 +183
   P1  Upgrade Jinja2 2.10  sca · 6 findings
-      fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases — take the latest
+      fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases, take the latest
 ```
 
 ## Rows are actions, not findings
@@ -43,27 +43,26 @@ things to change, and folding them together because they share a prefix would hi
 **Grouping is opt-in for now.** `draugr scan --group action` turns it on; the default lists one
 finding per row.
 
-Not because the list is the better view, but because grouping is only right once a descriptor
-says which images the team builds and which infrastructure it operates. Without that, an action
-row states a fix nobody can apply — *upgrade this library*, inside an image somebody else
-publishes — where a finding row merely reports something true that a reader can look up. Stating
-wrong advice is worse than listing a fact, so the annotations come first and the default follows
-them.
+Not because the list is the better view, but because grouping is only right once a descriptor says
+which images the team builds and which infrastructure it operates. Without that, an action row
+states a fix nobody can apply. *upgrade this library*, inside an image somebody else publishes,
+where a finding row merely reports something true that a reader can look up. Stating wrong advice is
+worse than listing a fact, so the annotations come first and the default follows them.
 
-**Grouping is a rendering either way.** The report files always carry findings separately — an
-auditor reading `results.sarif` sees one record per finding whichever way the console was asked
-to show them.
+**Grouping is a rendering either way.** The report files always carry findings separately, an
+auditor reading `results.sarif` sees one record per finding whichever way the console was asked to
+show them.
 
 ## Findings you can act on come first within their band
 
-Priority decides the order. Where two findings share a band, the one somebody can act on is
-listed first — a package with a fix, then a release that can be moved, then one with no published
-fix, and last the ones that belong to a provider.
+Priority decides the order. Where two findings share a band, the one somebody can act on is listed
+first, a package with a fix, then a release that can be moved, then one with no published fix, and
+last the ones that belong to a provider.
 
-**This does not change the priority itself.** Priority feeds the gate, so demoting a finding
-because nobody here can fix it would weaken a build gate as a side effect of annotating a
-descriptor — and the risk is unchanged either way: a vulnerable control plane is exactly as
-dangerous whether or not the fix is yours to apply. Deciding that a finding is acceptable is what
+**This does not change the priority itself.** Priority feeds the gate, so demoting a finding because
+nobody here can fix it would weaken a build gate as a side effect of annotating a descriptor, and
+the risk is unchanged either way: a vulnerable control plane is exactly as dangerous whether or not
+the fix is yours to apply. Deciding that a finding is acceptable is what
 [exclusions](../reference/saga-schema.md) are for, and they record who decided.
 
 So `operatedBy` and `builtBy` change what is *recommended* and in what order, never what a finding
@@ -78,16 +77,15 @@ Volume never promotes: a P1 is not something to trade away for a bigger number.
 
 ## Two descriptor fields change what is recommended
 
-Some findings are true and not yours to act on. Telling somebody to change a file on a control
-plane they cannot reach, or to upgrade a library inside an image they do not build, is advice
-they cannot take — at the top of a list called *fix first*, which teaches them the list is not
-worth reading.
+Some findings are true and not yours to act on. Telling somebody to change a file on a control plane
+they cannot reach, or to upgrade a library inside an image they do not build, is advice they cannot
+take, at the top of a list called *fix first*, which teaches them the list is not worth reading.
 
 Draugr cannot work out which case it is looking at. Whether a cluster is managed, or an image is
-somebody else's, is a fact about a contract rather than something visible in what a scanner reads
-— the same argument that puts `exposure` and `criticality` in the descriptor.
+somebody else's, is a fact about a contract rather than something visible in what a scanner reads,
+the same argument that puts `exposure` and `criticality` in the descriptor.
 
-### `operatedBy` — who runs this infrastructure
+### `operatedBy`. Who runs this infrastructure
 
 ```yaml
 infrastructure:
@@ -96,15 +94,15 @@ infrastructure:
     operatedBy: provider     # self (default), or provider
 ```
 
-On `provider`, findings about the parts a managed platform runs are reported and counted but
-never presented as work to do: the API server, etcd, the controller manager, and kube-proxy —
-which every managed platform runs as a DaemonSet it owns.
+On `provider`, findings about the parts a managed platform runs are reported and counted but never
+presented as work to do: the API server, etcd, the controller manager, and kube-proxy, which every
+managed platform runs as a DaemonSet it owns.
 
 **It narrows deliberately.** The kubelet stays yours, because node pool settings usually reach it.
-So do RBAC, Pod Security and network policy, which are yours whoever runs the cluster underneath —
+So do RBAC, Pod Security and network policy, which are yours whoever runs the cluster underneath,
 and are usually the findings that matter.
 
-### `builtBy` — who publishes this image
+### `builtBy`, who publishes this image
 
 ```yaml
 images:
@@ -112,9 +110,9 @@ images:
     builtBy: upstream        # self (default), or upstream
 ```
 
-On `upstream`, every finding in the image becomes one action — *take a newer image* — instead of
-one row per vulnerable library. Nobody can upgrade a package inside an image they do not build;
-the fix is a newer image, or a wait for whoever publishes it.
+On `upstream`, every finding in the image becomes one action. *take a newer image*, instead of one
+row per vulnerable library. Nobody can upgrade a package inside an image they do not build; the fix
+is a newer image, or a wait for whoever publishes it.
 
 On `self` (the default), a package inside the image is yours, and the rows say to upgrade it.
 
@@ -129,24 +127,24 @@ hides work you could have done; the reverse costs a row you skip.
 
 ## What is left out of the list, and where it goes
 
-- **Not yours to fix** — reported, counted, and named on its own line rather than ranked among
+- **Not yours to fix**, reported, counted, and named on its own line rather than ranked among
   the work.
-- **No fix published anywhere** — including an operating system past end of service life, where
+- **No fix published anywhere**, including an operating system past end of service life, where
   the release itself is the action.
-- **Nothing at all** — a control that could not run says so; it found nothing by looking at
+- **Nothing at all**. A control that could not run says so; it found nothing by looking at
   nothing, and a component whose whole surface went unscanned reports `ERROR` rather than `pass`.
 
 ## Reading a row
 
 ```
 P1  Upgrade Jinja2 2.10  sca · 6 findings
-    fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases — take the latest
+    fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases, take the latest
 ```
 
-The target version appears only when every advisory agrees on one. Where they disagree, Draugr
-does not choose: version ordering belongs to the ecosystem — `5.10` is above `5.9` in most schemes
-and below it as a string — and naming the wrong release as sufficient reads as *do this and you
-are done* while leaving findings behind.
+The target version appears only when every advisory agrees on one. Where they disagree, Draugr does
+not choose: version ordering belongs to the ecosystem. `5.10` is above `5.9` in most schemes and
+below it as a string, and naming the wrong release as sufficient reads as *do this and you are done*
+while leaving findings behind.
 
 Each row names one rule identifier, linked to whatever the scanner published about it, and counts
 the rest. To read what a check means and how to fix it:

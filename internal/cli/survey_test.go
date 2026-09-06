@@ -151,7 +151,7 @@ func TestSurveyorOptionsAreScopedToTheirSurveyor(t *testing.T) {
 		t.Error("--org must not be reachable from k8s images")
 	}
 	if repos.Flags().Lookup("namespace") != nil {
-		t.Error("--namespace must not be reachable from github repos — a flag accepted where it means nothing does nothing, silently")
+		t.Error("--namespace must not be reachable from github repos, a flag accepted where it means nothing does nothing, silently")
 	}
 	// Shared output settings stay shared.
 	if repos.InheritedFlags().Lookup("output") == nil || repos.InheritedFlags().Lookup("replace") == nil {
@@ -227,7 +227,7 @@ func TestSurveyAzureOptionsAreScopedToTheSubcommand(t *testing.T) {
 		}
 	}
 	if repos.Flags().Lookup("group") != nil {
-		t.Error("--group is GitLab's and must not be reachable here — a flag accepted where it means nothing does nothing, silently")
+		t.Error("--group is GitLab's and must not be reachable here, a flag accepted where it means nothing does nothing, silently")
 	}
 	if repos.InheritedFlags().Lookup("output") == nil {
 		t.Error("--output applies to every surveyor")
@@ -274,7 +274,7 @@ func TestSurveyK8sGroupSharesTheContextFlag(t *testing.T) {
 	}
 }
 
-// The surveyor a subcommand runs is the one its name promises — the whole point of splitting
+// The surveyor a subcommand runs is the one its name promises, the whole point of splitting
 // k8s-cluster out of k8s-images.
 func TestSurveyK8sClusterRunsTheClusterSurveyor(t *testing.T) {
 	t.Parallel()
@@ -296,7 +296,7 @@ func TestSurveyK8sClusterRunsTheClusterSurveyor(t *testing.T) {
 		t.Errorf("expected an infrastructure component:\n%s", out)
 	}
 	if strings.Contains(out, "images:") {
-		t.Error("the cluster surveyor must not emit images — that is the other surveyor's job")
+		t.Error("the cluster surveyor must not emit images, that is the other surveyor's job")
 	}
 }
 
@@ -362,14 +362,14 @@ func TestSurveySummaryDescribesTheArtifact(t *testing.T) {
 		{Name: "api", Repositories: []saga.Repository{{URL: "https://git/b"}}},
 	}}
 	got := surveySummary(surveyOptions{output: ".saga.yaml"}, saga.Fragment{}, model.Components, false)
-	want := "wrote .saga.yaml — 2 components, 2 repositories, 1 host"
+	want := "wrote .saga.yaml · 2 components, 2 repositories, 1 host"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
 func TestSurveySummarySaysWhatAMergeAdded(t *testing.T) {
-	// After a merge the total says little on its own — the reader wants to know what this run
+	// After a merge the total says little on its own. The reader wants to know what this run
 	// contributed, which is otherwise answered by diffing the file.
 	model := saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
 	frag := saga.Fragment{Components: []saga.Component{{Name: "c"}}}
@@ -451,8 +451,8 @@ func TestRequestPerNamespaceMakesOneRequestEach(t *testing.T) {
 
 func TestRequestPerNamespaceDefaultsToTheWholeCluster(t *testing.T) {
 	t.Parallel()
-	// No namespace has always meant the whole cluster, and still does — one request with an
-	// empty ref, which is what the surveyor reads as "every namespace".
+	// No namespace has always meant the whole cluster, and still does, one request with an empty ref,
+	// which is what the surveyor reads as "every namespace".
 	got := requestPerNamespace("k8s-cluster", nil, func(ref string) plugin.SurveyScope {
 		return plugin.SurveyScope{Ref: ref}
 	})
@@ -527,7 +527,7 @@ func TestSurveySaysWhenANamespaceScopeWasNotApplied(t *testing.T) {
 	}
 }
 
-// A descriptor carries decisions a survey cannot rediscover — exposure, criticality, exclusions,
+// A descriptor carries decisions a survey cannot rediscover, exposure, criticality, exclusions,
 // controls somebody chose. Overwriting it has to be asked for, because the failure is a file you
 // reconstruct from memory and the success looks identical at the moment it happens.
 func TestSurveyAddsToAnExistingDescriptorUnlessToldOtherwise(t *testing.T) {
@@ -628,8 +628,8 @@ func TestSurveyNamesTheExposuresItProposed(t *testing.T) {
 	}
 }
 
-// The reader's next action is per component — confirming or correcting each one — so a count
-// would tell them only that there is something to open the file for.
+// The reader's next action is per component, confirming or correcting each one. So a count would
+// tell them only that there is something to open the file for.
 func TestProposedExposureNoteNamesEachComponent(t *testing.T) {
 	t.Parallel()
 	note := proposedExposureNote([]exposureProposal{
@@ -648,7 +648,7 @@ func TestProposedExposureNoteNamesEachComponent(t *testing.T) {
 
 // captureStderr redirects os.Stderr for the duration of a test, returning a reader for what was
 // written. A survey writes its notes there deliberately, so that a descriptor sent to stdout stays
-// a descriptor — which means stdout is the one place these messages cannot be checked.
+// a descriptor. Which means stdout is the one place these messages cannot be checked.
 func captureStderr(t *testing.T) func() string {
 	t.Helper()
 	r, w, err := os.Pipe()
@@ -677,7 +677,7 @@ func captureStderr(t *testing.T) func() string {
 //
 // Several commands write the same file: a survey creates it, classify sets exposure and
 // criticality in place, `validate --resolved` prints it merged. Each one that picks its own indent
-// reindents the whole document as a side effect of changing two fields — and a two-field edit that
+// reindents the whole document as a side effect of changing two fields, and a two-field edit that
 // rewrites every line is a diff nobody reviews, so the one real change goes through unread.
 //
 // yaml.Marshal's default is four spaces, which is not a decision anybody made. Everything that
@@ -715,7 +715,7 @@ func TestASurveyedDescriptorSurvivesClassifyUnreformatted(t *testing.T) {
 // --fragment writes components and nothing else.
 //
 // A fragment is part of a descriptor rather than a thing to release, so it carries no `release:`;
-// and FragmentConfig deliberately cannot express `controllers`, so it enables nothing — the
+// and FragmentConfig deliberately cannot express `controllers`, so it enables nothing, the
 // descriptor that includes it decides what to run. Both absences are the point of the option, and
 // both are what a reader would otherwise have to infer from a file that looks unfinished.
 func TestSurveyFragmentWritesComponentsAndNothingElse(t *testing.T) {

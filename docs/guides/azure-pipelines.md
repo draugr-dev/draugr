@@ -19,7 +19,7 @@ into your repository as `.azure/draugr.yml`, then:
 trigger:
   branches:
     include: [main]
-pr: none          # Azure Repos ignores this — see Pull requests below
+pr: none          # Azure Repos ignores this. See Pull requests below
 
 pool:
   vmImage: ubuntu-latest
@@ -37,7 +37,7 @@ and publishes findings to the Tests tab.
 |---|---|---|
 | `saga` | `draugr.saga.yaml` | the descriptor to scan |
 | `mode` | `auto` | `auto` (scan on push, diff on a pull request), `scan`, or `diff` |
-| `version` | latest | pin a release — **do this for real pipelines** |
+| `version` | latest | pin a release. **do this for real pipelines** |
 | `tools` | `true` | provision the scanners the controls need |
 | `failOnNewPriority` | `P1` | fail a pull request on a new finding at or above this priority |
 | `publishResults` | `true` | Tests tab and build artifacts |
@@ -51,10 +51,10 @@ change the template. A copied file is one `curl` to update and pinned by your ow
 Neither can come from a descriptor or a template, and both are needed before Draugr can comment on
 a pull request. Skip them and everything else still works.
 
-1. **Build validation policy** — without one there are no pull-request builds at all.
+1. **Build validation policy**. Without one there are no pull-request builds at all.
    *Project settings → Repositories → your repo → Policies → your branch → Build Validation → `+`*.
    Start it **optional**, not required.
-2. **`Contribute to pull requests`** for **`<Project> Build Service`** —
+2. **`Contribute to pull requests`** for **`<Project> Build Service`**,
    *Project settings → Repositories → your repo → Security*. Without it the comment gets a 403
    while the token is perfectly valid.
 
@@ -62,8 +62,8 @@ Draugr names both in its error messages, so a failure points at the fix.
 
 ## Pull requests
 
-**Azure Repos ignores `pr:` in YAML.** Silently — no build, no warning. Pull-request builds come
-from the build validation policy above. (`pr:` works only when the pipeline's source is GitHub or
+**Azure Repos ignores `pr:` in YAML.** Silently, no build, no warning. Pull-request builds come from
+the build validation policy above. (`pr:` works only when the pipeline's source is GitHub or
 Bitbucket, which is why the key exists.)
 
 ### A sticky comment
@@ -79,15 +79,15 @@ config:
     - kind: azure-pr-comment
 ```
 
-Everything else defaults from the pipeline environment, and off a pull request it does nothing —
-so the same descriptor works on push builds and on a laptop. `SYSTEM_ACCESSTOKEN` must be mapped
-into the step (the template does this); Azure does not expose it to scripts by default.
+Everything else defaults from the pipeline environment, and off a pull request it does nothing, so
+the same descriptor works on push builds and on a laptop. `SYSTEM_ACCESSTOKEN` must be mapped into
+the step (the template does this); Azure does not expose it to scripts by default.
 
 `config.reports` is what publishers render; `--report` is what gets written to disk. Different
 destinations, so the `markdown` entry above is what the comment needs regardless of `--report`.
 
 If a branch policy requires all comments resolved before merging, someone has to resolve Draugr's
-thread — it is created active, like any other.
+thread. It is created active, like any other.
 
 ### Gating on new findings
 
@@ -116,7 +116,7 @@ thread — it is created active, like any other.
 Three details that are easy to get wrong:
 
 - **`--no-gate` on both scans.** A scan exits non-zero on `FAIL`, which under `set -e` kills the
-  step before the diff runs — and the base scan fails on any repository with a backlog. `--no-gate`
+  step before the diff runs, and the base scan fails on any repository with a backlog. `--no-gate`
   suppresses the verdict's exit code only; a scan that could not *run* still fails. `|| true`
   cannot tell those apart.
 - **`$BUILD_SOURCEVERSION` to get back.** A pull-request build checks out `refs/pull/N/merge`,
@@ -131,14 +131,14 @@ the delta. See [gate PRs on new findings](pr-diff.md) for how findings are match
 ## Findings in the Tests tab
 
 `--report junit` writes `report.junit.xml`, and `PublishTestResults@2` renders each finding as a
-failed test — control and scanner as the suite, rule and location as the name. Each failure
-carries the description and a link to the advisory, so a CVE number is something you can follow.
+failed test, control and scanner as the suite, rule and location as the name. Each failure carries
+the description and a link to the advisory, so a CVE number is something you can follow.
 
 Two conditions matter:
 
-- `condition: succeededOrFailed()` on the publishing tasks — **the run that failed is the one
+- `condition: succeededOrFailed()` on the publishing tasks. **the run that failed is the one
   whose evidence you want.**
-- `failTaskOnFailedTests: false` — the scan has already decided; failing here too reports one
+- `failTaskOnFailedTests: false`. The scan has already decided; failing here too reports one
   problem as two.
 
 Azure has no native SARIF ingestion, so `results.sarif` goes to the build artifacts, where another
@@ -151,8 +151,8 @@ The gate itself needs no wiring: `draugr scan` exits non-zero on `FAIL`, which f
 The [template](https://github.com/draugr-dev/draugr/blob/main/azure-pipelines/draugr.yml) is
 readable and commented; the two things worth knowing are that `install.sh` puts Draugr in
 `~/.local/bin` and Draugr puts provisioned scanners in `~/.draugr/bin`, so **both** need
-`prependpath` on a hosted agent — and that `fetchDepth: 0` is required, since a diff needs the
-base branch's commit.
+`prependpath` on a hosted agent, and that `fetchDepth: 0` is required, since a diff needs the base
+branch's commit.
 
 ## Several repositories
 
@@ -178,11 +178,11 @@ components:
       - url: ../payments        # relative to the descriptor, not the working directory
 ```
 
-A remote `url:` also works — Draugr shells out to `git`, so it behaves exactly as `git clone`
-would on that agent. Letting `checkout:` do it is simpler and keeps Azure's credentials in play.
+A remote `url:` also works, Draugr shells out to `git`, so it behaves exactly as `git clone` would
+on that agent. Letting `checkout:` do it is simpler and keeps Azure's credentials in play.
 
 ## Air-gapped and self-hosted agents
 
 [Running air-gapped](air-gapped.md) applies unchanged: `DRAUGR_OFFLINE=1`, a pre-provisioned
 `~/.draugr/bin`, and feeds refreshed as their own step. A self-hosted agent with a warm scanner
-cache is the fastest way to run Draugr in Azure — the scan itself is usually seconds.
+cache is the fastest way to run Draugr in Azure. The scan itself is usually seconds.

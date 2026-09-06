@@ -60,7 +60,7 @@ func mendSettings(cfg plugin.Config, env func(string) string) (mendSettings2, er
 		s.productToken = v
 	} else {
 		return mendSettings2{}, fmt.Errorf(
-			"mend: controllers.sca.mendSca.productToken is required — it names the Mend product " +
+			"mend: controllers.sca.mendSca.productToken is required, it names the Mend product " +
 				"this component reports into. It identifies a product and grants nothing, so it " +
 				"belongs in the descriptor")
 	}
@@ -97,7 +97,7 @@ func mapOf(v any) map[string]any {
 
 // agentConfig renders the Unified Agent configuration for one scan.
 //
-// Draugr supplies only what it owns — the exclusions implied by the component's scope — and the
+// Draugr supplies only what it owns, the exclusions implied by the component's scope. And the
 // operator's settings are written after, so a descriptor can override anything here.
 func (s mendSettings2) agentConfig() string {
 	var b strings.Builder

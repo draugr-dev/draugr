@@ -138,7 +138,7 @@ components:
 // TestDastSpecScanStaysWhereItWasPointed is the assertion the spec feature exists for.
 //
 // A scanner handed an OpenAPI document takes its targets from that document. This specification
-// names api.production.invalid, and the descriptor names a local endpoint — so if the rewrite ever
+// names api.production.invalid, and the descriptor names a local endpoint, so if the rewrite ever
 // stopped pinning `servers:`, the scan would leave for somewhere nobody authorized, and every unit
 // test would still pass.
 //
@@ -168,7 +168,7 @@ func TestDastSpecScanStaysWhereItWasPointed(t *testing.T) {
 }
 
 // TestDastSpecScanSendsOnlyTheMethodsNamed checks that naming a write method enables exactly that
-// one — the whole basis for treating the descriptor as the consent.
+// one, the whole basis for treating the descriptor as the consent.
 func TestDastSpecScanSendsOnlyTheMethodsNamed(t *testing.T) {
 	requireTool(t, "nuclei", "this test is the real scanner being driven from a specification")
 

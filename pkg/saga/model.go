@@ -12,8 +12,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Model is a parsed Saga descriptor — the declarative account of an application's
-// security surface plus the controller configuration that drives a scan.
+// Model is a parsed Saga descriptor, the declarative account of an application's security surface
+// plus the controller configuration that drives a scan.
 type Model struct {
 	// Project is which project this descriptor describes, and the name a platform files its runs
 	// under. Lowercase letters, digits and dashes.
@@ -50,8 +50,8 @@ type Config struct {
 	// Gate tunes the pass/fail thresholds. Policy belongs in the descriptor rather than in a
 	// flag every pipeline has to remember to pass.
 	Gate *GateConfig `yaml:"gate,omitempty"`
-	// Exclude suppresses findings that match, with a stated reason. Suppressed findings are
-	// still reported — they just stop counting toward the verdict.
+	// Exclude suppresses findings that match, with a stated reason. Suppressed findings are still
+	// reported. They just stop counting toward the verdict.
 	Exclude []ExcludeRule `yaml:"exclude,omitempty"`
 	// VEX names the author and product for a generated VEX document (`--report vex`). Optional;
 	// without it Draugr falls back to the release, which produces a valid document rather than a
@@ -64,16 +64,16 @@ type Config struct {
 	// twelve projects consuming it should say so once rather than repeat a URL on every component.
 	//
 	// Scoping is still done by the document. A statement names the package it is about, so a
-	// project-wide source excuses a finding only where the identifiers match — listing it here
-	// widens which findings are *considered*, not what a given statement is allowed to claim.
+	// project-wide source excuses a finding only where the identifiers match, listing it here widens
+	// which findings are *considered*, not what a given statement is allowed to claim.
 	VEXSources []VEXSource `yaml:"vexSources,omitempty"`
 	// SBOM turns on Software Bill of Materials generation for this project's repositories and
 	// images. It is evidence rather than a control: an SBOM is an inventory, it finds nothing,
 	// and it never affects the verdict.
 	SBOM *SBOMConfig `yaml:"sbom,omitempty"`
-	// Exploitability raises a finding's severity by real-world signals — CISA KEV and FIRST
-	// EPSS — before it is ranked, so "what to fix first" reflects what is being exploited
-	// rather than only what could be.
+	// Exploitability raises a finding's severity by real-world signals, CISA KEV and FIRST EPSS.
+	// Before it is ranked, so "what to fix first" reflects what is being exploited rather than only
+	// what could be.
 	Exploitability *ExploitabilityConfig `yaml:"exploitability,omitempty"`
 	// Reachability ranks a dependency finding down when this project's code cannot reach the
 	// vulnerable part of it, so "what to fix first" reflects what the code actually calls.
@@ -82,8 +82,8 @@ type Config struct {
 	// ranked, and a decision that can move a finding across the gate belongs somewhere a team
 	// reviews rather than in a list of tools to run.
 	Reachability *ReachabilityConfig `yaml:"reachability,omitempty"`
-	// AllowEffects acknowledges scanner effects that would otherwise stop a run — the kinds a
-	// scanner declares when it does more to a target than read it ("mutate", "privilege").
+	// AllowEffects acknowledges scanner effects that would otherwise stop a run, the kinds a scanner
+	// declares when it does more to a target than read it ("mutate", "privilege").
 	//
 	// In the descriptor rather than only a flag, because it is a decision about what may be
 	// done to your systems: reviewed in a pull request, and applied identically by every
@@ -105,9 +105,9 @@ type GateConfig struct {
 	// FailOnPriority also fails the build on any finding at or above a priority band.
 	//
 	// Severity rates a flaw in the abstract; priority folds in what the descriptor says about the
-	// component it was found in. A team that has classified its components usually wants the gate
-	// on the second, and until now could only say so with a flag — which every pipeline has to
-	// remember, and which nothing reviews.
+	// component it was found in. A team that has classified its components usually wants the gate on
+	// the second, and until now could only say so with a flag. Which every pipeline has to remember,
+	// and which nothing reviews.
 	//
 	// In the descriptor for the same reason as the rest of this block: it is a decision about
 	// this application, reviewed in a pull request and applied identically by every runner. A
@@ -119,12 +119,12 @@ type GateConfig struct {
 // GateThresholds lists the severity bands a gate may be set to, most to least severe.
 //
 // The bands the report prints, so a threshold reads the same as the counts beside it. The SARIF
-// levels a gate used to take — error, warning, note — are still accepted and mapped onto the band
+// levels a gate used to take. Error, warning, note. Are still accepted and mapped onto the band
 // each one means, so a descriptor written against the older vocabulary keeps working.
 var GateThresholds = sarif.Severities
 
-// ExcludeRule suppresses findings that match it. Every real repository has paths that are not
-// the application — fixtures, examples, generated code — and rules that do not apply to them.
+// ExcludeRule suppresses findings that match it. Every real repository has paths that are not the
+// application, fixtures, examples, generated code. And rules that do not apply to them.
 //
 // Two properties are deliberate. A reason is **required**, so the why is in the diff where a
 // reviewer sees it rather than in someone's memory. And a matched finding is *suppressed*, not
@@ -135,28 +135,28 @@ type ExcludeRule struct {
 	// that directory; otherwise it is a glob (path.Match) against the whole location, so
 	// "*.md" and "test/fixture.go" both work.
 	Paths []string `yaml:"paths,omitempty"`
-	// Rules matches the finding's rule id. `*` is a wildcard for any run of characters,
-	// including separators — a rule id is an opaque string rather than a path, and the ids that
-	// most need matching are compound (`license/GPL-3.0-only/github.com/somelib/thing`), so a
-	// wildcard that stopped at `/` could not express "this license, any package". A pattern
-	// with no `*` matches exactly. There is no escape for a literal `*`; no scanner emits one.
+	// Rules matches the finding's rule id. `*` is a wildcard for any run of characters, including
+	// separators. A rule id is an opaque string rather than a path, and the ids that most need
+	// matching are compound (`license/GPL-3.0-only/github.com/somelib/thing`), so a wildcard that
+	// stopped at `/` could not express "this license, any package". A pattern with no `*` matches
+	// exactly. There is no escape for a literal `*`; no scanner emits one.
 	Rules []string `yaml:"rules,omitempty"`
 	// Reason is why this exclusion exists. Required.
 	Reason string `yaml:"reason"`
 	// AcceptedBy names who decided this finding was acceptable.
 	//
-	// The question an auditor asks of a suppression is not whether the scanner ran — it is who
-	// decided, and when. `reason` answers why; without this the who lives in prose if it is
-	// recorded at all, and a name buried in a sentence cannot be reported on. Optional, and a
-	// suppression without one is reported as unattributed rather than rejected.
+	// The question an auditor asks of a suppression is not whether the scanner ran. It is who
+	// decided, and when. `reason` answers why; without this the who lives in prose if it is recorded
+	// at all, and a name buried in a sentence cannot be reported on. Optional, and a suppression
+	// without one is reported as unattributed rather than rejected.
 	AcceptedBy string `yaml:"acceptedBy,omitempty"`
 	// Expires is the date this exclusion stops applying, as YYYY-MM-DD.
 	//
-	// An exclusion accepted "until the upstream fix lands" has nothing that brings the finding
-	// back, so the temporary ones become permanent by default — which is how a suppression
-	// mechanism decays into a way of never seeing something again. Past this date the exclusion
-	// no longer suppresses and the finding returns, with the report saying it lapsed rather than
-	// silently producing a finding that used to be accepted.
+	// An exclusion accepted "until the upstream fix lands" has nothing that brings the finding back,
+	// so the temporary ones become permanent by default. Which is how a suppression mechanism decays
+	// into a way of never seeing something again. Past this date the exclusion no longer suppresses
+	// and the finding returns, with the report saying it lapsed rather than silently producing a
+	// finding that used to be accepted.
 	Expires string `yaml:"expires,omitempty"`
 	// VEX states what this suppression means as a machine-readable claim about the product,
 	// for `--report vex`. Optional: without it the finding is reported as `affected`, which is
@@ -191,8 +191,8 @@ func (e ExcludeRule) ExpiredOn(now time.Time) bool {
 
 // Matches reports whether a finding at uri with rule id ruleID falls under this exclusion.
 //
-// When both selectors are set they must both match. That is the narrow reading — "this rule, in
-// this place" — and it is the safe one: the alternative would silently widen "ignore the test
+// When both selectors are set they must both match. That is the narrow reading, "this rule, in
+// this place". And it is the safe one: the alternative would silently widen "ignore the test
 // fixture's fake key" into "ignore that rule everywhere".
 func (e ExcludeRule) Matches(uri, ruleID string) bool {
 	if len(e.Paths) == 0 && len(e.Rules) == 0 {
@@ -207,10 +207,10 @@ func (e ExcludeRule) Matches(uri, ruleID string) bool {
 	return true
 }
 
-// matchesAnyRule reports whether ruleID is covered by any of the patterns, treating `*` as any
-// run of characters. Deliberately not path.Match, which is right for the Paths field — those
-// really are paths — but wrong here: package names contain slashes, so segment-wise globbing
-// could not express the common case.
+// matchesAnyRule reports whether ruleID is covered by any of the patterns, treating `*` as any run
+// of characters. Deliberately not path.Match, which is right for the Paths field. Those really are
+// paths, but wrong here: package names contain slashes, so segment-wise globbing could not express
+// the common case.
 func matchesAnyRule(patterns []string, ruleID string) bool {
 	for _, p := range patterns {
 		if wildcardMatch(p, ruleID) {
@@ -271,7 +271,7 @@ func matchesAnyPath(patterns []string, uri string) bool {
 //
 // In the descriptor rather than only in flags because it is a decision about how findings are
 // ranked, and a team that agrees to use KEV needs somewhere to write that down where it gets
-// reviewed — not a flag every pipeline has to remember to pass.
+// reviewed, not a flag every pipeline has to remember to pass.
 type ExploitabilityConfig struct {
 	// KEV and EPSS each name a source: a file path, "cache" to read what `draugr feeds update`
 	// left without touching the network, or "auto" to fetch when the cache is missing or stale.
@@ -288,9 +288,9 @@ type ExploitabilityConfig struct {
 	// it is stale. Empty means the built-in default of 24 hours, which tracks EPSS being
 	// republished daily.
 	//
-	// Configurable because a runner deliberately pinned to a known copy of the data has a
-	// legitimate reason to say "do not tell me it is old" — reproducing last quarter's verdict
-	// requires last quarter's feed.
+	// Configurable because a runner deliberately pinned to a known copy of the data has a legitimate
+	// reason to say "do not tell me it is old", reproducing last quarter's verdict requires last
+	// quarter's feed.
 	MaxAge string `yaml:"maxAge,omitempty"`
 }
 
@@ -303,7 +303,7 @@ type ExploitabilityConfig struct {
 // gate.
 //
 // It is also the honest surface. Every other entry in a control's scanner block adds findings, so
-// enabling one there means "check this too". An analyzer named here adds none — it ranks findings
+// enabling one there means "check this too". An analyzer named here adds none. It ranks findings
 // already found, downward, which can turn a failing gate green. That is not something to discover
 // from the reference docs after the fact.
 type ReachabilityConfig struct {
@@ -336,10 +336,10 @@ type SBOMConfig struct {
 
 // SBOMScope is what a generated SBOM document covers.
 //
-// The distinction exists because an SBOM is requested per *product* — a customer questionnaire,
-// EO 14028 and the CRA all ask for the bill of materials of the thing you shipped — while Draugr
-// scans per repository and image. A project with four repositories and three images produces
-// seven documents and no answer to the question being asked.
+// The distinction exists because an SBOM is requested per *product*, a customer questionnaire, EO
+// 14028 and the CRA all ask for the bill of materials of the thing you shipped, while Draugr scans
+// per repository and image. A project with four repositories and three images produces seven
+// documents and no answer to the question being asked.
 type SBOMScope string
 
 // The scopes a Saga may ask for.
@@ -380,9 +380,9 @@ type SBOMFormat string
 // formats means every document Draugr produces is one a third party can read.
 const (
 	// SBOMCycloneDXJSON is the default: the OWASP format in JSON, ECMA-424, and the one that
-	// composes — a CycloneDX document can carry nested components and describe how complete it
-	// is, which is what a document covering a whole project needs. It is also the format
-	// security tooling reads most readily, and the one VEX is expressed in.
+	// composes. A CycloneDX document can carry nested components and describe how complete it is,
+	// which is what a document covering a whole project needs. It is also the format security tooling
+	// reads most readily, and the one VEX is expressed in.
 	SBOMCycloneDXJSON SBOMFormat = "cyclonedx-json"
 	// SBOMCycloneDXXML is CycloneDX in XML, which some enterprise tooling still expects.
 	SBOMCycloneDXXML SBOMFormat = "cyclonedx-xml"
@@ -404,8 +404,8 @@ func (f SBOMFormat) Valid() bool { return slices.Contains(SBOMFormats, f) }
 // ControllerSettings is a free-form configuration tree for one controller.
 type ControllerSettings map[string]any
 
-// ReportConfig selects one report format to render on a scan. Known formats are validated by
-// the reporting layer (pkg/report) when the scan runs, not here — the Saga stays a leaf.
+// ReportConfig selects one report format to render on a scan. Known formats are validated by the
+// reporting layer (pkg/report) when the scan runs, not here. The Saga stays a leaf.
 type ReportConfig struct {
 	Format string `yaml:"format"`
 	// Template and TemplateFile supply the Go text/template for the "template" format (set
@@ -422,16 +422,16 @@ type ReportConfig struct {
 	// cause is the reason nobody reads any of them; the JSON beside it is evidence, and evidence
 	// is not something to trim.
 	//
-	// Narrowing an artifact is otherwise refused, and for a good reason: a file that claims to be
-	// the scan and is not misleads whatever consumes it. What makes this different is that it is
-	// declared — written in the descriptor, and stated inside the artifact it produced. A scope
+	// Narrowing an artifact is otherwise refused, and for a good reason: a file that claims to be the
+	// scan and is not misleads whatever consumes it. What makes this different is that it is
+	// declared, written in the descriptor, and stated inside the artifact it produced. A scope
 	// somebody chose and can read back is a scope; an undeclared one is the problem.
 	MinPriority string `yaml:"minPriority,omitempty"`
 }
 
 // Priorities lists the priority bands a report may be narrowed to, most to least urgent.
 //
-// Spelled here rather than taken from pkg/prioritization, which imports this package — the
+// Spelled here rather than taken from pkg/prioritization, which imports this package. The
 // descriptor is a leaf, and a cycle to share four constants is a poor trade.
 var Priorities = []string{"P1", "P2", "P3", "P4"}
 
@@ -469,9 +469,9 @@ type PublisherConfig struct {
 	// comes from $DRAUGR_API_TOKEN (or TokenEnv) and never from this file, which is one people
 	// commit.
 	URL string `yaml:"url,omitempty"`
-	// DefaultURL is what draugr.config.yaml said, carried here so a publisher can consult it
-	// last. Never read from a descriptor — `yaml:"-"`, so writing it in a Saga does nothing and
-	// the schema does not offer it.
+	// DefaultURL is what draugr.config.yaml said, carried here so a publisher can consult it last.
+	// Never read from a descriptor, `yaml:"-"`, so writing it in a Saga does nothing and the schema
+	// does not offer it.
 	//
 	// A separate field rather than filling URL, because the two sit at opposite ends of the
 	// precedence chain: URL is somebody's explicit choice for this project and beats the
@@ -489,10 +489,9 @@ type Component struct {
 	Criticality Criticality       `yaml:"criticality,omitempty"`
 	// BuiltBy is who publishes this component's targets, unless one of them says otherwise.
 	//
-	// Here as well as on each target because a component that is entirely somebody else's software
-	// — a vendor console, an open-source service you run from source — otherwise needs the field
-	// written on every repository and every image, and a target added later silently defaults back
-	// to `self`.
+	// Here as well as on each target because a component that is entirely somebody else's software, a
+	// vendor console, an open-source service you run from source. Otherwise needs the field written
+	// on every repository and every image, and a target added later silently defaults back to `self`.
 	BuiltBy        BuiltBy                       `yaml:"builtBy,omitempty"`
 	Repositories   []Repository                  `yaml:"repositories,omitempty"`
 	Images         []Image                       `yaml:"images,omitempty"`
@@ -523,10 +522,10 @@ type Component struct {
 // accepted, and the report names its author on every finding it excused so the judgement stays
 // with the reader rather than being made by a flag.
 type VEXSource struct {
-	// Path is a document on disk, resolved **relative to where Draugr runs** — not to the
-	// descriptor, and not to the repository. That is the same rule every other path in a
-	// descriptor follows (see HostSpec.Path), and stating it here is deliberate: a path whose
-	// base a reader has to guess is one that works on a laptop and silently misses in CI.
+	// Path is a document on disk, resolved **relative to where Draugr runs**, not to the descriptor,
+	// and not to the repository. That is the same rule every other path in a descriptor follows (see
+	// HostSpec.Path), and stating it here is deliberate: a path whose base a reader has to guess is
+	// one that works on a laptop and silently misses in CI.
 	Path string `yaml:"path,omitempty"`
 	// URL is a document to fetch over HTTPS. Fetched once per run and cached; the report records
 	// the URL, when it was fetched and the digest of what came back, so a run stays reproducible
@@ -540,7 +539,7 @@ type VEXSource struct {
 // VEXRepository locates a VEX document inside a git repository.
 //
 // Cloned with the same machinery as any other repository Draugr reads, which means it
-// authenticates the same way: whatever credentials git already has on the machine — an SSH key, a
+// authenticates the same way: whatever credentials git already has on the machine, an SSH key, a
 // credential helper, the header a CI checkout configured. Draugr holds no credentials of its own,
 // which is why a private supplier repository works and why no token belongs in this descriptor.
 type VEXRepository struct {
@@ -557,11 +556,11 @@ type VEXRepository struct {
 	Path string `yaml:"path"`
 }
 
-// Exposure is a component's risk-exposure level — how reachable it is to an attacker, and so
-// how likely a weakness in it is to be hit. It is one axis of risk prioritization; higher
-// exposure ranks a component's findings higher. The levels are a fixed ladder: an
-// organization may redefine what each means, but not the count. Exposure may be proposed by
-// a surveyor from topology and confirmed by a human. See docs/concepts.md (prioritization).
+// Exposure is a component's risk-exposure level. How reachable it is to an attacker, and so how
+// likely a weakness in it is to be hit. It is one axis of risk prioritization; higher exposure
+// ranks a component's findings higher. The levels are a fixed ladder: an organization may redefine
+// what each means, but not the count. Exposure may be proposed by a surveyor from topology and
+// confirmed by a human. See docs/concepts.md (prioritization).
 type Exposure string
 
 // Exposure levels, from most to least exposed.
@@ -572,10 +571,10 @@ const (
 	ExposureRestricted    Exposure = "restricted"    // namespace- / network-policy-scoped
 )
 
-// Criticality is a component's business-criticality level — the operational impact if it
-// fails or is compromised. It is the other axis of risk prioritization and is always
-// human-declared, as it cannot be inferred from code. The levels are a fixed ladder with
-// org-defined meaning. See docs/concepts.md (prioritization).
+// Criticality is a component's business-criticality level, the operational impact if it fails or
+// is compromised. It is the other axis of risk prioritization and is always human-declared, as it
+// cannot be inferred from code. The levels are a fixed ladder with org-defined meaning. See
+// docs/concepts.md (prioritization).
 type Criticality string
 
 // Criticality levels, from most to least critical.
@@ -605,10 +604,10 @@ type Repository struct {
 	Revision string `yaml:"revision,omitempty"`
 	// Paths restricts the scan to these directories. Empty scans the whole repository.
 	//
-	// Files at the repository root are always included regardless: manifests and the scanners'
-	// own configuration live there, and a tool that cannot see go.mod or .trivyignore does not
-	// fail — it reports less against a tree it did not fully understand, which is
-	// indistinguishable from a clean scan.
+	// Files at the repository root are always included regardless: manifests and the scanners' own
+	// configuration live there, and a tool that cannot see go.mod or .trivyignore does not fail. It
+	// reports less against a tree it did not fully understand, which is indistinguishable from a
+	// clean scan.
 	Paths []string `yaml:"paths,omitempty"`
 	// Ignore removes matching paths from the scan, applied after Paths so it can carve out of
 	// one. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment,
@@ -617,19 +616,19 @@ type Repository struct {
 	// BuiltBy says who publishes this repository: "self" (the default) or "upstream" for one this
 	// component uses and somebody else maintains. Falls back to the component's own `builtBy`.
 	//
-	// It decides what the report tells a reader to do. A denied license in the dependency tree of
-	// a repository this team does not publish is not a license they chose and not one they can
-	// swap out: the answers are to stop using the component or to record an exception, and
-	// "change the code" is neither. The same holds for a vulnerable dependency, a flaw in the
-	// source, and a credential committed there — the declaration is about who can change the
-	// thing, which does not vary by what found the problem.
+	// It decides what the report tells a reader to do. A denied license in the dependency tree of a
+	// repository this team does not publish is not a license they chose and not one they can swap
+	// out: the answers are to stop using the component or to record an exception, and "change the
+	// code" is neither. The same holds for a vulnerable dependency, a flaw in the source, and a
+	// credential committed there. The declaration is about who can change the thing, which does not
+	// vary by what found the problem.
 	//
 	// Declared rather than detected, for the reason an image's is: a git remote is not a statement
 	// of ownership. Plenty of teams publish from a fork and plenty consume from one.
 	//
-	// It changes the action and nothing else. The finding keeps its severity and its band — a flaw
-	// in somebody else's software is exactly as dangerous — and it is still counted and still
-	// reaches the gate.
+	// It changes the action and nothing else. The finding keeps its severity and its band, a flaw in
+	// somebody else's software is exactly as dangerous. And it is still counted and still reaches the
+	// gate.
 	BuiltBy BuiltBy `yaml:"builtBy,omitempty"`
 }
 
@@ -643,14 +642,14 @@ type Image struct {
 	// BuiltBy says who builds this image: "self" (the default) or "upstream" for one this
 	// component runs but somebody else publishes.
 	//
-	// It decides what the report tells a reader to do about a vulnerable package inside it.
-	// Nobody running a scan can upgrade a library inside an image they do not build — the fix is
-	// a newer image, or a wait for whoever publishes it. Advice they cannot take, at the top of a
-	// list called "fix first", teaches them the list is not worth reading.
+	// It decides what the report tells a reader to do about a vulnerable package inside it. Nobody
+	// running a scan can upgrade a library inside an image they do not build. The fix is a newer
+	// image, or a wait for whoever publishes it. Advice they cannot take, at the top of a list called
+	// "fix first", teaches them the list is not worth reading.
 	//
 	// Declared rather than detected, because nothing in an image says who built it. Defaults to
 	// "self" so a descriptor that says nothing keeps describing its own work, which is the common
-	// case for a hand-written one — a surveyed cluster is the case that needs saying.
+	// case for a hand-written one. A surveyed cluster is the case that needs saying.
 	BuiltBy BuiltBy `yaml:"builtBy,omitempty"`
 }
 
@@ -697,9 +696,9 @@ type HostSpec struct {
 	Path string `yaml:"path"`
 	// Methods are the HTTP methods to exercise. Empty means GET and HEAD.
 	//
-	// A specification lists POST, PUT and DELETE too, and a scanner handed one will exercise them
-	// — a scan of a staging API that deletes its fixtures is a scan nobody runs twice. Naming a
-	// write method here is how that is accepted: explicit, per endpoint, and visible in review.
+	// A specification lists POST, PUT and DELETE too, and a scanner handed one will exercise them, a
+	// scan of a staging API that deletes its fixtures is a scan nobody runs twice. Naming a write
+	// method here is how that is accepted: explicit, per endpoint, and visible in review.
 	Methods []string `yaml:"methods,omitempty"`
 }
 
@@ -707,10 +706,10 @@ type HostSpec struct {
 // the credential.
 //
 // There is deliberately no field for the credential itself. A descriptor is committed, so a token
-// written into one is a leaked token — and `secrets` would rightly flag it. Making the value
+// written into one is a leaked token. And `secrets` would rightly flag it. Making the value
 // inexpressible is a stronger guarantee than warning about it.
 type HostAuth struct {
-	// Type is "bearer" — an `Authorization: Bearer <token>` header — or "header" for a named one.
+	// Type is "bearer", an `Authorization: Bearer <token>` header, or "header" for a named one.
 	Type string `yaml:"type"`
 	// Header is the header name, required when Type is "header" (e.g. X-API-Key).
 	Header string `yaml:"header,omitempty"`
@@ -728,8 +727,8 @@ type Infrastructure struct {
 	//
 	// On a shared cluster the cluster is not the unit anyone owns. Most of what the benchmark's
 	// policies section examines is namespace-scoped, so a team owning three namespaces of eighty
-	// otherwise receives seventy-seven namespaces' worth of findings it cannot act on — and a
-	// number that will never reach zero is a number people stop reading.
+	// otherwise receives seventy-seven namespaces' worth of findings it cannot act on. And a number
+	// that will never reach zero is a number people stop reading.
 	//
 	// It also fixes what the component's risk classification means. `exposure` and `criticality`
 	// describe a component, so declaring them against a whole shared cluster asserts them on
@@ -737,10 +736,10 @@ type Infrastructure struct {
 	Namespaces []string `yaml:"namespaces,omitempty"`
 	// OperatedBy says who runs this surface: "self", or "provider" for a managed service.
 	//
-	// It states a fact rather than a judgement, and what follows from it — that a finding about
-	// the provider's half is not something this team can go and fix — is derived rather than
-	// asserted. "managed" was the obvious word and is ambiguous: managed by whom, and a managed
-	// service is still yours to pay for.
+	// It states a fact rather than a judgement, and what follows from it. That a finding about the
+	// provider's half is not something this team can go and fix. Is derived rather than asserted.
+	// "managed" was the obvious word and is ambiguous: managed by whom, and a managed service is
+	// still yours to pay for.
 	//
 	// Declared rather than detected, because whether a cluster is managed is a fact about a
 	// contract and not something visible in what a scanner reads. The same argument that puts
@@ -780,10 +779,10 @@ var OperatedByValues = []OperatedBy{OperatedBySelf, OperatedByProvider}
 // switch a control off, so the worst a `fragments:` entry can do is add findings or add
 // suppressions that are individually attributed and counted in the report.
 type FragmentRef struct {
-	// Path selects the fragment files. Globs are the same dialect as `paths:` and `ignore:` —
-	// `*` within a segment, `**` across them — so `**/draugr.saga-fragment.yaml` collects one
-	// fragment from every component in a monorepo. Relative to the file that names it, so a
-	// fragment keeps working when its directory moves.
+	// Path selects the fragment files. Globs are the same dialect as `paths:` and `ignore:`, `*`
+	// within a segment, `**` across them, so `**/draugr.saga-fragment.yaml` collects one fragment
+	// from every component in a monorepo. Relative to the file that names it, so a fragment keeps
+	// working when its directory moves.
 	Path string `yaml:"path"`
 	// URL is a git repository to read the fragments from. Empty means the local filesystem.
 	URL string `yaml:"url,omitempty"`
@@ -814,8 +813,8 @@ type Reference struct {
 
 // Indent is how many spaces a Saga is written with.
 //
-// Shared because several commands write the same file — a survey creates it, `classify` sets
-// exposure and criticality in place, `validate --resolved` prints it merged — and each one that
+// Shared because several commands write the same file, a survey creates it, `classify` sets
+// exposure and criticality in place, `validate --resolved` prints it merged, and each one that
 // picks its own indent reindents the whole document as a side effect of changing two fields. A
 // two-field edit that rewrites sixty lines is a diff nobody can review, and the encoder's default
 // is not a decision anyone made.
@@ -827,15 +826,15 @@ const Indent = 2
 // a person wrote are both saying "here is some more of the application", and having two merges
 // would mean two answers to what a repeated component name means.
 type Fragment struct {
-	// Components are merged by name — a repeated name unions the two surfaces rather than
-	// replacing or colliding, so a component described in two places ends up whole.
+	// Components are merged by name, a repeated name unions the two surfaces rather than replacing or
+	// colliding, so a component described in two places ends up whole.
 	Components []Component `yaml:"components,omitempty"`
 	// Config is the subset of a Saga's config a fragment may carry.
 	Config FragmentConfig `yaml:"config,omitempty"`
 	// Fragments are further fragments this one pulls in, resolved relative to it.
 	Fragments []FragmentRef `yaml:"fragments,omitempty"`
 	// ExposureReasons explains, per component name, what topology a proposed `exposure` was read
-	// from — "an Ingress routes into it", and so on.
+	// from, "an Ingress routes into it", and so on.
 	//
 	// Never serialized: it is evidence about a proposal rather than part of the descriptor, and a
 	// fragment somebody writes by hand has no use for it. It exists so a survey can put the
@@ -846,8 +845,8 @@ type Fragment struct {
 // FragmentConfig is the part of Config a fragment is allowed to set.
 //
 // A separate type rather than a validated Config, so the restriction is enforced by the decoder
-// and shows up in the published schema — an editor says `gate` is not allowed here, rather than
-// the user finding out when a scan behaves unexpectedly.
+// and shows up in the published schema. An editor says `gate` is not allowed here, rather than the
+// user finding out when a scan behaves unexpectedly.
 type FragmentConfig struct {
 	// Exclude suppresses findings that match, with a stated reason. Appended to whatever the
 	// descriptor and other fragments already carry.
@@ -888,7 +887,7 @@ func settingsEnabled(settings ControllerSettings) bool {
 // Marshal renders a descriptor as YAML, at the indentation Draugr writes.
 //
 // Here rather than beside any one caller, because the indent is the whole point and every writer
-// has to agree on it. yaml.Marshal's default is four spaces, which is not a choice anybody made —
+// has to agree on it. yaml.Marshal's default is four spaces, which is not a choice anybody made,
 // and a file written with it is reindented end to end the first time something else edits a field
 // in it, turning a one-line change into a whole-file diff nobody can review.
 func Marshal(doc any) ([]byte, error) {
@@ -907,7 +906,7 @@ func Marshal(doc any) ([]byte, error) {
 // PublishedBy resolves who publishes a repository: what it declares, else what its component
 // declares, else self.
 //
-// Most specific wins, which is the rule `controllers:` already follows — one answer to "how do
+// Most specific wins, which is the rule `controllers:` already follows. One answer to "how do
 // overrides work" rather than one per field.
 func (comp Component) PublishedBy(repo Repository) BuiltBy {
 	return resolveBuiltBy(repo.BuiltBy, comp.BuiltBy)

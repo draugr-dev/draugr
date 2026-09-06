@@ -8,14 +8,14 @@ import "slices"
 // Both are optional and both are worth setting for a document you publish. A VEX document is an
 // assertion by a supplier about their own product, so the two things a consumer needs are *who
 // says so* and *what about*. Draugr can guess the second from the release and cannot guess the
-// first at all — it knows a project name, not a legal entity or a contact.
+// first at all. It knows a project name, not a legal entity or a contact.
 type VEXConfig struct {
-	// Author identifies who is making these statements: an organization, ideally with a way to
-	// reach them ("Example Ltd <security@example.com>"). Defaults to the release name, which is
-	// a project rather than a party — enough to produce a valid document, not enough for one
-	// you would hand to a customer.
+	// Author identifies who is making these statements: an organization, ideally with a way to reach
+	// them ("Example Ltd <security@example.com>"). Defaults to the release name, which is a project
+	// rather than a party. Enough to produce a valid document, not enough for one you would hand to
+	// a customer.
 	Author string `yaml:"author,omitempty"`
-	// Product identifies the thing the statements are about, as an IRI — a package URL is the
+	// Product identifies the thing the statements are about, as an IRI. A package URL is the
 	// conventional choice ("pkg:oci/example/api@sha256:…").
 	//
 	// Defaults to a purl built from the release name and version. Set it to whatever the SBOM
@@ -25,7 +25,7 @@ type VEXConfig struct {
 }
 
 // VEXDecision states what a suppression means in VEX terms. Optional, and absent is a perfectly
-// good answer — see the status table below for what Draugr emits without it.
+// good answer. See the status table below for what Draugr emits without it.
 //
 // This is separate from `reason` because they answer different questions. A reason is written for
 // a human reviewing the descriptor; a VEX status is a machine-readable claim about the product,
@@ -35,9 +35,9 @@ type VEXConfig struct {
 type VEXDecision struct {
 	// Status is the claim: not_affected, affected, or fixed.
 	//
-	// under_investigation is deliberately not accepted here. It is what an untriaged finding
-	// already reports, and claiming it on a finding you have suppressed says two contradictory
-	// things — that the matter is open, and that it is settled.
+	// under_investigation is deliberately not accepted here. It is what an untriaged finding already
+	// reports, and claiming it on a finding you have suppressed says two contradictory things. That
+	// the matter is open, and that it is settled.
 	Status string `yaml:"status"`
 	// Justification is why the product is not affected, from VEX's fixed vocabulary. Valid only
 	// with not_affected, where VEX requires either this or a prose statement; without it the

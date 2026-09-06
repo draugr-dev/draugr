@@ -69,7 +69,7 @@ func TestRunInitNoOverwrite(t *testing.T) {
 }
 
 // The comment `draugr init` writes names the file the reader can see in their own directory, so
-// the mapping is worth pinning — and the fallback wording has to stay something a reader can act
+// the mapping is worth pinning. And the fallback wording has to stay something a reader can act
 // on when no manifest was recognized.
 func TestInitNamesTheManifestItFound(t *testing.T) {
 	t.Parallel()
@@ -90,7 +90,7 @@ func TestInitNamesTheManifestItFound(t *testing.T) {
 // A descriptor Draugr writes must not be one Draugr's own next command warns about.
 //
 // `draugr init` then `draugr validate` are the first two steps of the quickstart, and the
-// scaffold wrote the field the deprecation notice tells the reader to stop using — so a new
+// scaffold wrote the field the deprecation notice tells the reader to stop using, so a new
 // user's very first run contradicted the tutorial that sent them there.
 func TestTheScaffoldWritesTheFieldTheDocsTellPeopleToUse(t *testing.T) {
 	out := scaffoldSaga(t.TempDir(), "acme-api")

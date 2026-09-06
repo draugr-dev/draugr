@@ -14,8 +14,8 @@ order: 40
 ## Why discovery exists
 
 The honest problem with a descriptor is the first one: writing it. A platform team with sixty
-services is not going to hand-type sixty components, and a hand-typed list is out of date the
-week after it's written — a service is added, an image is retagged, a namespace is split.
+services is not going to hand-type sixty components, and a hand-typed list is out of date the week
+after it's written. A service is added, an image is retagged, a namespace is split.
 
 Discovery inverts that. The environment already knows what is running; a surveyor reads it and
 produces the components, so the descriptor starts complete and stays that way by being re-run.
@@ -28,8 +28,8 @@ produces the components, so the descriptor starts complete and stays that way by
 | `draugr survey k8s cluster` | The cluster itself, as an `infrastructure` component to audit | Ambient kubeconfig |
 | `draugr survey github repos` | Repositories in a GitHub organization | `GITHUB_TOKEN`, or a token in scope config |
 
-Each surveyor is a subcommand, so its options live with it — `--namespace` belongs to
-`k8s images` and cannot be handed to `github repos` to be quietly ignored.
+Each surveyor is a subcommand, so its options live with it. `--namespace` belongs to `k8s images`
+and cannot be handed to `github repos` to be quietly ignored.
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
@@ -63,7 +63,7 @@ per-component overrides you added by hand are preserved, and whatever has appear
 environment since the last run is added alongside them. Pass `--replace` when you do want to
 start again.
 
-Without it, `survey` writes a fresh descriptor — right for the first run, and a way to lose
+Without it, `survey` writes a fresh descriptor. Right for the first run, and a way to lose
 hand-written context on every one after that.
 
 ## What `k8s-images` records beyond the image
@@ -71,10 +71,10 @@ hand-written context on every one after that.
 Two things that matter later:
 
 **The running digest.** A tag is mutable; the digest is the bytes actually running. Recording it
-makes caching content-addressed — a rebuilt image pushed under the same tag re-scans immediately
-instead of serving a stale result until its TTL expires — and it means the finding describes
-what is deployed rather than what the tag points at today. See
-[content-hash caching](controls-and-scanners.md#content-hash-caching).
+makes caching content-addressed, a rebuilt image pushed under the same tag re-scans immediately
+instead of serving a stale result until its TTL expires, and it means the finding describes what is
+deployed rather than what the tag points at today. See [content-hash
+caching](controls-and-scanners.md#content-hash-caching).
 
 **A proposed `exposure`.** When scoped to a specific namespace, `k8s-images` infers each
 component's exposure from cluster topology: an Ingress or externally-reachable Service means
@@ -84,17 +84,17 @@ component's exposure from cluster topology: an Ingress or externally-reachable S
 
 A surveyor reads the environment, so it can only recover what the environment knows.
 
-**`criticality` is not in the cluster.** What it costs your business when a component fails is
-not a property of any manifest — it is a judgement, and Draugr will not manufacture one.
-Discovery leaves it unset; [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory)
-asks you. Until both axes are set, [prioritization](prioritization.md) has half its input.
+**`criticality` is not in the cluster.** What it costs your business when a component fails is not a
+property of any manifest. It is a judgement, and Draugr will not manufacture one. Discovery leaves
+it unset; [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory) asks you.
+Until both axes are set, [prioritization](prioritization.md) has half its input.
 
-**The proposed `exposure` is a proposal, and the survey tells you which ones it made.** Topology
-is good evidence, not proof — an Ingress says a route exists, not who may take it, and a Service
-with none may still be reachable through a gateway the cluster cannot see.
+**The proposed `exposure` is a proposal, and the survey tells you which ones it made.** Topology is
+good evidence, not proof. An Ingress says a route exists, not who may take it, and a Service with
+none may still be reachable through a gateway the cluster cannot see.
 
 ```
-exposure proposed from cluster topology, not confirmed — run `draugr classify` to set it:
+exposure proposed from cluster topology, not confirmed. Run `draugr classify` to set it:
   payments      public
   cert-manager  internal
 ```
@@ -108,11 +108,11 @@ you from is a component ranked as though it does not matter.
 
 ## Going deeper
 
-- [`draugr survey`](../reference/cli.md#draugr-survey) — every flag
-- [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory) — set the two risk axes
-- [The Saga](saga.md) — what the fragments are merged into
-- [Prioritization](prioritization.md) — what `exposure` and `criticality` drive
+- [`draugr survey`](../reference/cli.md#draugr-survey), every flag
+- [`draugr classify`](../reference/cli.md#draugr-classify-sagayaml--directory). Set the two risk axes
+- [The Saga](saga.md). What the fragments are merged into
+- [Prioritization](prioritization.md), what `exposure` and `criticality` drive
 - [`k8s-images`](../../internal/surveyors/k8s-images.md) ·
   [`github-org-repos`](../../internal/surveyors/github-org-repos.md) ·
   [`gitlab-group-projects`](../../internal/surveyors/gitlab-group-projects.md) ·
-  [`azure-devops-repos`](../../internal/surveyors/azure-devops-repos.md) — per-surveyor detail
+  [`azure-devops-repos`](../../internal/surveyors/azure-devops-repos.md), per-surveyor detail

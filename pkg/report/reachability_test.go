@@ -108,7 +108,7 @@ func TestReachabilityNoteSilentWhenNothingMoved(t *testing.T) {
 }
 
 func TestReachabilityAttributionDegradesGracefully(t *testing.T) {
-	// A verdict describes one revision of the code, so the date is the checkable part — but an
+	// A verdict describes one revision of the code, so the date is the checkable part, but an
 	// analyzer that reported none still gets named rather than going unattributed.
 	dated := reachabilityNote(&sarif.Reachability{
 		State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",

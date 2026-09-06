@@ -3,7 +3,7 @@
 - **Industry term:** TLS / certificate assessment
 - **Scope:** component
 - **Status:** ✅ implemented
-- **Scanners:** [`draugr-tls`](../scanners/draugr-tls.md) (default, native — no external tool)
+- **Scanners:** [`draugr-tls`](../scanners/draugr-tls.md) (default, native, no external tool)
 - **Resource:** a component's `hosts:`
 
 ## What it does
@@ -28,9 +28,9 @@ components:
         url: https://api.example.com      # port defaults to 443; https:// required
 ```
 
-Per-scanner config uses the standard shape (`controllers.tls.<scanner>`), so the default probe
-can be turned off with `draugr-tls: { enabled: false }` when an opt-in engine is added, and its
-certificate-expiry windows tuned — see [`draugr-tls.md`](../scanners/draugr-tls.md#configuration).
+Per-scanner config uses the standard shape (`controllers.tls.<scanner>`), so the default probe can
+be turned off with `draugr-tls: { enabled: false }` when an opt-in engine is added, and its
+certificate-expiry windows tuned. See [`draugr-tls.md`](../scanners/draugr-tls.md#configuration).
 
 ## Links
 
@@ -44,5 +44,5 @@ certificate-expiry windows tuned — see [`draugr-tls.md`](../scanners/draugr-tl
 - Findings carry their own severities (an expired certificate is critical; a missing TLS 1.3 is
   a note), so no severity floor is applied.
 - The host must be reachable from wherever the scan runs. An endpoint that can't be connected to
-  at all is a scan **error**, not a silent pass — except when the failure is itself a
+  at all is a scan **error**, not a silent pass, except when the failure is itself a
   certificate problem or a legacy-only TLS stack, which are reported as findings.

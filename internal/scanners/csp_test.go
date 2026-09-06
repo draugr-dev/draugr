@@ -124,7 +124,7 @@ func TestCSPNonceMakesUnsafeInlineInert(t *testing.T) {
 
 func TestCSPStrictDynamicMakesHostSourcesInert(t *testing.T) {
 	// 'strict-dynamic' causes host and scheme sources to be ignored, so a policy carrying them
-	// alongside it is not permissive — it is being compatible.
+	// alongside it is not permissive. It is being compatible.
 	ids := findCSP("script-src 'strict-dynamic' 'nonce-abc' https: 'unsafe-inline'; object-src 'none'; base-uri 'none'")
 	if hasCSPRule(ids, "headers/csp-script-src-broad") {
 		t.Errorf("reported host sources that strict-dynamic makes inert: %v", ids)

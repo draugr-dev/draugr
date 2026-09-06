@@ -46,11 +46,11 @@ func (K8sCluster) Info() plugin.SurveyorInfo {
 //
 // The cluster is reached before it is described. Emitting a component for a cluster that cannot
 // be contacted would write a descriptor whose first scan fails, and the descriptor is the thing
-// people trust afterwards — better to fail here, where the operator is watching, than at the
-// scan of a cluster they believed had been checked.
-// The reachability probe is client-go's discovery ServerVersion, which predates context and takes
-// none — the context-aware alternative goes through the discovery REST client, which is nil on
-// the fake clientset and so cannot be tested. The context is still used, for the namespace check.
+// people trust afterwards. Better to fail here, where the operator is watching, than at the scan
+// of a cluster they believed had been checked. The reachability probe is client-go's discovery
+// ServerVersion, which predates context and takes none. The context-aware alternative goes
+// through the discovery REST client, which is nil on the fake clientset and so cannot be tested.
+// The context is still used, for the namespace check.
 func (k K8sCluster) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.Fragment, error) {
 	cs, err := k.clientset(scope)
 	if err != nil {
@@ -84,15 +84,15 @@ func (k K8sCluster) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.
 		comp.Infrastructure[0].Namespaces = []string{scope.Ref}
 	}
 
-	// exposure and criticality are deliberately absent. Neither is a property of the cluster —
-	// they are judgements about what its failure costs, which `draugr classify` asks a human.
+	// exposure and criticality are deliberately absent. Neither is a property of the cluster. They
+	// are judgements about what its failure costs, which `draugr classify` asks a human.
 	return saga.Fragment{Components: []saga.Component{comp}}, nil
 }
 
 // componentNameFor names the component after the cluster it describes.
 //
 // A descriptor with a component called "cluster" says nothing once there are two of them, and the
-// context is what the operator already calls it — the same string the infrastructure scanner
+// context is what the operator already calls it, the same string the infrastructure scanner
 // resolves back to a kubeconfig entry.
 func componentNameFor(ref string) string {
 	if ref == "" {

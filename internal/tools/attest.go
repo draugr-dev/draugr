@@ -25,8 +25,8 @@ const (
 	LevelChecksum Level = "checksum"
 	// LevelUnverified: installed with nothing published to check it against.
 	LevelUnverified Level = "unverified"
-	// LevelExternal: not installed by Draugr. Found on PATH, and used — the operator brought it,
-	// and they know something Draugr does not.
+	// LevelExternal: not installed by Draugr. Found on PATH, and used, the operator brought it, and
+	// they know something Draugr does not.
 	LevelExternal Level = "external"
 )
 
@@ -51,7 +51,7 @@ func (l Level) Describe() string {
 // "Draugr did not install it" is true of everything external and misleading for some of it: a tool
 // Draugr cannot provision was never a candidate, and reporting an omission invites somebody to go
 // and fix it with a command that will not work. So the line differs by whether Draugr could have
-// installed this one — which now includes the tools it obtains as Python packages.
+// installed this one, which now includes the tools it obtains as Python packages.
 func DescribeFor(l Level, tool string) string {
 	if l != LevelExternal && l != "" {
 		return l.Describe()
@@ -59,7 +59,7 @@ func DescribeFor(l Level, tool string) string {
 	if !Provisionable(tool) {
 		return "found on PATH; Draugr does not distribute it"
 	}
-	return "found on PATH; Draugr did not install it — `draugr tools install " + tool + "` provisions a pinned build"
+	return "found on PATH; Draugr did not install it, `draugr tools install " + tool + "` provisions a pinned build"
 }
 
 // Provisionable reports whether `draugr tools install` can obtain this tool, by either method.
@@ -100,7 +100,7 @@ type Attestation struct {
 //
 // Attested means all three: the binary sits in Draugr's own directory, the install manifest has a
 // record for it, and the file's hash still matches what was recorded. Anything else is used and
-// labeled — a binary somewhere else on PATH, one Draugr never installed, or one that has changed
+// labeled, a binary somewhere else on PATH, one Draugr never installed, or one that has changed
 // since it did.
 //
 // The hash check is the one that earns its place. Without it "attested" would mean "in the right
@@ -136,8 +136,8 @@ func Attest(tool, path, version, binDir string) Attestation {
 	if version == "" {
 		a.Version = rec.Version
 	}
-	// How it was verified is decided at install time and recorded, because that is the only
-	// moment the evidence exists — the checksums file and the signature are not kept.
+	// How it was verified is decided at install time and recorded, because that is the only moment
+	// the evidence exists, the checksums file and the signature are not kept.
 	a.Level = rec.Verified
 	if a.Level == "" {
 		// Installed before levels were recorded. It matches what Draugr wrote, and the strongest

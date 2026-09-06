@@ -243,7 +243,7 @@ components:
 }
 
 // A controller for one of the controls zero-config enables, so the synthesized Saga actually
-// plans work. fakeRegistry serves `images`, which zero-config does not enable — with only that
+// plans work. fakeRegistry serves `images`, which zero-config does not enable, with only that
 // registered, this test was scanning nothing and calling it a pass.
 type fakeRepoController struct{}
 
@@ -345,8 +345,8 @@ func TestRunScanInvalidFailOnPriority(t *testing.T) {
 }
 
 func TestRunScanFailsWhenAControlCouldNotRun(t *testing.T) {
-	// A control that couldn't run didn't find nothing — it found out nothing. Reporting that as
-	// a pass makes the gate a false negative precisely where it matters, so it fails by default.
+	// A control that couldn't run didn't find nothing. It found out nothing. Reporting that as a
+	// pass makes the gate a false negative precisely where it matters, so it fails by default.
 	var buf bytes.Buffer
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
 		scanOptions{failOn: "error"}, failingRegistry(), &buf)
@@ -366,15 +366,15 @@ func TestRunScanFailsWhenAControlCouldNotRun(t *testing.T) {
 }
 
 func TestRunScanAllowsIncompleteScansOnRequest(t *testing.T) {
-	// Best-effort scanning stays available — but the report still says a control errored, so
-	// the opt-out buys a passing exit code, not silence.
+	// Best-effort scanning stays available. But the report still says a control errored, so the
+	// opt-out buys a passing exit code, not silence.
 	var buf bytes.Buffer
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
 		scanOptions{failOn: "error", allowScanErrors: true}, failingRegistry(), &buf)
 	if err != nil {
 		t.Fatalf("--allow-scan-errors should not fail the gate, got %v", err)
 	}
-	if !strings.Contains(buf.String(), "Draugr — PASS") {
+	if !strings.Contains(buf.String(), "Draugr · PASS") {
 		t.Errorf("expected pass verdict:\n%s", buf.String())
 	}
 	if !strings.Contains(buf.String(), "ERROR") {
@@ -444,7 +444,7 @@ func TestRunScanFail(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected fail verdict to return an error")
 	}
-	if !strings.Contains(buf.String(), "Draugr — FAIL") {
+	if !strings.Contains(buf.String(), "Draugr · FAIL") {
 		t.Errorf("report should show fail verdict:\n%s", buf.String())
 	}
 }
@@ -457,7 +457,7 @@ func TestRunScanPass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected pass, got %v", err)
 	}
-	if !strings.Contains(buf.String(), "Draugr — PASS") {
+	if !strings.Contains(buf.String(), "Draugr · PASS") {
 		t.Errorf("report should show pass:\n%s", buf.String())
 	}
 }
@@ -551,7 +551,7 @@ func TestWriteArtifactsWritesSBOMs(t *testing.T) {
 
 // A directory holding a descriptor is not a directory to scan zero-config. Ignoring it discarded
 // the controls chosen, the components declared, and the exposure and criticality that drive
-// prioritization — silently, and while telling the reader to create the file they already had.
+// prioritization, silently, and while telling the reader to create the file they already had.
 func TestScanUsesTheDescriptorInTheDirectory(t *testing.T) {
 	dir := t.TempDir()
 	saga := "project: real\nrelease:\n  version: \"2.0\"\nconfig:\n  controllers:\n    images: {enabled: true}\n" +
@@ -598,7 +598,7 @@ func TestABrokenDescriptorFailsRatherThanFallingBack(t *testing.T) {
 	}
 }
 
-// Zero-config still applies where there is nothing to honor — that is what it is for.
+// Zero-config still applies where there is nothing to honor. That is what it is for.
 func TestScanStaysZeroConfigWithoutADescriptor(t *testing.T) {
 	dir := t.TempDir()
 	m, synthesized, err := scanModel(dir)
@@ -625,10 +625,10 @@ func TestADirectoryNamedLikeTheDescriptorIsIgnored(t *testing.T) {
 }
 
 func TestRunScanReportsTheVerdictAheadOfAPublisherFailure(t *testing.T) {
-	// A run that both failed its gate and could not publish is two facts, and only one can be
-	// the exit message. Naming the publisher sends a reader to fix a token when what actually
-	// happened is that the build should not ship — so the verdict leads and the publisher
-	// follows it, rather than replacing it.
+	// A run that both failed its gate and could not publish is two facts, and only one can be the
+	// exit message. Naming the publisher sends a reader to fix a token when what actually happened
+	// is that the build should not ship, so the verdict leads and the publisher follows it, rather
+	// than replacing it.
 	saga := `
 project: app
 release:
@@ -747,9 +747,9 @@ func TestSplitScanErrorsKeepsSBOMWaivable(t *testing.T) {
 }
 
 func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
-	// Not a second implementation of the gate. Reproducing "what counts as failing" in the
-	// reporter is how the parts come to disagree with the whole — a component reading PASS
-	// under a headline that says FAIL.
+	// Not a second implementation of the gate. Reproducing "what counts as failing" in the reporter
+	// is how the parts come to disagree with the whole, a component reading PASS under a headline
+	// that says FAIL.
 	policy := norn.Policy{FailOn: sarif.SeverityHigh}
 	model := &saga.Model{Components: []saga.Component{{Name: "payments"}, {Name: "internal-tool"}}}
 	reports := map[string]sarif.Report{
@@ -780,8 +780,8 @@ func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
 }
 
 func TestComponentVerdictsIncludeAComponentWithNoFindings(t *testing.T) {
-	// Building the list from the findings drops exactly the component a reader most wants to
-	// see — the clean one they can take back to their team.
+	// Building the list from the findings drops exactly the component a reader most wants to see.
+	// The clean one they can take back to their team.
 	policy := norn.Policy{FailOn: sarif.SeverityHigh}
 	model := &saga.Model{Components: []saga.Component{{Name: "a"}, {Name: "quiet"}}}
 	reports := map[string]sarif.Report{"sca": {Results: []sarif.Result{
@@ -895,9 +895,9 @@ func TestDigestPinnedOnly(t *testing.T) {
 }
 
 func TestToolBuildsUsesTheRegistryNotTheDriverName(t *testing.T) {
-	// A finding's Tool is the SARIF driver name the tool gives itself — "Trivy" for trivy-fs —
-	// so deriving the list from findings finds nothing. It comes from Result.Scanners, which are
-	// the names Draugr selected.
+	// A finding's Tool is the SARIF driver name the tool gives itself, "Trivy" for trivy-fs, so
+	// deriving the list from findings finds nothing. It comes from Result.Scanners, which are the
+	// names Draugr selected.
 	got := toolBuilds(t.Context(), engine.Result{Scanners: []string{"trivy-fs", "gitleaks"}})
 	names := map[string]bool{}
 	for _, b := range got {
@@ -934,7 +934,7 @@ func TestToolBuildsIgnoresUnknownScanners(t *testing.T) {
 
 func TestWriteArtifactsUsesTheSameNamesAPublisherWould(t *testing.T) {
 	// -o and a publisher have to write a format under one name. When they disagree, a CI step
-	// globbing for the file finds nothing — and the common ones warn rather than fail, so the run
+	// globbing for the file finds nothing, and the common ones warn rather than fail, so the run
 	// stays green with no results in it.
 	dir := t.TempDir()
 	formats := []string{"json", "sarif", "html", "markdown", "junit"}
@@ -952,9 +952,9 @@ func TestWriteArtifactsUsesTheSameNamesAPublisherWould(t *testing.T) {
 
 func TestNoGateSuppressesTheVerdictButNotAFailedScan(t *testing.T) {
 	// The flag exists for the two scans either side of a `draugr diff`: their job is to produce
-	// reports, and the diff is the gate. `|| true` in a pipeline would do it, but it also
-	// swallows a scan that never ran — and then the diff fails on a file that was never written,
-	// which reads as a diff problem rather than a scan one.
+	// reports, and the diff is the gate. `|| true` in a pipeline would do it, but it also swallows
+	// a scan that never ran. And then the diff fails on a file that was never written, which reads
+	// as a diff problem rather than a scan one.
 	if !strings.Contains(newScanCommand().Flags().Lookup("no-gate").Usage, "diff") {
 		t.Error("the flag's help should say what it is for")
 	}
@@ -962,7 +962,7 @@ func TestNoGateSuppressesTheVerdictButNotAFailedScan(t *testing.T) {
 
 func TestWorkingTreeRefusesARemoteRatherThanScanningSomethingElse(t *testing.T) {
 	// A remote has no working tree. Falling back to the committed revision would produce a report
-	// that looks like the one asked for and describes something else — and the reason to ask is
+	// that looks like the one asked for and describes something else, and the reason to ask is
 	// precisely that you want to see work that is not committed yet.
 	model := &saga.Model{Components: []saga.Component{{
 		Name:         "web",
@@ -1028,7 +1028,7 @@ func TestCacheSettingsComeFromConfigUnlessTyped(t *testing.T) {
 }
 
 // A tool Draugr installed is identified from its install record; one the operator brought has no
-// record, so it had no version — and that is the case this whole section exists for. Without it
+// record, so it had no version. And that is the case this whole section exists for. Without it
 // the report says only that Draugr did not install the tool, which is a fact about Draugr rather
 // than about the run, and nothing can be reproduced from it.
 func TestAnExternalToolStillNamesItsBuild(t *testing.T) {
@@ -1049,7 +1049,7 @@ func TestAnExternalToolStillNamesItsBuild(t *testing.T) {
 // The two priority knobs do different things, and the difference is the whole design.
 //
 // --min-priority trims what is printed and leaves every file complete, because a file that
-// silently omits findings is read by the next tool as a scan that did not find them — `draugr
+// silently omits findings is read by the next tool as a scan that did not find them. `draugr
 // diff` would call each one fixed. A band declared on the report, or asked for explicitly, is a
 // decision somebody recorded, and the artifact then states it.
 func TestArtifactsAreCompleteUnlessNarrowingWasDeclared(t *testing.T) {
@@ -1137,8 +1137,8 @@ func TestDeclaredBandPrefersTheFlag(t *testing.T) {
 // The --report help lists what the registry actually holds.
 //
 // A format can ship, work, and still be undiscoverable: --report listed its formats as a hand-
-// written string, so a new one appeared nowhere a user looks. Nothing failed — `--report
-// gitlab-codequality` worked the whole time — which is why the drift survived a release.
+// written string, so a new one appeared nowhere a user looks. Nothing failed, `--report
+// gitlab-codequality` worked the whole time. Which is why the drift survived a release.
 func TestReportFlagListsEveryFormat(t *testing.T) {
 	cmd := newRootCommand()
 	scan, _, err := cmd.Find([]string{"scan"})

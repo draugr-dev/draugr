@@ -91,19 +91,19 @@ func TestRunLine(t *testing.T) {
 		{
 			name:  "cache hits are the answer to whether the cache worked",
 			stats: engine.Stats{Jobs: 11, CacheHits: 4, Duration: 3 * time.Second},
-			want:  "Ran 11 jobs in 3s — 4 from cache.",
+			want:  "Ran 11 jobs in 3s · 4 from cache.",
 		},
 		{
 			// Two components sharing a repository plan two jobs and one scan answers both. Without
 			// a name for it, a reader counting jobs against scans finds a discrepancy and no cause.
 			name:  "a shared scan is a different saving from a cache hit",
 			stats: engine.Stats{Jobs: 16, Deduped: 5, Duration: 4951 * time.Millisecond},
-			want:  "Ran 16 jobs in 4.951s — 5 shared with an identical job.",
+			want:  "Ran 16 jobs in 4.951s · 5 shared with an identical job.",
 		},
 		{
 			name:  "both savings",
 			stats: engine.Stats{Jobs: 11, CacheHits: 4, Deduped: 1, Duration: 34500 * time.Millisecond},
-			want:  "Ran 11 jobs in 34.5s — 4 from cache, 1 shared with an identical job.",
+			want:  "Ran 11 jobs in 34.5s · 4 from cache, 1 shared with an identical job.",
 		},
 	}
 	for _, tc := range tests {

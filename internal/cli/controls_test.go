@@ -81,7 +81,7 @@ func TestControlsShowsWhoPublishesEachScanner(t *testing.T) {
 			t.Errorf("origin %q missing:\n%s", want, out)
 		}
 	}
-	// Draugr's own scanners come first — the reader is usually asking which are *not* ours.
+	// Draugr's own scanners come first. The reader is usually asking which are *not* ours.
 	i := strings.Index(out, "Who publishes each scanner:")
 	rest := out[i:]
 	if strings.Index(rest, "draugr ") > strings.Index(rest, "aquasecurity") {
@@ -90,8 +90,8 @@ func TestControlsShowsWhoPublishesEachScanner(t *testing.T) {
 }
 
 func TestEveryRegisteredScannerDeclaresAnOrigin(t *testing.T) {
-	// An unlabeled scanner would render as "unknown", which is honest but is a gap in the
-	// roster — and the roster is only useful if it is complete.
+	// An unlabeled scanner would render as "unknown", which is honest but is a gap in the roster.
+	// And the roster is only useful if it is complete.
 	for _, s := range builtins.Registry().Scanners() {
 		if s.Info().Origin == "" {
 			t.Errorf("scanner %q declares no Origin, so nothing says who publishes it", s.Info().Name)
@@ -109,9 +109,9 @@ func TestControlsOptionsListsEveryScannerIncludingTheOnesWithNoOptions(t *testin
 	got := out.String()
 	for _, want := range []string{
 		"What each scanner accepts in its Saga block:",
-		"productToken",   // a required option, from mend-sca
-		"expiryWarnDays", // an optional one, from draugr-tls
-		"no options — configured by choosing it", // gitleaks and the rest
+		"productToken",                          // a required option, from mend-sca
+		"expiryWarnDays",                        // an optional one, from draugr-tls
+		"no options, configured by choosing it", // gitleaks and the rest
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("controls --options is missing %q\n%s", want, got)

@@ -23,7 +23,7 @@ func TestTheIngestTokenPatternMatchesATokenAndNotAMention(t *testing.T) {
 		}
 	}
 	if line == "" {
-		t.Fatal("no regex in the ruleset — its format changed and this is testing nothing")
+		t.Fatal("no regex in the ruleset, its format changed and this is testing nothing")
 	}
 	pattern := strings.Trim(strings.TrimPrefix(line, "regex = "), "'")
 	re, err := regexp.Compile(pattern)
@@ -54,7 +54,7 @@ func TestTheIngestTokenPatternMatchesATokenAndNotAMention(t *testing.T) {
 // the pattern matched it, every screenshot of the settings page would be a leak report.
 func TestTheHintIsNotLongEnoughToMatch(t *testing.T) {
 	if !strings.Contains(gitleaksRules, "{43}") {
-		t.Error("the pattern no longer anchors the length — a hint or a prose mention will match it")
+		t.Error("the pattern no longer anchors the length, a hint or a prose mention will match it")
 	}
 }
 

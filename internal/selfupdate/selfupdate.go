@@ -49,7 +49,7 @@ var (
 	oidcIssuer     = "https://token.actions.githubusercontent.com"
 )
 
-// ReleaseURL is where releases are resolved from — exported so a command that declines to reach
+// ReleaseURL is where releases are resolved from, exported so a command that declines to reach
 // the network can say what it would have fetched.
 var ReleaseURL = githubBase + "/releases/latest"
 
@@ -57,8 +57,8 @@ var ReleaseURL = githubBase + "/releases/latest"
 func CurrentVersion() string { return strings.TrimPrefix(version.Version, "v") }
 
 // LatestVersion resolves the latest published release version (no leading "v") via the
-// github.com releases/latest redirect — deliberately not the api.github.com REST endpoint,
-// which is rate-limited and has been flaky. Use a short timeout for interactive/offline paths.
+// github.com releases/latest redirect, deliberately not the api.github.com REST endpoint, which
+// is rate-limited and has been flaky. Use a short timeout for interactive/offline paths.
 func LatestVersion(ctx context.Context, client *http.Client) (string, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
@@ -173,7 +173,7 @@ func Update(ctx context.Context, opts Options) (Result, error) {
 func verifySignature(ctx context.Context, client *http.Client, base string, checksums []byte) (bool, string, error) {
 	cosignPath, err := cosignLookPath()
 	if err != nil {
-		return false, "cosign not installed — verified by SHA-256 only", nil
+		return false, "cosign not installed, verified by SHA-256 only", nil
 	}
 	bundle, err := get(ctx, client, base+"/checksums.txt.sigstore.json")
 	if err != nil {

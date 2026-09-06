@@ -225,8 +225,8 @@ func TestACloneFailureNamesTheRepository(t *testing.T) {
 	}
 }
 
-// A URL answering with something other than a document — a login page, a tarball — fails as a
-// size rather than being parsed as JSON for however long that takes.
+// A URL answering with something other than a document, a login page, a tarball. Fails as a size
+// rather than being parsed as JSON for however long that takes.
 func TestAnOversizedResponseIsRefused(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		chunk := strings.Repeat("x", 1<<20)

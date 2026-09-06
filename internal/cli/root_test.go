@@ -66,7 +66,7 @@ func TestInvalidLogLevelFails(t *testing.T) {
 }
 
 func TestVersionFlagMatchesTheVersionCommand(t *testing.T) {
-	// `--version` is what every other CLI accepts — git, docker, kubectl, and every scanner
+	// `--version` is what every other CLI accepts, git, docker, kubectl, and every scanner
 	// Draugr execs. Without it a container smoke test or a tool-cache probe gets a non-zero exit
 	// on "unknown flag", which reads as a broken binary rather than a missing alias.
 	run := func(args ...string) string {

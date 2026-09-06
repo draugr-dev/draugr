@@ -36,9 +36,9 @@ type sarifRun struct {
 	// bag on a run for exactly this, so the benchmark a report was measured against travels to
 	// any consumer that reads SARIF rather than only to Draugr's own reporters.
 	Properties *sarifRunProperties `json:"properties,omitempty"`
-	// Taxonomies are the classification schemes the rules below reference — CIS controls, CWEs.
-	// SARIF's own mechanism for saying "these two rules are about the same thing", which is what
-	// lets a consumer group findings across tools without guessing from rule ids.
+	// Taxonomies are the classification schemes the rules below reference, CIS controls, CWEs.
+	// SARIF's own mechanism for saying "these two rules are about the same thing", which is what lets
+	// a consumer group findings across tools without guessing from rule ids.
 	Taxonomies []sarifTaxonomy `json:"taxonomies,omitempty"`
 }
 
@@ -103,10 +103,10 @@ type sarifDriver struct {
 type sarifRule struct {
 	ID   string `json:"id"`
 	Name string `json:"name,omitempty"`
-	// The descriptive fields. GitHub code scanning renders shortDescription, fullDescription and
-	// help beside a result; SARIF viewers additionally link helpUri. Draugr doesn't author these
-	// — it relays what the scanner published, which is the difference between a reader seeing
-	// "DS-0002" and seeing what DS-0002 means.
+	// The descriptive fields. GitHub code scanning renders shortDescription, fullDescription and help
+	// beside a result; SARIF viewers additionally link helpUri. Draugr doesn't author these. It
+	// relays what the scanner published, which is the difference between a reader seeing "DS-0002"
+	// and seeing what DS-0002 means.
 	ShortDescription     *sarifMessage    `json:"shortDescription,omitempty"`
 	FullDescription      *sarifMessage    `json:"fullDescription,omitempty"`
 	Help                 *sarifMessage    `json:"help,omitempty"`
@@ -133,7 +133,7 @@ type sarifTaxonomy struct {
 	IsComprehensive bool         `json:"isComprehensive"`
 }
 
-// sarifTaxon is one classification — a CIS control, a CWE.
+// sarifTaxon is one classification, a CIS control, a CWE.
 type sarifTaxon struct {
 	ID               string        `json:"id"`
 	Name             string        `json:"name,omitempty"`
@@ -193,15 +193,15 @@ type sarifProperties struct {
 	// indistinguishable, and anything grouping by rule alone reports one item of work where
 	// there are two.
 	Control string `json:"control,omitempty"`
-	// Component is the part of the application the finding belongs to. A location alone is
-	// ambiguous once a descriptor has more than one component, and it is what makes the priority
-	// checkable — the band comes from that component's declared classification.
+	// Component is the part of the application the finding belongs to. A location alone is ambiguous
+	// once a descriptor has more than one component, and it is what makes the priority checkable. The
+	// band comes from that component's declared classification.
 	Component string `json:"component,omitempty"`
-	// Exposure and Criticality are that component's declared classification — the two inputs to
-	// the band that come from the descriptor rather than from the scanner. They survive the file
-	// for the reason Repository does, and for one more: naming the component makes the band
-	// checkable only if the reader also has the descriptor, and the descriptor in the repository
-	// today is not necessarily the one that produced this finding.
+	// Exposure and Criticality are that component's declared classification, the two inputs to the
+	// band that come from the descriptor rather than from the scanner. They survive the file for the
+	// reason Repository does, and for one more: naming the component makes the band checkable only if
+	// the reader also has the descriptor, and the descriptor in the repository today is not
+	// necessarily the one that produced this finding.
 	Exposure    string `json:"exposure,omitempty"`
 	Criticality string `json:"criticality,omitempty"`
 	// Repository is which repository the finding was found in, for a component holding more than
@@ -213,12 +213,12 @@ type sarifProperties struct {
 	// and by the formats a platform consumes, and a fact that only exists in memory is one every
 	// one of those has to do without.
 	Package *Package `json:"package,omitempty"`
-	// Image and OperatingSystem describe the container a finding was found in. They survive the
-	// file for the reason Repository does — a report is written and read back by `draugr diff`
-	// and by every platform format, and a fact that exists only in memory is one all of them
-	// have to do without. GitLab's container-scanning schema requires both, and neither can be
-	// guessed: a required field filled with something plausible is a claim a platform will
-	// render, attribute to Draugr, and act on in a policy.
+	// Image and OperatingSystem describe the container a finding was found in. They survive the file
+	// for the reason Repository does. A report is written and read back by `draugr diff` and by every
+	// platform format, and a fact that exists only in memory is one all of them have to do without.
+	// GitLab's container-scanning schema requires both, and neither can be guessed: a required field
+	// filled with something plausible is a claim a platform will render, attribute to Draugr, and act
+	// on in a policy.
 	Image            string `json:"image,omitempty"`
 	OperatingSystem  string `json:"operatingSystem,omitempty"`
 	OSEndOfLife      bool   `json:"osEndOfLife,omitempty"`
@@ -226,7 +226,7 @@ type sarifProperties struct {
 	BuiltUpstream    bool   `json:"builtUpstream,omitempty"`
 	// ImageBuiltUpstream is what BuiltUpstream was called while it only described images. Read on
 	// input and never written, so a report produced by an older release still loads with the fact
-	// intact — a finding that silently became the reader's to fix is worse than one that fails to
+	// intact, a finding that silently became the reader's to fix is worse than one that fails to
 	// parse.
 	ImageBuiltUpstream bool `json:"imageBuiltUpstream,omitempty"`
 	// Layer survives the file for the same reason: it is what separates a finding this component
@@ -238,16 +238,16 @@ type sarifProperties struct {
 	// one more: a reachability verdict without its evidence is the claim readers are told to
 	// reject, and the evidence is the part a platform has no other way to get.
 	Reachability *Reachability `json:"reachability,omitempty"`
-	// Escalation is why a finding's band is higher than its own severity would give — the dataset
-	// that fired, the fact it asserted, and the day it was fetched.
+	// Escalation is why a finding's band is higher than its own severity would give, the dataset that
+	// fired, the fact it asserted, and the day it was fetched.
 	//
 	// It survives the file for the reason Reachability does, and for one more: escalation is the
 	// enrichment most likely to be argued with, because it moves a finding up. "KEV said so" is
 	// not something a reader can check; "on KEV, as of 2026-08-22" is. A consumer that can see the
 	// band and not the reason has to take the band on trust.
 	Escalation *Escalation `json:"escalation,omitempty"`
-	// PriorityFloor is why a band did not fall as far as the component's classification alone
-	// would have taken it — the control that said this finding is not bounded by where it sits.
+	// PriorityFloor is why a band did not fall as far as the component's classification alone would
+	// have taken it, the control that said this finding is not bounded by where it sits.
 	//
 	// Computed, printed on the terminal, and until now dropped on the way out. A reader of the
 	// report saw a P2 on a supporting internal component with nothing accounting for it, which is
@@ -263,8 +263,8 @@ type sarifResult struct {
 	Level   string       `json:"level,omitempty"`
 	Message sarifMessage `json:"message"`
 	// PartialFingerprints is SARIF's own field, not a Draugr property. It goes here rather than in
-	// the property bag because consumers read it from here — GitHub code scanning uses it to
-	// decide that an alert in this run is the same alert as one in the last.
+	// the property bag because consumers read it from here, GitHub code scanning uses it to decide
+	// that an alert in this run is the same alert as one in the last.
 	PartialFingerprints map[string]string  `json:"partialFingerprints,omitempty"`
 	Locations           []sarifLocation    `json:"locations,omitempty"`
 	Suppressions        []sarifSuppression `json:"suppressions,omitempty"`
@@ -281,11 +281,11 @@ type sarifSuppression struct {
 	Justification string `json:"justification,omitempty"`
 	// Properties carries who accepted the suppression and when it lapses.
 	//
-	// SARIF has no field for either, and the spec's property bag is where a producer puts what
-	// the schema does not model. They go here rather than being folded into the justification
-	// text because a consumer should be able to read "who" as a value — the whole reason the
-	// descriptor records it is so a report can be filtered and audited by it, and a name inside
-	// a sentence cannot be.
+	// SARIF has no field for either, and the spec's property bag is where a producer puts what the
+	// schema does not model. They go here rather than being folded into the justification text
+	// because a consumer should be able to read "who" as a value, the whole reason the descriptor
+	// records it is so a report can be filtered and audited by it, and a name inside a sentence
+	// cannot be.
 	Properties *sarifSuppressionProperties `json:"properties,omitempty"`
 }
 
@@ -338,8 +338,8 @@ const driverName = "Draugr"
 // MarshalOptions tunes how a report is serialized. The zero value is the default: indented,
 // with everything a person or an editor might want.
 type MarshalOptions struct {
-	// Compact drops what only a human reads — indentation, and the rule prose relayed from
-	// the scanner — while keeping the report valid SARIF.
+	// Compact drops what only a human reads, indentation, and the rule prose relayed from the
+	// scanner, while keeping the report valid SARIF.
 	//
 	// It exists for a consumer that is going to *act* on the report rather than read it,
 	// typically an agent paying for every byte of context. Rule descriptions and remediation
@@ -359,8 +359,8 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 	run := sarifRun{Tool: sarifTool{Driver: sarifDriver{Name: driverName}}, Results: []sarifResult{}}
 	run.Properties = runProperties(r.Provenance, r.Decided, r.Consulted)
-	// Track which scanner(s) produced each ruleId so the emitted rules[] can carry a
-	// "scanner:<name>" tag — the only place GitHub code scanning surfaces the underlying tool.
+	// Track which scanner(s) produced each ruleId so the emitted rules[] can carry a "scanner:<name>"
+	// tag, the only place GitHub code scanning surfaces the underlying tool.
 	ruleScanners := map[string]map[string]bool{}
 	var ruleOrder []string
 	for _, res := range r.Results {
@@ -476,9 +476,9 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 // GitHub's own documentation uses.
 const uriBaseID = "%SRCROOT%"
 
-// originalURIBaseIDs describes the base without claiming a concrete path. Draugr scans a
-// throwaway checkout, so the directory it used is meaningless to whoever reads the report later
-// — the consumer's own workspace root is the right base, and only the consumer knows it.
+// originalURIBaseIDs describes the base without claiming a concrete path. Draugr scans a throwaway
+// checkout, so the directory it used is meaningless to whoever reads the report later, the
+// consumer's own workspace root is the right base, and only the consumer knows it.
 func originalURIBaseIDs() map[string]sarifArtifact {
 	return map[string]sarifArtifact{
 		uriBaseID: {Description: message("The root of the scanned source tree.")},
@@ -489,7 +489,7 @@ func originalURIBaseIDs() map[string]sarifArtifact {
 // to something that already identifies its subject on its own.
 //
 // The test is deliberately blunt: a relative path, and no colon anywhere. A colon is what
-// separates the things that aren't source paths — a scheme ("https:", "pkg:"), an image tag
+// separates the things that aren't source paths, a scheme ("https:", "pkg:"), an image tag
 // ("library/alpine:3.18"), a Windows drive. Source paths that contain one are rare, and the cost
 // of missing one is only that we don't declare a base for it, which is where we started.
 func isRelativeURI(uri string) bool {
@@ -504,7 +504,7 @@ func clampDescription(s string) string {
 	if len(s) <= descriptionLimit {
 		return s
 	}
-	// Cut on a rune boundary — a description is arbitrary scanner text and may be non-ASCII.
+	// Cut on a rune boundary. A description is arbitrary scanner text and may be non-ASCII.
 	const ellipsis = "…"
 	cut := descriptionLimit - len(ellipsis)
 	for cut > 0 && !utf8.RuneStart(s[cut]) {
@@ -530,13 +530,13 @@ func parseSecuritySeverity(p *sarifProperties) (float64, bool) {
 //
 // Kept rather than dropped, and that is the whole of this. A suppressed finding discarded at parse
 // is indistinguishable from a finding nobody ever made, which is the one thing the suppression
-// model exists to prevent — and the discard is invisible, because the report that results looks
+// model exists to prevent. And the discard is invisible, because the report that results looks
 // exactly like a clean one. Downstream already treats a suppressed result as evidence rather than
 // as a count: it stays out of Counts, out of the verdict, and appears in the report marked. So
 // keeping it costs nothing and carries the record it would otherwise throw away.
 //
 // Draugr writes its own suppressions with a property bag naming who accepted the finding and when.
-// A scanner's carries none of that, because there was no decision to record — somebody wrote a
+// A scanner's carries none of that, because there was no decision to record. Somebody wrote a
 // comment in the file. That is a real distinction and it survives here as Origin: a `nosem` is
 // acceptance by whoever was editing, which is not the same as a rule somebody reviewed.
 func readSuppression(sups []sarifSuppression) *Suppression {
@@ -572,9 +572,9 @@ func FromSARIF(data []byte) (Report, error) {
 		if i == 0 {
 			out.Tool = run.Tool.Driver.Name
 		}
-		// The run's own account of itself, read back rather than dropped. A consumer that
-		// reloads a report — `draugr diff`, most of all — has to be able to tell a scan of
-		// everything from a scan of part of it, and the results alone never say which it was.
+		// The run's own account of itself, read back rather than dropped. A consumer that reloads a
+		// report, `draugr diff`, most of all. Has to be able to tell a scan of everything from a scan of
+		// part of it, and the results alone never say which it was.
 		out.Provenance = append(out.Provenance, provenanceFrom(run.Properties)...)
 		// And the rest of the run's account: which controls it settled, and which exploitability
 		// datasets it had loaded. Both exist to separate "looked and found nothing" from "never
@@ -601,9 +601,9 @@ func FromSARIF(data []byte) (Report, error) {
 			if sum := rule.ShortDescription.text(); sum != "" {
 				ruleSummary[rule.ID] = sum
 			}
-			// Keep what the scanner said about the rule. It's the only description of a
-			// finding that isn't specific to one occurrence of it, and every downstream
-			// reader — terminal, editor, pull request — is better off for having it.
+			// Keep what the scanner said about the rule. It's the only description of a finding that isn't
+			// specific to one occurrence of it, and every downstream reader, terminal, editor, pull
+			// request. Is better off for having it.
 			out.addRule(rule.ID, Rule{
 				Name:             rule.Name,
 				ShortDescription: rule.ShortDescription.text(),
@@ -655,10 +655,10 @@ func FromSARIF(data []byte) (Report, error) {
 			}
 			if sr.Properties != nil {
 				res.Priority = sr.Properties.Priority
-				// Read back, not only written. Both are part of Fingerprint, and a report is
-				// written and re-read by `draugr diff` on every pull request — so dropping them
-				// here made two components sharing a repository, or two repositories in one
-				// component, collapse into a single finding at exactly the moment it mattered.
+				// Read back, not only written. Both are part of Fingerprint, and a report is written and
+				// re-read by `draugr diff` on every pull request, so dropping them here made two components
+				// sharing a repository, or two repositories in one component, collapse into a single finding
+				// at exactly the moment it mattered.
 				res.Control = sr.Properties.Control
 				res.Component = sr.Properties.Component
 				res.Exposure = sr.Properties.Exposure
@@ -682,22 +682,22 @@ func FromSARIF(data []byte) (Report, error) {
 	return out, nil
 }
 
-// fieldDump matches the opening of a message that is a list of fields rather than a sentence —
+// fieldDump matches the opening of a message that is a list of fields rather than a sentence,
 // "Package: Flask", "Artifact: app/Dockerfile". Trivy writes its finding messages this way.
 var fieldDump = regexp.MustCompile(`^[A-Z][A-Za-z ]{0,30}:[ \t]`)
 
 // readableMessage picks the text a reader can act on, given the rule's one-line summary.
 //
-// Most scanners write a sentence. Trivy writes a multi-line field dump — artifact, package,
-// installed version, severity, fixed version, link. Every consumer suffers for it differently:
-// a terminal has those fields in its own columns already and clamps the line before reaching
-// the part that says what is wrong, and an editor's Problems panel shows the *first* line, so a
-// manifest with fourteen findings becomes fourteen rows reading "Artifact: deploy/pod.yaml".
-// The advisory title lives in the rule's shortDescription instead: "python-flask: Denial of
-// Service via crafted JSON file".
+// Most scanners write a sentence. Trivy writes a multi-line field dump, artifact, package,
+// installed version, severity, fixed version, link. Every consumer suffers for it differently: a
+// terminal has those fields in its own columns already and clamps the line before reaching the
+// part that says what is wrong, and an editor's Problems panel shows the *first* line, so a
+// manifest with fourteen findings becomes fourteen rows reading "Artifact: deploy/pod.yaml". The
+// advisory title lives in the rule's shortDescription instead: "python-flask: Denial of Service
+// via crafted JSON file".
 //
 // Applied here, at the point a tool's SARIF becomes Draugr's model, so every downstream reader
-// gets it — the terminal, the SARIF handed to an editor, code-scanning annotations, and MCP
+// gets it, the terminal, the SARIF handed to an editor, code-scanning annotations, and MCP
 // clients. Nothing is lost by preferring the summary: the scanner's own detail survives on the
 // rule as FullDescription and Help, which is what a viewer shows beside a selected finding.
 //

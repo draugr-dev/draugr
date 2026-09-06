@@ -78,7 +78,7 @@ func NewLocal(dir string, ttl time.Duration) *Local {
 
 // ReadOnly returns a view of c that serves entries and stores none.
 //
-// For a run whose results should not be trusted by the next one — a pull request from a fork
+// For a run whose results should not be trusted by the next one, a pull request from a fork
 // being the case that matters, where the code deciding what the scan sees is not the code the
 // cache is meant to describe. Reading stays useful: the entries already there were written by
 // runs that were trusted.
@@ -97,10 +97,10 @@ func (readOnly) Put(string, sarif.Report) error { return nil }
 // gzipped JSON envelope.
 const entrySuffix = ".json.gz"
 
-// legacySuffix is what entries were called before they were compressed. Nothing reads these —
-// the name was accurate when it was chosen and stopped being so when compression landed — but
-// Put removes the one it is replacing, because the cache evicts nothing on its own and a file
-// that is never read and never removed is a leak rather than a leftover.
+// legacySuffix is what entries were called before they were compressed. Nothing reads these. The
+// name was accurate when it was chosen and stopped being so when compression landed, but Put
+// removes the one it is replacing, because the cache evicts nothing on its own and a file that
+// is never read and never removed is a leak rather than a leftover.
 const legacySuffix = ".json"
 
 func (l *Local) pathFor(key string) string {
@@ -161,7 +161,7 @@ func (l *Local) Put(key string, report sarif.Report) error {
 
 // gzipBytes compresses an entry for storage.
 //
-// A cached entry is a whole SARIF report, which is repetitive by construction — a measured entry
+// A cached entry is a whole SARIF report, which is repetitive by construction, a measured entry
 // went from 375 KB to 60 KB, and a project with a few hundred of them is the difference between
 // a cache that is cheap to keep and one that costs more to restore than the scan it saves.
 func gzipBytes(data []byte) ([]byte, error) {
@@ -177,7 +177,7 @@ func gzipBytes(data []byte) ([]byte, error) {
 }
 
 // gunzip decompresses an entry. Anything that does not decompress is a miss, like every other
-// unreadable entry — the file is one Draugr wrote, so the only way it is not gzip is damage.
+// unreadable entry. The file is one Draugr wrote, so the only way it is not gzip is damage.
 func gunzip(data []byte) ([]byte, error) {
 	zr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {

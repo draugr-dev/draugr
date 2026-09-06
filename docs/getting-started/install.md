@@ -8,7 +8,7 @@ order: 10
 # Install
 
 Draugr is a single binary that orchestrates external scanners. **Install Draugr first** (below),
-then let it fetch the scanners its controls need — see [Scanners](#scanners--the-tools-draugr-runs).
+then let it fetch the scanners its controls need. See [Scanners](#scanners-the-tools-draugr-runs).
 Once you're set up, head to the [quickstart](quickstart.md) for your first scan.
 
 ## Install script (recommended)
@@ -23,18 +23,18 @@ It detects your OS and architecture, installs to `~/.local/bin`, and tells you i
 your `PATH`.
 
 **It verifies before it installs, and says which checks ran.** The archive's SHA-256 is always
-checked against the release's `checksums.txt`. If [cosign](https://docs.sigstore.dev/cosign/) is
-on your `PATH`, it also verifies that `checksums.txt` was signed by Draugr's release workflow —
-which is the check that carries weight, because a host able to serve you a bad archive could
-serve a matching checksums file too. Nothing is installed if a check fails.
+checked against the release's `checksums.txt`. If [cosign](https://docs.sigstore.dev/cosign/) is on
+your `PATH`, it also verifies that `checksums.txt` was signed by Draugr's release workflow, which is
+the check that carries weight, because a host able to serve you a bad archive could serve a matching
+checksums file too. Nothing is installed if a check fails.
 
 Piping a script into a shell means trusting the host that served it. If you'd rather not, the
 script is [readable in the repo](https://github.com/draugr-dev/draugr/blob/main/install.sh) and
 the [manual steps](#from-a-release-by-hand) below do the same work.
 
-Three knobs, all optional. **They go on `sh`, not on `curl`** — in a pipeline each side gets
-its own environment, so `DRAUGR_INSTALL_DIR=~/bin curl … | sh` sets the variable on the download
-and the script never sees it:
+Three knobs, all optional. **They go on `sh`, not on `curl`**, in a pipeline each side gets its own
+environment, so `DRAUGR_INSTALL_DIR=~/bin curl … | sh` sets the variable on the download and the
+script never sees it:
 
 ```bash
 curl -fsSL https://draugr.dev/install.sh | DRAUGR_INSTALL_DIR=~/bin sh
@@ -46,9 +46,9 @@ curl -fsSL https://draugr.dev/install.sh | DRAUGR_INSTALL_DIR=~/bin sh
 | `DRAUGR_INSTALL_DIR` | Install somewhere other than `~/.local/bin` |
 | `DRAUGR_REQUIRE_SIGNATURE` | Set to `1` to refuse to install unless the signature verifies |
 
-Pick a version to pin from the [releases page](https://github.com/draugr-dev/draugr/releases).
-In CI, pin the version **and** require the signature — a build runner shouldn't install anything
-it can't prove the origin of:
+Pick a version to pin from the [releases page](https://github.com/draugr-dev/draugr/releases). In
+CI, pin the version **and** require the signature, a build runner shouldn't install anything it
+can't prove the origin of:
 
 ```bash
 curl -fsSL https://draugr.dev/install.sh \
@@ -59,7 +59,7 @@ Already have a draugr binary? Update it in place with `draugr self-update`.
 
 ## From a release, by hand
 
-The same thing without the script. Grabs the **latest** release — no version to look up:
+The same thing without the script. Grabs the **latest** release, no version to look up:
 
 ```bash
 tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
@@ -75,11 +75,10 @@ Swap `linux_amd64` for `darwin_arm64`, `darwin_amd64`, `linux_arm64`, or `window
 To **pin** a release, set `tag=vX.Y.Z` yourself (pick one from the
 [releases page](https://github.com/draugr-dev/draugr/releases)) and drop the first command.
 
-This path doesn't verify anything on its own — see
-[verifying releases](../trust-and-operations/verifying-releases.md) for the checksum and
-signature steps.
+This path doesn't verify anything on its own. See [verifying
+releases](../trust-and-operations/verifying-releases.md) for the checksum and signature steps.
 
-## From a release — GitHub CLI
+## From a release, GitHub CLI
 
 If you already have [`gh`](https://cli.github.com), it handles the download and the platform
 suffix for you. Omit the tag to get the latest release, or pass a `vX.Y.Z` to pin:
@@ -134,32 +133,32 @@ make install-latest
 go install github.com/draugr-dev/draugr/cmd/draugr@latest
 ```
 
-## Scanners — the tools Draugr runs
+## Scanners. The tools Draugr runs
 
 With Draugr installed, add the scanners for the controls you use. The fastest way is to let
 Draugr fetch pinned, verified copies into `~/.draugr/bin` (added to your `PATH` automatically):
 
 ```bash
-draugr tools install            # everything Draugr can provision — pinned + verified
+draugr tools install            # everything Draugr can provision, pinned + verified
 draugr tools install --saga draugr.saga.yaml   # only what this descriptor's scan will run
 draugr tools list               # what's pinned, which controls it backs, and what's installed
 ```
 
-Prefer your own install (Homebrew, package manager, an existing copy)? That works too — then run
+Prefer your own install (Homebrew, package manager, an existing copy)? That works too. Then run
 `draugr doctor` to confirm everything's found:
 
-- [Trivy](https://github.com/aquasecurity/trivy) — `images`, `sca`, `iac` and `licenses` controls.
-- [Gitleaks](https://github.com/gitleaks/gitleaks) — `secrets` control.
-- [Semgrep](https://semgrep.dev) — `sast` control (default; opt-in [gosec](https://github.com/securego/gosec) for Go).
-- [Grype](https://github.com/anchore/grype) — opt-in second scanner for `sca` and `images`.
-- [retire.js](https://github.com/RetireJS/retire.js) — opt-in for `sca`, and the one that finds
+- [Trivy](https://github.com/aquasecurity/trivy), `images`, `sca`, `iac` and `licenses` controls.
+- [Gitleaks](https://github.com/gitleaks/gitleaks), `secrets` control.
+- [Semgrep](https://semgrep.dev), `sast` control (default; opt-in [gosec](https://github.com/securego/gosec) for Go).
+- [Grype](https://github.com/anchore/grype), opt-in second scanner for `sca` and `images`.
+- [retire.js](https://github.com/RetireJS/retire.js), opt-in for `sca`, and the one that finds
   JavaScript no lockfile describes.
-- [Nuclei](https://github.com/projectdiscovery/nuclei) — `dast` control.
-- [kube-bench](https://github.com/aquasecurity/kube-bench) — `infrastructure` control. Needs
+- [Nuclei](https://github.com/projectdiscovery/nuclei), `dast` control.
+- [kube-bench](https://github.com/aquasecurity/kube-bench), `infrastructure` control. Needs
   `kubectl` as well: its CIS checks are scripts that invoke it.
-- [Syft](https://github.com/anchore/syft) — SBOM generation (`config.sbom`), which is not a
+- [Syft](https://github.com/anchore/syft), SBOM generation (`config.sbom`), which is not a
   control.
-- `git` — needed for any repository scan (`sca`, `secrets`, `sast`, `licenses`).
+- `git`, needed for any repository scan (`sca`, `secrets`, `sast`, `licenses`).
 
 Two of these are language packages rather than release binaries, so Draugr installs them with the
 language's own package manager and needs it present: **Semgrep** needs Python 3.10 or newer with `pip`, and

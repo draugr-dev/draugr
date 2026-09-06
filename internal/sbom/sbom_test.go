@@ -12,7 +12,7 @@ import (
 )
 
 // recorder captures what Generate asked to run, so the argv is asserted exactly rather than
-// approximately — a wrong flag here means a document in the wrong format, silently.
+// approximately. A wrong flag here means a document in the wrong format, silently.
 type recorder struct {
 	argv     []string
 	dir      string
@@ -145,7 +145,7 @@ func TestGenerateSurfacesToolFailure(t *testing.T) {
 }
 
 func TestGenerateRejectsAnEmptyDocument(t *testing.T) {
-	// Syft exiting 0 with no output would otherwise be recorded as a valid, empty SBOM — an
+	// Syft exiting 0 with no output would otherwise be recorded as a valid, empty SBOM, an
 	// inventory claiming the component contains nothing.
 	r := &recorder{out: nil}
 	if _, err := newTestGenerator(r).Generate(context.Background(), "c",

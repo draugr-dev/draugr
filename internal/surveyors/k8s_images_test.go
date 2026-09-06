@@ -128,7 +128,7 @@ func TestK8sImagesSurveyDedups(t *testing.T) {
 	}
 }
 
-// A survey with no namespace describes every namespace, one component each — the same shape
+// A survey with no namespace describes every namespace, one component each, the same shape
 // `--namespace a,b` produces, for all of them rather than the two you happened to name.
 //
 // Three namespaces rather than one, because one cannot tell a per-namespace answer from a
@@ -276,7 +276,7 @@ func TestInferExposureInternalByDefault(t *testing.T) {
 // namespace whose topology implies it.
 //
 // The Ingress is in one namespace only. Inference that answered per cluster would mark both
-// public — which is the reason a lumped component could not carry an exposure at all, and the
+// public. Which is the reason a lumped component could not carry an exposure at all, and the
 // reason this has to be checked with a namespace that has no route as well as one that does.
 func TestExposureIsProposedPerNamespaceAcrossAWholeCluster(t *testing.T) {
 	cs := fake.NewSimpleClientset(
@@ -299,8 +299,8 @@ func TestExposureIsProposedPerNamespaceAcrossAWholeCluster(t *testing.T) {
 
 // Listing pods in a namespace that is not there returns an empty list rather than an error, so a
 // typo produced a survey that succeeded, discovered nothing from that namespace, and said nothing
-// about it. Ask for three namespaces, misspell one, and the descriptor quietly describes two —
-// which becomes the scope of every later scan.
+// about it. Ask for three namespaces, misspell one, and the descriptor quietly describes two.
+// Which becomes the scope of every later scan.
 func TestASurveyFailsOnANamespaceThatDoesNotExist(t *testing.T) {
 	cs := fake.NewSimpleClientset(ns("prod"), pod("prod", "a", "repo/x:1"))
 	_, err := withClient(cs).Survey(context.Background(), plugin.SurveyScope{Ref: "prd"})
@@ -324,7 +324,7 @@ func TestAnUnscopedSurveyChecksNoNamespace(t *testing.T) {
 //
 // The three lists exposure needs are permissions a namespace-scoped credential may not have.
 // Inferring anyway and then dropping the value would spend them to produce warnings about
-// something nobody asked for — and the flag would be doing nothing while appearing to.
+// something nobody asked for. And the flag would be doing nothing while appearing to.
 func TestK8sImagesSkipsExposureEntirelyWhenAskedTo(t *testing.T) {
 	cs := fake.NewSimpleClientset(
 		ns("prod"),

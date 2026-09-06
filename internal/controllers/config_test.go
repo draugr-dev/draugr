@@ -166,7 +166,7 @@ func TestEnabledFlag(t *testing.T) {
 }
 
 // TestConfigKeysRoundTrip: the inverse map turns a descriptor's key back into a scanner name, so
-// a mapping that does not survive the trip selects the wrong scanner or none — and selecting none
+// a mapping that does not survive the trip selects the wrong scanner or none. And selecting none
 // is silent, producing a scan that ran one fewer scanner and said nothing about it.
 func TestConfigKeysRoundTrip(t *testing.T) {
 	t.Parallel()

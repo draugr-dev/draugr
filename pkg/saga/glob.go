@@ -17,8 +17,8 @@ import (
 // side matched around it, so `**/testdata/**` and `vendor/**` both behave the way the person
 // writing them expects.
 //
-// Lives here rather than beside either caller because the dialect is part of the Saga language —
-// it is what a descriptor means by a pattern, so it belongs with the rest of the descriptor's
+// Lives here rather than beside either caller because the dialect is part of the Saga language. It
+// is what a descriptor means by a pattern, so it belongs with the rest of the descriptor's
 // definition. Two copies would be two dialects the moment one of them was fixed.
 func GlobMatch(pattern, rel string) bool {
 	if !strings.Contains(pattern, "**") {
@@ -53,7 +53,7 @@ func GlobMatch(pattern, rel string) bool {
 // globFiles returns the files matching pattern, as paths relative to base.
 //
 // Sorted, because the result decides merge order and two machines resolving the same commit
-// differently would make a descriptor irreproducible — the one property the whole tool rests on.
+// differently would make a descriptor irreproducible, the one property the whole tool rests on.
 // Directory entries never match: a pattern selects files to read.
 //
 // The walk starts at the pattern's literal prefix rather than at base. That is what lets a

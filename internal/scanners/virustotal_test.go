@@ -21,16 +21,16 @@ func fakeVT(d virusTotalDomain, known bool, err error) virusTotalScanner {
 
 func TestVirusTotalOnlyEverReadsDomainReports(t *testing.T) {
 	// The safety property the whole scanner rests on. VirusTotal's sharing terms attach to
-	// "Sample submissions" — files and URLs sent for analysis. A domain report is a lookup of an
+	// "Sample submissions", files and URLs sent for analysis. A domain report is a lookup of an
 	// aggregate they already hold, and there is no submitting a domain. An endpoint that accepts
 	// content would put a customer's data into a corpus shared with the community and with
 	// premium customers, so the single URL is asserted rather than trusted to review.
 	if !strings.HasPrefix(virusTotalAPI, "https://www.virustotal.com/api/v3/domains/") {
-		t.Errorf("endpoint changed to %q — if this is deliberate, re-read what VirusTotal shares", virusTotalAPI)
+		t.Errorf("endpoint changed to %q, if this is deliberate, re-read what VirusTotal shares", virusTotalAPI)
 	}
 	// Spelled the way VirusTotal spells it. These are their endpoint paths, not our prose, so
-	// the American-spelling rule does not reach them — a "corrected" path matches nothing and
-	// the guard silently stops guarding.
+	// the American-spelling rule does not reach them, a "corrected" path matches nothing and the
+	// guard silently stops guarding.
 	for _, forbidden := range []string{"/urls", "/files", "/analyses"} {
 		if strings.Contains(virusTotalAPI, forbidden) {
 			t.Errorf("endpoint reaches %s, which accepts submissions", forbidden)
@@ -39,9 +39,9 @@ func TestVirusTotalOnlyEverReadsDomainReports(t *testing.T) {
 }
 
 func TestVirusTotalNeedsTwoEnginesToFailABuild(t *testing.T) {
-	// A single detection on a legitimate domain is routine — new registrations, shared hosting,
-	// a heuristic having a bad day. Failing a build on one engine's opinion is how a control
-	// gets switched off, so one is reported and does not gate.
+	// A single detection on a legitimate domain is routine, new registrations, shared hosting, a
+	// heuristic having a bad day. Failing a build on one engine's opinion is how a control gets
+	// switched off, so one is reported and does not gate.
 	got := virusTotalResults("https://x.example/", virusTotalDomain{
 		Stats: virusTotalStats{Malicious: 1},
 	}, true)
@@ -194,8 +194,8 @@ func TestVirusTotalLookupHandlesEachAnswer(t *testing.T) {
 	}{
 		{name: "known", status: 200, wantKnown: true, wantStats: 3,
 			body: `{"data":{"attributes":{"last_analysis_stats":{"malicious":3}}}}`},
-		// A 404 is an answer — "never seen it" — not a failure, and reporting it as one would
-		// turn every unremarkable domain into a scan error.
+		// A 404 is an answer, "never seen it", not a failure, and reporting it as one would turn
+		// every unremarkable domain into a scan error.
 		{name: "unknown", status: 404, wantKnown: false},
 		{name: "rate limited", status: 429, wantErr: "4 requests a minute"},
 		{name: "auth failure", status: 401, body: `{"error":"bad key ` + key + `"}`, wantErr: "401"},

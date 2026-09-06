@@ -63,7 +63,7 @@ func runSelfUpdate(ctx context.Context, w io.Writer, in io.Reader, opts selfUpda
 		if cur == latest {
 			_, _ = fmt.Fprintln(w, "draugr is up to date.")
 		} else {
-			_, _ = fmt.Fprintln(w, "an update is available — run 'draugr self-update'.")
+			_, _ = fmt.Fprintln(w, "an update is available. Run 'draugr self-update'.")
 		}
 		return nil
 	}

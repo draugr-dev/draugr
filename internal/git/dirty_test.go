@@ -48,8 +48,8 @@ func TestUncommittedFiles(t *testing.T) {
 		t.Errorf("dirty repository: got %d, want 2", n)
 	}
 
-	// A URL has no working tree, and a directory that is not a repository cannot answer —
-	// neither is an error, because this only ever decorates a warning.
+	// A URL has no working tree, and a directory that is not a repository cannot answer.
+	// Neither is an error, because this only ever decorates a warning.
 	if n := UncommittedFiles(ctx, "https://github.com/acme/web.git"); n != 0 {
 		t.Errorf("remote url: got %d, want 0", n)
 	}

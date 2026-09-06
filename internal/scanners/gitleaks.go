@@ -23,7 +23,7 @@ const gitleaksConfigSchema = `{
     },
     "history": {
       "type": "boolean",
-      "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised — this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced."
+      "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced."
     }
   }
 }`
@@ -57,7 +57,7 @@ func gitleaksWantsHistory(cfg plugin.Config) bool {
 	return v
 }
 
-// gitleaksArgs scans the working tree — always, whatever `history` says.
+// gitleaksArgs scans the working tree. Always, whatever `history` says.
 //
 // The tree pass is what reports a live secret at the path it actually lives at. History alone
 // cannot: `gitleaks git` reports the path a secret had in the commit that introduced it, so a
@@ -89,7 +89,7 @@ func gitleaksCommand(mode, dir string, cfg plugin.Config) []string {
 		"--no-banner",
 	}
 	// Always a configuration, and always ours: it extends whatever the scan would otherwise have
-	// used — Gitleaks' own ruleset, or the one the descriptor named — and adds Draugr's.
+	// used, Gitleaks' own ruleset, or the one the descriptor named, and adds Draugr's.
 	//
 	// Composing it can fail on a machine with no writable home, and that is not a reason to skip
 	// the scan. Falling back to the descriptor's own configuration keeps the secrets control

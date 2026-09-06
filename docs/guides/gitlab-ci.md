@@ -10,8 +10,8 @@ order: 16
 There is no extension to install and no CI/CD Catalog component to add. Draugr is a single binary.
 
 A complete, commented `.gitlab-ci.yml` is at
-[`examples/gitlab-ci.yml`](../../examples/gitlab-ci.yml) — copy that if you would rather start from
-a working file than from prose.
+[`examples/gitlab-ci.yml`](../../examples/gitlab-ci.yml). Copy that if you would rather start from a
+working file than from prose.
 
 ## Set it up
 
@@ -26,9 +26,9 @@ stages: [test]
 ```
 
 **`remote:`, not `project:`.** `include: project:` resolves against your own GitLab instance, and
-Draugr is not on it — that form fails with a project-not-found error that reads like a permissions
-problem. Pin the tag rather than `main`: the URL is fetched at pipeline time, so an unpinned
-include changes under a pipeline that has not changed.
+Draugr is not on it. That form fails with a project-not-found error that reads like a permissions
+problem. Pin the tag rather than `main`: the URL is fetched at pipeline time, so an unpinned include
+changes under a pipeline that has not changed.
 
 If your runners have no route to raw.githubusercontent.com, copy `gitlab-ci/draugr.yml` into your
 own repository and `include: local:` it; nothing in it is specific to where it is hosted.
@@ -53,8 +53,8 @@ draugr: gitlab-mr-comment publisher missing: $GITLAB_TOKEN (a project or group a
 post)
 ```
 
-Without the variable the job fails, because `--publish` was asked for and could not be honored —
-but it fails **with the verdict**, not instead of it:
+Without the variable the job fails, because `--publish` was asked for and could not be honored, but
+it fails **with the verdict**, not instead of it:
 
 ```
 draugr: differential gate: 1 new finding(s) at or above the threshold
@@ -67,9 +67,9 @@ credential while the P1 the change introduced went unmentioned.
 ## What the job does
 
 **On a merge request** it scans the head, scans the merge base, and reports the delta as a sticky
-comment — one note per merge request, edited in place on each push rather than stacking up. The
-gate is on what the change *introduces* (`DRAUGR_FAIL_ON_NEW_PRIORITY`, default `P1`), not on the
-backlog it inherited.
+comment, one note per merge request, edited in place on each push rather than stacking up. The gate
+is on what the change *introduces* (`DRAUGR_FAIL_ON_NEW_PRIORITY`, default `P1`), not on the backlog
+it inherited.
 
 **On the default branch** it scans the whole descriptor and applies the descriptor's own gate.
 
@@ -77,9 +77,9 @@ Both publish GitLab's own reports as artifacts.
 
 ### The merge base is usually not in the checkout
 
-GitLab clones **20 commits deep** by default, so `CI_MERGE_REQUEST_DIFF_BASE_SHA` — the commit a
-merge request should be compared against — is frequently absent. The template fetches that one
-commit explicitly, which is far cheaper than a full history:
+GitLab clones **20 commits deep** by default, so `CI_MERGE_REQUEST_DIFF_BASE_SHA`, the commit a
+merge request should be compared against, is frequently absent. The template fetches that one commit
+explicitly, which is far cheaper than a full history:
 
 ```yaml
 git fetch --no-tags --depth 1 origin "${CI_MERGE_REQUEST_DIFF_BASE_SHA}"
@@ -90,8 +90,8 @@ a `git worktree add` that fails on a real merge request and never on a small tes
 
 ## Where the findings show up, and on which plan
 
-GitLab does not read SARIF. It reads its own schema, collected from `artifacts: reports:` — so
-Draugr renders GitLab's formats rather than uploading anything.
+GitLab does not read SARIF. It reads its own schema, collected from `artifacts: reports:`, so Draugr
+renders GitLab's formats rather than uploading anything.
 
 | Surface | Fed by | Tier |
 |---|---|---|
@@ -101,16 +101,16 @@ Draugr renders GitLab's formats rather than uploading anything.
 | Sticky merge-request comment | the `markdown` report | any |
 | **Dependency List**, **License Compliance** | a CycloneDX SBOM, from `config.sbom` | Ultimate |
 
-On Free and Premium the security reports are produced and stored and nothing displays them. That
-is why `gitlab-codequality` carries **every** finding whatever its control, and the typed security
-reports carry only their own — the untyped one is what keeps findings visible on any plan.
+On Free and Premium the security reports are produced and stored and nothing displays them. That is
+why `gitlab-codequality` carries **every** finding whatever its control, and the typed security
+reports carry only their own. The untyped one is what keeps findings visible on any plan.
 
 See [reports & publishers](reports-and-publishers.md#gitlabs-own-report-formats) for the severity
 mapping in each, and what they deliberately leave out.
 
 ### The Dependency List and License Compliance both come from the SBOM
 
-GitLab reads both out of a **CycloneDX SBOM** rather than a report of its own — the older
+GitLab reads both out of a **CycloneDX SBOM** rather than a report of its own. The older
 `license_scanning` artifact is not what populates either. Two things it is strict about, and Draugr
 handles both:
 
@@ -120,7 +120,7 @@ handles both:
 - **Its own property namespace, behind a required flag.** The manifest a package came from is
   stated as `gitlab:dependency_scanning:input_file:path`, and GitLab reads it only if the document
   also declares `gitlab:meta:schema_version`. Without that flag every `gitlab:` property is ignored
-  — quietly, because packages still show names, versions and licenses from plain CycloneDX and
+ . Quietly, because packages still show names, versions and licenses from plain CycloneDX and
   GitLab infers the packager from a purl. What goes missing is *Location*, and with it GitLab's own
   dependency scanning against the SBOM.
 
@@ -139,7 +139,7 @@ config:
 ```
 
 The template renders `gitlab-cyclonedx` and collects `draugr-out/gl-sbom-*.cdx.json`, and that one
-artifact fills both *Secure → Dependency List* and the merge request's *License Compliance* tab —
+artifact fills both *Secure → Dependency List* and the merge request's *License Compliance* tab,
 each package with its version, license, packager and the file it was declared in.
 
 Without `config.sbom` there is nothing to render: the format says so rather than writing an empty
@@ -163,7 +163,7 @@ draugr:
 ## Scanners the runner needs
 
 `draugr tools install` provisions every scanner the descriptor's controls need, Semgrep included.
-Semgrep publishes no release binary, so Draugr installs it from PyPI into an environment it owns —
+Semgrep publishes no release binary, so Draugr installs it from PyPI into an environment it owns,
 which needs a **Python 3.10 or newer** interpreter on the runner.
 
 That is why the job runs on `python:3.13-slim` rather than something smaller, along with the other
@@ -172,9 +172,9 @@ fine and then report controls that could not run.
 
 The template also runs `draugr doctor`, which names anything still missing and where it comes from,
 rather than letting a control report that it quietly found nothing. It also reports any surface the
-descriptor declares that no enabled control examines — the pipeline that goes green having never
-opened your images. Add `--fail-on-uncovered` to make that a failing job on a descriptor meant to
-be complete.
+descriptor declares that no enabled control examines. The pipeline that goes green having never
+opened your images. Add `--fail-on-uncovered` to make that a failing job on a descriptor meant to be
+complete.
 
 ## Without the template
 
@@ -196,5 +196,5 @@ draugr:
 ```
 
 `CI_PROJECT_ID`, `CI_MERGE_REQUEST_IID` and `CI_API_V4_URL` are read from the runner's environment,
-so a Saga declaring `kind: gitlab-mr-comment` needs nothing else — and no-ops on a branch pipeline,
+so a Saga declaring `kind: gitlab-mr-comment` needs nothing else, and no-ops on a branch pipeline,
 so one descriptor serves both.

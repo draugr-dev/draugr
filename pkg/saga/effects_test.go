@@ -18,9 +18,9 @@ func TestAllowEffectsIsAList(t *testing.T) {
 	}
 }
 
-// The shape that used to work is refused by name. Left to the default decoder it produces
-// "cannot unmarshal !!map into saga.EffectPermissions" — a Go type nobody reading a descriptor has
-// heard of, for a shape our own documentation told them to write.
+// The shape that used to work is refused by name. Left to the default decoder it produces "cannot
+// unmarshal !!map into saga.EffectPermissions", a Go type nobody reading a descriptor has heard
+// of, for a shape our own documentation told them to write.
 func TestAllowEffectsRefusesTheOldMappingByName(t *testing.T) {
 	var m Model
 	err := yaml.Unmarshal([]byte("config:\n  allowEffects:\n    staging: [mutate]\n    production: []\n"), &m)

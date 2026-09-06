@@ -17,7 +17,7 @@ import (
 const retryAttempts = 3
 
 // retryBaseDelay is the first backoff, doubled each attempt and jittered. Small, because the
-// requests being retried are a handful of comment reads and one write — there is no herd here to
+// requests being retried are a handful of comment reads and one write. There is no herd here to
 // protect, only a moment to let pass.
 const retryBaseDelay = 500 * time.Millisecond
 
@@ -30,8 +30,8 @@ const retryMaxDelay = 8 * time.Second
 //
 // Every one of these is the server declining before it did the work: 429 is a rate limit, and the
 // 502/503/504 family is a proxy or a backend that never reached the handler. That is what makes a
-// retry safe on a POST as well as a GET — the request was refused, not applied, so sending it
-// again cannot produce a second comment.
+// retry safe on a POST as well as a GET. The request was refused, not applied, so sending it again
+// cannot produce a second comment.
 func retryableStatus(code int) bool {
 	switch code {
 	case http.StatusTooManyRequests,
@@ -47,13 +47,13 @@ func retryableStatus(code int) bool {
 // the first time a proxy has a bad second.
 //
 // Wrapped around a client rather than written at each call site: the publishers make several
-// requests each — list the comments, follow a page, then post or patch — and a retry that covers
+// requests each. List the comments, follow a page, then post or patch, and a retry that covers
 // only the last of them still fails the run on the first.
 //
 // What it will not retry is a transport error with no response, on anything but a GET. A request
 // that never came back is a request whose fate is unknown: the forge may have created the comment
 // and lost the reply. Retrying that risks posting twice, and two comments on a pull request is a
-// worse outcome than one honest failure — the sticky comment exists so a reader sees one current
+// worse outcome than one honest failure, the sticky comment exists so a reader sees one current
 // verdict, not a history of attempts.
 type retryTransport struct {
 	base     http.RoundTripper

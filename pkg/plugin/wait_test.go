@@ -34,7 +34,7 @@ func TestWaitRecorderSumsPerTool(t *testing.T) {
 }
 
 // TestRecordWaitWithoutARecorderIsSafe: a scanner run outside a run, or from a test, must not
-// have to install one — and losing the measurement is not a reason to behave differently.
+// have to install one. And losing the measurement is not a reason to behave differently.
 func TestRecordWaitWithoutARecorderIsSafe(*testing.T) {
 	RecordWait(context.Background(), "trivy", time.Second) // must not panic
 }

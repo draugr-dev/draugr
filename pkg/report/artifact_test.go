@@ -54,10 +54,10 @@ func TestFilenameAgreesWithWhatAPublisherDelivers(t *testing.T) {
 	// Two tables naming the same files agree until they do not, and near-agreement is the worst
 	// outcome: nothing looks wrong until a pipeline globs for the one format they differ on.
 	// Whatever `-o` writes and whatever a publisher hands to a destination have to be the same
-	// name, so the invariant is asserted per format rather than trusted.
-	// An SBOM, because gitlab-cyclonedx renders one rather than a view of the findings — and it
-	// refuses to write a document with no packages in it, which is the right behavior and not
-	// something this test is about.
+	// name, so the invariant is asserted per format rather than trusted. An SBOM, because
+	// gitlab-cyclonedx renders one rather than a view of the findings, and it refuses to write
+	// a document with no packages in it, which is the right behavior and not something this
+	// test is about.
 	d := goldenCleanData()
 	d.Run.SBOMs = []sbom.Document{{
 		Project: true, Format: saga.SBOMCycloneDXJSON,

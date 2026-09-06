@@ -1,6 +1,6 @@
 // Package netpolicy holds one answer to one question: may this process reach the network?
 //
-// Draugr reaches out from several places — a release check, a vulnerability database, a template
+// Draugr reaches out from several places, a release check, a vulnerability database, a template
 // set, the exploitability feeds, tool downloads. Each used to decide for itself, so an
 // air-gapped runner met the failures one at a time, each separately explicable and collectively
 // a bad first hour. There is now one way to say it, and every caller asks here.
@@ -42,7 +42,7 @@ func Offline() bool {
 
 // SkipUpdateCheck reports whether the check for a newer Draugr release should be skipped.
 //
-// Offline implies it, and the older DRAUGR_NO_UPDATE_CHECK still asks for it on its own — the
+// Offline implies it, and the older DRAUGR_NO_UPDATE_CHECK still asks for it on its own. The
 // narrower request remains sayable for someone who has a network and simply does not want to be
 // told about releases.
 func SkipUpdateCheck() bool {

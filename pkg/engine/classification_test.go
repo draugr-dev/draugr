@@ -31,7 +31,7 @@ func TestStampedFindingsCarryTheirComponentsClassification(t *testing.T) {
 		}
 		r := got.Results[0]
 		if [2]string{r.Exposure, r.Criticality} != want[pj.Component] {
-			t.Errorf("%s carried %q/%q, want %v — a band explained with another component's inputs",
+			t.Errorf("%s carried %q/%q, want %v, a band explained with another component's inputs",
 				pj.Component, r.Exposure, r.Criticality, want[pj.Component])
 		}
 	}
@@ -50,9 +50,9 @@ func TestAnUndeclaredComponentCarriesNoClassification(t *testing.T) {
 }
 
 // Stamping must not write through to the cached report. A cached scan is replayed for every
-// component that shares the target, so a mutated result would hand the second component the
-// first one's classification — and the finding would explain its band with numbers from
-// somewhere else entirely.
+// component that shares the target, so a mutated result would hand the second component the first
+// one's classification. And the finding would explain its band with numbers from somewhere else
+// entirely.
 func TestStampingLeavesTheCachedReportAlone(t *testing.T) {
 	e := &Engine{}
 	cached := sarif.Report{Results: []sarif.Result{{RuleID: "CVE-2020-1"}}}
@@ -69,8 +69,8 @@ func TestStampingLeavesTheCachedReportAlone(t *testing.T) {
 //
 // Two components sharing one repository and disagreeing about it, because that is the case the
 // per-job stamp exists for: the scan is cached and replayed, and a value written into the cached
-// report would hand the second component the first one's answer. It is also the realistic shape —
-// a vendor's repository is upstream to the team that consumes it and self to nobody.
+// report would hand the second component the first one's answer. It is also the realistic shape.
+// A vendor's repository is upstream to the team that consumes it and self to nobody.
 func TestWhoPublishesTheTargetIsStampedPerJob(t *testing.T) {
 	e := &Engine{}
 	cached := sarif.Report{Results: []sarif.Result{{RuleID: "GPL-3.0-only"}}}

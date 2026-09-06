@@ -9,8 +9,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/norn"
 )
 
-// markdownReporter renders a portable Markdown report — for MR comments (GitLab/Bitbucket),
-// wikis, Slack, or email — leading with the verdict and "fix first".
+// markdownReporter renders a portable Markdown report, for MR comments (GitLab/Bitbucket), wikis,
+// Slack, or email, leading with the verdict and "fix first".
 type markdownReporter struct{}
 
 func (markdownReporter) Format() string { return "markdown" }
@@ -24,7 +24,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	if s.verdict == norn.Fail {
 		verdict = "❌ FAIL"
 	}
-	_, _ = fmt.Fprintf(w, "## Draugr — %s\n\n", verdict)
+	_, _ = fmt.Fprintf(w, "## Draugr · %s\n\n", verdict)
 	if name := d.ProjectName(); name != "" {
 		_, _ = fmt.Fprintf(w, "**Release:** %s %s\n\n", name, d.Release.Version)
 	}
@@ -55,7 +55,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		// A control that produced nothing at all has no verdict row, and leaving it out
 		// entirely is how a broken run reads as a clean one.
 		for _, name := range s.errored {
-			_, _ = fmt.Fprintf(w, "| %s | **ERROR** | — | — | — | — |\n", name)
+			_, _ = fmt.Fprintf(w, "| %s | **ERROR** |, |, |, |, |\n", name)
 		}
 		_, _ = fmt.Fprintln(w)
 		writeScanErrors(w, s)
@@ -70,7 +70,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 
 	if len(s.findings) == 0 {
 		if len(s.scanErrors) > 0 {
-			_, _ = fmt.Fprintln(w, "No findings from the controls that ran — see the errors above.")
+			_, _ = fmt.Fprintln(w, "No findings from the controls that ran. See the errors reported above.")
 			return nil
 		}
 		_, _ = fmt.Fprintln(w, "No findings. ✓")
@@ -86,8 +86,8 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	} else {
 		_, _ = fmt.Fprintf(w, "### Fix first\n\n")
 	}
-	// Component before Location: a path answers "where inside", and with more than one component
-	// the reader needs "which one" first — two components can carry the same path.
+	// Component before Location: a path answers "where inside", and with more than one component the
+	// reader needs "which one" first. Two components can carry the same path.
 	_, _ = fmt.Fprintln(w, "| Priority | Severity | Score | Rule | Control | Scanner | Component | Location |")
 	_, _ = fmt.Fprintln(w, "|---|---|---|---|---|---|---|---|")
 	shown := s.findings
@@ -121,7 +121,7 @@ func writeNotMeasuredRows(w io.Writer, d Data) {
 		if sk.Component != "" {
 			where += " on `" + sk.Component + "`"
 		}
-		_, _ = fmt.Fprintf(w, "- %s (%s) — %s\n", where, sk.Control, sk.Reason)
+		_, _ = fmt.Fprintf(w, "- %s (%s) · %s\n", where, sk.Control, sk.Reason)
 	}
 	_, _ = fmt.Fprintln(w)
 }
@@ -135,7 +135,7 @@ func writeScanErrors(w io.Writer, s summary) {
 	_, _ = fmt.Fprintln(w)
 	for _, name := range sortedKeys(s.scanErrors) {
 		for _, msg := range dedupeMessages(s.scanErrors[name]) {
-			_, _ = fmt.Fprintf(w, "- `%s` — %s\n", name, findingSummary(msg))
+			_, _ = fmt.Fprintf(w, "- `%s` · %s\n", name, findingSummary(msg))
 		}
 	}
 	_, _ = fmt.Fprintln(w)
@@ -174,7 +174,7 @@ func writeRepositories(w io.Writer, d Data) {
 			line += " at `" + rev + "`"
 		}
 		if r.Uncommitted > 0 {
-			line += fmt.Sprintf(" — %s not included", plural(r.Uncommitted, "uncommitted file"))
+			line += fmt.Sprintf(" · %s not included", plural(r.Uncommitted, "uncommitted file"))
 		}
 		_, _ = fmt.Fprintln(w, line)
 	}
@@ -190,10 +190,10 @@ func writeProvenance(w io.Writer, d Data) {
 	_, _ = fmt.Fprintln(w)
 	for _, l := range lines {
 		if l.Detail == "" {
-			_, _ = fmt.Fprintf(w, "- `%s` — %s\n", l.Control, l.Label())
+			_, _ = fmt.Fprintf(w, "- `%s` · %s\n", l.Control, l.Label())
 			continue
 		}
-		_, _ = fmt.Fprintf(w, "- `%s` — %s: %s\n", l.Control, l.Label(), l.Detail)
+		_, _ = fmt.Fprintf(w, "- `%s` · %s: %s\n", l.Control, l.Label(), l.Detail)
 	}
 	_, _ = fmt.Fprintln(w)
 }
@@ -243,9 +243,9 @@ func writeExploitability(w io.Writer, d Data) {
 			when = "fetched " + f.FetchedAt.UTC().Format(time.DateOnly)
 		}
 		if f.Stale {
-			when += " — **stale**"
+			when += " · **stale**"
 		}
-		_, _ = fmt.Fprintf(w, "- `%s` — %s\n", f.Name, when)
+		_, _ = fmt.Fprintf(w, "- `%s` · %s\n", f.Name, when)
 	}
 	_, _ = fmt.Fprintln(w)
 }

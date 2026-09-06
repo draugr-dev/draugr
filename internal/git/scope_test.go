@@ -126,13 +126,13 @@ func TestCheckoutIgnoreRemovesMatchingPaths(t *testing.T) {
 	}
 	for _, want := range []string{"go.mod", "services/web/main.go", "services/api/main.go"} {
 		if !slices.Contains(got, want) {
-			t.Errorf("missing %q — ignore took too much: %v", want, got)
+			t.Errorf("missing %q, ignore took too much: %v", want, got)
 		}
 	}
 }
 
 func TestCheckoutIgnoreAppliesInsidePaths(t *testing.T) {
-	// Ignore runs last so it can carve out of a selected subtree — the common shape being "this
+	// Ignore runs last so it can carve out of a selected subtree, the common shape being "this
 	// service, but not its fixtures".
 	co, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
 		Scope{Paths: []string{"services/web"}, Ignore: []string{"services/web/testdata/"}})
@@ -245,8 +245,8 @@ func TestPruneEnforcesPathsForTheFallback(t *testing.T) {
 }
 
 func TestRetryPlainReclonesOverAPartialTree(t *testing.T) {
-	// The fallback runs against a directory the failed sparse clone may already have written
-	// into, so it has to clear it first — git refuses to clone into a non-empty directory.
+	// The fallback runs against a directory the failed sparse clone may already have written into,
+	// so it has to clear it first, git refuses to clone into a non-empty directory.
 	src := scopedRepo(t)
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "leftover"), []byte("x"), 0o600); err != nil {
@@ -294,9 +294,9 @@ func TestCheckoutScopedAtARevision(t *testing.T) {
 }
 
 func TestCheckoutFallsBackWhenSparseCloneIsRefused(t *testing.T) {
-	// Partial clone needs the server's cooperation and sparse checkout needs a recent git.
-	// Neither is a reason to refuse to scan, and the tree the slow route produces has to be the
-	// same one — otherwise a scan's scope would depend on where the repository is hosted.
+	// Partial clone needs the server's cooperation and sparse checkout needs a recent git. Neither
+	// is a reason to refuse to scan, and the tree the slow route produces has to be the same one.
+	// Otherwise a scan's scope would depend on where the repository is hosted.
 	orig := gitRun
 	t.Cleanup(func() { gitRun = orig })
 	gitRun = func(ctx context.Context, args ...string) error {

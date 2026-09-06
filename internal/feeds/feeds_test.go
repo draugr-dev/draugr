@@ -89,8 +89,8 @@ func TestLoadForgetsDeletedFiles(t *testing.T) {
 	if err := os.Remove(Path(dir, KEV)); err != nil {
 		t.Fatal(err)
 	}
-	// "Cached" and "on disk" must not be able to disagree — otherwise a scan is told to read
-	// a file that is not there.
+	// "Cached" and "on disk" must not be able to disagree. Otherwise a scan is told to read a
+	// file that is not there.
 	if _, ok := Load(dir)[KEV]; ok {
 		t.Error("manifest still claims a feed whose file was deleted")
 	}
@@ -247,8 +247,8 @@ func TestFetchReportsAnUnwritableManifest(t *testing.T) {
 	serve(t, kevBody, epssBody, http.StatusOK)
 	dir := t.TempDir()
 	// A directory where the manifest belongs. The data lands, and the failure to record it is
-	// still reported — a cache that cannot say when it was filled is not a cache we can trust
-	// a staleness decision to.
+	// still reported. A cache that cannot say when it was filled is not a cache we can trust a
+	// staleness decision to.
 	if err := os.Mkdir(filepath.Join(dir, manifestName), 0o750); err != nil {
 		t.Fatal(err)
 	}

@@ -184,7 +184,7 @@ func TestImageRefLocationsNamesEachImage(t *testing.T) {
 	}
 	// The same rule id in both, which is exactly when a collapsed image becomes indistinguishable.
 	if first.Results[0].Image == second.Results[0].Image {
-		t.Error("two images produced one image reference — a per-image value collapsed")
+		t.Error("two images produced one image reference, a per-image value collapsed")
 	}
 	// The location keeps agreeing with the image, because they are the same answer.
 	if first.Results[0].Location.URI != first.Results[0].Image {

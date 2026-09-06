@@ -62,7 +62,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 		// A scan can synthesize a descriptor; classification cannot. Exposure and criticality are
 		// judgements about a component, and there is no file to record them in or read them back
 		// from.
-		return fmt.Errorf("no %s in %s — run `draugr init` to write one", sagaGlob, dirOf(target))
+		return fmt.Errorf("no %s in %s. Run `draugr init` to write one", sagaGlob, dirOf(target))
 	}
 
 	model, err := loadSaga(path)
@@ -129,8 +129,8 @@ func dirOf(target string) string {
 // flag was not given.
 //
 // A name that matches nothing is an error, not a skip. The whole point of the flag is to classify
-// one component out of many, so a typo silently classifying none — and reporting "all components
-// are already classified" — would answer a question that was never asked.
+// one component out of many, so a typo silently classifying none. And reporting "all components
+// are already classified". Would answer a question that was never asked.
 func selectComponents(components []saga.Component, want []string) (map[string]bool, error) {
 	selected := map[string]bool{}
 	if len(want) == 0 {
@@ -161,11 +161,11 @@ func selectComponents(components []saga.Component, want []string) (map[string]bo
 			names = append(names, quoted(n))
 		}
 		sort.Strings(names)
-		msg := fmt.Sprintf("no component named %s — the Saga has %s",
+		msg := fmt.Sprintf("no component named %s, the Saga has %s",
 			list(quotedAll(unknown)), list(names))
 		if len(unknown) == 1 {
 			if near := nearestName(unknown[0], known); near != "" {
-				msg = fmt.Sprintf("no component named %q — did you mean %q?", unknown[0], near)
+				msg = fmt.Sprintf("no component named %q, did you mean %q?", unknown[0], near)
 			}
 		}
 		return nil, errors.New(msg)
@@ -202,14 +202,14 @@ type choice struct {
 // exposureChoices are the reachability levels, most exposed first.
 //
 // The wording deliberately names no platform. "Is its network access restricted (namespace /
-// network policy)?" is answerable if you run Kubernetes and a guess otherwise — and Draugr
+// network policy)?" is answerable if you run Kubernetes and a guess otherwise, and Draugr
 // classifies repositories and images too. The question underneath is who can reach this, so that
 // is the question asked; a cluster is one way to arrange the answer and belongs in an example.
 var exposureChoices = []choice{
 	{string(saga.ExposurePublic), "public", "anyone on the internet can reach it, no sign-in", tui.StyleCritical},
 	{string(saga.ExposureAuthenticated), "authenticated", "on the internet, but behind a login", tui.StyleHigh},
 	{string(saga.ExposureInternal), "internal", "only from inside your own network or VPN", tui.StyleMedium},
-	{string(saga.ExposureRestricted), "restricted", "inside your network and locked down further — an allowlist, a private link, its own segment", tui.StyleLow},
+	{string(saga.ExposureRestricted), "restricted", "inside your network and locked down further, an allowlist, a private link, its own segment", tui.StyleLow},
 }
 
 // criticalityChoices are the impact levels, most critical first.
@@ -221,13 +221,13 @@ var criticalityChoices = []choice{
 
 // askExposure asks who can reach the component.
 func askExposure(sc *bufio.Scanner, out io.Writer) saga.Exposure {
-	return saga.Exposure(ask(sc, out, "Exposure — who can reach it?", exposureChoices,
+	return saga.Exposure(ask(sc, out, "Exposure, who can reach it?", exposureChoices,
 		string(saga.ExposureInternal)))
 }
 
 // askCriticality asks what happens if the component fails.
 func askCriticality(sc *bufio.Scanner, out io.Writer) saga.Criticality {
-	return saga.Criticality(ask(sc, out, "Criticality — what happens if it fails or is breached?",
+	return saga.Criticality(ask(sc, out, "Criticality, what happens if it fails or is breached?",
 		criticalityChoices, string(saga.CriticalityImportant)))
 }
 
@@ -235,7 +235,7 @@ func askCriticality(sc *bufio.Scanner, out io.Writer) saga.Criticality {
 //
 // One interaction for both questions. Exposure used to be a tree of yes/no questions and
 // criticality a numbered list, so a reader switched modes halfway through a wizard whose whole
-// point is to be quick — and switching is where quick becomes careful.
+// point is to be quick. And switching is where quick becomes careful.
 //
 // A numbered list also shows the whole ladder at once, which a decision tree cannot: someone
 // answering "no, not public" never saw that "restricted" was a rung below "internal".
@@ -257,8 +257,8 @@ func ask(sc *bufio.Scanner, out io.Writer, question string, choices []choice, fa
 			return choices[n-1].value
 		}
 		if !ok {
-			// No more input — a piped or truncated session. The middle of the ladder is the
-			// honest guess: neither hiding risk nor inventing it.
+			// No more input, a piped or truncated session. The middle of the ladder is the honest guess:
+			// neither hiding risk nor inventing it.
 			return fallback
 		}
 		_, _ = fmt.Fprintf(out, "  Please enter a number from 1 to %d.\n", len(choices))

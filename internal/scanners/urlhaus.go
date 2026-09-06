@@ -17,7 +17,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// urlhausAPI is abuse.ch's lookup endpoint. A POST, not a GET — their API rejects anything else
+// urlhausAPI is abuse.ch's lookup endpoint. A POST, not a GET, their API rejects anything else
 // with `http_post_expected`.
 const urlhausAPI = "https://urlhaus-api.abuse.ch/v1/host/"
 
@@ -32,7 +32,7 @@ const urlhausKeyEnv = "URLHAUS_AUTH_KEY" //nolint:gosec // the name of a variabl
 // urlhausScanner asks abuse.ch whether a component's own hosts are known to serve malware.
 //
 // Backwards compared to most controls: the others ask "is there something wrong inside this
-// artifact". This asks "does the outside world already consider this host hostile" — which is a
+// artifact". This asks "does the outside world already consider this host hostile". Which is a
 // different question with a different failure mode. A hit means someone else has seen your
 // infrastructure distributing malware, which is either a compromise you have not found yet or a
 // name someone else abused before you had it.
@@ -58,7 +58,7 @@ func NewURLhaus() plugin.Scanner {
 			Effects: []plugin.Effect{{
 				Kind: plugin.EffectDisclosure,
 				Detail: "sends each host's name to abuse.ch to ask whether it is known to " +
-					"serve malware — a third party learns the hostname",
+					"serve malware, a third party learns the hostname",
 			}},
 		},
 		lookup: urlhausLookup,
@@ -71,8 +71,8 @@ func (s urlhausScanner) Info() plugin.ScannerInfo { return s.info }
 
 // CacheVersion ties cached results to this binary (implements plugin.CacheVersioner).
 //
-// There is no tool version to read, and the answer depends on a feed that changes constantly —
-// which is what the cache TTL is for. This only has to invalidate when Draugr's own reading of
+// There is no tool version to read, and the answer depends on a feed that changes constantly.
+// Which is what the cache TTL is for. This only has to invalidate when Draugr's own reading of
 // the response changes.
 func (s urlhausScanner) CacheVersion(context.Context) string { return draugrCacheVersion() }
 
@@ -86,16 +86,16 @@ func (s urlhausScanner) Scan(ctx context.Context, target plugin.Target, _ plugin
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("urlhaus: %w", err)
 	}
-	// Refused rather than attempted: this control's whole job is to ask somebody else, so there
-	// is no degraded version of it to run. Saying which host would have been disclosed is the
-	// point — an air-gapped operator needs to know what the scan would have sent.
+	// Refused rather than attempted: this control's whole job is to ask somebody else, so there is
+	// no degraded version of it to run. Saying which host would have been disclosed is the point. An
+	// air-gapped operator needs to know what the scan would have sent.
 	if netpolicy.Offline() {
 		return sarif.Report{}, netpolicy.Refuse("the threats control", urlhausAPI+" (asking about "+name+")")
 	}
 	if s.key() == "" {
 		return sarif.Report{}, fmt.Errorf(
 			"urlhaus: no API key. abuse.ch requires one and issues them free at "+
-				"https://auth.abuse.ch/ — put it in $%s", urlhausKeyEnv)
+				"https://auth.abuse.ch/. Put it in $%s", urlhausKeyEnv)
 	}
 
 	resp, err := s.lookup(ctx, name)
@@ -191,7 +191,7 @@ const (
 //
 // Two levels, and the distinction is the whole judgement here. A URL abuse.ch still marks
 // `online` is malware being served from your host right now. One marked offline is a record that
-// it once was — which is not nothing, because it means the host was compromised or abused before,
+// it once was. Which is not nothing, because it means the host was compromised or abused before,
 // but it is not an emergency and reporting it as one would make the control cry wolf on any
 // domain with a history.
 func urlhausResults(rawURL string, resp urlhausResponse) []sarif.Result {
@@ -299,7 +299,7 @@ func urlhausRules() map[string]sarif.Rule {
 // urlhausProvenance records who was asked and what they said, including when they said nothing.
 //
 // A control that reports no findings because a feed knows nothing is indistinguishable, in a
-// report, from one that did not run — and this one is worth telling apart, because "abuse.ch has
+// report, from one that did not run. And this one is worth telling apart, because "abuse.ch has
 // never heard of your host" is the answer you wanted.
 func urlhausProvenance(host string, resp urlhausResponse) sarif.Provenance {
 	answer := resp.QueryStatus

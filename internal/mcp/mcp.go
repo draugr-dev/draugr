@@ -1,7 +1,7 @@
 // Package mcp exposes Draugr to AI coding agents over the Model Context Protocol.
 //
 // The reason this exists is narrower than "agents are popular". An agent asked to check a change
-// for security problems will do it one way or another: if Draugr isn't callable it improvises —
+// for security problems will do it one way or another: if Draugr isn't callable it improvises,
 // shells out to whatever scanner it can find, picks its own scope, and reads raw tool output in
 // its own context window. That improvised answer has no recorded scope, no organizational risk
 // context, and no relationship to what CI will decide. Being callable is what makes the agent's
@@ -14,7 +14,7 @@
 //     registered only when the operator opts in. Everything else is safe to call freely.
 //   - **Return decisions, not data.** A tool that hands back raw scanner output has moved the
 //     problem into the agent's context window rather than solving it. These tools return
-//     prioritized, deduplicated, normalized results — the same thing a person sees.
+//     prioritized, deduplicated, normalized results, the same thing a person sees.
 package mcp
 
 import (
@@ -39,9 +39,9 @@ const (
 	// ScanOff doesn't register the tool at all. The default: an assistant can't set off work
 	// like that because it was curious, and the read-only tools are where the value starts.
 	ScanOff ScanMode = "off"
-	// ScanAsk registers it and asks the user to approve each call, through the client. This is
-	// the mode to want — permission granted for the scan in front of you rather than for every
-	// scan this session — but it needs a client that implements elicitation, and many don't.
+	// ScanAsk registers it and asks the user to approve each call, through the client. This is the
+	// mode to want, permission granted for the scan in front of you rather than for every scan this
+	// session. But it needs a client that implements elicitation, and many don't.
 	ScanAsk ScanMode = "ask"
 	// ScanAlways registers it and runs without asking. Right for a sandbox or CI, where there's
 	// nobody to ask.
@@ -80,7 +80,7 @@ const serverName = "draugr"
 
 // iconURL is the mark a client shows beside the server. Served from draugr.dev rather than
 // embedded as a data URI: the icon is cosmetic, and inlining base64 into every initialize
-// response to save one cacheable request is the wrong trade. The domain matters — clients are
+// response to save one cacheable request is the wrong trade. The domain matters. Clients are
 // told to check an icon comes from the same origin as the server, and draugr.dev is what the
 // dev.draugr namespace authenticates against.
 const iconURL = "https://draugr.dev/brand/draugr-mark.png"
@@ -91,9 +91,9 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	if opts.Registry == nil {
 		return nil, fmt.Errorf("mcp: registry is required")
 	}
-	// Normalize before anything reads it. The zero value has to mean off, or a caller that
-	// builds Options without naming a mode silently gets scanning — the one default that must
-	// never happen by accident.
+	// Normalize before anything reads it. The zero value has to mean off, or a caller that builds
+	// Options without naming a mode silently gets scanning. The one default that must never happen
+	// by accident.
 	mode, err := ParseScanMode(string(opts.Scan))
 	if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		Name: "get_saga_schema",
 		Description: "Return the JSON Schema for the Saga descriptor (*.saga.yaml) that this " +
 			"build of Draugr enforces. Use it to write or correct a descriptor rather than " +
-			"guessing at field names — the schema is the authority, and it rejects unknown keys.",
+			"guessing at field names, the schema is the authority, and it rejects unknown keys.",
 	}, func(_ context.Context, _ *mcp.CallToolRequest, _ EmptyInput) (*mcp.CallToolResult, SchemaOutput, error) {
 		out, err := GetSchema()
 		return nil, out, err
@@ -159,7 +159,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		Description: "Report which external scanners Draugr can find on this machine, and what " +
 			"to run if any are missing. Call this when a scan fails or before suggesting one: a " +
 			"control whose scanner is absent cannot run, and Draugr reports that as a failure " +
-			"rather than a pass. This only looks — it will not install anything.",
+			"rather than a pass. This only looks, it will not install anything.",
 	}, CheckToolsTool)
 
 	mcp.AddTool(s, &mcp.Tool{
@@ -185,8 +185,8 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		}, ListSurveyorsTool(opts.Surveyors))
 		mcp.AddTool(s, &mcp.Tool{
 			Name: "survey",
-			Description: "Discover what an application is made of — the images running in a " +
-				"Kubernetes namespace, the repositories in an organization — and return a Saga " +
+			Description: "Discover what an application is made of, the images running in a " +
+				"Kubernetes namespace, the repositories in an organization, and return a Saga " +
 				"descriptor for it. Prefer this over writing a descriptor from the schema: " +
 				"which namespaces exist and which images are actually running, at which digest, " +
 				"is not something to guess at. It reads a live system with credentials this " +
@@ -206,7 +206,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		Name: "summarize_report",
 		Description: "Read an existing Draugr report (results.sarif or report.json) and return " +
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
-			"for each. This is the cheap way to answer 'what should I fix first?' — it reads a " +
+			"for each. This is the cheap way to answer 'what should I fix first?', it reads a " +
 			"scan that already happened rather than starting a new one. It covers the controls " +
 			"that scan ran and nothing else, so treat it as a floor to build on rather than a " +
 			"complete account of a codebase's security.",
@@ -216,12 +216,12 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		// The description states what the scan does not cover, because a tool description is the
 		// only place a caller learns the scope before deciding the question is settled.
 		//
-		// A verdict is a complete-looking result, and a complete-looking result is read as the
-		// answer to whatever prompted it. The prompt is usually "is this safe to ship"; the scan
-		// answers "do the declared controls, over the declared components, produce findings above
-		// the gate". Those overlap without being the same, and the gap is exactly the classes no
-		// scanner computes — trust boundaries, credential handling, build-context hygiene. An
-		// assistant that stops at the verdict skips them, having done nothing wrong.
+		// A verdict is a complete-looking result, and a complete-looking result is read as the answer
+		// to whatever prompted it. The prompt is usually "is this safe to ship"; the scan answers "do
+		// the declared controls, over the declared components, produce findings above the gate". Those
+		// overlap without being the same, and the gap is exactly the classes no scanner computes,
+		// trust boundaries, credential handling, build-context hygiene. An assistant that stops at the
+		// verdict skips them, having done nothing wrong.
 		//
 		// So the description names the boundary. Nothing here weakens the claim: reproducibility,
 		// ranking and a gate are things a one-off read cannot give. It says which question was
@@ -236,7 +236,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"context carries secrets into an image, how credentials are passed to subprocesses, " +
 			"protocol assumptions, or anything a control was not enabled for. If the question " +
 			"was whether a repository is safe to ship rather than whether it passes this gate, " +
-			"keep looking after this returns — the findings here are the part that can be " +
+			"keep looking after this returns, the findings here are the part that can be " +
 			"checked the same way every time, not the whole answer."
 		if opts.Scan == ScanAsk {
 			desc += " Each call asks the user to approve it first."
@@ -249,15 +249,15 @@ func NewServer(opts Options) (*mcp.Server, error) {
 // instructions tells a client what this server is for. Clients surface it to the model, so it's
 // worth saying what Draugr adds over the model running scanners itself.
 func instructions(mode ScanMode) string {
-	s := "Draugr answers security questions about a codebase from its Saga descriptor — a " +
+	s := "Draugr answers security questions about a codebase from its Saga descriptor, a " +
 		"committed, reviewed declaration of what the application is and which controls apply.\n\n" +
 		"Prefer these tools over running scanners yourself. Draugr's findings are deduplicated " +
 		"across tools, normalized to one schema, and ranked by priority (P1–P4) using the " +
-		"component's declared exposure and criticality — organizational context that isn't " +
+		"component's declared exposure and criticality, organizational context that isn't " +
 		"inferable from source code. Scanner output read directly has none of that, and costs " +
 		"far more context to read.\n\n" +
 		"This server only reads. If check_tools reports something missing, give the user the " +
-		"command it returns — do not try to make the server install it, and don't quietly work " +
+		"command it returns, do not try to make the server install it, and don't quietly work " +
 		"around a missing scanner by running one yourself: the point is that the descriptor " +
 		"decides what gets checked.\n\n" +
 		"The Saga is the scope. If a descriptor exists, trust it over your own guess at what " +

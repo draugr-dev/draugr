@@ -1,7 +1,7 @@
 # Scanner: `retirejs`
 
 - **Control:** `sca`
-- **Tool:** [retire.js](https://github.com/RetireJS/retire.js) — `retire --path <checkout>
+- **Tool:** [retire.js](https://github.com/RetireJS/retire.js), `retire --path <checkout>
   --outputformat json --exitwith 0`
 - **Status:** ✅ implemented, **opt-in** (Trivy runs by default)
 - **Targets:** source repositories
@@ -15,7 +15,7 @@ itself.
 Lockfile-based SCA answers for what the package manager installed. Front-end code routinely ships
 JavaScript it did not:
 
-- a library pulled from a CDN — `<script src="https://cdn…/jquery.min.js">`
+- a library pulled from a CDN, `<script src="https://cdn…/jquery.min.js">`
 - a vendored or committed `.js` file under `static/`, `public/`, `assets/`
 - bundled output shipped without its manifest
 
@@ -40,16 +40,16 @@ that finds nothing on most repositories is not something everyone should wait fo
 `--exitwith 0`. A scanner that fails on findings makes the exit code the verdict; severity is the
 control's job and the findings belong in the report. Same reason Trivy is run with `--exit-code 0`.
 
-**Findings carry package identity**, not just prose — name, version, the version that fixes it, and
+**Findings carry package identity**, not just prose, name, version, the version that fixes it, and
 a `pkg:npm/…` purl. That is what lets a vendored copy of a library and the npm package be
 recognized as the same thing, and what lets these findings reach the platform report formats rather
 than only the console.
 
 **The rule id is the most portable identifier the advisory has**: a CVE where there is one, then
-the GitHub advisory id, and only then retire.js's own identifier — prefixed `retirejs:` so it
-cannot be mistaken for a CVE, and stable so a suppression written against it keeps working.
+the GitHub advisory id, and only then retire.js's own identifier, prefixed `retirejs:` so it cannot
+be mistaken for a CVE, and stable so a suppression written against it keeps working.
 
-**The message says how the library was recognized** — `[detected by filecontent]`. That is the
+**The message says how the library was recognized**, `[detected by filecontent]`. That is the
 answer to "why is this not in my lockfile": a file matched by content is one the package manager
 never installed.
 
@@ -59,8 +59,8 @@ one finding carrying two observations.
 
 ## The advisory database
 
-retire.js **bundles no database.** It fetches one on first use — currently
-`raw.githubusercontent.com/RetireJS/retire.js/…/jsrepository-v5.json` — and caches it.
+retire.js **bundles no database.** It fetches one on first use, currently
+`raw.githubusercontent.com/RetireJS/retire.js/…/jsrepository-v5.json`, and caches it.
 
 Draugr points `--cachedir` at `~/.draugr/data/retirejs` rather than leaving it in `/tmp`, so it
 survives a CI job and travels with everything else [the air-gapped
@@ -73,7 +73,7 @@ guide](../../docs/guides/air-gapped.md) says to copy across. On a machine with n
 executes retire.js as a subprocess and neither links nor bundles it, so the license stays its own.
 
 **Terms of use: none beyond the license.** retire.js is a command-line tool, not a service. There
-is no account, no key, no tier, and no agreement to accept — which is why this section is short
+is no account, no key, no tier, and no agreement to accept, which is why this section is short
 rather than absent.
 
 **What is sent: nothing about your code.** The repository is scanned locally and no source,
@@ -81,15 +81,15 @@ inventory or finding leaves the machine. The one outbound request is the advisor
 download described above, which is a fetch from a public URL and carries nothing about what is
 being scanned.
 
-**Provisioned the way Semgrep is.** retire.js publishes to npm and ships no release binaries — the
-position Semgrep is in on PyPI — so `draugr tools install retire` installs it from a lockfile built
+**Provisioned the way Semgrep is.** retire.js publishes to npm and ships no release binaries. The
+position Semgrep is in on PyPI, so `draugr tools install retire` installs it from a lockfile built
 into the binary. Every package in the tree carries an integrity digest and `npm ci` verifies each
 one, which is the guarantee `pip --require-hashes` gives on the Python side; the install is
 recorded as `pinned` only when that succeeded, and `unverified` when npm had to resolve freely
 instead. Install scripts are disabled, because a provisioning step that runs whatever a dependency
 author wrote is a hole in the middle of the thing meant to close one.
 
-It needs a Node runtime — 18 or newer, for `npm ci` — and the launcher Draugr writes names that
+It needs a Node runtime, 18 or newer, for `npm ci`, and the launcher Draugr writes names that
 interpreter by absolute path, so a scan works with a trimmed `PATH` rather than only where Node
 happens to be on it.
 

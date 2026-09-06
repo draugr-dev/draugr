@@ -39,9 +39,9 @@ type scanTip struct {
 
 // maxTipsPerRun caps how many tips one scan may print.
 //
-// The limit is the feature. Every tip here is individually reasonable, and a run that prints
-// five of them has taught the reader to skip the block — at which point the one that mattered is
-// lost with the rest. Two is enough to be useful and few enough to still be read.
+// The limit is the feature. Every tip here is individually reasonable, and a run that prints five
+// of them has taught the reader to skip the block, at which point the one that mattered is lost
+// with the rest. Two is enough to be useful and few enough to still be read.
 const maxTipsPerRun = 2
 
 // scanTips is the tip library, in descending order of what a reader gains from it. The first
@@ -61,7 +61,7 @@ var scanTips = []scanTip{
 		},
 		text: func(c tipContext) string {
 			n := countAtOrAbove(c.run, "P2")
-			return fmt.Sprintf("this run passed with %d P1/P2 finding(s) — severity thresholds do not "+
+			return fmt.Sprintf("this run passed with %d P1/P2 finding(s), severity thresholds do not "+
 				"look at priority. Add --fail-on-priority P2 to gate on risk as well.", n)
 		},
 	},
@@ -81,10 +81,10 @@ var scanTips = []scanTip{
 		},
 	},
 	{
-		// A descriptor written by hand describes what a team builds, so "self" is the right
-		// default. One written by a surveyor describes a running cluster, where most images come
-		// from somebody else — and there the fix list tells the reader to upgrade libraries
-		// inside images they cannot rebuild, which is advice they cannot take.
+		// A descriptor written by hand describes what a team builds, so "self" is the right default.
+		// One written by a surveyor describes a running cluster, where most images come from somebody
+		// else, and there the fix list tells the reader to upgrade libraries inside images they cannot
+		// rebuild, which is advice they cannot take.
 		name: "built-upstream",
 		when: func(c tipContext) bool {
 			return hasImageFindings(c.run) && !declaresBuiltBy(c.model)
@@ -122,9 +122,9 @@ var scanTips = []scanTip{
 const cacheTipThreshold = 60 * time.Second
 
 // printScanTips writes the uncovered-surface note and up to maxTipsPerRun contextual hints after
-// a console scan — small nudges that help someone new to security get more out of Draugr. Tips
-// are advisory and never affect the verdict. They are suppressed by --no-tips or the
-// DRAUGR_NO_TIPS environment variable.
+// a console scan, small nudges that help someone new to security get more out of Draugr. Tips are
+// advisory and never affect the verdict. They are suppressed by --no-tips or the DRAUGR_NO_TIPS
+// environment variable.
 func printScanTips(w io.Writer, c tipContext) {
 	if c.opts.noTips || tipsDisabled() || c.model == nil {
 		return
@@ -162,9 +162,9 @@ func printUncoveredSurfaceNote(w io.Writer, model *saga.Model) {
 	// control, and sees a host listed as unchecked without it, reads the omission as a gap in
 	// this note rather than as the deliberate choice it is.
 	if surfaces.DeclaresHosts(model) {
-		_, _ = fmt.Fprint(w, "      dast is never suggested — it sends attack traffic. Enable it yourself.\n")
+		_, _ = fmt.Fprint(w, "      dast is never suggested, it sends attack traffic. Enable it yourself.\n")
 	}
-	_, _ = fmt.Fprint(w, "      draugr controls — what each control does\n")
+	_, _ = fmt.Fprint(w, "      draugr controls, what each control does\n")
 }
 
 // countAtOrAbove counts findings whose priority is at or above a band.
@@ -210,7 +210,7 @@ func sortedKeys[V any](m map[string]V) []string {
 // tipsDisabled reports whether tips are globally turned off via the environment.
 func tipsDisabled() bool { return os.Getenv("DRAUGR_NO_TIPS") != "" }
 
-// usesRiskClassification reports whether any component declares an exposure or criticality — the
+// usesRiskClassification reports whether any component declares an exposure or criticality. The
 // inputs that make priority ranking risk-aware rather than severity-only.
 func usesRiskClassification(model *saga.Model) bool {
 	for _, c := range model.Components {

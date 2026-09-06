@@ -9,10 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// The CI templates are shell inside YAML: nothing compiles them, and a flag that no longer exists
-// — or never did — is discovered by a user running a pipeline. `draugr doctor --saga x` shipped in
-// a template because the surrounding `|| true` swallowed the error, so the step reported success
-// and simply never ran.
+// The CI templates are shell inside YAML: nothing compiles them, and a flag that no longer exists.
+// Or never did. Is discovered by a user running a pipeline. `draugr doctor --saga x` shipped in a
+// template because the surrounding `|| true` swallowed the error, so the step reported success and
+// simply never ran.
 //
 // Checks every `draugr …` invocation in every template against the real command tree.
 func TestCITemplatesUseFlagsThatExist(t *testing.T) {
@@ -51,7 +51,7 @@ func checkInvocation(t *testing.T, path string, tokens []string) {
 		cmd = next
 	}
 	if cmd == root {
-		return // not a draugr subcommand — a comment, or prose mentioning the binary
+		return // not a draugr subcommand, a comment or prose mentioning the binary
 	}
 
 	for ; i < len(tokens); i++ {

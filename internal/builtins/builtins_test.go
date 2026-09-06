@@ -35,7 +35,7 @@ func TestSurveyorRegistryHasDefaults(t *testing.T) {
 // TestEveryHyphenatedScannerHasAConfigKey closes a gap unit tests cannot see.
 //
 // Scanner names appear in reports and rule output, and several are hyphenated. Descriptor fields
-// are camelCase, so the two diverge for any scanner whose name has more than one word — and a
+// are camelCase, so the two diverge for any scanner whose name has more than one word, and a
 // scanner registered without an entry is one a descriptor cannot configure. Validation rejects
 // the block as naming a scanner the control does not have, which reads as the scanner not
 // existing at all.

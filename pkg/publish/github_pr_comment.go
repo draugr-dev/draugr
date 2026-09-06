@@ -20,9 +20,9 @@ import (
 // update the same comment instead of posting a new one each push.
 //
 // Two of them, because a scan report and a diff are different comments answering different
-// questions — "what is wrong with this branch" and "what did this pull request change". Sharing
-// one marker made whichever ran second silently overwrite the first, with no error and nothing in
-// the report to say a second comment had ever existed.
+// questions. "what is wrong with this branch" and "what did this pull request change". Sharing one
+// marker made whichever ran second silently overwrite the first, with no error and nothing in the
+// report to say a second comment had ever existed.
 const (
 	defaultPRMarker     = "<!-- draugr:pr-comment -->"
 	defaultDiffPRMarker = "<!-- draugr:pr-diff -->"
@@ -106,7 +106,7 @@ func (p githubPRCommentPublisher) Publish(ctx context.Context, artifacts []repor
 // findExisting returns the id of the sticky Draugr comment on the PR, or 0 if none.
 //
 // Paginated. A hundred comments is a page, and a pull request that has had a real conversation on
-// it passes that — at which point reading one page finds no marker, and the publisher posts a fresh
+// it passes that, at which point reading one page finds no marker, and the publisher posts a fresh
 // report every run. The sticky comment stops being sticky exactly where a long thread makes it
 // worth having, and it degrades by adding noise rather than by failing.
 func (p githubPRCommentPublisher) findExisting(ctx context.Context) (int64, error) {

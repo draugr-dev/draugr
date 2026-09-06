@@ -56,7 +56,7 @@ func TestGitLabSBOMTranslatesWhatGitLabReads(t *testing.T) {
 		Project: true, Format: saga.SBOMCycloneDXJSON, Bytes: []byte(syftSBOM),
 	}))
 
-	// GitLab reads 1.4, 1.5 and 1.6 and rejects anything else outright — a 1.7 document is not
+	// GitLab reads 1.4, 1.5 and 1.6 and rejects anything else outright, a 1.7 document is not
 	// partially understood, it is "could not be parsed", and every surface built on it stays empty.
 	if got := doc["specVersion"]; got != gitlabSBOMSpecVersion {
 		t.Errorf("specVersion = %v, want %s", got, gitlabSBOMSpecVersion)
@@ -200,7 +200,7 @@ func TestGitLabPackageManagerReadsThePurlType(t *testing.T) {
 }
 
 // GitLab's own analyzers emit one SBOM per manifest and name it at document level; Draugr emits one
-// covering everything. Where the two shapes agree — every package from the same file — saying so is
+// covering everything. Where the two shapes agree, every package from the same file. Saying so is
 // what fills the dependency list's Location column.
 func TestGitLabSBOMNamesTheManifestWhenThereIsOnlyOne(t *testing.T) {
 	oneFile := `{"specVersion":"1.6","components":[
@@ -246,7 +246,7 @@ func TestGitLabSBOMWillNotGuessBetweenManifests(t *testing.T) {
 //
 // Its absence is quiet: packages still appear with names, versions and licenses, because those are
 // plain CycloneDX, and GitLab infers the package manager from a purl on its own. So the list looks
-// nearly right while the manifest path — and with it GitLab's own dependency scanning — is dropped.
+// nearly right while the manifest path, and with it GitLab's own dependency scanning. Is dropped.
 // That is the failure this asserts against, and it is invisible in the rendered document unless you
 // know to look.
 func TestGitLabSBOMDeclaresTheSchemaVersion(t *testing.T) {
@@ -268,7 +268,7 @@ func TestGitLabSBOMDeclaresTheSchemaVersion(t *testing.T) {
 			meta, _ := doc["metadata"].(map[string]any)
 			props, _ := meta["properties"].([]any)
 			if got := gitlabPropertyValue(props, gitlabSchemaVersionProperty); got != gitlabSchemaVersionValue {
-				t.Errorf("%s = %q, want %q — without it GitLab reads none of the others",
+				t.Errorf("%s = %q, want %q, without it GitLab reads none of the others",
 					gitlabSchemaVersionProperty, got, gitlabSchemaVersionValue)
 			}
 		})

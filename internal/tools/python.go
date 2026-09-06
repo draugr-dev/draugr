@@ -20,7 +20,7 @@ var pythonPins embed.FS
 // minPythonMinor is the oldest Python 3 minor Draugr will build a venv with.
 //
 // Semgrep declares `requires_python >=3.10`. Building the venv with something older produces a
-// resolution failure deep in pip's output, where the reason is one line among forty — so it is
+// resolution failure deep in pip's output, where the reason is one line among forty. So it is
 // checked first and named plainly.
 const minPythonMinor = 10
 
@@ -28,8 +28,8 @@ const minPythonMinor = 10
 //
 // Some scanners publish no binary at all: Semgrep's GitHub releases carry zero assets, and it
 // exists as PyPI wheels, a Docker image and a Homebrew formula. Rather than leaving those tools
-// outside `tools install` — which makes one control's provisioning everybody's special case —
-// Draugr builds a virtual environment it owns and installs the pinned set into it.
+// outside `tools install`. Which makes one control's provisioning everybody's special case, Draugr
+// builds a virtual environment it owns and installs the pinned set into it.
 //
 // The verification floor is the same one a release archive gets, and there is more of it: every
 // artifact in the resolved tree carries the SHA-256 PyPI publishes, so the transitive dependencies
@@ -126,10 +126,10 @@ func linkPythonEntryPoint(envDir, tool, shim string) error {
 	if err := os.MkdirAll(filepath.Dir(shim), 0o750); err != nil {
 		return err
 	}
-	// The environment's own bin goes first on PATH. Semgrep's launcher resolves a `semgrep` from
-	// PATH ahead of the one beside it, so a stale copy elsewhere — a pipx install from before this
-	// existed, say — silently answers instead, and reports its own version while Draugr reports
-	// the one it installed. Two numbers about the same tool disagreeing is worse than either.
+	// The environment's own bin goes first on PATH. Semgrep's launcher resolves a `semgrep` from PATH
+	// ahead of the one beside it, so a stale copy elsewhere, a pipx install from before this existed,
+	// say. Silently answers instead, and reports its own version while Draugr reports the one it
+	// installed. Two numbers about the same tool disagreeing is worse than either.
 	script := "#!/bin/sh\nPATH=" + filepath.Join(envDir, "bin") + ":$PATH\nexport PATH\nexec " +
 		entry + " \"$@\"\n"
 	return os.WriteFile(shim, []byte(script), 0o750) // #nosec G306 -- a launcher has to be executable
@@ -165,11 +165,11 @@ func findPython(ctx context.Context, minMinor int) (string, error) {
 		}
 	}
 	if found != "" {
-		return "", fmt.Errorf("python 3.%d or newer is required and this machine has %s — "+
+		return "", fmt.Errorf("python 3.%d or newer is required and this machine has %s, "+
 			"install a newer Python, or install the tool yourself and leave it on PATH",
 			minMinor, found)
 	}
-	return "", fmt.Errorf("python 3.%d or newer is required and no python3 was found on PATH — "+
+	return "", fmt.Errorf("python 3.%d or newer is required and no python3 was found on PATH, "+
 		"install one, or install the tool yourself and leave it on PATH", minMinor)
 }
 

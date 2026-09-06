@@ -6,7 +6,7 @@ import "testing"
 // prevent, pointed the other way.
 //
 // Two scanners can serve one control and both plan a job for the same image. If one fails and the
-// other succeeds, the image *was* examined — calling it unscanned is a claim about coverage that
+// other succeeds, the image *was* examined. Calling it unscanned is a claim about coverage that
 // nothing established, and it would push a component to ERROR over a gap that does not exist.
 func TestTrulyUnscannedIgnoresTargetsAnotherScannerRead(t *testing.T) {
 	failed := []Unscanned{
@@ -26,7 +26,7 @@ func TestTrulyUnscannedIgnoresTargetsAnotherScannerRead(t *testing.T) {
 }
 
 // TestTrulyUnscannedCountsATargetOnce: where every scanner fails on one target, it went
-// unexamined once, not once per scanner — and a count of jobs would say "2/1 images not scanned".
+// unexamined once, not once per scanner, and a count of jobs would say "2/1 images not scanned".
 func TestTrulyUnscannedCountsATargetOnce(t *testing.T) {
 	failed := []Unscanned{
 		{Control: "images", Scanner: "trivy", Kind: "image", Target: "r/a:1"},

@@ -1,36 +1,36 @@
 # MCP Bundle
 
-`draugr-<version>.mcpb` — a zip holding a manifest and the Draugr binary, so an MCP client can
+`draugr-<version>.mcpb`, a zip holding a manifest and the Draugr binary, so an MCP client can
 install a local server in one step. Attached to every release by `.github/workflows/release.yml`.
 
 ## Why this format
 
-The [MCP Registry](https://registry.modelcontextprotocol.io) only accepts packages from npm,
-PyPI, NuGet, Cargo, OCI or MCPB. Draugr is a Go binary, so of those only MCPB fits — and it's a
-better fit than it first appears, because an OCI image would be actively wrong here:
-`check_tools` would report the *container's* scanners rather than the user's, and file paths in
-`validate_saga` and `summarize_report` wouldn't match the host.
+The [MCP Registry](https://registry.modelcontextprotocol.io) only accepts packages from npm, PyPI,
+NuGet, Cargo, OCI or MCPB. Draugr is a Go binary, so of those only MCPB fits, and it's a better fit
+than it first appears, because an OCI image would be actively wrong here: `check_tools` would report
+the *container's* scanners rather than the user's, and file paths in `validate_saga` and
+`summarize_report` wouldn't match the host.
 
 ## Why one bundle for every platform
 
-The registry's package schema has no `os` or `arch` field, so it cannot route a client to the
-right build. One bundle must therefore contain them all and choose at launch, via the manifest's
-`platform_overrides` — which key on OS but *not* architecture.
+The registry's package schema has no `os` or `arch` field, so it cannot route a client to the right
+build. One bundle must therefore contain them all and choose at launch, via the manifest's
+`platform_overrides`, which key on OS but *not* architecture.
 
 Hence `lipo.py`: a macOS universal binary is the only way a single manifest entry serves both
 Apple silicon and Intel. Apple's `lipo` is macOS-only and the release runs on Linux, so the fat
 header is written directly; the format is simple and well specified.
 
-Linux ships amd64 only. Linux arm64 desktops running an MCP client are rare enough that ~50 MB
-of bundle for every user isn't the right trade — that audience is well served by
-`curl https://draugr.dev/install.sh | sh`.
+Linux ships amd64 only. Linux arm64 desktops running an MCP client are rare enough that ~50 MB of
+bundle for every user isn't the right trade. That audience is well served by `curl
+https://draugr.dev/install.sh | sh`.
 
 ## The tool list is read from the binary
 
-`build.sh` starts the bundled server, asks it `tools/list`, and writes the answer into the
-manifest. A hand-maintained list drifts the first time a tool is added — the prototype for this
-shipped a manifest advertising five tools against a binary that served four. It also acts as a
-smoke test: a binary that can't start can't answer, and the build stops.
+`build.sh` starts the bundled server, asks it `tools/list`, and writes the answer into the manifest.
+A hand-maintained list drifts the first time a tool is added, the prototype for this shipped a
+manifest advertising five tools against a binary that served four. It also acts as a smoke test: a
+binary that can't start can't answer, and the build stops.
 
 ## Building by hand
 
@@ -43,14 +43,14 @@ are bit-for-bit the ones already covered by `checksums.txt` and its cosign signa
 
 ## Listing in the MCP Registry
 
-**The release workflow publishes this automatically.** Everything below is the manual path — for
-the first-time setup, and for the times CI can't do it.
+**The release workflow publishes this automatically.** Everything below is the manual path, for the
+first-time setup, and for the times CI can't do it.
 
-`server.json.tmpl` is the committed source: the namespace, the description, the icon, everything
-a person decides. Three fields are placeholders because they belong to a release rather than to
-us — the version, the bundle URL, and its SHA-256. Committing those would mean committing a
-value that is wrong the moment the next version ships, and a stale hash is a download the client
-correctly refuses.
+`server.json.tmpl` is the committed source: the namespace, the description, the icon, everything a
+person decides. Three fields are placeholders because they belong to a release rather than to us,
+the version, the bundle URL, and its SHA-256. Committing those would mean committing a value that is
+wrong the moment the next version ships, and a stale hash is a download the client correctly
+refuses.
 
 Render them for a released version:
 
@@ -64,9 +64,8 @@ published one.
 
 ### Namespace
 
-`dev.draugr/draugr` — the reverse-DNS form of `draugr.dev`, which is what domain-based
-authentication requires. We own the domain, so the identity is tied to it rather than to a
-GitHub account.
+`dev.draugr/draugr`, the reverse-DNS form of `draugr.dev`, which is what domain-based authentication
+requires. We own the domain, so the identity is tied to it rather than to a GitHub account.
 
 ### Publishing, first time
 
@@ -75,7 +74,7 @@ private half.
 
 **1. Generate an Ed25519 keypair.**
 
-> On macOS the system `openssl` is LibreSSL and has no Ed25519 in `genpkey` — it fails with
+> On macOS the system `openssl` is LibreSSL and has no Ed25519 in `genpkey`. It fails with
 > `Algorithm Ed25519 not found`. Install `openssl@3` and call it by full path, or use the
 > ECDSA P-384 variant in the
 > [registry's authentication guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/authentication.mdx).
@@ -84,24 +83,24 @@ private half.
 openssl genpkey -algorithm Ed25519 -out key.pem && chmod 600 key.pem
 ```
 
-**Where to keep it.** Whoever holds this key can publish anything under `dev.draugr/*` — it is
-the identity, so treat it like a signing key rather than a config file.
+**Where to keep it.** Whoever holds this key can publish anything under `dev.draugr/*`. It is the
+identity, so treat it like a signing key rather than a config file.
 
 - **Put it in your password manager** as a secure note or attached file. That's the whole
   requirement for a one-person publish: it survives a laptop dying, and it isn't sitting in a
   directory that a backup or a sync client will quietly copy somewhere.
-- **Don't leave it in the repo checkout.** `*.pem` is gitignored, so it won't be committed —
+- **Don't leave it in the repo checkout.** `*.pem` is gitignored, so it won't be committed,
   but gitignore doesn't protect it from a `tar` of the directory or a cloud-synced home folder.
   Generate it in a temp dir, store it, delete the file.
 - **Don't put it in a repository secret** unless publishing moves to CI. It isn't needed there
   today, and a secret that nothing consumes is just a copy waiting to leak.
 - **Losing it is recoverable, and cheap:** generate a new keypair, replace the apex TXT record,
   delete the old one. Nothing published becomes invalid. So prefer losing it to spreading it.
-- **A leak is the expensive direction** — someone could publish a package under our name. If
+- **A leak is the expensive direction**. Someone could publish a package under our name. If
   that happens, rotate the TXT record immediately; that alone invalidates the old key.
 
-When publishing eventually moves into CI, use Google KMS or Azure Key Vault instead — the
-publisher supports both, and then no private key exists outside the vault at all.
+When publishing eventually moves into CI, use Google KMS or Azure Key Vault instead, the publisher
+supports both, and then no private key exists outside the vault at all.
 
 **2. Derive the TXT record.**
 
@@ -110,14 +109,13 @@ PUBLIC_KEY="$(openssl pkey -in key.pem -pubout -outform DER | tail -c 32 | base6
 echo "draugr.dev. IN TXT \"v=MCPv1; k=ed25519; p=${PUBLIC_KEY}\""
 ```
 
-**3. Add it in DNS — at the apex.** `draugr.dev` is served by Cloudflare
-(`dig +short NS draugr.dev` to confirm). Cloudflare dashboard → the `draugr.dev` zone →
-**DNS → Records → Add record**:
+**3. Add it in DNS, at the apex.** `draugr.dev` is served by Cloudflare (`dig +short NS draugr.dev`
+to confirm). Cloudflare dashboard → the `draugr.dev` zone → **DNS → Records → Add record**:
 
 | Field | Value |
 |---|---|
 | Type | `TXT` |
-| Name | `@` — Cloudflare displays this as `draugr.dev` |
+| Name | `@`, Cloudflare displays this as `draugr.dev` |
 | Content | `v=MCPv1; k=ed25519; p=…` |
 | TTL | Auto |
 
@@ -157,8 +155,8 @@ Either way, check it:
 mcp-publisher --version
 ```
 
-**5. Log in.** `--private-key` takes the hex-encoded key, not a path — this reads it out of
-wherever you stored `key.pem`, so change that path:
+**5. Log in.** `--private-key` takes the hex-encoded key, not a path. This reads it out of wherever
+you stored `key.pem`, so change that path:
 
 ```bash
 PRIVATE_KEY="$(openssl pkey -in ~/key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
@@ -198,14 +196,14 @@ move; `mcp-publisher <command> --help` is the authority over this file.
 ### Publishing again later
 
 **Normally you don't.** The `publish-mcp` job in `.github/workflows/release.yml` renders and
-publishes on every tag, gated behind the `mcp-registry` environment so it waits for a reviewer.
-It needs one secret, `MCP_PUBLISHER_DNS_KEY` — the same hex key as step 5, set as an
-*environment* secret so only that job can read it.
+publishes on every tag, gated behind the `mcp-registry` environment so it waits for a reviewer. It
+needs one secret, `MCP_PUBLISHER_DNS_KEY`, the same hex key as step 5, set as an *environment*
+secret so only that job can read it.
 
 By hand, when you need to: `render-server-json.sh <version>`, then steps 5 and 6.
 
 ### Not every release needs republishing
 
-The registry entry points at a fixed version. Refresh it when the MCP surface changes — a new
-tool, a changed transport, a fix in the server — not for releases that don't affect it. Each
-republish asks every client to re-download 60 MB.
+The registry entry points at a fixed version. Refresh it when the MCP surface changes, a new tool, a
+changed transport, a fix in the server, not for releases that don't affect it. Each republish asks
+every client to re-download 60 MB.

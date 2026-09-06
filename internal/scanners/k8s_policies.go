@@ -26,14 +26,14 @@ const draugrK8sPoliciesScannerName = "draugr-k8s-policies"
 // Kubernetes API directly, instead of shelling out to kube-bench.
 //
 // The section is the part of the benchmark that can be answered without standing on a node, and
-// kube-bench answers it by running a shell pipeline per check — several of them once per pod.
-// Against a shared cluster of 78 namespaces a single pass takes tens of minutes, because the
-// cost is a subprocess and a fresh credential exchange per object rather than the query itself.
+// kube-bench answers it by running a shell pipeline per check, several of them once per pod.
+// Against a shared cluster of 78 namespaces a single pass takes tens of minutes, because the cost
+// is a subprocess and a fresh credential exchange per object rather than the query itself.
 //
 // The same questions are a handful of List calls. That is the immediate reason for this scanner,
-// but not the interesting one: a check expressed in Go can decide things a `kubectl | jq`
-// pipeline cannot, and it can be scoped to the namespaces a team actually owns — which is
-// impossible through kube-bench, whose queries carry --all-namespaces inside the config.
+// but not the interesting one: a check expressed in Go can decide things a `kubectl | jq` pipeline
+// cannot, and it can be scoped to the namespaces a team actually owns. Which is impossible through
+// kube-bench, whose queries carry --all-namespaces inside the config.
 type draugrK8sPoliciesScanner struct {
 	info plugin.ScannerInfo
 	// client builds a Kubernetes client for a context; injectable for tests.
@@ -129,11 +129,11 @@ func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespac
 	out := map[string]policyVerdict{}
 	scoped := len(namespaces) > 0
 
-	// Cluster-scoped reads. When the audit is scoped, the credential running it may be scoped
-	// too — a team with read on its own namespaces and nothing else is the normal case, and the
-	// one this feature exists for. So being refused here leaves the check undecided rather than
-	// failing the run: the namespaced checks are still worth having, and a check reported for
-	// manual review is an honest answer where an aborted scan is none.
+	// Cluster-scoped reads. When the audit is scoped, the credential running it may be scoped too. A
+	// team with read on its own namespaces and nothing else is the normal case, and the one this
+	// feature exists for. So being refused here leaves the check undecided rather than failing the
+	// run: the namespaced checks are still worth having, and a check reported for manual review is an
+	// honest answer where an aborted scan is none.
 	//
 	// Unscoped, the same refusal is a real failure. Nothing was asked to be narrowed, so a
 	// cluster-wide audit that cannot read cluster-wide objects has not audited the cluster.
@@ -183,9 +183,9 @@ func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespac
 
 // checkClusterAdminBindings implements 5.1.1.
 //
-// cluster-admin is unbounded, so the benchmark asks that nothing be bound to it beyond the
-// binding Kubernetes ships for its own bootstrap — `cluster-admin`, which grants it to
-// system:masters. Any other binding to that role is what the check looks for.
+// cluster-admin is unbounded, so the benchmark asks that nothing be bound to it beyond the binding
+// Kubernetes ships for its own bootstrap, `cluster-admin`, which grants it to system:masters. Any
+// other binding to that role is what the check looks for.
 func checkClusterAdminBindings(bindings []rbacv1.ClusterRoleBinding) policyVerdict {
 	var offenders []string
 	for _, b := range bindings {
@@ -240,8 +240,8 @@ func rulesUseWildcard(rules []rbacv1.PolicyRule) bool {
 // checkDefaultServiceAccounts implements 5.1.5.
 //
 // Every namespace has a default service account, and a pod that names none is given it. The
-// benchmark asks that it not be usable against the API — automountServiceAccountToken set to
-// false — so that a workload which never asked for credentials is not handed any.
+// benchmark asks that it not be usable against the API, automountServiceAccountToken set to false,
+// so that a workload which never asked for credentials is not handed any.
 //
 // An unset field is not compliant: the default is to mount.
 func checkDefaultServiceAccounts(accounts []corev1.ServiceAccount) policyVerdict {
@@ -286,9 +286,9 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 		{Key: "coverage", Value: fmt.Sprintf("%d of %d checks decided", len(decided), len(cisPolicies))},
 	}
 
-	// The same coverage figure, structured. The sentence above is for a person; this is what lets
-	// a consumer tell "checked and clean" from "never examined" — which is the difference between
-	// a scanner dissenting and a scanner being silent, and the two mean opposite things.
+	// The same coverage figure, structured. The sentence above is for a person; this is what lets a
+	// consumer tell "checked and clean" from "never examined". Which is the difference between a
+	// scanner dissenting and a scanner being silent, and the two mean opposite things.
 	//
 	// The catalog's order, not the map's, so a report does not differ from itself between runs.
 	for _, check := range cisPolicies {
@@ -303,17 +303,17 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 		})
 	}
 	// Always, including when it covers everything. Reported only for a narrowed scan, the whole
-	// cluster was indistinguishable from a scan nobody recorded the scope of — and the reader's
-	// question is whether a finding is theirs to fix, which absence cannot answer. A component
-	// owning one namespace and a component owning the cluster produce findings that read alike.
+	// cluster was indistinguishable from a scan nobody recorded the scope of. And the reader's
+	// question is whether a finding is theirs to fix, which absence cannot answer. A component owning
+	// one namespace and a component owning the cluster produce findings that read alike.
 	fields = append(fields, sarif.Field{Key: "scope", Value: scopeDescription(namespaces)})
 	report.Provenance = []sarif.Provenance{{Tool: draugrK8sPoliciesScannerName, Fields: fields}}
 
 	for _, check := range cisPolicies {
 		// Namespaced by emitter. kube-bench audits the same benchmark and numbers its checks
-		// identically, so a bare "cis/5.1.1" is a rule id two tools both claim — and the Scanner
-		// column only disambiguates them inside Draugr's own console. In SARIF, in GitHub code
-		// scanning and in an editor, the rule id *is* the identity.
+		// identically, so a bare "cis/5.1.1" is a rule id two tools both claim, and the Scanner column
+		// only disambiguates them inside Draugr's own console. In SARIF, in GitHub code scanning and in
+		// an editor, the rule id *is* the identity.
 		ruleID := draugrCISRulePrefix + check.ID
 		verdict, implemented := decided[check.ID]
 		if implemented && verdict.Compliant {
@@ -322,9 +322,9 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 			continue
 		}
 
-		message := check.Title + " — requires manual review"
+		message := check.Title + ", requires manual review"
 		if implemented {
-			message = check.Title + " — " + verdict.Detail
+			message = check.Title + ", " + verdict.Detail
 		}
 
 		report.Results = append(report.Results, sarif.Result{
@@ -339,9 +339,9 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 			ShortDescription: check.Title,
 			FullDescription:  check.Remediation,
 			HelpURI:          "https://www.cisecurity.org/benchmark/kubernetes",
-			// The benchmark control this check implements. Rule ids are namespaced per scanner,
-			// so this is what still says "kube-bench's 5.1.1 and ours are the same control" —
-			// stated in a published vocabulary rather than inferred from two ids colliding.
+			// The benchmark control this check implements. Rule ids are namespaced per scanner, so this is
+			// what still says "kube-bench's 5.1.1 and ours are the same control", stated in a published
+			// vocabulary rather than inferred from two ids colliding.
 			Taxa: []sarif.Taxon{{
 				Taxonomy: cisKubernetesTaxonomy,
 				ID:       check.ID,
@@ -356,13 +356,13 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 // evaluatePodSecurity implements 5.1.6 and 5.2.2 through 5.2.6 from a single Pod listing.
 //
 // kube-bench answers each of these by listing pods and then running `kubectl get pod` once more
-// per pod, per check — six passes over every workload in the cluster. They are all questions
-// about a pod spec, so one List answers all of them.
+// per pod, per check, six passes over every workload in the cluster. They are all questions about
+// a pod spec, so one List answers all of them.
 //
-// A running pod is evidence, not policy. CIS asks whether admission *prevents* these settings,
-// and a cluster with none of them today may simply not have been asked yet. Reporting what is
-// actually running is the same thing kube-bench reports, and is the answerable half: 5.2.1 —
-// whether a policy mechanism is in place — stays a manual check.
+// A running pod is evidence, not policy. CIS asks whether admission *prevents* these settings, and
+// a cluster with none of them today may simply not have been asked yet. Reporting what is actually
+// running is the same thing kube-bench reports, and is the answerable half: 5.2.1. Whether a
+// policy mechanism is in place. Stays a manual check.
 func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) map[string]policyVerdict {
 	automountByAccount := map[string]bool{}
 	for _, sa := range accounts {
@@ -472,7 +472,7 @@ func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) ma
 // runsAsRoot implements 5.2.7.
 //
 // A container runs as root unless something says otherwise, and either the pod or the container
-// can say it — the container wins where both do, which is how Kubernetes resolves it. runAsNonRoot
+// can say it. The container wins where both do, which is how Kubernetes resolves it. runAsNonRoot
 // is the explicit answer; a non-zero runAsUser is the implicit one. Silence means root.
 func runsAsRoot(pod *corev1.Pod, c *corev1.Container) bool {
 	nonRoot := func(sc *corev1.SecurityContext) (bool, bool) {
@@ -504,8 +504,8 @@ func runsAsRoot(pod *corev1.Pod, c *corev1.Container) bool {
 // podSetsSeccomp implements 5.6.2.
 //
 // A profile on the pod covers every container; one on a container covers only itself. Anything
-// other than Unconfined counts — the benchmark asks that a profile be chosen, and RuntimeDefault
-// is the choice it recommends.
+// other than Unconfined counts, the benchmark asks that a profile be chosen, and RuntimeDefault is
+// the choice it recommends.
 func podSetsSeccomp(pod *corev1.Pod) bool {
 	confined := func(p *corev1.SeccompProfile) bool {
 		return p != nil && p.Type != corev1.SeccompProfileTypeUnconfined
@@ -524,8 +524,8 @@ func podSetsSeccomp(pod *corev1.Pod) bool {
 // podMountsToken implements 5.1.6.
 //
 // A pod is handed API credentials unless something says otherwise, and either the pod or its
-// service account can say so. The pod wins where both speak, which is how Kubernetes resolves it
-// — reading only one of the two would mark a correctly hardened workload as a finding.
+// service account can say so. The pod wins where both speak, which is how Kubernetes resolves it,
+// reading only one of the two would mark a correctly hardened workload as a finding.
 func podMountsToken(pod *corev1.Pod, automountByAccount map[string]bool) bool {
 	if pod.Spec.AutomountServiceAccountToken != nil {
 		return *pod.Spec.AutomountServiceAccountToken
@@ -569,20 +569,20 @@ func verdictFrom(offenders []string, doing string) policyVerdict {
 //
 // These two are not role scans. The benchmark asks whether *everyone* can read secrets or create
 // pods, and the honest way to answer is to ask the authorizer rather than reassemble its decision
-// from roles and bindings — RBAC is additive across bindings, aggregated ClusterRoles resolve at
+// from roles and bindings. RBAC is additive across bindings, aggregated ClusterRoles resolve at
 // runtime, and a webhook authorizer can grant what no Role mentions. A reimplementation would
 // disagree with the cluster in exactly the cases that matter.
 //
-// So Draugr asks the same question kube-bench does — `can-i ... --as=system:authenticated` — via
-// a SubjectAccessReview. Every authenticated identity holds that group, so a yes means any
-// account that can log in can do this.
+// So Draugr asks the same question kube-bench does. `can-i ... --as=system:authenticated`, via a
+// SubjectAccessReview. Every authenticated identity holds that group, so a yes means any account
+// that can log in can do this.
 //
 // A SubjectAccessReview creates nothing: it is a query the API server answers and discards. But
 // submitting one requires the `create` verb on `subjectaccessreviews`, which a deliberately
-// read-only credential will not have — so being refused is expected, not exceptional. The check
-// is then left undecided and reported for manual review, which is the same answer a reader gets
-// for every check this scanner cannot settle. Failing the scan over a permission it was never
-// promised would turn a partial answer into no answer.
+// read-only credential will not have. So being refused is expected, not exceptional. The check is
+// then left undecided and reported for manual review, which is the same answer a reader gets for
+// every check this scanner cannot settle. Failing the scan over a permission it was never promised
+// would turn a partial answer into no answer.
 func evaluateBroadAccess(ctx context.Context, client kubernetes.Interface, namespaces []string) map[string]policyVerdict {
 	out := map[string]policyVerdict{}
 
@@ -599,9 +599,9 @@ func evaluateBroadAccess(ctx context.Context, client kubernetes.Interface, names
 		var allowed []string
 		undecided := false
 		for _, verb := range q.verbs {
-			// Scoped, the question becomes "can everyone do this *here*", which is the one a
-			// namespace owner can act on — and the only one they are likely to be permitted to
-			// ask. Unscoped it stays cluster-wide, as before.
+			// Scoped, the question becomes "can everyone do this *here*", which is the one a namespace
+			// owner can act on, and the only one they are likely to be permitted to ask. Unscoped it stays
+			// cluster-wide, as before.
 			ok, err := allowedForAllAuthenticated(ctx, client, verb, q.resource, namespaces)
 			if err != nil {
 				undecided = true
@@ -658,11 +658,10 @@ func allowedForAllAuthenticated(ctx context.Context, client kubernetes.Interface
 
 // listNamespaced lists a namespaced resource across the audit's scope.
 //
-// An empty scope means the whole cluster, which is one call against all namespaces. A scope
-// means one call per namespace rather than a cluster-wide list filtered afterwards — the
-// difference matters, because a credential scoped to a few namespaces cannot perform the
-// cluster-wide list at all. Filtering after the fact would work only for people who did not need
-// the feature.
+// An empty scope means the whole cluster, which is one call against all namespaces. A scope means
+// one call per namespace rather than a cluster-wide list filtered afterwards, the difference
+// matters, because a credential scoped to a few namespaces cannot perform the cluster-wide list at
+// all. Filtering after the fact would work only for people who did not need the feature.
 func listNamespaced[L any, T any](
 	namespaces []string,
 	list func(ns string) (L, error),
@@ -718,18 +717,18 @@ func clusterScopeLabel(kubeCtx string, namespaces []string) string {
 }
 
 // managedServices describes the section of a provider's benchmark that covers what the provider
-// controls rather than what the cluster does — image registry scanning, IAM, key management,
-// node metadata, cluster networking, logging, storage.
+// controls rather than what the cluster does, image registry scanning, IAM, key management, node
+// metadata, cluster networking, logging, storage.
 //
 // Every managed benchmark ships one, and Draugr evaluates none of it. That is a defensible gap;
 // leaving it unmentioned is not. A reader of a report has no way to know the section exists, so
 // the benchmark looks smaller than it is and a clean result looks more complete than it is.
 //
-// Reported as one finding rather than one per check, unlike the policies section. There the
-// checks share a section Draugr partly evaluates, so listing them individually is what keeps
-// coverage honest. Here nothing in the section is evaluated, and saying that once — with the
-// benchmark named and the count given — is unambiguous where fifty-eight identical "review this
-// yourself" entries would bury the findings that came from an actual assessment.
+// Reported as one finding rather than one per check, unlike the policies section. There the checks
+// share a section Draugr partly evaluates, so listing them individually is what keeps coverage
+// honest. Here nothing in the section is evaluated, and saying that once, with the benchmark named
+// and the count given. Is unambiguous where fifty-eight identical "review this yourself" entries
+// would bury the findings that came from an actual assessment.
 type managedServices struct {
 	// Benchmark is the kube-bench config the section belongs to.
 	Benchmark string
@@ -761,7 +760,7 @@ func managedServicesFinding(platform, location string) (sarif.Result, sarif.Rule
 			RuleID: managedServicesRuleID,
 			Level:  sarif.LevelWarning,
 			Message: fmt.Sprintf(
-				"The %s benchmark has a Managed Services section of %d checks — the parts of the "+
+				"The %s benchmark has a Managed Services section of %d checks, the parts of the "+
 					"cluster your provider controls, not the cluster itself. Draugr does not "+
 					"evaluate it; review those checks against the benchmark.",
 				section.Benchmark, section.Checks),

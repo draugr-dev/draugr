@@ -91,7 +91,7 @@ func TestComponentHasRejectsASurfaceThatDoesNotExist(t *testing.T) {
 }
 
 // Discovery's promise is that the descriptor writes itself. One that enables no control has not
-// written itself — it has written a shape, and its first scan reports PASS having checked
+// written itself. It has written a shape, and its first scan reports PASS having checked
 // nothing.
 func TestEnableControlsForSurface(t *testing.T) {
 	t.Parallel()

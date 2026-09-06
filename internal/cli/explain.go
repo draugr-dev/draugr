@@ -31,10 +31,10 @@ var defaultSARIFNames = []string{
 // newExplainCommand builds `draugr explain`.
 //
 // A finding's identifier and one truncated line is enough to rank it and not enough to decide
-// anything. What a reader needs next — what the check means and what to change — is already in
-// the report: scanners publish remediation text and Draugr records it. Without somewhere to read
-// it, the identifier sends people to whatever a search engine offers, and for a benchmark that
-// means a registration form in front of a PDF.
+// anything. What a reader needs next. What the check means and what to change. Is already in the
+// report: scanners publish remediation text and Draugr records it. Without somewhere to read it,
+// the identifier sends people to whatever a search engine offers, and for a benchmark that means
+// a registration form in front of a PDF.
 func newExplainCommand() *cobra.Command {
 	var reportPath string
 	cmd := &cobra.Command{
@@ -43,7 +43,7 @@ func newExplainCommand() *cobra.Command {
 		Long: "Print a rule's description, the remediation its scanner published, and where the\n" +
 			"scan found it.\n\n" +
 			"Reads the SARIF a scan wrote with -o. The rule id can be given in full, or by the\n" +
-			"part that is unambiguous — `4.3.1` finds `kube-bench/cis/4.3.1`.",
+			"part that is unambiguous, `4.3.1` finds `kube-bench/cis/4.3.1`.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runExplain(cmd.OutOrStdout(), args[0], reportPath)
@@ -90,7 +90,7 @@ func findSARIF(explicit string) (string, error) {
 			return name, nil
 		}
 	}
-	return "", fmt.Errorf("no scan report here — looked for %s. "+
+	return "", fmt.Errorf("no scan report here, looked for %s. "+
 		"Run a scan with -o <dir>, or name one with --report",
 		strings.Join(defaultSARIFNames, ", "))
 }
@@ -114,12 +114,12 @@ func matchRule(report sarif.Report, query string) (string, sarif.Rule, error) {
 	sort.Strings(matched)
 	switch len(matched) {
 	case 0:
-		return "", sarif.Rule{}, fmt.Errorf("no rule %q in this report — "+
+		return "", sarif.Rule{}, fmt.Errorf("no rule %q in this report, "+
 			"the id is the one in the Rule column, and only rules this scan reported are here", query)
 	case 1:
 		return matched[0], report.Rules[matched[0]], nil
 	default:
-		return "", sarif.Rule{}, fmt.Errorf("%q matches %s — name one of them",
+		return "", sarif.Rule{}, fmt.Errorf("%q matches %s. Name one of them",
 			query, strings.Join(matched, ", "))
 	}
 }

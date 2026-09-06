@@ -22,7 +22,7 @@ func TestTipsAreShortAndShaped(t *testing.T) {
 		t.Run(tip.name, func(t *testing.T) {
 			text := tip.text(tipContext{run: engine.Result{}})
 			if n := len(text); n > budget {
-				t.Errorf("%d chars, budget %d — say less or say it in the docs:\n%s", n, budget, text)
+				t.Errorf("%d chars, budget %d. Say less or say it in the docs:\n%s", n, budget, text)
 			}
 			if strings.HasSuffix(text, "..") || !strings.HasSuffix(text, ".") {
 				t.Errorf("a tip is a sentence and ends in a full stop: %q", text)

@@ -33,9 +33,9 @@ func (DAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, erro
 		return nil, nil
 	}
 	// Through resolveScanners rather than named directly, even with one scanner to choose from.
-	// Naming it here would discard the descriptor's dast block before anything could look at it,
-	// so an option written there would neither take effect nor be reported — and the scanner's
-	// declared schema, which exists to make that an error, would never be consulted.
+	// Naming it here would discard the descriptor's dast block before anything could look at it, so
+	// an option written there would neither take effect nor be reported, and the scanner's declared
+	// schema, which exists to make that an error, would never be consulted.
 	selections := resolveScanners(model, comp, "dast", []string{nucleiScanner})
 	jobs := make([]plugin.ScanJob, 0, len(comp.Hosts)*len(selections))
 	for _, host := range comp.Hosts {
@@ -55,7 +55,7 @@ func (DAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, erro
 
 // hostAuth converts a descriptor's auth block into what a scanner is given.
 //
-// Only dast reads it today. The passive host controls — headers, tls — probe the endpoint too and
+// Only dast reads it today. The passive host controls, headers, tls, probe the endpoint too and
 // would see a different application behind a login, but authenticating on their behalf is a
 // separate decision from authenticating a scan whose purpose is to send traffic.
 func hostAuth(a *saga.HostAuth) *plugin.HostAuth {

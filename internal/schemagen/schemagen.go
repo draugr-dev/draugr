@@ -2,7 +2,7 @@
 // registry that actually answers for them.
 //
 // A hand-written control list in the schema file drifts behind the registry, and the symptom
-// reaches a user as an editor rejecting a descriptor Draugr accepts — including Draugr's own. No
+// reaches a user as an editor rejecting a descriptor Draugr accepts, including Draugr's own. No
 // test can catch that from either side: pkg/saga owns the schema and cannot import the registry
 // without a cycle, so neither package is in a position to compare them. This one is.
 //
@@ -89,7 +89,7 @@ func allowEffectsDef() map[string]any {
 // options each accepts.
 //
 // Without this, an editor's help stops at the control name. `controllers.sast:` completes, and
-// then nothing does — not `semgrep`, not `gosec`, not the options either takes — because the
+// then nothing does, not `semgrep`, not `gosec`, not the options either takes, because the
 // generic settings shape describes only `enabled` and accepts any key beside it. A reader is left
 // guessing at exactly the layer that has the most to guess at: which scanners a control has, and
 // what each one is willing to be told.
@@ -99,7 +99,7 @@ func allowEffectsDef() map[string]any {
 // a key the descriptor then rejects, which is worse than no completion at all.
 //
 // Closed rather than open. `additionalProperties: false` means an editor flags a scanner the
-// control does not have, and an option a scanner does not take, at the moment it is typed — the
+// control does not have, and an option a scanner does not take, at the moment it is typed. The
 // same answer `draugr validate` gives, arriving sooner. The engine still validates at plan time;
 // this is the same rule stated where it can be acted on.
 func controlDefs(reg *engine.Registry) map[string]map[string]any {
@@ -107,10 +107,9 @@ func controlDefs(reg *engine.Registry) map[string]map[string]any {
 	for _, sc := range reg.Scanners() {
 		info := sc.Info()
 		if info.Reachability {
-			// Serves the control, but is enabled by config.reachability rather than from its
-			// scanner block. Offering it here would have an editor complete a key the loader
-			// rejects — which is worse than not offering it, because the descriptor looks right
-			// until it is run.
+			// Serves the control, but is enabled by config.reachability rather than from its scanner
+			// block. Offering it here would have an editor complete a key the loader rejects. Which is
+			// worse than not offering it, because the descriptor looks right until it is run.
 			continue
 		}
 		for _, control := range info.Controls {
@@ -152,7 +151,7 @@ func controlDefs(reg *engine.Registry) map[string]map[string]any {
 //
 // The options come from the scanner's own ConfigSchema, so what an editor offers and what the
 // engine accepts are the same list by construction. A scanner that accepts nothing gets a block
-// with only `enabled` — which is a statement, not an omission, and closing it is what turns "this
+// with only `enabled`. Which is a statement, not an omission, and closing it is what turns "this
 // scanner takes no options" from something you discover by being rejected into something you see
 // while typing.
 func scannerDef(info plugin.ScannerInfo, isDefault bool) map[string]any {
@@ -174,7 +173,7 @@ func scannerDef(info plugin.ScannerInfo, isDefault bool) map[string]any {
 		"additionalProperties": false,
 	}
 	if info.Origin != "" {
-		def["description"] = fmt.Sprintf("%s — published by %s.", info.Name, info.Origin)
+		def["description"] = fmt.Sprintf("%s, published by %s.", info.Name, info.Origin)
 	}
 	return def
 }
@@ -282,7 +281,7 @@ func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
 
 // FragmentSchema derives the Saga fragment's JSON Schema from the Saga's.
 //
-// Derived rather than maintained beside it, because two hand-written schemas drift — and the way
+// Derived rather than maintained beside it, because two hand-written schemas drift. And the way
 // drift shows up here is an editor rejecting a descriptor Draugr accepts, which is exactly what
 // the checked-in-schema guard exists to prevent. Sharing `$defs` by construction means a change
 // to a component or an exclusion reaches both schemas or neither.
@@ -299,7 +298,7 @@ func FragmentSchema(sagaJSON []byte) ([]byte, error) {
 	// safe to edit by hand, and none of them are here: this file is derived in full, so the
 	// inherited advice would send somebody to edit a file that is overwritten on the next
 	// `go generate`.
-	doc["$comment"] = "Generated in full from draugr.saga.schema.json by internal/schemagen — " +
+	doc["$comment"] = "Generated in full from draugr.saga.schema.json by internal/schemagen, " +
 		"every edit here is lost. Change the Saga schema or the generator instead, then run " +
 		"`go generate ./pkg/saga/...`. A fragment adds scope or attributed suppressions and " +
 		"cannot change policy, which is the rule this file expresses so an editor can enforce it."

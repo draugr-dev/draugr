@@ -167,7 +167,7 @@ func TestAssembleDoesNotMergeUnidentifiedPackagesOfDifferentVersions(t *testing.
 		}
 	}
 	if n != 2 {
-		t.Errorf("mylib entries = %d, want 2 — different versions must not collapse", n)
+		t.Errorf("mylib entries = %d, want 2, different versions must not collapse", n)
 	}
 }
 

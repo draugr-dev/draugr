@@ -63,7 +63,7 @@ func TestHeadersAreDimmedAndOptional(t *testing.T) {
 	}
 }
 
-// Nothing follows the last column, so it must not be padded — trailing spaces are noise in a
+// Nothing follows the last column, so it must not be padded. Trailing spaces are noise in a
 // diff, a copied log or a golden test.
 func TestNoTrailingWhitespace(t *testing.T) {
 	for _, line := range render(t, NewTable(Plain(), "A", "B").
@@ -95,7 +95,7 @@ func TestIndentAppliesToEveryLine(t *testing.T) {
 	}
 }
 
-// A short row is legal — the remaining columns are simply empty.
+// A short row is legal. The remaining columns are simply empty.
 func TestShortRowsAndEmptyTable(t *testing.T) {
 	lines := render(t, NewTable(Plain(), "A", "B", "C").Row(PlainCell("only")))
 	if len(lines) != 2 || strings.TrimSpace(lines[1]) != "only" {
@@ -123,7 +123,7 @@ func TestCellLinksWhenColored(t *testing.T) {
 	}
 }
 
-// runeIndex is strings.Index measured in runes — the unit columns are actually aligned in.
+// runeIndex is strings.Index measured in runes. The unit columns are actually aligned in.
 func runeIndex(s, sub string) int {
 	i := strings.Index(s, sub)
 	if i < 0 {

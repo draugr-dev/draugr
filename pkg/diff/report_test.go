@@ -12,7 +12,7 @@ import (
 
 // twoComponentsOneCVE is the case a pull-request comment on a monorepo actually produces: the
 // same dependency reached from two services. The fingerprint separates them, so they are two
-// findings — and without the component they are two rows identical in every visible column.
+// findings, and without the component they are two rows identical in every visible column.
 func twoComponentsOneCVE() Result {
 	return Result{New: []sarif.Result{
 		{RuleID: "CVE-2019-20477", Level: sarif.LevelError, Priority: "P1", Tool: "trivy",
@@ -33,7 +33,7 @@ func TestMarkdownNamesTheComponent(t *testing.T) {
 	}
 	for _, want := range []string{"payments", "internal-tool"} {
 		if !strings.Contains(got, want) {
-			t.Errorf("missing %q — the two rows are indistinguishable:\n%s", want, got)
+			t.Errorf("missing %q, the two rows are indistinguishable:\n%s", want, got)
 		}
 	}
 }
@@ -51,7 +51,7 @@ func TestConsoleNamesTheComponent(t *testing.T) {
 }
 
 func TestNoComponentColumnWhenNobodyHasOne(t *testing.T) {
-	// A single-component project would get a column repeating itself — the rule the scan report
+	// A single-component project would get a column repeating itself, the rule the scan report
 	// already follows.
 	r := Result{New: []sarif.Result{{RuleID: "x", Level: sarif.LevelError, Tool: "trivy"}}}
 	var b bytes.Buffer
@@ -114,8 +114,8 @@ func TestDiffHeadlineNamesOnlyTheBandsPresent(t *testing.T) {
 	if !strings.Contains(got, "1 critical") || !strings.Contains(got, "1 medium") {
 		t.Errorf("headline = %q", got)
 	}
-	// Only the parenthesised bands — "0 fixed" and "0 unchanged" are counts, and a zero there
-	// is the answer rather than noise.
+	// Only the parenthesised bands, "0 fixed" and "0 unchanged" are counts, and a zero there is the
+	// answer rather than noise.
 	if bands := got[strings.Index(got, "(")+1 : strings.Index(got, ")")]; strings.Contains(bands, "0 ") {
 		t.Errorf("headline names bands that did not occur: %q", got)
 	}
@@ -209,7 +209,7 @@ func TestMarkdownLinksRulesToWhereTheyAreExplained(t *testing.T) {
 //
 // Without them a code-scanning alert is a bare identifier: no description, and whatever link can
 // be guessed from the id's shape rather than the advisory the scanner named. Only the rules the
-// new findings actually cite — carrying the other few hundred would put the noise back.
+// new findings actually cite, carrying the other few hundred would put the noise back.
 func TestRenderSARIFCarriesTheRulesItsFindingsCite(t *testing.T) {
 	r := Result{
 		New:   []sarif.Result{{RuleID: "CVE-1", Level: sarif.LevelError}},

@@ -18,8 +18,8 @@ import (
 // survives review because it looks exactly like a descriptor that works.
 //
 // Checked against the **registry**, not a fixed list. "Unknown" therefore means *this binary
-// cannot run it* — which stays the right question if controls ever arrive from plugins, because
-// a descriptor asking for a control the runner does not have should fail there too. Skipping it
+// cannot run it*. Which stays the right question if controls ever arrive from plugins, because a
+// descriptor asking for a control the runner does not have should fail there too. Skipping it
 // silently would be the green tick that means nothing.
 func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 	known := map[string]bool{}
@@ -39,7 +39,7 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 		}
 		msg := fmt.Sprintf("%s: %q is not a control this build of Draugr provides", where, name)
 		if near := nearestName(name, known); near != "" {
-			msg += fmt.Sprintf(" — did you mean %q?", near)
+			msg += fmt.Sprintf(", did you mean %q?", near)
 		}
 		problems = append(problems, msg)
 	}
@@ -79,10 +79,10 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			if key == "enabled" || keysFor[control][key] {
 				continue
 			}
-			// A scanner block is a mapping; a scalar is a control-level option and not this
-			// check's business. YAML decodes the nested mapping as saga.ControllerSettings
-			// rather than a bare map, so both shapes are accepted — asserting only the bare one
-			// is why the first version of this check silently matched nothing.
+			// A scanner block is a mapping; a scalar is a control-level option and not this check's
+			// business. YAML decodes the nested mapping as saga.ControllerSettings rather than a bare map,
+			// so both shapes are accepted, asserting only the bare one is why the first version of this
+			// check silently matched nothing.
 			switch settings[key].(type) {
 			case saga.ControllerSettings, map[string]any:
 			default:
@@ -93,7 +93,7 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 				// which sends the reader looking for a typo they did not make.
 				problems = append(problems, fmt.Sprintf(
 					"%s.%s: %q decides reachability and is enabled under config.reachability, "+
-						"not as a scanner — write `config.reachability.analyzers: [%s]`",
+						"not as a scanner. Write `config.reachability.analyzers: [%s]`",
 					where, control, key, analyzer))
 				continue
 			}
@@ -145,7 +145,7 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			msg := fmt.Sprintf("config.reachability.analyzers: %q is not a reachability analyzer "+
 				"this build of Draugr provides", name)
 			if near := nearestName(name, analyzers); near != "" {
-				msg += fmt.Sprintf(" — did you mean %q?", near)
+				msg += fmt.Sprintf(", did you mean %q?", near)
 			} else if len(analyzers) > 0 {
 				msg += fmt.Sprintf(" (it has %s)", list(sortedKeys(analyzers)))
 			}
@@ -179,8 +179,8 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 // nearestName returns the known name closest to name, or "" when nothing is close enough.
 //
 // The suggestion is most of the value: "iaac is not a control" leaves someone scanning a list,
-// and "did you mean iac?" ends it. The threshold keeps it honest — a wild guess beside an error
-// is worse than no guess, because it sends the reader somewhere wrong.
+// and "did you mean iac?" ends it. The threshold keeps it honest, a wild guess beside an error is
+// worse than no guess, because it sends the reader somewhere wrong.
 //
 // Not specific to controls: component names are matched the same way, and a typo costs the reader
 // the same either way.

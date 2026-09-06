@@ -22,12 +22,12 @@ import (
 // configuration: the certificate it presents and which protocol versions it accepts. It serves
 // the "tls" control.
 //
-// Native rather than exec'ing testssl.sh: Draugr ships as a single binary, and testssl.sh is a
-// bash script plus a data directory (so it doesn't fit the binary-based tool provisioning),
-// needs bash/openssl on the runner, takes minutes per host, and is GPL-2.0 (exec-only, never
-// bundleable). The checks below are the high-value ones that Go's crypto/tls can make in
-// seconds. Depth that Go cannot reach — SSLv2/SSLv3, export/NULL ciphers, protocol-level vulns
-// like ROBOT — is left to an opt-in testssl.sh scanner as a follow-up.
+// Native rather than exec'ing testssl.sh: Draugr ships as a single binary, and testssl.sh is a bash
+// script plus a data directory (so it doesn't fit the binary-based tool provisioning), needs
+// bash/openssl on the runner, takes minutes per host, and is GPL-2.0 (exec-only, never bundleable).
+// The checks below are the high-value ones that Go's crypto/tls can make in seconds. Depth that Go
+// cannot reach, SSLv2/SSLv3, export/NULL ciphers, protocol-level vulns like ROBOT. Is left to an
+// opt-in testssl.sh scanner as a follow-up.
 type draugrTLSScanner struct {
 	info plugin.ScannerInfo
 	// probe performs one handshake at a fixed protocol version, returning the negotiated
@@ -37,10 +37,10 @@ type draugrTLSScanner struct {
 	now func() time.Time
 }
 
-// Default certificate-expiry windows, in days. A certificate inside errorDays is an error;
-// inside warnDays, a warning. Both are tunable per Saga — an endpoint with automated renewal
-// (Let's Encrypt, Cloudflare) legitimately sits inside a wide default window during normal
-// rotation, and a gate should fire only when renewal has actually failed.
+// Default certificate-expiry windows, in days. A certificate inside errorDays is an error; inside
+// warnDays, a warning. Both are tunable per Saga, an endpoint with automated renewal (Let's
+// Encrypt, Cloudflare) legitimately sits inside a wide default window during normal rotation, and a
+// gate should fire only when renewal has actually failed.
 const (
 	defaultExpiryErrorDays = 14
 	defaultExpiryWarnDays  = 30
@@ -117,7 +117,8 @@ func (s draugrTLSScanner) Info() plugin.ScannerInfo { return s.info }
 
 // CacheVersion ties cached results to this binary (implements plugin.CacheVersioner).
 //
-// A native scanner has no external tool to ask, and the probe's expectations — protocol floor, expiry window, chain rules — are ours, so they change when Draugr does.
+// A native scanner has no external tool to ask, and the probe's expectations, protocol floor,
+// expiry window, chain rules. Are ours, so they change when Draugr does.
 func (s draugrTLSScanner) CacheVersion(context.Context) string { return draugrCacheVersion() }
 
 // Scan probes the host's TLS endpoint and reports certificate and protocol findings.
@@ -145,8 +146,8 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 		if res, ok := certHandshakeFinding(host.URL, err); ok {
 			return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{res}}, nil
 		}
-		// The server may refuse TLS 1.2+ because it only speaks deprecated versions — the worst
-		// case, and a finding rather than an error. Retry on the legacy range before giving up.
+		// The server may refuse TLS 1.2+ because it only speaks deprecated versions, the worst case, and
+		// a finding rather than an error. Retry on the legacy range before giving up.
 		legacyState, legacyErr := s.probe(ctx, addr, serverName, tls.VersionTLS10, tls.VersionTLS11)
 		if legacyErr != nil {
 			return sarif.Report{}, fmt.Errorf("draugr-tls: connect %s: %w", addr, err)
@@ -157,7 +158,7 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 			Level:    sarif.LevelError,
 			Score:    8.5,
 			HasScore: true,
-			Message: "Server does not accept TLS 1.2 or newer — only deprecated versions. " +
+			Message: "Server does not accept TLS 1.2 or newer, only deprecated versions. " +
 				"Traffic is protected by protocols with known attacks; enable TLS 1.2+ urgently.",
 			Location: sarif.Location{URI: host.URL},
 		})
@@ -183,7 +184,7 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 				Score:    v.score,
 				HasScore: true,
 				Message: fmt.Sprintf(
-					"%s is accepted. It is deprecated (RFC 8996) and vulnerable to known attacks — "+
+					"%s is accepted. It is deprecated (RFC 8996) and vulnerable to known attacks, "+
 						"disable it and require TLS 1.2 or newer.", v.label),
 				Location: sarif.Location{URI: host.URL},
 			})
@@ -198,7 +199,7 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 			Level:    sarif.LevelNote,
 			Score:    2.0,
 			HasScore: true,
-			Message: "TLS 1.3 is not accepted. It is faster and removes legacy weaknesses — " +
+			Message: "TLS 1.3 is not accepted. It is faster and removes legacy weaknesses, " +
 				"enable it alongside TLS 1.2.",
 			Location: sarif.Location{URI: host.URL},
 		})
@@ -221,7 +222,7 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time, t
 		out = append(out, sarif.Result{
 			Tool: "draugr-tls", RuleID: "tls-cert-expired", Level: sarif.LevelError,
 			Score: 9.0, HasScore: true,
-			Message: fmt.Sprintf("Certificate expired on %s. Clients will refuse to connect — renew it now.",
+			Message: fmt.Sprintf("Certificate expired on %s. Clients will refuse to connect, renew it now.",
 				leaf.NotAfter.UTC().Format(time.DateOnly)),
 			Location: sarif.Location{URI: uri},
 		})
@@ -280,7 +281,7 @@ func weakKey(cert *x509.Certificate) (rule, message string, score float64, weak 
 	case *rsa.PublicKey:
 		if bits := pub.N.BitLen(); bits < 2048 {
 			return "tls-weak-key", fmt.Sprintf(
-				"Certificate uses a %d-bit RSA key. Keys under 2048 bits are considered breakable — "+
+				"Certificate uses a %d-bit RSA key. Keys under 2048 bits are considered breakable, "+
 					"reissue with at least 2048 bits.", bits), 7.0, true
 		}
 	case *ecdsa.PublicKey:
@@ -292,9 +293,9 @@ func weakKey(cert *x509.Certificate) (rule, message string, score float64, weak 
 	return "", "", 0, false
 }
 
-// certHandshakeFinding turns a handshake failure that is really a certificate problem
-// (untrusted issuer, hostname mismatch, expired) into a finding. Other errors — DNS, refused
-// connections, timeouts — are left as scan errors, since they say nothing about TLS posture.
+// certHandshakeFinding turns a handshake failure that is really a certificate problem (untrusted
+// issuer, hostname mismatch, expired) into a finding. Other errors, DNS, refused connections,
+// timeouts. Are left as scan errors, since they say nothing about TLS posture.
 func certHandshakeFinding(uri string, err error) (sarif.Result, bool) {
 	base := sarif.Result{
 		Tool: "draugr-tls", Level: sarif.LevelError, HasScore: true,
@@ -309,7 +310,7 @@ func certHandshakeFinding(uri string, err error) (sarif.Result, bool) {
 		base.RuleID = "tls-cert-hostname-mismatch"
 		base.Score = 8.0
 		base.Message = fmt.Sprintf("Certificate is not valid for this hostname: %v. "+
-			"Clients will reject it — reissue the certificate covering this name.", hostnameErr)
+			"Clients will reject it, reissue the certificate covering this name.", hostnameErr)
 	case errors.As(err, &unknownAuthority):
 		base.RuleID = "tls-cert-untrusted"
 		base.Score = 8.0
@@ -322,7 +323,7 @@ func certHandshakeFinding(uri string, err error) (sarif.Result, bool) {
 			base.RuleID = "tls-cert-expired"
 			base.Score = 9.0
 			base.Message = "Certificate has expired (or is not yet valid). Clients will refuse to " +
-				"connect — renew it now."
+				"connect, renew it now."
 			break
 		}
 		base.RuleID = "tls-cert-invalid"
@@ -346,7 +347,7 @@ func tlsAddress(raw string) (addr, serverName string, err error) {
 		return "", "", fmt.Errorf("parse host url %q: %w", raw, err)
 	}
 	if u.Scheme == "http" {
-		return "", "", fmt.Errorf("host %q is plain http — nothing to probe (serve it over https)", raw)
+		return "", "", fmt.Errorf("host %q is plain http, nothing to probe (serve it over https)", raw)
 	}
 	hostname := u.Hostname()
 	if hostname == "" {

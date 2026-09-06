@@ -29,7 +29,7 @@ const mendSCAScannerName = "mend-sca"
 //
 // Two phases, because that is what the tool is: the agent uploads an inventory and exits without
 // saying what is wrong with it, and the findings come from the API afterwards. A one-command
-// scanner is not available here — the other engine (`mend dependencies`) resolves whatever is
+// scanner is not available here, the other engine (`mend dependencies`) resolves whatever is
 // installed on the scanning machine rather than what the project declares, which pointed at a
 // checkout means reporting on the CI runner.
 //
@@ -65,7 +65,7 @@ func NewMendSCA() plugin.Scanner {
 			Effects: []plugin.Effect{
 				{
 					Kind: plugin.EffectDisclosure,
-					Detail: "uploads this component's resolved dependency inventory to Mend — " +
+					Detail: "uploads this component's resolved dependency inventory to Mend, " +
 						"names, versions, checksums, and the absolute paths they were found at",
 				},
 				{
@@ -111,11 +111,11 @@ func (s mendSCAScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 	defer cleanup()
 
 	// One Mend project per repository, never per component. Draugr plans a job per repository, an
-	// upload *replaces* a project's inventory, and those jobs run concurrently — so a component
-	// with two repositories pointed at one project would have them overwrite each other, and the
-	// findings would describe whichever landed last. Derived from the repository URL rather than
-	// its identity, because identity includes the revision and that would make a new Mend project
-	// on every commit.
+	// upload *replaces* a project's inventory, and those jobs run concurrently, so a component with
+	// two repositories pointed at one project would have them overwrite each other, and the findings
+	// would describe whichever landed last. Derived from the repository URL rather than its
+	// identity, because identity includes the revision and that would make a new Mend project on
+	// every commit.
 	settings.project = mendProjectName(settings.project, repo.Source())
 
 	summary, err := sharedMendUploads.upload(ctx, mendUploadKey(repo, settings),
@@ -158,9 +158,9 @@ func (s mendSCAScanner) upload(ctx context.Context, dir string, set mendSettings
 	// The base directory holds two very different things: the Unified Agent's jar, which the CLI
 	// downloads once and must find again, and its logs, which contain the user key in plaintext.
 	//
-	// A fresh directory per scan gets the second right and the first badly wrong — the agent then
-	// has no jar, resolves nothing, and exits zero, which is the silent pass this scanner exists
-	// to refuse. So the base is stable and only the logs are removed.
+	// A fresh directory per scan gets the second right and the first badly wrong. The agent then has
+	// no jar, resolves nothing, and exits zero, which is the silent pass this scanner exists to
+	// refuse. So the base is stable and only the logs are removed.
 	base, err := mendBaseDir()
 	if err != nil {
 		return uaSummary{}, err
@@ -177,8 +177,8 @@ func (s mendSCAScanner) upload(ctx context.Context, dir string, set mendSettings
 	return summary, nil
 }
 
-// uaErrorRE matches the resolver failures the agent reports as warnings while still exiting zero
-// — an unsatisfiable manifest, a package manager that would not run.
+// uaErrorRE matches the resolver failures the agent reports as warnings while still exiting zero,
+// an unsatisfiable manifest, a package manager that would not run.
 var uaErrorRE = regexp.MustCompile(`(?m)^.*Read error line #\d+: (ERROR: .*)$`)
 
 // uaFailures collects what the agent said went wrong, so the scanner can relay a cause rather
@@ -200,8 +200,8 @@ func uaFailures(out string) []string {
 	return msgs
 }
 
-// secretish matches the shapes a Mend credential takes — a 64-hex user key, or a URL carrying
-// userinfo — so neither reaches an error string or a relayed log line.
+// secretish matches the shapes a Mend credential takes, a 64-hex user key, or a URL carrying
+// userinfo, so neither reaches an error string or a relayed log line.
 var secretish = regexp.MustCompile(`(?i)[0-9a-f]{32,}|://[^/\s]*:[^/\s]*@`)
 
 func scrubSecrets(s string) string { return secretish.ReplaceAllString(s, "<redacted>") }
@@ -248,7 +248,7 @@ var manifests = []string{
 // The agent reports success in that case: it exits zero, and it replaces the project's inventory
 // with the nothing it found, after which the API honestly answers that there are no
 // vulnerabilities. Every signal says pass. The cause is usually a runner missing the package
-// manager the ecosystem needs — the agent drives pip, npm, maven and the rest, and a PATH that
+// manager the ecosystem needs, the agent drives pip, npm, maven and the rest, and a PATH that
 // does not reach them resolves zero without complaining.
 //
 // So this is the missing-scanner rule one level in: a control whose tool could not do its job
@@ -264,7 +264,7 @@ func (s uaSummary) check(dir string) error {
 	}
 	if !s.sawSummary {
 		return fmt.Errorf("mend: the agent produced no scan summary, so there is no way to tell " +
-			"whether it resolved anything — treating this as a failed scan rather than a clean one")
+			"whether it resolved anything, treating this as a failed scan rather than a clean one")
 	}
 	// The agent's own words when it has any: it reports a resolver failure as a warning and still
 	// exits zero, so this is usually the actual cause and always more specific than a guess.
@@ -310,7 +310,7 @@ func manifestsIn(dir string) []string {
 //
 // Only security vulnerabilities become findings. A NEW_MAJOR_VERSION alert is dependency
 // freshness, and a REJECTED_BY_POLICY_RESOURCE alert comes from policy configured in the
-// operator's Mend console — mapping that one would let a second policy engine reach into the
+// operator's Mend console. Mapping that one would let a second policy engine reach into the
 // verdict, when the point of the gate is that a descriptor somebody can read decides it.
 func mendReport(alerts []mendapi.Alert) sarif.Report {
 	var rep sarif.Report
@@ -359,7 +359,7 @@ func mendMessage(a mendapi.Alert) string {
 	}
 	msg := fmt.Sprintf("%s: %s", lib, firstLine(a.Vulnerability.Description))
 	if a.Vulnerability.TopFix != nil && a.Vulnerability.TopFix.FixResolution != "" {
-		msg += " — fixed in " + a.Vulnerability.TopFix.FixResolution
+		msg += ", fixed in " + a.Vulnerability.TopFix.FixResolution
 	}
 	if !a.DirectDependency {
 		msg += " (transitive)"
@@ -390,7 +390,7 @@ func firstLine(s string) string {
 // mendProjectName names the Mend project one repository reports into.
 //
 // Always repository-scoped. Draugr plans a job per repository and those run concurrently, while a
-// Unified Agent upload *replaces* a project's inventory — so letting a component's repositories
+// Unified Agent upload *replaces* a project's inventory, so letting a component's repositories
 // share a project would have them overwrite each other, and the findings would describe whichever
 // landed last.
 //
@@ -429,9 +429,9 @@ func mendNameFragment(source string) string {
 	if out := strings.Trim(b.String(), "-."); out != "" {
 		return out
 	}
-	// A path with nothing nameable in it — "." for a checkout with no remote. Its absolute path
-	// is the only thing that distinguishes it, so it is used rather than a shared placeholder
-	// that would silently merge two repositories into one project.
+	// A path with nothing nameable in it, "." for a checkout with no remote. Its absolute path is
+	// the only thing that distinguishes it, so it is used rather than a shared placeholder that
+	// would silently merge two repositories into one project.
 	return "repo-" + shortHash(source)
 }
 
@@ -454,7 +454,7 @@ const defaultResultTimeout = 10 * time.Minute
 // mendBaseDir is where the CLI keeps its downloaded agent between scans.
 //
 // Under Draugr's own cache rather than the operator's home, so the jar is fetched once and the
-// logs it writes there — which carry the user key — are ours to remove.
+// logs it writes there, which carry the user key. Are ours to remove.
 func mendBaseDir() (string, error) {
 	root, err := os.UserCacheDir()
 	if err != nil {

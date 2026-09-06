@@ -1,6 +1,6 @@
 # Controller: `dast` (dynamic application security testing)
 
-- **Industry term:** DAST — Dynamic Application Security Testing
+- **Industry term:** DAST, Dynamic Application Security Testing
 - **Scope:** component
 - **Status:** ✅ implemented
 - **Scanner:** [`nuclei`](../scanners/nuclei.md)
@@ -8,10 +8,10 @@
 
 ## What it does
 
-Probes a component's **running endpoints** for runtime issues that static analysis can't see —
-exposures, misconfigurations, information disclosure, outdated libraries, default credentials.
-It plans one Nuclei scan per host declared on the component (skipping hosts without a `url`),
-then aggregates the findings into a per-control result with a severity summary.
+Probes a component's **running endpoints** for runtime issues that static analysis can't see,
+exposures, misconfigurations, information disclosure, outdated libraries, default credentials. It
+plans one Nuclei scan per host declared on the component (skipping hosts without a `url`), then
+aggregates the findings into a per-control result with a severity summary.
 
 `dast` complements the [`headers`](headers.md) control: `dast` covers runtime vulnerabilities,
 while `headers` owns HTTP security-header checks. The scanner excludes header-tagged templates
@@ -41,10 +41,10 @@ config:
 
 ## Notes
 
-- Requires the app to be **served** — point `hosts:` at a running (usually staging/pre-prod)
+- Requires the app to be **served**. Point `hosts:` at a running (usually staging/pre-prod)
   deployment. Nuclei must be installed (`draugr tools install nuclei`); `draugr doctor` checks
   for it when `dast` is enabled.
-- Runs Nuclei's default (safe) template set — **no active/attack scanning**. Intrusive testing
+- Runs Nuclei's default (safe) template set, **no active/attack scanning**. Intrusive testing
   stays a deliberate, authorized opt-in.
 - A deeper opt-in engine (e.g. OWASP ZAP) is a future follow-up
   ([#92](https://github.com/draugr-dev/draugr/issues/92),

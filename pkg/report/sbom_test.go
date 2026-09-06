@@ -78,7 +78,7 @@ func TestSlug(t *testing.T) {
 
 func TestEveryFormatHasAFileExtension(t *testing.T) {
 	// A format the Saga accepts but that has no extension here would silently produce
-	// "sbom-x-y.json" — readable, but not what a consumer keying on the suffix expects.
+	// "sbom-x-y.json", readable, but not what a consumer keying on the suffix expects.
 	for _, f := range saga.SBOMFormats {
 		meta, ok := sbomMeta[f]
 		if !ok {
@@ -123,8 +123,8 @@ func TestConsoleReportsSBOMsWithoutMakingThemAControl(t *testing.T) {
 }
 
 func TestConsoleReportsSBOMsOnACleanRun(t *testing.T) {
-	// The early return for "no findings" must not swallow the evidence line — a clean scan
-	// still produced the inventory.
+	// The early return for "no findings" must not swallow the evidence line, a clean scan still
+	// produced the inventory.
 	d := Data{
 		Release: saga.Release{Version: "1"},
 		Run:     engine.Result{SBOMs: []sbom.Document{{Component: "web", Target: "r", Format: saga.SBOMSPDXJSON}}},
@@ -152,7 +152,7 @@ func TestConsoleOmitsTheSBOMLineWhenThereAreNone(t *testing.T) {
 
 func TestSBOMArtifactsCoverEveryEncoding(t *testing.T) {
 	// The point of offering four formats is that a consumer picks one. Each has to produce a
-	// distinct, recognizable filename — two of them are not JSON at all.
+	// distinct, recognizable filename. Two of them are not JSON at all.
 	docs := []sbom.Document{
 		{Component: "c", Target: "t", Format: saga.SBOMSPDXJSON},
 		{Component: "c", Target: "t", Format: saga.SBOMSPDXTagValue},

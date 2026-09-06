@@ -11,15 +11,15 @@ Ask an assistant to check a change for security problems and it will. Without Dr
 improvises: it runs whichever scanner it can find, over a scope it chose for itself, and reads
 the raw output. That answer has no relationship to the one your pipeline will give.
 
-`draugr mcp` serves Draugr over the [Model Context Protocol](https://modelcontextprotocol.io),
-so the assistant asks Draugr instead — the same descriptor, the same controls, the same
-priorities your CI gate uses.
+`draugr mcp` serves Draugr over the [Model Context Protocol](https://modelcontextprotocol.io), so
+the assistant asks Draugr instead, the same descriptor, the same controls, the same priorities your
+CI gate uses.
 
 ## Register it
 
 Draugr is published in the [MCP Registry](https://registry.modelcontextprotocol.io) as
-**`dev.draugr/draugr`**, under a namespace authenticated by DNS on `draugr.dev`. Clients that
-read the registry can find and install it from there, bundle and all — no separate download.
+**`dev.draugr/draugr`**, under a namespace authenticated by DNS on `draugr.dev`. Clients that read
+the registry can find and install it from there, bundle and all, no separate download.
 
 If you already have `draugr` installed, registering it directly is simpler. For **Claude Code**:
 
@@ -42,15 +42,15 @@ Most other clients take this shape. Point `command` at your `draugr` binary:
 
 For **Claude Code**: `claude mcp add draugr -- draugr mcp`.
 
-The server speaks MCP on stdin/stdout, not text. Running `draugr mcp` in a terminal by hand
-looks like it has hung — it's waiting for a client.
+The server speaks MCP on stdin/stdout, not text. Running `draugr mcp` in a terminal by hand looks
+like it has hung, it's waiting for a client.
 
 ## What the assistant can do
 
 | Tool | What it answers |
 | --- | --- |
 | `list_controls` | Which controls exist, what each checks, which scanner backs it |
-| `get_saga_schema` | The descriptor schema **this build** enforces — for writing a Saga correctly |
+| `get_saga_schema` | The descriptor schema **this build** enforces, for writing a Saga correctly |
 | `validate_saga` | Whether a descriptor is valid, by path or by content, and why not |
 | `check_tools` | Which scanners are present, what's missing, and the command that fixes it |
 | `summarize_report` | An existing `results.sarif`, ranked by priority, each finding carrying its remediation and what to upgrade to |
@@ -58,8 +58,8 @@ looks like it has hung — it's waiting for a client.
 | `explain_rule` | What a rule means and how to fix it, from the report the scan already wrote |
 | `diff_reports` | What a change introduced and resolved, and whether a pull-request gate would fail |
 | `list_surveyors` | What can be discovered, and what each surveyor reads |
-| `survey` | A descriptor for a live cluster, organization or project — returned, not written |
-| `scan` | A fresh scan and its verdict — **only with `--scan=ask` or `--scan=always`** |
+| `survey` | A descriptor for a live cluster, organization or project, returned, not written |
+| `scan` | A fresh scan and its verdict, **only with `--scan=ask` or `--scan=always`** |
 
 ## What it looks like
 
@@ -72,21 +72,21 @@ registered:
 >
 > Fix first, in order:
 >
-> 1. **P1 — grpc CVE** (`go.mod`): `google.golang.org/grpc` v1.81.1 → 1.82.1.
+> 1. **P1, grpc CVE** (`go.mod`): `google.golang.org/grpc` v1.81.1 → 1.82.1.
 >    GHSA-hrxh-6v49-42gf. One-line dependency bump, real vulnerability, highest score (8).
 >    Do this now.
-> 2. **P1 — private key in `test/integration/repo_scan_test.go:100`.** Likely a test fixture
+> 2. **P1, private key in `test/integration/repo_scan_test.go:100`.** Likely a test fixture
 >    rather than a live secret, but verify: if it's a real key, rotate it; if it's a fixture,
 >    add a gitleaks allowlist entry so it stops masking real hits.
-> 3. **P2 — 5× unpinned GitHub Actions tags.** These are starter workflows you ship to users,
+> 3. **P2, 5× unpinned GitHub Actions tags.** These are starter workflows you ship to users,
 >    so pinning to full commit SHAs is also documentation-by-example. Cheap batch cleanup.
-> 4. **P2 — possible nil deref on an error path.** Lowest priority; needs a code read to
+> 4. **P2, possible nil deref on an error path.** Lowest priority; needs a code read to
 >    confirm it isn't a false positive.
 
-Nothing in that ordering came from the model's judgement about severity. The priorities, the
-scores and the advisory link came from Draugr; the assistant added the part it's good at —
-grouping the batch job together, noticing that a fixture secret masks real hits, and flagging
-which finding needs a human to confirm.
+Nothing in that ordering came from the model's judgement about severity. The priorities, the scores
+and the advisory link came from Draugr; the assistant added the part it's good at, grouping the
+batch job together, noticing that a fixture secret masks real hits, and flagging which finding needs
+a human to confirm.
 
 That division is the point. Detection and ranking are reproducible and come from the scan;
 judgement about what to do sits with the reader, human or otherwise.
@@ -94,7 +94,7 @@ judgement about what to do sits with the reader, human or otherwise.
 ## The verdict states its own scope
 
 A `scan` result names the controls that ran, any surface your descriptor declares that no enabled
-control looked at, and the classes a control-based scan does not cover at all — trust boundaries,
+control looked at, and the classes a control-based scan does not cover at all, trust boundaries,
 build-context hygiene, how credentials reach a subprocess, protocol assumptions:
 
 ```json
@@ -107,11 +107,11 @@ build-context hygiene, how credentials reach a subprocess, protocol assumptions:
 ```
 
 This is scope, and an assistant reads it the same way you would. A gate answers one question
-exactly — *do the declared controls, over the declared components, produce findings above the
-threshold* — and it answers it the same way every time, which is what makes it something to gate a
-pipeline on. Saying which question it answered is what lets an assistant keep going afterwards
-with the reproducible part already settled: it never re-derives your dependency CVEs, your
-priorities or your verdict, and spends its attention on the design questions no scanner computes.
+exactly. *do the declared controls, over the declared components, produce findings above the
+threshold*, and it answers it the same way every time, which is what makes it something to gate a
+pipeline on. Saying which question it answered is what lets an assistant keep going afterwards with
+the reproducible part already settled: it never re-derives your dependency CVEs, your priorities or
+your verdict, and spends its attention on the design questions no scanner computes.
 
 ## It diagnoses; it doesn't install
 
@@ -129,18 +129,18 @@ the exact command that fixes it:
 Given a descriptor it narrows to what that descriptor actually needs, so a Saga enabling only
 `sca` doesn't demand Semgrep.
 
-**There is no install tool, deliberately.** Installing binaries is a write to your machine, and
-your assistant's client already has a permission model for running commands — one you already
-understand and have already configured. Routing the same action through this server would
-replace that with a weaker path of our own making. So Draugr reports the command; you approve it
-where you approve everything else.
+**There is no install tool, deliberately.** Installing binaries is a write to your machine, and your
+assistant's client already has a permission model for running commands, one you already understand
+and have already configured. Routing the same action through this server would replace that with a
+weaker path of our own making. So Draugr reports the command; you approve it where you approve
+everything else.
 
 ## Draugr also offers your Saga as a resource
 
-Every `*.saga.yaml` Draugr finds nearby is exposed as an MCP resource, so the assistant can read
-the descriptor without being told where it is — and so it reads the *committed* scope rather than
-inventing one. Discovery is bounded to three directories deep and skips `node_modules`, `vendor`
-and the like; it happens at startup, so a descriptor you create afterwards needs a restart.
+Every `*.saga.yaml` Draugr finds nearby is exposed as an MCP resource, so the assistant can read the
+descriptor without being told where it is, and so it reads the *committed* scope rather than
+inventing one. Discovery is bounded to three directories deep and skips `node_modules`, `vendor` and
+the like; it happens at startup, so a descriptor you create afterwards needs a restart.
 
 ## Scanning: off, ask, or always
 
@@ -153,14 +153,14 @@ draugr mcp --scan=ask      # offered, and you approve each call
 draugr mcp --scan=always   # offered, and runs without asking
 ```
 
-The approval message describes the scan in front of you, not scanning in general — the controls
-that will run, over how many components, any scanner that does more than read, and where the
-results will be delivered:
+The approval message describes the scan in front of you, not scanning in general. The controls that
+will run, over how many components, any scanner that does more than read, and where the results will
+be delivered:
 
 ```
 Draugr wants to scan app.saga.yaml.
 
-Controls: dast, tls — over 1 component.
+Controls: dast, tls, over 1 component.
 
 These do more than read:
   nuclei (network): sends probing traffic to the declared host
@@ -174,13 +174,13 @@ Results will be delivered to:
 
 That distinction is the point of asking. Five read-only controls over a checkout and a `dast` run
 against a production host are different decisions, and a message that reads the same for both asks
-you to approve something it has not described — particularly when the descriptor was written by
-the assistant rather than by you.
+you to approve something it has not described. Particularly when the descriptor was written by the
+assistant rather than by you.
 
-**`--scan=ask` is the one to want** — you approve the scan in front of you, rather than every
-scan for the session. It needs a client that implements MCP *elicitation*, and many don't yet.
-If yours can't prompt, the scan is refused with a message saying so; it never silently runs
-anyway. Use `--scan=always` for a sandbox or CI, where there's nobody to ask.
+**`--scan=ask` is the one to want**. You approve the scan in front of you, rather than every scan
+for the session. It needs a client that implements MCP *elicitation*, and many don't yet. If yours
+can't prompt, the scan is refused with a message saying so; it never silently runs anyway. Use
+`--scan=always` for a sandbox or CI, where there's nobody to ask.
 
 The question is *returned* rather than asked mid-call: protocol version 2026-07-28 forbids a
 server prompting while it is serving a request, so the tool answers with the question and your
@@ -204,36 +204,34 @@ conversation is the least durable place a result can land: the session closes an
 gone. A saved SARIF file is something your assistant can point you at, or read back later with
 `summarize_report` instead of paying for another scan.
 
-`fix_list` answers "what should I do?" — one row per remediation rather than per finding, because
-one change usually clears many, and each row names the release to move to. Eight vulnerabilities in one library are one upgrade, and every
-vulnerable package inside an image somebody else publishes is one newer image. It uses the same
-grouping `draugr scan --group action` prints, so an assistant and a terminal cannot describe the
-same report differently.
+`fix_list` answers "what should I do?", one row per remediation rather than per finding, because one
+change usually clears many, and each row names the release to move to. Eight vulnerabilities in one
+library are one upgrade, and every vulnerable package inside an image somebody else publishes is one
+newer image. It uses the same grouping `draugr scan --group action` prints, so an assistant and a
+terminal cannot describe the same report differently.
 
 `explain_rule` answers "what does this mean and what do I change?". The remediation the scanner
 published is already in the report, so an assistant should read it rather than fetch a rule's help
-URI — which costs a network round trip, and for a benchmark is a registration form in front of a
-PDF.
+URI, which costs a network round trip, and for a benchmark is a registration form in front of a PDF.
 
-`diff_reports` answers "did what I just wrote make it worse?" — which is almost never the same
+`diff_reports` answers "did what I just wrote make it worse?", which is almost never the same
 question as "what is wrong with this repository". A project with two hundred inherited findings
-answers the second identically before and after a change. Give it `failOnNew` and it reports
-whether the pull-request gate would fail, using the same comparison `draugr diff` makes.
-`survey` answers "what is this application made of?" against the real thing. Writing a descriptor
-from `get_saga_schema` alone is guesswork about a live system — which namespaces exist, which
-images are actually running, at which digest. Several surveyors can run in one call and merge into
-one descriptor, because the repositories in an organization and the images in a namespace are the
-same application described twice.
+answers the second identically before and after a change. Give it `failOnNew` and it reports whether
+the pull-request gate would fail, using the same comparison `draugr diff` makes. `survey` answers
+"what is this application made of?" against the real thing. Writing a descriptor from
+`get_saga_schema` alone is guesswork about a live system, which namespaces exist, which images are
+actually running, at which digest. Several surveyors can run in one call and merge into one
+descriptor, because the repositories in an organization and the images in a namespace are the same
+application described twice.
 
 It **returns** YAML rather than writing a file. A tool that writes has to ask first, and merging
-into an existing descriptor carries decisions — which exposure wins, what a narrower scope means —
-that belong with whoever owns the file. Validate what comes back with `validate_saga`, then write
-it where the project keeps its descriptor.
+into an existing descriptor carries decisions, which exposure wins, what a narrower scope means,
+that belong with whoever owns the file. Validate what comes back with `validate_saga`, then write it
+where the project keeps its descriptor.
 
 Each surveyor reads a live system with whatever credentials the machine already has: a kubeconfig,
 `GITHUB_TOKEN`, `GITLAB_TOKEN`, `AZURE_DEVOPS_EXT_PAT`. A survey that could not reach part of the
-surface says so — a descriptor missing half a cluster looks exactly like one for a smaller
-cluster.
+surface says so, a descriptor missing half a cluster looks exactly like one for a smaller cluster.
 
 `summarize_report` answers "what should I fix first?" from a scan your pipeline already ran, at
 no cost.
@@ -245,7 +243,7 @@ The assistant could run Trivy and Semgrep itself. Three things it won't get that
 - **A recorded scope.** The Saga is committed and reviewed. Ask an assistant twice and you get
   two scopes; ask Draugr twice and you get the one your team agreed on.
 - **Priorities that mean something.** P1–P4 come from the component's declared
-  [exposure and criticality](../concepts/prioritization.md) — organizational context that isn't
+  [exposure and criticality](../concepts/prioritization.md), organizational context that isn't
   inferable from source code. "Is this internet-facing?" is not a question a model can answer by
   reading a repository.
 - **Far less context burned.** Raw scanner output for this repository is ~2.1 MB, most of it
@@ -257,14 +255,14 @@ The assistant could run Trivy and Semgrep itself. Three things it won't get that
 ## Writing a Saga with the assistant
 
 This is where `get_saga_schema` earns its place. The schema comes from the binary you have
-installed, not from the web, so it matches what will actually be enforced — and it rejects
-unknown keys, which means a hallucinated field name fails loudly rather than being ignored.
+installed, not from the web, so it matches what will actually be enforced, and it rejects unknown
+keys, which means a hallucinated field name fails loudly rather than being ignored.
 
 A sensible loop: `list_controls` to see what exists → write the descriptor →
 `validate_saga` with the content before writing it to disk.
 
 ## Related
 
-- [Prioritization](../concepts/prioritization.md) — what P1–P4 mean and where they come from.
-- [Saga schema](../reference/saga-schema.md) — editor support for writing the descriptor.
-- [See findings in your editor](findings-in-your-editor.md) — the same findings, inline on the code.
+- [Prioritization](../concepts/prioritization.md). What P1–P4 mean and where they come from.
+- [Saga schema](../reference/saga-schema.md), editor support for writing the descriptor.
+- [See findings in your editor](findings-in-your-editor.md), the same findings, inline on the code.

@@ -78,7 +78,7 @@ func ListControls(reg *engine.Registry) ControlsOutput {
 	out := ControlsOutput{
 		Hint: "Enable a control under config.controllers.<name> in the Saga, or per component. " +
 			"An opt-in scanner additionally needs controllers.<control>.<scanner>.enabled: true. " +
-			"A scanner accepts only the options listed in scannerOptions — anything else is " +
+			"A scanner accepts only the options listed in scannerOptions, anything else is " +
 			"rejected when the descriptor is validated, so do not invent keys.",
 	}
 	for _, ctrl := range reg.Controllers() {
@@ -134,8 +134,8 @@ type SchemaOutput struct {
 	Hint    string         `json:"hint"`
 }
 
-// GetSchema returns the schema embedded in this binary — the one that will actually be
-// enforced, as opposed to whatever is published on the web for some other version.
+// GetSchema returns the schema embedded in this binary. The one that will actually be enforced, as
+// opposed to whatever is published on the web for some other version.
 func GetSchema() (SchemaOutput, error) {
 	var doc map[string]any
 	if err := json.Unmarshal(saga.SchemaJSON, &doc); err != nil {
@@ -185,8 +185,8 @@ func ValidateSagaTool(_ context.Context, _ *mcp.CallToolRequest, in ValidateInpu
 		model, err = saga.Load([]byte(in.Content))
 	}
 	if err != nil {
-		// A validation failure is the answer, not a tool failure — returning it as an error
-		// would make the agent think the call went wrong rather than the descriptor.
+		// A validation failure is the answer, not a tool failure, returning it as an error would make
+		// the agent think the call went wrong rather than the descriptor.
 		return nil, ValidateOutput{Valid: false, Error: err.Error()}, nil
 	}
 
@@ -232,9 +232,9 @@ type Finding struct {
 	Message  string  `json:"message"`
 	HelpURI  string  `json:"helpUri,omitempty" jsonschema:"where the rule is documented, for background beyond the remediation below"`
 
-	// What follows is what turns a report into work. Without it an assistant can say a finding
-	// is critical and cannot say what to do about it — so it either guesses a fix or sends the
-	// reader to a search engine for text this report already contains.
+	// What follows is what turns a report into work. Without it an assistant can say a finding is
+	// critical and cannot say what to do about it, so it either guesses a fix or sends the reader to
+	// a search engine for text this report already contains.
 
 	// Remediation is the fix in the scanner's own words, not a summary of it.
 	Remediation string `json:"remediation,omitempty" jsonschema:"how to fix this, as the scanner published it; prefer this over inferring a fix from the message"`
@@ -267,8 +267,8 @@ type SummarizeOutput struct {
 	Note       string    `json:"note,omitempty"`
 }
 
-// Counts tallies the whole report, not just what was returned — a narrowed list shouldn't make
-// the rest of the backlog look like it vanished.
+// Counts tallies the whole report, not just what was returned. A narrowed list shouldn't make the
+// rest of the backlog look like it vanished.
 type Counts struct {
 	Critical int `json:"critical"`
 	High     int `json:"high"`
@@ -307,10 +307,10 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 
 	findings := make([]Finding, 0, len(rep.Results))
 	for _, res := range rep.Results {
-		// A suppressed finding is a decision somebody recorded, not work to hand back. Counting
-		// it puts an accepted risk into the answer to "what should I fix", where an assistant
-		// will propose fixing something the owner signed off — and the reason they gave, which
-		// is the whole content of the decision, does not travel with the number.
+		// A suppressed finding is a decision somebody recorded, not work to hand back. Counting it puts
+		// an accepted risk into the answer to "what should I fix", where an assistant will propose
+		// fixing something the owner signed off, and the reason they gave, which is the whole content of
+		// the decision, does not travel with the number.
 		if res.Suppressed() {
 			out.Suppressed++
 			continue
@@ -391,7 +391,7 @@ func findingFrom(rep sarif.Report, res sarif.Result) Finding {
 // From the report rather than a lookup: scanners record their remediation in the rule, Draugr
 // carries it through, and it is already on disk beside the finding. An assistant sent to a help
 // URI for the same text pays a network round trip for it, and for a benchmark that URI is a
-// registration form in front of a PDF — so the answer is reachable only to a reader who is not an
+// registration form in front of a PDF. So the answer is reachable only to a reader who is not an
 // assistant.
 //
 // Empty when it would only repeat the message, which is the common case for a scanner that gives
@@ -493,15 +493,15 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 				return nil, ScanOutput{}, err
 			}
 			if ask != nil {
-				// The question, not an answer: the call ends here and the client asks it, then
-				// calls again carrying the reply. Returning a result rather than blocking on one
-				// is what the protocol requires from 2026-07-28 — and the SDK asks on behalf of
-				// clients too old to do it themselves, so this one path serves both.
+				// The question, not an answer: the call ends here and the client asks it, then calls again
+				// carrying the reply. Returning a result rather than blocking on one is what the protocol
+				// requires from 2026-07-28, and the SDK asks on behalf of clients too old to do it themselves,
+				// so this one path serves both.
 				return ask, ScanOutput{}, nil
 			}
 		}
-		// Shared for this run, as the CLI does — an assistant asking for a scan should not pay
-		// for five clones of one repository either.
+		// Shared for this run, as the CLI does, an assistant asking for a scan should not pay for five
+		// clones of one repository either.
 		pool := git.NewPool()
 		defer pool.Close()
 		ctx = git.WithPool(ctx, pool)
@@ -594,10 +594,10 @@ func consent(req *mcp.CallToolRequest, path, message string) (*mcp.CallToolResul
 			"start the server with --scan=always to run scans without asking")
 	}
 	// Refused here rather than left to the round trip. A client that never declared elicitation
-	// cannot answer this question however it is asked, and the SDK's own failure for that case —
-	// "client does not support elicitation" — is meaningless to somebody who chose --scan=ask from
-	// a docs page and has no idea their client does not implement it. The way out is worth naming
-	// while there is still a message to name it in.
+	// cannot answer this question however it is asked, and the SDK's own failure for that case.
+	// "client does not support elicitation". Is meaningless to somebody who chose --scan=ask from a
+	// docs page and has no idea their client does not implement it. The way out is worth naming while
+	// there is still a message to name it in.
 	if req.Session != nil {
 		if init := req.Session.InitializeParams(); init == nil || init.Capabilities == nil ||
 			init.Capabilities.Elicitation == nil {
@@ -612,9 +612,9 @@ func consent(req *mcp.CallToolRequest, path, message string) (*mcp.CallToolResul
 		// The description travels with the question. A prompt naming only a path asks somebody to
 		// approve something it has not described, and the reader is rarely whoever wrote the file.
 		//
-		// The schema is not optional even when it asks for nothing: RequestedSchema has no
-		// omitempty, so leaving it unset puts `"requestedSchema": null` on the wire, and a client
-		// holding to the spec rejects the request — which fails --scan=ask before it can ask.
+		// The schema is not optional even when it asks for nothing: RequestedSchema has no omitempty, so
+		// leaving it unset puts `"requestedSchema": null` on the wire, and a client holding to the spec
+		// rejects the request. Which fails --scan=ask before it can ask.
 		return &mcp.CallToolResult{
 			InputRequests: mcp.InputRequestMap{
 				consentRequestID: &mcp.ElicitParams{
@@ -674,9 +674,9 @@ type CheckToolsOutput struct {
 
 // CheckToolsTool reports which external scanners are present.
 //
-// This exists because of what Draugr does when one is missing: the control can't run, and a
-// scan that can't run is not a pass. An assistant that hits that needs to say what's wrong and
-// what fixes it — which is a question about the machine, and answering it is free.
+// This exists because of what Draugr does when one is missing: the control can't run, and a scan
+// that can't run is not a pass. An assistant that hits that needs to say what's wrong and what
+// fixes it. Which is a question about the machine, and answering it is free.
 //
 // It deliberately stops there. Draugr will not install anything on a user's behalf over MCP:
 // that's a write to their machine, and their client already has a permission model for running
@@ -714,7 +714,7 @@ func CheckToolsTool(ctx context.Context, _ *mcp.CallToolRequest, in CheckToolsIn
 	case len(out.Missing) > 0:
 		out.Remedy = "draugr tools install " + strings.Join(out.Missing, " ")
 		out.Note = "Controls backed by a missing scanner cannot run, and a scan that cannot run " +
-			"reports a failure rather than a pass. Draugr will not install these for you — run " +
+			"reports a failure rather than a pass. Draugr will not install these for you. Run " +
 			"the remedy command, or ask the user to."
 	default:
 		out.Note = "Everything required is present."
@@ -775,7 +775,7 @@ type ExplainOutput struct {
 //
 // A rule id and a truncated line is enough to rank a finding and not enough to decide anything.
 // The answer is already in the report: scanners publish remediation text and Draugr records it.
-// Without this an assistant is left to fetch a help URI — a network round trip for text on disk,
+// Without this an assistant is left to fetch a help URI, a network round trip for text on disk,
 // and for a benchmark a registration form in front of a PDF, which is not an answer at all.
 func ExplainRuleTool(_ context.Context, _ *mcp.CallToolRequest, in ExplainInput) (*mcp.CallToolResult, ExplainOutput, error) {
 	if in.RuleID == "" || in.Path == "" {
@@ -813,10 +813,10 @@ func ExplainRuleTool(_ context.Context, _ *mcp.CallToolRequest, in ExplainInput)
 
 // matchRule finds the rule a query names: exactly first, then by suffix.
 //
-// A reader — or an assistant relaying one — retypes the part that identifies the check rather
-// than the namespace in front of it. An ambiguous abbreviation lists what it could have meant
-// instead of choosing: picking one would explain a rule nobody asked about, and the caller would
-// have no way to tell.
+// A reader, or an assistant relaying one, retypes the part that identifies the check rather than
+// the namespace in front of it. An ambiguous abbreviation lists what it could have meant instead
+// of choosing: picking one would explain a rule nobody asked about, and the caller would have no
+// way to tell.
 func matchRule(rep sarif.Report, query string) (string, sarif.Rule, error) {
 	if rule, ok := rep.Rules[query]; ok {
 		return query, rule, nil
@@ -830,12 +830,12 @@ func matchRule(rep sarif.Report, query string) (string, sarif.Rule, error) {
 	sort.Strings(matched)
 	switch len(matched) {
 	case 0:
-		return "", sarif.Rule{}, fmt.Errorf("no rule %q in this report — only rules this scan "+
+		return "", sarif.Rule{}, fmt.Errorf("no rule %q in this report, only rules this scan "+
 			"reported are here, and the id is the one in a finding's ruleId", query)
 	case 1:
 		return matched[0], rep.Rules[matched[0]], nil
 	default:
-		return "", sarif.Rule{}, fmt.Errorf("%q matches %s — name one of them",
+		return "", sarif.Rule{}, fmt.Errorf("%q matches %s. Name one of them",
 			query, strings.Join(matched, ", "))
 	}
 }
@@ -880,7 +880,7 @@ type FixListOutput struct {
 // One remediation usually clears many findings: eight vulnerabilities in one library are one
 // upgrade, and every package inside an image somebody else publishes is one newer image. An
 // assistant handed the findings has to work that out for itself, and will do it differently each
-// time — so this uses the same grouping the terminal prints, and the two cannot disagree.
+// time, so this uses the same grouping the terminal prints, and the two cannot disagree.
 func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*mcp.CallToolResult, FixListOutput, error) {
 	if in.Path == "" {
 		return nil, FixListOutput{}, fmt.Errorf("path is required")
@@ -898,8 +898,8 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 	if limit <= 0 {
 		limit = defaultLimit
 	}
-	// A merged report has already lost which control each finding came from, so the grouping
-	// falls back to the rule id — see ActionsFor.
+	// A merged report has already lost which control each finding came from, so the grouping falls
+	// back to the rule id. See ActionsFor.
 	actions := report.ActionsFor(map[string]sarif.Report{"": rep})
 	out := FixListOutput{}
 	for _, a := range actions {
@@ -942,7 +942,7 @@ type DiffOutput struct {
 
 // DiffReportsTool compares two scans and reports what the change introduced.
 //
-// The question in a coding session is almost never "what is wrong with this repository" — it is
+// The question in a coding session is almost never "what is wrong with this repository". It is
 // "did what I just wrote make it worse". A project with two hundred inherited findings answers the
 // first question the same way before and after a change, which tells an assistant nothing about
 // the change. This is the same comparison `draugr diff` makes, so the answer an assistant gives
@@ -1026,9 +1026,9 @@ type SurveyRequest struct {
 // SurveyInput asks one or more surveyors what is out there.
 type SurveyInput struct {
 	// Surveys is a list because an application is rarely one surface. The repositories in an
-	// organization and the images running in a namespace are the same application described
-	// twice, and merging them into one descriptor is the point — running them separately gives
-	// two descriptors that each look complete.
+	// organization and the images running in a namespace are the same application described twice,
+	// and merging them into one descriptor is the point. Running them separately gives two
+	// descriptors that each look complete.
 	Surveys []SurveyRequest `json:"surveys" jsonschema:"the surveyors to run; results merge into one descriptor"`
 	Name    string          `json:"name,omitempty" jsonschema:"project name for the descriptor"`
 	Version string          `json:"version,omitempty" jsonschema:"release version for the descriptor; defaults to 0.0.0"`
@@ -1051,8 +1051,8 @@ type SurveyOutput struct {
 // SurveyTool discovers a surface and returns a descriptor for it.
 //
 // It returns the descriptor rather than writing one. A tool that writes a file is a tool that has
-// to ask first, and merging into an existing descriptor carries decisions — which exposure wins,
-// what a narrower scope means — that belong with the person who owns the file. Handing back YAML
+// to ask first, and merging into an existing descriptor carries decisions. Which exposure wins,
+// what a narrower scope means. That belong with the person who owns the file. Handing back YAML
 // lets an assistant show it, validate it with validate_saga, and let a human decide where it goes.
 //
 // Writing a descriptor by hand from get_saga_schema is the alternative, and it is guesswork about
@@ -1060,12 +1060,12 @@ type SurveyOutput struct {
 func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, in SurveyInput) (*mcp.CallToolResult, SurveyOutput, error) {
 		if len(in.Surveys) == 0 {
-			return nil, SurveyOutput{}, fmt.Errorf("surveys is required — list_surveyors names them")
+			return nil, SurveyOutput{}, fmt.Errorf("surveys is required, list_surveyors names them")
 		}
 		requests := make([]surveyor.Request, 0, len(in.Surveys))
 		for _, s := range in.Surveys {
 			if s.Surveyor == "" {
-				return nil, SurveyOutput{}, fmt.Errorf("each survey needs a surveyor — list_surveyors names them")
+				return nil, SurveyOutput{}, fmt.Errorf("each survey needs a surveyor, list_surveyors names them")
 			}
 			requests = append(requests, surveyor.Request{
 				Surveyor: s.Surveyor,
@@ -1075,9 +1075,9 @@ func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOu
 		out := SurveyOutput{}
 		frag, err := reg.Run(ctx, requests)
 		if err != nil {
-			// Run returns what it did gather alongside the error, so a survey that lost one
-			// source is still worth handing back — with the loss named, because a descriptor
-			// that is missing half a cluster looks exactly like one for a smaller cluster.
+			// Run returns what it did gather alongside the error, so a survey that lost one source is still
+			// worth handing back, with the loss named, because a descriptor that is missing half a cluster
+			// looks exactly like one for a smaller cluster.
 			if len(frag.Components) == 0 {
 				return nil, SurveyOutput{}, fmt.Errorf("survey: %w", err)
 			}
@@ -1098,9 +1098,9 @@ func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOu
 		}
 		model := saga.Model{Project: name, Release: saga.Release{Version: version}}
 		surveyor.Apply(&model, frag)
-		// Without this the descriptor declares images and enables nothing to look at them — a
-		// scan that examines nothing and passes, which is the verdict this project is otherwise
-		// careful never to produce.
+		// Without this the descriptor declares images and enables nothing to look at them, a scan that
+		// examines nothing and passes, which is the verdict this project is otherwise careful never to
+		// produce.
 		out.Controls = surfaces.EnableControls(&model)
 
 		data, err := saga.Marshal(&model)
@@ -1111,7 +1111,7 @@ func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOu
 		for _, c := range model.Components {
 			out.Components = append(out.Components, c.Name)
 		}
-		out.Note = "not written to disk — validate it with validate_saga, then write it where the " +
+		out.Note = "not written to disk, validate it with validate_saga, then write it where the " +
 			"project keeps its descriptor"
 		return nil, out, nil
 	}

@@ -1,7 +1,7 @@
 # Scanner: `draugr-k8s-policies` (CIS policies section, natively)
 
 - **Control:** [`infrastructure`](../controllers/infrastructure.md)
-- **Tool:** none — this scanner reads the Kubernetes API directly
+- **Tool:** none. This scanner reads the Kubernetes API directly
 - **Status:** ✅ implemented, partial coverage of the section (see below)
 - **Target:** a Kubernetes cluster (`InfraTarget`)
 - **License / terms:** Apache-2.0 (Draugr's own). No third-party tool is executed.
@@ -22,8 +22,8 @@ config:
 
 ## Why not just run kube-bench
 
-kube-bench answers this section by shelling out to `kubectl` — one subprocess per check, and for
-the pod-security checks one **per pod** on top of listing them:
+kube-bench answers this section by shelling out to `kubectl`, one subprocess per check, and for the
+pod-security checks one **per pod** on top of listing them:
 
 ```yaml
 id: 5.2.2
@@ -42,7 +42,7 @@ pods, answering all six from a single listing takes **8.6 seconds**.
 Speed is the visible reason. Two others matter more:
 
 - **A check written in Go can decide things a shell pipeline cannot.** CIS marks all 34 checks in
-  this section manual and kube-bench automates 11 — partly because `kubectl | jq | xargs` is a
+  this section manual and kube-bench automates 11, partly because `kubectl | jq | xargs` is a
   blunt instrument for correlating roles, bindings and pod specs.
 - **Namespace scoping becomes possible at all.** kube-bench's queries carry `--all-namespaces`
   inside its config, with no flag to change it, so a team on a shared cluster cannot ask about
@@ -53,8 +53,8 @@ Speed is the visible reason. Two others matter more:
 
 A scanner that evaluates part of a benchmark and omits the rest returns a shorter, cleaner report
 that quietly means less. So **every check in the section is reported**. The ones implemented here
-get a verdict from the cluster; the rest are reported as requiring manual review — which is what
-CIS says about them, and what kube-bench reports for them too.
+get a verdict from the cluster; the rest are reported as requiring manual review, which is what CIS
+says about them, and what kube-bench reports for them too.
 
 Coverage is therefore additive. Implementing a check replaces "review this yourself" with an
 answer and changes nothing else.
@@ -84,21 +84,20 @@ answer and changes nothing else.
 | the other 14 | | reported for manual review |
 
 ¹ These two ask the cluster's own authorizer rather than reassembling its decision from roles and
-bindings — RBAC is additive across bindings, aggregated ClusterRoles resolve at runtime, and a
+bindings. RBAC is additive across bindings, aggregated ClusterRoles resolve at runtime, and a
 webhook authorizer can grant what no Role mentions, so a reimplementation would disagree with the
-cluster in exactly the cases that matter. Draugr submits the same query kube-bench does
-(`can-i … --as=system:authenticated`) as a **SubjectAccessReview**.
+cluster in exactly the cases that matter. Draugr submits the same query kube-bench does (`can-i …
+--as=system:authenticated`) as a **SubjectAccessReview**.
 
-That creates nothing — the API server answers and discards it — but submitting one needs the
-`create` verb on `subjectaccessreviews`, which a deliberately read-only credential will not have.
-Being refused is expected rather than exceptional, so the check is left undecided and reported
-for manual review like any other this scanner cannot settle.
+That creates nothing. The API server answers and discards it, but submitting one needs the `create`
+verb on `subjectaccessreviews`, which a deliberately read-only credential will not have. Being
+refused is expected rather than exceptional, so the check is left undecided and reported for manual
+review like any other this scanner cannot settle.
 
-**20 of 34 decided, against the 11 kube-bench automates.** The nine past parity are ones
-kube-bench leaves manual, and they are decidable here for the reason this scanner exists: they
-are questions about a pod spec, and correlating pod specs is what a `kubectl | jq | xargs`
-pipeline is worst at. They cost nothing extra — the same single listing already answers the
-others.
+**20 of 34 decided, against the 11 kube-bench automates.** The nine past parity are ones kube-bench
+leaves manual, and they are decidable here for the reason this scanner exists: they are questions
+about a pod spec, and correlating pod specs is what a `kubectl | jq | xargs` pipeline is worst at.
+They cost nothing extra, the same single listing already answers the others.
 
 The 14 that remain manual are honestly manual: whether an admission control mechanism is in
 *place*, whether the CNI *supports* NetworkPolicy, whether secrets belong in an external store.
@@ -115,10 +114,10 @@ directions. A check added upstream and missing here is never reported at all, so
 less than the benchmark and says nothing about it. A check retired upstream but left here is
 reported forever, sending a reader after a requirement that no longer exists.
 
-`TestCISCatalogMatchesKubeBench` diffs the catalog against kube-bench's own definitions and
-fails on either, naming the check. It runs in the integration suite, which fetches those
-definitions at a pinned commit — the tag is verified against it, because a benchmark that changed
-under a stable tag is precisely what the check exists to notice.
+`TestCISCatalogMatchesKubeBench` diffs the catalog against kube-bench's own definitions and fails on
+either, naming the check. It runs in the integration suite, which fetches those definitions at a
+pinned commit. The tag is verified against it, because a benchmark that changed under a stable tag
+is precisely what the check exists to notice.
 
 The pin is kept in step with the image the in-cluster Job runs, so **bumping kube-bench is when a
 benchmark revision is discovered**, rather than some later scan quietly covering the wrong thing.
@@ -137,21 +136,20 @@ infrastructure:
     namespaces: [team-a, team-a-jobs]
 ```
 
-Most of what this section examines is namespace-scoped — default service accounts, token
-mounting, and all five pod-security checks. A team owning three namespaces of eighty otherwise
-receives seventy-seven namespaces' worth of findings it cannot act on, and a number that will
-never reach zero is a number people stop reading. It also fixes what the component's `exposure`
-and `criticality` mean, which otherwise assert a risk classification over everybody else's
-workloads.
+Most of what this section examines is namespace-scoped, default service accounts, token mounting,
+and all five pod-security checks. A team owning three namespaces of eighty otherwise receives
+seventy-seven namespaces' worth of findings it cannot act on, and a number that will never reach
+zero is a number people stop reading. It also fixes what the component's `exposure` and
+`criticality` mean, which otherwise assert a risk classification over everybody else's workloads.
 
 **Scoping changes what is read, not what is kept.** Namespaced resources are listed per namespace
-rather than cluster-wide and filtered afterwards — the distinction matters, because a credential
-scoped to a few namespaces cannot perform the cluster-wide list at all, so filtering after the
-fact would work only for people who did not need the feature.
+rather than cluster-wide and filtered afterwards, the distinction matters, because a credential
+scoped to a few namespaces cannot perform the cluster-wide list at all, so filtering after the fact
+would work only for people who did not need the feature.
 
 Cluster-scoped checks still run and are still reported: a namespace owner is affected by a
 cluster-admin binding even though they cannot remove it. Where the credential cannot read those
-objects, those checks fall back to manual review rather than failing the run — a scoped audit is
+objects, those checks fall back to manual review rather than failing the run. A scoped audit is
 usually run by a scoped credential, and the namespaced half is still worth having.
 
 The scope is part of the finding's location (`kubernetes/prod-cluster[team-a,team-a-jobs]`) and
@@ -165,9 +163,9 @@ reporting it under a component that asked for three namespaces.
 
 ## The section this scanner does not read
 
-Every managed benchmark ships a **Managed Services** section covering what the *provider*
-controls rather than what the cluster does — image registry scanning, IAM, key management, node
-metadata, cluster networking, logging, storage:
+Every managed benchmark ships a **Managed Services** section covering what the *provider* controls
+rather than what the cluster does, image registry scanning, IAM, key management, node metadata,
+cluster networking, logging, storage:
 
 | benchmark | checks |
 |---|---|
@@ -176,9 +174,9 @@ metadata, cluster networking, logging, storage:
 | `aks-1.8` | 13 |
 
 Draugr evaluates none of it: reading those settings needs the cloud provider's own API, not the
-Kubernetes one. That is a defensible gap. Leaving it unmentioned is not — a reader of the report
-has no way to know the section exists, so the benchmark looks smaller than it is and a clean
-result looks more complete than it is.
+Kubernetes one. That is a defensible gap. Leaving it unmentioned is not, a reader of the report has
+no way to know the section exists, so the benchmark looks smaller than it is and a clean result
+looks more complete than it is.
 
 So a managed cluster gets one finding naming the section, its benchmark and its size. **One,
 rather than one per check**, unlike the policies section: there the checks share a section this
@@ -187,8 +185,8 @@ nothing in the section is evaluated, and saying so once is unambiguous where fif
 identical "review this yourself" entries would bury the findings that came from an actual
 assessment.
 
-The counts are held to kube-bench's own definitions by `TestManagedServicesCountsMatchKubeBench`
-— a number that drifts understates the very thing it exists to disclose.
+The counts are held to kube-bench's own definitions by `TestManagedServicesCountsMatchKubeBench`, a
+number that drifts understates the very thing it exists to disclose.
 
 ## What the report says about the run
 
@@ -197,29 +195,29 @@ The scanner records what it measured and against what, which travels in `--forma
 
 ```
 Measured against
-- infrastructure — draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope whole cluster
-- infrastructure — draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope namespace team-a
+- infrastructure · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope whole cluster
+- infrastructure · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope namespace team-a
 ```
 
 Three facts, and each answers a question a reader has about a finding they are looking at.
 
-**The benchmark** names the standard the checks came from, which is what makes the result
-defensible to somebody who was not there — `cis-1.12` measures different things from `aks-1.8`.
+**The benchmark** names the standard the checks came from, which is what makes the result defensible
+to somebody who was not there, `cis-1.12` measures different things from `aks-1.8`.
 
 **The coverage** is the figure a reader cannot otherwise get. Counting manual-review findings by
 hand is the only alternative, and a clean report gives no hint that fourteen of the section's
 checks were never decided by anything.
 
-**The scope** says what the scan covered, and it is stated even when it covers everything. A scan
-of the whole cluster and a scan whose scope nobody recorded are the same silence otherwise, and the
-difference decides whether a finding belongs to the reader or to whoever owns the cluster — the
+**The scope** says what the scan covered, and it is stated even when it covers everything. A scan of
+the whole cluster and a scan whose scope nobody recorded are the same silence otherwise, and the
+difference decides whether a finding belongs to the reader or to whoever owns the cluster, the
 question a namespace owner asks first.
 
 ## Interpreting a finding
 
 Rule ids are `draugr/cis/<check number>`, namespaced by the scanner that emitted them.
 [`kube-bench`](kube-bench.md) audits the same benchmark with the same numbering, and a bare
-`cis/5.1.1` would be an id two tools both claim — which is a real collision outside Draugr's own
+`cis/5.1.1` would be an id two tools both claim, which is a real collision outside Draugr's own
 console, where the rule id *is* the finding's identity: in SARIF, in GitHub code scanning, in an
 editor.
 
@@ -236,18 +234,17 @@ That is the more accurate thing to write in any case: it excuses the *check*, ra
 tool's opinion of it.
 
 Everything is reported at **warning**. That matches the benchmark: no check in this section is
-scored, so none of them can say a cluster is out of compliance — they say it needs looking at.
-The scored checks are in sections 1–4, which need
-[`kube-bench-job`](kube-bench-job.md).
+scored, so none of them can say a cluster is out of compliance. They say it needs looking at. The
+scored checks are in sections 1–4, which need [`kube-bench-job`](kube-bench-job.md).
 
 A decided check that passes produces no finding, for the same reason a clean dependency does not.
 
 ## Permissions
 
 Read (`get`, `list`) on `clusterrolebindings`, `roles`, `clusterroles` and `serviceaccounts`.
-Nothing is created, and no privileged pod is scheduled — the distinction from
-[`kube-bench-job`](kube-bench-job.md), which declares `mutate` and `privilege` effects and does
-not run until they are accepted.
+Nothing is created, and no privileged pod is scheduled, the distinction from
+[`kube-bench-job`](kube-bench-job.md), which declares `mutate` and `privilege` effects and does not
+run until they are accepted.
 
 ## Links
 
@@ -261,5 +258,5 @@ not run until they are accepted.
   [`kube-bench`](kube-bench.md) carries does not apply here.
 - The cluster is chosen the same way as the other infrastructure scanners: the component's
   `ref`, an explicit `context` setting, or the ambient kubeconfig context.
-- Findings are located at the cluster (`kubernetes/<ref>`), not a file — that is what was
+- Findings are located at the cluster (`kubernetes/<ref>`), not a file. That is what was
   assessed.

@@ -7,9 +7,9 @@ order: 35
 
 # See findings in your editor
 
-A finding you have to go looking for is a finding you fix later. Draugr writes standard
-**SARIF 2.1.0**, which every major editor can read, so a scan can land as squiggles on the
-lines that caused it — no Draugr-specific extension required.
+A finding you have to go looking for is a finding you fix later. Draugr writes standard **SARIF
+2.1.0**, which every major editor can read, so a scan can land as squiggles on the lines that caused
+it, no Draugr-specific extension required.
 
 There are three places a finding can reach you. Pick whichever matches where you work:
 
@@ -17,7 +17,7 @@ There are three places a finding can reach you. Pick whichever matches where you
 | --- | --- | --- |
 | **Your editor** | Inline squiggles, a Problems list, click-to-line | `results.sarif` + a SARIF viewer extension |
 | **A pull request** | Annotations on the diff, in the Security tab | The [`github` publisher](code-scanning.md) |
-| **Your terminal** | `path:line` you can click, a linked rule id | Nothing — it's the default output |
+| **Your terminal** | `path:line` you can click, a linked rule id | Nothing, it's the default output |
 
 ## Produce the SARIF
 
@@ -25,8 +25,8 @@ There are three places a finding can reach you. Pick whichever matches where you
 draugr scan draugr.saga.yaml -o .draugr-out
 ```
 
-That writes `.draugr-out/report.json` and `.draugr-out/results.sarif`. Add `.draugr-out/` to
-your `.gitignore` — it's build output, not source.
+That writes `.draugr-out/report.json` and `.draugr-out/results.sarif`. Add `.draugr-out/` to your
+`.gitignore`, it's build output, not source.
 
 If you only want the SARIF, ask for that one format:
 
@@ -57,14 +57,14 @@ tool window with the same click-to-line behavior.
 ## Neovim and other editors
 
 Any tool that speaks SARIF will work. `results.sarif` is plain JSON with no Draugr-specific
-extensions, so a quickfix-list converter is a short script — the fields you want are
+extensions, so a quickfix-list converter is a short script. The fields you want are
 `runs[].results[].locations[].physicalLocation` and `ruleId`.
 
 ## From the terminal
 
-The `Location` column in the console's ranked findings table prints `path:line`. VS Code's integrated
-terminal, JetBrains' terminal and most modern terminal emulators detect that pattern and make
-it clickable, opening the file at the line — provided you run `draugr` from the repository root,
+The `Location` column in the console's ranked findings table prints `path:line`. VS Code's
+integrated terminal, JetBrains' terminal and most modern terminal emulators detect that pattern and
+make it clickable, opening the file at the line. Provided you run `draugr` from the repository root,
 since the paths are relative to it.
 
 The rule id in the same table is a **hyperlink** to the rule's documentation wherever the
@@ -80,18 +80,18 @@ so leave it off when producing SARIF for your editor. See
 
 ## A caveat worth knowing
 
-Repository scans run against a **clean checkout of the committed revision**, not your working
-tree — a local path is cloned just like a URL. Line numbers therefore match what's committed. If
-you have uncommitted edits above a finding, its marker will sit a few lines off; if the edits
-*are* the thing you wanted scanned, they aren't in the report at all. Draugr warns when it scans
-a repository with uncommitted changes. Commit, then re-scan. See
-[URLs and paths](../reference/saga-schema.md#where-a-repository-comes-from-urls-and-paths).
+Repository scans run against a **clean checkout of the committed revision**, not your working tree.
+A local path is cloned just like a URL. Line numbers therefore match what's committed. If you have
+uncommitted edits above a finding, its marker will sit a few lines off; if the edits *are* the thing
+you wanted scanned, they aren't in the report at all. Draugr warns when it scans a repository with
+uncommitted changes. Commit, then re-scan. See [URLs and
+paths](../reference/saga-schema.md#where-a-repository-comes-from-urls-and-paths).
 
 ## Related
 
-- [Publish to GitHub code scanning](code-scanning.md) — the same findings, annotated on a PR diff.
-- [Reports & publishers](reports-and-publishers.md) — every output format and where it can go.
-- [Editor support for the Saga schema](../reference/saga-schema.md) — autocomplete and validation
+- [Publish to GitHub code scanning](code-scanning.md), the same findings, annotated on a PR diff.
+- [Reports & publishers](reports-and-publishers.md), every output format and where it can go.
+- [Editor support for the Saga schema](../reference/saga-schema.md), autocomplete and validation
   while you write the descriptor itself.
-- [Prioritization](../concepts/prioritization.md) — what P1–P4 mean on each finding.
-- [Use Draugr from an AI coding assistant](ai-agents-mcp.md) — the same answers, via MCP.
+- [Prioritization](../concepts/prioritization.md). What P1–P4 mean on each finding.
+- [Use Draugr from an AI coding assistant](ai-agents-mcp.md). The same answers, via MCP.

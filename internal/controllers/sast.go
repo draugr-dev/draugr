@@ -46,14 +46,14 @@ func (SAST) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, erro
 	return jobs, nil
 }
 
-// SelectedScanners returns the scanner names a control will actually run for this model — the
+// SelectedScanners returns the scanner names a control will actually run for this model, the
 // union of the selection across every component.
 //
 // This is what a control *requires*, as opposed to every scanner that could serve it. Those
 // differ wherever a control has more than one scanner: `sast` demanding gosec from a project that
 // never enabled it, or `infrastructure` demanding kube-bench and kubectl when the default reads
 // the API and needs neither. Either way the report is a list of tools to go and install that the
-// scan would not have used — and, worse, a missing one reads as a control that cannot run.
+// scan would not have used, and, worse, a missing one reads as a control that cannot run.
 //
 // defaults must be the controller's own DefaultScanners, so the answer matches what Plan will do.
 func SelectedScanners(model saga.Model, control string, defaults []string) map[string]bool {

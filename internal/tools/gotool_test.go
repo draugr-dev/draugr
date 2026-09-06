@@ -74,7 +74,7 @@ func TestGoToolsAreInstallable(t *testing.T) {
 
 // TestGovulncheckVersionReadsTheScannerNotTheToolchain is the point of the extractor: the probe's
 // first line names Go, and taking the first version-looking token reports the toolchain as the
-// scanner's version — a number that is real, plausible, and about something else.
+// scanner's version. A number that is real, plausible, and about something else.
 func TestGovulncheckVersionReadsTheScannerNotTheToolchain(t *testing.T) {
 	out := "Go: go1.26.7\nScanner: govulncheck@v1.7.0\nDB: https://vuln.go.dev\n" +
 		"DB updated: 2026-09-02 19:12:04 +0000 UTC\n"
@@ -82,7 +82,7 @@ func TestGovulncheckVersionReadsTheScannerNotTheToolchain(t *testing.T) {
 		t.Errorf("GovulncheckVersion = %q, want 1.7.0", got)
 	}
 	if got := semverRE.FindString(out); got != "1.26.7" {
-		t.Fatalf("the generic parser should still take the Go version (%q) — "+
+		t.Fatalf("the generic parser should still take the Go version (%q), "+
 			"if it does not, this extractor may no longer be needed", got)
 	}
 	if got := GovulncheckVersion([]byte("Go: go1.26.7\n")); got != "" {
@@ -156,7 +156,7 @@ func TestInstallGoBuildsIntoDraugrsOwnBinAndReportsPinned(t *testing.T) {
 		t.Errorf("the binary is not where it was reported: %v", err)
 	}
 	if level != LevelPinned {
-		t.Errorf("level = %q, want %q — the checksum database verified this build",
+		t.Errorf("level = %q, want %q, the checksum database verified this build",
 			level, LevelPinned)
 	}
 }
@@ -346,7 +346,7 @@ func TestInstallGoToolRecordsWhatEndedUpOnPath(t *testing.T) {
 	}
 }
 
-// An explicit version overrides the pin — the path `tools install govulncheck --version` takes.
+// An explicit version overrides the pin, the path `tools install govulncheck --version` takes.
 func TestInstallGoToolTakesAnExplicitVersion(t *testing.T) {
 	goBin := fakeGo(t, "go1.26.6", false)
 	stubLookPath(t, func(string) (string, error) { return goBin, nil })

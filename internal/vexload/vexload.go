@@ -1,7 +1,7 @@
 // Package vexload resolves the VEX sources a descriptor names into documents a run can apply.
 //
 // Separate from pkg/vex, which parses and matches, and separate from pkg/engine, which applies.
-// Resolving is the part that touches the world — a file, an HTTPS fetch, a git clone — and the
+// Resolving is the part that touches the world, a file, an HTTPS fetch, a git clone, and the
 // engine deliberately reaches the network only through the scanners it runs. Keeping this out of
 // it is what lets a scan stay something you can reason about offline.
 package vexload
@@ -25,8 +25,8 @@ import (
 )
 
 // maxDocument is the most a VEX document may be. Generous for a document of statements, and small
-// enough that a URL answering with something else entirely — a login page, an error, a tarball —
-// fails as a size rather than being parsed as JSON for however long that takes.
+// enough that a URL answering with something else entirely, a login page, an error, a tarball.
+// Fails as a size rather than being parsed as JSON for however long that takes.
 const maxDocument = 32 << 20 // 32 MiB
 
 // fetchTimeout bounds a single HTTPS fetch. A supplier's document is evidence for a scan, not the
@@ -47,7 +47,7 @@ type Loader struct {
 
 // Load resolves every source a descriptor names.
 //
-// One error per source that could not be read, joined — rather than the first. A run configured
+// One error per source that could not be read, joined, rather than the first. A run configured
 // with four supplier documents and two bad paths should be told about both, because the operator
 // fixing them is going to fix them together.
 //
@@ -127,7 +127,7 @@ func (l *Loader) fromURL(ctx context.Context, url string) (vex.Resolved, error) 
 		return vex.Resolved{}, err
 	}
 	if len(data) > maxDocument {
-		return vex.Resolved{}, fmt.Errorf("document is larger than %d bytes — is that URL a VEX document?", maxDocument)
+		return vex.Resolved{}, fmt.Errorf("document is larger than %d bytes, is that URL a VEX document?", maxDocument)
 	}
 	return l.resolve(data, vex.Provenance{Kind: "url", Location: url})
 }

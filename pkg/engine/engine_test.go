@@ -54,7 +54,7 @@ type fakeController struct {
 	scope    plugin.Scope
 	scanner  string
 	planFail bool
-	// digest, when set, pins the planned image target — which is what makes its cache entry
+	// digest, when set, pins the planned image target. Which is what makes its cache entry
 	// content-addressed. Empty plans a tag alone, as most descriptors do.
 	digest string
 }
@@ -361,7 +361,7 @@ func TestRunReportsNoScanErrorsOnSuccess(t *testing.T) {
 }
 
 // The hole this closes: a descriptor that enables no control produced no findings, no failures,
-// and a PASS — identical output to a spotless application. The wrong reading is far more likely,
+// and a PASS, identical output to a spotless application. The wrong reading is far more likely,
 // since a descriptor reaches that state by being unfinished or by being generated from discovery.
 func TestRunReportsThatNothingWasChecked(t *testing.T) {
 	t.Parallel()
@@ -388,9 +388,9 @@ func TestRunReportsThatNothingWasChecked(t *testing.T) {
 	}
 }
 
-// A descriptor that asks only for an SBOM enables no control and plans no job, but it does
-// produce the evidence it was asked for — so it has done what it said, and must not be reported
-// as having checked nothing.
+// A descriptor that asks only for an SBOM enables no control and plans no job, but it does produce
+// the evidence it was asked for. So it has done what it said, and must not be reported as having
+// checked nothing.
 func TestRunDoesNotComplainAboutAnSBOMOnlyDescriptor(t *testing.T) {
 	t.Parallel()
 
@@ -484,8 +484,8 @@ func TestRecordProvenanceAugmentsWhatTheScannerSaid(t *testing.T) {
 }
 
 // A finding has to say which component it belongs to. A location alone is ambiguous the moment a
-// descriptor has two, and it is what makes the priority checkable — the band is computed from
-// that component's declared classification.
+// descriptor has two, and it is what makes the priority checkable. The band is computed from that
+// component's declared classification.
 func TestFindingsCarryTheirComponent(t *testing.T) {
 	t.Parallel()
 
@@ -535,8 +535,8 @@ func TestWithoutPrewarmSkipsWarmingButStillScans(t *testing.T) {
 	if offline.warms != 0 {
 		t.Errorf("prewarmed %d times while offline", offline.warms)
 	}
-	// The scan itself must still happen against whatever is on disk. Skipping the warm-up is
-	// not skipping the run — an earlier version of this cleared the wrong slice and did both.
+	// The scan itself must still happen against whatever is on disk. Skipping the warm-up is not
+	// skipping the run, an earlier version of this cleared the wrong slice and did both.
 	if offline.calls() == 0 {
 		t.Error("no scans ran; the run was skipped rather than the warm-up")
 	}
@@ -559,8 +559,8 @@ func TestWithCacheableTargetVetoesAJob(t *testing.T) {
 	sc := &fakeScanner{name: "s"}
 	reg.RegisterScanner(sc)
 
-	// Reject everything: the scan still runs, and nothing is stored — a vetoed target behaves
-	// exactly as though caching were off.
+	// Reject everything: the scan still runs, and nothing is stored, a vetoed target behaves exactly
+	// as though caching were off.
 	c := cache.NewMemory()
 	if _, err := New(reg, WithCache(c), WithCacheableTarget(func(plugin.Target) bool { return false })).
 		Run(context.Background(), model()); err != nil {
@@ -726,8 +726,8 @@ func TestProgressDescribesTheRunAsItGoes(t *testing.T) {
 
 // Credentials must never reach a log, and a target is where they arrive from.
 //
-// A CI runner writes a token straight into the checkout's git remote — GitLab uses
-// `https://gitlab-ci-token:<token>@host/...` — so a repository target carries one whether or not
+// A CI runner writes a token straight into the checkout's git remote, GitLab uses
+// `https://gitlab-ci-token:<token>@host/...`. So a repository target carries one whether or not
 // the descriptor mentioned it. Formatting the target for a debug line printed it.
 func TestPlanningNeverLogsCredentials(t *testing.T) {
 	const secret = "glpat-NOTAREALTOKEN0123456789" // #nosec G101 -- a fabricated value, which is the point
@@ -753,9 +753,9 @@ func TestPlanningNeverLogsCredentials(t *testing.T) {
 	}
 }
 
-// TestUnpinnedCacheHitsAreRecorded covers the difference between a cache that is right and a
-// cache that only looks right. A tag-only image has a stable key and unstable bytes, so a hit on
-// one is an assumption — and the run has to say which results rest on it.
+// TestUnpinnedCacheHitsAreRecorded covers the difference between a cache that is right and a cache
+// that only looks right. A tag-only image has a stable key and unstable bytes, so a hit on one is
+// an assumption. And the run has to say which results rest on it.
 func TestUnpinnedCacheHitsAreRecorded(t *testing.T) {
 	run := func(t *testing.T, digest string) Result {
 		t.Helper()
@@ -770,8 +770,8 @@ func TestUnpinnedCacheHitsAreRecorded(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// Nothing was reused, so nothing rests on the assumption yet — a fresh scan of a tag
-		// scanned whatever that tag points at now, which is the right answer either way.
+		// Nothing was reused, so nothing rests on the assumption yet, a fresh scan of a tag scanned
+		// whatever that tag points at now, which is the right answer either way.
 		if len(first.Stats.UnpinnedCacheHits) != 0 {
 			t.Errorf("a run that stored the entries reported %v as reused", first.Stats.UnpinnedCacheHits)
 		}
@@ -789,7 +789,7 @@ func TestUnpinnedCacheHitsAreRecorded(t *testing.T) {
 		got := run(t, "")
 		want := []string{"a", "b"}
 		if !slices.Equal(got.Stats.UnpinnedCacheHits, want) {
-			t.Errorf("UnpinnedCacheHits = %v, want %v — both components' images were reused from "+
+			t.Errorf("UnpinnedCacheHits = %v, want %v, both components' images were reused from "+
 				"an entry keyed on a tag, and a report that does not say so claims more than it knows",
 				got.Stats.UnpinnedCacheHits, want)
 		}

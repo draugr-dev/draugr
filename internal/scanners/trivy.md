@@ -1,12 +1,12 @@
 # Scanner: `trivy` (container images)
 
 - **Control:** [`images`](../controllers/images.md)
-- **Tool:** Aqua **Trivy** — https://trivy.dev
+- **Tool:** Aqua **Trivy**, https://trivy.dev
 - **Status:** ✅ implemented
 - **Target:** container image (`ImageTarget`)
 - **License / terms:** Trivy is **Apache-2.0** (permissive). Run via **exec** (no bundling
   required). Trivy's vulnerability **database** has its own distribution terms + pull rate
-  limits — review before caching/redistributing.
+  limits, review before caching/redistributing.
 
 ## What it does
 
@@ -41,4 +41,4 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 ## Notes
 
 - Integration mode: **exec** (separate process); Trivy must be on `PATH`.
-- Trivy pulls the image itself — no local checkout needed.
+- Trivy pulls the image itself, no local checkout needed.

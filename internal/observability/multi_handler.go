@@ -42,7 +42,7 @@ func (m multiHandler) Enabled(ctx context.Context, l slog.Level) bool {
 // Handle writes the record to every destination that wants it.
 //
 // Every one is attempted even after a failure, and the errors are joined. A file that has filled
-// its disk must not cost the reader the line on their terminal — the record is the same record,
+// its disk must not cost the reader the line on their terminal. The record is the same record,
 // and the destinations do not depend on each other.
 func (m multiHandler) Handle(ctx context.Context, r slog.Record) error {
 	var errs []error

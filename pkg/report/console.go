@@ -61,7 +61,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	if s.verdict == norn.Fail {
 		verdict, vcol = "FAIL", cFail
 	}
-	_, _ = fmt.Fprintf(w, "Draugr — %s", col.Paint(vcol, verdict))
+	_, _ = fmt.Fprintf(w, "Draugr · %s", col.Paint(vcol, verdict))
 	if rel := d.ProjectName(); rel != "" {
 		if d.Release.Version != "" {
 			rel += " " + d.Release.Version
@@ -83,10 +83,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			col.Paint(cDim, fmt.Sprintf("P4 %d", s.p4)))
 	}
 
-	// Controls that errored are listed alongside the ones that ran. A control that produced no
-	// report has no verdict entry to hang a row on, so listing only the ones that succeeded
-	// makes the output shorter exactly when something has gone wrong — which reads as a clean
-	// run to anyone who does not already know how many controls to expect.
+	// Controls that errored are listed alongside the ones that ran. A control that produced no report
+	// has no verdict entry to hang a row on, so listing only the ones that succeeded makes the output
+	// shorter exactly when something has gone wrong. Which reads as a clean run to anyone who does not
+	// already know how many controls to expect.
 	errored := d.Run.ScanErrors
 	if len(d.Verdict.Controls) > 0 || len(errored) > 0 {
 		_, _ = fmt.Fprintln(w, "Controls:")
@@ -110,9 +110,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// worth the extra pass rather than a footnote.
 		why := func(control string) {
 			for _, msg := range dedupeMessages(errored[control]) {
-				// Wrapped rather than clamped to one line. A clamp suits a tool's own stderr,
-				// which can be a whole usage screen — but these are Draugr's sentences too, and
-				// the half a reader acts on is the end of them.
+				// Wrapped rather than clamped to one line. A clamp suits a tool's own stderr, which can be a
+				// whole usage screen. But these are Draugr's sentences too, and the half a reader acts on is
+				// the end of them.
 				for i, line := range wrapMessage(msg, messageWidth) {
 					prefix := strings.Repeat(" ", width+2)
 					if i > 0 {
@@ -147,12 +147,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				col.Paint(cDim, "did not run"))
 			why(name)
 		}
-		// Both stay in the default view. They are coverage rather than provenance: what a control
-		// was measured against carries what it did *not* cover — a spec-driven scan that skipped
-		// the methods it was not allowed to send, a benchmark that could decide 20 of 34 checks —
-		// and a partial scan reading as a complete one is the failure this whole block exists to
-		// prevent. The tool builds, job counts and scanned revision are the provenance, and those
-		// travel with the evidence.
+		// Both stay in the default view. They are coverage rather than provenance: what a control was
+		// measured against carries what it did *not* cover, a spec-driven scan that skipped the methods
+		// it was not allowed to send, a benchmark that could decide 20 of 34 checks, and a partial scan
+		// reading as a complete one is the failure this whole block exists to prevent. The tool builds,
+		// job counts and scanned revision are the provenance, and those travel with the evidence.
 		writeMeasuredAgainst(w, col, d, width)
 		writeNotMeasured(w, col, d, width)
 		_, _ = fmt.Fprintln(w)
@@ -175,16 +174,15 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 	}
 
-	// Evidence, not a control — so a line rather than a row in the table above, where every
-	// entry means "checked, and here is the verdict". Printed before the early returns below,
-	// because a clean scan still produced the inventory and should say so.
-	// Silent suppression is the thing to avoid: an excluded finding that leaves no trace reads
-	// exactly like one that was never found. The count says otherwise, and each reason travels
-	// in the SARIF next to the result it justifies.
+	// Evidence, not a control, so a line rather than a row in the table above, where every entry means
+	// "checked, and here is the verdict". Printed before the early returns below, because a clean scan
+	// still produced the inventory and should say so. Silent suppression is the thing to avoid: an
+	// excluded finding that leaves no trace reads exactly like one that was never found. The count
+	// says otherwise, and each reason travels in the SARIF next to the result it justifies.
 	if line := suppressionLine(d); line != "" {
-		// Not dimmed. This is the one line saying part of the report was set aside, and greying
-		// it out put it below the reading threshold of the thing it qualifies — a reader
-		// skimming a clean-looking report was the failure mode.
+		// Not dimmed. This is the one line saying part of the report was set aside, and greying it out
+		// put it below the reading threshold of the thing it qualifies, a reader skimming a clean-looking
+		// report was the failure mode.
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent, line))
 	}
 
@@ -196,15 +194,15 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	}
 
 	// And findings a comment in the code set aside. Without this line a `nosem` is the one form of
-	// acceptance that leaves no trace anywhere — the weakest of the three, added by whoever was
-	// editing the file, and the easiest to add without anybody noticing.
+	// acceptance that leaves no trace anywhere, the weakest of the three, added by whoever was editing
+	// the file, and the easiest to add without anybody noticing.
 	if line := silencedLine(d); line != "" {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent, line))
 	}
 
 	// A supplier statement that matched nothing is doing nothing and looks exactly like one that
-	// worked — usually the supplier and the scanner name a package differently, which is a real
-	// finding about the document rather than a quiet no-op.
+	// worked, usually the supplier and the scanner name a package differently, which is a real finding
+	// about the document rather than a quiet no-op.
 	if n := len(d.Run.UnmatchedClaims); n > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleMuted, fmt.Sprintf(
 			"%s in a supplier's VEX matched nothing in this scan", plural(n, "statement"))))
@@ -222,14 +220,14 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				who = "unattributed"
 			}
 			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
-				fmt.Sprintf("expired %s, accepted by %s — %s", e.Expires, who, findingSummary(e.Reason))))
+				fmt.Sprintf("expired %s, accepted by %s · %s", e.Expires, who, findingSummary(e.Reason))))
 		}
 		_, _ = fmt.Fprintln(w)
 	}
 
-	// An exclusion that matched nothing is doing nothing, and reads exactly like one that is
-	// working. Usually a typo, a rule id that moved, or a finding someone fixed and forgot to
-	// stop excusing — and in every case the descriptor claims a decision it is not making.
+	// An exclusion that matched nothing is doing nothing, and reads exactly like one that is working.
+	// Usually a typo, a rule id that moved, or a finding someone fixed and forgot to stop excusing,
+	// and in every case the descriptor claims a decision it is not making.
 	if unmatched := d.Run.UnmatchedExclusions; len(unmatched) > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent,
 			fmt.Sprintf("%s matched nothing in this run:", plural(len(unmatched), "exclusion"))))
@@ -243,9 +241,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		writeGate(w, col, d, false)
 	}
 
-	// Everything from here to the findings answers "can I trust this run" rather than "what did
-	// it find", and the second question is the one a reader came with. Behind --evidence so the
-	// default view is the findings, and an auditor asks for the rest — see writeEvidence.
+	// Everything from here to the findings answers "can I trust this run" rather than "what did it
+	// find", and the second question is the one a reader came with. Behind --evidence so the default
+	// view is the findings, and an auditor asks for the rest. See writeEvidence.
 	if d.Evidence {
 		writeEvidence(w, col, d, s)
 	}
@@ -259,7 +257,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// the ERROR row exists to prevent.
 		if len(errored) > 0 {
 			_, _ = fmt.Fprintln(w, col.Paint(cDim,
-				"No findings from the controls that ran — see the errors above."))
+				"No findings from the controls that ran. See the errors reported above."))
 			return nil
 		}
 		_, _ = fmt.Fprintln(w, col.Paint(cPass, "No findings. ✓"))
@@ -279,9 +277,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	_, _ = fmt.Fprintln(w, fixFirstHeading(s, len(shown), len(s.findings)))
 	renderFixFirst(w, col, shown)
 
-	// Two different readers, two different answers. Somebody looking at a truncated list wants
-	// the rest of *this* list, and answering that with a machine format sends them to a document
-	// they did not ask for — human-readable is the default here, so the follow-up should be too.
+	// Two different readers, two different answers. Somebody looking at a truncated list wants the
+	// rest of *this* list, and answering that with a machine format sends them to a document they did
+	// not ask for. Human-readable is the default here, so the follow-up should be too.
 	if len(shown) < len(s.findings) {
 		_, _ = fmt.Fprintf(w, "\n… and %d more finding(s).\n", len(s.findings)-len(shown))
 		_, _ = fmt.Fprintln(w, col.Paint(cDim,
@@ -303,9 +301,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 // writeEffects records what the run did to its targets beyond reading them.
 //
 // Not evidence and not hidden: this is what Draugr did to somebody's systems, and a scan that
-// created a Job in a cluster or sent traffic to a live endpoint should say so where the verdict
-// is read. Near the end because it is a receipt rather than an instruction — the reader acts on
-// the findings above and wants this on the way past.
+// created a Job in a cluster or sent traffic to a live endpoint should say so where the verdict is
+// read. Near the end because it is a receipt rather than an instruction, the reader acts on the
+// findings above and wants this on the way past.
 func writeEffects(w io.Writer, col tui.Painter, s summary, d Data) {
 	wrote := false
 	for _, e := range s.effects {
@@ -339,10 +337,10 @@ func writeEffects(w io.Writer, col tui.Painter, s summary, d Data) {
 
 // fixFirstHeading names what the table below it actually contains.
 //
-// "Fix first" describes a shortlist, and the default is one — ten of however many, worst first.
-// With --top 0 the same words sit above every finding in the run, where they stop being a
-// recommendation and become a label, and the reader loses the thing the default was telling
-// them: that these few are where to start.
+// "Fix first" describes a shortlist, and the default is one, ten of however many, worst first. With
+// --top 0 the same words sit above every finding in the run, where they stop being a recommendation
+// and become a label, and the reader loses the thing the default was telling them: that these few
+// are where to start.
 //
 // Both headings say the order is meaningful, because that is true either way and is not obvious
 // from a table that otherwise looks like any other scanner's dump.
@@ -364,13 +362,12 @@ func fixFirstHeading(s summary, shown, total int) string {
 	return fmt.Sprintf("All %d findings, by priority%s:", total, filter)
 }
 
-// fixFirstHeader labels the ranked-findings columns. It's included in the width
-// calculation and printed dimmed so the table is self-explanatory — newcomers can see at a
-// glance which control and scanner flagged each finding.
-// Component sits before Location because a path answers "where inside" and, once a descriptor
-// has more than one component, the reader needs "which one" first — two components can carry the
-// same path. Omitted entirely when nothing has one, so a single-component project keeps the
-// narrower frame it had.
+// fixFirstHeader labels the ranked-findings columns. It's included in the width calculation and
+// printed dimmed so the table is self-explanatory. Newcomers can see at a glance which control and
+// scanner flagged each finding. Component sits before Location because a path answers "where
+// inside" and, once a descriptor has more than one component, the reader needs "which one" first.
+// Two components can carry the same path. Omitted entirely when nothing has one, so a
+// single-component project keeps the narrower frame it had.
 var fixFirstHeader = []string{"Priority", "Severity", "Score", "Rule", "Control", "Scanner", "Component", "Location"}
 
 // fixFirstHeaderNoComponent is the frame for a run where no finding has a component: a
@@ -380,10 +377,10 @@ var fixFirstHeaderNoComponent = []string{"Priority", "Severity", "Score", "Rule"
 
 // manyComponents reports whether the findings span more than one component.
 //
-// One component repeats the same value on every row and answers a question nobody has — the
-// release header already says what was scanned. The column earns its width only when it
-// distinguishes findings from each other, which is the case that prompted it: several components
-// with paths that look alike.
+// One component repeats the same value on every row and answers a question nobody has. The release
+// header already says what was scanned. The column earns its width only when it distinguishes
+// findings from each other, which is the case that prompted it: several components with paths that
+// look alike.
 func manyComponents(fs []finding) bool {
 	seen := ""
 	for _, f := range fs {
@@ -457,9 +454,9 @@ func shortRepository(url string) string {
 // finding's own message on a dimmed line beneath it.
 func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 	withComponent := manyComponents(fs)
-	// A component may hold several repositories, and paths are repository-relative — so the same
-	// file in two of them produces rows identical in every column. The reader sees a duplicate
-	// and has no way to learn otherwise.
+	// A component may hold several repositories, and paths are repository-relative, so the same file
+	// in two of them produces rows identical in every column. The reader sees a duplicate and has no
+	// way to learn otherwise.
 	withRepository := manyRepositories(fs)
 	header := fixFirstHeaderNoComponent
 	if withComponent {
@@ -501,9 +498,9 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
 	t.Render(w)
 }
 
-// ruleIDWidth caps the Rule column. Some scanners use long namespaced ids — Semgrep's run past
-// a hundred characters — and one of those pushes every column after it off the screen, which
-// costs the reader the location and the scanner to show a namespace they didn't need.
+// ruleIDWidth caps the Rule column. Some scanners use long namespaced ids. Semgrep's run past a
+// hundred characters, and one of those pushes every column after it off the screen, which costs the
+// reader the location and the scanner to show a namespace they didn't need.
 const ruleIDWidth = 44
 
 // shortRuleID fits a rule id into the column by dropping the front. Namespaced ids put the
@@ -511,10 +508,10 @@ const ruleIDWidth = 44
 // tail is the half worth keeping. The full id stays in the JSON and SARIF reports, and the
 // hyperlink on it still resolves.
 //
-// It cuts on a dot where one fits. Cutting purely by width lands mid-word and the result reads
-// as corruption rather than truncation — "…ction-tag.github-actions-mutable-action-tag" invites
-// the reader to wonder what went wrong, where "…github-actions-mutable-action-tag" plainly says
-// there is more in front.
+// It cuts on a dot where one fits. Cutting purely by width lands mid-word and the result reads as
+// corruption rather than truncation, "…ction-tag.github-actions-mutable-action-tag" invites the
+// reader to wonder what went wrong, where "…github-actions-mutable-action-tag" plainly says there
+// is more in front.
 func shortRuleID(id string) string {
 	r := []rune(id)
 	if len(r) <= ruleIDWidth {
@@ -561,10 +558,10 @@ func wrapMessage(msg string, width int) []string {
 	for len(msg) > width {
 		cut := strings.LastIndex(msg[:width], " ")
 		if cut <= 0 {
-			// One unbroken token longer than the line — a URL, or a path with no spaces in it.
-			// Emitted whole and overflowing rather than split at the margin: the reason a URL is
-			// in a failure message is so somebody can paste it somewhere, and one broken across
-			// two lines cannot be pasted. A long line is untidy; a severed URL is unusable.
+			// One unbroken token longer than the line, a URL, or a path with no spaces in it. Emitted whole
+			// and overflowing rather than split at the margin: the reason a URL is in a failure message is
+			// so somebody can paste it somewhere, and one broken across two lines cannot be pasted. A long
+			// line is untidy; a severed URL is unusable.
 			cut = len(msg)
 			if end := strings.IndexByte(msg, ' '); end > 0 {
 				cut = end
@@ -588,8 +585,8 @@ const maxMessageLines = 3
 // writeComponents breaks the verdict down by the part of the application it belongs to.
 //
 // The controls table answers "is the project shippable". A component is the unit a team owns and
-// the unit exposure and criticality are declared on, so it is the unit someone is deciding
-// about — and with several of them, "sca FAIL" says the project has a problem and stops.
+// the unit exposure and criticality are declared on, so it is the unit someone is deciding about,
+// and with several of them, "sca FAIL" says the project has a problem and stops.
 //
 // The clean ones are the point as much as the failing ones: PASS against a named component is
 // what someone can take back to their team, and reading it off a truncated findings table by eye
@@ -614,10 +611,10 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 		if c.Verdict == norn.Fail {
 			verdict, style = "FAIL", cFail
 		}
-		// A component nothing was able to look at has not passed. Its scans failed, so "no
-		// findings" is true only in the sense that none were possible — which is the reading
-		// this row must not invite, and the same reason a component the scope excluded is
-		// listed apart rather than among the passes.
+		// A component nothing was able to look at has not passed. Its scans failed, so "no findings" is
+		// true only in the sense that none were possible. Which is the reading this row must not invite,
+		// and the same reason a component the scope excluded is listed apart rather than among the
+		// passes.
 		if len(c.Unscanned) > 0 && c.Findings == 0 {
 			verdict, style = "ERROR", cFail
 		}
@@ -689,7 +686,7 @@ func excludeSummary(e saga.ExcludeRule) string {
 	if len(e.Paths) > 0 {
 		parts = append(parts, "paths "+strings.Join(e.Paths, ", "))
 	}
-	return strings.Join(parts, "; ") + " — " + findingSummary(e.Reason)
+	return strings.Join(parts, "; ") + " · " + findingSummary(e.Reason)
 }
 
 // bandsText renders per-control severity counts, omitting empty bands, each colorized.
@@ -786,7 +783,7 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 	for _, l := range lines {
 		text := l.Label()
 		if l.Detail != "" {
-			text += " — " + l.Detail
+			text += " · " + l.Detail
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, l.Control), col.Paint(cDim, text))
 	}
@@ -796,7 +793,7 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 //
 // Beside "Measured against" because it is the same question answered the other way, and a reader
 // deciding what a PASS is worth needs both halves. Without it a scanner that could not answer the
-// question a component asked looks exactly like one that answered it and found nothing — which is
+// question a component asked looks exactly like one that answered it and found nothing. Which is
 // the difference this report exists to make visible.
 func writeNotMeasured(w io.Writer, col tui.Painter, d Data, width int) {
 	if len(d.Run.Skipped) == 0 {
@@ -810,7 +807,7 @@ func writeNotMeasured(w io.Writer, col tui.Painter, d Data, width int) {
 			text += " on " + sk.Component
 		}
 		if sk.Reason != "" {
-			text += " — " + sk.Reason
+			text += " · " + sk.Reason
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, sk.Control), col.Paint(cDim, text))
 	}
@@ -819,10 +816,10 @@ func writeNotMeasured(w io.Writer, col tui.Painter, d Data, width int) {
 // exploitabilityLine summarizes the feeds a run's severities were enriched from, or "" when
 // there were none.
 //
-// Beside the SBOM line rather than in the findings table: it describes the run, and a reader
-// asking "is this data current" is asking about the whole scan rather than any one result.
-// exploitabilityLine names the feeds, their dates, and — the part a reader actually wants — what
-// they did to this run.
+// Beside the SBOM line rather than in the findings table: it describes the run, and a reader asking
+// "is this data current" is asking about the whole scan rather than any one result.
+// exploitabilityLine names the feeds, their dates, and, the part a reader actually wants. What they
+// did to this run.
 //
 // Dates alone say enrichment ran, not whether it changed anything, so the only way to find out
 // was to read every finding looking for an escalation note and then wonder whether one had been
@@ -848,7 +845,7 @@ func exploitabilityLine(feeds []FeedProvenance, escalated int) string {
 	if escalated > 0 {
 		effect = fmt.Sprintf("%s raised", plural(escalated, "finding"))
 	}
-	return "Exploitability: " + strings.Join(parts, " · ") + " — " + effect
+	return "Exploitability: " + strings.Join(parts, " · ") + " · " + effect
 }
 
 // unpinnedCacheLine names the images whose findings came from a cache entry that could not be
@@ -857,7 +854,7 @@ func exploitabilityLine(feeds []FeedProvenance, escalated int) string {
 // The cache is content-addressed, and a report that does not say where that held is a report
 // claiming more than it knows. An image named by a tag alone has a stable key and unstable bytes:
 // the tag may have been rebuilt since the entry was written, and the findings then describe an
-// image that is no longer there — a pass over code nobody is running.
+// image that is no longer there, a pass over code nobody is running.
 //
 // It says what to do rather than only what happened, because both answers are one step away: pin
 // the digest in the descriptor and the entry becomes content-addressed, or refuse the entry with
@@ -866,14 +863,14 @@ func unpinnedCacheLine(refs []string) string {
 	if len(refs) == 0 {
 		return ""
 	}
-	// A count, never a list. The rows carry the mark and say which findings this applies to, so
-	// naming the references again here answers a question already answered — and on a descriptor
-	// with dozens of images it is a list nobody reads at the foot of the one they do.
+	// A count, never a list. The rows carry the mark and say which findings this applies to, so naming
+	// the references again here answers a question already answered, and on a descriptor with dozens
+	// of images it is a list nobody reads at the foot of the one they do.
 	//
 	// What the count adds is scale: one image out of thirty is a different report from thirty out
 	// of thirty, and that is the part the rows cannot say. Which ones, for a run with no findings
 	// to mark, is in the JSON and in --evidence.
-	return fmt.Sprintf("from cache: %s reused on a tag — may describe an earlier build. Pin a digest.",
+	return fmt.Sprintf("from cache, %s reused on a tag, so it may describe an earlier build. Pin a digest.",
 		plural(len(refs), "image"))
 }
 
@@ -891,7 +888,7 @@ func escalationNote(e *sarif.Escalation) string {
 	if e == nil {
 		return ""
 	}
-	out := "↑ ranked as " + string(e.To) + " — " + e.Detail
+	out := "↑ ranked as " + string(e.To) + " · " + e.Detail
 	if e.AsOf != "" {
 		out += " (" + e.AsOf + ")"
 	}
@@ -922,15 +919,15 @@ func historicalNote(historical bool) string {
 	if !historical {
 		return ""
 	}
-	return "↩ in git history — path as it was then. Rotate it; deleting it does not unpublish it."
+	return "↩ in git history · path as it was then. Rotate it; deleting it does not unpublish it."
 }
 
 // runLine accounts for the run: how long it took, and how much of it was avoided.
 //
 // The engine has recorded all of this since caching was added and nothing showed it to the person
 // who ran the scan. That makes `--cache-dir` unverifiable by the only means available at a
-// terminal — the run is faster, and whether the cache did it or the registry was warm is a
-// question the output does not answer. A count of hits is the answer, and it costs one line.
+// terminal. The run is faster, and whether the cache did it or the registry was warm is a question
+// the output does not answer. A count of hits is the answer, and it costs one line.
 //
 // Wall-clock rather than the sum of the jobs, because jobs run concurrently and their sum is a
 // number that matches nothing the reader experienced.
@@ -950,12 +947,12 @@ func runLine(st engine.Stats) string {
 		savings = append(savings, fmt.Sprintf("%d shared with an identical job", st.Deduped))
 	}
 	if len(savings) > 0 {
-		line += " — " + strings.Join(savings, ", ")
+		line += " · " + strings.Join(savings, ", ")
 	}
 	if w := waitSummary(st.ToolWaits); w != "" {
 		line += ", " + w
 		if len(savings) == 0 {
-			line = strings.Replace(line, ", "+w, " — "+w, 1)
+			line = strings.Replace(line, ", "+w, " · "+w, 1)
 		}
 	}
 	return line + "."
@@ -1010,7 +1007,7 @@ func toolBuildLines(tools []ToolBuild) []string {
 			verified = append(verified, label)
 			continue
 		}
-		other = append(other, label+" — "+t.Reason)
+		other = append(other, label+" · "+t.Reason)
 	}
 	sort.Strings(verified)
 	sort.Strings(other)
@@ -1028,8 +1025,8 @@ func toolBuildLines(tools []ToolBuild) []string {
 // repositoryLines say which repository was read, and at which commit.
 //
 // The reason a scan reads a committed revision rather than your working tree is so the report can
-// name something reproducible. This is that name — without it the justification was asserted in
-// the docs and never delivered in the output, and the only thing said out loud was a warning about
+// name something reproducible. This is that name. Without it the justification was asserted in the
+// docs and never delivered in the output, and the only thing said out loud was a warning about
 // which revision was *not* scanned.
 func repositoryLines(repos []RepositoryProvenance) []string {
 	if len(repos) == 0 {
@@ -1046,8 +1043,8 @@ func repositoryLines(repos []RepositoryProvenance) []string {
 		}
 		switch {
 		case r.WorkingTree && r.Uncommitted > 0:
-			// The uncommitted work is the reason this scan was asked for, so it is included
-			// rather than missing — and the result cannot be reproduced from the revision.
+			// The uncommitted work is the reason this scan was asked for, so it is included rather than
+			// missing, and the result cannot be reproduced from the revision.
 			line += fmt.Sprintf(" (%s, not reproducible)", plural(r.Uncommitted, "uncommitted file"))
 		case r.Uncommitted > 0:
 			// A clause, not an alarm. Uncommitted work is the normal state of a checkout somebody
@@ -1111,10 +1108,10 @@ func scopeNote(d Data) string {
 
 // writeActions renders the fix list as things to do rather than things that are wrong.
 //
-// One row per action, each saying how many findings it clears and where. A reader deciding what
-// to spend an afternoon on is choosing between actions, and a list of findings makes them do the
-// grouping in their head — which for a library carrying a dozen CVEs is a dozen rows describing
-// one upgrade.
+// One row per action, each saying how many findings it clears and where. A reader deciding what to
+// spend an afternoon on is choosing between actions, and a list of findings makes them do the
+// grouping in their head, which for a library carrying a dozen CVEs is a dozen rows describing one
+// upgrade.
 func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) error {
 	actions, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits)
 
@@ -1129,7 +1126,7 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) er
 	if limit >= 0 && len(shown) > limit {
 		shown = shown[:limit]
 	}
-	_, _ = fmt.Fprintf(w, "Fix first — %s %s %s:\n",
+	_, _ = fmt.Fprintf(w, "Fix first · %s %s %s:\n",
 		plural(len(shown), "action"), clears(shown), plural(cleared(shown), "finding"))
 	renderActions(w, col, shown)
 
@@ -1144,9 +1141,9 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) er
 	if len(external) > 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(cDim, externalLine(external)))
 	}
-	// The same tail as the ungrouped listing. Both paths end a report, so both owe the record of
-	// what the run did and produced — a receipt that appears only in the view somebody is not
-	// using is one nobody sees.
+	// The same tail as the ungrouped listing. Both paths end a report, so both owe the record of what
+	// the run did and produced, a receipt that appears only in the view somebody is not using is one
+	// nobody sees.
 	writeEffects(w, col, s, d)
 	_, _ = fmt.Fprintln(w, col.Paint(cDim,
 		"Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif."))
@@ -1192,7 +1189,7 @@ func externalLine(external []finding) string {
 		names = append(names, c)
 	}
 	sort.Strings(names)
-	return fmt.Sprintf("%s on infrastructure operated by your provider (%s) — reported, "+
+	return fmt.Sprintf("%s on infrastructure operated by your provider (%s), reported, "+
 		"and not yours to fix.", plural(len(external), "finding"), strings.Join(names, ", "))
 }
 
@@ -1229,10 +1226,10 @@ func renderActions(w io.Writer, col tui.Painter, actions []action) {
 
 // actionDetail is the line under an action: where it applies, and a way into the findings.
 //
-// Grouping answers "what do I do" and takes away "what exactly is wrong", which is the question
-// a reader has next and the one a rule identifier answers. One is named, linked to whatever the
-// scanner published about it, and the rest are counted — a reader following a link is going to
-// read one of them, and listing fifty-four identifiers to offer that choice fills the screen.
+// Grouping answers "what do I do" and takes away "what exactly is wrong", which is the question a
+// reader has next and the one a rule identifier answers. One is named, linked to whatever the
+// scanner published about it, and the rest are counted, a reader following a link is going to read
+// one of them, and listing fifty-four identifiers to offer that choice fills the screen.
 func actionDetail(col tui.Painter, a action, locations int) string {
 	var parts []string
 	// Not for an image action: the image is the title, and repeating it underneath says nothing.
@@ -1268,9 +1265,9 @@ func isVowel(b byte) bool { return strings.IndexByte("aeiou", b) >= 0 }
 
 // elide shortens the last line of a wrapped message, at a word boundary where there is one.
 //
-// Cutting mid-word leaves a fragment that reads as a different word — a truncated identifier or
-// version looks like a real one, and a reader cannot tell which they are looking at. Where the
-// line is a single long token there is no boundary to find, and cutting it is the only option.
+// Cutting mid-word leaves a fragment that reads as a different word, a truncated identifier or
+// version looks like a real one, and a reader cannot tell which they are looking at. Where the line
+// is a single long token there is no boundary to find, and cutting it is the only option.
 func elide(msg string, width int) string {
 	if width <= 1 {
 		return "…"
@@ -1285,9 +1282,9 @@ func elide(msg string, width int) string {
 // writeEvidence prints what makes a run defensible: which tools ran, what they measured against,
 // what the scan did to its targets, which revision it read, and what it cost.
 //
-// Not in the default view. Each of these is justified on its own and together they are most of
-// what precedes the findings — a developer opening a terminal is asking what to fix, and answers
-// to a question they have not asked push the answer to the one they have off the screen.
+// Not in the default view. Each of these is justified on its own and together they are most of what
+// precedes the findings, a developer opening a terminal is asking what to fix, and answers to a
+// question they have not asked push the answer to the one they have off the screen.
 //
 // Three things deliberately stay in the default view instead of moving here, because they are not
 // evidence but warnings, and removing them would change what the report means: a control that did
@@ -1336,9 +1333,9 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, s summary) {
 
 // unscannedDetail says what a component has that nothing managed to examine.
 //
-// Counted by kind and against what the component declared, because three lines naming each
-// registry path is not what a reader needs here — the control's error above already carries why,
-// and this row answers what, and how much of it.
+// Counted by kind and against what the component declared, because three lines naming each registry
+// path is not what a reader needs here, the control's error above already carries why, and this row
+// answers what, and how much of it.
 func unscannedDetail(us []engine.Unscanned, declared map[string]int) string {
 	byKind := map[string]int{}
 	for _, u := range us {
@@ -1355,9 +1352,8 @@ func unscannedDetail(us []engine.Unscanned, declared map[string]int) string {
 	sort.Strings(kinds)
 	parts := make([]string, 0, len(kinds))
 	for _, kind := range kinds {
-		// "3 of 3" and "3 of 30" are different situations — one is a component nothing looked
-		// at, the other a gap in one that was mostly covered — and the bare count reads as the
-		// first either way.
+		// "3 of 3" and "3 of 30" are different situations. One is a component nothing looked at, the
+		// other a gap in one that was mostly covered. And the bare count reads as the first either way.
 		if total := declared[kind]; total > 0 {
 			parts = append(parts, fmt.Sprintf("%d/%d %s", byKind[kind], total, noun(total, kind)))
 			continue
@@ -1370,12 +1366,12 @@ func unscannedDetail(us []engine.Unscanned, declared map[string]int) string {
 // undeliveredLine says which declared reports had nowhere to go.
 //
 // Named rather than counted, because the reader's next move is to decide whether they wanted that
-// one — and there are rarely more than a handful in a descriptor.
+// one. And there are rarely more than a handful in a descriptor.
 func undeliveredLine(formats []string) string {
 	if len(formats) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("config.reports declares %s and this run had nowhere to write %s — "+
+	return fmt.Sprintf("config.reports declares %s and this run had nowhere to write %s, "+
 		"pass -o <dir>, or add a publisher.",
 		strings.Join(formats, ", "), them(len(formats)))
 }
@@ -1392,8 +1388,8 @@ func them(n int) string {
 //
 // In the default view only when the gate lets through something a default gate would have caught,
 // because that is the case a reader cannot see any other way: a pass under a narrowed gate looks
-// exactly like a pass under a full one, and --no-gate exits 0 on a verdict of FAIL. A stricter
-// gate needs no announcement — it can only fail more, and the failure says so itself.
+// exactly like a pass under a full one, and --no-gate exits 0 on a verdict of FAIL. A stricter gate
+// needs no announcement. It can only fail more, and the failure says so itself.
 //
 // Under --evidence the gate is stated whatever it is, including when it is the default. An
 // auditor's question about a verdict is what it was measured against, and "the default" is an
@@ -1408,7 +1404,7 @@ func writeGate(w io.Writer, col tui.Painter, d Data, full bool) {
 		// The strongest case in the file: the command exits 0 on a verdict of FAIL, so anything
 		// reading the exit code is told the opposite of what this report says.
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent,
-			"Gate off (--no-gate) — this verdict does not decide the exit code."))
+			"Gate off (--no-gate) · this verdict does not decide the exit code."))
 		return
 	}
 
@@ -1458,7 +1454,7 @@ func gateOverrides(g GateSettings) string {
 // descriptorLine says which descriptor drove the run and whether it was one file.
 //
 // The digest first, because it is the part that answers a question: two runs carrying the same one
-// were asked the same thing. Fragments are counted rather than listed — the full list is in
+// were asked the same thing. Fragments are counted rather than listed. The full list is in
 // report.json, and an auditor comparing files is reading that, not a terminal.
 func descriptorLine(d *skald.DescriptorRef) string {
 	if d == nil || len(d.Sources) == 0 {

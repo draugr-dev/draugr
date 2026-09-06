@@ -17,8 +17,8 @@ import (
 // Draugr is a report format rather than a publisher.
 //
 // gitlabSchemaVersion is the security report schema these documents declare. GitLab validates
-// against it and rejects a document whose version it does not know, so this moves deliberately —
-// see pkg/report/testdata/gitlab, which holds the schemas the tests check against.
+// against it and rejects a document whose version it does not know, so this moves deliberately. See
+// pkg/report/testdata/gitlab, which holds the schemas the tests check against.
 const gitlabSchemaVersion = "15.2.4"
 
 // gitlabSecurityReporter renders one of GitLab's typed security reports.
@@ -41,8 +41,8 @@ type gitlabSecurityReporter struct {
 	needsCommit bool
 	// needsPackage marks a report whose schema requires a structured package on every finding.
 	needsPackage bool
-	// needsImage marks a report whose schema requires the image and its operating system on
-	// every finding — GitLab's container scanning, where both are `minLength: 1`.
+	// needsImage marks a report whose schema requires the image and its operating system on every
+	// finding, GitLab's container scanning, where both are `minLength: 1`.
 	needsImage bool
 }
 
@@ -160,9 +160,8 @@ func (r gitlabSecurityReporter) vulnerabilities(d Data) ([]glVuln, error) {
 			},
 		}
 		if r.needsPackage {
-			// The schema requires the package, and a finding without one is not a dependency
-			// finding — a control reporting both would otherwise contribute rows GitLab rejects
-			// the whole document over.
+			// The schema requires the package, and a finding without one is not a dependency finding. A
+			// control reporting both would otherwise contribute rows GitLab rejects the whole document over.
 			if f.res.Package == nil || f.res.Package.Name == "" {
 				continue
 			}
@@ -175,10 +174,10 @@ func (r gitlabSecurityReporter) vulnerabilities(d Data) ([]glVuln, error) {
 			v.Location.StartLine = 0
 		}
 		if r.needsImage {
-			// Both are required with a minimum length, and neither can be derived from anything
-			// else in the finding. An image scanned from a distribution Trivy could not identify
-			// — scratch, distroless — genuinely has no operating system, and that finding belongs
-			// in the Code Quality report rather than in a fabricated row here.
+			// Both are required with a minimum length, and neither can be derived from anything else in the
+			// finding. An image scanned from a distribution Trivy could not identify. Scratch, distroless.
+			// Genuinely has no operating system, and that finding belongs in the Code Quality report rather
+			// than in a fabricated row here.
 			if f.res.Image == "" || f.res.OperatingSystem == "" {
 				continue
 			}
@@ -215,7 +214,7 @@ type glFinding struct {
 // gitlabFindings returns the active findings of the named controls, most-urgent first.
 //
 // Suppressed findings are left out. GitLab has no notion of a finding somebody already decided to
-// accept — it would show one as open and wait to be dismissed, which asks for the decision the Saga
+// accept. It would show one as open and wait to be dismissed, which asks for the decision the Saga
 // already records, with the reason and the person attached. They remain in Draugr's own report,
 // marked, which is where that evidence belongs.
 func gitlabFindings(d Data, controls []string) []glFinding {
@@ -247,8 +246,8 @@ func gitlabFindings(d Data, controls []string) []glFinding {
 	return out
 }
 
-// gitlabRank orders findings by priority first, then severity — the order Draugr ranks in, kept so
-// a truncated read of either report starts at the same place the console does.
+// gitlabRank orders findings by priority first, then severity, the order Draugr ranks in, kept so a
+// truncated read of either report starts at the same place the console does.
 func gitlabRank(res sarif.Result) int {
 	band := map[string]int{"P1": 4, "P2": 3, "P3": 2, "P4": 1}[res.Priority]
 	return band*10 + res.Severity("").Rank()
@@ -278,8 +277,8 @@ func gitlabIdentifier(res sarif.Result, helpURI string) glIdentifier {
 // gitlabSeverity maps Draugr's severity ladder onto GitLab's.
 //
 // The flaw's severity, not its Draugr priority. GitLab's merge-request approval policies gate on
-// this field, and a priority has already folded in the component's exposure and criticality —
-// feeding it here would have those policies apply that context a second time.
+// this field, and a priority has already folded in the component's exposure and criticality.
+// Feeding it here would have those policies apply that context a second time.
 func gitlabSeverity(s sarif.Severity) string {
 	switch s {
 	case sarif.SeverityCritical:
@@ -322,7 +321,7 @@ func gitlabTime(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05
 
 // gitlabCommitFor finds the commit a finding's repository was read at.
 //
-// Falls back to the only repository when the finding names none — with one repository there is no
+// Falls back to the only repository when the finding names none. With one repository there is no
 // ambiguity, and with several a finding that names none did not come from a checkout.
 func gitlabCommitFor(d Data, repository string) string {
 	if repository == "" && len(d.Repositories) == 1 {
@@ -340,8 +339,8 @@ func gitlabCommitFor(d Data, repository string) string {
 //
 // The one GitLab surface that works on every tier: the Vulnerability Report and the merge-request
 // security widget are Ultimate, and Code Quality shows in the merge request's Reports tab whatever
-// the plan. So this carries **every** finding regardless of control — including the ones no typed
-// security report can hold — and is the reason nothing Draugr finds is invisible on a Free project.
+// the plan. So this carries **every** finding regardless of control, including the ones no typed
+// security report can hold. And is the reason nothing Draugr finds is invisible on a Free project.
 type gitlabCodeQualityReporter struct{}
 
 func (gitlabCodeQualityReporter) Format() string { return "gitlab-codequality" }
@@ -382,7 +381,7 @@ func (gitlabCodeQualityReporter) Render(w io.Writer, d Data) error {
 
 // gitlabCodeQualitySeverity maps Draugr's priority onto Code Quality's ladder.
 //
-// Priority here, not severity — the opposite of the security reports, and for the reason those use
+// Priority here, not severity, the opposite of the security reports, and for the reason those use
 // severity. Code Quality has no policy engine behind it; it is a list a reviewer reads in order,
 // and the order worth reading is the one that already accounts for what the component is exposed to
 // and how much it matters. The flaw's own severity is kept in the description, so nothing is lost.

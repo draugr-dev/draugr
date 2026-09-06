@@ -12,12 +12,12 @@ import (
 //
 // The unit of a fix list should be the fix. Eight vulnerabilities in one library are one upgrade;
 // the same misconfiguration in three Dockerfiles is one habit; a release past end of service life
-// is one move for everything in its layer. Listing them as eight, three and hundreds of rows
-// makes a list that is long, repetitive, and — because the repetitive part crowds out the rest —
-// worse at the one job it has.
+// is one move for everything in its layer. Listing them as eight, three and hundreds of rows makes
+// a list that is long, repetitive, and, because the repetitive part crowds out the rest, worse at
+// the one job it has.
 type action struct {
-	// key is the identity findings group under — what makes two of them one action. Held so a
-	// caller can be told it, rather than having to work out membership from a title.
+	// key is the identity findings group under. What makes two of them one action. Held so a caller
+	// can be told it, rather than having to work out membership from a title.
 	key string
 	// title is what to do, in the imperative.
 	title string
@@ -73,9 +73,9 @@ func displayLocation(f finding) string {
 	if at := strings.Index(ref, "@"); at > 0 {
 		ref = ref[:at]
 	}
-	// Drop the registry host, keep everything that names the image. The host is the same for
-	// every image in most descriptors, so it is the part carrying no information here — and the
-	// namespace is not: "chainguard-sync/redis" and "istio/redis" are different images.
+	// Drop the registry host, keep everything that names the image. The host is the same for every
+	// image in most descriptors, so it is the part carrying no information here. And the namespace is
+	// not: "chainguard-sync/redis" and "istio/redis" are different images.
 	//
 	// A first segment containing a dot or a colon is a host, which is the rule a container
 	// runtime itself uses to tell "myteam/app" from "registry.example.com/app".
@@ -101,7 +101,7 @@ func countDistinct(fs []finding) int {
 //
 // Only groups where the fix genuinely is one fix. Twelve different benchmark checks against one
 // cluster are twelve things to change, and collapsing them because they share a prefix would hide
-// eleven of them — the opposite failure to the one this exists to fix, and the worse of the two.
+// eleven of them, the opposite failure to the one this exists to fix, and the worse of the two.
 //
 // Findings nobody running the scan can act on are not here at all. They are counted and reported
 // elsewhere: a list of things to fix that opens with work the reader cannot do teaches them the
@@ -154,7 +154,7 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 // moreUrgent orders actions by the worst priority they clear, then by how many findings that is.
 //
 // Priority first, always. An action clearing one P1 outranks one clearing forty P4s, because a P1
-// is not something to trade away for volume — sorting by count first would bury the urgent work
+// is not something to trade away for volume. Sorting by count first would bury the urgent work
 // under the plentiful kind.
 func moreUrgent(a, b action) bool {
 	if a.priority != b.priority {
@@ -177,7 +177,7 @@ func actionFor(f finding) (key, title string) {
 	// An image somebody else publishes is one action however many packages are wrong inside it,
 	// and the action is the image. Nobody running the scan can upgrade a library they do not
 	// build: the fix is a newer image, or a wait for whoever publishes it. Grouping these by
-	// package would scatter one action — take a newer redis — across every library in it, and
+	// package would scatter one action, take a newer redis, across every library in it, and
 	// name none of them something the reader can do.
 	//
 	// Before the package case, because a finding is both: it names a package, and the package is
@@ -187,10 +187,10 @@ func actionFor(f finding) (key, title string) {
 		// unit of work goes in the meta as one word rather than a clause on every line.
 		return "image\x00" + f.location, "Update " + displayLocation(f)
 
-	// The same argument one level up, for a repository somebody else publishes. The unit of work
-	// is their software, not a file inside it: keying on the location here would title the action
+	// The same argument one level up, for a repository somebody else publishes. The unit of work is
+	// their software, not a file inside it: keying on the location here would title the action
 	// "Update requirements.txt", which is an instruction to edit a file in a repository the reader
-	// cannot push to — precisely the advice declaring `builtBy: upstream` exists to stop.
+	// cannot push to, precisely the advice declaring `builtBy: upstream` exists to stop.
 	//
 	// Falls back to the component when the repository is a local path, which is what a scan of a
 	// checkout reports. "Update ." names nothing.
@@ -200,19 +200,19 @@ func actionFor(f finding) (key, title string) {
 	// An upgrade is one action however many vulnerabilities it resolves, which is the case that
 	// pays off most: a library a year out of date carries a dozen findings and one fix.
 	//
-	// Keyed on the package rather than on the version that fixes it. Advisories disagree about
-	// which release resolves them — three findings in one library can name three different fixed
-	// versions — and treating those as three actions describes one upgrade as three, which is
-	// the grouping failure this exists to remove.
+	// Keyed on the package rather than on the version that fixes it. Advisories disagree about which
+	// release resolves them, three findings in one library can name three different fixed versions,
+	// and treating those as three actions describes one upgrade as three, which is the grouping
+	// failure this exists to remove.
 	case f.pkg != nil && f.pkg.Name != "" && f.pkg.FixedVersion != "":
 		return "upgrade\x00" + f.pkg.Ecosystem + "\x00" + f.pkg.Name,
 			fmt.Sprintf("Upgrade %s %s", f.pkg.Name, f.pkg.Version)
 
-	// Nothing fixes these where they are, and the release underneath is the fix — one move for
-	// every finding in that layer, and usually the largest single reduction available.
+	// Nothing fixes these where they are, and the release underneath is the fix, one move for every
+	// finding in that layer, and usually the largest single reduction available.
 	case f.remediation == sarif.RemediationUpstream && f.operatingSystem != "":
 		return "os\x00" + f.operatingSystem,
-			fmt.Sprintf("Move off %s — past end of service life, so no fix is coming",
+			fmt.Sprintf("Move off %s, past end of service life, so no fix is coming",
 				f.operatingSystem)
 
 	// The same rule in several places is one thing to understand and apply, whether that is a
@@ -236,9 +236,9 @@ func titleFor(f finding) string {
 	if i := strings.IndexByte(title, '\n'); i > 0 {
 		title = strings.TrimSpace(title[:i])
 	}
-	// A sentence boundary is a full stop followed by a space. Splitting on the full stop alone
-	// cuts "str.format_map" to "str" and a version to its major — the punctuation inside an
-	// identifier looks exactly like the punctuation at the end of a sentence.
+	// A sentence boundary is a full stop followed by a space. Splitting on the full stop alone cuts
+	// "str.format_map" to "str" and a version to its major, the punctuation inside an identifier
+	// looks exactly like the punctuation at the end of a sentence.
 	if i := strings.Index(title, ". "); i > 0 {
 		title = title[:i]
 	}
@@ -259,10 +259,10 @@ func truncate(s string, n int) string {
 
 // fixedVersions lists the releases the findings say resolve them, in the order first seen.
 //
-// Draugr does not pick one. Version ordering is the ecosystem's own — 5.10 is above 5.9 in most
-// and below it as a string — and naming the wrong release as sufficient is worse advice than
-// naming several: it reads as "upgrade to this and you are done" when it would leave findings
-// behind. Listing them lets the reader apply the ordering their package manager already knows.
+// Draugr does not pick one. Version ordering is the ecosystem's own. 5.10 is above 5.9 in most and
+// below it as a string, and naming the wrong release as sufficient is worse advice than naming
+// several: it reads as "upgrade to this and you are done" when it would leave findings behind.
+// Listing them lets the reader apply the ordering their package manager already knows.
 func (a action) fixedVersions() []string {
 	seen := map[string]bool{}
 	var out []string
@@ -278,7 +278,7 @@ func (a action) fixedVersions() []string {
 
 // target is the version to upgrade to, when every advisory in the group agrees on one.
 //
-// Only when they agree. Where they disagree there is no single answer Draugr can give — version
+// Only when they agree. Where they disagree there is no single answer Draugr can give. Version
 // ordering belongs to the ecosystem, and naming the wrong release as sufficient reads as "do this
 // and you are done" while leaving findings behind. The reader's package manager settles it.
 func (a action) target() string {
@@ -299,10 +299,10 @@ func (a action) exemplar() (finding, bool) {
 
 // Action is one thing to do and what doing it clears, for a consumer outside this package.
 //
-// Exported so the MCP server answers "what should I do" with the same grouping the console
-// prints. The keying is the subtle part — which findings are one fix and which only look alike —
-// and a second implementation of it would drift from this one silently, leaving an assistant and
-// a terminal describing the same report differently.
+// Exported so the MCP server answers "what should I do" with the same grouping the console prints.
+// The keying is the subtle part. Which findings are one fix and which only look alike, and a
+// second implementation of it would drift from this one silently, leaving an assistant and a
+// terminal describing the same report differently.
 type Action struct {
 	// Title is what to do, in the imperative.
 	Title string `json:"title"`
@@ -320,10 +320,10 @@ type Action struct {
 	RuleIDs []string `json:"ruleIds,omitempty"`
 	// Key is what these findings grouped under: the identity that makes two of them one action.
 	//
-	// Opaque, and deliberately — its shape is this package's business and changes when the
-	// grouping does. What it is for is membership: a caller holding the findings can ask this
+	// Opaque, and deliberately. Its shape is this package's business and changes when the grouping
+	// does. What it is for is membership: a caller holding the findings can ask this
 	// package which action each one belongs to and match on this, instead of inferring it from a
-	// title. Title is written for a reader and is not an identity — an action fed by two controls
+	// title. Title is written for a reader and is not an identity, an action fed by two controls
 	// takes one of their names, and matching on that silently drops the other's findings.
 	//
 	// Not serialized. It is an identity for a caller holding this package's own output in memory,
@@ -346,7 +346,7 @@ type Action struct {
 //
 // Keyed by control, as a run holds them, because the grouping keys on it: two controls reporting
 // the same rule id are two things to do. A caller holding only a merged results.sarif has no
-// control to give and can pass a single entry under "" — grouping then falls back to the rule id,
+// control to give and can pass a single entry under "", grouping then falls back to the rule id,
 // which is the right answer for a file that has already lost the distinction.
 func ActionsFor(reports map[string]sarif.Report) []Action {
 	const most = 5
@@ -412,7 +412,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 
 // upstreamUnit names the thing a reader would have to take a newer version of.
 //
-// The repository where it identifies one, and the component otherwise — a scan of a local checkout
+// The repository where it identifies one, and the component otherwise, a scan of a local checkout
 // records the path it was given, and "." is not something anybody can go and update. Empty when
 // neither is known, which leaves the finding to the ordinary package and code cases below rather
 // than titling an action after nothing.

@@ -23,7 +23,7 @@ import (
 // way to identify a file whose provenance was never recorded.
 //
 // The gap matters because of its shape rather than its size. A repository serving a five-year-old
-// jQuery scans clean today — the control runs, reports, and passes — so nothing about the output
+// jQuery scans clean today. The control runs, reports, and passes, so nothing about the output
 // suggests anywhere left to look.
 func NewRetireJS() plugin.Scanner {
 	return newRepoScannerWithParser(
@@ -47,7 +47,7 @@ func NewRetireJS() plugin.Scanner {
 // belong in the report; this is the same reason Trivy is run with --exit-code 0.
 //
 // --cachedir moves the advisory database out of /tmp and into the directory Draugr already owns.
-// retire.js bundles no database — it fetches one on first use and caches it — so the default
+// retire.js bundles no database. It fetches one on first use and caches it. So the default
 // location means a CI runner downloads it every job, and an air-gapped machine has nowhere to be
 // handed one. Under ~/.draugr/data it travels with everything else the air-gapped guide says to
 // copy across.
@@ -60,7 +60,7 @@ func retireJSArgs(dir string, _ plugin.Config) []string {
 }
 
 // retireCacheDir is where the advisory database is kept, or "" when Draugr cannot work out a home
-// directory — in which case retire.js uses its own default rather than the scan failing over a
+// directory, in which case retire.js uses its own default rather than the scan failing over a
 // cache location.
 func retireCacheDir() string {
 	root, err := tools.DataRoot()
@@ -77,7 +77,7 @@ type retireReport struct {
 		Results []struct {
 			Component string `json:"component"`
 			Version   string `json:"version"`
-			// Detection is how the library was recognized — "filecontent", "filename", "uri".
+			// Detection is how the library was recognized, "filecontent", "filename", "uri".
 			Detection       string             `json:"detection"`
 			Vulnerabilities []retireVulnerable `json:"vulnerabilities"`
 		} `json:"results"`
@@ -136,7 +136,7 @@ func parseRetireJS(out []byte, _ string, _ plugin.Config) (sarif.Report, error) 
 //
 // A CVE first, because it is the one a reader can look up and the one an exclusion is most likely
 // to be written against. Then the GitHub advisory. Only when an advisory has neither does the rule
-// fall back to retire.js's own identifier — prefixed, so it cannot be mistaken for a CVE, and
+// fall back to retire.js's own identifier, prefixed, so it cannot be mistaken for a CVE, and
 // stable, so a suppression written against it keeps working.
 func retireRuleID(component string, v retireVulnerable) string {
 	if len(v.Identifiers.CVE) > 0 && v.Identifiers.CVE[0] != "" {
@@ -164,8 +164,8 @@ func retireMessage(component, version, detection string, v retireVulnerable) str
 	if v.Below != "" {
 		msg += fmt.Sprintf(" (fixed in %s)", v.Below)
 	}
-	// How the library was recognized, because it is the answer to "why is this not in my
-	// lockfile" — a file matched by content is one the package manager never installed.
+	// How the library was recognized, because it is the answer to "why is this not in my lockfile", a
+	// file matched by content is one the package manager never installed.
 	if detection != "" {
 		msg += fmt.Sprintf(" [detected by %s]", detection)
 	}
@@ -179,7 +179,7 @@ func retireMessage(component, version, detection string, v retireVulnerable) str
 // retirePURL builds the package URL for a library retire.js named.
 //
 // npm, because that is the ecosystem retire.js identifies against even for a file that was never
-// installed from it — the vendored copy of jQuery and the npm package are the same library, and
+// installed from it, the vendored copy of jQuery and the npm package are the same library, and
 // saying so is what lets a consumer correlate them.
 func retirePURL(component, version string) string {
 	if component == "" {

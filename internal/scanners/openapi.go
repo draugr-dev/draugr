@@ -13,7 +13,7 @@ import (
 )
 
 // specOperations is the set of HTTP methods an OpenAPI path item can describe. Anything else at
-// that level — parameters, summary, servers — describes the path rather than an operation.
+// that level, parameters, summary, servers, describes the path rather than an operation.
 var specOperations = map[string]bool{
 	"get": true, "head": true, "options": true, "trace": true,
 	"post": true, "put": true, "patch": true, "delete": true,
@@ -101,7 +101,7 @@ func prepareSpec(specPath, endpoint string, methods []string) (preparedSpec, err
 	unfillable := countUnfillable(paths)
 	if kept == 0 {
 		return preparedSpec{}, fmt.Errorf(
-			"%s declares no %s operation, so this scan would send no requests — add the methods you "+
+			"%s declares no %s operation, so this scan would send no requests. Add the methods you "+
 				"accept to spec.methods", specPath, strings.Join(plugin.NormalizeMethods(methods), " or "))
 	}
 	doc["servers"] = []any{map[string]any{"url": endpoint}}

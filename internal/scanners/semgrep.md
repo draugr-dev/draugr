@@ -1,10 +1,10 @@
 # Scanner: `semgrep` (static analysis)
 
 - **Control:** [`sast`](../controllers/sast.md)
-- **Tool:** **Semgrep** — https://semgrep.dev (repo https://github.com/semgrep/semgrep)
+- **Tool:** **Semgrep**, https://semgrep.dev (repo https://github.com/semgrep/semgrep)
 - **Status:** ✅ implemented
-- **Target:** source repository (`RepositoryTarget`) — checked out via `internal/git`
-- **License / terms:** **LGPL-2.1** (copyleft) — **exec only, do not bundle or import**.
+- **Target:** source repository (`RepositoryTarget`), checked out via `internal/git`
+- **License / terms:** **LGPL-2.1** (copyleft). **exec only, do not bundle or import**.
   Semgrep Pro and some registry rules are separate/commercial; Draugr uses the OSS CLI with
   OSS/user-provided rules.
 
@@ -13,7 +13,7 @@
 Checks out the component's repository, then runs
 `semgrep scan --sarif --quiet --no-error --metrics=off --config p/default <dir>` to analyze
 the project's **own source code** for security bugs (injection, unsafe APIs, etc.). See the
-[SAST glossary entry](../../docs/reference/glossary.md#sast--static-application-security-testing).
+[SAST glossary entry](../../docs/reference/glossary.md#sast-static-application-security-testing).
 
 - `--no-error` keeps the process successful when findings exist (findings live in the SARIF
   report, not the exit code; the [`sast`](../controllers/sast.md) controller judges severity).

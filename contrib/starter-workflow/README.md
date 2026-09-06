@@ -19,7 +19,7 @@ SHA**. `draugr.yml` here is kept pinned to a real release rather than a placehol
 this repo is exactly what gets submitted and can be reviewed as such.
 
 **Getting the SHA right matters more than it looks.** Our release tags are *annotated*, so the
-obvious command returns the tag object, not the commit — and an action pinned to a tag-object SHA
+obvious command returns the tag object, not the commit, and an action pinned to a tag-object SHA
 does not resolve, for everyone, forever. Dereference it:
 
 ```bash
@@ -30,7 +30,7 @@ gh api repos/draugr-dev/draugr/git/refs/tags/vX.Y.Z --jq '.object.sha' \
 Cross-check against `git rev-list -n1 vX.Y.Z` before using it.
 
 Then open a PR to `actions/starter-workflows` adding the three files above. `actions/checkout` and
-`github/codeql-action` stay on major-version tags — the accepted Trivy entry does the same, so the
+`github/codeql-action` stay on major-version tags. The accepted Trivy entry does the same, so the
 precedent covers `github/` despite it sitting outside the `actions` org. Only `draugr-dev/draugr`
 is SHA-pinned.
 
@@ -40,7 +40,7 @@ starting point people copy, and churning the SHA gains them nothing.
 ## Notes
 
 - The workflow sets `tools: true` so the Draugr action provisions the scanners the Saga's controls
-  need (Trivy/Gitleaks/gosec + Semgrep) — no per-tool setup steps, keeping the starter simple.
+  need (Trivy/Gitleaks/gosec + Semgrep), no per-tool setup steps, keeping the starter simple.
 - It assumes the repo has a `draugr.saga.yaml` (as the Trivy starter assumes a Dockerfile). The
   header comment links to the quickstart.
 - `draugr.svg` is the brand mark, gold on a dark hexagon with a transparent surround, so it reads
@@ -48,5 +48,5 @@ starting point people copy, and churning the SHA gains them nothing.
   that was never Draugr's logo.
 - `contrib/starter-workflow/` is excluded from our own SAST self-scan. Semgrep's
   `github-actions-mutable-action-tag` rule wants every `uses:` SHA-pinned, which is right for a
-  workflow you operate and wrong for a template — and here it would also contradict the accepted
+  workflow you operate and wrong for a template, and here it would also contradict the accepted
   precedent this file is modeled on. See `.semgrepignore`.

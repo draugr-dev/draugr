@@ -15,13 +15,13 @@ import (
 //
 // A flag added without a group lands under "Other", which reads as an afterthought, and a group
 // naming a flag that was renamed silently loses it from the heading a reader looked under. Both
-// leave help that is "mostly right" — worse than the alphabetical list it replaced, because a
+// leave help that is "mostly right", worse than the alphabetical list it replaced, because a
 // reader who trusts the grouping concludes a flag does not exist.
 func TestScanFlagsAreAllGrouped(t *testing.T) {
 	t.Parallel()
 	missing, duplicated := ungroupedFlags(newScanCommand(), scanFlagGroups)
 	if len(missing) > 0 {
-		t.Errorf("no group claims %v — add each to scanFlagGroups, under the heading a reader "+
+		t.Errorf("no group claims %v. Add each to scanFlagGroups, under the heading a reader "+
 			"would look beneath rather than the one with room", missing)
 	}
 	if len(duplicated) > 0 {
@@ -170,7 +170,7 @@ func TestEveryScanFlagIsInTheReference(t *testing.T) {
 	})
 	sort.Strings(undocumented)
 	if len(undocumented) > 0 {
-		t.Errorf("docs/reference/cli.md never mentions %v — a flag absent from the reference is one "+
+		t.Errorf("docs/reference/cli.md never mentions %v, a flag absent from the reference is one "+
 			"nobody who did not already know about it can find", undocumented)
 	}
 }

@@ -34,9 +34,9 @@ type row struct {
 //
 // It exists because alignment and color interact badly: any padding computed after styling
 // counts escape bytes as visible width and the columns drift apart. text/tabwriter has the same
-// flaw — its Escape mechanism hides the bytes from parsing but still measures them — so every
-// command that wanted color was going to hand-roll its own width arithmetic. Table measures
-// the plain text, pads, and only then paints.
+// flaw, its Escape mechanism hides the bytes from parsing but still measures them, so every
+// command that wanted color was going to hand-roll its own width arithmetic. Table measures the
+// plain text, pads, and only then paints.
 type Table struct {
 	painter Painter
 	indent  string
@@ -56,7 +56,7 @@ func (t *Table) Indent(prefix string) *Table {
 	return t
 }
 
-// Row appends a row. Rows may be shorter than the header — missing cells render empty.
+// Row appends a row. Rows may be shorter than the header, missing cells render empty.
 func (t *Table) Row(cells ...Cell) *Table {
 	t.rows = append(t.rows, row{cells: cells})
 	return t
@@ -83,7 +83,7 @@ func (t *Table) RowWithNotes(notes []string, cells ...Cell) *Table {
 }
 
 // Render writes the table. Columns are sized to their widest plain-text value, and the final
-// column is never padded — nothing follows it, and trailing spaces are noise in a diff or a
+// column is never padded. Nothing follows it, and trailing spaces are noise in a diff or a
 // copied-out log.
 func (t *Table) Render(w io.Writer) {
 	cols := len(t.headers)
@@ -155,5 +155,5 @@ func (t *Table) writeLine(w io.Writer, widths []int, cells []Cell) {
 
 // width is a cell's display width. Counting runes rather than bytes is what makes the ✓ and ✗
 // in a status column line up. It still assumes one column per rune, which is wrong for
-// double-width scripts — a real problem, but not one Draugr's output has today.
+// double-width scripts, a real problem, but not one Draugr's output has today.
 func width(s string) int { return utf8.RuneCountInString(s) }

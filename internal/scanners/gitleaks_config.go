@@ -34,8 +34,8 @@ func gitleaksConfigFor(userConfig string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("gitleaks config %q: %w", userConfig, err)
 		}
-		// Named by absolute path, because Gitleaks resolves it relative to its own working
-		// directory rather than to ours — and a relative path here silently extends nothing.
+		// Named by absolute path, because Gitleaks resolves it relative to its own working directory
+		// rather than to ours, and a relative path here silently extends nothing.
 		extend = fmt.Sprintf("[extend]\npath = %q", abs)
 	}
 	// A placeholder that cannot occur in prose. The obvious spelling matched the word inside this

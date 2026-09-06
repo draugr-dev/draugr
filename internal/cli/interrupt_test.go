@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// A scan holds things that have to be given back — a temporary checkout, a privileged Job in
-// somebody's cluster — and every one is released by a deferred cleanup. A deferred cleanup runs
+// A scan holds things that have to be given back, a temporary checkout, a privileged Job in
+// somebody's cluster. And every one is released by a deferred cleanup. A deferred cleanup runs
 // when a function returns, not when a process is killed, so the interrupt has to become a
 // cancellation rather than a termination.
 //

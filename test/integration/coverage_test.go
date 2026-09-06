@@ -28,7 +28,7 @@ func scanTo(t *testing.T, dir, saga string) (string, string) {
 }
 
 // toolsInSARIF returns the set of scanners that produced a finding, read from the report rather
-// than the console — the console shows a shortlist, and a scanner with nothing to say about a
+// than the console. The console shows a shortlist, and a scanner with nothing to say about a
 // fixture is not the same as one that never ran.
 func toolsInSARIF(t *testing.T, path string) map[string]int {
 	t.Helper()
@@ -86,9 +86,8 @@ components:
 
 	_, sarifPath := scanTo(t, dir, "draugr.saga.yaml")
 	tools := toolsInSARIF(t, sarifPath)
-	// The report names the tool rather than the scanner — "trivy", not "trivy-fs" — because that
-	// is what a reader recognizes. Only sca is enabled here, so each can only be its repository
-	// scanner.
+	// The report names the tool rather than the scanner, "trivy", not "trivy-fs". Because that is
+	// what a reader recognizes. Only sca is enabled here, so each can only be its repository scanner.
 	for _, want := range []string{"trivy", "grype"} {
 		if tools[want] == 0 {
 			t.Errorf("%s produced no findings, so enabling it did nothing: %v", want, tools)
@@ -129,15 +128,15 @@ components:
 }
 
 // TestInfrastructureControlAuditsTheCluster covers the infrastructure control against the kind
-// cluster the workflow already stands up. Its default scanner is native, so this needs no binary —
+// cluster the workflow already stands up. Its default scanner is native, so this needs no binary,
 // only a reachable cluster, which is the one thing this job has and unit tests cannot fake.
 func TestInfrastructureControlAuditsTheCluster(t *testing.T) {
 	// Asking the cluster rather than assuming one: this file's other tests run without it.
 	clientset(t)
 
-	// `ref` selects a kubeconfig context by name, and the name depends on what created the
-	// cluster — kind calls it "kind-<cluster>" — so hard-coding one would pass on the machine it
-	// was written on and fail everywhere else.
+	// `ref` selects a kubeconfig context by name, and the name depends on what created the cluster,
+	// kind calls it "kind-<cluster>". So hard-coding one would pass on the machine it was written on
+	// and fail everywhere else.
 	dir := t.TempDir()
 	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`project: infra-integration
 release: { version: "1.0" }
@@ -191,7 +190,7 @@ func TestDiffGatesOnNewFindingsOnly(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("two scans of one unchanged repository introduced nothing, so the gate should "+
-			"pass — inheriting a backlog must not block every change:\n%s", out)
+			"pass, inheriting a backlog must not block every change:\n%s", out)
 	}
 	if !strings.Contains(string(out), "new") && !strings.Contains(string(out), "New") {
 		t.Errorf("the diff never reported what it compared:\n%s", out)

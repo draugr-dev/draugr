@@ -1,4 +1,4 @@
-# Draugr — Naming & Terminology
+# Draugr, Naming & Terminology
 
 Status: **living document**. Captures naming decisions so they don't drift.
 Legend: ✅ locked / implemented · 🔶 proposed (not yet committed) · 💤 deferred until it earns a name.
@@ -7,8 +7,8 @@ Legend: ✅ locked / implemented · 🔶 proposed (not yet committed) · 💤 de
 
 ## The name: Draugr
 
-A *draugr* is the undead guardian of a treasure hoard in a burial mound (*haugr*) in
-Norse mythology — immensely strong, never sleeps, and protects what is its own.
+A *draugr* is the undead guardian of a treasure hoard in a burial mound (*haugr*) in Norse
+mythology, immensely strong, never sleeps, and protects what is its own.
 
 It fits the product: a tireless guardian standing watch over your software. We lean into
 the Norse theme deliberately and consistently.
@@ -24,11 +24,11 @@ the Norse theme deliberately and consistently.
 |------|--------|---------|
 | **Scanner** | ✅ | A plugin that wraps a security tool (Trivy, Semgrep, gosec, Gitleaks…) and runs one kind of scan. Normalizes output to **SARIF**. We use "scanner" because it is the word the whole industry already uses. |
 | **Controller** | ✅ | Orchestrates one or more scanners for a single **security control** (e.g. the `sast` controller runs `semgrep` by default and `gosec` when opted in). Bound to a scope: `project` or `component`. |
-| **Surveyor** | ✅ | A discovery plugin that inspects an environment and *reports back what exists* — e.g. all container images in a k8s cluster, all exposed endpoints, all repos in a GitHub org / ADO project. Surveyors auto-populate the descriptor so developers don't have to write it by hand. Chosen over "explorer": more distinctive, and "a surveyor maps the terrain before you build" is apt. |
+| **Surveyor** | ✅ | A discovery plugin that inspects an environment and *reports back what exists*, e.g. all container images in a k8s cluster, all exposed endpoints, all repos in a GitHub org / ADO project. Surveyors auto-populate the descriptor so developers don't have to write it by hand. Chosen over "explorer": more distinctive, and "a surveyor maps the terrain before you build" is apt. |
 
-**Naming rule — public vs. code:** "Scanner" is both the public/marketing word and the
-code term. For the others, the code terms above are canonical; marketing copy may use
-plainer phrasing (e.g. "discovery" for surveyors) where it aids first-time understanding.
+**Naming rule, public vs. code:** "Scanner" is both the public/marketing word and the code term.
+For the others, the code terms above are canonical; marketing copy may use plainer phrasing (e.g.
+"discovery" for surveyors) where it aids first-time understanding.
 
 ---
 
@@ -56,7 +56,7 @@ scanners and issue links for the planned ones.
 | `infrastructure` | CIS benchmarks / posture | Cluster hardening and policy (e.g. kube-bench) | ✅ |
 
 **`sbom` is deliberately not on this list.** An SBOM is an inventory, and every row above means
-"checked, and here is the verdict" — a control that never looks for anything would always read
+"checked, and here is the verdict", a control that never looks for anything would always read
 `pass`. It ships as evidence under `config.sbom` instead, and never affects the verdict.
 
 History: `sca` was formerly `opensource`, and `tls` was `certificates`; renamed to the standard
@@ -68,28 +68,28 @@ because license risk is legal rather than technical and warrants its own gate th
 
 ## Draugr-flavored names (Norse theme)
 
-Names we adopt for major concepts. Use sparingly — over-naming is a cognitive tax, so
-only concepts that genuinely benefit from a memorable handle get one. The rest stay
-plain (`draugr scan`, `draugr report`).
+Names we adopt for major concepts. Use sparingly. Over-naming is a cognitive tax, so only concepts
+that genuinely benefit from a memorable handle get one. The rest stay plain (`draugr scan`, `draugr
+report`).
 
 | Concept | Name | Status | Rationale |
 |---------|------|--------|-----------|
 | **The descriptor / manifest** | **Saga** | ✅ | A saga *is an account of* something. `draugr.saga.yaml` = "the account of your app": where the repos are, what images it builds, what endpoints it exposes, what infra it runs on. Intuitive, ownable, on-theme. **Doc-facing:** keep the name, but introduce it as "the descriptor (your `draugr.saga.yaml`)" on first mention per page so newcomers aren't taxed. |
-| **Surveyors, collectively (the discovery subsystem)** | **Surveyor** (plain) | ✅ | Deliberately unnamed. "The Ravens" (Odin's Huginn & Muninn, who fly the world and report back) was a good fit for what surveyors do, but it was carried alongside the plain term rather than instead of it — every page said "Surveyors (the Ravens)", which is two names for one thing and a tax on the reader for no gain. **Doc-facing:** **Surveyor**, everywhere. |
-| **Reporting / evidence engine** | **Skald** | ✅ | A skald is the poet who records and recounts deeds. `pkg/skald` renders scan results to JSON + merged SARIF evidence (human formats live in `pkg/report`). **Code-internal only** — user docs say "report" / "reporting". |
-| **Policy / pass-fail gate** | **Norn** | ✅ | The Norns decide fate. `pkg/norn` decides a release's fate. **Code-internal only** — user docs say "the gate" / "verdict". |
+| **Surveyors, collectively (the discovery subsystem)** | **Surveyor** (plain) | ✅ | Deliberately unnamed. "The Ravens" (Odin's Huginn & Muninn, who fly the world and report back) was a good fit for what surveyors do, but it was carried alongside the plain term rather than instead of it, every page said "Surveyors (the Ravens)", which is two names for one thing and a tax on the reader for no gain. **Doc-facing:** **Surveyor**, everywhere. |
+| **Reporting / evidence engine** | **Skald** | ✅ | A skald is the poet who records and recounts deeds. `pkg/skald` renders scan results to JSON + merged SARIF evidence (human formats live in `pkg/report`). **Code-internal only**. User docs say "report" / "reporting". |
+| **Policy / pass-fail gate** | **Norn** | ✅ | The Norns decide fate. `pkg/norn` decides a release's fate. **Code-internal only**. User docs say "the gate" / "verdict". |
 | **Plugin marketplace / registry** | **the Hoard** | 🔶 | The treasure a draugr guards. A registry of community scanners, controllers, and surveyors. |
 
 **In use today:** `draugr.saga.yaml` (descriptor), **Skald** (`pkg/skald`), and **Norn**
 (`pkg/norn`). **the Hoard** stays reserved until the plugin registry lands.
 
 **Doc-facing vs. code-internal.** `Norn` and `Skald` are **code vocabulary** (`pkg/norn`,
-`pkg/skald`) and stay out of user-facing docs — a reader shouldn't have to learn a Norse
-name to describe Draugr to a colleague. Published pages use the plain terms: **the gate** /
-**verdict** for the Norn, **report** / **reporting** for the Skald. The Norse names live only
-in the code and in these `contributing/` architecture docs (`pipeline.md`, `architecture.md`).
-`Saga` is the exception that stays user-facing, because it *is* the descriptor's name and
-format — glossed as "the descriptor" on first mention.
+`pkg/skald`) and stay out of user-facing docs. A reader shouldn't have to learn a Norse name to
+describe Draugr to a colleague. Published pages use the plain terms: **the gate** / **verdict** for
+the Norn, **report** / **reporting** for the Skald. The Norse names live only in the code and in
+these `contributing/` architecture docs (`pipeline.md`, `architecture.md`). `Saga` is the exception
+that stays user-facing, because it *is* the descriptor's name and format, glossed as "the
+descriptor" on first mention.
 
 The test a candidate name has to pass: **does it replace a plain term, or sit next to one?**
 A name that replaces (`Saga`, for the thing whose file extension is `.saga.yaml`) earns its

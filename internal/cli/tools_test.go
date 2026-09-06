@@ -46,7 +46,7 @@ func TestProvenanceLabel(t *testing.T) {
 		want string
 	}{
 		{tools.Installed{SignatureVerified: true, ProvenanceNote: "cosign signature verified"}, "sha256 + cosign verified"},
-		{tools.Installed{ProvenanceNote: "cosign not installed — skipped signature check"}, "sha256 verified; cosign not installed — skipped signature check"},
+		{tools.Installed{ProvenanceNote: "cosign not installed, skipped signature check"}, "sha256 verified; cosign not installed, skipped signature check"},
 		{tools.Installed{}, "sha256 verified"},
 	}
 	for _, c := range cases {
@@ -99,7 +99,7 @@ func TestRunToolsInstallInteractiveAbort(t *testing.T) {
 
 func TestRunToolsInstallHandlesSemgrepLikeAnyOtherTool(t *testing.T) {
 	// Stubbed absent. Without this the test asks the machine it runs on, and passes or fails
-	// depending on whether the developer happens to have semgrep — which is how it read as a
+	// depending on whether the developer happens to have semgrep. Which is how it read as a
 	// regression the first time the installer learned to check.
 	stubDetect(t, map[string]string{})
 	var out bytes.Buffer
@@ -189,7 +189,7 @@ func TestToolsCommandWiring(t *testing.T) {
 }
 
 // A misspelled tool has nothing to plan, so it renders as a row of dashes and then asks for
-// confirmation of it. It is a typo — say so and stop.
+// confirmation of it. It is a typo. Say so and stop.
 func TestToolsInstallRejectsUnknownTool(t *testing.T) {
 	var out bytes.Buffer
 	called := false
@@ -282,7 +282,7 @@ func TestInstallNamesFromSaga(t *testing.T) {
 	}
 }
 
-// Without the flag nothing changes — a pipeline that provisions the catalog keeps doing so.
+// Without the flag nothing changes, a pipeline that provisions the catalog keeps doing so.
 func TestInstallNamesWithoutSagaIsUnchanged(t *testing.T) {
 	t.Parallel()
 
@@ -292,7 +292,7 @@ func TestInstallNamesWithoutSagaIsUnchanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(got) != 0 {
-		t.Errorf("names = %v, want none — an empty list means the whole catalog downstream", got)
+		t.Errorf("names = %v, want none, an empty list means the whole catalog downstream", got)
 	}
 
 	named, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{})
@@ -385,8 +385,8 @@ func stubDetect(t *testing.T, found map[string]string) {
 }
 
 func TestInstallPlanMarksWhatIsAlreadyThere(t *testing.T) {
-	// The plan is the moment someone decides whether to let a security tool write to their
-	// machine, and it was describing work it would not do — six rows for one download.
+	// The plan is the moment someone decides whether to let a security tool write to their machine,
+	// and it was describing work it would not do, six rows for one download.
 	stubDetect(t, map[string]string{"trivy": "0.69.3"})
 	var out bytes.Buffer
 	names := []string{"trivy", "gitleaks"}
@@ -424,9 +424,9 @@ func TestInstallAsksNothingWhenEverythingIsCurrent(t *testing.T) {
 			current[spec.Binary] = spec.Version
 			continue
 		}
-		// Every managed path, not the Python one alone. Asking only that one stubbed the others
-		// at "", and the version check that would have noticed did not cover them either — so a
-		// tool at any version at all counted as current.
+		// Every managed path, not the Python one alone. Asking only that one stubbed the others at "",
+		// and the version check that would have noticed did not cover them either, so a tool at any
+		// version at all counted as current.
 		current[name] = tools.ManagedVersion(name)
 	}
 	stubDetect(t, current)
@@ -613,7 +613,7 @@ func TestInstallReportsWhatChangedAndCountsTheRest(t *testing.T) {
 	}
 }
 
-// A tool that turns out not to be current after all is installed here, not skipped — so the case
+// A tool that turns out not to be current after all is installed here, not skipped, so the case
 // worth seeing stays loud even though the quiet one went silent.
 func TestInstallStillNamesAToolItReplaced(t *testing.T) {
 	stubDetect(t, map[string]string{"trivy": "0.69.3"})
@@ -637,11 +637,11 @@ func TestInstallStillNamesAToolItReplaced(t *testing.T) {
 // The plan's count and the log's count describe the same tools, so they have to match.
 //
 // They used to drift over semgrep, which was planned like everything else and installed by
-// something else — so a full install reported one fewer unchanged tool than the plan had just
+// something else, so a full install reported one fewer unchanged tool than the plan had just
 // called current. Two numbers about the same thing disagreeing is worse than either alone, and the
 // invariant is worth keeping now that the cause is gone.
 func TestInstallCountsAgreeAcrossEveryTool(t *testing.T) {
-	// Everything the real command would plan, current except syft — the shape the report described.
+	// Everything the real command would plan, current except syft, the shape the report described.
 	current := map[string]string{}
 	catalog := tools.Catalog()
 	for _, name := range tools.Installable() {
@@ -682,8 +682,8 @@ func installVersion(t *testing.T, name string) string {
 	if spec, ok := tools.Spec(name); ok {
 		return spec.Version
 	}
-	// One place to ask, rather than a branch per install path — this helper listed them
-	// individually and so did not know about the one added after it was written.
+	// One place to ask, rather than a branch per install path. This helper listed them individually
+	// and so did not know about the one added after it was written.
 	if v := tools.ManagedVersion(name); v != "" {
 		return v
 	}
@@ -697,7 +697,7 @@ func installVersion(t *testing.T, name string) string {
 // and the run printed an instruction to go and run something else. Each of those was correct while
 // Draugr could not install it, and each is now a claim about work that does happen.
 func TestInstallingSemgrepIsPlannedAndConfirmedLikeAnythingElse(t *testing.T) {
-	// semgrep absent, one other tool current — the count line is only rendered when something is
+	// semgrep absent, one other tool current. The count line is only rendered when something is
 	// already satisfied, and the count is what this is about.
 	trivy, _ := tools.Spec("trivy")
 	stubDetect(t, map[string]string{"trivy": trivy.Version})
@@ -732,7 +732,7 @@ func TestInstallingSemgrepIsPlannedAndConfirmedLikeAnythingElse(t *testing.T) {
 	}
 }
 
-// The gate still has to exist for what Draugr really does download — the point is that it gates
+// The gate still has to exist for what Draugr really does download. The point is that it gates
 // downloads, not that it is gone.
 func TestARealDownloadStillAsks(t *testing.T) {
 	stubDetect(t, nil)
@@ -746,7 +746,7 @@ func TestARealDownloadStillAsks(t *testing.T) {
 		called++
 		return tools.Installed{Name: "syft", Version: "1", Path: "/bin/syft"}, nil
 	}
-	// "n" — declining proves the prompt was real rather than printed and ignored.
+	// "n". Declining proves the prompt was real rather than printed and ignored.
 	if err := runToolsInstall(&out, strings.NewReader("n\n"), []string{"syft"},
 		toolsInstallOptions{}, install); err != nil {
 		t.Fatal(err)

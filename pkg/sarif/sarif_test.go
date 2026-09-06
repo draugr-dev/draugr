@@ -202,7 +202,7 @@ func TestFromSARIFResultLevelOverridesRule(t *testing.T) {
 	}
 }
 
-// A result the tool marks as suppressed — Semgrep's in-source `nosem`, a linter pragma — is kept
+// A result the tool marks as suppressed · Semgrep's in-source `nosem`, a linter pragma. Is kept
 // and marked rather than dropped.
 //
 // Dropping it made it indistinguishable from a finding nobody ever made, which is the one thing
@@ -226,7 +226,7 @@ func TestFromSARIFKeepsSuppressedAndMarksThem(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(got.Results) != 2 {
-		t.Fatalf("results = %d, want 2 — a silenced finding is still a finding", len(got.Results))
+		t.Fatalf("results = %d, want 2, a silenced finding is still a finding", len(got.Results))
 	}
 
 	byRule := map[string]Result{}
@@ -242,7 +242,7 @@ func TestFromSARIFKeepsSuppressedAndMarksThem(t *testing.T) {
 		t.Fatal("a suppressed finding came back active")
 	}
 	if !silenced.SilencedInSource() {
-		t.Errorf("origin = %q, want %q — a comment in the code is not a decision anybody recorded",
+		t.Errorf("origin = %q, want %q, a comment in the code is not a decision anybody recorded",
 			silenced.Suppression.Origin, OriginTool)
 	}
 	if silenced.Suppression.Justification != "reviewed, false positive" {
@@ -315,8 +315,8 @@ func TestAnImportedClaimReadsBackAsImported(t *testing.T) {
 }
 
 func TestAnOlderReportsSuppressionIsReadAsADecision(t *testing.T) {
-	// Origin arrived after suppressions did. A report written before it, carrying an acceptedBy,
-	// is a descriptor rule — reading it as an in-source comment would demote somebody's recorded
+	// Origin arrived after suppressions did. A report written before it, carrying an acceptedBy, is
+	// a descriptor rule, reading it as an in-source comment would demote somebody's recorded
 	// decision to a pragma.
 	data := []byte(`{
 		"version": "2.1.0",
@@ -690,7 +690,7 @@ func TestMarshalCompactDropsProseKeepsPointer(t *testing.T) {
 			t.Errorf("compact output still carries %q", gone)
 		}
 	}
-	// The pointer survives — a reader that can follow a link doesn't need the paragraphs.
+	// The pointer survives. A reader that can follow a link doesn't need the paragraphs.
 	if !strings.Contains(s, "https://semgrep.dev/r/py.audit.eval") {
 		t.Error("compact dropped helpUri; it's the whole reason the prose can go")
 	}
@@ -708,15 +708,15 @@ func TestMarshalCompactDropsProseKeepsPointer(t *testing.T) {
 	if !strings.Contains(s, "https://nvd.nist.gov/vuln/detail/CVE-2021-1") {
 		t.Error("compact should keep the derived advisory link too")
 	}
-	// The scanner tag is how a consumer knows which tool found it — not prose, keep it.
+	// The scanner tag is how a consumer knows which tool found it. Not prose, keep it.
 	if !strings.Contains(s, "scanner:semgrep") {
 		t.Error("compact dropped the scanner tag")
 	}
 }
 
-// Trivy's message repeats what every consumer already shows in its own column, and its first
-// line is a filename — so an editor's Problems panel lists a manifest's findings as N identical
-// rows. The advisory title is on the rule; prefer it.
+// Trivy's message repeats what every consumer already shows in its own column, and its first line
+// is a filename, so an editor's Problems panel lists a manifest's findings as N identical rows.
+// The advisory title is on the rule; prefer it.
 func TestReadableMessagePrefersTheAdvisoryOverAFieldDump(t *testing.T) {
 	dump := "Package: Flask\nInstalled Version: 0.12.2\nVulnerability CVE-2018-1000656\n" +
 		"Severity: HIGH\nFixed Version: 0.12.3\nLink: [CVE-2018-1000656](https://avd.aquasec.com/nvd/cve-2018-1000656)"
@@ -783,7 +783,7 @@ func TestFromSARIFRewritesFieldDumpMessages(t *testing.T) {
 }
 
 // SARIF has a run-level property bag for exactly this, so the benchmark a report was measured
-// against travels to any consumer that reads SARIF — not only to Draugr's own reporters.
+// against travels to any consumer that reads SARIF, not only to Draugr's own reporters.
 func TestSARIFCarriesProvenance(t *testing.T) {
 	r := Report{Tool: "draugr-k8s-policies", Provenance: []Provenance{{
 		Tool: "draugr-k8s-policies", Version: "0.50.0",
@@ -863,7 +863,7 @@ func TestFromSARIFWithoutProvenanceCarriesNone(t *testing.T) {
 
 // TestImageAndOSSurviveTheFile is the round trip.
 //
-// A report is written and read back — by `draugr diff`, and by every platform format that reads
+// A report is written and read back, by `draugr diff`, and by every platform format that reads
 // the SARIF rather than the run that produced it. A field that exists only in memory is one all
 // of those have to do without, and the loss is invisible: the first read is the one that works.
 func TestImageAndOSSurviveTheFile(t *testing.T) {
@@ -914,11 +914,11 @@ func TestImageAndOSSurviveTheFile(t *testing.T) {
 				i, got.OperatingSystem, want.OperatingSystem)
 		}
 		if got.ProviderOperated != want.ProviderOperated {
-			t.Errorf("result %d: provider-operated = %v, want %v — losing it puts work nobody "+
+			t.Errorf("result %d: provider-operated = %v, want %v, losing it puts work nobody "+
 				"can do back at the top of the list", i, got.ProviderOperated, want.ProviderOperated)
 		}
 		if got.OSEndOfLife != want.OSEndOfLife {
-			t.Errorf("result %d: end of service life = %v, want %v — a permanent 'no fix' and a "+
+			t.Errorf("result %d: end of service life = %v, want %v, a permanent 'no fix' and a "+
 				"pending one are different answers", i, got.OSEndOfLife, want.OSEndOfLife)
 		}
 		switch {
@@ -935,7 +935,7 @@ func TestImageAndOSSurviveTheFile(t *testing.T) {
 
 func TestPartialFingerprintsRoundTrip(t *testing.T) {
 	// A field that survives writing but not reading is one that silently disappears the first time
-	// anything re-reads a report — and `draugr diff` re-reads reports.
+	// anything re-reads a report. And `draugr diff` re-reads reports.
 	rep := Report{Tool: "semgrep", Results: []Result{{
 		RuleID: "hardcoded-secret", Level: LevelError, Message: "a secret",
 		Location:            Location{URI: "app/main.go", StartLine: 6},
@@ -965,7 +965,7 @@ func TestPartialFingerprintsRoundTrip(t *testing.T) {
 
 func TestEscalationSurvivesTheFile(t *testing.T) {
 	// The enrichment most likely to be argued with, because it moves a finding up. A consumer that
-	// can see the band and not the reason has to take the band on trust — and "KEV said so" is not
+	// can see the band and not the reason has to take the band on trust. And "KEV said so" is not
 	// something a reader can check, while "on KEV, as of 2026-08-22" is.
 	rep := Report{Results: []Result{{
 		RuleID: "CVE-2026-1234", Level: LevelWarning, Message: "an old library",
@@ -1047,8 +1047,8 @@ func TestNothingElseMatchedWritesNothing(t *testing.T) {
 
 func TestAnEscalationAloneIsEnoughToWriteProperties(t *testing.T) {
 	// The property bag is written only when there is something to put in it, and the condition
-	// listing every field is exactly the kind that gets a new field added above it and not into
-	// it — which drops the field silently for any finding carrying nothing else.
+	// listing every field is exactly the kind that gets a new field added above it and not into it,
+	// which drops the field silently for any finding carrying nothing else.
 	rep := Report{Results: []Result{{
 		RuleID: "CVE-2026-9999", Level: LevelNote, Message: "a finding with nothing else",
 		Escalation: &Escalation{Signal: "epss", Detail: "EPSS 0.87", AsOf: "2026-08-22"},
@@ -1092,7 +1092,7 @@ func TestThePriorityFloorSurvivesTheFile(t *testing.T) {
 	}
 }
 
-// A floor on its own is enough to write a property bag — the same rule escalation already has,
+// A floor on its own is enough to write a property bag, the same rule escalation already has,
 // because a finding whose only enrichment is the floor would otherwise carry none of it.
 func TestAFloorAloneIsEnoughToWriteProperties(t *testing.T) {
 	rep := Report{Results: []Result{{
@@ -1125,7 +1125,7 @@ func TestWhatARunConsultedSurvivesTheFile(t *testing.T) {
 	// written: whoever reloads the evidence still cannot tell "not on KEV" from "KEV was never
 	// loaded", which is the distinction this carries.
 	//
-	// Two feeds, not one — with one, a value read from the wrong entry still looks right.
+	// Two feeds, not one. With one, a value read from the wrong entry still looks right.
 	in := Report{
 		Tool:    "draugr",
 		Results: []Result{{RuleID: "CVE-2021-44228", Message: "log4j"}},
@@ -1153,9 +1153,8 @@ func TestWhatARunConsultedSurvivesTheFile(t *testing.T) {
 }
 
 func TestARunThatConsultedNothingSaysNothing(t *testing.T) {
-	// An empty list and an absent one must not both appear, or a reader has two spellings of
-	// the same claim to reconcile — and the absent one is what every report before this looked
-	// like.
+	// An empty list and an absent one must not both appear, or a reader has two spellings of the
+	// same claim to reconcile. And the absent one is what every report before this looked like.
 	raw, err := Report{Tool: "draugr", Results: []Result{{RuleID: "R1"}}}.MarshalSARIF()
 	if err != nil {
 		t.Fatal(err)

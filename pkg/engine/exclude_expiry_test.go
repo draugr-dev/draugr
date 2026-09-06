@@ -55,7 +55,7 @@ func TestExpiredExclusionStopsSuppressing(t *testing.T) {
 	}
 }
 
-// An exclusion with no owner still works — the gap is reported rather than enforced — but the
+// An exclusion with no owner still works. The gap is reported rather than enforced, but the
 // suppression records that nobody was named.
 func TestUnattributedSuppressionIsStillRecorded(t *testing.T) {
 	t.Parallel()

@@ -4,7 +4,7 @@ import "sync"
 
 // sfGroup collapses concurrent (and later) calls with the same key to a single execution,
 // sharing its result. It is scoped to one run: entries live for the run's lifetime so any
-// identical job — concurrent or subsequent — reuses the first result. A minimal in-tree
+// identical job, concurrent or subsequent, reuses the first result. A minimal in-tree
 // singleflight so the engine takes no external dependency for this.
 type sfGroup struct {
 	mu sync.Mutex

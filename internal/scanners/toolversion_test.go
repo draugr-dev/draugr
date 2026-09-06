@@ -18,8 +18,8 @@ func TestToolVersionProbeExtracts(t *testing.T) {
 		{"gosec", "Version: 2.22.10\nGit tag: v2.22.10\n", "2.22.10", sharedGosecVersion},
 		{"kube-bench", "0.15.6\n", "0.15.6", sharedKubeBenchVersion},
 		{
-			// The line nuclei writes, ANSI codes and all — and it writes it to stderr, which is
-			// why the probe reads both streams.
+			// The line nuclei writes, ANSI codes and all, and it writes it to stderr, which is why the
+			// probe reads both streams.
 			"nuclei",
 			"[\x1b[34mINF\x1b[0m] Public nuclei-templates version: v10.4.6 (/home/you/nuclei-templates)\n",
 			"v10.4.6", sharedNucleiVersion,
@@ -98,9 +98,9 @@ func TestNativeScannersKeyOnDraugrsOwnVersion(t *testing.T) {
 
 // TestEveryScannerWiresACacheVersion is white-box on purpose.
 //
-// The obvious test — "does it implement plugin.CacheVersioner" — passes for every repoScanner
-// whether or not anything is wired, because the method exists on the type and returns "" when
-// the field is nil. It is the field that carries the meaning, so it is the field that is checked.
+// The obvious test. "does it implement plugin.CacheVersioner", passes for every repoScanner
+// whether or not anything is wired, because the method exists on the type and returns "" when the
+// field is nil. It is the field that carries the meaning, so it is the field that is checked.
 //
 // A new scanner belongs in this list. The cost of forgetting is a cache that serves yesterday's
 // answer after the thing that decides the answer has changed, and nothing says so.
@@ -126,7 +126,7 @@ func TestEveryScannerWiresACacheVersion(t *testing.T) {
 		case repoScanner:
 			if v.cacheVersion == nil {
 				t.Errorf("%s: repoScanner.cacheVersion is nil, so its cache key carries no tool "+
-					"or data version — an upgrade will not invalidate a cached result", name)
+					"or data version, an upgrade will not invalidate a cached result", name)
 			}
 		default:
 			cv, ok := s.(plugin.CacheVersioner)
@@ -158,7 +158,7 @@ func TestNativeAndPinnedScannersAnswerWithoutATool(t *testing.T) {
 			continue
 		}
 		if got := cv.CacheVersion(ctx); got == "" {
-			t.Errorf("%s answered %q — it needs no external tool, so it has no reason not to", name, got)
+			t.Errorf("%s answered %q, it needs no external tool, so it has no reason not to", name, got)
 		}
 	}
 }

@@ -114,7 +114,7 @@ func TestApplyIntoModel(t *testing.T) {
 // A fragment's exposure reasons have to survive the merge.
 //
 // The merge is the only path from a surveyor to the descriptor, so anything it drops may as well
-// never have been discovered — and dropping this is invisible: the exposure still arrives, the
+// never have been discovered. And dropping this is invisible: the exposure still arrives, the
 // file is still written, and the only thing missing is the evidence for a value the reader is
 // being asked to confirm.
 func TestMergeFragmentsKeepsWhyEachExposureWasProposed(t *testing.T) {
@@ -137,7 +137,7 @@ func TestMergeFragmentsKeepsWhyEachExposureWasProposed(t *testing.T) {
 }
 
 // The surface unions but a proposed value does not, so the reason has to stay with the value that
-// stayed — otherwise a component ends up carrying one fragment's exposure and another's reason.
+// stayed, otherwise a component ends up carrying one fragment's exposure and another's reason.
 func TestMergeFragmentsKeepsTheReasonBelongingToTheExposureItKept(t *testing.T) {
 	merged := MergeFragments(
 		saga.Fragment{

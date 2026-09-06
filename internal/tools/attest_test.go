@@ -87,7 +87,7 @@ func TestAttestNoticesAChangedBinary(t *testing.T) {
 }
 
 func TestAttestNoticesAnUnrecordedBinary(t *testing.T) {
-	// In the right directory but never recorded — dropped there by something else.
+	// In the right directory but never recorded, dropped there by something else.
 	binDir := filepath.Join(t.TempDir(), "bin")
 	if err := os.MkdirAll(binDir, 0o750); err != nil {
 		t.Fatal(err)
@@ -104,8 +104,8 @@ func TestAttestNoticesAnUnrecordedBinary(t *testing.T) {
 }
 
 func TestAttestFallsBackToTheRecordedVersion(t *testing.T) {
-	// A tool that will not report its version is still attested — Draugr knows what it installed
-	// even when the binary declines to say.
+	// A tool that will not report its version is still attested. Draugr knows what it installed even
+	// when the binary declines to say.
 	binDir := filepath.Join(t.TempDir(), "bin")
 	path := installed(t, binDir, "gitleaks", "8.30.1", []byte("x"))
 
@@ -134,8 +134,8 @@ func TestDescribeForSeparatesNotInstalledFromNotDistributed(t *testing.T) {
 			want: "draugr tools install trivy",
 		},
 		{
-			// Semgrep is provisioned too, by the Python route rather than a release archive — so
-			// the line has to offer the command, exactly as it does for a downloaded binary.
+			// Semgrep is provisioned too, by the Python route rather than a release archive. So the line
+			// has to offer the command, exactly as it does for a downloaded binary.
 			name:  "a tool Draugr installs as a Python package",
 			level: LevelExternal, tool: "semgrep",
 			want: "draugr tools install semgrep",

@@ -1,6 +1,6 @@
 ---
 title: The Saga
-description: The draugr.saga.yaml descriptor — a security bill of materials for a running app.
+description: The draugr.saga.yaml descriptor, a security bill of materials for a running app.
 section: Core concepts
 order: 10
 ---
@@ -10,9 +10,9 @@ order: 10
 Draugr turns a description of your app into trustworthy, audit-ready security evidence. The
 starting point is the **Saga**.
 
-`draugr.saga.yaml` is the source of truth — a *security bill of materials for a running
-application*. It lists your **components** (repositories, images, hosts, infrastructure) and
-which **controls** must pass. You write what you know; Draugr works out the rest.
+`draugr.saga.yaml` is the source of truth, a *security bill of materials for a running application*.
+It lists your **components** (repositories, images, hosts, infrastructure) and which **controls**
+must pass. You write what you know; Draugr works out the rest.
 
 ## Why a descriptor at all
 
@@ -32,17 +32,17 @@ A descriptor moves that decision out of the pipeline and into a file that lives 
   are not in the code. Declaring them is what lets Draugr turn a pile of "criticals" into an
   ordered list.
 - **The evidence knows what it covered.** A run's report is anchored to the descriptor, so the
-  auditor's question — what was in scope — has an answer that isn't "whatever CI happened to do
+  auditor's question. What was in scope, has an answer that isn't "whatever CI happened to do
   that day".
 
 ## Anatomy
 
 ```yaml
 project: acme-platform
-release:                      # required — what is being qualified
+release:                      # required. What is being qualified
   version: "1.4.0"
 
-config:                       # optional — controls, thresholds, reports, publishers
+config:                       # optional, controls, thresholds, reports, publishers
   controllers:
     secrets: { enabled: true }
 
@@ -58,7 +58,7 @@ components:                   # the app's parts
     hosts:
       - url: https://acme.example.com
 
-references: []                # optional — links to manual or human-run controls
+references: []                # optional. Links to manual or human-run controls
 ```
 
 Every field is covered in the [Saga reference](../reference/saga-schema.md). The four that
@@ -66,7 +66,7 @@ shape a run most are below.
 
 ### `release`
 
-What this run qualifies. `version` is required — it's what the evidence is filed under.
+What this run qualifies. `version` is required. It's what the evidence is filed under.
 
 ### `components`
 
@@ -80,10 +80,10 @@ applies to, so adding an image to a component is what makes image scanning run a
 
 ### `exposure` and `criticality`
 
-The two axes of [prioritization](prioritization.md), and the clearest reason a descriptor beats
-a pipeline flag. **Exposure** is how reachable a component is — likelihood. **Criticality** is
-what its failure costs — impact. Neither is in the source code, so no scanner can infer them,
-and without them a scanner can only ever tell you severity in the abstract.
+The two axes of [prioritization](prioritization.md), and the clearest reason a descriptor beats a
+pipeline flag. **Exposure** is how reachable a component is, likelihood. **Criticality** is what its
+failure costs, impact. Neither is in the source code, so no scanner can infer them, and without them
+a scanner can only ever tell you severity in the abstract.
 
 The same CVE is act-now on a public, business-critical gateway and backlog on a restricted
 internal tool. That distinction is yours to declare, and it's what turns a wall of findings into
@@ -102,12 +102,12 @@ component's own `controllers` block overrides the project default for that compo
 An excluded finding stays in the report, **marked suppressed, carrying the reason someone gave**.
 It doesn't count toward the verdict, and it doesn't disappear.
 
-This is deliberate. A finding that vanishes is indistinguishable from one that was never made,
-and the question an auditor asks is never "did the scanner run" — it's "who decided this was
-acceptable, and when". See [`config.exclude`](../reference/saga-schema.md#configexclude).
+This is deliberate. A finding that vanishes is indistinguishable from one that was never made, and
+the question an auditor asks is never "did the scanner run". It's "who decided this was acceptable,
+and when". See [`config.exclude`](../reference/saga-schema.md#configexclude).
 
 The same holds for acceptances Draugr did not make. A **supplier's VEX claim** and a **comment in
-the code** — a Semgrep `nosem`, a linter pragma — both set a finding aside, and both are reported
+the code**, a Semgrep `nosem`, a linter pragma, both set a finding aside, and both are reported
 rather than dropped. They are counted on their own lines because the three have different people at
 the end of them:
 
@@ -127,8 +127,8 @@ Three ways in, in rough order of how much you already know:
 | Start with | When | What you get |
 |---|---|---|
 | **Nothing** | You want output now | `draugr scan .` runs `sca`, `secrets`, `sast` and `iac` against a repository with no descriptor at all |
-| **[`draugr init`](../reference/cli.md#draugr-init-dir)** | You have a repo and want a starting point | Detects the stack and pre-fills sensible controls — Go adds `gosec`, a Dockerfile adds an `images` stub |
-| **[`draugr survey`](surveyors.md)** | Something you already run can be enumerated — today a Kubernetes cluster or a GitHub org | [Surveyors](surveyors.md) enumerate the surface and write the components for you |
+| **[`draugr init`](../reference/cli.md#draugr-init-dir)** | You have a repo and want a starting point | Detects the stack and pre-fills sensible controls, Go adds `gosec`, a Dockerfile adds an `images` stub |
+| **[`draugr survey`](surveyors.md)** | Something you already run can be enumerated, today a Kubernetes cluster or a GitHub org | [Surveyors](surveyors.md) enumerate the surface and write the components for you |
 
 Zero-config mode is a way to start, not a way to finish: it scans a single repository, and it
 has no way to know a component's exposure or criticality, so it cannot prioritize. The
@@ -136,8 +136,8 @@ descriptor is what upgrades a scan into a qualification.
 
 ## How Draugr finds it
 
-`draugr scan` takes a **file** — the Saga to run — or a **directory**, which triggers
-zero-config mode against that repository. With no argument at all it uses the current directory.
+`draugr scan` takes a **file**. The Saga to run, or a **directory**, which triggers zero-config mode
+against that repository. With no argument at all it uses the current directory.
 
 ```bash
 draugr scan                     # zero-config, current repo
@@ -152,16 +152,16 @@ fast if one is unset**, rather than scanning on with an empty value.
 A descriptor is only worth what its accuracy is worth, and two things protect that:
 
 - **Editor support.** A `# yaml-language-server:` line gives you autocomplete, hover
-  documentation and validation as you type — see
+  documentation and validation as you type. See
   [editor support](../reference/saga-schema.md#editor-support-autocomplete-hover-docs-validation).
 - **Re-survey.** `draugr survey` against a live cluster or org adds what has appeared
   since, so the descriptor tracks reality instead of drifting away from it.
 
 ## Going deeper
 
-- [Saga reference](../reference/saga-schema.md) — every field, with examples
-- [Your first Saga](../getting-started/first-saga.md) — write one end to end
-- [Controls & scanners](controls-and-scanners.md) — what the descriptor resolves to
-- [Prioritization](prioritization.md) — how `exposure` and `criticality` become P1–P4
-- [Verdict & gating](verdict-and-gating.md) — how a run turns into pass or fail
-- [Surveyors](surveyors.md) — let discovery write it for you
+- [Saga reference](../reference/saga-schema.md), every field, with examples
+- [Your first Saga](../getting-started/first-saga.md). Write one end to end
+- [Controls & scanners](controls-and-scanners.md), what the descriptor resolves to
+- [Prioritization](prioritization.md). How `exposure` and `criticality` become P1–P4
+- [Verdict & gating](verdict-and-gating.md). How a run turns into pass or fail
+- [Surveyors](surveyors.md). Let discovery write it for you

@@ -16,8 +16,8 @@ func found(tool, rule, purl string, level sarif.Level, score float64) sarif.Resu
 }
 
 func TestCorrelationCountsOneFlawOnce(t *testing.T) {
-	// The arithmetic this exists to fix: two scanners, one flaw, one count. Both findings stay
-	// in the report — the disagreement between two scanners is the reason to run two.
+	// The arithmetic this exists to fix: two scanners, one flaw, one count. Both findings stay in
+	// the report, the disagreement between two scanners is the reason to run two.
 	ctrls := controlsWith(
 		found("trivy", "CVE-2019-1010083", "pkg:pypi/flask@0.12.2", sarif.LevelError, 8.7),
 		found("grype", "CVE-2019-1010083-flask", "pkg:pypi/flask@0.12.2", sarif.LevelError, 8.7),
@@ -30,7 +30,7 @@ func TestCorrelationCountsOneFlawOnce(t *testing.T) {
 		t.Fatalf("results = %d, want both kept", len(ctrls["sca"].Report.Results))
 	}
 	if n := ctrls["sca"].Report.Counts().Total(); n != 1 {
-		t.Errorf("counted %d, want 1 — the flaw is one thing to fix", n)
+		t.Errorf("counted %d, want 1, the flaw is one thing to fix", n)
 	}
 }
 

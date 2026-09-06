@@ -1,6 +1,6 @@
 ---
 title: Scope and disclaimer
-description: What Draugr does and does not promise — no warranty, no guarantee of completeness, and why license output is not legal advice.
+description: What Draugr does and does not promise, no warranty, no guarantee of completeness, and why license output is not legal advice.
 section: Trust & operations
 order: 30
 ---
@@ -21,12 +21,12 @@ Concretely, a `PASS` is silent about:
 - **Anything your Saga doesn't declare.** Draugr checks the components, repositories, images and
   endpoints you describe. A service nobody wrote down is a service nobody scanned.
 - **Controls you didn't enable.** Every control is opt-in per project.
-- **What the underlying scanners miss.** Draugr orchestrates third-party tools — Trivy, Semgrep,
+- **What the underlying scanners miss.** Draugr orchestrates third-party tools, Trivy, Semgrep,
   Gitleaks, Nuclei and others. Their coverage, accuracy, and false-negative rate are theirs, not
   ours. A vulnerability none of them detects will not appear in a Draugr report.
 - **Anything published after your scan.** A dependency that is clean today may have a CVE
   tomorrow. Scans are a point in time.
-- **Whole categories of risk no scanner addresses** — business logic flaws, access-control
+- **Whole categories of risk no scanner addresses**, business logic flaws, access-control
   design, insider threat, social engineering, physical security.
 
 Draugr is one input to a security program, not a substitute for one.
@@ -61,11 +61,10 @@ not evaluate whether that reason is adequate.
 
 ## Third-party tools carry their own terms
 
-Draugr executes external scanners rather than embedding them. When you run them — whether you
-installed them yourself or via `draugr tools install` — you do so under **their** licenses and
-terms of use, not Draugr's. Some fetch data from third-party services at scan time (Trivy's
-vulnerability database, Nuclei's template repository), which may have their own terms and
-privacy implications.
+Draugr executes external scanners rather than embedding them. When you run them, whether you
+installed them yourself or via `draugr tools install`, you do so under **their** licenses and terms
+of use, not Draugr's. Some fetch data from third-party services at scan time (Trivy's vulnerability
+database, Nuclei's template repository), which may have their own terms and privacy implications.
 
 `draugr tools list` names each tool. The [integrations catalog](../reference/catalog.md) links
 each one's project and license.

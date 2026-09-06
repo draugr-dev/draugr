@@ -9,7 +9,7 @@ import (
 )
 
 // sbomMeta maps a format to the file suffix and media type its consumers expect, mirroring
-// formatMeta for reports. Not every SBOM is JSON — labeling an XML or tag-value document
+// formatMeta for reports. Not every SBOM is JSON, labeling an XML or tag-value document
 // application/json would be wrong the moment a publisher does anything with the media type.
 var sbomMeta = map[saga.SBOMFormat]struct{ ext, contentType string }{
 	saga.SBOMCycloneDXJSON: {"cdx.json", "application/vnd.cyclonedx+json"},
@@ -48,7 +48,7 @@ func SBOMArtifacts(docs []sbom.Document) []Artifact {
 
 // slug makes a filesystem-safe fragment out of a component name or a target reference. Registry
 // paths, tags and digests all carry characters that are awkward or illegal in filenames, and two
-// images in one component must not collapse onto the same name — so every unsafe run becomes a
+// images in one component must not collapse onto the same name. So every unsafe run becomes a
 // single dash rather than being dropped.
 func slug(s string) string {
 	var b strings.Builder

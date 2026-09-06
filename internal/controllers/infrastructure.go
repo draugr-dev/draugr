@@ -20,7 +20,7 @@ const (
 	// handful of questions where the other runs a subprocess per check and, for the pod-security
 	// ones, per pod. On a cluster of eight thousand pods that is seconds against tens of minutes.
 	//
-	// kube-bench stays available as `kubeBench: { enabled: true }` — it is the reference the
+	// kube-bench stays available as `kubeBench: { enabled: true }`. It is the reference the
 	// native reader is checked against, and the thing to reach for if the two ever disagree.
 	infrastructureControl = "infrastructure"
 	kubernetesPlatform    = "kubernetes"
@@ -32,7 +32,7 @@ const (
 // Component-scoped rather than project-scoped, because that is where the Saga puts the data:
 // `infrastructure:` is a list on a component, describing what that component runs on. Two
 // components on the same cluster produce two jobs with the same target, which the engine
-// collapses — so the shared case costs one scan, not two.
+// collapses. So the shared case costs one scan, not two.
 type Infrastructure struct{}
 
 // NewInfrastructure returns the infrastructure controller.
@@ -91,13 +91,13 @@ func infraConfig(model saga.Model, comp *saga.Component) plugin.Config {
 	cfg := plugin.Config{}
 	for k, v := range settings {
 		// `enabled` is the control's own flag, and a nested mapping is a scanner's block. Copying
-		// either into a scanner's config hands it keys that are not its own — and a scanner that
+		// either into a scanner's config hands it keys that are not its own, and a scanner that
 		// declares what it accepts then refuses the whole job, naming a key the descriptor never
 		// wrote at that level.
 		//
-		// A scanner that declares no schema accepts them and ignores them, which is the same
-		// silent drop the schemas exist to end — so this is invisible until a scanner starts
-		// validating, and then it rejects `enabled`, the flag that turns the control on.
+		// A scanner that declares no schema accepts them and ignores them, which is the same silent
+		// drop the schemas exist to end. So this is invisible until a scanner starts validating, and
+		// then it rejects `enabled`, the flag that turns the control on.
 		if k == enabledKey {
 			continue
 		}

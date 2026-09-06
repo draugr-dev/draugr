@@ -22,18 +22,18 @@ import (
 // draugrAPIPublisher posts a run to anything implementing Draugr's run-ingest API.
 //
 // Named for the protocol rather than for one server, because the protocol is the interesting part.
-// Draugr Server implements it, hosted and on-premise; so can anybody else — the three calls are
+// Draugr Server implements it, hosted and on-premise; so can anybody else. The three calls are
 // documented in the reports-and-publishers guide, and nothing here privileges one implementation
 // over another. A publisher named after a product would have made the endpoint look like a
 // configuration detail of that product rather than an interface.
 //
-// Two documents, and they travel differently. `report.json` is the run — small, always — and goes
-// in the request body. `results.sarif` is the evidence and never goes through the API at all: the
+// Two documents, and they travel differently. `report.json` is the run. Small, always. And goes in
+// the request body. `results.sarif` is the evidence and never goes through the API at all: the
 // response returns a URL to put it to, and this uploads it directly.
 //
 // That is the only path rather than an optimization for large payloads. At roughly 2.5 KB of SARIF
 // per finding, a descriptor covering twenty images is around 20 MB before anything unusual
-// happens, and a request body is the wrong place for it — body limits, proxy timeouts and the
+// happens, and a request body is the wrong place for it, body limits, proxy timeouts and the
 // server parsing it all arrive together.
 type draugrAPIPublisher struct {
 	endpoint string
@@ -66,9 +66,9 @@ func newDraugrAPIPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		client:   newRetryingClient(http.DefaultClient),
 	}
 
-	// Both or neither. A descriptor naming this publisher on a machine with no endpoint configured
-	// is somebody running the same Saga locally, and failing their scan over it would make the
-	// descriptor unusable outside CI — which is the opposite of the point.
+	// Both or neither. A descriptor naming this publisher on a machine with no endpoint configured is
+	// somebody running the same Saga locally, and failing their scan over it would make the
+	// descriptor unusable outside CI. Which is the opposite of the point.
 	if p.endpoint == "" && p.token == "" {
 		return skipPublisher{
 			kind:   "draugr-api",
@@ -263,9 +263,9 @@ func digestOf(b []byte) string {
 // the pipeline can tell them apart: identical inputs produce identical reports, so a digest alone
 // would call the second a duplicate of the first.
 //
-// The digest of the report when nothing names the job — the local case, where the same report
-// posted twice is a retry by any reasonable reading. Never empty: the API refuses a run without
-// a key, correctly, and a publisher that let one through would fail every scan run outside CI.
+// The digest of the report when nothing names the job, the local case, where the same report
+// posted twice is a retry by any reasonable reading. Never empty: the API refuses a run without a
+// key, correctly, and a publisher that let one through would fail every scan run outside CI.
 func (p draugrAPIPublisher) runKeyFor(runReport []byte) string {
 	if p.jobID != "" {
 		return p.jobID
