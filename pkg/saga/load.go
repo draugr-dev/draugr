@@ -43,7 +43,7 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 		// silently describes less than the file does.
 		if len(m.Fragments) > 0 {
 			return nil, fmt.Errorf("this descriptor names %d fragment(s), which are resolved "+
-				"relative to the file — load it from a path rather than from bytes", len(m.Fragments))
+				"relative to the file. Load it from a path rather than from bytes", len(m.Fragments))
 		}
 		if err := m.Validate(); err != nil {
 			return nil, err
@@ -91,7 +91,7 @@ func unknownFieldHint(err error) error {
 	if why, ok := removedFields[section+"."+field]; ok {
 		return fmt.Errorf("%s.%s was removed: %s", section, field, why)
 	}
-	return fmt.Errorf("unknown field %q in %s — check the spelling, or see "+
+	return fmt.Errorf("unknown field %q in %s. Check the spelling, or see "+
 		"https://draugr.dev/docs/latest/reference/saga-schema/", field, section)
 }
 
@@ -102,7 +102,7 @@ func unknownFieldHint(err error) error {
 // answers the question the error otherwise raises.
 var removedFields = map[string]string{
 	"release.name": "it named the project, which is what the top-level `project` names. Move " +
-		"the value there — `project: payments-api` — and a release keeps only its version",
+		"the value there, `project: payments-api`, and a release keeps only its version",
 	"release.stage": "nothing read it, so deleting the line changes no result. " +
 		"Where a scan is pointed is a property of the target, not of the release",
 	"host.environment":           environmentRemoved,

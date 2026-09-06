@@ -1,4 +1,4 @@
-Draugr — FAIL   (draugr-demo 0.0.0)
+Draugr · FAIL   (draugr-demo 0.0.0)
 
 Priorities:  P1 3   P2 2   P3 2   P4 1
 
@@ -12,14 +12,14 @@ Controls:
 
 Measured against:
   iac       trivy 0.69.3
-  licenses  trivy-license 0.69.3 — policy deny copyleft
+  licenses  trivy-license 0.69.3 · policy deny copyleft
 
 Components:
   payments       FAIL   P1 3  P2 2  P3 1  sca, secrets
   internal-tool  pass   no findings
   2 findings not tied to a component (project-wide controls)
 
-2 findings suppressed by config.exclude — 1 accepted by a.reviewer, 1 unattributed
+2 findings suppressed by config.exclude · 1 accepted by a.reviewer, 1 unattributed
 
 Fix first (top 5 of 8, by priority):
   Priority  Severity  Score  Rule                                    Control  Scanner  Component      Location

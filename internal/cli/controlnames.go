@@ -39,7 +39,7 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 		}
 		msg := fmt.Sprintf("%s: %q is not a control this build of Draugr provides", where, name)
 		if near := nearestName(name, known); near != "" {
-			msg += fmt.Sprintf(" — did you mean %q?", near)
+			msg += fmt.Sprintf(", did you mean %q?", near)
 		}
 		problems = append(problems, msg)
 	}
@@ -93,7 +93,7 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 				// which sends the reader looking for a typo they did not make.
 				problems = append(problems, fmt.Sprintf(
 					"%s.%s: %q decides reachability and is enabled under config.reachability, "+
-						"not as a scanner — write `config.reachability.analyzers: [%s]`",
+						"not as a scanner. Write `config.reachability.analyzers: [%s]`",
 					where, control, key, analyzer))
 				continue
 			}
@@ -145,7 +145,7 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			msg := fmt.Sprintf("config.reachability.analyzers: %q is not a reachability analyzer "+
 				"this build of Draugr provides", name)
 			if near := nearestName(name, analyzers); near != "" {
-				msg += fmt.Sprintf(" — did you mean %q?", near)
+				msg += fmt.Sprintf(", did you mean %q?", near)
 			} else if len(analyzers) > 0 {
 				msg += fmt.Sprintf(" (it has %s)", list(sortedKeys(analyzers)))
 			}

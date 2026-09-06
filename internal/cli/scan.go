@@ -102,9 +102,9 @@ func newScanCommand() *cobra.Command {
 		Long: "Load a Saga descriptor, run the applicable security controls, and produce\n" +
 			"pass/fail evidence. Exits non-zero when the policy verdict is fail.\n\n" +
 			"Zero-config: point it at a directory (or omit the argument to use the current\n" +
-			"one) and Draugr scans that repository with " + ZeroConfigControls("and") + " — no\n" +
+			"one) and Draugr scans that repository with " + ZeroConfigControls("and") + ", no\n" +
 			"Saga required. Write a Saga (or run `draugr init`) when you need more control.\n\n" +
-			"Answers you give every time — the cache, scanner builds, how you like the report —\n" +
+			"Answers you give every time, the cache, scanner builds, how you like the report —\n" +
 			"belong in draugr.config.yaml rather than on this command line. `draugr config show`\n" +
 			"prints what is in effect and where each setting came from.",
 		Args: cobra.MaximumNArgs(1),
@@ -119,10 +119,10 @@ func newScanCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&opts.outputDir, "output", "o", "", "directory to write reports into (see --report; default report.json and results.sarif)")
 	cmd.Flags().BoolVar(&opts.workingTree, "working-tree", false,
-		"scan repositories as they are on disk, uncommitted work included — for iterating on a "+
+		"scan repositories as they are on disk, uncommitted work included, for iterating on a "+
 			"fix without committing. The result is not reproducible and the report says so")
 	cmd.Flags().BoolVar(&opts.noGate, "no-gate", false,
-		"report the verdict but exit 0 on a fail — for producing a report to compare later, "+
+		"report the verdict but exit 0 on a fail, for producing a report to compare later, "+
 			"where `draugr diff` is the gate")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.SeverityHigh),
 		"severity that fails the gate: critical, high, medium, low")
@@ -135,7 +135,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
 	cmd.Flags().BoolVar(&opts.cacheReadOnly, "cache-read-only", false,
-		"read the cache but never write it — for a run whose results should not be trusted by the next one")
+		"read the cache but never write it, for a run whose results should not be trusted by the next one")
 	cmd.Flags().BoolVar(&opts.cacheRequireDigest, "cache-require-digest", false,
 		"do not cache an image identified only by a tag: a tag can be rebuilt, so a hit can be right about the key and wrong about the image")
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "list findings at or above this priority band (P1-P4)")
@@ -191,7 +191,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// Names the shape rather than one filename: a reader whose file is called `web.saga.yaml`
 		// would otherwise read "no draugr.saga.yaml here" as a filename mismatch and rename it,
 		// when the real answer is that the file is somewhere else.
-		_, _ = fmt.Fprintf(os.Stderr, "No *.saga.yaml here — scanning %s with controls: "+ZeroConfigControls("")+".\n"+
+		_, _ = fmt.Fprintf(os.Stderr, "No *.saga.yaml here, scanning %s with controls: "+ZeroConfigControls("")+".\n"+
 			"(run `draugr init` to scaffold one you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
 	// Organization defaults are merged *underneath* the descriptor, so the engine sees one

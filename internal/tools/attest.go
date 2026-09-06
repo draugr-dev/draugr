@@ -59,7 +59,7 @@ func DescribeFor(l Level, tool string) string {
 	if !Provisionable(tool) {
 		return "found on PATH; Draugr does not distribute it"
 	}
-	return "found on PATH; Draugr did not install it — `draugr tools install " + tool + "` provisions a pinned build"
+	return "found on PATH; Draugr did not install it, `draugr tools install " + tool + "` provisions a pinned build"
 }
 
 // Provisionable reports whether `draugr tools install` can obtain this tool, by either method.

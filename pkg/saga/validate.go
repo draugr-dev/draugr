@@ -169,7 +169,7 @@ func validateRepoScope(where string, r Repository) []error {
 				errs = append(errs, fmt.Errorf("%s is empty", at))
 			case strings.HasPrefix(t, "/"):
 				errs = append(errs, fmt.Errorf(
-					"%s is absolute (%q) — scope is relative to the repository root", at, v))
+					"%s is absolute (%q), scope is relative to the repository root", at, v))
 			case t == ".." || strings.HasPrefix(t, "../") || strings.Contains(t, "/../"):
 				errs = append(errs, fmt.Errorf(
 					"%s escapes the repository (%q)", at, v))
@@ -195,7 +195,7 @@ func validateControllerKeys(where string, controllers map[string]ControllerSetti
 				continue
 			}
 			errs = append(errs, fmt.Errorf(
-				"%scontrollers.%s.%s: descriptor keys are camelCase — use %q",
+				"%scontrollers.%s.%s: descriptor keys are camelCase. Use %q",
 				where, control, key, camelCaseKey(key)))
 		}
 	}
@@ -306,7 +306,7 @@ func validateHostAuth(a *HostAuth, where string) []error {
 	}
 	if strings.TrimSpace(a.TokenEnv) == "" {
 		errs = append(errs, fmt.Errorf(
-			"%s.tokenEnv is required — it names the environment variable holding the credential. "+
+			"%s.tokenEnv is required, it names the environment variable holding the credential. "+
 				"A descriptor is committed, so there is no field for the credential itself", where))
 	}
 	return errs
@@ -319,7 +319,7 @@ func validateHostSpec(spec *HostSpec, where string) []error {
 	}
 	var errs []error
 	if strings.TrimSpace(spec.Path) == "" {
-		errs = append(errs, fmt.Errorf("%s.path is required — the OpenAPI document to scan", where))
+		errs = append(errs, fmt.Errorf("%s.path is required, the OpenAPI document to scan", where))
 	}
 	// An empty list is not "no restriction": it describes a scan that sends nothing, which is a
 	// descriptor quietly not working. Absent means read-only; present means say what you accept.
@@ -355,7 +355,7 @@ func validateExclusions(rules []ExcludeRule, prefix string) []error {
 		// and a reviewer has nothing to judge. It is the cheapest guard against a scanner
 		// being quietly defanged.
 		if strings.TrimSpace(e.Reason) == "" {
-			errs = append(errs, fmt.Errorf("%s: reason is required — say why this is excluded", where))
+			errs = append(errs, fmt.Errorf("%s: reason is required. Say why this is excluded", where))
 		}
 		// A date that does not parse is worse than no date: the exclusion would keep suppressing
 		// forever while the descriptor claims it lapses, which is the belief this field exists
@@ -363,13 +363,13 @@ func validateExclusions(rules []ExcludeRule, prefix string) []error {
 		if e.Expires != "" {
 			if _, err := time.Parse(expiresLayout, e.Expires); err != nil {
 				errs = append(errs, fmt.Errorf(
-					"%s: expires must be a date as YYYY-MM-DD, got %q — an unreadable date would "+
+					"%s: expires must be a date as YYYY-MM-DD, got %q, an unreadable date would "+
 						"suppress indefinitely while claiming not to", where, e.Expires))
 			}
 		}
 		// Neither selector set would match every finding in the project.
 		if len(e.Paths) == 0 && len(e.Rules) == 0 {
-			errs = append(errs, fmt.Errorf("%s: set paths, rules, or both — an exclusion with neither would suppress everything", where))
+			errs = append(errs, fmt.Errorf("%s: set paths, rules, or both, an exclusion with neither would suppress everything", where))
 		}
 		for j, p := range e.Paths {
 			if strings.TrimSpace(p) == "" {
@@ -387,7 +387,7 @@ func validateExclusions(rules []ExcludeRule, prefix string) []error {
 			case !ValidVEXStatus(v.Status):
 				hint := ""
 				if v.Status == VEXUnderInvestigation {
-					hint = " — a finding you have suppressed is one you have finished investigating; " +
+					hint = ", a finding you have suppressed is one you have finished investigating; " +
 						"it is what Draugr already reports for findings nobody has triaged"
 				}
 				errs = append(errs, fmt.Errorf("%s: vex.status %q is not a status an exclusion may declare (want %s)%s",
@@ -396,7 +396,7 @@ func validateExclusions(rules []ExcludeRule, prefix string) []error {
 			if v.Justification != "" {
 				if v.Status != VEXNotAffected && v.Status != "" {
 					errs = append(errs, fmt.Errorf(
-						"%s: vex.justification applies only to status %s, not %q — it answers why the "+
+						"%s: vex.justification applies only to status %s, not %q, it answers why the "+
 							"product is unaffected", where, VEXNotAffected, v.Status))
 				} else if !ValidVEXJustification(v.Justification) {
 					errs = append(errs, fmt.Errorf(
@@ -416,19 +416,19 @@ func validateFragmentRefs(refs []FragmentRef, prefix string) []error {
 	for i, f := range refs {
 		where := fmt.Sprintf("%s[%d]", prefix, i)
 		if strings.TrimSpace(f.Path) == "" {
-			errs = append(errs, fmt.Errorf("%s: path is required — it selects which files to merge", where))
+			errs = append(errs, fmt.Errorf("%s: path is required, it selects which files to merge", where))
 		}
 		// A remote fragment with no revision is a gate that changes with no commit in your own
 		// repository. Refusing costs one line in the descriptor; defaulting to the default branch
 		// would make every scan quietly depend on somebody else's next push.
 		if f.Remote() && strings.TrimSpace(f.Revision) == "" {
 			errs = append(errs, fmt.Errorf(
-				"%s: revision is required when url is set — name a tag, branch or commit so the "+
+				"%s: revision is required when url is set. Name a tag, branch or commit so the "+
 					"fragment cannot change without a change here", where))
 		}
 		if !f.Remote() && f.Revision != "" {
 			errs = append(errs, fmt.Errorf(
-				"%s: revision applies only with url — a local path is read from this checkout", where))
+				"%s: revision applies only with url, a local path is read from this checkout", where))
 		}
 	}
 	return errs
@@ -463,11 +463,11 @@ func validateVEXSources(where string, sources []VEXSource) []error {
 			continue
 		case named > 1:
 			errs = append(errs, fmt.Errorf(
-				"%s: names more than one of path, url and repository — a source is one document", at))
+				"%s: names more than one of path, url and repository, a source is one document", at))
 			continue
 		}
 		if s.URL != "" && !strings.HasPrefix(s.URL, "https://") && !strings.HasPrefix(s.URL, "http://") {
-			errs = append(errs, fmt.Errorf("%s: url %q must be http(s) — use path for a local file", at, s.URL))
+			errs = append(errs, fmt.Errorf("%s: url %q must be http(s). Use path for a local file", at, s.URL))
 		}
 		if r := s.Repository; r != nil {
 			if r.URL == "" {
@@ -477,7 +477,7 @@ func validateVEXSources(where string, sources []VEXSource) []error {
 			// guessing at a conventional filename would make the descriptor's meaning depend on
 			// what a supplier happened to call their file.
 			if r.Path == "" {
-				errs = append(errs, fmt.Errorf("%s: repository.path is required — name the document inside the repository", at))
+				errs = append(errs, fmt.Errorf("%s: repository.path is required. Name the document inside the repository", at))
 			} else if filepath.IsAbs(r.Path) || strings.Contains(r.Path, "..") {
 				errs = append(errs, fmt.Errorf("%s: repository.path %q must be inside the repository", at, r.Path))
 			}

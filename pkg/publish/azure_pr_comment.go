@@ -187,7 +187,7 @@ func (p azurePRCommentPublisher) send(ctx context.Context, method, endpoint stri
 		if resp.StatusCode == http.StatusForbidden {
 			// The token is valid but the identity cannot write. Worth naming, because the fix is
 			// a permission on the repository rather than anything in the Saga.
-			return fmt.Errorf("post PR comment forbidden — grant the build service "+
+			return fmt.Errorf("post PR comment forbidden, grant the build service "+
 				"'Contribute to pull requests' on this repository: %s: %s", resp.Status, msg)
 		}
 		return fmt.Errorf("post PR comment failed: %s: %s", resp.Status, msg)

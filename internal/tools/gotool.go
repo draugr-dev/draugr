@@ -127,13 +127,13 @@ func runEnv(ctx context.Context, env []string, name string, args ...string) erro
 func findGo(ctx context.Context, tool string) (string, error) {
 	goBin, err := execLookPath("go")
 	if err != nil {
-		return "", fmt.Errorf("%s is distributed as a Go package and no `go` is on PATH — "+
+		return "", fmt.Errorf("%s is distributed as a Go package and no `go` is on PATH, "+
 			"install Go %d or newer from https://go.dev/dl/, or install it yourself with "+
 			"`go install %s@v%s`", tool, minGoMinor, goInstallable[tool].Command, goVersions[tool])
 	}
 	if ok, found := goAtLeast(ctx, goBin, minGoMinor); !ok {
 		return "", fmt.Errorf("go %s is older than 1.%d, which is needed to fetch the toolchain "+
-			"%s asks for — upgrade Go, or install it yourself with `go install %s@v%s`",
+			"%s asks for. Upgrade Go, or install it yourself with `go install %s@v%s`",
 			found, minGoMinor, tool, goInstallable[tool].Command, goVersions[tool])
 	}
 	return goBin, nil

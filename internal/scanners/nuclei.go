@@ -400,7 +400,7 @@ func (w *nucleiTemplateWarmer) warm(ctx context.Context) error {
 			return
 		}
 		if ok, _ := tools.NucleiTemplatesOK(out); !ok {
-			w.err = errors.New("nuclei reported no template set after -update-templates — " +
+			w.err = errors.New("nuclei reported no template set after -update-templates, " +
 				"dast cannot run without one; try `nuclei -update-templates` by hand to see why")
 		}
 	})

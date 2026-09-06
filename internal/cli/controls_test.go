@@ -109,9 +109,9 @@ func TestControlsOptionsListsEveryScannerIncludingTheOnesWithNoOptions(t *testin
 	got := out.String()
 	for _, want := range []string{
 		"What each scanner accepts in its Saga block:",
-		"productToken",   // a required option, from mend-sca
-		"expiryWarnDays", // an optional one, from draugr-tls
-		"no options — configured by choosing it", // gitleaks and the rest
+		"productToken",                          // a required option, from mend-sca
+		"expiryWarnDays",                        // an optional one, from draugr-tls
+		"no options, configured by choosing it", // gitleaks and the rest
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("controls --options is missing %q\n%s", want, got)

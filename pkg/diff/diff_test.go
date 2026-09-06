@@ -110,7 +110,7 @@ func TestRenderConsole(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"Draugr diff —", "1 new", "New (1):", "NEW", "Fixed (1):", "OLD"} {
+	for _, want := range []string{"Draugr diff ·", "1 new", "New (1):", "NEW", "Fixed (1):", "OLD"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console diff missing %q\n%s", want, s)
 		}

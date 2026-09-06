@@ -86,7 +86,7 @@ func (s Scope) Validate(model saga.Model, controls []string) error {
 			quoteList("component", bad), strings.Join(sorted(declared), ", ")))
 	}
 	if bad := missing(s.Controls, controls); len(bad) > 0 {
-		errs = append(errs, fmt.Sprintf("--controls: no such %s (run `draugr controls` — this build has: %s)",
+		errs = append(errs, fmt.Sprintf("--controls: no such %s (run `draugr controls`, this build has: %s)",
 			quoteList("control", bad), strings.Join(sorted(controls), ", ")))
 	}
 	if len(errs) > 0 {

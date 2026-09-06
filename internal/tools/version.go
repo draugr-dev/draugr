@@ -42,7 +42,7 @@ func SpecFor(name, version string) (InstallSpec, error) {
 	}
 	if len(assets) == 0 {
 		return InstallSpec{}, fmt.Errorf(
-			"%s: Draugr can only install the version it ships (%s) — it has no URL pattern for "+
+			"%s: Draugr can only install the version it ships (%s), it has no URL pattern for "+
 				"another one. Install %s yourself and Draugr will use it, recorded as external",
 			name, spec.Version, name)
 	}

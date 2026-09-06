@@ -136,7 +136,7 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 	// someone one failed scan away from discovering the other two.
 	if len(unprovisionable) > 0 {
 		sort.Strings(unprovisionable)
-		_, _ = fmt.Fprintf(w, "%s needs %s, which Draugr cannot provision — install %s separately (`draugr doctor %s` says where from).\n\n",
+		_, _ = fmt.Fprintf(w, "%s needs %s, which Draugr cannot provision. Install %s separately (`draugr doctor %s` says where from).\n\n",
 			opts.saga, strings.Join(quoteAll(unprovisionable), ", "),
 			pluralThem(len(unprovisionable)), opts.saga)
 	}
@@ -183,7 +183,7 @@ func noteDescriptorInWorkingDir(w io.Writer) {
 	if needed >= len(installable) {
 		return
 	}
-	_, _ = fmt.Fprintf(w, "Note: `--saga %s` would install %d of these %d tools — the ones that descriptor's scan runs.\n\n",
+	_, _ = fmt.Fprintf(w, "Note: `--saga %s` would install %d of these %d tools, the ones that descriptor's scan runs.\n\n",
 		descriptor, needed, len(installable))
 }
 
@@ -236,7 +236,7 @@ func checkInstallable(names []string) error {
 	msg := fmt.Sprintf("cannot install %s", strings.Join(quoteAll(unknown), ", "))
 	if len(unknown) == 1 {
 		if near := closestName(unknown[0], known); near != "" {
-			msg += fmt.Sprintf(" — did you mean %q?", near)
+			msg += fmt.Sprintf(", did you mean %q?", near)
 		}
 	}
 	return fmt.Errorf("%s\ninstallable: %s", msg, strings.Join(known, ", "))
@@ -301,7 +301,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 	writeInstallPlan(w, names, all, have, opts)
 
 	if opts.dryRun {
-		_, _ = fmt.Fprintln(w, "\n(dry run — nothing installed)")
+		_, _ = fmt.Fprintln(w, "\n(dry run, nothing installed)")
 		return nil
 	}
 	// Confirm only when interactive (a TTY); non-interactive runs (CI, pipes) proceed so

@@ -83,7 +83,7 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 
 	for _, n := range names {
 		if rec, ok := cached[n]; ok && !force && !rec.Stale(now, feeds.DefaultMaxAge) {
-			_, _ = fmt.Fprintf(out, "%-5s current (%s old) — --force to fetch anyway\n", n, humanAge(rec.Age(now)))
+			_, _ = fmt.Fprintf(out, "%-5s current (%s old) · --force to fetch anyway\n", n, humanAge(rec.Age(now)))
 			continue
 		}
 		_, _ = fmt.Fprintf(out, "%-5s fetching %s…\n", n, feeds.URL(n))
@@ -155,7 +155,7 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 
 	_, _ = fmt.Fprintf(out, "\ncache: %s\n", dir)
 	for _, n := range feeds.Names() {
-		_, _ = fmt.Fprintf(out, "  %-5s %s — %s\n", n, feeds.Describe(n), feeds.URL(n))
+		_, _ = fmt.Fprintf(out, "  %-5s %s · %s\n", n, feeds.Describe(n), feeds.URL(n))
 	}
 
 	switch {

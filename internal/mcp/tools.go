@@ -78,7 +78,7 @@ func ListControls(reg *engine.Registry) ControlsOutput {
 	out := ControlsOutput{
 		Hint: "Enable a control under config.controllers.<name> in the Saga, or per component. " +
 			"An opt-in scanner additionally needs controllers.<control>.<scanner>.enabled: true. " +
-			"A scanner accepts only the options listed in scannerOptions — anything else is " +
+			"A scanner accepts only the options listed in scannerOptions, anything else is " +
 			"rejected when the descriptor is validated, so do not invent keys.",
 	}
 	for _, ctrl := range reg.Controllers() {
@@ -714,7 +714,7 @@ func CheckToolsTool(ctx context.Context, _ *mcp.CallToolRequest, in CheckToolsIn
 	case len(out.Missing) > 0:
 		out.Remedy = "draugr tools install " + strings.Join(out.Missing, " ")
 		out.Note = "Controls backed by a missing scanner cannot run, and a scan that cannot run " +
-			"reports a failure rather than a pass. Draugr will not install these for you — run " +
+			"reports a failure rather than a pass. Draugr will not install these for you. Run " +
 			"the remedy command, or ask the user to."
 	default:
 		out.Note = "Everything required is present."
@@ -830,12 +830,12 @@ func matchRule(rep sarif.Report, query string) (string, sarif.Rule, error) {
 	sort.Strings(matched)
 	switch len(matched) {
 	case 0:
-		return "", sarif.Rule{}, fmt.Errorf("no rule %q in this report — only rules this scan "+
+		return "", sarif.Rule{}, fmt.Errorf("no rule %q in this report, only rules this scan "+
 			"reported are here, and the id is the one in a finding's ruleId", query)
 	case 1:
 		return matched[0], rep.Rules[matched[0]], nil
 	default:
-		return "", sarif.Rule{}, fmt.Errorf("%q matches %s — name one of them",
+		return "", sarif.Rule{}, fmt.Errorf("%q matches %s. Name one of them",
 			query, strings.Join(matched, ", "))
 	}
 }
@@ -1060,12 +1060,12 @@ type SurveyOutput struct {
 func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, in SurveyInput) (*mcp.CallToolResult, SurveyOutput, error) {
 		if len(in.Surveys) == 0 {
-			return nil, SurveyOutput{}, fmt.Errorf("surveys is required — list_surveyors names them")
+			return nil, SurveyOutput{}, fmt.Errorf("surveys is required, list_surveyors names them")
 		}
 		requests := make([]surveyor.Request, 0, len(in.Surveys))
 		for _, s := range in.Surveys {
 			if s.Surveyor == "" {
-				return nil, SurveyOutput{}, fmt.Errorf("each survey needs a surveyor — list_surveyors names them")
+				return nil, SurveyOutput{}, fmt.Errorf("each survey needs a surveyor, list_surveyors names them")
 			}
 			requests = append(requests, surveyor.Request{
 				Surveyor: s.Surveyor,
@@ -1111,7 +1111,7 @@ func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOu
 		for _, c := range model.Components {
 			out.Components = append(out.Components, c.Name)
 		}
-		out.Note = "not written to disk — validate it with validate_saga, then write it where the " +
+		out.Note = "not written to disk, validate it with validate_saga, then write it where the " +
 			"project keeps its descriptor"
 		return nil, out, nil
 	}

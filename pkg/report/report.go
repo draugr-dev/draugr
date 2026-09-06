@@ -775,7 +775,7 @@ func suppressionLine(d Data) string {
 		for _, s := range sources {
 			where = append(where, fmt.Sprintf("%d from %s", s.n, s.name))
 		}
-		line = fmt.Sprintf("%s suppressed — %s", plural(n, "finding"), strings.Join(where, ", "))
+		line = fmt.Sprintf("%s suppressed · %s", plural(n, "finding"), strings.Join(where, ", "))
 	}
 	acceptors, counts, unattributed := suppressionAttribution(d)
 
@@ -789,7 +789,7 @@ func suppressionLine(d Data) string {
 		parts = append(parts, fmt.Sprintf("%d unattributed", unattributed))
 	}
 	if len(parts) > 0 {
-		line += " — " + strings.Join(parts, ", ")
+		line += " · " + strings.Join(parts, ", ")
 	}
 	return line
 }
@@ -812,7 +812,7 @@ func importedLine(d Data) string {
 		parts = append(parts, fmt.Sprintf("%d asserted by %s", counts[who], who))
 	}
 	if len(parts) > 0 {
-		line += " — " + strings.Join(parts, ", ")
+		line += " · " + strings.Join(parts, ", ")
 	}
 	return line
 }
@@ -830,7 +830,7 @@ func silencedLine(d Data) string {
 	if n == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%s silenced in the source by a scanner directive — nobody signed these",
+	return fmt.Sprintf("%s silenced in the source by a scanner directive · nobody signed these",
 		plural(n, "finding"))
 }
 
@@ -940,7 +940,7 @@ func reachabilityNote(r *sarif.Reachability) string {
 			// Already at the lowest band, so nothing moved and there is nothing to account for.
 			return ""
 		}
-		return "↓ ranked as " + string(r.RankedAs) + " — the vulnerable code is never called" + attribution(r)
+		return "↓ ranked as " + string(r.RankedAs) + " · the vulnerable code is never called" + attribution(r)
 	default:
 		return ""
 	}

@@ -55,7 +55,7 @@ func NewMendLicenses() plugin.Scanner {
 			ConfigSchema: json.RawMessage(mendLicensesConfigSchema),
 			Effects: []plugin.Effect{
 				{Kind: plugin.EffectDisclosure, Detail: "uploads this component's resolved " +
-					"dependency inventory to Mend — names, versions, checksums, and the absolute " +
+					"dependency inventory to Mend, names, versions, checksums, and the absolute " +
 					"paths they were found at"},
 				{Kind: plugin.EffectMutate, Detail: "creates or updates a project inside your " +
 					"Mend product, which outlives the scan"},
@@ -200,7 +200,7 @@ func warnUnmappedLicenses(ctx context.Context, ids map[string]bool) {
 	}
 	sort.Strings(names)
 	slog.WarnContext(ctx, "mend reports these licenses by its own names rather than SPDX "+
-		"identifiers, so a policy written in SPDX will not match them — write rules against these "+
+		"identifiers, so a policy written in SPDX will not match them. Write rules against these "+
 		"strings, or use the licenses control's Trivy scanner, which reports SPDX",
 		"licenses", strings.Join(names, ", "))
 }

@@ -239,7 +239,7 @@ Each finding that was actually moved carries the reason underneath it:
 ```
   P1  high  8.1  CVE-2024-3094   sca  trivy  go.mod:12
       xz: malicious code in the upstream tarballs
-      ↑ ranked as critical — on KEV (2026-08-01)
+      ↑ ranked as critical · on KEV (2026-08-01)
 ```
 
 **The Severity column keeps showing what the scanner said.** Enrichment feeds the ranking rather

@@ -46,7 +46,7 @@ func checkReportNames(model *saga.Model) error {
 		msg := fmt.Sprintf("config.reports[%d].format: %q is not a format this build of Draugr renders",
 			i, r.Format)
 		if near := nearestName(r.Format, formats); near != "" {
-			msg += fmt.Sprintf(" — did you mean %q?", near)
+			msg += fmt.Sprintf(", did you mean %q?", near)
 		}
 		problems = append(problems, msg)
 	}
@@ -62,7 +62,7 @@ func checkReportNames(model *saga.Model) error {
 		msg := fmt.Sprintf("config.publishers[%d].kind: %q is not a publisher this build of Draugr has",
 			i, p.Kind)
 		if near := nearestName(p.Kind, kinds); near != "" {
-			msg += fmt.Sprintf(" — did you mean %q?", near)
+			msg += fmt.Sprintf(", did you mean %q?", near)
 		}
 		problems = append(problems, msg)
 	}

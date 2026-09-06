@@ -78,7 +78,7 @@ func TestConsoleRender(t *testing.T) {
 	s := b.String()
 	// "by priority" rather than "Fix first:": the heading now says whether the table is a
 	// shortlist or the whole set, and this fixture is small enough to be the whole set.
-	for _, want := range []string{"Draugr — FAIL", "app 1.0", "Priorities:", "P1 1", "by priority", "CVE-1", "critical", "1 high"} {
+	for _, want := range []string{"Draugr · FAIL", "app 1.0", "Priorities:", "P1 1", "by priority", "CVE-1", "critical", "1 high"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console output missing %q\n%s", want, s)
 		}
@@ -141,7 +141,7 @@ func TestMarkdownRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"## Draugr — ❌ FAIL", "| Priority |", "| Scanner |", "### Controls", "### Fix first", "`CVE-1`"} {
+	for _, want := range []string{"## Draugr · ❌ FAIL", "| Priority |", "| Scanner |", "### Controls", "### Fix first", "`CVE-1`"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("markdown output missing %q\n%s", want, s)
 		}
@@ -154,7 +154,7 @@ func TestHTMLRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"<!doctype html>", "Draugr —", "FAIL", "app 1.0", "CVE-1", "gitleaks", ">Scanner</th>", "</html>"} {
+	for _, want := range []string{"<!doctype html>", "Draugr ·", "FAIL", "app 1.0", "CVE-1", "gitleaks", ">Scanner</th>", "</html>"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("html output missing %q", want)
 		}
@@ -984,7 +984,7 @@ func TestSuppressionLineNamesWhoAccepted(t *testing.T) {
 	// The name is the point of recording it. A count of unattributed says *that* there is a gap;
 	// it does not say who to ask about the rest, which is the question an auditor arrives with.
 	got := suppressionLine(suppressedBy("a.reviewer", "a.reviewer", "b.owner", ""))
-	want := "4 findings suppressed by config.exclude — 2 accepted by a.reviewer, 1 accepted by b.owner, 1 unattributed"
+	want := "4 findings suppressed by config.exclude · 2 accepted by a.reviewer, 1 accepted by b.owner, 1 unattributed"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -992,7 +992,7 @@ func TestSuppressionLineNamesWhoAccepted(t *testing.T) {
 
 func TestSuppressionLineWithNobodyNamed(t *testing.T) {
 	got := suppressionLine(suppressedBy("", ""))
-	want := "2 findings suppressed by config.exclude — 2 unattributed"
+	want := "2 findings suppressed by config.exclude · 2 unattributed"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -1032,34 +1032,34 @@ func TestExploitabilityLine(t *testing.T) {
 			// only way to find out is to read every finding and then doubt yourself.
 			"consulted and changed nothing",
 			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 0,
-			"Exploitability: KEV 2026-08-01 — nothing raised",
+			"Exploitability: KEV 2026-08-01 · nothing raised",
 		},
 		{
 			"one finding raised",
 			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 1,
-			"Exploitability: KEV 2026-08-01 — 1 finding raised",
+			"Exploitability: KEV 2026-08-01 · 1 finding raised",
 		},
 		{
 			"several raised",
 			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 4,
-			"Exploitability: KEV 2026-08-01 — 4 findings raised",
+			"Exploitability: KEV 2026-08-01 · 4 findings raised",
 		},
 		{
 			// A file the operator supplied has no fetch date, and saying so is more accurate
 			// than inventing today's.
 			"a supplied file",
 			[]FeedProvenance{{Name: "kev"}}, 0,
-			"Exploitability: KEV (file) — nothing raised",
+			"Exploitability: KEV (file) · nothing raised",
 		},
 		{
 			"stale is said out loud",
 			[]FeedProvenance{{Name: "epss", FetchedAt: fetched, Stale: true}}, 0,
-			"Exploitability: EPSS 2026-08-01, stale — nothing raised",
+			"Exploitability: EPSS 2026-08-01, stale · nothing raised",
 		},
 		{
 			"both",
 			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}, {Name: "epss", FetchedAt: fetched}}, 2,
-			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01 — 2 findings raised",
+			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01 · 2 findings raised",
 		},
 	}
 	for _, c := range cases {
@@ -1081,12 +1081,12 @@ func TestEscalationNote(t *testing.T) {
 		From: sarif.SeverityHigh, To: sarif.SeverityCritical,
 		Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01",
 	})
-	if got != "↑ ranked as critical — on KEV (2026-08-01)" {
+	if got != "↑ ranked as critical · on KEV (2026-08-01)" {
 		t.Errorf("got %q", got)
 	}
 	// No date: the claim stands without one rather than being dropped or dated wrongly.
 	got = escalationNote(&sarif.Escalation{From: sarif.SeverityLow, To: sarif.SeverityMedium, Detail: "EPSS 0.9"})
-	if got != "↑ ranked as medium — EPSS 0.9" {
+	if got != "↑ ranked as medium · EPSS 0.9" {
 		t.Errorf("got %q", got)
 	}
 }

@@ -60,7 +60,7 @@ func mendSettings(cfg plugin.Config, env func(string) string) (mendSettings2, er
 		s.productToken = v
 	} else {
 		return mendSettings2{}, fmt.Errorf(
-			"mend: controllers.sca.mendSca.productToken is required — it names the Mend product " +
+			"mend: controllers.sca.mendSca.productToken is required, it names the Mend product " +
 				"this component reports into. It identifies a product and grants nothing, so it " +
 				"belongs in the descriptor")
 	}

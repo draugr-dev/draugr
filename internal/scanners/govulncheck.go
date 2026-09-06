@@ -486,12 +486,12 @@ func govulncheckMessageText(key govulncheckKey, advisory *govulncheckOSV, reach 
 	b.WriteString(")")
 	switch reach.State {
 	case sarif.ReachabilityReachable:
-		b.WriteString(" — reachable: ")
+		b.WriteString(", reachable: ")
 		b.WriteString(govulncheckPathSummary(reach.Paths))
 	case sarif.ReachabilityUnreachable:
-		b.WriteString(" — the vulnerable code is never called")
+		b.WriteString(", the vulnerable code is never called")
 	case sarif.ReachabilityUnknown:
-		b.WriteString(" — reachability not determined")
+		b.WriteString(", reachability not determined")
 	}
 	return b.String()
 }

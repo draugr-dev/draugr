@@ -81,7 +81,7 @@ func (c *Client) Await(ctx context.Context, opts AwaitOpts) ([]Alert, error) {
 
 		if time.Now().After(deadline) {
 			return nil, fmt.Errorf(
-				"mend: results for project %q were not ready within %s — the scan uploaded but "+
+				"mend: results for project %q were not ready within %s, the scan uploaded but "+
 					"Mend had not finished processing it, so there is nothing to report yet "+
 					"rather than nothing to find. Raise resultTimeout for a component this large. "+
 					"(last state: %v)", opts.ProjectName, timeout, lastErr)

@@ -52,7 +52,7 @@ Both are printed only when they are not zero, so a diff with neither reads exact
 has.
 
 ```console
-Draugr diff — 0 new, 0 fixed, 1 accepted, 0 unchanged
+Draugr diff · 0 new, 0 fixed, 1 accepted, 0 unchanged
 
 Accepted (1) — still present, somebody decided to live with them:
   ~  high  CVE-2024-11111  requirements.txt:3

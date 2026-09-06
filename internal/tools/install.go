@@ -713,7 +713,7 @@ func InstallVersion(ctx context.Context, name, version, destDir string, client *
 func verifyCosignProvenance(ctx context.Context, client *http.Client, cs *CosignSpec, assetURL, wantSHA string) (bool, string, error) {
 	cosignPath, err := cosignLookPath()
 	if err != nil {
-		return false, "cosign not installed — skipped signature check", nil
+		return false, "cosign not installed, skipped signature check", nil
 	}
 
 	checksums, err := download(ctx, client, cs.ChecksumsURL)
@@ -1041,7 +1041,7 @@ func verifyByPublishedChecksums(ctx context.Context, client *http.Client, spec I
 		return LevelUnverified, nil
 	}
 	if !checksumsContain(checksums, file, gotSHA) {
-		return "", fmt.Errorf("%s %s: %s is not listed with checksum %s in %s — the download does "+
+		return "", fmt.Errorf("%s %s: %s is not listed with checksum %s in %s, the download does "+
 			"not match what the upstream published", spec.Binary, spec.Version, file, gotSHA, url)
 	}
 	return LevelChecksum, nil

@@ -26,7 +26,7 @@ const gosecConfigSchema = `{
     "exclude": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Skip these gosec rules, by ID, e.g. [\"G104\"]. For rules that do not apply to the codebase — a finding you have judged and accepted belongs in exclusions, where it stays in the report marked suppressed."
+      "description": "Skip these gosec rules, by ID, e.g. [\"G104\"]. For rules that do not apply to the codebase, a finding you have judged and accepted belongs in exclusions, where it stays in the report marked suppressed."
     },
     "tags": {
       "type": "array",

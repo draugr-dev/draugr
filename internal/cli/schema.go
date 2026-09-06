@@ -25,7 +25,7 @@ func newSchemaCommand() *cobra.Command {
 			"  # then in your Saga:\n" +
 			"  # yaml-language-server: $schema=./.saga.schema.json\n\n" +
 			"--fragment prints the schema for a Saga fragment instead. A fragment is a different\n" +
-			"shape — no release, and no policy — so it has a schema of its own.",
+			"shape, no release, and no policy, so it has a schema of its own.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			doc := saga.SchemaJSON

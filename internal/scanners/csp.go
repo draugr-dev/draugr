@@ -125,7 +125,7 @@ func evaluateCSP(policy string, add func(ruleID, message string, level sarif.Lev
 		if hasSource(script, "'unsafe-eval'") {
 			add("headers/csp-unsafe-eval",
 				"Content-Security-Policy allows 'unsafe-eval' in script-src, which permits eval() and "+
-					"string-to-code conversion — a common path from an injection to running code. Remove it "+
+					"string-to-code conversion, a common path from an injection to running code. Remove it "+
 					"and replace the code that needs it.",
 				sarif.LevelError)
 		}
@@ -141,7 +141,7 @@ func evaluateCSP(policy string, add func(ruleID, message string, level sarif.Lev
 			} else {
 				add("headers/csp-unsafe-inline",
 					"Content-Security-Policy allows 'unsafe-inline' in script-src, so an injected <script> tag "+
-						"or event handler runs — which is most of what a CSP is for. Use a nonce or a hash "+
+						"or event handler runs, which is most of what a CSP is for. Use a nonce or a hash "+
 						"per script instead.",
 					sarif.LevelError)
 			}
@@ -165,7 +165,7 @@ func evaluateCSP(policy string, add func(ruleID, message string, level sarif.Lev
 	switch {
 	case !objGoverned || len(broadSources(obj)) > 0:
 		add("headers/csp-object-src-broad",
-			"Content-Security-Policy leaves <object> and <embed> able to load from anywhere — a route to "+
+			"Content-Security-Policy leaves <object> and <embed> able to load from anywhere, a route to "+
 				"script execution that script-src does not cover. Add \"object-src 'none'\"; almost no site "+
 				"needs plugins.",
 			sarif.LevelWarning)
@@ -199,7 +199,7 @@ func evaluateCSP(policy string, add func(ruleID, message string, level sarif.Lev
 		if _, to := p["report-to"]; !to {
 			add("headers/csp-no-reporting",
 				"Content-Security-Policy has no 'report-uri' or 'report-to', so violations are invisible. "+
-					"Reporting is how you find out the policy is blocking something legitimate — or that "+
+					"Reporting is how you find out the policy is blocking something legitimate, or that "+
 					"someone is trying something.",
 				sarif.LevelNote)
 		}

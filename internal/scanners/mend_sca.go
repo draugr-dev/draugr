@@ -65,7 +65,7 @@ func NewMendSCA() plugin.Scanner {
 			Effects: []plugin.Effect{
 				{
 					Kind: plugin.EffectDisclosure,
-					Detail: "uploads this component's resolved dependency inventory to Mend — " +
+					Detail: "uploads this component's resolved dependency inventory to Mend, " +
 						"names, versions, checksums, and the absolute paths they were found at",
 				},
 				{
@@ -264,7 +264,7 @@ func (s uaSummary) check(dir string) error {
 	}
 	if !s.sawSummary {
 		return fmt.Errorf("mend: the agent produced no scan summary, so there is no way to tell " +
-			"whether it resolved anything — treating this as a failed scan rather than a clean one")
+			"whether it resolved anything, treating this as a failed scan rather than a clean one")
 	}
 	// The agent's own words when it has any: it reports a resolver failure as a warning and still
 	// exits zero, so this is usually the actual cause and always more specific than a guess.
@@ -359,7 +359,7 @@ func mendMessage(a mendapi.Alert) string {
 	}
 	msg := fmt.Sprintf("%s: %s", lib, firstLine(a.Vulnerability.Description))
 	if a.Vulnerability.TopFix != nil && a.Vulnerability.TopFix.FixResolution != "" {
-		msg += " — fixed in " + a.Vulnerability.TopFix.FixResolution
+		msg += ", fixed in " + a.Vulnerability.TopFix.FixResolution
 	}
 	if !a.DirectDependency {
 		msg += " (transitive)"

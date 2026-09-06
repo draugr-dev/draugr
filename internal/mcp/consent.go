@@ -53,7 +53,7 @@ func describeScan(reg *engine.Registry, model *saga.Model, path string) string {
 	}
 	fmt.Fprintf(&b, "\nControls: %s", strings.Join(sortedSet(controls), ", "))
 	if n := len(components); n > 0 {
-		fmt.Fprintf(&b, " — over %s", plural(n, "component", "components"))
+		fmt.Fprintf(&b, ", over %s", plural(n, "component", "components"))
 	}
 	b.WriteString(".\n")
 

@@ -324,7 +324,7 @@ and every finding whose band moved says so, the way an escalated one does:
 ```console
   P2        high      7.5    CVE-2020-14040  sca      trivy    go.mod
             golang.org/x/text v0.3.0: possibility to trigger an infinite loop…
-            ↓ ranked as medium — the vulnerable code is never called (govulncheck, 2026-08-21)
+            ↓ ranked as medium · the vulnerable code is never called (govulncheck, 2026-08-21)
 ```
 
 **It never suppresses.** An unreachable finding stays in the report at a lower band, because a
@@ -970,7 +970,7 @@ The report counts three kinds of acceptance separately, because they have differ
 end of them and one total could only support the weakest:
 
 ```console
-5 findings suppressed by config.exclude — 3 accepted by you@example.com, 2 unattributed
+5 findings suppressed by config.exclude · 3 accepted by you@example.com, 2 unattributed
 1 finding excused by a supplier's VEX — 1 asserted by ACME Security <sec@acme.example>
 2 findings silenced in the source by a scanner directive — nobody signed these
 ```

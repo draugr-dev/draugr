@@ -48,7 +48,7 @@ func (o surveyOptions) check(cmd *cobra.Command) error {
 	// believing they had named the thing they are describing.
 	for _, name := range []string{"name", "version"} {
 		if cmd.Flags().Changed(name) {
-			return fmt.Errorf("--%s sets the release, and a fragment has none — it is part of a "+
+			return fmt.Errorf("--%s sets the release, and a fragment has none, it is part of a "+
 				"descriptor rather than a thing to release", name)
 		}
 	}
@@ -82,7 +82,7 @@ func newSurveyCommand() *cobra.Command {
 		Use:   "survey",
 		Short: "Discover an application's surface and write it to a Saga",
 		Long: "Discover what an application is made of and write it into a Saga descriptor.\n\n" +
-			"Each surveyor is its own subcommand. Run several against one descriptor — each\n" +
+			"Each surveyor is its own subcommand. Run several against one descriptor, each\n" +
 			"folds into the Saga already at --output:\n\n" +
 			"  draugr survey k8s images --namespace prod -o draugr.saga.yaml\n" +
 			"  draugr survey github repos --org acme -o draugr.saga.yaml\n" +
@@ -101,7 +101,7 @@ func newSurveyCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&opts.replace, "replace", false,
 		"overwrite the Saga at --output instead of adding to it")
 	cmd.PersistentFlags().BoolVar(&opts.fragment, "fragment", false,
-		"write a Saga fragment — components only, for a descriptor to include")
+		"write a Saga fragment, components only, for a descriptor to include")
 
 	// Checked here rather than per subcommand: --fragment is shared, and so are the flags it
 	// contradicts. A flag that quietly does nothing is the failure this file is arranged to avoid.
@@ -147,7 +147,7 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 			"runs and an exposure proposed from its own topology. Review the exposures, then set\n" +
 			"criticality with `draugr classify`.\n\n" +
 			"--namespace narrows which ones are described, and may be repeated. Without it every\n" +
-			"namespace is described, which on a large cluster is a lot of components — name the\n" +
+			"namespace is described, which on a large cluster is a lot of components. Name the\n" +
 			"ones you own.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -179,9 +179,9 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 			"apply to it. Separate from `k8s images`: those are the application, this is what it\n" +
 			"runs on, and they will differ in criticality.\n\n" +
 			"With --namespace, the component owns that namespace rather than the whole cluster.\n" +
-			"Repeat it for several, and each becomes its own component — they are audited\n" +
+			"Repeat it for several, and each becomes its own component, they are audited\n" +
 			"separately because they are usually owned separately.\n\n" +
-			"exposure and criticality are left unset — they are judgements no cluster holds; run\n" +
+			"exposure and criticality are left unset, they are judgements no cluster holds; run\n" +
 			"`draugr classify` for those.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -293,7 +293,7 @@ func newSurveyAzureCommand(opts *surveyOptions) *cobra.Command {
 		Use:   "azure",
 		Short: "Discover from Azure DevOps",
 		Long: "Surveyors that read Azure DevOps. Authentication comes from AZURE_DEVOPS_EXT_PAT\n" +
-			"(or AZURE_DEVOPS_TOKEN, or a token named in scope config) — a personal access token\n" +
+			"(or AZURE_DEVOPS_TOKEN, or a token named in scope config), a personal access token\n" +
 			"with the Code (read) scope. An Azure DevOps Server instance is named by\n" +
 			"AZURE_DEVOPS_URL, including its collection.",
 		Args: cobra.NoArgs,
@@ -543,7 +543,7 @@ func proposedExposureNote(proposals []exposureProposal) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("exposure proposed from cluster topology, not confirmed — run `draugr classify` to set it:\n")
+	b.WriteString("exposure proposed from cluster topology, not confirmed. Run `draugr classify` to set it:\n")
 	width := 0
 	for _, p := range proposals {
 		width = max(width, len(p.component))
@@ -579,7 +579,7 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, components []saga.Com
 		}
 	}
 
-	line := fmt.Sprintf("%s %s — %s", verb, opts.output, strings.Join(parts, ", "))
+	line := fmt.Sprintf("%s %s · %s", verb, opts.output, strings.Join(parts, ", "))
 	// On a merge the total says little on its own; the reader wants to know what this run added.
 	if merged {
 		line += fmt.Sprintf(" (this survey found %s)", plural(len(frag.Components), "component"))
@@ -587,7 +587,7 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, components []saga.Com
 	if len(components) == 0 {
 		// A descriptor describing nothing is almost always a scope or credentials problem, and
 		// it is the one case where the count alone reads as success.
-		line += " — nothing was discovered, so this descriptor scans nothing"
+		line += ", nothing was discovered, so this descriptor scans nothing"
 	}
 	return line
 }

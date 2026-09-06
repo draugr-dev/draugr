@@ -212,7 +212,7 @@ func actionFor(f finding) (key, title string) {
 	// every finding in that layer, and usually the largest single reduction available.
 	case f.remediation == sarif.RemediationUpstream && f.operatingSystem != "":
 		return "os\x00" + f.operatingSystem,
-			fmt.Sprintf("Move off %s — past end of service life, so no fix is coming",
+			fmt.Sprintf("Move off %s, past end of service life, so no fix is coming",
 				f.operatingSystem)
 
 	// The same rule in several places is one thing to understand and apply, whether that is a

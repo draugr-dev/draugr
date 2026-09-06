@@ -121,7 +121,7 @@ func renderConsole(w io.Writer, r Result) error {
 	if len(r.New) > 0 {
 		headlineStyle = tui.StyleFail
 	}
-	_, _ = fmt.Fprintf(w, "Draugr diff — %s\n", col.Paint(headlineStyle, headline(r)))
+	_, _ = fmt.Fprintf(w, "Draugr diff · %s\n", col.Paint(headlineStyle, headline(r)))
 
 	np, fp := countPriorities(r.New), countPriorities(r.Fixed)
 	if np != (PriorityCounts{}) || fp != (PriorityCounts{}) {
@@ -144,12 +144,12 @@ func renderConsole(w io.Writer, r Result) error {
 	// Before fixed, because a reviewer reading top-down should meet the decisions before the good
 	// news. Nothing here was removed by anybody; these are the lines that need a person.
 	if len(r.Reopened) > 0 {
-		_, _ = fmt.Fprintf(w, "Reopened (%d) — an exclusion lapsed or was removed:\n", len(r.Reopened))
+		_, _ = fmt.Fprintf(w, "Reopened (%d) · an exclusion lapsed or was removed:\n", len(r.Reopened))
 		renderDiffFindings(w, col, "!", tui.StyleFail, r.Reopened, withComponent, r.HelpURI)
 		_, _ = fmt.Fprintln(w)
 	}
 	if len(r.Accepted) > 0 {
-		_, _ = fmt.Fprintf(w, "Accepted (%d) — still present, somebody decided to live with them:\n",
+		_, _ = fmt.Fprintf(w, "Accepted (%d) · still present, somebody decided to live with them:\n",
 			len(r.Accepted))
 		renderDiffFindings(w, col, "~", tui.StyleAccent, r.Accepted, withComponent, r.HelpURI)
 		_, _ = fmt.Fprintln(w)

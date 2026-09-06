@@ -223,10 +223,10 @@ func adoStatusError(status int, ref, token string) error {
 			"expired, or lacks the Code (read) scope, or belongs to a different organization",
 			ref, status)
 	case http.StatusNotFound:
-		return fmt.Errorf("azure-devops-repos: %s not found (HTTP 404) — Azure DevOps answers 404 "+
+		return fmt.Errorf("azure-devops-repos: %s not found (HTTP 404), Azure DevOps answers 404 "+
 			"for a scope the token cannot see as well as for one that does not exist", ref)
 	case http.StatusTooManyRequests:
-		return fmt.Errorf("azure-devops-repos: rate limited by Azure DevOps (HTTP 429) — retry " +
+		return fmt.Errorf("azure-devops-repos: rate limited by Azure DevOps (HTTP 429), retry " +
 			"after the interval in the response's Retry-After header")
 	}
 	return fmt.Errorf("azure-devops-repos: unexpected status %d", status)

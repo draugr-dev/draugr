@@ -58,7 +58,7 @@ func addSagaResources(s *mcp.Server, root string) error {
 			MIMEType: "application/yaml",
 			Description: "The committed declaration of what this application is and which " +
 				"security controls apply to it. Read it before reasoning about the project's " +
-				"security posture — it is the scope, and it outranks any guess.",
+				"security posture, it is the scope, and it outranks any guess.",
 		}, readFileResource(path))
 	}
 	return nil

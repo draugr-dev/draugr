@@ -322,9 +322,9 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 			continue
 		}
 
-		message := check.Title + " — requires manual review"
+		message := check.Title + ", requires manual review"
 		if implemented {
-			message = check.Title + " — " + verdict.Detail
+			message = check.Title + ", " + verdict.Detail
 		}
 
 		report.Results = append(report.Results, sarif.Result{
@@ -761,7 +761,7 @@ func managedServicesFinding(platform, location string) (sarif.Result, sarif.Rule
 			RuleID: managedServicesRuleID,
 			Level:  sarif.LevelWarning,
 			Message: fmt.Sprintf(
-				"The %s benchmark has a Managed Services section of %d checks — the parts of the "+
+				"The %s benchmark has a Managed Services section of %d checks, the parts of the "+
 					"cluster your provider controls, not the cluster itself. Draugr does not "+
 					"evaluate it; review those checks against the benchmark.",
 				section.Benchmark, section.Checks),

@@ -202,7 +202,7 @@ func TestFromSARIFResultLevelOverridesRule(t *testing.T) {
 	}
 }
 
-// A result the tool marks as suppressed — Semgrep's in-source `nosem`, a linter pragma — is kept
+// A result the tool marks as suppressed · Semgrep's in-source `nosem`, a linter pragma — is kept
 // and marked rather than dropped.
 //
 // Dropping it made it indistinguishable from a finding nobody ever made, which is the one thing

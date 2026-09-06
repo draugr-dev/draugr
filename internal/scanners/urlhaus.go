@@ -58,7 +58,7 @@ func NewURLhaus() plugin.Scanner {
 			Effects: []plugin.Effect{{
 				Kind: plugin.EffectDisclosure,
 				Detail: "sends each host's name to abuse.ch to ask whether it is known to " +
-					"serve malware — a third party learns the hostname",
+					"serve malware, a third party learns the hostname",
 			}},
 		},
 		lookup: urlhausLookup,
@@ -95,7 +95,7 @@ func (s urlhausScanner) Scan(ctx context.Context, target plugin.Target, _ plugin
 	if s.key() == "" {
 		return sarif.Report{}, fmt.Errorf(
 			"urlhaus: no API key. abuse.ch requires one and issues them free at "+
-				"https://auth.abuse.ch/ — put it in $%s", urlhausKeyEnv)
+				"https://auth.abuse.ch/. Put it in $%s", urlhausKeyEnv)
 	}
 
 	resp, err := s.lookup(ctx, name)

@@ -112,7 +112,7 @@ func Catalog() map[string]Tool {
 		"retire": {
 			Binary:      "retire",
 			VersionArgs: []string{"--version"},
-			InstallHint: "npm install -g retire — retire.js publishes to npm only, so it needs a Node runtime",
+			InstallHint: "npm install -g retire, retire.js publishes to npm only, so it needs a Node runtime",
 			Category:    CategoryScanner,
 		},
 		"gitleaks": {
@@ -131,7 +131,7 @@ func Catalog() map[string]Tool {
 			Binary:      "govulncheck",
 			VersionArgs: []string{"-version"},
 			VersionFrom: GovulncheckVersion,
-			InstallHint: "draugr tools install govulncheck — it is distributed as a Go package " +
+			InstallHint: "draugr tools install govulncheck, it is distributed as a Go package " +
 				"and needs a Go toolchain to build",
 			Category: CategoryScanner,
 		},
@@ -177,7 +177,7 @@ func Catalog() map[string]Tool {
 		"kube-bench": {
 			Binary:      "kube-bench",
 			VersionArgs: []string{"version"},
-			InstallHint: "https://github.com/aquasecurity/kube-bench/releases — extract both the binary and its cfg/ directory",
+			InstallHint: "https://github.com/aquasecurity/kube-bench/releases, extract both the binary and its cfg/ directory",
 			Category:    CategoryScanner,
 			// kube-bench ships its benchmarks as a cfg/ tree beside the binary, and people
 			// install the binary alone. Without it every run dies with "config file is missing

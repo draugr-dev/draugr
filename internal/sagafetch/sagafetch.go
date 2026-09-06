@@ -48,7 +48,7 @@ var _ saga.Fetcher = (*Fetcher)(nil)
 func (f *Fetcher) Fetch(url, revision string) (string, string, func(), error) {
 	if netpolicy.Offline() {
 		return "", "", func() {}, fmt.Errorf(
-			"cannot fetch the fragment at %s@%s while offline — resolve it on a connected machine "+
+			"cannot fetch the fragment at %s@%s while offline, resolve it on a connected machine "+
 				"and scan the flattened descriptor (`draugr validate <saga> --resolved`), or drop "+
 				"the entry", url, revision)
 	}

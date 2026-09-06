@@ -21,7 +21,7 @@ func newControlsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "controls [control]",
 		Short: "List the security controls Draugr can run, their purpose, and scanners",
-		Long: "List every security control Draugr can run — what it checks, its scope, and which\n" +
+		Long: "List every security control Draugr can run, what it checks, its scope, and which\n" +
 			"scanner(s) implement it (default, plus any opt-in alternatives). Enable a control in\n" +
 			"your Saga under config.controllers.<name> (or per component).\n\n" +
 			"--options adds what each scanner accepts in its Saga block. A scanner listed with no\n" +
@@ -122,7 +122,7 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 
 	if optIn {
 		_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
-			"* opt-in scanner — enable with controllers.<control>.<scanner>.enabled: true in the Saga."))
+			"* opt-in scanner. Enable with controllers.<control>.<scanner>.enabled: true in the Saga."))
 	}
 	writeEffects(w, col, reg, only)
 	if showOptions {
@@ -165,7 +165,7 @@ func writeScannerOptions(w io.Writer, col tui.Painter, reg *engine.Registry, onl
 		_, _ = fmt.Fprintln(w, "\n  "+col.Paint(tui.StyleAccent, info.Name))
 		if len(opts) == 0 {
 			_, _ = fmt.Fprintln(w, "    "+col.Paint(tui.StyleMuted,
-				"no options — configured by choosing it; any other key is an error"))
+				"no options, configured by choosing it; any other key is an error"))
 			continue
 		}
 		t := tui.NewTable(col, "Option", "Type", "What it does").Indent("    ")
@@ -222,7 +222,7 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry, only strin
 	t.Render(w)
 	if needsConsent {
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
-			"Effects marked mutate or privilege do not run until accepted — list them under\n"+
+			"Effects marked mutate or privilege do not run until accepted. List them under\n"+
 				"config.allowEffects in your Saga, or pass --allow-effects."))
 	}
 }
@@ -302,7 +302,7 @@ func knownControl(reg *engine.Registry, name string) error {
 	sort.Strings(names)
 	msg := fmt.Sprintf("%q is not a control this build provides", name)
 	if near := nearestName(name, known); near != "" {
-		msg += fmt.Sprintf(" — did you mean %q?", near)
+		msg += fmt.Sprintf(", did you mean %q?", near)
 	}
 	return fmt.Errorf("%s\n\nit has: %s", msg, strings.Join(names, ", "))
 }

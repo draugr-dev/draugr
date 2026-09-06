@@ -14,7 +14,7 @@ it can do.
 Draugr's fix list answers a different question: **what should I do, and what will it clear?**
 
 ```
-Fix first — 5 actions clear 616 findings:
+Fix first · 5 actions clear 616 findings:
   P1  Update istio/install-cni:1.30.0  images · 184 findings · upstream
       CVE-2026-8925 +183
   P1  Upgrade Jinja2 2.10  sca · 6 findings

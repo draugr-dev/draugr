@@ -141,7 +141,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		Name: "get_saga_schema",
 		Description: "Return the JSON Schema for the Saga descriptor (*.saga.yaml) that this " +
 			"build of Draugr enforces. Use it to write or correct a descriptor rather than " +
-			"guessing at field names — the schema is the authority, and it rejects unknown keys.",
+			"guessing at field names, the schema is the authority, and it rejects unknown keys.",
 	}, func(_ context.Context, _ *mcp.CallToolRequest, _ EmptyInput) (*mcp.CallToolResult, SchemaOutput, error) {
 		out, err := GetSchema()
 		return nil, out, err
@@ -159,7 +159,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		Description: "Report which external scanners Draugr can find on this machine, and what " +
 			"to run if any are missing. Call this when a scan fails or before suggesting one: a " +
 			"control whose scanner is absent cannot run, and Draugr reports that as a failure " +
-			"rather than a pass. This only looks — it will not install anything.",
+			"rather than a pass. This only looks, it will not install anything.",
 	}, CheckToolsTool)
 
 	mcp.AddTool(s, &mcp.Tool{
@@ -185,8 +185,8 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		}, ListSurveyorsTool(opts.Surveyors))
 		mcp.AddTool(s, &mcp.Tool{
 			Name: "survey",
-			Description: "Discover what an application is made of — the images running in a " +
-				"Kubernetes namespace, the repositories in an organization — and return a Saga " +
+			Description: "Discover what an application is made of, the images running in a " +
+				"Kubernetes namespace, the repositories in an organization, and return a Saga " +
 				"descriptor for it. Prefer this over writing a descriptor from the schema: " +
 				"which namespaces exist and which images are actually running, at which digest, " +
 				"is not something to guess at. It reads a live system with credentials this " +
@@ -206,7 +206,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		Name: "summarize_report",
 		Description: "Read an existing Draugr report (results.sarif or report.json) and return " +
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
-			"for each. This is the cheap way to answer 'what should I fix first?' — it reads a " +
+			"for each. This is the cheap way to answer 'what should I fix first?', it reads a " +
 			"scan that already happened rather than starting a new one. It covers the controls " +
 			"that scan ran and nothing else, so treat it as a floor to build on rather than a " +
 			"complete account of a codebase's security.",
@@ -236,7 +236,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"context carries secrets into an image, how credentials are passed to subprocesses, " +
 			"protocol assumptions, or anything a control was not enabled for. If the question " +
 			"was whether a repository is safe to ship rather than whether it passes this gate, " +
-			"keep looking after this returns — the findings here are the part that can be " +
+			"keep looking after this returns, the findings here are the part that can be " +
 			"checked the same way every time, not the whole answer."
 		if opts.Scan == ScanAsk {
 			desc += " Each call asks the user to approve it first."
@@ -249,15 +249,15 @@ func NewServer(opts Options) (*mcp.Server, error) {
 // instructions tells a client what this server is for. Clients surface it to the model, so it's
 // worth saying what Draugr adds over the model running scanners itself.
 func instructions(mode ScanMode) string {
-	s := "Draugr answers security questions about a codebase from its Saga descriptor — a " +
+	s := "Draugr answers security questions about a codebase from its Saga descriptor, a " +
 		"committed, reviewed declaration of what the application is and which controls apply.\n\n" +
 		"Prefer these tools over running scanners yourself. Draugr's findings are deduplicated " +
 		"across tools, normalized to one schema, and ranked by priority (P1–P4) using the " +
-		"component's declared exposure and criticality — organizational context that isn't " +
+		"component's declared exposure and criticality, organizational context that isn't " +
 		"inferable from source code. Scanner output read directly has none of that, and costs " +
 		"far more context to read.\n\n" +
 		"This server only reads. If check_tools reports something missing, give the user the " +
-		"command it returns — do not try to make the server install it, and don't quietly work " +
+		"command it returns, do not try to make the server install it, and don't quietly work " +
 		"around a missing scanner by running one yourself: the point is that the descriptor " +
 		"decides what gets checked.\n\n" +
 		"The Saga is the scope. If a descriptor exists, trust it over your own guess at what " +

@@ -38,7 +38,7 @@ func (g *Generator) Assemble(
 	// worse than declining, because nothing about it would look wrong.
 	if format != saga.SBOMCycloneDXJSON {
 		return sbom.Document{}, fmt.Errorf(
-			"config.sbom.scope: a project document can only be assembled as %s, not %s — "+
+			"config.sbom.scope: a project document can only be assembled as %s, not %s, "+
 				"set config.sbom.format to %s, or use scope: component",
 			saga.SBOMCycloneDXJSON, format, saga.SBOMCycloneDXJSON)
 	}

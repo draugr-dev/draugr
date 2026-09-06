@@ -147,7 +147,7 @@ func ambiguousDescriptors(dir, cmdName string, found []string) error {
 	for i, p := range found {
 		names[i] = filepath.Base(p)
 	}
-	return fmt.Errorf("%s holds %d descriptors (%s) — name the one to use, e.g. `draugr %s %s`",
+	return fmt.Errorf("%s holds %d descriptors (%s). Name the one to use, e.g. `draugr %s %s`",
 		dir, len(found), strings.Join(names, ", "), cmdName, filepath.Join(dir, names[0]))
 }
 

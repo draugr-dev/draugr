@@ -59,7 +59,7 @@ func buildTSVDownload(s summary) template.URL {
 		writeTSVRow(&sb, f, "")
 	}
 	for _, f := range s.excluded {
-		writeTSVRow(&sb, f, "SUPPRESSED: "+f.justification+" — ")
+		writeTSVRow(&sb, f, "SUPPRESSED: "+f.justification+" · ")
 	}
 	return dataURI("text/tab-separated-values", sb.String())
 }

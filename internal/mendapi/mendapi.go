@@ -138,7 +138,7 @@ func (c *Client) ProjectByName(ctx context.Context, productToken, name string) (
 			return p, nil
 		}
 	}
-	return Project{}, fmt.Errorf("no project named %q in this product — the upload may not have "+
+	return Project{}, fmt.Errorf("no project named %q in this product, the upload may not have "+
 		"been processed yet, or it went to a different product", name)
 }
 

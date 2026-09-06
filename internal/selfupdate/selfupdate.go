@@ -173,7 +173,7 @@ func Update(ctx context.Context, opts Options) (Result, error) {
 func verifySignature(ctx context.Context, client *http.Client, base string, checksums []byte) (bool, string, error) {
 	cosignPath, err := cosignLookPath()
 	if err != nil {
-		return false, "cosign not installed — verified by SHA-256 only", nil
+		return false, "cosign not installed, verified by SHA-256 only", nil
 	}
 	bundle, err := get(ctx, client, base+"/checksums.txt.sigstore.json")
 	if err != nil {

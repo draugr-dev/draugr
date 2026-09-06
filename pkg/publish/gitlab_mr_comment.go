@@ -205,7 +205,7 @@ func (p gitlabMRCommentPublisher) send(ctx context.Context, method, endpoint, bo
 			// The request reached GitLab and was refused, which is a property of the token rather
 			// than of anything in the Saga. Both causes are worth naming: a token that cannot write
 			// and a token that cannot see the project produce the same two status codes.
-			return fmt.Errorf("post merge request note refused — the token needs `api` scope and "+
+			return fmt.Errorf("post merge request note refused, the token needs `api` scope and "+
 				"at least Developer role on this project: %s: %s", resp.Status, msg)
 		}
 		return fmt.Errorf("post merge request note failed: %s: %s", resp.Status, msg)

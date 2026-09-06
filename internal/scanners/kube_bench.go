@@ -166,7 +166,7 @@ func kubeContextEnv(kubeCtx string) (env []string, cleanup func(), err error) {
 	}
 	if _, ok := raw.Contexts[kubeCtx]; !ok {
 		return nil, noop, fmt.Errorf(
-			"kube-bench: no kubeconfig context named %q — the component's infrastructure `ref` "+
+			"kube-bench: no kubeconfig context named %q, the component's infrastructure `ref` "+
 				"selects the cluster to audit, so it has to match a context (or set "+
 				"controllers.infrastructure.context)", kubeCtx)
 	}

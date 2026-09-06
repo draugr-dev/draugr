@@ -20,7 +20,7 @@ func (Headers) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "headers",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Check how a running site answers a browser — the settings that stop a page being abused.",
+		Summary:         "Check how a running site answers a browser, the settings that stop a page being abused.",
 		DefaultScanners: []string{"draugr-headers"},
 	}
 }

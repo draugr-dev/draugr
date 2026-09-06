@@ -127,7 +127,7 @@ terminal (verdict, priorities, severities) and honors `NO_COLOR`.
 A worked example:
 
 ```text
-Draugr — FAIL   (draugr-demo 1.0)
+Draugr · FAIL   (draugr-demo 1.0)
 
 Priorities:  P1 67   P2 102   P3 82   P4 18
 

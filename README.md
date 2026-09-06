@@ -38,7 +38,7 @@ inheriting two hundred existing ones does not block every change.
 
 ```console
 $ draugr scan .
-Draugr — FAIL   (draugr-demo 1.0)
+Draugr · FAIL   (draugr-demo 1.0)
 
 Priorities:  P1 197   P2 629   P3 229   P4 18
 
@@ -54,7 +54,7 @@ Reachability:
   govulncheck  2 reachable, 2 unreachable
   Unreachable findings are ranked down in priority, not removed from the report.
 
-1 finding suppressed by config.exclude — 1 accepted by demo@example.com
+1 finding suppressed by config.exclude · 1 accepted by demo@example.com
 
 Fix first (top 10 of 1073, by priority):
   Priority  Severity  Score  Rule            Control  Scanner  Location

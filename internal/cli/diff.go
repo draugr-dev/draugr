@@ -33,7 +33,7 @@ func newDiffCommand() *cobra.Command {
 		Use:   "diff <base.sarif> <head.sarif>",
 		Short: "Compare two scans and classify findings as new, fixed, accepted, reopened or unchanged",
 		Long: "Compare two Draugr SARIF results (the results.sarif that `draugr scan -o` writes)\n" +
-			"and classify every finding as new / fixed / accepted / reopened / unchanged — the\n" +
+			"and classify every finding as new / fixed / accepted / reopened / unchanged, the\n" +
 			"security delta of a change, typically a PR's head vs its base branch.\n\n" +
 			"Accepted is a finding somebody excused rather than fixed; reopened is one whose\n" +
 			"exclusion lapsed. Both are printed only when they are not zero.\n\n" +
@@ -50,7 +50,7 @@ func newDiffCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "report only new findings at or above this priority band (P1-P4); fixed and unchanged are unaffected")
 	cmd.Flags().StringVar(&opts.repository, "repository", "",
 		"keep only new findings from this repository, plus those belonging to none (an image, a "+
-			"host). For a code-scanning upload, whose paths anchor to one checkout — a finding "+
+			"host). For a code-scanning upload, whose paths anchor to one checkout, a finding "+
 			"from elsewhere would annotate a same-named file here")
 	cmd.Flags().BoolVar(&opts.publish, "publish", false, "post the diff as a sticky pull-request comment (GitHub, GitLab or Azure DevOps, detected from the CI environment)")
 	return cmd
@@ -188,7 +188,7 @@ func comparableScopes(basePath string, base sarif.Report, headPath string, head 
 		return path + " was scoped to " + scope
 	}
 	return fmt.Errorf("these reports do not describe the same scan:\n  %s\n  %s\n"+
-		"a finding the head did not look for would be reported as fixed — re-run the scoped side "+
+		"a finding the head did not look for would be reported as fixed. Re-run the scoped side "+
 		"unscoped, or scope both the same way",
 		describe(basePath, baseScope, baseScoped), describe(headPath, headScope, headScoped))
 }

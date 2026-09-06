@@ -231,7 +231,7 @@ back to a full scan and make the flags useless for the loop they exist for. What
 look like an unscoped run:
 
 ```
-Draugr — FAIL   (multi 1.0.0)   (scope: 1 of 3 components; sca)
+Draugr · FAIL   (multi 1.0.0)   (scope: 1 of 3 components; sca)
 
 Components:
   app       FAIL   P1 9  P2 8  P3 1  sca

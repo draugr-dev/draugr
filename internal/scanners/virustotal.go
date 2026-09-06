@@ -49,7 +49,7 @@ const virusTotalConfigSchema = `{
   "properties": {
     "requestsPerMinute": {
       "type": "integer",
-      "description": "Override the assumed API allowance. Defaults to the public tier's 4. Raise it only to what your key actually permits — exceeding VirusTotal's limit risks losing access, and their stated penalty for terms violations is a permanent ban."
+      "description": "Override the assumed API allowance. Defaults to the public tier's 4. Raise it only to what your key actually permits, exceeding VirusTotal's limit risks losing access, and their stated penalty for terms violations is a permanent ban."
     }
   }
 }`
@@ -112,7 +112,7 @@ func (s virusTotalScanner) Scan(ctx context.Context, target plugin.Target, _ plu
 	if s.key() == "" {
 		return sarif.Report{}, fmt.Errorf(
 			"virustotal: no API key. Get one free at https://www.virustotal.com/gui/my-apikey "+
-				"and put it in $%s — note their free tier forbids commercial use", virusTotalKeyEnv)
+				"and put it in $%s, note their free tier forbids commercial use", virusTotalKeyEnv)
 	}
 
 	report, known, err := s.lookup(ctx, name)
@@ -229,7 +229,7 @@ func virusTotalResults(rawURL string, d virusTotalDomain, known bool) []sarif.Re
 			RuleID: ruleVTSuspicious,
 			Level:  sarif.LevelWarning,
 			Message: fmt.Sprintf("one of VirusTotal's engines calls this domain malicious (%s). "+
-				"A single detection is often a false positive — worth checking, not worth blocking on",
+				"A single detection is often a false positive, worth checking, not worth blocking on",
 				namesOrCount(flagged)),
 			Location: sarif.Location{URI: rawURL},
 		})
@@ -284,7 +284,7 @@ func virusTotalRules() map[string]sarif.Rule {
 		},
 		ruleVTSuspicious: {
 			Name:             "Domain flagged by a minority of engines",
-			ShortDescription: "One engine calls it malicious, or some call it suspicious — often a false positive.",
+			ShortDescription: "One engine calls it malicious, or some call it suspicious, often a false positive.",
 			HelpURI:          "https://www.virustotal.com/",
 		},
 	}

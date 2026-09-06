@@ -362,7 +362,7 @@ func TestSurveySummaryDescribesTheArtifact(t *testing.T) {
 		{Name: "api", Repositories: []saga.Repository{{URL: "https://git/b"}}},
 	}}
 	got := surveySummary(surveyOptions{output: ".saga.yaml"}, saga.Fragment{}, model.Components, false)
-	want := "wrote .saga.yaml — 2 components, 2 repositories, 1 host"
+	want := "wrote .saga.yaml · 2 components, 2 repositories, 1 host"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}

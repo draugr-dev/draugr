@@ -178,13 +178,13 @@ func runIn(ctx context.Context, dir, name string, args ...string) error {
 func findNode(ctx context.Context) (string, error) {
 	npm, err := execLookPath("npm")
 	if err != nil {
-		return "", fmt.Errorf("retire.js is an npm package and no `npm` is on PATH — install "+
+		return "", fmt.Errorf("retire.js is an npm package and no `npm` is on PATH. Install "+
 			"Node %d or newer, or install retire.js yourself with `npm install -g retire`",
 			minNodeMajor)
 	}
 	if ok, found := nodeAtLeast(ctx, minNodeMajor); !ok {
 		return "", fmt.Errorf("node %s is older than %d, which `npm ci` needs to install from a "+
-			"lockfile — upgrade Node, or install retire.js yourself with `npm install -g retire`",
+			"lockfile. Upgrade Node, or install retire.js yourself with `npm install -g retire`",
 			found, minNodeMajor)
 	}
 	return npm, nil

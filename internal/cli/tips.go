@@ -61,7 +61,7 @@ var scanTips = []scanTip{
 		},
 		text: func(c tipContext) string {
 			n := countAtOrAbove(c.run, "P2")
-			return fmt.Sprintf("this run passed with %d P1/P2 finding(s) — severity thresholds do not "+
+			return fmt.Sprintf("this run passed with %d P1/P2 finding(s), severity thresholds do not "+
 				"look at priority. Add --fail-on-priority P2 to gate on risk as well.", n)
 		},
 	},
@@ -162,9 +162,9 @@ func printUncoveredSurfaceNote(w io.Writer, model *saga.Model) {
 	// control, and sees a host listed as unchecked without it, reads the omission as a gap in
 	// this note rather than as the deliberate choice it is.
 	if surfaces.DeclaresHosts(model) {
-		_, _ = fmt.Fprint(w, "      dast is never suggested — it sends attack traffic. Enable it yourself.\n")
+		_, _ = fmt.Fprint(w, "      dast is never suggested, it sends attack traffic. Enable it yourself.\n")
 	}
-	_, _ = fmt.Fprint(w, "      draugr controls — what each control does\n")
+	_, _ = fmt.Fprint(w, "      draugr controls, what each control does\n")
 }
 
 // countAtOrAbove counts findings whose priority is at or above a band.

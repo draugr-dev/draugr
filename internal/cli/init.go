@@ -155,11 +155,11 @@ func scaffoldSaga(dir, name string) string {
 	b.WriteString("    secrets:\n      enabled: true       # leaked credentials (Gitleaks)\n")
 	b.WriteString("    sast:\n      enabled: true       # code security (Semgrep)\n")
 	if isGo {
-		b.WriteString("      gosec:\n        enabled: true   # Go detected — gosec adds Go-specific checks\n")
+		b.WriteString("      gosec:\n        enabled: true   # Go detected, gosec adds Go-specific checks\n")
 	}
 	b.WriteString("    iac:\n      enabled: true       # IaC misconfiguration (Trivy config)\n")
 	if hasDocker {
-		b.WriteString("    # images:\n    #   enabled: true     # container CVEs (Trivy) — add your built image below\n")
+		b.WriteString("    # images:\n    #   enabled: true     # container CVEs (Trivy). Add your built image below\n")
 	}
 	fmt.Fprintf(&b, "components:\n  - name: %s\n    repositories:\n      - url: .\n", name)
 	if hasDocker {
@@ -184,7 +184,7 @@ func scaffoldFragment(name string) string {
 	var b strings.Builder
 	b.WriteString("# yaml-language-server: $schema=" + saga.FragmentSchemaURL + "\n")
 	b.WriteString("# A Saga fragment: merged into any descriptor whose `fragments:` matches this file.\n")
-	b.WriteString("# It may declare components and exclusions. Policy — the gate, which controls run —\n")
+	b.WriteString("# It may declare components and exclusions. Policy, the gate, which controls run —\n")
 	b.WriteString("# stays in the descriptor that names it, where a reviewer sees it.\n\n")
 	b.WriteString("components:\n")
 	b.WriteString("  - name: " + name + "\n")

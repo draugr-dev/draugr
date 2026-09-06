@@ -157,7 +157,7 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 			Level:    sarif.LevelError,
 			Score:    8.5,
 			HasScore: true,
-			Message: "Server does not accept TLS 1.2 or newer — only deprecated versions. " +
+			Message: "Server does not accept TLS 1.2 or newer, only deprecated versions. " +
 				"Traffic is protected by protocols with known attacks; enable TLS 1.2+ urgently.",
 			Location: sarif.Location{URI: host.URL},
 		})
@@ -183,7 +183,7 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 				Score:    v.score,
 				HasScore: true,
 				Message: fmt.Sprintf(
-					"%s is accepted. It is deprecated (RFC 8996) and vulnerable to known attacks — "+
+					"%s is accepted. It is deprecated (RFC 8996) and vulnerable to known attacks, "+
 						"disable it and require TLS 1.2 or newer.", v.label),
 				Location: sarif.Location{URI: host.URL},
 			})
@@ -198,7 +198,7 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 			Level:    sarif.LevelNote,
 			Score:    2.0,
 			HasScore: true,
-			Message: "TLS 1.3 is not accepted. It is faster and removes legacy weaknesses — " +
+			Message: "TLS 1.3 is not accepted. It is faster and removes legacy weaknesses, " +
 				"enable it alongside TLS 1.2.",
 			Location: sarif.Location{URI: host.URL},
 		})
@@ -221,7 +221,7 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time, t
 		out = append(out, sarif.Result{
 			Tool: "draugr-tls", RuleID: "tls-cert-expired", Level: sarif.LevelError,
 			Score: 9.0, HasScore: true,
-			Message: fmt.Sprintf("Certificate expired on %s. Clients will refuse to connect — renew it now.",
+			Message: fmt.Sprintf("Certificate expired on %s. Clients will refuse to connect, renew it now.",
 				leaf.NotAfter.UTC().Format(time.DateOnly)),
 			Location: sarif.Location{URI: uri},
 		})
@@ -280,7 +280,7 @@ func weakKey(cert *x509.Certificate) (rule, message string, score float64, weak 
 	case *rsa.PublicKey:
 		if bits := pub.N.BitLen(); bits < 2048 {
 			return "tls-weak-key", fmt.Sprintf(
-				"Certificate uses a %d-bit RSA key. Keys under 2048 bits are considered breakable — "+
+				"Certificate uses a %d-bit RSA key. Keys under 2048 bits are considered breakable, "+
 					"reissue with at least 2048 bits.", bits), 7.0, true
 		}
 	case *ecdsa.PublicKey:
@@ -309,7 +309,7 @@ func certHandshakeFinding(uri string, err error) (sarif.Result, bool) {
 		base.RuleID = "tls-cert-hostname-mismatch"
 		base.Score = 8.0
 		base.Message = fmt.Sprintf("Certificate is not valid for this hostname: %v. "+
-			"Clients will reject it — reissue the certificate covering this name.", hostnameErr)
+			"Clients will reject it, reissue the certificate covering this name.", hostnameErr)
 	case errors.As(err, &unknownAuthority):
 		base.RuleID = "tls-cert-untrusted"
 		base.Score = 8.0
@@ -322,7 +322,7 @@ func certHandshakeFinding(uri string, err error) (sarif.Result, bool) {
 			base.RuleID = "tls-cert-expired"
 			base.Score = 9.0
 			base.Message = "Certificate has expired (or is not yet valid). Clients will refuse to " +
-				"connect — renew it now."
+				"connect, renew it now."
 			break
 		}
 		base.RuleID = "tls-cert-invalid"
@@ -346,7 +346,7 @@ func tlsAddress(raw string) (addr, serverName string, err error) {
 		return "", "", fmt.Errorf("parse host url %q: %w", raw, err)
 	}
 	if u.Scheme == "http" {
-		return "", "", fmt.Errorf("host %q is plain http — nothing to probe (serve it over https)", raw)
+		return "", "", fmt.Errorf("host %q is plain http, nothing to probe (serve it over https)", raw)
 	}
 	hostname := u.Hostname()
 	if hostname == "" {

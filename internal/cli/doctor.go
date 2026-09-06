@@ -117,7 +117,7 @@ func runDoctor(
 				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil)
 			} else {
 				col := tui.For(w)
-				_, _ = fmt.Fprintf(w, "Descriptor  %s — %s\n", col.Paint(tui.StyleFail, "✗ invalid"), err)
+				_, _ = fmt.Fprintf(w, "Descriptor  %s · %s\n", col.Paint(tui.StyleFail, "✗ invalid"), err)
 			}
 			return fmt.Errorf("invalid descriptor: %w", err)
 		}
@@ -185,7 +185,7 @@ func runDoctor(
 		if !run.json {
 			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleMuted,
 				fmt.Sprintf("%d of these are not installed. Which you need depends on your "+
-					"descriptor — run `draugr doctor <saga>` to check just those, or "+
+					"descriptor. Run `draugr doctor <saga>` to check just those, or "+
 					"`draugr tools install` to fetch them all.", missing)))
 		}
 		return nil
@@ -398,7 +398,7 @@ func writeDraugrLine(w io.Writer, r draugrReport) {
 	case r.UpdateAvailable:
 		col := tui.For(w)
 		_, _ = fmt.Fprintf(w, "Draugr      %s  %s\n\n", displayVersion(r.Version),
-			col.Paint(tui.StyleAccent, fmt.Sprintf("(latest: %s — run 'draugr self-update')",
+			col.Paint(tui.StyleAccent, fmt.Sprintf("(latest: %s. Run 'draugr self-update')",
 				displayVersion(r.Latest))))
 	default:
 		_, _ = fmt.Fprintf(w, "Draugr      %s  %s\n\n", displayVersion(r.Version),
@@ -505,7 +505,7 @@ func networkHeading() string {
 	if netpolicy.Offline() {
 		return "(offline: none of these will happen)"
 	}
-	return "(what Draugr fetches, and when — suppress with --offline)"
+	return "(what Draugr fetches, and when, suppress with --offline)"
 }
 
 // missingToolsAdvice counts what is missing and suggests `tools install` only when it could
@@ -549,5 +549,5 @@ func externalInstallHint(binary string) string {
 // externalTools names where to get a tool Draugr execs but never downloads.
 var externalTools = map[string]string{
 	"mend": "proprietary; install the Mend CLI from Mend's documentation (Draugr does not " +
-		"distribute it) — see internal/scanners/mend-sca.md",
+		"distribute it). See internal/scanners/mend-sca.md",
 }

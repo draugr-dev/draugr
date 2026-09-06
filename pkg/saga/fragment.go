@@ -127,7 +127,7 @@ func (r *resolver) apply(model *Model, refs []FragmentRef, base string, depth in
 		return nil
 	}
 	if depth >= maxFragmentDepth {
-		return fmt.Errorf("fragments nest more than %d deep at %q — check for a fragment that "+
+		return fmt.Errorf("fragments nest more than %d deep at %q. Check for a fragment that "+
 			"includes its own directory", maxFragmentDepth, strings.Join(r.stack, " → "))
 	}
 	for _, ref := range refs {
@@ -151,7 +151,7 @@ func (r *resolver) locate(ref FragmentRef, base string) (dir string, src Source,
 	}
 	if r.fetcher == nil {
 		return "", Source{}, nil, fmt.Errorf(
-			"fragments: %q reads from a repository, which this command cannot do — "+
+			"fragments: %q reads from a repository, which this command cannot do, "+
 				"use `draugr scan` or `draugr validate`, or give the fragment a local `path`", ref)
 	}
 	dir, resolved, cleanup, err := r.fetcher.Fetch(ref.URL, ref.Revision)
@@ -171,7 +171,7 @@ func (r *resolver) mergeFrom(model *Model, ref FragmentRef, dir string, src Sour
 	// the line on purpose, so silence from it is indistinguishable from a typo — and a quietly
 	// smaller scan is the failure this tool exists to prevent.
 	if len(matches) == 0 {
-		return fmt.Errorf("fragments: %q matched no files — "+
+		return fmt.Errorf("fragments: %q matched no files, "+
 			"remove the entry if this product has none, or fix the pattern", ref)
 	}
 	for _, rel := range matches {
@@ -284,11 +284,11 @@ func fragmentFieldHint(err error) error {
 	}
 	switch field := match[1]; field {
 	case "release":
-		return fmt.Errorf("a fragment has no `release:` — it is part of a product rather than a " +
+		return fmt.Errorf("a fragment has no `release:`, it is part of a product rather than a " +
 			"product of its own, and the descriptor that names it supplies the release")
 	case "gate", "controllers", "reports", "publishers", "sbom", "vex", "exploitability",
 		"reachability":
-		return fmt.Errorf("a fragment may not set `config.%s` — a fragment adds scope and "+
+		return fmt.Errorf("a fragment may not set `config.%s`, a fragment adds scope and "+
 			"suppressions, and policy stays in the descriptor that names it, where a reviewer "+
 			"sees it", field)
 	default:

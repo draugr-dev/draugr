@@ -160,7 +160,7 @@ func gitlabSBOMSource(docs []sbom.Document) (map[string]any, error) {
 	}
 	if chosen == nil {
 		return nil, fmt.Errorf("gitlab-cyclonedx needs a CycloneDX JSON SBOM and this run produced " +
-			"none — enable `config.sbom` with `format: cyclonedx-json`")
+			"none · enable `config.sbom` with `format: cyclonedx-json`")
 	}
 	var out map[string]any
 	if err := json.Unmarshal(chosen.Bytes, &out); err != nil {

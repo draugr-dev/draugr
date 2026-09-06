@@ -55,7 +55,7 @@ func newConfigCommand() *cobra.Command {
 		Use:   "config",
 		Short: "Inspect and edit Draugr's machine and organization settings",
 		Long: "Read and write draugr.config.yaml: settings for the environment running a scan,\n" +
-			"not for the application being scanned — scanner versions, control defaults, and\n" +
+			"not for the application being scanned, scanner versions, control defaults, and\n" +
 			"anything else meant to be the same across every project on this machine.",
 	}
 	cmd.AddCommand(newConfigShowCommand(), newConfigGetCommand(), newConfigSetCommand(),
@@ -380,7 +380,7 @@ func newConfigValidateCommand() *cobra.Command {
 				}
 				if len(paths) == 0 {
 					_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
-						"No configuration found — nothing to check."))
+						"No configuration found, nothing to check."))
 					return nil
 				}
 			}

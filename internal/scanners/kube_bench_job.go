@@ -388,7 +388,7 @@ func timedOut(ctx context.Context, client kubernetes.Interface, namespace, name 
 	state, advice := podDiagnosis(ctx, client, namespace, name)
 	base := fmt.Sprintf("job %s/%s did not finish", namespace, name)
 	if state != "" {
-		base += " — " + state
+		base += ", " + state
 	}
 	return fmt.Errorf("%s: %w. The Job has been removed. %s", base, cause, advice)
 }
@@ -454,7 +454,7 @@ func latestWarning(ctx context.Context, client kubernetes.Interface, namespace, 
 	if newest == nil {
 		return ""
 	}
-	return newest.Reason + " — " + strings.TrimSpace(newest.Message)
+	return newest.Reason + ", " + strings.TrimSpace(newest.Message)
 }
 
 // eventTime is when an event was last seen, falling back through the fields different cluster

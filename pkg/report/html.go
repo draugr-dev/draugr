@@ -242,7 +242,7 @@ const htmlDoc = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Draugr report{{if .Release}} — {{.Release}}{{end}}</title>
+<title>Draugr report{{if .Release}} · {{.Release}}{{end}}</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem auto; max-width: 60rem; padding: 0 1rem; }
@@ -309,7 +309,7 @@ const htmlDoc = `<!doctype html>
 </style>
 </head>
 <body>
-<h1>Draugr — <span class="verdict {{if .Pass}}pass{{else}}fail{{end}}">{{.Verdict}}</span></h1>
+<h1>Draugr · <span class="verdict {{if .Pass}}pass{{else}}fail{{end}}">{{.Verdict}}</span></h1>
 {{if .Release}}<p class="rel">{{.Release}}</p>{{end}}
 
 <nav class="nav">
@@ -330,7 +330,7 @@ const htmlDoc = `<!doctype html>
   <span>P4 {{.P4}}</span>
 </p>
 <p class="note">Priority combines how severe a finding is with how exposed and how business-critical
-the component is — so the same issue ranks differently on a public API than on an internal tool.
+the component is, so the same issue ranks differently on a public API than on an internal tool.
 <strong>P1</strong> is act now, <strong>P4</strong> is track it. Counts cover the whole run.</p>
 {{end}}
 
@@ -386,20 +386,20 @@ about what they would have found. For everything the tool printed, re-run with t
 <code class="cmd">--log-level trace</code> flag:</p>
 <pre class="cmd">draugr scan &lt;saga.yaml&gt; --log-level trace</pre>
 <ul class="errors">
-{{range .Errors}}<li><strong>{{.Control}}</strong> — {{.Message}}</li>{{end}}
+{{range .Errors}}<li><strong>{{.Control}}</strong> · {{.Message}}</li>{{end}}
 </ul>
 {{end}}
 
-{{if .Suppressed}}<p class="note">{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code> — reported, not deleted; each carries the reason it was set aside.</p>{{end}}
+{{if .Suppressed}}<p class="note">{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code> · reported, not deleted; each carries the reason it was set aside.</p>{{end}}
 {{if .SBOMCount}}<p class="note">SBOM: {{.SBOMCount}} document(s) ({{.SBOMFormat}}).</p>{{end}}
 
-<h2 id="findings-h">Findings{{if .MinPriority}} — {{.MinPriority}} and above{{end}}</h2>
+<h2 id="findings-h">Findings{{if .MinPriority}} · {{.MinPriority}} and above{{end}}</h2>
 {{if .MinPriority}}<p class="note">The counts above describe the whole run{{if .Hidden}}; {{.Hidden}} lower-priority finding(s) are not listed{{end}}.</p>{{end}}
 
 <p class="dl">
   {{if .SARIFHref}}<a href="{{.SARIFHref}}" download="results.sarif">⬇ SARIF</a>{{end}}
   {{if .TSVHref}}<a href="{{.TSVHref}}" download="findings.tsv">⬇ TSV</a>{{end}}
-  {{if .SARIFTooBig}}<span class="note">SARIF too large to embed — re-run with <code class="cmd">-o &lt;dir&gt;</code>.</span>{{end}}
+  {{if .SARIFTooBig}}<span class="note">SARIF too large to embed · re-run with <code class="cmd">-o &lt;dir&gt;</code>.</span>{{end}}
 </p>
 
 <div id="tools" hidden>
@@ -437,7 +437,7 @@ about what they would have found. For everything the tool printed, re-run with t
 </table>
 <p class="empty" id="none" hidden>No findings match this filter.</p>
 {{else if .Errors}}
-<p>No findings from the controls that ran — see the errors above.</p>
+<p>No findings from the controls that ran. See the errors reported above.</p>
 {{else}}
 <p>No findings. ✓</p>
 {{end}}
@@ -463,7 +463,7 @@ about what they would have found. For everything the tool printed, re-run with t
 {{if .Slowest}}
 <h2 id="timing">Where the time went</h2>
 <p class="note">Time spent per control, worst first. Controls run in parallel, so these sum to
-more than the elapsed time — the shares are of the total work, not of the wall clock.</p>
+more than the elapsed time, because the shares are of the total work rather than of the wall clock.</p>
 <table>
 <thead><tr><th scope="col">Control</th><th scope="col" class="num">Time</th><th scope="col">Share</th></tr></thead>
 <tbody>

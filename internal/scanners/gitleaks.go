@@ -23,7 +23,7 @@ const gitleaksConfigSchema = `{
     },
     "history": {
       "type": "boolean",
-      "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised — this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced."
+      "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced."
     }
   }
 }`

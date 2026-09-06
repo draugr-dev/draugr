@@ -61,7 +61,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	if s.verdict == norn.Fail {
 		verdict, vcol = "FAIL", cFail
 	}
-	_, _ = fmt.Fprintf(w, "Draugr — %s", col.Paint(vcol, verdict))
+	_, _ = fmt.Fprintf(w, "Draugr · %s", col.Paint(vcol, verdict))
 	if rel := d.ProjectName(); rel != "" {
 		if d.Release.Version != "" {
 			rel += " " + d.Release.Version
@@ -222,7 +222,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				who = "unattributed"
 			}
 			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
-				fmt.Sprintf("expired %s, accepted by %s — %s", e.Expires, who, findingSummary(e.Reason))))
+				fmt.Sprintf("expired %s, accepted by %s · %s", e.Expires, who, findingSummary(e.Reason))))
 		}
 		_, _ = fmt.Fprintln(w)
 	}
@@ -259,7 +259,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// the ERROR row exists to prevent.
 		if len(errored) > 0 {
 			_, _ = fmt.Fprintln(w, col.Paint(cDim,
-				"No findings from the controls that ran — see the errors above."))
+				"No findings from the controls that ran. See the errors reported above."))
 			return nil
 		}
 		_, _ = fmt.Fprintln(w, col.Paint(cPass, "No findings. ✓"))
@@ -689,7 +689,7 @@ func excludeSummary(e saga.ExcludeRule) string {
 	if len(e.Paths) > 0 {
 		parts = append(parts, "paths "+strings.Join(e.Paths, ", "))
 	}
-	return strings.Join(parts, "; ") + " — " + findingSummary(e.Reason)
+	return strings.Join(parts, "; ") + " · " + findingSummary(e.Reason)
 }
 
 // bandsText renders per-control severity counts, omitting empty bands, each colorized.
@@ -786,7 +786,7 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 	for _, l := range lines {
 		text := l.Label()
 		if l.Detail != "" {
-			text += " — " + l.Detail
+			text += " · " + l.Detail
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, l.Control), col.Paint(cDim, text))
 	}
@@ -810,7 +810,7 @@ func writeNotMeasured(w io.Writer, col tui.Painter, d Data, width int) {
 			text += " on " + sk.Component
 		}
 		if sk.Reason != "" {
-			text += " — " + sk.Reason
+			text += " · " + sk.Reason
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, sk.Control), col.Paint(cDim, text))
 	}
@@ -848,7 +848,7 @@ func exploitabilityLine(feeds []FeedProvenance, escalated int) string {
 	if escalated > 0 {
 		effect = fmt.Sprintf("%s raised", plural(escalated, "finding"))
 	}
-	return "Exploitability: " + strings.Join(parts, " · ") + " — " + effect
+	return "Exploitability: " + strings.Join(parts, " · ") + " · " + effect
 }
 
 // unpinnedCacheLine names the images whose findings came from a cache entry that could not be
@@ -873,7 +873,7 @@ func unpinnedCacheLine(refs []string) string {
 	// What the count adds is scale: one image out of thirty is a different report from thirty out
 	// of thirty, and that is the part the rows cannot say. Which ones, for a run with no findings
 	// to mark, is in the JSON and in --evidence.
-	return fmt.Sprintf("from cache: %s reused on a tag — may describe an earlier build. Pin a digest.",
+	return fmt.Sprintf("from cache, %s reused on a tag, so it may describe an earlier build. Pin a digest.",
 		plural(len(refs), "image"))
 }
 
@@ -891,7 +891,7 @@ func escalationNote(e *sarif.Escalation) string {
 	if e == nil {
 		return ""
 	}
-	out := "↑ ranked as " + string(e.To) + " — " + e.Detail
+	out := "↑ ranked as " + string(e.To) + " · " + e.Detail
 	if e.AsOf != "" {
 		out += " (" + e.AsOf + ")"
 	}
@@ -922,7 +922,7 @@ func historicalNote(historical bool) string {
 	if !historical {
 		return ""
 	}
-	return "↩ in git history — path as it was then. Rotate it; deleting it does not unpublish it."
+	return "↩ in git history · path as it was then. Rotate it; deleting it does not unpublish it."
 }
 
 // runLine accounts for the run: how long it took, and how much of it was avoided.
@@ -950,12 +950,12 @@ func runLine(st engine.Stats) string {
 		savings = append(savings, fmt.Sprintf("%d shared with an identical job", st.Deduped))
 	}
 	if len(savings) > 0 {
-		line += " — " + strings.Join(savings, ", ")
+		line += " · " + strings.Join(savings, ", ")
 	}
 	if w := waitSummary(st.ToolWaits); w != "" {
 		line += ", " + w
 		if len(savings) == 0 {
-			line = strings.Replace(line, ", "+w, " — "+w, 1)
+			line = strings.Replace(line, ", "+w, " · "+w, 1)
 		}
 	}
 	return line + "."
@@ -1010,7 +1010,7 @@ func toolBuildLines(tools []ToolBuild) []string {
 			verified = append(verified, label)
 			continue
 		}
-		other = append(other, label+" — "+t.Reason)
+		other = append(other, label+" · "+t.Reason)
 	}
 	sort.Strings(verified)
 	sort.Strings(other)
@@ -1129,7 +1129,7 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) er
 	if limit >= 0 && len(shown) > limit {
 		shown = shown[:limit]
 	}
-	_, _ = fmt.Fprintf(w, "Fix first — %s %s %s:\n",
+	_, _ = fmt.Fprintf(w, "Fix first · %s %s %s:\n",
 		plural(len(shown), "action"), clears(shown), plural(cleared(shown), "finding"))
 	renderActions(w, col, shown)
 
@@ -1192,7 +1192,7 @@ func externalLine(external []finding) string {
 		names = append(names, c)
 	}
 	sort.Strings(names)
-	return fmt.Sprintf("%s on infrastructure operated by your provider (%s) — reported, "+
+	return fmt.Sprintf("%s on infrastructure operated by your provider (%s), reported, "+
 		"and not yours to fix.", plural(len(external), "finding"), strings.Join(names, ", "))
 }
 
@@ -1375,7 +1375,7 @@ func undeliveredLine(formats []string) string {
 	if len(formats) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("config.reports declares %s and this run had nowhere to write %s — "+
+	return fmt.Sprintf("config.reports declares %s and this run had nowhere to write %s, "+
 		"pass -o <dir>, or add a publisher.",
 		strings.Join(formats, ", "), them(len(formats)))
 }
@@ -1408,7 +1408,7 @@ func writeGate(w io.Writer, col tui.Painter, d Data, full bool) {
 		// The strongest case in the file: the command exits 0 on a verdict of FAIL, so anything
 		// reading the exit code is told the opposite of what this report says.
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleAccent,
-			"Gate off (--no-gate) — this verdict does not decide the exit code."))
+			"Gate off (--no-gate) · this verdict does not decide the exit code."))
 		return
 	}
 

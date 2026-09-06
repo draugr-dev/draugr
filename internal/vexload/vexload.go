@@ -127,7 +127,7 @@ func (l *Loader) fromURL(ctx context.Context, url string) (vex.Resolved, error) 
 		return vex.Resolved{}, err
 	}
 	if len(data) > maxDocument {
-		return vex.Resolved{}, fmt.Errorf("document is larger than %d bytes — is that URL a VEX document?", maxDocument)
+		return vex.Resolved{}, fmt.Errorf("document is larger than %d bytes, is that URL a VEX document?", maxDocument)
 	}
 	return l.resolve(data, vex.Provenance{Kind: "url", Location: url})
 }

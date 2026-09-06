@@ -88,7 +88,7 @@ func goldenMismatch(path string) string {
 		"     README.md — the console block under \"See it in action\"\n" +
 		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
 		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
-		"     (grep for 'Draugr — ' there; they are a separate repo, so nothing else will catch them)\n"
+		"     (grep for 'Draugr · ' there; they are a separate repo, so nothing else will catch them)\n"
 }
 
 // goldenFullData exercises every element of the frame at once: a failing verdict with a release,

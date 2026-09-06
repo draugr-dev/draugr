@@ -91,9 +91,9 @@ func explain(tool string, err error) error {
 	// and the reader concludes the fix does not work.
 	if errors.Is(err, exec.ErrNotFound) {
 		if _, ours := tools.Spec(tool); ours {
-			return fmt.Errorf("%w — run `draugr tools install %s`", err, tool)
+			return fmt.Errorf("%w. Run `draugr tools install %s`", err, tool)
 		}
-		return fmt.Errorf("%w — Draugr does not distribute %s; install it and put it on PATH "+
+		return fmt.Errorf("%w, Draugr does not distribute %s; install it and put it on PATH "+
 			"(`draugr doctor` names the source)", err, tool)
 	}
 	exit, ok := errors.AsType[*exec.ExitError](err)

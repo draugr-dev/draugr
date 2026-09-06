@@ -62,7 +62,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 		// A scan can synthesize a descriptor; classification cannot. Exposure and criticality are
 		// judgements about a component, and there is no file to record them in or read them back
 		// from.
-		return fmt.Errorf("no %s in %s — run `draugr init` to write one", sagaGlob, dirOf(target))
+		return fmt.Errorf("no %s in %s. Run `draugr init` to write one", sagaGlob, dirOf(target))
 	}
 
 	model, err := loadSaga(path)
@@ -161,11 +161,11 @@ func selectComponents(components []saga.Component, want []string) (map[string]bo
 			names = append(names, quoted(n))
 		}
 		sort.Strings(names)
-		msg := fmt.Sprintf("no component named %s — the Saga has %s",
+		msg := fmt.Sprintf("no component named %s, the Saga has %s",
 			list(quotedAll(unknown)), list(names))
 		if len(unknown) == 1 {
 			if near := nearestName(unknown[0], known); near != "" {
-				msg = fmt.Sprintf("no component named %q — did you mean %q?", unknown[0], near)
+				msg = fmt.Sprintf("no component named %q, did you mean %q?", unknown[0], near)
 			}
 		}
 		return nil, errors.New(msg)
@@ -209,7 +209,7 @@ var exposureChoices = []choice{
 	{string(saga.ExposurePublic), "public", "anyone on the internet can reach it, no sign-in", tui.StyleCritical},
 	{string(saga.ExposureAuthenticated), "authenticated", "on the internet, but behind a login", tui.StyleHigh},
 	{string(saga.ExposureInternal), "internal", "only from inside your own network or VPN", tui.StyleMedium},
-	{string(saga.ExposureRestricted), "restricted", "inside your network and locked down further — an allowlist, a private link, its own segment", tui.StyleLow},
+	{string(saga.ExposureRestricted), "restricted", "inside your network and locked down further, an allowlist, a private link, its own segment", tui.StyleLow},
 }
 
 // criticalityChoices are the impact levels, most critical first.
@@ -221,13 +221,13 @@ var criticalityChoices = []choice{
 
 // askExposure asks who can reach the component.
 func askExposure(sc *bufio.Scanner, out io.Writer) saga.Exposure {
-	return saga.Exposure(ask(sc, out, "Exposure — who can reach it?", exposureChoices,
+	return saga.Exposure(ask(sc, out, "Exposure, who can reach it?", exposureChoices,
 		string(saga.ExposureInternal)))
 }
 
 // askCriticality asks what happens if the component fails.
 func askCriticality(sc *bufio.Scanner, out io.Writer) saga.Criticality {
-	return saga.Criticality(ask(sc, out, "Criticality — what happens if it fails or is breached?",
+	return saga.Criticality(ask(sc, out, "Criticality, what happens if it fails or is breached?",
 		criticalityChoices, string(saga.CriticalityImportant)))
 }
 

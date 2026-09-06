@@ -35,7 +35,7 @@ const trivyLicenseConfigSchema = `{
   "properties": {
     "full": {
       "type": "boolean",
-      "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower — it reads every file rather than the dependency list."
+      "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower, it reads every file rather than the dependency list."
     },
     "deny": {
       "type": "array",
@@ -209,7 +209,7 @@ var categoryLevel = map[string]struct {
 			"proprietary software."},
 	"restricted": {sarif.LevelWarning,
 		"Copyleft. Distributing software that includes this obliges you to offer your own source " +
-			"under the same terms. Running it as a hosted service usually does not trigger that — " +
+			"under the same terms. Running it as a hosted service usually does not trigger that, " +
 			"which is why this is a warning rather than a failure by default."},
 	"reciprocal": {sarif.LevelNote,
 		"File-level copyleft. Changes you make to the licensed files must be shared; your own " +

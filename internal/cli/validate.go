@@ -57,7 +57,7 @@ func runResolved(args []string, w io.Writer) error {
 	case len(paths) == 0:
 		return fmt.Errorf("no Saga files found (looked for %s); pass a path explicitly", sagaGlob)
 	case len(paths) > 1:
-		return fmt.Errorf("--resolved prints one descriptor, but %d matched — name the one you "+
+		return fmt.Errorf("--resolved prints one descriptor, but %d matched. Name the one you "+
 			"want, since the output is itself a descriptor and several concatenated would not be",
 			len(paths))
 	}

@@ -47,7 +47,7 @@ func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "draugr",
 		Short: "Developer-first, descriptor-driven security and compliance qualification",
-		Long: "Draugr — describe your app, and Draugr figures out which checks apply, runs\n" +
+		Long: "Draugr, describe your app, and Draugr figures out which checks apply, runs\n" +
 			"the right tools, and produces a pass/fail verdict with evidence.\n\n" +
 			"Security controls (SAST, SCA, secrets, IaC, DAST, TLS, headers) and compliance\n" +
 			"evidence (SBOMs) from the same descriptor and the same gate.",
@@ -150,7 +150,7 @@ func onInterrupt(ctx context.Context) (context.Context, func()) {
 		}
 		// To stderr and not through slog: this answers "did it hear me", which a reader needs
 		// before the log level or format has any bearing on anything.
-		fmt.Fprintln(os.Stderr, "\ninterrupted — finishing what has to be cleaned up. Interrupt again to stop now.")
+		fmt.Fprintln(os.Stderr, "\ninterrupted, finishing what has to be cleaned up. Interrupt again to stop now.")
 		cancel()
 		select {
 		case <-done:

@@ -92,7 +92,7 @@ func TestDefaultViewOmitsTheEvidence(t *testing.T) {
 	}
 	out := buf.String()
 	// The tool build rides along in "Measured against", which stays because it carries coverage.
-	// Splitting a line that reads "trivy 0.69.3 — policy deny copyleft" into a provenance half
+	// Splitting a line that reads "trivy 0.69.3 · policy deny copyleft" into a provenance half
 	// and a coverage half would cost more than the version string does.
 	for _, unwanted := range []string{"Ran 11 jobs", "4 from cache"} {
 		if strings.Contains(out, unwanted) {
