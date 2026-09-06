@@ -10,6 +10,10 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.115.0] - 2026-09-06
+
 ### Added
 
 - A finding raised by KEV now also records what EPSS said about it, where EPSS reached the same
@@ -24,9 +28,6 @@ and move it under a version on release.
   which was wrong for the deployment it names in the same sentence: the same artifact runs hosted
   and on your own infrastructure, and half of that is not a cloud. The product is Draugr either
   way; how you run it is the only difference.
-
-
-_Nothing yet._
 
 ## [0.114.0] - 2026-09-03
 
@@ -5241,7 +5242,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.114.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.115.0...HEAD
+[0.115.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.115.0
 [0.114.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.114.0
 [0.113.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.113.0
 [0.112.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.112.0
