@@ -999,6 +999,52 @@ func TestEscalationSurvivesTheFile(t *testing.T) {
 	}
 }
 
+func TestWhatElseMatchedSurvivesTheFile(t *testing.T) {
+	// The record of a dataset that applied and did not win is only worth writing if it reaches
+	// whatever reads the file. It travels inside the escalation rather than beside it, so this is
+	// also the test that a field added to that struct is carried rather than quietly dropped.
+	rep := Report{Results: []Result{{
+		RuleID: "CVE-2021-44228", Level: LevelWarning, Message: "log4j",
+		Escalation: &Escalation{
+			From: SeverityLow, To: SeverityCritical,
+			Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01",
+			AlsoMatched: []Match{{Signal: "epss", Detail: "EPSS 0.97", AsOf: "2026-08-02"}},
+		},
+	}}}
+
+	encoded, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := FromSARIF(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := back.Results[0].Escalation
+	if got == nil || len(got.AlsoMatched) != 1 {
+		t.Fatalf("escalation = %+v, want the match that did not win carried with it", got)
+	}
+	if m := got.AlsoMatched[0]; m.Signal != "epss" || m.Detail != "EPSS 0.97" || m.AsOf != "2026-08-02" {
+		t.Errorf("match = %+v, want the dataset, the score and its own fetch date", m)
+	}
+}
+
+func TestNothingElseMatchedWritesNothing(t *testing.T) {
+	// An empty list and an absent one read the same to anything counting, and only one of them
+	// costs a key on every escalated finding in the file.
+	rep := Report{Results: []Result{{
+		RuleID: "CVE-2026-9999", Level: LevelNote, Message: "only one dataset reached it",
+		Escalation: &Escalation{Signal: "epss", Detail: "EPSS 0.87"},
+	}}}
+	encoded, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "alsoMatched") {
+		t.Errorf("wrote a key for nothing:\n%s", encoded)
+	}
+}
+
 func TestAnEscalationAloneIsEnoughToWriteProperties(t *testing.T) {
 	// The property bag is written only when there is something to put in it, and the condition
 	// listing every field is exactly the kind that gets a new field added above it and not into

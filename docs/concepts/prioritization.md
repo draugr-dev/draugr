@@ -145,7 +145,10 @@ the concepts; this page covers using them.
 | **KEV** | CISA's [Known Exploited Vulnerabilities](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) catalog — CVEs with *confirmed, observed* exploitation | severity becomes **critical**, whatever it was |
 | **EPSS** | FIRST's [Exploit Prediction Scoring System](https://www.first.org/epss/) — a daily 0–1 probability that a CVE will be exploited in the next 30 days | severity is raised **one band** (low→medium→high→critical) when the score is at or above `--epss-threshold` |
 
-KEV wins where both apply: observed exploitation outranks a prediction about it.
+KEV wins where both apply: observed exploitation outranks a prediction about it. The prediction is
+still recorded — a finding raised by KEV carries what EPSS said about the same CVE, as `alsoMatched`
+on its escalation, so a count of how often EPSS reaches your findings is a count of what it reached
+rather than of what it happened to decide.
 
 ### Using them
 

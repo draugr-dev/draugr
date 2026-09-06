@@ -324,6 +324,28 @@ type Escalation struct {
 	// AsOf is the day the data was fetched, as YYYY-MM-DD. Without it the claim is "KEV said
 	// so", which is not something a reader can check or reproduce.
 	AsOf string `json:"asOf,omitempty"`
+	// AlsoMatched are the datasets that applied to this finding without being the one that set
+	// its rating.
+	//
+	// Only one signal can raise a severity, so without this the others leave no trace at all —
+	// and the one that loses is always the same one. KEV outranks EPSS wherever both fire, so
+	// anything counting how often a dataset reached a finding reads EPSS as having done less
+	// than it did, by an amount nothing in the record reveals.
+	AlsoMatched []Match `json:"alsoMatched,omitempty"`
+}
+
+// Match is a dataset that applied to a finding.
+//
+// The same three facts an Escalation carries about the dataset that won, minus the severities:
+// a match that did not set the rating moved nothing, and naming a from and a to for it would
+// describe a change that never happened.
+type Match struct {
+	// Signal names the dataset: "kev" or "epss".
+	Signal string `json:"signal"`
+	// Detail is the specific fact, e.g. "on KEV" or "EPSS 0.87".
+	Detail string `json:"detail"`
+	// AsOf is the day the data was fetched, as YYYY-MM-DD.
+	AsOf string `json:"asOf,omitempty"`
 }
 
 // ReachabilityState says whether this project's own code can reach a dependency's vulnerable
