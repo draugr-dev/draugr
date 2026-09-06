@@ -9,7 +9,7 @@ import (
 
 // cycloneDX is as much of the specification as assembling a project document needs.
 //
-// Hand-modeled, and deliberately partial. Draugr does not adopt a package model — every field
+// Hand-modeled, and deliberately partial. Draugr does not adopt a package model, every field
 // below exists to move a component or an edge from one document into another, and a field nobody
 // reads is one more thing to keep in step with a spec that keeps moving. The parts of a source
 // document this does not name survive as far as they are carried; the parts it does are the ones
@@ -86,7 +86,7 @@ const assembledSpecVersion = "1.6"
 // A purl is the right answer where there is one: it is what a consumer matches against, and it is
 // what makes the same package arriving from two targets collapse to a single entry. The fallback
 // is a digest rather than the name, because two different versions of one library must not
-// resolve to the same node — that would silently merge them, and the graph would then claim a
+// resolve to the same node. That would silently merge them, and the graph would then claim a
 // dependency that does not exist.
 func (c cdxComponent) ref() string {
 	if c.PURL != "" {
@@ -96,9 +96,9 @@ func (c cdxComponent) ref() string {
 	return "draugr:pkg/" + hex.EncodeToString(sum[:12])
 }
 
-// newCycloneDX starts an assembled document whose root component is the release — because the
-// release is the product, and the product is what an SBOM is asked for.
-// The root component is what this document is about: the project, at the version being assessed.
+// newCycloneDX starts an assembled document whose root component is the release. Because the
+// release is the product, and the product is what an SBOM is asked for. The root component is
+// what this document is about: the project, at the version being assessed.
 //
 // Named by the project rather than by the release, which carries a version and nothing else. A
 // name read from anywhere else is empty, and an empty one here is a bom-ref of "draugr:release/"

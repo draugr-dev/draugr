@@ -11,7 +11,7 @@ import (
 //
 // Rule selection is here; the severity and confidence floors gosec also offers are not. A floor
 // drops findings inside the tool, where Draugr cannot mark them suppressed or record who accepted
-// them — use `exclusions` in the Saga for a finding you have judged, and the gate thresholds for
+// them. Use `exclusions` in the Saga for a finding you have judged, and the gate thresholds for
 // what should fail a build. Selecting rules is a different statement: that a check does not apply
 // to this codebase at all.
 const gosecConfigSchema = `{

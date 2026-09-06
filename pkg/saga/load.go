@@ -18,7 +18,7 @@ var envPattern = regexp.MustCompile(`\$\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
 func Load(data []byte) (*Model, error) { return loadModel(data, true) }
 
 // loadModel parses a descriptor. validate is false when the caller will merge fragments first and
-// validate the result — a descriptor whose components all arrive from fragments is legitimately
+// validate the result, a descriptor whose components all arrive from fragments is legitimately
 // incomplete until they do.
 func loadModel(data []byte, validate bool) (*Model, error) {
 	var root yaml.Node
@@ -55,11 +55,11 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 // decodeStrict decodes the substituted document into a Model, rejecting keys the model doesn't
 // define. Unknown keys are almost always typos, and a silently ignored `repositores:` disables a
 // whole surface without a word. It also keeps the CLI honest with the published JSON Schema,
-// which sets additionalProperties:false — an editor flagging what `draugr validate` accepts is
+// which sets additionalProperties:false, an editor flagging what `draugr validate` accepts is
 // worse than either being strict alone.
 //
 // Scanner options stay free-form: they live in ControllerSettings (a map), which strict decoding
-// doesn't constrain — each scanner validates its own block against its ConfigSchema at plan time.
+// doesn't constrain, each scanner validates its own block against its ConfigSchema at plan time.
 func decodeStrict(root *yaml.Node, m *Model) error {
 	// KnownFields lives on the Decoder, not on Node.Decode, so round-trip the substituted tree.
 	substituted, err := yaml.Marshal(root)
@@ -112,7 +112,7 @@ var removedFields = map[string]string{
 // environmentRemoved explains a target that still labels itself.
 //
 // The label existed to be matched by a per-environment `config.allowEffects`, and with that gone
-// nothing read it — a field that changes no result is one a reader can only be misled by. A
+// nothing read it, a field that changes no result is one a reader can only be misled by. A
 // descriptor that needs different permissions for different targets is two descriptors, which is
 // also two files to review and two runs to point at something.
 const environmentRemoved = "nothing read it once config.allowEffects stopped being keyed by " +
@@ -123,7 +123,7 @@ var unknownField = regexp.MustCompile(`field (\S+) not found in type (\S+)`)
 
 // LoadFile reads and parses a Saga descriptor, merging any local fragments it names.
 //
-// Remote fragments need a Fetcher, which needs git, which lives in internal/ — so a descriptor
+// Remote fragments need a Fetcher, which needs git, which lives in internal/, so a descriptor
 // using one gets an error here naming it rather than a descriptor that quietly contains less than
 // it says. Callers that can fetch use ResolveFile.
 func LoadFile(path string) (*Model, error) {

@@ -13,8 +13,8 @@ import (
 
 // checkReportNames rejects a report format or publisher kind this build does not have.
 //
-// `validate` answers "will this descriptor work", and it said yes to one that fails every run —
-// the format registry lives in pkg/report, which cannot be reached from pkg/saga without an import
+// `validate` answers "will this descriptor work", and it said yes to one that fails every run. The
+// format registry lives in pkg/report, which cannot be reached from pkg/saga without an import
 // cycle, so the descriptor's own validation can only check that the fields are present. The same
 // split is why a publisher kind was checked for emptiness and nothing else.
 //

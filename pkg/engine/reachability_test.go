@@ -37,7 +37,7 @@ func TestApplyReachabilityFoldsRatherThanDuplicating(t *testing.T) {
 
 	res := ctrls["sca"].Report.Results
 	if len(res) != 1 {
-		t.Fatalf("results = %d, want 1 — the analyzer's copy should fold away", len(res))
+		t.Fatalf("results = %d, want 1, the analyzer's copy should fold away", len(res))
 	}
 	if res[0].Tool != "trivy" {
 		t.Errorf("kept tool = %q, want the scanner that rated it", res[0].Tool)
@@ -52,7 +52,7 @@ func TestApplyReachabilityFoldsRatherThanDuplicating(t *testing.T) {
 
 func TestApplyReachabilityKeepsWhatNothingElseReported(t *testing.T) {
 	// A vulnerability only one tool found is exactly the one that must not disappear in a
-	// deduplication — the Go standard library is the case that produces it.
+	// deduplication. The Go standard library is the case that produces it.
 	ctrls := controlsWith(
 		analyzed("repo-a", "CVE-2024-24790", "stdlib", sarif.ReachabilityReachable),
 	)
@@ -99,7 +99,7 @@ func TestApplyReachabilityDoesNotCollapseRepositories(t *testing.T) {
 
 func TestApplyReachabilityRebandsAndRecordsWhy(t *testing.T) {
 	// Reachability feeds the priority matrix rather than rewriting severity, so the band moves
-	// and the reported severity does not — and the finding says which severity it was ranked at.
+	// and the reported severity does not. And the finding says which severity it was ranked at.
 	ctrls := controlsWith(
 		scanned("repo-a", "CVE-2020-14040", "golang.org/x/text"),
 		analyzed("repo-a", "CVE-2020-14040", "golang.org/x/text", sarif.ReachabilityUnreachable),
@@ -116,7 +116,7 @@ func TestApplyReachabilityRebandsAndRecordsWhy(t *testing.T) {
 
 	res := ctrls["sca"].Report.Results[0]
 	if res.Priority != "P2" {
-		t.Errorf("priority = %q, want P2 — the band should have moved", res.Priority)
+		t.Errorf("priority = %q, want P2, the band should have moved", res.Priority)
 	}
 	if res.Level != sarif.LevelError {
 		t.Errorf("level = %q, want the scanner's own rating, unchanged", res.Level)
@@ -151,7 +151,7 @@ func TestApplyReachabilityGivesEachFindingItsOwnVerdict(t *testing.T) {
 		}
 	}
 	if got["CVE-1111-1"] == got["CVE-2222-2"] {
-		t.Errorf("both findings recorded %q — the verdict was shared, not copied", got["CVE-1111-1"])
+		t.Errorf("both findings recorded %q, the verdict was shared, not copied", got["CVE-1111-1"])
 	}
 }
 
@@ -204,7 +204,7 @@ func TestPackageNameHandlesFindingsThatAreNotAboutAPackage(t *testing.T) {
 }
 
 func TestApplyReachabilityKeepsAnalyzersApartInTheSummary(t *testing.T) {
-	// Two analyzers can run — they cover different ecosystems — and a summary naming one is a
+	// Two analyzers can run. They cover different ecosystems, and a summary naming one is a
 	// report that is right about half of itself.
 	a := analyzed("repo-a", "CVE-1111-1", "golang.org/x/text", sarif.ReachabilityReachable)
 	b := analyzed("repo-a", "CVE-2222-2", "lodash", sarif.ReachabilityUnreachable)
@@ -235,7 +235,7 @@ func TestApplyReachabilityKeepsAnalyzersApartInTheSummary(t *testing.T) {
 func TestApplyReachabilityTakesTheStrongerVerdictWhenAnalyzersDisagree(t *testing.T) {
 	// Two analyzers covering the same dependency and disagreeing means one found a path the
 	// other could not follow. Failing to find something is much weaker evidence than finding it,
-	// so the stronger claim of exposure wins — the direction every conflict here resolves in.
+	// so the stronger claim of exposure wins, the direction every conflict here resolves in.
 	weak := analyzed("repo-a", "CVE-1111-1", "m", sarif.ReachabilityUnreachable)
 	weak.Tool = "dep-scan"
 	weak.Reachability.Analyzer = "dep-scan"

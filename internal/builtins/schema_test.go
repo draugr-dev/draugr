@@ -20,7 +20,7 @@ func TestEveryScannerDeclaresItsOptions(t *testing.T) {
 	for _, s := range Registry().Scanners() {
 		info := s.Info()
 		if len(info.ConfigSchema) == 0 {
-			t.Errorf("%s: no ConfigSchema — any option written under its block would be "+
+			t.Errorf("%s: no ConfigSchema, any option written under its block would be "+
 				"accepted and then ignored; declare noScannerOptions if it takes none", info.Name)
 			continue
 		}
@@ -36,8 +36,8 @@ func TestEveryScannerDeclaresItsOptions(t *testing.T) {
 		if node.Type != "object" {
 			t.Errorf("%s: config schema type = %q, want object", info.Name, node.Type)
 		}
-		// Without this, an unknown key falls through validation and the schema documents the
-		// options without enforcing them — which is the same silent drop, one level down.
+		// Without this, an unknown key falls through validation and the schema documents the options
+		// without enforcing them. Which is the same silent drop, one level down.
 		if node.AdditionalProperties == nil || *node.AdditionalProperties {
 			t.Errorf("%s: config schema must set additionalProperties:false, or a mistyped "+
 				"option is accepted and ignored", info.Name)

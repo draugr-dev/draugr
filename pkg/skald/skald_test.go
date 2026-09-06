@@ -349,8 +349,8 @@ func TestScopeProvenanceAndBack(t *testing.T) {
 }
 
 func TestScopeProvenanceSaysNothingForAnUnscopedRun(t *testing.T) {
-	// Nearly every run. Stamping an empty scope would make the marker meaningless — every
-	// report would carry one, and a consumer could no longer tell by its presence.
+	// Nearly every run. Stamping an empty scope would make the marker meaningless. Every report
+	// would carry one, and a consumer could no longer tell by its presence.
 	if _, ok := ScopeProvenance(engine.Scope{}); ok {
 		t.Error("an unscoped run stamps nothing")
 	}
@@ -360,8 +360,8 @@ func TestScopeProvenanceSaysNothingForAnUnscopedRun(t *testing.T) {
 }
 
 func TestScopeOfReportIgnoresOtherToolsProvenance(t *testing.T) {
-	// Scanners write provenance too — a benchmark, a coverage figure. Reading one of those as a
-	// scope would make an ordinary report look partial.
+	// Scanners write provenance too, a benchmark, a coverage figure. Reading one of those as a scope
+	// would make an ordinary report look partial.
 	rep := sarif.Report{Provenance: []sarif.Provenance{
 		{Tool: "kube-bench", Fields: []sarif.Field{{Key: "benchmark", Value: "cis-1.9"}}},
 	}}
@@ -549,7 +549,7 @@ func TestJSONCarriesWhatWasNotMeasured(t *testing.T) {
 // A narrowed report says so, and a reader can get the band back out.
 //
 // The round trip is the point. A file that is a subset and does not declare it is
-// indistinguishable from a complete one — and `draugr diff`, reading it as the base, would report
+// indistinguishable from a complete one, and `draugr diff`, reading it as the base, would report
 // every finding below the band as fixed.
 func TestMinPriorityProvenanceRoundTrips(t *testing.T) {
 	prov, ok := MinPriorityProvenance("P2")
@@ -599,8 +599,8 @@ func TestEveryMergedFindingSaysWhichControlFoundIt(t *testing.T) {
 }
 
 func TestAControlSurvivesTheFile(t *testing.T) {
-	// A report is written and read back — by `draugr diff`, by a platform, by anything consuming
-	// the artifact. A field that only exists in memory is one every one of those does without.
+	// A report is written and read back, by `draugr diff`, by a platform, by anything consuming the
+	// artifact. A field that only exists in memory is one every one of those does without.
 	run := engine.Result{Controls: map[string]plugin.ControlResult{
 		"secrets": {Report: sarif.Report{Results: []sarif.Result{
 			{RuleID: "gitleaks.aws-key", Tool: "gitleaks", Message: "a key"},

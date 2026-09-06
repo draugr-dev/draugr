@@ -122,8 +122,8 @@ func TestTrivyVulnsKeepWhatTheSARIFPathGave(t *testing.T) {
 		byRule[r.RuleID] = r
 	}
 
-	// The score behind `security-severity`, taken as the highest across sources — a vendor rating
-	// a flaw below NVD is a claim about their build, not a correction.
+	// The score behind `security-severity`, taken as the highest across sources, a vendor rating a
+	// flaw below NVD is a claim about their build, not a correction.
 	flask := byRule["CVE-2018-1000656"]
 	if !flask.HasScore || flask.Score != 7.5 {
 		t.Errorf("score = %v (has=%v), want 7.5 from nvd rather than redhat's 5.9",
@@ -182,9 +182,9 @@ func TestTrivyVulnsOnACleanScan(t *testing.T) {
 	}
 }
 
-// realTrivyImageOutput is what Trivy 0.69.3 printed for debian:11-slim, abridged to two of its
-// 198 findings — one in the OS layer with no fix, and one in a language ecosystem on top of it,
-// because those are the two branches the operating system has to tell apart.
+// realTrivyImageOutput is what Trivy 0.69.3 printed for debian:11-slim, abridged to two of its 198
+// findings, one in the OS layer with no fix, and one in a language ecosystem on top of it, because
+// those are the two branches the operating system has to tell apart.
 //
 // Real output rather than an invention: a hand-written fixture tests the parser against the shape
 // its author imagined, which is the shape the parser already handles.
@@ -239,7 +239,7 @@ func TestParseTrivyImageNamesTheOperatingSystem(t *testing.T) {
 	}
 }
 
-// TestOperatingSystemIsNeverGuessed covers the image Trivy cannot identify — a scratch or
+// TestOperatingSystemIsNeverGuessed covers the image Trivy cannot identify, a scratch or
 // distroless one.
 //
 // GitLab's schema requires the field with a minimum length, so the temptation is to fill it. A
@@ -255,7 +255,7 @@ func TestOperatingSystemIsNeverGuessed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := rep.Results[0].OperatingSystem; got != "" {
-		t.Errorf("operating system = %q, want empty — nothing identified one", got)
+		t.Errorf("operating system = %q, want empty, nothing identified one", got)
 	}
 }
 
@@ -322,7 +322,7 @@ func TestParseTrivyAttributesFindingsToLayers(t *testing.T) {
 	}
 }
 
-// TestLayersSurviveAMissingHistory covers an image whose config carries no history — some
+// TestLayersSurviveAMissingHistory covers an image whose config carries no history, some
 // registries strip it. The position is still worth reporting, and inventing a build step for it
 // would be worse than leaving it empty.
 func TestLayersSurviveAMissingHistory(t *testing.T) {
@@ -411,10 +411,10 @@ func TestEndOfServiceLifeIsNotAssumed(t *testing.T) {
 
 // A dependency finding says which line of the manifest declared the package.
 //
-// Trivy's SARIF writer resolves it; its JSON does not, and the JSON is what Draugr reads — for
-// the package identity the SARIF only states in prose. So the line was quietly lost in that swap,
-// and a finding pointed at `requirements.txt` and no further, leaving a reader to search the file
-// for the name Draugr already knew.
+// Trivy's SARIF writer resolves it; its JSON does not, and the JSON is what Draugr reads, for the
+// package identity the SARIF only states in prose. So the line was quietly lost in that swap, and
+// a finding pointed at `requirements.txt` and no further, leaving a reader to search the file for
+// the name Draugr already knew.
 func TestADependencyFindingNamesTheLineThatDeclaredIt(t *testing.T) {
 	dir := t.TempDir()
 	manifest := "# pinned deliberately\nFlask==0.12.2\nrequests==2.19.1\n"

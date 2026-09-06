@@ -14,23 +14,23 @@ import (
 // The package is in the SARIF too, as prose: the message reads "Package: flask\nFixed Version:
 // 0.12.3". That is a fact formatted for a human and unavailable to anything else, and parsing it
 // back out would be reading a sentence a tool is free to reword. The JSON has the same facts as
-// fields, plus a purl, plus the manifest the package was declared in — so it is read instead, and
+// fields, plus a purl, plus the manifest the package was declared in. So it is read instead, and
 // the SARIF Draugr publishes is built here rather than by Trivy.
 //
 // One thing is lost in the swap and put back here: the line. Trivy's SARIF writer resolves a
 // package to its line in the manifest; its JSON does not, so a dependency finding pointed at
 // `app/requirements.txt` and no further, and a reader had to search the file for the name. The
-// same index the license scanner already uses answers it — the manifest is on disk, and finding a
+// same index the license scanner already uses answers it. The manifest is on disk, and finding a
 // package's own name in it is what both scanners need.
 //
-// Everything else the SARIF carried — rule documentation, the advisory link, the CVSS score behind
-// `security-severity` — is in the JSON under another name.
+// Everything else the SARIF carried, rule documentation, the advisory link, the CVSS score behind
+// `security-severity`. Is in the JSON under another name.
 
 // trivyVulnDoc is the slice of Trivy's JSON this reads.
 type trivyVulnDoc struct {
 	Metadata struct {
-		// OS is the distribution of the image's base layer. Absent for a filesystem scan, and
-		// for an image Trivy could not identify — in which case no OS is claimed.
+		// OS is the distribution of the image's base layer. Absent for a filesystem scan, and for an
+		// image Trivy could not identify, in which case no OS is claimed.
 		OS struct {
 			Family string `json:"Family"`
 			Name   string `json:"Name"`
@@ -70,9 +70,9 @@ func (d trivyVulnDoc) operatingSystem() string {
 }
 
 type trivyVulnResult struct {
-	// Target is the manifest or layer the packages were found in — "requirements.txt", "go.mod",
-	// an image's OS package database. More precise than the SARIF location, which points at the
-	// scanned root.
+	// Target is the manifest or layer the packages were found in, "requirements.txt", "go.mod", an
+	// image's OS package database. More precise than the SARIF location, which points at the scanned
+	// root.
 	Target string `json:"Target"`
 	Type   string `json:"Type"`
 	// Class separates the image's own package database from the language ecosystems installed
@@ -111,8 +111,8 @@ type trivyVuln struct {
 // History and DiffIDs are two lists that describe the same image and do not line up: an
 // instruction that changes no files (ENV, WORKDIR, CMD) is recorded in history and produces no
 // layer. Walking history and consuming a DiffID only for the entries that made one is what keeps
-// an instruction from being attributed to the wrong layer — and a misattributed build step is
-// worse than none, because it names a line to change that did not introduce the finding.
+// an instruction from being attributed to the wrong layer, and a misattributed build step is worse
+// than none, because it names a line to change that did not introduce the finding.
 func (d trivyVulnDoc) layers() map[string]sarif.Layer {
 	out := make(map[string]sarif.Layer, len(d.Metadata.DiffIDs))
 	next := 0
@@ -152,9 +152,8 @@ func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, err
 	}
 	rep := sarif.Report{Tool: "trivy", Rules: map[string]sarif.Rule{}}
 	layers := doc.layers()
-	// The manifest is on disk — this is a filesystem scan — so the line Trivy's JSON leaves out
-	// can be read back from it. Zero where it cannot, which is honest: the finding still points
-	// at the file.
+	// The manifest is on disk. This is a filesystem scan, so the line Trivy's JSON leaves out can be
+	// read back from it. Zero where it cannot, which is honest: the finding still points at the file.
 	lines := newLineIndex(dir)
 	for _, res := range doc.Results {
 		for _, v := range res.Vulnerabilities {
@@ -184,9 +183,9 @@ func trivyVulnResultOf(
 	endOfLife := false
 	if res.Class == trivyClassOSPkgs {
 		operatingSystem = doc.operatingSystem()
-		// Only claimed alongside the OS it describes. A language package sitting on the image
-		// is not made end-of-life by the distribution underneath it, and its fix — if there is
-		// one — comes from its own ecosystem.
+		// Only claimed alongside the OS it describes. A language package sitting on the image is not
+		// made end-of-life by the distribution underneath it, and its fix. If there is one. Comes from
+		// its own ecosystem.
 		endOfLife = operatingSystem != "" && doc.Metadata.OS.EOSL
 	}
 	var layer *sarif.Layer
@@ -227,7 +226,7 @@ func trivyVulnRule(v trivyVuln) sarif.Rule {
 // trivyVulnMessage is the one line a console shows, and the sentence a reader acts on.
 //
 // It says what to do rather than restating the identifier: the fixed version is the action, and
-// its absence is the more alarming answer — "no fix available" is a decision to make, where a
+// its absence is the more alarming answer. "no fix available" is a decision to make, where a
 // version number is a change to schedule.
 func trivyVulnMessage(v trivyVuln) string {
 	subject := v.PkgName
@@ -246,7 +245,7 @@ func trivyVulnMessage(v trivyVuln) string {
 
 // trivyVulnLevel maps Trivy's severity onto SARIF's three.
 //
-// Severity itself is recovered from the score below, which is finer than this — the level exists
+// Severity itself is recovered from the score below, which is finer than this, the level exists
 // because SARIF has one, not because it is the interesting number.
 func trivyVulnLevel(severity string) sarif.Level {
 	switch strings.ToUpper(severity) {
@@ -263,8 +262,8 @@ func trivyVulnLevel(severity string) sarif.Level {
 
 // trivyVulnScore recovers the CVSS score Trivy's SARIF published as `security-severity`.
 //
-// Trivy reports a score per source — nvd, ghsa, redhat — and its own SARIF picks one. The highest
-// is taken here for the same reason severity is never rounded down: a vendor scoring a flaw lower
+// Trivy reports a score per source, nvd, ghsa, redhat, and its own SARIF picks one. The highest is
+// taken here for the same reason severity is never rounded down: a vendor scoring a flaw lower
 // than NVD is a claim about their build, and Draugr is not in a position to accept it silently.
 func trivyVulnScore(v trivyVuln) (float64, bool) {
 	best, found := 0.0, false
@@ -281,8 +280,8 @@ func trivyVulnScore(v trivyVuln) (float64, bool) {
 // parseTrivyImage adapts parseTrivyVulns to the tool adapter's signature.
 //
 // The target is unused: everything this reads is in Trivy's output, and the one fact that comes
-// from the target — the image reference — is applied by imageRefLocations alongside the location,
-// so the two can never disagree.
+// from the target. The image reference. Is applied by imageRefLocations alongside the location, so
+// the two can never disagree.
 func parseTrivyImage(out []byte, _ plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	return parseTrivyVulns(out, "", cfg)
 }

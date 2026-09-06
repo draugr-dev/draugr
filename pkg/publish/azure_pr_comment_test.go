@@ -55,7 +55,7 @@ func TestAzurePRCommentCreatesAThreadWhenNoneExists(t *testing.T) {
 		t.Errorf("method = %s, want POST", method)
 	}
 	// Azure nests comments in a thread, so the path is the thread collection rather than a
-	// comment collection — getting this wrong is a 404 that reads like a missing pull request.
+	// comment collection. Getting this wrong is a 404 that reads like a missing pull request.
 	if want := "/integration/_apis/git/repositories/integration/pullRequests/42/threads"; path != want {
 		t.Errorf("path = %q, want %q", path, want)
 	}
@@ -88,7 +88,7 @@ func TestAzurePRCommentEditsTheExistingCommentInPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 	if method != http.MethodPatch {
-		t.Errorf("method = %s, want PATCH — a second push must not add a second thread", method)
+		t.Errorf("method = %s, want PATCH, a second push must not add a second thread", method)
 	}
 	if !strings.HasSuffix(path, "/threads/5/comments/11") {
 		t.Errorf("edited %q, want the marked thread's first comment", path)
@@ -118,7 +118,7 @@ func TestAzurePRCommentIgnoresTheMarkerInAReply(t *testing.T) {
 		t.Fatal(err)
 	}
 	if method != http.MethodPost {
-		t.Errorf("method = %s, want POST — a reply is not Draugr's own comment", method)
+		t.Errorf("method = %s, want POST, a reply is not Draugr's own comment", method)
 	}
 }
 

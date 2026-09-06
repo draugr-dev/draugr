@@ -29,7 +29,7 @@ func TestGovulncheckInfo(t *testing.T) {
 func TestGovulncheckArgsRunsOncePerModule(t *testing.T) {
 	// A repository is not required to be a Go module. A polyglot repository keeps its Go service
 	// in a subdirectory and a monorepo keeps several, so running once at the root would answer
-	// for whichever the root happens to be — or fail, when the root holds no go.mod at all.
+	// for whichever the root happens to be. Or fail, when the root holds no go.mod at all.
 	root := t.TempDir()
 	for _, dir := range []string{"services/api", "services/worker", "vendor/example.com/dep", "app/testdata"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o750); err != nil {
@@ -176,7 +176,7 @@ func TestParseGovulncheckWillNotClaimUnreachableWithoutGrounds(t *testing.T) {
 		t.Fatalf("results = %d, want 1", len(report.Results))
 	}
 	if got := report.Results[0].Reachability.State; got != sarif.ReachabilityUnknown {
-		t.Errorf("state = %q, want unknown — a module scan cannot see a call", got)
+		t.Errorf("state = %q, want unknown, a module scan cannot see a call", got)
 	}
 }
 
@@ -191,13 +191,13 @@ func TestParseGovulncheckWillNotClaimUnreachableForAModuleItNeverSaw(t *testing.
 		t.Fatal(err)
 	}
 	if got := report.Results[0].Reachability.State; got != sarif.ReachabilityUnknown {
-		t.Errorf("state = %q, want unknown — the module was not in what was analyzed", got)
+		t.Errorf("state = %q, want unknown, the module was not in what was analyzed", got)
 	}
 }
 
 func TestParseGovulncheckReportsEachCVEAnAdvisoryHas(t *testing.T) {
 	// A manifest scanner reports one finding per CVE, so an advisory with several has to become
-	// several — emitting one would leave the rest with no reachability while looking complete.
+	// several. Emitting one would leave the rest with no reachability while looking complete.
 	stream := `{"config":{"scan_level":"symbol"}}
 {"SBOM":{"modules":[{"path":"m","version":"v1"}]}}
 {"osv":{"id":"GO-2021-0159","summary":"s","aliases":["CVE-2015-5739","CVE-2015-5740"]}}

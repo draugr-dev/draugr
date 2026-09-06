@@ -27,9 +27,9 @@ const kubeBenchScannerName = "kube-bench"
 //
 // Written directly rather than through tooladapter, which covers a tool that takes an argv and
 // answers in SARIF. kube-bench needs three things beyond that: its own argv, its own JSON
-// conversion, and a per-scan environment with a lifecycle — a kubeconfig written to disk so the
-// kubectl it invokes talks to the cluster the Saga named, then removed. The third is what tips
-// it; a hook returning a value plus a cleanup function is worse than a Scan method.
+// conversion, and a per-scan environment with a lifecycle, a kubeconfig written to disk so the
+// kubectl it invokes talks to the cluster the Saga named, then removed. The third is what tips it;
+// a hook returning a value plus a cleanup function is worse than a Scan method.
 type kubeBenchScanner struct {
 	info plugin.ScannerInfo
 	run  func(ctx context.Context, argv, env []string) ([]byte, error)
@@ -76,8 +76,8 @@ func NewKubeBench() plugin.Scanner {
 			AlsoRequires: []string{"kubectl"},
 			Controls:     []string{"infrastructure"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetInfra},
-			// Its checks are shell pipelines with the scope written into them —
-			// `kubectl get pods --all-namespaces`, and no flag to change it.
+			// Its checks are shell pipelines with the scope written into them, `kubectl get pods
+			// --all-namespaces`, and no flag to change it.
 			ClusterWide:  true,
 			ConfigSchema: json.RawMessage(kubeBenchConfigSchema),
 		},
@@ -116,10 +116,10 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	// or a missing kubeconfig entry, and saying so beats the version lookup failing first and
 	// blaming the wrong thing.
 	//
-	// kube-bench shells out to kubectl for every policies check, and kubectl reads its cluster
-	// from the environment. Without this the scan audits whatever context the machine has
-	// selected while labeling the findings with the one the Saga declared — a report naming one
-	// cluster and describing another.
+	// kube-bench shells out to kubectl for every policies check, and kubectl reads its cluster from
+	// the environment. Without this the scan audits whatever context the machine has selected while
+	// labeling the findings with the one the Saga declared, a report naming one cluster and
+	// describing another.
 	env, cleanup, err := kubeContextEnv(kubeContext(target, cfg))
 	if err != nil {
 		return sarif.Report{}, err
@@ -142,8 +142,8 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	if err := verifyBenchmark(doc, plan.platform); err != nil {
 		return sarif.Report{}, err
 	}
-	// false: this scanner runs the policies section, which is RBAC, Pod Security and network
-	// policy — the team's whoever operates the cluster underneath them.
+	// false: this scanner runs the policies section, which is RBAC, Pod Security and network policy,
+	// the team's whoever operates the cluster underneath them.
 	return reportFromKubeBench(
 		doc, kubeBenchScannerName, clusterLabel(kubeContext(target, cfg)), false), nil
 }
@@ -194,15 +194,15 @@ const (
 	// "rke2-cis-1.7"). Use it for a platform whose benchmark is not derived from the Kubernetes
 	// version; otherwise let the version decide.
 	benchmarkKey = "benchmark"
-	// versionKey pins the Kubernetes version kube-bench maps to a benchmark (e.g. "1.34").
-	// Unset means Draugr asks the cluster — see detectClusterFacts.
+	// versionKey pins the Kubernetes version kube-bench maps to a benchmark (e.g. "1.34"). Unset
+	// means Draugr asks the cluster. See detectClusterFacts.
 	versionKey = "version"
 	// contextKey names the kubeconfig context to audit. Unset means the component's
 	// infrastructure `ref`, and only then the kubeconfig's current context.
 	contextKey = "context"
 	// configDirKey points at kube-bench's own `cfg/` tree of benchmark definitions. kube-bench
 	// looks in /etc/kube-bench/cfg by default, which is right when it was installed from a
-	// package and wrong when someone put the binary on PATH and left the cfg beside it — a
+	// package and wrong when someone put the binary on PATH and left the cfg beside it, a
 	// common enough case that failing with kube-bench's own "config file is missing
 	// 'version_mapping' section" needs an answer the user can act on.
 	configDirKey = "configDir"
@@ -212,16 +212,16 @@ const (
 // this scanner.
 //
 // kube-bench audits **the machine it runs on**. Sections 1–4 (master, node, etcd, controlplane)
-// read node-local files — API server manifests, kubelet config, etcd data-dir permissions — so
-// they mean something only on a cluster node. Draugr runs from a laptop or a CI runner, where
-// those checks do not error: they find the files missing and return confident failures about a
-// cluster nobody inspected.
+// read node-local files, API server manifests, kubelet config, etcd data-dir permissions. So they
+// mean something only on a cluster node. Draugr runs from a laptop or a CI runner, where those
+// checks do not error: they find the files missing and return confident failures about a cluster
+// nobody inspected.
 //
-// Section 5, "policies", is the section that travels. Every check shells out to kubectl — RBAC
-// bindings, service account tokens, Pod Security Standards, network policies, secrets usage — so
-// it audits whatever cluster the ambient kubeconfig points at, read-only, and means the same
-// thing from anywhere. 35 of the 130 checks in cis-1.9, and the 35 that describe how the cluster
-// is configured for the workloads on it rather than how its nodes were installed.
+// Section 5, "policies", is the section that travels. Every check shells out to kubectl, RBAC
+// bindings, service account tokens, Pod Security Standards, network policies, secrets usage, so it
+// audits whatever cluster the ambient kubeconfig points at, read-only, and means the same thing
+// from anywhere. 35 of the 130 checks in cis-1.9, and the 35 that describe how the cluster is
+// configured for the workloads on it rather than how its nodes were installed.
 //
 // The rest of the benchmark needs kube-bench running inside the cluster as a Job, which is a
 // different tool contract: Draugr would be creating something in the system it is scanning.
@@ -231,16 +231,16 @@ const defaultKubeBenchTargets = "policies"
 // kubeBenchArgv builds the command line, and its main job is making sure kube-bench audits
 // against the right benchmark.
 //
-// kube-bench maps a Kubernetes version to a CIS benchmark, and detects that version by reading
-// the kubelet on the node it runs on. Off a node it cannot, and it does not say so: it falls
-// back to a default of 1.18 and audits against cis-1.6 — a benchmark for Kubernetes 1.16. On a
+// kube-bench maps a Kubernetes version to a CIS benchmark, and detects that version by reading the
+// kubelet on the node it runs on. Off a node it cannot, and it does not say so: it falls back to a
+// default of 1.18 and audits against cis-1.6, a benchmark for Kubernetes 1.16. On a
 // 1.34 cluster that silently reports 24 findings where the right benchmark reports 29, and every
 // one of the differences is a check the older benchmark had never heard of.
 //
 // A compliance report against the wrong standard is worse than no report, so Draugr supplies the
 // version rather than letting the tool guess. It asks the cluster, and passes --version so
-// kube-bench applies its own mapping — which stays correct as kube-bench adds benchmarks,
-// whereas a table copied into Draugr would not.
+// kube-bench applies its own mapping. Which stays correct as kube-bench adds benchmarks, whereas a
+// table copied into Draugr would not.
 //
 // That holds for a vanilla distribution and breaks for a managed one, because of how kube-bench
 // chooses (cmd/common.go, getBenchmarkVersion):
@@ -249,9 +249,9 @@ const defaultKubeBenchTargets = "policies"
 //	    benchmarkVersion = getPlatformBenchmarkVersion(platform)
 //	}
 //
-// The platform benchmarks — eks-*, gke-*, aks-*, ack-*, and the k3s/RKE ones — are reachable
-// only when *neither* flag is set. Supplying --version to avoid one wrong answer therefore
-// guarantees a different one: every managed cluster falls through to generic cis-*.
+// The platform benchmarks, eks-*, gke-*, aks-*, ack-*, and the k3s/RKE ones. Are reachable only
+// when *neither* flag is set. Supplying --version to avoid one wrong answer therefore guarantees a
+// different one: every managed cluster falls through to generic cis-*.
 //
 // The provider benchmarks are not subsets of it. They drop the control-plane checks that are not
 // the customer's to make, and add provider-specific ones the generic benchmark has never heard
@@ -259,7 +259,7 @@ const defaultKubeBenchTargets = "policies"
 //
 // So the flag is supplied only where it helps: a vanilla cluster gets --version, a recognized
 // platform gets neither flag and kube-bench's own mapping. What makes that safe is not trusting
-// it — verifyBenchmark checks the benchmark the tool reports having used.
+// it, verifyBenchmark checks the benchmark the tool reports having used.
 func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, error) {
 	targets := stringSetting(cfg, targetsKey, defaultKubeBenchTargets)
 	kubeCtx := kubeContext(target, cfg)
@@ -301,9 +301,8 @@ func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, erro
 		// install is useless: kube-bench searches /etc/kube-bench/cfg and its own directory, and
 		// finds nothing we put under ~/.draugr.
 		//
-		// Only when the descriptor said nothing, and only when the directory exists — a system
-		// install with its own cfg keeps working exactly as before, and an explicit setting
-		// always wins.
+		// Only when the descriptor said nothing, and only when the directory exists, a system install
+		// with its own cfg keeps working exactly as before, and an explicit setting always wins.
 		if provisioned := provisionedKubeBenchCfg(); provisioned != "" {
 			argv = append(argv, "--config-dir", provisioned)
 		}
@@ -332,7 +331,7 @@ const kubeBenchCISRulePrefix = "kube-bench/cis/"
 // kubeBenchPlan is how the scan will run, and what it therefore expects back.
 //
 // platform carries the distribution Draugr detected, and is empty whenever the benchmark was
-// pinned by configuration or the cluster is vanilla — in both of those cases the benchmark is
+// pinned by configuration or the cluster is vanilla, in both of those cases the benchmark is
 // already determined and there is nothing for the output check to disagree with.
 type kubeBenchPlan struct {
 	argv     []string
@@ -353,10 +352,10 @@ func detectCurrentKubeContext() string {
 // clusterLabel names the cluster a finding is about.
 //
 // Normally that is the context being audited. When the Saga declares infrastructure without a
-// `ref` — which the schema allows — Draugr falls back to the ambient context, and the label has
-// to follow: a report reading `kubernetes/` says nothing about what was examined, and "which
-// cluster is this about" is the first question asked of a compliance artifact. So the ambient
-// context is resolved and named, rather than left blank.
+// `ref`, which the schema allows, Draugr falls back to the ambient context, and the label has to
+// follow: a report reading `kubernetes/` says nothing about what was examined, and "which cluster
+// is this about" is the first question asked of a compliance artifact. So the ambient context is
+// resolved and named, rather than left blank.
 func clusterLabel(kubeCtx string) string {
 	if kubeCtx == "" {
 		kubeCtx = currentKubeContext()
@@ -369,10 +368,10 @@ func clusterLabel(kubeCtx string) string {
 
 // kubeContext decides which cluster this scan is about.
 //
-// The Saga's `ref` names the concrete instance, so it is the natural answer — and it has to be
-// used, not merely displayed. Findings are labeled with it; if the scan actually audited
-// whatever context the machine happened to have selected, the report would name one cluster and
-// describe another. Mislabeled evidence is worse than none.
+// The Saga's `ref` names the concrete instance, so it is the natural answer. And it has to be
+// used, not merely displayed. Findings are labeled with it; if the scan actually audited whatever
+// context the machine happened to have selected, the report would name one cluster and describe
+// another. Mislabeled evidence is worse than none.
 //
 // An explicit `context` setting wins, for the case where the kubeconfig's name for a cluster is
 // not the name the organization uses for it.
@@ -390,7 +389,7 @@ func kubeContext(target plugin.Target, cfg plugin.Config) string {
 type clusterFacts struct {
 	// Version is the Kubernetes version as major.minor, e.g. "1.34".
 	Version string
-	// Platform names the managed distribution — "eks", "gke" — or is empty for a vanilla one.
+	// Platform names the managed distribution. "eks", "gke". Or is empty for a vanilla one.
 	Platform string
 }
 
@@ -432,17 +431,17 @@ func detectClusterFacts(kubeCtx string) (clusterFacts, error) {
 
 // platformFromNodes identifies a distribution that does not stamp itself into the version string.
 //
-// AKS is the case this exists for. GKE and EKS both report a version like v1.29.7-gke.1104000,
-// so a regex is enough; a real AKS cluster reports a bare v1.34.2 and is indistinguishable from
-// kubeadm by version alone. kube-bench knows this and looks at a node instead — but only along
-// its in-cluster path, because that is where it happens to build a client. The check itself is an
+// AKS is the case this exists for. GKE and EKS both report a version like v1.29.7-gke.1104000, so
+// a regex is enough; a real AKS cluster reports a bare v1.34.2 and is indistinguishable from
+// kubeadm by version alone. kube-bench knows this and looks at a node instead, but only along its
+// in-cluster path, because that is where it happens to build a client. The check itself is an
 // ordinary List, so there is no reason it cannot run from a laptop.
 //
 // Without it, AKS is audited against the generic benchmark and nothing says so: no platform means
 // no expectation, so verifyBenchmark has nothing to disagree with. Silence, again, is the failure.
 //
-// One node is enough, and one is all that is fetched — a cluster with two hundred nodes should
-// not pay for two hundred objects to answer a yes/no question.
+// One node is enough, and one is all that is fetched, a cluster with two hundred nodes should not
+// pay for two hundred objects to answer a yes/no question.
 func platformFromNodes(ctx context.Context, client kubernetes.Interface) string {
 	nodes, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{Limit: 1})
 	if err != nil || len(nodes.Items) == 0 {
@@ -454,9 +453,9 @@ func platformFromNodes(ctx context.Context, client kubernetes.Interface) string 
 	// kube-bench also accepts.
 	//
 	// A provider ID says which cloud the VM is on, not who runs the control plane. RKE2, RKE and
-	// kubeadm all set it when the Azure cloud provider is configured, so accepting it would call
-	// a self-managed cluster AKS and audit it against a benchmark written for a control plane
-	// nobody can see — dropping the very checks a self-managed cluster most needs.
+	// kubeadm all set it when the Azure cloud provider is configured, so accepting it would call a
+	// self-managed cluster AKS and audit it against a benchmark written for a control plane nobody
+	// can see, dropping the very checks a self-managed cluster most needs.
 	//
 	// kube-bench can afford the looser signal because it only reaches this check from inside the
 	// cluster, having already tested for RKE. Reading a node from outside gives no such context,
@@ -480,11 +479,11 @@ var gitVersionPlatformRE = regexp.MustCompile(`v(\d+\.\d+)\.\d+[-+](\w+)(?:[.\-+
 // The keys are the platform names kube-bench's own parser yields; the values are read from the
 // directory names in its cfg/ tree, because that is what it reports having used.
 //
-// OpenShift is absent deliberately: kube-bench identifies it by running `oc`, not from the
-// version string, so Draugr cannot reach the same conclusion here. AKS and RKE are listed
-// because their version strings carry the token when they carry it at all — kube-bench's extra
-// in-cluster detection for those two is a fallback for the clusters that do not, and one this
-// scanner has no way to reproduce from outside.
+// OpenShift is absent deliberately: kube-bench identifies it by running `oc`, not from the version
+// string, so Draugr cannot reach the same conclusion here. AKS and RKE are listed because their
+// version strings carry the token when they carry it at all, kube-bench's extra in-cluster
+// detection for those two is a fallback for the clusters that do not, and one this scanner has no
+// way to reproduce from outside.
 var platformBenchmarkPrefix = map[string]string{
 	"eks":     "eks-",
 	"gke":     "gke-",
@@ -514,13 +513,13 @@ func platformFrom(gitVersion string) string {
 
 // verifyBenchmark checks that kube-bench audited against the benchmark the cluster called for.
 //
-// Draugr selects the benchmark by withholding flags — the only way to reach a platform config —
-// which means the choice is made inside a tool that has its own detection and its own fallback.
+// Draugr selects the benchmark by withholding flags, the only way to reach a platform config.
+// Which means the choice is made inside a tool that has its own detection and its own fallback.
 // When that detection fails, kube-bench does not stop: it assumes Kubernetes 1.18 and audits
 // against cis-1.6, a benchmark for Kubernetes 1.16, and reports the result as though it were the
 // one asked for.
 //
-// So the input is not the guarantee — the output is. kube-bench states the benchmark it used in
+// So the input is not the guarantee. The output is. kube-bench states the benchmark it used in
 // every control it emits, and a run that used the wrong one is a failed scan rather than a
 // finding-free pass.
 func verifyBenchmark(doc kubeBenchDoc, platform string) error {
@@ -543,10 +542,9 @@ func verifyBenchmark(doc kubeBenchDoc, platform string) error {
 
 // majorMinor renders the version kube-bench maps against.
 //
-// Managed clusters report a minor with a trailing "+" — GKE and EKS both do, meaning "1.30 plus
+// Managed clusters report a minor with a trailing "+". GKE and EKS both do, meaning "1.30 plus
 // vendor patches". kube-bench's version_mapping has no "30+" key, so leaving it on means no
-// benchmark matches and the tool falls back to the stale default this whole path exists to
-// avoid.
+// benchmark matches and the tool falls back to the stale default this whole path exists to avoid.
 func majorMinor(major, minor, gitVersion string) (string, error) {
 	minor = strings.TrimRight(minor, "+")
 	if major == "" || minor == "" {
@@ -571,8 +569,8 @@ type kubeBenchDoc struct {
 	Controls []kubeBenchControl `json:"Controls"`
 }
 
-// kubeBenchControl is one benchmark run. Version is the benchmark kube-bench actually applied —
-// the field verifyBenchmark holds it to.
+// kubeBenchControl is one benchmark run. Version is the benchmark kube-bench actually applied. The
+// field verifyBenchmark holds it to.
 type kubeBenchControl struct {
 	ID       string `json:"id"`
 	Text     string `json:"text"`
@@ -596,11 +594,10 @@ type kubeBenchFinding struct {
 // The message is the check description and nothing else.
 //
 // kube-bench also reports expected_result and actual_value, and neither survives contact with a
-// reader. expected_result is the tool's internal assertion — "'is_compliant' is equal to 'true'"
-// — which describes kube-bench's own test rather than the cluster. actual_value is the raw
-// stdout of the check script: multi-line, and on some checks it carries shell errors from
-// kube-bench's own logic. Appending either produces the field-dump problem the Trivy scanners
-// were fixed for.
+// reader. expected_result is the tool's internal assertion. "'is_compliant' is equal to 'true'",
+// which describes kube-bench's own test rather than the cluster. actual_value is the raw stdout of
+// the check script: multi-line, and on some checks it carries shell errors from kube-bench's own
+// logic. Appending either produces the field-dump problem the Trivy scanners were fixed for.
 //
 // The remediation kube-bench supplies is genuinely useful, and travels on the rule where a
 // viewer shows it beside the finding. Everything the tool printed is available at
@@ -608,13 +605,13 @@ type kubeBenchFinding struct {
 
 // parseKubeBench converts kube-bench's JSON into a report.
 //
-// The tool name is a parameter because two scanners share this format — the read-only one and
-// the in-cluster Job — and a finding should name the scanner that actually produced it. The
-// report's Scanner column is how a reader tells a section-5 finding from a section-4 one.
+// The tool name is a parameter because two scanners share this format. The read-only one and the
+// in-cluster Job. And a finding should name the scanner that actually produced it. The report's
+// Scanner column is how a reader tells a section-5 finding from a section-4 one.
 //
-// Only FAIL and WARN become findings. PASS and INFO are the benchmark confirming what it
-// checked, and a report listing three hundred passing checks buries the dozen that failed —
-// the same reasoning that keeps permissive licenses out of the licenses control.
+// Only FAIL and WARN become findings. PASS and INFO are the benchmark confirming what it checked,
+// and a report listing three hundred passing checks buries the dozen that failed. The same
+// reasoning that keeps permissive licenses out of the licenses control.
 func parseKubeBench(out []byte, tool, location string) (sarif.Report, error) {
 	return parseKubeBenchOperated(out, tool, location, false)
 }
@@ -631,8 +628,8 @@ func parseKubeBenchOperated(
 }
 
 // decodeKubeBench reads the tool's JSON. Separate from rendering so a caller that has an
-// expectation about the benchmark can check it before turning the output into findings — a
-// report built from the wrong benchmark is worth nothing, so it should never be built.
+// expectation about the benchmark can check it before turning the output into findings, a report
+// built from the wrong benchmark is worth nothing, so it should never be built.
 func decodeKubeBench(out []byte) (kubeBenchDoc, error) {
 	var doc kubeBenchDoc
 	if err := json.Unmarshal(out, &doc); err != nil {
@@ -658,10 +655,9 @@ func reportFromKubeBench(
 	for _, ctl := range doc.Controls {
 		for _, test := range ctl.Tests {
 			for _, res := range test.Results {
-				// Decided before filtered. A PASS produces no finding and is still a verdict —
-				// the scanner looked at that control and was satisfied. Recording only what
-				// failed would make "no finding" mean two different things, and the whole point
-				// of this list is telling them apart.
+				// Decided before filtered. A PASS produces no finding and is still a verdict, the scanner
+				// looked at that control and was satisfied. Recording only what failed would make "no finding"
+				// mean two different things, and the whole point of this list is telling them apart.
 				//
 				// WARN is kube-bench's "needs manual review", which is not a verdict: a check it
 				// could not settle is not a dissent from a scanner that could.
@@ -710,14 +706,14 @@ func reportFromKubeBench(
 
 // kubeBenchLevel maps a check's status to a SARIF level.
 //
-// A scored FAIL is an error: the benchmark says the cluster is out of compliance and counts it.
-// An unscored FAIL and a WARN are both warnings — WARN in CIS terms means "manual check
-// required", which is a prompt for a human rather than a defect, and reporting it as an error
-// would make a clean cluster impossible.
-// kubeBenchDecided reports whether a status is a verdict rather than a referral.
+// A scored FAIL is an error: the benchmark says the cluster is out of compliance and counts it. An
+// unscored FAIL and a WARN are both warnings. WARN in CIS terms means "manual check required",
+// which is a prompt for a human rather than a defect, and reporting it as an error would make a
+// clean cluster impossible. kubeBenchDecided reports whether a status is a verdict rather than a
+// referral.
 //
 // PASS and FAIL are conclusions. WARN is kube-bench's way of saying a human has to look, and INFO
-// is context — neither settles the control, so neither can contradict a scanner that did.
+// is context. Neither settles the control, so neither can contradict a scanner that did.
 func kubeBenchDecided(status string) bool {
 	switch strings.ToUpper(status) {
 	case "PASS", "FAIL":
@@ -742,7 +738,7 @@ func kubeBenchLevel(status string, scored bool) (sarif.Level, bool) {
 
 // refuseNamespaceScope stops a scanner that cannot honor a declared namespace scope.
 //
-// kube-bench's checks are shell pipelines with the scope written into them — `kubectl get pods
+// kube-bench's checks are shell pipelines with the scope written into them, `kubectl get pods
 // --all-namespaces`, and no flag to change it. So a component that declares `namespaces:` and is
 // audited by kube-bench gets the whole cluster, reported against a component that claims to own
 // three of its eighty namespaces.
@@ -752,8 +748,8 @@ func kubeBenchLevel(status string, scored bool) (sarif.Level, bool) {
 // only honest answer, and the error names the scanner that can do it.
 //
 // The message carries the two things to do and one clause of why. The rest of the reasoning is
-// here and in the colocated docs, which is where a reader who wants it goes looking — in the
-// report it competes for the width the fix needs, and the fix is at the end of the sentence.
+// here and in the colocated docs, which is where a reader who wants it goes looking, in the report
+// it competes for the width the fix needs, and the fix is at the end of the sentence.
 func refuseNamespaceScope(scanner string, namespaces []string) error {
 	if len(namespaces) == 0 {
 		return nil
@@ -768,16 +764,16 @@ func refuseNamespaceScope(scanner string, namespaces []string) error {
 // the cluster a check examines.
 //
 // kube-bench groups its checks by node type, which is most of the split that matters. On a managed
-// cluster the API server, etcd and the controller manager are unreachable — there is no host to
-// log into and no file to chmod — so a finding about their configuration is not something the team
-// can act on however true it is.
+// cluster the API server, etcd and the controller manager are unreachable. There is no host to log
+// into and no file to chmod, so a finding about their configuration is not something the team can
+// act on however true it is.
 //
 // The worker node type is not blanket-excused, because node configuration is often the team's
 // through node pool settings, and marking a finding as somebody else's when it is theirs hides
 // work they could have done.
 //
 // kube-proxy is the exception within it. Every managed platform runs kube-proxy as a DaemonSet it
-// owns, so its configuration is no more reachable than the control plane's — a reader told to
+// owns, so its configuration is no more reachable than the control plane's, a reader told to
 // change the address it binds to has nowhere to make the change. That is section 4.3 of the
 // benchmark, and it is named by section rather than by node type because kube-bench reports it
 // under the same "node" heading as the kubelet, which is a different situation.
@@ -798,8 +794,8 @@ const kubeProxySection = "4.3"
 // withoutAssessmentMarker drops the benchmark's "(Automated)" or "(Manual)" suffix from a check
 // description.
 //
-// It is CIS vocabulary about how a recommendation is *assessed* — whether a tool can decide it
-// programmatically — and it says nothing about the finding or its fix. A reader sees it beside
+// It is CIS vocabulary about how a recommendation is *assessed*. Whether a tool can decide it
+// programmatically. And it says nothing about the finding or its fix. A reader sees it beside
 // something they have been told to act on and reads it as a claim about the remediation.
 //
 // It also costs a dozen characters of a line that is already truncated, in every row, to repeat

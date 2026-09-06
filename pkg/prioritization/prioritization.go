@@ -1,6 +1,6 @@
 // Package prioritization turns a finding's severity and its component's risk classification
-// (exposure × business criticality) into a single Priority band. It is the engine behind
-// "what do I fix first": two small, auditable lookup matrices —
+// (exposure × business criticality) into a single Priority band. It is the engine behind "what do I
+// fix first": two small, auditable lookup matrices,
 //
 //	re × bc      → context tier (C1–C4)   "how much we care about any issue here"
 //	context × severity → priority (P1–P4) "this finding's rank"

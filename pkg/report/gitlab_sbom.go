@@ -12,9 +12,9 @@ import (
 
 // gitlabSBOMSpecVersion is the CycloneDX version this document declares.
 //
-// GitLab reads 1.4, 1.5 and 1.6 and rejects anything else outright — a 1.7 document is not
-// partially understood, it is "could not be parsed", and the surfaces built on it stay empty while
-// the scan that produced it reports success.
+// GitLab reads 1.4, 1.5 and 1.6 and rejects anything else outright, a 1.7 document is not partially
+// understood, it is "could not be parsed", and the surfaces built on it stay empty while the scan
+// that produced it reports success.
 const gitlabSBOMSpecVersion = "1.6"
 
 // gitlabInputFileProperty is the manifest a package was declared in, as GitLab names it.
@@ -23,9 +23,9 @@ const gitlabInputFileProperty = "gitlab:dependency_scanning:input_file:path"
 // gitlabSchemaVersionProperty tells GitLab how to read the properties below it, and is required.
 //
 // Not optional metadata: without it GitLab ignores every `gitlab:` property in the document, and
-// does so quietly. The packages still appear — their names, versions and licenses are plain
-// CycloneDX, and the package manager can be inferred from a purl — so the report looks almost
-// right. What goes missing is everything only these properties carry: the manifest each package was
+// does so quietly. The packages still appear, their names, versions and licenses are plain
+// CycloneDX, and the package manager can be inferred from a purl, so the report looks almost right.
+// What goes missing is everything only these properties carry: the manifest each package was
 // declared in, and with it GitLab's own dependency scanning.
 const (
 	gitlabSchemaVersionProperty = "gitlab:meta:schema_version"
@@ -39,7 +39,7 @@ const (
 // supports, and filling its components with one vendor's property namespace, would make every other
 // consumer pay for this one. So the canonical SBOM stays as it is and this is rendered beside it.
 //
-// Two facts GitLab needs are already present under different names — the manifest a package came
+// Two facts GitLab needs are already present under different names, the manifest a package came
 // from, which Syft records as `syft:location:N:path`, and the package manager, which is the type in
 // every component's purl. Neither is inferred; both are translated.
 type gitlabSBOMReporter struct{}
@@ -61,9 +61,9 @@ func (gitlabSBOMReporter) Render(w io.Writer, d Data) error {
 			continue
 		}
 		purl, _ := c["purl"].(string)
-		// Only packages. An SBOM also describes the tree it was taken from — the component, the
-		// checkout, the manifest itself — and those carry no purl, no version and nothing GitLab's
-		// dependency list can show. Passing them on produces rows that name a file as a dependency.
+		// Only packages. An SBOM also describes the tree it was taken from, the component, the checkout,
+		// the manifest itself, and those carry no purl, no version and nothing GitLab's dependency list
+		// can show. Passing them on produces rows that name a file as a dependency.
 		if purl == "" {
 			continue
 		}
@@ -87,7 +87,7 @@ func (gitlabSBOMReporter) Render(w io.Writer, d Data) error {
 //
 // GitLab's own analyzers emit one SBOM per manifest and put its path here; Draugr emits one
 // covering everything it scanned. Where every package came from the same file the two shapes agree
-// and the path is stated, which is what fills the dependency list's Location column — the
+// and the path is stated, which is what fills the dependency list's Location column. The
 // per-component properties are what GitLab's dependency scanning matches on, and it reads this one.
 //
 // With several manifests there is no single answer, and inventing one would attribute a package to
@@ -189,8 +189,8 @@ func gitlabStampComponent(c map[string]any, purl string) {
 // gitlabInputFile is the manifest a package was found in, repository-relative.
 //
 // Syft records absolute paths within the scanned tree ("/requirements.txt"); GitLab wants them
-// relative to the repository root, and reads the first one — a package found in several manifests
-// is still declared by one of them.
+// relative to the repository root, and reads the first one, a package found in several manifests is
+// still declared by one of them.
 func gitlabInputFile(props []any) string {
 	for _, raw := range props {
 		p, ok := raw.(map[string]any)

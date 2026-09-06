@@ -24,7 +24,7 @@ import (
 //
 // Gitleaks (offline, regex-based) is the reliable producer and is required; Trivy/Semgrep
 // enrich the scan when present. Exact CVEs/counts are never asserted (they drift with tool and
-// DB versions) — only the invariants above.
+// DB versions), only the invariants above.
 func TestZeroConfigRepoScanWithRealScanners(t *testing.T) {
 	requireTool(t, "gitleaks", "this test needs a real repository scanner to produce findings")
 	requireTool(t, "git", "the scan checks the repository out before scanning it")
@@ -63,7 +63,7 @@ func TestZeroConfigRepoScanWithRealScanners(t *testing.T) {
 	if len(report.Results) == 0 {
 		t.Fatal("expected real scanner findings, got 0 results")
 	}
-	// Paths must be repo-relative — never the absolute temp-checkout prefix (#188).
+	// Paths must be repo-relative, never the absolute temp-checkout prefix (#188).
 	for _, r := range report.Results {
 		uri := r.Location.URI
 		if uri == "" {

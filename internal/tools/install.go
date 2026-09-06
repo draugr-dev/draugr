@@ -32,7 +32,7 @@ import (
 
 // semgrepVersion is the pinned Semgrep release.
 //
-// Semgrep publishes no release binary — its GitHub releases carry no assets at all — so it is
+// Semgrep publishes no release binary, its GitHub releases carry no assets at all. So it is
 // installed from PyPI into a virtual environment Draugr owns, with every artifact in the resolved
 // tree pinned by the digest PyPI publishes. See python.go.
 //
@@ -62,8 +62,8 @@ type Asset struct {
 	// e.g. "cfg/" for kube-bench's benchmark definitions.
 	//
 	// Some tools are not one file. kube-bench without its cfg/ tree exits complaining about a
-	// missing "target_mapping" section, which names an internal structure rather than the 276
-	// files nobody copied — so installing the binary alone is a half-install that looks whole.
+	// missing "target_mapping" section, which names an internal structure rather than the 276 files
+	// nobody copied, so installing the binary alone is a half-install that looks whole.
 	DataInArchive string
 }
 
@@ -96,8 +96,8 @@ type InstallSpec struct {
 	// nothing: it catches a corrupted or truncated download.
 	ChecksumsURLTemplate string
 	Assets               map[string]Asset
-	// Cosign, when set, verifies the release's provenance in addition to the SHA-256 pin.
-	// Nil for upstreams that publish no signature (e.g. gitleaks) — those stay SHA-256-only.
+	// Cosign, when set, verifies the release's provenance in addition to the SHA-256 pin. Nil for
+	// upstreams that publish no signature (e.g. gitleaks). Those stay SHA-256-only.
 	Cosign *CosignSpec
 	// DataDir is where Asset.DataInArchive is written, relative to Draugr's own directory.
 	// Namespaced by tool so a second tool with data files does not collide with the first.
@@ -149,9 +149,9 @@ var installable = map[string]InstallSpec{
 	"cosign": {
 		Binary:  "cosign",
 		Version: "3.1.1",
-		// cosign ships bare release binaries (no archive), so BinaryInArchive is empty. It is
-		// the tool Draugr uses to verify other tools, so it is pinned by SHA-256 (the mandatory
-		// floor) — using cosign to verify itself would be circular.
+		// cosign ships bare release binaries (no archive), so BinaryInArchive is empty. It is the tool
+		// Draugr uses to verify other tools, so it is pinned by SHA-256 (the mandatory floor), using
+		// cosign to verify itself would be circular.
 		Assets: map[string]Asset{
 			"linux/amd64": {
 				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.1/cosign-linux-amd64",
@@ -175,10 +175,10 @@ var installable = map[string]InstallSpec{
 			},
 		},
 	},
-	// kube-bench is the alternative infrastructure scanner: the native reader is the default,
-	// and this exists for anyone who wants the upstream tool's own answers. Its release carries
-	// the binary and a 276-file cfg/ tree of benchmark definitions — installing one without the
-	// other produces a tool that cannot run.
+	// kube-bench is the alternative infrastructure scanner: the native reader is the default, and
+	// this exists for anyone who wants the upstream tool's own answers. Its release carries the
+	// binary and a 276-file cfg/ tree of benchmark definitions, installing one without the other
+	// produces a tool that cannot run.
 	//
 	// SHA-256 only: kube-bench publishes a checksums file and no signature over it.
 	"kube-bench": {
@@ -207,7 +207,7 @@ var installable = map[string]InstallSpec{
 		Binary:  "gosec",
 		Version: "2.28.0",
 		// gosec signs with a key-based (not keyless) cosign bundle, which the identity-based
-		// CosignSpec doesn't cover — SHA-256 pin only for now.
+		// CosignSpec doesn't cover, SHA-256 pin only for now.
 		Assets: map[string]Asset{
 			"linux/amd64": {
 				URL:             "https://github.com/securego/gosec/releases/download/v2.28.0/gosec_2.28.0_linux_amd64.tar.gz",
@@ -268,9 +268,9 @@ var installable = map[string]InstallSpec{
 	"syft": {
 		Binary:  "syft",
 		Version: "1.49.0",
-		// SHA-256 only, though Syft does sign. It publishes the older cosign cert+signature
-		// pair (checksums.txt.pem / .sig) rather than a Sigstore bundle, and CosignSpec models
-		// the bundle format — so install-time verification cannot be expressed here yet.
+		// SHA-256 only, though Syft does sign. It publishes the older cosign cert+signature pair
+		// (checksums.txt.pem / .sig) rather than a Sigstore bundle, and CosignSpec models the bundle
+		// format, so install-time verification cannot be expressed here yet.
 		//
 		// The values below were still checked before being copied: cosign verify-blob against
 		// syft_1.49.0_checksums.txt with the anchore/syft identity returned "Verified OK", so
@@ -310,9 +310,9 @@ var installable = map[string]InstallSpec{
 		// CosignSpec models the bundle format.
 		//
 		// The values below were checked before being copied. `cosign verify-blob` against
-		// grype_0.117.0_checksums.txt, with the anchore/grype workflow identity and the GitHub
-		// Actions OIDC issuer, returned "Verified OK" — so these hashes come from a file provably
-		// signed by Grype's release workflow.
+		// grype_0.117.0_checksums.txt, with the anchore/grype workflow identity and the GitHub Actions
+		// OIDC issuer, returned "Verified OK". So these hashes come from a file provably signed by
+		// Grype's release workflow.
 		//
 		// The floor is not arbitrary: the v5 database schema reached end of life on 2026-03-06,
 		// and a client older than v0.88.0 goes on scanning happily against a database that stopped
@@ -393,8 +393,8 @@ type Installed struct {
 	AlreadyPresent bool
 }
 
-// cosignLookPath finds the cosign CLI; overridable in tests. A missing cosign is not an error
-// — provenance verification degrades to the SHA-256 pin with a note.
+// cosignLookPath finds the cosign CLI; overridable in tests. A missing cosign is not an error,
+// provenance verification degrades to the SHA-256 pin with a note.
 var cosignLookPath = func() (string, error) { return exec.LookPath("cosign") }
 
 // runCosignVerify runs `cosign <args>`; overridable in tests.
@@ -413,8 +413,8 @@ func Installable() []string {
 		names = append(names, name)
 	}
 	// The language-package methods too. A tool missing from here is one `tools install` provisions
-	// and every caller believes it cannot — doctor stops offering it, and `tools list` reports it
-	// as something the reader has to find themselves.
+	// and every caller believes it cannot, doctor stops offering it, and `tools list` reports it as
+	// something the reader has to find themselves.
 	for name := range pythonInstallable {
 		names = append(names, name)
 	}
@@ -448,15 +448,15 @@ func installPythonTool(ctx context.Context, name, version, destDir string, spec 
 	if err != nil {
 		return Installed{}, err
 	}
-	// The shim is what ends up on PATH, so it is the file the attestation is about — the same
-	// rule the binary path follows.
+	// The shim is what ends up on PATH, so it is the file the attestation is about, the same rule
+	// the binary path follows.
 	sum, err := fileSHA256(path)
 	if err != nil {
 		return Installed{}, err
 	}
 	// LevelPinned when the embedded set applied: every artifact in the resolved tree matched a
 	// digest recorded in this binary, which is the same claim a pinned release archive makes and
-	// covers more — the dependencies as well as the tool.
+	// covers more, the dependencies as well as the tool.
 	recordInstall(destDir, name, installRecord{
 		Version: version, BinarySHA256: sum, Verified: level,
 	})
@@ -474,8 +474,8 @@ func installNodeTool(ctx context.Context, name, version, destDir string, spec No
 	if err != nil {
 		return Installed{}, err
 	}
-	// The shim is what ends up on PATH, so it is the file the attestation is about — the same
-	// rule the binary and Python paths follow.
+	// The shim is what ends up on PATH, so it is the file the attestation is about, the same rule
+	// the binary and Python paths follow.
 	sum, err := fileSHA256(path)
 	if err != nil {
 		return Installed{}, err
@@ -515,8 +515,8 @@ var pythonVersions = map[string]string{"semgrep": semgrepVersion}
 // ManagedVersion is the pinned version of a tool provisioned through one of the language-package
 // paths, or "" for anything obtained as a release archive or not managed at all.
 //
-// One place to ask, because the callers that need it — the install plan, `tools list`, the
-// up-to-date check — each named the paths individually, and a path added later joined none of
+// One place to ask, because the callers that need it, the install plan, `tools list`, the
+// up-to-date check, each named the paths individually, and a path added later joined none of
 // them.
 func ManagedVersion(name string) string {
 	for _, v := range []string{pythonVersions[name], nodeVersions[name], goVersions[name]} {
@@ -542,8 +542,8 @@ func BinDir() (string, error) {
 // DataRoot is where tools that need more than a binary keep it, one directory per tool.
 //
 // Beside bin/ rather than inside it: a directory of YAML on PATH is confusing, and a tool's data
-// has a different lifetime from its binary — reinstalling one should not silently orphan the
-// other somewhere a reader has to guess at.
+// has a different lifetime from its binary. Reinstalling one should not silently orphan the other
+// somewhere a reader has to guess at.
 func DataRoot() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -572,9 +572,9 @@ func PlatformKey() string { return platformKey() }
 
 // Install downloads the pinned build of name, verifies its SHA-256, extracts the binary, and
 // installs it into destDir with an executable bit. client may be nil (a default is used). The
-// download is verified before anything is written, and the binary is placed atomically.
-// Install provisions a pinned tool into destDir. A tool already present at exactly the pinned
-// build is left alone unless force is set — see the install manifest below.
+// download is verified before anything is written, and the binary is placed atomically. Install
+// provisions a pinned tool into destDir. A tool already present at exactly the pinned build is
+// left alone unless force is set. See the install manifest below.
 func Install(ctx context.Context, name, destDir string, client *http.Client, force bool) (Installed, error) {
 	return InstallVersion(ctx, name, "", destDir, client, force)
 }
@@ -671,9 +671,9 @@ func InstallVersion(ctx context.Context, name, version, destDir string, client *
 	if err := writeExecutable(dest, bin); err != nil {
 		return Installed{}, err
 	}
-	// The data tree, if this tool is more than a binary. After the binary so a failure here
-	// leaves an installed tool that doctor will report as missing its data — which is true, and
-	// better than a rolled-back install that reports nothing at all.
+	// The data tree, if this tool is more than a binary. After the binary so a failure here leaves
+	// an installed tool that doctor will report as missing its data. Which is true, and better than
+	// a rolled-back install that reports nothing at all.
 	if asset.DataInArchive != "" && spec.DataDir != "" {
 		root, err := DataRoot()
 		if err != nil {
@@ -874,10 +874,10 @@ func writeExecutable(dest string, data []byte) error {
 // tool that is already present at the pinned version is pure waste (a 162 MB re-download for
 // trivy), so we record what we installed and skip when it's still intact.
 //
-// The record holds the *binary's* checksum, not just a version string. The pinned SHA-256
-// covers the upstream archive, so it can't be compared against an extracted binary — but we can
-// compare against what we ourselves wrote. That way "already installed" can never quietly accept
-// a binary that has been modified since: a mismatch reinstalls.
+// The record holds the *binary's* checksum, not just a version string. The pinned SHA-256 covers
+// the upstream archive, so it can't be compared against an extracted binary. But we can compare
+// against what we ourselves wrote. That way "already installed" can never quietly accept a binary
+// that has been modified since: a mismatch reinstalls.
 
 // manifestName is the record of provisioned tools, kept alongside the binaries.
 const manifestName = ".draugr-tools.json"
@@ -977,11 +977,11 @@ func extractTree(data []byte, prefix, dest string) (int, error) {
 			continue
 		}
 		rel := strings.TrimPrefix(hdr.Name, prefix)
-		// Refuse rather than sanitize. Joining a cleaned path would neutralize `..` and write
-		// the file somewhere harmless, which is safe and quiet — and quiet is wrong here. An
-		// archive is untrusted input even when its checksum matched: the pin proves it is the
-		// file upstream published, not that the file is well-behaved, and a traversal attempt in
-		// a signed release is something someone needs to hear about rather than have tidied away.
+		// Refuse rather than sanitize. Joining a cleaned path would neutralize `..` and write the file
+		// somewhere harmless, which is safe and quiet. And quiet is wrong here. An archive is untrusted
+		// input even when its checksum matched: the pin proves it is the file upstream published, not
+		// that the file is well-behaved, and a traversal attempt in a signed release is something
+		// someone needs to hear about rather than have tidied away.
 		if rel == "" || filepath.IsAbs(rel) || slices.Contains(strings.Split(rel, "/"), "..") {
 			return written, fmt.Errorf("archive entry %q is not a safe relative path", hdr.Name)
 		}
@@ -1007,7 +1007,7 @@ func extractTree(data []byte, prefix, dest string) (int, error) {
 // verifyByPublishedChecksums checks a download Draugr has no recorded hash for, and reports how
 // strongly it managed to.
 //
-// It never refuses for want of evidence — a version somebody asked for is installed even when
+// It never refuses for want of evidence, a version somebody asked for is installed even when
 // nothing is published to check it against, because refusing would block an operator who knows
 // something Draugr does not. It does refuse a **mismatch**: a published checksum that disagrees
 // is not missing information, it is information saying the download is wrong, and installing past

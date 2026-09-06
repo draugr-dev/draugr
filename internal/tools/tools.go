@@ -1,10 +1,10 @@
 // Package tools describes the external command-line scanners Draugr orchestrates and
-// detects whether they are installed. It backs `draugr doctor` — an explicit preflight
-// so a missing tool is reported up front with an install hint, instead of surfacing as a
-// buried "executable file not found" error mid-scan.
+// detects whether they are installed. It backs `draugr doctor`, an explicit preflight so a
+// missing tool is reported up front with an install hint, instead of surfacing as a buried
+// "executable file not found" error mid-scan.
 //
-// Detection only ever reads the environment (looks on PATH, runs a version probe). It
-// never downloads or installs anything — provisioning is a separate, opt-in step.
+// Detection only ever reads the environment (looks on PATH, runs a version probe). It never
+// downloads or installs anything. Provisioning is a separate, opt-in step.
 package tools
 
 import (
@@ -29,14 +29,14 @@ type Tool struct {
 	// Category groups the tool: "scanner" (backs a control) or "utility" (supporting tool
 	// like git or cosign). Shown in `tools list`.
 	Category string
-	// Optional marks a tool whose absence should not fail `doctor` — a nice-to-have that
-	// enhances behavior (e.g. cosign for signature verification) rather than a requirement.
+	// Optional marks a tool whose absence should not fail `doctor`. A nice-to-have that enhances
+	// behavior (e.g. cosign for signature verification) rather than a requirement.
 	Optional bool
 	// VersionFrom reads the version out of the probe's output, for a tool that names more than
 	// one. Nil takes the first semver-looking token, which is right for almost everything.
 	VersionFrom func([]byte) string
-	// DataArgs probes for data the tool needs beyond its own binary — Nuclei's template set,
-	// for instance. Empty means the binary is all there is.
+	// DataArgs probes for data the tool needs beyond its own binary, Nuclei's template set, for
+	// instance. Empty means the binary is all there is.
 	//
 	// Being on PATH is not the same as being able to run. A tool whose data is missing fails at
 	// scan time with a message about a symptom, and `doctor` exists to answer "is this going to
@@ -101,10 +101,10 @@ func Catalog() map[string]Tool {
 			VersionArgs: []string{"version"},
 			InstallHint: "https://github.com/anchore/grype#installation",
 			Category:    CategoryScanner,
-			// Grype is a matcher with no vulnerability data of its own, and it refuses to scan
-			// against a database more than five days old — so a binary on PATH is not yet a
-			// scanner that can run. Grype is asked rather than the disk inspected, because it is
-			// the only thing that knows whether what is on disk is current enough to be used.
+			// Grype is a matcher with no vulnerability data of its own, and it refuses to scan against a
+			// database more than five days old, so a binary on PATH is not yet a scanner that can run.
+			// Grype is asked rather than the disk inspected, because it is the only thing that knows
+			// whether what is on disk is current enough to be used.
 			DataArgs: []string{"db", "status", "-o", "json"},
 			DataOK:   GrypeDBOK,
 			DataHint: "run `grype db update`",
@@ -241,7 +241,7 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 	}
 	out, err := run(ctx, append([]string{t.Binary}, t.VersionArgs...))
 	if err != nil {
-		st.Err = err // found, but couldn't read version — report it, don't fail detection
+		st.Err = err // found, but couldn't read version; report it rather than failing detection
 		return st
 	}
 	if t.VersionFrom != nil {
@@ -260,8 +260,8 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 	case len(t.DataFiles) > 0:
 		st.DataChecked = true
 		for _, p := range t.DataFiles {
-			// {bindir} is where a tarball extract leaves the data — beside the binary — which is
-			// the commonest install and the one a fixed list of system paths would miss.
+			// {bindir} is where a tarball extract leaves the data, beside the binary. Which is the
+			// commonest install and the one a fixed list of system paths would miss.
 			expanded := expandHome(strings.ReplaceAll(p, "{bindir}", filepath.Dir(st.Path)))
 			if fileExists(expanded) {
 				st.DataFound, st.DataDetail = true, expanded
@@ -279,7 +279,7 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 //	Go: go1.26.7
 //	Scanner: govulncheck@v1.5.0
 //
-// Taking the first semver-looking token reports the Go toolchain as the scanner's version — a
+// Taking the first semver-looking token reports the Go toolchain as the scanner's version. A
 // number that is real, plausible, and about something else, which then travels into every report
 // the scanner produces. The Scanner line is read instead, and an output without one yields
 // nothing rather than the wrong thing.
@@ -326,7 +326,7 @@ func defaultRun(ctx context.Context, argv []string) ([]byte, error) {
 //
 //	[INF] Public nuclei-templates version: v10.4.6 (/home/you/nuclei-templates)
 //
-// and, with no templates installed, prints the same line with the version blank — and exits 0
+// and, with no templates installed, prints the same line with the version blank, and exits 0
 // either way. The blank is the signal; the exit code says nothing.
 var nucleiTemplatesVersionRE = regexp.MustCompile(`nuclei-templates version:\s*(\S+)?\s*\(([^)]*)\)`)
 
@@ -347,7 +347,7 @@ func GrypeDBOK(out []byte) (bool, string) {
 }
 
 // NucleiTemplatesOK reports whether Nuclei has a template set, and which. Exported because the
-// scanner checks the same thing after asking Nuclei to download one — the tool exits 0 either
+// scanner checks the same thing after asking Nuclei to download one, the tool exits 0 either
 // way, so the answer has to come from the same place `doctor` gets it.
 func NucleiTemplatesOK(out []byte) (bool, string) {
 	m := nucleiTemplatesVersionRE.FindSubmatch(out)

@@ -79,7 +79,7 @@ func TestSecretsAggregateEmpty(t *testing.T) {
 
 // The five controllers that named their scanner directly discarded the descriptor's block before
 // anything could look at it: an option written there neither took effect nor was reported, and
-// the scanner's declared schema — which exists to make that an error — was never consulted.
+// the scanner's declared schema. Which exists to make that an error. Was never consulted.
 func TestSecretsPassesTheScannerBlockThrough(t *testing.T) {
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"secrets": {"gitleaks": saga.ControllerSettings{"someOption": "value"}},

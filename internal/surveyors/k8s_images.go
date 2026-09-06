@@ -43,7 +43,7 @@ func (K8sImages) Info() plugin.SurveyorInfo {
 // A namespace is the unit, whether or not one was named. Collapsing a whole cluster into a single
 // component loses the two things that make the result usable: a namespace is what a team owns, so
 // it is what a finding has to be attributed to, and exposure is a property of a namespace's
-// topology — one Ingress anywhere would otherwise mark every image in the cluster as public.
+// topology. One Ingress anywhere would otherwise mark every image in the cluster as public.
 // `--namespace a,b` already produces a component each; no namespace means all of them, not one of
 // them.
 func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.Fragment, error) {
@@ -63,9 +63,9 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 
 	byNamespace := imagesByNamespace(pods.Items)
 	if len(byNamespace) == 0 {
-		// The scope exists and is running nothing, which is a real answer rather than a failure —
-		// but silence here reads as "surveyed and found your images", and the descriptor that
-		// results scans nothing.
+		// The scope exists and is running nothing, which is a real answer rather than a failure. But
+		// silence here reads as "surveyed and found your images", and the descriptor that results scans
+		// nothing.
 		if namespace != "" {
 			slog.Warn("no running images",
 				"effect", "this namespace contributes no component", "namespace", namespace)
@@ -97,8 +97,8 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 	reasons := make(map[string]string, len(names))
 	for _, ns := range names {
 		comp := saga.Component{Name: ns, Images: byNamespace[ns]}
-		// A suggestion for a human to confirm or adjust, not a measurement — so it travels with
-		// what it was read from, and the descriptor says so beside the value.
+		// A suggestion for a human to confirm or adjust, not a measurement, so it travels with what it
+		// was read from, and the descriptor says so beside the value.
 		if sig, ok := signals[ns]; ok {
 			comp.Exposure = sig.exposure
 			reasons[ns] = sig.reason
@@ -108,8 +108,8 @@ func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.F
 	return saga.Fragment{Components: comps, ExposureReasons: reasons}, nil
 }
 
-// ProposeExposureKey is the scope config key that turns exposure inference off. Absent — the
-// common case — means propose.
+// ProposeExposureKey is the scope config key that turns exposure inference off. Absent. The
+// common case. Means propose.
 //
 // A key rather than a field on SurveyScope: it is one surveyor's behavior, and the scope is the
 // channel the CLI already uses to tell a surveyor how to do its job.
@@ -127,7 +127,7 @@ func proposesExposure(cfg plugin.Config) bool {
 //
 // One pass over the whole scope rather than one per namespace. The three lists it needs can each
 // be answered cluster-wide in a single call, and a survey of a large cluster is the case that has
-// to stay usable — asking per namespace turns eighty of them into two hundred and forty round
+// to stay usable. Asking per namespace turns eighty of them into two hundred and forty round
 // trips for the same answer.
 //
 // Best-effort: a resource type it cannot list is skipped, and if none can be listed it proposes
@@ -179,7 +179,7 @@ func inferExposures(ctx context.Context, cs kubernetes.Interface, scope string, 
 	}
 
 	if !queried {
-		return nil // could not read any topology — propose nothing
+		return nil // could not read any topology, propose nothing
 	}
 
 	out := make(map[string]exposureSignal, len(namespaces))
@@ -218,11 +218,11 @@ func scopeLabel(scope string) string {
 //
 // Uniqueness is per namespace, not per cluster: the same image running in two namespaces is two
 // components' problem, and deduplicating across them would leave one of the two describing a
-// surface it has. The engine still scans it once — identical targets collapse there — so the
-// honest descriptor costs nothing.
+// surface it has. The engine still scans it once, identical targets collapse there. So the honest
+// descriptor costs nothing.
 //
 // Each image carries the immutable digest of what is actually running (from the container's
-// status), captured so result caching is content-addressed — a rebuilt image under the same tag
+// status), captured so result caching is content-addressed, a rebuilt image under the same tag
 // re-scans.
 func imagesByNamespace(pods []corev1.Pod) map[string][]saga.Image {
 	out := map[string][]saga.Image{}
@@ -268,9 +268,9 @@ func runningDigests(pod corev1.Pod) map[string]string {
 }
 
 // digestFromImageID extracts the bare "algorithm:hex" digest from a Kubernetes
-// ContainerStatus.ImageID, whose form varies by runtime — e.g.
-// "docker-pullable://repo@sha256:…", "repo@sha256:…", or a bare "sha256:…". Returns ""
-// when no digest is present (e.g. an image pulled purely by tag on some runtimes).
+// ContainerStatus.ImageID, whose form varies by runtime, e.g. "docker-pullable://repo@sha256:…",
+// "repo@sha256:…", or a bare "sha256:…". Returns "" when no digest is present (e.g. an image
+// pulled purely by tag on some runtimes).
 func digestFromImageID(imageID string) string {
 	if i := strings.LastIndex(imageID, "@"); i >= 0 {
 		return imageID[i+1:]
@@ -286,8 +286,8 @@ func digestFromImageID(imageID string) string {
 // defaultClientset builds a client for the scope's kubeconfig context, or the ambient one.
 //
 // The override is what makes `--context` mean something. Reading the flag and then connecting to
-// whatever the machine happens to have selected would survey one cluster while the operator
-// named another — and write a descriptor labeled with the name they gave.
+// whatever the machine happens to have selected would survey one cluster while the operator named
+// another, and write a descriptor labeled with the name they gave.
 func defaultClientset(scope plugin.SurveyScope) (kubernetes.Interface, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{CurrentContext: scopeContext(scope)}

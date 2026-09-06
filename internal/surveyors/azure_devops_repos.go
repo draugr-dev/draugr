@@ -29,7 +29,7 @@ func NewAzureDevOpsRepos() *AzureDevOpsRepos {
 
 // azureDevOpsRoot resolves the instance, so Azure DevOps Server needs no code change.
 //
-// Server is not a variant of Services with a different hostname — it is reached as
+// Server is not a variant of Services with a different hostname. It is reached as
 // `https://{server}/{collection}`, and the collection is part of the path. AZURE_DEVOPS_URL takes
 // whatever the instance actually is, up to but not including the organization or collection.
 func azureDevOpsRoot() string {
@@ -62,7 +62,7 @@ type adoRepo struct {
 }
 
 // adoRepoList is the envelope every Azure DevOps list endpoint returns. It is not a bare array,
-// and decoding it as one yields zero repositories with no error — a descriptor with no components
+// and decoding it as one yields zero repositories with no error, a descriptor with no components
 // and nothing to explain it.
 type adoRepoList struct {
 	Count int       `json:"count"`
@@ -98,11 +98,11 @@ func (a AzureDevOpsRepos) Survey(ctx context.Context, scope plugin.SurveyScope) 
 		return saga.Fragment{}, err
 	}
 
-	// Unauthenticated, Azure DevOps answers for public projects and nothing else. The descriptor
-	// that results is syntactically fine, every control is enabled, and the scan that follows
-	// passes or fails on real findings — while every private repository, which is where the
-	// interesting code usually is, is simply not in it. Nobody reviewing that output has a reason
-	// to suspect a gap, so the survey has to say so itself.
+	// Unauthenticated, Azure DevOps answers for public projects and nothing else. The descriptor that
+	// results is syntactically fine, every control is enabled, and the scan that follows passes or
+	// fails on real findings, while every private repository, which is where the interesting code
+	// usually is, is simply not in it. Nobody reviewing that output has a reason to suspect a gap, so
+	// the survey has to say so itself.
 	if token == "" {
 		slog.Warn("surveyed without a token",
 			"visibility", "public projects only",
@@ -145,7 +145,7 @@ func adoSkipReason(r adoRepo) string {
 // shortBranch turns a fully qualified ref into the branch name a clone expects.
 //
 // Azure DevOps reports "refs/heads/main" where the other forges report "main". Passed through
-// unchanged it reaches `git clone --branch refs/heads/main`, which fails — and it fails at scan
+// unchanged it reaches `git clone --branch refs/heads/main`, which fails. And it fails at scan
 // time, in a descriptor that was written by a survey and looks correct in review.
 func shortBranch(ref string) string {
 	return strings.TrimPrefix(ref, "refs/heads/")
@@ -207,7 +207,7 @@ func (a AzureDevOpsRepos) fetch(ctx context.Context, ref, token string) ([]adoRe
 // Azure DevOps answers an unauthenticated or under-scoped API request with **203 Non-Authoritative
 // Information** and a sign-in page, rather than a 401. Reported as "unexpected status 203" that is
 // worse than useless: 203 means "this is fine, from a cache" to anyone who looks it up, and the
-// actual problem — a token that is missing, malformed, or lacks the Code (read) scope — is named
+// actual problem. A token that is missing, malformed, or lacks the Code (read) scope. Is named
 // nowhere.
 func adoStatusError(status int, ref, token string) error {
 	switch status {

@@ -13,14 +13,14 @@ import (
 // describeScan says what this scan will do, for the person being asked to approve it.
 //
 // The point of asking is informed consent, and the person answering is usually not the person who
-// wrote the descriptor — an assistant produced it, and a human is deciding whether to proceed. A
+// wrote the descriptor, an assistant produced it, and a human is deciding whether to proceed. A
 // message that reads the same for every descriptor asks them to approve something it has not
 // described.
 //
 // The two ends of the range differ in kind, not degree. Five read-only controls over a checkout
 // read files and fetch a vulnerability database. `dast` against a declared host sends probing
 // traffic at a live service, which is why Draugr never enables it on anyone's behalf. A single
-// sentence covering both — "runs external scanners, and uses the network" — is true of each and
+// sentence covering both. "runs external scanners, and uses the network". Is true of each and
 // tells a reader nothing about which one they are agreeing to.
 //
 // Everything needed is already in the loaded descriptor: the plan names the controls and

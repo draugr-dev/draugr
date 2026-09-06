@@ -16,7 +16,7 @@ const LineHashKey = "primaryLocationLineHash/v1"
 
 // fingerprintContext is how many lines either side of the finding go into the hash.
 //
-// Two. Zero would make every occurrence of a common line — a bare `}`, an import — collide, and a
+// Two. Zero would make every occurrence of a common line, a bare `}`, an import, collide, and a
 // large window would make the fingerprint change whenever anything nearby did, which is the churn
 // this exists to avoid.
 const fingerprintContext = 2
@@ -28,14 +28,14 @@ const fingerprintContext = 2
 // below it look new. This hashes what the code says rather than where it sits, so a finding
 // survives edits elsewhere in the file.
 //
-// Normalized per line — leading and trailing whitespace removed — so reformatting and reindenting
-// do not churn it either. Returns "" when there is nothing to hash, which is honest: absent means
-// "no content-based identity", and a fabricated one would be worse than none.
+// Normalized per line, leading and trailing whitespace removed. So reformatting and reindenting do
+// not churn it either. Returns "" when there is nothing to hash, which is honest: absent means "no
+// content-based identity", and a fabricated one would be worse than none.
 //
 // **What it does not survive: an edit inside the context window.** Nearby lines are part of the
 // identity, so inserting a line immediately above a finding changes it. That is inherent rather
-// than a shortcoming to fix — without context, every bare `}` in a repository would share one
-// fingerprint — and it is the same trade CodeQL makes. The case that matters is an edit elsewhere
+// than a shortcoming to fix, without context, every bare `}` in a repository would share one
+// fingerprint. And it is the same trade CodeQL makes. The case that matters is an edit elsewhere
 // in the file, which is the common one and the one that used to invalidate everything below it.
 //
 // A finding on the first lines of a file is more exposed to this, because there is nothing above

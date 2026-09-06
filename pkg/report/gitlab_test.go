@@ -47,9 +47,9 @@ func gitlabData() Data {
 			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: []sarif.Result{
 				res("trivy-license", "AGPL-3.0", sarif.LevelWarning, "P4", "go.mod", 1),
 			}}},
-			// Two images, because one cannot show a per-image value collapsing into a shared one.
-			// The third finding has no operating system — a distribution Trivy could not identify
-			// — and is the case container scanning has to decline rather than fill in.
+			// Two images, because one cannot show a per-image value collapsing into a shared one. The third
+			// finding has no operating system. A distribution Trivy could not identify. And is the case
+			// container scanning has to decline rather than fill in.
 			"images": {Control: "images", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
 				withImage(withPackage(
 					res("trivy", "CVE-2011-3374", sarif.LevelNote, "P4", "registry.example.com/api:1.4", 0),
@@ -101,7 +101,7 @@ func renderGitLab(t *testing.T, format string, d Data) []byte {
 // The schema is what stands behind these formats.
 //
 // Seeing a document render in the Vulnerability Report needs an Ultimate instance, and GitLab
-// refuses a report that does not match its schema rather than showing a partial one — so a field
+// refuses a report that does not match its schema rather than showing a partial one, so a field
 // Draugr gets wrong costs a user the whole report and tells them nothing about which field.
 func TestGitLabReportsMatchTheirSchema(t *testing.T) {
 	cases := []struct{ format, schema string }{
@@ -156,7 +156,7 @@ func TestGitLabSchemaVersionMatchesTheVendoredSchemas(t *testing.T) {
 			t.Fatal(err)
 		}
 		if s.Self.Version != gitlabSchemaVersion {
-			t.Errorf("%s is version %q, gitlabSchemaVersion is %q — refresh both together",
+			t.Errorf("%s is version %q, gitlabSchemaVersion is %q, refresh both together",
 				name, s.Self.Version, gitlabSchemaVersion)
 		}
 	}
@@ -183,7 +183,7 @@ func TestGitLabSASTCarriesOnlyTheControlsItNames(t *testing.T) {
 	}
 	for _, want := range []string{"go.lang.security.audit", "AVD-AWS-0086"} {
 		if !got[want] {
-			t.Errorf("gitlab-sast is missing %q — sast and iac both belong in it", want)
+			t.Errorf("gitlab-sast is missing %q, sast and iac both belong in it", want)
 		}
 	}
 	for _, unwanted := range []string{"CVE-2024-56201", "aws-access-key", "AGPL-3.0"} {
@@ -231,9 +231,9 @@ func TestGitLabSecretDetectionSaysSoWhenItCannotNameTheCommit(t *testing.T) {
 
 func TestGitLabSecretDetectionNamesEachRepositorysOwnCommit(t *testing.T) {
 	// One repository proves the lookup runs; two prove it does not collapse. A component may hold
-	// several, and a fragment may contribute one from another project — attributing every secret to
-	// whichever revision was recorded first would point a reviewer at a commit that does not
-	// contain it.
+	// several, and a fragment may contribute one from another project, attributing every secret to
+	// whichever revision was recorded first would point a reviewer at a commit that does not contain
+	// it.
 	d := gitlabData()
 	d.Repositories = []RepositoryProvenance{
 		{URL: "https://gitlab.com/acme/app", Revision: "aaaaaaaaaaaa"},
@@ -322,8 +322,8 @@ func TestGitLabCodeQualityCarriesEveryControl(t *testing.T) {
 }
 
 func TestGitLabCodeQualityRanksByPriority(t *testing.T) {
-	// Priority, not severity — the opposite of the security reports, because this widget has no
-	// policy engine behind it and is read as an ordered list of what to look at.
+	// Priority, not severity, the opposite of the security reports, because this widget has no policy
+	// engine behind it and is read as an ordered list of what to look at.
 	cases := []struct{ priority, want string }{
 		{"P1", "blocker"}, {"P2", "critical"}, {"P3", "major"}, {"P4", "minor"}, {"", "info"},
 	}
@@ -475,7 +475,7 @@ func TestGitLabScanTimesBracketTheRun(t *testing.T) {
 }
 
 // dependency_scanning requires a package on every finding, so a finding without one cannot be in
-// it — and quietly including it would have GitLab reject the whole document rather than the row.
+// it. And quietly including it would have GitLab reject the whole document rather than the row.
 func TestGitLabDependencyScanningNeedsAPackage(t *testing.T) {
 	d := gitlabData()
 	rep := d.Run.Controls["sca"].Report
@@ -496,7 +496,7 @@ func TestGitLabDependencyScanningNeedsAPackage(t *testing.T) {
 			t.Errorf("%s has no dependency, which the schema requires", v.Name)
 		}
 		// A line number in a manifest points at wherever the scanner happened to look, not at the
-		// package — GitLab renders it as a position, so it is left out.
+		// package, and GitLab renders it as a position, so it is left out.
 		if v.Location.StartLine != 0 {
 			t.Errorf("%s carries start_line %d", v.Name, v.Location.StartLine)
 		}
@@ -527,7 +527,7 @@ func withImage(r sarif.Result, image, operatingSystem string) sarif.Result {
 // document with no findings satisfies the schema perfectly.
 //
 // Two images, because that is where a per-image value collapsing into a shared one becomes
-// visible — with one image, a correct implementation and one that resolves the image afterwards
+// visible, with one image, a correct implementation and one that resolves the image afterwards
 // produce the same document.
 func TestGitLabContainerScanningCarriesEachImage(t *testing.T) {
 	var doc struct {
@@ -582,7 +582,7 @@ func TestGitLabContainerScanningOmitsWhatItCannotFill(t *testing.T) {
 	if strings.Contains(out, "scratch") {
 		t.Error("the image with no identifiable distribution reached the report")
 	}
-	// It is not lost — the complete stream still has it.
+	// It is not lost. The complete stream still has it.
 	quality := string(renderGitLab(t, "gitlab-codequality", gitlabData()))
 	if !strings.Contains(quality, "CVE-2024-0001") {
 		t.Error("the omitted finding should still reach the reviewer through Code Quality")

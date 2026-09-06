@@ -13,7 +13,7 @@ import (
 )
 
 // specOperations is the set of HTTP methods an OpenAPI path item can describe. Anything else at
-// that level — parameters, summary, servers — describes the path rather than an operation.
+// that level, parameters, summary, servers, describes the path rather than an operation.
 var specOperations = map[string]bool{
 	"get": true, "head": true, "options": true, "trace": true,
 	"post": true, "put": true, "patch": true, "delete": true,

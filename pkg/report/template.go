@@ -11,7 +11,7 @@ import (
 )
 
 // TemplateView is the data model a "template" report renders against. It is the documented,
-// stable surface for custom templates — a friendly, flattened view of a scan (no engine
+// stable surface for custom templates, a friendly, flattened view of a scan (no engine
 // internals), leading with the verdict and prioritized findings.
 type TemplateView struct {
 	// Project is what the run is about. Exposed beside the release because a release carries only

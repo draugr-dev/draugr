@@ -15,9 +15,9 @@ import (
 //
 // P1 rather than something short of it, for two reasons. `--fail-on-priority P1` is the gate this
 // project documents and dogfoods, so anything below it means a credential fails the severity gate
-// and passes the priority one — the same contradiction, one band over. And the claim being made
-// is that exposure does not bound the finding; a band that still moves with exposure, only less,
-// is a third position nothing argues for.
+// and passes the priority one, the same contradiction, one band over. And the claim being made is
+// that exposure does not bound the finding; a band that still moves with exposure, only less, is
+// a third position nothing argues for.
 func TestSecretsAreRankedAsIfTheComponentWereTheMostExposed(t *testing.T) {
 	p := DefaultPrioritizer(nil)
 	res := sarif.Result{RuleID: "github-pat", Level: sarif.LevelError}
@@ -25,7 +25,7 @@ func TestSecretsAreRankedAsIfTheComponentWereTheMostExposed(t *testing.T) {
 	// The least exposed, least critical classification a descriptor can express.
 	got := p("secrets", saga.ExposureRestricted, saga.CriticalitySupporting, res)
 	if got.Band != "P1" {
-		t.Errorf("band = %q, want P1 — a credential is valid wherever it is valid", got.Band)
+		t.Errorf("band = %q, want P1, a credential is valid wherever it is valid", got.Band)
 	}
 	if got.Floor == "" {
 		t.Error("a band the classification does not account for must say why")
@@ -36,7 +36,7 @@ func TestSecretsAreRankedAsIfTheComponentWereTheMostExposed(t *testing.T) {
 // answer, so two secrets findings of different severities must not collapse into one row.
 //
 // The severity floor puts every secrets finding at `high` or above, so both land on P1 today at
-// C1 — what this pins is that the band comes from the severity, so a future change to either
+// C1. What this pins is that the band comes from the severity, so a future change to either
 // matrix keeps working rather than being overridden by a hardcoded band.
 func TestSecretsStillRankBySeverity(t *testing.T) {
 	p := DefaultPrioritizer(nil)
@@ -46,7 +46,7 @@ func TestSecretsStillRankBySeverity(t *testing.T) {
 		res := sarif.Result{RuleID: "x", Score: scoreFor(sev), HasScore: true, Level: sarif.LevelError}
 		want := string(matrices.PriorityOf(prioritization.C1, sev))
 		if got := p("secrets", saga.ExposureInternal, saga.CriticalitySupporting, res); got.Band != want {
-			t.Errorf("%s: band = %q, want %q — the band must come from the severity at C1",
+			t.Errorf("%s: band = %q, want %q, the band must come from the severity at C1",
 				sev, got.Band, want)
 		}
 	}
@@ -75,7 +75,7 @@ func TestControlsWithoutAFloorAreUnaffected(t *testing.T) {
 
 	got := p("sca", saga.ExposureInternal, saga.CriticalitySupporting, res)
 	if got.Band != "P3" {
-		t.Errorf("band = %q, want P3 — exposure should still damp an sca finding", got.Band)
+		t.Errorf("band = %q, want P3, exposure should still damp an sca finding", got.Band)
 	}
 	if got.Floor != "" {
 		t.Errorf("sca declares no floor, got %q", got.Floor)

@@ -17,8 +17,8 @@ import (
 // the descriptor in front of the model unprompted, which is the point: the Saga is the scope,
 // and an assistant that hasn't read it will invent one.
 
-// sagaSuffix is the descriptor naming convention. A project can have several — azure.saga.yaml,
-// draugr-api.saga.yaml — so this matches the type, not one filename.
+// sagaSuffix is the descriptor naming convention. A project can have several, azure.saga.yaml,
+// draugr-api.saga.yaml, so this matches the type, not one filename.
 const sagaSuffix = ".saga.yaml"
 
 // maxScanDepth bounds discovery. Descriptors live near the top of a repository; walking an

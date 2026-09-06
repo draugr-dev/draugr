@@ -46,8 +46,8 @@ func TestTheActionDescriptionFitsTheMarketplace(t *testing.T) {
 
 // TestTheActionManifestHasNoDuplicateKeys keeps a malformed manifest from reaching a runner.
 //
-// A repeated key inside an input — the second `required:` left behind when a description is
-// rewritten — is accepted silently by most YAML readers, which keep the last value. The Actions
+// A repeated key inside an input, the second `required:` left behind when a description is
+// rewritten. Is accepted silently by most YAML readers, which keep the last value. The Actions
 // runner is not one of them: it refuses the whole file with "'required' is already defined", and
 // every workflow using the action fails at load, before a single step runs.
 //
@@ -71,7 +71,7 @@ func TestTheActionManifestHasNoDuplicateKeys(t *testing.T) {
 
 // TestEveryOutputNamesAStepThatExists keeps an output wired to nothing.
 //
-// A composite action's output is an expression over step ids — `steps.setup.outputs.sarif`. Name a
+// A composite action's output is an expression over step ids, `steps.setup.outputs.sarif`. Name a
 // step that does not exist, or write the value from a different step than the one the expression
 // reads, and the output resolves to the empty string. Nothing fails: the action runs, the caller's
 // upload step receives "", and the only symptom is a feature that quietly does nothing.
@@ -116,7 +116,7 @@ func TestEveryOutputNamesAStepThatExists(t *testing.T) {
 		}
 		for _, m := range matches {
 			if !ids[m[1]] {
-				t.Errorf("output %q reads steps.%s.outputs, but no step has id %q — it will resolve to the empty string",
+				t.Errorf("output %q reads steps.%s.outputs, but no step has id %q, it will resolve to the empty string",
 					name, m[1], m[1])
 			}
 		}

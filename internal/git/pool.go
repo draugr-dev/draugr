@@ -41,8 +41,8 @@ func NewPool() *Pool { return &Pool{entries: map[string]*entry{}} }
 // Checkout returns the shared tree for key, materializing it on first request.
 //
 // Callers that arrive while the first is still cloning wait for it rather than starting their own.
-// A failed checkout is remembered too — five scanners should report one unreachable repository
-// once, not attempt it five times over.
+// A failed checkout is remembered too. Five scanners should report one unreachable repository once,
+// not attempt it five times over.
 //
 // The returned cleanup is a no-op: the pool owns the directory until Close.
 func (p *Pool) Checkout(ctx context.Context, key string, materialize func(context.Context) (Tree, func(), error)) (Tree, func(), error) {
@@ -132,9 +132,9 @@ type poolKey struct{}
 // WithPool returns a context carrying p, so the scanners a run drives share its checkouts.
 //
 // Context rather than a parameter because the alternative is a new argument on the Scanner
-// interface — public API, and one every third-party scanner would have to accept for a
-// housekeeping detail it has no opinion about. A scanner that is handed no pool clones for
-// itself, which is what makes a scanner runnable on its own and in a test.
+// interface, public API, and one every third-party scanner would have to accept for a housekeeping
+// detail it has no opinion about. A scanner that is handed no pool clones for itself, which is what
+// makes a scanner runnable on its own and in a test.
 func WithPool(ctx context.Context, p *Pool) context.Context {
 	return context.WithValue(ctx, poolKey{}, p)
 }

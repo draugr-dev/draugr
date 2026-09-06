@@ -12,7 +12,7 @@ import (
 // Every Python-packaged tool has pins built in, at the version it is pinned to.
 //
 // The drift this catches is the obvious one: bump the version constant, forget to regenerate the
-// requirements. Nothing would fail at build time — the install would simply resolve a different
+// requirements. Nothing would fail at build time. The install would simply resolve a different
 // version from the one Draugr reports, and record it as `pinned` while the pins described something
 // else. A wrong provenance claim is worse than none.
 func TestEveryPythonToolHasPinsAtItsVersion(t *testing.T) {
@@ -30,7 +30,7 @@ func TestEveryPythonToolHasPinsAtItsVersion(t *testing.T) {
 		pins := string(data)
 		want := spec.Package + "==" + version
 		if !strings.Contains(pins, want) {
-			t.Errorf("%s: the pins do not contain %q — regenerate with\n"+
+			t.Errorf("%s: the pins do not contain %q, regenerate with\n"+
 				"    python3 internal/tools/pythonpins/generate.py %s %s", name, want, name, version)
 		}
 		// Every line that names a package must carry a hash, or --require-hashes rejects the file
@@ -82,8 +82,8 @@ func TestInstallableIncludesPythonTools(t *testing.T) {
 // The shim puts the environment's own bin first on PATH.
 //
 // Semgrep's launcher resolves a `semgrep` from PATH ahead of the one beside it, so a stale copy
-// elsewhere — a pipx install from before this existed — answers instead, and reports its own
-// version while Draugr reports the one it installed. Measured: with 1.169.0 on PATH the venv's
+// elsewhere, a pipx install from before this existed. Answers instead, and reports its own version
+// while Draugr reports the one it installed. Measured: with 1.169.0 on PATH the venv's
 // 1.173.0 reported itself as 1.169.0.
 func TestShimPutsItsOwnEnvironmentFirst(t *testing.T) {
 	dir := t.TempDir()
@@ -179,7 +179,7 @@ func lookPythonForTest() (string, error) { return execLookPath("python3") }
 // reporting a version, and building a virtual environment with a pip and an entry point in it.
 //
 // A stub rather than the real thing because the real thing takes a minute and reaches the network,
-// and what is under test is Draugr's sequence — resolve, build, install, link — not pip's.
+// and what is under test is Draugr's sequence, resolve, build, install, link, not pip's.
 //
 // Installed under the newest name findPython looks for, so it wins over whatever real interpreter
 // the machine has; and PATH is prepended rather than replaced, because the stub is shell and needs
@@ -229,8 +229,8 @@ func TestInstallPythonBuildsAnEnvironmentAndLinksIt(t *testing.T) {
 	if _, err := os.Stat(shim); err != nil {
 		t.Errorf("no shim was written: %v", err)
 	}
-	// The requirements installed from are the embedded ones, written where pip could read them —
-	// not something assembled at run time.
+	// The requirements installed from are the embedded ones, written where pip could read them. Not
+	// something assembled at run time.
 	reqs, err := os.ReadFile(filepath.Join(pythonEnvDir(root, "semgrep"), "draugr-requirements.txt")) // #nosec G304 -- a path this test created
 	if err != nil {
 		t.Fatalf("no requirements file: %v", err)
@@ -261,7 +261,7 @@ exit 0`)
 		t.Fatalf("installPython should fall back rather than fail: %v", err)
 	}
 	if level != LevelUnverified {
-		t.Errorf("level = %q, want %q — nothing recorded in this binary checked that install",
+		t.Errorf("level = %q, want %q, nothing recorded in this binary checked that install",
 			level, LevelUnverified)
 	}
 }
@@ -416,8 +416,8 @@ func fakePython(t *testing.T, log string, pipSucceeds ...string) {
 			t.Fatal(err)
 		}
 	}
-	// Ahead of the real PATH rather than instead of it — the fake is a shell script, and it needs
-	// mkdir and friends to do its job.
+	// Ahead of the real PATH rather than instead of it. The fake is a shell script, and it needs mkdir
+	// and friends to do its job.
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
@@ -477,7 +477,7 @@ func TestInstallPythonToolDropsToUnverifiedOnFallback(t *testing.T) {
 		t.Fatal("the install was not recorded")
 	}
 	if rec.Verified != LevelUnverified {
-		t.Errorf("level = %q, want %q — nothing in this binary checked what was installed",
+		t.Errorf("level = %q, want %q, nothing in this binary checked what was installed",
 			rec.Verified, LevelUnverified)
 	}
 }
@@ -498,7 +498,7 @@ func TestInstallPythonToolFailsWhenPipCannotInstall(t *testing.T) {
 
 // TestFindPythonExplainsWhatToDo covers the two messages a user without a usable interpreter
 // actually sees. Both have to name a way forward, because this is a tool Draugr can otherwise
-// install for them — "not found" alone leaves a missing scanner and no next step.
+// install for them. "not found" alone leaves a missing scanner and no next step.
 func TestFindPythonExplainsWhatToDo(t *testing.T) {
 	t.Run("no python at all", func(t *testing.T) {
 		t.Setenv("PATH", t.TempDir())

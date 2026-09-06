@@ -9,7 +9,7 @@
 // The rules, in one place:
 //   - color only when writing to an interactive terminal, and never when NO_COLOR is set
 //     (https://no-color.org)
-//   - a fixed, semantic palette — callers ask for "critical", not for red
+//   - a fixed, semantic palette, so callers ask for "critical" rather than for red
 //   - anything that degrades (color, hyperlinks) degrades to plain text, so piped output and
 //     CI logs stay readable
 package tui
@@ -47,7 +47,7 @@ type Painter struct{ color bool }
 // For returns a Painter suited to w: color only for an interactive terminal with NO_COLOR unset.
 func For(w io.Writer) Painter { return Painter{color: ColorEnabled(w)} }
 
-// Plain returns a Painter that never colors — for tests and for building strings whose
+// Plain returns a Painter that never colors, for tests and for building strings whose
 // destination isn't known yet.
 func Plain() Painter { return Painter{} }
 
@@ -67,8 +67,8 @@ func (p Painter) Paint(style Style, s string) string {
 	return "\x1b[" + string(style) + "m" + s + "\x1b[0m"
 }
 
-// Append is Paint for a caller building a byte buffer — the log handler writes a line per
-// record, and going through strings would allocate on every one.
+// Append is Paint for a caller building a byte buffer, the log handler writes a line per record,
+// and going through strings would allocate on every one.
 func (p Painter) Append(buf []byte, style Style, s string) []byte {
 	if !p.color || style == StyleNone {
 		return append(buf, s...)
@@ -81,9 +81,9 @@ func (p Painter) Append(buf []byte, style Style, s string) []byte {
 }
 
 // Link renders text as an OSC 8 terminal hyperlink to url. Terminals that support it show the
-// text and follow the link on click; everywhere else — an older terminal, a pipe, a CI log —
-// the escape codes are absent and the text stands alone. It therefore costs no width, which is
-// what makes it usable in a table that is already wide.
+// text and follow the link on click; everywhere else, an older terminal, a pipe, a CI log. The
+// escape codes are absent and the text stands alone. It therefore costs no width, which is what
+// makes it usable in a table that is already wide.
 //
 // A caller with nowhere to link should pass an empty url and get the text back.
 func (p Painter) Link(url, text string) string {
@@ -121,7 +121,7 @@ func IsTerminal(v any) bool {
 //
 // The character-device test alone says yes to /dev/null, which is what a script redirects stdin
 // from when it means "there is nobody here". Believing it prints a prompt into a log where
-// nothing can answer, and the run then proceeds on an answer it invented — for the reader, a
+// nothing can answer, and the run then proceeds on an answer it invented, for the reader, a
 // question they never saw deciding something on their behalf.
 func isDevNull(fi os.FileInfo) bool {
 	null, err := os.Open(os.DevNull)

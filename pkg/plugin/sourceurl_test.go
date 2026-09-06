@@ -3,10 +3,10 @@ package plugin
 import "testing"
 
 // fakeToken stands in for a credential in a clone URL. Assembled into the fixtures at runtime so
-// no test line reads as a hardcoded password to a secret scanner — including ours.
+// no test line reads as a hardcoded password to a secret scanner, including ours.
 const fakeToken = "not-a-real-token"
 
-// A finding is about a repository, not about who fetched it — so the userinfo is dropped rather
+// A finding is about a repository, not about who fetched it. So the userinfo is dropped rather
 // than hidden, and the same repository looks the same however it was cloned.
 func TestSourceURLDropsUserinfo(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
@@ -35,7 +35,7 @@ func TestSourceURLDropsUserinfo(t *testing.T) {
 	}
 }
 
-// An @ inside the path must not be mistaken for userinfo — only the authority carries it.
+// An @ inside the path must not be mistaken for userinfo. Only the authority carries it.
 func TestSourceURLIgnoresAnAtInThePath(t *testing.T) {
 	const u = "https://host/org/repo@v2.git"
 	if got := SourceURL(u); got != u {

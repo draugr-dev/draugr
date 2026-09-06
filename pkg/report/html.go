@@ -11,8 +11,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/norn"
 )
 
-// htmlReporter renders a self-contained HTML report — a single file with inline CSS, viewable
-// in any browser and shareable as a build artifact. Leads with the verdict, priority counts,
+// htmlReporter renders a self-contained HTML report, a single file with inline CSS, viewable in
+// any browser and shareable as a build artifact. Leads with the verdict, priority counts,
 // per-control severity, and the full ranked finding list.
 type htmlReporter struct{}
 
@@ -27,17 +27,17 @@ type htmlView struct {
 	P1, P2, P3, P4 int
 	Controls       []htmlControl
 	Findings       []htmlFinding
-	// Provenance is what each scanner said about its own run — the standard applied, how much of
-	// it was decided, what it was scoped to. A shared HTML report is the copy that reaches
-	// someone who did not run the scan, so it is the one that most needs to say what was
-	// measured rather than only what was found.
+	// Provenance is what each scanner said about its own run, the standard applied, how much of it
+	// was decided, what it was scoped to. A shared HTML report is the copy that reaches someone who
+	// did not run the scan, so it is the one that most needs to say what was measured rather than
+	// only what was found.
 	Provenance []provenanceLine
-	// Repositories is which repository was read and at which commit — the thing that makes the
+	// Repositories is which repository was read and at which commit. The thing that makes the
 	// report reproducible, and the answer to "does this describe my change or the last release".
 	Repositories []RepositoryProvenance
-	// Exploitability names the datasets that raised severities, with the date each was obtained.
-	// A shared report claiming a finding is critical has to be able to say on what data — and
-	// this is the copy most likely to be read by someone who cannot re-run the scan.
+	// Exploitability names the datasets that raised severities, with the date each was obtained. A
+	// shared report claiming a finding is critical has to be able to say on what data. And this is
+	// the copy most likely to be read by someone who cannot re-run the scan.
 	Exploitability []htmlFeed
 	// Errors, Suppressed and SBOM describe what the run couldn't do and what it set aside. A
 	// shared report that omits them describes a thinner run rather than a broken one, and the
@@ -55,8 +55,8 @@ type htmlView struct {
 	// Facets are the distinct values the filter controls offer, so the toolbar only ever shows
 	// options that match something.
 	Priorities, Severities, ControlNames []string
-	// SARIFHref and TSVHref are data: URIs — downloads that work with no JavaScript and under
-	// any content-security policy.
+	// SARIFHref and TSVHref are data: URIs. Downloads that work with no JavaScript and under any
+	// content-security policy.
 	SARIFHref, TSVHref template.URL
 	SARIFTooBig        bool
 	Generated, Version string
@@ -272,7 +272,7 @@ const htmlDoc = `<!doctype html>
   a { color: inherit; }
   footer { color: #888; font-size: .82rem; margin-top: 2rem; border-top: 1px solid #8883; padding-top: .6rem; }
   /* The page declares color-scheme: light dark, so the browser paints dark chrome in dark mode.
-     These keep the text legible against it — greys tuned for white are unreadable on near-black. */
+     These keep the text legible against it, since greys tuned for white are unreadable on near-black. */
   @media (prefers-color-scheme: dark) {
     .rel, .note { color: #aaa; }
     .sev-low { color: #999; }
@@ -483,9 +483,9 @@ more than the elapsed time, because the shares are of the total work rather than
 </footer>
 <script>
 // Progressive enhancement, and deliberately so: everything above renders complete without this.
-// The toolbar starts hidden and is revealed here, so a reader with scripts disabled — or an
-// email client or artifact viewer that strips them — sees the full table rather than dead
-// controls that do nothing.
+// The toolbar starts hidden and is revealed here, so a reader with scripts disabled, or an email
+// client or artifact viewer that strips them, sees the full table rather than dead controls that
+// do nothing.
 (function () {
   var tools = document.getElementById("tools");
   var rows = Array.prototype.slice.call(document.querySelectorAll("tbody.f"));
@@ -497,7 +497,7 @@ more than the elapsed time, because the shares are of the total work rather than
   var none = document.getElementById("none");
   var boxes = Array.prototype.slice.call(document.querySelectorAll("input.f"));
 
-  // A facet with nothing ticked means "no constraint" rather than "match nothing" — unticking
+  // A facet with nothing ticked means "no constraint" rather than "match nothing", unticking
   // every priority to be shown an empty table is nobody's intent.
   function allowed(kind) {
     var on = boxes.filter(function (b) { return b.dataset.k === kind && b.checked; });

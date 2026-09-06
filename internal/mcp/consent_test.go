@@ -99,8 +99,8 @@ func TestScanDeliversTheDescriptorsPublishers(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "reports")
 	path := filepath.Join(dir, "published.saga.yaml")
-	// No control enabled, so this needs no scanner binary and no network — the publisher still
-	// has a complete run to render, which is the part under test.
+	// No control enabled, so this needs no scanner binary and no network. The publisher still has a
+	// complete run to render, which is the part under test.
 	if err := os.WriteFile(path, []byte(
 		"project: app\nrelease:\n  version: \"1.0\"\n"+
 			"config:\n  reports:\n    - format: sarif\n  publishers:\n    - kind: file\n      dir: "+out+"\n"+

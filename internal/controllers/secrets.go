@@ -9,8 +9,8 @@ import (
 const gitleaksScanner = "gitleaks"
 
 // Secrets is the secret-detection control: it scans a component's repositories for leaked
-// credentials. Any detected secret is treated as an error — a leaked secret should fail
-// the gate regardless of how the scanner rated it.
+// credentials. Any detected secret is treated as an error. A leaked secret should fail the gate
+// regardless of how the scanner rated it.
 type Secrets struct{}
 
 // NewSecrets returns the secrets controller.
@@ -33,7 +33,7 @@ func (Secrets) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, e
 	}
 	// Through resolveScanners rather than named directly, even with one scanner to choose from.
 	// Naming it here would discard the descriptor's secrets block before anything could look at it,
-	// so an option written there would neither take effect nor be reported — and the scanner's
+	// so an option written there would neither take effect nor be reported, and the scanner's
 	// declared schema, which exists to make that an error, would never be consulted.
 	selections := resolveScanners(model, comp, "secrets", []string{gitleaksScanner})
 	jobs := make([]plugin.ScanJob, 0, len(comp.Repositories)*len(selections))
@@ -48,8 +48,8 @@ func (Secrets) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, e
 	return jobs, nil
 }
 
-// Aggregate merges the scan reports and escalates every finding to error severity — a
-// detected secret is always gate-failing.
+// Aggregate merges the scan reports and escalates every finding to error severity. A detected
+// secret is always gate-failing.
 func (Secrets) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) {
 	merged := sarif.Merge(reports...)
 	for i := range merged.Results {

@@ -89,9 +89,9 @@ func (g GitLabGroupProjects) Survey(ctx context.Context, scope plugin.SurveyScop
 
 	// Unauthenticated, GitLab answers with the group's public projects and nothing else. The
 	// descriptor that results is syntactically fine, every control is enabled, and the scan that
-	// follows passes or fails on real findings — while every private project, which is where the
-	// interesting code usually is, is simply not in it. Nobody reviewing that output has a reason
-	// to suspect a gap, so the survey has to say so itself.
+	// follows passes or fails on real findings, while every private project, which is where the
+	// interesting code usually is, is simply not in it. Nobody reviewing that output has a reason to
+	// suspect a gap, so the survey has to say so itself.
 	if token == "" {
 		slog.Warn("surveyed without a token",
 			"scope", "public projects only", "fix", "set GITLAB_TOKEN to include private ones",
@@ -129,7 +129,7 @@ func skipReason(p glProject) string {
 // fetch pages through the group's projects, subgroups included.
 //
 // include_subgroups is not optional. A group is a tree, and a survey that stopped at the top level
-// would return a fraction of it and say nothing about the rest — the descriptor would look like the
+// would return a fraction of it and say nothing about the rest. The descriptor would look like the
 // whole organization and describe one floor of it.
 func (g GitLabGroupProjects) fetch(ctx context.Context, group, token string) ([]glProject, error) {
 	var all []glProject

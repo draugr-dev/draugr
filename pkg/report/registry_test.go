@@ -9,7 +9,7 @@ import (
 // appear in to work.
 //
 // A format registered as a document, and given a filename, but never added to the renderer
-// registry is one the CLI rejects as unknown — while every unit test of the renderer itself
+// registry is one the CLI rejects as unknown, while every unit test of the renderer itself
 // passes, because those call it directly. Nothing else in the suite crosses the two lists.
 func TestEveryDocumentFormatIsARealReporter(t *testing.T) {
 	known := Formats()

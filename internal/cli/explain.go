@@ -31,10 +31,10 @@ var defaultSARIFNames = []string{
 // newExplainCommand builds `draugr explain`.
 //
 // A finding's identifier and one truncated line is enough to rank it and not enough to decide
-// anything. What a reader needs next — what the check means and what to change — is already in
-// the report: scanners publish remediation text and Draugr records it. Without somewhere to read
-// it, the identifier sends people to whatever a search engine offers, and for a benchmark that
-// means a registration form in front of a PDF.
+// anything. What a reader needs next. What the check means and what to change. Is already in the
+// report: scanners publish remediation text and Draugr records it. Without somewhere to read it,
+// the identifier sends people to whatever a search engine offers, and for a benchmark that means
+// a registration form in front of a PDF.
 func newExplainCommand() *cobra.Command {
 	var reportPath string
 	cmd := &cobra.Command{

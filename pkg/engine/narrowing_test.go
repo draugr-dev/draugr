@@ -49,9 +49,9 @@ func infraJob(scanner, component string, namespaces ...string) PlannedJob {
 // something Draugr already knows, and running it anyway files the whole cluster's findings against
 // a component that owns three of its namespaces.
 //
-// Two components, because one proves nothing: the same cluster declared twice — once narrowed,
-// once whole — is the shape this appears in, and a filter that answered per descriptor rather than
-// per job would take the scanner away from the component entitled to it.
+// Two components, because one proves nothing: the same cluster declared twice, once narrowed, once
+// whole. Is the shape this appears in, and a filter that answered per descriptor rather than per
+// job would take the scanner away from the component entitled to it.
 func TestDropUnnarrowableKeepsTheComponentThatClaimedTheWholeCluster(t *testing.T) {
 	reg := narrowingRegistry(t)
 	planned := []PlannedJob{

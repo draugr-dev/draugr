@@ -13,8 +13,8 @@ import (
 // That is not a stylistic preference. A scanner flag that filters by severity or reads an ignore
 // file removes findings before Draugr ever sees them, and a finding Draugr never saw cannot be
 // reported as suppressed, cannot carry the reason someone gave, and cannot be told apart from one
-// that was never made. Draugr already answers that question — `exclusions` in the Saga keeps the
-// finding in the report marked suppressed, and the gate thresholds decide what fails — so routing
+// that was never made. Draugr already answers that question. `exclusions` in the Saga keeps the
+// finding in the report marked suppressed, and the gate thresholds decide what fails, so routing
 // it through a tool flag would replace an auditable answer with a silent one.
 //
 // So `--severity`, `--ignorefile`, `-severity` and `-confidence` are deliberately absent, and the
@@ -23,7 +23,7 @@ import (
 // configPath resolves an operator-supplied path to an absolute one.
 //
 // Repository scanners run with the checkout as their working directory, so a relative path in a
-// descriptor would resolve inside a temporary clone — where the operator's file is not. Resolving
+// descriptor would resolve inside a temporary clone. Where the operator's file is not. Resolving
 // against the process's own directory makes `config: ./security/gitleaks.toml` mean what it says
 // beside the descriptor it was written in.
 func configPath(cfg plugin.Config, key string) string {

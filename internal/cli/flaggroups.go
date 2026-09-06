@@ -12,12 +12,12 @@ import (
 
 // flagGroup is a heading in a command's help and the flags listed under it.
 //
-// A group is a question the reader has — "what fails the build?", "where does output go?" — and
-// the flags that answer it. Alphabetical order answers a different question, one nobody asks:
-// it puts --artifact-min-priority nine lines from --min-priority when the two are one decision.
-// helpFlag is Cobra's own, added when a command runs rather than when it is built. It is grouped
-// by the renderer instead of by a caller, so a guard over a group list never has to name a flag
-// that is absent from the command it is checking.
+// A group is a question the reader has. "what fails the build?", "where does output go?". And the
+// flags that answer it. Alphabetical order answers a different question, one nobody asks: it puts
+// --artifact-min-priority nine lines from --min-priority when the two are one decision. helpFlag
+// is Cobra's own, added when a command runs rather than when it is built. It is grouped by the
+// renderer instead of by a caller, so a guard over a group list never has to name a flag that is
+// absent from the command it is checking.
 const helpFlag = "help"
 
 type flagGroup struct {
@@ -29,7 +29,7 @@ type flagGroup struct {
 //
 // Flags are still declared with cmd.Flags() as usual; this only changes how they are printed, so
 // nothing about parsing, completion or precedence moves. Membership is named separately, which is
-// a second place a flag has to appear — and the reason TestScanFlagsAreAllGrouped exists. Without
+// a second place a flag has to appear, and the reason TestScanFlagsAreAllGrouped exists. Without
 // it the groups become "mostly right", which is worse than alphabetical: a reader who trusts the
 // grouping will believe a flag is absent because it is not under the heading they looked at.
 func useFlagGroups(cmd *cobra.Command, groups []flagGroup) {
@@ -102,8 +102,8 @@ func writeGroupedFlags(w io.Writer, flags *pflag.FlagSet, groups []flagGroup) {
 	}
 
 	// --help last and on its own, because it is Cobra's rather than ours. Grouping it by hand
-	// would mean naming a flag no command declares — Cobra adds it while the command runs, so it
-	// is absent from a freshly built one and a guard over the group list could not see it.
+	// would mean naming a flag no command declares, Cobra adds it while the command runs, so it is
+	// absent from a freshly built one and a guard over the group list could not see it.
 	if h := pflag.NewFlagSet("help", pflag.ContinueOnError); flags.Lookup(helpFlag) != nil {
 		h.AddFlag(flags.Lookup(helpFlag))
 		_, _ = fmt.Fprintf(w, "\nHelp:\n%s\n", strings.TrimRight(h.FlagUsages(), "\n"))
@@ -112,8 +112,8 @@ func writeGroupedFlags(w io.Writer, flags *pflag.FlagSet, groups []flagGroup) {
 
 // ungroupedFlags names cmd's local flags that no group claims, and any a group names twice.
 //
-// Both are failures of the same kind — the list and the command disagreeing about what exists —
-// and a test that checked only for the first would pass while a flag appeared under two headings.
+// Both are failures of the same kind, the list and the command disagreeing about what exists, and
+// a test that checked only for the first would pass while a flag appeared under two headings.
 func ungroupedFlags(cmd *cobra.Command, groups []flagGroup) (missing, duplicated []string) {
 	claimed := map[string]int{}
 	for _, g := range groups {

@@ -16,9 +16,9 @@ func TestUnpinnedCacheLine(t *testing.T) {
 		t.Errorf("nothing reused from a tag-keyed entry should print nothing, got %q", got)
 	}
 
-	// A count, not a list. The rows carry the mark and say which findings rest on a tag, so
-	// naming the references again answers a question already answered — and on a descriptor with
-	// dozens of images it is a list nobody reads at the foot of the one they do.
+	// A count, not a list. The rows carry the mark and say which findings rest on a tag, so naming
+	// the references again answers a question already answered, and on a descriptor with dozens of
+	// images it is a list nobody reads at the foot of the one they do.
 	got := unpinnedCacheLine([]string{"alpine:3.19", "acme/api:latest"})
 	if !strings.Contains(got, "2 images") {
 		t.Errorf("want the scale, got: %s", got)
@@ -55,9 +55,9 @@ func TestConsoleSaysWhenAResultCameFromATagKeyedEntry(t *testing.T) {
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatal(err)
 	}
-	// The caveat reaches the reader. Which entry it was is on the rows that carry the mark, and
-	// on a run with no findings to mark it is in the JSON and in --evidence — repeating it here
-	// costs every reader with dozens of images a list they do not read.
+	// The caveat reaches the reader. Which entry it was is on the rows that carry the mark, and on a
+	// run with no findings to mark it is in the JSON and in --evidence. Repeating it here costs every
+	// reader with dozens of images a list they do not read.
 	if !strings.Contains(buf.String(), "from cache") {
 		t.Errorf("the console never told the reader a result rested on a tag:\n%s", buf.String())
 	}
@@ -216,7 +216,7 @@ func TestALoosenedGateIsSaidWithoutAsking(t *testing.T) {
 }
 
 // TestAStricterGateNeedsNoAnnouncement. It can only fail more than a reader expects, and the
-// failure says so itself — unlike a loosening, which produces a pass that looks like any other.
+// failure says so itself. Unlike a loosening, which produces a pass that looks like any other.
 func TestAStricterGateNeedsNoAnnouncement(t *testing.T) {
 	var buf bytes.Buffer
 	if err := (consoleReporter{}).Render(&buf, Data{

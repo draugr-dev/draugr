@@ -30,7 +30,7 @@ func requireTool(t *testing.T, binary, why string) string {
 	}
 	if os.Getenv(strictEnv) != "" {
 		t.Fatalf("%s is not on PATH, and %s is set: %s. The job provisions it, so this is the "+
-			"provisioning being wrong rather than the test being unrunnable — skipping here would "+
+			"provisioning being wrong rather than the test being unrunnable, skipping here would "+
 			"report success for a test that did nothing", binary, strictEnv, why)
 	}
 	t.Skipf("%s is not on PATH: %s. Install it (`draugr tools install %s`) to run this test; set "+

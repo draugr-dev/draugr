@@ -39,7 +39,7 @@ type Engine struct {
 	cacheable func(plugin.Target) bool
 	// workingTree scans repositories as they are on disk rather than at their committed revision.
 	workingTree bool
-	// resolveRemote names a local checkout by its remote — see WithRemoteResolver.
+	// resolveRemote names a local checkout by its remote. See WithRemoteResolver.
 	resolveRemote RemoteResolver
 	prioritize    Prioritizer
 	// skipPrewarm suppresses the pre-run warm-up of shared scanner state (Trivy's database,
@@ -70,7 +70,7 @@ type Prioritizer func(control string, exposure saga.Exposure, criticality saga.C
 // Priority is what a Prioritizer decided, and why where there is a why.
 //
 // A struct rather than a bare band because the band alone states a conclusion and withholds its
-// premise — and because the next thing worth explaining about a ranking will not be the last.
+// premise, and because the next thing worth explaining about a ranking will not be the last.
 type Priority struct {
 	// Band is the action band, P1–P4. Empty leaves the finding unstamped.
 	Band string
@@ -122,7 +122,7 @@ func WithCacheableTarget(fn func(plugin.Target) bool) Option {
 //
 // Also refuses to cache what it scans. A working tree's content changes between two runs at the
 // same revision, so a content-addressed cache keyed on the revision would serve the previous
-// edit's findings — which is the exact opposite of what somebody iterating on a fix needs.
+// edit's findings. Which is the exact opposite of what somebody iterating on a fix needs.
 func WithWorkingTree() Option {
 	return func(e *Engine) {
 		e.workingTree = true
@@ -146,9 +146,9 @@ func WithPrioritization(p Prioritizer) Option {
 // result can say so whether or not any of them moved a finding.
 //
 // Separate from WithPrioritization because the prioritizer is a function: what it consults is
-// closed over and cannot be read back out. A caller that enriches without calling this produces
-// a run whose evidence cannot distinguish "not on KEV" from "KEV was never loaded" — which is
-// the distinction that makes a band explainable.
+// closed over and cannot be read back out. A caller that enriches without calling this produces a
+// run whose evidence cannot distinguish "not on KEV" from "KEV was never loaded". Which is the
+// distinction that makes a band explainable.
 func WithConsulted(feeds []sarif.Consulted) Option {
 	return func(e *Engine) { e.consulted = feeds }
 }
@@ -159,9 +159,9 @@ func WithConsulted(feeds []sarif.Consulted) Option {
 // line shows a state. Reconstructing that state from events is work every consumer would repeat,
 // and get subtly differently.
 type ProgressEvent struct {
-	// Total is how many jobs were planned, and Complete how many have finished — including those
-	// that failed, were served from cache, or shared a scan with an identical job. A reader
-	// watching this wants to know when it ends, and every one of those ends it.
+	// Total is how many jobs were planned, and Complete how many have finished. Including those that
+	// failed, were served from cache, or shared a scan with an identical job. A reader watching this
+	// wants to know when it ends, and every one of those ends it.
 	Total    int
 	Complete int
 	// Running names what is in flight as "control/scanner", sorted so the line does not reorder
@@ -198,8 +198,8 @@ type ProgressStep struct {
 	//
 	// A time rather than a duration, so a display can recompute the elapsed figure whenever it
 	// repaints. Progress is reported when a job starts or finishes, and a step with one slow job
-	// produces no events at all while it runs — which is exactly when somebody is asking whether
-	// it is working.
+	// produces no events at all while it runs. Which is exactly when somebody is asking whether it is
+	// working.
 	RunningSince time.Time
 }
 
@@ -215,7 +215,7 @@ type ProgressFunc func(ProgressEvent)
 // WithProgress reports what a run is doing while it does it.
 //
 // A scan plans one job per repository, image, host and cluster and runs them concurrently, and the
-// slow ones are the interesting ones — an image pulling, a benchmark Job waiting to be scheduled.
+// slow ones are the interesting ones, an image pulling, a benchmark Job waiting to be scheduled.
 // Without this a run that is working and a run that is stuck are indistinguishable for as long as
 // they last, which on a first scan is minutes.
 func WithProgress(fn ProgressFunc) Option {
@@ -225,7 +225,7 @@ func WithProgress(fn ProgressFunc) Option {
 // WithoutPrewarm skips the pre-run warm-up of shared scanner state.
 //
 // For a run that must make no network calls. The scan still happens against whatever each tool
-// already has on disk, and a tool with nothing on disk reports that itself — which is a more
+// already has on disk, and a tool with nothing on disk reports that itself. Which is a more
 // specific message than the engine could produce on its behalf.
 func WithoutPrewarm() Option {
 	return func(e *Engine) { e.skipPrewarm = true }
@@ -234,11 +234,10 @@ func WithoutPrewarm() Option {
 // RemoteResolver reports the repository a local checkout was cloned from, or "" when the path is
 // not a local checkout, has no remote, or should not be resolved.
 //
-// Injected because resolving one means running git, which lives in internal/ — the same
-// arrangement as the SBOM generator. It also makes "do not resolve" expressible by simply not
-// supplying one, which is what a vendored copy or an air-gapped mirror wants: there the path is
-// the more truthful answer, because the remote is absent or names something the tree no longer
-// matches.
+// Injected because resolving one means running git, which lives in internal/, the same arrangement
+// as the SBOM generator. It also makes "do not resolve" expressible by simply not supplying one,
+// which is what a vendored copy or an air-gapped mirror wants: there the path is the more truthful
+// answer, because the remote is absent or names something the tree no longer matches.
 type RemoteResolver func(path string) string
 
 // WithScope narrows the run to named components and controls. The zero Scope scans everything.
@@ -262,7 +261,7 @@ func WithSBOM(g sbom.Generator) Option {
 //
 // Takes documents rather than descriptor sources because resolving a source can mean fetching a
 // URL or cloning a repository, and an engine that did either would be reaching the network on its
-// own account — the one thing the prewarm and the deterministic-core rule exist to keep out of it.
+// own account, the one thing the prewarm and the deterministic-core rule exist to keep out of it.
 // The caller reads them; the engine only applies them.
 func WithVEX(set vex.Set) Option {
 	return func(e *Engine) { e.vex = set }
@@ -350,10 +349,10 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 	}
 	slog.Debug("planned scan jobs", "jobs", len(planned), "controls", len(e.reg.controllers))
 	for _, pj := range planned {
-		// Identity, not the struct. A repository's URL and its resolved remote both carry
-		// whatever credentials were used to fetch it — a CI runner writes a token straight into
-		// the remote — and formatting the target printed them into the log. Identity is
-		// credential-free by construction, which is the property this relies on.
+		// Identity, not the struct. A repository's URL and its resolved remote both carry whatever
+		// credentials were used to fetch it, a CI runner writes a token straight into the remote, and
+		// formatting the target printed them into the log. Identity is credential-free by construction,
+		// which is the property this relies on.
 		slog.Debug("planned job",
 			"control", pj.Control, "scanner", pj.Job.Scanner,
 			"target", pj.Job.Target.Identity(), "target_kind", pj.Job.Target.Kind())
@@ -390,14 +389,14 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob, permitted 
 // consentFor refuses a scanner whose declared effects have not been accepted.
 //
 // Checked while planning, so a run that is not permitted to do what it would do stops before it
-// checks out a repository or reaches a cluster — and the message says what the scanner would
-// have done rather than only that it was blocked, because a refusal nobody can act on is its own
-// kind of dead end.
+// checks out a repository or reaches a cluster. And the message says what the scanner would have
+// done rather than only that it was blocked, because a refusal nobody can act on is its own kind
+// of dead end.
 func consentFor(info plugin.ScannerInfo, allowed map[plugin.EffectKind]bool) error {
-	// Every unaccepted effect, not the first. A scanner may declare several — the kube-bench Job
-	// both creates something and runs it privileged — and reporting one at a time makes accepting
-	// them a sequence of scans, each ending in a refusal naming an effect the previous run did not
-	// mention. The decision is whether to let this scanner do all of it, so it has to be asked once.
+	// Every unaccepted effect, not the first. A scanner may declare several, the kube-bench Job both
+	// creates something and runs it privileged, and reporting one at a time makes accepting them a
+	// sequence of scans, each ending in a refusal naming an effect the previous run did not mention.
+	// The decision is whether to let this scanner do all of it, so it has to be asked once.
 	var kinds []string
 	var described []string
 	for _, effect := range info.Effects {
@@ -475,7 +474,7 @@ type Result struct {
 	// is a partial answer that anything downstream will read as a complete one.
 	Scope Scope
 	// Suppressed counts findings a config.exclude rule matched. They are still present in the
-	// reports, marked with their justification — this is how many stopped counting.
+	// reports, marked with their justification. This is how many stopped counting.
 	Suppressed int
 	// LapsedExclusions are exclusions past their expiry date, which no longer suppress anything.
 	// Reported so a finding that used to be accepted does not simply reappear with nothing to
@@ -485,8 +484,8 @@ type Result struct {
 	// exclusion doing nothing is indistinguishable from one that is working: it is usually a
 	// typo, a rule id that moved, or a finding someone already fixed and forgot to stop excusing.
 	UnmatchedExclusions []saga.ExcludeRule
-	// Silenced counts findings a scanner reported as suppressed because somebody wrote a comment
-	// in the source — a Semgrep `nosem`, a linter pragma.
+	// Silenced counts findings a scanner reported as suppressed because somebody wrote a comment in
+	// the source, a Semgrep `nosem`, a linter pragma.
 	//
 	// Counted apart from Suppressed and Imported because it is the weakest of the three and the
 	// only one nobody reviewed. A descriptor rule was written where whoever owns the descriptor
@@ -494,10 +493,10 @@ type Result struct {
 	// whoever was editing the file, possibly to get a build green, and folding it into either
 	// total would let that hide inside a stronger answer.
 	Silenced int
-	// Imported counts findings excused by a claim somebody else made — a supplier's VEX document
-	// rather than a rule in this descriptor. Counted apart from Suppressed because they answer
-	// the auditor's question differently: one says we accepted this, the other says our supplier
-	// states it does not apply, and a single total can only report the weaker of the two.
+	// Imported counts findings excused by a claim somebody else made, a supplier's VEX document
+	// rather than a rule in this descriptor. Counted apart from Suppressed because they answer the
+	// auditor's question differently: one says we accepted this, the other says our supplier states
+	// it does not apply, and a single total can only report the weaker of the two.
 	Imported int
 	// VEX is the supplier documents this run read, with what each contributed. Present even when
 	// a document excused nothing, which is the case worth seeing: a document matching no finding
@@ -517,10 +516,10 @@ type Result struct {
 	Skipped []SkippedJob
 	// Scanners names every scanner this run used, deduplicated and sorted.
 	//
-	// Recorded because a report has to be able to say which tools produced its findings — the
-	// SARIF driver name is the tool's own and does not identify the scanner Draugr selected, so
-	// nothing downstream could work it out. Cache hits count: the key includes the tool version,
-	// so a hit describes the same build as the run that stored it.
+	// Recorded because a report has to be able to say which tools produced its findings. The SARIF
+	// driver name is the tool's own and does not identify the scanner Draugr selected, so nothing
+	// downstream could work it out. Cache hits count: the key includes the tool version, so a hit
+	// describes the same build as the run that stored it.
 	Scanners []string
 	// SBOMs are the Software Bills of Materials produced when the Saga enables config.sbom.
 	// Evidence rather than judgement: they carry no findings and never affect the verdict.
@@ -529,10 +528,10 @@ type Result struct {
 	// them moved a finding. Carried for the same reason VEX documents are carried even when they
 	// excused nothing: a dataset that fired for nothing looks exactly like one nobody loaded.
 	Consulted []sarif.Consulted
-	// ScanErrors records, per control, what stopped it completing — a missing scanner binary, a
-	// tool that exited badly, a plan that couldn't be built. A control listed here checked less
-	// than it was asked to, so its absence of findings is not evidence of absence, and callers
-	// that treat an empty report as "clean" would be wrong.
+	// ScanErrors records, per control, what stopped it completing, a missing scanner binary, a tool
+	// that exited badly, a plan that couldn't be built. A control listed here checked less than it
+	// was asked to, so its absence of findings is not evidence of absence, and callers that treat an
+	// empty report as "clean" would be wrong.
 	ScanErrors map[string][]string
 	// Reachability summarizes what a reachability analyzer concluded about this run's dependency
 	// findings, and is zero when none ran.
@@ -551,11 +550,11 @@ type Result struct {
 // different claim from one reporting four and thirty-six, and a single "unreachable" count cannot
 // tell them apart.
 //
-// Broken down per analyzer rather than summed, because more than one can run: they cover
-// different ecosystems and reach their answers by different methods, and a single total would
-// present a framework heuristic and a call graph as one number. It is also the shape that cannot
-// silently pick a winner — one analyzer named for a run that used two is a report that is right
-// about half of itself.
+// Broken down per analyzer rather than summed, because more than one can run: they cover different
+// ecosystems and reach their answers by different methods, and a single total would present a
+// framework heuristic and a call graph as one number. It is also the shape that cannot silently
+// pick a winner, one analyzer named for a run that used two is a report that is right about half
+// of itself.
 type ReachabilitySummary struct {
 	// Analyzers are the per-tool breakdowns, ordered by name. Empty when none ran.
 	Analyzers []AnalyzerReachability
@@ -587,7 +586,7 @@ type Stats struct {
 	Scans     int
 	CacheHits int
 	// UnpinnedCacheHits names the targets whose result came from a cache entry that could not be
-	// content-addressed — today, images the descriptor identifies by a tag alone. Sorted and
+	// content-addressed, today, images the descriptor identifies by a tag alone. Sorted and
 	// deduplicated.
 	//
 	// A hit like that is right about its key and possibly wrong about the image: the tag can have
@@ -628,8 +627,8 @@ type Unscanned struct {
 	Scanner string
 	// Component is the part of the application it belonged to, empty for a project-wide control.
 	Component string
-	// Kind is the target kind — "image", "repository", "host" — and Target names the instance.
-	// Together they are what a reader needs to know what went unexamined.
+	// Kind is the target kind, "image", "repository", "host", and Target names the instance. Together
+	// they are what a reader needs to know what went unexamined.
 	Kind   string
 	Target string
 }
@@ -655,9 +654,9 @@ func effectiveKey(ctx context.Context, job plugin.ScanJob, scanner plugin.Scanne
 // scannerVersion resolves the version of what actually ran: a CacheVersioner's answer (Trivy
 // folding in its vulnerability-DB version) over the static ScannerInfo.Version.
 //
-// Only called where a cache key is being built. The probe can cost a subprocess, and a run
-// without caching has no reason to pay it — which is why the provenance a report carries uses
-// the static version rather than calling this.
+// Only called where a cache key is being built. The probe can cost a subprocess, and a run without
+// caching has no reason to pay it. Which is why the provenance a report carries uses the static
+// version rather than calling this.
 func scannerVersion(ctx context.Context, scanner plugin.Scanner) string {
 	if cv, ok := scanner.(plugin.CacheVersioner); ok {
 		if v := cv.CacheVersion(ctx); v != "" {
@@ -750,11 +749,11 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 
 	// A run with nothing to do is not a clean run.
 	//
-	// With no control enabled, or none whose surface the components carry, the engine has
-	// nothing to execute and every downstream stage behaves exactly as it would for a spotless
-	// application: no findings, no failures, PASS. The two are indistinguishable in the output,
-	// and the wrong one is far more likely — a descriptor written by hand and never finished, or
-	// generated by discovery, which describes a surface without enabling anything to check it.
+	// With no control enabled, or none whose surface the components carry, the engine has nothing to
+	// execute and every downstream stage behaves exactly as it would for a spotless application: no
+	// findings, no failures, PASS. The two are indistinguishable in the output, and the wrong one is
+	// far more likely, a descriptor written by hand and never finished, or generated by discovery,
+	// which describes a surface without enabling anything to check it.
 	//
 	// Reported the same way a control that could not run is, because it is the same failure one
 	// level up: the gate answered without having looked.
@@ -769,7 +768,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	}
 
 	// Warm shared scanner state (e.g. Trivy's vuln DB) once per distinct scanner, before the
-	// concurrent fan-out — so parallel scans don't each cold-start it. Best-effort.
+	// concurrent fan-out, so parallel scans don't each cold-start it. Best-effort.
 	warmed := make(map[string]bool)
 	toWarm := planned
 	if e.skipPrewarm {
@@ -807,9 +806,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		}
 	}
 
-	// report emits a snapshot. Called with mu held, which is what makes Complete and Running
-	// describe the same instant — computed separately they can disagree, and a line claiming more
-	// jobs running than remain is the kind of wrong that makes a reader distrust the whole display.
+	// report emits a snapshot. Called with mu held, which is what makes Complete and Running describe
+	// the same instant. Computed separately they can disagree, and a line claiming more jobs running
+	// than remain is the kind of wrong that makes a reader distrust the whole display.
 	report := func() {
 		if e.progress == nil {
 			return
@@ -881,9 +880,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					if st.Running == 0 {
 						st.RunningSince = time.Time{}
 					}
-					// Finished, however it finished — the same rule Complete follows. Failed is
-					// counted separately and is a subset, so a display can say "3 of 3, 2 failed"
-					// rather than leaving a step that ended badly looking unfinished forever.
+					// Finished, however it finished, the same rule Complete follows. Failed is counted separately
+					// and is a subset, so a display can say "3 of 3, 2 failed" rather than leaving a step that
+					// ended badly looking unfinished forever.
 					st.Done++
 				}
 				report()
@@ -917,10 +916,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			// The version-less identity is cheap (no DB-version probe) and constant within a run.
 			ident := string(plugin.ComputeCacheKey(pj.Job.Scanner, "", pj.Job.Target, pj.Job.Config))
 			out, shared, scanErr := sf.do(ident, func() (any, error) {
-				// The cache key (and any tool/DB version probe) is built only when caching is on.
-				// version is what provenance reports. Caching resolves the live one anyway —
-				// Trivy's includes its vulnerability-DB version — so reuse it rather than
-				// probing twice, and fall back to the static one when nothing resolved it.
+				// The cache key (and any tool/DB version probe) is built only when caching is on. version is
+				// what provenance reports. Caching resolves the live one anyway, Trivy's includes its
+				// vulnerability-DB version, so reuse it rather than probing twice, and fall back to the static
+				// one when nothing resolved it.
 				var key string
 				version := scanner.Info().Version
 				// A vetoed target is scanned as though caching were off: no lookup, no store.
@@ -1060,10 +1059,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// an excused finding still carries the evidence about whether anything could reach it.
 	res.Reachability = e.applyReachability(res.Controls, model)
 
-	// Exclusions apply after aggregation, to what every consumer will see. Doing it here rather
-	// than per scanner means one syntax covers every tool, including ones added later — and it
-	// is what makes suppress-rather-than-delete possible at all: a finding a scanner never
-	// produced cannot be marked.
+	// Exclusions apply after aggregation, to what every consumer will see. Doing it here rather than
+	// per scanner means one syntax covers every tool, including ones added later. And it is what
+	// makes suppress-rather-than-delete possible at all: a finding a scanner never produced cannot be
+	// marked.
 	res.Suppressed, res.LapsedExclusions, res.UnmatchedExclusions =
 		applyExclusions(res.Controls, model.Config.Exclude, time.Now())
 	// After the descriptor's own rules, so a finding this project already decided about keeps the
@@ -1087,10 +1086,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 // its own RepositoryTarget, so doing it at the source would be a change in each one and a
 // silently missing resolution in whichever is written next.
 //
-// It changes the target's identity, and therefore its cache key — deliberately. A laptop scanning
+// It changes the target's identity, and therefore its cache key, deliberately. A laptop scanning
 // `.` and a pipeline scanning the remote are the same repository at the same revision, and until
-// now they were two unrelated sources that could not share a cache entry or be diffed against
-// each other.
+// now they were two unrelated sources that could not share a cache entry or be diffed against each
+// other.
 func (e *Engine) resolveRemotes(jobs []plugin.ScanJob) []plugin.ScanJob {
 	if e.resolveRemote == nil {
 		return jobs
@@ -1164,7 +1163,7 @@ func appendJobs(dst []PlannedJob, control, component string, exposure saga.Expos
 // which component it belongs to, who publishes what was scanned, and the priority band its
 // classification earns.
 //
-// All of them are per-run rather than cached, and for the same reason — two jobs can share a cache
+// All of them are per-run rather than cached, and for the same reason. Two jobs can share a cache
 // key while belonging to different components with different classifications, and two components
 // can share a repository while disagreeing about who publishes it. The cached findings must never
 // be mutated, so the slice is copied.
@@ -1172,10 +1171,10 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 	if len(report.Results) == 0 {
 		return report
 	}
-	// Asked of the target rather than written by whichever scanner produced the finding. It was
-	// set inside the Trivy scanner while it only described images, which made remembering it the
-	// duty of every scanner written next — and a scanner that forgets does not fail, it reports
-	// somebody else's software as the reader's to fix.
+	// Asked of the target rather than written by whichever scanner produced the finding. It was set
+	// inside the Trivy scanner while it only described images, which made remembering it the duty of
+	// every scanner written next, and a scanner that forgets does not fail. It reports somebody
+	// else's software as the reader's to fix.
 	upstream := false
 	if u, ok := pj.Job.Target.(plugin.UpstreamPublished); ok {
 		upstream = u.BuiltUpstream()
@@ -1185,9 +1184,9 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 	copy(out.Results, report.Results)
 	for i := range out.Results {
 		out.Results[i].Component = pj.Component
-		// Never cleared: a scanner that already knows more than the descriptor does — kube-bench
-		// deciding which controls the provider runs — must not have that answer overwritten by a
-		// target that simply does not declare one.
+		// Never cleared: a scanner that already knows more than the descriptor does, kube-bench deciding
+		// which controls the provider runs. Must not have that answer overwritten by a target that
+		// simply does not declare one.
 		if upstream {
 			out.Results[i].BuiltUpstream = true
 		}
@@ -1236,14 +1235,14 @@ const planningPseudoControl = "(planning)"
 // Waivable reports whether a failure under this control name is one --allow-scan-errors can
 // accept.
 //
-// The flag means "a scanner could not run and I accept a partial result" — the reader has other
-// controls that did run and is choosing to proceed on those. A planning failure is not a
-// scanner: it is the run saying there was nothing to do at all, so there is no partial result to
-// accept. Treating the two alike turns the flag into "pass anyway", and a PASS that means "we
-// did not look" is the worst thing this tool can print.
+// The flag means "a scanner could not run and I accept a partial result". The reader has other
+// controls that did run and is choosing to proceed on those. A planning failure is not a scanner:
+// it is the run saying there was nothing to do at all, so there is no partial result to accept.
+// Treating the two alike turns the flag into "pass anyway", and a PASS that means "we did not
+// look" is the worst thing this tool can print.
 //
-// (sbom) stays waivable on purpose. A missing SBOM is missing evidence, not a missing check —
-// the controls still ran and their verdict still means something.
+// (sbom) stays waivable on purpose. A missing SBOM is missing evidence, not a missing check, the
+// controls still ran and their verdict still means something.
 func Waivable(control string) bool { return control != planningPseudoControl }
 
 // applyExclusions marks findings matched by a Saga exclusion and returns how many. The finding
@@ -1270,9 +1269,9 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 	}
 	rules = active
 
-	// An exclusion that matches nothing is doing nothing, and looks identical to one that is
-	// working. That is worth saying on its own — a rule kept after the finding it excused was
-	// fixed is stale, and a rule that never matched is usually a typo or an id that moved.
+	// An exclusion that matches nothing is doing nothing, and looks identical to one that is working.
+	// That is worth saying on its own, a rule kept after the finding it excused was fixed is stale,
+	// and a rule that never matched is usually a typo or an id that moved.
 	matched := make([]bool, len(rules))
 
 	total := 0
@@ -1316,7 +1315,7 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 }
 
 // sbomPseudoControl is where SBOM generation failures are reported. SBOMs are evidence, not a
-// control, but a failure still has to land somewhere a caller will look — and it makes the run
+// control, but a failure still has to land somewhere a caller will look. And it makes the run
 // incomplete for the same reason a missing scanner does: you asked for something, and silence
 // would let you believe you got it.
 const sbomPseudoControl = "(sbom)"
@@ -1383,8 +1382,8 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 	return docs, errs
 }
 
-// appendProjectSBOM assembles the per-target documents into one covering the release, and — for
-// scope: project — drops the parts it was built from.
+// appendProjectSBOM assembles the per-target documents into one covering the release, and, for
+// scope: project. Drops the parts it was built from.
 //
 // A generator that cannot assemble produces an error rather than the per-target documents it can
 // manage. The descriptor asked for a document covering the product; quietly delivering seven
@@ -1484,7 +1483,7 @@ func targetKey(t plugin.Target) string {
 // to one entry per target.
 //
 // Two scanners can serve one control and both plan a job for the same image. If one fails and the
-// other succeeds, the image was examined — reporting it as unscanned would be a claim about
+// other succeeds, the image was examined. Reporting it as unscanned would be a claim about
 // coverage that nothing established, which is exactly the failure this data exists to prevent,
 // pointed the other way. And where both fail, the target went unexamined once, not twice.
 func trulyUnscanned(unscanned []Unscanned, examined map[string]bool) []Unscanned {
@@ -1503,10 +1502,10 @@ func trulyUnscanned(unscanned []Unscanned, examined map[string]bool) []Unscanned
 
 // applyVEX marks findings a supplier's own analysis excuses, and reports what each document did.
 //
-// The sibling of applyExclusions, and deliberately the same shape: the finding stays in the
-// report carrying who said it did not apply, so an imported claim is auditable rather than a
-// hole. What differs is whose decision it records — and that difference is the entire reason to
-// read a supplier's document instead of retyping it into config.exclude, where it would become
+// The sibling of applyExclusions, and deliberately the same shape: the finding stays in the report
+// carrying who said it did not apply, so an imported claim is auditable rather than a hole. What
+// differs is whose decision it records. And that difference is the entire reason to read a
+// supplier's document instead of retyping it into config.exclude, where it would become
 // indistinguishable from a decision this project made and is answerable for.
 //
 // Only a claim that excuses exposure suppresses. A supplier saying `affected` is telling you
@@ -1516,9 +1515,9 @@ func applyVEX(controls map[string]plugin.ControlResult, set vex.Set) (imported i
 		return 0, nil, nil
 	}
 	// One index per component. A supplier's claim about their artifact must not reach another
-	// component's findings — that is how one vendor's assurance becomes a suppression somewhere
-	// nobody was looking — so the index a finding is asked about is built from what its own
-	// component declared, plus whatever the project declared for everything.
+	// component's findings. That is how one vendor's assurance becomes a suppression somewhere nobody
+	// was looking, so the index a finding is asked about is built from what its own component
+	// declared, plus whatever the project declared for everything.
 	indexes := map[string]*vex.Index{}
 	used := map[string]map[string]bool{}
 	applied := map[string]int{} // by document location, for provenance
@@ -1560,9 +1559,9 @@ func applyVEX(controls map[string]plugin.ControlResult, set vex.Set) (imported i
 			if !ok {
 				continue
 			}
-			// Recorded as used whatever the status, because a claim that matched a finding was
-			// read and acted on — reporting `affected` as unmatched would tell a supplier their
-			// correct statement was ignored.
+			// Recorded as used whatever the status, because a claim that matched a finding was read and
+			// acted on. Reporting `affected` as unmatched would tell a supplier their correct statement was
+			// ignored.
 			used[res.Component][key] = true
 			if !vex.Suppresses(claim.Status) {
 				continue
@@ -1614,8 +1613,8 @@ func applyVEX(controls map[string]plugin.ControlResult, set vex.Set) (imported i
 //
 // A justification from VEX's vocabulary is machine-readable and says nothing to a person reading
 // the report, so the supplier's own words are preferred where they gave any. Neither is a
-// legitimate state — a bare `not_affected` is a claim with no stated grounds — and it says so
-// rather than inventing a reason on the supplier's behalf.
+// legitimate state. A bare `not_affected` is a claim with no stated grounds. And it says so rather
+// than inventing a reason on the supplier's behalf.
 func claimReason(c vex.Claim) string {
 	switch {
 	case c.Statement != "":
@@ -1636,10 +1635,10 @@ func claimReason(c vex.Claim) string {
 //
 // The fold is what keeps a noise-reduction feature from adding noise. A reachability analyzer is
 // also a vulnerability scanner, and reporting its findings alongside the ones already present
-// would report every Go vulnerability twice under two different identifiers. So a verdict is
-// moved onto the existing finding and the analyzer's copy is dropped — except where nothing else
-// reported it, which is kept, because a vulnerability only one tool found is exactly the one that
-// must not disappear.
+// would report every Go vulnerability twice under two different identifiers. So a verdict is moved
+// onto the existing finding and the analyzer's copy is dropped, except where nothing else reported
+// it, which is kept, because a vulnerability only one tool found is exactly the one that must not
+// disappear.
 func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, model saga.Model) ReachabilitySummary {
 	// Index the analyzers' verdicts by what identifies a dependency finding everywhere else:
 	// the repository it was found in, the package it is about, and the vulnerability id.
@@ -1732,7 +1731,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 // strongerReachability keeps the verdict that claims more exposure, for the case where two
 // analyzers cover the same dependency.
 //
-// Reachable outranks unreachable, and unreachable outranks undetermined — the same direction as
+// Reachable outranks unreachable, and unreachable outranks undetermined, the same direction as
 // every other conflict this codebase resolves, and the only safe one. Two analyzers disagreeing
 // about whether a path exists means one of them found a path the other could not follow, and an
 // analysis that failed to find something is much weaker evidence than one that found it.
@@ -1809,7 +1808,7 @@ func classificationOf(model saga.Model, component string) (saga.Exposure, saga.C
 // countSilenced counts findings a scanner suppressed on the author's instruction.
 //
 // These arrive already suppressed, from a comment in the file rather than from anything in the
-// descriptor — so nothing in the engine creates them, and counting them is the only thing that
+// descriptor, so nothing in the engine creates them, and counting them is the only thing that
 // makes them visible. A form of acceptance that reaches no total is one nobody can audit.
 func countSilenced(controls map[string]plugin.ControlResult) int {
 	n := 0
@@ -1827,7 +1826,7 @@ func countSilenced(controls map[string]plugin.ControlResult) int {
 //
 // Here rather than in sarif.Merge, which deduplicates within a run on Fingerprint and deliberately
 // includes the tool: two scanners are two accounts and both belong in the evidence. That is right,
-// and its consequence is that nothing correlates across them — four CVEs found by two scanners are
+// and its consequence is that nothing correlates across them, four CVEs found by two scanners are
 // reported as eight findings, under rule ids that do not match, at severities that disagree.
 //
 // After exclusions and VEX, so matching those is unchanged and a suppression on any member of a
@@ -1904,8 +1903,8 @@ type correlationKey struct {
 // across ecosystems and the purl is what both tools agree on. And the repository, because a
 // component can hold several and the same dependency in two of them is two things to fix.
 //
-// A finding with no package or no vulnerability identity does not correlate. That is most of them
-// — a leaked credential, a misconfigured resource — and inventing a key for those would collapse
+// A finding with no package or no vulnerability identity does not correlate. That is most of them,
+// a leaked credential, a misconfigured resource, and inventing a key for those would collapse
 // findings that are not the same flaw.
 func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 	vuln := res.VulnerabilityID()
@@ -1920,8 +1919,8 @@ func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 // Severity first, because that is the number a reader acts on, and reporting the lower of two
 // disagreeing opinions would be the report arguing itself down.
 //
-// Ties break toward the finding reported under the **canonical identifier** — the one whose rule
-// id is the advisory and nothing else. Scanners decorate: Grype reports CVE-2018-1000656-flask
+// Ties break toward the finding reported under the **canonical identifier**, the one whose rule id
+// is the advisory and nothing else. Scanners decorate: Grype reports CVE-2018-1000656-flask
 // because one advisory can affect several packages in a scan. Both are legitimate, but the
 // undecorated one is what a reader can look up, what an exclusion is most likely already written
 // against, and what another tool will call it. Tool name is the last resort, so the same run twice

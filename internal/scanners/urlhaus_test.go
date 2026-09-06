@@ -34,9 +34,9 @@ func TestURLhausInfo(t *testing.T) {
 		t.Errorf("target kinds = %v", info.TargetKinds)
 	}
 	// Disclosure, not network. The taxonomy's distinction is the target, and the packets do not
-	// go to the target at all — a third party learns the hostname. Reported as network, this
-	// would be indistinguishable from dast probing your own endpoint, which is a different
-	// decision entirely.
+	// go to the target at all, a third party learns the hostname. Reported as network, this would
+	// be indistinguishable from dast probing your own endpoint, which is a different decision
+	// entirely.
 	if len(info.Effects) != 1 || info.Effects[0].Kind != plugin.EffectDisclosure {
 		t.Fatalf("effects = %+v", info.Effects)
 	}
@@ -48,7 +48,7 @@ func TestURLhausInfo(t *testing.T) {
 func TestURLhausSeparatesLiveMalwareFromHistory(t *testing.T) {
 	// The judgement in this scanner. A years-old dead record reported at the same level as live
 	// malware makes the control cry wolf on any domain with a history, and a control that cries
-	// wolf gets switched off — which is worse than one that reports slightly less.
+	// wolf gets switched off. Which is worse than one that reports slightly less.
 	got := urlhausResults("https://shop.example/", urlhausResponse{
 		QueryStatus: "ok",
 		URLs: []urlhausEntry{
@@ -161,8 +161,8 @@ func TestURLhausSurfacesALookupFailure(t *testing.T) {
 }
 
 func TestHostnameOf(t *testing.T) {
-	// URLhaus keys on the host, so a path would narrow the question and miss malware served
-	// from elsewhere on the same machine — which is the case this control exists to catch.
+	// URLhaus keys on the host, so a path would narrow the question and miss malware served from
+	// elsewhere on the same machine. Which is the case this control exists to catch.
 	for in, want := range map[string]string{
 		"https://shop.example/cart?a=1": "shop.example",
 		"shop.example":                  "shop.example",

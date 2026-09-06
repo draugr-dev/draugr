@@ -1,7 +1,7 @@
 // Package mcp exposes Draugr to AI coding agents over the Model Context Protocol.
 //
 // The reason this exists is narrower than "agents are popular". An agent asked to check a change
-// for security problems will do it one way or another: if Draugr isn't callable it improvises —
+// for security problems will do it one way or another: if Draugr isn't callable it improvises,
 // shells out to whatever scanner it can find, picks its own scope, and reads raw tool output in
 // its own context window. That improvised answer has no recorded scope, no organizational risk
 // context, and no relationship to what CI will decide. Being callable is what makes the agent's
@@ -14,7 +14,7 @@
 //     registered only when the operator opts in. Everything else is safe to call freely.
 //   - **Return decisions, not data.** A tool that hands back raw scanner output has moved the
 //     problem into the agent's context window rather than solving it. These tools return
-//     prioritized, deduplicated, normalized results — the same thing a person sees.
+//     prioritized, deduplicated, normalized results, the same thing a person sees.
 package mcp
 
 import (
@@ -39,9 +39,9 @@ const (
 	// ScanOff doesn't register the tool at all. The default: an assistant can't set off work
 	// like that because it was curious, and the read-only tools are where the value starts.
 	ScanOff ScanMode = "off"
-	// ScanAsk registers it and asks the user to approve each call, through the client. This is
-	// the mode to want — permission granted for the scan in front of you rather than for every
-	// scan this session — but it needs a client that implements elicitation, and many don't.
+	// ScanAsk registers it and asks the user to approve each call, through the client. This is the
+	// mode to want, permission granted for the scan in front of you rather than for every scan this
+	// session. But it needs a client that implements elicitation, and many don't.
 	ScanAsk ScanMode = "ask"
 	// ScanAlways registers it and runs without asking. Right for a sandbox or CI, where there's
 	// nobody to ask.
@@ -80,7 +80,7 @@ const serverName = "draugr"
 
 // iconURL is the mark a client shows beside the server. Served from draugr.dev rather than
 // embedded as a data URI: the icon is cosmetic, and inlining base64 into every initialize
-// response to save one cacheable request is the wrong trade. The domain matters — clients are
+// response to save one cacheable request is the wrong trade. The domain matters. Clients are
 // told to check an icon comes from the same origin as the server, and draugr.dev is what the
 // dev.draugr namespace authenticates against.
 const iconURL = "https://draugr.dev/brand/draugr-mark.png"
@@ -91,9 +91,9 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	if opts.Registry == nil {
 		return nil, fmt.Errorf("mcp: registry is required")
 	}
-	// Normalize before anything reads it. The zero value has to mean off, or a caller that
-	// builds Options without naming a mode silently gets scanning — the one default that must
-	// never happen by accident.
+	// Normalize before anything reads it. The zero value has to mean off, or a caller that builds
+	// Options without naming a mode silently gets scanning. The one default that must never happen
+	// by accident.
 	mode, err := ParseScanMode(string(opts.Scan))
 	if err != nil {
 		return nil, err
@@ -216,12 +216,12 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		// The description states what the scan does not cover, because a tool description is the
 		// only place a caller learns the scope before deciding the question is settled.
 		//
-		// A verdict is a complete-looking result, and a complete-looking result is read as the
-		// answer to whatever prompted it. The prompt is usually "is this safe to ship"; the scan
-		// answers "do the declared controls, over the declared components, produce findings above
-		// the gate". Those overlap without being the same, and the gap is exactly the classes no
-		// scanner computes — trust boundaries, credential handling, build-context hygiene. An
-		// assistant that stops at the verdict skips them, having done nothing wrong.
+		// A verdict is a complete-looking result, and a complete-looking result is read as the answer
+		// to whatever prompted it. The prompt is usually "is this safe to ship"; the scan answers "do
+		// the declared controls, over the declared components, produce findings above the gate". Those
+		// overlap without being the same, and the gap is exactly the classes no scanner computes,
+		// trust boundaries, credential handling, build-context hygiene. An assistant that stops at the
+		// verdict skips them, having done nothing wrong.
 		//
 		// So the description names the boundary. Nothing here weakens the claim: reproducibility,
 		// ranking and a gate are things a one-off read cannot give. It says which question was

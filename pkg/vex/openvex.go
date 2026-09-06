@@ -4,7 +4,7 @@
 // is the other direction: a supplier ships a component and a document saying which of its CVEs do
 // not affect it, and until now the only way to act on that was to retype their analysis into
 // `config.exclude` as though you had decided it. That loses the answer to the question the whole
-// suppression model exists to answer — who decided this was acceptable, and when.
+// suppression model exists to answer. Who decided this was acceptable, and when.
 //
 // Reading is a separate package from writing on purpose. The writer builds a document out of a
 // run and owes the reader determinism; this reads a document a stranger produced and owes the run
@@ -12,7 +12,7 @@
 // assumption.
 //
 // OpenVEX only, to start. It is what Draugr already emits, what Trivy and Grype already read, and
-// the smallest of the three formats — so a document can be tested against a real consumer rather
+// the smallest of the three formats. So a document can be tested against a real consumer rather
 // than only against a schema. CSAF and CycloneDX VEX carry the same statements in more envelope.
 package vex
 
@@ -54,7 +54,7 @@ type Document struct {
 // Statement is one claim: this vulnerability, against these products, has this status.
 type Statement struct {
 	Vulnerability Vulnerability `json:"vulnerability"`
-	// Products are what the statement is about — the supplier's own artifact.
+	// Products are what the statement is about, the supplier's own artifact.
 	Products []Product `json:"products"`
 	// Status is the claim: not_affected, affected, fixed or under_investigation.
 	Status string `json:"status"`
@@ -74,7 +74,7 @@ type Statement struct {
 // Vulnerability names the flaw a statement is about.
 //
 // OpenVEX 0.2.0 made this an object with a `name`; 0.1.0 had a bare string. Both are accepted,
-// because a document written against the older spec is not wrong, it is old — and a supplier who
+// because a document written against the older spec is not wrong, it is old. And a supplier who
 // has not revised their tooling is exactly the supplier whose claims are hardest to get hold of.
 type Vulnerability struct {
 	Name string `json:"name"`
@@ -97,7 +97,7 @@ func (v *Vulnerability) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Product is a thing a statement is about, identified by an IRI — conventionally a package URL.
+// Product is a thing a statement is about, identified by an IRI, conventionally a package URL.
 //
 // Subcomponents are the half that does the work here. A supplier says "our product is not
 // affected by CVE-X, which is in libfoo", and libfoo is what a scan of their image actually
@@ -130,7 +130,7 @@ func Load(path string) (Document, error) {
 //
 // What it refuses is a document that cannot be acted on: unparseable JSON, or one whose
 // statements carry no status. Everything else is read and reported, because the alternative to a
-// weak document is not a strong one — it is no supplier analysis at all, and the report is where
+// weak document is not a strong one. It is no supplier analysis at all, and the report is where
 // its weakness should be visible.
 func Read(r io.Reader) (Document, error) {
 	var doc Document
@@ -153,8 +153,8 @@ func Read(r io.Reader) (Document, error) {
 	return doc, nil
 }
 
-// Statuses are the four OpenVEX statuses. Unlike saga.VEXStatuses — which lists what one of *our*
-// exclusions may declare — every one of these is readable, including under_investigation, because
+// Statuses are the four OpenVEX statuses. Unlike saga.VEXStatuses, which lists what one of *our*
+// exclusions may declare. Every one of these is readable, including under_investigation, because
 // a supplier saying "we are still looking" is a real and useful thing to be told.
 var Statuses = []string{
 	saga.VEXNotAffected,
@@ -168,7 +168,7 @@ func validStatus(s string) bool { return slices.Contains(Statuses, s) }
 // Suppresses reports whether a status excuses a finding.
 //
 // Only not_affected and fixed do. `affected` and `under_investigation` concede exposure rather
-// than excusing it — a supplier telling you that you *are* affected must never be the reason a
+// than excusing it, a supplier telling you that you *are* affected must never be the reason a
 // finding stops being counted, which is what treating every statement alike would do.
 func Suppresses(status string) bool {
 	return status == saga.VEXNotAffected || status == saga.VEXFixed

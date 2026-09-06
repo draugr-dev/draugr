@@ -12,8 +12,8 @@ import (
 )
 
 // exemptTags are resolved by the toolchain itself, so they need no entry anywhere: the linter and
-// `go vet` already build for a real platform and a real Go release. A repository build tag —
-// something a person invented to hold a set of files back — is the opposite, and is invisible
+// `go vet` already build for a real platform and a real Go release. A repository build tag,
+// something a person invented to hold a set of files back. Is the opposite, and is invisible
 // until named.
 //
 // A platform tag arriving here fails the test rather than being guessed at. The message says to
@@ -28,14 +28,14 @@ var exemptTags = []string{"cgo", "race", "unix", "linux", "darwin", "windows", "
 // report success, which is indistinguishable from having found nothing wrong: a tagged file can
 // reach the default branch in a state where it does not compile.
 //
-// So every tag the tree uses has to be named in both places that decide what gets read —
+// So every tag the tree uses has to be named in both places that decide what gets read,
 // `.golangci.yml` for the linter, and the second `go vet` pass in scripts/gate.sh.
 func TestLintAndVetSeeEveryBuildTag(t *testing.T) {
 	t.Parallel()
 
 	used := buildTagsInTree(t)
 	if len(used) == 0 {
-		t.Fatal("no build tags found anywhere — this test walks the tree, so finding none means " +
+		t.Fatal("no build tags found anywhere, this test walks the tree, so finding none means " +
 			"it is walking the wrong one and would pass whatever the configuration said")
 	}
 
@@ -45,11 +45,11 @@ func TestLintAndVetSeeEveryBuildTag(t *testing.T) {
 	for _, tag := range used {
 		if !slices.Contains(linted, tag) {
 			t.Errorf("the %q build tag is used in the tree but .golangci.yml does not list it under "+
-				"run.build-tags — the linter will skip those files and report success for them", tag)
+				"run.build-tags, the linter will skip those files and report success for them", tag)
 		}
 		if !strings.Contains(gate, "-tags "+tag) {
 			t.Errorf("the %q build tag is used in the tree but scripts/gate.sh never runs `go vet "+
-				"-tags %s` — a file behind it can fail to compile and still pass the gate", tag, tag)
+				"-tags %s`, a file behind it can fail to compile and still pass the gate", tag, tag)
 		}
 	}
 }
@@ -113,7 +113,7 @@ func buildTagsInTree(t *testing.T) []string {
 // constraintTags collects every tag named in a build expression.
 //
 // Walked rather than evaluated: constraint.Expr.Eval short-circuits, so `a && b` with a false
-// first operand never asks about the second — and a tag it never asks about is a tag this test
+// first operand never asks about the second, and a tag it never asks about is a tag this test
 // would never see.
 func constraintTags(expr constraint.Expr) []string {
 	switch e := expr.(type) {

@@ -46,7 +46,7 @@ func NewGovulncheck() plugin.Scanner {
 //
 // Per module rather than once at the root, because a repository is not required to be one. A
 // polyglot repository keeps its Go service in a subdirectory, a monorepo keeps several, and
-// running once at the root answers for whichever the root happens to be — or fails outright when
+// running once at the root answers for whichever the root happens to be. Or fails outright when
 // the root holds no go.mod, which would fail the whole control for a repository that simply is
 // not Go.
 //
@@ -71,7 +71,7 @@ func govulncheckArgs(dir string, _ plugin.Config) [][]string {
 //
 // Nested modules are still visited: a module inside another is its own build with its own
 // dependency graph, and the outer one's analysis says nothing about it. Vendored trees and
-// testdata are not — vendor/ is a copy of somebody else's modules, and testdata is by convention
+// testdata are not. Vendor/ is a copy of somebody else's modules, and testdata is by convention
 // not part of the build.
 func goModuleDirs(root string) []string {
 	var out []string
@@ -118,7 +118,7 @@ type govulncheckConfig struct {
 // govulncheckSBOM lists what the analysis actually covered.
 //
 // The field that makes an unreachable verdict safe to state. A module missing from this list was
-// never analyzed, whatever the reason — and "we did not look" must not be reported as "nothing
+// never analyzed, whatever the reason. And "we did not look" must not be reported as "nothing
 // reaches it".
 type govulncheckSBOM struct {
 	Modules []struct {
@@ -151,11 +151,11 @@ type govulncheckOSV struct {
 
 // govulncheckFinding is one vulnerability at one granularity.
 //
-// The same advisory is reported more than once — once for the module being in the build, once
-// for the vulnerable package being imported, and once per call path when a vulnerable symbol is
+// The same advisory is reported more than once, once for the module being in the build, once for
+// the vulnerable package being imported, and once per call path when a vulnerable symbol is
 // actually called. The three are distinguished only by how much of Trace is filled in, so
-// reachability is derived from the set of a vulnerability's findings rather than read off any
-// one of them.
+// reachability is derived from the set of a vulnerability's findings rather than read off any one
+// of them.
 type govulncheckFinding struct {
 	OSV          string             `json:"osv"`
 	FixedVersion string             `json:"fixed_version"`
@@ -320,7 +320,7 @@ func govulncheckResults(
 // govulncheckState decides the verdict, and refuses to state the strong one without grounds.
 //
 // Reachable is a positive observation and needs nothing else: a call path was found. Unreachable
-// is a claim about absence, and absence is only meaningful if something looked — so it requires
+// is a claim about absence, and absence is only meaningful if something looked, so it requires
 // both that the run was analyzing symbols and that this module was in what it analyzed. Anything
 // else is unknown, which is the honest answer and the one that keeps a report from implying a
 // check that never ran.
@@ -340,7 +340,7 @@ func govulncheckState(findings []govulncheckFinding, module string, analyzed map
 
 // govulncheckPaths converts the traces that reached a symbol into call paths, reversed.
 //
-// govulncheck orders a trace callee first — the vulnerable function, then whatever called it.
+// govulncheck orders a trace callee first, the vulnerable function, then whatever called it.
 // Reversing it puts this project's own code at the top, which is the order a reader follows.
 func govulncheckPaths(findings []govulncheckFinding) []sarif.CallPath {
 	var paths []sarif.CallPath

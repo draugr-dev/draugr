@@ -43,7 +43,7 @@ var formatMeta = map[string]struct{ filename, contentType string }{
 // Filename is what a format is written as, whether a publisher delivers it or `-o` writes it.
 //
 // One table, because the alternative is two that agree until they do not. A format written under
-// one name locally and another by a publisher breaks whatever globs for it — and a CI step that
+// one name locally and another by a publisher breaks whatever globs for it, and a CI step that
 // globs for a file it never finds usually warns and carries on, which is a green run with no
 // results in it.
 func Filename(format string) string {

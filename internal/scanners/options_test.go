@@ -19,7 +19,7 @@ func TestGitleaksTakesASharedRuleset(t *testing.T) {
 		t.Fatalf("--config not passed: %v", got)
 	}
 	// The flag now points at a ruleset Draugr composed, which extends the operator's rather than
-	// replacing it — so their rules apply and so does the one for Draugr's own ingest token.
+	// replacing it, so their rules apply and so does the one for Draugr's own ingest token.
 	body, err := os.ReadFile(got[i+1])
 	if err != nil {
 		t.Fatalf("read the composed ruleset: %v", err)
@@ -151,8 +151,8 @@ func TestTrivyConfigTakesCustomChecks(t *testing.T) {
 
 // The line every curated option is held to: it changes what the tool examines, never which
 // findings survive. A severity or ignore-file flag would drop findings inside the tool, where
-// Draugr cannot mark them suppressed or record who accepted them — which is what `exclusions`
-// and the gate thresholds are for.
+// Draugr cannot mark them suppressed or record who accepted them. Which is what `exclusions` and
+// the gate thresholds are for.
 func TestNoScannerOptionFiltersFindings(t *testing.T) {
 	banned := []string{"severity", "ignorefile", "ignore-file", "confidence", "exit-code"}
 	for _, s := range []plugin.Scanner{NewGitleaks(), NewGosec(), NewTrivy(), NewTrivyFS(), NewTrivyConfig()} {
@@ -260,7 +260,7 @@ func TestGitleaksRunsNoHistoryPassByDefault(t *testing.T) {
 }
 
 // Both passes take the shared ruleset, or an organization's own rules apply to the tree and not
-// to its history — which is where the older secrets are.
+// to its history. Which is where the older secrets are.
 func TestBothGitleaksPassesTakeTheSharedRuleset(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	cfg := plugin.Config{"history": true, "config": "rules.toml"}

@@ -8,7 +8,7 @@ import (
 )
 
 // trivyVersionProbe derives a cache-version string for the Trivy-backed scanners that changes
-// when the Trivy tool or its vulnerability database updates — so a DB refresh invalidates
+// when the Trivy tool or its vulnerability database updates, so a DB refresh invalidates
 // cached results instead of waiting out the TTL. The probe runs `trivy version --format json`
 // at most once (memoized); run is injectable for tests.
 type trivyVersionProbe struct {
@@ -22,7 +22,7 @@ func newTrivyVersionProbe() *trivyVersionProbe {
 }
 
 // cacheVersion returns a string like "trivy@0.69.3;db@2026-07-15T00:56:58Z", or "" when the
-// version can't be determined (Trivy absent or unexpected output) — callers then fall back to
+// version can't be determined (Trivy absent or unexpected output), callers then fall back to
 // a version-less cache key.
 func (p *trivyVersionProbe) cacheVersion(ctx context.Context) string {
 	p.once.Do(func() {
@@ -57,7 +57,7 @@ type trivyDBWarmer struct {
 }
 
 // warm runs `trivy image --download-db-only` at most once and returns any error (best-effort:
-// callers treat failure as non-fatal — a real problem resurfaces at scan time).
+// callers treat failure as non-fatal, a real problem resurfaces at scan time).
 func (w *trivyDBWarmer) warm(ctx context.Context) error {
 	w.once.Do(func() {
 		_, w.err = w.run(ctx, []string{"trivy", "image", "--download-db-only"})

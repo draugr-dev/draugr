@@ -32,7 +32,7 @@ func decodeDataURI(t *testing.T, page, filename string) string {
 	return string(raw)
 }
 
-// The report is often the only artifact that travels — someone who wants the findings in a
+// The report is often the only artifact that travels. Someone who wants the findings in a
 // tracker or a spreadsheet should not have to go back and ask for the files.
 func TestHTMLEmbedsUsableSARIF(t *testing.T) {
 	var b strings.Builder
@@ -79,7 +79,7 @@ func TestTSVNeutralisesFieldSeparators(t *testing.T) {
 	}
 }
 
-// The downloads and the whole table have to work with scripts disabled — this file gets emailed,
+// The downloads and the whole table have to work with scripts disabled. This file gets emailed,
 // opened from a build artifact, and read in viewers that strip scripts. The script only reveals
 // the toolbar, which starts hidden precisely so a reader without it sees no dead controls.
 func TestHTMLIsUsableWithoutJavaScript(t *testing.T) {
@@ -98,8 +98,8 @@ func TestHTMLIsUsableWithoutJavaScript(t *testing.T) {
 	}
 }
 
-// Suppressed findings are the auditor's question — who accepted this, and why. A count alone
-// does not answer it.
+// Suppressed findings are the auditor's question, who accepted this, and why. A count alone does
+// not answer it.
 func TestHTMLListsSuppressedFindingsWithTheirReason(t *testing.T) {
 	d := sampleData()
 	d.Run.Controls["images"].Report.Results[1].Suppression = &sarif.Suppression{

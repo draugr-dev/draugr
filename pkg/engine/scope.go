@@ -11,8 +11,8 @@ import (
 
 // Scope narrows a run to named components and controls, without changing the descriptor.
 //
-// The distinction it exists for: `config.controllers` records a decision — this project does not
-// need `dast` — and a filter is a view over one run. Editing the first to get the second is how a
+// The distinction it exists for: `config.controllers` records a decision. This project does not
+// need `dast`. And a filter is a view over one run. Editing the first to get the second is how a
 // temporary change gets committed, and how a control ends up disabled in main because somebody
 // was debugging.
 //
@@ -20,7 +20,7 @@ import (
 // means "no restriction on this axis", not "nothing": `Scope{Components: []string{"app"}}` runs
 // every control against one component.
 //
-// A scoped run is still gated and still produces a verdict — the alternative is answering "is my
+// A scoped run is still gated and still produces a verdict. The alternative is answering "is my
 // fix good?" with "no verdict", which sends the reader back to a full scan and makes the filter
 // useless for the loop it exists for. What a scoped run must never do is look like an unscoped
 // one, so the scope travels with the result and into every artifact that result becomes.
@@ -29,10 +29,10 @@ type Scope struct {
 	Controls   []string
 	// SkippedComponents are the declared components this scope leaves out, filled in by Resolve.
 	//
-	// Carried rather than recomputed because the descriptor is not available everywhere the
-	// scope is read — a rendered report knows what ran, not what was declared. Naming them
-	// rather than counting them: "10 not scanned" tells a reader they are missing something and
-	// not which thing, and the answer is one the run already had.
+	// Carried rather than recomputed because the descriptor is not available everywhere the scope is
+	// read. A rendered report knows what ran, not what was declared. Naming them rather than
+	// counting them: "10 not scanned" tells a reader they are missing something and not which thing,
+	// and the answer is one the run already had.
 	SkippedComponents []string
 }
 
@@ -72,7 +72,7 @@ func (s Scope) includesControl(name string) bool {
 // Validate rejects a scope naming something the descriptor or the registry does not have.
 //
 // A misspelling is the whole failure this guards: `--components frontnd` matches nothing, scans
-// nothing, and passes — the same "we did not look" verdict a filter is otherwise careful not to
+// nothing, and passes. The same "we did not look" verdict a filter is otherwise careful not to
 // produce, reached by typo. The error lists what is available, because the reader is one
 // character away from the answer and should not have to go and find it.
 func (s Scope) Validate(model saga.Model, controls []string) error {

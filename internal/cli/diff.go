@@ -91,7 +91,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	}
 
 	// The gate is the outcome; publishing is delivery. Returning a publish failure here would
-	// replace the verdict rather than accompany it — the run reports a missing token, and the P1
+	// replace the verdict rather than accompany it. The run reports a missing token, and the P1
 	// this change introduced is never mentioned. That sends a reader to fix a credential when what
 	// actually happened is that the change should not merge. `scan` reconciles the two the same
 	// way, and a delivery problem still exits non-zero: a flag either does something or says why
@@ -107,10 +107,10 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 			fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(tripped)),
 			publishErr)
 	}
-	// The gate passed and only delivery failed, which is still non-zero — but the message has to
-	// say which, because the two are the same color in a checks list and only one of them is
-	// about the code under review. Without the first clause a reader sees a red tick and a forge
-	// error and has no way to tell it from a change that introduced a finding.
+	// The gate passed and only delivery failed, which is still non-zero. But the message has to
+	// say which, because the two are the same color in a checks list and only one of them is about
+	// the code under review. Without the first clause a reader sees a red tick and a forge error
+	// and has no way to tell it from a change that introduced a finding.
 	if publishErr != nil {
 		return fmt.Errorf("the gate passed, but publishing failed: %w", publishErr)
 	}
@@ -139,9 +139,9 @@ func publishDiff(ctx context.Context, result diff.Result) error {
 	if err := diff.Render(&md, "markdown", result); err != nil {
 		return err
 	}
-	// A distinct marker from the Saga's own PR-comment publisher. A pipeline running both — a
-	// full report and the delta this pull request introduced — wants two comments, and sharing
-	// the default meant the second silently replaced the first.
+	// A distinct marker from the Saga's own PR-comment publisher. A pipeline running both, a full
+	// report and the delta this pull request introduced. Wants two comments, and sharing the
+	// default meant the second silently replaced the first.
 	pub, err := publish.For(saga.PublisherConfig{
 		Kind: diffPublisherKind(), Marker: publish.DiffMarker,
 	})
@@ -173,7 +173,7 @@ func loadSARIF(path string) (sarif.Report, error) {
 // components' worth of findings were resolved, and a gate on new findings passes it.
 //
 // Refusing rather than warning, because the failure is silent and the output is not obviously
-// wrong — it is a list of fixes, which is the thing a reader was hoping to see. A warning above
+// wrong. It is a list of fixes, which is the thing a reader was hoping to see. A warning above
 // a plausible answer is a warning that gets read after the decision.
 func comparableScopes(basePath string, base sarif.Report, headPath string, head sarif.Report) error {
 	baseScope, baseScoped := skald.ScopeOfReport(base)

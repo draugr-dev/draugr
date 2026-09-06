@@ -30,8 +30,8 @@ func server(t *testing.T, replies map[string]string) *Client {
 }
 
 // Mend answers failures with HTTP 200 and an errorMessage. A client trusting the status code
-// would read a permission failure as an empty result — which for this integration means
-// reporting a clean scan.
+// would read a permission failure as an empty result. Which for this integration means reporting
+// a clean scan.
 func TestErrorInABodyWithStatus200IsAnError(t *testing.T) {
 	c := server(t, map[string]string{
 		"getAllProjects": `{"errorCode":5001,"errorMessage":"User is not allowed to perform this action"}`,
@@ -130,14 +130,14 @@ func TestAwaitTimingOutIsAnErrorNotAnEmptyResult(t *testing.T) {
 		t.Fatal("a timeout returned success")
 	}
 	if alerts != nil {
-		t.Error("a timeout must not return alerts — an empty slice reads as a clean scan")
+		t.Error("a timeout must not return alerts, an empty slice reads as a clean scan")
 	}
 	if !strings.Contains(err.Error(), "nothing to report yet") {
 		t.Errorf("the error should distinguish not-ready from not-found: %v", err)
 	}
 }
 
-// A project that does not exist yet is the ordinary early state — the upload creates it — so it
+// A project that does not exist yet is the ordinary early state, the upload creates it. So it
 // must not abort the wait.
 func TestAwaitToleratesTheProjectNotExistingYet(t *testing.T) {
 	seen := 0

@@ -51,8 +51,8 @@ func TestParseTrivyLicensesReportsOnlyObligations(t *testing.T) {
 			t.Errorf("%s = %q, want %q", id, got[id], lvl)
 		}
 	}
-	// Apache-2.0 is permissive: inventory, not a finding. Reporting it would bury the four
-	// above under dozens that say nothing — and the SBOM already carries the full inventory.
+	// Apache-2.0 is permissive: inventory, not a finding. Reporting it would bury the four above
+	// under dozens that say nothing. And the SBOM already carries the full inventory.
 	for id := range got {
 		if strings.Contains(id, "Apache-2.0") {
 			t.Errorf("a permissive license should not be a finding: %s", id)
@@ -88,9 +88,9 @@ func TestParseTrivyLicensesPolicyBeatsCategory(t *testing.T) {
 }
 
 func TestParseTrivyLicensesResolvesTheDependencyLine(t *testing.T) {
-	// Trivy gives licenses no line at all, unlike its vulnerability findings. Without this
-	// every license lands at the top of go.mod in a pile — the same failure as an image finding
-	// reported at "library/python:1".
+	// Trivy gives licenses no line at all, unlike its vulnerability findings. Without this every
+	// license lands at the top of go.mod in a pile, the same failure as an image finding reported
+	// at "library/python:1".
 	dir := t.TempDir()
 	manifest := "module example\n\nrequire (\n\tgithub.com/spf13/cobra v1.0.0\n\tgithub.com/copyleft/lib v2.0.0\n)\n"
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(manifest), 0o600); err != nil {
@@ -112,8 +112,8 @@ func TestParseTrivyLicensesResolvesTheDependencyLine(t *testing.T) {
 }
 
 func TestParseTrivyLicensesSurvivesAnUnreadableManifest(t *testing.T) {
-	// A missing line degrades the finding; it must not lose it. Line zero is honest — the
-	// finding still points at the file.
+	// A missing line degrades the finding; it must not lose it. Line zero is honest, the finding
+	// still points at the file.
 	rep, err := parseTrivyLicenses([]byte(licenseJSON), "/nonexistent-checkout", nil)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
@@ -199,8 +199,8 @@ func TestTrivyLicenseImageArgv(t *testing.T) {
 
 // Full scanning is opt-in, in both modes and by the same key.
 //
-// It changes what the scan reads rather than how it reports — package metadata is a dependency
-// list, and full scanning walks every file for a LICENSE or a header — so a descriptor that did
+// It changes what the scan reads rather than how it reports. Package metadata is a dependency
+// list, and full scanning walks every file for a LICENSE or a header. So a descriptor that did
 // not ask for it must not pay for it.
 func TestLicenseFullIsOptInInBothModes(t *testing.T) {
 	repo := trivyLicenseArgs("/tmp/tree", plugin.Config{})
@@ -226,7 +226,7 @@ func TestTheLicenseScannerRefusesATargetItCannotRead(t *testing.T) {
 	info := s.Info()
 	if !slices.Contains(info.TargetKinds, plugin.TargetRepository) ||
 		!slices.Contains(info.TargetKinds, plugin.TargetImage) {
-		t.Errorf("target kinds = %v, want both — the question has no target kind in it", info.TargetKinds)
+		t.Errorf("target kinds = %v, want both, the question has no target kind in it", info.TargetKinds)
 	}
 	if _, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://example.com"}, plugin.Config{}); err == nil {
 		t.Error("a host target was accepted; nothing there has a dependency tree to read")

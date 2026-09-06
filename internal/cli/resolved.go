@@ -18,14 +18,14 @@ import (
 // result.
 //
 // Provenance is emitted as YAML comments, which makes the output both the human answer and a
-// valid descriptor — comments are ignored by the decoder, so the flattened document can be
+// valid descriptor. Comments are ignored by the decoder, so the flattened document can be
 // scanned. That is what lets a resolved descriptor cross an air gap, be committed as a lockfile
 // with every remote revision pinned to the commit it resolved to, or be diffed in CI so a
 // one-line `fragments:` change is reviewed by its effect rather than by its cause.
 func printResolved(w io.Writer, res *saga.Resolved) error {
-	// The references are spent: everything they named is already in the model below. Leaving
-	// them in would make the output re-resolve when scanned — appending every exclusion a second
-	// time, and failing outright wherever the fragments are not reachable, which is precisely the
+	// The references are spent: everything they named is already in the model below. Leaving them
+	// in would make the output re-resolve when scanned, appending every exclusion a second time,
+	// and failing outright wherever the fragments are not reachable, which is precisely the
 	// air-gapped case this output exists to serve.
 	flat := *res.Model
 	flat.Fragments = nil

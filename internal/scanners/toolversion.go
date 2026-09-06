@@ -12,10 +12,10 @@ import (
 // toolVersionProbe asks a tool what version it is, once, and remembers the answer.
 //
 // The cache key is `hash(scanner, version, target, config)`, and most scanners contributed
-// nothing for `version` — so a Semgrep upgrade or a Nuclei template refresh left yesterday's
-// "no findings" looking current. On a fresh runner that is nearly harmless, because there is
-// nothing cached to serve. It stops being harmless the moment a cache outlives one machine,
-// which is exactly what https://github.com/draugr-dev/draugr/issues/497 is about.
+// nothing for `version`, so a Semgrep upgrade or a Nuclei template refresh left yesterday's "no
+// findings" looking current. On a fresh runner that is nearly harmless, because there is nothing
+// cached to serve. It stops being harmless the moment a cache outlives one machine, which is
+// exactly what https://github.com/draugr-dev/draugr/issues/497 is about.
 //
 // One probe per tool per process: the version cannot change mid-run, and paying for a subprocess
 // on every job to ask again would cost more than the cache saves.
@@ -94,7 +94,7 @@ var (
 
 // draugrCacheVersion is the cache version for a scanner whose rules live in this binary.
 //
-// The native scanners — HTTP headers, TLS, the CIS policy set — have no external tool to ask, so
+// The native scanners, HTTP headers, TLS, the CIS policy set. Have no external tool to ask, so
 // the thing that changes their answer is Draugr itself. Without this, adding a CSP check (or
 // fixing one) leaves every cached header result standing, and the new check silently does not
 // run against anything already scanned.

@@ -17,7 +17,7 @@ func main() {
 
 func TestAFindingSurvivesAnEditOutsideItsContext(t *testing.T) {
 	// The whole reason this exists. Fingerprint hashes the line number, so adding an import makes
-	// every finding below it look new — every run would report most findings as fixed and
+	// every finding below it look new. Every run would report most findings as fixed and
 	// re-report them as new, first_seen would reset constantly, and time-to-fix would measure
 	// nothing. It is the kind of wrong that produces plausible charts.
 	//
@@ -119,7 +119,7 @@ func TestItIsNotTheDeduplicationFingerprint(t *testing.T) {
 	a.StampLineHash(source)
 	b.StampLineHash(source)
 	if a.PartialFingerprints[LineHashKey] == b.PartialFingerprints[LineHashKey] {
-		// Different lines, different content, so these should differ here too — the point is that
+		// Different lines, different content, so these should differ here too. The point is that
 		// they are computed from different things, not that they always agree.
 		t.Log("distinct content produced distinct fingerprints, as expected")
 	}
@@ -127,12 +127,12 @@ func TestItIsNotTheDeduplicationFingerprint(t *testing.T) {
 
 func TestAnEditInsideTheContextDoesChangeIt(t *testing.T) {
 	// Stated rather than hidden. Nearby lines are part of the identity, so a line inserted
-	// immediately above a finding changes its fingerprint — inherent to any context-based scheme,
+	// immediately above a finding changes its fingerprint, inherent to any context-based scheme,
 	// and the same trade CodeQL makes. Without context every bare `}` in a repository would share
 	// one fingerprint, which is a worse failure: unrelated findings merged into one history.
 	//
 	// The consequence a reader should take away: such a finding reads as fixed-and-new once, and
-	// then is stable again. An edit elsewhere in the file — the common case — costs nothing.
+	// then is stable again. An edit elsewhere in the file. The common case. Costs nothing.
 	adjacent := append([]string{}, source...)
 	adjacent = append(adjacent[:5], append([]string{"\t// set from the vault"}, adjacent[5:]...)...)
 
@@ -144,7 +144,7 @@ func TestAnEditInsideTheContextDoesChangeIt(t *testing.T) {
 
 func TestAFindingAtTheTopOfAFileStillGetsOne(t *testing.T) {
 	// The truncated-window case: there is nothing above line 1 to include. It still has an
-	// identity, it is simply more exposed to edits above it — which is worth having rather than
+	// identity, it is simply more exposed to edits above it. Which is worth having rather than
 	// having none.
 	if LineHash(source, 1) == "" {
 		t.Error("a finding on the first line has no fingerprint")

@@ -79,10 +79,10 @@ func readCatalog(t *testing.T) string {
 // claim most likely to rot: which scanner a control runs by default.
 //
 // Same-PR doc discipline keeps the pages *next to* a change correct. It does not catch a page
-// elsewhere that the change quietly falsified — and "the default is X" is exactly that kind of
+// elsewhere that the change quietly falsified. And "the default is X" is exactly that kind of
 // claim, written once in a table nobody revisits and read by everyone deciding what a scan does.
-// The catalog said kube-bench was the infrastructure default for a release after it stopped
-// being true.
+// The catalog said kube-bench was the infrastructure default for a release after it stopped being
+// true.
 //
 // Only controls with more than one scanner are checked. Where there is one, "default" is not a
 // claim anyone can get wrong.
@@ -129,7 +129,7 @@ func TestCatalogNamesTheRealDefaultScanner(t *testing.T) {
 		}
 	}
 	if checked == 0 {
-		t.Fatal("no multi-scanner control was checked — a guard that checks nothing is worse than no guard")
+		t.Fatal("no multi-scanner control was checked, a guard that checks nothing is worse than no guard")
 	}
 }
 
@@ -177,7 +177,7 @@ func assertStatesTerms(t *testing.T, kind, dir, name string) {
 	if !termsSection.Match(body) {
 		t.Errorf("%s %q does not state the license or terms of what it runs (%s)", kind, name, path)
 		t.Log("  Every integration says what it is allowed to do with the tool or data behind it.\n" +
-			"  Native scanners say so too — \"native Draugr code (Apache-2.0)\" is an answer.")
+			"  Native scanners say so too, \"native Draugr code (Apache-2.0)\" is an answer.")
 	}
 }
 
@@ -185,9 +185,9 @@ func assertStatesTerms(t *testing.T, kind, dir, name string) {
 var sendsSection = regexp.MustCompile(`(?im)^#+ .*(what is sent|privacy|data (sent|handling))`)
 
 func TestDisclosingScannersDocumentWhatTheySend(t *testing.T) {
-	// A scanner declaring `disclosure` sends something about a customer's systems to somebody
-	// else. Its terms are not the whole question — the other half is what that party receives,
-	// and whether they keep or share it.
+	// A scanner declaring `disclosure` sends something about a customer's systems to somebody else.
+	// Its terms are not the whole question. The other half is what that party receives, and whether
+	// they keep or share it.
 	//
 	// Triggered by the effect rather than by a list, so it applies to the next connector without
 	// anyone adding it here. Declaring the effect is what makes a scanner honest; this makes the
@@ -218,7 +218,7 @@ func TestDisclosingScannersDocumentWhatTheySend(t *testing.T) {
 //
 // It is the page most people read and the one nobody re-reads. A control shipped and left out
 // reads as a capability Draugr does not have; a control that was on a roadmap and has since
-// shipped leaves the README claiming it is still coming, which is worse — the reader believes the
+// shipped leaves the README claiming it is still coming, which is worse, the reader believes the
 // thing they need is unavailable and stops looking.
 func TestReadmeListsEveryControl(t *testing.T) {
 	t.Parallel()
@@ -232,7 +232,7 @@ func TestReadmeListsEveryControl(t *testing.T) {
 	for _, c := range Registry().Controllers() {
 		name := c.Info().Name
 		if !strings.Contains(readme, "| `"+name+"` |") {
-			t.Errorf("the README's table of controls has no row for %q — a control that ships and "+
+			t.Errorf("the README's table of controls has no row for %q, a control that ships and "+
 				"is not listed reads as one Draugr does not have", name)
 		}
 	}
@@ -262,7 +262,7 @@ func TestReachabilityAnalyzersAreNotSelectableAsScanners(t *testing.T) {
 		if !controllers.IsReachabilityAnalyzer(info.Name) {
 			t.Errorf("scanner %q declares Reachability but internal/controllers does not know it", info.Name)
 			t.Log("  Add it to reachabilityAnalyzers in internal/controllers/config.go, or it stays\n" +
-				"  selectable from a scanner block — which is the surface that does not say what it does.")
+				"  selectable from a scanner block, which is the surface that does not say what it does.")
 		}
 	}
 }

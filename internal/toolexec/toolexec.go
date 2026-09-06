@@ -1,9 +1,9 @@
 // Package toolexec runs the external tools Draugr orchestrates, and reports what it ran.
 //
-// It exists so that every external invocation — scanners today, SBOM generation and whatever
-// comes next — narrates itself the same way. Without that, a run is a black box: you can see
-// that something failed but not the command, the directory, how long it took, or what the tool
-// itself said about it.
+// It exists so that every external invocation, scanners today, SBOM generation and whatever comes
+// next, narrates itself the same way. Without that, a run is a black box: you can see that
+// something failed but not the command, the directory, how long it took, or what the tool itself
+// said about it.
 package toolexec
 
 import (
@@ -25,19 +25,19 @@ import (
 // from an argument (gosec loads Go packages via `./...`), so for those the checkout has to be
 // the cwd, not just a path passed in.
 //
-// No shell is involved — exec.CommandContext, not "sh -c" — and argv is built from typed config
-// by the caller, never from user shell input.
+// No shell is involved, exec.CommandContext, not "sh -c". And argv is built from typed config by
+// the caller, never from user shell input.
 func Run(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	return RunWithEnv(ctx, dir, argv, nil)
 }
 
 // RunCombined is Run capturing stderr alongside stdout.
 //
-// For a tool asked a question rather than told to scan. Several write their answer to stderr —
-// `nuclei -templates-version` prints its whole reply there and nothing at all to stdout — so a
+// For a tool asked a question rather than told to scan. Several write their answer to stderr,
+// `nuclei -templates-version` prints its whole reply there and nothing at all to stdout, so a
 // caller reading only stdout gets an empty string and concludes the wrong thing. Keeping this
-// separate from Run is deliberate: a scanner's stdout is a report to be parsed, and folding
-// stderr into it would corrupt the parse for every tool that logs while it works.
+// separate from Run is deliberate: a scanner's stdout is a report to be parsed, and folding stderr
+// into it would corrupt the parse for every tool that logs while it works.
 func RunCombined(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("empty command")
@@ -52,10 +52,10 @@ func RunCombined(ctx context.Context, dir string, argv []string) ([]byte, error)
 
 // RunWithEnv is Run with extra environment variables layered over the parent's, each "K=V".
 //
-// A tool that shells out to another tool cannot be told which context to work in through argv —
+// A tool that shells out to another tool cannot be told which context to work in through argv,
 // kube-bench invokes kubectl itself, and kubectl takes its cluster from the environment. This is
-// how a scanner points such a tool at the right target rather than whatever the machine happens
-// to be configured for.
+// how a scanner points such a tool at the right target rather than whatever the machine happens to
+// be configured for.
 func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("empty command")
@@ -73,18 +73,18 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 
 // explain puts the tool's own first words into the error.
 //
-// `exit status 1` tells a reader nothing they can act on, and it is what reaches the terminal,
-// the HTML report and the pull-request comment. The tool almost always said why on stderr —
-// `--log-level trace` relays all of it, but nobody reaches for that before they know something
-// is worth investigating. So the first line travels with the error, where it is seen.
+// `exit status 1` tells a reader nothing they can act on, and it is what reaches the terminal, the
+// HTML report and the pull-request comment. The tool almost always said why on stderr, `--log-level
+// trace` relays all of it, but nobody reaches for that before they know something is worth
+// investigating. So the first line travels with the error, where it is seen.
 //
 // One line, clamped: some tools print a usage screen on failure, and a report is not the place
 // for it. Trace still has the rest.
 func explain(tool string, err error) error {
-	// A missing binary is the one failure whose fix is a single command, and the error says
-	// only that the file was not found. That message is correct and it is the first thing a
-	// reader sees on their first scan — after installing Draugr and before installing anything
-	// else, which is the likeliest state for somebody who has just arrived.
+	// A missing binary is the one failure whose fix is a single command, and the error says only that
+	// the file was not found. That message is correct and it is the first thing a reader sees on their
+	// first scan, after installing Draugr and before installing anything else, which is the likeliest
+	// state for somebody who has just arrived.
 	//
 	// Which advice depends on whether Draugr distributes the tool. Suggesting `tools install`
 	// for one it does not is worse than saying nothing: the command runs, finds no such tool,
@@ -128,15 +128,15 @@ func firstLine(s string) string {
 //
 // A tool that tried several ways to do one thing reports the attempt and then the reasons, and the
 // reasons are the answer. Trivy looking for an image ends its first line with `4 errors occurred:`
-// and puts them on the lines after — so a reader given only the first line is told the image could
+// and puts them on the lines after, so a reader given only the first line is told the image could
 // not be found in any of four places, and not that the registry answered 401.
 //
 // That difference decides what they do next: one sends them to check the image name, the other to
 // log in. Reading the first line alone turns the second into the first.
 //
-// Only when the line ends by promising a list, and only for lines that look like its items — a
-// tool that prints a usage screen after its error is not enumerating causes, and a report is not
-// the place for it.
+// Only when the line ends by promising a list, and only for lines that look like its items, a tool
+// that prints a usage screen after its error is not enumerating causes, and a report is not the
+// place for it.
 func withCauses(first string, rest []string) string {
 	if !strings.HasSuffix(first, ":") {
 		return first
@@ -157,7 +157,7 @@ func withCauses(first string, rest []string) string {
 
 // message drops the log preamble a tool writes ahead of what it is actually saying.
 //
-// Several tools log as tab-separated fields — a timestamp, a level, sometimes a label, then the
+// Several tools log as tab-separated fields, a timestamp, a level, sometimes a label, then the
 // message. Trivy's is `<timestamp>\tFATAL\tFatal error\trun error: …`, which is four fields of
 // ceremony before the first informative word. That matters more than it sounds: the clamp has a
 // budget, and a preamble spends it on the part that is identical for every failure the tool ever
@@ -212,7 +212,7 @@ func looksLikeTimestamp(f string) bool {
 //	unable to find the specified image "ghcr.io/x:1" in ["docker" "containerd" "podman" "remote"]
 //
 // Everything before the last link says a scan failed while scanning. Draugr has already said which
-// scanner, which control and which component — so repeating the tool's own account of what it was
+// scanner, which control and which component, so repeating the tool's own account of what it was
 // doing spends the whole budget restating what the reader can see, and pushes the words naming the
 // failure off the end.
 //
@@ -243,9 +243,9 @@ func shorten(line string) string {
 //	unable to initialize cache: unable to initialize fs cache: cache may be in use by
 //	another process: timeout
 //
-// The left is the operation, which every failure of that tool shares. The right is the cause,
-// which is the only part identifying this one. Keeping the head alone yields "unable to…", a
-// message that says a scan failed while scanning — true of the failure and of nothing else.
+// The left is the operation, which every failure of that tool shares. The right is the cause, which
+// is the only part identifying this one. Keeping the head alone yields "unable to…", a message that
+// says a scan failed while scanning, true of the failure and of nothing else.
 //
 // Both ends, so the reader knows what was being done as well as what went wrong. Sliced on
 // runes: a byte offset can land inside a multi-byte character and produce a replacement glyph
@@ -263,8 +263,8 @@ func clamp(line string) string {
 
 // atWord drops a partial leading word, so the tail resumes at a word rather than mid-token.
 //
-// Only when a space is near the start: on a long unbroken token — a path, a digest, a URL —
-// there is no boundary worth finding, and hunting for one would discard most of the tail.
+// Only when a space is near the start: on a long unbroken token, a path, a digest, a URL. There is
+// no boundary worth finding, and hunting for one would discard most of the tail.
 func atWord(r []rune) string {
 	limit := min(len(r), 24)
 	for i := range limit {
@@ -300,12 +300,11 @@ func log(ctx context.Context, argv []string, dir string, started time.Time, out 
 	} else if err != nil {
 		attrs = append(attrs, "error", err.Error())
 	}
-	// Stdout too, and on success as well as failure. Not every tool explains itself on stderr,
-	// and ours are deliberately configured not to fail on findings (--exit-code 0, -no-fail) —
-	// so err == nil is the normal path, and a tool producing an empty report because it was
-	// misconfigured looks exactly like one that found nothing. Trace is the level where a reader
-	// has asked for everything; holding half of it back leaves them reproducing the run by
-	// hand.
+	// Stdout too, and on success as well as failure. Not every tool explains itself on stderr, and
+	// ours are deliberately configured not to fail on findings (--exit-code 0, -no-fail). So err ==
+	// nil is the normal path, and a tool producing an empty report because it was misconfigured looks
+	// exactly like one that found nothing. Trace is the level where a reader has asked for everything;
+	// holding half of it back leaves them reproducing the run by hand.
 	if len(out) > 0 {
 		slog.Log(ctx, observability.LevelTrace, "tool stdout",
 			"tool", argv[0], "stdout", string(out))

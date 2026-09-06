@@ -28,7 +28,7 @@ func registerVersionedTool(t *testing.T, name, base, sha, checksums string) {
 
 func TestSpecForShippedVersionIsUnchanged(t *testing.T) {
 	// The pinned version keeps its recorded SHA, which is what lets an install verify without
-	// reaching the network for metadata — the property air-gapped runners depend on.
+	// reaching the network for metadata, the property air-gapped runners depend on.
 	registerVersionedTool(t, "vtool", "https://example.test", "abc", "")
 	for _, v := range []string{"", "9.9.9", "v9.9.9", " 9.9.9 "} {
 		spec, err := SpecFor("vtool", v)
@@ -125,7 +125,7 @@ func TestEveryInstallableCanResolveAnotherVersion(t *testing.T) {
 
 func TestInstallVersionWarnsRatherThanRefusingWithNothingToCheckAgainst(t *testing.T) {
 	// Draugr does not gatekeep an install it cannot verify. An operator asking for a version has
-	// a reason Draugr does not know — a fork, a release candidate, a build newer than this one.
+	// a reason Draugr does not know, a fork, a release candidate, a build newer than this one.
 	// The answer is to install it and label it, not to refuse.
 	content := []byte("#!/bin/sh\necho v\n")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -232,7 +232,7 @@ func TestAssetFileName(t *testing.T) {
 
 func TestInstallVersionFallsBackWhenCosignIsNotInstalled(t *testing.T) {
 	// An upstream that signs its checksums is still checked against them when the cosign CLI is
-	// absent — the signature could not be read, which says nothing about the download. Refusing
+	// absent. The signature could not be read, which says nothing about the download. Refusing
 	// here would make every install of another version depend on a tool the user may not have.
 	t.Setenv("PATH", t.TempDir()) // no cosign
 	content := []byte("#!/bin/sh\necho v\n")

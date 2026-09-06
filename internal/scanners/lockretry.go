@@ -13,13 +13,13 @@ import (
 
 // Trivy keeps its analysis results in a BoltDB under the cache directory, and takes an exclusive
 // write lock to store them. Every Trivy-backed scanner shares that cache, and Draugr plans one job
-// per image and per repository and runs them concurrently — so on a run where analysis is slow,
-// two processes can want the lock for longer than Trivy is willing to wait, and the one that loses
+// per image and per repository and runs them concurrently. So on a run where analysis is slow, two
+// processes can want the lock for longer than Trivy is willing to wait, and the one that loses
 // fails its whole scan.
 //
 // Waiting is the right response: the condition clears on its own the moment the holder finishes,
 // which is what makes it worth retrying rather than reporting. What is not acceptable is retrying
-// silently — a scan that took three times as long for a reason nobody can see is the same problem
+// silently, a scan that took three times as long for a reason nobody can see is the same problem
 // in a quieter form, so each wait is logged.
 //
 // Deliberately narrow. It matches the one message Trivy prints for this and nothing else: a
@@ -30,7 +30,7 @@ const lockedCacheMarker = "cache may be in use by another process"
 // lockRetries is how many times a scan is retried after the first attempt.
 //
 // Three, because the wait is bounded by how long one scan holds the lock, and a contended cache
-// with more waiters than that is a scheduling problem retrying will not solve — at which point
+// with more waiters than that is a scheduling problem retrying will not solve. At which point
 // failing is the more useful answer.
 const lockRetries = 3
 
@@ -52,9 +52,9 @@ func retryLockedCache(ctx context.Context, tool string, fn func() ([]byte, error
 			return out, err
 		}
 		delay := wait + jitter(wait/2)
-		// Debug, and phrased as queueing rather than trouble. The holder is another job in this
-		// same scan — Draugr planned both — so a warning about "another process" sends a reader
-		// looking for a second Draugr they never started, and finding none, for a broken cache.
+		// Debug, and phrased as queueing rather than trouble. The holder is another job in this same
+		// scan, Draugr planned both, so a warning about "another process" sends a reader looking for a
+		// second Draugr they never started, and finding none, for a broken cache.
 		//
 		// Per-attempt at debug because one line is only useful to somebody diagnosing contention.
 		// A scan that took three times as long still deserves a reason on the screen, and the
@@ -96,8 +96,8 @@ func retryingRunInDir(tool string, run func(context.Context, string, []string) (
 
 // jitter returns a random duration in [0, d).
 //
-// From crypto/rand rather than math/rand. Nothing here needs unpredictability — this is a backoff,
-// not a token — but a scanner reaching for a weak generator is a finding in every SAST tool worth
+// From crypto/rand rather than math/rand. Nothing here needs unpredictability. This is a backoff,
+// not a token, but a scanner reaching for a weak generator is a finding in every SAST tool worth
 // running, including the two this project gates itself with. Suppressing it would cost a reader
 // more attention than the source costs to pick correctly.
 func jitter(d time.Duration) time.Duration {

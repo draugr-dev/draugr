@@ -14,7 +14,7 @@ import (
 
 // The decision tree these used to walk is gone: both questions are numbered lists now, and
 // TestClassifyMapsChoicesToValues covers every rung of both ladders. What is kept here is the
-// behavior that is easy to lose in a rewrite — reprompting, and what happens at EOF.
+// behavior that is easy to lose in a rewrite. Reprompting, and what happens at EOF.
 func TestAskCriticalityRepromptsAndDefaults(t *testing.T) {
 	cases := map[string]saga.Criticality{
 		"x\n9\n2\n": saga.CriticalityImportant, // reprompts until valid
@@ -167,7 +167,7 @@ func TestClassifyShowsTheWholeLadder(t *testing.T) {
 
 func TestClassifyWordingNamesNoPlatform(t *testing.T) {
 	// "Is its network access restricted (namespace / network policy)?" is answerable if you run
-	// Kubernetes and a guess otherwise — and a guess here silently miscolors every P1 after it.
+	// Kubernetes and a guess otherwise, and a guess here silently miscolors every P1 after it.
 	var buf bytes.Buffer
 	askExposure(bufio.NewScanner(strings.NewReader("1\n")), &buf)
 	for _, leak := range []string{"namespace", "network policy", "kubernetes", "cluster", "pod"} {
@@ -205,8 +205,8 @@ func TestClassifyRepromptsAndFallsBack(t *testing.T) {
 	if !strings.Contains(buf.String(), "Please enter a number from 1 to 4") {
 		t.Errorf("no reprompt:\n%s", buf.String())
 	}
-	// At EOF — a piped or truncated session — the middle of the ladder, which neither hides risk
-	// nor invents it.
+	// At EOF, a piped or truncated session, the middle of the ladder, which neither hides risk nor
+	// invents it.
 	if got := askExposure(bufio.NewScanner(strings.NewReader("")), io.Discard); got != saga.ExposureInternal {
 		t.Errorf("EOF fallback = %q, want internal", got)
 	}
@@ -256,8 +256,8 @@ func TestClassifyComponentsPicksOneAndRedoesIt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// dashboard is already classified. Naming it is the instruction to redo it — without --all,
-	// which would have dragged gateway in too.
+	// dashboard is already classified. Naming it is the instruction to redo it. Without --all, which
+	// would have dragged gateway in too.
 	var out bytes.Buffer
 	err := runClassify(path, classifyOptions{components: []string{"dashboard"}},
 		strings.NewReader("1\n1\n"), &out)
@@ -284,7 +284,7 @@ func TestClassifyComponentsPicksOneAndRedoesIt(t *testing.T) {
 }
 
 // A name that matches nothing is an error. Skipping it would report "all components are already
-// classified" — an answer to a question nobody asked.
+// classified". An answer to a question nobody asked.
 func TestClassifyRejectsAComponentThatIsNotThere(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "draugr.saga.yaml")
 	if err := os.WriteFile(path, []byte(classifySaga), 0o600); err != nil {

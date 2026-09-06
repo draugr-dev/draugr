@@ -104,7 +104,7 @@ func TestNearestControlDoesNotGuessWildly(t *testing.T) {
 		t.Errorf("case should not defeat the suggestion: %q", got)
 	}
 	// A name with nothing close gets no suggestion. Pointing somewhere wrong is worse than
-	// pointing nowhere — the reader trusts it and edits the wrong line.
+	// pointing nowhere, the reader trusts it and edits the wrong line.
 	for _, wild := range []string{"kubernetes-posture", "zzzzzzzz", ""} {
 		if got := nearestName(wild, known); got != "" {
 			t.Errorf("nearestName(%q) guessed %q", wild, got)
@@ -120,7 +120,7 @@ func TestCheckControlNamesEmptyModel(t *testing.T) {
 
 func TestCheckControlNamesRejectsUnknownScannerKeys(t *testing.T) {
 	// A key naming no scanner, accepted and ignored, is how a descriptor that disables a scanner
-	// runs it anyway. Rejecting any wrong key — for any reason — is also what makes per-rename
+	// runs it anyway. Rejecting any wrong key. For any reason. Is also what makes per-rename
 	// migration entries unnecessary: every one of them says what the control actually accepts.
 	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"headers": {"enabled": true, "httpHeaders": saga.ControllerSettings{"enabled": false}},
@@ -173,7 +173,7 @@ func TestCheckControlNamesChecksComponentScannerKeys(t *testing.T) {
 }
 
 func TestCheckControlNamesRejectsAnOptionTheScannerDoesNotTake(t *testing.T) {
-	// The engine checks this too, when it plans the run — but by then the descriptor has passed
+	// The engine checks this too, when it plans the run, but by then the descriptor has passed
 	// `draugr validate`, been merged, and is failing in a pipeline. Validate is the cheap place.
 	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"secrets": {"enabled": true, "gitleaks": saga.ControllerSettings{"severity": "high"}},

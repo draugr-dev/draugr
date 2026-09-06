@@ -2,7 +2,7 @@
 // (pass/fail) per control and overall. It begins with declarative severity thresholds;
 // a richer policy language (e.g. OPA/Rego) can follow.
 //
-// The Norns decide fate — here, the fate of a release.
+// The Norns decide fate, here, the fate of a release.
 package norn
 
 import (
@@ -25,10 +25,10 @@ const (
 // at least as severe as the applicable threshold. FailOn is the default threshold;
 // PerControl overrides it for named controls. The zero value fails on high.
 //
-// Thresholds are severity bands — the ladder the report prints — rather than SARIF levels. The
-// two are not interchangeable: a finding with a CVSS score takes its band from the score, so one
-// a scanner emitted as `warning` can be `high`. Gating on the level let such a finding pass a
-// gate its reader believed was set to catch it, with the report beside it saying `high`.
+// Thresholds are severity bands, the ladder the report prints, rather than SARIF levels. The two
+// are not interchangeable: a finding with a CVSS score takes its band from the score, so one a
+// scanner emitted as `warning` can be `high`. Gating on the level let such a finding pass a gate
+// its reader believed was set to catch it, with the report beside it saying `high`.
 //
 // FailOnPriority adds component-aware gating: when set (e.g. "P1"), a control also fails if
 // any of its findings has a priority band at least that urgent. Because a finding's priority
@@ -71,11 +71,11 @@ type Result struct {
 // verdict is Fail if any control fails.
 //
 // Controls come back in **alphabetical order**, not the order the map happened to yield. Go
-// randomizes map iteration, so without sorting here the same scan prints its Controls block —
-// and writes its report.json, markdown and HTML — in a different order each run. That makes two
-// runs of an unchanged repository diff against each other, which is the opposite of what an
-// artifact offered as evidence is for, and it contradicts the promise that the same input gives
-// the same answer.
+// randomizes map iteration, so without sorting here the same scan prints its Controls block, and
+// writes its report.json, markdown and HTML, in a different order each run. That makes two runs
+// of an unchanged repository diff against each other, which is the opposite of what an artifact
+// offered as evidence is for, and it contradicts the promise that the same input gives the same
+// answer.
 //
 // Alphabetical rather than, say, worst-first: it is stable as controls are added, and it matches
 // how the catalog and the docs list them.

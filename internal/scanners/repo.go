@@ -24,10 +24,10 @@ type repoScanner struct {
 	// argsList, when set, replaces args with several commands run over the same checkout, whose
 	// outputs are concatenated before parsing.
 	//
-	// For a tool that answers per module rather than per repository. A repository can hold more
-	// than one, and running once at the root reports on whichever the root happens to be — or
-	// fails, when the root is not a module at all. Returning no commands means the tool has
-	// nothing to answer for here, which is different from failing and is reported as such.
+	// For a tool that answers per module rather than per repository. A repository can hold more than
+	// one, and running once at the root reports on whichever the root happens to be. Or fails, when
+	// the root is not a module at all. Returning no commands means the tool has nothing to answer for
+	// here, which is different from failing and is reported as such.
 	argsList func(dir string, cfg plugin.Config) [][]string
 	checkout func(ctx context.Context, url, revision string, scope git.Scope) (git.Tree, func(), error)
 	// parse decodes the tool's output. Nil means the tool emits SARIF.
@@ -58,9 +58,9 @@ type repoScanner struct {
 //
 // A tool that *opens* a file cannot be pointed at /dev/stdout. That is a symlink to the process's
 // own fd 1, and opening it is not the same as writing to the descriptor it inherited: where stdout
-// is a pipe — which is every containerised runner — the open lands somewhere the parent never
-// reads, and the tool exits 0 having written nothing. The parse then fails on empty input and
-// blames the JSON.
+// is a pipe. Which is every containerised runner, the open lands somewhere the parent never reads,
+// and the tool exits 0 having written nothing. The parse then fails on empty input and blames the
+// JSON.
 const ReportPathToken = "{{draugr:report-path}}" // #nosec G101 -- an argv placeholder, not a credential
 
 // runReporting runs argv and returns what the tool produced: its stdout, or the file it was
@@ -110,10 +110,10 @@ func newRepoScanner(info plugin.ScannerInfo, args func(string, plugin.Config) []
 	return repoScanner{info: info, args: args, checkout: git.Checkout, run: execArgvInDir}
 }
 
-// newRepoScannerWithParser is newRepoScanner for a tool that doesn't speak SARIF. Everything
-// else — checkout, argv, path rewriting, tool stamping — is identical; only the decoding
-// differs. parse receives the checkout directory as well as the output, because a tool that
-// reports a package rather than a location may need to look in the tree to find one.
+// newRepoScannerWithParser is newRepoScanner for a tool that doesn't speak SARIF. Everything else,
+// checkout, argv, path rewriting, tool stamping. Is identical; only the decoding differs. parse
+// receives the checkout directory as well as the output, because a tool that reports a package
+// rather than a location may need to look in the tree to find one.
 func newRepoScannerWithParser(
 	info plugin.ScannerInfo,
 	args func(string, plugin.Config) []string,
@@ -151,7 +151,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	// through. Keyed on the target's identity, which already accounts for everything that changes
 	// the tree: url, revision, scope, and whether it is a working tree.
 	//
-	// Without a pool — a scanner used directly, or a test — it clones for itself, as it always did.
+	// Without a pool, a scanner used directly, or a test. It clones for itself, as it always did.
 	materialize := func(ctx context.Context) (git.Tree, func(), error) {
 		return checkout(ctx, repo.URL, repo.Revision, scope)
 	}
@@ -159,10 +159,10 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	var cleanup func()
 	var err error
 	if pool := git.PoolFrom(ctx); pool != nil {
-		// The identity comes from the target, and history is asked for by a scanner's config, so
-		// it has to be added here. Without it a run where one scanner wants history and another
-		// does not would share whichever checkout was materialized first — and half the time that
-		// is the shallow one, which reports clean over a history nobody read.
+		// The identity comes from the target, and history is asked for by a scanner's config, so it has
+		// to be added here. Without it a run where one scanner wants history and another does not would
+		// share whichever checkout was materialized first, and half the time that is the shallow one,
+		// which reports clean over a history nobody read.
 		key := repo.Identity()
 		if scope.History {
 			key += "+history"
@@ -220,17 +220,17 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		if report.Results[i].Tool == "" {
 			report.Results[i].Tool = s.info.Name
 		}
-		// Findings are reported against the temporary checkout directory; rewrite their paths
-		// to be repo-relative so downstream consumers (e.g. GitHub code scanning) can anchor
-		// them to files in the repository. The message can also embed the absolute path (e.g.
-		// Gitleaks: "…detected secret for file <dir>/x"); strip it there too so messages are
-		// stable across scans — otherwise `draugr diff` sees the same finding as new+fixed
-		// because the temp dir differs between the base and head scans.
+		// Findings are reported against the temporary checkout directory; rewrite their paths to be
+		// repo-relative so downstream consumers (e.g. GitHub code scanning) can anchor them to files in
+		// the repository. The message can also embed the absolute path (e.g. Gitleaks: "…detected secret
+		// for file <dir>/x"); strip it there too so messages are stable across scans, otherwise `draugr
+		// diff` sees the same finding as new+fixed because the temp dir differs between the base and
+		// head scans.
 		report.Results[i].Location.URI = repoRelPath(dir, report.Results[i].Location.URI)
 		report.Results[i].Message = stripCheckoutDir(dir, report.Results[i].Message)
-		// Which repository this came from. The path above is now relative to it, so without this
-		// two repositories sharing a path produce one finding — the same secret in two projects
-		// reported once, and nothing to say the second exists.
+		// Which repository this came from. The path above is now relative to it, so without this two
+		// repositories sharing a path produce one finding, the same secret in two projects reported
+		// once, and nothing to say the second exists.
 		report.Results[i].Repository = repo.Source()
 	}
 	// After the paths are repository-relative, and while the checkout still exists. Both matter:
@@ -300,7 +300,7 @@ func repoRelPath(dir, uri string) string {
 	}
 	rel, err := filepath.Rel(dir, uri)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return uri // outside the checkout — leave it alone
+		return uri // outside the checkout, leave it alone
 	}
 	return filepath.ToSlash(rel)
 }
@@ -312,15 +312,15 @@ func execArgv(ctx context.Context, argv []string) ([]byte, error) {
 	return toolexec.Run(ctx, "", argv)
 }
 
-// A var so a test can substitute the exec without arranging binaries on PATH — which is what
-// makes it possible to check that a constructor wired the cache-lock retry, rather than only that
-// the retry itself works.
+// A var so a test can substitute the exec without arranging binaries on PATH. Which is what makes
+// it possible to check that a constructor wired the cache-lock retry, rather than only that the
+// retry itself works.
 var execArgvInDir = func(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	return toolexec.Run(ctx, dir, argv)
 }
 
 // execArgvCombined runs a tool and reads both streams, for a command whose answer is a message
-// rather than a report — several tools write those to stderr.
+// rather than a report, several tools write those to stderr.
 func execArgvCombined(ctx context.Context, argv []string) ([]byte, error) {
 	return toolexec.RunCombined(ctx, "", argv)
 }

@@ -12,10 +12,10 @@ import (
 // Scope restricts which of a repository's files a checkout materializes.
 //
 // Shaping the tree rather than passing flags to each tool is deliberate. Every repository
-// scanner is handed the checkout directory and points its tool at it — Trivy, Semgrep, Gitleaks
+// scanner is handed the checkout directory and points its tool at it, Trivy, Semgrep, Gitleaks
 // and gosec all take a root and walk it. Translating a descriptor's scope into each tool's own
-// include and exclude syntax would be a mapping per tool, wrong in a different way for each,
-// and absent for the next scanner someone adds. A tree that already contains what was asked for
+// include and exclude syntax would be a mapping per tool, wrong in a different way for each, and
+// absent for the next scanner someone adds. A tree that already contains what was asked for
 // needs no translation and cannot be forgotten.
 type Scope struct {
 	// Paths restricts the checkout to these directories. Empty means the whole repository.
@@ -38,8 +38,8 @@ type Scope struct {
 	// compromised and still needs rotating. Finding it means having the history to look at.
 	//
 	// It also turns off the sparse and partial-clone optimizations. Those leave historical blobs
-	// unfetched, so a history scan over them would walk commits whose contents are not present
-	// and report clean — the most dangerous kind of wrong answer.
+	// unfetched, so a history scan over them would walk commits whose contents are not present and
+	// report clean, the most dangerous kind of wrong answer.
 	History bool
 }
 
@@ -130,7 +130,7 @@ func prune(dir string, scope Scope, enforcePaths bool) error {
 //
 // Three things survive: anything inside a selected directory, the directories leading down to
 // one, and every file at the repository root. The last is the part that is easy to get wrong and
-// expensive to get wrong — go.mod, package.json, Dockerfile, .semgrepignore, .trivyignore and
+// expensive to get wrong, go.mod, package.json, Dockerfile, .semgrepignore, .trivyignore and
 // their kin live there, and a scanner that cannot see them does not fail. It reports fewer
 // findings against a tree it could not fully understand, which reads exactly like a clean scan.
 func withinPaths(rel string, keep []string, isDir bool) bool {

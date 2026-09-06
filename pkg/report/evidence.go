@@ -14,7 +14,7 @@ import (
 // Rendered from the same function so the two cannot drift into disagreeing about what a run did.
 //
 // A companion rather than a replacement. It answers "can I trust this run", not "what did it
-// find" — duplicating hundreds of findings into it would make it unreadable for its own purpose,
+// find", duplicating hundreds of findings into it would make it unreadable for its own purpose,
 // and they are already in the report and the SARIF beside it.
 type evidenceReporter struct{}
 

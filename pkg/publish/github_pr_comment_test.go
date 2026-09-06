@@ -175,7 +175,7 @@ func TestPRCommentMissingTokenErrors(t *testing.T) {
 
 // A hundred comments is a page, and a pull request that has had a real conversation passes that.
 //
-// Reading one page then finds no marker, and the publisher posts a fresh report every run — the
+// Reading one page then finds no marker, and the publisher posts a fresh report every run, the
 // sticky comment stops being sticky exactly where a long thread makes it worth having, and it
 // degrades by adding noise rather than by failing.
 func TestPRCommentFollowsPagination(t *testing.T) {
@@ -234,7 +234,7 @@ func TestPRCommentStopsAtTheLastPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	if gets != 1 {
-		t.Errorf("listed %d pages, want 1 — only rel=\"next\" is a next page", gets)
+		t.Errorf("listed %d pages, want 1, only rel=\"next\" is a next page", gets)
 	}
 }
 

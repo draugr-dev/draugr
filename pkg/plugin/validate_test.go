@@ -138,7 +138,7 @@ func TestValidateConfigRootTypeMismatchIsObject(t *testing.T) {
 // A controller computes a scanner's configuration in Go, and Go does not produce []any.
 //
 // The licenses control hands trivy-license its deny and warn lists as []string, and a validator
-// that recognized only the decoded shape refused them — so the most ordinary use of that control,
+// that recognized only the decoded shape refused them, so the most ordinary use of that control,
 // naming a license the project will not accept, made the scan fail with "expected array, got
 // []string" and no scanner ran at all.
 func TestAnArrayIsAnArrayWhateverSliceItArrivedAs(t *testing.T) {

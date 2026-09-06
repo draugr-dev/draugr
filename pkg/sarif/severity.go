@@ -56,7 +56,7 @@ func (s Severity) Escalate() Severity {
 // reachability analysis to rank a finding one band down when nothing can reach it.
 //
 // One band, not several, and never to nothing. A call graph is evidence about how the code is
-// called today, not a proof that the flaw cannot be triggered — reflection and dynamic dispatch
+// called today, not a proof that the flaw cannot be triggered. Reflection and dynamic dispatch
 // are invisible to it, and the call that makes it reachable can be written tomorrow. Ranking it
 // below the things that are reachable is the useful part; making it disappear would be a
 // different and unsupported claim.
@@ -121,7 +121,7 @@ func (r Result) Severity(floor Severity) Severity {
 
 // legacyLevelWords maps the SARIF level a gate used to be set to onto the band it means.
 //
-// The two ladders are not the same length — SARIF has three rungs and severity four — so this is
+// The two ladders are not the same length. SARIF has three rungs and severity four. So this is
 // the direction that loses nothing: every level names exactly one band, while `critical` had no
 // level of its own and had to travel as `error`.
 var legacyLevelWords = map[string]Severity{

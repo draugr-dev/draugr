@@ -97,9 +97,9 @@ func (m *Model) Validate() error {
 					"config.exploitability.maxAge %q is not a duration (want e.g. 24h, 30m, 168h)", x.MaxAge))
 			}
 		}
-		// A path is anything else, and cannot be checked here — the descriptor may name a file
-		// this machine does not have, which is a legitimate thing for a shared descriptor to do
-		// and a scan-time error rather than a validation one.
+		// A path is anything else, and cannot be checked here, the descriptor may name a file this
+		// machine does not have, which is a legitimate thing for a shared descriptor to do and a
+		// scan-time error rather than a validation one.
 	}
 	if s := m.Config.SBOM; s != nil && s.Format != "" && !s.Format.Valid() {
 		errs = append(errs, fmt.Errorf("config.sbom.format %q is not a known format (want one of %v)", s.Format, SBOMFormats))
@@ -139,19 +139,19 @@ var removedControllerKeys = map[string]map[string]string{
 	// Empty on purpose. A key that names no scanner is already rejected with the list of keys
 	// the control does accept, which covers every rename without an entry here.
 	//
-	// This is for the case that error cannot serve: a setting whose replacement is not a
-	// renaming but a different shape, where knowing the old name is the only way to explain the
-	// new one. `infrastructure.mode` was one — it became per-scanner blocks — and there are no
-	// users to migrate today, so it is gone with it.
+	// This is for the case that error cannot serve: a setting whose replacement is not a renaming but
+	// a different shape, where knowing the old name is the only way to explain the new one.
+	// `infrastructure.mode` was one. It became per-scanner blocks. And there are no users to migrate
+	// today, so it is gone with it.
 }
 
 // validateControllerKeys rejects descriptor keys that do not follow the schema's convention.
 //
 // Every field in a Saga is camelCase. Controller settings are a free-form tree, so nothing in the
-// type system holds them to it, and a hyphenated key does not fail — it is simply never matched.
-// A scanner block written as `kube-bench-job: { enabled: true }` selects no scanner and produces
-// a scan that ran one fewer than asked for, reporting a pass on a benchmark half of which never
-// ran. Silence is the failure mode; this makes it an error at load, before any work is done.
+// type system holds them to it, and a hyphenated key does not fail. It is simply never matched. A
+// scanner block written as `kube-bench-job: { enabled: true }` selects no scanner and produces a
+// scan that ran one fewer than asked for, reporting a pass on a benchmark half of which never ran.
+// Silence is the failure mode; this makes it an error at load, before any work is done.
 // validateRepoScope rejects scope entries that cannot mean what they appear to.
 //
 // Caught at load rather than at scan time: a pattern that matches nothing narrows the scan
@@ -264,9 +264,9 @@ func validateComponents(comps []Component) []error {
 			errs = append(errs, validateHostSpec(h.Spec, fmt.Sprintf("%s: hosts[%d].spec", where, j))...)
 		}
 		for j, infra := range c.Infrastructure {
-			// A misspelling here reads as "self", so the findings a managed control plane cannot
-			// act on stay at the top of the list — the descriptor claims a decision it is not
-			// making, and the run looks the same either way.
+			// A misspelling here reads as "self", so the findings a managed control plane cannot act on
+			// stay at the top of the list, the descriptor claims a decision it is not making, and the run
+			// looks the same either way.
 			if infra.OperatedBy != "" && !infra.OperatedBy.Valid() {
 				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].operatedBy %q is not one of %v",
 					where, j, infra.OperatedBy, OperatedByValues))
@@ -279,8 +279,8 @@ func validateComponents(comps []Component) []error {
 // validateHostAuth checks an endpoint's auth block.
 //
 // Every failure here is one that would otherwise surface as a scan that ran, found nothing, and
-// reported a pass — because an unauthenticated scan of an authenticated application tests the
-// login page and nothing behind it.
+// reported a pass, because an unauthenticated scan of an authenticated application tests the login
+// page and nothing behind it.
 func validateHostAuth(a *HostAuth, where string) []error {
 	if a == nil {
 		return nil
@@ -441,7 +441,7 @@ func joinErrs(errs []error) error { return errors.Join(errs...) }
 //
 // Exactly one, refused rather than resolved by precedence. A source carrying both a path and a URL
 // is a descriptor whose author believed two different things about where the document lives, and
-// picking one silently means the run reads a document nobody meant — which then either excuses
+// picking one silently means the run reads a document nobody meant, which then either excuses
 // findings nobody excused, or excuses none and looks like a supplier with nothing to say.
 func validateVEXSources(where string, sources []VEXSource) []error {
 	var errs []error

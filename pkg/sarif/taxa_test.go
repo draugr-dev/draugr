@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Two scanners, two namespaced rule ids, one shared taxon — the whole point of taxa.
+// Two scanners, two namespaced rule ids, one shared taxon, the whole point of taxa.
 //
 // Namespacing the rule ids removed the accidental correspondence between draugr-draugr-k8s-policies and
 // kube-bench; this is what puts it back at the layer where it belongs. A consumer that has never
@@ -63,8 +63,8 @@ func TestNoTaxonomiesWhenNothingReferencesOne(t *testing.T) {
 }
 
 func TestAHalfDeclaredTaxonIsIgnored(t *testing.T) {
-	// A taxonomy with no id, or an id with no taxonomy, would emit a relationship pointing at
-	// nothing — a dangling reference is worse than an absent one.
+	// A taxonomy with no id, or an id with no taxonomy, would emit a relationship pointing at nothing.
+	// A dangling reference is worse than an absent one.
 	rep := Report{Tool: "x", Rules: map[string]Rule{
 		"r": {Name: "r", Taxa: []Taxon{{Taxonomy: "CWE"}, {ID: "79"}}},
 	}, Results: []Result{{Tool: "x", RuleID: "r", Level: LevelError, Message: "m"}}}
@@ -91,8 +91,8 @@ func TestTaxonKeyDistinguishesBenchmarkRevisions(t *testing.T) {
 }
 
 func TestMergeUnionsWhatEachScannerSettled(t *testing.T) {
-	// The point of recording it: after merging, a consumer can ask which controls anybody reached
-	// a verdict on — and by elimination, which nobody examined.
+	// The point of recording it: after merging, a consumer can ask which controls anybody reached a
+	// verdict on, and by elimination, which nobody examined.
 	cis := func(id string) Taxon {
 		return Taxon{Taxonomy: "CIS-Kubernetes", ID: id, Version: "cis-1.12"}
 	}
@@ -130,8 +130,8 @@ func TestDecidedKeepsRevisionsApart(t *testing.T) {
 }
 
 func TestDecidedReachesSARIF(t *testing.T) {
-	// It has to leave the process, or only Draugr's own reporters can use it — and the consumer
-	// this matters most to is the one aggregating across runs.
+	// It has to leave the process, or only Draugr's own reporters can use it, and the consumer this
+	// matters most to is the one aggregating across runs.
 	rep := Report{Tool: "draugr-draugr-k8s-policies",
 		Decided: []Taxon{{Taxonomy: "CIS-Kubernetes", ID: "5.1.1", Version: "cis-1.12"}}}
 	data, err := rep.MarshalSARIF()

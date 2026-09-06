@@ -20,11 +20,11 @@ const (
 
 // Licenses reports dependency licenses that carry an obligation.
 //
-// A separate control rather than part of `sca`, deliberately. License risk is not a
-// vulnerability: the exposure is legal and commercial, the policy is owned by different people,
-// and it changes on a different cadence. Keeping it separate is also what lets
-// `config.gate.controls` hold it to its own threshold — "fail on a forbidden license but only
-// warn on a medium CVE" is a reasonable position that one shared threshold cannot express.
+// A separate control rather than part of `sca`, deliberately. License risk is not a vulnerability:
+// the exposure is legal and commercial, the policy is owned by different people, and it changes on
+// a different cadence. Keeping it separate is also what lets `config.gate.controls` hold it to its
+// own threshold. "fail on a forbidden license but only warn on a medium CVE" is a reasonable
+// position that one shared threshold cannot express.
 type Licenses struct{}
 
 // NewLicenses returns the licenses controller.
@@ -42,8 +42,8 @@ func (Licenses) Info() plugin.ControllerInfo {
 
 // Plan produces one scan job per repository and per image, carrying the resolved license policy.
 //
-// Both, because the question the control answers — what am I obliged by — has no target kind in
-// it. A license obligation inside an image was invisible while this planned repositories only, and
+// Both, because the question the control answers, what am I obliged by. Has no target kind in it.
+// A license obligation inside an image was invisible while this planned repositories only, and
 // silently so: the control ran, reported covered, and the surface it had not examined had no name
 // in the output.
 //
@@ -106,15 +106,15 @@ func (Licenses) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) 
 //
 // Union, not override, and this is the one place the licenses control deliberately departs from
 // how every other controller merges settings. The general rule is deep-merge with the component
-// winning — which replaces a list outright. Applied here, a component that added one denied
-// license would silently discard the organization's:
+// winning, which replaces a list outright. Applied here, a component that added one denied license
+// would silently discard the organization's:
 //
 //	config.controllers.licenses.deny:  [GPL-3.0-only, AGPL-3.0-only]   # the org's policy
 //	components[0].controllers.licenses.deny: [Sleepycat]               # would drop both
 //
 // A component quietly opting out of an organization's license policy is precisely the failure a
 // license gate exists to prevent, and it would be invisible in review. So a component can only
-// **tighten**. Loosening has exactly one route — `config.exclude`, which requires a reason and
+// **tighten**. Loosening has exactly one route, `config.exclude`, which requires a reason and
 // leaves the finding in the report, suppressed and auditable, rather than deleted.
 func licensePolicy(model saga.Model, comp *saga.Component) plugin.Config {
 	deny := unionSetting(model.Config.Controllers, comp, denyKey)

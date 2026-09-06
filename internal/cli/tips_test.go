@@ -118,7 +118,7 @@ func TestSurfaceNoteExplainsWhyDastIsAbsent(t *testing.T) {
 
 func TestSurfaceNoteOmitsDastWithoutHosts(t *testing.T) {
 	// dast only scans a host, so on a repository-only descriptor the clause answers a question
-	// nobody asked — and the note is already at the length where a spare line costs it readers.
+	// nobody asked. And the note is already at the length where a spare line costs it readers.
 	model := &saga.Model{Components: []saga.Component{{Name: "svc", Images: []saga.Image{{Image: "i"}}}}}
 	var out bytes.Buffer
 	printUncoveredSurfaceNote(&out, model)
@@ -224,7 +224,7 @@ func TestCountAtOrAboveSkipsSuppressed(t *testing.T) {
 		}}},
 	}}
 	if got := countAtOrAbove(run, "P2"); got != 1 {
-		t.Errorf("got %d, want 1 — the suppressed finding must not count", got)
+		t.Errorf("got %d, want 1, the suppressed finding must not count", got)
 	}
 }
 

@@ -29,7 +29,7 @@ var userFacingDocs = []string{
 // TestNorseNamesStayInTheCode keeps code vocabulary out of the pages people read.
 //
 // This is not style policing. `docs/reference/` is published to the website verbatim, so a name
-// that leaks here reaches a reader who has no way to look it up — and from there into anything
+// that leaks here reaches a reader who has no way to look it up, and from there into anything
 // written against the docs, which is exactly the path one took to a blog post.
 //
 // The failure is quiet: the sentence reads fluently to anyone who already knows what the word

@@ -39,7 +39,7 @@ func sampleData() Data {
 // Every advertised format resolves, and answers to the name it is advertised under.
 //
 // Driven by Formats() rather than by a list written out here, because both are true of a registry
-// whose newest entry is registered under one name and reports another — and Formats() is what the
+// whose newest entry is registered under one name and reports another. And Formats() is what the
 // --report help, the unknown-format error and the artifact filenames are all built from, so it is
 // the list that has to work.
 func TestForAndFormats(t *testing.T) {
@@ -60,7 +60,7 @@ func TestForAndFormats(t *testing.T) {
 			t.Errorf("format %q is registered under a name it does not answer to: %q", f, r.Format())
 		}
 		// A format missing from formatMeta still writes a file, under a fallback name and with no
-		// content type — so a publisher delivers it as something a consumer cannot identify.
+		// content type, so a publisher delivers it as something a consumer cannot identify.
 		if _, ok := formatMeta[f]; !ok {
 			t.Errorf("format %q has no entry in formatMeta, so it has no filename or content type", f)
 		}
@@ -123,8 +123,8 @@ func TestConsoleSeverityBandsNoColorOnBuffer(t *testing.T) {
 	}
 }
 
-// Color behavior now lives in pkg/tui and is tested there; this only asserts the report uses
-// it — a non-TTY writer must never receive escape codes.
+// Color behavior now lives in pkg/tui and is tested there; this only asserts the report uses it.
+// A non-TTY writer must never receive escape codes.
 func TestConsoleUsesSharedPalette(t *testing.T) {
 	var b bytes.Buffer
 	if err := (consoleReporter{}).Render(&b, sampleData()); err != nil {
@@ -369,7 +369,7 @@ func TestMinPriorityFiltersEveryHumanFormat(t *testing.T) {
 	}
 }
 
-// The counts describe the whole run even when the listing is filtered — otherwise you lose sight
+// The counts describe the whole run even when the listing is filtered, otherwise you lose sight
 // of the backlog you chose not to look at. The output has to say so.
 func TestMinPriorityKeepsCountsAndExplainsItself(t *testing.T) {
 	var b bytes.Buffer
@@ -401,14 +401,14 @@ func TestAtOrAbove(t *testing.T) {
 	}
 }
 
-// A rule id names a finding without explaining it — "DS-0002" is meaningless to the reader we
-// care about most. The message belongs in the table.
+// A rule id names a finding without explaining it. "DS-0002" is meaningless to the reader we care
+// about most. The message belongs in the table.
 func TestConsoleShowsTheFindingMessage(t *testing.T) {
 	d := Data{
 		Release: saga.Release{},
 		Run: engine.Result{Controls: map[string]plugin.ControlResult{"iac": {Report: sarif.Report{Results: []sarif.Result{
 			{RuleID: "DS-0002", Level: sarif.LevelError, Priority: "P1", Tool: "trivy-config",
-				Message: "Default Seccomp profile not set — the container runs unconfined"},
+				Message: "Default Seccomp profile not set, the container runs unconfined"},
 		}}}}},
 		Verdict: norn.Result{Verdict: norn.Fail},
 	}
@@ -420,7 +420,7 @@ func TestConsoleShowsTheFindingMessage(t *testing.T) {
 	if !strings.Contains(out, "Default Seccomp profile not set") {
 		t.Errorf("the finding's message should appear under its row:\n%s", out)
 	}
-	// The id is still there — it's what you search upstream with.
+	// The id is still there, it's what you search upstream with.
 	if !strings.Contains(out, "DS-0002") {
 		t.Errorf("the rule id should still be shown:\n%s", out)
 	}
@@ -443,8 +443,8 @@ func TestFindingSummary(t *testing.T) {
 	}
 }
 
-// The console links a rule id to wherever the scanner said the rule is documented — which is
-// how an id like "DS-0002", with no public advisory to derive a URL from, becomes reachable.
+// The console links a rule id to wherever the scanner said the rule is documented. Which is how
+// an id like "DS-0002", with no public advisory to derive a URL from, becomes reachable.
 func TestConsoleLinksTheScannerPublishedHelpURI(t *testing.T) {
 	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
 		"sast": {Report: sarif.Report{
@@ -476,7 +476,7 @@ func TestShortRuleID(t *testing.T) {
 	if len([]rune(got)) > ruleIDWidth {
 		t.Errorf("len(%q) = %d, want at most %d", got, len([]rune(got)), ruleIDWidth)
 	}
-	// The tail is the specific half — that's what has to survive.
+	// The tail is the specific half. That's what has to survive.
 	if !strings.HasSuffix(got, "github-actions-mutable-action-tag") {
 		t.Errorf("got %q, want the tail of the id kept", got)
 	}
@@ -504,8 +504,8 @@ func TestShortRuleIDFallsBackWhenNoSeparatorFits(t *testing.T) {
 }
 
 func TestShortRuleIDKeepsAWholeSegmentEvenWhenTwoWouldNotFit(t *testing.T) {
-	// The dot search runs inside the visible tail, so a boundary just past the cut is used
-	// rather than one before it — otherwise the result would exceed the column.
+	// The dot search runs inside the visible tail, so a boundary just past the cut is used rather
+	// than one before it. Otherwise the result would exceed the column.
 	got := shortRuleID("a.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccccccccccccc")
 	if len([]rune(got)) > ruleIDWidth {
 		t.Errorf("len(%q) = %d, want at most %d", got, len([]rune(got)), ruleIDWidth)
@@ -537,7 +537,7 @@ func TestLongRuleIDStaysWholeInJSON(t *testing.T) {
 	}
 }
 
-// Compact reaches the machine formats and leaves the human ones alone — making those harder to
+// Compact reaches the machine formats and leaves the human ones alone. Making those harder to
 // read would be the opposite of the point.
 func TestCompactAffectsOnlyTheMachineFormats(t *testing.T) {
 	base := sampleData()
@@ -625,7 +625,7 @@ func TestConsoleMarksPartialControlsAsError(t *testing.T) {
 // An explanation belongs under the control it explains.
 //
 // Indentation is the only thing that says whose failure a message is, and the message names a
-// scanner rather than a control — so one printed after the table sits against whichever control
+// scanner rather than a control, so one printed after the table sits against whichever control
 // happens to be listed last and reads as that one's problem, with nothing in the sentence to
 // contradict it. The control that errored is deliberately not the last one here, because that is
 // the only arrangement where the two placements differ.
@@ -676,7 +676,7 @@ func TestSARIFHonorsMinPriority(t *testing.T) {
 		t.Fatal(err)
 	}
 	if full.Len() == filtered.Len() {
-		t.Fatalf("filtered SARIF is the same size as unfiltered (%d bytes) — the flag did nothing", full.Len())
+		t.Fatalf("filtered SARIF is the same size as unfiltered (%d bytes), the flag did nothing", full.Len())
 	}
 	out := filtered.String()
 	for _, want := range []string{"CVE-P1", "CVE-P2"} {
@@ -691,7 +691,7 @@ func TestSARIFHonorsMinPriority(t *testing.T) {
 	}
 }
 
-// A finding with no priority was never ranked — prioritization did not run for it. Dropping it
+// A finding with no priority was never ranked. Prioritization did not run for it. Dropping it
 // would read an unset field as "low", which is the worst available interpretation.
 func TestSARIFKeepsUnprioritizedFindings(t *testing.T) {
 	d := minPriorityData("P1")
@@ -744,9 +744,9 @@ func erroredRunData() Data {
 }
 
 // A control whose scanner never ran found nothing because it looked at nothing. Every format a
-// person reads has to say so — this held for the console and for neither other format, and a
-// shared HTML or markdown report is the one most likely to be handed to someone else as a
-// record of what was checked.
+// person reads has to say so. This held for the console and for neither other format, and a
+// shared HTML or markdown report is the one most likely to be handed to someone else as a record
+// of what was checked.
 func TestEveryHumanFormatReportsAControlThatCouldNotRun(t *testing.T) {
 	for _, format := range []string{"console", "markdown", "html"} {
 		t.Run(format, func(t *testing.T) {
@@ -813,7 +813,7 @@ func TestEveryHumanFormatSaysItFiltered(t *testing.T) {
 
 // What a run did to its targets belongs where the verdict is read. A scan that probed a live
 // endpoint is a thing that happened, and the report is where someone looks to find out what
-// happened — not only the docs describing the control.
+// happened, not only the docs describing the control.
 func TestConsoleReportsWhatTheRunDid(t *testing.T) {
 	d := sampleData()
 	d.Run.Effects = []plugin.Effect{{
@@ -844,7 +844,7 @@ func TestConsoleSaysNothingWhenTheRunOnlyRead(t *testing.T) {
 }
 
 // A finding answers "what is wrong". Evidence also has to answer "what was measured, and against
-// what" — and for a compliance control that is the question asked first.
+// what", and for a compliance control that is the question asked first.
 func TestProvenanceLines(t *testing.T) {
 	t.Parallel()
 
@@ -877,7 +877,7 @@ func TestProvenanceLines(t *testing.T) {
 	}
 }
 
-// Nothing to say means nothing rendered — not an empty heading on every report.
+// Nothing to say means nothing rendered, not an empty heading on every report.
 func TestProvenanceOmittedWhenThereIsNone(t *testing.T) {
 	t.Parallel()
 
@@ -898,9 +898,9 @@ func TestProvenanceOmittedWhenThereIsNone(t *testing.T) {
 }
 
 func TestDedupeMessagesCollapsesIdenticalFailures(t *testing.T) {
-	// Two components whose scanner binary is missing produce the same sentence twice. Two
-	// identical lines invite the reader to look for the difference between them, and there is
-	// none — the duplicate says nothing about which job it came from.
+	// Two components whose scanner binary is missing produce the same sentence twice. Two identical
+	// lines invite the reader to look for the difference between them, and there is none. The
+	// duplicate says nothing about which job it came from.
 	got := dedupeMessages([]string{
 		`run semgrep: exec: "semgrep": executable file not found in $PATH`,
 		`run semgrep: exec: "semgrep": executable file not found in $PATH`,
@@ -1165,9 +1165,9 @@ func TestExploitabilityInJSON(t *testing.T) {
 }
 
 func TestToolBuildLines(t *testing.T) {
-	// pinned and signed share a line — "Draugr fetched these and checked them" is one fact, and a
-	// reader who wants the distinction has the JSON. Anything weaker gets its own, because that
-	// is the one they have to decide about.
+	// pinned and signed share a line, "Draugr fetched these and checked them" is one fact, and a
+	// reader who wants the distinction has the JSON. Anything weaker gets its own, because that is
+	// the one they have to decide about.
 	got := toolBuildLines([]ToolBuild{
 		{Name: "trivy", Version: "0.69.3", Level: "signed"},
 		{Name: "gitleaks", Version: "8.30.1", Level: "pinned"},
@@ -1296,9 +1296,9 @@ func TestRepositoriesFromDeduplicatesAcrossControls(t *testing.T) {
 }
 
 func TestRepositoriesFromKeepsControlsThatDisagree(t *testing.T) {
-	// Independent checkouts mean a branch that moves mid-scan can genuinely be read at two
-	// commits. Collapsing that would be an assumption presented as evidence — and the report
-	// would name a revision that half of it did not describe.
+	// Independent checkouts mean a branch that moves mid-scan can genuinely be read at two commits.
+	// Collapsing that would be an assumption presented as evidence. And the report would name a
+	// revision that half of it did not describe.
 	repo := func(rev string) sarif.Report {
 		return sarif.Report{Provenance: []sarif.Provenance{{Tool: "t", Fields: []sarif.Field{
 			{Key: "repository", Value: "."}, {Key: "revision", Value: rev},
@@ -1526,8 +1526,8 @@ func TestConsoleNamesAScannerThatCouldNotAnswer(t *testing.T) {
 		t.Fatalf("Render: %v", err)
 	}
 	out := buf.String()
-	// The scanner, the component it did not answer for, and why — an entry naming only the
-	// scanner leaves a reader unable to tell whether it mattered.
+	// The scanner, the component it did not answer for, and why, an entry naming only the scanner
+	// leaves a reader unable to tell whether it mattered.
 	for _, want := range []string{"Not measured:", "kube-bench-job", "team-a", "cannot be narrowed"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
@@ -1536,7 +1536,7 @@ func TestConsoleNamesAScannerThatCouldNotAnswer(t *testing.T) {
 }
 
 // And a run where nothing was skipped says nothing, or the block becomes something readers learn
-// to scroll past — which takes the run that did skip something down with it.
+// to scroll past. Which takes the run that did skip something down with it.
 func TestConsoleSaysNothingWhenEveryScannerCouldAnswer(t *testing.T) {
 	var buf bytes.Buffer
 	if err := (consoleReporter{}).Render(&buf, Data{

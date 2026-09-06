@@ -12,7 +12,7 @@ import (
 //
 // A proposed exposure and a decided one are the same three characters in a file, and the value
 // decides whether a finding is reported as P1 or P3. The survey says which ones it guessed on the
-// way out — but that is a terminal that scrolls, and the review happens later, in an editor, by
+// way out. But that is a terminal that scrolls, and the review happens later, in an editor, by
 // someone who may not have run the command. The reason has to be where the value is:
 //
 //	exposure: public   # an Ingress routes into it

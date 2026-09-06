@@ -10,9 +10,9 @@ import (
 )
 
 func TestParseRejectsUnknownKeys(t *testing.T) {
-	// A misspelled setting that is silently dropped is one somebody believes is in force — and
-	// this file exists to make behavior uniform, so a typo that quietly opts one machine out
-	// defeats the point of having it.
+	// A misspelled setting that is silently dropped is one somebody believes is in force, and this
+	// file exists to make behavior uniform, so a typo that quietly opts one machine out defeats
+	// the point of having it.
 	_, err := Parse([]byte("toolz:\n  trivy:\n    version: \"1\"\n"), "x.yaml")
 	if err == nil {
 		t.Fatal("an unknown top-level key was accepted")
@@ -145,7 +145,7 @@ func write(t *testing.T, path, body string) {
 func TestCacheSettingsLayerFieldByField(t *testing.T) {
 	// A project file setting only `ttl` must keep the `dir` the machine file supplied. Replacing
 	// the struct wholesale would make the more specific file silently discard settings it never
-	// mentioned — the opposite of what layering is for.
+	// mentioned, the opposite of what layering is for.
 	home := File{Cache: CacheSettings{Dir: "/var/cache/draugr", TTL: time.Hour, RequireDigest: true}}
 	project := File{Cache: CacheSettings{TTL: 15 * time.Minute}}
 
@@ -172,7 +172,7 @@ func TestCacheReadOnlyOnlyEverTurnsOn(t *testing.T) {
 
 func TestMergeCarriesEveryField(t *testing.T) {
 	// merge names each field explicitly, so a field added to File and forgotten here is dropped on
-	// every load — not overridden, not defaulted, just gone, while the file on disk plainly
+	// every load, not overridden, not defaulted, just gone, while the file on disk plainly
 	// contains it and `config show` reports that it sets nothing. A setting that is present, valid
 	// and ignored is the hardest kind to diagnose, because every place a reader looks says it is
 	// fine.
@@ -232,7 +232,7 @@ func assertEveryFieldSet(t *testing.T, v reflect.Value, what string) {
 			continue
 		}
 		if field.IsZero() {
-			t.Errorf("%s dropped %s — add it to merge(), or every config file that sets it is "+
+			t.Errorf("%s dropped %s. Add it to merge(), or every config file that sets it is "+
 				"silently ignored", what, name)
 		}
 	}

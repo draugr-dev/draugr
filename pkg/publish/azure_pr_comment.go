@@ -39,8 +39,8 @@ type azurePRCommentPublisher struct {
 
 func newAzurePRCommentPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 	// SYSTEM_ACCESSTOKEN is the build's own identity. Unlike most pipeline variables it is not
-	// exposed to a script step unless the step maps it explicitly, which is the single most
-	// common reason this publisher cannot authenticate — so the error below names it.
+	// exposed to a script step unless the step maps it explicitly, which is the single most common
+	// reason this publisher cannot authenticate, so the error below names it.
 	tokenEnv := firstNonEmpty(cfg.TokenEnv, "SYSTEM_ACCESSTOKEN")
 	collection := firstNonEmpty(cfg.Org, os.Getenv("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI"))
 	project := firstNonEmpty(cfg.Project, os.Getenv("SYSTEM_TEAMPROJECT"))
@@ -125,7 +125,7 @@ func (p azurePRCommentPublisher) prURL() string {
 // would otherwise be mistaken for the report, and Draugr would edit a reviewer's words.
 //
 // Not paginated, unlike the GitHub and GitLab equivalents. Azure documents this endpoint as
-// "retrieve all threads in a pull request" and offers no $top, $skip or continuation token — its
+// "retrieve all threads in a pull request" and offers no $top, $skip or continuation token, its
 // only query parameters place threads against a diff iteration. Adding paging here would be
 // guarding against a limit the API does not have.
 func (p azurePRCommentPublisher) findExisting(ctx context.Context) (int64, int64, error) {

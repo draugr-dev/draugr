@@ -17,9 +17,9 @@ import (
 //	15:04:05 LEVEL  message key=value key2="a value"
 //
 // Four weights, so the shape of a line is readable before its content: the message strongest
-// because it is what a reader scans for, the level colored, timestamps and attribute keys
-// dimmed, values plain — and an error or a non-zero exit colored, because in a dense debug
-// stream that is the line worth finding.
+// because it is what a reader scans for, the level colored, timestamps and attribute keys dimmed,
+// values plain, and an error or a non-zero exit colored, because in a dense debug stream that is
+// the line worth finding.
 //
 // A multi-line value is a relayed program output rather than a value, and is rendered as an
 // indented block beneath the record instead of a quoted attribute. Color never changes the
@@ -170,7 +170,7 @@ func (h *consoleHandler) appendAttr(buf []byte, a slog.Attr, prefix string) []by
 // clamp trims a value to this handler's ceiling, saying what was left out.
 //
 // A SARIF report can be megabytes, and a terminal that receives one in full has not been given
-// the answer — it has been given a reason to scroll. A handler with no ceiling (a log file) keeps
+// the answer. It has been given a reason to scroll. A handler with no ceiling (a log file) keeps
 // everything, which is the point of writing one.
 func (h *consoleHandler) clamp(s string) string {
 	if h.maxValue <= 0 || len(s) <= h.maxValue {
@@ -215,8 +215,8 @@ func (h *consoleHandler) appendStream(buf []byte, a slog.Attr) []byte {
 //
 // Only failure is called out, and only on keys Draugr itself chooses. In a debug stream every
 // line looks alike, and the one worth finding is nearly always the one carrying an error or a
-// non-zero exit — so those are the values that get a color, and everything else stays plain.
-// A rule that guessed from the value's shape would color a tool's own prose.
+// non-zero exit. So those are the values that get a color, and everything else stays plain. A
+// rule that guessed from the value's shape would color a tool's own prose.
 func valueStyle(a slog.Attr) tui.Style {
 	switch a.Key {
 	case "error", "err":

@@ -9,8 +9,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/norn"
 )
 
-// markdownReporter renders a portable Markdown report — for MR comments (GitLab/Bitbucket),
-// wikis, Slack, or email — leading with the verdict and "fix first".
+// markdownReporter renders a portable Markdown report, for MR comments (GitLab/Bitbucket), wikis,
+// Slack, or email, leading with the verdict and "fix first".
 type markdownReporter struct{}
 
 func (markdownReporter) Format() string { return "markdown" }
@@ -86,8 +86,8 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	} else {
 		_, _ = fmt.Fprintf(w, "### Fix first\n\n")
 	}
-	// Component before Location: a path answers "where inside", and with more than one component
-	// the reader needs "which one" first — two components can carry the same path.
+	// Component before Location: a path answers "where inside", and with more than one component the
+	// reader needs "which one" first. Two components can carry the same path.
 	_, _ = fmt.Fprintln(w, "| Priority | Severity | Score | Rule | Control | Scanner | Component | Location |")
 	_, _ = fmt.Fprintln(w, "|---|---|---|---|---|---|---|---|")
 	shown := s.findings

@@ -11,15 +11,15 @@ import (
 
 // The HTML report carries its own data. A reader who wants to feed the findings into a
 // spreadsheet, a ticket tracker or another tool would otherwise have to go back to whoever ran
-// the scan and ask for the artifacts — and the HTML file is usually the only thing that
-// traveled, because it is the one you can open.
+// the scan and ask for the artifacts. And the HTML file is usually the only thing that traveled,
+// because it is the one you can open.
 //
 // Both downloads are `data:` URIs on ordinary <a download> links, so they work with JavaScript
 // disabled and under any content-security policy. That matters more here than the bytes it
 // costs: this file gets emailed, attached to a build, and opened from disk.
 
 // maxEmbeddedSARIF caps what will be inlined. A scan of a large monorepo can produce megabytes
-// of SARIF, and base64 adds a third again — past this the report says so and points at `-o`
+// of SARIF, and base64 adds a third again. Past this the report says so and points at `-o`
 // rather than producing a file too big to open.
 const maxEmbeddedSARIF = 8 << 20 // 8 MiB
 
@@ -87,12 +87,12 @@ func tsvSafe(v string) string {
 // dataURI builds the download link's href.
 //
 // The result is template.URL, which tells html/template to emit it verbatim. That bypasses the
-// contextual escaping that would otherwise reject a data: URI outright — a sensible default,
+// contextual escaping that would otherwise reject a data: URI outright, a sensible default,
 // since `data:text/html` in an href is a script-injection vector.
 //
 // It is safe here because nothing about the URI comes from the scan. The scheme and MIME type
 // are compile-time constants in this file, and the payload is base64, whose alphabet is letters,
-// digits, '+', '/' and '=' — it cannot contain a quote, an angle bracket, or anything else that
+// digits, '+', '/' and '='. It cannot contain a quote, an angle bracket, or anything else that
 // could end the attribute. Whatever a scanner put in a finding is inside the encoded blob, not
 // in the markup.
 func dataURI(mime, payload string) template.URL {

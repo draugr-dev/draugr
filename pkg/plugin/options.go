@@ -41,9 +41,9 @@ func Options(schema json.RawMessage) []Option {
 			Type        string `json:"type"`
 			Description string `json:"description"`
 			Enum        []any  `json:"enum"`
-			// Items carries an array option's element constraint. Without reading it, the accepted
-			// values of a list are lost — and a caller rendering the option shows none, while the
-			// validator still enforces them. The two disagreeing is the failure to avoid.
+			// Items carries an array option's element constraint. Without reading it, the accepted values
+			// of a list are lost, and a caller rendering the option shows none, while the validator still
+			// enforces them. The two disagreeing is the failure to avoid.
 			Items struct {
 				Enum []any `json:"enum"`
 			} `json:"items"`

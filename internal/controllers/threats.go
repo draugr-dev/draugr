@@ -17,7 +17,7 @@ const urlhausScannerName = "urlhaus"
 //
 // The other host controls examine something you run: its headers, its TLS, its responses to a
 // probe. This one examines what other people have already observed about it, which is the only
-// way to learn that your host is serving malware from a path you do not know exists — a scanner
+// way to learn that your host is serving malware from a path you do not know exists, a scanner
 // pointed at your own endpoint would never find it.
 //
 // Off by default, like every control, and for a sharper reason than most: running it tells a

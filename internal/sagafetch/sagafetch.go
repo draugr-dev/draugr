@@ -2,7 +2,7 @@
 //
 // It exists because pkg/saga cannot: fetching means git, git lives in internal/, and pkg/ does
 // not import internal/. So pkg/saga declares the seam (saga.Fetcher) and this supplies something
-// that can fill it — the same arrangement as sbom.Generator.
+// that can fill it, the same arrangement as sbom.Generator.
 package sagafetch
 
 import (
@@ -19,7 +19,7 @@ import (
 // revision within a run.
 //
 // Sharing matters more here than it looks. A monorepo's descriptor may name several fragments
-// from one platform repository, and each is a `path:` into the same tree — cloning once and
+// from one platform repository, and each is a `path:` into the same tree, cloning once and
 // expanding every pattern against it is the difference between one clone and five.
 type Fetcher struct {
 	pool *git.Pool
@@ -43,7 +43,7 @@ var _ saga.Fetcher = (*Fetcher)(nil)
 // Fetch returns a directory holding url at revision, and the commit it resolved to.
 //
 // Offline is refused rather than skipped. A fragment that cannot be fetched is scope the
-// descriptor claims and the run would not have — and a scan that quietly covers less than its
+// descriptor claims and the run would not have, and a scan that quietly covers less than its
 // descriptor says is the failure this tool exists to prevent, so it is worth failing the run.
 func (f *Fetcher) Fetch(url, revision string) (string, string, func(), error) {
 	if netpolicy.Offline() {

@@ -12,9 +12,9 @@ import (
 // and each finding is a failing <testcase>; a control with no findings emits one passing
 // testcase, so clean controls still show up green.
 //
-// The XML records every finding as a failure regardless of the gate's --fail-on threshold —
-// it is a faithful list of what was found. The overall build's pass/fail is still governed by
-// draugr's exit code, not this file.
+// The XML records every finding as a failure regardless of the gate's --fail-on threshold. It is
+// a faithful list of what was found. The overall build's pass/fail is still governed by draugr's
+// exit code, not this file.
 type junitReporter struct{}
 
 func (junitReporter) Format() string { return "junit" }
@@ -114,7 +114,7 @@ func (junitReporter) Render(w io.Writer, d Data) error {
 // junitFailureBody is what a test panel shows when someone opens a finding, so it carries the
 // one thing they are about to go looking for: where to read more.
 //
-// The URL goes on its own line, bare. A test panel is not a place to be clever with formatting —
+// The URL goes on its own line, bare. A test panel is not a place to be clever with formatting,
 // several of them linkify a bare URL, and the ones that do not leave something a reader can copy
 // rather than a CVE number they have to retype into a search engine.
 func junitFailureBody(f finding) string {

@@ -188,7 +188,7 @@ func TestNucleiScanErrors(t *testing.T) {
 // templatesPresent is what `nuclei -templates-version` prints when a template set is installed.
 const templatesPresent = "[INF] Public nuclei-templates version: v10.4.6 (/home/u/nuclei-templates)\n"
 
-// templatesAbsent is the same line with the version blank — what it prints when there are none.
+// templatesAbsent is the same line with the version blank, what it prints when there are none.
 // Nuclei exits 0 for both, which is why the warm step cannot trust the exit code.
 const templatesAbsent = "[INF] Public nuclei-templates version:  (/home/u/nuclei-templates)\n"
 
@@ -347,7 +347,7 @@ func TestNucleiCredentialNeverReachesArgv(t *testing.T) {
 	if i < 0 || i == len(argv)-1 {
 		t.Fatalf("no -H pointing at a header file: %v", argv)
 	}
-	// The file is gone by now — Scan removes it — so the check is that a path was passed, not the
+	// The file is gone by now, Scan removes it. So the check is that a path was passed, not the
 	// header itself.
 	if strings.Contains(argv[i+1], ":") {
 		t.Errorf("-H was given a header rather than a path: %q", argv[i+1])
@@ -364,7 +364,7 @@ func TestNucleiHeaderFileIsPrivateAndRemoved(t *testing.T) {
 		t.Fatal(err)
 	}
 	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("header file mode = %o, want 600 — it holds a credential", perm)
+		t.Errorf("header file mode = %o, want 600, it holds a credential", perm)
 	}
 	body, err := os.ReadFile(path) // #nosec G304 -- a path this test just created
 	if err != nil {

@@ -75,7 +75,7 @@ func TestVEXUndeclaredSuppressionIsAffectedNotNotAffected(t *testing.T) {
 
 	st := doc.Statements[0]
 	if st.Status != saga.VEXAffected {
-		t.Fatalf("status = %q, want %q — an undeclared suppression must not claim safety", st.Status, saga.VEXAffected)
+		t.Fatalf("status = %q, want %q, an undeclared suppression must not claim safety", st.Status, saga.VEXAffected)
 	}
 	if st.ActionStatement != "Not reachable in our configuration." {
 		t.Errorf("action_statement = %q, want the exclusion's reason", st.ActionStatement)
@@ -139,7 +139,7 @@ func TestVEXFixedStatus(t *testing.T) {
 }
 
 // A VEX document about a product cannot say two things about one CVE, so instances have to
-// resolve — and they resolve toward exposure, never away from it.
+// resolve, and they resolve toward exposure, never away from it.
 func TestVEXConflictingInstancesResolveToTheStrongestClaim(t *testing.T) {
 	notAffected := &sarif.Suppression{
 		Kind: "external", Justification: "not used here", VEXStatus: saga.VEXNotAffected,
@@ -164,7 +164,7 @@ func TestVEXConflictingInstancesResolveToTheStrongestClaim(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			doc := buildVEX(vexData(tc.a, tc.b))
 			if len(doc.Statements) != 1 {
-				t.Fatalf("statements = %d, want 1 — one CVE is one statement", len(doc.Statements))
+				t.Fatalf("statements = %d, want 1, one CVE is one statement", len(doc.Statements))
 			}
 			if got := doc.Statements[0].Status; got != tc.want {
 				t.Errorf("status = %q, want %q", got, tc.want)
@@ -233,7 +233,7 @@ func TestVEXProductOmitsAnEmptyVersion(t *testing.T) {
 }
 
 // A VEX file belongs in version control, which only works if re-rendering an unchanged run gives
-// unchanged bytes — otherwise every regeneration is a diff and nobody reads them.
+// unchanged bytes. Otherwise every regeneration is a diff and nobody reads them.
 func TestVEXRenderIsDeterministic(t *testing.T) {
 	d := vexData(
 		vexResult("CVE-2024-0002", nil),
@@ -301,8 +301,8 @@ func TestVEXIsRegisteredAndNamed(t *testing.T) {
 }
 
 // A VEX statement is about a *version* of a product, so a product string with the version baked
-// into it keeps claiming the old one after the release moves on — silently, in a signed
-// document. A purl that omits the version cannot drift.
+// into it keeps claiming the old one after the release moves on, silently, in a signed document.
+// A purl that omits the version cannot drift.
 func TestVEXProductTracksTheReleaseVersion(t *testing.T) {
 	d := vexData(vexResult("CVE-2024-0001", nil))
 	d.VEX = &saga.VEXConfig{Product: "pkg:oci/acme/api"}
@@ -311,7 +311,7 @@ func TestVEXProductTracksTheReleaseVersion(t *testing.T) {
 	}
 }
 
-// A version somebody wrote is a decision, not an oversight — pinning to a digest is better
+// A version somebody wrote is a decision, not an oversight. Pinning to a digest is better
 // practice than pinning to a tag, and it lives in exactly that position.
 func TestVEXProductKeepsAnExplicitVersion(t *testing.T) {
 	for _, pinned := range []string{

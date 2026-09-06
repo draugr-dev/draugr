@@ -6,7 +6,7 @@ import (
 )
 
 // An exclusion accepted "until the upstream fix lands" has nothing that brings the finding back,
-// so temporary ones become permanent by default — which is how a suppression mechanism decays
+// so temporary ones become permanent by default. Which is how a suppression mechanism decays
 // into a way of never seeing something again.
 func TestExcludeRuleExpiredOn(t *testing.T) {
 	t.Parallel()

@@ -9,7 +9,7 @@ func TestSetPreservesComments(t *testing.T) {
 	// The whole reason this edits a node tree. A `config set` that deleted the explanation
 	// somebody wrote beside a pin teaches people not to use it, and they go back to hand-editing
 	// the file the command exists to keep valid.
-	doc := `# Our pinned toolchain — do not bump without the platform team.
+	doc := `# Our pinned toolchain. Do not bump without the platform team.
 tools:
   # Trivy 0.69 is the last release verified against our air-gapped mirror.
   trivy:
@@ -20,7 +20,7 @@ tools:
 		t.Fatal(err)
 	}
 	got := string(out)
-	for _, want := range []string{"do not bump without the platform team", "air-gapped mirror"} {
+	for _, want := range []string{"Do not bump without the platform team", "air-gapped mirror"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("comment lost:\n%s", got)
 		}

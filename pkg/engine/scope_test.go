@@ -31,7 +31,7 @@ func TestScopeZeroValueScansEverything(t *testing.T) {
 }
 
 func TestScopeRestrictsOneAxisAtATime(t *testing.T) {
-	// An empty list means "no restriction on this axis", not "nothing" — so naming components
+	// An empty list means "no restriction on this axis", not "nothing". So naming components
 	// runs every control against them, and naming controls runs them against every component.
 	s := Scope{Components: []string{"app"}}
 	if !s.includesControl("dast") {
@@ -51,7 +51,7 @@ func TestScopeRestrictsOneAxisAtATime(t *testing.T) {
 }
 
 func TestScopeValidateRejectsAMisspelling(t *testing.T) {
-	// The failure this exists for. A name matching nothing scans nothing and passes — the "we
+	// The failure this exists for. A name matching nothing scans nothing and passes. The "we
 	// did not look" verdict a scope is otherwise careful not to produce, reached by typo.
 	s := Scope{Components: []string{"frontnd"}, Controls: []string{"scaa"}}
 	err := s.Validate(threeComponents(), []string{"sca", "secrets"})
@@ -79,7 +79,7 @@ func TestScopeValidateAcceptsWhatExists(t *testing.T) {
 }
 
 func TestScopeResolveNamesWhatWasLeftOut(t *testing.T) {
-	// Two components named out of three, so the skipped list is neither empty nor everything —
+	// Two components named out of three, so the skipped list is neither empty nor everything,
 	// with one component either way, an implementation that returned the wrong set would look
 	// right.
 	s := Scope{Components: []string{"app"}}.Resolve(threeComponents())
@@ -91,7 +91,7 @@ func TestScopeResolveNamesWhatWasLeftOut(t *testing.T) {
 		{Name: "zeta"}, {Name: "frontend"}, {Name: "alpha"},
 	}})
 	if want := []string{"zeta", "alpha"}; !slices.Equal(s.SkippedComponents, want) {
-		t.Errorf("got %q, want %q — declaration order", s.SkippedComponents, want)
+		t.Errorf("got %q, want %q, declaration order", s.SkippedComponents, want)
 	}
 }
 

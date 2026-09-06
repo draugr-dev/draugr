@@ -12,7 +12,7 @@ import (
 //
 // The two that mattered most were silent. A VEX document published with no author is one a
 // consumer with a question cannot ask anybody about, and a product identifier of
-// "pkg:generic/@2.4.0" is not a package URL at all — it is read, understood, and applied to
+// "pkg:generic/@2.4.0" is not a package URL at all. It is read, understood, and applied to
 // nothing, which is the failure mode the schema reference warns about for this exact field.
 func TestEveryReportNamesTheProject(t *testing.T) {
 	d := Data{Project: "acme-api", Release: saga.Release{Version: "2.4.0"}}
@@ -21,7 +21,7 @@ func TestEveryReportNamesTheProject(t *testing.T) {
 		t.Fatalf("ProjectName() = %q", got)
 	}
 	if got := vexAuthor(d); got != "acme-api" {
-		t.Errorf("vexAuthor = %q, want the project — a document with no author is one nobody can "+
+		t.Errorf("vexAuthor = %q, want the project, a document with no author is one nobody can "+
 			"be asked about", got)
 	}
 	if got := vexProductID(d); got != "pkg:generic/acme-api@2.4.0" {

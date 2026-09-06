@@ -97,7 +97,7 @@ func mapOf(v any) map[string]any {
 
 // agentConfig renders the Unified Agent configuration for one scan.
 //
-// Draugr supplies only what it owns — the exclusions implied by the component's scope — and the
+// Draugr supplies only what it owns, the exclusions implied by the component's scope. And the
 // operator's settings are written after, so a descriptor can override anything here.
 func (s mendSettings2) agentConfig() string {
 	var b strings.Builder

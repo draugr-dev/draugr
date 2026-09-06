@@ -29,8 +29,8 @@ func draugrBin(t *testing.T) string {
 }
 
 // TestScanImageWithRealTrivy runs the built `draugr scan` end-to-end against a fixture Saga
-// that scans a pinned, deliberately-old image with a real Trivy. It proves the whole path —
-// CLI → engine → the tool adapter exec'ing Trivy → SARIF normalization → artifact writing —
+// that scans a pinned, deliberately-old image with a real Trivy. It proves the whole path,
+// CLI → engine → the tool adapter exec'ing Trivy → SARIF normalization → artifact writing,
 // which unit tests only cover with a stubbed tool runner.
 func TestScanImageWithRealTrivy(t *testing.T) {
 	requireTool(t, "trivy", "the point of this test is the real tool adapter exec'ing a real Trivy")
@@ -75,7 +75,7 @@ func TestScanImageWithRealTrivy(t *testing.T) {
 
 	// The facts a container finding is made of, read back from the file rather than from the run
 	// that produced it. Unit tests parse recorded output; only this proves the fields survive a
-	// real Trivy, a real scan and a real write — and the SARIF is what every platform format and
+	// real Trivy, a real scan and a real write. And the SARIF is what every platform format and
 	// `draugr diff` re-read, so a field lost here is lost everywhere downstream.
 	var withOS int
 	for _, res := range report.Results {

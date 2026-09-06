@@ -228,7 +228,7 @@ func TestDetectFindsDataOnDisk(t *testing.T) {
 	run := func(context.Context, []string) ([]byte, error) { return []byte("0.15.6"), nil }
 	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/kb", nil }, run)
 	if !st.DataChecked || !st.DataFound {
-		t.Fatalf("checked=%v found=%v — the second path exists", st.DataChecked, st.DataFound)
+		t.Fatalf("checked=%v found=%v, the second path exists", st.DataChecked, st.DataFound)
 	}
 	if st.DataDetail != cfg {
 		t.Errorf("detail = %q, want the path that matched", st.DataDetail)
@@ -244,7 +244,7 @@ func TestDetectReportsDataMissingOnDisk(t *testing.T) {
 	run := func(context.Context, []string) ([]byte, error) { return []byte("0.15.6"), nil }
 	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/kb", nil }, run)
 	if !st.DataChecked || st.DataFound {
-		t.Errorf("checked=%v found=%v — nothing is there", st.DataChecked, st.DataFound)
+		t.Errorf("checked=%v found=%v, nothing is there", st.DataChecked, st.DataFound)
 	}
 }
 

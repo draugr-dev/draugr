@@ -170,12 +170,12 @@ func TestValidateSBOMFormat(t *testing.T) {
 			t.Errorf("format %q should validate: %v", f, err)
 		}
 	}
-	// Empty means "the default", which callers resolve — it must not be rejected here.
+	// Empty means "the default", which callers resolve. It must not be rejected here.
 	if err := base("").Validate(); err != nil {
 		t.Errorf("an unset format should validate: %v", err)
 	}
-	// syft-json is a real Syft format we deliberately don't offer — vendor-specific rather than
-	// an interchange standard — so it has to be rejected, not quietly passed through to Syft.
+	// syft-json is a real Syft format we deliberately don't offer, vendor-specific rather than an
+	// interchange standard. So it has to be rejected, not quietly passed through to Syft.
 	err := base("syft-json").Validate()
 	if err == nil {
 		t.Fatal("want an error for an unsupported format")
@@ -271,7 +271,7 @@ func TestExcludeRuleWildcards(t *testing.T) {
 		{"*/somelib/*", lic, true},     // wildcard on both sides
 		{"license/*/thing", lic, true}, // suffix anchored
 		{"license/*/other", lic, false},
-		// Existing exact ids keep working — no scanner emits a literal `*`.
+		// Existing exact ids keep working, no scanner emits a literal `*`.
 		{"private-key", "private-key", true},
 		{"private-key", "aws-key", false},
 		{"CVE-2019-*", "CVE-2019-20477", true},
@@ -381,10 +381,10 @@ func TestValidateRejectsUnusableControllerKeys(t *testing.T) {
 // removedControllerKeys is empty today, so the mechanism is exercised with an entry of its own
 // rather than with whatever legacy happens to be listed.
 //
-// It exists for the setting whose replacement is a different shape rather than a new name — the
-// "no such scanner key" error can list what a control accepts, but it cannot explain that one
-// setting became three blocks. Untested, an empty map is indistinguishable from a dead one, and
-// the day it is needed is not the day to find out it stopped working.
+// It exists for the setting whose replacement is a different shape rather than a new name, the "no
+// such scanner key" error can list what a control accepts, but it cannot explain that one setting
+// became three blocks. Untested, an empty map is indistinguishable from a dead one, and the day it
+// is needed is not the day to find out it stopped working.
 func TestRemovedControllerKeysExplainTheReplacement(t *testing.T) {
 	removedControllerKeys["infrastructure"] = map[string]string{
 		"mode": "per-scanner blocks: `kubeBenchJob: { enabled: true }`",
@@ -547,7 +547,7 @@ func TestValidateReportMinPriority(t *testing.T) {
 }
 
 // TestValidateHostAuth covers the block whose whole purpose is that a credential cannot be written
-// into a committed file — so every way of getting it wrong has to be caught at load.
+// into a committed file, so every way of getting it wrong has to be caught at load.
 func TestValidateHostAuth(t *testing.T) {
 	for _, c := range []struct {
 		name string

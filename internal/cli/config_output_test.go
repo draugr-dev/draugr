@@ -18,9 +18,9 @@ func TestOutputOptionsFromLetsFlagsWin(t *testing.T) {
 		t.Errorf("the configured preferences were not applied: %+v", opts)
 	}
 
-	// Typed: the command line decides, including when what was typed is the zero value. A typed
-	// flag cannot be told from an untyped one by its value, which is why the check is whether it
-	// was typed — `--top 0` means show everything, and a configured cap must not override it.
+	// Typed: the command line decides, including when what was typed is the zero value. A typed flag
+	// cannot be told from an untyped one by its value, which is why the check is whether it was
+	// typed. `--top 0` means show everything, and a configured cap must not override it.
 	typed := scanOptions{
 		group:    "action",
 		top:      0,

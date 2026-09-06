@@ -298,7 +298,7 @@ func TestConfigShowReachesEveryField(t *testing.T) {
 			continue
 		}
 		if !shown[name] {
-			t.Errorf("`config show` never prints anything under %q — a setting there reads as "+
+			t.Errorf("`config show` never prints anything under %q, a setting there reads as "+
 				"'they set nothing', which is the opposite of true", name)
 		}
 	}
@@ -323,8 +323,8 @@ func fillConfig(t *testing.T, v reflect.Value) {
 		case reflect.Struct:
 			fillConfig(t, val)
 		case reflect.Interface, reflect.Map:
-			// ControllerSettings is map[string]any, so there is no typed shape to walk — a
-			// synthetic nested value stands in for the free-form tree a real one holds.
+			// ControllerSettings is map[string]any, so there is no typed shape to walk, a synthetic
+			// nested value stands in for the free-form tree a real one holds.
 			val.Set(reflect.ValueOf(map[string]any{"scanner": map[string]any{"key": "value"}}))
 		default:
 			fillConfig(t, val)

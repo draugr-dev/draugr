@@ -20,7 +20,7 @@ const maxFragmentDepth = 8
 // Source is one file that contributed to a resolved descriptor.
 //
 // Kept beside the merged Model rather than folded into it, so a report can say where each part
-// came from. Splitting a descriptor is only safe if the result is still answerable — a suppression
+// came from. Splitting a descriptor is only safe if the result is still answerable. A suppression
 // nobody can trace to a file is worse than one in a long file.
 type Source struct {
 	// Path is the file, as written in the descriptor that named it (or the root's own path).
@@ -167,9 +167,9 @@ func (r *resolver) mergeFrom(model *Model, ref FragmentRef, dir string, src Sour
 	if err != nil {
 		return fmt.Errorf("fragments: %w", err)
 	}
-	// A pattern that matches nothing is a descriptor scanning less than it claims. Somebody wrote
-	// the line on purpose, so silence from it is indistinguishable from a typo — and a quietly
-	// smaller scan is the failure this tool exists to prevent.
+	// A pattern that matches nothing is a descriptor scanning less than it claims. Somebody wrote the
+	// line on purpose, so silence from it is indistinguishable from a typo, and a quietly smaller
+	// scan is the failure this tool exists to prevent.
 	if len(matches) == 0 {
 		return fmt.Errorf("fragments: %q matched no files, "+
 			"remove the entry if this product has none, or fix the pattern", ref)
@@ -181,8 +181,8 @@ func (r *resolver) mergeFrom(model *Model, ref FragmentRef, dir string, src Sour
 			key = abs
 		}
 		if ref.Remote() {
-			// A remote fragment's identity is the repository and revision it came from, not the
-			// temporary directory it was cloned into — which differs on every run.
+			// A remote fragment's identity is the repository and revision it came from, not the temporary
+			// directory it was cloned into. Which differs on every run.
 			key = ref.URL + "@" + src.Resolved + "/" + rel
 		}
 		if r.seen[key] {
@@ -224,8 +224,8 @@ func stampExclusions(rules []ExcludeRule, source string) {
 
 // Merge folds a fragment into a model: components by name, exclusions appended.
 //
-// Components upsert and union rather than replace, so two fragments describing one component —
-// a shared one naming its repository and a per-product one adding its image — end up as a single
+// Components upsert and union rather than replace, so two fragments describing one component, a
+// shared one naming its repository and a per-product one adding its image, end up as a single
 // component with both. That is the same merge a Surveyor's fragment goes through.
 func Merge(model *Model, frag Fragment) {
 	for _, comp := range frag.Components {

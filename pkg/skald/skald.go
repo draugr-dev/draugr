@@ -1,5 +1,5 @@
 // Package skald renders scan results and verdicts into evidence: a JSON summary and
-// merged SARIF. A skald is the poet who records deeds — here, the record of a scan.
+// merged SARIF. A skald is the poet who records deeds, here, the record of a scan.
 package skald
 
 import (
@@ -32,10 +32,10 @@ type jsonReport struct {
 	// rest of the document looks the same either way.
 	Scope    *scopeInfo      `json:"scope,omitempty"`
 	Controls []controlReport `json:"controls"`
-	// NotMeasured names a scanner that was planned and then not run because it could not answer
-	// the question its target asked. Distinct from an error: nothing went wrong, and the run is
-	// not incomplete — but a scanner that quietly did not run is indistinguishable, in the rest
-	// of this document, from one that ran and found nothing.
+	// NotMeasured names a scanner that was planned and then not run because it could not answer the
+	// question its target asked. Distinct from an error: nothing went wrong, and the run is not
+	// incomplete, but a scanner that quietly did not run is indistinguishable, in the rest of this
+	// document, from one that ran and found nothing.
 	NotMeasured []notMeasuredReport `json:"notMeasured,omitempty"`
 	Priorities  *priorityCounts     `json:"priorities,omitempty"`
 	// Exploitability names the datasets that enriched this run's severities, so a report can
@@ -44,14 +44,14 @@ type jsonReport struct {
 	// Reachability summarizes what reachability analysis concluded, so a consumer can see the
 	// analysis ran and how much of it landed. Absent when none ran.
 	Reachability *reachabilityInfo `json:"reachability,omitempty"`
-	// Repositories is which repository was read and at which commit — what makes the report
+	// Repositories is which repository was read and at which commit. What makes the report
 	// reproducible, and the answer to "does this describe my change or last week's".
 	Repositories []sarif.RepositoryRef `json:"repositories,omitempty"`
 	// Descriptor is the Saga that turned a repository into this set of checks.
 	//
-	// Without it the report says what was found and never what was asked for, so "why did this
-	// run cover sca and not images" has no answer from the artifact — and an exclusion that
-	// suppressed a finding came from a file nobody can name.
+	// Without it the report says what was found and never what was asked for, so "why did this run
+	// cover sca and not images" has no answer from the artifact, and an exclusion that suppressed a
+	// finding came from a file nobody can name.
 	Descriptor *DescriptorRef `json:"descriptor,omitempty"`
 	// CI is the job this scan ran in. Absent outside CI, and absent rather than guessed on a
 	// platform Draugr does not recognize.
@@ -126,14 +126,14 @@ type DescriptorRef struct {
 	Digest string `json:"digest,omitempty"`
 	// Sources are the files it was assembled from, root first.
 	Sources []DescriptorSource `json:"sources,omitempty"`
-	// Effective is the merged, environment-substituted descriptor as YAML — the same bytes Digest
-	// is taken over.
+	// Effective is the merged, environment-substituted descriptor as YAML. The same bytes Digest is
+	// taken over.
 	//
 	// Sent because a digest is worth nothing to somebody who cannot reproduce it, and because the
 	// question a reader actually has is "what did this run apply", which no list of filenames
 	// answers. It holds less than the report beside it: the findings, their locations and every
 	// suppression's reason and accepter are already in that, and a descriptor never carries a
-	// credential — the schema has no field for one, only for the name of a variable.
+	// credential. The schema has no field for one, only for the name of a variable.
 	//
 	// A few kilobytes against a report that is already larger.
 	Effective string `json:"effective,omitempty"`
@@ -143,9 +143,9 @@ type DescriptorRef struct {
 type DescriptorSource struct {
 	// Path is the file as the descriptor that named it wrote it.
 	Path string `json:"path,omitempty"`
-	// URL, Revision and Resolved locate a fragment fetched from another repository. Revision is
-	// what was asked for and Resolved is the commit that turned out to be — a branch moves, so
-	// only the second makes the run reproducible.
+	// URL, Revision and Resolved locate a fragment fetched from another repository. Revision is what
+	// was asked for and Resolved is the commit that turned out to be, a branch moves, so only the
+	// second makes the run reproducible.
 	URL      string `json:"url,omitempty"`
 	Revision string `json:"revision,omitempty"`
 	Resolved string `json:"resolved,omitempty"`
@@ -157,7 +157,7 @@ type DescriptorSource struct {
 }
 
 // DescriptorFrom renders a resolution as the report's descriptor block, or nil when there was
-// none — a scan driven entirely from flags has no descriptor to record, and an empty block would
+// none, a scan driven entirely from flags has no descriptor to record, and an empty block would
 // claim otherwise.
 func DescriptorFrom(res *saga.Resolved) *DescriptorRef {
 	if res == nil || len(res.Sources) == 0 {
@@ -205,11 +205,11 @@ type controlReport struct {
 	Total           int    `json:"total"`
 	// ScanErrors are what stopped this control finishing, in the scanner's own words.
 	//
-	// Present is the whole signal; there is no separate flag saying so. A run that failed because
-	// a scanner never started and one that failed on what it found are the same `fail` above, and
-	// they call for different things — the first is a broken pipeline, the second is work. When
-	// this is set the counts describe what the scanners that did run found, which is not the same
-	// as what is there.
+	// Present is the whole signal; there is no separate flag saying so. A run that failed because a
+	// scanner never started and one that failed on what it found are the same `fail` above, and they
+	// call for different things. The first is a broken pipeline, the second is work. When this is set
+	// the counts describe what the scanners that did run found, which is not the same as what is
+	// there.
 	ScanErrors []string `json:"scanErrors,omitempty"`
 }
 
@@ -246,9 +246,9 @@ type statsInfo struct {
 	// concurrently, so the parts add up to more than the whole. The sum is what identifies the
 	// control worth looking at; the wall-clock is what the person waited.
 	//
-	// Omitted rather than zero when the engine did not record them. Zero milliseconds is a claim
-	// that a run took no time, which is never true — unlike `cacheHits: 0`, where zero is a
-	// measurement and belongs in the document.
+	// Omitted rather than zero when the engine did not record them. Zero milliseconds is a claim that
+	// a run took no time, which is never true, unlike `cacheHits: 0`, where zero is a measurement and
+	// belongs in the document.
 	DurationMs  int64            `json:"durationMs,omitempty"`
 	ByControlMs map[string]int64 `json:"byControlMs,omitempty"`
 	ToolWaitsMs map[string]int64 `json:"toolWaitsMs,omitempty"`
@@ -294,8 +294,8 @@ func RenderJSONWith(w io.Writer, release saga.Release, run engine.Result, verdic
 // RenderJSONWithFeeds is RenderJSONWith plus the exploitability datasets the run used.
 //
 // Deprecated: use RenderJSONFor, which carries the project. This one emits a document naming no
-// project at all — a platform files it under nothing, and there is no longer a release name for
-// one to fall back to.
+// project at all, a platform files it under nothing, and there is no longer a release name for one
+// to fall back to.
 func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions) error {
 	return RenderJSONFor(w, "", release, run, verdict, minPriority, feeds, opts, Provenance{})
 }
@@ -341,9 +341,9 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		})
 	}
 	// A control that produced nothing at all has no outcome to attach to, so listing only the
-	// outcomes drops it entirely — and a consumer counting controls sees a shorter list rather
-	// than a failure. That is the whole complaint this document exists to answer, so it is
-	// listed with the counts it truly has: none.
+	// outcomes drops it entirely, and a consumer counting controls sees a shorter list rather than a
+	// failure. That is the whole complaint this document exists to answer, so it is listed with the
+	// counts it truly has: none.
 	for _, name := range sortedControls(run.ScanErrors) {
 		if seen[name] {
 			continue
@@ -489,10 +489,10 @@ func MergedSARIF(run engine.Result) sarif.Report {
 		reports = append(reports, rep)
 	}
 	merged := sarif.Merge(reports...)
-	// A scoped run stamps what it covered. SARIF carries the results and nothing about what was
-	// not looked at, so without this a scan of one component and a scan of twelve are
-	// indistinguishable to any consumer that reloads the file — and the one that matters,
-	// `draugr diff`, would read every unscanned finding as fixed.
+	// A scoped run stamps what it covered. SARIF carries the results and nothing about what was not
+	// looked at, so without this a scan of one component and a scan of twelve are indistinguishable
+	// to any consumer that reloads the file, and the one that matters, `draugr diff`, would read
+	// every unscanned finding as fixed.
 	if prov, ok := ScopeProvenance(run.Scope); ok {
 		merged.Provenance = append(merged.Provenance, prov)
 	}
@@ -532,7 +532,7 @@ const MinPriorityProvenanceTool = "draugr/min-priority"
 // whether there was one to render.
 //
 // The same carrier and the same reason as a scope: a run states what it left out, not only what it
-// found. And the same hazard if it does not — a narrowed file and a complete one are
+// found. And the same hazard if it does not, a narrowed file and a complete one are
 // indistinguishable to anything that reloads them, so `draugr diff` would read every finding below
 // the band as fixed.
 func MinPriorityProvenance(band string) (sarif.Provenance, bool) {
@@ -590,10 +590,10 @@ func WriteSARIFWith(w io.Writer, run engine.Result, opts sarif.MarshalOptions) e
 
 // WriteSARIFNarrowed writes a SARIF report that says which priority band it was narrowed to.
 //
-// The caller has already dropped the findings below the band; what this adds is the statement
-// that it did. A file that is a subset and does not say so is the failure this whole provenance
-// mechanism exists to prevent — most sharply for `draugr diff`, which would otherwise report
-// every omitted finding as fixed.
+// The caller has already dropped the findings below the band; what this adds is the statement that
+// it did. A file that is a subset and does not say so is the failure this whole provenance
+// mechanism exists to prevent, most sharply for `draugr diff`, which would otherwise report every
+// omitted finding as fixed.
 func WriteSARIFNarrowed(w io.Writer, run engine.Result, band string, opts sarif.MarshalOptions) error {
 	merged := MergedSARIF(run)
 	if prov, ok := MinPriorityProvenance(band); ok {

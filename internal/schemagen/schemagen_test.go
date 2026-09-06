@@ -47,7 +47,7 @@ func TestCheckedInSchemaIsUpToDate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(current) != string(regenerated) {
-		t.Error("the checked-in schema is not what the registry would generate — run `go generate ./pkg/saga/...`\n" +
+		t.Error("the checked-in schema is not what the registry would generate. Run `go generate ./pkg/saga/...`\n" +
 			"This is the drift that let the schema fall two controls behind the registry: an editor " +
 			"rejected descriptors Draugr accepted, including Draugr's own self-scan.")
 	}
@@ -83,7 +83,7 @@ func TestSchemaListsEveryRegisteredControl(t *testing.T) {
 		registered[info.Name] = true
 		desc, ok := inSchema[info.Name]
 		if !ok {
-			t.Errorf("control %q is registered but absent from the schema — an editor will reject "+
+			t.Errorf("control %q is registered but absent from the schema, an editor will reject "+
 				"a descriptor that enables it", info.Name)
 			continue
 		}
@@ -95,7 +95,7 @@ func TestSchemaListsEveryRegisteredControl(t *testing.T) {
 	}
 	for name := range inSchema {
 		if !registered[name] {
-			t.Errorf("schema offers control %q, which no controller serves — autocompleting a name "+
+			t.Errorf("schema offers control %q, which no controller serves, autocompleting a name "+
 				"that fails at scan time is worse than not offering it", name)
 		}
 	}
@@ -139,7 +139,7 @@ func TestEmbeddedSchemaMatchesTheFileOnDisk(t *testing.T) {
 
 func TestSchemaAllowsEveryEffectKind(t *testing.T) {
 	// An enum written out beside the taxonomy drifts from it the moment a kind is added, and the
-	// schema then rejects a value the binary accepts — an editor disagreeing with Draugr about a
+	// schema then rejects a value the binary accepts, an editor disagreeing with Draugr about a
 	// descriptor that is valid. Same failure the generated control names exist to prevent.
 	data, err := os.ReadFile(schemaPath())
 	if err != nil {
@@ -183,8 +183,8 @@ func TestSchemaAllowsEveryEffectKind(t *testing.T) {
 }
 
 // The fragment schema is derived from the Saga's, so it can only be right if it is regenerated
-// whenever that one changes. Drift here shows up as an editor rejecting a fragment Draugr
-// accepts — the same class of problem the Saga's own guard exists to catch.
+// whenever that one changes. Drift here shows up as an editor rejecting a fragment Draugr accepts,
+// the same class of problem the Saga's own guard exists to catch.
 func TestCheckedInFragmentSchemaIsUpToDate(t *testing.T) {
 	saga, err := os.ReadFile(schemaPath())
 	if err != nil {
@@ -203,7 +203,7 @@ func TestCheckedInFragmentSchemaIsUpToDate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(got) != string(want) {
-		t.Error("the checked-in fragment schema is not what the generator would produce — " +
+		t.Error("the checked-in fragment schema is not what the generator would produce, " +
 			"run `go generate ./pkg/saga/...`")
 	}
 }
@@ -230,7 +230,7 @@ func TestSchemaCompletesScannerBlocks(t *testing.T) {
 	}
 
 	// The option list has to come from the scanner's own schema, or what an editor offers and what
-	// the engine accepts drift — and the drift surfaces as a rejected descriptor, not a warning.
+	// the engine accepts drift, and the drift surfaces as a rejected descriptor, not a warning.
 	gosec := props["gosec"].(map[string]any)["properties"].(map[string]any)
 	for _, opt := range []string{"enabled", "include", "exclude", "tags"} {
 		if _, ok := gosec[opt]; !ok {
@@ -323,8 +323,8 @@ func enumAt(t *testing.T, path ...string) []string {
 // quiet: an editor marks a descriptor red that Draugr loads without complaint, or accepts one it
 // rejects. Nothing else notices, because the schema is a data file that no Go code reads.
 //
-// The generated parts already have this guarantee — see the fragment and registry tests above.
-// This is the same guarantee for the parts a person maintains, which are the ones that drift.
+// The generated parts already have this guarantee. See the fragment and registry tests above. This
+// is the same guarantee for the parts a person maintains, which are the ones that drift.
 func TestHandWrittenEnumsMatchTheirSource(t *testing.T) {
 	t.Parallel()
 

@@ -177,7 +177,7 @@ func TestTLSProbeDeprecatedProtocols(t *testing.T) {
 	}
 }
 
-// A server that refuses TLS 1.2+ but accepts a legacy version is the worst case — it must be a
+// A server that refuses TLS 1.2+ but accepts a legacy version is the worst case. It must be a
 // finding, not a scan error.
 func TestTLSProbeOnlyLegacyProtocols(t *testing.T) {
 	cert := makeCert(t, testNow.Add(90*24*time.Hour), x509.SHA256WithRSA, rsaKey(t, 2048))

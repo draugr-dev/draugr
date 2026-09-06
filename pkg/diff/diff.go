@@ -1,6 +1,6 @@
 // Package diff compares two Draugr scan results and classifies every finding as new, fixed, or
-// unchanged — the security delta of a change (typically a PR's head vs the base branch). It
-// powers `draugr diff` and its differential gate ("fail only on findings this change introduces").
+// unchanged, the security delta of a change (typically a PR's head vs the base branch). It powers
+// `draugr diff` and its differential gate ("fail only on findings this change introduces").
 //
 // Inputs are SARIF reports (the results.sarif that `draugr scan -o` writes): SARIF is Draugr's
 // complete, structured result currency, whereas the JSON summary can be trimmed by --min-priority.
@@ -27,8 +27,8 @@ type Result struct {
 	// live with it. That decision is the change most worth a second pair of eyes, and it used to
 	// read as good news.
 	Accepted []sarif.Result
-	// Reopened is a finding that was excused in the base and counts again in the head — an
-	// exclusion removed, or one that reached its expiry date.
+	// Reopened is a finding that was excused in the base and counts again in the head, an exclusion
+	// removed, or one that reached its expiry date.
 	//
 	// Distinct from New because nobody introduced it. It was known, it was accepted, and the
 	// acceptance ran out; reporting it as a fresh discovery loses the part somebody needs to act
@@ -39,14 +39,14 @@ type Result struct {
 	//
 	// A diff that keeps only results keeps only identifiers. `CVE-2018-1000656` in a table is a
 	// string to copy into a search box, and the same id uploaded to code scanning arrives with no
-	// description and whatever link can be guessed from its shape — while the scanner that found
-	// it published both. Keeping the rules is what lets a reader click the finding instead of
-	// looking it up.
+	// description and whatever link can be guessed from its shape, while the scanner that found it
+	// published both. Keeping the rules is what lets a reader click the finding instead of looking it
+	// up.
 	Rules map[string]sarif.Rule
 }
 
 // HelpURI is where a reader can look up a rule: what the scanner published, or a URL derived from
-// a well-known identifier scheme. Empty when neither applies — a wrong link is worse than none.
+// a well-known identifier scheme. Empty when neither applies. A wrong link is worse than none.
 func (r Result) HelpURI(ruleID string) string {
 	return sarif.Report{Rules: r.Rules}.HelpURI(ruleID)
 }
@@ -65,11 +65,10 @@ func Compare(base, head sarif.Report) Result {
 		was, inBase := baseIdx[k]
 		switch {
 		case res.Suppressed() && (!inBase || !was.Suppressed()):
-			// Excused in this change: either somebody wrote a rule for a finding that was
-			// counting, or a finding arrived that an existing rule already covers. Both are a
-			// decision to live with something, and the second is the one with nothing else to
-			// announce it — no line moved, no count rose, and a reader is told a finding arrived
-			// only if this says so.
+			// Excused in this change: either somebody wrote a rule for a finding that was counting, or a
+			// finding arrived that an existing rule already covers. Both are a decision to live with
+			// something, and the second is the one with nothing else to announce it, no line moved, no
+			// count rose, and a reader is told a finding arrived only if this says so.
 			r.Accepted = append(r.Accepted, res)
 		case res.Suppressed():
 			// Suppressed in both. The decision did not change, so neither did anything.
@@ -122,11 +121,11 @@ func index(results []sarif.Result) map[string]sarif.Result {
 // underlying issue). For CVE findings (SCA/images) the ruleID is the CVE and the URI is the
 // package/image, so this is stable; for SAST it keys on rule + file + message.
 func identity(r sarif.Result) string {
-	// Component and repository are included for the opposite reason line and level are not: they
-	// do not drift, they are the subject. The same flaw at the same line in two components is two
-	// findings carrying two classifications, so one can be P1 and the other P4; the same file in
-	// two repositories is two projects to fix. Keyed without them, a diff keeps whichever it saw
-	// first and reports the other as neither new nor fixed — it simply is not there.
+	// Component and repository are included for the opposite reason line and level are not: they do
+	// not drift, they are the subject. The same flaw at the same line in two components is two
+	// findings carrying two classifications, so one can be P1 and the other P4; the same file in two
+	// repositories is two projects to fix. Keyed without them, a diff keeps whichever it saw first
+	// and reports the other as neither new nor fixed. It simply is not there.
 	return strings.Join([]string{
 		r.Tool, r.RuleID, r.Location.URI, r.Message, r.Component, r.Repository,
 	}, "\x00")
@@ -213,7 +212,7 @@ func countPriorities(rs []sarif.Result) PriorityCounts {
 // mean something different on every run.
 //
 // A finding the scanner never prioritized is kept. An empty Priority means prioritization did not
-// run for it, not that it ranked low — dropping it would hide a finding for the reason it was
+// run for it, not that it ranked low. Dropping it would hide a finding for the reason it was
 // hardest to judge.
 func (r Result) NarrowNew(band string) Result {
 	if band == "" {
@@ -236,7 +235,7 @@ func (r Result) NarrowNew(band string) Result {
 // OnlyRepository keeps the new findings a given repository's checkout can actually anchor.
 //
 // Paths are repository-relative, so a finding from another repository uploaded against this one
-// resolves to a same-named file here — an annotation on a line that does not have that problem.
+// resolves to a same-named file here, an annotation on a line that does not have that problem.
 // That is wrong rather than merely noisy, and there is no case where it is wanted, so this is not
 // offered as a preference.
 //

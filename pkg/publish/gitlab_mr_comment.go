@@ -63,9 +63,9 @@ func newGitLabMRCommentPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		missing = append(missing, "repo (or $CI_PROJECT_ID)")
 	}
 	if p.token == "" {
-		// GitLab puts CI_JOB_TOKEN in every job, so it is the credential already to hand — and it
-		// is read-only on the notes API. Naming that here turns an unexplained 401 into the one
-		// sentence that fixes it.
+		// GitLab puts CI_JOB_TOKEN in every job, so it is the credential already to hand. And it is
+		// read-only on the notes API. Naming that here turns an unexplained 401 into the one sentence
+		// that fixes it.
 		missing = append(missing, "$"+tokenEnv+
 			" (a project or group access token with `api` scope, set as a masked CI/CD variable; "+
 			"CI_JOB_TOKEN is read-only on the notes API and cannot post)")
@@ -131,7 +131,7 @@ func (p gitlabMRCommentPublisher) mrURL() string {
 //
 // Paginated, because GitLab answers 20 notes at a time. Reading only the first page would find
 // nothing as soon as a merge request had a normal amount of discussion on it, and the publisher
-// would post a fresh copy of the report every run — the sticky comment failing by multiplying,
+// would post a fresh copy of the report every run, the sticky comment failing by multiplying,
 // exactly where the conversation is long enough to need it.
 //
 // System notes ("added 3 commits", "marked as draft") share the endpoint and are skipped: they are

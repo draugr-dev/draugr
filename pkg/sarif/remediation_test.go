@@ -28,8 +28,8 @@ func TestRemediationClassifiesWhatCanBeDone(t *testing.T) {
 			want: RemediationExternal,
 		},
 		{
-			// Operated by somebody else wins even where a fix exists, because the reader still
-			// cannot apply it — the fix is the provider's to ship.
+			// Operated by somebody else wins even where a fix exists, because the reader still cannot
+			// apply it. The fix is the provider's to ship.
 			name: "operated elsewhere, and a fix exists there",
 			res: Result{ProviderOperated: true,
 				Package: &Package{Name: "etcd", Version: "3.5.0", FixedVersion: "3.5.9"}},

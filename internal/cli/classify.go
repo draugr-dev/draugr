@@ -129,8 +129,8 @@ func dirOf(target string) string {
 // flag was not given.
 //
 // A name that matches nothing is an error, not a skip. The whole point of the flag is to classify
-// one component out of many, so a typo silently classifying none — and reporting "all components
-// are already classified" — would answer a question that was never asked.
+// one component out of many, so a typo silently classifying none. And reporting "all components
+// are already classified". Would answer a question that was never asked.
 func selectComponents(components []saga.Component, want []string) (map[string]bool, error) {
 	selected := map[string]bool{}
 	if len(want) == 0 {
@@ -202,7 +202,7 @@ type choice struct {
 // exposureChoices are the reachability levels, most exposed first.
 //
 // The wording deliberately names no platform. "Is its network access restricted (namespace /
-// network policy)?" is answerable if you run Kubernetes and a guess otherwise — and Draugr
+// network policy)?" is answerable if you run Kubernetes and a guess otherwise, and Draugr
 // classifies repositories and images too. The question underneath is who can reach this, so that
 // is the question asked; a cluster is one way to arrange the answer and belongs in an example.
 var exposureChoices = []choice{
@@ -235,7 +235,7 @@ func askCriticality(sc *bufio.Scanner, out io.Writer) saga.Criticality {
 //
 // One interaction for both questions. Exposure used to be a tree of yes/no questions and
 // criticality a numbered list, so a reader switched modes halfway through a wizard whose whole
-// point is to be quick — and switching is where quick becomes careful.
+// point is to be quick. And switching is where quick becomes careful.
 //
 // A numbered list also shows the whole ladder at once, which a decision tree cannot: someone
 // answering "no, not public" never saw that "restricted" was a rung below "internal".
@@ -257,8 +257,8 @@ func ask(sc *bufio.Scanner, out io.Writer, question string, choices []choice, fa
 			return choices[n-1].value
 		}
 		if !ok {
-			// No more input — a piped or truncated session. The middle of the ladder is the
-			// honest guess: neither hiding risk nor inventing it.
+			// No more input, a piped or truncated session. The middle of the ladder is the honest guess:
+			// neither hiding risk nor inventing it.
 			return fallback
 		}
 		_, _ = fmt.Fprintf(out, "  Please enter a number from 1 to %d.\n", len(choices))

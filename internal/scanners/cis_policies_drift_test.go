@@ -21,10 +21,10 @@ const kubeBenchCfgEnv = "KUBE_BENCH_CFG"
 
 // TestCISCatalogMatchesKubeBench holds the catalog to the benchmark it claims to describe.
 //
-// The catalog is what makes partial coverage honest: every check in the section is reported,
-// so one this scanner cannot decide still reaches the reader instead of being absent. That
-// guarantee is only as good as the list, and the list is hand-maintained — CIS renumbers checks
-// between revisions, adds them, and retires them.
+// The catalog is what makes partial coverage honest: every check in the section is reported, so
+// one this scanner cannot decide still reaches the reader instead of being absent. That guarantee
+// is only as good as the list, and the list is hand-maintained, CIS renumbers checks between
+// revisions, adds them, and retires them.
 //
 // The failure this prevents is quiet in both directions. A check added upstream and missing here
 // is never reported at all, so a scan covers less than the benchmark and says nothing. A check
@@ -36,7 +36,7 @@ const kubeBenchCfgEnv = "KUBE_BENCH_CFG"
 func TestCISCatalogMatchesKubeBench(t *testing.T) {
 	cfgDir := os.Getenv(kubeBenchCfgEnv)
 	if cfgDir == "" {
-		t.Skipf("%s is not set — point it at kube-bench's cfg/ directory to check the catalog for drift", kubeBenchCfgEnv)
+		t.Skipf("%s is not set. Point it at kube-bench's cfg/ directory to check the catalog for drift", kubeBenchCfgEnv)
 	}
 
 	path := filepath.Join(cfgDir, cisCatalogBenchmark, "policies.yaml")
@@ -65,7 +65,7 @@ func TestCISCatalogMatchesKubeBench(t *testing.T) {
 		}
 	}
 	if len(upstream) == 0 {
-		t.Fatalf("%s parsed to zero checks — a guard that checks nothing is worse than no guard", path)
+		t.Fatalf("%s parsed to zero checks, a guard that checks nothing is worse than no guard", path)
 	}
 
 	var missing, extra []string
@@ -83,11 +83,11 @@ func TestCISCatalogMatchesKubeBench(t *testing.T) {
 	sort.Strings(extra)
 
 	for _, id := range missing {
-		t.Errorf("%s adds check %s (%q), which the catalog does not list — it would never be reported",
+		t.Errorf("%s adds check %s (%q), which the catalog does not list, it would never be reported",
 			cisCatalogBenchmark, id, upstream[id])
 	}
 	for _, id := range extra {
-		t.Errorf("the catalog lists check %s, which %s does not have — it would be reported forever as needing review",
+		t.Errorf("the catalog lists check %s, which %s does not have, it would be reported forever as needing review",
 			id, cisCatalogBenchmark)
 	}
 
@@ -131,7 +131,7 @@ func decidedCheckCount(t *testing.T) int {
 func TestManagedServicesCountsMatchKubeBench(t *testing.T) {
 	cfgDir := os.Getenv(kubeBenchCfgEnv)
 	if cfgDir == "" {
-		t.Skipf("%s is not set — point it at kube-bench's cfg/ directory to check the counts", kubeBenchCfgEnv)
+		t.Skipf("%s is not set. Point it at kube-bench's cfg/ directory to check the counts", kubeBenchCfgEnv)
 	}
 	if len(managedServicesByPlatform) == 0 {
 		t.Fatal("no platform is described, so this checks nothing")

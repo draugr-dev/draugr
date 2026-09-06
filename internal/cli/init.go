@@ -81,7 +81,7 @@ func runInit(dir string, opts initOptions, w io.Writer) error {
 		return err
 	}
 	if opts.fragment {
-		// A fragment is not scannable on its own — it has no release and no controls. Pointing at
+		// A fragment is not scannable on its own. It has no release and no controls. Pointing at
 		// `draugr scan` here would send someone to an error the tool could have avoided.
 		_, _ = fmt.Fprintf(w, "✓ wrote %s\n\nNext, name it from a descriptor:\n"+
 			"  fragments:\n    - path: \"**/%s\"\n\n"+
@@ -146,9 +146,9 @@ func scaffoldSaga(dir, name string) string {
 	if len(detected) > 0 {
 		b.WriteString("# Detected: " + strings.Join(detected, ", ") + "\n")
 	}
-	// The project at the top level, which is the only place it is named. A descriptor Draugr
-	// wrote itself must be one Draugr's own next command accepts — and `init` then `validate` are
-	// the first two steps of the quickstart.
+	// The project at the top level, which is the only place it is named. A descriptor Draugr wrote
+	// itself must be one Draugr's own next command accepts. And `init` then `validate` are the first
+	// two steps of the quickstart.
 	fmt.Fprintf(&b, "project: %s\nrelease:\n  version: \"0.0.0\"\n", name)
 	b.WriteString("config:\n  controllers:\n")
 	b.WriteString("    sca:\n      enabled: true       # dependency vulnerabilities (Trivy)\n")
@@ -173,7 +173,7 @@ func scaffoldSaga(dir, name string) string {
 // scaffoldFragment writes a starter Saga fragment for one component.
 //
 // Much smaller than a Saga's scaffold, and necessarily so: `init` detects a stack to pre-fill
-// `config.controllers`, and a fragment may not carry controllers — policy stays in the descriptor
+// `config.controllers`, and a fragment may not carry controllers. Policy stays in the descriptor
 // that names it. What is left is the part worth automating anyway: the modeline, which is long
 // and silently wrong if mistyped, and the component name.
 //
@@ -184,7 +184,7 @@ func scaffoldFragment(name string) string {
 	var b strings.Builder
 	b.WriteString("# yaml-language-server: $schema=" + saga.FragmentSchemaURL + "\n")
 	b.WriteString("# A Saga fragment: merged into any descriptor whose `fragments:` matches this file.\n")
-	b.WriteString("# It may declare components and exclusions. Policy, the gate, which controls run —\n")
+	b.WriteString("# It may declare components and exclusions. Policy, the gate and which controls run\n")
 	b.WriteString("# stays in the descriptor that names it, where a reviewer sees it.\n\n")
 	b.WriteString("components:\n")
 	b.WriteString("  - name: " + name + "\n")

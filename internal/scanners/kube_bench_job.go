@@ -88,8 +88,8 @@ func NewKubeBenchJob() plugin.Scanner {
 			// No Binary: the work happens in the cluster, from an image.
 			Controls:    []string{"infrastructure"},
 			TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
-			// The Job reads a node's own filesystem, which has no namespace — so a
-			// namespace scope is not unimplemented here, it is meaningless.
+			// The Job reads a node's own filesystem, which has no namespace. So a namespace scope is not
+			// unimplemented here, it is meaningless.
 			ClusterWide:  true,
 			ConfigSchema: json.RawMessage(kubeBenchJobConfigSchema),
 			Effects: []plugin.Effect{
@@ -116,8 +116,8 @@ func (s kubeBenchJobScanner) Info() plugin.ScannerInfo { return s.info }
 
 // CacheVersion reports the pinned image (implements plugin.CacheVersioner).
 //
-// No probe needed and none wanted: this scanner runs kube-bench from an image pinned by digest,
-// so the digest *is* the version — exactly, and without asking anything at run time.
+// No probe needed and none wanted: this scanner runs kube-bench from an image pinned by digest, so
+// the digest *is* the version, exactly, and without asking anything at run time.
 func (s kubeBenchJobScanner) CacheVersion(context.Context) string {
 	return "kube-bench-job@" + defaultKubeBenchImage
 }
@@ -141,17 +141,17 @@ const (
 	// defaultKubeBenchImage is pinned by digest, and the digest is the part that matters.
 	//
 	// A tag is a mutable pointer: v0.15.6 can be repushed to different content, and a scan whose
-	// result can change with nothing in the descriptor changing is the opposite of what a
-	// compliance report is for. The digest makes the pull reproducible and lets the runtime
-	// reject content that does not match — the same guarantee `draugr tools install` gets from
-	// verifying a checksum before it puts a binary on your PATH.
+	// result can change with nothing in the descriptor changing is the opposite of what a compliance
+	// report is for. The digest makes the pull reproducible and lets the runtime reject content that
+	// does not match, the same guarantee `draugr tools install` gets from verifying a checksum before
+	// it puts a binary on your PATH.
 	//
 	// The tag is kept alongside it for readability: @sha256:… alone says nothing about which
 	// version is running, and a reader of the descriptor should be able to tell.
 	defaultKubeBenchImage = "docker.io/aquasec/kube-bench:v0.15.6@sha256:861900910eec45b54a97e4a2af81b16fae7203d768f7f8e7de3b7456807870f5"
-	// defaultJobTargets are the sections worth running in-cluster: the ones that read a node's
-	// own filesystem and cannot be answered any other way. `policies` is deliberately absent —
-	// the read-only scanner already covers it without creating anything.
+	// defaultJobTargets are the sections worth running in-cluster: the ones that read a node's own
+	// filesystem and cannot be answered any other way. `policies` is deliberately absent. The
+	// read-only scanner already covers it without creating anything.
 	defaultJobTargets = "master,node,etcd,controlplane"
 	defaultJobTimeout = 5 * time.Minute
 )
@@ -159,9 +159,9 @@ const (
 // Scan creates the Job, waits for it, collects its output, and removes it.
 func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	if infra, ok := target.(plugin.InfraTarget); ok {
-		// The Job reads a node's filesystem, which has no namespace. Honoring a scope is not
-		// merely unimplemented here — it is meaningless, and silently ignoring it would report
-		// node-wide findings against a component that asked for three namespaces.
+		// The Job reads a node's filesystem, which has no namespace. Honoring a scope is not merely
+		// unimplemented here. It is meaningless, and silently ignoring it would report node-wide
+		// findings against a component that asked for three namespaces.
 		if err := refuseNamespaceScope(kubeBenchJobScannerName, infra.Namespaces); err != nil {
 			return sarif.Report{}, err
 		}
@@ -343,18 +343,18 @@ const jobPollInterval = 2 * time.Second
 // waitForJob blocks until the Job succeeds, fails, or the context is done.
 //
 // Polling rather than a watch: the wait is bounded and short, a watch adds a connection to keep
-// alive and re-establish, and the failure mode of a dropped watch is hanging until the timeout —
-// which is the one outcome that leaves a Job running in someone's cluster for longer than it has
+// alive and re-establish, and the failure mode of a dropped watch is hanging until the timeout.
+// Which is the one outcome that leaves a Job running in someone's cluster for longer than it has
 // to.
 func waitForJob(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
 	ticker := time.NewTicker(jobPollInterval)
 	defer ticker.Stop()
 	for {
-		// Checked before the request, not only in the select below. Both cases of that select can
-		// be ready at once, and Go picks between them at random — so half the time the loop went
-		// round and asked the API with an expired context, which client-go refuses inside its rate
-		// limiter. That surfaced as "client rate limiter Wait returned an error: context deadline
-		// exceeded", a message about our own client, in place of the one below that says what to do.
+		// Checked before the request, not only in the select below. Both cases of that select can be
+		// ready at once, and Go picks between them at random, so half the time the loop went round and
+		// asked the API with an expired context, which client-go refuses inside its rate limiter. That
+		// surfaced as "client rate limiter Wait returned an error: context deadline exceeded", a message
+		// about our own client, in place of the one below that says what to do.
 		if err := ctx.Err(); err != nil {
 			return timedOut(ctx, client, namespace, name, err)
 		}
@@ -366,9 +366,9 @@ func waitForJob(ctx context.Context, client kubernetes.Interface, namespace, nam
 		case job.Status.Succeeded > 0:
 			return nil
 		case job.Status.Failed > 0:
-			// kube-bench exits non-zero when checks fail, which is a result rather than an
-			// error — but with backoffLimit 0 a genuine crash looks the same from here, so the
-			// logs are read either way and the parse decides.
+			// kube-bench exits non-zero when checks fail, which is a result rather than an error, but with
+			// backoffLimit 0 a genuine crash looks the same from here, so the logs are read either way and
+			// the parse decides.
 			return nil
 		}
 		select {
@@ -397,7 +397,7 @@ func timedOut(ctx context.Context, client kubernetes.Interface, namespace, name 
 //
 // Three outcomes, and they need three different answers. No pod means nothing scheduled it. A
 // warning from the cluster means the pod was refused, and no amount of waiting changes that. Only
-// a pod quietly working — pulling an image, most often — is a case where a longer timeout is the
+// a pod quietly working, pulling an image, most often. Is a case where a longer timeout is the
 // fix, and it is the only case where suggesting one is useful rather than misleading.
 func podDiagnosis(ctx context.Context, client kubernetes.Interface, namespace, jobName string) (state, advice string) {
 	readCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), podStateTimeout)

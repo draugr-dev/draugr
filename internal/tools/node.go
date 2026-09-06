@@ -35,8 +35,8 @@ type NodeSpec struct {
 
 // nodeInstallable is the set of tools obtained as npm packages.
 //
-// retire.js publishes no release binaries at all — npm is the only way to get it — which is the
-// same position Semgrep is in on PyPI, and the reason both are provisioned rather than left to the
+// retire.js publishes no release binaries at all. Npm is the only way to get it. Which is the same
+// position Semgrep is in on PyPI, and the reason both are provisioned rather than left to the
 // reader. A tool Draugr asks a control to run and then cannot obtain is a control that needs a
 // separate installation story, and most people will simply not have the control.
 var nodeInstallable = map[string]NodeSpec{
@@ -100,7 +100,7 @@ func installNode(ctx context.Context, root, tool string, spec NodeSpec, version 
 	}
 
 	// `npm ci` installs strictly from the lockfile and verifies each package against the integrity
-	// digest recorded there — the same guarantee pip's --require-hashes gives, and covering the
+	// digest recorded there, the same guarantee pip's --require-hashes gives, and covering the
 	// dependencies as well as the tool.
 	//
 	// --ignore-scripts because an npm package may run arbitrary code on install, and a
@@ -132,7 +132,7 @@ func installNode(ctx context.Context, root, tool string, spec NodeSpec, version 
 // The shim names the interpreter by absolute path rather than deferring to npm's launcher, whose
 // first line is `#!/usr/bin/env node`. That resolves against whatever PATH the scan runs with, so
 // a pipeline that provisions the tool and then runs with a trimmed PATH gets `env: 'node': No such
-// file or directory` — a control reporting an error about the runtime rather than about the code.
+// file or directory`, a control reporting an error about the runtime rather than about the code.
 // The Python path is self-contained for the same reason, by way of the venv's own interpreter.
 func linkNodeCommand(envDir, command, shim string) error {
 	entry := filepath.Join(envDir, "node_modules", ".bin", command)
@@ -153,7 +153,7 @@ func linkNodeCommand(envDir, command, shim string) error {
 	return os.WriteFile(shim, []byte(script), 0o700) // #nosec G306 -- a launcher has to be executable
 }
 
-// runIn is run, in a working directory — npm reads package.json from where it is invoked.
+// runIn is run, in a working directory. Npm reads package.json from where it is invoked.
 func runIn(ctx context.Context, dir, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- npm and the pins are Draugr's own
 	cmd.Dir = dir
@@ -173,8 +173,8 @@ func runIn(ctx context.Context, dir, name string, args ...string) error {
 
 // findNode locates an npm new enough for `npm ci` and lockfile version 3, and returns its path.
 //
-// npm rather than node, because npm is what does the installing — and a Node without it, which
-// some distribution packages produce, fails later and less clearly.
+// npm rather than node, because npm is what does the installing, and a Node without it, which some
+// distribution packages produce, fails later and less clearly.
 func findNode(ctx context.Context) (string, error) {
 	npm, err := execLookPath("npm")
 	if err != nil {

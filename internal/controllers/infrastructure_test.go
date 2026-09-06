@@ -28,7 +28,7 @@ func TestInfrastructureInfo(t *testing.T) {
 	if info.Name != "infrastructure" {
 		t.Errorf("name = %q", info.Name)
 	}
-	// Component-scoped because `infrastructure:` is a component field in the Saga — what this
+	// Component-scoped because `infrastructure:` is a component field in the Saga. What this
 	// component runs on.
 	if info.Scope != plugin.ScopeComponent {
 		t.Errorf("scope = %q, want component", info.Scope)
@@ -59,7 +59,7 @@ func TestInfrastructurePlanOneJobPerCluster(t *testing.T) {
 }
 
 // A descriptor may name surfaces Draugr has no benchmark for. Skipping them beats refusing to
-// plan the ones it does understand — otherwise describing your estate honestly costs you scans.
+// plan the ones it does understand, otherwise describing your estate honestly costs you scans.
 func TestInfrastructurePlanSkipsOtherPlatforms(t *testing.T) {
 	comp := &saga.Component{Infrastructure: []saga.Infrastructure{
 		{Kind: "aws", Ref: "prod-account"},
@@ -166,9 +166,9 @@ func TestPlanKeepsThePoliciesScannerWhenTheJobIsEnabled(t *testing.T) {
 	}
 }
 
-// Scanner blocks are keyed by a camelCase descriptor key, not by the scanner's own name — the
-// two differ for every hyphenated scanner. Getting this wrong is silent: the block matches
-// nothing and the scanner simply does not run.
+// Scanner blocks are keyed by a camelCase descriptor key, not by the scanner's own name, the two
+// differ for every hyphenated scanner. Getting this wrong is silent: the block matches nothing
+// and the scanner simply does not run.
 func TestInfrastructureScannerSelection(t *testing.T) {
 	t.Parallel()
 
@@ -230,12 +230,12 @@ func keysOf(m map[string]bool) []string {
 }
 
 // The control's own `enabled` flag, and the scanner blocks beneath it, are not a scanner's
-// options. Copying them into a scanner's config hands it keys that are not its own — and a
+// options. Copying them into a scanner's config hands it keys that are not its own, and a
 // scanner that declares what it accepts then refuses the whole job, naming a key the descriptor
 // never wrote at that level.
 //
 // Enabling a control is the most ordinary thing a descriptor does, and `draugr survey` writes it
-// that way — so this is reachable from a generated descriptor, not only a hand-written one.
+// that way. So this is reachable from a generated descriptor, not only a hand-written one.
 func TestInfrastructureDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"infrastructure": {

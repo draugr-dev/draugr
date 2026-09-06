@@ -47,7 +47,7 @@ func TestRateGateSpacesCallsEvenly(t *testing.T) {
 	}
 	// Three intervals between four calls; allow slack for a slow machine but not for bursting.
 	if elapsed := time.Since(start); elapsed < 25*time.Millisecond {
-		t.Errorf("four calls took %v — they were not spaced", elapsed)
+		t.Errorf("four calls took %v, they were not spaced", elapsed)
 	}
 }
 

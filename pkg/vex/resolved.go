@@ -10,8 +10,8 @@ import (
 // Recorded because a supplier's VEX is a claim made at a time they chose, not a scan Draugr
 // performed. Every other input to a run can be re-read to reproduce a verdict; this one cannot,
 // because the URL may serve something else tomorrow and the branch may have moved. So the report
-// carries enough to say what was actually applied — where it came from, what it hashed to, and
-// how old the claim was — and a reader who disagrees can check rather than take it on trust.
+// carries enough to say what was actually applied, where it came from, what it hashed to, and
+// how old the claim was, and a reader who disagrees can check rather than take it on trust.
 type Provenance struct {
 	// Kind is how the document was reached: "path", "url" or "repository".
 	Kind string
@@ -24,7 +24,7 @@ type Provenance struct {
 	Revision string
 	// Digest is the sha256 of the bytes read, so two runs can be compared without the document.
 	Digest string
-	// ReadAt is when Draugr read it — distinct from the document's own timestamp, and the pair is
+	// ReadAt is when Draugr read it, distinct from the document's own timestamp, and the pair is
 	// what tells a reader whether they are looking at a fresh copy of a stale claim.
 	ReadAt time.Time
 	// Author is the document's author, carried up so the report can attribute without reparsing.
@@ -49,7 +49,7 @@ type Resolved struct {
 //
 // Project holds documents that apply to every component; ByComponent holds those a component
 // declared for itself. Kept apart rather than flattened at load, because "who declared this"
-// survives into the report — a claim applied project-wide and one a component asked for are the
+// survives into the report, a claim applied project-wide and one a component asked for are the
 // same statement with different blast radius, and an operator reviewing a suppression wants to
 // know which.
 type Set struct {
@@ -77,7 +77,7 @@ func (s Set) For(component string) []Resolved {
 // Documents returns every resolved document once, for reporting provenance.
 //
 // Components in name order rather than map order. Go randomizes map iteration, so without this
-// the provenance block — and the report.json that carries it — would come out differently on two
+// the provenance block, and the report.json that carries it. Would come out differently on two
 // runs of an unchanged descriptor, which is the opposite of what evidence is for.
 func (s Set) Documents() []Resolved {
 	out := append([]Resolved{}, s.Project...)

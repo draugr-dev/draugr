@@ -23,7 +23,7 @@ func TestUnreachableRanksDown(t *testing.T) {
 	unreachBand, unreachRanked := bandFor(unreachable, nil)
 
 	if reachBand == unreachBand {
-		t.Errorf("both banded %q — reachability changed nothing", reachBand)
+		t.Errorf("both banded %q, reachability changed nothing", reachBand)
 	}
 	if reachRanked != "" {
 		t.Errorf("reachable recorded rankedAs %q; severity already assumes the code runs", reachRanked)
@@ -34,7 +34,7 @@ func TestUnreachableRanksDown(t *testing.T) {
 }
 
 func TestExploitabilityOutranksReachability(t *testing.T) {
-	// Observed exploitation outranks a call graph's inability to find a path — the same rule that
+	// Observed exploitation outranks a call graph's inability to find a path. The same rule that
 	// makes KEV outrank EPSS. Where both speak, the stronger claim of exposure wins.
 	kev := exploit.New(map[string]bool{"CVE-2020-14040": true}, nil, 0)
 	res := sarif.Result{
@@ -43,13 +43,13 @@ func TestExploitabilityOutranksReachability(t *testing.T) {
 	}
 	band, ranked := bandFor(res, kev)
 	if ranked != "" {
-		t.Errorf("rankedAs = %q — an escalated finding must not be lowered", ranked)
+		t.Errorf("rankedAs = %q, an escalated finding must not be lowered", ranked)
 	}
 	escalatedOnly := res
 	escalatedOnly.Reachability = nil
 	wantBand, _ := bandFor(escalatedOnly, kev)
 	if band != wantBand {
-		t.Errorf("band = %q, want %q — reachability changed an escalated finding", band, wantBand)
+		t.Errorf("band = %q, want %q, reachability changed an escalated finding", band, wantBand)
 	}
 }
 

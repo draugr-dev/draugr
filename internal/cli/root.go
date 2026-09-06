@@ -28,9 +28,9 @@ type globalOptions struct {
 
 // closeLogFile closes the --log-file destination, if one was opened.
 //
-// A package-level value for the same reason rootConfigPath is one: it is decided once in the
-// root command's PersistentPreRunE, and the only place that can close it is after the command
-// has finished — which is a different function. The zero value is a no-op, so a run without
+// A package-level value for the same reason rootConfigPath is one: it is decided once in the root
+// command's PersistentPreRunE, and the only place that can close it is after the command has
+// finished. Which is a different function. The zero value is a no-op, so a run without
 // --log-file needs no special case.
 var closeLogFile = func() error { return nil }
 
@@ -51,10 +51,10 @@ func newRootCommand() *cobra.Command {
 			"the right tools, and produces a pass/fail verdict with evidence.\n\n" +
 			"Security controls (SAST, SCA, secrets, IaC, DAST, TLS, headers) and compliance\n" +
 			"evidence (SBOMs) from the same descriptor and the same gate.",
-		// `draugr version` is the command; this makes `--version` the same answer under the
-		// spelling every other CLI uses. Cobra adds the flag from this field alone — without it
-		// the near-universal `draugr --version` exits non-zero on "unknown flag", which a
-		// container smoke test or a tool-cache probe reads as a broken binary.
+		// `draugr version` is the command; this makes `--version` the same answer under the spelling
+		// every other CLI uses. Cobra adds the flag from this field alone, without it the near-universal
+		// `draugr --version` exits non-zero on "unknown flag", which a container smoke test or a
+		// tool-cache probe reads as a broken binary.
 		Version:       version.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -125,8 +125,8 @@ func Execute(ctx context.Context) int {
 
 // onInterrupt cancels the context on the first interrupt, and stops caring on the second.
 //
-// A scan holds things that have to be given back: a checkout in a temporary directory, and — for
-// the Kubernetes benchmark — a privileged Job running in somebody's cluster. Every one of those is
+// A scan holds things that have to be given back: a checkout in a temporary directory, and, for
+// the Kubernetes benchmark, a privileged Job running in somebody's cluster. Every one of those is
 // released by a deferred cleanup, and a deferred cleanup runs when a function returns, not when a
 // process is killed. Without this the default signal disposition terminates the process where it
 // stands, so Ctrl-C during that benchmark leaves the Job running with nobody left to remove it or
@@ -134,7 +134,7 @@ func Execute(ctx context.Context) int {
 //
 // The first signal cancels, which is what unwinds the stack and lets each cleanup do its work
 // against a context of its own. The second is a decision that waiting has gone on long enough, and
-// is honored immediately — a cleanup that hangs must not be able to hold somebody's terminal, and
+// is honored immediately. A cleanup that hangs must not be able to hold somebody's terminal, and
 // the exit code is the one a shell reports for the signal itself.
 func onInterrupt(ctx context.Context) (context.Context, func()) {
 	ctx, cancel := context.WithCancel(ctx)

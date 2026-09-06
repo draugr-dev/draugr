@@ -7,12 +7,12 @@ import (
 
 // SpecFor returns the install spec for a requested version.
 //
-// An empty version, or the one Draugr ships, returns the pinned spec unchanged — recorded SHAs,
-// no network needed to know what to expect. Any other version returns a spec with URLs rendered
-// from the templates and **no recorded SHA**, which is what tells Install to verify differently.
+// An empty version, or the one Draugr ships, returns the pinned spec unchanged, recorded SHAs, no
+// network needed to know what to expect. Any other version returns a spec with URLs rendered from
+// the templates and **no recorded SHA**, which is what tells Install to verify differently.
 //
 // Draugr does not refuse a version it cannot vouch for. Refusing would be blocking somebody who
-// knows something Draugr does not — an experimental build, a fork, a version newer than this
+// knows something Draugr does not, an experimental build, a fork, a version newer than this
 // release. It installs what was asked for and records how well it could check it, and that record
 // travels into every report the tool goes on to produce.
 func SpecFor(name, version string) (InstallSpec, error) {
@@ -68,7 +68,7 @@ func renderCosign(cs *CosignSpec, version string) *CosignSpec {
 	return &out
 }
 
-// render substitutes {version} — the bare number, since every template that needs a leading "v"
+// render substitutes {version}, the bare number, since every template that needs a leading "v"
 // carries it literally.
 func render(tmpl, version string) string {
 	return strings.ReplaceAll(tmpl, "{version}", version)

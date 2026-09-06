@@ -82,7 +82,7 @@ func TestSetDefault(t *testing.T) {
 }
 
 // TestNewLoggerDefaultIsConsole confirms the default (empty) format is the human-readable
-// console — not JSON — so a terminal user sees legible logs. On a plain buffer (non-TTY) the
+// console, not JSON, so a terminal user sees legible logs. On a plain buffer (non-TTY) the
 // output must be plain text with no ANSI escapes.
 func TestNewLoggerDefaultIsConsole(t *testing.T) {
 	var buf bytes.Buffer
@@ -119,7 +119,7 @@ func TestConsoleHandlerColorWhenEnabled(t *testing.T) {
 		t.Errorf("error level should use the shared fail style: %q", s)
 	}
 	// With color on, the dimmed key is reset before the value, so "code=" and "7" are not
-	// contiguous — assert them separately.
+	// contiguous, assert them separately.
 	if !strings.Contains(s, "boom") || !strings.Contains(s, "code=") || !strings.Contains(s, "7") {
 		t.Errorf("message/attr missing: %q", s)
 	}
@@ -339,8 +339,8 @@ func TestConsoleHandlerColorsTheLineWorthFinding(t *testing.T) {
 }
 
 func TestConsoleHandlerSeparatesTraceFromDebug(t *testing.T) {
-	// A trace run carries both levels, and the relayed streams are what a reader is scrolling
-	// past to reach the record they want — so trace is the quieter of the two.
+	// A trace run carries both levels, and the relayed streams are what a reader is scrolling past
+	// to reach the record they want. So trace is the quieter of the two.
 	if levelColor(LevelTrace) == levelColor(slog.LevelDebug) {
 		t.Error("trace and debug rendering identically makes a trace run one flat block")
 	}

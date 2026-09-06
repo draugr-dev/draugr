@@ -19,8 +19,8 @@ import (
 // What makes this assembly rather than a merge is that the hierarchy is **declared, not
 // inferred**. A generic merge tool has a pile of documents and must guess how they relate. This
 // one is handed a release containing named components containing named targets, so the "which
-// component pulled this in" question — the one a triager asks the moment a CVE lands — is
-// answered from the descriptor instead of being lost in the flattening.
+// component pulled this in" question, the one a triager asks the moment a CVE lands. Is answered
+// from the descriptor instead of being lost in the flattening.
 //
 // Which is the trap in the obvious implementation. Deduplicating `requests@2.19.1` down to one
 // entry answers "what do we ship" and destroys "who ships it"; keeping three answers the second
@@ -34,8 +34,8 @@ func (g *Generator) Assemble(
 		format = sbom.DefaultFormat
 	}
 	// SPDX expresses containment through relationships and can carry this, but assembling it
-	// correctly is a different piece of work — and shipping a half-right SPDX document would be
-	// worse than declining, because nothing about it would look wrong.
+	// correctly is a different piece of work, and shipping a half-right SPDX document would be worse
+	// than declining, because nothing about it would look wrong.
 	if format != saga.SBOMCycloneDXJSON {
 		return sbom.Document{}, fmt.Errorf(
 			"config.sbom.scope: a project document can only be assembled as %s, not %s, "+
@@ -82,7 +82,7 @@ type assembly struct {
 
 // remap translates one source document's bom-refs into the assembled document's.
 //
-// Necessary because packages are re-keyed on assembly — a purl where there is one, so the same
+// Necessary because packages are re-keyed on assembly. A purl where there is one, so the same
 // library arriving from two targets collapses to a single entry. The source's own dependency
 // edges are written in its own refs, and copying them unchanged would point them at identifiers
 // that no longer exist. Dangling refs are not a validation nicety: a consumer walking the graph
@@ -122,9 +122,9 @@ func (a *assembly) add(out *cycloneDX, d sbom.Document, src cycloneDX) {
 		})
 	}
 
-	// The target keeps its own node. Two repositories in one component are two places a package
-	// can have come from, and collapsing them would answer "which component" while losing "which
-	// repository" — the same loss one level down.
+	// The target keeps its own node. Two repositories in one component are two places a package can
+	// have come from, and collapsing them would answer "which component" while losing "which
+	// repository", the same loss one level down.
 	targetRef := "draugr:target/" + d.Component + "/" + d.Target
 	targetType := "application"
 	if root := src.Metadata.Component; root != nil && root.Type != "" {
@@ -156,9 +156,9 @@ func (a *assembly) add(out *cycloneDX, d sbom.Document, src cycloneDX) {
 	out.Dependencies = append(out.Dependencies, cdxDependency{Ref: targetRef, DependsOn: contained})
 
 	// Carry the source document's own dependency edges, translated. They are what the scanner
-	// actually observed about the packages, and the assembled hierarchy is additional to that
-	// rather than a replacement for it — a consumer asking "what pulled this in" wants the real
-	// answer, not just which repository it appeared in.
+	// actually observed about the packages, and the assembled hierarchy is additional to that rather
+	// than a replacement for it, a consumer asking "what pulled this in" wants the real answer, not
+	// just which repository it appeared in.
 	for _, dep := range src.Dependencies {
 		if translated, ok := translate.apply(dep); ok {
 			out.Dependencies = append(out.Dependencies, translated)

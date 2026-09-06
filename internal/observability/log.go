@@ -71,7 +71,7 @@ func NewLogger(w io.Writer, opts LogOptions) (*slog.Logger, func() error, error)
 }
 
 // maxTerminalValue clamps a rendered value on a terminal. A SARIF report can be megabytes, and a
-// log line that large is not read — it is scrolled past. --log-file has no such ceiling.
+// log line that large is not read. It is scrolled past. --log-file has no such ceiling.
 const maxTerminalValue = 4000
 
 // handlerFor builds one destination's handler.

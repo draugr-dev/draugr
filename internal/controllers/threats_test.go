@@ -42,7 +42,7 @@ func TestThreatsPlansOneLookupPerHost(t *testing.T) {
 
 func TestThreatsAsksAboutEachHostOnce(t *testing.T) {
 	// The feed keys on the host, so two endpoints on one machine are one question. Asking twice
-	// spends a rate limit to receive the same answer — and abuse.ch's is not generous.
+	// spends a rate limit to receive the same answer, and abuse.ch's is not generous.
 	comp := &saga.Component{Hosts: []saga.Host{
 		{Name: "web", URL: "https://shop.example/"},
 		{Name: "checkout", URL: "https://shop.example/checkout"},

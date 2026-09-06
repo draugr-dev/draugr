@@ -62,11 +62,11 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 
 	col := tui.For(w)
 
-	// Scope earns a column only when it distinguishes one control from another. Every controller
-	// is component-scoped today, so the column repeated "component" ten times and cost width the
-	// Purpose column wanted — the same reasoning that hides the Component column in a report of a
-	// single-component scan. The engine still supports project scope; if one ever ships, the
-	// column comes back on its own.
+	// Scope earns a column only when it distinguishes one control from another. Every controller is
+	// component-scoped today, so the column repeated "component" ten times and cost width the
+	// Purpose column wanted, the same reasoning that hides the Component column in a report of a
+	// single-component scan. The engine still supports project scope; if one ever ships, the column
+	// comes back on its own.
 	varyingScope := false
 	if all := reg.Controllers(); len(all) > 1 {
 		first := all[0].Info().Scope
@@ -143,8 +143,8 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 // choosing which controls to enable does not need the option list, and a reader writing the block
 // needs all of it.
 //
-// A scanner with nothing to list still gets a line saying so. The alternative — omitting it —
-// leaves a reader unable to tell "accepts nothing" from "not documented yet", and those two
+// A scanner with nothing to list still gets a line saying so. The alternative. Omitting it.
+// Leaves a reader unable to tell "accepts nothing" from "not documented yet", and those two
 // answers lead to opposite next steps.
 func writeScannerOptions(w io.Writer, col tui.Painter, reg *engine.Registry, only string) {
 	serves := func(info plugin.ScannerInfo) bool {
@@ -231,8 +231,8 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry, only strin
 //
 // A roster answers a question the per-control table cannot: which of these is a third party
 // executing on this machine, and whose. Reading that table, `draugr-headers` and `gitleaks` look
-// alike — one is Draugr's own detection logic and the other is somebody else's binary, and
-// nothing on the row says so.
+// alike. One is Draugr's own detection logic and the other is somebody else's binary, and nothing
+// on the row says so.
 //
 // Grouped by origin rather than listed per scanner, because the question is usually about the
 // publisher: four of these come from Aqua, and a supply-chain review wants to see that at once.
@@ -259,8 +259,8 @@ func writeScannerOrigins(w io.Writer, col tui.Painter, reg *engine.Registry, onl
 	for o := range byOrigin {
 		origins = append(origins, o)
 	}
-	// Draugr first — the reader is usually asking which are not ours, and the answer is
-	// everything below the first row.
+	// Draugr first. The reader is usually asking which are not ours, and the answer is everything
+	// below the first row.
 	sort.Slice(origins, func(i, j int) bool {
 		if (origins[i] == plugin.OriginDraugr) != (origins[j] == plugin.OriginDraugr) {
 			return origins[i] == plugin.OriginDraugr

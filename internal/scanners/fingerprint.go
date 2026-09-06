@@ -19,7 +19,7 @@ const maxFingerprintFile = 4 << 20
 //
 // Done here because this is where the checkout still exists. The plane that consumes a report has
 // the findings and not the repository, so a fingerprint computed from file content can only be
-// computed at scan time — and without one, a finding that moved down a file reads as a finding
+// computed at scan time, and without one, a finding that moved down a file reads as a finding
 // that was fixed and a new one that appeared.
 //
 // Best-effort by design. A file that cannot be read leaves the finding without a fingerprint
@@ -54,7 +54,7 @@ func stampLineHashes(results []sarif.Result, dir string) {
 func readSourceLines(dir, rel string) []string {
 	// Rejected rather than cleaned. Paths here come from a scanner's output, and a scanner that
 	// reports something outside the tree it was pointed at is a scanner to distrust rather than to
-	// second-guess — reading the file it named would be following that lead.
+	// second-guess, reading the file it named would be following that lead.
 	if filepath.IsAbs(rel) || strings.Contains(rel, "..") {
 		return nil
 	}

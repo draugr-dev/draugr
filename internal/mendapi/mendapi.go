@@ -5,10 +5,10 @@
 // what it sent. Findings come from here afterwards, which is why a Mend scan is two phases rather
 // than one command.
 //
-// Kept apart from the scanner because the two have different failure modes and different things
-// to be careful about. This half talks to a third party over the network, and everything it
-// carries — the user key, the tenant, the product a token names — is either a credential or names
-// the operator's account.
+// Kept apart from the scanner because the two have different failure modes and different things to
+// be careful about. This half talks to a third party over the network, and everything it carries,
+// the user key, the tenant, the product a token names. Is either a credential or names the
+// operator's account.
 package mendapi
 
 import (
@@ -77,9 +77,9 @@ type Alert struct {
 
 // Library identifies the component an alert is about.
 //
-// Filename is the artifact Mend matched — a wheel or a jar — not a path in the repository. There
-// is no repository path in an alert, which is why a Mend finding is coarser than one from a
-// scanner that read the manifest itself.
+// Filename is the artifact Mend matched, a wheel or a jar, not a path in the repository. There is
+// no repository path in an alert, which is why a Mend finding is coarser than one from a scanner
+// that read the manifest itself.
 type Library struct {
 	Name       string `json:"name"`
 	Version    string `json:"version"`
@@ -185,9 +185,9 @@ type InventoryLibrary struct {
 
 // InventoryLicense is one license Mend attributes to a library.
 //
-// Name is Mend's own vocabulary — "BSD 3", "Apache 2.0" — and SPDXName is frequently empty, which
-// is the fact the licenses scanner is built around: a policy written in SPDX cannot match a name
-// that is not one.
+// Name is Mend's own vocabulary, "BSD 3", "Apache 2.0". And SPDXName is frequently empty, which is
+// the fact the licenses scanner is built around: a policy written in SPDX cannot match a name that
+// is not one.
 type InventoryLicense struct {
 	Name     string `json:"name"`
 	SPDXName string `json:"spdxName"`
@@ -208,9 +208,9 @@ func (c *Client) Inventory(ctx context.Context, projectToken string) ([]Inventor
 
 // LibraryCount reports how many libraries a project's inventory holds.
 //
-// The way a caller tells a processed upload from an unprocessed one when the agent gave no
-// request token: the agent says how many dependencies it resolved, so waiting for the inventory
-// to hold that many is self-validating — it compares what arrived against what was sent.
+// The way a caller tells a processed upload from an unprocessed one when the agent gave no request
+// token: the agent says how many dependencies it resolved, so waiting for the inventory to hold
+// that many is self-validating. It compares what arrived against what was sent.
 func (c *Client) LibraryCount(ctx context.Context, projectToken string) (int, error) {
 	var out struct {
 		Libraries []struct{} `json:"libraries"`
@@ -225,7 +225,7 @@ func (c *Client) LibraryCount(ctx context.Context, projectToken string) (int, er
 // call posts one API request and decodes the reply.
 //
 // Mend answers errors with HTTP 200 and an errorMessage in the body, so the status code alone
-// never establishes success — a caller trusting it would read a permission failure as an empty
+// never establishes success. A caller trusting it would read a permission failure as an empty
 // result, which for this integration means reporting a clean scan.
 func (c *Client) call(ctx context.Context, body map[string]any, out any) error {
 	body["userKey"] = c.UserKey

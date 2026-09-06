@@ -111,7 +111,7 @@ components:
 	}
 }
 
-// Exclusions append, and each carries the file that authorized it — the property that makes
+// Exclusions append, and each carries the file that authorized it. The property that makes
 // splitting a governance record across files safe.
 func TestResolveAppendsExclusionsWithTheirSource(t *testing.T) {
 	dir := t.TempDir()
@@ -189,7 +189,7 @@ config:
 		t.Fatalf("ResolveFile: %v", err)
 	}
 	if n := len(res.Model.Config.Exclude); n != 1 {
-		t.Errorf("exclusions = %d, want 1 — the same file matched two patterns", n)
+		t.Errorf("exclusions = %d, want 1, the same file matched two patterns", n)
 	}
 }
 

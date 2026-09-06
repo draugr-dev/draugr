@@ -28,7 +28,7 @@ func TestK8sClusterInfo(t *testing.T) {
 	if info.Name != "k8s-cluster" {
 		t.Errorf("name = %q", info.Name)
 	}
-	// Infrastructure, not images — the whole reason this is a separate surveyor.
+	// Infrastructure, not images. The whole reason this is a separate surveyor.
 	if len(info.Provides) != 1 || info.Provides[0] != plugin.TargetInfra {
 		t.Errorf("provides = %v, want [infrastructure]", info.Provides)
 	}
@@ -91,7 +91,7 @@ func TestK8sClusterWritesTheScopedNamespace(t *testing.T) {
 
 // A survey scoped to a namespace that is not there must fail rather than write a descriptor for
 // it. The descriptor is what everything downstream trusts, and a scan of a namespace that does not
-// exist finds nothing and reports nothing — indistinguishable from a clean one.
+// exist finds nothing and reports nothing, indistinguishable from a clean one.
 func TestK8sClusterRejectsANamespaceThatIsNotThere(t *testing.T) {
 	t.Parallel()
 
@@ -119,7 +119,7 @@ func TestK8sClusterPrefersTheRequestedContext(t *testing.T) {
 	}
 }
 
-// A component for a cluster nobody can reach is a descriptor whose first scan fails — and the
+// A component for a cluster nobody can reach is a descriptor whose first scan fails. And the
 // descriptor is what people trust afterwards.
 func TestK8sClusterFailsWhenTheClusterIsUnreachable(t *testing.T) {
 	t.Parallel()

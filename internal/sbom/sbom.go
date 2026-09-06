@@ -53,7 +53,7 @@ const Binary = "syft"
 // reference) or an image reference.
 //
 // name matters more than it looks for repositories. Left alone, Syft names the document after
-// the path it scanned — which for us is a temporary clone, so the document would read
+// the path it scanned. Which for us is a temporary clone, so the document would read
 // "/tmp/draugr-repo-1956481920": meaningless to a consumer, and different on every run, so two
 // SBOMs of the same commit would never compare equal. Images already carry a stable reference
 // and are left as Syft found them.
@@ -84,10 +84,10 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 			return pkgsbom.Document{}, fmt.Errorf("checkout %s: %w", target.Source(), err)
 		}
 		defer cleanup()
-		// dir: disambiguates a local path from an image reference — Syft guesses otherwise,
-		// and a directory named like a registry path is not a hypothetical we want to debug.
-		// The clone above used the raw URL because fetching needs whatever credentials it
-		// carries. What the document is *named* after is the source, which they are not part of.
+		// dir: disambiguates a local path from an image reference, Syft guesses otherwise, and a
+		// directory named like a registry path is not a hypothetical we want to debug. The clone above
+		// used the raw URL because fetching needs whatever credentials it carries. What the document
+		// is *named* after is the source, which they are not part of.
 		source := target.Source()
 		src, label, sourceName = "dir:"+tree.Dir, source, source
 		checkoutDir = tree.Dir
@@ -116,11 +116,11 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 // stripCheckoutPath rewrites the temporary clone out of a generated document.
 //
 // --source-name keeps the checkout path out of what the document calls *itself*, but Syft's file
-// catalogr records each file it hashed by absolute path, and that path is a fresh temp
-// directory on every run. So the same commit produced a different document each time it was
-// scanned, and the bom-refs derived from those paths moved with them — enough to make two SBOMs
-// of one revision compare unequal, which defeats diffing releases and defeats committing the
-// document at all.
+// catalogr records each file it hashed by absolute path, and that path is a fresh temp directory
+// on every run. So the same commit produced a different document each time it was scanned, and
+// the bom-refs derived from those paths moved with them. Enough to make two SBOMs of one
+// revision compare unequal, which defeats diffing releases and defeats committing the document
+// at all.
 //
 // Rewriting to repository-relative paths also makes the document agree with the rest of the run:
 // a finding says app/requirements.txt, and now so does the inventory.

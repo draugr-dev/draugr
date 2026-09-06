@@ -16,22 +16,22 @@ type Scanner interface {
 	Scan(ctx context.Context, target Target, cfg Config) (sarif.Report, error)
 }
 
-// CacheVersioner is an optional interface a Scanner may implement to contribute a
-// tool/data version to its cache key — so that an update to the underlying tool or its
-// data (e.g. a vulnerability database) invalidates cached results, not just the TTL. The
-// engine calls CacheVersion only when caching is enabled, and folds a non-empty return
-// into the cache key. It is resolved lazily; implementations should memoize any probe and
-// return "" when the version can't be determined (the key then falls back to Info().Version).
-// Unlike Info(), CacheVersion may perform I/O.
+// CacheVersioner is an optional interface a Scanner may implement to contribute a tool/data
+// version to its cache key, so that an update to the underlying tool or its data (e.g. a
+// vulnerability database) invalidates cached results, not just the TTL. The engine calls
+// CacheVersion only when caching is enabled, and folds a non-empty return into the cache key. It
+// is resolved lazily; implementations should memoize any probe and return "" when the version
+// can't be determined (the key then falls back to Info().Version). Unlike Info(), CacheVersion
+// may perform I/O.
 type CacheVersioner interface {
 	CacheVersion(ctx context.Context) string
 }
 
 // Rate is how often a scanner may run: Requests in each Per.
 //
-// Expressed as a rate rather than a delay because that is how the services publishing one
-// express it — "4 requests per minute" is copied from a vendor's page without arithmetic, and a
-// value someone has to convert is a value someone converts wrongly.
+// Expressed as a rate rather than a delay because that is how the services publishing one express
+// it. "4 requests per minute" is copied from a vendor's page without arithmetic, and a value
+// someone has to convert is a value someone converts wrongly.
 type Rate struct {
 	Requests int
 	Per      time.Duration
@@ -51,7 +51,7 @@ func (r Rate) Interval() time.Duration {
 }
 
 // RateLimited is an optional interface a Scanner may implement when it must not be called more
-// often than some limit — almost always because it calls a hosted API that publishes one.
+// often than some limit, almost always because it calls a hosted API that publishes one.
 //
 // The engine waits **before** taking a concurrency slot, so a scanner spacing its calls fifteen
 // seconds apart does not hold workers idle while everything else queues behind it. A rate limit
@@ -67,11 +67,11 @@ type RateLimited interface {
 	RateLimit(cfg Config) Rate
 }
 
-// Prewarmer is an optional interface a Scanner may implement to warm shared, expensive state
-// once before a run's concurrent fan-out — e.g. downloading a vulnerability database — so that
-// many parallel scans don't each cold-start it (a thundering herd). The engine calls Prewarm
-// once per distinct scanner, before scans start; a returned error is best-effort (logged, not
-// fatal — the scan will surface any real problem). Implementations should memoize.
+// Prewarmer is an optional interface a Scanner may implement to warm shared, expensive state once
+// before a run's concurrent fan-out, e.g. downloading a vulnerability database, so that many
+// parallel scans don't each cold-start it (a thundering herd). The engine calls Prewarm once per
+// distinct scanner, before scans start; a returned error is best-effort (logged, not fatal. The
+// scan will surface any real problem). Implementations should memoize.
 type Prewarmer interface {
 	Prewarm(ctx context.Context) error
 }
@@ -96,15 +96,15 @@ type ScannerInfo struct {
 	AlsoRequires []string
 	// Version is the scanner/plugin version; it participates in the cache key.
 	Version string
-	// Origin names who publishes the tool this scanner runs — the upstream project, not the
-	// scanner's author. "aquasecurity" for Trivy and kube-bench, "projectdiscovery" for Nuclei,
-	// "draugr" for a scanner whose detection logic is Draugr's own.
+	// Origin names who publishes the tool this scanner runs, the upstream project, not the scanner's
+	// author. "aquasecurity" for Trivy and kube-bench, "projectdiscovery" for Nuclei, "draugr" for a
+	// scanner whose detection logic is Draugr's own.
 	//
 	// Read rather than declared, when it can be: OriginDraugr is stamped by the registry for
-	// built-ins, and a plugin's Origin is stamped by whatever loaded it. A scanner that could
-	// name its own origin could claim one, and the whole value of the field is that a reader can
-	// trust it — "which of these is a third party executing on my machine" is a supply-chain
-	// question, and an answer the subject supplies is not an answer.
+	// built-ins, and a plugin's Origin is stamped by whatever loaded it. A scanner that could name
+	// its own origin could claim one, and the whole value of the field is that a reader can trust
+	// it. "which of these is a third party executing on my machine" is a supply-chain question, and
+	// an answer the subject supplies is not an answer.
 	Origin string
 	// Controls are the security controls this scanner can serve, e.g. ["images"].
 	Controls []string
@@ -115,27 +115,27 @@ type ScannerInfo struct {
 	//
 	// It changes how the scanner is selected, and that is the point. Every other scanner under a
 	// control adds findings, so enabling one from the control's scanner block means "check this
-	// too". A reachability analyzer adds none and instead ranks findings already there *down*,
-	// which can turn a failing gate green — so it is enabled from config.reachability, beside
-	// config.exploitability, where a decision about how findings are ranked is reviewed rather
-	// than buried in a list of tools.
+	// too". A reachability analyzer adds none and instead ranks findings already there *down*, which
+	// can turn a failing gate green. So it is enabled from config.reachability, beside
+	// config.exploitability, where a decision about how findings are ranked is reviewed rather than
+	// buried in a list of tools.
 	Reachability bool
 	// ClusterWide marks a scanner whose findings always describe a whole cluster, whatever the
 	// target asked for.
 	//
 	// A component narrows its infrastructure surface with `namespaces`, and a scanner that cannot
-	// honor that has two ways to behave and only one of them is honest: report the cluster
-	// against a component that claims part of it, or refuse. Refusing is what they do — but a
-	// scanner only finds out once it has been handed a target, which is partway through a run,
-	// after a cluster has been contacted.
+	// honor that has two ways to behave and only one of them is honest: report the cluster against a
+	// component that claims part of it, or refuse. Refusing is what they do, but a scanner only
+	// finds out once it has been handed a target, which is partway through a run, after a cluster
+	// has been contacted.
 	//
 	// Declared here so the descriptor can be refused instead: the pairing is visible in the file,
 	// and `draugr validate` is the cheap place to be told.
 	ClusterWide bool
 	// ConfigSchema is a JSON Schema for Config; it drives validation and the config wizard.
 	ConfigSchema json.RawMessage
-	// Effects declare what this scanner does to a target beyond reading it. Empty — the common
-	// case — means it reads an artifact and nothing else.
+	// Effects declare what this scanner does to a target beyond reading it. Empty. The common case.
+	// Means it reads an artifact and nothing else.
 	//
 	// Draugr surfaces these before a scan runs and records them in the report afterwards, and
 	// refuses to run a scanner whose effects have not been acknowledged. A scanner that omits an
@@ -149,10 +149,10 @@ type EffectKind string
 
 // The kinds of effect a scanner can declare.
 //
-// The distinction that matters is the **target**. Fetching a vulnerability database from a
-// vendor is a network call, but it is not a consequence for the thing being scanned, and it is
-// not an effect. Sending traffic to the customer's endpoint is — and so is sending the
-// customer's data to somebody else, which is a consequence for them rather than for the target.
+// The distinction that matters is the **target**. Fetching a vulnerability database from a vendor
+// is a network call, but it is not a consequence for the thing being scanned, and it is not an
+// effect. Sending traffic to the customer's endpoint is. And so is sending the customer's data to
+// somebody else, which is a consequence for them rather than for the target.
 const (
 	// EffectNetwork sends traffic to the target rather than reading an artifact. Probing a host
 	// you do not own is unlawful in many jurisdictions, which is why it is worth stating even
@@ -163,10 +163,9 @@ const (
 	//
 	// Distinct from EffectNetwork because the risk is a different one and lands on a different
 	// party. Network traffic asks whether you are entitled to probe a host. This asks whether you
-	// are content for a vendor to know what you just told them — a hostname, a dependency
-	// manifest, a repository's source. Reported as the same kind, a reputation lookup and a
-	// source-code upload would be indistinguishable in a report, and they are not remotely the
-	// same decision.
+	// are content for a vendor to know what you just told them, a hostname, a dependency manifest, a
+	// repository's source. Reported as the same kind, a reputation lookup and a source-code upload
+	// would be indistinguishable in a report, and they are not remotely the same decision.
 	//
 	// Detail carries what is actually sent, which is where the whole range lives.
 	EffectDisclosure EffectKind = "disclosure"
@@ -182,8 +181,8 @@ const (
 //
 // Network traffic and disclosure are declared and recorded but not gated: the controls that do
 // them exist to do them, and demanding consent per run for the thing the control is *for* trains
-// people to agree without reading. Both carry an obligation that is stated rather than enforced —
-// that you are entitled to probe the host, and that you are content for the third party to know
+// people to agree without reading. Both carry an obligation that is stated rather than enforced.
+// That you are entitled to probe the host, and that you are content for the third party to know
 // what you sent. A scanner that discloses also needs a credential the operator had to go and
 // obtain, so the decision was already made somewhere it could be thought about.
 //
@@ -206,7 +205,7 @@ type Effect struct {
 //
 // Exported so the Saga schema's `allowEffects` enum is generated from the taxonomy rather than
 // restated beside it. The two were maintained separately, which meant adding a kind left the
-// schema rejecting a value Draugr accepts — an editor disagreeing with the binary, which is the
+// schema rejecting a value Draugr accepts, an editor disagreeing with the binary, which is the
 // same drift the generated control names exist to prevent.
 func EffectKinds() []EffectKind {
 	return []EffectKind{EffectMutate, EffectPrivilege, EffectNetwork, EffectDisclosure}

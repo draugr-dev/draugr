@@ -9,10 +9,10 @@ import (
 	"testing"
 )
 
-// The JSON Schema is hand-authored so it can carry real descriptions and enums — editors show
-// them as hover docs and completions, which a generated schema does poorly. The cost of hand
-// authoring is drift, so this test walks the Go types and fails when a field isn't described.
-// Add a field to the model, add it to the schema.
+// The JSON Schema is hand-authored so it can carry real descriptions and enums. Editors show them
+// as hover docs and completions, which a generated schema does poorly. The cost of hand authoring
+// is drift, so this test walks the Go types and fails when a field isn't described. Add a field to
+// the model, add it to the schema.
 const schemaPath = "draugr.saga.schema.json"
 
 const fragmentSchemaPath = "draugr.saga-fragment.schema.json"
@@ -117,7 +117,7 @@ func TestSchemaCoversEveryModelField(t *testing.T) {
 				if name == "" {
 					name = "(root)"
 				}
-				t.Errorf("%s: field %q exists in the Go model but not in the schema — "+
+				t.Errorf("%s: field %q exists in the Go model but not in the schema, "+
 					"add it to schema/draugr.saga.schema.json", name, field)
 			}
 		}
@@ -176,7 +176,7 @@ func TestSchemaIdIsThePublishedURL(t *testing.T) {
 	doc := loadSchema(t)
 	const want = "https://draugr.dev/schema/draugr.saga.schema.json"
 	if got, _ := doc["$id"].(string); got != want {
-		t.Errorf("$id = %q, want %q — editors resolve $ref against it", got, want)
+		t.Errorf("$id = %q, want %q, editors resolve $ref against it", got, want)
 	}
 }
 
@@ -215,7 +215,7 @@ func TestEmbeddedSchemaMatchesFile(t *testing.T) {
 }
 
 // The published schema and the loader are two validators over the same document. If they ever
-// disagree, an editor contradicts the CLI — which is worse than either being lenient alone. This
+// disagree, an editor contradicts the CLI. Which is worse than either being lenient alone. This
 // asserts they reject the same things, for the cases people actually hit.
 func TestLoaderRejectsWhatTheSchemaRejects(t *testing.T) {
 	cases := map[string]string{
@@ -243,7 +243,7 @@ components:
 	}
 	for name, doc := range cases {
 		t.Run(name, func(t *testing.T) {
-			// additionalProperties:false in the schema — the loader must agree.
+			// additionalProperties:false in the schema. The loader must agree.
 			if _, err := Load([]byte(doc)); err == nil {
 				t.Error("the loader accepted a document the schema rejects")
 			}
@@ -301,7 +301,7 @@ func TestUnknownFieldErrorNamesTheSection(t *testing.T) {
 }
 
 // descriptorStructs walks the model from the root, collecting every named struct a descriptor can
-// contain — through pointers, slices and map values.
+// contain, through pointers, slices and map values.
 func descriptorStructs(t reflect.Type, seen map[reflect.Type]bool) {
 	for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice || t.Kind() == reflect.Map {
 		t = t.Elem()
@@ -333,7 +333,7 @@ var inlinedInSchema = map[string]string{
 // model contains.
 //
 // schemaCases is written by hand, so a struct added to the descriptor is only checked if somebody
-// remembers to add it there. Seven were missing when this was written — each correct, and none of
+// remembers to add it there. Seven were missing when this was written, each correct, and none of
 // them checked by anything. What that costs is felt in an editor first: a field Draugr accepts and
 // the schema has never heard of is underlined as an error while it works perfectly.
 func TestEveryDescriptorStructIsGuarded(t *testing.T) {
@@ -398,7 +398,7 @@ func assertStrict(t *testing.T, doc map[string]any) {
 			continue
 		}
 		if def["additionalProperties"] != false {
-			t.Errorf("$defs.%s accepts unknown keys — add \"additionalProperties\": false so a "+
+			t.Errorf("$defs.%s accepts unknown keys. Add \"additionalProperties\": false so a "+
 				"mistyped key is reported rather than silently accepted", name)
 		}
 	}

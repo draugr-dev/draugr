@@ -90,10 +90,10 @@ func TestSingleflightCollapsesIdenticalJobs(t *testing.T) {
 
 	// Two components, identical target → one scan, and two findings.
 	//
-	// The scan is shared because the work is identical; the findings are not, because the
-	// components are not. Each carries its own component's exposure and criticality, so the same
-	// flaw can be P1 for one and P4 for the other — collapsing them would keep whichever merged
-	// first and silently drop the other.
+	// The scan is shared because the work is identical; the findings are not, because the components
+	// are not. Each carries its own component's exposure and criticality, so the same flaw can be P1
+	// for one and P4 for the other. Collapsing them would keep whichever merged first and silently
+	// drop the other.
 	res, err := New(reg).Run(context.Background(), model())
 	if err != nil {
 		t.Fatal(err)

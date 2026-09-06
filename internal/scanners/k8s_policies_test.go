@@ -35,13 +35,13 @@ func TestK8sPoliciesInfo(t *testing.T) {
 	// No binary is the point of this scanner: nothing to install, and doctor has nothing to
 	// report missing.
 	if info.Binary != "" {
-		t.Errorf("Binary = %q, want empty — this scanner execs nothing", info.Binary)
+		t.Errorf("Binary = %q, want empty, this scanner execs nothing", info.Binary)
 	}
 	if len(info.AlsoRequires) != 0 {
-		t.Errorf("AlsoRequires = %v, want none — the kubectl dependency is kube-bench's", info.AlsoRequires)
+		t.Errorf("AlsoRequires = %v, want none, the kubectl dependency is kube-bench's", info.AlsoRequires)
 	}
 	if len(info.Effects) != 0 {
-		t.Errorf("Effects = %v, want none — this scanner only reads", info.Effects)
+		t.Errorf("Effects = %v, want none, this scanner only reads", info.Effects)
 	}
 }
 
@@ -108,7 +108,7 @@ func TestCheckWildcardRules(t *testing.T) {
 	}
 }
 
-// 5.1.5. An unset automountServiceAccountToken is not compliant — the default is to mount, so
+// 5.1.5. An unset automountServiceAccountToken is not compliant. The default is to mount, so
 // treating absent as "fine" would pass exactly the clusters the check is aimed at.
 func TestCheckDefaultServiceAccounts(t *testing.T) {
 	t.Parallel()
@@ -191,7 +191,7 @@ func TestK8sPoliciesReportsEveryCheck(t *testing.T) {
 		}
 	}
 	if want := len(cisPolicies) - passing; len(rep.Results) != want {
-		t.Fatalf("got %d results, want %d (%d checks, %d decided and passing) — every undecided check must still be reported",
+		t.Fatalf("got %d results, want %d (%d checks, %d decided and passing), every undecided check must still be reported",
 			len(rep.Results), want, len(cisPolicies), passing)
 	}
 	for _, r := range rep.Results {
@@ -281,7 +281,7 @@ func scanPolicies(t *testing.T, client kubernetes.Interface) (sarif.Report, erro
 }
 
 // The catalog is the coverage guarantee, so it has to be internally sound: no duplicate ids,
-// nothing malformed, and a remediation on every entry — a finding with no remediation is a
+// nothing malformed, and a remediation on every entry, a finding with no remediation is a
 // complaint.
 func TestCISCatalogIsWellFormed(t *testing.T) {
 	t.Parallel()
@@ -293,7 +293,7 @@ func TestCISCatalogIsWellFormed(t *testing.T) {
 			t.Errorf("id %q is not a section 5 check number", c.ID)
 		}
 		if seen[c.ID] {
-			t.Errorf("duplicate check %q — the index would silently drop one", c.ID)
+			t.Errorf("duplicate check %q, the index would silently drop one", c.ID)
 		}
 		seen[c.ID] = true
 		if strings.TrimSpace(c.Title) == "" {
@@ -308,8 +308,8 @@ func TestCISCatalogIsWellFormed(t *testing.T) {
 	}
 }
 
-// Every check the evaluator decides must exist in the catalog, or its verdict is computed and
-// then thrown away — the report only walks the catalog.
+// Every check the evaluator decides must exist in the catalog, or its verdict is computed and then
+// thrown away, the report only walks the catalog.
 func TestEveryDecidedCheckIsInTheCatalog(t *testing.T) {
 	t.Parallel()
 
@@ -406,7 +406,7 @@ func TestPodSecurityCoversInitContainers(t *testing.T) {
 }
 
 // 5.1.6. Either the pod or its service account can decline the token, and the pod wins where
-// both speak — which is how Kubernetes resolves it. Reading only one would flag a correctly
+// both speak. Which is how Kubernetes resolves it. Reading only one would flag a correctly
 // hardened workload.
 func TestPodMountsToken(t *testing.T) {
 	t.Parallel()
@@ -447,8 +447,8 @@ func TestPodMountsToken(t *testing.T) {
 }
 
 // 5.1.2 and 5.1.4 ask the authorizer, and a deliberately read-only credential is not allowed to.
-// Being refused must leave the check undecided — reported for review like any other the scanner
-// cannot settle — rather than failing a scan it was never promised the permission for.
+// Being refused must leave the check undecided, reported for review like any other the scanner
+// cannot settle, rather than failing a scan it was never promised the permission for.
 func TestBroadAccessUndecidedWhenTheAuthorizerRefuses(t *testing.T) {
 	t.Parallel()
 
@@ -559,8 +559,8 @@ func TestClusterScopeLabel(t *testing.T) {
 }
 
 // The half that keeps this honest. kube-bench writes --all-namespaces into its own checks, so a
-// scoped component audited by it would get the whole cluster reported against a component
-// claiming three namespaces — a wrong answer wearing the right label.
+// scoped component audited by it would get the whole cluster reported against a component claiming
+// three namespaces. A wrong answer wearing the right label.
 func TestScannersThatCannotScopeRefuse(t *testing.T) {
 	t.Parallel()
 
@@ -590,8 +590,8 @@ func TestScannersThatCannotScopeRefuse(t *testing.T) {
 }
 
 // Every managed benchmark carries a section covering what the provider controls, and Draugr
-// evaluates none of it. That gap is defensible; leaving it unmentioned is not — a reader has no
-// way to know the section exists, so the benchmark looks smaller than it is.
+// evaluates none of it. That gap is defensible; leaving it unmentioned is not. A reader has no way
+// to know the section exists, so the benchmark looks smaller than it is.
 func TestManagedServicesFinding(t *testing.T) {
 	t.Parallel()
 
@@ -634,7 +634,7 @@ func TestManagedServicesRuleIDIsNotACheckNumber(t *testing.T) {
 }
 
 // 5.2.7. A container runs as root unless something says otherwise, and either the pod or the
-// container can say it — the container winning where both do, as Kubernetes resolves it. Reading
+// container can say it, the container winning where both do, as Kubernetes resolves it. Reading
 // only one side would clear a workload that is still root, or flag one that is not.
 func TestRunsAsRoot(t *testing.T) {
 	t.Parallel()
@@ -799,7 +799,7 @@ func TestPoliciesReportDeclaresNothingForAManualCheck(t *testing.T) {
 
 // A reader asks whether a finding is theirs to fix, and the answer is what the scan covered.
 // Reported only for a narrowed scan, "the whole cluster" was indistinguishable from "nobody
-// recorded it" — and a component owning one namespace and one owning the cluster produce findings
+// recorded it", and a component owning one namespace and one owning the cluster produce findings
 // that otherwise read alike.
 func TestScopeDescription(t *testing.T) {
 	t.Parallel()
@@ -823,7 +823,7 @@ func TestScopeDescription(t *testing.T) {
 }
 
 // The scope has to reach the report, not just exist. It travels as provenance, which is what the
-// console and the markdown render under the control — and which, unlike the finding's location, is
+// console and the markdown render under the control, and which, unlike the finding's location, is
 // not part of a finding's fingerprint, so saying it cannot make every existing finding look new.
 func TestAClusterWideScanSaysSo(t *testing.T) {
 	t.Parallel()

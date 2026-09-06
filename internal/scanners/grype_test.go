@@ -28,7 +28,7 @@ func TestGrypeInfo(t *testing.T) {
 			t.Errorf("name = %q, want %q", info.Name, c.name)
 		}
 		if info.Binary != "grype" {
-			t.Errorf("%s binary = %q, want grype — both scanners are the same tool", c.name, info.Binary)
+			t.Errorf("%s binary = %q, want grype, both scanners are the same tool", c.name, info.Binary)
 		}
 		if len(info.Controls) != 1 || info.Controls[0] != c.control {
 			t.Errorf("%s controls = %v, want [%s]", c.name, info.Controls, c.control)
@@ -146,7 +146,7 @@ func TestGrypeEnvOnlyDisablesUpdatesOffline(t *testing.T) {
 	netpolicy.SetOffline(true)
 	t.Cleanup(func() { netpolicy.SetOffline(false) })
 	if got := grypeEnv(); !slices.Contains(got, "GRYPE_DB_AUTO_UPDATE=false") {
-		t.Errorf("offline env = %v, want the database update disabled — Grype checks for a newer "+
+		t.Errorf("offline env = %v, want the database update disabled, Grype checks for a newer "+
 			"database when a scan starts, not only when asked to update", got)
 	}
 }
@@ -224,7 +224,7 @@ func TestGrypeCacheVersionCombinesToolAndDatabase(t *testing.T) {
 	}}
 	want := "grype@0.117.0;db@2026-08-14T06:39:10Z"
 	if got := p.cacheVersion(context.Background()); got != want {
-		t.Errorf("cacheVersion = %q, want %q — a cache key blind to the database serves "+
+		t.Errorf("cacheVersion = %q, want %q, a cache key blind to the database serves "+
 			"yesterday's answer about today's advisories", got, want)
 	}
 }
@@ -272,7 +272,7 @@ func TestGrypeDBWarmRunsOnceAndNotOffline(t *testing.T) {
 		}
 	}
 	if calls != 1 {
-		t.Errorf("warmed %d times, want once — the point is that concurrent jobs share one download", calls)
+		t.Errorf("warmed %d times, want once, the point is that concurrent jobs share one download", calls)
 	}
 
 	netpolicy.SetOffline(true)
@@ -290,8 +290,8 @@ func TestGrypeDBWarmRunsOnceAndNotOffline(t *testing.T) {
 //
 // Asking whether the scanner implements CacheVersion or Prewarm proves nothing: both types carry
 // those methods whether or not a hook was attached, and answer "" and nil when one wasn't. So the
-// shared probe and warmer are replaced with fakes *before* construction — the constructors capture
-// them — and the test asserts each one was actually consulted. Left unattached, the scan still
+// shared probe and warmer are replaced with fakes *before* construction, the constructors capture
+// them, and the test asserts each one was actually consulted. Left unattached, the scan still
 // runs: it re-downloads the database per job and caches against a key that ignores it.
 func TestGrypeScannersAreWiredToTheSharedDatabase(t *testing.T) {
 	priorVersion, priorDB := sharedGrypeVersion, sharedGrypeDB
@@ -323,7 +323,7 @@ func TestGrypeScannersAreWiredToTheSharedDatabase(t *testing.T) {
 				t.Fatalf("%s reports no cache version", c.name)
 			}
 			if got := versioner.CacheVersion(context.Background()); got != "grype@9.9.9;db@2026-01-01T00:00:00Z" {
-				t.Errorf("%s cache version = %q — the probe was not wired, so a database refresh "+
+				t.Errorf("%s cache version = %q, the probe was not wired, so a database refresh "+
 					"leaves stale results cached", c.name, got)
 			}
 			warmer, ok := s.(plugin.Prewarmer)
@@ -341,9 +341,9 @@ func TestGrypeScannersAreWiredToTheSharedDatabase(t *testing.T) {
 }
 
 func TestGrypePackagesReadsWhatTheRuleCarries(t *testing.T) {
-	// Grype states the dependency on the rule rather than the result — a purl in its property
-	// bag, the fixing version in its help text — so the generic SARIF reader never saw it and
-	// every Grype finding arrived with no package identity at all.
+	// Grype states the dependency on the rule rather than the result, a purl in its property bag, the
+	// fixing version in its help text, so the generic SARIF reader never saw it and every Grype
+	// finding arrived with no package identity at all.
 	out := []byte(`{"runs":[{"tool":{"driver":{"rules":[{
 	  "id":"CVE-2019-1010083-flask",
 	  "help":{"text":"Vulnerability CVE-2019-1010083\nSeverity: high\nPackage: flask\nVersion: 0.12.2\nFix Version: 1.0\nType: python\n"},
@@ -360,7 +360,7 @@ func TestGrypePackagesReadsWhatTheRuleCarries(t *testing.T) {
 		t.Errorf("fixedVersion = %q, want the version that resolves it", pkg.FixedVersion)
 	}
 	if pkg.PURL != "pkg:pypi/flask@0.12.2" {
-		t.Errorf("purl = %q — this is the identifier another scanner's finding is matched on", pkg.PURL)
+		t.Errorf("purl = %q, this is the identifier another scanner's finding is matched on", pkg.PURL)
 	}
 	if pkg.Ecosystem != "python" {
 		t.Errorf("ecosystem = %q", pkg.Ecosystem)

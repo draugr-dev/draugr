@@ -27,9 +27,9 @@ func writeReport(t *testing.T, rules map[string]sarif.Rule, results []sarif.Resu
 // TestExplainPrintsTheRemediationTheScannerPublished is the whole point.
 //
 // A finding's identifier and one truncated line is enough to rank it and not enough to decide
-// anything. The remediation is already in the report — without somewhere to read it, the reader
-// is sent to whatever a search engine offers, which for a benchmark is a registration form in
-// front of a PDF.
+// anything. The remediation is already in the report. Without somewhere to read it, the reader is
+// sent to whatever a search engine offers, which for a benchmark is a registration form in front
+// of a PDF.
 func TestExplainPrintsTheRemediationTheScannerPublished(t *testing.T) {
 	dir := writeReport(t,
 		map[string]sarif.Rule{"kube-bench/cis/4.3.1": {

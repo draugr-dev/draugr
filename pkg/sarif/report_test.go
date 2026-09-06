@@ -79,15 +79,15 @@ func TestFingerprintDistinguishes(t *testing.T) {
 }
 
 func TestHighestIgnoresSuppressedFindings(t *testing.T) {
-	// Highest drives the gate. If it counted a suppressed finding, an exclusion would look like
-	// it worked — the counts drop to zero — while the build still failed on the very finding
-	// the Saga set aside. That is worse than not having exclusions at all.
+	// Highest drives the gate. If it counted a suppressed finding, an exclusion would look like it
+	// worked, the counts drop to zero, while the build still failed on the very finding the Saga set
+	// aside. That is worse than not having exclusions at all.
 	r := Report{Results: []Result{
 		{RuleID: "a", Level: LevelError, Suppression: &Suppression{Kind: "external", Justification: "fixture"}},
 		{RuleID: "b", Level: LevelNote},
 	}}
 	if got := r.Highest(); got != LevelNote {
-		t.Errorf("Highest() = %q, want %q — the error is suppressed", got, LevelNote)
+		t.Errorf("Highest() = %q, want %q, the error is suppressed", got, LevelNote)
 	}
 	if c := r.Counts(); c.Error != 0 || c.Note != 1 {
 		t.Errorf("Counts() = %+v, want only the unsuppressed note", c)
@@ -126,7 +126,7 @@ func TestSuppressionSurvivesAMarshalRoundTrip(t *testing.T) {
 }
 
 // Two scanners serving one control each have their own account, and both belong in the evidence.
-// Flattening them would keep whichever was written last — the failure this type exists to stop.
+// Flattening them would keep whichever was written last, the failure this type exists to stop.
 func TestMergeKeepsEveryScannersProvenance(t *testing.T) {
 	t.Parallel()
 
@@ -168,7 +168,7 @@ func TestProvenanceDescribe(t *testing.T) {
 	if got, want := p.Describe(), "benchmark cis-1.12 · coverage 20 of 34"; got != want {
 		t.Errorf("Describe() = %q, want %q", got, want)
 	}
-	// Order is the scanner's choice, not alphabetical — "coverage" must not sort ahead of
+	// Order is the scanner's choice, not alphabetical. "coverage" must not sort ahead of
 	// "benchmark".
 	if strings.Index(p.Describe(), "benchmark") > strings.Index(p.Describe(), "coverage") {
 		t.Error("fields should render in the order the scanner gave them")
@@ -177,7 +177,7 @@ func TestProvenanceDescribe(t *testing.T) {
 
 // Two components sharing a repository hit the same flaw at the same line, and it is not the same
 // finding: each carries its own component's exposure and criticality, so one can be P1 and the
-// other P4. Collapsing them kept whichever merged first and discarded the other — which could be
+// other P4. Collapsing them kept whichever merged first and discarded the other. Which could be
 // the urgent one, and contradicts the claim that context decides priority.
 func TestFingerprintSeparatesComponents(t *testing.T) {
 	t.Parallel()
@@ -198,7 +198,7 @@ func TestFingerprintSeparatesComponents(t *testing.T) {
 		t.Errorf("merge kept %d of 2 findings", len(merged.Results))
 	}
 
-	// Within one component it is still one finding — this must not become a way to duplicate.
+	// Within one component it is still one finding. This must not become a way to duplicate.
 	twice := Merge(Report{Tool: "gitleaks", Results: []Result{payments, payments}})
 	if len(twice.Results) != 1 {
 		t.Errorf("the same finding in the same component is one, got %d", len(twice.Results))
@@ -206,8 +206,8 @@ func TestFingerprintSeparatesComponents(t *testing.T) {
 }
 
 func TestParseLevelRejectsWhatItCannotRank(t *testing.T) {
-	// An unknown level ranks 0 and every finding is at least 0, so an unvalidated typo turns a
-	// gate into "fail on anything at all" — passing loudly while meaning something else entirely.
+	// An unknown level ranks 0 and every finding is at least 0, so an unvalidated typo turns a gate
+	// into "fail on anything at all", passing loudly while meaning something else entirely.
 	for _, in := range []string{"error", "WARNING", " note "} {
 		if _, err := ParseLevel(in); err != nil {
 			t.Errorf("ParseLevel(%q): %v", in, err)
@@ -303,7 +303,7 @@ func TestRepositoriesIn(t *testing.T) {
 //
 // Paths are rewritten repository-relative so a finding can be anchored to a file, which means two
 // repositories sharing a path share everything else. A component may hold several repositories,
-// and a fragment may contribute one from another project — so the same secret in two of them is
+// and a fragment may contribute one from another project, so the same secret in two of them is
 // two leaked credentials, not one.
 func TestFingerprintSeparatesRepositories(t *testing.T) {
 	base := Result{Tool: "gitleaks", RuleID: "generic-api-key", Level: LevelError,
@@ -367,7 +367,7 @@ func TestSARIFRoundTripKeepsWhatIdentifiesAFinding(t *testing.T) {
 // Repository references are compared by what they name, not how they are spelled.
 //
 // A descriptor may say a clone URL, an ssh remote or a bare path; CI says "org/repo". Comparing
-// them literally answers "different" for the same repository — and the caller of this drops
+// them literally answers "different" for the same repository, and the caller of this drops
 // findings on that answer, so a false negative loses a real finding.
 func TestSameRepository(t *testing.T) {
 	same := [][2]string{

@@ -50,7 +50,7 @@ func (r *Resolved) Digest() string {
 // substituted, serialized canonically.
 //
 // The same bytes Digest is taken over, which is the point of returning them. A digest is only worth
-// something to somebody who can reproduce it, and a reader holding this can — rather than being
+// something to somebody who can reproduce it, and a reader holding this can, rather than being
 // asked to trust that a number describes a file they cannot see.
 //
 // It is the merged form, so it is not any file in the repository. Reading it answers "what did this
@@ -61,8 +61,8 @@ func (r *Resolved) Effective() string {
 		return ""
 	}
 	// Two spaces, which is what every descriptor anybody writes uses and what the reference shows.
-	// yaml.Marshal defaults to four, so the text a reader is shown would not look like the file
-	// they have open — and this is the copy they are asked to compare against it.
+	// yaml.Marshal defaults to four, so the text a reader is shown would not look like the file they
+	// have open. And this is the copy they are asked to compare against it.
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)

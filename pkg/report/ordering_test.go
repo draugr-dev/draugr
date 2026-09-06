@@ -7,12 +7,12 @@ import (
 )
 
 // TestActionableFindingsComeFirstWithinTheirBand is the answer to "should these fields change
-// priority" — they should not, and this is what they do instead.
+// priority". They should not, and this is what they do instead.
 //
 // Priority feeds the gate, so demoting a finding because nobody here can fix it would weaken a
 // build gate as a side effect of annotating a descriptor. The risk is unchanged too: a vulnerable
 // control plane is exactly as dangerous whether or not the fix is yours. Ordering is the honest
-// half — two findings that matter equally, and one of them has somewhere to start.
+// half, two findings that matter equally, and one of them has somewhere to start.
 func TestActionableFindingsComeFirstWithinTheirBand(t *testing.T) {
 	fs := []finding{
 		{ruleID: "external", priority: "P1", remediation: sarif.RemediationExternal, score: 9.8},

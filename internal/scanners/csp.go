@@ -23,8 +23,8 @@ func parseCSP(policy string) cspPolicy {
 			continue
 		}
 		name := strings.ToLower(fields[0])
-		// A repeated directive is ignored by browsers after the first, so the first wins here
-		// too — reporting on a list the browser discarded would describe a policy nobody has.
+		// A repeated directive is ignored by browsers after the first, so the first wins here too,
+		// reporting on a list the browser discarded would describe a policy nobody has.
 		if _, seen := out[name]; seen {
 			continue
 		}
@@ -68,7 +68,7 @@ func hasSource(sources []string, want string) bool {
 	return false
 }
 
-// hasNonceOrHash reports whether the list carries a nonce or an integrity hash — the two things
+// hasNonceOrHash reports whether the list carries a nonce or an integrity hash. The two things
 // that make 'unsafe-inline' inert in a CSP3 browser.
 func hasNonceOrHash(sources []string) bool {
 	for _, s := range sources {

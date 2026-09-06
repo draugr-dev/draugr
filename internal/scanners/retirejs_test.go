@@ -10,7 +10,7 @@ import (
 )
 
 // realRetireOutput is what retire.js 5.4.3 printed for a vendored jQuery 1.8.3, abridged to three
-// of the seven advisories it found — one with a CVE, one with only a GitHub id, and one with
+// of the seven advisories it found, one with a CVE, one with only a GitHub id, and one with
 // neither, because those are the three branches the rule id has to handle.
 //
 // Real output rather than an invention: a fixture somebody wrote by hand tests the parser against
@@ -71,7 +71,7 @@ func TestParseRetireJSReadsRealOutput(t *testing.T) {
 
 	first := report.Results[0]
 	if first.RuleID != "CVE-2012-6708" {
-		t.Errorf("rule id = %q, want the CVE — the identifier a reader can look up and the one an "+
+		t.Errorf("rule id = %q, want the CVE, the identifier a reader can look up and the one an "+
 			"exclusion is most likely written against", first.RuleID)
 	}
 	if first.Level != sarif.LevelWarning {
@@ -91,8 +91,8 @@ func TestParseRetireJSReadsRealOutput(t *testing.T) {
 	if first.Package.PURL != "pkg:npm/jquery@1.8.3" {
 		t.Errorf("purl = %q", first.Package.PURL)
 	}
-	// The location is the file retire.js matched, absolute — the repository scanner rewrites it
-	// to a repo-relative path afterwards, as it does for every scanner.
+	// The location is the file retire.js matched, absolute, the repository scanner rewrites it to a
+	// repo-relative path afterwards, as it does for every scanner.
 	if first.Location.URI != "/tmp/checkout/site/static/jquery.min.js" {
 		t.Errorf("location = %q", first.Location.URI)
 	}

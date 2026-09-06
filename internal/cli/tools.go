@@ -98,10 +98,10 @@ func newToolsInstallCommand() *cobra.Command {
 
 // installNames decides what to install: the tools named, everything, or what a descriptor needs.
 //
-// Installing the whole catalog is a poor default on a security tool — every binary put on PATH
-// is one more thing to trust, patch and explain — but it is the existing behavior and changing
-// it silently would provision less than a pipeline expects. So --saga is opt-in, and the case for
-// it is made where it is relevant rather than in the docs.
+// Installing the whole catalog is a poor default on a security tool, every binary put on PATH is
+// one more thing to trust, patch and explain. But it is the existing behavior and changing it
+// silently would provision less than a pipeline expects. So --saga is opt-in, and the case for it
+// is made where it is relevant rather than in the docs.
 func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]string, error) {
 	if opts.saga == "" {
 		if len(args) == 0 {
@@ -157,7 +157,7 @@ func pluralThem(n int) string {
 //
 // Deliberately a note rather than a default. Inferring the descriptor from the working directory
 // would mean a CI job running `tools install -y` in a repo that happens to contain one suddenly
-// provisions a smaller set — and it may then be handed a different Saga to scan. Installing less
+// provisions a smaller set, and it may then be handed a different Saga to scan. Installing less
 // than before, silently, is how a mystery failure appears in somebody else's pipeline.
 func noteDescriptorInWorkingDir(w io.Writer) {
 	const descriptor = "draugr.saga.yaml"
@@ -177,9 +177,9 @@ func noteDescriptorInWorkingDir(w io.Writer) {
 			needed++
 		}
 	}
-	// Defensive: no saving means nothing worth saying. Not reachable through any descriptor
-	// today, because cosign and gosec are never *required* by a control — cosign verifies
-	// downloads and gosec is opt-in — so a Saga cannot demand the whole catalog.
+	// Defensive: no saving means nothing worth saying. Not reachable through any descriptor today,
+	// because cosign and gosec are never *required* by a control, cosign verifies downloads and gosec
+	// is opt-in, so a Saga cannot demand the whole catalog.
 	if needed >= len(installable) {
 		return
 	}
@@ -289,8 +289,8 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 		names = tools.Installable()
 	}
 	// An unknown name is a typo, not a choice. Reject it up front rather than rendering a row of
-	// dashes and asking whether to proceed — and fail the whole command, since half-installing
-	// after a misspelling is the surprising outcome.
+	// dashes and asking whether to proceed. And fail the whole command, since half-installing after a
+	// misspelling is the surprising outcome.
 	if err := checkInstallable(names); err != nil {
 		return err
 	}
@@ -335,8 +335,8 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 		// that found something different, and on a full install it buries the one line that
 		// describes what actually happened under seven that describe what did not.
 		//
-		// A tool that turns out not to be current after all is not AlreadyPresent — it is
-		// installed here and gets its own line, so the case worth seeing is still loud.
+		// A tool that turns out not to be current after all is not AlreadyPresent. It is installed here
+		// and gets its own line, so the case worth seeing is still loud.
 		if res.AlreadyPresent {
 			unchanged++
 			continue
@@ -364,11 +364,10 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 // writeInstallPlan prints what `tools install` will do, before doing it.
 // present reports which of names are already installed at the pinned version.
 //
-// Resolved before the plan is rendered rather than discovered inside the install loop. The plan
-// is the moment someone decides whether to let a security tool write to their machine, and it
-// was describing work it would not do — six rows for one download.
-// detectTool resolves one tool. A var so a test can decide what is installed without arranging
-// binaries on PATH.
+// Resolved before the plan is rendered rather than discovered inside the install loop. The plan is
+// the moment someone decides whether to let a security tool write to their machine, and it was
+// describing work it would not do, six rows for one download. detectTool resolves one tool. A var
+// so a test can decide what is installed without arranging binaries on PATH.
 var detectTool = func(ctx context.Context, t tools.Tool) tools.Status {
 	return tools.Detect(ctx, t, nil, nil)
 }
@@ -388,14 +387,14 @@ func present(ctx context.Context, names []string, opts toolsInstallOptions) map[
 		if !st.Found {
 			continue
 		}
-		// A current binary whose data is missing is not current. kube-bench at the pinned
-		// version with no cfg/ tree cannot run, and reporting it as satisfied is how an install
-		// that would have fixed it gets skipped — which is this same mistake one layer up.
+		// A current binary whose data is missing is not current. kube-bench at the pinned version with
+		// no cfg/ tree cannot run, and reporting it as satisfied is how an install that would have fixed
+		// it gets skipped. Which is this same mistake one layer up.
 		if st.DataChecked && !st.DataFound {
 			continue
 		}
-		// A different version is still work to do, so only the requested one counts — which is
-		// the pin from the config when there is one, and otherwise the version Draugr ships.
+		// A different version is still work to do, so only the requested one counts. Which is the pin
+		// from the config when there is one, and otherwise the version Draugr ships.
 		if want := opts.want(name); want != "" {
 			if st.Version != strings.TrimPrefix(want, "v") {
 				continue
@@ -427,8 +426,8 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 	col := tui.For(w)
 	table := tui.NewTable(col, "Tool", "Version", "Category", "Verify", "Destination").Indent("  ")
 
-	// A satisfied tool keeps its row. Dropping it would read as forgetting it, and "nothing to
-	// do" is information — but it says so, and it is not counted as work.
+	// A satisfied tool keeps its row. Dropping it would read as forgetting it, and "nothing to do" is
+	// information. But it says so, and it is not counted as work.
 	satisfied := func(name string) bool { _, ok := have[name]; return ok }
 	todo := 0
 
@@ -507,7 +506,7 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 	}
 }
 
-// isTTY reports whether r is an interactive terminal — used to decide whether to prompt
+// isTTY reports whether r is an interactive terminal, used to decide whether to prompt
 // (interactive) or proceed automatically (CI/pipes). A var so tests can force it.
 var isTTY = func(r io.Reader) bool { return tui.IsTerminal(r) }
 

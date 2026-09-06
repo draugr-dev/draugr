@@ -54,7 +54,7 @@ func TestKubeBenchJobInfo(t *testing.T) {
 	}
 	// No local binary: the work happens in the cluster, from an image.
 	if info.Binary != "" {
-		t.Errorf("binary = %q, want none — the image carries the tool", info.Binary)
+		t.Errorf("binary = %q, want none, the image carries the tool", info.Binary)
 	}
 	// The whole reason this is a separate scanner. Without both effects declared, a run that
 	// schedules a privileged pod in someone's cluster would need no acknowledgement.
@@ -72,8 +72,8 @@ func TestKubeBenchJobInfo(t *testing.T) {
 	}
 }
 
-// The Job must match what kube-bench needs to read a node — host PID and the host paths — and
-// must not ask for more than that.
+// The Job must match what kube-bench needs to read a node, host PID and the host paths. And must
+// not ask for more than that.
 func TestKubeBenchJobSpec(t *testing.T) {
 	s := NewKubeBenchJob().(kubeBenchJobScanner)
 	s.now = fixedNow
@@ -99,8 +99,8 @@ func TestKubeBenchJobSpec(t *testing.T) {
 			t.Errorf("mount %q is writable", m.Name)
 		}
 	}
-	// Pinned by digest. A tag is a mutable pointer — v0.15.6 can be repushed — so a tag alone
-	// is a scan whose result can change with nothing in the descriptor changing.
+	// Pinned by digest. A tag is a mutable pointer. V0.15.6 can be repushed. So a tag alone is a scan
+	// whose result can change with nothing in the descriptor changing.
 	img := pod.Containers[0].Image
 	if !strings.Contains(img, "@sha256:") {
 		t.Errorf("image %q is not pinned by digest", img)
@@ -229,8 +229,8 @@ func TestKubeBenchJobRejectsNonInfraTargets(t *testing.T) {
 }
 
 // kube-bench exits non-zero when checks fail, so a Failed Job is usually a result rather than a
-// crash. The logs are read either way and the parse decides — treating Failed as fatal would
-// throw away the findings of every cluster that has any.
+// crash. The logs are read either way and the parse decides. Treating Failed as fatal would throw
+// away the findings of every cluster that has any.
 func TestWaitForJobTreatsAFailedRunAsAResult(t *testing.T) {
 	c := fake.NewSimpleClientset(&batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{Name: "kb", Namespace: "default"},
@@ -241,7 +241,7 @@ func TestWaitForJobTreatsAFailedRunAsAResult(t *testing.T) {
 	}
 }
 
-// A Job that never finishes — unschedulable, image pull failing — must give up rather than hang,
+// A Job that never finishes, unschedulable, image pull failing. Must give up rather than hang,
 // because the deferred cleanup only runs once the wait returns.
 func TestWaitForJobGivesUp(t *testing.T) {
 	c := fake.NewSimpleClientset(&batchv1.Job{
@@ -253,9 +253,9 @@ func TestWaitForJobGivesUp(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected the wait to give up")
 	}
-	// The message has to suggest what to do; "context deadline exceeded" alone is a dead end.
-	// This Job has no pod, so the answer is scheduling — not the timeout, which was once suggested
-	// on every path and is misleading on two of the three.
+	// The message has to suggest what to do; "context deadline exceeded" alone is a dead end. This Job
+	// has no pod, so the answer is scheduling. Not the timeout, which was once suggested on every path
+	// and is misleading on two of the three.
 	for _, want := range []string{"did not finish", "no pod was created", "nodeSelector"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error should mention %q, got: %v", want, err)
@@ -282,7 +282,7 @@ func TestJobLogsWithNoPod(t *testing.T) {
 	}
 }
 
-// Reaching the cluster can fail before anything is created — a bad context, no kubeconfig.
+// Reaching the cluster can fail before anything is created, a bad context, no kubeconfig.
 func TestKubeBenchJobReportsClientFailure(t *testing.T) {
 	s := NewKubeBenchJob().(kubeBenchJobScanner)
 	s.client = func(string) (kubernetes.Interface, error) { return nil, io.ErrUnexpectedEOF }
@@ -332,10 +332,10 @@ func TestKubeBenchJobFindingsNameTheJobScanner(t *testing.T) {
 	}
 }
 
-// The two cases of the wait's select can be ready at once, and Go picks between them at random —
-// so half the time the loop asked the API with an expired context, and client-go refused inside
-// its rate limiter. The reader got a message about our own client instead of the one saying what
-// to do about their cluster.
+// The two cases of the wait's select can be ready at once, and Go picks between them at random, so
+// half the time the loop asked the API with an expired context, and client-go refused inside its
+// rate limiter. The reader got a message about our own client instead of the one saying what to do
+// about their cluster.
 func TestWaitForJobExplainsATimeoutRatherThanTheClient(t *testing.T) {
 	t.Parallel()
 	client := fake.NewSimpleClientset(&corev1.Pod{

@@ -24,7 +24,7 @@ const mendLicensesScannerName = "mend-licenses"
 //
 // The same upload as mend-sca, read differently: vulnerabilities come from the project's alerts,
 // licenses from its inventory. Both go through the shared upload, so a component scanned by both
-// controls is sent once — which matters because an upload replaces a project's inventory rather
+// controls is sent once, which matters because an upload replaces a project's inventory rather
 // than adding to it.
 //
 // It also means this control works with `sca` turned off, or served by Trivy. The upload belongs
@@ -159,7 +159,7 @@ func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg
 // Only what the policy names. Trivy also carries a category, so it can flag a copyleft license a
 // project never listed; Mend supplies none, so this scanner reports exactly the licenses a
 // descriptor asked about and nothing else. That is a real difference between the two scanners on
-// one control, and the colocated doc says so — a project running only this one and expecting
+// one control, and the colocated doc says so, a project running only this one and expecting
 // category-based flagging would get silence.
 func mendLicenseLevel(id string, deny, warn []string) (sarif.Level, string, bool) {
 	switch {
@@ -173,7 +173,7 @@ func mendLicenseLevel(id string, deny, warn []string) (sarif.Level, string, bool
 
 // mendLicenseID is the identifier a finding is keyed on, and whether it is really SPDX.
 //
-// Mend's own vocabulary is used when it offers no SPDX name — "BSD 3" rather than "BSD-3-Clause".
+// Mend's own vocabulary is used when it offers no SPDX name, "BSD 3" rather than "BSD-3-Clause".
 // Translating it was the first design and is the wrong one: a mapping table is consulted exactly
 // where there is least evidence, and a wrong entry applies a policy to the *wrong* license, which
 // is worse than one applying to nothing. So the finding says what Mend said, and the operator is
@@ -187,7 +187,7 @@ func mendLicenseID(lic mendapi.InventoryLicense) (id string, isSPDX bool) {
 
 // warnUnmappedLicenses tells the operator, once per scan, which identifiers this run produced.
 //
-// The failure being avoided is not that names differ from SPDX — it is a policy that silently
+// The failure being avoided is not that names differ from SPDX. It is a policy that silently
 // covers less than it claims. Naming the strings that will actually appear turns that into a
 // decision somebody makes with the facts, in the vocabulary their descriptor uses.
 func warnUnmappedLicenses(ctx context.Context, ids map[string]bool) {

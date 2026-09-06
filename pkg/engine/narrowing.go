@@ -11,7 +11,7 @@ import (
 // question the target asks.
 //
 // Recorded rather than dropped. A scanner that quietly does not run is the same thing as one that
-// found nothing, and the report has no way to tell them apart — which is the failure this whole
+// found nothing, and the report has no way to tell them apart. Which is the failure this whole
 // codebase is built to avoid. The alternative that was tried first, refusing the descriptor, is
 // worse: it makes a reader hand-write an exception to state something Draugr already knows.
 type SkippedJob struct {
@@ -26,14 +26,14 @@ type SkippedJob struct {
 // asked for part of one, and says which it removed.
 //
 // A component narrows its infrastructure surface with `namespaces` because it owns part of a
-// shared cluster. Some scanners cannot honor that — kube-bench's checks are kubectl pipelines
-// with `--all-namespaces` written into them, and the Job-based ones read a node's own filesystem,
+// shared cluster. Some scanners cannot honor that. Kube-bench's checks are kubectl pipelines with
+// `--all-namespaces` written into them, and the Job-based ones read a node's own filesystem,
 // which has no namespace. Running them anyway would file the whole cluster's findings against a
 // component that claims three of its namespaces: a report that looks scoped, whose rule ids look
 // scoped, and whose findings are somebody else's.
 //
 // So the job is not planned, exactly as a controller does not plan for an infrastructure kind it
-// has no benchmark for. Declaring a cluster twice — once narrowed, once whole — is a descriptor
+// has no benchmark for. Declaring a cluster twice, once narrowed, once whole. Is a descriptor
 // that means something, and the scanner that can only do one of those should do that one.
 func dropUnnarrowable(reg *Registry, planned []PlannedJob) ([]PlannedJob, []SkippedJob) {
 	var kept []PlannedJob

@@ -213,9 +213,9 @@ func TestRepoScanStampsWhatItRead(t *testing.T) {
 }
 
 func TestRepoScanSharesAPooledCheckout(t *testing.T) {
-	// Five controls over one repository should check it out once. The scanner cannot know how
-	// many others there are, so it asks the run's pool by the target's identity and the pool
-	// decides — which also means every control provably reads the same commit.
+	// Five controls over one repository should check it out once. The scanner cannot know how many
+	// others there are, so it asks the run's pool by the target's identity and the pool decides.
+	// Which also means every control provably reads the same commit.
 	var clones atomic.Int32
 	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
 		return []byte(`{"runs":[{"tool":{"driver":{"name":"Trivy"}},"results":[]}]}`), nil
@@ -262,7 +262,7 @@ func TestRepoScanWithoutAPoolChecksOutForItself(t *testing.T) {
 }
 
 func TestRepoScanDoesNotShareAcrossDifferentTargets(t *testing.T) {
-	// The key is the target's identity, which already accounts for revision and scope — two
+	// The key is the target's identity, which already accounts for revision and scope, two
 	// components pointing at different subtrees are two scans, not one.
 	var clones atomic.Int32
 	s := newFakeRepoScanner(func(context.Context, string, []string) ([]byte, error) {
@@ -369,7 +369,7 @@ func TestRepoScannerRunsOnePassWhenNoHistoryIsWanted(t *testing.T) {
 //
 // Pointing such a tool at /dev/stdout looks equivalent and is not: that path is a symlink to the
 // process's own fd 1, and opening it is not writing to the descriptor it inherited. Where stdout
-// is a pipe — every containerised runner — the open lands somewhere the parent never reads, the
+// is a pipe, every containerised runner, the open lands somewhere the parent never reads, the
 // tool exits 0 having written nothing, and the parse blames the JSON.
 func TestRunReportingGivesTheToolARealFile(t *testing.T) {
 	const report = `{"version":"2.1.0","runs":[]}`
@@ -378,8 +378,8 @@ func TestRunReportingGivesTheToolARealFile(t *testing.T) {
 	s := repoScanner{
 		run: func(_ context.Context, _ string, argv []string) ([]byte, error) {
 			gotArgv = argv
-			// Stand in for the tool: write the report to the path it was handed, and put nothing
-			// on stdout — which is exactly what the real failure looked like.
+			// Stand in for the tool: write the report to the path it was handed, and put nothing on
+			// stdout. Which is exactly what the real failure looked like.
 			for i, a := range argv {
 				if a == "--report-path" && i+1 < len(argv) {
 					if err := os.WriteFile(argv[i+1], []byte(report), 0o600); err != nil {

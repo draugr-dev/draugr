@@ -43,9 +43,9 @@ func (g *rateGate) wait(ctx context.Context, now func() time.Time) error {
 	case <-timer.C:
 		return nil
 	case <-ctx.Done():
-		// The reservation is not returned. Handing it back would let a canceled run's slot be
-		// reused instantly, which is a burst by another name — and a canceled scan has no
-		// remaining work to hurry.
+		// The reservation is not returned. Handing it back would let a canceled run's slot be reused
+		// instantly, which is a burst by another name. And a canceled scan has no remaining work to
+		// hurry.
 		return ctx.Err()
 	}
 }
@@ -63,8 +63,8 @@ func newRateGates() *rateGates {
 
 // wait blocks until the scanner behind this job may be called again.
 //
-// Scanners that do not implement plugin.RateLimited, or declare a zero rate, return immediately —
-// which is nearly all of them, so the common path costs one interface assertion.
+// Scanners that do not implement plugin.RateLimited, or declare a zero rate, return immediately.
+// Which is nearly all of them, so the common path costs one interface assertion.
 func (r *rateGates) wait(ctx context.Context, s plugin.Scanner, name string, cfg plugin.Config) error {
 	limited, ok := s.(plugin.RateLimited)
 	if !ok {

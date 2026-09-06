@@ -12,7 +12,7 @@ import (
 
 // Instrumentation uses the OpenTelemetry global providers, which are no-ops until the
 // process installs real providers (see internal/observability). Attributes carry only
-// non-sensitive identifiers (control, scanner, target kind, severity) — never secrets,
+// non-sensitive identifiers (control, scanner, target kind, severity), never secrets,
 // config values, or target URLs.
 
 const instrumentationScope = "github.com/draugr-dev/draugr/pkg/engine"

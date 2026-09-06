@@ -40,9 +40,9 @@ const trivyConfigSchema = `{
 // "images" control.
 //
 // JSON rather than SARIF, for the reason the filesystem scanner already reads JSON: the SARIF
-// names the package only in prose. An image finding needs three facts a consumer can act on —
-// which package, which image, and which operating system — and the last two have no SARIF field
-// at all, so a platform that files findings by report type has nothing to file these under.
+// names the package only in prose. An image finding needs three facts a consumer can act on,
+// which package, which image, and which operating system. And the last two have no SARIF field at
+// all, so a platform that files findings by report type has nothing to file these under.
 func NewTrivy() plugin.Scanner {
 	return tooladapter.New(tooladapter.Config{
 		Name:         "trivy",
@@ -107,7 +107,7 @@ func trivyOptions(argv []string, cfg plugin.Config) []string {
 // offlineTrivyArgs adds --skip-db-update when this process must make no network calls.
 //
 // Skipping the prewarm is not enough on its own: Trivy refreshes its database at scan time too,
-// so without this an offline run still reaches out — several times, once per job. With it, Trivy
+// so without this an offline run still reaches out, several times, once per job. With it, Trivy
 // uses its local cache and says plainly when there isn't one, which is a better message than
 // anything Draugr could write on its behalf.
 func offlineTrivyArgs(argv []string) []string {

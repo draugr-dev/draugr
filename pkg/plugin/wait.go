@@ -14,7 +14,7 @@ import (
 // jobs, so they overlap, and a reader adding up individual messages would overstate the cost even
 // if they were willing to.
 //
-// Safe for concurrent use — every recorded wait comes from a different job.
+// Safe for concurrent use. Every recorded wait comes from a different job.
 type WaitRecorder struct {
 	mu     sync.Mutex
 	byTool map[string]time.Duration
@@ -48,7 +48,7 @@ type waitRecorderKey struct{}
 // WithWaitRecorder returns a context that collects waits recorded during a scan.
 //
 // Carried on the context rather than handed to scanners directly, because a scanner should not
-// have to be given a way to report this in order to be written — one that never calls RecordWait
+// have to be given a way to report this in order to be written, one that never calls RecordWait
 // simply records nothing, and one nested three helpers deep can still reach it.
 func WithWaitRecorder(ctx context.Context, r *WaitRecorder) context.Context {
 	return context.WithValue(ctx, waitRecorderKey{}, r)
@@ -56,7 +56,7 @@ func WithWaitRecorder(ctx context.Context, r *WaitRecorder) context.Context {
 
 // RecordWait attributes time spent waiting to a tool, if anything is collecting.
 //
-// A no-op when nothing is — a scanner called outside a run, or from a test, must not have to set
+// A no-op when nothing is, a scanner called outside a run, or from a test, must not have to set
 // one up, and losing the measurement is not a reason to change behavior.
 func RecordWait(ctx context.Context, tool string, d time.Duration) {
 	if r, ok := ctx.Value(waitRecorderKey{}).(*WaitRecorder); ok {

@@ -5,9 +5,9 @@ package saga
 // The overlay that makes split descriptors work: a shared fragment naming a component's
 // repository and a per-product fragment adding its image end up as one component holding both.
 //
-// Scalars come from the component already present, so the first description of a component wins
-// on name, classification and labels. That is why a resolution starts from the root descriptor —
-// it keeps the file someone opened authoritative about how exposed a component is, rather than
+// Scalars come from the component already present, so the first description of a component wins on
+// name, classification and labels. That is why a resolution starts from the root descriptor. It
+// keeps the file someone opened authoritative about how exposed a component is, rather than
 // letting a fragment merged later quietly reclassify it.
 func UpsertComponent(components []Component, comp Component) []Component {
 	for i := range components {
@@ -31,10 +31,10 @@ func unionComponent(a, b Component) Component {
 // unionVEX keeps every supplier claim source both descriptions named.
 //
 // Here rather than left out, because a fragment is how one team hands another a description of a
-// component — and an internal supplier publishing a fragment that declares where their VEX lives
-// is the shape this feature is for. A field missing from this function is not merged, and a
-// source that is not merged is a supplier's analysis silently absent from the run: the findings
-// they already excused come back, with nothing saying a document was ignored.
+// component, and an internal supplier publishing a fragment that declares where their VEX lives is
+// the shape this feature is for. A field missing from this function is not merged, and a source
+// that is not merged is a supplier's analysis silently absent from the run: the findings they
+// already excused come back, with nothing saying a document was ignored.
 func unionVEX(a, b []VEXSource) []VEXSource {
 	if len(b) == 0 {
 		return a
@@ -173,8 +173,8 @@ func unionInfra(a, b []Infrastructure) []Infrastructure {
 //
 // So empty is not the identity of this operation, it is the widest value: an entry covering the
 // whole cluster stays covering the whole cluster, even when merged with one naming three
-// namespaces. Unioning the lists literally would narrow it, and a survey that quietly reduced
-// what the next scan looks at is the dangerous direction for this to be wrong in — nobody reads a
+// namespaces. Unioning the lists literally would narrow it, and a survey that quietly reduced what
+// the next scan looks at is the dangerous direction for this to be wrong in. Nobody reads a
 // descriptor to check that it still covers what it covered yesterday.
 //
 // Widening is safe and is what a survey of the whole cluster means, so it happens without comment.
@@ -207,7 +207,7 @@ func NarrowsScope(model *Model, frag Fragment) []string {
 }
 
 // NarrowsScopeIn is NarrowsScope against a bare component list, for a document that is not a
-// Model — a fragment merges into a fragment, and the question is the same either way.
+// Model, a fragment merges into a fragment, and the question is the same either way.
 func NarrowsScopeIn(components []Component, frag Fragment) []string {
 	wide := map[string]bool{}
 	for _, c := range components {

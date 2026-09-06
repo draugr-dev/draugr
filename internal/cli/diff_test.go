@@ -55,7 +55,7 @@ func TestRunDiffGateTrips(t *testing.T) {
 }
 
 func TestRunDiffGatePasses(t *testing.T) {
-	// Head only fixes a finding — no new ones, so no gate can trip.
+	// Head only fixes a finding, no new ones, so no gate can trip.
 	base := writeFile(t, "base.sarif", sarifDoc("CVE-1", "error", "img", "P1"))
 	head := writeFile(t, "head.sarif", `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Draugr"}},"results":[]}]}`)
 	var out bytes.Buffer
@@ -129,9 +129,9 @@ func TestDiffUsesItsOwnStickyComment(t *testing.T) {
 }
 
 func TestDiffRejectsAThresholdItCannotRank(t *testing.T) {
-	// An unrecognized threshold ranks 0, and every new finding is at least that — so accepting
-	// one would quietly turn the gate into "fail on anything new" while reading like a
-	// narrowing. It has to be refused rather than defaulted.
+	// An unrecognized threshold ranks 0, and every new finding is at least that. So accepting one
+	// would quietly turn the gate into "fail on anything new" while reading like a narrowing. It has
+	// to be refused rather than defaulted.
 	cmd := newRootCommand()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
@@ -201,8 +201,8 @@ func TestDiffRefusesReportsOfDifferentScope(t *testing.T) {
 }
 
 func TestDiffComparesReportsOfTheSameScope(t *testing.T) {
-	// Two scoped runs of the same scope are comparable — that is the iteration loop the flag
-	// exists for, and refusing it would make the flag useless.
+	// Two scoped runs of the same scope are comparable. That is the iteration loop the flag exists
+	// for, and refusing it would make the flag useless.
 	sc := engine.Scope{Components: []string{"app"}, Controls: []string{"sca"}}
 	base := scopedSARIF(t, "base.sarif", sc)
 	head := scopedSARIF(t, "head.sarif", sc)
@@ -223,7 +223,7 @@ func TestDiffComparesTwoUnscopedReports(t *testing.T) {
 // A publisher that cannot deliver must not replace the verdict it was delivering.
 //
 // The gate is what the run is for. Returning the publish failure instead sends a reader to fix a
-// credential while the P1 the change introduced goes unmentioned — and on a merge request that is
+// credential while the P1 the change introduced goes unmentioned, and on a merge request that is
 // the difference between "your CI is misconfigured" and "this should not merge". `scan` already
 // reconciles the two this way.
 func TestDiffPublishFailureDoesNotHideTheGate(t *testing.T) {
@@ -252,7 +252,7 @@ func TestDiffPublishFailureDoesNotHideTheGate(t *testing.T) {
 }
 
 func TestDiffPublishFailureStillFailsAPassingGate(t *testing.T) {
-	// Nothing new, so the gate passes — but --publish did nothing, and a flag that silently does
+	// Nothing new, so the gate passes. But --publish did nothing, and a flag that silently does
 	// nothing is the thing this codebase refuses to ship.
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("TF_BUILD", "")

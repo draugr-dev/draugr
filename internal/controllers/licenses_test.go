@@ -50,10 +50,10 @@ func TestLicensesPlanNilComponent(t *testing.T) {
 }
 
 func TestLicensePolicyUnionsRatherThanOverrides(t *testing.T) {
-	// The one place this control departs from how every other controller merges settings.
-	// deepMerge replaces a list outright, so a component adding one denied license would
-	// silently discard the organization's — a component quietly opting out of an org license
-	// policy, invisible in review. A component can only tighten.
+	// The one place this control departs from how every other controller merges settings. deepMerge
+	// replaces a list outright, so a component adding one denied license would silently discard the
+	// organization's, a component quietly opting out of an org license policy, invisible in review. A
+	// component can only tighten.
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"licenses": {"deny": []any{"GPL-3.0-only", "AGPL-3.0-only"}},
 	}}}
@@ -68,8 +68,8 @@ func TestLicensePolicyUnionsRatherThanOverrides(t *testing.T) {
 }
 
 func TestLicensePolicyDeduplicatesAndSorts(t *testing.T) {
-	// Sorted and deduplicated so the job's config — and therefore its cache key — is stable
-	// across runs regardless of how the Saga was written.
+	// Sorted and deduplicated so the job's config, and therefore its cache key. Is stable across runs
+	// regardless of how the Saga was written.
 	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
 		"licenses": {"warn": []any{"MPL-2.0", "EPL-2.0"}},
 	}}}
@@ -167,7 +167,7 @@ func TestALicenseFindingInSomebodyElsesRepositoryIsMarkedUpstream(t *testing.T) 
 			t.Fatalf("target is %T, want a repository", job.Target)
 		}
 		if target.Upstream != want[target.URL] {
-			t.Errorf("%s: upstream = %v, want %v — the component declares upstream and the "+
+			t.Errorf("%s: upstream = %v, want %v, the component declares upstream and the "+
 				"second repository overrides it", target.URL, target.Upstream, want[target.URL])
 		}
 	}
@@ -176,7 +176,7 @@ func TestALicenseFindingInSomebodyElsesRepositoryIsMarkedUpstream(t *testing.T) 
 // A component's images are scanned for licenses too.
 //
 // Two repositories and two images, per the rule that one of anything proves the loop runs and two
-// prove it does not collapse — and because a component holding both is the case this exists for: a
+// prove it does not collapse, and because a component holding both is the case this exists for: a
 // license obligation inside an image was invisible while this planned repositories only.
 func TestLicensesPlansImagesAsWellAsRepositories(t *testing.T) {
 	comp := &saga.Component{

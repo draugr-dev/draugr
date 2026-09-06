@@ -23,9 +23,9 @@ func readGitLabTemplate(t *testing.T) map[string]any {
 	if err != nil {
 		t.Fatalf("read the template: %v", err)
 	}
-	// KnownFields is off — GitLab's own keys are what they are — but yaml.v3 still rejects a
-	// duplicate mapping key, which is the failure worth catching: most parsers accept one and keep
-	// the last value, and GitLab refuses the file outright.
+	// KnownFields is off. GitLab's own keys are what they are, but yaml.v3 still rejects a duplicate
+	// mapping key, which is the failure worth catching: most parsers accept one and keep the last
+	// value, and GitLab refuses the file outright.
 	var doc map[string]any
 	if err := yaml.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("GitLab would refuse this file: %v", err)
@@ -86,9 +86,9 @@ func TestTheGitLabTemplateNamesFormatsThatExist(t *testing.T) {
 		if !formats[format] {
 			t.Errorf("the template relies on the %q format, which is not in the registry", format)
 		}
-		// The file GitLab is told to collect must be the one Draugr writes under that format.
-		// GitLab accepts a filename pattern as well as a literal path, so both are honored — what
-		// is being checked is that the two agree, not which spelling was used.
+		// The file GitLab is told to collect must be the one Draugr writes under that format. GitLab
+		// accepts a filename pattern as well as a literal path, so both are honored. What is being
+		// checked is that the two agree, not which spelling was used.
 		filename := report.Filename(format)
 		matched, err := filepath.Match(filepath.Base(path), filename)
 		if err != nil {
@@ -96,7 +96,7 @@ func TestTheGitLabTemplateNamesFormatsThatExist(t *testing.T) {
 			continue
 		}
 		if !matched {
-			t.Errorf("artifacts.reports.%s points at %q, but %q writes %q — GitLab would collect nothing",
+			t.Errorf("artifacts.reports.%s points at %q, but %q writes %q, GitLab would collect nothing",
 				glType, path, format, filename)
 		}
 		if !strings.Contains(script, format) {
@@ -109,7 +109,7 @@ func TestTheGitLabTemplateNamesFormatsThatExist(t *testing.T) {
 //
 // GitLab clones 20 commits deep by default, so the commit a merge request diffs against is usually
 // not in the checkout. Without the fetch, `git worktree add` fails on a real merge request and
-// never on a small test repository — the shape of bug that reaches users because it passed here.
+// never on a small test repository, the shape of bug that reaches users because it passed here.
 func TestTheGitLabTemplateFetchesTheMergeBase(t *testing.T) {
 	doc := readGitLabTemplate(t)
 	script := scriptText(t, doc["draugr"].(map[string]any))
@@ -152,8 +152,8 @@ func scriptText(t *testing.T, job map[string]any) string {
 // The diff reads a file the scan has to have been asked for.
 //
 // `--report` replaces the default `json,sarif` rather than adding to it, so a template naming only
-// GitLab's own formats writes no results.sarif — and the merge-request path then fails on a
-// missing file, which points at the diff rather than at the report list that caused it.
+// GitLab's own formats writes no results.sarif, and the merge-request path then fails on a missing
+// file, which points at the diff rather than at the report list that caused it.
 func TestTheGitLabTemplateWritesWhatItDiffs(t *testing.T) {
 	doc := readGitLabTemplate(t)
 	script := scriptText(t, doc["draugr"].(map[string]any))
@@ -175,7 +175,7 @@ func TestTheGitLabTemplateWritesWhatItDiffs(t *testing.T) {
 //
 // A component's `url: .` resolves against the working directory, not against the descriptor's
 // location. Naming the base's descriptor while standing in the head checkout therefore scans the
-// head twice — and a diff of a tree against itself reports no change, posts a clean comment and
+// head twice, and a diff of a tree against itself reports no change, posts a clean comment and
 // passes every differential gate. It fails green, which is the only way a gate can fail that
 // nobody notices.
 func TestTheGitLabTemplateScansTheBaseInItsWorktree(t *testing.T) {

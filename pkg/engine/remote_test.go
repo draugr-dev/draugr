@@ -37,7 +37,7 @@ func TestResolveRemotesNamesALocalCheckoutByItsRepository(t *testing.T) {
 }
 
 // A repository that exists only on this machine is legitimate, and then the path is the only name
-// it has — and the most useful one, since it is where the reader can go and look.
+// it has, and the most useful one, since it is where the reader can go and look.
 func TestResolveRemotesKeepsThePathWhenThereIsNoRemote(t *testing.T) {
 	e := New(NewRegistry(), WithRemoteResolver(func(string) string { return "" }))
 	jobs := e.resolveRemotes([]plugin.ScanJob{repoJob("/srv/repos/local-only")})

@@ -120,7 +120,7 @@ func writeDoc(t *testing.T, dir, name, body string) string {
 }
 
 // A supplier says "our product is not affected by CVE-X, which is in libfoo". libfoo is what the
-// scan found, so the subcomponent is the identifier that has to match — matching only the product
+// scan found, so the subcomponent is the identifier that has to match. Matching only the product
 // would miss the shape most real documents take.
 func TestASubcomponentIsWhatAFindingMatches(t *testing.T) {
 	doc, err := Read(strings.NewReader(minimal))
@@ -177,7 +177,7 @@ func TestTheClaimConcedingMoreExposureWins(t *testing.T) {
 		t.Fatal("expected a claim")
 	}
 	if c.Status != "affected" {
-		t.Errorf("status = %q, want affected — the stronger claim of exposure", c.Status)
+		t.Errorf("status = %q, want affected, the stronger claim of exposure", c.Status)
 	}
 
 	// And the same in the other order, so the result does not depend on document order.
@@ -223,7 +223,7 @@ func TestOnlyAnExcusingStatusSuppresses(t *testing.T) {
 	}
 }
 
-// The key a lookup used comes back with it, because the two maps are keyed differently — and a
+// The key a lookup used comes back with it, because the two maps are keyed differently, and a
 // caller recording the wrong key would tell a supplier their applied statement was ignored.
 func TestUnmatchedReportsOnlyWhatWasNeverUsed(t *testing.T) {
 	ix := NewIndex([]Claim{
@@ -274,7 +274,7 @@ func TestAgeReportsTheClaimsOwnDate(t *testing.T) {
 	}
 }
 
-// A statement with no products still says something, and is kept — narrowed by the component that
+// A statement with no products still says something, and is kept, narrowed by the component that
 // declared the source rather than dropped.
 func TestAStatementWithNoProductsStillCounts(t *testing.T) {
 	doc, err := Read(strings.NewReader(

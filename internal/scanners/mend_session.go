@@ -9,7 +9,7 @@ import (
 // it.
 //
 // Both Mend scanners need the same upload: `sca` reads the alerts it produces, `licenses` reads
-// the inventory. Doing it twice would not merely be slow — a Unified Agent upload *replaces* a
+// the inventory. Doing it twice would not merely be slow, a Unified Agent upload *replaces* a
 // project's inventory, so a second one can land while the first's results are being read, and the
 // findings would then describe a project that no longer matches them.
 //
