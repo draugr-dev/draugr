@@ -103,8 +103,13 @@ fragments_body() {
 unreleased_body() {
 	local inline fragments
 	inline=$(section_of Unreleased)
+	# Without the placeholder `promote` writes back over the section it empties. An entry added
+	# afterwards lands above it rather than replacing it, so it travels into the release and the
+	# notes end with a line saying nothing is here, under a list of things. Dropped here rather
+	# than in each caller, because every reader of this section wants the same thing.
+	inline=$(printf '%s\n' "$inline" | grep -vxF '_Nothing yet._' || true)
 	case "$(printf '%s' "$inline" | tr -d '[:space:]')" in
-	"" | "_Nothingyet._") inline="" ;;
+	"") inline="" ;;
 	esac
 	fragments=$(fragments_body)
 

@@ -91,3 +91,58 @@ func TestTheTagWorkflowDerivesItsSummaryFromTheScript(t *testing.T) {
 		}
 	}
 }
+
+// The placeholder marking an empty [Unreleased] must not travel into the release.
+//
+// `promote` writes it back over the section it just emptied, and an entry added afterwards lands
+// above it rather than replacing it — so without this the notes a tag publishes end with a line
+// saying nothing is here, underneath the list of things that are.
+func TestPromoteDropsThePlaceholderForAnEmptySection(t *testing.T) {
+	const changelog = `# Changelog
+
+## [Unreleased]
+
+### Added
+
+- Something that landed after the last release.
+
+_Nothing yet._
+
+## [0.1.0] - 2026-01-01
+
+### Added
+
+- The first one.
+
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.1.0
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "CHANGELOG.md")
+	if err := os.WriteFile(path, []byte(changelog), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("../../scripts/changelog.sh", "promote", "0.2.0") // #nosec G204 -- literal
+	cmd.Env = append(os.Environ(), "CHANGELOG_FILE="+path, "CHANGELOG_FRAGMENTS="+filepath.Join(dir, "none"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("promote: %v\n%s", err, out)
+	}
+	after, err := os.ReadFile(path) // #nosec G304 -- this test's own file
+	if err != nil {
+		t.Fatal(err)
+	}
+	released := string(after)[strings.Index(string(after), "## [0.2.0]"):]
+	released = released[:strings.Index(released, "## [0.1.0]")]
+	if strings.Contains(released, "_Nothing yet._") {
+		t.Errorf("the release carries the empty-section placeholder:\n%s", released)
+	}
+	if !strings.Contains(released, "Something that landed") {
+		t.Errorf("the entry did not travel into the release:\n%s", released)
+	}
+	// And the emptied section keeps its own placeholder, which is what says there is nothing
+	// waiting rather than leaving a heading with a blank under it.
+	unreleased := string(after)[strings.Index(string(after), "## [Unreleased]"):strings.Index(string(after), "## [0.2.0]")]
+	if !strings.Contains(unreleased, "_Nothing yet._") {
+		t.Errorf("[Unreleased] lost its placeholder:\n%s", unreleased)
+	}
+}
