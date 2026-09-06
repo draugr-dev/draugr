@@ -9,5 +9,5 @@ GitLab rejects a document whose declared version it does not recognize, so these
 behind the format: the tier that renders the result in the Vulnerability Report is Ultimate, and a
 schema check is the part that can be proved anywhere.
 
-Refresh both files and `gitlabSchemaVersion` together, and read the diff — a new required field is
+Refresh both files and `gitlabSchemaVersion` together, and read the diff. A new required field is
 a document GitLab will start refusing.

@@ -13,17 +13,17 @@ it.
 
 ## What ships with a release
 
-- **Signed checksums** — the release archives' `checksums.txt` is **keyless-signed with
+- **Signed checksums**, the release archives' `checksums.txt` is **keyless-signed with
   cosign** (Sigstore) into a `checksums.txt.sigstore.json` bundle.
-- **SLSA build provenance** — each release publishes SLSA build-provenance attestations you can
+- **SLSA build provenance**, each release publishes SLSA build-provenance attestations you can
   check with `gh attestation verify`.
-- **SBOMs** — a Syft **SBOM** is published for every release archive.
+- **SBOMs**. A Syft **SBOM** is published for every release archive.
 
 ## Verify a download
 
 Fetch the archive alongside the signed checksums, verify the signature came from Draugr's
-release workflow, then confirm your archive matches (needs [cosign](https://docs.sigstore.dev/)
-— `draugr tools install cosign` installs it):
+release workflow, then confirm your archive matches (needs [cosign](https://docs.sigstore.dev/),
+`draugr tools install cosign` installs it):
 
 ```bash
 gh release download --repo draugr-dev/draugr \
@@ -48,7 +48,7 @@ checksum is always verified regardless.
 
 `draugr tools install` fetches scanners pinned by **SHA-256** (the mandatory integrity floor)
 and, where the upstream signs its checksums (e.g. Trivy), also verifies the **cosign**
-signature — checking the signing certificate identity and OIDC issuer. Without `cosign`, or for
+signature, checking the signing certificate identity and OIDC issuer. Without `cosign`, or for
 tools the upstream doesn't sign (e.g. gitleaks), it degrades to SHA-256-only and says so. See
 [updating](updating.md) for the install and self-update commands.
 
@@ -59,5 +59,5 @@ On every change, CI runs the latest released Draugr against this repository (see
 `iac`, publishing the results to the repo's **code scanning**. We track our supply-chain
 posture with the **OpenSSF Scorecard** and hold an **OpenSSF Best Practices** badge.
 
-To **report a vulnerability**, see [SECURITY.md](../../SECURITY.md) — please don't open a public
+To **report a vulnerability**, see [SECURITY.md](../../SECURITY.md), please don't open a public
 issue for a security bug.

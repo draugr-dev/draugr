@@ -1,10 +1,10 @@
 # Scanner: `gosec` (Go static analysis)
 
 - **Control:** [`sast`](../controllers/sast.md)
-- **Tool:** **gosec** — https://github.com/securego/gosec
+- **Tool:** **gosec**, https://github.com/securego/gosec
 - **Status:** ✅ implemented
-- **Target:** source repository (`RepositoryTarget`) — checked out via `internal/git`
-- **License / terms:** **Apache-2.0** (permissive) — exec only, do not bundle or import.
+- **Target:** source repository (`RepositoryTarget`), checked out via `internal/git`
+- **License / terms:** **Apache-2.0** (permissive). Exec only, do not bundle or import.
 
 ## What it does
 
@@ -30,7 +30,7 @@ config:
       scanners: [semgrep, gosec]   # default: [semgrep]
 ```
 
-The same key works as a per-component override. Only enable gosec for Go components — it errors
+The same key works as a per-component override. Only enable gosec for Go components. It errors
 on repositories with no Go packages.
 
 ## Saga options
@@ -53,7 +53,7 @@ controllers:
 gosec's `-severity` and `-confidence` floors are deliberately not exposed. Both drop findings
 inside the tool, where Draugr cannot mark them suppressed or record who accepted them. A finding
 you have judged belongs in `config.exclude`, which keeps it in the report with your reason; what
-should fail a build is the gate's decision. Selecting rules is a different statement — that a
+should fail a build is the gate's decision. Selecting rules is a different statement. That a
 check does not apply to this codebase at all.
 
 ## Notes

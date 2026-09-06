@@ -1,6 +1,6 @@
 # Adding a control
 
-A **control** is one security question Draugr can answer about a component — “are my dependencies
+A **control** is one security question Draugr can answer about a component. “are my dependencies
 vulnerable?”, “does this repository contain secrets?”. It is a **controller** (which decides what
 applies and aggregates the results) plus at least one **scanner** (which runs a tool).
 
@@ -46,9 +46,9 @@ for _, repo := range comp.Repositories {
   today, hardcoding it is what makes the second one silently unreachable later.
 
 **`Aggregate(reports)`** merges with `sarif.Merge(...)` and folds `.Counts()` into the `Summary`.
-Escalate severity here when the tool under-rates for your control's purpose — a committed secret
-is an error whatever the tool called it — and say in the doc that you do, because a severity that
-does not match the tool's own output will otherwise read as a bug.
+Escalate severity here when the tool under-rates for your control's purpose. A committed secret is
+an error whatever the tool called it, and say in the doc that you do, because a severity that does
+not match the tool's own output will otherwise read as a bug.
 
 ## 2. The scanner
 
@@ -69,26 +69,26 @@ go generate ./pkg/saga/...
 go test ./internal/schemagen/
 ```
 
-Then check that `draugr validate` accepts a descriptor enabling it, and that `draugr controls`
-lists it. Both schemas — Saga and fragment — are generated from the live registry.
+Then check that `draugr validate` accepts a descriptor enabling it, and that `draugr controls` lists
+it. Both schemas. Saga and fragment, are generated from the live registry.
 
 ## 4. Document it
 
 - `internal/controllers/<control>.md` and `internal/scanners/<tool>.md`, colocated.
 - Rows in [`docs/reference/catalog.md`](../../reference/catalog.md) for both.
 - The control's entry in [`docs/reference/glossary.md`](../../reference/glossary.md), in
-  plain language — a reader meeting `dast` for the first time needs the concept, not the flag.
+  plain language, a reader meeting `dast` for the first time needs the concept, not the flag.
 - A `learn/` page on the website if the control is a concept the reader may not know.
 
 ## 5. Test it
 
 Everything in [scanner.md](scanner.md#7-test-it), plus, for the controller:
 
-- `Info()` — name and scope.
+- `Info()`. Name and scope.
 - `Plan` with **two repositories** → two jobs, the right scanner, cache keys set and *distinct*.
   With one repository, a per-component value and a per-repository value are indistinguishable.
 - `Plan` with a nil component.
-- `Aggregate` — the counts, and any escalation you do.
+- `Aggregate`, the counts, and any escalation you do.
 - `Aggregate` with no reports.
 - The registration test in `internal/builtins`.
 
@@ -101,8 +101,8 @@ draugr scan    <your>.saga.yaml
 ```
 
 Point it at a fixture that genuinely triggers a finding, and confirm the verdict and the exit code
-are what you expect — including that a **missing tool reports an error rather than a pass**, which
-is the failure mode this whole design exists to prevent.
+are what you expect, including that a **missing tool reports an error rather than a pass**, which is
+the failure mode this whole design exists to prevent.
 
 ## 7. Consider the self-scan
 
@@ -113,5 +113,5 @@ release.
 
 ## 8. Finish
 
-The [definition of done](README.md#definition-of-done), and the two out-of-repository
-destinations — the website and the demo — described at the end of [scanner.md](scanner.md#9-finish).
+The [definition of done](README.md#definition-of-done), and the two out-of-repository destinations,
+the website and the demo, described at the end of [scanner.md](scanner.md#9-finish).

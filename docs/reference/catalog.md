@@ -7,11 +7,12 @@ order: 30
 
 # Integrations catalog
 
-The single place to navigate every [**controller**](../concepts/controls-and-scanners.md#controllers),
-[**scanner**](../concepts/controls-and-scanners.md#scanners), and [**surveyor**](../concepts/surveyors.md)
-Draugr ships or plans (new to these terms? see [concepts](../concepts/saga.md)). Each component has a
-**markdown doc kept next to its implementation** — what it is, which control it relates to,
-links, and license/terms.
+The single place to navigate every
+[**controller**](../concepts/controls-and-scanners.md#controllers),
+[**scanner**](../concepts/controls-and-scanners.md#scanners), and
+[**surveyor**](../concepts/surveyors.md) Draugr ships or plans (new to these terms? see
+[concepts](../concepts/saga.md)). Each component has a **markdown doc kept next to its
+implementation**. What it is, which control it relates to, links, and license/terms.
 
 > **Convention:** every new scanner/controller/surveyor ships a colocated `.md` (e.g.
 > `internal/scanners/<name>.md`) covering: what it does · control · tool + links ·
@@ -21,9 +22,9 @@ See also: [control taxonomy](../contributing/naming.md#security-controls-taxonom
 [glossary](glossary.md).
 
 **Who publishes what.** `draugr controls` ends with a roster grouping every scanner by the project
-that publishes its tool — `aquasecurity` for the Trivy family and kube-bench, `projectdiscovery`
-for Nuclei, and `draugr` for the ones whose detection logic is our own and which need no external
-tool at all. Reading the control table those look alike, and one of them is somebody else's binary
+that publishes its tool, `aquasecurity` for the Trivy family and kube-bench, `projectdiscovery` for
+Nuclei, and `draugr` for the ones whose detection logic is our own and which need no external tool
+at all. Reading the control table those look alike, and one of them is somebody else's binary
 executing on your machine, which is a question worth being able to answer without reading source.
 
 ## Controllers
@@ -42,15 +43,15 @@ executing on your machine, which is a question worth being able to answer withou
 | `licenses` | Dependency license compliance, in repositories and images | component | ✅ | `trivy-license` (default), `mend-licenses` (opt-in) | [doc](../../internal/controllers/licenses.md) |
 | `threats` | Threat intelligence | component | ✅ | `urlhaus` (default), `virustotal` (opt-in) | [doc](../../internal/controllers/threats.md) |
 
-`licenses` is a control rather than part of `sca` because license risk isn't a vulnerability —
-the exposure is legal, the policy is owned by different people, and
+`licenses` is a control rather than part of `sca` because license risk isn't a vulnerability. The
+exposure is legal, the policy is owned by different people, and
 [`config.gate`](saga-schema.md#configgate) can then hold it to its own threshold.
 
 **SBOM generation is not in this table on purpose.** Every control above checks something and
-returns a verdict that feeds the gate. An SBOM is an inventory — it finds nothing, so it has no
+returns a verdict that feeds the gate. An SBOM is an inventory. It finds nothing, so it has no
 verdict to give, and a row here would always read "pass" without ever having looked. It is
-configured separately as `config.sbom` and travels as evidence. See
-[the Saga reference](saga-schema.md#sbom-generation).
+configured separately as `config.sbom` and travels as evidence. See [the Saga
+reference](saga-schema.md#sbom-generation).
 
 ## Scanners
 
@@ -95,27 +96,27 @@ Scan results render through a pluggable **Reporter** interface (`pkg/report`), s
 
 | Format | Purpose |
 |--------|---------|
-| `console` | human summary on stdout (default) — verdict, P1–P4 counts, "fix first" |
+| `console` | human summary on stdout (default), verdict, P1–P4 counts, "fix first" |
 | `markdown` | portable report for MR comments, wikis, Slack |
-| `html` | self-contained HTML report (inline CSS) — a shareable, browser-viewable artifact |
-| `junit` | JUnit XML — surfaces findings in CI test panels (GitLab, Jenkins, Azure DevOps…) |
+| `html` | self-contained HTML report (inline CSS), a shareable, browser-viewable artifact |
+| `junit` | JUnit XML, surfaces findings in CI test panels (GitLab, Jenkins, Azure DevOps…) |
 | `json` | machine-readable report |
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
 | `gitlab-sast` | GitLab's own security schema, for its Vulnerability Report (a build artifact, not an upload) |
 | `gitlab-dependency-scanning` | the same, for vulnerable dependencies |
 | `gitlab-secret-detection` | the same, for leaked credentials |
 | `gitlab-container-scanning` | the same, for vulnerable packages in a container image |
-| `gitlab-codequality` | GitLab Code Quality — every finding, in the merge request, on any tier |
-| `template` | custom payload from a Go `text/template` (inline or file) — no code needed |
+| `gitlab-codequality` | GitLab Code Quality, every finding, in the merge request, on any tier |
+| `template` | custom payload from a Go `text/template` (inline or file), no code needed |
 
 `-o/--output <dir>` also writes `report.json` + `results.sarif`.
 
 ## Publishers
 
-A **Publisher** delivers rendered reports to a destination — the "where" of reporting, separate
-from the Reporter (the "what"). Configure them in the Saga's
-[`config.reports` / `config.publishers`](saga-schema.md#configreports-and-configpublishers);
-every rendered report is delivered to every publisher.
+A **Publisher** delivers rendered reports to a destination, the "where" of reporting, separate from
+the Reporter (the "what"). Configure them in the Saga's [`config.reports` /
+`config.publishers`](saga-schema.md#configreports-and-configpublishers); every rendered report is
+delivered to every publisher.
 
 | Kind | Delivers to | Config |
 |------|-------------|--------|
@@ -126,12 +127,11 @@ every rendered report is delivered to every publisher.
 | `gitlab-mr-comment` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
 | `draugr-api` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
-No publisher stores a secret in the Saga — every token comes from an environment variable, and
-each no-ops outside its own context (not in CI, or no PR) so the same Saga still runs locally.
-Every comment publisher upserts one **sticky** comment (updated in place on each push rather
-than posting a new one) and pairs with
-[`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif) for a PR security delta. Code
-scanning is free for public repos; private repos need GitHub Advanced Security.
+No publisher stores a secret in the Saga. Every token comes from an environment variable, and each
+no-ops outside its own context (not in CI, or no PR) so the same Saga still runs locally. Every
+comment publisher upserts one **sticky** comment (updated in place on each push rather than posting
+a new one) and pairs with [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif) for a PR
+security delta. Code scanning is free for public repos; private repos need GitHub Advanced Security.
 
 See [`examples/reporting.saga.yaml`](../../examples/reporting.saga.yaml) for a multi-format,
 multi-publisher Saga, [`examples/github-actions-code-scanning.yml`](../../examples/github-actions-code-scanning.yml)

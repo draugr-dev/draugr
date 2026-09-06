@@ -1,7 +1,7 @@
 # Scanner: `kube-bench-job` (CIS benchmark, run inside the cluster)
 
 - **Control:** [`infrastructure`](../controllers/infrastructure.md)
-- **Tool:** Aqua **kube-bench**, as a container image — https://github.com/aquasecurity/kube-bench
+- **Tool:** Aqua **kube-bench**, as a container image, https://github.com/aquasecurity/kube-bench
 - **Status:** ✅ implemented (CIS sections 1–4)
 - **Target:** a Kubernetes cluster (`InfraTarget`)
 - **License / terms:** **Apache-2.0** (permissive). Run as a pod from the published image.
@@ -26,7 +26,7 @@ about rather than discover:
 | | `kube-bench` | `kube-bench-job` |
 |---|---|---|
 | Touches the cluster | reads through the API | **creates a Job** |
-| Needs locally | `kube-bench`, `kubectl` | nothing — the image carries both |
+| Needs locally | `kube-bench`, `kubectl` | nothing. The image carries both |
 | Node access | none | hostPID, host paths mounted read-only |
 | CIS sections | 5 (policies) | 1–4 (master, node, etcd, controlplane) |
 
@@ -49,32 +49,32 @@ Without that, the run stops before it creates anything and says what it would ha
 
 It follows kube-bench's own manifest, because the checks read files that exist only on a node:
 
-- **`hostPID: true`** — several checks inspect control-plane processes.
-- **Twelve host paths mounted read-only** — `/etc/kubernetes`, `/var/lib/kubelet`, `/var/lib/etcd`
+- **`hostPID: true`**, several checks inspect control-plane processes.
+- **Twelve host paths mounted read-only**, `/etc/kubernetes`, `/var/lib/kubelet`, `/var/lib/etcd`
   and the rest. Read-only throughout: a scan has no business being able to change what it
   inspects.
-- **`tolerations: [{operator: Exists}]`** — a control-plane node is tainted, and its configuration
+- **`tolerations: [{operator: Exists}]`**. A control-plane node is tainted, and its configuration
   is most of what these sections check. Without this the Job is unschedulable exactly where it is
   most useful.
-- **`backoffLimit: 0`** — a failing benchmark is a result, not something to retry.
+- **`backoffLimit: 0`**. A failing benchmark is a result, not something to retry.
 - **No service account or RBAC.** These sections read the host filesystem, not the API, so the
   Job needs no permissions in the cluster.
 
 This is a privileged pod. On a cluster enforcing the **restricted** Pod Security Standard it will
-be rejected, which is the standard working as intended — run it in a namespace whose policy
-permits it.
+be rejected, which is the standard working as intended. Run it in a namespace whose policy permits
+it.
 
 ## Scope
 
-The sections this Job runs read a node's own filesystem, which has no namespace — so a namespace
+The sections this Job runs read a node's own filesystem, which has no namespace, so a namespace
 scope is not unimplemented here, it is meaningless. The findings always describe the whole cluster.
 
 A component that sets `namespaces` on its infrastructure entry therefore cannot be served by this
-scanner, so no Job is created for it and the report says so under **Not measured** — a scanner that
+scanner, so no Job is created for it and the report says so under **Not measured**. A scanner that
 quietly does not run reads exactly like one that ran and found nothing.
 
-Nothing needs disabling by hand. Declare the cluster twice — once narrowed to the namespaces a
-component owns, once whole — and the Job runs against the one that claims the whole cluster.
+Nothing needs disabling by hand. Declare the cluster twice, once narrowed to the namespaces a
+component owns, once whole, and the Job runs against the one that claims the whole cluster.
 [`draugr-k8s-policies`](draugr-k8s-policies.md) reads the Kubernetes API and can be narrowed, so it
 serves both.
 
@@ -96,22 +96,22 @@ config:
 ```
 
 The image is **pinned by digest** by default, and the digest is the part that matters. A tag is a
-mutable pointer — `v0.15.6` can be repushed to different content — so a tag alone leaves you with
-a scan whose result can change while nothing in the descriptor does. The digest makes the pull
+mutable pointer. `v0.15.6` can be repushed to different content, so a tag alone leaves you with a
+scan whose result can change while nothing in the descriptor does. The digest makes the pull
 reproducible and lets the runtime reject content that does not match, which is the same guarantee
 `draugr tools install` gets from verifying a checksum before putting a binary on your `PATH`.
 
 The tag is kept alongside it for readability: `@sha256:…` on its own says nothing about which
 version is running, and someone reading the descriptor should be able to tell.
 
-Override it for a private registry or an air-gapped mirror. If you do, pin yours by digest too —
-this is the one setting where a convenient value quietly weakens the report.
+Override it for a private registry or an air-gapped mirror. If you do, pin yours by digest too.
+This is the one setting where a convenient value quietly weakens the report.
 
 ## Cleanup
 
 The Job is deleted on every path, including a failed or canceled scan, using a context that
-survives the caller's cancellation — a Job left behind in someone's cluster is the worst thing
-this scanner could do. If the wait times out, the Job is removed and the error says so.
+survives the caller's cancellation, a Job left behind in someone's cluster is the worst thing this
+scanner could do. If the wait times out, the Job is removed and the error says so.
 
 ## Links
 

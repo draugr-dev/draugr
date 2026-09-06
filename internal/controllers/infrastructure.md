@@ -2,7 +2,7 @@
 
 - **Industry term:** CIS benchmark / cluster posture
 - **Scope:** component
-- **Status:** ✅ implemented (CIS section 5 — see the scope note below)
+- **Status:** ✅ implemented (CIS section 5. See the scope note below)
 - **Scanners:** [`kube-bench`](../scanners/kube-bench.md)
 - **Resource:** a component's `infrastructure:` entries with `kind: kubernetes`
 
@@ -26,18 +26,18 @@ components:
 
 **`ref` selects the cluster, it does not merely name it.** It is matched against a kubeconfig
 context, and both Draugr's version lookup and the `kubectl` calls kube-bench makes are pointed at
-that context. Findings are labeled with it, so if it did not also select the cluster a report
-would name one cluster and describe another — the worst way for a compliance artifact to be
-wrong, because it looks right. A `ref` with no matching context fails the scan.
+that context. Findings are labeled with it, so if it did not also select the cluster a report would
+name one cluster and describe another, the worst way for a compliance artifact to be wrong, because
+it looks right. A `ref` with no matching context fails the scan.
 
 Where an organization's name for a cluster is not its kubeconfig context name, set `context`.
 
-`ref` is optional. Without it Draugr audits the kubeconfig's current context — and labels the
+`ref` is optional. Without it Draugr audits the kubeconfig's current context, and labels the
 findings with **that** context's name, not a blank, so the report still says which cluster it
 examined.
 
 Two components on the same cluster produce two jobs with the same target, which the engine
-collapses — the shared case costs one scan, not two.
+collapses. The shared case costs one scan, not two.
 
 Infrastructure of another kind is skipped rather than rejected. A Saga may describe surfaces
 Draugr has no benchmark for, and refusing to plan the ones it understands would make a descriptor
@@ -50,15 +50,15 @@ and only one half is reachable the way Draugr runs:
 
 | CIS sections | What they inspect | Reachable? |
 |---|---|---|
-| 5 — policies | RBAC, service accounts, Pod Security Standards, network policies, secrets | ✅ via the Kubernetes API — the default |
-| 1–4 — master, node, etcd, controlplane | API server manifests, kubelet config, etcd data-dir permissions | ✅ via `kubeBenchJob`, which runs in the cluster |
+| 5, policies | RBAC, service accounts, Pod Security Standards, network policies, secrets | ✅ via the Kubernetes API, the default |
+| 1–4, master, node, etcd, controlplane | API server manifests, kubelet config, etcd data-dir permissions | ✅ via `kubeBenchJob`, which runs in the cluster |
 
 Scanners are selected per scanner, the same way every other control does it. Each runs unless
 turned off; a non-default runs only when turned on:
 
 | Key | Scanner | |
 |---|---|---|
-| `draugrK8sPolicies` | [`draugr-k8s-policies`](../scanners/draugr-k8s-policies.md) | section 5 through the Kubernetes API — **the default**. No `kubectl`, nothing to install, seconds on a large cluster |
+| `draugrK8sPolicies` | [`draugr-k8s-policies`](../scanners/draugr-k8s-policies.md) | section 5 through the Kubernetes API, **the default**. No `kubectl`, nothing to install, seconds on a large cluster |
 | `kubeBench` | [`kube-bench`](../scanners/kube-bench.md) | section 5 by exec'ing kube-bench. Same 11 checks decided; the reference the native reader is checked against |
 | `kubeBenchJob` | [`kube-bench-job`](../scanners/kube-bench-job.md) | sections 1–4, from a privileged Job inside the cluster |
 
@@ -76,8 +76,8 @@ config:
       kubeBenchJob: { enabled: true }   # the node sections; the default covers section 5
 ```
 
-To have kube-bench itself be the thing that ran — as a cross-check, or because a report naming
-the tool matters to an auditor — swap the section-5 scanner:
+To have kube-bench itself be the thing that ran, as a cross-check, or because a report naming the
+tool matters to an auditor, swap the section-5 scanner:
 
 ```yaml
       draugrK8sPolicies: { enabled: false }
@@ -89,15 +89,15 @@ wherever Draugr runs. They are the checks that describe how the cluster is confi
 it, rather than how its nodes were installed.
 
 **Read that count with its caveat.** Section 5 is the benchmark's advisory section: in `cis-1.12`
-none of its 34 checks are scored, and only 11 carry an audit command — the rest are prompts for a
-human to go and look. So the default mode reports a small number of automated findings alongside
-a list of things to review, and a cluster it calls clean has not been measured against the
-scored parts of the benchmark. Those live in sections 1–4, and `kubeBenchJob` is how you reach them.
+none of its 34 checks are scored, and only 11 carry an audit command. The rest are prompts for a
+human to go and look. So the default mode reports a small number of automated findings alongside a
+list of things to review, and a cluster it calls clean has not been measured against the scored
+parts of the benchmark. Those live in sections 1–4, and `kubeBenchJob` is how you reach them.
 
 The other 95 read a node's own filesystem, and are available through
-[`kubeBenchJob`](../scanners/kube-bench-job.md) — which runs kube-bench inside the cluster and is a
-different contract: Draugr creates something in the system it is scanning. It declares `mutate`
-and `privilege` effects, so it does not run until those are accepted:
+[`kubeBenchJob`](../scanners/kube-bench-job.md), which runs kube-bench inside the cluster and is a
+different contract: Draugr creates something in the system it is scanning. It declares `mutate` and
+`privilege` effects, so it does not run until those are accepted:
 
 ```yaml
 config:
@@ -136,9 +136,9 @@ detect it from outside a node and quietly assumes an old one if left to guess; a
 when no version is supplied. Whichever it picks, the benchmark the tool reports having used is
 checked against the cluster before any finding is produced.
 
-Set `benchmark` to pin a config directly — for OpenShift, which is identifiable only by running
-`oc`, or for any distribution Draugr does not recognize. See the
-[scanner doc](../scanners/kube-bench.md) for how the choice is made.
+Set `benchmark` to pin a config directly. For OpenShift, which is identifiable only by running `oc`,
+or for any distribution Draugr does not recognize. See the [scanner doc](../scanners/kube-bench.md)
+for how the choice is made.
 
 ## Links
 

@@ -10,7 +10,7 @@ type Publisher interface {
 }
 ```
 
-Everything is in `pkg/publish`. `azure_pr_comment.go` and `gitlab_mr_comment.go` are the models —
+Everything is in `pkg/publish`. `azure_pr_comment.go` and `gitlab_mr_comment.go` are the models,
 follow one closely, because the discipline in them is most of the value.
 
 ## Publisher or reporter?
@@ -32,8 +32,8 @@ The constructor **validates**, and this is where most of the care goes.
 ### Resolve from the environment; never take a secret from the descriptor
 
 The Saga is a file people commit. A token belongs in an environment variable, named by the
-descriptor at most. Default everything else from the CI environment too — project, pull-request
-number, API base — so that using the publisher requires no configuration at all in the place it
+descriptor at most. Default everything else from the CI environment too, project, pull-request
+number, API base, so that using the publisher requires no configuration at all in the place it
 normally runs.
 
 Prefer reusing existing `PublisherConfig` fields over adding new ones.
@@ -42,10 +42,10 @@ Prefer reusing existing `PublisherConfig` fields over adding new ones.
 
 Two different situations, two different behaviors:
 
-- **Not applicable** — not running in that CI system, or not in a pull request. Return a
+- **Not applicable**, not running in that CI system, or not in a pull request. Return a
   `skipPublisher` with a reason. It logs what it skipped and why, so a user who expected a comment
   can see the reason rather than an absence.
-- **Applicable but misconfigured** — a missing token, a bad project. That is an **error**, and its
+- **Applicable but misconfigured**, a missing token, a bad project. That is an **error**, and its
   message must name the fix.
 
 “The flag did nothing and said nothing” is the failure this design exists to prevent.
@@ -89,11 +89,11 @@ var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
 
 Then, and none of these are optional:
 
-- **`pkg/publish/publish_test.go`** — `TestKinds` asserts the exact list.
-- **`pkg/saga/draugr.saga.schema.json` and `draugr.saga-fragment.schema.json`** — the `kind`
+- **`pkg/publish/publish_test.go`**, `TestKinds` asserts the exact list.
+- **`pkg/saga/draugr.saga.schema.json` and `draugr.saga-fragment.schema.json`**, the `kind`
   `anyOf` is **hand-maintained**; `internal/schemagen` does not touch publishers. A kind missing
   here is one an editor rejects while Draugr accepts it.
-- **`internal/cli/diff.go`** — `diffPublisherKind()` if the publisher is the right default for a CI
+- **`internal/cli/diff.go`**. `diffPublisherKind()` if the publisher is the right default for a CI
   system, plus its case in `diff_test.go`.
 
 ## 3. Document it
@@ -110,7 +110,7 @@ Plus a user-first `CHANGELOG.md` entry.
 Against a fake HTTP server:
 
 - Creating a comment when none exists; **updating** when the marker is found.
-- The marker on a **second page** — the case that turns an update into a duplicate.
+- The marker on a **second page**. The case that turns an update into a duplicate.
 - Each skip condition, with its reason.
 - Each missing-credential case, and that the message names the fix.
 - Path escaping with a **nested** project path.
@@ -131,5 +131,5 @@ Run it **twice**: the second run must edit the first comment, not add one. Then 
 and confirm a third run recreates it. Also confirm the no-token path prints the message naming the
 fix rather than a bare 401.
 
-If the publisher is used by a CI template, remember that templates install the latest **release** —
+If the publisher is used by a CI template, remember that templates install the latest **release**,
 so a template exercising a new flag lands after a release containing it.

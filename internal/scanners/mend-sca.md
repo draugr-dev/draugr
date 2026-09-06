@@ -17,8 +17,8 @@ config:
           python.requirementsFileIncludes: requirements.txt
 ```
 
-Credentials come from the environment and never from the descriptor — `MEND_URL`, `MEND_EMAIL`
-and `MEND_USER_KEY`. A Saga is committed and reviewed; a key is not. The product token *is* in the
+Credentials come from the environment and never from the descriptor, `MEND_URL`, `MEND_EMAIL` and
+`MEND_USER_KEY`. A Saga is committed and reviewed; a key is not. The product token *is* in the
 descriptor, because it identifies a product and authenticates nothing, and because a component may
 need to report somewhere other than the project default.
 
@@ -32,15 +32,15 @@ Two phases, because that is what the tool is.
    become SARIF.
 
 Draugr uses the Unified Agent rather than the newer `mend dependencies` engine deliberately. That
-engine resolves whatever is installed on the machine running the scan, which — pointed at a
-checkout — reports on the CI runner instead of the component. The agent is configuration-driven
-and resolves what the project declares.
+engine resolves whatever is installed on the machine running the scan, which, pointed at a
+checkout, reports on the CI runner instead of the component. The agent is configuration-driven and
+resolves what the project declares.
 
 ## Tool, license and terms of use
 
 The **Mend CLI** is proprietary software distributed by Mend. Draugr **executes** it and never
 downloads, bundles or hosts it: install it yourself from Mend's documented location, and the
-report will show its attestation as `external` — found on PATH, brought by you.
+report will show its attestation as `external`, found on PATH, brought by you.
 
 Use is governed by the [Mend Terms of Service](https://www.mend.io/terms-of-service/), which
 covers every tier including free use. Three clauses bear on using it this way:
@@ -59,15 +59,15 @@ covers every tier including free use. Three clauses bear on using it this way:
 
 Running this control transmits a description of your dependencies to Mend, and creates a record
 there. Specifically, per dependency: **name, version, ecosystem, scope, SHA-1 checksums, and the
-absolute path on the scanning machine where it was found** — which includes the account name of
+absolute path on the scanning machine where it was found**, which includes the account name of
 whoever or whatever ran the scan.
 
 Mend's product documentation states that full source code is not uploaded. That is their
-documentation rather than a contractual term, and it is worth knowing that
-[Mend's privacy notice](https://www.mend.io/privacy-policy/) addresses personal data — names,
-work email, sign-in activity — and does **not** describe how long scan data is retained or whether
-it is reused. Those questions belong to whatever agreement you hold with Mend. This scanner is
-opt-in so that the decision is yours to make with that in view.
+documentation rather than a contractual term, and it is worth knowing that [Mend's privacy
+notice](https://www.mend.io/privacy-policy/) addresses personal data. Names, work email, sign-in
+activity, and does **not** describe how long scan data is retained or whether it is reused. Those
+questions belong to whatever agreement you hold with Mend. This scanner is opt-in so that the
+decision is yours to make with that in view.
 
 You can see exactly what would leave your machine before it does, using the tool directly:
 
@@ -88,10 +88,10 @@ run.
 
 ## Projects, one per repository
 
-Each repository becomes its own Mend project, named after the repository it came from. That is
-not a preference: Draugr scans a component's repositories concurrently, and an agent upload
-*replaces* a project's inventory rather than adding to it — so repositories sharing a project
-would overwrite one another, and the findings would describe whichever finished last.
+Each repository becomes its own Mend project, named after the repository it came from. That is not
+a preference: Draugr scans a component's repositories concurrently, and an agent upload *replaces*
+a project's inventory rather than adding to it, so repositories sharing a project would overwrite
+one another, and the findings would describe whichever finished last.
 
 The name derives from the repository's resolved source, so a scan from a laptop and a scan from a
 pipeline land in the **same** project rather than two. `productToken` decides which product they
@@ -101,7 +101,7 @@ sit under, and a component may override the project-level one.
 
 **Findings name a library, not a line.** Mend reports that a component is vulnerable; it does not
 report where in your tree it was declared. Locations are therefore coarser than `trivy-fs`'s, and
-`draugr diff` — which matches on location — matches these less precisely.
+`draugr diff`, which matches on location, matches these less precisely.
 
 **Only security vulnerabilities become findings.** Mend also raises alerts for outdated major
 versions and for its own policy rules. The first is dependency freshness rather than security. The
@@ -110,13 +110,13 @@ Draugr's verdict, when the point of the gate is that a descriptor you can read d
 
 **A scan that resolved nothing is treated as a failure, not a pass.** The agent drives each
 ecosystem's package manager, and a runner that cannot reach one resolves zero dependencies, exits
-successfully, and replaces the project's inventory with nothing — after which the API honestly
+successfully, and replaces the project's inventory with nothing, after which the API honestly
 reports no vulnerabilities. Draugr refuses that: zero resolved from a tree that declares
 dependencies is reported as a control that could not run.
 
 **Results are waited for.** Mend processes an upload after accepting it, so Draugr polls until the
 upload it made has been applied, correlating the agent's request token rather than guessing from
-elapsed time. A timeout is an error rather than an empty result — otherwise a large component,
+elapsed time. A timeout is an error rather than an empty result, otherwise a large component,
 which is exactly what takes longest to process, would report a clean bill of health.
 `resultTimeout` raises the ceiling (default 10 minutes).
 

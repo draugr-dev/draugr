@@ -1,12 +1,12 @@
 # Scanner: `draugr-headers` (HTTP security headers)
 
 - **Control:** [`headers`](../controllers/headers.md)
-- **Tool:** **native** — no external tool. A Go HTTP client fetches each host and evaluates
+- **Tool:** **native**, no external tool. A Go HTTP client fetches each host and evaluates
   its response headers against the OWASP Secure Headers guidance.
 - **Status:** ✅ implemented
-- **Target:** a running endpoint (`HostTarget`) — a component's `hosts:`
+- **Target:** a running endpoint (`HostTarget`), a component's `hosts:`
 - **License / terms:** native Draugr code (Apache-2.0). [OWASP Secure Headers
-  Project](https://owasp.org/www-project-secure-headers/) is a **reference only** — no code or
+  Project](https://owasp.org/www-project-secure-headers/) is a **reference only**, no code or
   data is bundled.
 
 ## What it does
@@ -27,7 +27,7 @@ information-disclosure → `note`; wildcard CORS with credentials → `error`. S
 
 ### Grading the Content-Security-Policy
 
-A CSP can be present and stop almost nothing — `default-src *; script-src 'unsafe-inline'
+A CSP can be present and stop almost nothing, `default-src *; script-src 'unsafe-inline'
 'unsafe-eval'` satisfies a presence check while permitting exactly what a CSP exists to prevent.
 So when the header is there, its **content** is judged too.
 
@@ -35,9 +35,9 @@ So when the header is there, its **content** is judged too.
 |------|-------|---------------|
 | `csp-unsafe-inline` | error | an injected `<script>` or event handler runs |
 | `csp-unsafe-eval` | error | `eval()` and string-to-code are allowed |
-| `csp-script-src-broad` | error | `*`, `https:`, `data:` or `blob:` — the payload can be hosted anywhere |
+| `csp-script-src-broad` | error | `*`, `https:`, `data:` or `blob:`. The payload can be hosted anywhere |
 | `csp-script-src-missing` | error | no `script-src` and no `default-src`: script is ungoverned |
-| `csp-object-src-broad` | warning | `<object>`/`<embed>` unrestricted — a route `script-src` does not cover |
+| `csp-object-src-broad` | warning | `<object>`/`<embed>` unrestricted. A route `script-src` does not cover |
 | `csp-base-uri-missing` | warning | an injected `<base>` can repoint every relative script URL |
 | `csp-object-src-not-none` | note | objects restricted but not disabled |
 | `csp-default-src-missing` | note | resource types the policy does not name are unrestricted |
@@ -47,7 +47,7 @@ So when the header is there, its **content** is judged too.
 **Two CSP3 rules decide whether a weakness is real**, and a checker that ignores them produces
 findings against the policies people were right to write:
 
-- a **nonce or hash** in `script-src` makes `'unsafe-inline'` inert — browsers ignore it, and it
+- a **nonce or hash** in `script-src` makes `'unsafe-inline'` inert, browsers ignore it, and it
   is there for ones too old to understand the rest;
 - **`'strict-dynamic'`** makes host and scheme sources inert, so a policy carrying `https:`
   alongside it is being compatible rather than permissive.
@@ -69,7 +69,7 @@ library rather than an exec-able binary, and Draugr executes tools rather than l
 
 ## Notes
 
-- Being native, it needs **no external tool** — `doctor` requires nothing for the `headers`
+- Being native, it needs **no external tool**, `doctor` requires nothing for the `headers`
   control (only network reachability to the hosts).
 - The control talks to a scanner by name, so a tool-backed alternative (e.g. OWASP ZAP passive
   rules, Mozilla HTTP Observatory) could serve the same control later without changing callers.

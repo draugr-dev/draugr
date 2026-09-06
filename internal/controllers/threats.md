@@ -5,8 +5,8 @@ malware.
 
 ## What it does
 
-Every other host control examines something you run — its headers, its TLS, its answers to a
-probe. This one examines what **other people have already observed** about it.
+Every other host control examines something you run, its headers, its TLS, its answers to a probe.
+This one examines what **other people have already observed** about it.
 
 That difference matters more than it sounds. A scanner pointed at your own endpoint checks the
 paths you know about. It cannot tell you that `/wp-content/uploads/x.exe` on the same host has
@@ -16,7 +16,7 @@ in your deployment says it exists. Somebody else found it, and abuse.ch wrote it
 A finding here usually means one of two things:
 
 - **the host is compromised**, and something is being served from it that you did not deploy; or
-- **the name was abused before you held it** — an expired domain reused, or a cloud IP recycled.
+- **the name was abused before you held it**, an expired domain reused, or a cloud IP recycled.
 
 The second is common and is not your fault, but it is still worth knowing: your users' security
 tooling sees the same record you do, and will treat your traffic accordingly.
@@ -26,7 +26,7 @@ tooling sees the same record you do, and will treat your traffic accordingly.
 `threats`, component-scoped. One lookup per distinct hostname declared under `hosts`. Two
 endpoints on one host are one question, because the feed keys on the host.
 
-Off by default, like every control, and for a sharper reason than most — see the disclosure note
+Off by default, like every control, and for a sharper reason than most. See the disclosure note
 below.
 
 ## Scanners, and why one is opt-in
@@ -45,10 +45,10 @@ config:
 ```
 
 Running a second feed is a decision to disclose to a second party, so it is never implied by
-enabling the control. It is also the one whose safety rests on an **observed** behavior rather
-than a documented one: VirusTotal's terms describe sharing in terms of submissions and never say a
-lookup is treated differently. The scanner only ever reads domain reports — never an endpoint that
-accepts content — and the reasoning is set out in [its doc](../scanners/virustotal.md).
+enabling the control. It is also the one whose safety rests on an **observed** behavior rather than
+a documented one: VirusTotal's terms describe sharing in terms of submissions and never say a
+lookup is treated differently. The scanner only ever reads domain reports, never an endpoint that
+accepts content, and the reasoning is set out in [its doc](../scanners/virustotal.md).
 
 **Rate limits are the scanner's problem, not yours.** VirusTotal's public API allows four requests
 a minute, and Draugr spaces its calls to match without holding up anything else in the run. A
@@ -63,7 +63,7 @@ and there is no need to lower `--jobs`.
 | `urlhaus/blacklisted` | warning | a third-party blocklist abuse.ch consults lists this host |
 
 The split is the judgement in this control. Reporting a years-old, long-dead record at the same
-level as live malware would make the control cry wolf on any domain with a history — and a control
+level as live malware would make the control cry wolf on any domain with a history, and a control
 that cries wolf is one people disable, which is worse than one that reports slightly less.
 
 ## Disclosure
@@ -71,7 +71,7 @@ that cries wolf is one people disable, which is worse than one that reports slig
 **Running this tells abuse.ch that your hosts exist.** The scanner declares a `network` effect
 saying so, which appears in the report and in `draugr controls`.
 
-For a public web property that is uninteresting — the host is already public. For an unannounced
+For a public web property that is uninteresting. The host is already public. For an unannounced
 service, a staging environment, or an internal name that happens to resolve, it is a real
 consideration, and it is the reason this is stated rather than buried.
 
@@ -91,9 +91,9 @@ This is worth stating plainly because it is the opposite of what the feature loo
 issued in thirty seconds reads as permissive; the terms behind it are not.
 
 The same is true of VirusTotal: its public API forbids use "in commercial products or services".
-**There is no commercially-free threat-intelligence source here** — a property of this corner of
-the ecosystem rather than of Draugr, and true of both scanners this control offers. Whose key it
-is decides whose obligation it is; Draugr calls documented APIs with credentials you supply.
+**There is no commercially-free threat-intelligence source here**, a property of this corner of the
+ecosystem rather than of Draugr, and true of both scanners this control offers. Whose key it is
+decides whose obligation it is; Draugr calls documented APIs with credentials you supply.
 
 Details, including query-volume expectations and the restriction on derivative works, are in the
 [scanner doc](../scanners/urlhaus.md).
@@ -106,13 +106,13 @@ default. What was learned along the way is kept in its doc, because the reasonin
 having.
 
 One concern was **partly** answered. A VirusTotal *lookup* of a URL it has never seen returns 404
-twice, over a minute apart — so the lookup does not create a report others can retrieve. That is a
+twice, over a minute apart, so the lookup does not create a report others can retrieve. That is a
 behavioral observation, and behavior can change without notice.
 
 What has **not** been established is which terms govern the free public API, and what they say
 about retaining or sharing query data.
 
-VirusTotal is owned by Google, and its terms link to Google Cloud's — reasonably, not by mistake.
+VirusTotal is owned by Google, and its terms link to Google Cloud's, reasonably, not by mistake.
 But that document is a contract for **purchased** Cloud services: it is "entered into by Google and
 the entity or person agreeing to these terms", effective when a customer clicks to accept, and its
 protections attach to "Customer Data" under an Account. Somebody using a free public API key has
@@ -128,13 +128,13 @@ scanning reports "are shared with the public VirusTotal community", and "the con
 files or pages may also be shared with premium VirusTotal customers".
 
 Neither page distinguishes a **lookup** from a **submission**, which is the distinction the whole
-question turns on. Measured behavior suggests they are different — a lookup of a URL VirusTotal
-has never seen returns 404 twice, over a minute apart, and creates no record. But an undocumented
+question turns on. Measured behavior suggests they are different, a lookup of a URL VirusTotal has
+never seen returns 404 twice, over a minute apart, and creates no record. But an undocumented
 behavior is not a guarantee, and the documented default is sharing.
 
 So the risk is not hypothetical and not small: if a lookup of an unknown host ever queues it for
-analysis — today, or after a change nobody announces — that hostname enters a corpus shared with
-the community and with paying customers. For a control that exists to send *your infrastructure's
+analysis, today, or after a change nobody announces, that hostname enters a corpus shared with the
+community and with paying customers. For a control that exists to send *your infrastructure's
 names* somewhere, an unstated distinction protecting you from publication is not a foundation.
 
 The terms and privacy notice do not rescue it. Google Cloud's terms are a contract "entered into
@@ -150,7 +150,7 @@ free public API key is covered by neither.
 | VirusTotal Enterprise (a purchased SecOps Service) | Cloud ToS, SecOps Privacy Notice, Data Processing Addendum | Google "will not access, use, or process Customer Data for any other purpose" |
 | Free public API | the API-key terms above | submissions shared with the community and premium customers |
 
-A connector could make an honest claim for the first and the opposite one for the second — and the
+A connector could make an honest claim for the first and the opposite one for the second, and the
 second is what people would actually use. That is not a gap to fill later; it is the answer.
 
 If it is ever built, two things follow from the same page: the key must stay in the environment,

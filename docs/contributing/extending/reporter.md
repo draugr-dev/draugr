@@ -24,7 +24,7 @@ func (r yourReporter) Render(w io.Writer, d Data) error { /* … */ }
 `Data` carries the whole run: results, summary, the component metadata, and `scanErrors`.
 
 **Use `scanErrors`.** A control that could not run must not render as a clean scan. Whatever your
-format's equivalent is — a status field, a failure element — set it, or the format quietly reports
+format's equivalent is, a status field, a failure element, set it, or the format quietly reports
 success for work that never happened.
 
 ## 2. Register it
@@ -39,9 +39,9 @@ var reporters = map[string]Reporter{
 
 Then decide **how it is delivered**, which is a real distinction and not a detail:
 
-- **`StreamFormats`** — formats whose natural destination is somewhere output goes: `console`,
+- **`StreamFormats`**. Formats whose natural destination is somewhere output goes: `console`,
   `markdown`, `json`, `sarif`. These are what `--format` accepts.
-- **`documentFormats`** — formats produced as files, like `junit` and GitLab's reports. A user
+- **`documentFormats`**, formats produced as files, like `junit` and GitLab's reports. A user
   passing `--format` for one of these gets an error telling them where the format *does* go, rather
   than silence.
 
@@ -50,8 +50,8 @@ Getting this wrong is a flag that appears to work and produces nothing.
 ## 3. Give it a filename
 
 `formatMeta` in `pkg/report/artifact.go` maps the format to the file it is written as. Where the
-consumer is somebody else's tool, use **their** conventional name — `gl-sast-report.json`, not one
-of ours — so a pipeline written from their documentation finds the file.
+consumer is somebody else's tool, use **their** conventional name, `gl-sast-report.json`, not one of
+ours, so a pipeline written from their documentation finds the file.
 
 ## 4. Validate against the real schema
 
@@ -85,10 +85,10 @@ go test ./pkg/report -update                  # accept the new layout
 make examples                                 # real output from the demo sandbox, to paste
 ```
 
-The failure message lists everything that needs refreshing — including files in the **website
-repository**, which nothing here can check. Work through the list rather than only regenerating
-the golden: the layout is quoted in the README, several `docs/` pages, the demo screenshot and
-posts on the site, and none of them notice when it changes.
+The failure message lists everything that needs refreshing, including files in the **website
+repository**, which nothing here can check. Work through the list rather than only regenerating the
+golden: the layout is quoted in the README, several `docs/` pages, the demo screenshot and posts on
+the site, and none of them notice when it changes.
 
 ## 7. Test it
 
@@ -96,7 +96,7 @@ posts on the site, and none of them notice when it changes.
 - A run with a scan error renders as failed.
 - A run with no findings renders as a valid empty document, not an empty file.
 - Schema validation, if the format is someone else's.
-- Rendering is deterministic — sort anything you iterate over a map to produce.
+- Rendering is deterministic, sort anything you iterate over a map to produce.
 
 ## 8. Document it
 

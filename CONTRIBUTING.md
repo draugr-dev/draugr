@@ -1,22 +1,22 @@
 # Contributing to Draugr
 
-Thanks for your interest in Draugr — a developer-first, descriptor-driven security scanning
-orchestration engine. Contributions of all kinds are welcome: bug reports, feature ideas,
-docs, new scanner/controller integrations, and code.
+Thanks for your interest in Draugr, a developer-first, descriptor-driven security scanning
+orchestration engine. Contributions of all kinds are welcome: bug reports, feature ideas, docs, new
+scanner/controller integrations, and code.
 
 ## Ways to contribute
 
-- **Report a bug or request a feature** — open an [issue](https://github.com/draugr-dev/draugr/issues).
+- **Report a bug or request a feature**, open an [issue](https://github.com/draugr-dev/draugr/issues).
   For bugs, include your OS/arch, the Draugr version (`draugr version`), the command you ran,
   and what happened vs. what you expected.
-- **Improve the docs** — docs live in [`docs/`](docs/) and alongside each integration
+- **Improve the docs**. Docs live in [`docs/`](docs/) and alongside each integration
   (`internal/scanners/*.md`, `internal/controllers/*.md`). Docs are a first-class deliverable.
-- **Add an integration** — a scanner, a control, a surveyor, a reporter, a publisher, or a tool
+- **Add an integration**, a scanner, a control, a surveyor, a reporter, a publisher, or a tool
   Draugr can install. Each has a step-by-step guide under
   [`docs/contributing/extending/`](docs/contributing/extending/README.md), which starts with a
   table for picking the right one. The interfaces themselves are in
   [`docs/contributing/plugin-api.md`](docs/contributing/plugin-api.md).
-- **Fix or build something** — see the workflow below.
+- **Fix or build something**. See the workflow below.
 
 ## Development
 
@@ -29,16 +29,16 @@ make test    # run tests
 make gate    # full local gate: fmt, vet, golangci-lint, race tests + coverage, govulncheck
 ```
 
-Please run `make gate` before opening a pull request — CI runs the same checks.
+Please run `make gate` before opening a pull request. CI runs the same checks.
 
 ### Editing the CHANGELOG
 
-New entries go under `## [Unreleased]`. Released sections are a record of what shipped — once a
+New entries go under `## [Unreleased]`. Released sections are a record of what shipped. Once a
 version is tagged, editing its notes rewrites history that release notes and the published site
 already quote.
 
-You can edit the file by hand — it is Markdown, and nothing here is mandatory. There is a helper
-for the parts that are easy to get quietly wrong:
+You can edit the file by hand. It is Markdown, and nothing here is mandatory. There is a helper for
+the parts that are easy to get quietly wrong:
 
 ```bash
 make changelog                      # check it (also part of `make gate` and CI)
@@ -51,22 +51,21 @@ echo "- **What you can now do.**" | ./scripts/changelog.sh add fixed
 sections it accepts are Added, Changed, Deprecated, Removed, Fixed and Security; `### Fix` reads
 fine and lands nowhere the release notes look.
 
-**What `make changelog` catches** — it runs in `make gate` and in CI, so a heading nobody
-recognizes never reaches `main`. Every one of these produces a file that looks right:
+**What `make changelog` catches**. It runs in `make gate` and in CI, so a heading nobody recognizes
+never reaches `main`. Every one of these produces a file that looks right:
 
 - **Two `### Fixed` blocks under one version.** The published notes contain whichever the
   extractor reaches first, and there is no way to tell from the release page that half is missing.
 - **A heading that is not one of the six.** Entries under it are simply not published.
 - **A released version with no link reference**, which renders as a bare `[0.58.0]`.
-- **A released section that has changed since its tag** — the original guard, still run as part of
+- **A released section that has changed since its tag**. The original guard, still run as part of
   this. The failure it exists for is aim rather than malice: an entry meant for `[Unreleased]`
   landing one section lower produces a perfectly valid CHANGELOG describing a fix in a release
   that does not contain it. It reports how many sections it checked, because a guard that
   silently checks nothing is worse than no guard.
 
-Heading checks apply to `[Unreleased]` only. Released sections are held to what their tag said,
-and the earliest history predates this convention — a check that can never pass is a check nobody
-reads.
+Heading checks apply to `[Unreleased]` only. Released sections are held to what their tag said, and
+the earliest history predates this convention. A check that can never pass is a check nobody reads.
 
 **Releasing.** `./scripts/changelog.sh promote X.Y.Z` moves `[Unreleased]` into a dated section
 and updates the compare links, then prints what the tag will publish. Read that output. It
@@ -79,8 +78,8 @@ cheap to fix is before the tag exists.
 It grows, and that is fine for now. Two things make it worth leaving alone:
 
 - **The file ships inside every release archive**, next to the binary, and those archives are
-  checksummed with the checksums file signed by cosign. Someone with only a verified tarball —
-  air-gapped, or in a regulated environment — has the whole history offline and tamper-evident.
+  checksummed with the checksums file signed by cosign. Someone with only a verified tarball,
+  air-gapped, or in a regulated environment. Has the whole history offline and tamper-evident.
   GitHub's release notes are editable after publication through the API, leave no trace in git,
   and are covered by no signature. Splitting the file trades that away unless the archive ships
   too.
@@ -89,9 +88,9 @@ It grows, and that is fine for now. Two things make it worth leaving alone:
   release pages. [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), which this file
   follows, prescribes one file and is silent on archives.
 
-Revisit at roughly **3,000 lines**, or the first year boundary. When splitting, put older entries
-in `CHANGELOG-ARCHIVE.md` — the guard already looks for that name, so archived sections keep being
-checked rather than quietly dropping out of the check as they age — and add the archive to the
+Revisit at roughly **3,000 lines**, or the first year boundary. When splitting, put older entries in
+`CHANGELOG-ARCHIVE.md`, the guard already looks for that name, so archived sections keep being
+checked rather than quietly dropping out of the check as they age, and add the archive to the
 release archive so the signed artifact still carries the whole record.
 
 ### Cutting a release
@@ -106,13 +105,13 @@ request whose body is the notes the release will publish:
 |---|---|
 | `Added`, `Changed`, `Deprecated` or `Removed` | minor |
 | only `Fixed` and/or `Security` | patch |
-| — | **major is never derived** |
+|. | **major is never derived** |
 
 Major takes the workflow's `version` input. Deciding an interface is now unsupportable is a
 judgement about people, not one a heading should be able to reach.
 
 **Merging that pull request tags the release.** A second workflow watches `main` and tags any
-released section that has no tag yet — so the state is the file rather than a label or a commit
+released section that has no tag yet, so the state is the file rather than a label or a commit
 subject, and a hand-promoted CHANGELOG is tagged the same way. Running it twice is a no-op: the
 second run finds the tag and stops.
 
@@ -120,8 +119,8 @@ The tag triggers the release workflow, which **refuses to publish** unless the s
 integration suite both pass on that exact tree.
 
 Deliberately not on every merge. A version per trivial change is noise in the tag list and in
-everyone's dependency updates — dispatch it when the accumulated notes are worth shipping. Check
-what they say first:
+everyone's dependency updates, dispatch it when the accumulated notes are worth shipping. Check what
+they say first:
 
 ```bash
 make changelog-show      # exactly what a tag would publish
@@ -132,13 +131,13 @@ make changelog-show      # exactly what a tag would publish
 
 It is not a gap and it is not going to be fixed by adding a tool.
 
-Static analysis runs here twice — Semgrep and gosec through Draugr's own `sast` control, and gosec
+Static analysis runs here twice, Semgrep and gosec through Draugr's own `sast` control, and gosec
 again inside `golangci-lint`. Scorecard credits a fixed list of analyzers it recognizes, and ours
 are not on it.
 
 Adding CodeQL would move the number in an afternoon, and a third analyzer on a repository already
-running two is a metric improved without the property behind it improving — the same thing as a
-test that executes code without asserting anything. The score stays wrong on purpose.
+running two is a metric improved without the property behind it improving, the same thing as a test
+that executes code without asserting anything. The score stays wrong on purpose.
 
 Raise it in [#116](https://github.com/draugr-dev/draugr/issues/116) if you think that trade is the
 wrong way round. The decision is deliberate, not an oversight, so it deserves an argument rather
@@ -152,7 +151,7 @@ Write **`#nosec`**, never `//nolint:gosec`:
 data, err := os.ReadFile(path) // #nosec G304 -- operator-provided config path
 ```
 
-Both matter. gosec runs twice here — inside `golangci-lint` (fast, local, in `make gate`) and as
+Both matter. gosec runs twice here, inside `golangci-lint` (fast, local, in `make gate`) and as
 Draugr's own `sast` scanner (what a user would get). `#nosec` silences both; `//nolint:gosec`
 silences only the first, so a codebase using it passes `make gate` and fails the self-scan on the
 same line.
@@ -162,9 +161,9 @@ line, including one nobody has reviewed.
 
 ### Writing the comment that explains a guard
 
-Everything here is world-readable — code comments, test rationale, workflow comments, config —
-and a comment saying *why* a check exists is one of the most useful things in the repository.
-Write it as **the risk the guard protects against**, not the occasion that prompted it.
+Everything here is world-readable, code comments, test rationale, workflow comments, config, and a
+comment saying *why* a check exists is one of the most useful things in the repository. Write it as
+**the risk the guard protects against**, not the occasion that prompted it.
 
 - No: *"the licenses control shipped without its docs and the gap reached the published site."*
 - Yes: *"a plugin with no documentation still compiles and still passes its own tests; nothing
@@ -204,19 +203,19 @@ so no test here can catch them; the golden's failure message names them so they 
 
 ### Integration tests
 
-Heavier tests that exercise real external dependencies — a real Trivy binary and an ephemeral
-[kind](https://kind.sigs.k8s.io/) cluster — live in `test/integration/`, gated behind the
-`integration` build tag so the default `go test ./...` stays fast and hermetic. Run them
-locally (needs `trivy` on PATH, a reachable cluster for the k8s test, and a built binary):
+Heavier tests that exercise real external dependencies, a real Trivy binary and an ephemeral
+[kind](https://kind.sigs.k8s.io/) cluster, live in `test/integration/`, gated behind the
+`integration` build tag so the default `go test ./...` stays fast and hermetic. Run them locally
+(needs `trivy` on PATH, a reachable cluster for the k8s test, and a built binary):
 
 ```bash
 make build
 DRAUGR_BIN="$PWD/bin/draugr" go test -tags integration ./test/integration/...
 ```
 
-In CI they run in the dedicated **Integration** workflow — on `main`, nightly, on demand, and
-on a PR only when it carries the `ci-integration` label (add the label to run them against a
-PR). The workflow is advisory: failures are visible but it is not a required check.
+In CI they run in the dedicated **Integration** workflow, on `main`, nightly, on demand, and on a PR
+only when it carries the `ci-integration` label (add the label to run them against a PR). The
+workflow is advisory: failures are visible but it is not a required check.
 
 ## Pull requests
 
@@ -226,14 +225,14 @@ PR). The workflow is advisory: failures are visible but it is not a required che
    integration, plus `docs/` and the `CHANGELOG.md` `[Unreleased]` section where user-facing).
    Registering a controller, scanner or surveyor without its colocated `.md` and a linking row
    in [`docs/reference/catalog.md`](docs/reference/catalog.md) fails
-   `TestEveryPluginHasColocatedDocs` — a doc nothing links to is a doc nobody finds.
-4. **Green CI** — build, lint, tests, and the vulnerability scan must pass.
+   `TestEveryPluginHasColocatedDocs`, a doc nothing links to is a doc nobody finds.
+4. **Green CI**, build, lint, tests, and the vulnerability scan must pass.
 5. Write clear commit messages describing the *why*, not just the *what*.
 
 ## Conduct & security
 
 - This project follows its [Code of Conduct](CODE_OF_CONDUCT.md).
-- Please report security issues privately per [SECURITY.md](SECURITY.md) — do **not** open a
+- Please report security issues privately per [SECURITY.md](SECURITY.md). Do **not** open a
   public issue for a vulnerability.
 
 ## License

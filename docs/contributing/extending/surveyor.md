@@ -1,7 +1,7 @@
 # Adding a surveyor
 
 A **surveyor** discovers what exists and writes it down as a Saga fragment. It answers “what do we
-even have?” — the question that precedes every scan, and the one most likely to be answered wrongly
+even have?”, the question that precedes every scan, and the one most likely to be answered wrongly
 from memory.
 
 ```go
@@ -28,7 +28,7 @@ func (s gitlabGroupProjects) Info() plugin.SurveyorInfo {
 }
 ```
 
-`Survey` returns a `saga.Fragment` — usually one component per discovered thing, each carrying its
+`Survey` returns a `saga.Fragment`, usually one component per discovered thing, each carrying its
 repositories with a URL and a revision.
 
 ### Paginate
@@ -40,9 +40,9 @@ what you get back is a valid fragment, just a short one.
 
 ### Say when the answer is partial
 
-The most valuable thing a surveyor can do is admit what it could not see. An unauthenticated
-survey of a forge returns only public repositories — a perfectly successful call that omits
-everything private. Warn:
+The most valuable thing a surveyor can do is admit what it could not see. An unauthenticated survey
+of a forge returns only public repositories, a perfectly successful call that omits everything
+private. Warn:
 
 ```go
 // github_org_repos.go
@@ -61,13 +61,13 @@ consequence in a field, and what to do about it in `fix`.
 
 ### Credentials come from the environment
 
-Read a token from the scope config or an environment variable — never require it to be written
-into a descriptor, which is a file people commit.
+Read a token from the scope config or an environment variable, never require it to be written into
+a descriptor, which is a file people commit.
 
 ## 2. Register it
 
 ```go
-// internal/builtins/builtins.go — SurveyorRegistry()
+// internal/builtins/builtins.go, SurveyorRegistry()
 reg.Register(surveyors.NewGitLabGroupProjects())
 ```
 
@@ -81,14 +81,14 @@ reg.Register(surveyors.NewGitLabGroupProjects())
 A colocated `internal/surveyors/<name>.md` and a row in
 [`docs/reference/catalog.md`](../../reference/catalog.md), both enforced by
 `TestEveryPluginHasColocatedDocs`. Surveyor docs must state license and terms just as scanner docs
-do (`TestEveryToolDocStatesItsTerms`) — a surveyor talks to somebody's API, so what that API's
-terms permit is part of what you are shipping.
+do (`TestEveryToolDocStatesItsTerms`), a surveyor talks to somebody's API, so what that API's terms
+permit is part of what you are shipping.
 
 If the survey sends anything anywhere, say what.
 
 ## 5. Test it
 
-- `Info()` — name and provided target kinds.
+- `Info()`. Name and provided target kinds.
 - The fragment shape from a recorded API response: components, repositories, revisions.
 - **Pagination**, with a fake returning two pages. One page proves the parser works; two prove the
   loop does.

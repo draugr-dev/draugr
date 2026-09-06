@@ -14,7 +14,7 @@ result with a severity summary.
 
 ## Links
 
-- Glossary: [SCA](../../docs/reference/glossary.md#sca--software-composition-analysis)
+- Glossary: [SCA](../../docs/reference/glossary.md#sca-software-composition-analysis)
 - Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)
 
 ## Notes

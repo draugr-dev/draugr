@@ -1,29 +1,27 @@
-# Draugr — Architecture (v0 draft)
+# Draugr, Architecture (v0 draft)
 
 Status: **draft for discussion**.
 Companion: [`plugin-api.md`](plugin-api.md) (interface sketches), [`naming.md`](naming.md).
 
-**Contents:** [1. Model](#1-one-paragraph-model) · [2. Pipeline](#2-pipeline) ·
-[3. Data model — the Saga](#3-data-model--the-saga) · [4. Plugin model](#4-plugin-model) ·
-[5. SARIF](#5-interchange--sarif-everywhere) ·
-[6. Cheap at scale](#6-execution--the-cheap-at-scale-pillar) ·
-[7. Component layout](#7-component-layout-proposed-go-module) ·
-[8. Deferred](#8-deliberately-deferred) ·
-[9. Observability & security](#9-observability--security-standards) ·
-[10. Open questions](#10-open-questions)
+**Contents:** [1. Model](#1-one-paragraph-model) · [2. Pipeline](#2-pipeline) · [3. Data model,
+the Saga](#3-data-model-the-saga) · [4. Plugin model](#4-plugin-model) · [5.
+SARIF](#5-interchange-sarif-everywhere) · [6. Cheap at
+scale](#6-execution--the-cheap-at-scale-pillar) · [7. Component
+layout](#7-component-layout-proposed-go-module) · [8. Deferred](#8-deliberately-deferred) · [9.
+Observability & security](#9-observability--security-standards) · [10. Open
+questions](#10-open-questions)
 
 ---
 
 ## 1. One-paragraph model
 
-A developer writes a **Saga** (`draugr.saga.yaml`) describing their app's surface —
-repos, images, endpoints, infrastructure. Optionally, **Surveyors**
-discover that surface and write the Saga for them. The **engine** builds an execution
-plan (which **Controllers** apply to which components), runs the relevant **Scanners**
-concurrently, and normalizes every result to **SARIF**. The **Norn** evaluates results
-against policy to produce a pass/fail verdict, and the **Skald** renders audit-ready
-evidence. Everything expensive is **cached by content hash** so unchanged components are
-never re-scanned.
+A developer writes a **Saga** (`draugr.saga.yaml`) describing their app's surface, repos,
+images, endpoints, infrastructure. Optionally, **Surveyors** discover that surface and write the
+Saga for them. The **engine** builds an execution plan (which **Controllers** apply to which
+components), runs the relevant **Scanners** concurrently, and normalizes every result to
+**SARIF**. The **Norn** evaluates results against policy to produce a pass/fail verdict, and the
+**Skald** renders audit-ready evidence. Everything expensive is **cached by content hash** so
+unchanged components are never re-scanned.
 
 ---
 
@@ -51,7 +49,7 @@ never re-scanned.
 
 ---
 
-## 3. Data model — the Saga
+## 3. Data model, the Saga
 
 The Saga is the source of truth: a *security bill of materials for a running application*.
 
@@ -87,45 +85,44 @@ components:
 references:      # links to manual/human controls (threat model, arch diagram, …)
 ```
 
-Component surface types (`repositories`, `images`, `hosts`, `infrastructure`) map to
-scanner **Target** kinds. `fragments:` lets each service keep its own **Saga fragment** next to
-its source — locally or in another repository — and the loader assembles them before anything
-runs. Surveyors contribute the same `saga.Fragment` type through the same merge, so a discovered
+Component surface types (`repositories`, `images`, `hosts`, `infrastructure`) map to scanner
+**Target** kinds. `fragments:` lets each service keep its own **Saga fragment** next to its
+source, locally or in another repository, and the loader assembles them before anything runs.
+Surveyors contribute the same `saga.Fragment` type through the same merge, so a discovered
 component and an authored one are folded in the same way.
 
 ---
 
 ## 4. Plugin model
 
-Three plugin kinds — **Scanner**, **Controller**, **Surveyor** — delivered through a
-layered extension mechanism so the common case is trivial and the hard case is possible.
+Three plugin kinds, **Scanner**, **Controller**, **Surveyor**, delivered through a layered
+extension mechanism so the common case is trivial and the hard case is possible.
 
-### Tier 1 — Declarative tool adapters (zero code)
+### Tier 1, Declarative tool adapters (zero code)
 Most scanners are already CLIs or containers, and many already emit SARIF (Trivy, Grype,
 Semgrep, ZAP…). A **tool adapter** is a small manifest describing how to invoke a tool
 and map its output to SARIF. Covers the majority of integrations and the "bring the tool
 you already pay for" case with no compilation.
 
-### Tier 2 — gRPC plugins (real logic)
-For scanners/controllers/surveyors that need genuine logic — API clients (Snyk, Mend),
-cloud/k8s surveyors, custom aggregation — use out-of-process **gRPC plugins** on the
-[HashiCorp go-plugin](https://github.com/hashicorp/go-plugin) pattern (proven by
-Terraform/Vault/Nomad). Benefits: language-agnostic, process isolation, a versioned
-contract, crash containment.
+### Tier 2, gRPC plugins (real logic)
+For scanners/controllers/surveyors that need genuine logic, API clients (Snyk, Mend), cloud/k8s
+surveyors, custom aggregation, use out-of-process **gRPC plugins** on the [HashiCorp
+go-plugin](https://github.com/hashicorp/go-plugin) pattern (proven by Terraform/Vault/Nomad).
+Benefits: language-agnostic, process isolation, a versioned contract, crash containment.
 
 ### Built-ins
 A curated set compiles into the core so `draugr` is useful out of the box: scanners
 `trivy`/`trivy-fs`/`trivy-config`, `gitleaks`, `semgrep`, `gosec`, and a native
 `draugr-headers`; surveyors `k8s-images` and `github-org-repos`.
 
-### Distribution — "the Hoard"
+### Distribution, "the Hoard"
 Plugins are packaged as **OCI artifacts** and pulled from a registry (the Hoard),
 **signed with Sigstore/cosign** for provenance. OCI distribution + signing is standard,
 registry-native, and dovetails with the supply-chain-security positioning.
 
 ---
 
-## 5. Interchange — SARIF everywhere
+## 5. Interchange, SARIF everywhere
 
 Every scanner normalizes to **SARIF 2.1.0**. The engine carries an internal superset
 (SARIF + Draugr metadata: control, component, target, cache key, waiver) but SARIF is the
@@ -147,7 +144,7 @@ lossless core. Consequences:
   TTL/expiry (new CVEs can affect an unchanged artifact, so caching must be explicit and
   time-bounded). First-class, not an afterthought: at any real scale the cost of a scan is
   what decides whether it runs on every change or once a week.
-- **Plan-only mode:** emit the execution plan without running — drives CI job matrices and
+- **Plan-only mode:** emit the execution plan without running, drives CI job matrices and
   complements `draugr doctor` (preflight: are the tools, credentials and config present, and is
   any enabled control looking at what the descriptor declares?).
 
@@ -198,7 +195,7 @@ draugr/
 
 Draugr is a security product, so its own operational standards must be high.
 
-**CLI framework.** [Cobra](https://github.com/spf13/cobra) — the de-facto Go CLI standard
+**CLI framework.** [Cobra](https://github.com/spf13/cobra), the de-facto Go CLI standard
 (kubectl, gh, docker). Consistent help, flags, subcommands, and shell completion.
 
 **Logging.** Structured logging via the standard library's `log/slog`. `console` by default,
@@ -216,10 +213,10 @@ The message stays greppable and every variable stays queryable. Put the conseque
 and what to do about it in `fix`; put the reasoning in the comment beside the call, where it is
 available to whoever changes the code and out of the way of whoever is being paged.
 
-**Tracing/metrics.** [OpenTelemetry](https://opentelemetry.io). Tracing is wired at the
-CLI boundary and is opt-in via the standard `OTEL_*` environment variables — a no-op with
-zero overhead when unconfigured, OTLP export when an endpoint is set. Metrics across the
-scan pipeline follow.
+**Tracing/metrics.** [OpenTelemetry](https://opentelemetry.io). Tracing is wired at the CLI
+boundary and is opt-in via the standard `OTEL_*` environment variables, a no-op with zero
+overhead when unconfigured, OTLP export when an endpoint is set. Metrics across the scan
+pipeline follow.
 
 **Secret hygiene (hard rule).** Logs and span attributes must never carry secrets
 (tokens, credentials, full request/response bodies). Plugins and scanners redact

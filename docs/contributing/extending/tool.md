@@ -7,15 +7,15 @@ Everything here lives in `internal/tools`.
 
 ## First: should Draugr provision it at all?
 
-**Tell, don't fetch — for anything not reviewed.** `draugr tools install` downloads pinned,
-verified releases *because someone vouched for them*. The bar is that the download can be pinned
-and verified, and that redistribution is not implied.
+**Tell, don't fetch, for anything not reviewed.** `draugr tools install` downloads pinned, verified
+releases *because someone vouched for them*. The bar is that the download can be pinned and
+verified, and that redistribution is not implied.
 
 | Situation | What to do |
 |---|---|
-| Publishes release binaries with checksums, ideally signed | Add it here — [release binary](#a-release-binary) |
-| Ships only as a Python package | Add it here — [a Python package](#a-python-package) |
-| Ships only as an npm package | Add it here — [an npm package](#an-npm-package) |
+| Publishes release binaries with checksums, ideally signed | Add it here, [release binary](#a-release-binary) |
+| Ships only as a Python package | Add it here, [a Python package](#a-python-package) |
+| Ships only as an npm package | Add it here, [an npm package](#an-npm-package) |
 | Proprietary, license-gated, or requires an account | **Do not.** Add it to `externalTools` |
 | Copyleft in a way that makes serving the bytes a distribution | Name the upstream URL; never mirror or cache it |
 
@@ -24,12 +24,12 @@ For the last two, add an entry to `externalTools` in `internal/cli/doctor.go`:
 ```go
 var externalTools = map[string]string{
 	"mend": "proprietary; install the Mend CLI from Mend's documentation (Draugr does not " +
-		"distribute it) — see internal/scanners/mend-sca.md",
+		"distribute it). See internal/scanners/mend-sca.md",
 }
 ```
 
-Without it, `doctor` suggests `draugr tools install` for a tool that command will never fetch —
-advice that runs, succeeds, and leaves the tool missing.
+Without it, `doctor` suggests `draugr tools install` for a tool that command will never fetch.
+Advice that runs, succeeds, and leaves the tool missing.
 
 ## A release binary
 
@@ -53,14 +53,14 @@ Add an `InstallSpec` to the `installable` map in `internal/tools/install.go`:
 ```
 
 - **`SHA256` is copied verbatim from the upstream checksums file.** Never computed from a download
-  you happened to make — that pins whatever you received, which is the thing the pin is supposed
+  you happened to make. That pins whatever you received, which is the thing the pin is supposed
   to detect.
 - **`Cosign`** adds provenance verification on top of the digest. Set it whenever upstream signs;
   leave it nil where they publish no signature, and stay SHA-256-only rather than pretending.
 - **`ChecksumsURLTemplate`** is the weaker fallback for an upstream that publishes checksums but
-  signs nothing — it catches a corrupted or truncated download, which is worth having.
+  signs nothing. It catches a corrupted or truncated download, which is worth having.
 - **`URLTemplate`** is what makes `--version` work for a version other than the pinned one.
-- **`DataDir`** — for a tool that needs data files as well as a binary, written relative to
+- **`DataDir`**. For a tool that needs data files as well as a binary, written relative to
   Draugr's own directory and namespaced per tool.
 
 ## A language package
@@ -112,9 +112,9 @@ Both paths report an attestation level, and it must describe what actually happe
 | `LevelUnverified` | the pinned resolution did not apply and the manager resolved freely |
 | `LevelExternal` | the tool was not provisioned by Draugr at all |
 
-The fallback exists so a tool stays installable where the pins do not apply. Reporting that
-install as `pinned` would describe verification that never happened — and because both outcomes
-produce a working tool, a wrong level there is invisible to everything except a test.
+The fallback exists so a tool stays installable where the pins do not apply. Reporting that install
+as `pinned` would describe verification that never happened, and because both outcomes produce a
+working tool, a wrong level there is invisible to everything except a test.
 
 ### The launcher must not depend on `PATH`
 
@@ -131,7 +131,7 @@ install fails is one the reader meets while debugging rather than while installi
 - **`Installable()`** must include the tool, or `tools install` will not offer it and `doctor` will
   tell the reader to find it themselves.
 - **`Provisionable()`** (`internal/tools/attest.go`) must recognize it.
-- **`internal/cli/tools.go`** — the install-plan row and the `tools list` source column.
+- **`internal/cli/tools.go`**, the install-plan row and the `tools list` source column.
 - **The catalog is keyed by binary**, not by scanner. Two scanners sharing a tool share its entry.
 - **`docs/getting-started/install.md`** lists the tools a reader may install themselves. A tool
   absent from it reads as one Draugr cannot provision.
@@ -143,7 +143,7 @@ install fails is one the reader meets while debugging rather than while installi
   different version from the one Draugr reports, and records it as pinned while the pins described
   something else.
 - **Every package in the lockfile carries an integrity digest.** One without is one the manager
-  fetches unchecked, while the install still reports itself pinned — the level is decided by
+  fetches unchecked, while the install still reports itself pinned. The level is decided by
   whether the command succeeded, not by how much of the tree it actually verified.
 - **The install path, against a fake package manager.** A stand-in executable that records how it
   was called keeps the whole path hermetic and tests the half that is Draugr's: that the pins

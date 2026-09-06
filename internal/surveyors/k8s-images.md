@@ -10,9 +10,9 @@
 ## What it does
 
 Lists pods in a namespace (or every namespace) via the Kubernetes API and returns the unique
-container images (init + regular) as **one Saga component per namespace**, so the descriptor
-writes itself. It also records each image's **running digest** (from the pod's container status),
-so result caching is content-addressed — a rebuilt image under the same tag re-scans.
+container images (init + regular) as **one Saga component per namespace**, so the descriptor writes
+itself. It also records each image's **running digest** (from the pod's container status), so result
+caching is content-addressed, a rebuilt image under the same tag re-scans.
 
 The namespace is the unit whether or not one was named. A cluster collapsed into a single
 component loses both things that make the result usable: the namespace is what a team owns, so it
@@ -44,22 +44,22 @@ components:
       exposure: internal # no Ingress, external Service or NetworkPolicy found
 ```
 
-Written into a file a proposal looks exactly like a decision, and exposure is what turns a
-severity into a P1 or a P3. The terminal scrolls; the descriptor is what somebody opens a week
-later, possibly without having run the survey — so the evidence has to be where the value is.
-Only proposals are commented: a value the descriptor already carried is a decision, and marking it
-would say otherwise.
+Written into a file a proposal looks exactly like a decision, and exposure is what turns a severity
+into a P1 or a P3. The terminal scrolls; the descriptor is what somebody opens a week later,
+possibly without having run the survey, so the evidence has to be where the value is. Only proposals
+are commented: a value the descriptor already carried is a decision, and marking it would say
+otherwise.
 
 `--no-exposure` turns the whole thing off, and skips the three lookups rather than making them and
-discarding the answer — they need permissions a namespace-scoped credential may not have. Use it
-when `draugr classify` is where exposure gets decided.
+discarding the answer. They need permissions a namespace-scoped credential may not have. Use it when
+`draugr classify` is where exposure gets decided.
 
 Authentication can't be inferred, so internet-reachable is proposed as `public` (downgrade to
 `authenticated` if it sits behind auth). The three lookups are made once over the surveyed scope
-rather than once per namespace — the answer is identical, and on a cluster with eighty namespaces
-the per-namespace form is two hundred and forty round trips. A component that already carries an
-exposure keeps it — the merge does not overwrite a decision, and no proposal is reported for it. `criticality`
-is never inferred (it's human-declared) — run `draugr classify` to set it.
+rather than once per namespace. The answer is identical, and on a cluster with eighty namespaces the
+per-namespace form is two hundred and forty round trips. A component that already carries an
+exposure keeps it. The merge does not overwrite a decision, and no proposal is reported for it.
+`criticality` is never inferred (it's human-declared). Run `draugr classify` to set it.
 
 ## Known limitations
 

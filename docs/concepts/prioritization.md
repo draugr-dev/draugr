@@ -11,24 +11,24 @@ Severity isn't priority. A `scan` can return a wall of "high" findings, but whic
 fix first depends on **where it lives**. Declare two attributes on a component and Draugr
 ranks every finding into a band **P1–P4**:
 
-- **`exposure`** (`public` → `authenticated` → `internal` → `restricted`) — how reachable the
+- **`exposure`** (`public` → `authenticated` → `internal` → `restricted`), how reachable the
   component is. This drives *likelihood*.
-- **`criticality`** (`critical` → `important` → `supporting`) — the business impact if it
+- **`criticality`** (`critical` → `important` → `supporting`), the business impact if it
   fails. This drives *impact*.
 
-A finding's **normalized severity** (from its CVSS score, or its SARIF level, or a
-control floor) combines with the component's `exposure × criticality` through two small
-lookup matrices to yield the priority. So the *same* CVE is P1 on a public, business-critical
-gateway and P3 on an internal dev tool — same finding, different risk.
+A finding's **normalized severity** (from its CVSS score, or its SARIF level, or a control floor)
+combines with the component's `exposure × criticality` through two small lookup matrices to yield
+the priority. So the *same* CVE is P1 on a public, business-critical gateway and P3 on an internal
+dev tool, same finding, different risk.
 
 Both matrices are printed in full below, with four findings worked through them.
 
 **Exploitability enrichment (optional).** Severity can be raised by real-world signals before
-ranking — see **Exploitability: KEV and EPSS** below.
+ranking. See **Exploitability: KEV and EPSS** below.
 
 - **Focus:** `--min-priority P2` lists only the findings worth acting on now
   (P1 = act now · P2 = this cycle · P3 = backlog · P4 = track).
-- **Gate:** `--fail-on-priority P1` fails the build on any P1 — component-aware gating with no
+- **Gate:** `--fail-on-priority P1` fails the build on any P1, component-aware gating with no
   per-component config.
 - A component left **unclassified** is treated as high-risk, so nothing slips silently.
 
@@ -47,19 +47,19 @@ pinning before reading the tables.
 
 | | describes | values |
 | --- | --- | --- |
-| `criticality` | the **component** — how much the organization depends on it | `critical` · `important` · `supporting` |
-| `severity` | the **flaw** — how much harm it could cause if exploited | `critical` · `high` · `medium` · `low` |
+| `criticality` | the **component**, how much the organization depends on it | `critical` · `important` · `supporting` |
+| `severity` | the **flaw**. How much harm it could cause if exploited | `critical` · `high` · `medium` · `low` |
 
 `criticality: critical` says the organization depends on this component. `severity: critical`
 says this flaw could cause serious harm if it were exploited. Neither implies the other: a
 component the organization depends on carries low-severity findings like anything else, and a
 supporting one can carry a critical flaw.
 
-The two meet in step 2 — a critical component with a critical finding is P1, and the same critical
-component with a low finding is P3. Each table below names its row axis and its column axis for
-that reason.
+The two meet in step 2, a critical component with a critical finding is P1, and the same critical
+component with a low finding is P3. Each table below names its row axis and its column axis for that
+reason.
 
-### Step 1 — the component's context tier
+### Step 1, the component's context tier
 
 What the descriptor declares about the component, crossed into one of four tiers. This step does
 not look at the finding at all.
@@ -73,11 +73,11 @@ not look at the finding at all.
 | `internal` | C2 | C3 | C4 |
 | `restricted` | C3 | C4 | C4 |
 
-### Step 2 — the band
+### Step 2, the band
 
 The tier crossed with the finding's normalized severity.
 
-**Rows are the tier from step 1. Columns are `severity`** — the flaw's own badness, not the
+**Rows are the tier from step 1. Columns are `severity`**, the flaw's own badness, not the
 component's importance.
 
 | tier | `critical` | `high` | `medium` | `low` |
@@ -88,7 +88,7 @@ component's importance.
 | C4 | P2 | P3 | P4 | P4 |
 
 Both are monotonic: raising exposure, criticality or severity never lowers a band. Of the 48
-combinations, **9 land in P1 and 9 in P4**. P1 is deliberately scarce — a band that a third of
+combinations, **9 land in P1 and 9 in P4**. P1 is deliberately scarce, a band that a third of
 findings reach is not a queue anybody works from.
 
 ### Where the severity in step 2 comes from
@@ -102,15 +102,15 @@ A scanner reporting a CVSS score is banded on the standard v3 ranges:
 | 4.0 – 6.9 | `medium` |
 | below 4.0 | `low` |
 
-A finding with no score — a secret, a static-analysis rule, an IaC check — is banded from the SARIF
+A finding with no score, a secret, a static-analysis rule, an IaC check, is banded from the SARIF
 level instead: `error` is high, `warning` is medium, `note` and `none` are low.
 
 ### Four findings, worked through
 
 **A P1.** `CVE-2021-44228` scores 10.0, so its **severity** is `critical`. The component declares
-`exposure: public` and `criticality: critical` — it is one the organization depends on — so its
-tier is **C1**. C1 crossed with a critical severity = **P1**. Both `critical`s are in play here,
-and they are answering different questions.
+`exposure: public` and `criticality: critical`. It is one the organization depends on, so its tier
+is **C1**. C1 crossed with a critical severity = **P1**. Both `critical`s are in play here, and they
+are answering different questions.
 
 **Another P1, from a lower score.** A CVE scoring 7.5 is `high`, not critical. On the same public,
 business-critical component the tier is still C1, and C1 × high = **P1**. A high on something
@@ -126,7 +126,7 @@ interrupt anybody for.
 
 ### An unclassified component
 
-A component that declares neither field is read as **`public` and `critical`** — tier C1, the most
+A component that declares neither field is read as **`public` and `critical`**, tier C1, the most
 concerning. An unclassified component surfaces rather than hides, and both rows read `not declared`
 in the report so the band is traceable to the gap that produced it.
 
@@ -134,19 +134,19 @@ The fix is a descriptor edit rather than an argument with the tool.
 
 ## Exploitability: KEV and EPSS
 
-CVSS says how bad a vulnerability *could* be in the abstract. It says nothing about whether
-anyone is actually exploiting it. Two public datasets close that gap, and Draugr folds either
-into a finding's severity **before** it is ranked — so "what to fix first" reflects the real
-world, not just the theory. New to these? [EPSS & KEV explained](/learn/epss-and-kev/) covers
-the concepts; this page covers using them.
+CVSS says how bad a vulnerability *could* be in the abstract. It says nothing about whether anyone
+is actually exploiting it. Two public datasets close that gap, and Draugr folds either into a
+finding's severity **before** it is ranked, so "what to fix first" reflects the real world, not just
+the theory. New to these? [EPSS & KEV explained](/learn/epss-and-kev/) covers the concepts; this
+page covers using them.
 
 | Signal | What it is | Effect on a matching finding |
 |--------|------------|------------------------------|
-| **KEV** | CISA's [Known Exploited Vulnerabilities](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) catalog — CVEs with *confirmed, observed* exploitation | severity becomes **critical**, whatever it was |
-| **EPSS** | FIRST's [Exploit Prediction Scoring System](https://www.first.org/epss/) — a daily 0–1 probability that a CVE will be exploited in the next 30 days | severity is raised **one band** (low→medium→high→critical) when the score is at or above `--epss-threshold` |
+| **KEV** | CISA's [Known Exploited Vulnerabilities](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) catalog, CVEs with *confirmed, observed* exploitation | severity becomes **critical**, whatever it was |
+| **EPSS** | FIRST's [Exploit Prediction Scoring System](https://www.first.org/epss/), a daily 0–1 probability that a CVE will be exploited in the next 30 days | severity is raised **one band** (low→medium→high→critical) when the score is at or above `--epss-threshold` |
 
 KEV wins where both apply: observed exploitation outranks a prediction about it. The prediction is
-still recorded — a finding raised by KEV carries what EPSS said about the same CVE, as `alsoMatched`
+still recorded, a finding raised by KEV carries what EPSS said about the same CVE, as `alsoMatched`
 on its escalation, so a count of how often EPSS reaches your findings is a count of what it reached
 rather than of what it happened to decide.
 
@@ -168,9 +168,9 @@ draugr feeds update                    # into ~/.draugr/feeds
 draugr scan draugr.saga.yaml           # enrichment is on, no flags to remember
 ```
 
-In the Saga rather than only in flags because it is a decision about how findings are ranked. A
-team that agrees to use KEV needs somewhere to write that down that a reviewer sees and every
-pipeline reads — not a flag whoever wrote the workflow has to remember.
+In the Saga rather than only in flags because it is a decision about how findings are ranked. A team
+that agrees to use KEV needs somewhere to write that down that a reviewer sees and every pipeline
+reads, not a flag whoever wrote the workflow has to remember.
 
 **`--kev` and `--epss` still work and override the descriptor**, which is what you want for a
 one-off:
@@ -180,8 +180,8 @@ draugr scan draugr.saga.yaml --kev cache --epss cache      # without a descripto
 draugr scan draugr.saga.yaml --epss-threshold 0.1          # widen the net for this run only
 ```
 
-Only a flag you actually type overrides — passing `--epss-threshold 0.5` beats a descriptor that
-says `0.1`, and not passing it leaves the descriptor's value alone. See
+Only a flag you actually type overrides, passing `--epss-threshold 0.5` beats a descriptor that says
+`0.1`, and not passing it leaves the descriptor's value alone. See
 [`config.exploitability`](../reference/saga-schema.md#configexploitability) for the full block.
 
 **A scan never fetches on its own.** `cache` reads what `feeds update` left and cannot reach the
@@ -214,25 +214,25 @@ draugr scan draugr.saga.yaml --kev auto --epss auto
 draugr scan draugr.saga.yaml --epss auto --epss-threshold 0.1   # widen the net
 ```
 
-If a fetch fails and there is a cached copy, the scan uses it and says so rather than failing —
-a feed outage should not break a gate that has a usable answer on disk. With nothing cached, it
-is an error: you asked for enrichment and did not get it, and a run that quietly skips
-escalation is worse than one that stops.
+If a fetch fails and there is a cached copy, the scan uses it and says so rather than failing. A
+feed outage should not break a gate that has a usable answer on disk. With nothing cached, it is an
+error: you asked for enrichment and did not get it, and a run that quietly skips escalation is worse
+than one that stops.
 
 ### What the report says about it
 
 A run that used exploitability data says so, says which copy, and says what it changed:
 
 ```
-Exploitability: KEV 2026-08-01 · EPSS 2026-08-02 — 3 findings raised
+Exploitability: KEV 2026-08-01 · EPSS 2026-08-02 · 3 findings raised
 ```
 
 **"nothing raised" is printed when nothing moved**, because that is a result rather than an
 absence. Without it, the only way to learn that a feed changed nothing is to read every finding
 looking for a note that is not there, and then wonder whether you missed one.
 
-The count is over the whole run, not the visible listing — `--top` and `--min-priority` narrow
-what is shown, and this answers what the feeds did, not what fitted on the page.
+The count is over the whole run, not the visible listing, `--top` and `--min-priority` narrow what
+is shown, and this answers what the feeds did, not what fitted on the page.
 
 Each finding that was actually moved carries the reason underneath it:
 
@@ -243,9 +243,9 @@ Each finding that was actually moved carries the reason underneath it:
 ```
 
 **The Severity column keeps showing what the scanner said.** Enrichment feeds the ranking rather
-than rewriting the scanner's rating, so a finding can be `high` and still be P1 — and the note is
-what explains it. Overwriting the scanner's number would leave nothing to compare against and no
-way to see that a signal was applied at all.
+than rewriting the scanner's rating, so a finding can be `high` and still be P1, and the note is
+what explains it. Overwriting the scanner's number would leave nothing to compare against and no way
+to see that a signal was applied at all.
 
 This is the difference between evidence and a hint. A P1 on its own is a conclusion with the
 premise withheld; *ranked as critical because CISA listed it on a date you can check* is
@@ -255,22 +255,22 @@ Findings nothing moved carry no note, so the note means something when it appear
 information is in the markdown and HTML reports, and in `--format json` and `--format sarif`
 under `escalation` on each finding, with the feeds themselves under `exploitability`.
 
-A **stale** feed is marked in the report rather than only warned about while the scan ran — the
-logs of the run that produced a report are exactly where nobody looks six weeks later.
+A **stale** feed is marked in the report rather than only warned about while the scan ran. The logs
+of the run that produced a report are exactly where nobody looks six weeks later.
 
 ### Staleness
 
-EPSS is republished daily. A stale copy does not fail — it ranks a finding lower than today's
-data would, which is the failure mode that looks like success. So a scan reading a feed more
-than a day old warns and names the age:
+EPSS is republished daily. A stale copy does not fail. It ranks a finding lower than today's data
+would, which is the failure mode that looks like success. So a scan reading a feed more than a day
+old warns and names the age:
 
 ```
 WARN using a stale exploitability feed feed=epss fetched_at=2026-07-29T08:55:00Z age="3 days"
 ```
 
-`draugr feeds update` refreshes it; a daily job is plenty. Raise `config.exploitability.maxAge`
-on a runner deliberately pinned to a known copy of the data — reproducing last quarter's verdict
-requires last quarter's feed, and being told it is old every time helps nobody.
+`draugr feeds update` refreshes it; a daily job is plenty. Raise `config.exploitability.maxAge` on a
+runner deliberately pinned to a known copy of the data, reproducing last quarter's verdict requires
+last quarter's feed, and being told it is old every time helps nobody.
 
 ### Bring your own file
 
@@ -284,18 +284,18 @@ curl -fsSL https://epss.empiricalsecurity.com/epss_scores-current.csv.gz | gunzi
 draugr scan draugr.saga.yaml --kev kev.json --epss epss.csv
 ```
 
-`--kev` takes CISA's JSON as published; `--epss` takes FIRST's CSV (`cve,epss,percentile` —
-comment and header lines are skipped). Either signal works on its own, and each accepts a path,
-`cache`, or `auto` — in the descriptor or on the command line.
+`--kev` takes CISA's JSON as published; `--epss` takes FIRST's CSV (`cve,epss,percentile`. Comment
+and header lines are skipped). Either signal works on its own, and each accepts a path, `cache`, or
+`auto`, in the descriptor or on the command line.
 
 Setting `DRAUGR_OFFLINE=1` stops `auto` fetching anything: it reads the cache, or says clearly
 that there is nothing to read.
 
 ### Choosing an EPSS threshold
 
-`--epss-threshold` defaults to **0.5**: a coin-flip chance of exploitation within 30 days. That
-is a deliberately high bar. EPSS scores are heavily skewed — most CVEs sit far below 0.01 — so
-lowering the threshold widens the net faster than the number suggests.
+`--epss-threshold` defaults to **0.5**: a coin-flip chance of exploitation within 30 days. That is a
+deliberately high bar. EPSS scores are heavily skewed. Most CVEs sit far below 0.01, so lowering the
+threshold widens the net faster than the number suggests.
 
 | Threshold | Roughly means | Use when |
 |-----------|---------------|----------|
@@ -310,10 +310,10 @@ incomparable.
 
 - **Only CVE-identified findings.** Enrichment looks for a CVE id in the finding's rule id, so
   it reaches `sca` and `images` results. SAST, secrets and IaC findings carry no CVE and are
-  never escalated — their severities come from the scanner and any control floor.
+  never escalated. Their severities come from the scanner and any control floor.
 - **Severity, not priority, directly.** Enrichment raises severity; priority is then recomputed
   from severity × exposure × criticality. An escalated CVE on a `restricted`, `supporting`
-  component may still not be P1 — which is the point: exploitability matters *in context*.
+  component may still not be P1, which is the point: exploitability matters *in context*.
 - **The gate follows automatically.** Because both bands and levels derive from severity,
   `--fail-on-priority` and `--fail-on` see the enriched values with no extra configuration.
 
@@ -328,8 +328,8 @@ A dependency carries a CVE scored CVSS 6.1 → **medium**, on a component classi
 | `--epss epss.csv`, score 0.62 ≥ 0.5 | high (one band up) | P2 |
 | `--kev kev.json`, and it's listed | critical | P1 |
 
-Same finding, same component, three different answers about when to fix it — and the last is the
-one that matters, because somebody is exploiting it today.
+Same finding, same component, three different answers about when to fix it, and the last is the one
+that matters, because somebody is exploiting it today.
 
 **Related:** [EPSS & KEV explained](/learn/epss-and-kev/) ·
 [Vulnerability prioritization](/learn/vulnerability-prioritization/) ·
@@ -342,10 +342,9 @@ A finding records which component it came from, and that is what makes its band 
 band is computed from that component's declared `exposure` and `criticality`, so a report showing
 `P1` without naming the component would state a conclusion and withhold its premise.
 
-It also means the same flaw in two components is **two findings**. A library shared by a
-public, business-critical service and an internal tool is one vulnerability and two different
-risks — and reporting it once would keep whichever was merged first, which can be the one that
-does not matter.
+It also means the same flaw in two components is **two findings**. A library shared by a public,
+business-critical service and an internal tool is one vulnerability and two different risks, and
+reporting it once would keep whichever was merged first, which can be the one that does not matter.
 
 ## Some findings are not bounded by the component
 
@@ -353,13 +352,13 @@ Exposure and criticality answer "how much does a flaw here matter", and for a de
 is exactly the right question: a vulnerable library reachable from the internet is a different
 problem from the same library in a batch job.
 
-It is the wrong question for a **leaked credential**. A credential is valid wherever it is valid —
-a cloud account, a registry, an artifact store — and git history is frequently readable by more
-people than the service is reachable by, so `internal` can understate who is able to obtain it.
+It is the wrong question for a **leaked credential**. A credential is valid wherever it is valid, a
+cloud account, a registry, an artifact store, and git history is frequently readable by more people
+than the service is reachable by, so `internal` can understate who is able to obtain it.
 
 So a control may declare that its findings are ranked at a fixed **context tier**, regardless of
 what the component says. The `secrets` control declares **C1**, the tier a public, business-critical
-component gets — so a credential on the least exposed, least critical component in your descriptor
+component gets, so a credential on the least exposed, least critical component in your descriptor
 ranks exactly as it would on your front door.
 
 With the control's severity floor at `high`, that means **P1**. Two reasons it is not something
@@ -369,7 +368,7 @@ short of P1:
   credential fails the severity gate and passes the priority one, which is the same contradiction
   one band over.
 - The claim is that exposure does not bound the finding. A band that still moves with exposure,
-  only less, is a third position — *exposure partly bounds it* — that nothing argues for.
+  only less, is a third position, *exposure partly bounds it*, that nothing argues for.
 
 A **tier** rather than a fixed band, because the claim is about exposure and not about urgency.
 Severity is still the scanner's answer and the severity floor's: a critical finding and a high one
@@ -388,8 +387,8 @@ is not true.
 
 **A false positive is not what this is for.** A finding you have judged belongs in
 [`config.exclude`](../reference/saga-schema.md#configexclude), where it stays in the report marked
-suppressed with your reason. Ranking it lower would hide it from the gate and record nothing —
-the wrong lever, and the same category error this exists to fix.
+suppressed with your reason. Ranking it lower would hide it from the gate and record nothing, the
+wrong lever, and the same category error this exists to fix.
 
 Nothing else changes. A control that declares no floor is ranked entirely by the matrices above,
 which is correct for every control that does not override its scanner's severity in the first

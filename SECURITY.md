@@ -1,6 +1,6 @@
 # Security Policy
 
-We take the security of Draugr seriously — it is, after all, a security tool.
+We take the security of Draugr seriously. It is, after all, a security tool.
 
 ## Reporting a vulnerability
 
@@ -21,7 +21,7 @@ timeline after triage. Please include:
 - **Draugr scans itself.** On every change, CI runs the latest released Draugr against this
   repository (see [`.draugr/self.saga.yaml`](.draugr/self.saga.yaml)) for dependency
   vulnerabilities (`sca`), leaked secrets (`secrets`), static-analysis bugs (`sast`), and IaC
-  misconfigurations (`iac`) — so the tool is held to the standard it enforces for everyone
+  misconfigurations (`iac`), so the tool is held to the standard it enforces for everyone
   else. The results are published to this repo's **code scanning** (Security tab).
 - We track our supply-chain posture with the **OpenSSF Scorecard** (a weekly workflow that also
   publishes to code scanning) and hold an **OpenSSF Best Practices** badge.

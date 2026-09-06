@@ -7,8 +7,8 @@ order: 70
 
 # Run Draugr air-gapped
 
-Draugr reaches out from a handful of places. `--offline` — or `DRAUGR_OFFLINE=1` — says once that
-this machine has no network, and every one of them honors it.
+Draugr reaches out from a handful of places. `--offline`, or `DRAUGR_OFFLINE=1`, says once that this
+machine has no network, and every one of them honors it.
 
 ```bash
 draugr scan draugr.saga.yaml --offline
@@ -33,8 +33,8 @@ downloaded.
 | a scan, per target | the registry, for an image; the endpoint itself, for a host or DAST target |
 
 The last row is the one `--offline` cannot help with. Scanning a remote image or probing a live
-endpoint *is* a network operation — if a target is unreachable, the control reports an error
-rather than a pass.
+endpoint *is* a network operation. If a target is unreachable, the control reports an error rather
+than a pass.
 
 ## Preparing a runner
 
@@ -48,9 +48,9 @@ grype db update                 # Grype's vulnerability database, if you run it
 nuclei -update-templates        # Nuclei's template set, if you run dast
 ```
 
-**These databases and template sets live in their own caches, not in `~/.draugr`.** Copy those
-too — `~/.cache/trivy`, `~/.cache/grype` and `~/.local/nuclei-templates` by default, all
-relocatable with `TRIVY_CACHE_DIR`, `GRYPE_DB_CACHE_DIR` and `NUCLEI_TEMPLATES_DIR`.
+**These databases and template sets live in their own caches, not in `~/.draugr`.** Copy those too,
+`~/.cache/trivy`, `~/.cache/grype` and `~/.local/nuclei-templates` by default, all relocatable with
+`TRIVY_CACHE_DIR`, `GRYPE_DB_CACHE_DIR` and `NUCLEI_TEMPLATES_DIR`.
 
 **Grype refuses a database older than five days**, and copying one across takes time the clock
 keeps counting. `GRYPE_DB_UPDATE_URL` points it at an internal mirror so a runner refreshes from
@@ -73,7 +73,7 @@ is not the same as nothing there.
 ## Exploitability feeds
 
 `--kev cache` and `--epss cache` read `~/.draugr/feeds` and never touch the network, which is what
-you want on a runner whether or not it has one. `auto` fetches when the cache is stale — offline
+you want on a runner whether or not it has one. `auto` fetches when the cache is stale. Offline
 turns that off, so it reads the cache or says clearly there is nothing to read.
 
 A copy older than `config.exploitability.maxAge` is used and reported as stale rather than
@@ -84,9 +84,9 @@ with a warning every run. See
 ## Descriptors that name remote fragments
 
 A Saga can assemble itself from [fragments](saga-fragments.md), and a fragment held in another
-repository has to be fetched. Offline, that is refused rather than skipped — a fragment that
-cannot be read is scope the descriptor claims and the run would not have, and a scan quietly
-covering less than it says is worse than one that stops.
+repository has to be fetched. Offline, that is refused rather than skipped, a fragment that cannot
+be read is scope the descriptor claims and the run would not have, and a scan quietly covering less
+than it says is worse than one that stops.
 
 Resolve it on a connected machine and carry the flattened descriptor across instead:
 
@@ -99,14 +99,14 @@ draugr scan acme.flat.saga.yaml
 ```
 
 The flattened copy contains every component and exclusion the fragments contributed, with each
-remote one recorded at the commit it resolved to — so it is reproducible as well as portable, and
-the provenance survives the crossing as comments.
+remote one recorded at the commit it resolved to, so it is reproducible as well as portable, and the
+provenance survives the crossing as comments.
 
 ## Keeping it that way
 
-`--offline` is a promise you can check. Run the scan on a host with no route out and it either
-works or tells you exactly which fetch it needed — which is a better test than trusting the flag,
-and the one worth putting in CI for an air-gapped environment.
+`--offline` is a promise you can check. Run the scan on a host with no route out and it either works
+or tells you exactly which fetch it needed, which is a better test than trusting the flag, and the
+one worth putting in CI for an air-gapped environment.
 
 Two narrower opt-outs remain, for a machine that *does* have a network:
 
@@ -116,7 +116,7 @@ Two narrower opt-outs remain, for a machine that *does* have a network:
 
 ## Related
 
-- [Caching and performance](caching-and-performance.md) — what a scan reuses between runs.
-- [Prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) — KEV and EPSS, and
+- [Caching and performance](caching-and-performance.md), what a scan reuses between runs.
+- [Prioritization](../concepts/prioritization.md#exploitability-kev-and-epss), KEV and EPSS, and
   what a stale feed costs you.
-- [CLI reference](../reference/cli.md) — every flag, including `draugr feeds`.
+- [CLI reference](../reference/cli.md), every flag, including `draugr feeds`.

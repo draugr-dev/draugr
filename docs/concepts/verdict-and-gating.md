@@ -19,13 +19,13 @@ Describe ─► Plan ─► Scan ─► Aggregate ─► Judge ─► Report
  (Saga)   (jobs) (SARIF)  (per control) (gate)  (verdict)
 ```
 
-- **Plan** — expand enabled controllers × components into scan jobs (deterministic order).
-- **Scan** — run jobs with bounded concurrency; results normalized to SARIF.
-- **Aggregate** — merge and **deduplicate** each control's findings, then **correlate**: a flaw
+- **Plan**, expand enabled controllers × components into scan jobs (deterministic order).
+- **Scan**. Run jobs with bounded concurrency; results normalized to SARIF.
+- **Aggregate**, merge and **deduplicate** each control's findings, then **correlate**: a flaw
   two scanners both found is counted once, with both accounts kept.
-- **Judge (the gate)** — apply policy thresholds to produce a pass/fail verdict per control
+- **Judge (the gate)**. Apply policy thresholds to produce a pass/fail verdict per control
   and overall.
-- **Report** — render the run: a human summary to stdout (console by default, or `markdown`),
+- **Report**. Render the run: a human summary to stdout (console by default, or `markdown`),
   plus machine formats (`json`, `sarif`); `-o/--output` writes `report.json` and
   `results.sarif`.
 
@@ -39,22 +39,22 @@ with optional per-control overrides, plus a component-aware priority gate
 ### A scan that checked nothing is not a pass
 
 A descriptor that enables no control, or none whose surface its components carry, plans no work.
-Every stage after that behaves exactly as it would for a spotless application — no findings, no
-failures, `PASS` — and the two are indistinguishable in the output.
+Every stage after that behaves exactly as it would for a spotless application, no findings, no
+failures, `PASS`, and the two are indistinguishable in the output.
 
 The wrong reading is the likelier one: a descriptor reaches that state by being unfinished, or by
 being generated with [`draugr survey`](../reference/cli.md#draugr-survey), which describes a
 surface without enabling anything to check it. So the run reports that nothing ran, and the
 verdict fails.
 
-A descriptor that asks only for an SBOM is exempt — it enables no control by design, and still
+A descriptor that asks only for an SBOM is exempt. It enables no control by design, and still
 produces the evidence it was asked for.
 
 ### A control that couldn't run is not a pass
 
-If a scanner is missing, exits badly, or a control can't be planned, that control **checked
-less than it was asked to** — so an empty report from it isn't evidence of anything. Draugr
-fails the run and says which control it was:
+If a scanner is missing, exits badly, or a control can't be planned, that control **checked less
+than it was asked to**, so an empty report from it isn't evidence of anything. Draugr fails the run
+and says which control it was:
 
 ```
 Controls:
@@ -68,11 +68,10 @@ This matters most in CI, where a scanner failing to provision is the common fail
 warning in the log goes unread. A green build from a check that never ran is the one outcome a
 gate must not produce.
 
-Pass `--allow-scan-errors` for best-effort scanning — the run then passes on findings alone.
-The errored control is still reported either way; the flag buys a passing exit code, not
-silence.
+Pass `--allow-scan-errors` for best-effort scanning. The run then passes on findings alone. The
+errored control is still reported either way; the flag buys a passing exit code, not silence.
 
-### A surface nobody looked at *does* pass — so it is reported instead
+### A surface nobody looked at *does* pass, so it is reported instead
 
 The third way a `PASS` can mean less than it appears is the one Draugr deliberately does **not**
 fail on. A component can declare images, or hosts, while the controls that examine them are off.
@@ -90,7 +89,7 @@ So it is reported rather than enforced. Every scan says what it did not look at:
 Not checked:
       api declares hosts, and headers, tls are not enabled
       api declares images, and images is not enabled
-      dast is never suggested — it sends attack traffic. Enable it yourself.
+      dast is never suggested, it sends attack traffic. Enable it yourself.
 ```
 
 [`draugr doctor`](../reference/cli.md#draugr-doctor-sagayaml) says the same thing **before** the
@@ -111,13 +110,13 @@ gets to make for you.
 
 ## Understanding the report
 
-A finding is described on **three related axes** — knowing which is which removes most confusion:
+A finding is described on **three related axes**. Knowing which is which removes most confusion:
 
 | Axis | Values | What it is | Where it shows |
 |------|--------|------------|----------------|
 | **Priority** | P1 · P2 · P3 · P4 | Draugr's headline ranking: **severity × the component's exposure & criticality**. "What to fix first." | the `Priorities:` line and the order of "fix first" |
 | **Severity** | critical · high · medium · low | Normalized impact. From the **CVSS score** when a scanner provides one (`security-severity`), else derived from the finding's level (error→high, warning→medium, note→low). | the per-control counts and the "fix first" severity column |
-| **Level** | error · warning · note | The raw **SARIF** value each scanner maps into — the lowest common denominator. | the machine formats (`--format json`/`sarif`) and the gate (`--fail-on`) |
+| **Level** | error · warning · note | The raw **SARIF** value each scanner maps into, the lowest common denominator. | the machine formats (`--format json`/`sarif`) and the gate (`--fail-on`) |
 
 So the same CVE can be **critical** severity but **P3** priority on an internal tool, or **P1** on a
 public, business-critical service. The human report (console/markdown/html) speaks **priority +
@@ -150,16 +149,16 @@ Fix first (top 10 of 269, by priority):
             Root file system is not read-only
 ```
 
-The **Components** block is where the classification pays off. `api` and `platform` share the
-`iac` control and the same rules, and the same findings land at P1/P2 on one and P3/P4 on the
-other — because one is internet-facing and business-important and the other is neither. Severity
-did not change; the consequence of it did.
+The **Components** block is where the classification pays off. `api` and `platform` share the `iac`
+control and the same rules, and the same findings land at P1/P2 on one and P3/P4 on the other,
+because one is internet-facing and business-important and the other is neither. Severity did not
+change; the consequence of it did.
 
 ## Observability & security posture
 
-Structured logs (`log/slog`), plus OpenTelemetry traces and metrics (opt-in via `OTEL_*`).
-Logs and span attributes never carry secrets. Draugr's own CI enforces `govulncheck`,
-`gosec`, and `golangci-lint` — it meets the bar it holds others to.
+Structured logs (`log/slog`), plus OpenTelemetry traces and metrics (opt-in via `OTEL_*`). Logs and
+span attributes never carry secrets. Draugr's own CI enforces `govulncheck`, `gosec`, and
+`golangci-lint`. It meets the bar it holds others to.
 
 ## The report says which gate produced the verdict
 

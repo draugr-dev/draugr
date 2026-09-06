@@ -7,9 +7,9 @@ order: 20
 
 # Publish to GitHub code scanning
 
-Draugr can upload its merged SARIF straight to GitHub **code scanning** (the Security tab) with
-the native **`github`** publisher — no separate `upload-sarif` step. Code scanning is free for
-public repos; private repos need GitHub Advanced Security.
+Draugr can upload its merged SARIF straight to GitHub **code scanning** (the Security tab) with the
+native **`github`** publisher, no separate `upload-sarif` step. Code scanning is free for public
+repos; private repos need GitHub Advanced Security.
 
 > **On GitLab?** There is no upload: GitLab reads its own schema from build artifacts rather than
 > SARIF, so the equivalent is a set of report formats and a template that collects them. See
@@ -17,9 +17,9 @@ public repos; private repos need GitHub Advanced Security.
 
 ## 1. Declare the publisher in your Saga
 
-The `github` publisher requires a `sarif` report in `config.reports`. It never stores a secret
-in the descriptor — repo/commit/ref default from the GitHub Actions environment, and the token
-comes from `$GITHUB_TOKEN`. It no-ops outside Actions, so the same Saga still runs locally.
+The `github` publisher requires a `sarif` report in `config.reports`. It never stores a secret in
+the descriptor, repo/commit/ref default from the GitHub Actions environment, and the token comes
+from `$GITHUB_TOKEN`. It no-ops outside Actions, so the same Saga still runs locally.
 
 ```yaml
 config:
@@ -29,7 +29,7 @@ config:
     - kind: github         # repo/commit/ref default to the GitHub Actions env
       # repo: owner/name   # optional overrides ($GITHUB_REPOSITORY / $GITHUB_SHA / $GITHUB_REF)
       # ref: refs/heads/main
-      # tokenEnv: GITHUB_TOKEN   # the token is read from this env var — never the Saga
+      # tokenEnv: GITHUB_TOKEN   # the token is read from this env var, never the Saga
 ```
 
 ## Choosing what a reviewer sees
@@ -61,18 +61,18 @@ config:
 
 A component may hold several repositories, and a [fragment](saga-fragments.md) may contribute one
 from another project. Their findings carry paths relative to **their own** repository, so uploading
-them here would annotate a same-named file in this one — a squiggle on a line that does not have
-that problem.
+them here would annotate a same-named file in this one, a squiggle on a line that does not have that
+problem.
 
 The Action drops them from the upload automatically. It is not a setting, because there is no case
 where annotating another repository's finding on this checkout is what you want. They stay in the
 scan, in the artifacts and in the pull-request comment, where a regression in a fragment-contributed
-repository is real news a reviewer should see. Findings that belong to no repository — an image's,
-a host's — are unaffected, because they were never anchored to a checkout.
+repository is real news a reviewer should see. Findings that belong to no repository, an image's, a
+host's, are unaffected, because they were never anchored to a checkout.
 
 ### What narrowing does to existing alerts
 
-**Code scanning resolves any alert missing from an upload as fixed** — within the ref and category
+**Code scanning resolves any alert missing from an upload as fixed**, within the ref and category
 that upload belongs to. Both halves matter, and the second is what makes narrowing a pull request
 safe.
 
@@ -81,13 +81,13 @@ alerts are the ones shown on that pull request, and narrowing them changes nothi
 `main`: measured on a repository with 96 open alerts on `main`, a PR upload carrying zero findings
 created an analysis on `refs/pull/N/merge` and left all 96 open.
 
-So on a pull request, narrowing costs you nothing you were relying on. On a default branch it would
-— an upload narrowed to `P1` there resolves the P2–P4 alerts, and they are the ones nobody is
-looking at but somebody may still need. That is why a push is never narrowed: there is nothing to
-diff against, so it uploads the complete scan.
+So on a pull request, narrowing costs you nothing you were relying on. On a default branch it would,
+an upload narrowed to `P1` there resolves the P2–P4 alerts, and they are the ones nobody is looking
+at but somebody may still need. That is why a push is never narrowed: there is nothing to diff
+against, so it uploads the complete scan.
 
-A narrowed SARIF records the band it was narrowed to, so nothing reading it later — including
-[`draugr diff`](pr-diff.md), which reads a missing finding as a fixed one — mistakes it for a
+A narrowed SARIF records the band it was narrowed to, so nothing reading it later, including
+[`draugr diff`](pr-diff.md), which reads a missing finding as a fixed one, mistakes it for a
 complete scan.
 
 See [`examples/reporting.saga.yaml`](../../examples/reporting.saga.yaml) for a fuller,
@@ -131,7 +131,7 @@ always get evidence in the Security tab. Draugr dogfoods this itself in
 > **Why the same workflow handles PRs without a duplicate comment.** With the action's default
 > `mode: auto`, code-scanning upload happens on **push**, while **pull requests** get Draugr's
 > own sticky diff comment instead (publishers suppressed). If you upload to code scanning **on
-> PRs too**, GitHub's own "GitHub Advanced Security" bot also comments — so you'd see two
+> PRs too**, GitHub's own "GitHub Advanced Security" bot also comments, so you'd see two
 > overlapping comments. Keeping the upload to push (the default) avoids that. See
 > [gate PRs on new findings](pr-diff.md).
 

@@ -1,17 +1,17 @@
 ---
 title: Saga schema
-description: Every field of draugr.saga.yaml — release, config, components, and references.
+description: Every field of draugr.saga.yaml, release, config, components, and references.
 section: Reference
 order: 20
 ---
 
 # Saga reference
 
-The **Saga** is Draugr's descriptor — a declarative account of an application's security surface
-and the controls that must pass.
+The **Saga** is Draugr's descriptor, a declarative account of an application's security surface and
+the controls that must pass.
 
 **Any `*.saga.yaml` file is a Saga.** `draugr init` writes `draugr.saga.yaml` by default, but the
-name is yours: `draugr scan azure.saga.yaml`, `payments.saga.yaml`, a bare `.saga.yaml` — Draugr
+name is yours: `draugr scan azure.saga.yaml`, `payments.saga.yaml`, a bare `.saga.yaml`, Draugr
 loads whatever path you hand it, so a repo can hold several.
 
 ## Editor support (autocomplete, hover docs, validation)
@@ -22,10 +22,10 @@ hover, offers the valid values for `exposure`, `criticality` and report formats,
 as you type instead of at scan time.
 
 **In most editors, nothing to configure.** The Saga is registered with
-[SchemaStore](https://www.schemastore.org/), the catalog that VS Code's
-[YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) and
-JetBrains IDEs consult by default. Any file named `*.saga.yaml`, `*.saga.yml` or `.saga.yaml` is
-recognized the moment you open it — no modeline, no setting, nothing committed to the repo.
+[SchemaStore](https://www.schemastore.org/), the catalog that VS Code's [YAML
+extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) and JetBrains
+IDEs consult by default. Any file named `*.saga.yaml`, `*.saga.yml` or `.saga.yaml` is recognized
+the moment you open it, no modeline, no setting, nothing committed to the repo.
 
 Editors cache that catalog and some ship a snapshot inside the extension, so a copy older than the
 registration won't have it yet. Both routes below work regardless, and keep working if you'd
@@ -37,13 +37,13 @@ rather not depend on a third-party catalog at all.
 # yaml-language-server: $schema=https://draugr.dev/schema/draugr.saga.schema.json
 ```
 
-Any editor running the YAML language server picks it up on open, catalog or not — VS Code,
-JetBrains, Neovim. Paste that line at the top of an existing Saga to get the same.
+Any editor running the YAML language server picks it up on open, catalog or not, VS Code, JetBrains,
+Neovim. Paste that line at the top of an existing Saga to get the same.
 
 **Or map it once, for every Saga in the project.** No modeline in the files. This is also the
 route for filenames the catalog doesn't match, and for pinning a version across a repo.
 
-**VS Code** — commit `.vscode/settings.json` so the whole team gets it automatically (requires the
+**VS Code**, commit `.vscode/settings.json` so the whole team gets it automatically (requires the
 [YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)):
 
 ```json
@@ -54,11 +54,11 @@ route for filenames the catalog doesn't match, and for pinning a version across 
 }
 ```
 
-**JetBrains** (IntelliJ, GoLand, PyCharm) — *Settings → Languages & Frameworks → Schemas and DTDs
-→ JSON Schema Mappings*. Add a mapping with the URL above and file-path pattern `*.saga.yaml`.
+**JetBrains** (IntelliJ, GoLand, PyCharm), *Settings → Languages & Frameworks → Schemas and DTDs →
+JSON Schema Mappings*. Add a mapping with the URL above and file-path pattern `*.saga.yaml`.
 
-**Neovim** — `yamlls` may not have SchemaStore enabled depending on how you configure it, so
-mapping it explicitly is the dependable route, via `nvim-lspconfig`:
+**Neovim**. `yamlls` may not have SchemaStore enabled depending on how you configure it, so mapping
+it explicitly is the dependable route, via `nvim-lspconfig`:
 
 ```lua
 require('lspconfig').yamlls.setup {
@@ -72,9 +72,9 @@ require('lspconfig').yamlls.setup {
 }
 ```
 
-**Anything else** — any editor speaking the
-[YAML language server](https://github.com/redhat-developer/yaml-language-server) supports both the
-modeline and a schema mapping; point it at the same URL.
+**Anything else**, any editor speaking the [YAML language
+server](https://github.com/redhat-developer/yaml-language-server) supports both the modeline and a
+schema mapping; point it at the same URL.
 
 That covers *writing* the descriptor. For the scan's **findings** to appear inline on the lines
 that caused them, see [findings in your editor](../guides/findings-in-your-editor.md).
@@ -90,10 +90,10 @@ one will flag valid fields as errors. Three ways to control which you get, loose
 | `…/schema/v0.33.0/draugr.saga.schema.json` | that release, forever | you pin Draugr in CI |
 | a local file from `draugr schema` | exactly your installed binary | offline, air-gapped, or strictest |
 
-**`draugr init` pins by default** — it writes the URL for its own version, so a scaffolded Saga
-is matched to the binary that created it. Change the line to the unversioned URL if you'd rather
-track latest. Every release publishes its own immutable copy, so a pin keeps resolving after
-newer versions ship.
+**`draugr init` pins by default**. It writes the URL for its own version, so a scaffolded Saga is
+matched to the binary that created it. Change the line to the unversioned URL if you'd rather track
+latest. Every release publishes its own immutable copy, so a pin keeps resolving after newer
+versions ship.
 
 **The strongest guarantee is the binary's own copy.** Draugr embeds the schema it enforces, so
 this needs no network and cannot mismatch:
@@ -110,11 +110,11 @@ draugr schema -o .saga.schema.json
 
 ```yaml
 project: payments-api         # which project this describes
-release: { ... }              # required — the version being assessed
-config: { ... }               # optional — controllers, reports, and publishers
+release: { ... }              # required, the version being assessed
+config: { ... }               # optional, controllers, reports, and publishers
 components: [ ... ]           # the app's parts
-fragments: [ ... ]            # optional — merge other Saga files into this one
-references: [ ... ]           # optional — links to manual/human controls
+fragments: [ ... ]            # optional, merge other Saga files into this one
+references: [ ... ]           # optional, links to manual/human controls
 ```
 
 Any string value may reference an environment variable with `${{ VAR_NAME }}`; loading
@@ -126,7 +126,7 @@ Which project this descriptor describes: lowercase letters, digits and dashes.
 
 It is the identity of the thing being assessed, and it does not change between builds. A platform
 receiving runs files them under it, and a run whose project does not match the one its credential
-writes to is refused — two descriptors publishing into one project close each other's findings as
+writes to is refused, two descriptors publishing into one project close each other's findings as
 fixed, which is a misconfiguration nothing else detects.
 
 ```yaml
@@ -136,7 +136,7 @@ release:
 ```
 
 > **`release.name` was removed.** It named the project, which is what `project` names. Move the
-> value up — `project: payments-api` — and a release keeps only its version. A descriptor still
+> value up, `project: payments-api`, and a release keeps only its version. A descriptor still
 > carrying it is refused, with that sentence.
 
 ## `release` (required)
@@ -156,19 +156,19 @@ config:
       enabled: true          # absent entry ⇒ disabled; entry without `enabled` ⇒ enabled
 ```
 
-**A control name Draugr does not provide is an error**, wherever it appears — here, in
+**A control name Draugr does not provide is an error**, wherever it appears, here, in
 `config.gate.controls`, or in a component's own `controllers`. A typo is otherwise invisible: the
 descriptor claims a decision it is not making, and the run goes green either way.
 
 ```
 $ draugr validate draugr.saga.yaml
-draugr: config.gate.controls: "iaac" is not a control this build of Draugr provides — did you mean "iac"?
+draugr: config.gate.controls: "iaac" is not a control this build of Draugr provides, did you mean "iac"?
 ```
 
-Checked against what **this build** can run, which is also what
-[`draugr controls`](cli.md#draugr-controls) lists and what the
-[JSON Schema](#editor-support-autocomplete-hover-docs-validation) offers for autocompletion — all
-three come from one place and cannot disagree.
+Checked against what **this build** can run, which is also what [`draugr
+controls`](cli.md#draugr-controls) lists and what the [JSON
+Schema](#editor-support-autocomplete-hover-docs-validation) offers for autocompletion. All three
+come from one place and cannot disagree.
 
 ### Scanning an API from its specification
 
@@ -190,8 +190,8 @@ your descriptor said staging. Draugr rewrites `servers:` to your URL before the 
 
 **Read-only unless you name write methods.** A specification lists `DELETE` too, and a scanner
 handed one will use it. Every operation whose method is not named is removed from the copy the
-scanner receives, so the restriction does not depend on the tool behaving. Naming `post` or
-`delete` is how you accept it — per endpoint, and visible in review.
+scanner receives, so the restriction does not depend on the tool behaving. Naming `post` or `delete`
+is how you accept it, per endpoint, and visible in review.
 
 **The run reports what it excluded**, and how many operations declare parameters it could not
 supply, so a scan that covered part of an API does not read like one that covered all of it.
@@ -201,7 +201,7 @@ Paths resolve relative to where Draugr runs, like every other path in a descript
 ### Authenticating a dynamic scan
 
 `dast` probes an endpoint anonymously unless a host says otherwise. Against an application that
-requires a login that means it tests the login page, finds little, and passes — a verdict about the
+requires a login that means it tests the login page, finds little, and passes, a verdict about the
 least interesting part of the system.
 
 ```yaml
@@ -215,27 +215,26 @@ hosts:
 `type: bearer` sends `Authorization: Bearer <token>`; `type: header` with `header: X-API-Key` sends
 that header instead.
 
-**`tokenEnv` names a variable; there is no field for the credential.** A descriptor is committed,
-so a token in one is a leaked token. The value is read at the moment of the scan, written to a
-`0600` file for the scanner to read, and removed afterwards — never placed on a command line,
-where a process list would show it, and never in a cache key or a report.
+**`tokenEnv` names a variable; there is no field for the credential.** A descriptor is committed, so
+a token in one is a leaked token. The value is read at the moment of the scan, written to a `0600`
+file for the scanner to read, and removed afterwards, never placed on a command line, where a
+process list would show it, and never in a cache key or a report.
 
-**An unset variable fails the scan** rather than falling back to anonymous, because a quiet
-fallback produces the pass this feature exists to prevent. The report records *that* the scan
-authenticated and which variable it read, so an authenticated run is never mistaken for an
-anonymous one — and the cache key carries the same marker, so adding credentials invalidates
-results gathered without them.
+**An unset variable fails the scan** rather than falling back to anonymous, because a quiet fallback
+produces the pass this feature exists to prevent. The report records *that* the scan authenticated
+and which variable it read, so an authenticated run is never mistaken for an anonymous one, and the
+cache key carries the same marker, so adding credentials invalidates results gathered without them.
 
 ### Per-scanner config
 
-A control can be served by more than one scanner, and each scanner is configured under its own
-key in `controllers.<control>.<scanner>`. **The key is camelCase**, like every field in a Saga —
-so a scanner whose name is hyphenated is configured under the camelCase form of it
-(`kube-bench-job` → `kubeBenchJob`, `draugr-tls` → `draugrTls`). A hyphenated key is rejected at
-load: it would otherwise match no scanner and quietly run one fewer than asked for. A scanner block holds an optional **`enabled`** flag
-plus that scanner's options. Default scanners run unless turned off with `enabled: false`; a
-non-default scanner runs only when it sets `enabled: true`. A component may override the project
-config (component keys deep-merge over project keys). For `sast`:
+A control can be served by more than one scanner, and each scanner is configured under its own key
+in `controllers.<control>.<scanner>`. **The key is camelCase**, like every field in a Saga, so a
+scanner whose name is hyphenated is configured under the camelCase form of it (`kube-bench-job` →
+`kubeBenchJob`, `draugr-tls` → `draugrTls`). A hyphenated key is rejected at load: it would
+otherwise match no scanner and quietly run one fewer than asked for. A scanner block holds an
+optional **`enabled`** flag plus that scanner's options. Default scanners run unless turned off with
+`enabled: false`; a non-default scanner runs only when it sets `enabled: true`. A component may
+override the project config (component keys deep-merge over project keys). For `sast`:
 
 ```yaml
 config:
@@ -245,7 +244,7 @@ config:
       semgrep:
         config: p/owasp-top-ten   # ruleset: a registry ref or a path/URL (default: p/default)
       gosec:
-        enabled: true             # opt-in scanner (Go-only) — off unless enabled here
+        enabled: true             # opt-in scanner (Go-only), off unless enabled here
     threats:
       enabled: true
       virustotal:
@@ -265,15 +264,15 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 | `mend-licenses` | the `mend-sca` options, plus `deny` and `warn` |
 | `kube-bench-job` | `targets`, `benchmark`, `namespace`, `image`, `nodeSelector`, `timeout`, `context` |
 | `kube-bench` | `targets`, `benchmark`, `version`, `context`, `configDir` |
-| `trivy-license` | `deny`, `warn` — SPDX identifiers |
+| `trivy-license` | `deny`, `warn`, SPDX identifiers |
 | `draugr-tls` | `expiryErrorDays`, `expiryWarnDays` |
-| `gosec` | `include`, `exclude` — rule IDs; `tags` — Go build tags |
-| `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository` — an internal mirror |
-| `grype`, `grype-fs` | `byCve` — report under the CVE rather than the advisory ID, on by default |
+| `gosec` | `include`, `exclude`, rule IDs; `tags`, Go build tags |
+| `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository`, an internal mirror |
+| `grype`, `grype-fs` | `byCve`. Report under the CVE rather than the advisory ID, on by default |
 | `retirejs` | `enabled` only |
-| `trivy-config` | `checks` — paths to your own Rego; `namespaces` — the namespaces they declare |
-| `semgrep` | `config` — a registry ref, path or URL |
-| `gitleaks` | `config` — a rules file shared across repositories; `history` — scan commit history too |
+| `trivy-config` | `checks`, paths to your own Rego; `namespaces`, the namespaces they declare |
+| `semgrep` | `config`, a registry ref, path or URL |
+| `gitleaks` | `config`, a rules file shared across repositories; `history`, scan commit history too |
 | `virustotal` | `requestsPerMinute` |
 | `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus` | `enabled` only |
 
@@ -296,14 +295,14 @@ config:
 **Beside `config.exploitability`, not in the `sca` scanner block**, and the placement is the point.
 Every entry in a scanner block adds findings, so enabling one there means *check this too*. An
 analyzer named here adds none: it ranks findings already found, **downward**, which can turn a
-failing gate green. That is a decision about how findings are ranked — the same kind
-`config.exploitability` makes in the opposite direction — and it belongs where whoever owns the
-gate will see it in a diff.
+failing gate green. That is a decision about how findings are ranked, the same kind
+`config.exploitability` makes in the opposite direction, and it belongs where whoever owns the gate
+will see it in a diff.
 
 Naming an analyzer in a scanner block is rejected at load, with the line to write instead.
 
 It adds no findings of its own. Its verdicts are folded onto the findings the manifest scanner
-already produced, so a Go vulnerability is still reported once — not once as `CVE-2022-32149` and
+already produced, so a Go vulnerability is still reported once, not once as `CVE-2022-32149` and
 again as `GO-2022-1059`. A vulnerability only it reports is kept.
 
 **What a verdict does.** A finding nothing can reach is ranked one band down, and the report says
@@ -328,27 +327,27 @@ and every finding whose band moved says so, the way an escalated one does:
 ```
 
 **It never suppresses.** An unreachable finding stays in the report at a lower band, because a
-suppression records that a person decided and an inference is not a decision — a call graph does
-not see reflection, dynamic dispatch or code generation, and the call that makes something
-reachable can be written tomorrow. To excuse a finding, use [`config.exclude`](#configexclude) or a
-[VEX document](#reading-a-suppliers-vex-componentsvex-configvexsources), both of which carry an author.
+suppression records that a person decided and an inference is not a decision. A call graph does not
+see reflection, dynamic dispatch or code generation, and the call that makes something reachable can
+be written tomorrow. To excuse a finding, use [`config.exclude`](#configexclude) or a [VEX
+document](#reading-a-suppliers-vex-componentsvex-configvexsources), both of which carry an author.
 
-**Three verdicts, not two.** `reachable`, `unreachable`, and `unknown` — and the third is what
-keeps the other two honest. A dependency used only from test files produces no `govulncheck`
-output at all, so the absence of a verdict is not evidence of unreachability. `unreachable` is
-only claimed for a module the run actually analyzed; anything else is reported as `unknown`, and
-`report.json` counts all three so you can see how much of the answer is missing.
+**Three verdicts, not two.** `reachable`, `unreachable`, and `unknown`, and the third is what keeps
+the other two honest. A dependency used only from test files produces no `govulncheck` output at
+all, so the absence of a verdict is not evidence of unreachability. `unreachable` is only claimed
+for a module the run actually analyzed; anything else is reported as `unknown`, and `report.json`
+counts all three so you can see how much of the answer is missing.
 
 The call path is in the SARIF and in `report.json`, ordered from your own code to the vulnerable
-symbol. **Go only** — a reachability claim without its language is an overclaim.
+symbol. **Go only**, a reachability claim without its language is an overclaim.
 
 
 ### Running two scanners on one control
 
-A flaw both of them find is **counted once**. Both findings stay in the report — each keeps its own
+A flaw both of them find is **counted once**. Both findings stay in the report. Each keeps its own
 rule id, severity and account, because the disagreement between two scanners is the reason to run
-two — but only one is counted in the verdict, the priority bands and the fix-first list, and the
-row you act on names the other tool:
+two, but only one is counted in the verdict, the priority bands and the fix-first list, and the row
+you act on names the other tool:
 
 ```console
 P2  medium  4.3  CVE-2026-27205  sca  trivy  app/requirements.txt
@@ -360,7 +359,7 @@ Where the scanners disagree about how bad it is, the **stronger reading is the o
 the row says what the other said. Where they agree, the rating is not repeated. Every scanner's own
 rule id, severity and score are in `report.json` and the SARIF either way.
 
-Findings are matched on **repository, package and vulnerability id** — not on the rule id, because
+Findings are matched on **repository, package and vulnerability id**, not on the rule id, because
 scanners spell an advisory differently. Grype reports `CVE-2020-14343-pyyaml` where Trivy reports
 the bare CVE, since one advisory can affect several packages in a scan.
 
@@ -378,30 +377,30 @@ option that does not exist is flagged as you type. It is generated from the same
 consults, so the three answers cannot disagree.
 
 **No scanner option filters findings**, and that is a rule rather than an omission. Trivy's
-`--severity` and `--ignorefile`, gosec's `-severity` and `-confidence` — each drops findings inside
-the tool, where Draugr never sees them. A finding Draugr never saw cannot be reported as
-suppressed, cannot carry the reason someone gave for accepting it, and cannot be told apart from
-one that was never made. Use [`config.exclude`](#configexclude) for a finding you have judged, which keeps
-it in the report marked suppressed, and the gate thresholds for what should fail a build. Scanner
-options decide **what gets looked at**; the gate decides what the answer means.
+`--severity` and `--ignorefile`, gosec's `-severity` and `-confidence`, each drops findings inside
+the tool, where Draugr never sees them. A finding Draugr never saw cannot be reported as suppressed,
+cannot carry the reason someone gave for accepting it, and cannot be told apart from one that was
+never made. Use [`config.exclude`](#configexclude) for a finding you have judged, which keeps it in
+the report marked suppressed, and the gate thresholds for what should fail a build. Scanner options
+decide **what gets looked at**; the gate decides what the answer means.
 
-Paths in options — `gitleaks.config`, `trivyConfig.checks` — resolve relative to **where Draugr
+Paths in options, `gitleaks.config`, `trivyConfig.checks`, resolve relative to **where Draugr
 runs**, not to the repository being scanned. Repository scanners work in a temporary clone, and a
 path resolving inside it would point at somewhere your file is not.
 
 Scanners in the last row run with the arguments Draugr chooses. Where a control has more than one
-scanner, the choice you make is **which one serves it** — and that choice is the one that
-matters most, because it is what lets a descriptor outlive any particular tool.
+scanner, the choice you make is **which one serves it**, and that choice is the one that matters
+most, because it is what lets a descriptor outlive any particular tool.
 
 > Implemented today: **`images`** (Trivy), **`sca`** (Trivy fs), **`licenses`** (Trivy),
 > **`secrets`** (Gitleaks), **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config),
 > **`infrastructure`** (native CIS checks; opt-in kube-bench), **`headers`** (native HTTP-header
 > checks, including a graded CSP), **`dast`** (Nuclei), **`tls`** (native TLS/certificate
-> probe), and **`threats`** (abuse.ch URLhaus reputation — needs a free key, and discloses your
+> probe), and **`threats`** (abuse.ch URLhaus reputation. Needs a free key, and discloses your
 > hostnames to a third party). `sbom` ships as evidence under `config.sbom` rather than as a
 > control.
 >
-> **`draugr controls` is the authoritative list** — it asks the same registry the validator and the
+> **`draugr controls` is the authoritative list**. It asks the same registry the validator and the
 > JSON Schema do, so it cannot be out of date with the binary you are running. This one is prose,
 > and prose drifts.
 
@@ -415,7 +414,7 @@ rendered report is delivered to every publisher.
 config:
   reports:
     - format: sarif        # any scan --format: console, markdown, html, junit, json, sarif
-      minPriority: P1      # optional — narrow this report, leaving the others complete
+      minPriority: P1      # optional, narrow this report, leaving the others complete
     - format: markdown
     - format: html
     - format: template     # custom payload from a Go text/template
@@ -426,14 +425,14 @@ config:
       dir: ./out           # → ./out/results.sarif, ./out/report.md, ./out/report.html, ./out/summary.txt
 ```
 
-The **`template`** format renders a [Go `text/template`](https://pkg.go.dev/text/template) against
-a stable view of the scan — `.Release`, `.Verdict`, `.Pass`, `.Priorities.{P1..P4}`, `.Controls`,
-and `.Findings` (each with `.Priority .Level .Score .Control .Tool .RuleID .Message .Location`).
-Use it for a bespoke summary line, a Slack payload, or any custom text without writing code.
+The **`template`** format renders a [Go `text/template`](https://pkg.go.dev/text/template) against a
+stable view of the scan, `.Release`, `.Verdict`, `.Pass`, `.Priorities.{P1..P4}`, `.Controls`, and
+`.Findings` (each with `.Priority .Level .Score .Control .Tool .RuleID .Message .Location`). Use it
+for a bespoke summary line, a Slack payload, or any custom text without writing code.
 
 Reports are delivered regardless of the gate verdict, so you get evidence on a FAIL too. This is
 independent of `scan --format` (stdout) and `scan -o` (which always writes `report.json` +
-`results.sarif`) — use `config.publishers` when you want a declarative, multi-format,
+`results.sarif`). Use `config.publishers` when you want a declarative, multi-format,
 multi-destination setup in the Saga itself.
 
 Built-in publishers: **`file`** and **`github`** (uploads the `sarif` report to code scanning):
@@ -446,7 +445,7 @@ config:
     - kind: github         # repo/commit/ref default to the GitHub Actions env
       # repo: owner/name   # optional overrides ($GITHUB_REPOSITORY / $GITHUB_SHA / $GITHUB_REF)
       # ref: refs/heads/main
-      # tokenEnv: GITHUB_TOKEN   # the token is read from this env var — never the Saga
+      # tokenEnv: GITHUB_TOKEN   # the token is read from this env var, never the Saga
 ```
 
 **`minPriority`** narrows one report to findings at or above a priority band (`P1`–`P4`), leaving
@@ -454,15 +453,15 @@ every other report complete. It exists for the SARIF that becomes review comment
 every finding in the repository reads none of them, while the JSON beside it is evidence and
 evidence is not something to trim.
 
-Narrowing an artifact is otherwise refused, and for a good reason — a file that claims to be the
-scan and is not misleads whatever reads it, most sharply `draugr diff`, which reads a missing
-finding as a fixed one. What makes this different is that it is **declared**: written in the
-descriptor, and recorded inside the artifact it produced, so a consumer can tell a narrowed file
-from a whole one. `--min-priority` on the command line still trims only what is printed;
-`--artifact-min-priority` is the flag that narrows a file, and it says so in the file.
+Narrowing an artifact is otherwise refused, and for a good reason, a file that claims to be the scan
+and is not misleads whatever reads it, most sharply `draugr diff`, which reads a missing finding as
+a fixed one. What makes this different is that it is **declared**: written in the descriptor, and
+recorded inside the artifact it produced, so a consumer can tell a narrowed file from a whole one.
+`--min-priority` on the command line still trims only what is printed; `--artifact-min-priority` is
+the flag that narrows a file, and it says so in the file.
 
 The `github` publisher requires a `sarif` report in `config.reports`. It never stores a secret in
-the descriptor — the token comes from an environment variable. Code scanning is free for public
+the descriptor. The token comes from an environment variable. Code scanning is free for public
 repos; private repos need GitHub Advanced Security.
 
 The **`github-pr-comment`** publisher posts the `markdown` report as a **sticky** pull-request
@@ -472,26 +471,25 @@ and the PR number default from the GitHub Actions environment; the token comes f
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif), which posts a PR **security
 delta** (new / fixed findings) as that comment.
 
-The **`azure-pr-comment`** publisher is its Azure DevOps counterpart, with the same sticky
-behavior. `org`, `project`, `repo` and the PR number default from the Azure Pipelines
-environment, so `kind: azure-pr-comment` on its own is usually the whole configuration. The token
-comes from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`), which a pipeline must map into the step
-explicitly — see [reports & publishers](../guides/reports-and-publishers.md#azure-devops) for
-that and for the repository permission the build identity needs.
+The **`azure-pr-comment`** publisher is its Azure DevOps counterpart, with the same sticky behavior.
+`org`, `project`, `repo` and the PR number default from the Azure Pipelines environment, so `kind:
+azure-pr-comment` on its own is usually the whole configuration. The token comes from
+`$SYSTEM_ACCESSTOKEN` (or `tokenEnv`), which a pipeline must map into the step explicitly. See
+[reports & publishers](../guides/reports-and-publishers.md#azure-devops) for that and for the
+repository permission the build identity needs.
 
-The **`gitlab-mr-comment`** publisher is the GitLab counterpart, with the same sticky behavior.
-The project and the merge-request IID default from the GitLab CI environment, so
-`kind: gitlab-mr-comment` on its own is usually the whole configuration; `repo` accepts a numeric
-project id or a full path, groups included. The token comes from `$GITLAB_TOKEN` (or `tokenEnv`)
-and must carry **`api`** scope — `CI_JOB_TOKEN` is read-only on the notes API and cannot post,
-which is worth knowing before reaching for the variable GitLab already provides. See
-[reports & publishers](../guides/reports-and-publishers.md#gitlab).
+The **`gitlab-mr-comment`** publisher is the GitLab counterpart, with the same sticky behavior. The
+project and the merge-request IID default from the GitLab CI environment, so `kind:
+gitlab-mr-comment` on its own is usually the whole configuration; `repo` accepts a numeric project
+id or a full path, groups included. The token comes from `$GITLAB_TOKEN` (or `tokenEnv`) and must
+carry **`api`** scope. `CI_JOB_TOKEN` is read-only on the notes API and cannot post, which is worth
+knowing before reaching for the variable GitLab already provides. See [reports &
+publishers](../guides/reports-and-publishers.md#gitlab).
 
 The **`draugr-api`** publisher posts the run to any server implementing Draugr's run-ingest API.
-[Draugr Server](https://draugr.dev) is one — hosted, or installed where you want it, the same
-artifact either way — and the three calls are documented in
-[reports & publishers](../guides/reports-and-publishers.md#the-three-calls) so anything else can
-be another.
+[Draugr Server](https://draugr.dev) is one, hosted, or installed where you want it, the same
+artifact either way, and the three calls are documented in [reports &
+publishers](../guides/reports-and-publishers.md#the-three-calls) so anything else can be another.
 
 ```yaml
 config:
@@ -513,11 +511,11 @@ from the descriptor, which is a file people commit.
 ~/.draugr/config.yaml  →  ./draugr.config.yaml  →  $DRAUGR_API_URL  →  url: in this Saga
 ```
 
-Ambient-broad, then ambient-narrow, then ambient-immediate, then explicit — and **explicit wins**.
-An environment variable is context; a `url:` somebody wrote in a descriptor is intent, and context
-does not override intent, and it is the order every other publisher already uses — `repo`, `commit`
-and the rest all beat their environment equivalents — so it is one rule for the whole of Draugr
-rather than a special case here.
+Ambient-broad, then ambient-narrow, then ambient-immediate, then explicit, and **explicit wins**. An
+environment variable is context; a `url:` somebody wrote in a descriptor is intent, and context does
+not override intent, and it is the order every other publisher already uses, `repo`, `commit` and
+the rest all beat their environment equivalents, so it is one rule for the whole of Draugr rather
+than a special case here.
 
 Read practically: put the endpoint in `draugr.config.yaml` once for the organization, let a
 pipeline point somewhere else with the environment variable, and write `url:` in a descriptor only
@@ -533,7 +531,7 @@ Two things follow that are worth knowing when reading a build log:
 - **A re-run that produced the same findings uploads nothing.** The plane addresses evidence by its
   content, so it can say it already holds it.
 - **A retried job does not become a second run.** The run is keyed on the CI job id where the
-  platform provides one — GitHub Actions, GitLab CI, Azure Pipelines, CircleCI and Buildkite — and
+  platform provides one, GitHub Actions, GitLab CI, Azure Pipelines, CircleCI and Buildkite, and
   on the digest of the report where nothing does.
 
 With neither the URL nor the token set, the publisher **skips**, so the same descriptor a pipeline
@@ -559,7 +557,7 @@ components:
 
 Reports dependency licenses that carry an obligation. Requires Trivy.
 
-> **Not legal advice.** License interpretation depends on facts Draugr can't know — whether you
+> **Not legal advice.** License interpretation depends on facts Draugr can't know, whether you
 > distribute, how you link, which jurisdiction applies. Findings are a starting point for a
 > conversation, not a determination. See
 > [scope and disclaimer](../trust-and-operations/disclaimer.md).
@@ -569,24 +567,24 @@ Reports dependency licenses that carry an obligation. Requires Trivy.
 | Trivy category | Level | |
 |---|---|---|
 | `forbidden` | error | generally incompatible with shipping proprietary software |
-| `restricted` | warning | copyleft — GPL, LGPL |
-| `reciprocal` | note | file-level copyleft — MPL, EPL |
+| `restricted` | warning | copyleft, GPL, LGPL |
+| `reciprocal` | note | file-level copyleft, MPL, EPL |
 | `unknown` | note | Trivy couldn't identify it |
 | `notice`, `permissive`, `unencumbered` | *not reported* | |
 
-Permissive licenses aren't findings, they're inventory — every dependency has one, and listing
-them buries the few that matter under dozens that don't. On Draugr's own repository that's 77
-licenses, of which zero carry an obligation. The inventory question is what
-[`config.sbom`](#sbom-generation) answers, with a license per package.
+Permissive licenses aren't findings, they're inventory. Every dependency has one, and listing them
+buries the few that matter under dozens that don't. On Draugr's own repository that's 77 licenses,
+of which zero carry an obligation. The inventory question is what [`config.sbom`](#sbom-generation)
+answers, with a license per package.
 
 `restricted` is a **warning** rather than an error because whether copyleft matters depends on
-whether you distribute — which the Saga doesn't say. If you ship binaries to customers, raise it:
+whether you distribute, which the Saga doesn't say. If you ship binaries to customers, raise it:
 `deny: ["GPL-3.0-only"]`.
 
 **`deny` and `warn` name SPDX ids and beat the category**, because whether a license is acceptable
 depends on what you do with your software. Trivy can't know that; you always do.
 
-**Gate it separately from vulnerabilities** with [`config.gate`](#configgate) — license policy is
+**Gate it separately from vulnerabilities** with [`config.gate`](#configgate). License policy is
 usually owned by different people than security policy:
 
 ```yaml
@@ -602,7 +600,7 @@ config:
 This differs from every other controller, deliberately, and it's the one thing worth reading
 twice.
 
-Elsewhere, a component's block **deep-merges over** the project's and the component wins — so a
+Elsewhere, a component's block **deep-merges over** the project's and the component wins, so a
 component setting a list *replaces* the project's list. For `deny` and `warn`, the two **union**
 instead. A component can add restrictions; it cannot remove them:
 
@@ -619,9 +617,9 @@ components:
         deny: ["Sleepycat"]      # web denies all three, not just Sleepycat
 ```
 
-Under the usual rule, `web` would have silently dropped both organization-wide denials — a
-component opting out of company license policy, invisible in review. That's the failure a license
-gate exists to prevent, so **components can only tighten**.
+Under the usual rule, `web` would have silently dropped both organization-wide denials, a component
+opting out of company license policy, invisible in review. That's the failure a license gate exists
+to prevent, so **components can only tighten**.
 
 There is exactly one way to loosen, and it requires a reason:
 
@@ -632,8 +630,8 @@ config:
       reason: "Legal reviewed 2026-07; we link dynamically and don't distribute."
 ```
 
-Which is the point — an exemption you have to justify, that stays in the report marked and
-auditable, is a different thing from a list entry nobody has to explain.
+Which is the point. An exemption you have to justify, that stays in the report marked and auditable,
+is a different thing from a list entry nobody has to explain.
 
 ### Rule ids
 
@@ -653,8 +651,8 @@ an effect; the kinds that require consent (`mutate`, `privilege`) will not run u
 
 | Kind | |
 |---|---|
-| `mutate` | creates or changes something that outlives the scan — **needs consent** |
-| `privilege` | needs access beyond what reading the target requires — **needs consent** |
+| `mutate` | creates or changes something that outlives the scan. **needs consent** |
+| `privilege` | needs access beyond what reading the target requires. **needs consent** |
 | `network` | sends traffic to the target rather than reading an artifact |
 | `disclosure` | sends information about the target to a third party |
 
@@ -692,18 +690,18 @@ One threshold can't serve every control. License policy is owned by legal and vu
 policy by security; *"fail the build on a forbidden license but only warn on a medium CVE"* is a
 reasonable position that a single global threshold makes unsayable.
 
-`failOnPriority` gates on a [priority band](../concepts/prioritization.md) as well. Severity rates
-a flaw in the abstract; priority folds in what this descriptor says about the component it was
-found in, which is usually what a team that has classified its components wants to gate on.
-[`--fail-on-priority`](cli.md#draugr-scan-sagayaml--dir) overrides it for a single run — the
+`failOnPriority` gates on a [priority band](../concepts/prioritization.md) as well. Severity rates a
+flaw in the abstract; priority folds in what this descriptor says about the component it was found
+in, which is usually what a team that has classified its components wants to gate on.
+[`--fail-on-priority`](cli.md#draugr-scan-sagayaml--dir) overrides it for a single run. The
 descriptor is the standing policy, the flag is this run.
 
-Both live in the Saga rather than in a flag because they're **policy** — reviewed in a pull
-request and applied identically by every pipeline, not remembered by whoever wrote the workflow.
-Resolution order is per-control setting → `--fail-on` → `high`.
+Both live in the Saga rather than in a flag because they're **policy**, reviewed in a pull request
+and applied identically by every pipeline, not remembered by whoever wrote the workflow. Resolution
+order is per-control setting → `--fail-on` → `high`.
 
-The report says which gate produced a verdict, so a narrowed one is visible to whoever reads it —
-see [the verdict and the gate](../concepts/verdict-and-gating.md).
+The report says which gate produced a verdict, so a narrowed one is visible to whoever reads it. See
+[the verdict and the gate](../concepts/verdict-and-gating.md).
 
 
 ## Where a repository comes from: URLs and paths
@@ -713,10 +711,10 @@ anything git can clone is valid.
 
 ```yaml
 repositories:
-  - url: https://github.com/acme/web.git   # remote — cloned over the network
-  - url: git@github.com:acme/web.git       # remote — uses your SSH agent
-  - url: ../web                            # local — relative to the descriptor's directory
-  - url: /srv/checkouts/web                # local — absolute
+  - url: https://github.com/acme/web.git   # remote, cloned over the network
+  - url: git@github.com:acme/web.git       # remote, uses your SSH agent
+  - url: ../web                            # local, relative to the descriptor's directory
+  - url: /srv/checkouts/web                # local, absolute
 ```
 
 A relative path resolves against **the directory holding the Saga**, not the current working
@@ -729,11 +727,10 @@ directory the same way it clones a URL, applies [`paths` and `ignore`](#scoping-
 a sparse checkout, and runs the scanners over that. Three things follow, and they are the reason
 this section exists.
 
-**The scan sees the committed revision, not your working tree.** Uncommitted work — edited,
-staged, or untracked — is simply absent. A change that introduces a finding passes until it is
-committed, and a fix appears not to have worked. This is deliberate: a report has to name a
-revision that someone else can check out and reproduce, and "whatever was on one machine at one
-moment" is not that.
+**The scan sees the committed revision, not your working tree.** Uncommitted work, edited, staged,
+or untracked, is simply absent. A change that introduces a finding passes until it is committed, and
+a fix appears not to have worked. This is deliberate: a report has to name a revision that someone
+else can check out and reproduce, and "whatever was on one machine at one moment" is not that.
 
 **So the report names it**, along with what it left out:
 
@@ -747,28 +744,28 @@ both exist so that one repository reads as one thing however it was scanned.
 *A local checkout is reported as the repository it was cloned from.* Point a descriptor at `.` or
 `/srv/web` and the report names its git remote, because the path is where the code sits on one
 machine rather than which repository it is. That is what lets a scan on a laptop and a scan in a
-pipeline recognize each other: same repository, same revision, same identity — so they share a
-cache entry, and `draugr diff` can compare them. A checkout with **no** remote keeps its path,
-which is then the only name it has and the one you can act on.
+pipeline recognize each other: same repository, same revision, same identity, so they share a cache
+entry, and `draugr diff` can compare them. A checkout with **no** remote keeps its path, which is
+then the only name it has and the one you can act on.
 
-*Credentials and usernames are dropped.* `https://oauth2:TOKEN@github.com/acme/web.git` is
-reported, cached and named as `https://github.com/acme/web.git`, and Azure DevOps URLs stop
-carrying the organization as a username as well as in the path. The URL used to **clone** keeps
-everything it had — fetching is the one thing credentials are for.
+*Credentials and usernames are dropped.* `https://oauth2:TOKEN@github.com/acme/web.git` is reported,
+cached and named as `https://github.com/acme/web.git`, and Azure DevOps URLs stop carrying the
+organization as a username as well as in the path. The URL used to **clone** keeps everything it
+had. Fetching is the one thing credentials are for.
 
-That line is in the console report, the Markdown and HTML ones, and the JSON under
-`repositories`. It is per repository and per revision rather than per control: several controls
-scanning one checkout is one fact. If two controls somehow read different commits — possible on a
-branch that moves mid-scan, since each scanner checks out independently — both are listed, because
-a single revision would be an assumption rather than a record.
+That line is in the console report, the Markdown and HTML ones, and the JSON under `repositories`.
+It is per repository and per revision rather than per control: several controls scanning one
+checkout is one fact. If two controls somehow read different commits, possible on a branch that
+moves mid-scan, since each scanner checks out independently, both are listed, because a single
+revision would be an assumption rather than a record.
 
-For the loop of fixing something, `draugr scan --working-tree` reads the checkout as it is —
-uncommitted work included, from a copy, and marked in the report as not reproducible. See
-[the CLI reference](cli.md#--working-tree-for-the-loop-of-fixing-something).
+For the loop of fixing something, `draugr scan --working-tree` reads the checkout as it is.
+Uncommitted work included, from a copy, and marked in the report as not reproducible. See [the CLI
+reference](cli.md#--working-tree-for-the-loop-of-fixing-something).
 
-**`revision` still applies.** A local path with `revision: main` scans `main`, whatever branch
-the working copy happens to be on. Left unset, the scan follows the checkout's current `HEAD` —
-which is usually what you want locally and worth pinning in CI.
+**`revision` still applies.** A local path with `revision: main` scans `main`, whatever branch the
+working copy happens to be on. Left unset, the scan follows the checkout's current `HEAD`, which is
+usually what you want locally and worth pinning in CI.
 
 **The clone is a copy.** Nothing a scanner does can modify your checkout, and the temporary
 directory is removed when the scan ends.
@@ -780,9 +777,9 @@ the runner's and means nothing to anyone reading the report later.
 ### What this means for `draugr diff`
 
 `diff` compares two `results.sarif` files, so it inherits this: both sides describe committed
-revisions. In CI that is exactly right — the base is a merge-base commit and the head is the PR's
-head commit, both pushed, both reproducible — and it is why the [GitHub Action](../guides/github-action.md)
-needs `fetch-depth: 0` to reach the base.
+revisions. In CI that is exactly right. The base is a merge-base commit and the head is the PR's
+head commit, both pushed, both reproducible, and it is why the [GitHub
+Action](../guides/github-action.md) needs `fetch-depth: 0` to reach the base.
 
 Locally it is the part that surprises people. This does nothing:
 
@@ -823,19 +820,19 @@ repositories:
 ```
 
 **`paths` selects directories.** `services/web` and `services/web/**` mean the same thing; a
-trailing `/**` is accepted because it reads naturally. Draugr checks out only those directories,
-so a large repository is also cheaper to scan — the rest is never fetched.
+trailing `/**` is accepted because it reads naturally. Draugr checks out only those directories, so
+a large repository is also cheaper to scan. The rest is never fetched.
 
 **Files at the repository root are always included**, whatever `paths` says. `go.mod`,
 `package.json`, `Dockerfile`, `.trivyignore`, `.semgrepignore` and their kin live there, and they
-are how a scanner knows what it is looking at. A tool that cannot find the manifest does not
-fail — it reports fewer findings against a tree it did not understand, and that is
-indistinguishable from a clean scan.
+are how a scanner knows what it is looking at. A tool that cannot find the manifest does not fail.
+It reports fewer findings against a tree it did not understand, and that is indistinguishable from a
+clean scan.
 
-**`ignore` removes paths, and runs last** — so it can carve out of a subtree `paths` selected.
-The patterns are gitignore-shaped: a trailing `/` matches a directory and everything beneath it,
-`*` matches within one path segment, `**` matches across segments. A bare name like `vendor`
-means the directory and its contents.
+**`ignore` removes paths, and runs last**, so it can carve out of a subtree `paths` selected. The
+patterns are gitignore-shaped: a trailing `/` matches a directory and everything beneath it, `*`
+matches within one path segment, `**` matches across segments. A bare name like `vendor` means the
+directory and its contents.
 
 Both are relative to the repository root; an absolute path or one containing `..` is rejected
 when the descriptor loads.
@@ -844,7 +841,7 @@ when the descriptor loads.
 same repository are two different scans, cached separately, and their findings stay apart.
 
 > `ignore` here is not the same tool as `config.exclude`, below. `ignore` narrows what is
-> **scanned** — the files never reach the tool, and nothing is reported about them. `exclude`
+> **scanned**, the files never reach the tool, and nothing is reported about them. `exclude`
 > narrows what is **counted**: the finding is still made, still in the report, marked suppressed
 > with the reason someone gave. Use `ignore` for code that is not yours to answer for, like a
 > vendored tree. Use `exclude` for a finding you have looked at and accepted.
@@ -868,10 +865,10 @@ config:
       expires: 2026-08-14
 ```
 
-Every real repository has paths that aren't the application — fixtures, examples, generated
-code, vendored trees — and rules that don't apply to them. Saying so in the Saga means one
-syntax for every scanner, in the file that already describes your scope, rather than learning
-each tool's own ignore format.
+Every real repository has paths that aren't the application, fixtures, examples, generated code,
+vendored trees, and rules that don't apply to them. Saying so in the Saga means one syntax for every
+scanner, in the file that already describes your scope, rather than learning each tool's own ignore
+format.
 
 **A suppressed finding is reported, not deleted.** It stays in the SARIF marked with its
 justification (`suppressions[].kind: external`), so GitHub code scanning files it as
@@ -888,16 +885,16 @@ was never there.
 | Field | Meaning |
 |-------|---------|
 | `paths` | Location patterns. A pattern ending in `/` matches everything beneath that directory; otherwise it's a glob against the whole location, so `*.md` and `test/fixture.go` both work. |
-| `rules` | Rule ids. `*` matches any run of characters, **including `/`** — so `CVE-2019-*` and `license/GPL-3.0-only/*` both work. A pattern with no `*` matches exactly. |
+| `rules` | Rule ids. `*` matches any run of characters, **including `/`**, so `CVE-2019-*` and `license/GPL-3.0-only/*` both work. A pattern with no `*` matches exactly. |
 | `reason` | **Required.** Why this exclusion exists. |
 | `acceptedBy` | Who decided this was acceptable. Optional; a suppression without one is reported as **unattributed**. |
 | `expires` | The date it stops applying (`YYYY-MM-DD`). Past it the finding returns and the report says the exclusion lapsed. |
-| `vex` | What this suppression claims about the product, for [`--report vex`](../guides/vex.md). Optional — see [below](#declaring-what-a-suppression-means-in-vex). |
+| `vex` | What this suppression claims about the product, for [`--report vex`](../guides/vex.md). Optional. See [below](#declaring-what-a-suppression-means-in-vex). |
 
-**Who, why, and until when.** The question asked of a suppression is not whether the scanner ran
-— it is who decided this was acceptable, and when. `reason` answers why; the other two answer the
-rest, and they are separate fields rather than prose because a name buried in a sentence cannot
-be reported on.
+**Who, why, and until when.** The question asked of a suppression is not whether the scanner ran. It
+is who decided this was acceptable, and when. `reason` answers why; the other two answer the rest,
+and they are separate fields rather than prose because a name buried in a sentence cannot be
+reported on.
 
 `acceptedBy` is optional so existing descriptors keep working, and the console says how many
 suppressions have nobody attached:
@@ -935,20 +932,20 @@ a consumer can act on it without reading English. Omit it and the `reason` is pu
 prose alternative instead, which is valid and simply less useful to a machine.
 
 **Omitting `vex` entirely is fine.** The suppression is then published as `affected` carrying your
-reason — true, since you did find it and did decide to accept it. Draugr will not read the reason
-to work out whether you meant `not_affected`: that is a claim of safety made on your behalf,
-inferred from prose, and published over your name.
+reason. True, since you did find it and did decide to accept it. Draugr will not read the reason to
+work out whether you meant `not_affected`: that is a claim of safety made on your behalf, inferred
+from prose, and published over your name.
 
 `under_investigation` is not accepted here, because it is what an untriaged finding already reports, and
 claiming it for something you have suppressed says the matter is both open and settled.
 
-**An expiry is enforced, not advisory.** On the day after `expires` the exclusion stops
-suppressing and the finding comes back — with the report saying the exclusion lapsed, so a
-finding that used to be accepted does not simply reappear unexplained:
+**An expiry is enforced, not advisory.** On the day after `expires` the exclusion stops suppressing
+and the finding comes back, with the report saying the exclusion lapsed, so a finding that used to
+be accepted does not simply reappear unexplained:
 
 ```
 1 exclusion expired and no longer suppressing:
-  expired 2026-08-14, accepted by Wilson Santos — Upstream fix lands in v2.4…
+  expired 2026-08-14, accepted by Wilson Santos · Upstream fix lands in v2.4…
 ```
 
 An exclusion accepted "until the upstream fix lands" otherwise has nothing that brings the
@@ -957,10 +954,10 @@ again. A date that cannot be parsed is rejected at load: it would suppress indef
 descriptor claims otherwise.
 
 **`paths` and `rules` glob differently, on purpose.** In `paths`, `*` stops at a directory
-separator, so `*.md` matches `README.md` but not `docs/README.md` — they really are paths. In
-`rules` it doesn't, because a rule id is an opaque string and the compound ones are the ones
-worth matching: a package name contains slashes, so a wildcard that stopped at `/` couldn't
-express "this rule, whichever package".
+separator, so `*.md` matches `README.md` but not `docs/README.md`. They really are paths. In `rules`
+it doesn't, because a rule id is an opaque string and the compound ones are the ones worth matching:
+a package name contains slashes, so a wildcard that stopped at `/` couldn't express "this rule,
+whichever package".
 
 A wide pattern is safe to use because it is **loud**. Nothing is deleted, so `rules: ["*"]`
 reports `N findings suppressed by config.exclude` and every one of them sits in the SARIF with
@@ -971,23 +968,23 @@ end of them and one total could only support the weakest:
 
 ```console
 5 findings suppressed by config.exclude · 3 accepted by you@example.com, 2 unattributed
-1 finding excused by a supplier's VEX — 1 asserted by ACME Security <sec@acme.example>
-2 findings silenced in the source by a scanner directive — nobody signed these
+1 finding excused by a supplier's VEX · 1 asserted by ACME Security <sec@acme.example>
+2 findings silenced in the source by a scanner directive · nobody signed these
 ```
 
 The last is a `# nosemgrep`, a linter pragma, or anything else a scanner honors from a comment in
-the file. It is the weakest of the three — written by whoever was editing, reviewed by nobody in
-particular — which is exactly why it is printed rather than folded into a total with decisions
+the file. It is the weakest of the three. Written by whoever was editing, reviewed by nobody in
+particular, which is exactly why it is printed rather than folded into a total with decisions
 somebody signed.
 
-**When both `paths` and `rules` are set, a finding must match both.** That's the narrow reading —
-"this rule, in this place" — and the safe one: the alternative would quietly widen *ignore the
+**When both `paths` and `rules` are set, a finding must match both.** That's the narrow reading,
+"this rule, in this place", and the safe one: the alternative would quietly widen *ignore the
 fixture's fake key* into *ignore that rule everywhere*.
 
-**A reason is required** because an exclusion without one is indistinguishable from an oversight
-six months later, and a reviewer has nothing to judge. It's the cheapest guard against a scanner
-being quietly defanged. An entry with neither `paths` nor `rules` is rejected too — it would
-suppress every finding in the project.
+**A reason is required** because an exclusion without one is indistinguishable from an oversight six
+months later, and a reviewer has nothing to judge. It's the cheapest guard against a scanner being
+quietly defanged. An entry with neither `paths` nor `rules` is rejected too. It would suppress every
+finding in the project.
 
 Findings a scanner suppressed itself (a Semgrep `nosem` comment, say) keep their own reason and
 aren't re-attributed to your Saga.
@@ -1000,7 +997,7 @@ what is being exploited rather than only what could be.
 ```yaml
 config:
   exploitability:
-    kev: cache          # path | cache | auto — omit to leave KEV off
+    kev: cache          # path | cache | auto. Omit to leave KEV off
     epss: cache
     epssThreshold: 0.5  # optional; default 0.5
     maxAge: 24h         # optional; default 24h
@@ -1013,14 +1010,14 @@ config:
 | `epssThreshold` | The EPSS probability (0–1) that triggers the bump. Zero disables it while leaving KEV in force. |
 | `maxAge` | How old a cached feed may be before `auto` refetches it and a scan warns. A Go duration. |
 
-KEV wins where both apply: observed exploitation outranks a prediction about it. Either signal
-works without the other — set one key and omit the other.
+KEV wins where both apply: observed exploitation outranks a prediction about it. Either signal works
+without the other. Set one key and omit the other.
 
 **Where the data comes from.** `kev` and `epss` each take three kinds of value:
 
 | Value | Behavior |
 |-------|-----------|
-| a path | that file. Touches neither the cache nor the network — the air-gapped route |
+| a path | that file. Touches neither the cache nor the network, the air-gapped route |
 | `cache` | reads `~/.draugr/feeds`; **never** fetches. Errors if nothing is cached |
 | `auto` | reads the cache, fetching when it is missing or older than `maxAge` |
 
@@ -1032,7 +1029,7 @@ ranked everything as though nothing were exploited.
 `--epss-threshold`. Passing `--epss-threshold 0.5` beats a descriptor saying `0.1` even though
 0.5 is also the flag's default; not passing it leaves the descriptor's value alone.
 
-Raise `maxAge` on a runner deliberately pinned to a known copy of the data — reproducing last
+Raise `maxAge` on a runner deliberately pinned to a known copy of the data, reproducing last
 quarter's verdict requires last quarter's feed.
 
 See [prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) for what the
@@ -1068,9 +1065,9 @@ careful about.
 what appears at the top of your report.
 
 **`config.vex` is how the outside world refers to it.** A VEX statement is matched by product
-identifier: a consumer applies it when the identifier equals what *their* SBOM calls the thing
-they are scanning. That is usually not your release name — it is an image reference, a package
-URL, a digest.
+identifier: a consumer applies it when the identifier equals what *their* SBOM calls the thing they
+are scanning. That is usually not your release name. It is an image reference, a package URL, a
+digest.
 
 Both fields are optional, and the defaults produce a valid document rather than a publishable
 one:
@@ -1080,16 +1077,16 @@ one:
 | `author` | `project` | A project name is not a party. A consumer with a question about your claim needs somebody to ask. |
 | `product` | `pkg:generic/<project>@<release.version>` | Synthesized from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
 
-**A document nothing matches fails silently.** A consumer cannot tell that a statement was meant
-for it, so a wrong identifier does not error — it is read, understood, and applied to nothing.
-This is the single field most worth checking against a consumer's SBOM before you publish.
+**A document nothing matches fails silently.** A consumer cannot tell that a statement was meant for
+it, so a wrong identifier does not error. It is read, understood, and applied to nothing. This is
+the single field most worth checking against a consumer's SBOM before you publish.
 
 ### Versions track the release
 
 A VEX statement is about a *version* of a product: `not_affected` in 2.3 says nothing about 2.4.
 
-**Leave the version out of `product` and Draugr appends `release.version`.** This is the
-recommended form, and it cannot go stale — the identifier moves when the release does.
+**Leave the version out of `product` and Draugr appends `release.version`.** This is the recommended
+form, and it cannot go stale, the identifier moves when the release does.
 
 ```yaml
 project: acme-api
@@ -1110,10 +1107,9 @@ That escape hatch has a cost worth stating: **a literal version does not follow 
 Write `pkg:oci/acme/api@2.4.0`, ship 2.5.0, and the document keeps claiming 2.4.0. Prefer the
 version-less form unless you are pinning to something immutable.
 
-Qualifiers and a subpath are preserved — the version is inserted where the package-URL
-specification puts it (`pkg:type/name@version?qualifiers#subpath`). A `product` that is not a
-package URL is left untouched, since VEX identifies a product by IRI and a purl is only the
-convention.
+Qualifiers and a subpath are preserved. The version is inserted where the package-URL specification
+puts it (`pkg:type/name@version?qualifiers#subpath`). A `product` that is not a package URL is left
+untouched, since VEX identifies a product by IRI and a purl is only the convention.
 
 ## Reading a supplier's VEX (`components[].vex`, `config.vexSources`)
 
@@ -1141,24 +1137,24 @@ different things about where the document lives.
 
 | Field | Meaning |
 |-------|---------|
-| `path` | A file on disk, resolved **relative to where Draugr runs** — not to the descriptor and not to the repository, the same rule [`hosts[].spec.path`](#scanning-an-api-from-its-specification) follows. |
+| `path` | A file on disk, resolved **relative to where Draugr runs**, not to the descriptor and not to the repository, the same rule [`hosts[].spec.path`](#scanning-an-api-from-its-specification) follows. |
 | `url` | Fetched over HTTPS each run. The report records the URL, the fetch time and the digest of what came back. |
 | `repository.url` | A git repository holding the document. Cloned with whatever credentials git already has; Draugr stores none, so no token belongs here. |
-| `repository.ref` | Branch, tag or commit. Optional — the default branch otherwise. Worth pinning for a claim you gate on; the report records the commit actually read either way. |
+| `repository.ref` | Branch, tag or commit. Optional, the default branch otherwise. Worth pinning for a claim you gate on; the report records the commit actually read either way. |
 | `repository.path` | The document's path inside the repository. Required, and it may not climb out of it. |
 
 **Scope.** A component's own sources apply to its findings; `config.vexSources` applies to every
-component. Statements are matched by package identifier regardless, so listing a source widens
-which findings are considered — it does not let a statement claim more than it says.
+component. Statements are matched by package identifier regardless, so listing a source widens which
+findings are considered. It does not let a statement claim more than it says.
 
 **Effect.** Only `not_affected` and `fixed` suppress. `affected` and `under_investigation` are
 recorded and reported but change nothing, because they concede exposure rather than excusing it.
 Where `config.exclude` already covers a finding, your own reason stands.
 
 **Attribution.** A suppression from a claim carries `origin: vex`, the document's author, and the
-date the claim was asserted — in the console, in `report.json` and in the SARIF property bag. That
-separation is the reason to read a document rather than retype it: a copied `not_affected` becomes
-a decision you are answerable for, while an imported one stays a claim somebody else made.
+date the claim was asserted, in the console, in `report.json` and in the SARIF property bag. That
+separation is the reason to read a document rather than retype it: a copied `not_affected` becomes a
+decision you are answerable for, while an imported one stays a claim somebody else made.
 
 **A source that cannot be read fails the run.** Not a warning and never a skip: a scan that
 quietly dropped a supplier's analysis would report more findings than the last one with nothing
@@ -1175,11 +1171,11 @@ config:
     scope: component         # component (default) | project | both
 ```
 
-Produces one [Software Bill of Materials](glossary.md#sbom--software-bill-of-materials) per
-distinct repository and image in the Saga — an inventory of what each one contains. Requires
+Produces one [Software Bill of Materials](glossary.md#sbom-software-bill-of-materials) per distinct
+repository and image in the Saga, an inventory of what each one contains. Requires
 [Syft](https://github.com/anchore/syft) (`draugr tools install syft`).
 
-**Choosing a format.** Both open specifications, each in both of its standard encodings — pick
+**Choosing a format.** Both open specifications, each in both of its standard encodings, pick
 whichever the thing consuming the document reads:
 
 | `format` | Written as | Media type |
@@ -1189,18 +1185,18 @@ whichever the thing consuming the document reads:
 | `spdx-json` | `sbom-<component>-<target>.spdx.json` | `application/spdx+json` |
 | `spdx-tag-value` | `sbom-<component>-<target>.spdx` | `text/spdx` |
 
-**Why CycloneDX is the default.** Both are open standards and neither is going away, so the
-default is decided by what a document is likely to be *used for* rather than by seniority.
-CycloneDX (ECMA-424) composes: a document can carry nested components and state how complete it
-is, so it answers "what is in this project" and not only "what is in this repository". It is
-also what most security tooling reads first, and the format VEX is expressed in. SPDX (ISO/IEC
-5962) is the name a procurement questionnaire or license-compliance process is more likely to
-ask for — set `format: spdx-json` when that is who the document is for.
+**Why CycloneDX is the default.** Both are open standards and neither is going away, so the default
+is decided by what a document is likely to be *used for* rather than by seniority. CycloneDX
+(ECMA-424) composes: a document can carry nested components and state how complete it is, so it
+answers "what is in this project" and not only "what is in this repository". It is also what most
+security tooling reads first, and the format VEX is expressed in. SPDX (ISO/IEC 5962) is the name a
+procurement questionnaire or license-compliance process is more likely to ask for. Set `format:
+spdx-json` when that is who the document is for.
 
-Syft can emit more — its own `syft-json`, GitHub's dependency-snapshot format, a bare PURL list
-— but those are either vendor-specific or not an SBOM, so Draugr doesn't offer them. Every
-document it produces is one a third party can read. An unsupported value is rejected when the
-Saga loads, naming the four, rather than failing after the scan has run.
+Syft can emit more, its own `syft-json`, GitHub's dependency-snapshot format, a bare PURL list, but
+those are either vendor-specific or not an SBOM, so Draugr doesn't offer them. Every document it
+produces is one a third party can read. An unsupported value is rejected when the Saga loads, naming
+the four, rather than failing after the scan has run.
 
 **It is not a control, and this is deliberate.** Every control checks something and returns a
 verdict the gate acts on. An SBOM finds nothing, so it has no verdict to give; a control row
@@ -1225,10 +1221,10 @@ SBOM: 2 documents (cyclonedx-json)
 | `project` | one document covering the whole release |
 | `both` | the per-target documents **and** the assembled one |
 
-**Why this exists.** An SBOM is asked for per *product*. A customer questionnaire, EO 14028 and
-the CRA all want the bill of materials of the thing you shipped. Draugr scans per repository and
-image — so a project with four repositories and three images produces **seven documents and no
-answer to the question being asked**.
+**Why this exists.** An SBOM is asked for per *product*. A customer questionnaire, EO 14028 and the
+CRA all want the bill of materials of the thing you shipped. Draugr scans per repository and image,
+so a project with four repositories and three images produces **seven documents and no answer to the
+question being asked**.
 
 ```yaml
 config:
@@ -1245,9 +1241,9 @@ The assembled document is written as `sbom-project.cdx.json`. Its root component
 with one node per Saga component beneath it, one per repository or image beneath that, and the
 packages beneath those.
 
-**This is assembly, not merging.** A generic merge tool has a pile of documents and has to guess
-how they relate. Draugr is handed a release containing named components containing named targets
-— the hierarchy is declared, so it does not have to be inferred.
+**This is assembly, not merging.** A generic merge tool has a pile of documents and has to guess how
+they relate. Draugr is handed a release containing named components containing named targets. The
+hierarchy is declared, so it does not have to be inferred.
 
 That matters for the question a merge usually destroys. When `requests 2.19.1` appears in three
 components, deduplicating to one entry answers *what do we ship* and loses *who ships it*, which
@@ -1256,7 +1252,7 @@ any consumer counting packages report a meaningless number. So Draugr keeps **on
 package** and a **dependency graph** saying which targets contain it, and both questions are
 answerable from the same document. Two versions of one library stay two packages.
 
-`scope: project` replaces the per-target documents rather than adding to them — you asked for a
+`scope: project` replaces the per-target documents rather than adding to them. You asked for a
 document covering the product. Use `both` when you want the parts as evidence for the whole.
 
 **CycloneDX only.** `project` and `both` require `format: cyclonedx-json` and say so if it is
@@ -1264,19 +1260,18 @@ something else. SPDX expresses containment through relationships and could carry
 assembling it correctly is different work, and a half-right SPDX document would be worse than
 declining because nothing about it would look wrong.
 
-**Where the documents go.** `-o <dir>` writes them beside `report.json` and `results.sarif`,
-and any configured publisher delivers them alongside your reports — including with no
-`config.reports` at all, if the inventory is the only output you want. Filenames are
-`sbom-<component>-<target>` plus the suffix for the format, with the target slugged so two
-images in one component can't collide.
+**Where the documents go.** `-o <dir>` writes them beside `report.json` and `results.sarif`, and any
+configured publisher delivers them alongside your reports, including with no `config.reports` at
+all, if the inventory is the only output you want. Filenames are `sbom-<component>-<target>` plus
+the suffix for the format, with the target slugged so two images in one component can't collide.
 
 There is no `--format sbom`: a run produces one document per target, and a format that writes
 several files has no meaning on stdout.
 
-**If Syft is missing, the scan fails.** Generation errors are reported under `(sbom)` and make
-the run incomplete, exactly as a missing scanner does — you asked for an inventory and didn't
-get one, and silence would let you believe you had it. `--allow-scan-errors` accepts the
-partial result if that's what you want; the error is still reported either way.
+**If Syft is missing, the scan fails.** Generation errors are reported under `(sbom)` and make the
+run incomplete, exactly as a missing scanner does. You asked for an inventory and didn't get one,
+and silence would let you believe you had it. `--allow-scan-errors` accepts the partial result if
+that's what you want; the error is still reported either way.
 
 Deduplicated by target: several controls scan the same repository, and its inventory is one
 document however many touched it. The same image referenced by two components is likewise one.
@@ -1290,24 +1285,24 @@ what applies.
 components:
   - name: web                 # required, unique
     labels: { team: platform } # optional key/value metadata
-    exposure: public          # optional — risk exposure
-    criticality: critical     # optional — business criticality
-    builtBy: self             # optional — self (default) or upstream, for every target below
+    exposure: public          # optional, risk exposure
+    criticality: critical     # optional, business criticality
+    builtBy: self             # optional, self (default) or upstream, for every target below
     repositories:
       - url: https://github.com/acme/web.git   # required
         revision: main                          # optional
-        paths: ["services/web"]                 # optional — scan only this subtree
-        ignore: ["**/testdata/**"]              # optional — remove these from the scan
-        builtBy: self                           # optional — overrides the component's
+        paths: ["services/web"]                 # optional, scan only this subtree
+        ignore: ["**/testdata/**"]              # optional. Remove these from the scan
+        builtBy: self                           # optional, overrides the component's
     images:
       - image: registry.example.com/acme/web:1.0  # required
-        builtBy: self                             # optional — overrides the component's
-        digest: sha256:…                          # optional — pin the immutable content digest
+        builtBy: self                             # optional, overrides the component's
+        digest: sha256:…                          # optional. Pin the immutable content digest
     hosts:
       - name: api
         url: https://api.example.com            # required
         type: api                               # browser | api (default browser); tunes header checks
-        auth:                                   # optional — authenticates the dast scan
+        auth:                                   # optional, authenticates the dast scan
           type: bearer                          #   bearer | header
           header: X-API-Key                     #   required with type: header
           tokenEnv: DRAUGR_API_TOKEN            #   the variable holding it; there is no field
@@ -1316,8 +1311,8 @@ components:
     infrastructure:
       - kind: kubernetes                        # e.g. kubernetes
         ref: prod-cluster
-        namespaces: [team-a, team-a-jobs]       # optional — the namespaces this component owns
-        operatedBy: provider                    # optional — self (default) or provider
+        namespaces: [team-a, team-a-jobs]       # optional, the namespaces this component owns
+        operatedBy: provider                    # optional, self (default) or provider
     controllers:              # optional per-component overrides (same shape as config.controllers)
       images:
         enabled: true
@@ -1329,40 +1324,39 @@ on the component, or (absent an override) enabled globally under `config.control
 **Several repositories on one component** is supported and worth knowing the shape of: Draugr plans
 one job per repository and runs them concurrently, and paths in a finding are relative to the
 repository it came from. Two repositories that share a path therefore produce findings that look
-alike — so a finding records which repository it came from, that is part of what makes it a
-distinct finding, and the report grows a `Repository` column when findings span more than one.
-The same applies to repositories a [fragment](../guides/saga-fragments.md) contributes from another
-project.
+alike, so a finding records which repository it came from, that is part of what makes it a distinct
+finding, and the report grows a `Repository` column when findings span more than one. The same
+applies to repositories a [fragment](../guides/saga-fragments.md) contributes from another project.
 
 **Who publishes it:** `builtBy` says whether this team publishes the thing being scanned (`self`,
 the default) or somebody else does (`upstream`). It may be declared on a **repository**, on an
-**image**, or on the **component**, where it covers every target that does not say otherwise —
-most specific wins, the same rule `controllers:` follows.
+**image**, or on the **component**, where it covers every target that does not say otherwise. Most
+specific wins, the same rule `controllers:` follows.
 
 It decides what the report tells you to do, and nothing else. The finding keeps its severity and
 its band, is still counted, and still reaches the gate: a flaw in somebody else's software is
 exactly as dangerous, and what differs is who can end it.
 
-Nobody can upgrade a library inside an image they do not build. The fix is a newer image, or a
-wait for whoever publishes it — so for an `upstream` image the fix list groups every finding in it
-into one action, *take a newer image*, instead of listing each library as something to upgrade.
+Nobody can upgrade a library inside an image they do not build. The fix is a newer image, or a wait
+for whoever publishes it, so for an `upstream` image the fix list groups every finding in it into
+one action, *take a newer image*, instead of listing each library as something to upgrade.
 
 The same holds for a repository, and licenses are where it is felt most. A denied license in the
 dependency tree of a repository you do not publish is not a license you chose and not one you can
-swap out — the answers are to stop using the component or to record an exception, and "change the
-code" is neither. It applies to every control for the same reason: the declaration is about who
-can change the thing, which does not vary by what found the problem.
+swap out. The answers are to stop using the component or to record an exception, and "change the
+code" is neither. It applies to every control for the same reason: the declaration is about who can
+change the thing, which does not vary by what found the problem.
 
 **It is declared, never detected.** Nothing inside an image says who built it, and a git remote is
-not a statement of ownership — plenty of teams publish from a fork, and plenty consume from one.
+not a statement of ownership, plenty of teams publish from a fork, and plenty consume from one.
 
 `self` is the default because a descriptor written by hand describes what a team builds. One
 written by a surveyor describes a running cluster, where most images come from somebody else, and
 that is the case worth declaring.
 
-**Component-wide is the form to reach for** when the whole component is somebody else's software —
-a vendor console, an open-source service you run from source. Writing it on each target instead
-means a repository or image added later silently defaults back to `self`.
+**Component-wide is the form to reach for** when the whole component is somebody else's software, a
+vendor console, an open-source service you run from source. Writing it on each target instead means
+a repository or image added later silently defaults back to `self`.
 
 ```yaml
 - name: analytics-console
@@ -1375,16 +1369,16 @@ means a repository or image added later silently defaults back to `self`.
     - image: ghcr.io/vendor/console:4.2
 ```
 
-**Who operates it:** `operatedBy` says whether this team runs the surface (`self`, the default) or
-a managed platform does (`provider`). It states a fact, and what follows from it is derived rather
-than asserted: on a managed cluster the control plane, the API server and etcd are not reachable —
-there is no host to log into and no file to change — so findings about their configuration are
+**Who operates it:** `operatedBy` says whether this team runs the surface (`self`, the default) or a
+managed platform does (`provider`). It states a fact, and what follows from it is derived rather
+than asserted: on a managed cluster the control plane, the API server and etcd are not reachable.
+There is no host to log into and no file to change, so findings about their configuration are
 reported and counted but never presented as work this team can do.
 
 It narrows what it excuses, deliberately. RBAC, Pod Security, network policy and the rest of the
 policies section stay this team's whoever runs the cluster underneath, and node configuration is
 usually theirs too through node pool settings. Marking a whole cluster as somebody else's problem
-would hide the half that is not — and those are usually the findings that matter.
+would hide the half that is not, and those are usually the findings that matter.
 
 Whether a cluster is managed is a fact about a contract, not something a scanner can see in what
 it reads, which is why it is declared here alongside `exposure` and `criticality`.
@@ -1392,18 +1386,18 @@ it reads, which is why it is declared here alongside `exposure` and `criticality
 **Infrastructure namespaces:** `namespaces` narrows an infrastructure surface to the part of a
 cluster the component owns; omit it and the audit covers the whole cluster. Not every scanner can
 honor it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
-reads a node's own filesystem, which has no namespace — so both always describe the whole cluster.
+reads a node's own filesystem, which has no namespace, so both always describe the whole cluster.
 Neither is run against a component that sets `namespaces`. The alternative would be a report that
 looks scoped and lists somebody else's namespaces against this component, so the scan is not
-planned — and the report says so, under **Not measured**, naming the scanner and the component:
+planned, and the report says so, under **Not measured**, naming the scanner and the component:
 
 ```
 Not measured:
-  infrastructure  kube-bench-job on team-a — audits the whole cluster and cannot be narrowed to namespace team-a
+  infrastructure  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed to namespace team-a
 ```
 
-Nothing has to be turned off by hand. To get both — node-level checks over the whole cluster, and
-API checks scoped to what you own — declare the cluster twice:
+Nothing has to be turned off by hand. To get both, node-level checks over the whole cluster, and API
+checks scoped to what you own, declare the cluster twice:
 
 ```yaml
 components:
@@ -1418,18 +1412,17 @@ components:
         ref: prod-cluster        # kube-bench and kubeBenchJob run here
 ```
 
-**Risk classification** (`exposure`, `criticality`) — optional, and the two axes of risk
-prioritization: exposure is how reachable the component is (likelihood), criticality is the
-business impact if it fails. Both are fixed ladders whose meaning an organization can
-redefine (the levels stay stable). They feed finding prioritization; a
-component may be left unclassified.
+**Risk classification** (`exposure`, `criticality`), optional, and the two axes of risk
+prioritization: exposure is how reachable the component is (likelihood), criticality is the business
+impact if it fails. Both are fixed ladders whose meaning an organization can redefine (the levels
+stay stable). They feed finding prioritization; a component may be left unclassified.
 
 | `exposure` | meaning | | `criticality` | meaning |
 |------------|---------|-|---------------|---------|
 | `public` | anyone on the internet, no sign-in | | `critical` | an outage or data loss for the business |
 | `authenticated` | on the internet, behind a login | | `important` | degraded service, but no outage |
 | `internal` | only from inside your network or VPN | | `supporting` | limited impact, easily worked around |
-| `restricted` | inside your network and locked down further — an allowlist, a private link, its own segment | | | |
+| `restricted` | inside your network and locked down further, an allowlist, a private link, its own segment | | | |
 
 The wording names no platform on purpose: a Kubernetes network policy is one way to arrange
 `restricted`, and Draugr classifies repositories and images as well as clusters. `draugr classify`
@@ -1453,30 +1446,29 @@ fragments:
 
 | Field | Meaning |
 |-------|---------|
-| `path` | **Required.** Which files to read. Globs use the same dialect as `paths` and `ignore` — `*` within a segment, `**` across them. Relative to the file that names it, so `../shared/x.saga-fragment.yaml` works. |
+| `path` | **Required.** Which files to read. Globs use the same dialect as `paths` and `ignore`, `*` within a segment, `**` across them. Relative to the file that names it, so `../shared/x.saga-fragment.yaml` works. |
 | `url` | A git repository to read from. Omit for a local path. |
-| `revision` | Branch, tag or commit. **Required with `url`**, and not defaulted — see below. |
+| `revision` | Branch, tag or commit. **Required with `url`**, and not defaulted. See below. |
 
 **A fragment adds scope or adds attributed suppressions; it cannot change policy.** It may carry
-`components`, `config.exclude`, and further `fragments` — nothing else. `release`, `config.gate`
-and `config.controllers` are rejected, naming the rule. That is what makes a `fragments:` line
-safe to review: pulling a file in can never quietly lower your gate or switch a control off, and
-the worst it can do is add suppressions, which are individually attributed and counted in the
-report.
+`components`, `config.exclude`, and further `fragments`. Nothing else. `release`, `config.gate` and
+`config.controllers` are rejected, naming the rule. That is what makes a `fragments:` line safe to
+review: pulling a file in can never quietly lower your gate or switch a control off, and the worst
+it can do is add suppressions, which are individually attributed and counted in the report.
 
-**A pattern that matches nothing is an error.** Somebody wrote the line on purpose, so silence
-from it is indistinguishable from a typo — and the result would be a descriptor scanning less
-than it claims. If a product genuinely has no components on one cloud, do not list that pattern.
+**A pattern that matches nothing is an error.** Somebody wrote the line on purpose, so silence from
+it is indistinguishable from a typo, and the result would be a descriptor scanning less than it
+claims. If a product genuinely has no components on one cloud, do not list that pattern.
 
 **A remote fragment must name a revision.** Defaulting to the repository's default branch would
 make your gate change with no commit in your own repository. A tag is fine; the commit it
 resolved to is recorded, so a tag that moves is visible afterwards.
 
 Fragments are files named `*.saga-fragment.yaml` (or `.yml`), with [their own
-schema](https://draugr.dev/schema/draugr.saga-fragment.schema.json) — a fragment has no
-`release:`, so validating one against the Saga's schema would report every valid fragment as
-broken. `draugr validate` checks a fragment on its own, and `draugr schema --fragment` prints the
-schema this build enforces.
+schema](https://draugr.dev/schema/draugr.saga-fragment.schema.json). A fragment has no `release:`,
+so validating one against the Saga's schema would report every valid fragment as broken. `draugr
+validate` checks a fragment on its own, and `draugr schema --fragment` prints the schema this build
+enforces.
 
 ```bash
 draugr validate azure.saga.yaml --resolved   # the merged descriptor, with sources

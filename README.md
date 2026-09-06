@@ -10,24 +10,23 @@
 
 **Describe your app. Draugr figures out the rest.**
 
-Every application carries problems nobody put there on purpose: a library that turned out to have
-a hole in it, a password committed by accident, a server setting that leaves a door open. Draugr
-finds them, works out which ones actually matter for *your* app, and answers the question you are
-really asking before a release — **is this safe to ship?**
+Every application carries problems nobody put there on purpose: a library that turned out to have a
+hole in it, a password committed by accident, a server setting that leaves a door open. Draugr finds
+them, works out which ones actually matter for *your* app, and answers the question you are really
+asking before a release. **is this safe to ship?**
 
-It runs the established open-source scanners for you — Trivy, Semgrep, Gitleaks and others — so
-there is nothing to choose between, wire up, or read five of. You describe what you built, once,
-in one file: where the repositories are, what images it builds, what it exposes, what
-infrastructure it runs on. Draugr picks the checks that apply, runs the right tool for each, and
-produces evidence you can hand to somebody else. Bring the scanners you already pay for, or use
-the open-source defaults.
+It runs the established open-source scanners for you, Trivy, Semgrep, Gitleaks and others, so there
+is nothing to choose between, wire up, or read five of. You describe what you built, once, in one
+file: where the repositories are, what images it builds, what it exposes, what infrastructure it
+runs on. Draugr picks the checks that apply, runs the right tool for each, and produces evidence you
+can hand to somebody else. Bring the scanners you already pay for, or use the open-source defaults.
 
-Findings are **ranked**, not listed. A scanner's "critical" describes a flaw in the abstract — how
-bad it could be at its worst, anywhere. The same flaw is act-now in the service strangers can
-reach and backlog in the internal tool three people use, and no scanner can tell those apart
-because the difference is in the file you wrote, not in the code. And
-[`draugr diff`](docs/guides/pr-diff.md) gates a pull request on **new** findings only, so
-inheriting two hundred existing ones does not block every change.
+Findings are **ranked**, not listed. A scanner's "critical" describes a flaw in the abstract. How
+bad it could be at its worst, anywhere. The same flaw is act-now in the service strangers can reach
+and backlog in the internal tool three people use, and no scanner can tell those apart because the
+difference is in the file you wrote, not in the code. And [`draugr diff`](docs/guides/pr-diff.md)
+gates a pull request on **new** findings only, so inheriting two hundred existing ones does not
+block every change.
 
 **[Quickstart](#quickstart)** · [See it in action](#see-it-in-action) ·
 [What it checks](#what-it-checks) · [In your pipeline](#in-your-pipeline) ·
@@ -66,12 +65,12 @@ Fix first (top 10 of 1073, by priority):
             PyYAML 5.1: command execution through python/object/apply in FullLoader
 ```
 
-Abridged: the real run lists ten and says how many it did not. That last block is the point — a
+Abridged: the real run lists ten and says how many it did not. That last block is the point, a
 thousand findings, ordered, with the three that matter this week at the top.
 
 **Priority (P1–P4) is not severity.** Severity says how bad a flaw is at its worst, anywhere.
-Priority weighs that against how exposed and how important the part of your app it sits in is —
-which no scanner can work out, because it is not in the code.
+Priority weighs that against how exposed and how important the part of your app it sits in is, which
+no scanner can work out, because it is not in the code.
 
 **[draugr-dev/draugr-demo](https://github.com/draugr-dev/draugr-demo)** is a deliberately
 vulnerable app wired to Draugr: every control lights up, findings land in the repo's
@@ -83,11 +82,11 @@ vulnerable app wired to Draugr: every control lights up, findings land in the re
 curl -fsSL https://draugr.dev/install.sh | sh
 ```
 
-Installs to `~/.local/bin`, no `sudo`. It verifies before it installs and says which checks ran —
-the archive's SHA-256 against the release `checksums.txt`, plus the cosign signature on that file
-when [cosign](https://docs.sigstore.dev/cosign/) is on your `PATH` — and installs nothing if a
-check fails. The script is [readable in the repo](install.sh); other routes, including Homebrew
-and `go install`, are in the [install guide](docs/getting-started/install.md).
+Installs to `~/.local/bin`, no `sudo`. It verifies before it installs and says which checks ran, the
+archive's SHA-256 against the release `checksums.txt`, plus the cosign signature on that file when
+[cosign](https://docs.sigstore.dev/cosign/) is on your `PATH`, and installs nothing if a check
+fails. The script is [readable in the repo](install.sh); other routes, including Homebrew and `go
+install`, are in the [install guide](docs/getting-started/install.md).
 
 ```bash
 draugr tools install     # fetch the scanners, pinned and verified
@@ -133,21 +132,21 @@ Full walkthrough: [quickstart](docs/getting-started/quickstart.md).
 
 ## What it checks
 
-Eleven controls, each backed by a tool Draugr executes rather than bundles — so every scanner
-stays under its own license, and you can swap it.
+Eleven controls, each backed by a tool Draugr executes rather than bundles, so every scanner stays
+under its own license, and you can swap it.
 
 | Control | Looks for | By default |
 |---|---|---|
-| `sca` | known flaws in the libraries you depend on | Trivy — Grype and Mend opt-in |
+| `sca` | known flaws in the libraries you depend on | Trivy, Grype and Mend opt-in |
 | `secrets` | passwords and keys committed by accident, history included | Gitleaks |
-| `sast` | patterns in the code you wrote that let somebody in | Semgrep — gosec opt-in for Go |
+| `sast` | patterns in the code you wrote that let somebody in | Semgrep, gosec opt-in for Go |
 | `iac` | settings that leave a door open, in Terraform, Kubernetes and Dockerfiles | Trivy |
-| `images` | what is baked into your container images | Trivy — Grype opt-in |
+| `images` | what is baked into your container images | Trivy, Grype opt-in |
 | `licenses` | terms attached to code you did not write | Trivy |
-| `dast` | problems only visible from outside a running app | Nuclei — authenticated, and from an OpenAPI spec |
+| `dast` | problems only visible from outside a running app | Nuclei, authenticated, and from an OpenAPI spec |
 | `headers` | how your site answers a browser | native |
 | `tls` | certificates and encryption | native |
-| `infrastructure` | your Kubernetes cluster, against the CIS benchmarks | native — kube-bench opt-in |
+| `infrastructure` | your Kubernetes cluster, against the CIS benchmarks | native, kube-bench opt-in |
 | `threats` | whether anything you talk to is on a public blocklist | abuse.ch URLhaus |
 
 Every scanner, what it sends and whose terms it carries:
@@ -159,8 +158,8 @@ gave** rather than disappearing.
 
 ## In your pipeline
 
-The first-party GitHub Action installs Draugr, provisions the scanners, and hands the merged
-SARIF to code scanning — one clean **Draugr** tool in the Security tab:
+The first-party GitHub Action installs Draugr, provisions the scanners, and hands the merged SARIF
+to code scanning, one clean **Draugr** tool in the Security tab:
 
 ```yaml
 permissions:
@@ -180,14 +179,14 @@ steps:
       sarif_file: ${{ steps.draugr.outputs.sarif }}
 ```
 
-[GitHub Actions](docs/guides/github-action.md) ·
-[GitLab](docs/guides/gitlab-ci.md) — an include, GitLab's own report formats, a sticky merge-request
-comment · [Azure Pipelines](docs/guides/azure-pipelines.md) — a step template
+[GitHub Actions](docs/guides/github-action.md) · [GitLab](docs/guides/gitlab-ci.md), an include,
+GitLab's own report formats, a sticky merge-request comment · [Azure
+Pipelines](docs/guides/azure-pipelines.md), a step template
 
 **From an AI coding assistant.** Ask one to check a change and it will, using whatever scanner it
-finds over a scope it chose. `draugr mcp` serves Draugr over the
-[Model Context Protocol](https://modelcontextprotocol.io) so it reads your *committed* descriptor
-instead — and scanning is off by default, because it clones repositories and runs external tools.
+finds over a scope it chose. `draugr mcp` serves Draugr over the [Model Context
+Protocol](https://modelcontextprotocol.io) so it reads your *committed* descriptor instead, and
+scanning is off by default, because it clones repositories and runs external tools.
 
 ```bash
 claude mcp add draugr -- draugr mcp
@@ -199,20 +198,19 @@ See [use Draugr from an AI coding assistant](docs/guides/ai-agents-mcp.md).
 
 **[Documentation index →](docs/README.md)**
 
-- [Quickstart](docs/getting-started/quickstart.md) — install, first scan, first survey, CI
-- [Concepts](docs/concepts/saga.md) — the descriptor, controls, scanners, the verdict
-- [Saga schema](docs/reference/saga-schema.md) · [CLI reference](docs/reference/cli.md) —
+- [Quickstart](docs/getting-started/quickstart.md), install, first scan, first survey, CI
+- [Concepts](docs/concepts/saga.md), the descriptor, controls, scanners, the verdict
+- [Saga schema](docs/reference/saga-schema.md) · [CLI reference](docs/reference/cli.md),
   every field, every flag
-- [Integrations catalog](docs/reference/catalog.md) — every scanner, with licenses and terms
+- [Integrations catalog](docs/reference/catalog.md), every scanner, with licenses and terms
 - [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
 ## What Draugr doesn't promise
 
-A passing verdict means the controls you configured found nothing they were looking for. It is
-not a statement that your software is secure — it is silent about anything your descriptor does
-not declare, controls you did not enable, and whatever the underlying scanners miss. License
-findings are information, not legal advice. Draugr is provided under Apache-2.0 **without
-warranty**.
+A passing verdict means the controls you configured found nothing they were looking for. It is not a
+statement that your software is secure. It is silent about anything your descriptor does not
+declare, controls you did not enable, and whatever the underlying scanners miss. License findings
+are information, not legal advice. Draugr is provided under Apache-2.0 **without warranty**.
 
 The details, including whose terms the scanners carry and your responsibility for authorization
 when scanning live endpoints: [scope and disclaimer](docs/trust-and-operations/disclaimer.md).
@@ -221,17 +219,17 @@ when scanning live endpoints: [scope and disclaimer](docs/trust-and-operations/d
 
 A security tool should hold itself to what it checks. Draugr does:
 
-- **Standard output** — every finding is normalized to **SARIF 2.1.0** (OASIS), so results flow
+- **Standard output**. Every finding is normalized to **SARIF 2.1.0** (OASIS), so results flow
   into GitHub / GitLab / Azure DevOps code scanning and any SARIF-aware tool.
-- **Signed releases + provenance** — release archives' `checksums.txt` is **keyless-signed with
+- **Signed releases + provenance**, release archives' `checksums.txt` is **keyless-signed with
   cosign** (Sigstore) into a `checksums.txt.sigstore.json` bundle, and each release publishes
   **SLSA build-provenance** attestations (`gh attestation verify …`); verify before installing
   ([recipe](docs/trust-and-operations/verifying-releases.md)).
-- **SBOMs** — a Syft **SBOM** is published for every release archive.
-- **Verified tooling** — `draugr tools install` fetches scanners pinned by **SHA-256** and, where
-  the upstream signs them, verifies the **cosign** signature too — and cosign itself is
+- **SBOMs**. A Syft **SBOM** is published for every release archive.
+- **Verified tooling**, `draugr tools install` fetches scanners pinned by **SHA-256** and, where
+  the upstream signs them, verifies the **cosign** signature too, and cosign itself is
   installable, so verification is self-sufficient.
-- **We scan ourselves** — Draugr runs on its own repo every PR (dogfood self-scan), and we track
+- **We scan ourselves**. Draugr runs on its own repo every PR (dogfood self-scan), and we track
   our supply-chain posture with the **[OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)**
   (badge above).
 
@@ -241,15 +239,15 @@ A security tool should hold itself to what it checks. Draugr does:
   specific set of tools it recognizes, and ours are not in it.
 
   Adding a third static analyzer purely to move the number would be the same thing as writing
-  tests that touch code without asserting anything — a metric improved without the property
+  tests that touch code without asserting anything, a metric improved without the property
   behind it improving. We would rather the score be wrong and the analysis be real. If you want
   to check the analysis rather than the score, the findings are in the repository's Security tab,
   uploaded by the scan itself.
-- **Report a vulnerability** — see [SECURITY.md](SECURITY.md).
+- **Report a vulnerability**. See [SECURITY.md](SECURITY.md).
 
 ## Development
 
-Requires Go 1.26+. `make build` builds `./bin/draugr`; `make gate` runs the full local gate — fmt,
+Requires Go 1.26+. `make build` builds `./bin/draugr`; `make gate` runs the full local gate, fmt,
 vet, lint, race tests with coverage, and govulncheck. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License

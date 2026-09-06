@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: From zero to a security verdict — describe your app, scan it, and focus on what to fix.
+description: From zero to a security verdict, describe your app, scan it, and focus on what to fix.
 section: Getting started
 order: 20
 ---
@@ -18,14 +18,14 @@ the descriptor for you. If you haven't installed Draugr yet, start with
 
 ## 0. Fastest path (zero-config)
 
-No descriptor needed — point Draugr at a repository:
+No descriptor needed. Point Draugr at a repository:
 
 ```bash
 draugr scan .          # scans the current repo with sca, secrets, sast, iac
 ```
 
-That's the whole path to a verdict — nothing to write first. When you want to pick controls, add container images
-or endpoints, or classify components for prioritization, scaffold a descriptor:
+That's the whole path to a verdict. Nothing to write first. When you want to pick controls, add
+container images or endpoints, or classify components for prioritization, scaffold a descriptor:
 
 ```bash
 draugr init            # writes a stack-detected draugr.saga.yaml to customize
@@ -56,10 +56,10 @@ A control only runs when it is **enabled** (globally under `config.controllers`,
 component). See [write your first Saga](first-saga.md) for a gentle walkthrough, or the
 [Saga schema](../reference/saga-schema.md) for every field.
 
-> **Tip — turn on editor support first.** A Saga written with schema-backed completion is
+> **Tip. Turn on editor support first.** A Saga written with schema-backed completion is
 > quicker and harder to get wrong: your editor offers the valid control names, `exposure` and
-> `criticality` values, and flags typos immediately. Most editors need no setup — `*.saga.yaml` is
-> registered with SchemaStore — and `draugr init` writes a `$schema` line for the ones that aren't
+> `criticality` values, and flags typos immediately. Most editors need no setup. `*.saga.yaml` is
+> registered with SchemaStore, and `draugr init` writes a `$schema` line for the ones that aren't
 > covered; see [editor support](../reference/saga-schema.md#editor-support-autocomplete-hover-docs-validation)
 > for VS Code, JetBrains and Neovim.
 
@@ -96,10 +96,10 @@ For a machine-readable report use `--format json` (or write artifacts with `-o o
 }
 ```
 
-The `verdict` and counts depend on what the scanners find — a real image like `alpine:3.19`
-will typically report several vulnerabilities, so you'll see `fail` unless you use a minimal
-image or raise `--fail-on`. The process **exits non-zero when the verdict is `fail`**, so it
-gates a pipeline directly.
+The `verdict` and counts depend on what the scanners find, a real image like `alpine:3.19` will
+typically report several vulnerabilities, so you'll see `fail` unless you use a minimal image or
+raise `--fail-on`. The process **exits non-zero when the verdict is `fail`**, so it gates a pipeline
+directly.
 
 Useful flags:
 
@@ -115,9 +115,9 @@ See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for every
 
 ## Focus: what to fix first
 
-**Classify your components.** The fastest way to set up prioritization is the guided wizard —
-it asks a few questions per component and writes `exposure` and `criticality` back into your
-Saga (comments and formatting preserved):
+**Classify your components.** The fastest way to set up prioritization is the guided wizard. It asks
+a few questions per component and writes `exposure` and `criticality` back into your Saga (comments
+and formatting preserved):
 
 ```bash
 draugr classify
@@ -125,13 +125,13 @@ draugr classify
 
 ```
 Component: web
-  Exposure — who can reach it?
+  Exposure, who can reach it?
     1) public         anyone on the internet can reach it, no sign-in
     2) authenticated  on the internet, but behind a login
     3) internal       only from inside your own network or VPN
-    4) restricted     inside your network and locked down further — an allowlist, a private link, its own segment
+    4) restricted     inside your network and locked down further, an allowlist, a private link, its own segment
   Choose [1-4]: 1
-  Criticality — what happens if it fails or is breached?
+  Criticality, what happens if it fails or is breached?
     1) critical       an outage or data loss for the business
     2) important      degraded service, but no outage
     3) supporting     limited impact, easily worked around
@@ -142,11 +142,10 @@ Component: web
 (Prefer to hand-edit? The fields are in the [Saga schema](../reference/saga-schema.md). And
 `draugr survey` on a k8s namespace already *proposes* `exposure` for you.)
 
-Once components declare `exposure` and `criticality`, Draugr ranks every finding into a
-priority band — combining the finding's severity with how exposed and how business-critical
-its component is. The report always includes a `priorities` count (P1–P4); `--min-priority`
-adds a ranked `findings` list of just those at or above the band, so you can act on the short
-list instead of the whole wall:
+Once components declare `exposure` and `criticality`, Draugr ranks every finding into a priority
+band, combining the finding's severity with how exposed and how business-critical its component is.
+The report always includes a `priorities` count (P1–P4); `--min-priority` adds a ranked `findings`
+list of just those at or above the band, so you can act on the short list instead of the whole wall:
 
 ```json
 {
@@ -161,10 +160,10 @@ list instead of the whole wall:
 P1 = act now · P2 = this cycle · P3 = backlog · P4 = track. A component left unclassified is
 treated as high-risk so nothing slips.
 
-**Gate on priority.** `--fail-on-priority P1` fails the build when any finding reaches that
-band — component-aware gating without a per-component config, since priority already folds in
-exposure and criticality. It composes with the level gate (`--fail-on`): the run fails if
-*either* trips. Each control also reports its `highestPriority` as evidence. See
+**Gate on priority.** `--fail-on-priority P1` fails the build when any finding reaches that band,
+component-aware gating without a per-component config, since priority already folds in exposure and
+criticality. It composes with the level gate (`--fail-on`): the run fails if *either* trips. Each
+control also reports its `highestPriority` as evidence. See
 [prioritization](../concepts/prioritization.md) for how the bands are computed.
 
 ## 3. Let discovery write the descriptor
@@ -179,9 +178,9 @@ GITHUB_TOKEN=*** draugr survey github repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod -o draugr.saga.yaml
 ```
 
-A survey adds to an existing Saga rather than overwriting it — the descriptor holds decisions
-a survey cannot rediscover. Pass `--replace` to start again. See
-the [surveyors reference](../concepts/surveyors.md) for what each one discovers.
+A survey adds to an existing Saga rather than overwriting it. The descriptor holds decisions a
+survey cannot rediscover. Pass `--replace` to start again. See the [surveyors
+reference](../concepts/surveyors.md) for what each one discovers.
 
 ## 4. Run it in CI
 
@@ -199,33 +198,33 @@ All three do the same two things: scan the branch and gate it, and on a pull or 
 report only what the change **introduced** rather than the backlog it inherited.
 
 - [GitHub Action guide](../guides/github-action.md) · [code scanning](../guides/code-scanning.md)
-- [GitLab guide](../guides/gitlab-ci.md) — one include and one masked variable
+- [GitLab guide](../guides/gitlab-ci.md), one include and one masked variable
 - [Azure Pipelines guide](../guides/azure-pipelines.md)
 
-Anywhere else — Jenkins, a laptop, a cron job — install the binary and run `draugr scan`; the exit
+Anywhere else, Jenkins, a laptop, a cron job, install the binary and run `draugr scan`; the exit
 code is the whole contract.
 
 ## 5. See the findings in your editor
 
-CI tells you at the end; your editor tells you while you're writing. `draugr scan -o out`
-writes `out/results.sarif`, which VS Code and JetBrains read as inline diagnostics — squiggles
-on the offending lines, and click-to-line from a Problems list — with no Draugr-specific
-extension. See [see findings in your editor](../guides/findings-in-your-editor.md).
+CI tells you at the end; your editor tells you while you're writing. `draugr scan -o out` writes
+`out/results.sarif`, which VS Code and JetBrains read as inline diagnostics, squiggles on the
+offending lines, and click-to-line from a Problems list, with no Draugr-specific extension. See [see
+findings in your editor](../guides/findings-in-your-editor.md).
 
 ## Troubleshooting
 
-- **Not sure what's installed?** — run `draugr doctor draugr.saga.yaml` for a preflight: it
+- **Not sure what's installed?**. Run `draugr doctor draugr.saga.yaml` for a preflight: it
   validates the descriptor and lists every scanner the Saga needs as found / missing / version,
   with an install hint for each. Use it as a CI gate: `draugr doctor saga.yaml && draugr scan saga.yaml`.
-- **Sure it ran, but did it look at everything?** — the same preflight answers that. Doctor lists
+- **Sure it ran, but did it look at everything?**. The same preflight answers that. Doctor lists
   any surface the descriptor declares that no enabled control examines, so a component with images
   and the `images` control switched off is reported before the scan passes over it rather than
   after. Add `--fail-on-uncovered` to make that a failure when the descriptor is meant to be
   complete.
-- **No findings / control didn't run** — ensure the control is `enabled` and the component
+- **No findings / control didn't run**. Ensure the control is `enabled` and the component
   has the relevant resources (e.g. `images` for the images control).
-- **`executable file not found`** — the scanner for a control isn't on `PATH`; run
+- **`executable file not found`**, the scanner for a control isn't on `PATH`; run
   `draugr doctor` to see exactly which tool is missing and how to install it.
-- **Descriptor errors** — run `draugr validate draugr.saga.yaml` to check the Saga against the
+- **Descriptor errors**. Run `draugr validate draugr.saga.yaml` to check the Saga against the
   schema without running any scanners (good in a pre-commit hook or CI lint step).
-- **Verbose output** — add `--log-level debug` (optionally `--log-format text`).
+- **Verbose output**. Add `--log-level debug` (optionally `--log-format text`).
