@@ -175,12 +175,9 @@ cannot cover:
   images at all.
 
   **The report says when this happened**, so it is a caveat you are given rather than one you have
-  to remember:
-
-  ```
-  Reused from cache, keyed on a tag: acme/api:latest, a tag can be rebuilt, so these findings
-  may describe an earlier image. Pin a digest, or re-scan with --cache-require-digest.
-  ```
+  to remember. The line names the image it reused, says a tag can be rebuilt so the findings may
+  describe an earlier one, and gives the two ways out: pin a digest, or re-scan with
+  `--cache-require-digest`.
 
   It appears only when a result was actually reused: a fresh scan of a tag scanned whatever that
   tag points at now, which is the right answer whether or not it moved. `--format json` carries

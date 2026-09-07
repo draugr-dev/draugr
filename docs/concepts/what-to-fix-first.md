@@ -14,12 +14,14 @@ it can do.
 Draugr's fix list answers a different question: **what should I do, and what will it clear?**
 
 ```
-Fix first · 5 actions clear 616 findings:
-  P1  Update istio/install-cni:1.30.0  images · 184 findings · upstream
-      CVE-2026-8925 +183
-  P1  Upgrade Jinja2 2.10  sca · 6 findings
-      fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases, take the latest
+Fix first · <n> actions clear <m> findings:
+  <band>  <the action>  <control> · <n> findings · <builtBy, when not yours>
+          <the rule it names, and how many more it clears>
 ```
+
+A schematic rather than a scan, because the shape is what this page is about and a pasted run
+carries package names and counts that go stale without anything noticing. `draugr scan .` prints
+the real thing.
 
 ## Rows are actions, not findings
 
@@ -136,10 +138,14 @@ hides work you could have done; the reverse costs a row you skip.
 
 ## Reading a row
 
-```
-P1  Upgrade Jinja2 2.10  sca · 6 findings
-    fixed in 2.10.1, 3.1.6, 3.1.5 and 3 other releases, take the latest
-```
+| The row carries | What it is |
+|---|---|
+| the band | the highest band among the findings this one action clears |
+| the action | what to do, naming the thing and the version in hand |
+| the control | which control the findings came from |
+| the count | how many findings this action clears |
+| `upstream` | present only where the component is somebody else's to fix |
+| the second line | the releases that carry the fix, or why none is named |
 
 The target version appears only when every advisory agrees on one. Where they disagree, Draugr does
 not choose: version ordering belongs to the ecosystem. `5.10` is above `5.9` in most schemes and
