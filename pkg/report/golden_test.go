@@ -3,8 +3,12 @@ package report
 import (
 	"bytes"
 	"flag"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,10 +86,14 @@ func goldenMismatch(path string) string {
 		"  1. go test ./pkg/report -update\n" +
 		"  2. make examples          # real output from the demo sandbox, to paste into docs\n" +
 		"  3. update what quotes or describes the layout:\n" +
-		"     docs/concepts/verdict-and-gating.md (pasted output),\n" +
-		"     docs/reference/cli.md, docs/concepts/principles.md,\n" +
-		"     docs/guides/findings-in-your-editor.md (described, not pasted)\n" +
-		"     README.md, the console block under \"See it in action\"\n" +
+		"     pasted, and pinned by TestEveryPasteOfTheConsoleIsTracked:\n" +
+		"       README.md (the block under \"See it in action\"),\n" +
+		"       docs/concepts/verdict-and-gating.md, docs/concepts/prioritization.md,\n" +
+		"       docs/getting-started/quickstart.md, docs/reference/cli.md,\n" +
+		"       docs/reference/saga-schema.md\n" +
+		"     described rather than pasted, so only a shape change reaches them:\n" +
+		"       docs/concepts/principles.md, docs/concepts/what-to-fix-first.md,\n" +
+		"       docs/guides/findings-in-your-editor.md, docs/guides/caching-and-performance.md\n" +
 		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
 		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
 		"     (grep for 'Draugr · ' there; they are a separate repo, so nothing else will catch them)\n"
@@ -279,4 +287,134 @@ func goldenEvidenceData() Data {
 	d := goldenGroupedData()
 	d.Evidence = true
 	return d
+}
+
+// pastesConsoleOutput is every markdown file that quotes what the console prints, and the list the
+// golden's failure message tells a reader to refresh.
+//
+// A file quoting the layout with nothing tracking it is how two pages came to show output the
+// renderer had stopped producing. Neither was in the checklist, so neither was refreshed, and
+// nothing failed: a stale paste is valid markdown that reads correctly to everybody who does not
+// run the command beside it.
+//
+// A page may leave this list by describing the shape instead of pasting a run, which is what a
+// concept page usually wants anyway. It may not leave it by staying pasted and unlisted.
+var pastesConsoleOutput = map[string]bool{
+	"README.md":                           true,
+	"docs/concepts/verdict-and-gating.md": true,
+	"docs/concepts/prioritization.md":     true,
+	"docs/getting-started/quickstart.md":  true,
+	"docs/reference/cli.md":               true,
+	"docs/reference/saga-schema.md":       true,
+}
+
+// consoleShapes are strings only this renderer produces, so a fence carrying one is a paste rather
+// than a shell session or a scanner's own output.
+var consoleShapes = []string{
+	"Draugr · ", "Fix first · ", "Priorities:", "Measured against:", "Reachability:",
+	"↑ ranked as ", "↓ ranked as ", "suppressed by config.exclude",
+}
+
+func TestEveryPasteOfTheConsoleIsTracked(t *testing.T) {
+	root := filepath.Join("..", "..")
+	var docs, pasted []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			// The changelog records what output looked like at a release, which is the one place
+			// a stale paste is the correct content.
+			if d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == "changelog.d" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".md" {
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		rel = filepath.ToSlash(rel)
+		if rel == "CHANGELOG.md" {
+			return nil
+		}
+		docs = append(docs, rel)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking the repository: %v", err)
+	}
+
+	// Read after the walk rather than inside it, so nothing here opens a path the walk is still
+	// resolving.
+	for _, rel := range docs {
+		// #nosec G304 -- a path this test collected from this repository's own tree.
+		body, readErr := os.ReadFile(filepath.Join(root, rel))
+		if readErr != nil {
+			t.Fatalf("reading %s: %v", rel, readErr)
+		}
+		if fencedConsole(string(body)) {
+			pasted = append(pasted, rel)
+		}
+	}
+
+	for _, rel := range pasted {
+		if !pastesConsoleOutput[rel] {
+			t.Errorf("%s pastes console output and nothing tracks it.\n"+
+				"Either describe the shape instead of pasting a run, which is what a concept page\n"+
+				"usually wants, or add it to pastesConsoleOutput and to the checklist in\n"+
+				"goldenMismatch so a layout change reaches it.", rel)
+		}
+	}
+	for rel := range pastesConsoleOutput {
+		if !slices.Contains(pasted, rel) {
+			t.Errorf("%s is listed as pasting console output and no longer does. Remove it from\n"+
+				"pastesConsoleOutput and from the checklist in goldenMismatch, so the list stays\n"+
+				"the set of files a layout change actually invalidates.", rel)
+		}
+	}
+}
+
+// fencedConsole reports whether a fenced block in this document pastes a run.
+//
+// A block written as a schematic does not count, and is recognized by its placeholders. A layout
+// change does not invalidate `<band>  <the action>  <control> · <n> findings`, which is the whole
+// reason to write one: it says what the shape is without claiming to be a scan.
+func fencedConsole(doc string) bool {
+	placeholder := regexp.MustCompile(`<[a-z][^>]*>`)
+	var fence []string
+	inFence := false
+	for _, line := range strings.Split(doc, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			if inFence && pastesARun(fence, placeholder) {
+				return true
+			}
+			inFence = !inFence
+			fence = nil
+			continue
+		}
+		if inFence {
+			fence = append(fence, line)
+		}
+	}
+	return inFence && pastesARun(fence, placeholder)
+}
+
+func pastesARun(fence []string, placeholder *regexp.Regexp) bool {
+	carries := false
+	for _, line := range fence {
+		if placeholder.MatchString(line) {
+			return false
+		}
+		for _, shape := range consoleShapes {
+			if strings.Contains(line, shape) {
+				carries = true
+			}
+		}
+	}
+	return carries
 }
