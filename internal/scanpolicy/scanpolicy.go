@@ -23,10 +23,20 @@ func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 		// nil-safe: no-op when no source, and the escalation is nil unless something moved.
 		sev, esc := expl.Explain(sev, res.RuleID)
 		// Reachability ranks a finding down when nothing can reach it, but never one that
-		// exploitability just raised. Observed exploitation outranks a call graph's inability to find a
-		// path, for the same reason KEV outranks EPSS: one is a report of what is happening, the other
-		// a prediction about what could. Where both have something to say, the stronger claim of
-		// exposure wins.
+		// exploitability just raised.
+		//
+		// The asymmetry is confidence in a negative rather than observation against prediction.
+		// An unreachable verdict is an absence claim: it says analysis found no route today, on one
+		// revision, and reflection, dynamic dispatch and code generation all defeat a call graph.
+		// The route appears the day somebody writes the call. A wrong absence claim costs most
+		// exactly where the flaw is one people are already exploiting, so "we could not find a
+		// path" does not overturn "this is being used".
+		//
+		// Not the reason KEV outranks EPSS, which is a different comparison. Those two answer the
+		// same question, is this being exploited, and the one that observed it beats the one that
+		// predicted it. This pair answers two questions about two subjects: exploitation is about
+		// the world, reachability is about this codebase, and neither is automatically the stronger
+		// claim. What decides it is which claim is easier to be wrong about.
 		var rankedAs sarif.Severity
 		if esc == nil {
 			if lowered := res.Reachability.RankAt(sev); lowered != sev {
