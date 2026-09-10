@@ -950,6 +950,38 @@ func TestWriteArtifactsUsesTheSameNamesAPublisherWould(t *testing.T) {
 	}
 }
 
+// TestWriteArtifactsRecordsTheGateInReportJSON holds the -o path to the same policy the reporters
+// use. It writes report.json through skald directly rather than through the reporter, so it is the
+// one path that can silently omit a block every other path carries.
+func TestWriteArtifactsRecordsTheGateInReportJSON(t *testing.T) {
+	dir := t.TempDir()
+	data := report.Data{
+		Release: saga.Release{Version: "1"},
+		Gate:    report.GateSettings{Threshold: sarif.SeverityCritical, FailOnPriority: "P2"},
+	}
+	err := writeArtifacts(dir, []string{"json"}, data, saga.Release{Version: "1"},
+		engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, report.Filename("json"))) //#nosec G304 -- under t.TempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Gate struct {
+			Threshold      string `json:"threshold"`
+			FailOnPriority string `json:"failOnPriority"`
+		} `json:"gate"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Gate.Threshold != "critical" || doc.Gate.FailOnPriority != "P2" {
+		t.Errorf("gate = %+v, want the policy -o was given", doc.Gate)
+	}
+}
+
 func TestNoGateSuppressesTheVerdictButNotAFailedScan(t *testing.T) {
 	// The flag exists for the two scans either side of a `draugr diff`: their job is to produce
 	// reports, and the diff is the gate. `|| true` in a pipeline would do it, but it also swallows

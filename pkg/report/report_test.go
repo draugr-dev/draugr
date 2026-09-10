@@ -1627,3 +1627,40 @@ func TestTheThreeKindsOfAcceptanceStayApart(t *testing.T) {
 		t.Errorf("counts merged:\n  %s\n  %s\n  %s", suppressed, imported, silenced)
 	}
 }
+
+// TestTheJSONReportCarriesTheSameGateTheConsolePrints holds the two renderings to one policy. A
+// terminal reader and a dashboard reading report.json are asking the same question about the same
+// run, and two derivations of the gate is how they come to give different answers.
+func TestTheJSONReportCarriesTheSameGateTheConsolePrints(t *testing.T) {
+	d := Data{
+		Release: saga.Release{Version: "1"},
+		Verdict: norn.Result{Verdict: norn.Fail},
+		Gate: GateSettings{
+			Threshold:      sarif.SeverityMedium,
+			PerControl:     map[string]sarif.Severity{"licenses": sarif.SeverityCritical},
+			FailOnPriority: "P1",
+			Disabled:       true,
+		},
+	}
+	var buf bytes.Buffer
+	if err := (jsonReporter{}).Render(&buf, d); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Gate struct {
+			Threshold      string            `json:"threshold"`
+			PerControl     map[string]string `json:"perControl"`
+			FailOnPriority string            `json:"failOnPriority"`
+			Disabled       bool              `json:"disabled"`
+		} `json:"gate"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Gate.Threshold != "medium" || doc.Gate.FailOnPriority != "P1" || !doc.Gate.Disabled {
+		t.Errorf("gate = %+v", doc.Gate)
+	}
+	if doc.Gate.PerControl["licenses"] != "critical" {
+		t.Errorf("perControl = %v", doc.Gate.PerControl)
+	}
+}

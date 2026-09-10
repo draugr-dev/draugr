@@ -644,3 +644,67 @@ func TestMergedSARIFCarriesWhatTheRunConsulted(t *testing.T) {
 		t.Errorf("a run with no exploitability data reported %+v", got)
 	}
 }
+
+// A verdict with no rule beside it is an outcome nobody can check. These cover the three things a
+// consumer has to be able to tell apart: a gate that was stated, a gate that was left to the
+// default, and a document written by a caller that never had one.
+
+func TestTheDocumentStatesTheGateItWasJudgedAgainst(t *testing.T) {
+	var buf bytes.Buffer
+	gate := &Gate{Policy: norn.Policy{
+		FailOn:         sarif.SeverityMedium,
+		PerControl:     map[string]sarif.Severity{"licenses": sarif.SeverityCritical, "sast": ""},
+		FailOnPriority: "P1",
+	}}
+	err := RenderJSONFor(&buf, "gate-demo", saga.Release{Version: "1"}, prioritizedRun(),
+		sampleVerdict(), "", nil, sarif.MarshalOptions{}, Provenance{Gate: gate})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Gate *gateReport `json:"gate"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Gate == nil {
+		t.Fatal("no gate block")
+	}
+	if doc.Gate.Threshold != "medium" || doc.Gate.FailOnPriority != "P1" {
+		t.Errorf("gate = %+v", doc.Gate)
+	}
+	if doc.Gate.Disabled {
+		t.Error("gate reported as disabled when it decided the exit code")
+	}
+	// An override set to nothing is not an override. Emitting it would name a control as exempt
+	// and then not say from what.
+	if want := map[string]string{"licenses": "critical"}; !reflect.DeepEqual(doc.Gate.PerControl, want) {
+		t.Errorf("perControl = %v, want %v", doc.Gate.PerControl, want)
+	}
+}
+
+func TestTheDefaultThresholdIsWrittenOutRatherThanLeftBlank(t *testing.T) {
+	got := describeGate(&Gate{Disabled: true})
+	if got.Threshold != string(sarif.SeverityHigh) {
+		t.Errorf("threshold = %q, want the default written out", got.Threshold)
+	}
+	if !got.Disabled {
+		t.Error("--no-gate not recorded, so a fail that stopped nothing reads as one that did")
+	}
+	if got.PerControl != nil {
+		t.Errorf("perControl = %v, want nothing rather than an empty object", got.PerControl)
+	}
+}
+
+func TestAGateNobodyStatedIsAbsentRatherThanDefaulted(t *testing.T) {
+	if got := describeGate(nil); got != nil {
+		t.Errorf("describeGate(nil) = %+v, want nil", got)
+	}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, sampleRun(), sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(buf.Bytes(), []byte(`"gate"`)) {
+		t.Error("a caller that never had the policy emitted one, which reads as the default gate")
+	}
+}

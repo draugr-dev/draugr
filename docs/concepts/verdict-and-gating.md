@@ -179,5 +179,11 @@ Gate: fails on critical, except licenses on critical.
 - **`--evidence` states the gate whatever it is**, including the default, because "the default" is
   an answer only when the report gives it rather than leaving it to be assumed.
 
+- **`report.json` carries it too**, in a `gate` block, alongside the threshold each control was
+  actually judged against. A verdict read by a machine, or on a dashboard somewhere else, has the
+  same claim on its reason as one read in a terminal, and the descriptor that would otherwise
+  answer for it does not travel with the report. See
+  [reports and publishers](../guides/reports-and-publishers.md#what-produced-the-run).
+
 This is the same discipline as [suppression](../reference/saga-schema.md): a decision that changes
 what the verdict covers stays visible, rather than disappearing into an exit code.
