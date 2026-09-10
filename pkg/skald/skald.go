@@ -30,7 +30,12 @@ type jsonReport struct {
 	// First, beside the verdict, because it qualifies it. A consumer reading this document has
 	// to be able to tell a verdict about the release from a verdict about part of it, and the
 	// rest of the document looks the same either way.
-	Scope    *scopeInfo      `json:"scope,omitempty"`
+	Scope *scopeInfo `json:"scope,omitempty"`
+	// Gate is the policy that turned the controls below into the verdict above. Without it a
+	// consumer has the outcome and not the rule, so "why did this fail" is answerable only from
+	// the descriptor in the repository, which is not in this document and may not be reachable
+	// from wherever it is being read.
+	Gate     *gateReport     `json:"gate,omitempty"`
 	Controls []controlReport `json:"controls"`
 	// NotMeasured names a scanner that was planned and then not run because it could not answer the
 	// question its target asked. Distinct from an error: nothing went wrong, and the run is not
@@ -106,12 +111,67 @@ type findingReport struct {
 
 // Provenance is what produced a run, as opposed to what it found.
 //
-// Grouped rather than added as two more parameters: these travel together, they are both absent
-// together in the common local case, and the renderer's signature is already long enough that a
-// caller passing them in the wrong order would compile.
+// Grouped rather than added as three more parameters: these travel together, and the renderer's
+// signature is already long enough that a caller passing them in the wrong order would compile.
 type Provenance struct {
 	Descriptor *DescriptorRef
 	CI         *ci.Context
+	// Gate is the policy the verdict was judged against. Absent on a document written by a caller
+	// that did not have it, which is why the field it renders is omitted rather than defaulted: a
+	// consumer must be able to tell "the gate was the default" from "nobody said".
+	Gate *Gate
+}
+
+// Gate is the policy a verdict was produced under, and whether it decided the exit code.
+//
+// The policy is norn's own rather than a copy of its four fields: a second declaration of the same
+// rule is a second thing to keep true, and the copy is the one that drifts.
+type Gate struct {
+	Policy norn.Policy
+	// Disabled is --no-gate: the verdict is reported and the command still exits 0.
+	Disabled bool
+}
+
+// gateReport is the gate as the JSON document states it.
+type gateReport struct {
+	// Threshold is the severity band that fails a control, stated rather than left to the
+	// default: a consumer reading this document has no access to what our default happens to be.
+	Threshold string `json:"threshold"`
+	// PerControl are the controls judged against a different band.
+	PerControl map[string]string `json:"perControl,omitempty"`
+	// FailOnPriority is the band that fails a control on priority as well as on severity.
+	FailOnPriority string `json:"failOnPriority,omitempty"`
+	// Disabled says the verdict did not decide the exit code, so anything reading that code was
+	// told the opposite of what this document says.
+	Disabled bool `json:"disabled,omitempty"`
+}
+
+// describeGate renders the gate, filling in the default threshold rather than emitting an empty
+// band. An unset threshold is our default, not an absent rule, and a reader cannot tell the two
+// apart from a blank.
+func describeGate(g *Gate) *gateReport {
+	if g == nil {
+		return nil
+	}
+	threshold := g.Policy.FailOn
+	if threshold == "" {
+		threshold = sarif.SeverityHigh
+	}
+	out := &gateReport{
+		Threshold:      string(threshold),
+		FailOnPriority: g.Policy.FailOnPriority,
+		Disabled:       g.Disabled,
+	}
+	for name, band := range g.Policy.PerControl {
+		if band == "" {
+			continue
+		}
+		if out.PerControl == nil {
+			out.PerControl = make(map[string]string, len(g.Policy.PerControl))
+		}
+		out.PerControl[name] = string(band)
+	}
+	return out
 }
 
 // DescriptorRef identifies the descriptor a run was produced from.
@@ -312,6 +372,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		Release:    releaseInfo{Version: release.Version},
 		Verdict:    string(verdict.Verdict),
 		Scope:      scopeOf(run),
+		Gate:       describeGate(prov.Gate),
 		Stats: statsInfo{
 			Jobs:              run.Stats.Jobs,
 			Scans:             run.Stats.Scans,

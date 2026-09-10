@@ -621,7 +621,7 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 				// there is no release name left for it to be recovered from.
 				return skald.RenderJSONFor(w, data.ProjectName(), release, run, verdict,
 					firstNonEmpty(declared, minPriority), nil, sarif.MarshalOptions{},
-					skald.Provenance{})
+					skald.Provenance{Gate: data.GateForReport()})
 			}); err != nil {
 				return err
 			}

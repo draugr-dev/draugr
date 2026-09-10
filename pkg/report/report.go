@@ -320,7 +320,7 @@ func (jsonReporter) Format() string { return "json" }
 func (jsonReporter) Render(w io.Writer, d Data) error {
 	return skald.RenderJSONFor(w, d.ProjectName(), d.Release, d.Run, d.Verdict, d.MinPriority,
 		skaldFeeds(d.Exploitability), d.marshalOptions(),
-		skald.Provenance{Descriptor: d.Descriptor, CI: d.CI})
+		skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald()})
 }
 
 // skaldFeeds converts the report's feed provenance into the JSON document's shape.
@@ -1101,6 +1101,27 @@ type GateSettings struct {
 	FailOnPriority string
 	// Disabled is --no-gate: the verdict is reported and the command still exits 0.
 	Disabled bool
+}
+
+// GateForReport is the run's gate in the shape the JSON document states it, for a caller writing
+// that document through skald rather than through this package's reporters.
+func (d Data) GateForReport() *skald.Gate { return d.Gate.skald() }
+
+// skald renders the gate into the JSON document's shape, so that document states the rule its
+// verdict came from rather than only the outcome.
+//
+// The zero value is a real gate — our default threshold, no overrides — not an absent one, so it
+// converts like any other. A document that omits the block was written by a caller that never had
+// the policy, which is a different thing and reads as one.
+func (g GateSettings) skald() *skald.Gate {
+	return &skald.Gate{
+		Policy: norn.Policy{
+			FailOn:         g.Threshold,
+			PerControl:     g.PerControl,
+			FailOnPriority: g.FailOnPriority,
+		},
+		Disabled: g.Disabled,
+	}
 }
 
 // weakened reports whether the gate lets through something the default gate would have caught.

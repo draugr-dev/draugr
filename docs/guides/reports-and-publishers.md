@@ -107,6 +107,38 @@ jq -r '.descriptor.digest' a/report.json b/report.json | uniq | wc -l
 Both blocks are absent when there is nothing to record, a scan with no descriptor, or one run
 outside CI, so a document that has them is one that knows, rather than one that defaulted.
 
+`gate` is the policy the verdict was judged against:
+
+```json
+"gate": {
+  "threshold": "medium",
+  "perControl": {"licenses": "critical"},
+  "failOnPriority": "P1",
+  "disabled": true
+}
+```
+
+`threshold` is the severity band that fails a control, and it is always stated: an unset
+`--fail-on` is written as the default rather than left blank, because nothing downstream can look
+up what our default is. `perControl` are the controls judged against a different band, and each
+`controls[]` entry repeats the one that applied to it. `failOnPriority` is present when a control
+also fails on a priority band, which is how a gate reads the component's declared exposure and
+criticality rather than the severity alone. `disabled` is `--no-gate`: the verdict stands and the
+command exits 0 anyway, so anything reading the exit code was told the opposite of what this
+document says.
+
+Between `gate.threshold`, `controls[].threshold` and `controls[].highest`, a consumer can name
+which control crossed which band without reading the descriptor:
+
+```bash
+# What failed, and against what
+jq -r '.controls[] | select(.verdict=="fail") | "\(.name): \(.highest) against \(.threshold)"' report.json
+```
+
+The block is absent on a document written before this existed, and on one written by an embedder
+calling `skald.RenderJSONFor` without it. Absent is not the same as a default gate, which is why
+nothing is filled in for it.
+
 ## Declare formats and destinations
 
 ```yaml
