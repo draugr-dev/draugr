@@ -246,6 +246,19 @@ type sarifProperties struct {
 	// not something a reader can check; "on KEV, as of 2026-08-22" is. A consumer that can see the
 	// band and not the reason has to take the band on trust.
 	Escalation *Escalation `json:"escalation,omitempty"`
+	// Correlation says another scanner reported this same flaw: on the finding that is counted it
+	// names who else found it, and on the others it names the one they are counted under.
+	//
+	// It survives the file because the count depends on it and nothing else in the document does.
+	// Every counter inside Draugr skips a copy; a consumer reading this file had no way to, so a
+	// project enabling a second matcher saw its alerts double while the console said the number
+	// had not moved. GitHub code scanning opens one alert per result, so nine vulnerabilities
+	// became eighteen alerts, and dismissing one left its twin open under the other tool's rule
+	// id.
+	//
+	// SARIF has `suppressions` for the excused case and nothing for this one, so it goes in the
+	// property bag beside `priority` and the rest.
+	Correlation *Correlation `json:"correlation,omitempty"`
 	// PriorityFloor is why a band did not fall as far as the component's classification alone would
 	// have taken it, the control that said this finding is not bounded by where it sits.
 	//
@@ -414,7 +427,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
 		if tool != "" || res.Control != "" || res.Escalation != nil || res.PriorityFloor != "" || res.HasScore ||
-			res.Priority != "" || res.Image != "" ||
+			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.BuiltUpstream {
 			sr.Properties = &sarifProperties{
@@ -425,6 +438,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Repository:    res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
 				Reachability:     res.Reachability,
+				Correlation:      res.Correlation,
 				OSEndOfLife:      res.OSEndOfLife,
 				ProviderOperated: res.ProviderOperated,
 				BuiltUpstream:    res.BuiltUpstream,
@@ -672,6 +686,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.BuiltUpstream = sr.Properties.BuiltUpstream || sr.Properties.ImageBuiltUpstream
 				res.Package = sr.Properties.Package
 				res.Reachability = sr.Properties.Reachability
+				res.Correlation = sr.Properties.Correlation
 				res.Escalation = sr.Properties.Escalation
 				res.PriorityFloor = sr.Properties.PriorityFloor
 			}

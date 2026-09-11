@@ -1635,11 +1635,12 @@ func TestTheJSONReportCarriesTheSameGateTheConsolePrints(t *testing.T) {
 	d := Data{
 		Release: saga.Release{Version: "1"},
 		Verdict: norn.Result{Verdict: norn.Fail},
+		// A severity gate, refined per control, with --no-gate on. One question: the band is not
+		// set, and the document must not invent one.
 		Gate: GateSettings{
-			Threshold:      sarif.SeverityMedium,
-			PerControl:     map[string]sarif.Severity{"licenses": sarif.SeverityCritical},
-			FailOnPriority: "P1",
-			Disabled:       true,
+			Threshold:  sarif.SeverityMedium,
+			PerControl: map[string]sarif.Severity{"licenses": sarif.SeverityCritical},
+			Disabled:   true,
 		},
 	}
 	var buf bytes.Buffer
@@ -1657,8 +1658,11 @@ func TestTheJSONReportCarriesTheSameGateTheConsolePrints(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc.Gate.Threshold != "medium" || doc.Gate.FailOnPriority != "P1" || !doc.Gate.Disabled {
+	if doc.Gate.Threshold != "medium" || !doc.Gate.Disabled {
 		t.Errorf("gate = %+v", doc.Gate)
+	}
+	if doc.Gate.FailOnPriority != "" {
+		t.Errorf("a severity gate also reported a band: %+v", doc.Gate)
 	}
 	if doc.Gate.PerControl["licenses"] != "critical" {
 		t.Errorf("perControl = %v", doc.Gate.PerControl)

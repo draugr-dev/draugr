@@ -1110,7 +1110,7 @@ func (d Data) GateForReport() *skald.Gate { return d.Gate.skald() }
 // skald renders the gate into the JSON document's shape, so that document states the rule its
 // verdict came from rather than only the outcome.
 //
-// The zero value is a real gate — our default threshold, no overrides — not an absent one, so it
+// The zero value is a real gate, our default threshold, no overrides, not an absent one, so it
 // converts like any other. A document that omits the block was written by a caller that never had
 // the policy, which is a different thing and reads as one.
 func (g GateSettings) skald() *skald.Gate {

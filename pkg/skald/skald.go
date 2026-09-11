@@ -43,6 +43,11 @@ type jsonReport struct {
 	// document, from one that ran and found nothing.
 	NotMeasured []notMeasuredReport `json:"notMeasured,omitempty"`
 	Priorities  *priorityCounts     `json:"priorities,omitempty"`
+	// Suppressed are the findings a config.exclude rule set aside, in the bands they were ranked
+	// into. Counted apart from Priorities rather than folded in: an excused finding is not work,
+	// and a count that mixes them says neither how much there is to do nor how much was signed off.
+	// Absent when nothing was excused.
+	Suppressed *suppressedCounts `json:"suppressed,omitempty"`
 	// Exploitability names the datasets that enriched this run's severities, so a report can
 	// be checked against the data it was computed from. Absent when no enrichment ran.
 	Exploitability []FeedProvenance `json:"exploitability,omitempty"`
@@ -82,6 +87,16 @@ type scopeInfo struct {
 	SkippedComponents []string `json:"skippedComponents,omitempty"`
 }
 
+// suppressedCounts are the excused findings, in the bands they were ranked into.
+//
+// Absent when nothing was excused, so a document with the block is one where somebody made a
+// decision rather than one reporting zero. Total is stated as well as the bands, because the
+// interesting question about a suppression is usually how many rather than which band.
+type suppressedCounts struct {
+	Total int `json:"total"`
+	priorityCounts
+}
+
 // priorityCounts tallies findings by priority band (present when prioritization ran).
 type priorityCounts struct {
 	P1 int `json:"p1"`
@@ -107,6 +122,20 @@ type findingReport struct {
 	// the call path when it can. Same reason as Escalation, in the other direction: a consumer
 	// acting on a band that reachability lowered can say what lowered it.
 	Reachability *sarif.Reachability `json:"reachability,omitempty"`
+	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave
+	// and who accepted it.
+	//
+	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
+	// means where a machine reads it: an excused finding stays visible with its justification. It
+	// was in this list already and said nothing about itself, so it read as work, which is the
+	// half that made it wrong.
+	Suppressed *suppressionNote `json:"suppressed,omitempty"`
+}
+
+// suppressionNote is why a finding is not being counted as work, and who said so.
+type suppressionNote struct {
+	Justification string `json:"justification,omitempty"`
+	AcceptedBy    string `json:"acceptedBy,omitempty"`
 }
 
 // Provenance is what produced a run, as opposed to what it found.
@@ -134,12 +163,18 @@ type Gate struct {
 
 // gateReport is the gate as the JSON document states it.
 type gateReport struct {
-	// Threshold is the severity band that fails a control, stated rather than left to the
-	// default: a consumer reading this document has no access to what our default happens to be.
-	Threshold string `json:"threshold"`
-	// PerControl are the controls judged against a different band.
+	// Threshold is the severity band that fails a control, on a run that gates on severity.
+	//
+	// Absent on a run that gates on the band, rather than empty: exactly one of this and
+	// FailOnPriority is set, because a run asks one question and a document naming both is the
+	// contradiction one descriptor field exists to prevent. An empty string would be a severity
+	// gate present and set to nothing, which is neither.
+	Threshold string `json:"threshold,omitempty"`
+	// PerControl are the controls judged against a different band. Only on a severity gate, which
+	// is the only kind they refine.
 	PerControl map[string]string `json:"perControl,omitempty"`
-	// FailOnPriority is the band that fails a control on priority as well as on severity.
+	// FailOnPriority is the band that fails a control, on a run that gates on the band. Written
+	// out including the default, because nothing downstream can look up what our default is.
 	FailOnPriority string `json:"failOnPriority,omitempty"`
 	// Disabled says the verdict did not decide the exit code, so anything reading that code was
 	// told the opposite of what this document says.
@@ -153,14 +188,20 @@ func describeGate(g *Gate) *gateReport {
 	if g == nil {
 		return nil
 	}
-	threshold := g.Policy.FailOn
-	if threshold == "" {
-		threshold = sarif.SeverityHigh
-	}
-	out := &gateReport{
-		Threshold:      string(threshold),
-		FailOnPriority: g.Policy.FailOnPriority,
-		Disabled:       g.Disabled,
+	// One of the two, never both. An empty FailOn does not mean "the default severity" any more,
+	// it means this run asks the other question, and filling in a threshold there wrote a document
+	// claiming a severity gate that was not in force beside the band that was. The console said
+	// `Gate: fails on P1.` and the document said `{"threshold":"high","failOnPriority":"P1"}`,
+	// which is the contradiction one field exists to prevent, reintroduced one layer down.
+	out := &gateReport{Disabled: g.Disabled}
+	if g.Policy.GatesOnSeverity() {
+		out.Threshold = string(g.Policy.FailOn)
+	} else {
+		band := g.Policy.PriorityBand()
+		if band == "" {
+			band = norn.DefaultPriority
+		}
+		out.FailOnPriority = band
 	}
 	for name, band := range g.Policy.PerControl {
 		if band == "" {
@@ -424,7 +465,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		})
 	}
 
-	doc.Priorities, doc.Findings = summarizePriorities(run, minPriority)
+	doc.Priorities, doc.Suppressed, doc.Findings = summarizePriorities(run, minPriority)
 	doc.Exploitability = feeds
 	doc.Reachability = reachabilityOf(run)
 
@@ -450,8 +491,19 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 // summarizePriorities tallies findings by priority band and, when minPriority is set, builds
 // a ranked list of findings at or above it. Returns nil counts when the run was not
 // prioritized (no finding carries a priority).
-func summarizePriorities(run engine.Result, minPriority string) (*priorityCounts, []findingReport) {
+//
+// Counted over what the gate judges, which is what every other counter in this codebase already
+// does and this one did not. `Counts()` skips a suppressed finding and a second scanner's copy of
+// one already counted, with the reasoning written beside it; `highestPriority` in the gate skips
+// both; this counted everything. So one document could say a project had a P1, that the gate fails
+// on P1, and that the verdict was pass, all three correct and reading as a contradiction.
+//
+// Excused findings are counted apart rather than dropped. An exclusion keeps a finding in the
+// report with the reason somebody gave, and a summary that loses it entirely is the deletion that
+// exclusion exists to avoid, the count just stops being mixed in with the work.
+func summarizePriorities(run engine.Result, minPriority string) (*priorityCounts, *suppressedCounts, []findingReport) {
 	var counts priorityCounts
+	var excused suppressedCounts
 	var findings []findingReport
 	prioritized := false
 	minRank := prioritization.Priority(minPriority).Rank()
@@ -462,15 +514,27 @@ func summarizePriorities(run engine.Result, minPriority string) (*priorityCounts
 				continue
 			}
 			prioritized = true
+			// A second scanner's copy of a flaw already counted. Skipped outright rather than
+			// counted apart: it is not a finding anybody set aside, it is one already in the
+			// number above under the other tool's rule id, and reporting one vulnerability as two
+			// is the arithmetic that makes a backlog look worse than the system is.
+			if res.Correlated() {
+				continue
+			}
+			into := &counts
+			if res.Suppressed() {
+				into = &excused.priorityCounts
+				excused.Total++
+			}
 			switch prioritization.Priority(res.Priority) {
 			case prioritization.P1:
-				counts.P1++
+				into.P1++
 			case prioritization.P2:
-				counts.P2++
+				into.P2++
 			case prioritization.P3:
-				counts.P3++
+				into.P3++
 			case prioritization.P4:
-				counts.P4++
+				into.P4++
 			}
 			if minRank > 0 && prioritization.Priority(res.Priority).Rank() >= minRank {
 				findings = append(findings, toFinding(name, res))
@@ -478,10 +542,13 @@ func summarizePriorities(run engine.Result, minPriority string) (*priorityCounts
 		}
 	}
 	if !prioritized {
-		return nil, nil
+		return nil, nil, nil
 	}
 	sortFindings(findings)
-	return &counts, findings
+	if excused.Total == 0 {
+		return &counts, nil, findings
+	}
+	return &counts, &excused, findings
 }
 
 func toFinding(control string, res sarif.Result) findingReport {
@@ -490,6 +557,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
 	}
 	return findingReport{
+		Suppressed:   suppressionOf(res),
 		Priority:     res.Priority,
 		Level:        string(res.Level),
 		Score:        res.Score,
@@ -729,4 +797,18 @@ func reachabilityOf(run engine.Result) *reachabilityInfo {
 		})
 	}
 	return out
+}
+
+// suppressionOf is the note a suppressed finding carries, or nil.
+//
+// Nil rather than an empty object on a finding nobody excused: a reader scanning the list for what
+// was set aside should find the key only where somebody made a decision.
+func suppressionOf(res sarif.Result) *suppressionNote {
+	if !res.Suppressed() || res.Suppression == nil {
+		return nil
+	}
+	return &suppressionNote{
+		Justification: res.Suppression.Justification,
+		AcceptedBy:    res.Suppression.AcceptedBy,
+	}
 }

@@ -30,9 +30,11 @@ the same manifests disagree in ways that say something about coverage, a package
 parser understands and the other does not, an advisory in one feed and not the other, and that
 disagreement is information a single scanner cannot produce.
 
-**Expect the counts to rise.** A flaw both scanners find is reported twice, once under each tool's
-own rule identifier, and nothing yet folds the pair into one finding carrying two observations. Two
-opinions, not two problems, but see [writing an
+**Expect more findings, not a higher count.** A flaw both scanners find is reported twice, once
+under each tool's own rule identifier, because two opinions are what a second scanner is for. One of
+the pair is counted and the other is evidence: the priority counts, the gate and `draugr diff`'s
+gate all skip the copy, and `results.sarif` marks it with `properties.correlation.countedUnder` so
+anything reading the file can do the same. See [writing an
 exclusion](grype.md#writing-an-exclusion-that-covers-both), because a suppression written the
 obvious way covers one of them and not the other.
 

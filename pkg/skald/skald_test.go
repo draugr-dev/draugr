@@ -128,7 +128,7 @@ func TestSummarizePrioritiesCountsP4(t *testing.T) {
 			{RuleID: "x", Level: sarif.LevelNote, Priority: "P4"},
 		}}},
 	}}
-	counts, _ := summarizePriorities(run, "")
+	counts, _, _ := summarizePriorities(run, "")
 	if counts == nil || counts.P4 != 1 {
 		t.Fatalf("P4 count = %+v", counts)
 	}
@@ -651,10 +651,10 @@ func TestMergedSARIFCarriesWhatTheRunConsulted(t *testing.T) {
 
 func TestTheDocumentStatesTheGateItWasJudgedAgainst(t *testing.T) {
 	var buf bytes.Buffer
+	// A severity gate, refined per control. One question, so no band beside it.
 	gate := &Gate{Policy: norn.Policy{
-		FailOn:         sarif.SeverityMedium,
-		PerControl:     map[string]sarif.Severity{"licenses": sarif.SeverityCritical, "sast": ""},
-		FailOnPriority: "P1",
+		FailOn:     sarif.SeverityMedium,
+		PerControl: map[string]sarif.Severity{"licenses": sarif.SeverityCritical, "sast": ""},
 	}}
 	err := RenderJSONFor(&buf, "gate-demo", saga.Release{Version: "1"}, prioritizedRun(),
 		sampleVerdict(), "", nil, sarif.MarshalOptions{}, Provenance{Gate: gate})
@@ -670,7 +670,7 @@ func TestTheDocumentStatesTheGateItWasJudgedAgainst(t *testing.T) {
 	if doc.Gate == nil {
 		t.Fatal("no gate block")
 	}
-	if doc.Gate.Threshold != "medium" || doc.Gate.FailOnPriority != "P1" {
+	if doc.Gate.Threshold != "medium" {
 		t.Errorf("gate = %+v", doc.Gate)
 	}
 	if doc.Gate.Disabled {
@@ -683,10 +683,16 @@ func TestTheDocumentStatesTheGateItWasJudgedAgainst(t *testing.T) {
 	}
 }
 
-func TestTheDefaultThresholdIsWrittenOutRatherThanLeftBlank(t *testing.T) {
+func TestTheDefaultGateIsWrittenOutRatherThanLeftBlank(t *testing.T) {
+	// Nothing named is the default, which is the band. Written out rather than left blank,
+	// because nothing downstream can look up what our default happens to be — and written as the
+	// band it is, not as a severity threshold nobody chose.
 	got := describeGate(&Gate{Disabled: true})
-	if got.Threshold != string(sarif.SeverityHigh) {
-		t.Errorf("threshold = %q, want the default written out", got.Threshold)
+	if got.FailOnPriority != norn.DefaultPriority {
+		t.Errorf("failOnPriority = %q, want the default written out", got.FailOnPriority)
+	}
+	if got.Threshold != "" {
+		t.Errorf("threshold = %q: this run does not gate on severity", got.Threshold)
 	}
 	if !got.Disabled {
 		t.Error("--no-gate not recorded, so a fail that stopped nothing reads as one that did")
@@ -706,5 +712,121 @@ func TestAGateNobodyStatedIsAbsentRatherThanDefaulted(t *testing.T) {
 	}
 	if bytes.Contains(buf.Bytes(), []byte(`"gate"`)) {
 		t.Error("a caller that never had the policy emitted one, which reads as the default gate")
+	}
+}
+
+// The priority counts are what the gate judged. Every other counter here already worked that way,
+// `Counts()` and the gate's own `highestPriority` both skip a suppressed finding and a second
+// scanner's copy of one already counted, and this one counted everything, so the console and
+// report.json gave different numbers for one run.
+
+func TestPrioritiesCountWhatTheGateJudges(t *testing.T) {
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Control: "sca", Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "CVE-1", Level: sarif.LevelError, Priority: "P1"},
+			// Excused. Still in the report with its reason, and not work.
+			{RuleID: "CVE-2", Level: sarif.LevelError, Priority: "P1", Suppression: &sarif.Suppression{
+				Kind: "external", Justification: "a documentation example", AcceptedBy: "someone@example.test",
+			}},
+			// The other matcher's copy of CVE-1. Not work either, and not a suppression: it is
+			// already in the number above under the first tool's rule id.
+			{RuleID: "CVE-1-grype", Level: sarif.LevelError, Priority: "P1",
+				Correlation: &sarif.Correlation{CountedUnder: "CVE-1"}},
+		}}},
+	}}
+	counts, excused, _ := summarizePriorities(run, "")
+	if counts == nil || counts.P1 != 1 {
+		t.Fatalf("counts = %+v, want one P1: the work is one flaw", counts)
+	}
+	if excused == nil || excused.Total != 1 || excused.P1 != 1 {
+		t.Fatalf("suppressed = %+v, want the excused one counted apart", excused)
+	}
+}
+
+func TestNothingExcusedMeansNoSuppressedBlock(t *testing.T) {
+	// Absent rather than a block of zeroes, so a document carrying one is a run where somebody
+	// made a decision rather than one reporting that they did not.
+	_, excused, _ := summarizePriorities(prioritizedRun(), "")
+	if excused != nil {
+		t.Errorf("suppressed = %+v, want nothing", excused)
+	}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, prioritizedRun(), sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(buf.Bytes(), []byte(`"suppressed"`)) {
+		t.Error("a run with nothing excused emitted a suppressed block")
+	}
+}
+
+func TestAnExcusedFindingStaysInTheListAndSaysWhy(t *testing.T) {
+	// Suppress, don't delete, where a machine reads it. It was already in this list and said
+	// nothing about itself, which is the half that made it read as work.
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"secrets": {Control: "secrets", Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "github-pat", Level: sarif.LevelError, Priority: "P1", Suppression: &sarif.Suppression{
+				Kind: "external", Justification: "a documentation example", AcceptedBy: "someone@example.test",
+			}},
+		}}},
+	}}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, sampleVerdict(), "P4"); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Findings []struct {
+			RuleID     string `json:"ruleId"`
+			Suppressed *struct {
+				Justification string `json:"justification"`
+				AcceptedBy    string `json:"acceptedBy"`
+			} `json:"suppressed"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Findings) != 1 {
+		t.Fatalf("got %d findings, want the excused one kept", len(doc.Findings))
+	}
+	got := doc.Findings[0].Suppressed
+	if got == nil {
+		t.Fatal("the excused finding is in the list and does not say it was excused")
+	}
+	if got.Justification == "" || got.AcceptedBy == "" {
+		t.Errorf("suppressed = %+v, want the reason and who accepted it", got)
+	}
+}
+
+// TestTheDocumentNamesOneGate holds report.json to the rule the descriptor and the flags are held
+// to. The console says one thing; a document saying two is the contradiction arriving one layer
+// down, where a machine reads it and a person does not.
+func TestTheDocumentNamesOneGate(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		policy        norn.Policy
+		wantThreshold string
+		wantBand      string
+	}{
+		{"nothing named", norn.Policy{}, "", norn.DefaultPriority},
+		{"a band", norn.Policy{FailOnPriority: "P2"}, "", "P2"},
+		{"a severity", norn.Policy{FailOn: sarif.SeverityCritical}, "critical", ""},
+		{
+			"a per-control threshold alone still chooses severity",
+			norn.Policy{PerControl: map[string]sarif.Severity{"sca": sarif.SeverityLow}},
+			"", "",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := describeGate(&Gate{Policy: tc.policy})
+			if got.Threshold != tc.wantThreshold {
+				t.Errorf("threshold = %q, want %q", got.Threshold, tc.wantThreshold)
+			}
+			if got.FailOnPriority != tc.wantBand {
+				t.Errorf("failOnPriority = %q, want %q", got.FailOnPriority, tc.wantBand)
+			}
+			if got.Threshold != "" && got.FailOnPriority != "" {
+				t.Errorf("both stated: %+v", got)
+			}
+		})
 	}
 }

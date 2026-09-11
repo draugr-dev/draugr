@@ -35,7 +35,7 @@ For the others, the code terms above are canonical; marketing copy may use plain
 ## Security controls (taxonomy)
 
 Control IDs use **recognized industry terms** so Draugr is easy to learn and respected by
-security professionals. These are the values under `config.controllers.<id>` in the Saga.
+security professionals. These are the values under `config.controls.<id>` in the Saga.
 Each is defined in [`glossary.md`](../reference/glossary.md).
 
 Status: ✅ shipped · 🗺️ planned. The [integrations catalog](../reference/catalog.md) tracks the

@@ -143,6 +143,9 @@ var deprecatedKeys = map[string]bool{
 	// Replaced by `failOn`, which takes a band or a severity. Still read, so a descriptor written
 	// before the merge keeps working.
 	"failOnPriority": true,
+	// Replaced by `controls`, the word every other surface uses. Still read, and folded into
+	// `controls` when a descriptor loads.
+	"controllers": true,
 }
 
 // TestDeprecatedKeysSayTheyAreDeprecated keeps the exemption list from becoming a place to hide a

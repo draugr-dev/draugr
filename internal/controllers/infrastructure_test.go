@@ -18,7 +18,7 @@ func k8sComponent(settings saga.ControllerSettings) *saga.Component {
 		},
 	}
 	if settings != nil {
-		c.Controllers = map[string]saga.ControllerSettings{"infrastructure": settings}
+		c.Controls = map[string]saga.ControllerSettings{"infrastructure": settings}
 	}
 	return c
 }
@@ -98,7 +98,7 @@ func TestInfrastructurePassesSettingsThrough(t *testing.T) {
 // Project settings should apply to every component without being restated, and a component
 // should still be able to say something different.
 func TestInfrastructureMergesProjectAndComponentSettings(t *testing.T) {
-	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"infrastructure": {"benchmark": "cis-1.9"},
 	}}}
 	jobs, err := Infrastructure{}.Plan(model, k8sComponent(saga.ControllerSettings{"targets": "policies"}))
@@ -237,7 +237,7 @@ func keysOf(m map[string]bool) []string {
 // Enabling a control is the most ordinary thing a descriptor does, and `draugr survey` writes it
 // that way. So this is reachable from a generated descriptor, not only a hand-written one.
 func TestInfrastructureDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
-	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"infrastructure": {
 			"enabled":           true,
 			"context":           "prod",

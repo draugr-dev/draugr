@@ -2,7 +2,7 @@
 # Fail if a file outside Go uses a non-American spelling.
 #
 # `misspell` runs inside golangci-lint with `locale: US`, which covers the Go tree. It does not
-# read Markdown, YAML or shell — and that is where most of the prose is: the docs, the colocated
+# read Markdown, YAML or shell, and that is where most of the prose is: the docs, the colocated
 # plugin pages, the README, the workflow comments, the site's source material. Half of it is
 # quoted onto a public site, so a spelling that drifts here drifts in front of readers.
 #
@@ -20,7 +20,7 @@ if ! command -v "$bin" >/dev/null 2>&1; then
   if [ -x "$(go env GOPATH)/bin/misspell" ]; then
     bin="$(go env GOPATH)/bin/misspell"
   else
-    echo "check-spelling: misspell not found — go install github.com/client9/misspell/cmd/misspell@v0.3.4" >&2
+    echo "check-spelling: misspell not found, go install github.com/client9/misspell/cmd/misspell@v0.3.4" >&2
     exit 1
   fi
 fi
@@ -29,7 +29,7 @@ fi
 # implementations disagree on individual words, and the file types they cover do not overlap
 # anyway (nothing else reads .json, .py or .tape).
 #
-# Neither of them, though, matches a word that is not standing alone — `organisation's` and
+# Neither of them, though, matches a word that is not standing alone, `organisation's` and
 # `TestPainterColours` are invisible to both, because a possessive or a compound identifier is
 # not the token they look up. That is what the stem pass at the foot of this script is for.
 #
@@ -38,7 +38,7 @@ fi
 #
 # Released CHANGELOG sections are excluded, and not for convenience: scripts/changelog-guard.sh
 # fails the build if one changes, because what a tagged release said is what shipped. Checking
-# them here would demand an edit the other guard forbids — two checks that cannot both pass. The
+# them here would demand an edit the other guard forbids, two checks that cannot both pass. The
 # `[Unreleased]` section is checked below, which is the part still being written.
 #
 # `--others` includes files that are not tracked yet, because a new file is exactly the one a
@@ -55,7 +55,7 @@ mapfile -t files < <(
     grep -v '^scripts/check-spelling\.sh$'
 )
 
-# A listed file that is not on disk stops the readers below partway through — awk treats it as
+# A listed file that is not on disk stops the readers below partway through, awk treats it as
 # fatal and abandons every file after it, which prints nothing and exits 0. That is a check that
 # reports a pass for the half of the tree it never opened, so it is refused outright rather than
 # worked around. It happens after a rename whose deletion is staged and whose addition is not.
@@ -65,7 +65,7 @@ for f in "${files[@]}"; do
 done
 if [ "${#missing[@]}" -gt 0 ]; then
   printf 'check-spelling: listed but not on disk: %s\n' "${missing[@]}" >&2
-  echo "  Refusing to check a subset — stage the rename (git add -A) and run again." >&2
+  echo "  Refusing to check a subset, stage the rename (git add -A) and run again." >&2
   exit 1
 fi
 
@@ -124,7 +124,7 @@ stems+='|optimis|Optimis|prioritis|Prioritis|utilis|Utilis'
 stems+='|analyse[^s]|Analyse[^s]'
 
 if [ "${#files[@]}" -gt 0 ]; then
-  # URLs and Markdown link targets are blanked before matching, and only for matching — the line
+  # URLs and Markdown link targets are blanked before matching, and only for matching, the line
   # is still printed whole. A published path is somebody else's identifier: `/learn/software-
   # licences/` is a page that exists under that name, and respelling it produces a 404 that no
   # test here would notice. Link *text* is prose and stays in scope.

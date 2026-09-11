@@ -366,7 +366,7 @@ func TestValidateRejectsUnusableControllerKeys(t *testing.T) {
 			t.Parallel()
 			m := &Model{
 				Release: Release{Version: "1.0"},
-				Config:  Config{Controllers: map[string]ControllerSettings{"infrastructure": tc.settings}},
+				Config:  Config{Controls: map[string]ControllerSettings{"infrastructure": tc.settings}},
 			}
 			err := m.Validate()
 			if err == nil {
@@ -396,7 +396,7 @@ func TestRemovedControllerKeysExplainTheReplacement(t *testing.T) {
 
 	m := &Model{
 		Release: Release{Version: "1.0"},
-		Config: Config{Controllers: map[string]ControllerSettings{
+		Config: Config{Controls: map[string]ControllerSettings{
 			"infrastructure": {"mode": "job"},
 		}},
 	}
@@ -418,8 +418,8 @@ func TestValidateChecksComponentControllerKeys(t *testing.T) {
 	m := &Model{
 		Release: Release{Version: "1.0"},
 		Components: []Component{{
-			Name:        "web",
-			Controllers: map[string]ControllerSettings{"tls": {"draugr-tls": map[string]any{"enabled": false}}},
+			Name:     "web",
+			Controls: map[string]ControllerSettings{"tls": {"draugr-tls": map[string]any{"enabled": false}}},
 		}},
 	}
 	err := m.Validate()
@@ -433,7 +433,7 @@ func TestValidateAcceptsCamelCaseControllerKeys(t *testing.T) {
 	t.Parallel()
 	m := &Model{
 		Release: Release{Version: "1.0"},
-		Config: Config{Controllers: map[string]ControllerSettings{
+		Config: Config{Controls: map[string]ControllerSettings{
 			"infrastructure": {"enabled": true, "kubeBenchJob": map[string]any{"enabled": true}},
 		}},
 	}

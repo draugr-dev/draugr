@@ -34,7 +34,7 @@ func TestReachabilityAnalyzerIsNeverSelectedFromAScannerBlock(t *testing.T) {
 	// The descriptor is rejected at load, but planning must not honor it either: a second way to
 	// enable something that ranks findings down is a way somebody enables it without meaning to.
 	got := scaJobsFor(t, saga.Model{Config: saga.Config{
-		Controllers: map[string]saga.ControllerSettings{
+		Controls: map[string]saga.ControllerSettings{
 			"sca": {"govulncheck": saga.ControllerSettings{"enabled": true}},
 		},
 	}})

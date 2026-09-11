@@ -1,4 +1,4 @@
-# Example Saga — reporting: render several report formats and publish them.
+# Example Saga, reporting: render several report formats and publish them.
 # Run it with:  draugr scan examples/reporting.saga.yaml
 #
 # `config.reports` lists the formats to render; `config.publishers` lists where to deliver them.
@@ -11,12 +11,12 @@ release:
   version: "1.0"
 
 config:
-  controllers:
+  controls:
     images:
       enabled: true
 
   # What to render. Any scan --format works here: console, markdown, html, junit, json, sarif,
-  # and template (a Go text/template — no code needed).
+  # and template (a Go text/template, no code needed).
   reports:
     - format: sarif                 # for code scanning / dashboards
     # GitLab reads its own schema rather than SARIF, and collects these as build artifacts.
@@ -27,7 +27,7 @@ config:
     - format: gitlab-secret-detection
     - format: markdown              # a portable report (MR comment, wiki)
     - format: html                  # a shareable, browser-viewable artifact
-    - format: template              # a custom payload — e.g. a one-line summary
+    - format: template              # a custom payload, e.g. a one-line summary
       template: "{{.Verdict}}: P1={{.Priorities.P1}} P2={{.Priorities.P2}}\n"
       filename: summary.txt
     - format: template              # the same, from a file rather than inline
@@ -35,11 +35,11 @@ config:
       filename: report.txt                # a template past a line or two is unreadable in YAML,
                                           # and a file can be reviewed, diffed and reused
     # Narrowed to what somebody will act on. A markdown report of four hundred findings pasted
-    # into a merge request is a report nobody reads to the end — and the ones below the fold are
+    # into a merge request is a report nobody reads to the end, and the ones below the fold are
     # the ones this format exists to surface. The full set is still in the SARIF above.
     - format: markdown
       filename: fix-first.md
-      minPriority: P2               # P1 | P2 | P3 | P4 — this report carries P1 and P2 only
+      minPriority: P2               # P1 | P2 | P3 | P4, this report carries P1 and P2 only
 
   # Where to deliver them.
   publishers:
@@ -48,7 +48,7 @@ config:
 
     - kind: github                  # upload the SARIF report to GitHub code scanning
       # In GitHub Actions, repo/commit/ref/token are read from the environment
-      # (GITHUB_REPOSITORY / GITHUB_SHA / GITHUB_REF / GITHUB_TOKEN) — nothing to set here.
+      # (GITHUB_REPOSITORY / GITHUB_SHA / GITHUB_REF / GITHUB_TOKEN), nothing to set here.
       # Outside Actions this publisher no-ops. The token is NEVER stored in the Saga.
       #
       # Optional explicit overrides (e.g. running from another CI):
@@ -58,8 +58,8 @@ config:
       # tokenEnv: GH_PAT            # name the env var that holds the token
 
     - kind: azure-pr-comment        # the same, on Azure DevOps
-      # Everything here is read from the pipeline — the collection URI, the team project, the
-      # repository and $SYSTEM_ACCESSTOKEN — so these are overrides for running from elsewhere.
+      # Everything here is read from the pipeline, the collection URI, the team project, the
+      # repository and $SYSTEM_ACCESSTOKEN, so these are overrides for running from elsewhere.
       # org: https://dev.azure.com/acme
       # project: payments
       # pr: 4412                    # the pull request to comment on, when it cannot be detected
@@ -71,7 +71,7 @@ config:
       # marker: "<!-- draugr:nightly -->"
       # What makes the comment sticky: Draugr finds its own previous comment by this string and
       # edits it rather than adding another. Change it only to run two Draugr jobs against one
-      # pull request — a nightly sweep and a per-commit gate posting under one marker would take
+      # pull request, a nightly sweep and a per-commit gate posting under one marker would take
       # turns overwriting each other's verdict.
 
     - kind: gitlab-mr-comment       # a sticky merge-request comment on GitLab
@@ -80,7 +80,7 @@ config:
       # pipeline it no-ops, which is what lets one Saga serve both.
       #
       # The token comes from $GITLAB_TOKEN and needs `api` scope. CI_JOB_TOKEN is read-only on
-      # the notes API and cannot post, so it is not a substitute — Draugr says so rather than
+      # the notes API and cannot post, so it is not a substitute, Draugr says so rather than
       # letting it fail as a bare 401.
 
 # Two components, because the reports this example is about only earn their shape with more than
@@ -95,7 +95,7 @@ components:
       - image: alpine:3.19
 
   - name: batch
-    # The same finding ranks lower here — nothing external reaches it. Exposure and criticality
+    # The same finding ranks lower here, nothing external reaches it. Exposure and criticality
     # are the inputs that turn severity into priority.
     exposure: internal
     criticality: supporting

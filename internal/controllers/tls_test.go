@@ -56,7 +56,7 @@ func TestTLSPlanRespectsScannerConfig(t *testing.T) {
 	comp := &saga.Component{
 		Name:  "web",
 		Hosts: []saga.Host{{Name: "api", URL: "https://api.example.test"}},
-		Controllers: map[string]saga.ControllerSettings{
+		Controls: map[string]saga.ControllerSettings{
 			"tls": {configKeyFor(draugrTLSScanner): map[string]any{"enabled": false}},
 		},
 	}

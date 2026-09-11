@@ -26,11 +26,16 @@ Both then run, and both sets of findings appear. That is the point rather than a
 matchers over the same image disagree in ways that say something about coverage, and a
 qualification tool exists to be able to answer *why* the verdict is what it is.
 
-**Expect the counts to rise.** A flaw both scanners find is reported twice, once under each tool's
-own rule identifier, and nothing yet folds the pair into one finding carrying two observations. So
-enabling a second scanner raises the P1 count without raising the risk. Read it as two opinions, not
-two problems, and see [writing an exclusion](#writing-an-exclusion-that-covers-both) for the
-consequence that actually needs handling.
+**Expect more findings, not a higher count.** A flaw both scanners find is reported twice, once
+under each tool's own rule identifier, because the disagreement between two scanners is the reason
+to run two and a merge that keeps one opinion throws away what you were paying for. One of the pair
+is counted and the other is evidence: the priority counts, the gate and `draugr diff`'s gate all
+skip the copy, and `results.sarif` marks it with `properties.correlation.countedUnder` so anything
+reading the file can do the same.
+
+What does rise is the number of rows in the report, which is the point. See
+[writing an exclusion](#writing-an-exclusion-that-covers-both) for the consequence that actually
+needs handling.
 
 ## Choices worth knowing
 

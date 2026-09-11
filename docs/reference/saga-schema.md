@@ -111,7 +111,7 @@ draugr schema -o .saga.schema.json
 ```yaml
 project: payments-api         # which project this describes
 release: { ... }              # required, the version being assessed
-config: { ... }               # optional, controllers, reports, and publishers
+config: { ... }               # optional, controls, reports, and publishers
 components: [ ... ]           # the app's parts
 fragments: [ ... ]            # optional, merge other Saga files into this one
 references: [ ... ]           # optional, links to manual/human controls
@@ -145,19 +145,24 @@ release:
 |-------|----------|-------------|
 | `version` | ✅ | The version being assessed. What changes between builds |
 
-## `config.controllers`
+## `config.controls`
 
 A map of control name → free-form settings. A control runs only when **enabled**:
 
+> Written `controllers:` until recently. That spelling still loads and is folded into `controls`
+> when a descriptor is read, so nothing breaks; `controls` is what to write now, and what every
+> other surface has always said. `draugr controls` lists them, the catalog names them, and
+> `config.gate.controls` used the word already. A *controller* is the Go type that plans the jobs.
+
 ```yaml
 config:
-  controllers:
+  controls:
     images:
       enabled: true          # absent entry ⇒ disabled; entry without `enabled` ⇒ enabled
 ```
 
 **A control name Draugr does not provide is an error**, wherever it appears, here, in
-`config.gate.controls`, or in a component's own `controllers`. A typo is otherwise invisible: the
+`config.gate.controls`, or in a component's own `controls`. A typo is otherwise invisible: the
 descriptor claims a decision it is not making, and the run goes green either way.
 
 ```
@@ -228,7 +233,7 @@ cache key carries the same marker, so adding credentials invalidates results gat
 ### Per-scanner config
 
 A control can be served by more than one scanner, and each scanner is configured under its own key
-in `controllers.<control>.<scanner>`. **The key is camelCase**, like every field in a Saga, so a
+in `controls.<control>.<scanner>`. **The key is camelCase**, like every field in a Saga, so a
 scanner whose name is hyphenated is configured under the camelCase form of it (`kube-bench-job` →
 `kubeBenchJob`, `draugr-tls` → `draugrTls`). A hyphenated key is rejected at load: it would
 otherwise match no scanner and quietly run one fewer than asked for. A scanner block holds an
@@ -238,7 +243,7 @@ override the project config (component keys deep-merge over project keys). For `
 
 ```yaml
 config:
-  controllers:
+  controls:
     sast:
       enabled: true
       semgrep:
@@ -287,7 +292,7 @@ vulnerabilities*, but *which of those vulnerabilities this code can actually rea
 config:
   reachability:
     analyzers: [govulncheck]   # `draugr tools install govulncheck`; Go only, and needs a Go toolchain
-  controllers:
+  controls:
     sca:
       enabled: true
 ```
@@ -538,11 +543,11 @@ With neither the URL nor the token set, the publisher **skips**, so the same des
 uses still runs on a developer's machine. Setting one without the other is an error: a scan that
 silently did not publish is one somebody believes was published.
 
-## License policy (`controllers.licenses`)
+## License policy (`controls.licenses`)
 
 ```yaml
 config:
-  controllers:
+  controls:
     licenses:
       enabled: true
       deny: ["AGPL-3.0-only", "GPL-3.0-only"]   # → error, whatever category Trivy assigned
@@ -550,7 +555,7 @@ config:
 
 components:
   - name: shipped-cli          # distributed to customers, so stricter
-    controllers:
+    controls:
       licenses:
         deny: ["LGPL-3.0-only"]
 ```
@@ -606,13 +611,13 @@ instead. A component can add restrictions; it cannot remove them:
 
 ```yaml
 config:
-  controllers:
+  controls:
     licenses:
       deny: ["GPL-3.0-only", "AGPL-3.0-only"]   # the organization's policy
 
 components:
   - name: web
-    controllers:
+    controls:
       licenses:
         deny: ["Sleepycat"]      # web denies all three, not just Sleepycat
 ```
@@ -1318,13 +1323,13 @@ components:
         ref: prod-cluster
         namespaces: [team-a, team-a-jobs]       # optional, the namespaces this component owns
         operatedBy: provider                    # optional, self (default) or provider
-    controllers:              # optional per-component overrides (same shape as config.controllers)
+    controls:              # optional per-component overrides (same shape as config.controls)
       images:
         enabled: true
 ```
 
 **Control resolution:** a component-scoped control runs for a component when it is enabled
-on the component, or (absent an override) enabled globally under `config.controllers`.
+on the component, or (absent an override) enabled globally under `config.controls`.
 
 **Several repositories on one component** is supported and worth knowing the shape of: Draugr plans
 one job per repository and runs them concurrently, and paths in a finding are relative to the
@@ -1336,7 +1341,7 @@ applies to repositories a [fragment](../guides/saga-fragments.md) contributes fr
 **Who publishes it:** `builtBy` says whether this team publishes the thing being scanned (`self`,
 the default) or somebody else does (`upstream`). It may be declared on a **repository**, on an
 **image**, or on the **component**, where it covers every target that does not say otherwise. Most
-specific wins, the same rule `controllers:` follows.
+specific wins, the same rule `controls:` follows.
 
 It decides what the report tells you to do, and nothing else. The finding keeps its severity and
 its band, is still counted, and still reaches the gate: a flaw in somebody else's software is
@@ -1457,7 +1462,7 @@ fragments:
 
 **A fragment adds scope or adds attributed suppressions; it cannot change policy.** It may carry
 `components`, `config.exclude`, and further `fragments`. Nothing else. `release`, `config.gate` and
-`config.controllers` are rejected, naming the rule. That is what makes a `fragments:` line safe to
+`config.controls` are rejected, naming the rule. That is what makes a `fragments:` line safe to
 review: pulling a file in can never quietly lower your gate or switch a control off, and the worst
 it can do is add suppressions, which are individually attributed and counted in the report.
 

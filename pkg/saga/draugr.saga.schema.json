@@ -15,7 +15,11 @@
         },
         "controllers": {
           "$ref": "#/$defs/controllers",
-          "description": "Per-component control overrides. Same shape as config.controllers; component settings win."
+          "description": "Deprecated: write `controls`. Still read, so no descriptor breaks, and folded into `controls` when one loads."
+        },
+        "controls": {
+          "$ref": "#/$defs/controllers",
+          "description": "Which controls run here, and what each is told. Named for what you meet everywhere else: `draugr controls` lists them, the catalog names them, and `config.gate.controls` already used the word. A controller is the Go type that plans the jobs."
         },
         "criticality": {
           "$ref": "#/$defs/criticality"
@@ -94,7 +98,12 @@
           "uniqueItems": true
         },
         "controllers": {
-          "$ref": "#/$defs/controllers"
+          "$ref": "#/$defs/controllers",
+          "description": "Deprecated: write `controls`. Still read, so no descriptor breaks, and folded into `controls` when one loads."
+        },
+        "controls": {
+          "$ref": "#/$defs/controllers",
+          "description": "Which controls run here, and what each is told. Named for what you meet everywhere else: `draugr controls` lists them, the catalog names them, and `config.gate.controls` already used the word. A controller is the Go type that plans the jobs."
         },
         "exclude": {
           "description": "Findings to suppress, each with a stated reason. A suppressed finding is still reported — marked, with its justification — it just stops counting toward the verdict.",

@@ -26,6 +26,20 @@ type tipContext struct {
 	opts    *scanOptions
 }
 
+// gatesOnSeverity reports whether this run was judged on a finding's own severity rather than on
+// the band it landed in. The two are exclusive, and which one it is decides whether half the advice
+// here applies at all.
+func (c tipContext) gatesOnSeverity() bool {
+	if c.opts.failOn != "" {
+		return true
+	}
+	if c.opts.failOnPriority != "" {
+		return false
+	}
+	kind, _ := c.model.Config.Gate.Resolved()
+	return kind == saga.GateSeverity
+}
+
 // scanTip is one advisory line and the condition under which it earns its place.
 type scanTip struct {
 	// name identifies the tip in tests. Never printed.
@@ -56,13 +70,16 @@ var scanTips = []scanTip{
 		// the reader's mental model of the run is wrong rather than merely incomplete.
 		name: "priority-gate",
 		when: func(c tipContext) bool {
-			return c.opts.failOnPriority == "" && !c.opts.noGate &&
+			// Only where the gate asks about severity. Under the default it already asks about
+			// the band, and telling somebody to add the gate they are already running is advice
+			// that reads as the product not knowing what it did.
+			return c.gatesOnSeverity() && !c.opts.noGate &&
 				c.verdict.Verdict == norn.Pass && countAtOrAbove(c.run, "P2") > 0
 		},
 		text: func(c tipContext) string {
 			n := countAtOrAbove(c.run, "P2")
-			return fmt.Sprintf("this run passed with %d P1/P2 finding(s), severity thresholds do not "+
-				"look at priority. Add --fail-on-priority P2 to gate on risk as well.", n)
+			return fmt.Sprintf("this run passed with %d P1/P2 finding(s) and was judged on "+
+				"severity, not on the band. Use --fail-on P2 to gate on risk.", n)
 		},
 	},
 	{
@@ -173,6 +190,12 @@ func countAtOrAbove(run engine.Result, band string) int {
 	for _, cr := range run.Controls {
 		for _, r := range cr.Report.Results {
 			if r.Suppressed() {
+				continue
+			}
+			// A second scanner's copy of a flaw already counted. Without this the tip told a
+			// reader that enabling the opt-in matcher had doubled their urgent work, when it had
+			// found the same flaws twice.
+			if r.Correlated() {
 				continue
 			}
 			if r.Priority != "" && r.Priority <= band {

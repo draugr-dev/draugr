@@ -2,7 +2,7 @@
 #
 # Two components on purpose. A supplier's claim is an assertion about one artifact, and the
 # failure worth designing against is one vendor's assurance quietly excusing a finding somewhere
-# else — so `payments-api` sees Acme's document and `worker` does not, while the platform team's
+# else, so `payments-api` sees Acme's document and `worker` does not, while the platform team's
 # project-wide document reaches both.
 project: payments
 
@@ -10,14 +10,14 @@ release:
   version: 2.4.0
 
 config:
-  controllers:
+  controls:
     sca:
       enabled: true
     images:
       enabled: true
   # One document covering everything an internal team ships, said once rather than repeated on
   # every component. Statements are still matched by package identifier, so this widens which
-  # findings are considered — it does not let a statement claim more than it says.
+  # findings are considered, and it does not let a statement claim more than it says.
   vexSources:
     - url: https://platform.internal/vex/current.openvex.json
 
@@ -30,8 +30,8 @@ components:
     images:
       - image: registry.example.com/acme/api:1.4.0
     vex:
-      # A document committed next to this descriptor. Resolved relative to where Draugr runs —
-      # not to this file — which is the same rule every other path in a descriptor follows.
+      # A document committed next to this descriptor. Resolved relative to where Draugr runs,
+      # not to this file, which is the same rule every other path in a descriptor follows.
       - path: vendor/acme-api.openvex.json
       # A document the supplier publishes in their own repository. Cloned with whatever
       # credentials git already has on the machine; Draugr stores none, so no token goes here.

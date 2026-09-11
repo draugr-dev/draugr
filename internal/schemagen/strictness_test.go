@@ -244,8 +244,8 @@ func TestEveryStringIsClosedOrSaysWhyNot(t *testing.T) {
 	sort.Strings(loose)
 	for _, p := range loose {
 		t.Errorf("%s accepts any string.\n"+
-			"    Close it — an `anyOf` of `const` for a scalar, `items.enum` for an array, "+
-			"generated from whatever in Go already knows the values — or add it to openStrings "+
+			"    Close it, an `anyOf` of `const` for a scalar, `items.enum` for an array, "+
+			"generated from whatever in Go already knows the values, or add it to openStrings "+
 			"with the reason it cannot be closed.", p)
 	}
 }

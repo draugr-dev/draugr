@@ -129,7 +129,7 @@ func TestSurfaceNoteOmitsDastWithoutHosts(t *testing.T) {
 
 func TestSurfaceNoteSaysNothingWhenCovered(t *testing.T) {
 	model := &saga.Model{
-		Config:     saga.Config{Controllers: map[string]saga.ControllerSettings{"headers": {"enabled": true}, "tls": {"enabled": true}}},
+		Config:     saga.Config{Controls: map[string]saga.ControllerSettings{"headers": {"enabled": true}, "tls": {"enabled": true}}},
 		Components: []saga.Component{{Name: "web", Hosts: []saga.Host{{URL: "h"}}}},
 	}
 	var out bytes.Buffer
@@ -150,18 +150,25 @@ func priorityRun(priority string) engine.Result {
 
 func TestPriorityGateTipFiresOnAPassCarryingP1s(t *testing.T) {
 	// The one tip here that corrects the reader's model of the run rather than extending it: a
-	// PASS that a priority gate would have failed.
+	// PASS carrying a P1, on a run judged by severity. On a run judged by the band there is
+	// nothing to correct, because the band is what failed or did not.
 	c := tipContext{
 		model:   &saga.Model{Components: []saga.Component{{Name: "web", Exposure: saga.Exposure("public")}}},
 		run:     priorityRun("P1"),
 		verdict: norn.Result{Verdict: norn.Pass},
-		opts:    &scanOptions{format: "console"},
+		opts:    &scanOptions{format: "console", failOn: "critical"},
 	}
 	if !tipByName(t, "priority-gate").when(c) {
-		t.Fatal("a pass with a P1 finding and no --fail-on-priority is the case this exists for")
+		t.Fatal("a pass carrying a P1 under a severity gate is the case this exists for")
 	}
-	if got := tipByName(t, "priority-gate").text(c); !strings.Contains(got, "--fail-on-priority") {
+	if got := tipByName(t, "priority-gate").text(c); !strings.Contains(got, "--fail-on P2") {
 		t.Errorf("the tip must name the flag that changes the outcome: %q", got)
+	}
+	// And it says nothing where the gate already reads the band: telling somebody to add the gate
+	// they are running reads as the product not knowing what it did.
+	c.opts = &scanOptions{format: "console"}
+	if tipByName(t, "priority-gate").when(c) {
+		t.Error("the tip fired on a run already judged by the band")
 	}
 }
 
@@ -294,7 +301,9 @@ func TestScanTipsAreCappedPerRun(t *testing.T) {
 		model:   unclassifiedModel(),
 		run:     engine.Result{Stats: engine.Stats{Duration: 5 * time.Minute}, Controls: capRunControls()},
 		verdict: norn.Result{Verdict: norn.Pass},
-		opts:    &scanOptions{format: "console"},
+		// Judged on severity, which is what the priority-gate tip is about. Under the default the
+		// gate already reads the band and that tip has nothing to say.
+		opts: &scanOptions{format: "console", failOn: "critical"},
 	}
 	// All four conditions hold.
 	for _, tip := range scanTips {
@@ -308,7 +317,7 @@ func TestScanTipsAreCappedPerRun(t *testing.T) {
 		t.Errorf("printed %d tips, want the cap of %d:\n%s", got, maxTipsPerRun, out.String())
 	}
 	// And the ones printed are the two the ordering promises.
-	if !strings.Contains(out.String(), "--fail-on-priority") || !strings.Contains(out.String(), "only in this log") {
+	if !strings.Contains(out.String(), "--fail-on P2") || !strings.Contains(out.String(), "only in this log") {
 		t.Errorf("the cap must keep the highest-consequence tips, not the first two to evaluate:\n%s", out.String())
 	}
 }

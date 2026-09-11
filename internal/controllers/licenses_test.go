@@ -54,10 +54,10 @@ func TestLicensePolicyUnionsRatherThanOverrides(t *testing.T) {
 	// replaces a list outright, so a component adding one denied license would silently discard the
 	// organization's, a component quietly opting out of an org license policy, invisible in review. A
 	// component can only tighten.
-	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"licenses": {"deny": []any{"GPL-3.0-only", "AGPL-3.0-only"}},
 	}}}
-	comp := &saga.Component{Name: "c", Controllers: map[string]saga.ControllerSettings{
+	comp := &saga.Component{Name: "c", Controls: map[string]saga.ControllerSettings{
 		"licenses": {"deny": []any{"Sleepycat"}},
 	}}
 	cfg := licensePolicy(model, comp)
@@ -70,10 +70,10 @@ func TestLicensePolicyUnionsRatherThanOverrides(t *testing.T) {
 func TestLicensePolicyDeduplicatesAndSorts(t *testing.T) {
 	// Sorted and deduplicated so the job's config, and therefore its cache key. Is stable across runs
 	// regardless of how the Saga was written.
-	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"licenses": {"warn": []any{"MPL-2.0", "EPL-2.0"}},
 	}}}
-	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
+	comp := &saga.Component{Controls: map[string]saga.ControllerSettings{
 		"licenses": {"warn": []any{"MPL-2.0"}},
 	}}
 	warn, _ := licensePolicy(model, comp)["warn"].([]string)
@@ -90,7 +90,7 @@ func TestLicensePolicyEmptyIsNil(t *testing.T) {
 }
 
 func TestLicensePolicyComponentOnly(t *testing.T) {
-	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
+	comp := &saga.Component{Controls: map[string]saga.ControllerSettings{
 		"licenses": {"deny": []any{"GPL-2.0-only"}},
 	}}
 	deny, _ := licensePolicy(saga.Model{}, comp)["deny"].([]string)
@@ -146,7 +146,7 @@ func TestALicenseFindingInSomebodyElsesRepositoryIsMarkedUpstream(t *testing.T) 
 		},
 	}
 	model := saga.Model{Config: saga.Config{
-		Controllers: map[string]saga.ControllerSettings{"licenses": {"enabled": true}},
+		Controls: map[string]saga.ControllerSettings{"licenses": {"enabled": true}},
 	}}
 
 	jobs, err := Licenses{}.Plan(model, comp)
@@ -191,7 +191,7 @@ func TestLicensesPlansImagesAsWellAsRepositories(t *testing.T) {
 		},
 	}
 	model := saga.Model{Config: saga.Config{
-		Controllers: map[string]saga.ControllerSettings{
+		Controls: map[string]saga.ControllerSettings{
 			"licenses": {"enabled": true, "deny": []any{"AGPL-3.0-only"}},
 		},
 	}}
@@ -237,7 +237,7 @@ func TestLicensesPlansImagesAsWellAsRepositories(t *testing.T) {
 func TestLicensesScansAComponentThatOnlyRunsImages(t *testing.T) {
 	jobs, err := Licenses{}.Plan(
 		saga.Model{Config: saga.Config{
-			Controllers: map[string]saga.ControllerSettings{"licenses": {"enabled": true}},
+			Controls: map[string]saga.ControllerSettings{"licenses": {"enabled": true}},
 		}},
 		&saga.Component{Name: "vendor-console", BuiltBy: saga.BuiltByUpstream,
 			Images: []saga.Image{{Image: "ghcr.io/vendor/console:4.2"}}})

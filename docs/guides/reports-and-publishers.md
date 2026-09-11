@@ -34,6 +34,31 @@ Scan results render through a pluggable **Reporter**, selected on the CLI with
 
 `-o/--output <dir>` always writes `report.json` + `results.sarif` regardless of `--format`.
 
+### When two scanners find the same flaw
+
+Both findings stay in the report, with their own rule ids and their own severity, because the
+disagreement between two scanners is the reason to run two. One of them is counted and the others
+are evidence, and every document says which is which:
+
+```console
+$ jq -r '.runs[].results[] | select(.properties.correlation) |
+         "\(.properties.tool)  \(.ruleId)  \(.properties.correlation.countedUnder // "counted")"' results.sarif
+trivy  CVE-2018-1000656  counted
+grype  CVE-2018-1000656-flask  trivy
+```
+
+`properties.correlation.countedUnder` names the scanner whose finding this one is counted under,
+and is what makes it evidence rather than a count. The finding that **is** counted carries
+`alsoFoundBy` instead, with each other tool's own rule id and rating.
+
+**A consumer counting findings should skip the ones with `countedUnder`.** Otherwise enabling a
+second matcher doubles the number with nothing new wrong, which is the arithmetic buyers are told
+to test for: point several scanners at one target and count the tickets. Draugr's own counts,
+its gate and `draugr diff`'s gate all skip them.
+
+SARIF has `suppressions` for the excused case and no field for this one, so it travels in the
+property bag beside `priority` and the rest.
+
 ### Telling a partial run from a clean one
 
 A gate reading `report.json` should check more than `verdict`. A run where a scanner never started
@@ -107,13 +132,31 @@ jq -r '.descriptor.digest' a/report.json b/report.json | uniq | wc -l
 Both blocks are absent when there is nothing to record, a scan with no descriptor, or one run
 outside CI, so a document that has them is one that knows, rather than one that defaulted.
 
+`priorities` counts what the gate judged, and `suppressed` counts what it did not:
+
+```json
+"priorities": {"p1": 4, "p2": 5, "p3": 0, "p4": 0},
+"suppressed": {"total": 1, "p1": 1, "p2": 0, "p3": 0, "p4": 0}
+```
+
+Two things are outside `priorities`, for the same reason the gate leaves them out. A finding a
+`config.exclude` rule set aside is not work, and it is counted in `suppressed` rather than dropped,
+because an exclusion keeps a finding in the report with the reason somebody gave. And a flaw two
+scanners both reported is one flaw: the copy is skipped outright, so enabling a second matcher does
+not double the count with nothing new wrong.
+
+`suppressed` is absent when nothing was excused, so a document carrying it is a run where somebody
+made a decision rather than one reporting that they did not. Each entry in `findings` carries the
+same thing per finding: a `suppressed` block with the justification and who accepted it, on the
+findings that have one.
+
 `gate` is the policy the verdict was judged against:
 
 ```json
 "gate": {
   "threshold": "medium",
   "perControl": {"licenses": "critical"},
-  "failOnPriority": "P1",
+  "failOn": "P1",
   "disabled": true
 }
 ```
@@ -121,7 +164,8 @@ outside CI, so a document that has them is one that knows, rather than one that 
 `threshold` is the severity band that fails a control, and it is always stated: an unset
 `--fail-on` is written as the default rather than left blank, because nothing downstream can look
 up what our default is. `perControl` are the controls judged against a different band, and each
-`controls[]` entry repeats the one that applied to it. `failOnPriority` is present when a control
+`controls[]` entry repeats the one that applied to it. `failOn` carries a band where the gate asks
+about priority and a severity where it asks about severity, and a control
 also fails on a priority band, which is how a gate reads the component's declared exposure and
 criticality rather than the severity alone. `disabled` is `--no-gate`: the verdict stands and the
 command exits 0 anyway, so anything reading the exit code was told the opposite of what this

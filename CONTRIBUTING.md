@@ -233,6 +233,21 @@ or `criticality` for the first and `allowEffects` for the second.
 The reason is not a formality. *"It is a name"* and *"we have not got round to it"* look identical
 in a list of paths, and only one of them should survive review.
 
+### Renaming or deprecating a flag
+
+A flag named in the documentation and absent from the binary is advice that fails the person who
+follows it. `--fail-on-new-priority` survived in four documents after it was deprecated, taught as
+the way to do the thing it is no longer the way to do, and nothing noticed.
+
+`TestDocsNameFlagsThatExist` walks `docs/` and holds every long flag it finds to the flags the
+binary actually defines. `TestDocsDoNotTeachADeprecatedFlag` is the other half: a deprecated flag
+still works, so a document naming it is not wrong, it is teaching the older spelling forever. Those
+are listed with the documents allowed to mention them, which is wherever the migration is explained.
+
+Both lists carry a reason per entry, and `TestTheFlagExemptionsAreStillNeeded` refuses an entry
+nothing mentions any more. "It belongs to a tool we quote" and "we have not got round to it" look
+identical in a list of names, and only one of them should survive review.
+
 ### Integration tests
 
 Heavier tests that exercise real external dependencies, a real Trivy binary and an ephemeral

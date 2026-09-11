@@ -485,3 +485,24 @@ func TestTheOrdinaryCasesAreUnchanged(t *testing.T) {
 		t.Errorf("a genuinely new finding: new=%d reopened=%d", len(newOnly.New), len(newOnly.Reopened))
 	}
 }
+
+// TestGateNewIgnoresACopyOfAFlawAlreadyCounted: the day somebody enables a second matcher, every
+// flaw both tools find arrives as a second result. Failing a pull request over those is failing it
+// for improving coverage, and it teaches people to turn the matcher off.
+func TestGateNewIgnoresACopyOfAFlawAlreadyCounted(t *testing.T) {
+	r := Result{New: []sarif.Result{
+		{RuleID: "CVE-1", Level: sarif.LevelError, Priority: "P1",
+			Correlation: &sarif.Correlation{CountedUnder: "trivy"}},
+	}}
+	if tripped := r.GateNew(sarif.SeverityLow, ""); len(tripped) != 0 {
+		t.Errorf("a copy tripped the severity gate: %+v", tripped)
+	}
+	if tripped := r.GateNew("", "P4"); len(tripped) != 0 {
+		t.Errorf("a copy tripped the priority gate: %+v", tripped)
+	}
+	// The finding it is counted under still gates, which is the half that must not be lost.
+	r.New = append(r.New, sarif.Result{RuleID: "CVE-2", Level: sarif.LevelError, Priority: "P1"})
+	if tripped := r.GateNew(sarif.SeverityLow, ""); len(tripped) != 1 {
+		t.Errorf("the counted finding no longer gates: %+v", tripped)
+	}
+}

@@ -6,7 +6,7 @@
 # A convention encoded in a commit subject would be none of those.
 #
 # It also means the manual flow keeps working unchanged. Promoting the CHANGELOG by hand and
-# merging it tags the release too — the automation is the same act, not a second path with its
+# merging it tags the release too, the automation is the same act, not a second path with its
 # own rules.
 #
 # Tagging is all this does, and the tag is what publishes.
@@ -14,8 +14,8 @@
 # The tag is pushed with a GitHub App installation token rather than GITHUB_TOKEN, and that one
 # detail is the whole mechanism. GitHub raises no workflow-starting event for anything
 # GITHUB_TOKEN did, so a tag pushed with it would sit there while everything reported success.
-# Pushed with the App's token it is an ordinary push, release.yml triggers on it, and — the part
-# that matters most — the run's own ref is the tag.
+# Pushed with the App's token it is an ordinary push, release.yml triggers on it, and, the part
+# that matters most, the run's own ref is the tag.
 #
 # That last point is why release.yml is triggered rather than called. A reusable workflow runs
 # under its **caller's** ref, so a call made from `main` signs artifacts
@@ -53,7 +53,7 @@ jobs:
     steps:
       # A token that is not GITHUB_TOKEN, because GitHub raises no workflow-starting event for
       # anything GITHUB_TOKEN did and refuses it `gh pr create` unless the repository allows
-      # Actions to create *and approve* pull requests — one switch, and approval is not something
+      # Actions to create *and approve* pull requests, one switch, and approval is not something
       # to grant a workflow in order to fix a papercut.
       #
       # An App rather than a personal token: the installation token lives for an hour, is scoped
@@ -71,7 +71,7 @@ jobs:
           fetch-depth: 0 # every tag, to know which versions already have one
           # The token is what makes the tag below an event GitHub acts on, which is the whole
           # mechanism: release.yml triggers on the tag push, so the run's ref is the tag, so the
-          # keyless certificate says `release.yml@refs/tags/vX.Y.Z` — the identity install.sh and
+          # keyless certificate says `release.yml@refs/tags/vX.Y.Z`, the identity install.sh and
           # action.yml verify. Push it with GITHUB_TOKEN and nothing runs at all.
           token: ${{ steps.app.outputs.token }}
 
@@ -86,7 +86,7 @@ jobs:
           echo "newest released section: $version"
 
           if git rev-parse "v$version" >/dev/null 2>&1; then
-            echo "v$version is already tagged — nothing to do."
+            echo "v$version is already tagged, nothing to do."
             exit 0
           fi
 
@@ -95,7 +95,7 @@ jobs:
           # that cannot be withdrawn once anyone has fetched it.
           notes=$(./scripts/changelog.sh show "$version")
           if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
-            echo "::error::[$version] has no notes — refusing to tag a release nobody can describe."
+            echo "::error::[$version] has no notes, refusing to tag a release nobody can describe."
             exit 1
           fi
 
@@ -107,7 +107,7 @@ jobs:
 
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"
-          git tag -a "v$version" -m "v$version — ${summary:-see CHANGELOG.md}"
+          git tag -a "v$version" -m "v$version, ${summary:-see CHANGELOG.md}"
           git push origin "v$version"
           echo "tagged v$version"
           echo "::notice::Tagged v$version. The push starts the Release workflow, which gates on" \

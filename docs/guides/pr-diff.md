@@ -133,7 +133,7 @@ paths](../reference/saga-schema.md#where-a-repository-comes-from-urls-and-paths)
 ```bash
 draugr diff base/results.sarif head/results.sarif                     # console delta
 draugr diff base/results.sarif head/results.sarif --format markdown   # MR comment
-draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
+draugr diff base/results.sarif head/results.sarif --fail-on-new P1
 draugr diff base/results.sarif head/results.sarif --publish           # sticky PR comment (in CI)
 draugr diff base/results.sarif head/results.sarif --format sarif      # only the new findings, for code scanning
 draugr diff base/results.sarif head/results.sarif --format sarif --min-priority P1
@@ -149,7 +149,7 @@ Action does this for you; see [`code-scanning`](github-action.md#what-code-scann
 unchanged counts alone. Narrow the diff rather than the scans it came from: a diff computed on
 filtered inputs reads every finding the filter removed as fixed.
 
-`--fail-on-new` / `--fail-on-new-priority` fail the command (non-zero exit) only for **new**
+`--fail-on-new` fails the command (non-zero exit) only for **new**
 findings at or above the given severity / priority. Findings are matched on `(tool, rule, file,
 message)`, deliberately ignoring the line number (which drifts as code moves) and the severity level
 (a re-scored finding is still the same issue), so genuinely-carried-over findings aren't reported as
@@ -187,13 +187,19 @@ scanner publishes one, and the SARIF level decides it when none is published. Th
 not a severity: SARIF has three of them, and they cannot express the difference between a 7.0 and a
 9.8.
 
-`--fail-on-new` takes a **severity band** (`critical` / `high` / `medium` / `low`), the same words
-the diff prints, and the same the scan gate takes. The SARIF levels `error`, `warning` and `note`
-are still accepted and mean `high`, `medium` and `low`.
+`--fail-on-new` takes either vocabulary, the same as the scan gate: a **priority band** (`P1`–`P4`)
+or a **severity** (`critical` / `high` / `medium` / `low`). The SARIF levels `error`, `warning` and
+`note` are still accepted and mean `high`, `medium` and `low`.
 
-Severity is still not priority. `P1`–`P4` fold in the component's declared exposure and
+Which one you write decides the question. `P1`–`P4` fold in the component's declared exposure and
 criticality, which is why a `high` on an internet-facing component outranks a `critical` on
-something nothing can reach. See [prioritization](../concepts/prioritization.md).
+something nothing can reach; a severity is what the scanner called the flaw on its own terms. A run
+asks one of the two, so writing both is refused. See
+[prioritization](../concepts/prioritization.md).
+
+A finding a second scanner reported for a flaw the first already found does not trip this gate. It
+arrives as a new result the day somebody enables a second matcher, and failing a pull request over
+copies of vulnerabilities that were already there is failing it for improving coverage.
 
 See the [CLI reference](../reference/cli.md#draugr-diff-basesarif-headsarif) for every `diff`
 flag, and [reports & publishers](reports-and-publishers.md) for both publishers.
