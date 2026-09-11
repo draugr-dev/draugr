@@ -28,7 +28,7 @@ ranking. See **Exploitability: KEV and EPSS** below.
 
 - **Focus:** `--min-priority P2` lists only the findings worth acting on now
   (P1 = act now · P2 = this cycle · P3 = backlog · P4 = track).
-- **Gate:** `--fail-on-priority P1` fails the build on any P1, component-aware gating with no
+- **Gate:** `--fail-on P1` is the default and fails the build on any P1, component-aware gating with no
   per-component config.
 - A component left **unclassified** is treated as high-risk, so nothing slips silently.
 
@@ -315,7 +315,7 @@ incomparable.
   from severity × exposure × criticality. An escalated CVE on a `restricted`, `supporting`
   component may still not be P1, which is the point: exploitability matters *in context*.
 - **The gate follows automatically.** Because both bands and levels derive from severity,
-  `--fail-on-priority` and `--fail-on` see the enriched values with no extra configuration.
+  `--fail-on` sees the enriched values with no extra configuration.
 
 ### A worked example
 
@@ -364,7 +364,7 @@ ranks exactly as it would on your front door.
 With the control's severity floor at `high`, that means **P1**. Two reasons it is not something
 short of P1:
 
-- `--fail-on-priority P1` is the gate this documentation recommends. Anything lower means a
+- `--fail-on P1` is the default gate, and the one this documentation recommends. Anything lower means a
   credential fails the severity gate and passes the priority one, which is the same contradiction
   one band over.
 - The claim is that exposure does not bound the finding. A band that still moves with exposure,

@@ -133,7 +133,7 @@ paths](../reference/saga-schema.md#where-a-repository-comes-from-urls-and-paths)
 ```bash
 draugr diff base/results.sarif head/results.sarif                     # console delta
 draugr diff base/results.sarif head/results.sarif --format markdown   # MR comment
-draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
+draugr diff base/results.sarif head/results.sarif --fail-on-new P1
 draugr diff base/results.sarif head/results.sarif --publish           # sticky PR comment (in CI)
 draugr diff base/results.sarif head/results.sarif --format sarif      # only the new findings, for code scanning
 draugr diff base/results.sarif head/results.sarif --format sarif --min-priority P1
@@ -149,7 +149,7 @@ Action does this for you; see [`code-scanning`](github-action.md#what-code-scann
 unchanged counts alone. Narrow the diff rather than the scans it came from: a diff computed on
 filtered inputs reads every finding the filter removed as fixed.
 
-`--fail-on-new` / `--fail-on-new-priority` fail the command (non-zero exit) only for **new**
+`--fail-on-new` fails the command (non-zero exit) only for **new**
 findings at or above the given severity / priority. Findings are matched on `(tool, rule, file,
 message)`, deliberately ignoring the line number (which drifts as code moves) and the severity level
 (a re-scored finding is still the same issue), so genuinely-carried-over findings aren't reported as
