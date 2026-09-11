@@ -413,7 +413,7 @@ most, because it is what lets a descriptor outlive any particular tool.
 > JSON Schema do, so it cannot be out of date with the binary you are running. This one is prose,
 > and prose drifts.
 
-## `config.reports` and `config.publishers`
+## `config.publishers`
 
 Declare where a run's results go, and what each destination is given. A **publisher** is a
 destination (a Publisher); a **report** is one rendered format
@@ -433,25 +433,20 @@ config:
           minPriority: P2  # narrow the comment, not the artifact on disk
 ```
 
-**`config.reports` is the default set**, rendered for every destination that does not narrow:
+**A destination that can deliver only one thing renders it for itself:**
 
 ```yaml
 config:
-  reports:
-    - format: sarif
-    - format: template     # custom payload from a Go text/template
-      templateFile: ./report.tmpl   # or inline `template: "..."` (set exactly one)
-      filename: summary.txt         # optional; overrides the default output filename
   publishers:
-    - kind: file
-      dir: ./out           # given both, because it names no reports of its own
+    - kind: github         # complete. The SARIF is not a choice anybody makes.
+    - kind: draugr-api     # the same: the run report and the evidence are its business
 ```
 
-A destination that names no `reports` is handed all of them, which is what a descriptor written
-before this said and still says. A format named under a publisher is rendered whether or not
-`config.reports` also names it, so a project that publishes and keeps no local artifacts need not
-declare the same format twice. Each distinct report is rendered once, however many destinations
-ask for it.
+`reports` narrows those, and is required for `file`, which has no format of its own. Each distinct
+report is rendered once, however many destinations ask for it.
+
+For local artifacts and no destination at all, `-o <dir>` writes `report.json` and `results.sarif`,
+and `--report <format>` adds to them.
 
 The **`template`** format renders a [Go `text/template`](https://pkg.go.dev/text/template) against a
 stable view of the scan, `.Release`, `.Verdict`, `.Pass`, `.Priorities.{P1..P4}`, `.Controls`, and
@@ -488,12 +483,13 @@ recorded inside the artifact it produced, so a consumer can tell a narrowed file
 `--min-priority` on the command line still trims only what is printed; `--artifact-min-priority` is
 the flag that narrows a file, and it says so in the file.
 
-The `github` publisher requires a `sarif` report in `config.reports`. It never stores a secret in
+The `github` publisher renders the `sarif` report for itself, so `kind: github` is the whole of
+it. It never stores a secret in
 the descriptor. The token comes from an environment variable. Code scanning is free for public
 repos; private repos need GitHub Advanced Security.
 
 The **`github-pr-comment`** publisher posts the `markdown` report as a **sticky** pull-request
-comment (updated in place on each push). It needs a `markdown` report in `config.reports`; `repo`
+comment (updated in place on each push). It renders the `markdown` report for itself; `repo`
 and the PR number default from the GitHub Actions environment; the token comes from `$GITHUB_TOKEN`
 (or `tokenEnv`). It no-ops off a pull request. It's most useful with
 [`draugr diff --publish`](cli.md#draugr-diff-basesarif-headsarif), which posts a PR **security
@@ -1310,7 +1306,7 @@ assembling it correctly is different work, and a half-right SPDX document would 
 declining because nothing about it would look wrong.
 
 **Where the documents go.** `-o <dir>` writes them beside `report.json` and `results.sarif`, and any
-configured publisher delivers them alongside your reports, including with no `config.reports` at
+configured publisher delivers them alongside its reports, including with no `reports` at
 all, if the inventory is the only output you want. Filenames are `sbom-<component>-<target>` plus
 the suffix for the format, with the target slugged so two images in one component can't collide.
 

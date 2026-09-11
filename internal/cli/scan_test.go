@@ -141,12 +141,12 @@ config:
   controllers:
     images:
       enabled: true
-  reports:
-    - format: sarif
-    - format: markdown
   publishers:
     - kind: file
       dir: ` + dir + `
+      reports:
+        - format: sarif
+        - format: markdown
 components:
   - name: c
     images:
@@ -175,11 +175,11 @@ config:
   controllers:
     images:
       enabled: true
-  reports:
-    - format: sarif
   publishers:
     - kind: file
       dir: ` + dir + `
+      reports:
+        - format: sarif
 components:
   - name: c
     images:
@@ -221,21 +221,28 @@ func TestRunScanTemplateMissingSource(t *testing.T) {
 // descriptor either way, and the difference is a whole pipeline.
 func TestRunScanRefusesAPublisherItCannotUseBeforeScanning(t *testing.T) {
 	for _, tc := range []struct {
-		name, publishers, reports, want string
+		name, publishers, want string
 	}{
 		{
 			name:       "a kind this build does not have",
 			publishers: "    - kind: bogus\n",
-			reports:    "    - format: sarif\n",
 			want:       `"bogus" is not a publisher this build of Draugr has`,
 		},
 		{
-			// The publisher used to say this itself, at delivery, which is a destination telling
-			// you to go and edit a different block once the work is done.
+			// A directory has no format of its own, so one that names none delivers nothing. The
+			// publisher used to say this itself, at delivery, which is a destination telling you
+			// to go and edit a different block once the work is done.
 			name:       "a destination with nothing it can deliver",
-			publishers: "    - kind: github\n",
-			reports:    "    - format: json\n",
-			want:       "the github publisher delivers a \"sarif\" report and config.reports declares none",
+			publishers: "    - kind: file\n      dir: ./out\n",
+			want:       "the file publisher has no format of its own and names none",
+		},
+		{
+			// Two entries of one kind that name one destination. Deliberate and mistaken pairs are
+			// written identically, so the field that tells them apart is what decides.
+			name: "the same destination written twice",
+			publishers: "    - kind: file\n      dir: ./out\n      reports: [{format: json}]\n" +
+				"    - kind: file\n      dir: ./out\n      reports: [{format: sarif}]\n",
+			want: "is the same destination as config.publishers[0]",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -247,8 +254,7 @@ config:
   controls:
     images:
       enabled: true
-  reports:
-` + tc.reports + `  publishers:
+  publishers:
 ` + tc.publishers + `components:
   - name: c
     images:
@@ -720,12 +726,13 @@ config:
   controllers:
     images:
       enabled: true
-  reports:
-    - format: sarif
   publishers:
       # Named correctly and unusable, so it survives the checks a descriptor is held to and fails
-      # where a publisher fails: at delivery, with the scan already done.
+      # where a publisher fails: at delivery, with the scan already done. A file publisher cannot
+      # work without a dir, and validation does not read it.
     - kind: file
+      reports:
+        - format: sarif
 components:
   - name: c
     images:
@@ -1234,8 +1241,8 @@ func TestArtifactsAreCompleteUnlessNarrowingWasDeclared(t *testing.T) {
 // The flag overrides the descriptor, so a workflow can narrow what it uploads without editing a
 // file it may not own.
 func TestDeclaredBandPrefersTheFlag(t *testing.T) {
-	model := &saga.Model{Config: saga.Config{Reports: []saga.ReportConfig{
-		{Format: "sarif", MinPriority: "P3"},
+	model := &saga.Model{Config: saga.Config{Publishers: []saga.PublisherConfig{
+		{Kind: "file", Dir: "./out", Reports: []saga.ReportConfig{{Format: "sarif", MinPriority: "P3"}}},
 	}}}
 	if got := declaredBand(scanOptions{artifactMinPriority: "P1"}, model); got != "P1" {
 		t.Errorf("flag should win: got %q", got)
@@ -1244,8 +1251,8 @@ func TestDeclaredBandPrefersTheFlag(t *testing.T) {
 		t.Errorf("descriptor should apply when no flag: got %q", got)
 	}
 	// Only a sarif report's band reaches the written sarif; another format's must not.
-	other := &saga.Model{Config: saga.Config{Reports: []saga.ReportConfig{
-		{Format: "markdown", MinPriority: "P1"},
+	other := &saga.Model{Config: saga.Config{Publishers: []saga.PublisherConfig{
+		{Kind: "file", Dir: "./out", Reports: []saga.ReportConfig{{Format: "markdown", MinPriority: "P1"}}},
 	}}}
 	if got := declaredBand(scanOptions{}, other); got != "" {
 		t.Errorf("a markdown report's band must not narrow the sarif: got %q", got)

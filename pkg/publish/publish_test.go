@@ -58,8 +58,9 @@ func TestKinds(t *testing.T) {
 func TestRunWritesReports(t *testing.T) {
 	dir := t.TempDir()
 	err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "json"}, {Format: "sarif"}, {Format: "markdown"}},
-		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir, Reports: []saga.ReportConfig{
+			{Format: "json"}, {Format: "sarif"}, {Format: "markdown"},
+		}}},
 		sampleData(),
 	)
 	if err != nil {
@@ -73,7 +74,7 @@ func TestRunWritesReports(t *testing.T) {
 }
 
 func TestRunNoPublishersIsNoop(t *testing.T) {
-	if err := Run(context.Background(), []saga.ReportConfig{{Format: "json"}}, nil, sampleData()); err != nil {
+	if err := Run(context.Background(), nil, sampleData()); err != nil {
 		t.Errorf("no publishers should be a no-op, got %v", err)
 	}
 }
@@ -81,8 +82,7 @@ func TestRunNoPublishersIsNoop(t *testing.T) {
 func TestRunUnknownFormatErrors(t *testing.T) {
 	dir := t.TempDir()
 	err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "bogus"}},
-		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir, Reports: []saga.ReportConfig{{Format: "bogus"}}}},
 		sampleData(),
 	)
 	if err == nil {
@@ -92,8 +92,7 @@ func TestRunUnknownFormatErrors(t *testing.T) {
 
 func TestRunUnknownPublisherErrors(t *testing.T) {
 	err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "json"}},
-		[]saga.PublisherConfig{{Kind: "bogus"}},
+		[]saga.PublisherConfig{{Kind: "bogus", Reports: []saga.ReportConfig{{Format: "json"}}}},
 		sampleData(),
 	)
 	if err == nil {
@@ -108,8 +107,7 @@ func TestRunPublisherErrorSurfaced(t *testing.T) {
 		t.Fatal(err)
 	}
 	err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "json"}},
-		[]saga.PublisherConfig{{Kind: "file", Dir: filepath.Join(bad, "sub")}}, // parent is a file
+		[]saga.PublisherConfig{{Kind: "file", Dir: filepath.Join(bad, "sub"), Reports: []saga.ReportConfig{{Format: "json"}}}}, // parent is a file
 		sampleData(),
 	)
 	if err == nil {
@@ -128,8 +126,7 @@ func TestRunDeliversSBOMsAlongsideReports(t *testing.T) {
 	}
 
 	err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "sarif"}},
-		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir, Reports: []saga.ReportConfig{{Format: "sarif"}}}},
 		d,
 	)
 	if err != nil {
@@ -153,7 +150,7 @@ func TestRunDeliversSBOMsEvenWithNoReportsConfigured(t *testing.T) {
 	d := sampleData()
 	d.Run.SBOMs = []sbom.Document{{Component: "web", Target: "r", Format: saga.SBOMSPDXJSON, Bytes: []byte("{}")}}
 
-	if err := Run(context.Background(), nil, []saga.PublisherConfig{{Kind: "file", Dir: dir}}, d); err != nil {
+	if err := Run(context.Background(), []saga.PublisherConfig{{Kind: "file", Dir: dir}}, d); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "sbom-web-r.spdx.json")); err != nil {
@@ -181,8 +178,7 @@ func TestPublishersIgnoreMinPriority(t *testing.T) {
 
 	dir := t.TempDir()
 	if err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "sarif"}},
-		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir, Reports: []saga.ReportConfig{{Format: "sarif"}}}},
 		data,
 	); err != nil {
 		t.Fatal(err)
@@ -203,8 +199,7 @@ func TestRunDoesNotClearTheCallersMinPriority(t *testing.T) {
 	data := sampleData()
 	data.MinPriority = "P2"
 	if err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "json"}},
-		[]saga.PublisherConfig{{Kind: "file", Dir: t.TempDir()}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: t.TempDir(), Reports: []saga.ReportConfig{{Format: "json"}}}},
 		data,
 	); err != nil {
 		t.Fatal(err)
@@ -223,8 +218,7 @@ func TestRunDoesNotClearTheCallersMinPriority(t *testing.T) {
 func TestRunDeliversTheReportsThatRendered(t *testing.T) {
 	dir := t.TempDir()
 	err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "json"}, {Format: "no-such-format"}, {Format: "sarif"}},
-		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir, Reports: []saga.ReportConfig{{Format: "json"}, {Format: "no-such-format"}, {Format: "sarif"}}}},
 		sampleData())
 
 	if err == nil {
@@ -245,8 +239,7 @@ func TestRunDeliversTheReportsThatRendered(t *testing.T) {
 func TestRunReportsEveryFailureWhenNothingRendered(t *testing.T) {
 	dir := t.TempDir()
 	err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "nope-one"}, {Format: "nope-two"}},
-		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir, Reports: []saga.ReportConfig{{Format: "nope-one"}, {Format: "nope-two"}}}},
 		sampleData())
 
 	if err == nil {
@@ -266,36 +259,36 @@ func TestRunReportsEveryFailureWhenNothingRendered(t *testing.T) {
 // A publisher that needs a format and does not say so goes back to reporting it at delivery time,
 // which is after every scanner has run. Nothing about that looks wrong until somebody spends a
 // pipeline on it.
-func TestEveryPublisherSaysWhatItNeeds(t *testing.T) {
+func TestEveryPublisherSaysWhatItRenders(t *testing.T) {
 	for _, kind := range Kinds() {
-		if _, ok := requirements[kind]; !ok {
-			t.Errorf("%s has no entry in requirements. Name the formats it cannot deliver "+
-				"without, or nil if it takes whatever it is handed", kind)
+		if _, ok := rendered[kind]; !ok {
+			t.Errorf("%s has no entry in rendered. Name the formats it produces for itself, or "+
+				"nil where it has none of its own and an author has to say", kind)
 		}
 	}
-	for kind := range requirements {
+	for kind := range rendered {
 		if _, ok := builders[kind]; !ok {
-			t.Errorf("requirements names %q, which is not a publisher this build has", kind)
+			t.Errorf("rendered names %q, which is not a publisher this build has", kind)
 		}
 	}
 	// Every named format must be one something renders, or the check built on this asks for a
 	// report that cannot exist.
-	rendered := map[string]bool{}
+	renderable := map[string]bool{}
 	for _, f := range report.Formats() {
-		rendered[f] = true
+		renderable[f] = true
 	}
-	for kind, formats := range requirements {
+	for kind, formats := range rendered {
 		for _, f := range formats {
-			if !rendered[f] {
-				t.Errorf("%s requires %q, which is not a format Draugr renders", kind, f)
+			if !renderable[f] {
+				t.Errorf("%s renders %q, which is not a format Draugr can produce", kind, f)
 			}
 		}
 	}
 }
 
-func TestRequiresIsQuietAboutAKindWeDoNotHave(t *testing.T) {
-	if got := Requires("jira"); got != nil {
-		t.Errorf("Requires of an unknown kind = %v, want nil", got)
+func TestRendersIsQuietAboutAKindWeDoNotHave(t *testing.T) {
+	if got := Renders("jira"); got != nil {
+		t.Errorf("Renders of an unknown kind = %v, want nil", got)
 	}
 }
 
@@ -344,7 +337,6 @@ func TestEveryPublisherSaysWhatDistinguishesIt(t *testing.T) {
 func TestADestinationIsHandedWhatItAskedFor(t *testing.T) {
 	full, narrowed := t.TempDir(), t.TempDir()
 	err := Run(context.Background(),
-		nil, // nothing at the project level: each destination says what it takes
 		[]saga.PublisherConfig{
 			{Kind: "file", Dir: full, Reports: []saga.ReportConfig{{Format: "html"}, {Format: "json"}}},
 			{Kind: "file", Dir: narrowed, Reports: []saga.ReportConfig{{Format: "markdown"}}},
@@ -377,8 +369,9 @@ func TestADestinationIsHandedWhatItAskedFor(t *testing.T) {
 func TestADestinationThatNamesNothingTakesEverything(t *testing.T) {
 	dir := t.TempDir()
 	err := Run(context.Background(),
-		[]saga.ReportConfig{{Format: "json"}, {Format: "markdown"}},
-		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir, Reports: []saga.ReportConfig{
+			{Format: "json"}, {Format: "markdown"},
+		}}},
 		sampleData(),
 	)
 	if err != nil {
@@ -401,7 +394,7 @@ func TestOneReportIsRenderedOnceForEveryDestinationAskingForIt(t *testing.T) {
 	// Counting renders directly is not available from here, so the observable stands in: two
 	// destinations asking for one format produce identical bytes, which a second render of a
 	// report carrying a timestamp would not.
-	err := Run(context.Background(), nil,
+	err := Run(context.Background(),
 		[]saga.PublisherConfig{
 			{Kind: "file", Dir: a, Reports: []saga.ReportConfig{{Format: "json"}}},
 			{Kind: "file", Dir: b, Reports: []saga.ReportConfig{{Format: "json"}}},

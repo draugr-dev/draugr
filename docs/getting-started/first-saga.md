@@ -104,7 +104,7 @@ release:
 ## Next steps
 
 - [Quickstart](quickstart.md). Scan the Saga and read the verdict.
-- [Saga schema](../reference/saga-schema.md), every field, including `config.reports`,
+- [Saga schema](../reference/saga-schema.md), every field, including `config.publishers`,
   `config.publishers`, and `references`.
 - [Let discovery write it for you](../concepts/surveyors.md). Surveyors can generate the
   descriptor from a cluster or GitHub org.

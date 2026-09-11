@@ -312,10 +312,6 @@ func writeEffects(w io.Writer, col tui.Painter, s summary, d Data) {
 	}
 	// What the descriptor asked for and this run could not deliver. With the receipts because it
 	// is one: a record of what did not happen, where somebody would otherwise assume it did.
-	if line := undeliveredLine(d.UndeliveredReports); line != "" {
-		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(cMedium, line))
-		wrote = true
-	}
 	// Below the findings, not above them. It qualifies what was just read rather than introducing
 	// it, and a caveat placed before the fix list competes with the thing it is a caveat about.
 	// Not dim, unlike its neighbors here: a reader deciding whether to trust these findings
@@ -1361,27 +1357,6 @@ func unscannedDetail(us []engine.Unscanned, declared map[string]int) string {
 		parts = append(parts, plural(byKind[kind], kind))
 	}
 	return strings.Join(parts, ", ") + " not scanned"
-}
-
-// undeliveredLine says which declared reports had nowhere to go.
-//
-// Named rather than counted, because the reader's next move is to decide whether they wanted that
-// one. And there are rarely more than a handful in a descriptor.
-func undeliveredLine(formats []string) string {
-	if len(formats) == 0 {
-		return ""
-	}
-	return fmt.Sprintf("config.reports declares %s and this run had nowhere to write %s, "+
-		"pass -o <dir>, or add a publisher.",
-		strings.Join(formats, ", "), them(len(formats)))
-}
-
-// them agrees the pronoun with the count.
-func them(n int) string {
-	if n == 1 {
-		return "it"
-	}
-	return "them"
 }
 
 // writeGate says what policy the verdict was produced under.

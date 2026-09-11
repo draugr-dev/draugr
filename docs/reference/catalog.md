@@ -114,8 +114,8 @@ Scan results render through a pluggable **Reporter** interface (`pkg/report`), s
 ## Publishers
 
 A **Publisher** delivers rendered reports to a destination, the "where" of reporting, separate from
-the Reporter (the "what"). Configure them in the Saga's [`config.reports` /
-`config.publishers`](saga-schema.md#configreports-and-configpublishers); every rendered report is
+the Reporter (the "what"). Configure them in the Saga's [`config.publishers`
+`config.publishers`](saga-schema.md#configpublishers); every rendered report is
 delivered to every publisher.
 
 | Kind | Delivers to | Config |

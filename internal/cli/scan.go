@@ -391,15 +391,14 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 	}
 	data := report.Data{
-		Project:            model.ProjectName(),
-		Release:            model.Release,
-		Run:                run,
-		Verdict:            verdict,
-		MinPriority:        minPriority,
-		TopN:               fixFirstLimit(opts.top),
-		GroupActions:       opts.group == groupAction, // "" is unset, and the default is a finding a row
-		UndeliveredReports: undeliveredReports(model, opts),
-		Evidence:           opts.evidence,
+		Project:      model.ProjectName(),
+		Release:      model.Release,
+		Run:          run,
+		Verdict:      verdict,
+		MinPriority:  minPriority,
+		TopN:         fixFirstLimit(opts.top),
+		GroupActions: opts.group == groupAction, // "" is unset, and the default is a finding a row
+		Evidence:     opts.evidence,
 		// Built from the same policy the verdict came from, so the report cannot describe a gate
 		// the run did not use.
 		Gate: report.GateSettings{
@@ -464,7 +463,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// token when what actually happened is that the build should not ship.
 	var publishErr error
 	if !opts.noPublish {
-		publishErr = publish.Run(ctx, model.Config.Reports, model.Config.Publishers, data)
+		publishErr = publish.Run(ctx, model.Config.Publishers, data)
 	}
 
 	if incomplete {
@@ -591,9 +590,11 @@ func declaredBand(opts scanOptions, model *saga.Model) string {
 	if opts.artifactMinPriority != "" {
 		return opts.artifactMinPriority
 	}
-	for _, r := range model.Config.Reports {
-		if r.Format == "sarif" && r.MinPriority != "" {
-			return r.MinPriority
+	for _, p := range model.Config.Publishers {
+		for _, r := range p.Reports {
+			if r.Format == "sarif" && r.MinPriority != "" {
+				return r.MinPriority
+			}
 		}
 	}
 	return ""
@@ -1045,23 +1046,6 @@ func declaredTargets(c saga.Component) map[string]int {
 
 // undeliveredReports names the formats a descriptor declared that this run cannot write.
 //
-// Declared reports are rendered for publishers to deliver. With no publisher and no -o there is
-// nowhere for them to go, and the run says nothing. Which reads exactly like a run that wrote
-// them. Not an error, because a descriptor written for a pipeline with publishers is reasonable
-// to run locally without one.
-func undeliveredReports(model *saga.Model, opts scanOptions) []string {
-	if model == nil || len(model.Config.Reports) == 0 {
-		return nil
-	}
-	if len(model.Config.Publishers) > 0 || opts.outputDir != "" {
-		return nil
-	}
-	formats := make([]string, 0, len(model.Config.Reports))
-	for _, r := range model.Config.Reports {
-		formats = append(formats, r.Format)
-	}
-	return formats
-}
 
 // detectedCI is the CI job this scan is running in, or nil.
 //

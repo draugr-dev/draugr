@@ -85,12 +85,11 @@ config:
     # document nothing will ever apply.
 
   # The report that carries those claims to whoever consumes your software.
-  reports:
-    - format: vex
-
   publishers:
     - kind: file
       dir: ./.draugr/out
+      reports:
+        - format: vex
 
 # Two components, because an exclusion is a decision about the whole descriptor and the failure
 # worth seeing is one team's judgement quietly excusing another team's finding. Both are scanned;

@@ -192,7 +192,7 @@ all mean no scan.
 Everything else is read-only and safe to call freely. Leaving scanning off is a good default:
 ### The scan honors your reports and publishers
 
-A scan through MCP runs the descriptor's `config.reports` and `config.publishers` exactly as
+A scan through MCP runs the descriptor's `config.publishers` exactly as
 `draugr scan` does, and the result names where each one landed:
 
 ```json

@@ -5,9 +5,8 @@
 # markdown summary to a pull request is three formats with two audiences, and each gets what it
 # is for rather than all three.
 #
-# `config.reports` is still there and still means "render these for every destination that does
-# not narrow", which is what a descriptor written before this said. It is also what `-o <dir>`
-# writes with no publisher involved.
+# For local artifacts and no destination at all, `-o <dir>` writes report.json and results.sarif,
+# and `--report <format>` adds to them.
 #
 # Reports are produced even when the gate fails, so you always get evidence.
 
@@ -21,19 +20,9 @@ config:
     images:
       enabled: true
 
-  # Rendered for every destination below that does not say otherwise. Any scan --format works
-  # here: console, markdown, html, junit, json, sarif, and template (a Go text/template, no code
-  # needed).
-  reports:
-    # GitLab reads its own schema rather than SARIF, and collects these as build artifacts.
-    # gitlab-codequality shows in the merge request on any tier; the two security reports feed
-    # the Vulnerability Report, which is Ultimate.
-    - format: gitlab-codequality
-    - format: gitlab-sast
-    - format: gitlab-secret-detection
-
-  # Where results go. A destination that names `reports` is given exactly those; one that names
-  # none is given everything above.
+  # Where results go, and what each one takes. A destination that can deliver only one thing
+  # renders it for itself, so `kind: github` is complete on its own; `reports` is for the rest,
+  # and for a directory, which has no format of its own.
   publishers:
     - kind: file                    # → ./.draugr/out/{results.sarif,report.html,summary.txt,…}
       dir: ./.draugr/out
@@ -47,13 +36,16 @@ config:
           templateFile: contrib/report.tmpl   # relative to where Draugr runs
           filename: report.txt                # a template past a line or two is unreadable in
                                               # YAML, and a file can be reviewed and diffed
-        # The GitLab reports are named at the project level above, so they arrive here without
-        # being listed twice.
+        # GitLab reads its own schema rather than SARIF, and collects these as build artifacts.
+        # gitlab-codequality shows in the merge request on any tier; the two security reports feed
+        # the Vulnerability Report, which is Ultimate.
+        - format: gitlab-codequality
+        - format: gitlab-sast
+        - format: gitlab-secret-detection
 
     - kind: github                  # upload the SARIF report to GitHub code scanning
-      reports:
-        - format: sarif             # the one format this destination can use, and now the only
-                                    # one it is handed
+      # No `reports` here. This destination can deliver one thing and knows what it is, so naming
+      # it as well would be saying something the publisher already knows.
       # In GitHub Actions, repo/commit/ref/token are read from the environment
       # (GITHUB_REPOSITORY / GITHUB_SHA / GITHUB_REF / GITHUB_TOKEN), nothing to set here.
       # Outside Actions this publisher no-ops. The token is NEVER stored in the Saga.
