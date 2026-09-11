@@ -40,6 +40,9 @@ type progressLine struct {
 	// stop ends the repaint loop. Buffered so done never blocks on a ticker that has already
 	// gone away.
 	stop chan struct{}
+	// columns reports the terminal's width, asked per frame because a window can be resized while
+	// a scan runs. A field so a test can render at a width it does not have.
+	columns func() int
 }
 
 // active is the progress line currently drawn on the terminal, if any.
@@ -105,6 +108,7 @@ func newProgressLineFor(w io.Writer) *progressLine {
 	p := &progressLine{
 		w: w, painter: tui.For(w), start: time.Now(), stop: make(chan struct{}, 1),
 	}
+	p.columns = func() int { return tui.Columns(w) }
 	active.Store(p)
 	go p.tick()
 	return p
@@ -151,17 +155,27 @@ func (p *progressLine) update(ev engine.ProgressEvent) {
 }
 
 // draw renders one frame. Callers hold mu.
+//
+// Every line is cut to the window, which is what makes `drawn` true. A line the terminal has to
+// wrap occupies two rows and is counted as one, so the next erase moves up one row short and
+// clears a line this program never wrote. The frame then walks up the screen, a row per repaint,
+// taking whatever the reader had on it. A line too long to fit is unreadable either way; this one
+// is also destructive, and only on a window narrow enough that whoever wrote it never sees it.
 func (p *progressLine) draw(ev engine.ProgressEvent) {
 	lines := progressFrame(ev, p.painter, time.Since(p.start))
 	if len(lines) == 0 {
 		return
+	}
+	width := 0
+	if p.columns != nil {
+		width = p.columns()
 	}
 	p.erase()
 	for i, line := range lines {
 		if i > 0 {
 			_, _ = fmt.Fprint(p.w, "\n")
 		}
-		_, _ = fmt.Fprintf(p.w, "\r\033[2K%s", line)
+		_, _ = fmt.Fprintf(p.w, "\r\033[2K%s", tui.Truncate(line, width))
 	}
 	p.drawn = len(lines)
 }

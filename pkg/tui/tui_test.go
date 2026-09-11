@@ -2,6 +2,7 @@ package tui
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -142,5 +143,100 @@ func TestIsTerminalRejectsAFileAndANonFile(t *testing.T) {
 	}
 	if IsTerminal("not a file") {
 		t.Error("a non-file is not a terminal")
+	}
+}
+
+func TestTruncateMeasuresWhatTheReaderSees(t *testing.T) {
+	red := "\x1b[31m"
+	reset := "\x1b[0m"
+	for _, tc := range []struct {
+		name, in string
+		width    int
+		want     string
+	}{
+		{"shorter than the window is untouched", "abc", 10, "abc"},
+		{"exactly the window is untouched", "abcde", 5, "abcde"},
+		{"longer is cut to the window", "abcdefgh", 5, "abcde"},
+		{"an unknown width cuts nothing", "abcdefgh", 0, "abcdefgh"},
+		{
+			// The bytes a terminal never displays must not count against the width, or a colored
+			// line loses most of its text while a plain one keeps all of it.
+			name: "color costs no cells", in: red + "abcdefgh" + reset, width: 5,
+			want: red + "abcde" + reset,
+		},
+		{
+			// Cutting inside a styled span leaves the color on, and the terminal wears it for
+			// everything printed afterwards.
+			name: "a cut line turns its color off", in: red + "abcdefgh", width: 3,
+			want: red + "abc" + reset,
+		},
+		{name: "a cut plain line needs no reset", in: "abcdefgh", width: 3, want: "abc"},
+		{
+			name: "a hyperlink costs only its text",
+			in:   "\x1b]8;;https://example.com/a/very/long/url\x07link\x1b]8;;\x07after",
+			// The escape carries a URL far longer than the window and still occupies no cells.
+			width: 4,
+			// The closing terminator sits exactly on the cut and is kept, so the link ends where
+			// its text does rather than running to the end of the screen.
+			want: "\x1b]8;;https://example.com/a/very/long/url\x07link\x1b]8;;\x07" + reset,
+		},
+		{name: "multibyte text counts runes, not bytes", in: "✓✓✓✓✓", width: 3, want: "✓✓✓"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := Truncate(tc.in, tc.width); got != tc.want {
+				t.Errorf("Truncate(%q, %d) = %q, want %q", tc.in, tc.width, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestColumnsPrefersTheEnvironment(t *testing.T) {
+	t.Setenv("COLUMNS", "72")
+	if got := Columns(io.Discard); got != 72 {
+		t.Errorf("Columns = %d, want 72", got)
+	}
+	for _, v := range []string{"", "0", "-1", "wide"} {
+		t.Setenv("COLUMNS", v)
+		// io.Discard is not a file, so there is nothing to ask and no width to invent. A caller
+		// that gets 0 leaves its output alone, which is the safe answer.
+		if got := Columns(io.Discard); got != 0 {
+			t.Errorf("COLUMNS=%q: Columns = %d, want 0", v, got)
+		}
+	}
+}
+
+// An escape this does not understand, or one the line ends in the middle of, must not swallow the
+// rest of the string: a frame cut mid-sequence is what a truncating writer produces, and a reader
+// of it would otherwise lose everything after.
+func TestTruncateSurvivesAMalformedEscape(t *testing.T) {
+	for _, tc := range []struct {
+		name, in string
+		width    int
+		want     string
+	}{
+		{name: "a CSI with no final byte", in: "\x1b[31", width: 4, want: "\x1b[31"},
+		{name: "a hyperlink with no terminator", in: "\x1b]8;;http://x", width: 4, want: "\x1b]8;;http://x"},
+		{name: "an ESC at the very end", in: "ab\x1b", width: 4, want: "ab\x1b"},
+		// Not a sequence this knows, so it costs one cell rather than eating the line.
+		{name: "an escape with no introducer", in: "\x1bXabcd", width: 3, want: "\x1bXab\x1b[0m"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := Truncate(tc.in, tc.width); got != tc.want {
+				t.Errorf("Truncate(%q, %d) = %q, want %q", tc.in, tc.width, got, tc.want)
+			}
+		})
+	}
+}
+
+// Not a terminal, so there is no size to ask for and none is invented.
+func TestColumnsIsZeroForAFileThatIsNotATerminal(t *testing.T) {
+	t.Setenv("COLUMNS", "")
+	f, err := os.CreateTemp(t.TempDir(), "cols")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	if got := Columns(f); got != 0 {
+		t.Errorf("Columns of a regular file = %d, want 0", got)
 	}
 }
