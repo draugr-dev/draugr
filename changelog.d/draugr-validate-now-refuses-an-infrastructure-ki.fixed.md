@@ -1,4 +1,0 @@
-- `draugr validate` now refuses an `infrastructure.kind` Draugr does not audit, and the Saga
-  schema offers the values it does. A kind nothing serves was dropped when jobs were planned, so a
-  component declaring `kind: k8s` was scanned for everything except the infrastructure it named
-  and read as covered.

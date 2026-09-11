@@ -1,6 +1,0 @@
-- `report.json` now records the gate the verdict was judged against, in a `gate` block: the
-  severity threshold, any per-control overrides, the priority band when one is set, and whether
-  `--no-gate` was set. A consumer reading the document could see that a run failed and not which
-  rule produced it, so the answer to "why is this red" lived only in a descriptor that may not
-  travel with the report. The threshold is always written out, including the default, because
-  nothing downstream can look up what our default is.
