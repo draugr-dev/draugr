@@ -34,6 +34,31 @@ Scan results render through a pluggable **Reporter**, selected on the CLI with
 
 `-o/--output <dir>` always writes `report.json` + `results.sarif` regardless of `--format`.
 
+### When two scanners find the same flaw
+
+Both findings stay in the report, with their own rule ids and their own severity, because the
+disagreement between two scanners is the reason to run two. One of them is counted and the others
+are evidence, and every document says which is which:
+
+```console
+$ jq -r '.runs[].results[] | select(.properties.correlation) |
+         "\(.properties.tool)  \(.ruleId)  \(.properties.correlation.countedUnder // "counted")"' results.sarif
+trivy  CVE-2018-1000656  counted
+grype  CVE-2018-1000656-flask  trivy
+```
+
+`properties.correlation.countedUnder` names the scanner whose finding this one is counted under,
+and is what makes it evidence rather than a count. The finding that **is** counted carries
+`alsoFoundBy` instead, with each other tool's own rule id and rating.
+
+**A consumer counting findings should skip the ones with `countedUnder`.** Otherwise enabling a
+second matcher doubles the number with nothing new wrong, which is the arithmetic buyers are told
+to test for: point several scanners at one target and count the tickets. Draugr's own counts,
+its gate and `draugr diff`'s gate all skip them.
+
+SARIF has `suppressions` for the excused case and no field for this one, so it travels in the
+property bag beside `priority` and the rest.
+
 ### Telling a partial run from a clean one
 
 A gate reading `report.json` should check more than `verdict`. A run where a scanner never started
@@ -131,7 +156,7 @@ findings that have one.
 "gate": {
   "threshold": "medium",
   "perControl": {"licenses": "critical"},
-  "failOnPriority": "P1",
+  "failOn": "P1",
   "disabled": true
 }
 ```
@@ -139,7 +164,8 @@ findings that have one.
 `threshold` is the severity band that fails a control, and it is always stated: an unset
 `--fail-on` is written as the default rather than left blank, because nothing downstream can look
 up what our default is. `perControl` are the controls judged against a different band, and each
-`controls[]` entry repeats the one that applied to it. `failOnPriority` is present when a control
+`controls[]` entry repeats the one that applied to it. `failOn` carries a band where the gate asks
+about priority and a severity where it asks about severity, and a control
 also fails on a priority band, which is how a gate reads the component's declared exposure and
 criticality rather than the severity alone. `disabled` is `--no-gate`: the verdict stands and the
 command exits 0 anyway, so anything reading the exit code was told the opposite of what this

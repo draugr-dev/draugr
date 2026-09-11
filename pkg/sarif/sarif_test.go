@@ -1182,3 +1182,63 @@ func TestMergingKeepsOneEntryPerSignal(t *testing.T) {
 		t.Errorf("merged consulted = %+v, want kev then epss", merged.Consulted)
 	}
 }
+
+// A correlated copy has to survive the file. Every counter inside Draugr skips one; a consumer
+// reading the document had no way to, so a project enabling a second matcher saw its alert count
+// double while the console said the number had not moved.
+func TestCorrelationSurvivesTheFile(t *testing.T) {
+	in := Report{Tool: "trivy", Results: []Result{
+		{
+			RuleID: "CVE-1", Level: LevelError, Tool: "trivy", Priority: "P1",
+			Correlation: &Correlation{AlsoFoundBy: []Observation{
+				{Tool: "grype", RuleID: "CVE-1-flask", Severity: SeverityHigh},
+			}},
+		},
+		{
+			RuleID: "CVE-1-flask", Level: LevelError, Tool: "grype", Priority: "P1",
+			Correlation: &Correlation{CountedUnder: "trivy"},
+		},
+	}}
+	data, err := in.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Written where a consumer can find it, beside the other facts Draugr adds.
+	if !strings.Contains(string(data), `"countedUnder"`) {
+		t.Fatalf("the copy is not marked in the document:\n%s", data)
+	}
+
+	out, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Results) != 2 {
+		t.Fatalf("got %d results, want both: nothing is dropped", len(out.Results))
+	}
+	// Correlated() is what every counter asks, so that is what has to be true on the way back.
+	if out.Results[0].Correlated() {
+		t.Error("the counted finding came back as a copy")
+	}
+	if !out.Results[1].Correlated() {
+		t.Error("the copy came back as something to count, which is the doubling this fixes")
+	}
+	// And the other scanner's account of the flaw, which is the reason to run two.
+	also := out.Results[0].Correlation.AlsoFoundBy
+	if len(also) != 1 || also[0].Tool != "grype" || also[0].Severity != SeverityHigh {
+		t.Errorf("alsoFoundBy = %+v, want grype's own rating", also)
+	}
+}
+
+// A finding nothing else reported carries no correlation, so a reader scanning for copies finds the
+// key only where one exists.
+func TestAnUncorrelatedFindingCarriesNothing(t *testing.T) {
+	data, err := Report{Tool: "trivy", Results: []Result{
+		{RuleID: "CVE-1", Level: LevelError, Tool: "trivy"},
+	}}.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), `"correlation"`) {
+		t.Errorf("a finding only one scanner reported claims a correlation:\n%s", data)
+	}
+}

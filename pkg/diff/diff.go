@@ -265,6 +265,14 @@ func (r Result) GateNew(failOn sarif.Severity, failOnPriority string) []sarif.Re
 	wantPriority := failOnPriority != ""
 	prioRank := prioritization.Priority(failOnPriority).Rank()
 	for _, f := range r.New {
+		// A second scanner's copy of a flaw already counted is not a new finding to gate on. It
+		// reaches this list the day somebody enables a second matcher, and failing a pull request
+		// over nine copies of nine vulnerabilities that were already there teaches people to turn
+		// the matcher off. The copies stay in the diff's own counts, because nothing is deleted;
+		// they are just not what the gate is asking about.
+		if f.Correlated() {
+			continue
+		}
 		if wantSeverity && f.Severity("").AtLeast(failOn) {
 			tripped = append(tripped, f)
 			continue

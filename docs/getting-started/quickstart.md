@@ -105,7 +105,8 @@ Useful flags:
 
 ```bash
 draugr scan draugr.saga.yaml -o out/            # write out/report.json + out/results.sarif
-draugr scan draugr.saga.yaml --fail-on medium   # stricter gate (default: high)
+draugr scan draugr.saga.yaml --fail-on P2      # widen the gate from the default, P1
+draugr scan draugr.saga.yaml --fail-on medium  # or judge severity instead of the band
 draugr scan draugr.saga.yaml --cache-dir .draugr/cache   # skip re-scanning unchanged targets
 draugr scan draugr.saga.yaml --min-priority P2  # list only the findings worth acting on now
 draugr scan draugr.saga.yaml --fail-on-priority P1  # also fail the gate on any P1 finding

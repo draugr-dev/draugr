@@ -28,7 +28,7 @@ config:
   gate:
     # A run has one gate, and there are two questions it could ask.
     #
-    # Leave this block out entirely and the gate is `failOnPriority: P1`: the band a finding lands
+    # Leave this block out entirely and the gate is `failOn: P1`: the band a finding lands
     # in for the component it was found in, which folds in the exposure and criticality declared
     # below. That is the ranking Draugr computes, and the one it judges by unless told otherwise.
     #
