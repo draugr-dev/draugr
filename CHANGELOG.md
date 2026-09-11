@@ -12,6 +12,122 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.116.0] - 2026-09-11
+
+### Added
+
+- `draugr scan` refuses a gate the descriptor's own classifications cannot produce, instead of
+  passing every run in silence. A component declared `restricted` and `important` ranks a critical
+  finding `P2`, so a gate on `P1` there could never fire; the message names the classification,
+  the band it does reach, and the three things you can do about it. Where only some components are
+  out of reach the run says so and continues. A control that declares a priority floor keeps its
+  band reachable, so enabling `secrets` on a restricted component is not reported as a dead gate.
+
+- `report.json` now records the gate the verdict was judged against, in a `gate` block: the
+  severity threshold, any per-control overrides, the priority band when one is set, and whether
+  `--no-gate` was set. A consumer reading the document could see that a run failed and not which
+  rule produced it, so the answer to "why is this red" lived only in a descriptor that may not
+  travel with the report. The threshold is always written out, including the default, because
+  nothing downstream can look up what our default is.
+
+### Changed
+
+- A publisher that cannot use anything you render is refused when the descriptor loads, not after
+  the scan. `config.publishers: [{kind: github}]` with no `sarif` under `config.reports` used to
+  cost a whole pipeline to discover, and the message came from the publisher, telling you to go
+  and edit a different block. Each publisher now declares the formats it delivers, `draugr
+  validate` and `draugr scan` both check the pairing up front, and the reference table says what
+  each one needs.
+
+- **A run has one gate, written in one field.** `config.gate.failOn` and `--fail-on` now take
+  either vocabulary: a priority band (`P1`-`P4`), which folds in the exposure and criticality your
+  descriptor declares, or a severity (`critical`, `high`, `medium`, `low`), which is what the
+  scanner called the flaw on its own terms. One field rather than two, so writing both is not
+  expressible, a verdict with two possible reasons cannot be read back to the rule that produced
+  it. `config.gate.controls` takes the same vocabulary as the gate it refines, and `draugr diff`'s
+  `--fail-on-new` works the same way. `failOnPriority`, `--fail-on-priority` and
+  `--fail-on-new-priority` are the older spellings of the band and still work.
+
+- **Concept and how-to pages describe the console rather than paste a run.** A pasted scan carries
+  package names and counts that go stale with nothing noticing, so `what-to-fix-first` and
+  `caching-and-performance` now say what the shape is. `TestEveryPasteOfTheConsoleIsTracked` keeps
+  the pages that do paste on the list a layout change refreshes.
+
+- `config.controls` replaces `config.controllers`, and `controls:` replaces `controllers:` on a
+  component. It is the word every other surface uses: `draugr controls` lists them, the catalog
+  names them, every concept behind a `?` calls them controls, and `config.gate.controls` said it
+  already, seventeen lines from the key that did not. The older spelling still loads and is folded
+  into the new one when a descriptor is read, so no existing descriptor breaks.
+
+- `config.gate.failOn` is new: a descriptor could set per-control thresholds and a priority band
+  and not the threshold that failed most of its builds, which was settable only as a flag every
+  pipeline had to remember and nothing reviewed.
+
+- **One separator throughout the output.** Reports separate a label from what follows with `·`,
+  the separator the rest of the output already used, in place of an em dash: `Draugr · FAIL`, `Fix
+  first · 5 actions clear 6 findings`, `↑ ranked as critical · on KEV`. Error messages read as
+  sentences rather than clauses joined by a dash. Anything parsing the console text should read
+  the machine formats instead.
+
+- **The default gate is now the priority band `P1`, not `high` severity.** Severity rates a flaw
+  in the abstract; priority folds in the exposure and criticality your descriptor declares, which
+  is context no scanner can compute, and it is the ranking Draugr exists to produce. On a
+  component that declares nothing, `P1` catches exactly what `--fail-on high` caught. On a
+  component you have classified, the gate now follows what you said about it.
+
+- Your editor now completes `config.reachability.analyzers` and flags a name Draugr does not have,
+  instead of accepting any string. The schema is generated from the same registry the planner
+  reads, so a new analyzer is offered the moment it is registered.
+
+### Fixed
+
+- A descriptor error now names the key you wrote. A misspelling under `config.gate` reported
+  `unknown field "failOnn" in gateconfig`, a word that appears nowhere in a descriptor, in the
+  reference, or in the page the message links to. It now says `in config.gate`, which is the
+  heading that page is indexed by, for every section of the file.
+
+- `draugr validate` now refuses an `infrastructure.kind` Draugr does not audit, and the Saga
+  schema offers the values it does. A kind nothing serves was dropped when jobs were planned, so a
+  component declaring `kind: k8s` was scanned for everything except the infrastructure it named
+  and read as covered.
+
+- `report.json`'s `gate` block names one gate. It filled in `"threshold": "high"` whenever no
+  severity threshold was set, so a run judged on the priority band wrote a document claiming both:
+  the console said `Gate: fails on P1.` and the file said
+  `{"threshold":"high","failOnPriority":"P1"}`. Exactly one of the two is present now, whichever
+  the run actually asked.
+
+- `report.json`'s priority counts are what the gate judged. They counted findings a
+  `config.exclude` rule had set aside, and counted a flaw twice when two scanners both found it,
+  so the console and `report.json` reported different numbers for one run: enabling the opt-in
+  second matcher took a project from 4 P1 to 8 with nothing new wrong. Excused findings are now
+  counted apart in a `suppressed` block rather than dropped, and each entry in `findings` says
+  whether it was excused, with the reason and who accepted it.
+
+- `results.sarif` marks a finding that is a second scanner's copy of a flaw already counted, with
+  `properties.correlation.countedUnder`, and the counted one carries `alsoFoundBy` with each other
+  tool's own rule id and rating. Nothing in the file said which was which, so GitHub code scanning
+  opened eighteen alerts for nine vulnerabilities and dismissing one left its twin open under the
+  other tool's rule id. `draugr diff`'s gate now skips the copies too: a pull request should not
+  fail over findings that arrived because somebody enabled a second matcher.
+
+- The `draugr diff` help and the reference now describe one gate. `--fail-on-new` takes a priority
+  band or a severity, `--fail-on-new-priority` is deprecated alongside `--fail-on-priority`, and
+  the examples that still wrote the deprecated spelling write the current one.
+
+- The progress display no longer erases lines it did not draw. On a window narrow enough to wrap
+  one of its rows, each repaint moved the cursor up one row short and cleared whatever was above,
+  so a scan quietly ate the output that was on screen before it started. Rows are now cut to the
+  window.
+
+### Security
+
+- Upgraded `google.golang.org/grpc` to 1.83.2, which fixes CVE-2026-84445: a gRPC-Go xDS server
+  could be crashed by a request missing its `:authority` and `Host` headers. It reaches Draugr as
+  an indirect dependency of the OpenTelemetry OTLP exporter, and Draugr runs no xDS server, so
+  nothing here was exploitable; the dependency is upgraded because a known-vulnerable version in
+  the tree is a finding Draugr would report on anybody else.
+
 ## [0.115.0] - 2026-09-06
 
 ### Added
@@ -5242,7 +5358,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.115.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.116.0...HEAD
+[0.116.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.116.0
 [0.115.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.115.0
 [0.114.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.114.0
 [0.113.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.113.0
