@@ -97,7 +97,7 @@ Set `feeds: true` when the descriptor asks for KEV or EPSS from the cache:
     saga: draugr.saga.yaml
     tools: true
     feeds: true          # draugr feeds update, before the scan
-    fail-on-priority: P1
+    fail-on: P1
 ```
 
 ```yaml
