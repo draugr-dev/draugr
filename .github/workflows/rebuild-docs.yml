@@ -5,7 +5,7 @@ name: Rebuild docs site
 # This runs automatically whenever `docs/` changes on `main`. It has to: the site's `next`
 # version is *built from* `main`, but Cloudflare only rebuilds when something tells it to, and
 # until this trigger existed the only things that did were a release and a human. That made
-# `next` silently identical to `latest` — a docs page could sit merged and unpublished for as
+# `next` silently identical to `latest`, a docs page could sit merged and unpublished for as
 # long as it took to cut the next release, which is exactly the staleness the versioned docs
 # were meant to prevent. `latest` still comes from the newest release tag (see release.yml).
 #

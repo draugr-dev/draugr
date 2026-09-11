@@ -685,8 +685,8 @@ func TestTheDocumentStatesTheGateItWasJudgedAgainst(t *testing.T) {
 
 func TestTheDefaultGateIsWrittenOutRatherThanLeftBlank(t *testing.T) {
 	// Nothing named is the default, which is the band. Written out rather than left blank,
-	// because nothing downstream can look up what our default happens to be — and written as the
-	// band it is, not as a severity threshold nobody chose.
+	// because nothing downstream can look up what our default happens to be, and written as the
+	// band it is rather than as a severity threshold nobody chose.
 	got := describeGate(&Gate{Disabled: true})
 	if got.FailOnPriority != norn.DefaultPriority {
 		t.Errorf("failOnPriority = %q, want the default written out", got.FailOnPriority)
@@ -715,9 +715,9 @@ func TestAGateNobodyStatedIsAbsentRatherThanDefaulted(t *testing.T) {
 	}
 }
 
-// The priority counts are what the gate judged. Every other counter here already worked that way —
+// The priority counts are what the gate judged. Every other counter here already worked that way,
 // `Counts()` and the gate's own `highestPriority` both skip a suppressed finding and a second
-// scanner's copy of one already counted — and this one counted everything, so the console and
+// scanner's copy of one already counted, and this one counted everything, so the console and
 // report.json gave different numbers for one run.
 
 func TestPrioritiesCountWhatTheGateJudges(t *testing.T) {

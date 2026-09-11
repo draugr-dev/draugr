@@ -18,8 +18,8 @@ import (
 // With one field the contradiction is not expressible, which is a better guarantee than an error
 // message about it.
 //
-// The two vocabularies do not overlap — P1 through P4 against critical, high, medium, low, plus
-// the SARIF levels a gate used to take — so a value says which it is without being told.
+// The two vocabularies do not overlap, P1 through P4 against critical, high, medium, low, plus
+// the SARIF levels a gate used to take, so a value says which it is without being told.
 
 // GateKind is which question a threshold asks.
 type GateKind int

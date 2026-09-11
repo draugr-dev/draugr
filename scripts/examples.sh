@@ -10,7 +10,7 @@
 # repository. This does: run it, read the output, paste what changed.
 #
 # Deliberately not run in CI. It clones a repo, downloads Trivy's database and takes a minute or
-# two — and a job that rewrites documentation prose automatically would produce the kind of
+# two, and a job that rewrites documentation prose automatically would produce the kind of
 # unreviewed churn the goldens exist to prevent.
 
 set -euo pipefail
@@ -18,11 +18,11 @@ set -euo pipefail
 DEMO_REPO="${DEMO_REPO:-https://github.com/draugr-dev/draugr-demo}"
 DRAUGR="${DRAUGR:-$(cd "$(dirname "$0")/.." && pwd)/bin/draugr}"
 
-[ -x "$DRAUGR" ] || { echo "no draugr binary at $DRAUGR — run 'make build' first" >&2; exit 1; }
+[ -x "$DRAUGR" ] || { echo "no draugr binary at $DRAUGR, run 'make build' first" >&2; exit 1; }
 
 for tool in trivy gitleaks semgrep; do
   command -v "$tool" >/dev/null 2>&1 || {
-    echo "warning: $tool is not on PATH — that control will report an error instead of findings" >&2
+    echo "warning: $tool is not on PATH, that control will report an error instead of findings" >&2
   }
 done
 
@@ -31,7 +31,7 @@ trap 'rm -rf "$workdir"' EXIT
 
 # The directory name matters: with no Saga present, `draugr scan .` names the release after the
 # directory, and that name is in every example. Clone into draugr-demo so the output can be
-# pasted verbatim — and so it matches the screenshot, which records the same sandbox.
+# pasted verbatim, and so it matches the screenshot, which records the same sandbox.
 echo "Cloning the demo sandbox…" >&2
 git clone --quiet --depth 1 "$DEMO_REPO" "$workdir/draugr-demo"
 
@@ -52,5 +52,5 @@ cat >&2 <<'EOF'
 
 
 Done. The README and docs/concepts/verdict-and-gating.md quote abridged versions of the first
-block — keep the abridgement, refresh the numbers and any column that moved.
+block, keep the abridgement, refresh the numbers and any column that moved.
 EOF

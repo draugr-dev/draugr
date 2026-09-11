@@ -1,7 +1,7 @@
 # Rebuild draugr.dev when the demo assets change.
 #
 # The site fetches the home page's terminal block from this repository's `main` at build time,
-# rather than keeping a copy — a second copy is a copy that goes stale. That leaves one ordering
+# rather than keeping a copy, a second copy is a copy that goes stale. That leaves one ordering
 # problem, which release.yml cannot solve on its own: the render job runs *after* GoReleaser, and
 # the pull request it opens waits for a human. So the rebuild that release.yml triggers happens
 # minutes before the new block exists, and the site shows the previous release's numbers until
@@ -33,7 +33,7 @@ jobs:
   rebuild:
     runs-on: ubuntu-latest
     steps:
-      # No-ops rather than failing when the secret is absent, so forks stay green — the same
+      # No-ops rather than failing when the secret is absent, so forks stay green, the same
       # treatment release.yml gives it.
       - name: Trigger the site rebuild
         env:

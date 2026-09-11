@@ -55,16 +55,33 @@ func checkReportNames(model *saga.Model) error {
 	for _, k := range publish.Kinds() {
 		kinds[k] = true
 	}
+	declared := map[string]bool{}
+	for _, r := range model.Config.Reports {
+		declared[r.Format] = true
+	}
 	for i, p := range model.Config.Publishers {
-		if p.Kind == "" || kinds[p.Kind] {
-			continue // an empty kind is the descriptor's own check, and already reported
+		if p.Kind == "" {
+			continue // the descriptor's own check reports this
 		}
-		msg := fmt.Sprintf("config.publishers[%d].kind: %q is not a publisher this build of Draugr has",
-			i, p.Kind)
-		if near := nearestName(p.Kind, kinds); near != "" {
-			msg += fmt.Sprintf(", did you mean %q?", near)
+		if !kinds[p.Kind] {
+			msg := fmt.Sprintf("config.publishers[%d].kind: %q is not a publisher this build of Draugr has",
+				i, p.Kind)
+			if near := nearestName(p.Kind, kinds); near != "" {
+				msg += fmt.Sprintf(", did you mean %q?", near)
+			}
+			problems = append(problems, msg)
+			continue
 		}
-		problems = append(problems, msg)
+		// A destination that cannot use anything rendered delivers nothing, and says so after the
+		// scanners have finished. The descriptor already contains both halves of that answer.
+		for _, f := range publish.Requires(p.Kind) {
+			if declared[f] {
+				continue
+			}
+			problems = append(problems, fmt.Sprintf(
+				"config.publishers[%d]: the %s publisher delivers a %q report and config.reports "+
+					"declares none. Add `- format: %s`", i, p.Kind, f, f))
+		}
 	}
 
 	if len(problems) == 0 {

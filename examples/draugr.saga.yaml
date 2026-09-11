@@ -1,4 +1,4 @@
-# Example Saga — the declarative account of your app's security surface.
+# Example Saga, the declarative account of your app's security surface.
 # Run it with:  draugr scan examples/draugr.saga.yaml
 # (Requires Trivy on your PATH for the images control.)
 
@@ -11,13 +11,13 @@ release:
 # (or enabled on a component below). Run `draugr controls` for the full list.
 config:
   # What a scanner may do beyond reading a target. A scanner that would do more than read
-  # declares it, and Draugr refuses to run it unless the effect is listed here — so nothing
+  # declares it, and Draugr refuses to run it unless the effect is listed here, so nothing
   # below needs this line, and it is commented out.
   #
   # Two kinds require consent. `mutate` creates or changes something that outlives the scan:
   # kube-bench runs a short-lived Job in your cluster and deletes it, and the Mend connectors
   # create a project in your Mend account. `privilege` means a scanner needs more access than a
-  # reader — the same kube-bench Job mounts host paths read-only to read a node's configuration.
+  # reader, the same kube-bench Job mounts host paths read-only to read a node's configuration.
   #
   # It applies to everything this descriptor points at. A scan that may do different things to
   # different targets is a second descriptor.
@@ -57,11 +57,11 @@ config:
     images:
       enabled: true          # container images (Trivy)
       # grype:
-      #   enabled: true      # a second matcher beside Trivy — see sca.grypeFs below for the trade
+      #   enabled: true      # a second matcher beside Trivy, see sca.grypeFs below for the trade
     sca:
       enabled: true          # dependencies (Trivy fs)
       # retirejs:
-      #   enabled: true      # retire.js, for JavaScript that never reaches a lockfile — a library
+      #   enabled: true      # retire.js, for JavaScript that never reaches a lockfile, a library
       #                      # pulled from a CDN, a vendored .js under static/, bundled output
       #                      # shipped without its manifest. A repository serving a five-year-old
       #                      # jQuery scans clean without it. Needs `npm install -g retire`
@@ -71,7 +71,7 @@ config:
       #                      # is a statement about coverage neither makes alone.
       #                      # Two things to expect. Counts rise: a flaw both find is reported
       #                      # twice, once under each tool's rule id. And an exclusion needs a
-      #                      # trailing `*` to cover both — Grype names the package in its rule id
+      #                      # trailing `*` to cover both, Grype names the package in its rule id
       #                      # (CVE-2020-14343-pyyaml) where Trivy does not, so
       #                      # rules: ["CVE-2020-14343"] suppresses one and leaves the other
       # trivyFs:
@@ -83,25 +83,25 @@ config:
       # gitleaks:
       #   config: security/gitleaks.toml   # a ruleset shared across repositories; a
       #                                    # .gitleaks.toml committed in a repo is used anyway
-      #   history: true      # also scan commit history — a secret removed from the tip is still
+      #   history: true      # also scan commit history, a secret removed from the tip is still
       #                      # fetchable, so it is still compromised. Needs a full clone, so it
       #                      # suits a nightly sweep more than a per-pull-request gate
     licenses:
       enabled: true          # license terms in the dependency tree (Trivy), in repositories AND
-                             # in images — the question has no target kind in it, and an obligation
+                             # in images, the question has no target kind in it, and an obligation
                              # inside an image you only run is still yours if you ship or serve it
       deny: ["AGPL-3.0-only", "SSPL-1.0"]   # fail the gate
       warn: ["GPL-3.0-only", "MPL-2.0"]     # report, do not fail
       # trivyLicense:
       #   full: true         # also read LICENSE files and source headers, not just package
-      #                      # metadata. Finds licenses no manifest declares — vendored code, a
-      #                      # pasted snippet — and walks every file to do it, so it suits a
+      #                      # metadata. Finds licenses no manifest declares, vendored code, a
+      #                      # pasted snippet, and walks every file to do it, so it suits a
       #                      # release or a diligence pass more than a per-pull-request gate
     sast:
       enabled: true          # first-party source (Semgrep)
       # gosec:
       #   enabled: true      # opt-in extra Go analyzer
-      #   exclude: [G104]    # rules that do not apply here — for a finding you have judged,
+      #   exclude: [G104]    # rules that do not apply here, for a finding you have judged,
       #                      # use config.exclude, which keeps it in the report as suppressed
       # semgrep:
       #   config: p/owasp-top-ten   # point Semgrep at your own ruleset
@@ -117,14 +117,14 @@ config:
     infrastructure:
       enabled: true          # Kubernetes cluster posture (native policies; kube-bench is opt-in).
                              # nightly-etl declares one below, and a surface no control looks at
-                             # is a component that passes without being examined —
+                             # is a component that passes without being examined,
                              # `draugr doctor` reports that, and --fail-on-uncovered enforces it
     # dast:
-    #   enabled: true        # runtime probing of hosts (Nuclei) — scans a live endpoint
+    #   enabled: true        # runtime probing of hosts (Nuclei), scans a live endpoint
 
 components:
   # A public web app: source, the image it builds, and the endpoint it serves.
-  # exposure + criticality are what turn severities into P1–P4 — see the prioritization docs.
+  # exposure + criticality are what turn severities into P1–P4, see the prioritization docs.
   - name: web
     exposure: public         # public | authenticated | internal | restricted
     criticality: critical    # critical | important | supporting
@@ -147,7 +147,7 @@ components:
         # tells you to do about a vulnerable package inside it: nobody can upgrade a library in an
         # image they do not build, so the fix is a newer image or a wait for whoever ships it.
         # Advice you cannot take, at the top of a list called "fix first", teaches you the list is
-        # not worth reading — so declare this on every base and sidecar image you did not build.
+        # not worth reading, so declare this on every base and sidecar image you did not build.
     hosts:
       - name: web-ui-staging
         url: https://staging.app.example.com
@@ -158,7 +158,7 @@ components:
 
   # An internal API: no image here, and its endpoint is typed `api` so browser-only
   # header checks don't fire.
-  # A component built from more than one repository — the shared client lives on its own, and
+  # A component built from more than one repository, the shared client lives on its own, and
   # both are scanned. Every control runs once per repository, and the findings merge into one
   # component's result.
   - name: api
@@ -173,7 +173,7 @@ components:
         type: api            # skips browser-only headers
         auth:                # how to authenticate the probe; omit to probe anonymously
           type: bearer       # bearer (Authorization: Bearer <token>) | header
-          tokenEnv: API_TOKEN   # the environment variable holding it — never the token itself
+          tokenEnv: API_TOKEN   # the environment variable holding it, never the token itself
           # type: header
           # header: X-API-Key
         spec:                # drive the scan from an OpenAPI document instead of crawling
@@ -181,13 +181,13 @@ components:
           methods: [GET, HEAD, POST]   # empty means GET and HEAD only
           # A specification lists POST, PUT and DELETE too, and a scanner handed one will
           # exercise them. A scan of a staging API that deletes its own fixtures is a scan
-          # nobody runs twice — so a write method is listed here or it is not exercised.
+          # nobody runs twice, so a write method is listed here or it is not exercised.
 
   # A component that is entirely somebody else's software: a vendor console we run and do not
   # maintain. `builtBy` on the component covers every target under it, so a repository or image
   # added later does not silently default back to being ours.
   #
-  # It changes what the report tells you to do and nothing else — the findings keep their severity
+  # It changes what the report tells you to do and nothing else, the findings keep their severity
   # and their band, are still counted, and still reach the gate. A denied license in the dependency
   # tree of a repository we do not publish is not a license we chose and not one we can swap out:
   # the answers are to stop using the console or to record an exception, and "change the code" is
@@ -195,7 +195,7 @@ components:
   - name: analytics-console
     exposure: internal
     criticality: supporting
-    builtBy: upstream        # self (default) | upstream — for every target below
+    builtBy: upstream        # self (default) | upstream, for every target below
     repositories:
       - url: https://github.com/vendor/console.git
       - url: https://github.com/acme/console-config.git
@@ -219,7 +219,7 @@ components:
         operatedBy: provider     # self (default) | provider, for a managed service
         # It states a fact rather than a judgement: on a managed cluster the provider runs the
         # control plane, the API server and etcd. RBAC, Pod Security and network policy stay
-        # yours, and those are usually the findings that matter — so this narrows what it
+        # yours, and those are usually the findings that matter, so this narrows what it
         # excuses rather than marking the whole cluster somebody else's problem.
 
 # Links to human-performed controls, recorded alongside the automated ones.

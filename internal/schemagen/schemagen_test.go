@@ -404,7 +404,7 @@ func TestHandWrittenEnumsMatchTheirSource(t *testing.T) {
 		},
 		{
 			// One threshold in either vocabulary: a priority band, or a severity. Plus the SARIF
-			// levels still accepted for descriptors written against the older words — the schema
+			// levels still accepted for descriptors written against the older words, the schema
 			// must not be stricter than the loader, which is the same failure as being looser,
 			// arrived at from the other side.
 			name: "gate thresholds",

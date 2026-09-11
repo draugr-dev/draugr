@@ -13,7 +13,7 @@ import (
 
 // The gate is the answer Draugr exists to give, and nothing here ran it end to end. Every test
 // above this one asserts what was *found*; none asserted what was *decided*, so the path from a
-// real scanner's output through a threshold to an exit code had no coverage at all — which is the
+// real scanner's output through a threshold to an exit code had no coverage at all, which is the
 // path three of this product's bugs lived on.
 //
 // Real scanners, a real repository, a real verdict. Gitleaks is the reliable producer (offline,
@@ -56,7 +56,7 @@ func TestTheGateDecidesAndSaysWhy(t *testing.T) {
 		},
 		{
 			// The same finding, judged on its severity instead. A private key is error-level, so
-			// a gate set to critical does not catch it — and that is the point: the two questions
+			// a gate set to critical does not catch it, and that is the point: the two questions
 			// give different answers about one finding.
 			name:     "a severity gate asks the other question",
 			gate:     "    failOn: critical\n",

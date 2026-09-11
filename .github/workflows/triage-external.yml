@@ -1,7 +1,7 @@
 # Label anything opened from outside the org, so it can be found without remembering to look.
 #
 # A public project's first external issue arrives among a hundred of the maintainers' own, and it
-# is the one that most rewards a fast reply — someone spent their time on a tool they do not have
+# is the one that most rewards a fast reply, someone spent their time on a tool they do not have
 # to use. A filter over authors finds them, but only if you think to run it. A label puts them in
 # every list, every project view and every notification without anyone deciding to go looking.
 #
@@ -9,7 +9,7 @@
 # CONTRIBUTOR, FIRST_TIME_CONTRIBUTOR, FIRST_TIMER and NONE are not.
 #
 # It is not sufficient on its own. GitHub computes it from **public** org membership, so a
-# maintainer whose membership is private comes through as CONTRIBUTOR — they have commits — and
+# maintainer whose membership is private comes through as CONTRIBUTOR, because they have commits, and
 # every issue they file gets tagged as coming from outside. That is worse than missing the label:
 # the one view meant to surface strangers fills with the maintainers' own work, and a label that
 # is usually wrong is a label nobody reads.
