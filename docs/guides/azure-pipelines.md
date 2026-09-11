@@ -83,7 +83,7 @@ Everything else defaults from the pipeline environment, and off a pull request i
 the same descriptor works on push builds and on a laptop. `SYSTEM_ACCESSTOKEN` must be mapped into
 the step (the template does this); Azure does not expose it to scripts by default.
 
-`config.reports` is what publishers render; `--report` is what gets written to disk. Different
+`config.publishers` is what a destination delivers; `--report` is what gets written to disk. Different
 destinations, so the `markdown` entry above is what the comment needs regardless of `--report`.
 
 If a branch policy requires all comments resolved before merging, someone has to resolve Draugr's

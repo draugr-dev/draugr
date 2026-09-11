@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -15,7 +16,8 @@ func publisherKindsForTest() []string { return publish.Kinds() }
 // `validate` answers "will this descriptor work", and said yes to one that fails every run.
 func TestValidateRejectsAFormatThisBuildDoesNotHave(t *testing.T) {
 	err := checkReportNames(&saga.Model{Config: saga.Config{
-		Reports: []saga.ReportConfig{{Format: "sarif"}, {Format: "jsonn"}},
+		Publishers: []saga.PublisherConfig{{Kind: "file", Dir: "./out",
+			Reports: []saga.ReportConfig{{Format: "sarif"}, {Format: "jsonn"}}}},
 	}})
 	if err == nil {
 		t.Fatal("an unrenderable format validated cleanly")
@@ -52,12 +54,18 @@ func TestValidateAcceptsWhatThisBuildActuallyHas(t *testing.T) {
 	for _, f := range append(reportFormatsForTest(), "template") {
 		reports = append(reports, saga.ReportConfig{Format: f})
 	}
+	// Every kind, each carrying every format, and each distinguished from the next so the
+	// duplicate check does not fire on a list whose point is coverage.
 	var publishers []saga.PublisherConfig
-	for _, k := range publisherKindsForTest() {
-		publishers = append(publishers, saga.PublisherConfig{Kind: k})
+	for i, k := range publisherKindsForTest() {
+		publishers = append(publishers, saga.PublisherConfig{
+			Kind: k, Dir: fmt.Sprintf("./out-%d", i), Repo: fmt.Sprintf("acme/r%d", i),
+			Marker: fmt.Sprintf("<!-- %d -->", i), URL: fmt.Sprintf("https://h%d.example", i),
+			Reports: reports,
+		})
 	}
 	if err := checkReportNames(&saga.Model{Config: saga.Config{
-		Reports: reports, Publishers: publishers,
+		Publishers: publishers,
 	}}); err != nil {
 		t.Errorf("validate rejects something this build provides: %v", err)
 	}
@@ -67,10 +75,12 @@ func TestValidateAcceptsWhatThisBuildActuallyHas(t *testing.T) {
 // too, so this must not double up on it.
 func TestValidateOnEmptyNames(t *testing.T) {
 	err := checkReportNames(&saga.Model{Config: saga.Config{
-		Reports:    []saga.ReportConfig{{Format: ""}},
-		Publishers: []saga.PublisherConfig{{Kind: ""}},
+		Publishers: []saga.PublisherConfig{
+			{Kind: "file", Dir: "./out", Reports: []saga.ReportConfig{{Format: ""}}},
+			{Kind: ""},
+		},
 	}})
-	if err == nil || !strings.Contains(err.Error(), "config.reports[0].format is required") {
+	if err == nil || !strings.Contains(err.Error(), "config.publishers[0].reports[0].format is required") {
 		t.Errorf("a missing format should be named: %v", err)
 	}
 	if err != nil && strings.Contains(err.Error(), "config.publishers[0].kind:") {

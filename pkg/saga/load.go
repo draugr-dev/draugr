@@ -146,6 +146,11 @@ var removedFields = map[string]string{
 		"the value there, `project: payments-api`, and a release keeps only its version",
 	"release.stage": "nothing read it, so deleting the line changes no result. " +
 		"Where a scan is pointed is a property of the target, not of the release",
+	"config.reports": "a report is rendered for a destination, so it is named on the one that " +
+		"takes it. Move each entry under the `config.publishers` entry it was for, which is also " +
+		"where `filename` and `minPriority` now mean something. For local artifacts with no " +
+		"destination, `-o <dir>` writes report.json and results.sarif, and `--report <format>` " +
+		"adds to them",
 	"components[].hosts.environment":          environmentRemoved,
 	"components[].infrastructure.environment": environmentRemoved,
 }

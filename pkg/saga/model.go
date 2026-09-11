@@ -54,9 +54,6 @@ type Config struct {
 	// Deprecated: write `controls`. Folded into Controls when a descriptor loads, so nothing else
 	// has to know both names.
 	Controllers map[string]ControllerSettings `yaml:"controllers,omitempty"`
-	// Reports are the report formats to render on a scan (e.g. json, sarif, markdown, html).
-	// Publishers deliver every rendered report to a destination.
-	Reports []ReportConfig `yaml:"reports,omitempty"`
 	// Publishers are the destinations that rendered reports are delivered to.
 	Publishers []PublisherConfig `yaml:"publishers,omitempty"`
 	// Gate tunes the pass/fail thresholds. Policy belongs in the descriptor rather than in a

@@ -45,7 +45,7 @@ func deliver(
 		Generated: time.Now(),
 		Version:   reportVersion(),
 	}
-	if err := publish.Run(ctx, model.Config.Reports, model.Config.Publishers, data); err != nil {
+	if err := publish.Run(ctx, model.Config.Publishers, data); err != nil {
 		return nil, err
 	}
 	return deliveryLines(model), nil

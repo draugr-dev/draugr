@@ -59,13 +59,16 @@ func (m *Model) Validate() error {
 	errs = append(errs, validateComponents(m.Components)...)
 	errs = append(errs, m.Config.AllowEffects.validate()...)
 
-	for i, r := range m.Config.Reports {
-		if r.Format == "" {
-			errs = append(errs, fmt.Errorf("config.reports[%d].format is required", i))
-		}
-		if r.MinPriority != "" && !slices.Contains(Priorities, r.MinPriority) {
-			errs = append(errs, fmt.Errorf("config.reports[%d].minPriority is %q, but a priority band is one of %v",
-				i, r.MinPriority, Priorities))
+	for i, p := range m.Config.Publishers {
+		for j, r := range p.Reports {
+			if r.Format == "" {
+				errs = append(errs, fmt.Errorf("config.publishers[%d].reports[%d].format is required", i, j))
+			}
+			if r.MinPriority != "" && !slices.Contains(Priorities, r.MinPriority) {
+				errs = append(errs, fmt.Errorf(
+					"config.publishers[%d].reports[%d].minPriority is %q, but a priority band is one of %v",
+					i, j, r.MinPriority, Priorities))
+			}
 		}
 	}
 	if g := m.Config.Gate; g != nil {

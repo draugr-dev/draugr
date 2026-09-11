@@ -29,25 +29,24 @@ config:
     secrets:
       enabled: true
 
-  reports:
-    # Both are required, and they travel differently.
-    #
-    # `json` is the run, the release, the verdict, the controls, the counts. Small, always, and it
-    # goes in the request.
-    #
-    # `sarif` is the evidence, and it never goes through the API at all: the server answers with a
-    # URL and Draugr uploads it straight there. At roughly 2.5 KB per finding, a descriptor
-    # covering twenty images is around 20 MB before anything unusual happens, and a request body is
-    # the wrong place for that.
-    - format: json
-    - format: sarif
-
   publishers:
     # Keep the file publisher alongside it. The server is where the history lives; the local files
     # are what a developer opens when a build fails.
     - kind: file
       dir: ./.draugr/out
+      reports:
+        - format: json
+        - format: sarif
     - kind: draugr-api
+      # Nothing else. The server needs the run report and the evidence, neither is a choice
+      # anybody makes, and this publisher renders both for itself.
+      #
+      # They travel differently, which is why it is one destination and two documents. `json` is
+      # the run, the release, the verdict, the controls and the counts: small, always, and it goes
+      # in the request. `sarif` is the evidence, and it never goes through the API at all, the
+      # server answers with a URL and Draugr uploads it straight there. At roughly 2.5 KB per
+      # finding, a descriptor covering twenty images is around 20 MB before anything unusual
+      # happens, and a request body is the wrong place for that.
       # url: https://draugr.acme.example   # or $DRAUGR_API_URL, which is the usual way
 
 components:

@@ -57,17 +57,21 @@ func For(cfg saga.PublisherConfig) (Publisher, error) {
 	return build(cfg)
 }
 
-// requirements names the report formats a publisher cannot deliver without.
+// rendered names the report formats a publisher produces for itself.
 //
-// Declared here rather than discovered at delivery time. Six of the seven publishers need a
-// particular format and every one of them found out after the scan, which is a whole pipeline
-// spent to learn that a destination and the formats beside it do not go together. The list is what
-// lets a caller refuse the pairing while a descriptor is being read.
+// A destination that can only deliver one thing knows what that thing is. Asking an author to
+// declare it as well is boilerplate that can only be got wrong: the publisher cannot work without
+// it, nothing else decides it, and a descriptor that omits it is a descriptor that does not run.
+// So `kind: draugr-api` is a complete destination, and the formats it posts are its business.
 //
-// TestEveryPublisherSaysWhatItNeeds holds this to the builders, so a publisher added without an
-// entry fails rather than silently going back to finding out late.
-var requirements = map[string][]string{
-	// Writes whatever it is handed, so any format works and none is required.
+// `file` is the exception and the reason the list has an empty entry rather than no entry: a
+// directory has no inherent format, so what goes in it is the author's choice and has to be
+// written down.
+//
+// TestEveryPublisherSaysWhatItRenders holds this to the builders, so a publisher added without an
+// entry fails rather than silently rendering nothing.
+var rendered = map[string][]string{
+	// Writes whatever it is handed, and has no format of its own.
 	"file":              nil,
 	"github":            {"sarif"},
 	"github-pr-comment": {"markdown"},
@@ -78,9 +82,9 @@ var requirements = map[string][]string{
 	"draugr-api": {"json", "sarif"},
 }
 
-// Requires returns the report formats kind cannot deliver without, nil for a kind with no
-// requirement and for one this build does not have.
-func Requires(kind string) []string { return requirements[kind] }
+// Renders returns the formats kind produces for itself, nil for a kind with none and for one this
+// build does not have.
+func Renders(kind string) []string { return rendered[kind] }
 
 // distinguishes names the field that makes a second entry of a kind a second destination.
 //
@@ -137,7 +141,7 @@ func Kinds() []string {
 // Run renders each configured report format once, then delivers every rendered artifact to
 // every configured publisher. It returns the first error encountered; a publisher that fails
 // does not prevent the others from being attempted.
-func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.PublisherConfig, data report.Data) error {
+func Run(ctx context.Context, publishers []saga.PublisherConfig, data report.Data) error {
 	if len(publishers) == 0 {
 		return nil
 	}
@@ -183,55 +187,58 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 		return a, true
 	}
 
-	artifacts := make([]report.Artifact, 0, len(reports))
-	for _, r := range reports {
-		if a, ok := render(r); ok {
-			artifacts = append(artifacts, a)
-		}
-	}
-	// Nothing rendered at all is a different situation: there is no partial delivery to make, and
-	// reporting only the first reason would hide the rest.
-	if len(artifacts) == 0 && len(buildErrs) > 0 {
-		return errors.Join(buildErrs...)
-	}
 	// SBOMs are already rendered by the time a run finishes, so they are appended rather than
 	// built from data. That is also why "sbom" is not a --format: a run produces one document
 	// per target, and a format that writes N files has no sensible meaning on stdout.
 	sboms := report.SBOMArtifacts(data.Run.SBOMs)
-	artifacts = append(artifacts, sboms...)
 
-	firstErr := errors.Join(buildErrs...)
+	// A destination that fails does not stop the others, and a format that will not render does
+	// not stop the destinations that wanted something else. Both are collected and reported
+	// together at the end, because a scan that took four minutes and produced nothing, over
+	// something a descriptor check catches in milliseconds, is the worse outcome.
+	var failures []error
 	for _, cfg := range publishers {
 		p, err := For(cfg)
 		if err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
+			failures = append(failures, err)
 			continue
 		}
-		// What this destination asked for, or everything when it asked for nothing. A publisher
-		// that names its own reports is saying what belongs here rather than taking the whole set
-		// and picking out what it recognizes.
-		deliver := artifacts
-		if len(cfg.Reports) > 0 {
-			deliver = make([]report.Artifact, 0, len(cfg.Reports))
-			for _, r := range cfg.Reports {
-				if a, ok := render(r); ok {
-					deliver = append(deliver, a)
-				}
-			}
-			// The SBOMs are the run's own documents rather than a rendered format, so they follow
-			// whoever is taking files. Only the file publisher writes them, and it ignores what it
-			// cannot use.
-			deliver = append(deliver, sboms...)
+		// What this destination produces for itself, then whatever the descriptor added. A kind
+		// that can only deliver one thing knows what it is, so a descriptor naming it as well
+		// would be saying something the publisher already knows and could only get wrong.
+		want := make([]saga.ReportConfig, 0, len(cfg.Reports)+2)
+		for _, f := range rendered[cfg.Kind] {
+			want = append(want, saga.ReportConfig{Format: f})
 		}
-		if err := p.Publish(ctx, deliver); err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("publisher %q: %w", cfg.Kind, err)
+		want = append(want, cfg.Reports...)
+
+		deliver := make([]report.Artifact, 0, len(want)+len(sboms))
+		seen := map[string]bool{}
+		for _, r := range want {
+			// A descriptor naming a format the publisher already renders is narrowing it, so the
+			// descriptor's entry wins and the implicit one is dropped rather than delivered twice.
+			if r.Format != "" && seen[r.Format] && r.MinPriority == "" && r.Filename == "" {
+				continue
 			}
+			a, ok := render(r)
+			if !ok {
+				continue
+			}
+			seen[r.Format] = true
+			deliver = append(deliver, a)
+		}
+		// The SBOMs are the run's own documents rather than a rendered format, so they follow
+		// whoever is taking files. Only the file publisher writes them, and it ignores what it
+		// cannot use.
+		deliver = append(deliver, sboms...)
+		if err := p.Publish(ctx, deliver); err != nil {
+			failures = append(failures, fmt.Errorf("publisher %q: %w", cfg.Kind, err))
 		}
 	}
-	return firstErr
+	// Rendering failures first: a destination that delivered nothing usually did so because the
+	// thing it was to deliver could not be built, and naming the delivery ahead of the cause sends
+	// a reader to the wrong half.
+	return errors.Join(append(buildErrs, failures...)...)
 }
 
 // reportKey identifies a report by everything that changes what it renders, so two destinations

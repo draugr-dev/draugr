@@ -173,10 +173,10 @@ config:
         fails the gate.
       acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
-  reports:
-    - format: sarif
   publishers:
     - kind: github        # repo/commit/ref/token from the GitHub Actions environment
+      reports:
+        - format: sarif   # what this destination takes, named on the destination that takes it
 components:
   # Classified rather than left to the fallback. An unclassified component is already treated as
   # public/critical so that findings surface rather than hide, so these values change no priority

@@ -128,13 +128,6 @@
         "reachability": {
           "$ref": "#/$defs/reachabilityConfig"
         },
-        "reports": {
-          "description": "Report formats to render for every scan.",
-          "items": {
-            "$ref": "#/$defs/reportConfig"
-          },
-          "type": "array"
-        },
         "sbom": {
           "$ref": "#/$defs/sbomConfig"
         },
@@ -1279,7 +1272,7 @@
           "type": "string"
         },
         "reports": {
-          "description": "What this destination is given. Left out, it is given every report config.reports renders. A format named here is rendered whether or not config.reports also names it.",
+          "description": "What this destination delivers. A publisher that can deliver only one format renders it for itself and needs none; `file` has no format of its own, so it needs these.",
           "items": {
             "$ref": "#/$defs/reportConfig"
           },

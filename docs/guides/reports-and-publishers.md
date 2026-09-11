@@ -25,20 +25,22 @@ config:
       reports: [{format: sarif}]
 ```
 
-**`config.reports` is the default set**, rendered for every destination that does not narrow, and
-what [`-o/--output`](#) writes with no publisher involved. A destination that names no `reports` is
-handed all of them, which is what a descriptor written before this said and still says.
+**A destination that can deliver only one thing renders it for itself.** `kind: github` and
+`kind: draugr-api` are complete instructions: the format is not a choice anybody makes, and a
+descriptor that had to name it would be one that fails when somebody forgets. `reports` is for
+narrowing those, and for `file`, which has no format of its own.
 
-A format named under a publisher is rendered whether or not `config.reports` also names it, so a
-project that publishes and keeps no local artifacts need not declare the same format twice. Each
-distinct report is rendered once however many destinations ask for it.
+For local artifacts and no destination at all, `-o <dir>` writes `report.json` and `results.sarif`,
+and `--report <format>` adds to them.
+
+Each distinct report is rendered once however many destinations ask for it.
 
 Reports are produced even on a FAIL verdict, so you always get evidence.
 
 ## Report formats
 
 Scan results render through a pluggable **Reporter**, selected on the CLI with
-`draugr scan --format` or declared per format under `config.reports`:
+`draugr scan --format` or declared per format under a publisher's `reports`:
 
 | Format | Purpose |
 |--------|---------|
@@ -235,8 +237,8 @@ refused when it loads rather than after the scanners have run:
 
 ```console
 $ draugr validate draugr.saga.yaml
-draugr: config.publishers[0]: the github publisher delivers a "sarif" report and config.reports
-declares none. Add `- format: sarif`
+draugr: config.publishers[0]: the file publisher has no format of its own and names none, so it
+would deliver nothing. Add the formats it is for, e.g. `reports: [{format: sarif}]`
 ```
 
 The **Distinguishes** column is what makes a second entry of one kind a second destination. Two
@@ -606,8 +608,8 @@ A run that loaded no exploitability data writes no `consulted` block at all.
 The `sarif` report is also what your editor reads. See [see findings in your
 editor](findings-in-your-editor.md) for inline diagnostics in VS Code and JetBrains.
 
-For the exact schema of `config.reports` / `config.publishers`, see the
-[Saga schema](../reference/saga-schema.md#configreports-and-configpublishers); for the full
+For the exact schema of `config.publishers`, see the
+[Saga schema](../reference/saga-schema.md#configpublishers); for the full
 catalog of reporters and publishers, see the
 [integrations catalog](../reference/catalog.md#reporters).
 

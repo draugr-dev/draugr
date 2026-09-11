@@ -120,13 +120,13 @@ func TestExposureCriticalityValid(t *testing.T) {
 }
 
 func TestValidateReportsAndPublishers(t *testing.T) {
-	yaml := "release:\n  version: '1'\nconfig:\n  reports:\n    - format: sarif\n    - format: markdown\n  publishers:\n    - kind: file\n      dir: ./out\n"
+	yaml := "release:\n  version: '1'\nconfig:\n  publishers:\n    - kind: file\n      dir: ./out\n      reports:\n        - format: sarif\n        - format: markdown\n"
 	m, err := Load([]byte(yaml))
 	if err != nil {
-		t.Fatalf("valid reports/publishers should load, got %v", err)
+		t.Fatalf("valid publishers should load, got %v", err)
 	}
-	if len(m.Config.Reports) != 2 || m.Config.Reports[0].Format != "sarif" {
-		t.Fatalf("reports not parsed: %+v", m.Config.Reports)
+	if got := m.Config.Publishers[0].Reports; len(got) != 2 || got[0].Format != "sarif" {
+		t.Fatalf("reports not parsed: %+v", got)
 	}
 	if len(m.Config.Publishers) != 1 || m.Config.Publishers[0].Kind != "file" || m.Config.Publishers[0].Dir != "./out" {
 		t.Fatalf("publishers not parsed: %+v", m.Config.Publishers)
@@ -134,12 +134,12 @@ func TestValidateReportsAndPublishers(t *testing.T) {
 }
 
 func TestValidateReportsPublishersRequireFields(t *testing.T) {
-	yaml := "release:\n  version: '1'\nconfig:\n  reports:\n    - format: ''\n  publishers:\n    - dir: ./out\n"
+	yaml := "release:\n  version: '1'\nconfig:\n  publishers:\n    - dir: ./out\n      reports:\n        - format: ''\n"
 	_, err := Load([]byte(yaml))
 	if err == nil {
 		t.Fatal("expected errors for empty report format and missing publisher kind")
 	}
-	for _, want := range []string{"config.reports[0].format is required", "config.publishers[0].kind is required"} {
+	for _, want := range []string{"config.publishers[0].reports[0].format is required", "config.publishers[0].kind is required"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error missing %q: %v", want, err)
 		}
@@ -520,7 +520,8 @@ func TestValidateReportMinPriority(t *testing.T) {
 	for _, band := range []string{"P1", "P4"} {
 		m := &Model{
 			Release: Release{Version: "1"},
-			Config:  Config{Reports: []ReportConfig{{Format: "sarif", MinPriority: band}}},
+			Config: Config{Publishers: []PublisherConfig{{Kind: "file", Dir: "./out",
+				Reports: []ReportConfig{{Format: "sarif", MinPriority: band}}}}},
 		}
 		if err := m.Validate(); err != nil {
 			t.Errorf("%s rejected: %v", band, err)
@@ -528,7 +529,8 @@ func TestValidateReportMinPriority(t *testing.T) {
 	}
 	m := &Model{
 		Release: Release{Version: "1"},
-		Config:  Config{Reports: []ReportConfig{{Format: "sarif", MinPriority: "urgent"}}},
+		Config: Config{Publishers: []PublisherConfig{{Kind: "file", Dir: "./out",
+			Reports: []ReportConfig{{Format: "sarif", MinPriority: "urgent"}}}}},
 	}
 	err := m.Validate()
 	if err == nil {
@@ -542,7 +544,8 @@ func TestValidateReportMinPriority(t *testing.T) {
 	// Unset stays the common case and must not be reported.
 	clean := &Model{
 		Release: Release{Version: "1"},
-		Config:  Config{Reports: []ReportConfig{{Format: "sarif"}}},
+		Config: Config{Publishers: []PublisherConfig{{Kind: "file", Dir: "./out",
+			Reports: []ReportConfig{{Format: "sarif"}}}}},
 	}
 	if err := clean.Validate(); err != nil {
 		t.Errorf("a report with no band was rejected: %v", err)

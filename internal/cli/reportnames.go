@@ -34,30 +34,9 @@ func checkReportNames(model *saga.Model) error {
 	// so there is no reporter to look up.
 	formats["template"] = true
 
-	for i, r := range model.Config.Reports {
-		if r.Format == "" {
-			problems = append(problems,
-				fmt.Sprintf("config.reports[%d].format is required", i))
-			continue
-		}
-		if formats[r.Format] {
-			continue
-		}
-		msg := fmt.Sprintf("config.reports[%d].format: %q is not a format this build of Draugr renders",
-			i, r.Format)
-		if near := nearestName(r.Format, formats); near != "" {
-			msg += fmt.Sprintf(", did you mean %q?", near)
-		}
-		problems = append(problems, msg)
-	}
-
 	kinds := map[string]bool{}
 	for _, k := range publish.Kinds() {
 		kinds[k] = true
-	}
-	project := map[string]bool{}
-	for _, r := range model.Config.Reports {
-		project[r.Format] = true
 	}
 	seen := map[string]int{}
 	for i, p := range model.Config.Publishers {
@@ -87,24 +66,14 @@ func checkReportNames(model *saga.Model) error {
 			seen[id] = i
 		}
 
-		// What this destination is handed: its own reports, or the project's where it names none.
-		declared, where := project, "config.reports"
-		if len(p.Reports) > 0 {
-			declared = make(map[string]bool, len(p.Reports))
-			for _, r := range p.Reports {
-				declared[r.Format] = true
-			}
-			where = fmt.Sprintf("config.publishers[%d].reports", i)
-		}
-		// A destination that cannot use anything rendered delivers nothing, and says so after the
-		// scanners have finished. The descriptor already contains both halves of that answer.
-		for _, f := range publish.Requires(p.Kind) {
-			if declared[f] {
-				continue
-			}
+		// A destination with no format of its own and none named delivers nothing. `file` is the
+		// only such kind: a directory has no inherent format, so what goes in it is a choice
+		// somebody has to make.
+		if len(publish.Renders(p.Kind)) == 0 && len(p.Reports) == 0 {
 			problems = append(problems, fmt.Sprintf(
-				"config.publishers[%d]: the %s publisher delivers a %q report and %s declares "+
-					"none. Add `- format: %s`", i, p.Kind, f, where, f))
+				"config.publishers[%d]: the %s publisher has no format of its own and names none, "+
+					"so it would deliver nothing. Add the formats it is for, e.g. "+
+					"`reports: [{format: sarif}]`", i, p.Kind))
 		}
 		for j, r := range p.Reports {
 			if r.Format == "" {

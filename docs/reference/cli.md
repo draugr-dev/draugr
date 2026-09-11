@@ -353,12 +353,12 @@ priority/severity counts, "fix first"). `markdown` produces a portable report fo
 wikis; `html` is a self-contained, browser-viewable report you can publish as a build artifact;
 `junit` emits JUnit XML so CI systems (GitLab, Jenkins, Azure DevOps…) surface findings in their
 test-results panel; `json` and `sarif` are the machine formats; `template` renders your own Go
-`text/template` (see [`config.reports`](saga-schema.md#configreports-and-configpublishers) for the
+`text/template` (see [`config.publishers`](saga-schema.md#configpublishers) for the
 available fields). Regardless of `--format`, `--output <dir>` always writes both `report.json` and
 `results.sarif` for CI/code-scanning, plus one SBOM per target when the Saga sets
 [`config.sbom`](saga-schema.md#sbom-generation). To render **multiple** formats and deliver them
-somewhere in one run, declare [`config.reports` /
-`config.publishers`](saga-schema.md#configreports-and-configpublishers) in the Saga.
+somewhere in one run, declare [
+`config.publishers`](saga-schema.md#configpublishers) in the Saga.
 
 **Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. But
 scanners like Trivy and Semgrep are themselves multi-threaded, so on a busy or small machine that
@@ -569,7 +569,7 @@ depend on. `--report` replaces that default rather than adding to it, so what yo
 you get.
 
 This mirrors the descriptor, which has always kept the two apart:
-[`config.reports`](saga-schema.md#configreports-and-configpublishers) is *what to render* and
+[`config.publishers`](saga-schema.md#configpublishers) is *where results go* and
 `config.publishers` is *where to send it*.
 
 ### What `--min-priority` narrows
@@ -595,7 +595,7 @@ That asymmetry is an argument against narrowing a file *by accident*, which is w
 ways to say it:
 
 - **`--artifact-min-priority P1`**, or **`minPriority: P1`** on a report in
-  [`config.reports`](saga-schema.md#configreports-and-configpublishers), narrows the written
+  [`config.publishers`](saga-schema.md#configpublishers), narrows the written
   SARIF and JSON.
 - **`draugr diff --format sarif`**, emits only the findings a change introduced, which is the
   version of this a pull request actually wants.

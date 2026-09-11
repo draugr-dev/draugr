@@ -1,6 +1,7 @@
 package publish
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -441,5 +442,44 @@ func TestAnOrganizationDefaultAloneIsEnoughToPublish(t *testing.T) {
 	}
 	if err := pub.Publish(context.Background(), artifacts(`{"verdict":"pass"}`, `{"runs":[]}`)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A destination that can deliver only one thing knows what that thing is. `kind: draugr-api` and
+// nothing else has to be a complete instruction: the server needs the run report and the evidence,
+// neither is a choice anybody makes, and a descriptor that has to name them is one that fails when
+// somebody forgets, on a publisher that cannot work without them.
+//
+// Through Run rather than the publisher directly, because what is being asserted is what the
+// publisher was handed, and only Run decides that.
+func TestTheAPIPublisherNeedsNothingDeclaredBesideIt(t *testing.T) {
+	t.Setenv(apiTokenEnv, "t0ken")
+	p := &server{}
+	srv := p.server(t)
+
+	err := Run(context.Background(),
+		[]saga.PublisherConfig{{Kind: "draugr-api", URL: srv.URL}},
+		sampleData(),
+	)
+	if err != nil {
+		t.Fatalf("a draugr-api publisher standing alone should publish: %v", err)
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.runs) != 1 {
+		t.Fatalf("posted %d runs, want 1", len(p.runs))
+	}
+	// The run report is the request body, and it has to be the JSON document rather than whatever
+	// happened to be first.
+	var doc map[string]any
+	if err := json.Unmarshal(p.runs[0].body, &doc); err != nil {
+		t.Errorf("the run report was not the json report: %v", err)
+	}
+	if len(p.uploads) != 1 {
+		t.Fatalf("uploaded %d evidence documents, want 1", len(p.uploads))
+	}
+	if !bytes.Contains(p.uploads[0], []byte("$schema")) {
+		t.Error("the evidence uploaded was not the SARIF report")
 	}
 }

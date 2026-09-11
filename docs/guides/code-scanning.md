@@ -17,7 +17,8 @@ repos; private repos need GitHub Advanced Security.
 
 ## 1. Declare the publisher in your Saga
 
-The `github` publisher requires a `sarif` report in `config.reports`. It never stores a secret in
+The `github` publisher renders the `sarif` report for itself, so `kind: github` is the whole of
+it. It never stores a secret in
 the descriptor, repo/commit/ref default from the GitHub Actions environment, and the token comes
 from `$GITHUB_TOKEN`. It no-ops outside Actions, so the same Saga still runs locally.
 

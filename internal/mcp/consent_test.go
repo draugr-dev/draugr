@@ -103,7 +103,7 @@ func TestScanDeliversTheDescriptorsPublishers(t *testing.T) {
 	// complete run to render, which is the part under test.
 	if err := os.WriteFile(path, []byte(
 		"project: app\nrelease:\n  version: \"1.0\"\n"+
-			"config:\n  reports:\n    - format: sarif\n  publishers:\n    - kind: file\n      dir: "+out+"\n"+
+			"config:\n  publishers:\n    - kind: file\n      dir: "+out+"\n      reports:\n        - format: sarif\n"+
 			"components:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
