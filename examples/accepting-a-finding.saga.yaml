@@ -1,9 +1,9 @@
-# Example Saga — deciding to live with a finding, on the record.
+# Example Saga, deciding to live with a finding, on the record.
 # Run it with:  draugr scan examples/accepting-a-finding.saga.yaml
 #
 # An excluded finding is not removed. It stays in the report marked suppressed, carrying the
 # reason somebody gave, who gave it, and when it stops applying. The question an auditor asks of
-# a suppression is never "did the scanner run" — it is who decided this was acceptable, and when.
+# a suppression is never "did the scanner run". It is who decided this was acceptable, and when.
 #
 # Everything below is under `config.exclude`, which is also available in a fragment so a team can
 # accept a finding in its own repository without editing the root descriptor.
@@ -31,7 +31,7 @@ config:
     # Attributed and dated, which is what makes it a governance record rather than a mute button.
     #
     # `acceptedBy` is optional and a suppression without one is reported as unattributed rather
-    # than rejected — but a name buried in the prose of `reason` cannot be reported on, and being
+    # than rejected, but a name buried in the prose of `reason` cannot be reported on, and being
     # able to list every standing decision by who made it is the point.
     #
     # `expires` brings the finding back. An exclusion accepted "until the upstream fix lands" has
@@ -60,7 +60,7 @@ config:
     # questions: a reason is written for a human reviewing this file, a status is something a
     # downstream tool can apply without reading English.
     #
-    # Without `vex` a suppressed finding is reported as `affected` — the claim that is never an
+    # Without `vex` a suppressed finding is reported as `affected`, the claim that is never an
     # overstatement.
     - rules: [CVE-2022-40897]
       reason: setuptools is a build-time dependency and is not present at runtime
@@ -76,7 +76,7 @@ config:
   #
   # A VEX document is an assertion by a supplier about their own product, so the two things a
   # consumer needs are who says so and what about. Draugr can guess the second from the release
-  # and cannot guess the first at all — it knows a project name, not a legal entity or a contact.
+  # and cannot guess the first at all, it knows a project name, not a legal entity or a contact.
   vex:
     author: Example Ltd <security@example.com>
     product: pkg:oci/example/my-app@sha256:3f8e4a1c9d2b5e7a0c6f8b1d4e7a9c2f5b8e1d4a7c0f3b6e9d2a5c8f1b4e7a0c

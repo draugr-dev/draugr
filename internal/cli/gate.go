@@ -22,7 +22,7 @@ import (
 //
 //   - A flag chooses the mode and replaces whatever the descriptor chose. `--fail-on critical`
 //     against a descriptor that gates on priority is somebody saying "this run, judge the
-//     scanner's number" — not a contradiction to refuse. The descriptor is the standing policy and
+//     scanner's number", not a contradiction to refuse. The descriptor is the standing policy and
 //     the flag is this run, which is the precedence every other scan setting uses.
 //   - Both flags together is refused, for the reason the descriptor refuses both: one of them
 //     would be doing nothing, and the person who passed it would have no way to tell which.
@@ -81,8 +81,8 @@ const defaultGateBand = "P1"
 // output is identical to a gate that worked and found nothing. Somebody who set this asked for the
 // strictest gate the product offers, and silence is the opposite of the answer.
 //
-// Reported and continued when only some components are affected. That is an ordinary descriptor —
-// a restricted internal tool beside a public API — and the run is still meaningful for the rest.
+// Reported and continued when only some components are affected. That is an ordinary descriptor,
+// a restricted internal tool beside a public API, and the run is still meaningful for the rest.
 func reportUnreachableGate(out io.Writer, model *saga.Model, band string) error {
 	unreachable := scanpolicy.Unreachable(*model, band)
 	if len(unreachable) == 0 {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Work on CHANGELOG.md without hand-editing the bits that are easy to get subtly wrong.
 #
-# The failures this exists for are all quiet ones — a valid-looking file that says the wrong
+# The failures this exists for are all quiet ones, a valid-looking file that says the wrong
 # thing, which no build, test or reviewer catches:
 #
 #   - two `### Fixed` blocks under one release, so the notes a tag publishes contain half the
@@ -32,7 +32,7 @@ FILE="${CHANGELOG_FILE:-CHANGELOG.md}"
 FRAGMENTS="${CHANGELOG_FRAGMENTS:-changelog.d}"
 
 # The headings Keep a Changelog defines, in the order they should appear. Anything else is a typo
-# — "### Fix" reads fine and lands nowhere the release notes look.
+#, "### Fix" reads fine and lands nowhere the release notes look.
 SECTIONS=(Added Changed Deprecated Removed Fixed Security)
 
 die() { echo "changelog: $*" >&2; exit 1; }
@@ -98,7 +98,7 @@ fragments_body() {
 # under [Unreleased], plus every fragment.
 #
 # Both, because the two coexist during a transition and because a release that dropped one of them
-# would publish notes missing an entry somebody wrote — which is the failure this whole file is
+# would publish notes missing an entry somebody wrote, which is the failure this whole file is
 # built to prevent.
 unreleased_body() {
 	local inline fragments
@@ -138,7 +138,7 @@ cmd_show() {
 #
 # Its own command rather than a pipeline in the workflow, because the workflow could not test it
 # and the failure mode is silent: an entry written as a paragraph rather than a list item made the
-# pipeline's grep match nothing, which under `pipefail` failed the step that pushes the tag — with
+# pipeline's grep match nothing, which under `pipefail` failed the step that pushes the tag, with
 # no message, after the release had already been merged.
 #
 # Reads whichever shape the notes are in. Both occur, both are correct, and which one a release
@@ -163,7 +163,7 @@ cmd_summary() {
 #
 # The rule is the one the notes already state, read rather than remembered: anything under Added
 # or Changed is new capability or altered behavior, so a minor. A section holding only Fixed or
-# Security is a patch. Deprecated and Removed are minor for the same reason both headings exist —
+# Security is a patch. Deprecated and Removed are minor for the same reason both headings exist,
 # a user who has to change something.
 #
 # Major is deliberately never derived. Deciding that an interface is now unsupportable is a
@@ -174,12 +174,12 @@ cmd_next() {
 	body=$(unreleased_body)
 	case "$(printf '%s' "$body" | tr -d '[:space:]')" in
 	"" | "_Nothingyet._")
-		die "[Unreleased] is empty — there is no next version to derive."
+		die "[Unreleased] is empty, so there is no next version to derive."
 		;;
 	esac
 
 	# Refuse rather than guess. A heading nobody recognizes is invisible to the rule below, so
-	# `### Improvements` holding a new capability derives a patch — the version is wrong, the tag
+	# `### Improvements` holding a new capability derives a patch, the version is wrong, the tag
 	# is wrong, and nothing about either says so. `check` catches the heading, but this must not
 	# depend on somebody having run it first.
 	local heading
@@ -208,11 +208,11 @@ cmd_check() {
 	local problems=0
 
 	grep -q '^## \[Unreleased\]' "$FILE" || {
-		echo "  no [Unreleased] section — new entries have nowhere to go" >&2
+		echo "  no [Unreleased] section, new entries have nowhere to go" >&2
 		problems=1
 	}
 
-	# Heading checks apply to [Unreleased] only. Released sections are a record — changelog-guard
+	# Heading checks apply to [Unreleased] only. Released sections are a record, changelog-guard
 	# already holds them to what their tag said, and the early history predates Keep a Changelog,
 	# so failing on it would mean a check that can never pass and therefore never gets read.
 	#
@@ -233,7 +233,7 @@ cmd_check() {
 			esac
 			case "$seen" in
 			*" $heading "*)
-				echo "  [$version]: '### $heading' appears more than once — the published notes will be split" >&2
+				echo "  [$version]: '### $heading' appears more than once, the published notes will be split" >&2
 				problems=1
 				;;
 			esac
@@ -243,7 +243,7 @@ cmd_check() {
 	done <"$FILE"
 
 	# Headings in Keep a Changelog order. Promotion preserves whatever order it finds, so a Fixed
-	# section written above Added publishes notes that lead with the fixes — which reads as a
+	# section written above Added publishes notes that lead with the fixes, which reads as a
 	# release about repairs when it is a release about capability. `add` places entries correctly;
 	# this catches the file being edited by hand, which is the only way to get it wrong.
 	local last=-1 index i
@@ -337,7 +337,7 @@ cmd_add() {
 	local slug="${2:-}"
 	if [ -z "$slug" ]; then
 		# `|| true` is load-bearing under `set -e -o pipefail`: an entry with no bold phrase makes
-		# grep exit 1, which would abort the whole script with nothing printed — a helper that
+		# grep exit 1, which would abort the whole script with nothing printed, a helper that
 		# refuses a valid entry and does not say so is worse than no helper.
 		slug=$(printf '%s' "$entry" | grep -oPm1 '\*\*\K[^*]+' | head -1 |
 			tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-*//; s/-*$//' | cut -c1-48 || true)
@@ -354,7 +354,7 @@ cmd_add() {
 	local path="$FRAGMENTS/$slug.${want,,}.md"
 	# Refused rather than overwritten. Two entries deriving the same name is a coincidence worth
 	# looking at, and silently replacing one of them loses a change nobody will notice is missing.
-	[ -e "$path" ] && die "$path already exists — pass a name as the third argument"
+	[ -e "$path" ] && die "$path already exists, pass a name as the third argument"
 
 	printf '%s\n' "$entry" >"$path"
 	echo "changelog: wrote $path (assembled into [Unreleased] at release)"
@@ -373,7 +373,7 @@ cmd_promote() {
 	""|"_Nothingyet._")
 		# Refusing is the point. A release promoted with nothing in it is how an entry that
 		# never landed becomes a release nobody can describe.
-		die "[Unreleased] is empty — nothing to release. Add the entry first, or check that the one you wrote actually landed."
+		die "[Unreleased] is empty, nothing to release. Add the entry first, or check that the one you wrote actually landed."
 		;;
 	esac
 

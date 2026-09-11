@@ -342,7 +342,7 @@ the component is, so the same issue ranks differently on a public API than on an
 {{range .Controls}}<tr>
   <td>{{.Control}}</td>
   <td>{{if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<strong>FAIL</strong>{{else}}pass{{end}}</td>
-  {{if .NoReport}}<td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>
+  {{if .NoReport}}<td class="num">, </td><td class="num">, </td><td class="num">, </td><td class="num">, </td>
   {{else}}<td class="num">{{.Critical}}</td>
   <td class="num">{{.High}}</td>
   <td class="num">{{.Medium}}</td>
@@ -364,7 +364,7 @@ the component is, so the same issue ranks differently on a public API than on an
 <table class="provenance">
 <thead><tr><th scope="col">Repository</th><th scope="col">Revision</th><th scope="col">Not included</th></tr></thead>
 <tbody>
-{{range .Repositories}}<tr><td>{{.URL}}</td><td>{{.Short}}</td><td>{{if .Uncommitted}}{{.Uncommitted}} uncommitted{{else}}—{{end}}</td></tr>{{end}}
+{{range .Repositories}}<tr><td>{{.URL}}</td><td>{{.Short}}</td><td>{{if .Uncommitted}}{{.Uncommitted}} uncommitted{{else}}, {{end}}</td></tr>{{end}}
 </tbody>
 </table>
 {{end}}

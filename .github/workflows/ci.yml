@@ -16,7 +16,7 @@ concurrency:
 
 env:
   # An exact patch, not "1.26". govulncheck fails the build on stdlib vulnerabilities fixed in a
-  # patch release, and setup-go's version manifest lags go.dev by a day or two — so the floating
+  # patch release, and setup-go's version manifest lags go.dev by a day or two, so the floating
   # minor resolves to yesterday's patch and every pull request goes red for something no pull
   # request did. Bump this when govulncheck names a newer one.
   GO_VERSION: "1.26.6"
@@ -53,7 +53,7 @@ jobs:
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
-            echo "Only documentation changed — the Go jobs will report without running."
+            echo "Only documentation changed, the Go jobs will report without running."
           fi
 
   build-test:
@@ -80,14 +80,14 @@ jobs:
       #
       # It ran only in `make gate` before, so it caught a mistake exactly when the author had
       # already run the thing that catches it. Now that the headings decide the released version,
-      # an unrecognized one is no longer just an entry nobody publishes — it is a minor released
+      # an unrecognized one is no longer just an entry nobody publishes: it is a minor released
       # as a patch, and the tag does not say so.
       - name: CHANGELOG structure
         run: ./scripts/changelog.sh check
 
       # Not gated on the code filter, for the same reason as the CHANGELOG guard above: the
       # files this protects are documentation, so a docs-only pull request is precisely the one
-      # that needs checking. It also cannot see issue bodies, which are equally public — those
+      # that needs checking. It also cannot see issue bodies, which are equally public, those
       # stay a human's job.
       # Ungated: a conflict marker in a Markdown or YAML file parses as content, so nothing else
       # in this job would notice one.
@@ -102,13 +102,13 @@ jobs:
 
       # Ungated for the same reason: the comment explaining a guard is documentation, and it is
       # as public as the docs are. Issue bodies are equally public and equally invisible to this
-      # — those stay a human's job.
+      #, those stay a human's job.
       - name: Guards explain the risk, not the incident
         run: ./scripts/check-no-defect-recounts.sh
 
       # Ungated too: this reads prose, and a documentation-only change is precisely the one most
       # likely to introduce a spelling. golangci-lint enforces the same locale over the Go tree,
-      # but it does not read Markdown — where nearly all of the prose lives.
+      # but it does not read Markdown, where nearly all of the prose lives.
       - name: American spelling outside Go
         run: |
           go install github.com/client9/misspell/cmd/misspell@v0.3.4
