@@ -1,0 +1,1 @@
+Your editor now completes `config.reachability.analyzers` and flags a name Draugr does not have, instead of accepting any string. The schema is generated from the same registry the planner reads, so a new analyzer is offered the moment it is registered.

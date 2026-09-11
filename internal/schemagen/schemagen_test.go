@@ -182,6 +182,63 @@ func TestSchemaAllowsEveryEffectKind(t *testing.T) {
 	}
 }
 
+// TestSchemaOffersEveryReachabilityAnalyzer holds the schema to the registry the planner reads.
+//
+// The other way around from the effect kinds and the control names: this one said `type: string`
+// and accepted anything, while the loader refuses a name no scanner answers to and suggests the
+// nearest one. An editor that accepts what Draugr rejects is the same disagreement, and it teaches
+// somebody the name is fine until CI says otherwise.
+func TestSchemaOffersEveryReachabilityAnalyzer(t *testing.T) {
+	data, err := os.ReadFile(schemaPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	defs := doc["$defs"].(map[string]any)
+	rch := defs["reachabilityConfig"].(map[string]any)
+	props := rch["properties"].(map[string]any)
+	analyzers := props["analyzers"].(map[string]any)
+	items, ok := analyzers["items"].(map[string]any)
+	if !ok {
+		t.Fatal("analyzers has no items shape")
+	}
+	raw, ok := items["enum"].([]any)
+	if !ok {
+		t.Fatal("analyzers accepts any string again, so an editor cannot flag a typo")
+	}
+	got := map[string]bool{}
+	for _, v := range raw {
+		got[v.(string)] = true
+	}
+
+	want := map[string]bool{}
+	for _, sc := range builtins.Registry().Scanners() {
+		if info := sc.Info(); info.Reachability {
+			want[info.Name] = true
+		}
+	}
+	if len(want) == 0 {
+		t.Fatal("no scanner declares Reachability, so this test is checking nothing")
+	}
+	for name := range want {
+		if !got[name] {
+			t.Errorf("%q decides reachability and the schema will not let a descriptor name it", name)
+		}
+	}
+	for name := range got {
+		if !want[name] {
+			t.Errorf("the schema offers %q, which no scanner in this build answers to", name)
+		}
+	}
+	// Naming one twice enables nothing extra, so it is a typo rather than an intention.
+	if analyzers["uniqueItems"] != true {
+		t.Error("analyzers no longer requires unique items")
+	}
+}
+
 // The fragment schema is derived from the Saga's, so it can only be right if it is regenerated
 // whenever that one changes. Drift here shows up as an editor rejecting a fragment Draugr accepts,
 // the same class of problem the Saga's own guard exists to catch.
