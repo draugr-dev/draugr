@@ -14,12 +14,8 @@ import (
 // A cache is the kind of thing that survives being deleted, nothing fails, the job simply goes
 // back to taking four minutes, and by then the reason is somewhere in a diff nobody is reading.
 //
-// Scan results are the exception, and only while
-// https://github.com/draugr-dev/draugr/issues/999 stands: a repository that declares no revision
-// has one cache identity for its whole life, so an entry outlives the commit it described. A gate
-// reporting a verdict computed from a different tree is worse than a slow one. So the rule here is
-// the pairing rather than the presence, because either half alone does nothing: a cache step whose
-// path the action never writes, or a cache-dir the workflow never restores.
+// The pairing is what this asserts, because either half alone does nothing: a cache step whose path
+// the action never writes, or a cache-dir the workflow never restores.
 func TestTheSelfScanCachesWhatItPaysFor(t *testing.T) {
 	t.Parallel()
 
@@ -59,6 +55,10 @@ func TestTheSelfScanCachesWhatItPaysFor(t *testing.T) {
 		}
 	}
 
+	if scanCacheDir == "" {
+		t.Error("the self-scan runs without cache-dir, so every run re-scans a tree that has not " +
+			"changed, and the content-hash caching Draugr offers users goes untested here")
+	}
 	if scanCacheDir != "" && !cached[scanCacheDir] {
 		t.Errorf("the scan writes its cache to %q and no cache step restores it, so it is "+
 			"rebuilt from nothing on every run", scanCacheDir)

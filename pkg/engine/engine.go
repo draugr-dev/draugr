@@ -37,6 +37,14 @@ type Engine struct {
 	cache       cache.Cache
 	// cacheable, when set, vetoes caching for targets it rejects.
 	cacheable func(plugin.Target) bool
+	// resolveRevision turns a repository's revision into the commit it names, so a cache entry is
+	// keyed on what was scanned rather than on a name that moves. Nil means nothing can answer,
+	// and an unpinned repository is then not cached at all.
+	resolveRevision func(ctx context.Context, url, revision string) (string, error)
+	// revisions memoizes that per run. A descriptor naming one repository from several components
+	// would otherwise ask the same question once per control.
+	revisions   map[string]string
+	revisionsMu sync.Mutex
 	// workingTree scans repositories as they are on disk rather than at their committed revision.
 	workingTree bool
 	// resolveRemote names a local checkout by its remote. See WithRemoteResolver.
@@ -115,6 +123,21 @@ func WithCache(c cache.Cache) Option {
 // Nil accepts everything, which is the default.
 func WithCacheableTarget(fn func(plugin.Target) bool) Option {
 	return func(e *Engine) { e.cacheable = fn }
+}
+
+// WithRevisionResolver lets the engine learn which commit a repository's revision names.
+//
+// A cache entry has to be keyed on what was scanned. A revision like `main`, or none at all, names
+// whatever the branch points at now, so an entry stored under it outlives the commit it described
+// and the next run at any commit is served the previous one's findings. The direction that shows
+// up is a stale failure; the direction that does not is a clean answer about a commit that
+// introduced something.
+//
+// Injected rather than built in, because resolving means running git, and the engine deliberately
+// knows nothing about how a repository is fetched. Without one, an unpinned repository is scanned
+// normally and not cached: a slower run is a fair price, and a wrong answer is not.
+func WithRevisionResolver(fn func(ctx context.Context, url, revision string) (string, error)) Option {
+	return func(e *Engine) { e.resolveRevision = fn }
 }
 
 // WithWorkingTree scans repositories as they are on disk, uncommitted work included, instead of
@@ -925,6 +948,14 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				// A vetoed target is scanned as though caching were off: no lookup, no store.
 				// Checked once here so the two cannot disagree about whether this job caches.
 				caches := e.cache != nil && (e.cacheable == nil || e.cacheable(pj.Job.Target))
+				// What the key has to name, for a target whose revision can move. Empty for
+				// everything else, whose identity already says exactly what was read.
+				var commit string
+				if caches {
+					var known bool
+					commit, known = e.commitOf(jobCtx, pj.Job.Target)
+					caches = known
+				}
 				if caches {
 					if v := scannerVersion(jobCtx, scanner); v != "" {
 						version = v
@@ -932,6 +963,11 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					key = string(plugin.ComputeCacheKey(pj.Job.Scanner, version, pj.Job.Target, pj.Job.Config))
 					if pj.Job.CacheKey != "" {
 						key = string(pj.Job.CacheKey)
+					}
+					// Appended rather than folded into the identity, so a controller that computed
+					// its own key gets the same protection as one that did not.
+					if commit != "" {
+						key += "@" + commit
 					}
 					if rep, hit := e.cache.Get(key); hit {
 						slog.DebugContext(jobCtx, "cache hit",
@@ -1960,4 +1996,49 @@ func suppressionIn(results []sarif.Result, idxs []int) *sarif.Suppression {
 		}
 	}
 	return nil
+}
+
+// commitOf returns the commit a target was read at, and whether that is known.
+//
+// Not known means not cached. A repository whose revision names a branch, or names nothing, is
+// scanned and its result thrown away rather than stored under a name that will mean something else
+// tomorrow. The scan is correct either way; only the saving is lost.
+//
+// Everything that is not a repository answers ("", true): an image is named by its digest or its
+// tag, a host by its URL, and their identities already say exactly what was read.
+func (e *Engine) commitOf(ctx context.Context, t plugin.Target) (string, bool) {
+	repo, ok := t.(plugin.RepositoryTarget)
+	if !ok {
+		return "", true
+	}
+	if repo.WorkingTree {
+		// Unreachable while WithWorkingTree vetoes these, and the honest answer if that changes:
+		// a working tree has no commit that describes it.
+		return "", false
+	}
+	if repo.Pinned() {
+		return repo.Revision, true
+	}
+	if e.resolveRevision == nil {
+		return "", false
+	}
+
+	id := repo.Source() + "@" + repo.Revision
+	e.revisionsMu.Lock()
+	defer e.revisionsMu.Unlock()
+	if commit, seen := e.revisions[id]; seen {
+		return commit, commit != ""
+	}
+	commit, err := e.resolveRevision(ctx, repo.URL, repo.Revision)
+	if err != nil {
+		slog.DebugContext(ctx, "not caching a repository whose revision could not be resolved",
+			"url", repo.Source(), "revision", repo.Revision, "err", err)
+		commit = ""
+	}
+	if e.revisions == nil {
+		e.revisions = map[string]string{}
+	}
+	// Stored either way, including the failure, so one unreachable remote is asked about once.
+	e.revisions[id] = commit
+	return commit, commit != ""
 }

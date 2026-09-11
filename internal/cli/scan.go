@@ -273,6 +273,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// consulted produces evidence nobody can check the ranking against.
 		engine.WithConsulted(expl.Consulted()),
 		engine.WithSBOM(sbomgen.New()),
+		// So a cache entry names the commit it describes rather than a branch that has moved
+		// under it. One `ls-remote` per repository, against the server a clone would use anyway,
+		// and only when caching is on.
+		engine.WithRevisionResolver(git.ResolveRevision),
 		// Name a local checkout by the repository it came from, so a scan here and a scan in a
 		// pipeline recognize each other as one source rather than two.
 		engine.WithRemoteResolver(func(path string) string {

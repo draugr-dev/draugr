@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -345,4 +346,80 @@ func remote(ctx context.Context, path, name string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// commitSHA matches a full 40-character object name, which is the only revision that cannot mean
+// something different tomorrow.
+var commitSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
+// IsCommitSHA reports whether revision already names one commit for good.
+//
+// A branch or a tag is a name for whatever it points at now. Anything keyed on one describes a
+// moving target, which is fine for fetching and wrong for anything that has to stay true, and an
+// empty revision is the same problem with nothing written down.
+func IsCommitSHA(revision string) bool { return commitSHA.MatchString(revision) }
+
+// ResolveRevision returns the commit revision names in the repository at url.
+//
+// A local path is answered by `rev-parse`, which touches nothing outside the machine. A remote is
+// answered by `ls-remote`, one round trip against the same server a clone would use, and far
+// cheaper than the clone it lets a caller skip.
+//
+// An empty revision means the repository's default: HEAD locally, and the remote's own HEAD
+// otherwise, which is what a clone with no revision would check out.
+//
+// Errors rather than guessing. A caller that cannot learn the commit has to decide what to do
+// about that, and the one decision it must not make is to carry on using the name it was given as
+// though it were an answer.
+func ResolveRevision(ctx context.Context, url, revision string) (string, error) {
+	if IsCommitSHA(revision) {
+		return revision, nil
+	}
+	if IsLocalPath(url) {
+		ref := revision
+		if ref == "" {
+			ref = "HEAD"
+		}
+		out, err := exec.CommandContext(ctx, "git", "-C", url, "rev-parse", ref).Output() // #nosec G204 -- the descriptor's own repository path
+		if err != nil {
+			return "", fmt.Errorf("resolve %s in %s: %w", ref, url, err)
+		}
+		got := strings.TrimSpace(string(out))
+		if !IsCommitSHA(got) {
+			return "", fmt.Errorf("resolve %s in %s: %q is not a commit", ref, url, got)
+		}
+		return got, nil
+	}
+
+	args := []string{"ls-remote", "--quiet", url}
+	if revision != "" {
+		args = append(args, revision)
+	} else {
+		args = append(args, "HEAD")
+	}
+	// #nosec G204 -- the descriptor's own repository URL
+	out, err := exec.CommandContext(ctx, "git", args...).Output()
+	if err != nil {
+		return "", fmt.Errorf("resolve %s in %s: %w", revision, url, err)
+	}
+	// `ls-remote <ref>` can answer with several lines: a tag and its dereferenced commit, or a
+	// branch and a tag sharing a name. The first line is the one a clone would take, and a `^{}`
+	// suffix marks the commit a tag points at, which is what a scan actually reads.
+	var first string
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
+		name, ref, ok := strings.Cut(strings.TrimSpace(line), "\t")
+		if !ok || !IsCommitSHA(name) {
+			continue
+		}
+		if strings.HasSuffix(ref, "^{}") {
+			return name, nil
+		}
+		if first == "" {
+			first = name
+		}
+	}
+	if first == "" {
+		return "", fmt.Errorf("resolve %s in %s: the remote names no such revision", revision, url)
+	}
+	return first, nil
 }

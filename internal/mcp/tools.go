@@ -507,7 +507,10 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		pool := git.NewPool()
 		defer pool.Close()
 		ctx = git.WithPool(ctx, pool)
-		run, runErr := engine.New(reg, engine.WithPrioritization(scanpolicy.DefaultPrioritizer(nil))).Run(ctx, *model)
+		run, runErr := engine.New(reg,
+			engine.WithPrioritization(scanpolicy.DefaultPrioritizer(nil)),
+			engine.WithRevisionResolver(git.ResolveRevision),
+		).Run(ctx, *model)
 		if runErr != nil {
 			// Say so rather than swallowing it: a partial scan that reads as complete is worse
 			// than an error, because the agent will report "no findings" with confidence.
