@@ -34,7 +34,10 @@ type gateCase struct {
 	// noSecrets turns off the one control that declares a context floor. Whether a band is
 	// reachable depends on it, so a case about reachability has to be able to say.
 	noSecrets bool
-	wantFail  bool
+	// controls replaces the enabled set outright, for a case that needs a finding the secrets
+	// floor would otherwise lift to P1. Every band below P1 is unreachable through that control.
+	controls string
+	wantFail bool
 	// wantOut is a phrase the command has to say. The verdict alone does not prove the reader was
 	// told which rule produced it.
 	wantOut string
@@ -79,6 +82,50 @@ func TestTheGateDecidesAndSaysWhy(t *testing.T) {
 			exposure: "public", criticality: "critical",
 			wantFail: false,
 			wantOut:  "except secrets on critical",
+		},
+		{
+			// The gate the product recommends, refined for one control. Every per-control case
+			// above writes severities, and the default gate is a band, so without this the
+			// vocabulary a descriptor is most likely to use is the one nothing exercises. A
+			// threshold that is parsed in the wrong vocabulary is discarded rather than refused,
+			// and the console prints the rule it is about to ignore.
+			//
+			// `iac` rather than `secrets`, because the secrets floor lifts its findings to P1 and
+			// no band below P1 is then reachable through it. On a restricted, supporting
+			// component the Dockerfile's findings land at P3 and P4.
+			name:     "a per-control band is what its control is judged by",
+			gate:     "    failOn: P2\n    controls:\n      iac: P3\n",
+			controls: "    iac: {enabled: true}\n",
+			exposure: "restricted", criticality: "supporting",
+			wantFail: true,
+			wantOut:  "fails on P2, except iac on P3",
+		},
+		{
+			// The same descriptor without the override, so the failure above is the override's
+			// doing rather than something the gate would have caught anyway. Without this pair
+			// the case above passes against a build that ignores the override and fails for its
+			// own reasons.
+			name:     "and without it the same findings pass",
+			gate:     "    failOn: P2\n",
+			controls: "    iac: {enabled: true}\n",
+			exposure: "restricted", criticality: "supporting",
+			wantFail: false,
+			wantOut:  "fails on P2",
+		},
+		{
+			// Nothing written is not nothing in force: the gate defaults to a band, so a
+			// descriptor that sets only per-control thresholds has one to refine.
+			//
+			// The assertion is the rendered gate line, which a descriptor refused at validation
+			// never reaches, so this holds both halves: that the shape loads, and that the
+			// threshold then decides something. A public, critical component, because the default
+			// band has to be reachable for the run to start at all.
+			name:     "a per-control band with no gate above it refines the default",
+			gate:     "    controls:\n      iac: P2\n",
+			controls: "    iac: {enabled: true}\n",
+			exposure: "public", criticality: "critical",
+			wantFail: true,
+			wantOut:  "Gate: fails on P1, except iac on P2",
 		},
 		{
 			// `secrets` declares a context floor, so a leaked credential reaches P1 on a
@@ -207,10 +254,13 @@ func scanWithGate(t *testing.T, repo string, tc gateCase) (string, bool) {
 	if tc.noSecrets {
 		controls = "    iac: {enabled: true}\n"
 	}
+	if tc.controls != "" {
+		controls = tc.controls
+	}
 	body := `project: gate-fixture
 release: {version: "1.0.0"}
 config:
-` + gate + `  controllers:
+` + gate + `  controls:
 ` + controls + `components:
   - name: api
     exposure: ` + tc.exposure + `
