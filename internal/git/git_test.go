@@ -406,3 +406,54 @@ func TestCheckoutWithHistoryStillHonorsPaths(t *testing.T) {
 		t.Errorf("history should still be there, got %d commits", n)
 	}
 }
+
+func TestIsCommitSHA(t *testing.T) {
+	for value, want := range map[string]bool{
+		"1111111111111111111111111111111111111111": true,
+		"":       false,
+		"main":   false,
+		"v1.2.3": false,
+		// An abbreviation is unambiguous today and ambiguous as a repository grows.
+		"1111111": false,
+		// Uppercase is not what git writes, so treating it as one invites two keys for one commit.
+		"1111111111111111111111111111111111111AAA": false,
+	} {
+		if got := IsCommitSHA(value); got != want {
+			t.Errorf("IsCommitSHA(%q) = %v, want %v", value, got, want)
+		}
+	}
+}
+
+// A revision is resolved against the repository rather than trusted as written, so a cache entry
+// names the commit it describes.
+func TestResolveRevisionAgainstALocalRepository(t *testing.T) {
+	dir, head := initRepo(t)
+
+	// The branch, HEAD, an unwritten revision and the commit itself all name the same commit,
+	// which is the property a cache key depends on.
+	for _, ref := range []string{"", "main", "HEAD", head} {
+		got, err := ResolveRevision(t.Context(), dir, ref)
+		if err != nil || got != head {
+			t.Errorf("resolve %q = %q, %v, want %s", ref, got, err, head)
+		}
+	}
+
+	// And it follows the branch rather than repeating itself, which is the whole reason a name
+	// cannot be a key.
+	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte("moved"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "commit", "-qam", "a second commit")
+	moved, err := ResolveRevision(t.Context(), dir, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved == head {
+		t.Error("the branch moved and resolved to the same commit, so nothing is being resolved")
+	}
+
+	// A name the repository does not have is an error, never a guess.
+	if _, err := ResolveRevision(t.Context(), dir, "no-such-branch"); err == nil {
+		t.Error("a revision that does not exist should be an error, not an answer")
+	}
+}

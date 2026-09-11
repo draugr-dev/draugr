@@ -803,3 +803,92 @@ func TestUnpinnedCacheHitsAreRecorded(t *testing.T) {
 		}
 	})
 }
+
+// A cache entry has to name the commit it describes. A revision like `main`, or none at all, is a
+// name for whatever the branch points at now, so an entry stored under it outlives the commit it
+// was computed from and the next run at any commit is served the previous one's findings.
+//
+// The direction that shows up is a stale failure, which is noisy and harmless. The direction that
+// does not is a clean answer about a commit that introduced something, on a tool whose whole job is
+// to notice.
+func TestACacheKeyNamesTheCommitItDescribes(t *testing.T) {
+	head := "1111111111111111111111111111111111111111"
+	e := New(NewRegistry(), WithRevisionResolver(
+		func(context.Context, string, string) (string, error) { return head, nil }))
+
+	commit, ok := e.commitOf(t.Context(), plugin.RepositoryTarget{URL: ".", Revision: "main"})
+	if !ok || commit != head {
+		t.Errorf("commitOf(main) = %q %v, want the resolved commit", commit, ok)
+	}
+
+	// Already a commit, so nothing to ask and nobody to ask.
+	pinned := plugin.RepositoryTarget{URL: "https://git/x", Revision: head}
+	noResolver := New(NewRegistry())
+	if commit, ok := noResolver.commitOf(t.Context(), pinned); !ok || commit != head {
+		t.Errorf("a pinned revision needs no resolver, got %q %v", commit, ok)
+	}
+}
+
+// Not knowing is not the same as knowing nothing changed. A repository whose revision cannot be
+// resolved is scanned and its result thrown away, rather than stored under a name that will mean
+// something else tomorrow.
+func TestARevisionNobodyCanResolveIsNotCached(t *testing.T) {
+	unpinned := plugin.RepositoryTarget{URL: "https://git/x", Revision: "main"}
+
+	if _, ok := New(NewRegistry()).commitOf(t.Context(), unpinned); ok {
+		t.Error("with no resolver there is no commit to key on, so this must not cache")
+	}
+
+	failing := New(NewRegistry(), WithRevisionResolver(
+		func(context.Context, string, string) (string, error) { return "", errors.New("no route to host") }))
+	if _, ok := failing.commitOf(t.Context(), unpinned); ok {
+		t.Error("a resolver that could not answer must not produce a cacheable key")
+	}
+}
+
+// One question per repository per run. A descriptor naming one repository from several components
+// would otherwise ask the remote once per control, and a failure would be retried just as often.
+func TestARevisionIsResolvedOncePerRun(t *testing.T) {
+	var calls int
+	e := New(NewRegistry(), WithRevisionResolver(func(context.Context, string, string) (string, error) {
+		calls++
+		return "2222222222222222222222222222222222222222", nil
+	}))
+	target := plugin.RepositoryTarget{URL: "https://git/x", Revision: "main"}
+	for range 3 {
+		if _, ok := e.commitOf(t.Context(), target); !ok {
+			t.Fatal("resolution should have succeeded")
+		}
+	}
+	if calls != 1 {
+		t.Errorf("resolved %d times, want 1", calls)
+	}
+
+	// Including the failure, so one unreachable remote is asked about once rather than once per
+	// control.
+	var failures int
+	f := New(NewRegistry(), WithRevisionResolver(func(context.Context, string, string) (string, error) {
+		failures++
+		return "", errors.New("no route to host")
+	}))
+	for range 3 {
+		_, _ = f.commitOf(t.Context(), plugin.RepositoryTarget{URL: "https://git/y", Revision: "main"})
+	}
+	if failures != 1 {
+		t.Errorf("asked %d times about an unreachable remote, want 1", failures)
+	}
+}
+
+// Anything that is not a repository already says exactly what was read: an image by its digest or
+// tag, a host by its URL. Asking them for a commit would turn caching off for everything.
+func TestATargetWithNoRevisionStillCaches(t *testing.T) {
+	e := New(NewRegistry())
+	for _, target := range []plugin.Target{
+		plugin.ImageTarget{Ref: "repo/x:1"},
+		plugin.HostTarget{URL: "https://example.com"},
+	} {
+		if commit, ok := e.commitOf(t.Context(), target); !ok || commit != "" {
+			t.Errorf("%T: got %q %v, want a cacheable target with no commit", target, commit, ok)
+		}
+	}
+}

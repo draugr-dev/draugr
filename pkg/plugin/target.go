@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -78,6 +79,16 @@ func (t RepositoryTarget) Identity() string {
 	}
 	return id
 }
+
+// Pinned reports whether this target's revision names one commit for good.
+//
+// A branch or a tag is a name for whatever it points at now, and an empty revision is the same
+// problem with nothing written down. Anything that has to stay true across runs, a cache entry
+// above all, is keyed on a moving name only if somebody resolves it first.
+func (t RepositoryTarget) Pinned() bool { return commitSHA.MatchString(t.Revision) }
+
+// commitSHA matches a full 40-character object name.
+var commitSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 // BuiltUpstream reports who publishes this repository.
 func (t RepositoryTarget) BuiltUpstream() bool { return t.Upstream }
