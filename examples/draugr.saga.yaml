@@ -23,25 +23,29 @@ config:
   # different targets is a second descriptor.
   # allowEffects: [mutate, privilege]
 
-  # What fails the build. `--fail-on` sets one threshold for everything; this says where that one
-  # threshold does not fit.
+  # What fails the build.
   gate:
-    # A run has one gate, and there are two questions it could ask.
+    # A run has one gate and it asks one of two questions.
     #
-    # Leave this block out entirely and the gate is `failOn: P1`: the band a finding lands
-    # in for the component it was found in, which folds in the exposure and criticality declared
-    # below. That is the ranking Draugr computes, and the one it judges by unless told otherwise.
+    # A priority band is the band a finding lands in for the component it was found in, which
+    # folds in the exposure and criticality declared below. That is the ranking Draugr computes,
+    # it is what the rest of this file exists to feed, and it is the default: leave this block out
+    # and the gate is `failOn: P1`. It is written here anyway, because a gate nobody has seen
+    # written is one people do not know they can move.
     #
-    # `failOn` asks the other question instead, the severity the scanner gave the flaw on its own
-    # terms. Setting both is refused rather than combined, because a verdict with two possible
-    # reasons cannot be read back to the rule that produced it.
-    failOn: high             # critical | high | medium | low
+    # A severity asks the other question, what the scanner called the flaw on its own terms, with
+    # nothing about where it was found. Write `failOn: high` for that instead. Setting both is
+    # refused rather than combined, because a verdict with two possible reasons cannot be read
+    # back to the rule that produced it.
+    failOn: P1               # P1 | P2 | P3 | P4, or critical | high | medium | low
     controls:
-      licenses: high         # the same bands, for one control, refining failOn above
-      sca: critical
+      licenses: P2           # one control, judged on a stricter band, refining failOn above
       # One threshold cannot serve every control: license policy is owned by legal and
       # vulnerability policy by security, and "fail on a forbidden license but only warn on a
       # medium CVE" is a reasonable position a single global threshold makes unsayable.
+      #
+      # The same vocabulary as `failOn` above, for the same reason. A severity here under a band
+      # gate is refused rather than quietly compared against something it does not measure.
 
   # An inventory of what you ship, rendered alongside the findings.
   sbom:
@@ -119,8 +123,35 @@ config:
                              # nightly-etl declares one below, and a surface no control looks at
                              # is a component that passes without being examined,
                              # `draugr doctor` reports that, and --fail-on-uncovered enforces it
+    # threats:
+    #   enabled: true        # whether a component's hosts appear on public lists of known-hostile
+    #                        # addresses (URLhaus). It asks about the endpoints declared below
+    #                        # rather than about the code, so it is the one control here that can
+    #                        # fail on a repository nobody changed. Needs URLHAUS_AUTH_KEY, free
+    #                        # from https://auth.abuse.ch/, which is why it is not enabled above
+    #   virustotal:
+    #     enabled: true      # a second opinion on the same hosts. Needs VIRUSTOTAL_API_KEY, and
+    #                        # the free tier is licensed for non-commercial use only, so read the
+    #                        # terms before enabling it in a company's pipeline
     # dast:
-    #   enabled: true        # runtime probing of hosts (Nuclei), scans a live endpoint
+    #   enabled: true        # runtime probing of hosts (Nuclei), which sends real requests to a
+    #                        # live endpoint. Commented because that is a thing to opt into
+    #                        # deliberately, against a staging host, rather than something a
+    #                        # descriptor turns on for everyone who copies it
+
+  # What to render, and where to send it. Both lists are needed: a destination that cannot use
+  # anything you render is refused when the descriptor loads.
+  #
+  # This is the shortest useful pair. `examples/reporting.saga.yaml` has every format, and every
+  # publisher, with what each one needs.
+  reports:
+    - format: sarif          # the evidence, for code scanning and for `draugr diff`
+    - format: markdown       # the same run as a document, for a pull-request comment
+  publishers:
+    - kind: file             # → ./.draugr/out/{results.sarif,report.md}
+      dir: ./.draugr/out
+    # - kind: github         # upload the SARIF to code scanning. Needs the `sarif` report above,
+    #                        # and no-ops outside GitHub Actions, so it is safe to leave enabled
 
 components:
   # A public web app: source, the image it builds, and the endpoint it serves.

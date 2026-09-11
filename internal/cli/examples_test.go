@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -250,4 +252,129 @@ func readExamples(t *testing.T) string {
 		t.Fatal("no examples read, this guard has been checking nothing")
 	}
 	return b.String()
+}
+
+// TestEveryControlAppearsInAnExample holds the example set to the catalog.
+//
+// A control registered and never written down is one users do not know they have: `draugr controls`
+// lists it, the reference documents it, and the file people actually copy has never mentioned it.
+// Registration is the trigger, so a new control brings this failure with it rather than waiting for
+// somebody to notice the gap.
+//
+// A commented block counts, the same as for a field. Two controls send real traffic or need a key,
+// and an example that cannot be run as shipped is worse than one that shows them commented with
+// the reason.
+func TestEveryControlAppearsInAnExample(t *testing.T) {
+	t.Parallel()
+
+	corpus := readExamples(t)
+	var missing []string
+	for _, name := range controlNames(builtins.Registry()) {
+		if !regexp.MustCompile(`(?m)^[\t ]*(#[\t ]*)?` + regexp.QuoteMeta(name) + `:`).MatchString(corpus) {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		t.Errorf("no example enables these controls: %s\n"+
+			"Add each under config.controls in the example it suits, with a line saying what it "+
+			"checks. Comment it out where running it needs a key or sends real traffic, and say "+
+			"which.", strings.Join(missing, ", "))
+	}
+}
+
+// TestEveryPublisherAppearsInAnExample does the same for destinations.
+//
+// A publisher is the half of reporting somebody has to be told exists. Its kind is the only string
+// that selects it, it is never suggested by anything a reader types, and a descriptor that renders
+// reports and delivers them nowhere looks finished.
+func TestEveryPublisherAppearsInAnExample(t *testing.T) {
+	t.Parallel()
+
+	corpus := readExamples(t)
+	var missing []string
+	for _, kind := range publish.Kinds() {
+		if !regexp.MustCompile(`(?m)^[\t ]*(#[\t ]*)?- kind: ` + regexp.QuoteMeta(kind) + `\b`).MatchString(corpus) {
+			missing = append(missing, kind)
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		t.Errorf("no example writes these publishers: %s\n"+
+			"Add each under config.publishers, with the report format it needs beside it. A "+
+			"destination nobody has seen written is one users do not know they can reach.",
+			strings.Join(missing, ", "))
+	}
+}
+
+// TestEveryScannerOptionAppearsInAnExample reaches the half the field guard cannot see.
+//
+// A scanner's options live in ControllerSettings, which is a free-form map, so they have no struct
+// tags and TestEveryDescriptorFieldAppearsInAnExample walks straight past them. They are real keys
+// with real defaults, they are the difference between a control that runs and one that runs against
+// your own ruleset, mirror or cluster, and nothing was holding them to an example.
+//
+// Read from the published schema, which is generated from each scanner's own ConfigSchema, so a
+// scanner that gains an option brings this failure with it.
+func TestEveryScannerOptionAppearsInAnExample(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../pkg/saga/draugr.saga.schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	defs, _ := doc["$defs"].(map[string]any)
+	if len(defs) == 0 {
+		t.Fatal("the schema declares no $defs, so this guard has been checking nothing")
+	}
+
+	corpus := readExamples(t)
+	seen := map[string]bool{}
+	var missing []string
+	for name, def := range defs {
+		// Only the per-control blocks. Everything else in $defs is a descriptor field, which the
+		// field guard already holds.
+		if !strings.HasPrefix(name, "control_") {
+			continue
+		}
+		scanners, _ := def.(map[string]any)["properties"].(map[string]any)
+		for scanner, node := range scanners {
+			opts, _ := node.(map[string]any)["properties"].(map[string]any)
+			for opt := range opts {
+				// Every scanner has it, and a reader meets it on the first one.
+				if opt == "enabled" || seen[opt] {
+					continue
+				}
+				seen[opt] = true
+				if !writtenAsAKey(corpus, opt) {
+					missing = append(missing, scanner+"."+opt)
+				}
+			}
+			if !seen[scanner] {
+				seen[scanner] = true
+				if !writtenAsAKey(corpus, scanner) {
+					missing = append(missing, scanner)
+				}
+			}
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		t.Errorf("no example writes these scanner options: %s\n"+
+			"examples/scanner-options.saga.yaml is where they belong, each with a line saying "+
+			"what it decides. Comment it out where using it needs a credential or a cluster.",
+			strings.Join(missing, ", "))
+	}
+}
+
+// writtenAsAKey reports whether the corpus writes key as a YAML key rather than mentioning it in
+// prose. A commented line counts, because a reader copies one as readily as a live one.
+func writtenAsAKey(corpus, key string) bool {
+	q := regexp.QuoteMeta(key)
+	return regexp.MustCompile(`(?m)^[\t ]*(#[\t ]*)?`+q+`:`).MatchString(corpus) ||
+		regexp.MustCompile(`(?m)^[\t ]*(#[\t ]*)?- `+q+`:`).MatchString(corpus)
 }
