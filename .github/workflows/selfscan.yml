@@ -201,7 +201,7 @@ jobs:
           # To accept a P1 that cannot be fixed now, add a `config.exclude` entry with a reason
           # to .draugr/self.saga.yaml in the same pull request. The finding stays in the report
           # marked suppressed, so the decision is visible afterwards rather than invisible.
-          fail-on-priority: P1
+          fail-on: P1
           # The diff gate, and the reason there are two.
           #
           # `mode: auto` runs a diff on a pull request and a full scan on a push, because those
@@ -209,7 +209,7 @@ jobs:
           # is the only fair question to ask an author who inherited a tree they did not write. A
           # full scan answers "is this tree acceptable", which nothing about a diff can establish.
           #
-          # `fail-on-priority` above configures the second and is not read by the first. Without
+          # `fail-on` above configures the second and is not read by the first. Without
           # this line the pull-request gate ran, posted its comment, and passed whatever the diff
           # contained, including a new P1, so the check was green by construction rather than
           # by result.
@@ -217,7 +217,7 @@ jobs:
           # Same band as the full scan's, deliberately: a finding urgent enough to block the
           # branch is urgent enough to block the change that introduces it, and two thresholds
           # would mean a P1 that is allowed in and never allowed out.
-          fail-on-new-priority: P1
+          fail-on-new: P1
 
       - name: Upload evidence
         # always(), not the code filter: the evidence is most wanted when the gate failed, and
