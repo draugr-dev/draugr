@@ -113,22 +113,26 @@ jobs:
           key: draugr-tools-${{ runner.os }}-${{ steps.release.outputs.tag }}
 
       # Content-hash caching is the thing Draugr offers users so an unchanged component is never
-      # re-scanned, and this job was not using it, every run re-scanned a tree that had barely
-      # moved. Dogfooding it here is the point of the job.
+      # re-scanned, and dogfooding it here was the point. It is off until
+      # https://github.com/draugr-dev/draugr/issues/999 lands.
       #
-      # A stale entry cannot outlive the data behind it: a scanner that folds its vulnerability-DB
-      # version into the cache key (Trivy does) misses the moment that database changes, so a
-      # cached pass cannot hide a CVE published since. The action already refuses to *write* this
-      # cache from a fork's pull request, so an untrusted branch cannot decide what the next run
-      # on main reads.
-      - name: Cache scan results
-        if: needs.changes.outputs.code == 'true'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .draugr/cache
-          key: draugr-selfscan-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            draugr-selfscan-${{ runner.os }}-
+      # A repository that declares no revision has one cache identity for its whole life, so an
+      # entry outlives the commit it described and the next run at any commit is served the
+      # previous one's findings. `url: .` in the descriptor below is exactly that shape. The
+      # direction that shows up is a stale failure, which is noisy and harmless; the direction that
+      # does not is a stale pass, which is this gate reporting clean on a commit that introduced a
+      # CVE. That is the one thing this job exists to refuse.
+      #
+      # Restored here from whatever branch wrote it last, which is what makes the window wide: the
+      # key falls back to `draugr-selfscan-Linux-`, so any run can read any other run's answer.
+      # - name: Cache scan results
+      #   if: needs.changes.outputs.code == 'true'
+      #   uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      #   with:
+      #     path: .draugr/cache
+      #     key: draugr-selfscan-${{ runner.os }}-${{ github.sha }}
+      #     restore-keys: |
+      #       draugr-selfscan-${{ runner.os }}-
 
       # govulncheck is the one analyzer this Saga names that Draugr does not distribute, so the
       # action's `tools: true` step below will never provision it, `draugr doctor` says as much
@@ -168,9 +172,10 @@ jobs:
         with:
           saga: .draugr/self.saga.yaml
           output: draugr-out
-          # Restored and saved by the steps above. Relative to working-directory, and under
-          # .draugr/ with everything else a run reads or writes.
-          cache-dir: .draugr/cache
+          # Unset while https://github.com/draugr-dev/draugr/issues/999 stands: a cache entry for a
+          # repository that declares no revision outlives the commit it described, and this gate
+          # cannot be reading an answer computed from a different tree.
+          cache-dir: ""
           # Draugr provisions its own scanners: `draugr tools install` fetches each pinned,
           # checksum-verified release into a directory it owns, which is what this action offers
           # every user and therefore what this job should be exercising.
