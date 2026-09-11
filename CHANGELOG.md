@@ -12,6 +12,61 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.117.0] - 2026-09-11
+
+### Added
+
+- A publisher says what it is given. `config.publishers[].reports` narrows a destination to the
+  formats it is for, so writing HTML and JSON to a directory while posting a short markdown
+  summary to a pull request is now expressible: it was three formats handed to every destination,
+  each picking out what it recognized. `minPriority` and `filename` go under the destination that
+  needs them. `config.reports` still names the set every destination that does not narrow is
+  given, and is what `-o` writes with no publisher involved, so nothing that worked before
+  changes. Each distinct report is still rendered once, however many destinations ask for it.
+
+### Changed
+
+- The example descriptors write every control, every publisher and every scanner option. `dast`
+  and `threats` appeared in none of them, five of the six publishers appeared only in
+  `reporting.saga.yaml`, and twenty-four scanner options, the kube-bench and Mend blocks among
+  them, were in the schema and in no file anybody could copy. `examples/scanner-options.saga.yaml`
+  is new and holds the last of those. Three guards keep the set honest: a control, a publisher or
+  a scanner option added from now on fails the build until an example writes it.
+
+### Fixed
+
+- A cached scan result now names the commit it describes. A repository that declares no revision,
+  which is what `url: .` and most descriptors write, had one cache identity for its whole life, so
+  an entry outlived the commit it was computed from and the next run at any commit was served the
+  previous one's findings. The visible direction was a stale failure; the quiet one was a clean
+  answer about a commit that had just introduced a vulnerable dependency. Draugr resolves the
+  revision to a commit before building the key, and a repository whose revision cannot be resolved
+  is scanned and not cached rather than stored under a name that moves.
+
+- A destination written twice is refused instead of delivering twice. `config.publishers` is a
+  list and two entries of one kind may be deliberate, two directories or two servers, or a
+  mistake, and the two were written identically. Draugr now refuses a pair that does not differ in
+  the field which makes it a second destination, naming that field, which is `dir` for `file`,
+  `url` for `draugr-api`, `repo` for `github` and the sticky comment's `marker` for the rest.
+
+- A per-control gate threshold written as a priority band now decides something.
+  `config.gate.controls` has taken a band since the gate took one, and every band was parsed as a
+  severity, failed, and dropped, so the whole per-control block did nothing on a band gate, which
+  is the default. A control held to `P2` under a `P1` gate now fails on a P2, the console says
+  `fails on P1, except licenses on P2`, and `report.json` records what was applied rather than
+  what was written.
+
+- `config.gate.controls` no longer needs `config.gate.failOn` written above it. A descriptor that
+  set per-control thresholds and left the gate on the default was refused with "there is none to
+  refine", when the default gate is `P1` and there was one. A severity under that default band is
+  still refused, and now says the default moved rather than that the gate does not exist.
+
+- The main example recommends the gate Draugr recommends. `examples/draugr.saga.yaml` explained
+  that `P1` is the default and then set `failOn: high` on the next line, so anyone copying it got
+  a severity gate and the explanation read as advice against itself. It writes `failOn: P1`, with
+  the severity form named as the alternative, and its per-control thresholds are bands rather than
+  severities under a band gate, which is a pairing Draugr refuses.
+
 ## [0.116.0] - 2026-09-11
 
 ### Added
@@ -5358,7 +5413,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.116.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.117.0...HEAD
+[0.117.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.117.0
 [0.116.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.116.0
 [0.115.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.115.0
 [0.114.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.114.0
