@@ -37,8 +37,8 @@ func newDiffCommand() *cobra.Command {
 			"security delta of a change, typically a PR's head vs its base branch.\n\n" +
 			"Accepted is a finding somebody excused rather than fixed; reopened is one whose\n" +
 			"exclusion lapsed. Both are printed only when they are not zero.\n\n" +
-			"--fail-on-new and --fail-on-new-priority gate on findings the change introduces, not\n" +
-			"on the existing backlog. Exits non-zero when that gate trips.",
+			"--fail-on-new gates on findings the change introduces, not on the existing backlog,\n" +
+			"and takes a priority band or a severity. Exits non-zero when that gate trips.",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDiff(cmd.Context(), args[0], args[1], *opts, cmd.OutOrStdout())
