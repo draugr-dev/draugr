@@ -1,9 +1,15 @@
-# Example Saga, reporting: render several report formats and publish them.
-# Run it with:  draugr scan examples/reporting.saga.yaml
+# Example Saga, publishing: where a run's results go, and what each destination is given.
+# Run it with:  draugr scan examples/publishing.saga.yaml
 #
-# `config.reports` lists the formats to render; `config.publishers` lists where to deliver them.
-# Every rendered report is delivered to every publisher. Reports are produced even when the gate
-# fails, so you always get evidence.
+# A destination says what it takes. Writing HTML and JSON to a directory while posting a short
+# markdown summary to a pull request is three formats with two audiences, and each gets what it
+# is for rather than all three.
+#
+# `config.reports` is still there and still means "render these for every destination that does
+# not narrow", which is what a descriptor written before this said. It is also what `-o <dir>`
+# writes with no publisher involved.
+#
+# Reports are produced even when the gate fails, so you always get evidence.
 
 project: my-app
 
@@ -15,38 +21,39 @@ config:
     images:
       enabled: true
 
-  # What to render. Any scan --format works here: console, markdown, html, junit, json, sarif,
-  # and template (a Go text/template, no code needed).
+  # Rendered for every destination below that does not say otherwise. Any scan --format works
+  # here: console, markdown, html, junit, json, sarif, and template (a Go text/template, no code
+  # needed).
   reports:
-    - format: sarif                 # for code scanning / dashboards
     # GitLab reads its own schema rather than SARIF, and collects these as build artifacts.
     # gitlab-codequality shows in the merge request on any tier; the two security reports feed
     # the Vulnerability Report, which is Ultimate.
     - format: gitlab-codequality
     - format: gitlab-sast
     - format: gitlab-secret-detection
-    - format: markdown              # a portable report (MR comment, wiki)
-    - format: html                  # a shareable, browser-viewable artifact
-    - format: template              # a custom payload, e.g. a one-line summary
-      template: "{{.Verdict}}: P1={{.Priorities.P1}} P2={{.Priorities.P2}}\n"
-      filename: summary.txt
-    - format: template              # the same, from a file rather than inline
-      templateFile: contrib/report.tmpl   # relative to where Draugr runs
-      filename: report.txt                # a template past a line or two is unreadable in YAML,
-                                          # and a file can be reviewed, diffed and reused
-    # Narrowed to what somebody will act on. A markdown report of four hundred findings pasted
-    # into a merge request is a report nobody reads to the end, and the ones below the fold are
-    # the ones this format exists to surface. The full set is still in the SARIF above.
-    - format: markdown
-      filename: fix-first.md
-      minPriority: P2               # P1 | P2 | P3 | P4, this report carries P1 and P2 only
 
-  # Where to deliver them.
+  # Where results go. A destination that names `reports` is given exactly those; one that names
+  # none is given everything above.
   publishers:
-    - kind: file                    # write each report to a directory
-      dir: ./.draugr/out            # → ./.draugr/out/{results.sarif,report.md,report.html,summary.txt}
+    - kind: file                    # → ./.draugr/out/{results.sarif,report.html,summary.txt,…}
+      dir: ./.draugr/out
+      reports:
+        - format: sarif             # the evidence, and what `draugr diff` reads
+        - format: html              # a shareable, browser-viewable artifact
+        - format: template          # a custom payload, e.g. a one-line summary
+          template: "{{.Verdict}}: P1={{.Priorities.P1}} P2={{.Priorities.P2}}\n"
+          filename: summary.txt
+        - format: template          # the same, from a file rather than inline
+          templateFile: contrib/report.tmpl   # relative to where Draugr runs
+          filename: report.txt                # a template past a line or two is unreadable in
+                                              # YAML, and a file can be reviewed and diffed
+        # The GitLab reports are named at the project level above, so they arrive here without
+        # being listed twice.
 
     - kind: github                  # upload the SARIF report to GitHub code scanning
+      reports:
+        - format: sarif             # the one format this destination can use, and now the only
+                                    # one it is handed
       # In GitHub Actions, repo/commit/ref/token are read from the environment
       # (GITHUB_REPOSITORY / GITHUB_SHA / GITHUB_REF / GITHUB_TOKEN), nothing to set here.
       # Outside Actions this publisher no-ops. The token is NEVER stored in the Saga.
@@ -58,6 +65,9 @@ config:
       # tokenEnv: GH_PAT            # name the env var that holds the token
 
     - kind: azure-pr-comment        # the same, on Azure DevOps
+      reports:
+        - format: markdown
+          minPriority: P2
       # Everything here is read from the pipeline, the collection URI, the team project, the
       # repository and $SYSTEM_ACCESSTOKEN, so these are overrides for running from elsewhere.
       # org: https://dev.azure.com/acme
@@ -65,16 +75,27 @@ config:
       # pr: 4412                    # the pull request to comment on, when it cannot be detected
 
     - kind: github-pr-comment       # a sticky pull-request comment on GitHub
+      # Narrowed to what somebody will act on. A comment carrying four hundred findings is one
+      # nobody reads to the end, and the ones below the fold are what this format exists to
+      # surface. The artifact on disk stays complete, which is the difference between a scope
+      # somebody chose and one that was applied to everything.
+      reports:
+        - format: markdown
+          minPriority: P2           # P1 | P2 | P3 | P4, this report carries P1 and P2 only
       # The pull request is read from $GITHUB_REF, so this line is usually the whole thing. On a
       # push to a branch it no-ops, which is what lets one Saga serve both.
       #
       # marker: "<!-- draugr:nightly -->"
       # What makes the comment sticky: Draugr finds its own previous comment by this string and
-      # edits it rather than adding another. Change it only to run two Draugr jobs against one
-      # pull request, a nightly sweep and a per-commit gate posting under one marker would take
-      # turns overwriting each other's verdict.
+      # edits it rather than adding another. It is also what tells two entries of one kind apart,
+      # so running a nightly sweep and a per-commit gate against one pull request needs two
+      # markers; written with one, the descriptor is refused rather than the two taking turns
+      # overwriting each other's verdict.
 
     - kind: gitlab-mr-comment       # a sticky merge-request comment on GitLab
+      reports:
+        - format: markdown
+          minPriority: P2
       # The project and the merge request are read from the runner (CI_PROJECT_ID /
       # CI_MERGE_REQUEST_IID), so this line is usually the whole configuration. On a branch
       # pipeline it no-ops, which is what lets one Saga serve both.

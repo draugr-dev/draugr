@@ -415,24 +415,43 @@ most, because it is what lets a descriptor outlive any particular tool.
 
 ## `config.reports` and `config.publishers`
 
-Declare which report **formats** a scan renders and **where** they're delivered. Reports are the
-"what" (a [Reporter](../contributing/plugin-api.md#reporter)); publishers are the "where" (a Publisher). Every
-rendered report is delivered to every publisher.
+Declare where a run's results go, and what each destination is given. A **publisher** is a
+destination (a Publisher); a **report** is one rendered format
+(a [Reporter](../contributing/plugin-api.md#reporter)).
+
+```yaml
+config:
+  publishers:
+    - kind: file           # the artifacts, complete
+      dir: ./out           # → ./out/results.sarif, ./out/report.html
+      reports:
+        - format: sarif    # any scan --format: console, markdown, html, junit, json, sarif
+        - format: html
+    - kind: github-pr-comment
+      reports:
+        - format: markdown
+          minPriority: P2  # narrow the comment, not the artifact on disk
+```
+
+**`config.reports` is the default set**, rendered for every destination that does not narrow:
 
 ```yaml
 config:
   reports:
-    - format: sarif        # any scan --format: console, markdown, html, junit, json, sarif
-      minPriority: P1      # optional, narrow this report, leaving the others complete
-    - format: markdown
-    - format: html
+    - format: sarif
     - format: template     # custom payload from a Go text/template
       templateFile: ./report.tmpl   # or inline `template: "..."` (set exactly one)
       filename: summary.txt         # optional; overrides the default output filename
   publishers:
-    - kind: file           # write each report to a directory
-      dir: ./out           # → ./out/results.sarif, ./out/report.md, ./out/report.html, ./out/summary.txt
+    - kind: file
+      dir: ./out           # given both, because it names no reports of its own
 ```
+
+A destination that names no `reports` is handed all of them, which is what a descriptor written
+before this said and still says. A format named under a publisher is rendered whether or not
+`config.reports` also names it, so a project that publishes and keeps no local artifacts need not
+declare the same format twice. Each distinct report is rendered once, however many destinations
+ask for it.
 
 The **`template`** format renders a [Go `text/template`](https://pkg.go.dev/text/template) against a
 stable view of the scan, `.Release`, `.Verdict`, `.Pass`, `.Priorities.{P1..P4}`, `.Controls`, and

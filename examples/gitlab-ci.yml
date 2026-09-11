@@ -6,7 +6,7 @@
 #
 # Pair it with a Saga that enables `config.sbom`. That is what fills the Dependency List and the
 # License Compliance tab: the template renders it as `gitlab-cyclonedx`, the dialect GitLab reads
-# (see examples/reporting.saga.yaml).
+# (see examples/publishing.saga.yaml).
 #
 # ONE THING TO SET UP: Settings → CI/CD → Variables → add a *masked* variable named GITLAB_TOKEN
 # holding a project or group access token with `api` scope. The CI_JOB_TOKEN GitLab puts in every

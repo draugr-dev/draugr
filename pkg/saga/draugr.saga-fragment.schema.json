@@ -1278,6 +1278,13 @@
           "description": "github: owner/name (default $GITHUB_REPOSITORY). azure-pr-comment: repository name (default $BUILD_REPOSITORY_NAME). gitlab-mr-comment: project id or full path (default $CI_PROJECT_ID).",
           "type": "string"
         },
+        "reports": {
+          "description": "What this destination is given. Left out, it is given every report config.reports renders. A format named here is rendered whether or not config.reports also names it.",
+          "items": {
+            "$ref": "#/$defs/reportConfig"
+          },
+          "type": "array"
+        },
         "tokenEnv": {
           "description": "Environment variable holding the token (default GITHUB_TOKEN; SYSTEM_ACCESSTOKEN for azure-pr-comment; GITLAB_TOKEN for gitlab-mr-comment). The token itself is never stored in the Saga.",
           "type": "string"

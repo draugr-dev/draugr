@@ -7,9 +7,33 @@ order: 40
 
 # Reports & publishers
 
-Draugr separates the **report** (the "what", a rendered format) from the **publisher** (the "where",
-a destination). Configure both in the Saga's `config.reports` / `config.publishers`, and every
-rendered report is delivered to every publisher. Even on a FAIL verdict, so you always get evidence.
+A **publisher** is a destination, and it says what it is given:
+
+```yaml
+config:
+  publishers:
+    - kind: file                 # the artifacts, complete
+      dir: ./.draugr/out
+      reports:
+        - format: html
+        - format: json
+    - kind: github-pr-comment    # a short summary, for people
+      reports:
+        - format: markdown
+          minPriority: P2
+    - kind: github               # the evidence, for code scanning
+      reports: [{format: sarif}]
+```
+
+**`config.reports` is the default set**, rendered for every destination that does not narrow, and
+what [`-o/--output`](#) writes with no publisher involved. A destination that names no `reports` is
+handed all of them, which is what a descriptor written before this said and still says.
+
+A format named under a publisher is rendered whether or not `config.reports` also names it, so a
+project that publishes and keeps no local artifacts need not declare the same format twice. Each
+distinct report is rendered once however many destinations ask for it.
+
+Reports are produced even on a FAIL verdict, so you always get evidence.
 
 ## Report formats
 
@@ -206,8 +230,8 @@ for a bespoke summary line, a Slack payload, or any custom text without writing 
 
 ## Built-in publishers
 
-Each destination needs a format declared under `config.reports`, and a descriptor that names one
-without the other is refused when it loads rather than after the scanners have run:
+Each destination needs a format it can use, and a descriptor that names one without the other is
+refused when it loads rather than after the scanners have run:
 
 ```console
 $ draugr validate draugr.saga.yaml
@@ -215,14 +239,24 @@ draugr: config.publishers[0]: the github publisher delivers a "sarif" report and
 declares none. Add `- format: sarif`
 ```
 
-| Kind | Needs | Delivers to | Config |
-|------|-------|-------------|--------|
-| `file` | any | a local directory (one file per report format) | `dir` |
-| `github` | `sarif` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
-| `github-pr-comment` | `markdown` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
-| `azure-pr-comment` | `markdown` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
-| `gitlab-mr-comment` | `markdown` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
-| `draugr-api` | `json`, `sarif` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
+The **Distinguishes** column is what makes a second entry of one kind a second destination. Two
+`file` publishers writing to different directories are two destinations; two writing to the same
+one are the same destination written twice, and are refused:
+
+```console
+draugr: config.publishers[1] is the same destination as config.publishers[0]: both are file with
+the same dir, so the second delivers where the first already did. Give them different dir values,
+or keep one
+```
+
+| Kind | Needs | Distinguishes | Delivers to | Config |
+|------|-------|---------------|-------------|--------|
+| `file` | any | `dir` | a local directory (one file per report format) | `dir` |
+| `github` | `sarif` | `repo` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `github-pr-comment` | `markdown` | `marker` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `azure-pr-comment` | `markdown` | `marker` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
+| `gitlab-mr-comment` | `markdown` | `marker` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
+| `draugr-api` | `json`, `sarif` | `url` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga. Every token comes from an environment variable, and each
 no-ops outside its own context (not in CI, or no PR) so the same Saga still runs locally. Every

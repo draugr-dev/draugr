@@ -20,7 +20,7 @@ func trackedFiles(t *testing.T) []string {
 
 // TestScanOutputIsNotCommitted keeps a scan's own output out of the repository.
 //
-// The directory is where the self-scan writes and what `examples/reporting.saga.yaml` names, so it
+// The directory is where the self-scan writes and what `examples/publishing.saga.yaml` names, so it
 // turns up in a working tree as a matter of course, and `*.out` in .gitignore does not match a
 // directory Draugr writes to, `.draugr/out` now, and the two names it used before.
 //

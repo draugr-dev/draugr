@@ -90,7 +90,7 @@ A narrowed SARIF records the band it was narrowed to, so nothing reading it late
 [`draugr diff`](pr-diff.md), which reads a missing finding as a fixed one, mistakes it for a
 complete scan.
 
-See [`examples/reporting.saga.yaml`](../../examples/reporting.saga.yaml) for a fuller,
+See [`examples/publishing.saga.yaml`](../../examples/publishing.saga.yaml) for a fuller,
 multi-format, multi-publisher Saga.
 
 ## 2. Run it from a workflow
