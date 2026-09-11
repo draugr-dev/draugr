@@ -248,3 +248,65 @@ func TestProgressDoesNotTimeAJobThatJustStarted(t *testing.T) {
 		t.Errorf("a step that just started should not carry a clock: %q", line)
 	}
 }
+
+// A frame is erased by moving the cursor up once per line it drew. That arithmetic is only true
+// while every line occupies one row, and a terminal wraps a line it cannot fit onto two. The
+// repaint then stops one row short, and `\033[2K` clears whatever is there, which is the reader's
+// own output rather than anything this program wrote. Every repaint after it drifts one row
+// further up the screen.
+func TestAFrameNeverOccupiesMoreRowsThanItErases(t *testing.T) {
+	const width = 40
+	var buf bytes.Buffer
+	p := &progressLine{w: &buf, columns: func() int { return width }}
+	t.Cleanup(func() { active.Store(nil) })
+
+	p.update(engine.ProgressEvent{
+		Total: 9, Complete: 1,
+		Steps: []engine.ProgressStep{
+			{Control: "images", Scanner: "trivy", Total: 4, Done: 1, Running: 2},
+			{Control: "infrastructure", Scanner: "kube-bench", Total: 5, Done: 0, Running: 1, Failed: 2},
+		},
+	})
+
+	var rows int
+	for _, line := range strings.Split(buf.String(), "\n") {
+		rows++
+		if cells := visibleCells(line); cells > width {
+			t.Errorf("a line of %d cells wraps in a %d-column window: %q", cells, width, line)
+		}
+	}
+	if rows != p.drawn {
+		t.Errorf("drew %d rows and recorded %d, so the erase will land on the wrong lines", rows, p.drawn)
+	}
+}
+
+// Nothing to measure against, so nothing is cut: a line is better long than truncated on a guess.
+func TestAnUnknownWidthCutsNothing(t *testing.T) {
+	var full, unknown bytes.Buffer
+	ev := engine.ProgressEvent{
+		Total: 9, Complete: 1,
+		Steps: []engine.ProgressStep{{Control: "infrastructure", Scanner: "kube-bench", Total: 5, Running: 1}},
+	}
+	t.Cleanup(func() { active.Store(nil) })
+	(&progressLine{w: &full, columns: func() int { return 200 }}).update(ev)
+	(&progressLine{w: &unknown}).update(ev)
+	if full.String() != unknown.String() {
+		t.Errorf("a window too wide to matter and no window at all should render the same:\n%q\n%q",
+			full.String(), unknown.String())
+	}
+}
+
+// visibleCells counts the character cells a rendered line occupies, ignoring the escapes that
+// carry color and the control sequence each line is prefixed with.
+func visibleCells(line string) int {
+	line = strings.TrimPrefix(line, "\r\033[2K")
+	return len([]rune(tui.Truncate(line, 1<<30))) - escapeRunes(line)
+}
+
+func escapeRunes(s string) int {
+	var n int
+	for _, m := range regexp.MustCompile("\x1b\\[[0-9;]*[a-zA-Z]").FindAllString(s, -1) {
+		n += len([]rune(m))
+	}
+	return n
+}

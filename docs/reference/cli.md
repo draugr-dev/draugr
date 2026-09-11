@@ -679,23 +679,23 @@ decision worth a reviewer's attention and the second is work somebody did.
 | `--format` | `console` | output format: `console`, `json`, `markdown`, `sarif`. `sarif` emits the **new** findings only, for code scanning on a pull request |
 | `--min-priority` |, | report only **new** findings at or above this priority band (`P1`–`P4`); fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
 | `--repository` |. | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
-| `--fail-on-new` |. | fail if a **new** finding is at or above this severity: `error`, `warning`, `note` |
-| `--fail-on-new-priority` |. | fail if a **new** finding is at or above this priority (`P1`–`P4`) |
+| `--fail-on-new` |. | fail if a **new** finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
+| `--fail-on-new-priority` |. | Deprecated: write the band in `--fail-on-new` |
 
-Both gates read **new** only. An accepted finding does not trip them, which is the point of
-accepting it; a reopened one does not either, because the gate exists to stop a change introducing
-something and a lapsed exclusion is a decision to revisit rather than a regression in the diff.
-They are reported in the output regardless, which is where somebody should see them.
+The gate reads **new** only. An accepted finding does not trip it, which is the point of accepting
+it; a reopened one does not either, because the gate exists to stop a change introducing something
+and a lapsed exclusion is a decision to revisit rather than a regression in the diff. Both are
+reported in the output regardless, which is where somebody should see them.
 | `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
 ```bash
 draugr diff base/results.sarif head/results.sarif                     # console delta
 draugr diff base/results.sarif head/results.sarif --format markdown   # MR comment
-draugr diff base/results.sarif head/results.sarif --fail-on-new-priority P1
+draugr diff base/results.sarif head/results.sarif --fail-on-new P1
 draugr diff base/results.sarif head/results.sarif --publish           # sticky PR comment (in CI)
 ```
 
-**Differential gating.** `--fail-on-new` / `--fail-on-new-priority` fail a PR only for findings it
+**Differential gating.** `--fail-on-new` fails a PR only for findings it
 *introduces*, not the pre-existing backlog, so a gate stays adoptable where a whole-backlog gate
 would block every PR. The command exits non-zero when the gate trips. A typical CI setup scans
 `main` on push and stores `results.sarif` as an artifact, scans the PR, then diffs the two.
@@ -915,8 +915,18 @@ Each file is reported on its own line, so one failure doesn't hide the rest:
 
 ```
 ✓ draugr.saga.yaml is valid
-✗ svc-b/web.saga.yaml
+✗ svc-a/api.saga.yaml
     unknown field "componnets" in the top level. Check the spelling, or see …
+✗ svc-b/web.saga.yaml
+    unknown field "failOnn" in config.gate. Check the spelling, or see …
+```
+
+The section named is the path you write, so it is also the heading to look for in the
+[Saga schema](saga-schema.md). A key that used to parse is told apart from one that never did:
+
+```
+✗ svc-c/worker.saga.yaml
+    release.name was removed: it named the project, which is what the top-level `project` names…
 ```
 
 A pattern that matches nothing is an error rather than a silent success. Otherwise a typo'd pattern
