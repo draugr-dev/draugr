@@ -915,8 +915,18 @@ Each file is reported on its own line, so one failure doesn't hide the rest:
 
 ```
 ✓ draugr.saga.yaml is valid
-✗ svc-b/web.saga.yaml
+✗ svc-a/api.saga.yaml
     unknown field "componnets" in the top level. Check the spelling, or see …
+✗ svc-b/web.saga.yaml
+    unknown field "failOnn" in config.gate. Check the spelling, or see …
+```
+
+The section named is the path you write, so it is also the heading to look for in the
+[Saga schema](saga-schema.md). A key that used to parse is told apart from one that never did:
+
+```
+✗ svc-c/worker.saga.yaml
+    release.name was removed: it named the project, which is what the top-level `project` names…
 ```
 
 A pattern that matches nothing is an error rather than a silent success. Otherwise a typo'd pattern
