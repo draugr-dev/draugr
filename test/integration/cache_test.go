@@ -79,10 +79,7 @@ components:
 	}
 
 	// The commit the gate exists to catch.
-	write("id_rsa", "-----BEGIN RSA PRIVATE KEY-----\n"+
-		"MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Q\n"+
-		"uKUpWnIg9pQ0j0J7bqDKT7f7fEXAMPLEfakekeymaterialnotrealABCDEF0000\n"+
-		"-----END RSA PRIVATE KEY-----\n")
+	write("id_rsa", fakePrivateKey)
 	git("add", ".")
 	git("commit", "--quiet", "-m", "leak a credential")
 
