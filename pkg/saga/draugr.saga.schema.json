@@ -1080,7 +1080,13 @@
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "description": "Infrastructure type, e.g. kubernetes.",
+          "anyOf": [
+            {
+              "const": "kubernetes",
+              "description": "A Kubernetes cluster, audited against a CIS benchmark."
+            }
+          ],
+          "description": "The infrastructure surface to audit. `ref` names the concrete instance.",
           "type": "string"
         },
         "namespaces": {
@@ -1196,9 +1202,13 @@
         "analyzers": {
           "description": "Tools that decide reachability, e.g. `govulncheck`. Named rather than inferred, so the descriptor says which tool reached the verdict and `draugr doctor` can say what to install. An analyzer adds no findings: it ranks findings you already have downward.",
           "items": {
+            "enum": [
+              "govulncheck"
+            ],
             "type": "string"
           },
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         }
       },
       "type": "object"

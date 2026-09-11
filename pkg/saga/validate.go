@@ -271,6 +271,18 @@ func validateComponents(comps []Component) []error {
 				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].operatedBy %q is not one of %v",
 					where, j, infra.OperatedBy, OperatedByValues))
 			}
+			// A kind nothing audits is dropped when jobs are planned, so the component is scanned
+			// for everything except the infrastructure it named and reads as covered. Refused
+			// here, where the descriptor can still be corrected, rather than at the point where
+			// the only symptom is a control that found nothing.
+			if strings.TrimSpace(infra.Kind) == "" {
+				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].kind is required (one of %v)",
+					where, j, InfrastructureKinds))
+			} else if !ValidInfrastructureKind(infra.Kind) {
+				errs = append(errs, fmt.Errorf(
+					"%s: infrastructure[%d].kind %q is not a surface Draugr audits (it has %v)",
+					where, j, infra.Kind, InfrastructureKinds))
+			}
 		}
 	}
 	return errs
