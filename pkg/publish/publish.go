@@ -56,6 +56,31 @@ func For(cfg saga.PublisherConfig) (Publisher, error) {
 	return build(cfg)
 }
 
+// requirements names the report formats a publisher cannot deliver without.
+//
+// Declared here rather than discovered at delivery time. Six of the seven publishers need a
+// particular format and every one of them found out after the scan, which is a whole pipeline
+// spent to learn that a destination and the formats beside it do not go together. The list is what
+// lets a caller refuse the pairing while a descriptor is being read.
+//
+// TestEveryPublisherSaysWhatItNeeds holds this to the builders, so a publisher added without an
+// entry fails rather than silently going back to finding out late.
+var requirements = map[string][]string{
+	// Writes whatever it is handed, so any format works and none is required.
+	"file":              nil,
+	"github":            {"sarif"},
+	"github-pr-comment": {"markdown"},
+	"azure-pr-comment":  {"markdown"},
+	"gitlab-mr-comment": {"markdown"},
+	// The report carries the verdict and the findings carry the evidence, and the plane stores
+	// both, so neither alone is a run it can show anybody.
+	"draugr-api": {"json", "sarif"},
+}
+
+// Requires returns the report formats kind needs declared in config.reports, nil for a kind with
+// no requirement and for one this build does not have.
+func Requires(kind string) []string { return requirements[kind] }
+
 // Kinds lists the available publisher kinds, sorted.
 func Kinds() []string {
 	out := make([]string, 0, len(builders))
