@@ -1015,7 +1015,8 @@ func TestWriteArtifactsRecordsTheGateInReportJSON(t *testing.T) {
 	dir := t.TempDir()
 	data := report.Data{
 		Release: saga.Release{Version: "1"},
-		Gate:    report.GateSettings{Threshold: sarif.SeverityCritical, FailOnPriority: "P2"},
+		// One question, so one field. A severity gate here, and the band absent rather than empty.
+		Gate: report.GateSettings{Threshold: sarif.SeverityCritical},
 	}
 	err := writeArtifacts(dir, []string{"json"}, data, saga.Release{Version: "1"},
 		engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
@@ -1035,7 +1036,7 @@ func TestWriteArtifactsRecordsTheGateInReportJSON(t *testing.T) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc.Gate.Threshold != "critical" || doc.Gate.FailOnPriority != "P2" {
+	if doc.Gate.Threshold != "critical" || doc.Gate.FailOnPriority != "" {
 		t.Errorf("gate = %+v, want the policy -o was given", doc.Gate)
 	}
 }
