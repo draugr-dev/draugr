@@ -16,7 +16,7 @@ import (
 //
 // It matters more than it reads. The default gate is a priority band, so a descriptor that names
 // no threshold and classifies a component below where that band is reachable has **no gate at
-// all** — not a weak one. Somebody who set `failOnPriority: P1` asked for the strictest gate the
+// all**, not a weak one. Somebody who set `failOnPriority: P1` asked for the strictest gate the
 // product offers and would be told nothing.
 //
 // Reported rather than refused when only some components are affected: a descriptor may be
@@ -59,8 +59,8 @@ const worstSeverity = "critical"
 // bestBand is the worst band this component can produce, and the context tier it comes from.
 //
 // Floors are the reason this is not a table lookup. A control can declare that its findings are
-// not bounded by the component at all — `secrets` ranks a leaked credential at the most exposed
-// tier wherever it is found — so a component classified `restricted` still reaches P1 when that
+// not bounded by the component at all, `secrets` ranks a leaked credential at the most exposed
+// tier wherever it is found, so a component classified `restricted` still reaches P1 when that
 // control is enabled. A check that ignored floors would report a gate as dead on descriptors where
 // it fires every day.
 func bestBand(m prioritization.Matrices, model saga.Model, comp saga.Component) (string, prioritization.Context) {

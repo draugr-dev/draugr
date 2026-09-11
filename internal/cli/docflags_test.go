@@ -19,7 +19,7 @@ import (
 //
 // Two checks, because they fail differently. A flag that does not exist is wrong for every reader.
 // A flag marked deprecated is still correct and still works, and a document teaching it sends
-// people to the older spelling forever — so those are listed, and the list has to say where each
+// people to the older spelling forever, so those are listed, and the list has to say where each
 // one is allowed to appear and why.
 
 // docFlag matches a long flag as documentation writes one.
@@ -171,7 +171,7 @@ func TestDocsNameFlagsThatExist(t *testing.T) {
 	missing = slicesCompact(missing)
 	for _, m := range missing {
 		t.Errorf("%s names a flag this binary does not have.\n"+
-			"    Fix the document, or — if it belongs to a tool we quote — add it to notOurs "+
+			"    Fix the document, or, if it belongs to a tool we quote, add it to notOurs "+
 			"with whose it is.", m)
 	}
 }

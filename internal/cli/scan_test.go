@@ -438,7 +438,7 @@ func TestRunScanFailOnPriority(t *testing.T) {
 func TestTheDefaultGateIsTheBandRatherThanTheSeverity(t *testing.T) {
 	path := writeSaga(t, sagaWithImage)
 	// Nothing named. An unclassified component ranks at the most exposed tier, where an error-level
-	// finding is P1, so the default gate catches it — the same answer `--fail-on high` used to
+	// finding is P1, so the default gate catches it, the same answer `--fail-on high` used to
 	// give, arrived at by asking the other question.
 	err := runScan(context.Background(), path, scanOptions{}, fakeRegistry(sarif.LevelError), &bytes.Buffer{})
 	if err == nil {
