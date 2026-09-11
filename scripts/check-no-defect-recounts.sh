@@ -2,7 +2,7 @@
 # Fail if anything world-readable explains a guard by recounting the defect that prompted it.
 #
 # Everything here is public: code comments, test rationale, workflow comments, config. A comment
-# saying *why* a check exists is one of the most valuable things in this repository — and there
+# saying *why* a check exists is one of the most valuable things in this repository, and there
 # are two ways to write it.
 #
 #   No:  "the licenses control shipped without its docs and the gap reached the published site."
@@ -20,7 +20,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 # Phrases that only appear when narrating what went wrong here, rather than what could go wrong
-# anywhere. Kept to the ones with no innocent reading — "used to" is deliberately absent, because
+# anywhere. Kept to the ones with no innocent reading, "used to" is deliberately absent, because
 # it is also how the exclusion-expiry rules describe a *user's* finding that used to be accepted.
 patterns=(
   'the hard way'
@@ -40,9 +40,9 @@ patterns=(
 found=0
 for p in "${patterns[@]}"; do
   # --untracked as well as tracked. A file that is not yet added is exactly where new prose
-  # lands, so a check that skipped it would pass on the local run and fail in CI — silent on the
+  # lands, so a check that skipped it would pass on the local run and fail in CI, silent on the
   # one commit that introduced the thing it looks for. Build output and vendored trees stay out
-  # via the pathspecs. The CHANGELOG and the contributor guides are excluded — the first records
+  # via the pathspecs. The CHANGELOG and the contributor guides are excluded, the first records
   # fixes for users by design, and the second two are where the rule itself is written down.
   if hits=$(git grep --untracked -nIiE "$p" -- '*.md' '*.go' '*.yml' '*.yaml' '*.json' '*.sh' '*.tape' \
     ':!CHANGELOG.md' ':!CLAUDE.md' ':!CONTRIBUTING.md' ':!scripts/check-no-defect-recounts.sh' 2>/dev/null); then

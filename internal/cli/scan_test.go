@@ -217,28 +217,53 @@ func TestRunScanTemplateMissingSource(t *testing.T) {
 	}
 }
 
-func TestRunScanUnknownPublisherErrors(t *testing.T) {
-	saga := `
+// A descriptor is refused before the scanners run, not after they finish. The answer is in the
+// descriptor either way, and the difference is a whole pipeline.
+func TestRunScanRefusesAPublisherItCannotUseBeforeScanning(t *testing.T) {
+	for _, tc := range []struct {
+		name, publishers, reports, want string
+	}{
+		{
+			name:       "a kind this build does not have",
+			publishers: "    - kind: bogus\n",
+			reports:    "    - format: sarif\n",
+			want:       `"bogus" is not a publisher this build of Draugr has`,
+		},
+		{
+			// The publisher used to say this itself, at delivery, which is a destination telling
+			// you to go and edit a different block once the work is done.
+			name:       "a destination with nothing it can deliver",
+			publishers: "    - kind: github\n",
+			reports:    "    - format: json\n",
+			want:       "the github publisher delivers a \"sarif\" report and config.reports declares none",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			saga := `
 project: app
 release:
   version: "1.0"
 config:
-  controllers:
+  controls:
     images:
       enabled: true
   reports:
-    - format: sarif
-  publishers:
-    - kind: bogus
-components:
+` + tc.reports + `  publishers:
+` + tc.publishers + `components:
   - name: c
     images:
       - image: repo/x:1
 `
-	err := runScan(context.Background(), writeSaga(t, saga),
-		scanOptions{failOn: "error", format: "console"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
-	if err == nil || !strings.Contains(err.Error(), "unknown publisher kind") {
-		t.Fatalf("expected unknown publisher error, got %v", err)
+			reg := fakeRegistry(sarif.LevelNote)
+			err := runScan(context.Background(), writeSaga(t, saga),
+				scanOptions{failOn: "error", format: "console"}, reg, &bytes.Buffer{})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("got %v, want it to contain %q", err, tc.want)
+			}
+			if strings.Contains(err.Error(), "policy verdict") {
+				t.Errorf("the scan ran before the descriptor was refused: %v", err)
+			}
+		})
 	}
 }
 
@@ -438,7 +463,7 @@ func TestRunScanFailOnPriority(t *testing.T) {
 func TestTheDefaultGateIsTheBandRatherThanTheSeverity(t *testing.T) {
 	path := writeSaga(t, sagaWithImage)
 	// Nothing named. An unclassified component ranks at the most exposed tier, where an error-level
-	// finding is P1, so the default gate catches it — the same answer `--fail-on high` used to
+	// finding is P1, so the default gate catches it, the same answer `--fail-on high` used to
 	// give, arrived at by asking the other question.
 	err := runScan(context.Background(), path, scanOptions{}, fakeRegistry(sarif.LevelError), &bytes.Buffer{})
 	if err == nil {
@@ -698,7 +723,9 @@ config:
   reports:
     - format: sarif
   publishers:
-    - kind: bogus
+      # Named correctly and unusable, so it survives the checks a descriptor is held to and fails
+      # where a publisher fails: at delivery, with the scan already done.
+    - kind: file
 components:
   - name: c
     images:
@@ -712,7 +739,7 @@ components:
 	if !strings.Contains(err.Error(), "policy verdict: fail") {
 		t.Errorf("the verdict must lead the message, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "unknown publisher kind") {
+	if !strings.Contains(err.Error(), "requires a 'dir'") {
 		t.Errorf("the publishing failure must survive in the message, got %v", err)
 	}
 }
