@@ -5,6 +5,8 @@
 package scanpolicy
 
 import (
+	"slices"
+
 	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
@@ -70,18 +72,32 @@ func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 // applied a fixed default would have an agent and CI disagree about the same descriptor. With
 // nothing in either answer to show which policy produced it.
 //
-// Validation has already rejected anything that is neither a band nor one of the SARIF levels
-// still accepted, so an unparseable value cannot reach here; it is dropped rather than becoming a
-// threshold nobody chose.
-func GateThresholds(g *saga.GateConfig) map[string]sarif.Severity {
+// Validation has already refused a per-control threshold in the other vocabulary from the gate, so
+// the two maps are never both populated and a value that parses as neither cannot reach here.
+//
+// Returned as two maps because a threshold only means something in the vocabulary its gate asks
+// in. Parsing every value as a severity and keeping what survived silently discarded a band, which
+// is the whole per-control block on a band gate, and a band gate is the default.
+func GateThresholds(g *saga.GateConfig) (map[string]sarif.Severity, map[string]string) {
 	if g == nil || len(g.Controls) == 0 {
-		return nil
+		return nil, nil
 	}
-	out := make(map[string]sarif.Severity, len(g.Controls))
+	severities := map[string]sarif.Severity{}
+	bands := map[string]string{}
 	for control, want := range g.Controls {
+		if slices.Contains(saga.Priorities, want) {
+			bands[control] = want
+			continue
+		}
 		if sev, err := sarif.ParseSeverity(want); err == nil {
-			out[control] = sev
+			severities[control] = sev
 		}
 	}
-	return out
+	if len(severities) == 0 {
+		severities = nil
+	}
+	if len(bands) == 0 {
+		bands = nil
+	}
+	return severities, bands
 }

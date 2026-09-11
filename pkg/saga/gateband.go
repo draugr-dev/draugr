@@ -21,6 +21,14 @@ import (
 // The two vocabularies do not overlap, P1 through P4 against critical, high, medium, low, plus
 // the SARIF levels a gate used to take, so a value says which it is without being told.
 
+// DefaultGateBand is the gate in force when a descriptor writes none.
+//
+// Here as well as in the policy engine because a descriptor's meaning has to be readable from the
+// descriptor's own package: a per-control threshold refines the gate whether or not one was
+// written, and the check that says so cannot ask a package that reads descriptors.
+// TestTheDefaultGateIsOneValue holds the two in step.
+const DefaultGateBand = "P1"
+
 // GateKind is which question a threshold asks.
 type GateKind int
 

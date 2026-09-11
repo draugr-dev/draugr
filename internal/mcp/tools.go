@@ -520,10 +520,12 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		// The descriptor's gate, not a fixed default. A Saga that gates licenses at critical or
 		// fails on P1 says so for a reason, and an agent reporting a verdict under a policy the
 		// project did not choose disagrees with the project's own CI about its own descriptor.
+		perControl, perControlBand := scanpolicy.GateThresholds(model.Config.Gate)
 		verdict := norn.Policy{
 			FailOn:         sarif.SeverityHigh,
-			PerControl:     scanpolicy.GateThresholds(model.Config.Gate),
+			PerControl:     perControl,
 			FailOnPriority: gatePriority(model.Config.Gate),
+			PerControlBand: perControlBand,
 		}.Evaluate(reports)
 
 		controls := make([]string, 0, len(run.Controls))

@@ -1420,6 +1420,9 @@ func writeGate(w io.Writer, col tui.Painter, d Data, full bool) {
 			band = norn.DefaultPriority
 		}
 		line = fmt.Sprintf("Gate: fails on %s", band)
+		if overrides := renderOverrides(g.PerControlBand); overrides != "" {
+			line += ", except " + overrides
+		}
 	} else {
 		line = fmt.Sprintf("Gate: fails on %s severity", g.Threshold)
 		if overrides := gateOverrides(g); overrides != "" {
@@ -1442,18 +1445,28 @@ func writeGate(w io.Writer, col tui.Painter, d Data, full bool) {
 // Named rather than counted: which control was exempted is the whole content of the exemption,
 // and "2 controls" answers nothing a reader wanted to know.
 func gateOverrides(g GateSettings) string {
-	if len(g.PerControl) == 0 {
+	as := make(map[string]string, len(g.PerControl))
+	for name, sev := range g.PerControl {
+		as[name] = string(sev)
+	}
+	return renderOverrides(as)
+}
+
+// renderOverrides is the same in either vocabulary: the per-control thresholds, named, in a stable
+// order.
+func renderOverrides(overrides map[string]string) string {
+	if len(overrides) == 0 {
 		return ""
 	}
-	controls := make([]string, 0, len(g.PerControl))
-	for name := range g.PerControl {
+	controls := make([]string, 0, len(overrides))
+	for name := range overrides {
 		controls = append(controls, name)
 	}
 	sort.Strings(controls)
 
 	parts := make([]string, 0, len(controls))
 	for _, name := range controls {
-		parts = append(parts, fmt.Sprintf("%s on %s", name, g.PerControl[name]))
+		parts = append(parts, fmt.Sprintf("%s on %s", name, overrides[name]))
 	}
 	return strings.Join(parts, ", ")
 }

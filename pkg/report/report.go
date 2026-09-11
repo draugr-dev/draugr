@@ -1095,10 +1095,14 @@ func actionableRank(f finding) int {
 type GateSettings struct {
 	// Threshold is the severity band that fails a control by default.
 	Threshold sarif.Severity
-	// PerControl overrides Threshold for named controls.
+	// PerControl overrides Threshold for named controls, on a severity gate.
 	PerControl map[string]sarif.Severity
 	// FailOnPriority additionally fails on a priority band, when set.
 	FailOnPriority string
+	// PerControlBand overrides the band for named controls, on a band gate. The other half of
+	// PerControl: a threshold only applies in the vocabulary its gate asks in, so exactly one of
+	// these is ever populated.
+	PerControlBand map[string]string
 	// Disabled is --no-gate: the verdict is reported and the command still exits 0.
 	Disabled bool
 }
@@ -1119,6 +1123,7 @@ func (g GateSettings) skald() *skald.Gate {
 			FailOn:         g.Threshold,
 			PerControl:     g.PerControl,
 			FailOnPriority: g.FailOnPriority,
+			PerControlBand: g.PerControlBand,
 		},
 		Disabled: g.Disabled,
 	}

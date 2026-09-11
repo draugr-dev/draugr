@@ -89,13 +89,12 @@ func (m *Model) Validate() error {
 		// The same vocabulary throughout, because the run asks one question. A band under a
 		// severity gate, or a severity under a band gate, is a second question asked of one
 		// control and puts the reader back where two keys left them.
-		if len(g.Controls) > 0 && kind == GateNone && g.FailOnPriority == "" {
-			errs = append(errs, fmt.Errorf(
-				"config.gate.controls needs config.gate.failOn: a per-control threshold refines "+
-					"one, and there is none to refine"))
-		}
+		//
+		// Nothing written is not nothing in force. The gate defaults to a band, so a descriptor
+		// that sets only per-control thresholds has one to refine and simply did not write it
+		// down.
 		want := kind
-		if want == GateNone && g.FailOnPriority != "" {
+		if want == GateNone {
 			want = GatePriority
 		}
 		for control, value := range g.Controls {
@@ -104,12 +103,24 @@ func (m *Model) Validate() error {
 				errs = append(errs, fmt.Errorf("config.gate.controls[%q]: %w", control, err))
 				continue
 			}
-			if want != GateNone && got != want {
-				errs = append(errs, fmt.Errorf(
-					"config.gate.controls[%q] is %q and config.gate.failOn asks the other "+
-						"question. One run, one vocabulary: write both as bands, or both as "+
-						"severities", control, value))
+			if got == want {
+				continue
 			}
+			// Which gate it disagrees with decides what to say. A reader who wrote `failOn` is
+			// told their two halves ask different questions; a reader who wrote none is told the
+			// default moved under them, which is what actually happened and is not their mistake.
+			if kind == GateNone && g.FailOnPriority == "" {
+				errs = append(errs, fmt.Errorf(
+					"config.gate.controls[%q] is %q and the gate it refines is the band %s, which "+
+						"asks the other question. Write `failOn: %s` to judge this run on "+
+						"severity, or write these thresholds as bands (%s)",
+					control, value, DefaultGateBand, value, strings.Join(Priorities, ", ")))
+				continue
+			}
+			errs = append(errs, fmt.Errorf(
+				"config.gate.controls[%q] is %q and config.gate.failOn asks the other "+
+					"question. One run, one vocabulary: write both as bands, or both as "+
+					"severities", control, value))
 		}
 	}
 	errs = append(errs, validateVEXSources("config", m.Config.VEXSources)...)
