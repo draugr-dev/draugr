@@ -206,14 +206,23 @@ for a bespoke summary line, a Slack payload, or any custom text without writing 
 
 ## Built-in publishers
 
-| Kind | Delivers to | Config |
-|------|-------------|--------|
-| `file` | a local directory (one file per report format) | `dir` |
-| `github` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
-| `github-pr-comment` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
-| `azure-pr-comment` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
-| `gitlab-mr-comment` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
-| `draugr-api` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
+Each destination needs a format declared under `config.reports`, and a descriptor that names one
+without the other is refused when it loads rather than after the scanners have run:
+
+```console
+$ draugr validate draugr.saga.yaml
+draugr: config.publishers[0]: the github publisher delivers a "sarif" report and config.reports
+declares none. Add `- format: sarif`
+```
+
+| Kind | Needs | Delivers to | Config |
+|------|-------|-------------|--------|
+| `file` | any | a local directory (one file per report format) | `dir` |
+| `github` | `sarif` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `github-pr-comment` | `markdown` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `azure-pr-comment` | `markdown` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
+| `gitlab-mr-comment` | `markdown` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
+| `draugr-api` | `json`, `sarif` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga. Every token comes from an environment variable, and each
 no-ops outside its own context (not in CI, or no PR) so the same Saga still runs locally. Every
