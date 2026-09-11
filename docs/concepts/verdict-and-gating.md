@@ -32,9 +32,22 @@ Describe ─► Plan ─► Scan ─► Aggregate ─► Judge ─► Report
 ## Verdict & exit code
 
 The gate produces `pass` / `fail`. `draugr scan` exits non-zero on `fail`, so it gates a
-pipeline directly. The failure threshold is configurable (`--fail-on`, default `high`),
-with optional per-control overrides, plus a component-aware priority gate
-(`--fail-on-priority`). The run fails if either gate trips.
+pipeline directly.
+
+**A run has one gate, and there are two questions it could ask.** By default it asks what
+**band** a finding landed in for the component it was found in, failing on `P1`. That band folds
+in the exposure and criticality the descriptor declares, which is context no scanner can compute.
+
+`--fail-on` (or `config.gate.failOn`) asks the other question instead: what **severity** the
+scanner gave the flaw on its own terms, with optional per-control overrides. Setting both is
+refused rather than combined, because a verdict with two possible reasons cannot be read back to
+the rule that produced it.
+
+Which of the two catches more depends on the component, so neither is the stricter one. On a
+component that declares nothing, `P1` means critical or high — the same findings `--fail-on high`
+catches, arrived at by asking the other question. On a component declared `restricted` and
+`supporting`, nothing reaches `P1` at all, and the descriptor is saying that a flaw there does not
+stop a release.
 
 ### A scan that checked nothing is not a pass
 
@@ -166,16 +179,17 @@ A verdict means nothing without the policy behind it, and the policy can be chan
 runs the scan. So the report states it:
 
 ```
-Gate: fails on critical, except licenses on critical.
+Gate: fails on critical severity, except licenses on critical.
 ```
 
-- **A narrowed gate is stated in the default view.** A pass under a threshold looser than the
-  default looks exactly like a pass under the default one, and nothing else on the page
-  distinguishes them.
-- **`--no-gate` is stated too**, and says what it changes: the verdict is reported and the command
-  still exits 0, so anything reading the exit code is told the opposite of what the report says.
-- **A stricter gate says nothing until asked.** It can only fail more than a reader expects, and
-  the failure explains itself.
+- **A gate somebody chose is stated in the default view.** Not because it is looser, but because
+  a pass means something different under each question, and nothing else on the page says which
+  one was asked.
+- **The default says nothing until asked.** A reader who configured nothing already has it, and
+  spending a line on it every run buries the cases that are news.
+- **`--no-gate` is stated loudest**, and says what it changes: the verdict is reported and the
+  command still exits 0, so anything reading the exit code is told the opposite of what the report
+  says.
 - **`--evidence` states the gate whatever it is**, including the default, because "the default" is
   an answer only when the report gives it rather than leaving it to be assumed.
 

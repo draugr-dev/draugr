@@ -921,15 +921,53 @@
       "properties": {
         "controls": {
           "additionalProperties": {
-            "enum": [
-              "critical",
-              "high",
-              "medium",
-              "low",
-              "error",
-              "warning",
-              "note"
+            "anyOf": [
+              {
+                "const": "P1",
+                "description": "Blocks a release: urgent in this component's context."
+              },
+              {
+                "const": "P2",
+                "description": "Scheduled work."
+              },
+              {
+                "const": "P3",
+                "description": "Backlog."
+              },
+              {
+                "const": "P4",
+                "description": "Noted, rarely acted on."
+              },
+              {
+                "const": "critical",
+                "description": "Only a critical finding fails the build."
+              },
+              {
+                "const": "high",
+                "description": "A high or critical finding fails the build."
+              },
+              {
+                "const": "medium",
+                "description": "A medium finding fails the build, and anything worse."
+              },
+              {
+                "const": "low",
+                "description": "Any rated finding fails the build."
+              },
+              {
+                "const": "error",
+                "description": "The SARIF level a gate used to take; the same as high."
+              },
+              {
+                "const": "warning",
+                "description": "The SARIF level a gate used to take; the same as medium."
+              },
+              {
+                "const": "note",
+                "description": "The SARIF level a gate used to take; the same as low."
+              }
             ],
+            "description": "The threshold for one control, overriding failOn. The same vocabulary as failOn: one run asks one question.",
             "type": "string"
           },
           "description": "Per-control severity threshold, overriding --fail-on for that control only. Severity bands are what the report prints; the SARIF levels error, warning and note are still accepted and mean high, medium and low.",
@@ -938,8 +976,58 @@
           },
           "type": "object"
         },
+        "failOn": {
+          "anyOf": [
+            {
+              "const": "P1",
+              "description": "Blocks a release: urgent in this component's context."
+            },
+            {
+              "const": "P2",
+              "description": "Scheduled work."
+            },
+            {
+              "const": "P3",
+              "description": "Backlog."
+            },
+            {
+              "const": "P4",
+              "description": "Noted, rarely acted on."
+            },
+            {
+              "const": "critical",
+              "description": "Only a critical finding fails the build."
+            },
+            {
+              "const": "high",
+              "description": "A high or critical finding fails the build."
+            },
+            {
+              "const": "medium",
+              "description": "A medium finding fails the build, and anything worse."
+            },
+            {
+              "const": "low",
+              "description": "Any rated finding fails the build."
+            },
+            {
+              "const": "error",
+              "description": "The SARIF level a gate used to take; the same as high."
+            },
+            {
+              "const": "warning",
+              "description": "The SARIF level a gate used to take; the same as medium."
+            },
+            {
+              "const": "note",
+              "description": "The SARIF level a gate used to take; the same as low."
+            }
+          ],
+          "description": "What fails the build, in either vocabulary. A priority band (P1-P4) asks what band a finding landed in for the component it was found in, folding in the exposure and criticality declared below. A severity (critical, high, medium, low) asks what the scanner called the flaw on its own terms. Empty is the default, which is P1.",
+          "type": "string"
+        },
         "failOnPriority": {
-          "description": "Also fail the build on any finding at or above this priority band. Priority folds in the component's declared exposure and criticality, which severity alone cannot. A --fail-on-priority flag overrides this for a single run.",
+          "description": "Deprecated: write the band in failOn, which takes either vocabulary. Still read, so a descriptor that predates the merge keeps working, and refused alongside failOn.",
           "enum": [
             "P1",
             "P2",

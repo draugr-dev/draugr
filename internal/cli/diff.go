@@ -45,8 +45,13 @@ func newDiffCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&opts.format, "format", "console", "output format: "+strings.Join(diff.Formats(), ", "))
-	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "", "fail if a new finding is at or above this severity: critical, high, medium, low")
-	cmd.Flags().StringVar(&opts.failOnNewPriority, "fail-on-new-priority", "", "fail if a new finding is at or above this priority (P1-P4)")
+	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
+		"fail if the change introduces a finding at or above this: a priority band (P1-P4) or a "+
+			"severity (critical, high, medium, low)")
+	cmd.Flags().StringVar(&opts.failOnNewPriority, "fail-on-new-priority", "",
+		"deprecated: write the band in --fail-on-new, which takes either vocabulary")
+	_ = cmd.Flags().MarkDeprecated("fail-on-new-priority",
+		"use --fail-on-new, which takes a band or a severity")
 	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "report only new findings at or above this priority band (P1-P4); fixed and unchanged are unaffected")
 	cmd.Flags().StringVar(&opts.repository, "repository", "",
 		"keep only new findings from this repository, plus those belonging to none (an image, a "+
@@ -62,12 +67,12 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	// The cheap check first. A mistyped gate level should not need two readable SARIF files
 	// before it will admit to being mistyped, and it should certainly not be discovered after
 	// the comment has already been posted.
-	var failOn sarif.Severity
-	if opts.failOnNew != "" {
-		var err error
-		if failOn, err = sarif.ParseSeverity(opts.failOnNew); err != nil {
-			return fmt.Errorf("--fail-on-new: %w", err)
-		}
+	// One threshold in either vocabulary, the same as the gate `scan` applies. The older
+	// --fail-on-new-priority still resolves, and the two together are refused for the reason the
+	// pair on `scan` is: one of them would be doing nothing.
+	failOn, failOnNewPriority, err := resolveDiffGate(opts.failOnNew, opts.failOnNewPriority)
+	if err != nil {
+		return err
 	}
 
 	base, err := loadSARIF(basePath)
@@ -101,7 +106,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 		publishErr = publishDiff(ctx, result)
 	}
 
-	tripped := result.GateNew(failOn, opts.failOnNewPriority)
+	tripped := result.GateNew(failOn, failOnNewPriority)
 	if len(tripped) > 0 {
 		return alsoPublish(
 			fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(tripped)),

@@ -72,6 +72,9 @@ func TestGrypeRunsBesideTrivy(t *testing.T) {
 	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`project: grype-integration
 release: { version: "1.0" }
 config:
+  # Pinned rather than left to the default: this test is about which scanners ran, and a coverage
+  # test that moves when the default gate moves is a test about the wrong thing.
+  gate: { failOn: high }
   controllers:
     sca:
       enabled: true
@@ -106,6 +109,9 @@ func TestLicensesControlRunsOverARepository(t *testing.T) {
 	writeFile(t, dir, "draugr.saga.yaml", fmt.Sprintf(`project: licenses-integration
 release: { version: "1.0" }
 config:
+  # Pinned for the reason the fixture above is: this is a coverage test, and it should not move
+  # when the default gate does.
+  gate: { failOn: high }
   controllers:
     licenses: { enabled: true }
 components:

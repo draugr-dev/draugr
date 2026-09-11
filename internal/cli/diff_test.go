@@ -59,7 +59,7 @@ func TestRunDiffGatePasses(t *testing.T) {
 	base := writeFile(t, "base.sarif", sarifDoc("CVE-1", "error", "img", "P1"))
 	head := writeFile(t, "head.sarif", `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Draugr"}},"results":[]}]}`)
 	var out bytes.Buffer
-	if err := runDiff(context.Background(), base, head, diffOptions{failOnNew: "error", failOnNewPriority: "P1"}, &out); err != nil {
+	if err := runDiff(context.Background(), base, head, diffOptions{failOnNew: "error"}, &out); err != nil {
 		t.Errorf("gate should pass when there are no new findings: %v", err)
 	}
 	if !strings.Contains(out.String(), "1 fixed") {
@@ -280,5 +280,33 @@ func TestDiffPublishFailureStillFailsAPassingGate(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "publishing failed") {
 		t.Errorf("the delivery problem is what went wrong and has to be named: %v", err)
+	}
+}
+
+// TestDiffTakesEitherVocabulary: the differential gate asks the same question as the one `scan`
+// applies, about a smaller set, so it is written the same way.
+func TestDiffTakesEitherVocabulary(t *testing.T) {
+	sev, band, err := resolveDiffGate("high", "")
+	if err != nil || sev != "high" || band != "" {
+		t.Errorf("severity: got %q %q %v", sev, band, err)
+	}
+	sev, band, err = resolveDiffGate("P1", "")
+	if err != nil || sev != "" || band != "P1" {
+		t.Errorf("band: got %q %q %v", sev, band, err)
+	}
+	// The older spelling still resolves, so a pipeline that predates the merge keeps working.
+	if _, band, err = resolveDiffGate("", "P2"); err != nil || band != "P2" {
+		t.Errorf("deprecated spelling: got %q %v", band, err)
+	}
+	// Nothing named decides nothing: unlike `scan`, an absent differential gate is a diff that is
+	// reported and gates nothing, which is what the two scans either side of it are for.
+	if sev, band, err = resolveDiffGate("", ""); err != nil || sev != "" || band != "" {
+		t.Errorf("absent: got %q %q %v", sev, band, err)
+	}
+	if _, _, err = resolveDiffGate("high", "P1"); err == nil {
+		t.Error("both spellings together were accepted")
+	}
+	if _, _, err = resolveDiffGate("urgent", ""); err == nil {
+		t.Error("a word in neither vocabulary was accepted")
 	}
 }

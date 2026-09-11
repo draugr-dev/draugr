@@ -1130,20 +1130,26 @@ func (g GateSettings) skald() *skald.Gate {
 // than a reader expects, which is visible in the verdict itself; a looser one produces a pass that
 // looks like every other pass.
 func (g GateSettings) weakened() bool {
-	if g.Disabled {
+	// The only case that can still be ranked. The command exits 0 on a verdict of fail, so
+	// anything reading the exit code is told the opposite of what the report says.
+	//
+	// Nothing else is comparable any more. A severity gate and the default priority gate ask
+	// different questions, and which is the looser depends on the component: `failOn: critical`
+	// catches less than P1 where a component is unclassified and more where it is restricted, so
+	// there is no ordering to call one a weakening of the other. Ranking them anyway would put a
+	// caveat on runs that do not have one and leave it off runs that do.
+	return g.Disabled
+}
+
+// chosen reports whether this gate is anything other than the default.
+//
+// What decides whether the rule is printed without being asked for. The default needs no stating:
+// it is what a reader who has configured nothing already has. Anything else is a decision that
+// qualifies every pass above it, and one a reader cannot recover from the verdict alone, since the
+// two modes answer different questions rather than the same question at different strictness.
+func (g GateSettings) chosen() bool {
+	if g.Disabled || g.Threshold != "" || len(g.PerControl) > 0 {
 		return true
 	}
-	if g.Threshold != "" && g.Threshold.Rank() > sarif.SeverityHigh.Rank() {
-		return true
-	}
-	effective := g.Threshold
-	if effective == "" {
-		effective = sarif.SeverityHigh
-	}
-	for _, band := range g.PerControl {
-		if band != "" && band.Rank() > effective.Rank() {
-			return true
-		}
-	}
-	return false
+	return g.FailOnPriority != "" && g.FailOnPriority != norn.DefaultPriority
 }

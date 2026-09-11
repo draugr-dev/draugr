@@ -1,0 +1,1 @@
+`config.gate.failOn` is new: a descriptor could set per-control thresholds and a priority band and not the threshold that failed most of its builds, which was settable only as a flag every pipeline had to remember and nothing reviewed.

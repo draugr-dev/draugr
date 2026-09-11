@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"sort"
+
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -63,6 +65,20 @@ var contextFloors = map[string]prioritization.Context{
 // #nosec G101 -- report copy: a map of control names to the sentence printed under a finding.
 var contextFloorReasons = map[string]string{
 	"secrets": "a leaked credential is high priority wherever it is found",
+}
+
+// ControlsWithContextFloor names the controls that declare their findings are not bounded by the
+// component's classification.
+//
+// Exported so a caller working out what a descriptor can produce does not have to iterate every
+// control to find the handful that matter, and does not have to keep its own copy of the list.
+func ControlsWithContextFloor() []string {
+	out := make([]string, 0, len(contextFloors))
+	for name := range contextFloors {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // ContextFloor returns the most concerning context tier a control's findings are ranked at, and

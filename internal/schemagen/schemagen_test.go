@@ -403,11 +403,19 @@ func TestHandWrittenEnumsMatchTheirSource(t *testing.T) {
 			want: saga.Priorities,
 		},
 		{
-			// Bands first, then the SARIF levels still accepted for descriptors written against
-			// the older vocabulary. Both are valid, so both belong here.
+			// One threshold in either vocabulary: a priority band, or a severity. Plus the SARIF
+			// levels still accepted for descriptors written against the older words — the schema
+			// must not be stricter than the loader, which is the same failure as being looser,
+			// arrived at from the other side.
 			name: "gate thresholds",
 			path: []string{"gateConfig", "properties", "controls", "additionalProperties"},
-			want: append(append([]string{}, sarif.Severities...), "error", "warning", "note"),
+			want: gateVocabulary(),
+		},
+		{
+			// The same set, because one run asks one question and `controls` refines `failOn`.
+			name: "the gate itself",
+			path: []string{"gateConfig", "properties", "failOn"},
+			want: gateVocabulary(),
 		},
 		{
 			name: "exposure",
@@ -458,4 +466,15 @@ func criticalityStrings() []string {
 		out = append(out, string(c))
 	}
 	return out
+}
+
+// gateVocabulary is everything a gate threshold may be written as: a priority band, a severity, or
+// one of the SARIF levels a gate used to take. Built from the Go values rather than listed, so a
+// band or a severity added to either is a schema this test fails until it is updated.
+func gateVocabulary() []string {
+	out := append([]string{}, saga.Priorities...)
+	for _, s := range sarif.Severities {
+		out = append(out, string(s))
+	}
+	return append(out, "error", "warning", "note")
 }

@@ -160,9 +160,11 @@ func TestGateOffIsSaidInTheDefaultView(t *testing.T) {
 // TestADefaultGateSaysNothingUntilAsked. A verdict under the default gate is the ordinary case,
 // and a line restating it on every scan is one more thing between a reader and the findings.
 func TestADefaultGateSaysNothingUntilAsked(t *testing.T) {
+	// Nothing named is the default gate, which is the priority band. A reader who configured
+	// nothing already has it, so stating it on every run spends a line on news nobody needs.
 	d := Data{
 		Release: saga.Release{Version: "1.0.0"},
-		Gate:    GateSettings{Threshold: "high"},
+		Gate:    GateSettings{},
 	}
 	var buf bytes.Buffer
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
@@ -177,7 +179,8 @@ func TestADefaultGateSaysNothingUntilAsked(t *testing.T) {
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "Gate: fails on high") {
+	// Including the default, because "the default" is an answer only when the report gives it.
+	if !strings.Contains(buf.String(), "Gate: fails on P1") {
 		t.Errorf("--evidence should state the gate whatever it is:\n%s", buf.String())
 	}
 }
@@ -217,16 +220,55 @@ func TestALoosenedGateIsSaidWithoutAsking(t *testing.T) {
 
 // TestAStricterGateNeedsNoAnnouncement. It can only fail more than a reader expects, and the
 // failure says so itself. Unlike a loosening, which produces a pass that looks like any other.
-func TestAStricterGateNeedsNoAnnouncement(t *testing.T) {
+func TestAGateSomebodyChoseSaysSo(t *testing.T) {
+	// A severity gate is not a stricter version of the default, it is the other question: it
+	// judges what a scanner called the flaw rather than the band it lands in here. Which of the
+	// two catches more depends on the component, so neither can be announced as the looser and
+	// both have to be stated, because a pass means something different under each.
+	for _, tc := range []struct {
+		name string
+		gate GateSettings
+		want string
+	}{
+		{"a severity gate", GateSettings{Threshold: "low"}, "fails on low severity"},
+		{
+			"a per-control threshold",
+			GateSettings{Threshold: "high", PerControl: map[string]sarif.Severity{"secrets": "low"}},
+			"except secrets on low",
+		},
+		{"a band other than the default", GateSettings{FailOnPriority: "P3"}, "fails on P3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := (consoleReporter{}).Render(&buf, Data{
+				Release: saga.Release{Version: "1.0.0"}, Gate: tc.gate,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(buf.String(), tc.want) {
+				t.Errorf("want %q in the default view:\n%s", tc.want, buf.String())
+			}
+		})
+	}
+}
+
+// TestTheGateLineStatesOneQuestion: a line that could say both leaves a reader with two candidates
+// for why their build is red, which is the thing the one-gate rule exists to remove.
+func TestTheGateLineStatesOneQuestion(t *testing.T) {
 	var buf bytes.Buffer
 	if err := (consoleReporter{}).Render(&buf, Data{
-		Release: saga.Release{Version: "1.0.0"},
-		Gate:    GateSettings{Threshold: "low", PerControl: map[string]sarif.Severity{"secrets": "low"}},
+		Release:  saga.Release{Version: "1.0.0"},
+		Gate:     GateSettings{Threshold: "high"},
+		Evidence: true,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(buf.String(), "Gate:") {
-		t.Errorf("a stricter gate should not interrupt the default view:\n%s", buf.String())
+	line := buf.String()
+	if !strings.Contains(line, "fails on high severity") {
+		t.Errorf("the severity gate does not say it is one:\n%s", line)
+	}
+	if strings.Contains(line, "P1") {
+		t.Errorf("a severity gate mentioned a priority band:\n%s", line)
 	}
 }
 

@@ -315,8 +315,11 @@ func TestExcludeRulePathsStillUsePathSemantics(t *testing.T) {
 }
 
 func TestValidateGateControls(t *testing.T) {
+	// With a failOn, because a per-control threshold refines a severity gate and needs one to
+	// refine; that rule has its own test below.
 	base := func(controls map[string]string) *Model {
-		return &Model{Release: Release{Version: "1"}, Config: Config{Gate: &GateConfig{Controls: controls}}}
+		return &Model{Release: Release{Version: "1"},
+			Config: Config{Gate: &GateConfig{FailOn: "high", Controls: controls}}}
 	}
 	// The bands the report prints, which is the vocabulary a threshold is written in.
 	if err := base(map[string]string{"licenses": "critical", "sast": "low"}).Validate(); err != nil {
@@ -631,5 +634,63 @@ func TestValidateGateFailOnPriority(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "P1") {
 		t.Errorf("the error should name the bands: %v", err)
+	}
+}
+
+// TestAGateAsksOneQuestion holds the exclusivity where a descriptor states it.
+//
+// Refused rather than resolved by a precedence: whichever lost would sit in a reviewed file doing
+// nothing, and somebody reading a failing build would have two candidates for why.
+func TestAGateAsksOneQuestion(t *testing.T) {
+	with := func(g *GateConfig) error {
+		return (&Model{Release: Release{Version: "1"}, Config: Config{Gate: g}}).Validate()
+	}
+	err := with(&GateConfig{FailOn: "high", FailOnPriority: "P1"})
+	if err == nil {
+		t.Fatal("a descriptor setting both gates was accepted")
+	}
+	// The message has to say what to do, not only that something is wrong: somebody who wrote
+	// both wanted both, and the answer is that one field now takes either vocabulary.
+	for _, want := range []string{"failOn", "failOnPriority", "one decision", "P1", "critical"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("message does not mention %q: %v", want, err)
+		}
+	}
+	// Either one alone is fine, and so is neither: nothing named is the default gate.
+	for _, g := range []*GateConfig{
+		{FailOn: "critical"},
+		{FailOnPriority: "P2"},
+		{},
+	} {
+		if err := with(g); err != nil {
+			t.Errorf("%+v should be valid: %v", g, err)
+		}
+	}
+	// A per-control threshold with nothing to refine.
+	if err := with(&GateConfig{Controls: map[string]string{"licenses": "critical"}}); err == nil {
+		t.Error("per-control thresholds were accepted with no gate to refine")
+	}
+	// One run, one vocabulary. A severity under a band gate is a second question asked of one
+	// control, which is where two keys left the reader.
+	mixed := with(&GateConfig{FailOn: "P1", Controls: map[string]string{"licenses": "critical"}})
+	if mixed == nil {
+		t.Error("a severity threshold was accepted under a band gate")
+	}
+	// And the matching pair is fine, in either vocabulary.
+	for _, g := range []*GateConfig{
+		{FailOn: "P1", Controls: map[string]string{"licenses": "P2"}},
+		{FailOn: "high", Controls: map[string]string{"licenses": "critical"}},
+	} {
+		if err := with(g); err != nil {
+			t.Errorf("%+v should be valid: %v", g, err)
+		}
+	}
+	// The band spelling of failOn, which is new: one field, either vocabulary.
+	if err := with(&GateConfig{FailOn: "P2"}); err != nil {
+		t.Errorf("failOn should take a band: %v", err)
+	}
+	// An unparseable failOn is caught like any other threshold.
+	if err := with(&GateConfig{FailOn: "urgent"}); err == nil {
+		t.Error("config.gate.failOn accepted a word that is not a threshold")
 	}
 }

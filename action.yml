@@ -17,11 +17,16 @@ inputs:
     default: latest
   fail-on:
     description: >-
-      Severity that fails the gate (critical, high, medium, low). Empty uses Draugr's default (high).
+      What fails the gate, in either vocabulary: a priority band (P1-P4), which folds in the
+      exposure and criticality your descriptor declares, or a severity (critical, high, medium,
+      low), which is what the scanner called the flaw on its own terms. Empty uses Draugr's
+      default, P1.
     required: false
     default: ""
   fail-on-priority:
-    description: Also fail the gate on any finding at or above this priority band (P1-P4).
+    description: >-
+      Deprecated: write the band in fail-on, which now takes either vocabulary. Still honored, and
+      refused alongside fail-on because the two are one decision.
     required: false
     default: ""
   min-priority:
@@ -101,12 +106,14 @@ inputs:
     default: auto
   fail-on-new:
     description: >-
-      (diff mode) Fail the gate if a new finding is at or above this severity (error, warning,
-      note). Empty does not fail on new findings.
+      (diff mode) Fail the gate if the change introduces a finding at or above this, in either
+      vocabulary: a priority band (P1-P4) or a severity (critical, high, medium, low). Empty does
+      not fail on new findings.
     required: false
     default: ""
   fail-on-new-priority:
-    description: (diff mode) Fail the gate if a new finding is at or above this priority band (P1-P4).
+    description: >-
+      Deprecated: write the band in fail-on-new, which now takes either vocabulary.
     required: false
     default: ""
 

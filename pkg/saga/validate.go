@@ -9,8 +9,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // validDigest reports whether s is an OCI content digest of the form "algorithm:hex"
@@ -75,10 +73,42 @@ func (m *Model) Validate() error {
 			errs = append(errs, fmt.Errorf("config.gate.failOnPriority is %q, but a priority band is one of %v",
 				g.FailOnPriority, Priorities))
 		}
-		for control, want := range g.Controls {
-			if _, err := sarif.ParseSeverity(want); err != nil {
-				errs = append(errs, fmt.Errorf("config.gate.controls[%q] = %q is not a threshold (want one of %v)",
-					control, want, GateThresholds))
+		kind, _, err := ParseGate(g.FailOn)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("config.gate.failOn: %w", err))
+		}
+		// `failOnPriority` is the older spelling of the same decision. Refused beside `failOn`
+		// rather than resolved by a precedence nobody can see in the file, because whichever lost
+		// would be a rule sitting in a reviewed descriptor doing nothing.
+		if g.FailOn != "" && g.FailOnPriority != "" {
+			errs = append(errs, fmt.Errorf(
+				"config.gate sets both failOn and failOnPriority, which are two spellings of one "+
+					"decision. Write the band in failOn: it takes a band (%s) or a severity (%s)",
+				strings.Join(Priorities, ", "), strings.Join(gateSeverityWords(), ", ")))
+		}
+		// The same vocabulary throughout, because the run asks one question. A band under a
+		// severity gate, or a severity under a band gate, is a second question asked of one
+		// control and puts the reader back where two keys left them.
+		if len(g.Controls) > 0 && kind == GateNone && g.FailOnPriority == "" {
+			errs = append(errs, fmt.Errorf(
+				"config.gate.controls needs config.gate.failOn: a per-control threshold refines "+
+					"one, and there is none to refine"))
+		}
+		want := kind
+		if want == GateNone && g.FailOnPriority != "" {
+			want = GatePriority
+		}
+		for control, value := range g.Controls {
+			got, _, err := ParseGate(value)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("config.gate.controls[%q]: %w", control, err))
+				continue
+			}
+			if want != GateNone && got != want {
+				errs = append(errs, fmt.Errorf(
+					"config.gate.controls[%q] is %q and config.gate.failOn asks the other "+
+						"question. One run, one vocabulary: write both as bands, or both as "+
+						"severities", control, value))
 			}
 		}
 	}

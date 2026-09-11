@@ -590,9 +590,9 @@ usually owned by different people than security policy:
 ```yaml
 config:
   gate:
+    failOn: high           # this descriptor gates on severity…
     controls:
-      licenses: error      # a denied license fails the build…
-  # …while --fail-on stays wherever you had it for everything else
+      licenses: error      # …and a denied license fails the build on its own threshold
 ```
 
 ### How project and component settings combine
@@ -676,11 +676,14 @@ remembered by whoever wrote the workflow. `--allow-effects` does the same for a 
 ```yaml
 config:
   gate:
-    failOnPriority: P1     # anything the descriptor ranks P1 fails the build
+    failOn: high           # gate on severity rather than on the band
     controls:
       licenses: critical   # this control fails only on a critical…
       sast: low            # …this one fails on anything at all
 ```
+
+`controls` refines `failOn`, so it needs one: a per-control **severity** threshold under a
+**priority** gate is a rule nothing consults. A descriptor that sets neither gates on `P1`.
 
 Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-sagayaml--dir) for the named
 control only. Values are severity bands: `critical`, `high`, `medium`, `low`. The SARIF levels
@@ -690,11 +693,13 @@ One threshold can't serve every control. License policy is owned by legal and vu
 policy by security; *"fail the build on a forbidden license but only warn on a medium CVE"* is a
 reasonable position that a single global threshold makes unsayable.
 
-`failOnPriority` gates on a [priority band](../concepts/prioritization.md) as well. Severity rates a
-flaw in the abstract; priority folds in what this descriptor says about the component it was found
-in, which is usually what a team that has classified its components wants to gate on.
-[`--fail-on-priority`](cli.md#draugr-scan-sagayaml--dir) overrides it for a single run. The
-descriptor is the standing policy, the flag is this run.
+`failOn` takes either vocabulary. A [priority band](../concepts/prioritization.md) (`P1`–`P4`) asks
+what band a finding landed in for the component it was found in; a severity (`critical`, `high`,
+`medium`, `low`) asks what the scanner called the flaw on its own terms. One field, because two
+made it possible to write both, and a verdict with two possible reasons cannot be read back to the
+rule that produced it. Empty is the default, which is `P1`.
+[`--fail-on`](cli.md#draugr-scan-sagayaml--dir) overrides it for a single run. `failOnPriority` is
+the older spelling of the band and still works.
 
 Both live in the Saga rather than in a flag because they're **policy**, reviewed in a pull request
 and applied identically by every pipeline, not remembered by whoever wrote the workflow. Resolution
