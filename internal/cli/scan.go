@@ -125,9 +125,11 @@ func newScanCommand() *cobra.Command {
 		"report the verdict but exit 0 on a fail, for producing a report to compare later, "+
 			"where `draugr diff` is the gate")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", "",
-		"gate on a finding's own severity instead of its priority band: critical, high, medium, low")
+		"what fails the gate: a priority band (P1-P4, the default is P1) or a severity "+
+			"(critical, high, medium, low)")
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "",
-		"the priority band that fails the gate (P1-P4). The default gate is P1")
+		"deprecated: write the band in --fail-on, which takes either vocabulary")
+	_ = cmd.Flags().MarkDeprecated("fail-on-priority", "use --fail-on, which takes a band or a severity")
 	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
@@ -221,26 +223,22 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return err
 	}
-	failOnPriority, err := validatePriority("--fail-on-priority", opts.failOnPriority)
-	if err != nil {
-		return err
-	}
 	// Before the scan, not after. A typo discovered once the scanners have finished is a wasted
 	// pipeline minute for a mistake that was visible on the command line.
-	var failOn sarif.Severity
-	if opts.failOn != "" {
-		if failOn, err = sarif.ParseSeverity(opts.failOn); err != nil {
-			return fmt.Errorf("--fail-on: %w", err)
-		}
-	}
-	failOn, failOnPriority, err = resolveGate(failOn, failOnPriority, model.Config.Gate)
+	failOn, failOnPriority, err := resolveGate(opts.failOn, opts.failOnPriority, model.Config.Gate)
 	if err != nil {
 		return err
 	}
 	// Before the scanners run, because the answer does not depend on what they find and a wasted
 	// pipeline is a poor way to learn that the gate was never going to fire.
-	if err := reportUnreachableGate(w, model, failOnPriority); err != nil {
-		return err
+	//
+	// Not under --no-gate. Refusing a run because its gate cannot fire, on the flag that exists to
+	// stop the gate deciding anything, is the check arguing with the person who already answered
+	// it. `draugr diff` gating the pair either side of it is the ordinary case.
+	if !opts.noGate {
+		if err := reportUnreachableGate(w, model, failOnPriority); err != nil {
+			return err
+		}
 	}
 	if err := checkWorkingTree(opts.workingTree, model); err != nil {
 		return err

@@ -650,8 +650,8 @@ func TestAGateAsksOneQuestion(t *testing.T) {
 		t.Fatal("a descriptor setting both gates was accepted")
 	}
 	// The message has to say what to do, not only that something is wrong: somebody who wrote
-	// both wanted both, and the answer is which question they are asking.
-	for _, want := range []string{"failOn", "failOnPriority", "one gate"} {
+	// both wanted both, and the answer is that one field now takes either vocabulary.
+	for _, want := range []string{"failOn", "failOnPriority", "one decision", "P1", "critical"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("message does not mention %q: %v", want, err)
 		}
@@ -666,9 +666,28 @@ func TestAGateAsksOneQuestion(t *testing.T) {
 			t.Errorf("%+v should be valid: %v", g, err)
 		}
 	}
-	// A per-control threshold under a priority gate is a rule that never fires.
+	// A per-control threshold with nothing to refine.
 	if err := with(&GateConfig{Controls: map[string]string{"licenses": "critical"}}); err == nil {
-		t.Error("per-control thresholds were accepted with no severity gate to refine")
+		t.Error("per-control thresholds were accepted with no gate to refine")
+	}
+	// One run, one vocabulary. A severity under a band gate is a second question asked of one
+	// control, which is where two keys left the reader.
+	mixed := with(&GateConfig{FailOn: "P1", Controls: map[string]string{"licenses": "critical"}})
+	if mixed == nil {
+		t.Error("a severity threshold was accepted under a band gate")
+	}
+	// And the matching pair is fine, in either vocabulary.
+	for _, g := range []*GateConfig{
+		{FailOn: "P1", Controls: map[string]string{"licenses": "P2"}},
+		{FailOn: "high", Controls: map[string]string{"licenses": "critical"}},
+	} {
+		if err := with(g); err != nil {
+			t.Errorf("%+v should be valid: %v", g, err)
+		}
+	}
+	// The band spelling of failOn, which is new: one field, either vocabulary.
+	if err := with(&GateConfig{FailOn: "P2"}); err != nil {
+		t.Errorf("failOn should take a band: %v", err)
 	}
 	// An unparseable failOn is caught like any other threshold.
 	if err := with(&GateConfig{FailOn: "urgent"}); err == nil {

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -110,6 +111,11 @@ func TestEveryDescriptorFieldAppearsInAnExample(t *testing.T) {
 	corpus := readExamples(t)
 	var missing []string
 	for _, key := range sagaKeys() {
+		// An example is what somebody copies, so a spelling we are moving off must not appear in
+		// one. Held honest below: a key listed here has to actually say it is deprecated.
+		if deprecatedKeys[key] {
+			continue
+		}
 		// Written as a key, not merely mentioned. A commented-out key counts. Several options are only
 		// ever shown that way, and a reader copies a commented line as readily as a live one, but a name
 		// inside an English sentence does not. Prose satisfying this guard is how it would come to pass
@@ -129,6 +135,62 @@ func TestEveryDescriptorFieldAppearsInAnExample(t *testing.T) {
 }
 
 // sagaKeys is every yaml key the descriptor model declares, read from the struct tags.
+// deprecatedKeys are descriptor fields that still load and that no example should teach.
+//
+// Not a way to skip writing an example. TestDeprecatedKeysSayTheyAreDeprecated refuses an entry
+// the schema does not mark, so a field cannot be parked here to get out of the guard above.
+var deprecatedKeys = map[string]bool{
+	// Replaced by `failOn`, which takes a band or a severity. Still read, so a descriptor written
+	// before the merge keeps working.
+	"failOnPriority": true,
+}
+
+// TestDeprecatedKeysSayTheyAreDeprecated keeps the exemption list from becoming a place to hide a
+// field nobody wrote an example for.
+func TestDeprecatedKeysSayTheyAreDeprecated(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../pkg/saga/draugr.saga.schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	var walk func(any)
+	walk = func(n any) {
+		switch v := n.(type) {
+		case map[string]any:
+			for key, child := range v {
+				if props, ok := v["properties"].(map[string]any); ok {
+					for name, def := range props {
+						if d, ok := def.(map[string]any); ok {
+							if desc, _ := d["description"].(string); strings.HasPrefix(desc, "Deprecated:") {
+								found[name] = true
+							}
+						}
+					}
+				}
+				_ = key
+				walk(child)
+			}
+		case []any:
+			for _, child := range v {
+				walk(child)
+			}
+		}
+	}
+	walk(doc)
+	for key := range deprecatedKeys {
+		if !found[key] {
+			t.Errorf("%q is exempt from the example guard and the schema does not call it "+
+				"deprecated. Either write the example, or say in the schema that it is going.", key)
+		}
+	}
+}
+
 func sagaKeys() []string {
 	seen := map[string]bool{}
 	var walk func(reflect.Type)

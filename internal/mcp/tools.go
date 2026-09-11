@@ -348,10 +348,12 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 
 // gatePriority reads the descriptor's priority gate, which has no flag to override it here.
 func gatePriority(g *saga.GateConfig) string {
-	if g == nil {
-		return ""
+	// Either spelling, through the one accessor that knows both. Reading the older field alone
+	// reported no gate for a descriptor that had written the band in `failOn`.
+	if kind, value := g.Resolved(); kind == saga.GatePriority {
+		return value
 	}
-	return g.FailOnPriority
+	return ""
 }
 
 // findingFrom converts a result into the shape this server returns.
@@ -920,7 +922,7 @@ type DiffInput struct {
 	HeadPath string `json:"headPath" jsonschema:"path to the results.sarif from the revision being proposed"`
 	// FailOnNew mirrors the flag CI uses, so an assistant can ask the question the pipeline
 	// will ask rather than a different one.
-	FailOnNew string `json:"failOnNew,omitempty" jsonschema:"report whether a new finding at or above this severity would fail a gate: critical, high, medium or low"`
+	FailOnNew string `json:"failOnNew,omitempty" jsonschema:"report whether a new finding at or above this would fail a gate, in either vocabulary: a priority band (P1-P4), which folds in the component's declared exposure and criticality, or a severity (critical, high, medium, low)"`
 	Limit     int    `json:"limit,omitempty" jsonschema:"maximum new findings to return; defaults to 20"`
 }
 
@@ -972,12 +974,18 @@ func DiffReportsTool(_ context.Context, _ *mcp.CallToolRequest, in DiffInput) (*
 	out.Fixed = findingsFrom(rules, res.Fixed, limit)
 
 	if in.FailOnNew != "" {
-		band, err := sarif.ParseSeverity(in.FailOnNew)
+		// Either vocabulary, the same as the flag it mirrors. An assistant asking "would CI fail"
+		// has to be able to ask it the way the pipeline asks it, and most pipelines gate on a band.
+		kind, value, err := saga.ParseGate(in.FailOnNew)
 		if err != nil {
 			return nil, DiffOutput{}, fmt.Errorf("failOnNew: %w", err)
 		}
-		out.GateApplied = string(band)
-		out.WouldFail = len(res.GateNew(band, "")) > 0
+		out.GateApplied = value
+		if kind == saga.GateSeverity {
+			out.WouldFail = len(res.GateNew(sarif.Severity(value), "")) > 0
+		} else {
+			out.WouldFail = len(res.GateNew("", value)) > 0
+		}
 	}
 	if len(res.New) > limit {
 		out.Note = fmt.Sprintf("showing the %d most urgent of %d new findings; raise limit to see more",

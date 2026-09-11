@@ -282,8 +282,8 @@ Grouped the way `draugr scan --help` groups them.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--fail-on` | | Gate on a finding's own severity instead of its band: `critical`, `high`, `medium`, `low`. Exclusive with `--fail-on-priority` |
-| `--fail-on-priority` | `P1` | The priority band that fails the gate (`P1`–`P4`). This is the default gate; `--fail-on` replaces it |
+| `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
+| `--fail-on-priority` | | Deprecated: write the band in `--fail-on` |
 | `--no-gate` | `false` | Report the verdict but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything |
 
@@ -337,7 +337,8 @@ and every pipeline on that runner wants the same one.
 draugr scan draugr.saga.yaml
 draugr scan draugr.saga.yaml -o out/ --fail-on medium
 draugr scan draugr.saga.yaml --min-priority P2        # focus on what matters now
-draugr scan draugr.saga.yaml --fail-on-priority P2    # widen the default gate from P1 to P2
+draugr scan draugr.saga.yaml --fail-on P2             # widen the default gate from P1 to P2
+draugr scan draugr.saga.yaml --fail-on critical      # gate on severity instead of the band
 draugr scan draugr.saga.yaml --cache-dir .draugr/cache
 draugr scan draugr.saga.yaml -j 4                      # cap parallelism (or -j 1 for serial)
 draugr scan draugr.saga.yaml --format markdown        # portable report (MR comment, wiki)
@@ -395,7 +396,7 @@ the report called `high` pass a gate the reader believed was set to catch it.
 
 A finding with no CVSS score takes its band from the level its scanner assigned; a control may also
 apply a **floor** (a leaked secret is never reported as low, however the scanner scored it). To gate
-on business risk instead of raw severity, use `--fail-on-priority`. It accounts for the component's
+on business risk instead of raw severity, `--fail-on` takes a band. It accounts for the component's
 exposure and criticality, which a bare severity cannot.
 
 **Priority** requires components to declare `exposure`/`criticality` (see the

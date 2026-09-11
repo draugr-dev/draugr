@@ -336,11 +336,35 @@ func TestRunScanJobsSetsConcurrency(t *testing.T) {
 	}
 }
 
-func TestRunScanInvalidFailOnPriority(t *testing.T) {
+func TestRunScanRefusesAThresholdInNeitherVocabulary(t *testing.T) {
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
-		scanOptions{failOn: "error", failOnPriority: "bogus"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
-	if err == nil || !strings.Contains(err.Error(), "invalid --fail-on-priority") {
-		t.Fatalf("expected invalid fail-on-priority error, got %v", err)
+		scanOptions{failOn: "bogus"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("a word that is neither a band nor a severity was accepted")
+	}
+	// Both vocabularies named. Somebody who wrote a word in neither cannot tell, from a message
+	// about one of them, whether they misspelled a band or reached for a severity.
+	for _, want := range []string{"P1", "critical"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("message does not offer %q: %v", want, err)
+		}
+	}
+}
+
+// TestTheOlderSpellingStillResolves: --fail-on-priority is deprecated, not removed. A pipeline that
+// predates the merge keeps working, because the moving tag on the action means our release is what
+// would break it rather than their upgrade.
+func TestTheOlderSpellingStillResolves(t *testing.T) {
+	path := writeSaga(t, sagaWithImage)
+	// A warning is P2 on an unclassified component, so the older flag still decides the verdict.
+	if err := runScan(context.Background(), path, scanOptions{failOnPriority: "P2"},
+		fakeRegistry(sarif.LevelWarning), &bytes.Buffer{}); err == nil {
+		t.Error("--fail-on-priority P2 no longer gates")
+	}
+	// And the same band written the new way gives the same answer.
+	if err := runScan(context.Background(), path, scanOptions{failOn: "P2"},
+		fakeRegistry(sarif.LevelWarning), &bytes.Buffer{}); err == nil {
+		t.Error("--fail-on P2 does not gate on a band")
 	}
 }
 
@@ -1353,5 +1377,30 @@ components:
 	}
 	if strings.Contains(out.String(), "cannot produce") {
 		t.Errorf("a severity gate was checked against a band:\n%s", out.String())
+	}
+}
+
+// TestNoGateSkipsTheUnreachableCheck: refusing a run because its gate cannot fire, on the one flag
+// that exists to stop the gate deciding anything, is the check arguing with the person who has
+// already answered it.
+func TestNoGateSkipsTheUnreachableCheck(t *testing.T) {
+	saga := `project: p
+release: {version: "1"}
+config:
+  controllers: {images: {enabled: true}}
+components:
+  - name: api
+    exposure: restricted
+    criticality: important
+    images: [{image: alpine:3}]
+`
+	var out bytes.Buffer
+	err := runScan(context.Background(), writeSaga(t, saga), scanOptions{noGate: true},
+		fakeRegistry(sarif.LevelError), &out)
+	if err != nil {
+		t.Fatalf("--no-gate was refused for a gate it had already switched off: %v", err)
+	}
+	if strings.Contains(out.String(), "cannot fire") {
+		t.Errorf("--no-gate was told its gate cannot fire:\n%s", out.String())
 	}
 }

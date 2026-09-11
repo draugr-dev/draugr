@@ -93,25 +93,26 @@ type Config struct {
 
 // GateConfig tunes which findings fail the build.
 type GateConfig struct {
-	// FailOn is the severity band that fails the build, for a project that wants the scanner's
-	// own rating rather than the band a finding lands in here.
+	// FailOn is the threshold that fails the build, written in either vocabulary.
 	//
-	// Absent by default, and absent means the priority gate rather than a severity somebody did
-	// not choose. It was settable only as --fail-on, which every pipeline had to remember and
-	// nothing reviewed, while the two fields beside it were already in the file. A descriptor
-	// could state its per-control thresholds and its priority band and not the threshold that
-	// failed most of its builds.
+	// `P1` asks what band a finding landed in for the component it was found in, folding in the
+	// exposure and criticality declared below. `high` asks what the scanner called the flaw on its
+	// own terms. One field rather than two, so writing both is not expressible: a verdict with two
+	// possible reasons cannot be read back to the rule that produced it, and a shape nobody can
+	// write is a better guarantee than an error about it.
 	//
-	// Exclusive with FailOnPriority: a run has one gate. Severity rates a flaw in the abstract
-	// and priority folds in what this descriptor says about the component it was found in, and
-	// answering both leaves a verdict with two possible reasons.
+	// Empty is the default, which is P1. The ranking this product computes is the one it judges
+	// by, and a tool whose default gate is the number a scanner printed has its central claim
+	// switched off until somebody configures it.
 	FailOn string `yaml:"failOn,omitempty"`
 
-	// Controls sets a per-control severity threshold, overriding FailOn for that control
-	// only. Values are severity bands: critical, high, medium, low.
+	// Controls sets a per-control threshold, overriding FailOn for that control only.
 	//
-	// A refinement of FailOn, so it needs one: a per-control severity threshold beside a priority
-	// gate is a rule that never fires.
+	// The same vocabulary as FailOn, because the run asks one question: a band under a severity
+	// gate, or a severity under a band gate, is a second question asked of one control and puts
+	// the reader back where two keys left them.
+	//
+	// A refinement of FailOn, so it needs one.
 	//
 	// This exists because one threshold cannot serve every control. License policy is owned by
 	// legal and vulnerability policy by security; "fail the build on a forbidden license but
@@ -120,6 +121,10 @@ type GateConfig struct {
 	Controls map[string]string `yaml:"controls,omitempty"`
 
 	// FailOnPriority also fails the build on any finding at or above a priority band.
+	//
+	// Deprecated: write the band in FailOn instead, which takes either vocabulary. Still read, so
+	// a descriptor that predates the merge keeps working, and refused alongside FailOn because
+	// the two together are the contradiction one field exists to prevent.
 	//
 	// Severity rates a flaw in the abstract; priority folds in what the descriptor says about the
 	// component it was found in. A team that has classified its components usually wants the gate on

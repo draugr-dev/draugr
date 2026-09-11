@@ -693,11 +693,13 @@ One threshold can't serve every control. License policy is owned by legal and vu
 policy by security; *"fail the build on a forbidden license but only warn on a medium CVE"* is a
 reasonable position that a single global threshold makes unsayable.
 
-`failOnPriority` gates on a [priority band](../concepts/prioritization.md) as well. Severity rates a
-flaw in the abstract; priority folds in what this descriptor says about the component it was found
-in, which is usually what a team that has classified its components wants to gate on.
-[`--fail-on-priority`](cli.md#draugr-scan-sagayaml--dir) overrides it for a single run. The
-descriptor is the standing policy, the flag is this run.
+`failOn` takes either vocabulary. A [priority band](../concepts/prioritization.md) (`P1`–`P4`) asks
+what band a finding landed in for the component it was found in; a severity (`critical`, `high`,
+`medium`, `low`) asks what the scanner called the flaw on its own terms. One field, because two
+made it possible to write both, and a verdict with two possible reasons cannot be read back to the
+rule that produced it. Empty is the default, which is `P1`.
+[`--fail-on`](cli.md#draugr-scan-sagayaml--dir) overrides it for a single run. `failOnPriority` is
+the older spelling of the band and still works.
 
 Both live in the Saga rather than in a flag because they're **policy**, reviewed in a pull request
 and applied identically by every pipeline, not remembered by whoever wrote the workflow. Resolution
