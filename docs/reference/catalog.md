@@ -135,7 +135,7 @@ security delta. Code scanning is free for public repos; private repos need GitHu
 
 See [`examples/scanner-options.saga.yaml`](../../examples/scanner-options.saga.yaml) for every
 option each scanner above takes,
-[`examples/reporting.saga.yaml`](../../examples/reporting.saga.yaml) for a multi-format,
+[`examples/publishing.saga.yaml`](../../examples/publishing.saga.yaml) for a multi-format,
 multi-publisher Saga, [`examples/github-actions-code-scanning.yml`](../../examples/github-actions-code-scanning.yml)
 and [`examples/gitlab-ci.yml`](../../examples/gitlab-ci.yml)
 for the matching workflow. Draugr dogfoods this itself in

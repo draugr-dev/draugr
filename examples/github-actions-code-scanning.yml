@@ -6,7 +6,7 @@
 # double-posts alongside a code-scanning "GitHub Advanced Security" comment).
 #
 # Copy this into .github/workflows/ and pair it with a Saga that declares the github publisher
-# (see examples/reporting.saga.yaml). Code scanning is free for public repos; private repos need
+# (see examples/publishing.saga.yaml). Code scanning is free for public repos; private repos need
 # GitHub Advanced Security.
 
 name: Draugr

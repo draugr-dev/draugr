@@ -1,6 +1,7 @@
 package publish
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -295,5 +296,128 @@ func TestEveryPublisherSaysWhatItNeeds(t *testing.T) {
 func TestRequiresIsQuietAboutAKindWeDoNotHave(t *testing.T) {
 	if got := Requires("jira"); got != nil {
 		t.Errorf("Requires of an unknown kind = %v, want nil", got)
+	}
+}
+
+// A destination that says nothing about what tells it apart from another of its kind cannot be
+// checked for being written twice, and a duplicate is written identically to a deliberate pair.
+func TestEveryPublisherSaysWhatDistinguishesIt(t *testing.T) {
+	for _, kind := range Kinds() {
+		field, ok := distinguishes[kind]
+		if !ok || field == "" {
+			t.Errorf("%s has no entry in distinguishes. Name the field that makes a second entry "+
+				"of this kind a second destination", kind)
+		}
+	}
+	for kind := range distinguishes {
+		if _, ok := builders[kind]; !ok {
+			t.Errorf("distinguishes names %q, which is not a publisher this build has", kind)
+		}
+	}
+	// Every named field has to be one DistinguishingValue can read, or the check compares two
+	// empty strings and calls every pair a duplicate.
+	for kind, field := range distinguishes {
+		cfg := saga.PublisherConfig{Kind: kind}
+		switch field {
+		case "dir":
+			cfg.Dir = "x"
+		case "repo":
+			cfg.Repo = "x"
+		case "marker":
+			cfg.Marker = "x"
+		case "url":
+			cfg.URL = "x"
+		default:
+			t.Errorf("%s is distinguished by %q, which DistinguishingValue cannot read", kind, field)
+			continue
+		}
+		if got := DistinguishingValue(cfg); got != "x" {
+			t.Errorf("%s: DistinguishingValue read %q from its %s", kind, got, field)
+		}
+	}
+}
+
+// The shape the two lists could not express: write HTML and JSON to a directory, post the markdown
+// somewhere else. Every destination used to be handed everything and left to pick out what it
+// recognized, so "this file is for the directory and that one is for the comment" had nowhere to be
+// said.
+func TestADestinationIsHandedWhatItAskedFor(t *testing.T) {
+	full, narrowed := t.TempDir(), t.TempDir()
+	err := Run(context.Background(),
+		nil, // nothing at the project level: each destination says what it takes
+		[]saga.PublisherConfig{
+			{Kind: "file", Dir: full, Reports: []saga.ReportConfig{{Format: "html"}, {Format: "json"}}},
+			{Kind: "file", Dir: narrowed, Reports: []saga.ReportConfig{{Format: "markdown"}}},
+		},
+		sampleData(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"report.html", "report.json"} {
+		if _, err := os.Stat(filepath.Join(full, f)); err != nil {
+			t.Errorf("the directory that asked for %s did not get it: %v", f, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(full, "report.md")); err == nil {
+		t.Error("the directory asked for html and json and was given the markdown as well")
+	}
+	if _, err := os.Stat(filepath.Join(narrowed, "report.md")); err != nil {
+		t.Errorf("the directory that asked for markdown did not get it: %v", err)
+	}
+	for _, f := range []string{"report.html", "report.json"} {
+		if _, err := os.Stat(filepath.Join(narrowed, f)); err == nil {
+			t.Errorf("the markdown-only directory was given %s", f)
+		}
+	}
+}
+
+// A destination that names no reports keeps taking every one, which is what a descriptor written
+// before this meant and still means.
+func TestADestinationThatNamesNothingTakesEverything(t *testing.T) {
+	dir := t.TempDir()
+	err := Run(context.Background(),
+		[]saga.ReportConfig{{Format: "json"}, {Format: "markdown"}},
+		[]saga.PublisherConfig{{Kind: "file", Dir: dir}},
+		sampleData(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"report.json", "report.md"} {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+			t.Errorf("expected %s: %v", f, err)
+		}
+	}
+}
+
+// One document however many destinations ask for it. Rendering is the expensive half and the
+// reason the split is worth keeping inside, now that the descriptor no longer makes an author hold
+// it.
+func TestOneReportIsRenderedOnceForEveryDestinationAskingForIt(t *testing.T) {
+	a, b := t.TempDir(), t.TempDir()
+	data := sampleData()
+
+	// Counting renders directly is not available from here, so the observable stands in: two
+	// destinations asking for one format produce identical bytes, which a second render of a
+	// report carrying a timestamp would not.
+	err := Run(context.Background(), nil,
+		[]saga.PublisherConfig{
+			{Kind: "file", Dir: a, Reports: []saga.ReportConfig{{Format: "json"}}},
+			{Kind: "file", Dir: b, Reports: []saga.ReportConfig{{Format: "json"}}},
+		}, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := os.ReadFile(filepath.Join(a, "report.json")) // #nosec G304 -- a directory this test made
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := os.ReadFile(filepath.Join(b, "report.json")) // #nosec G304 -- a directory this test made
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Error("two destinations asking for one report were given two different documents")
 	}
 }

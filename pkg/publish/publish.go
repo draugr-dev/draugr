@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -77,9 +78,51 @@ var requirements = map[string][]string{
 	"draugr-api": {"json", "sarif"},
 }
 
-// Requires returns the report formats kind needs declared in config.reports, nil for a kind with
-// no requirement and for one this build does not have.
+// Requires returns the report formats kind cannot deliver without, nil for a kind with no
+// requirement and for one this build does not have.
 func Requires(kind string) []string { return requirements[kind] }
+
+// distinguishes names the field that makes a second entry of a kind a second destination.
+//
+// A list of publishers can hold one kind twice on purpose: two directories, two servers, two
+// comments under different markers. It can also hold one kind twice by mistake, and the two are
+// written identically. The field named here is what tells them apart, so a descriptor can be
+// refused when it does not differ in the one place that would make a difference.
+//
+// TestEveryPublisherSaysWhatDistinguishesIt holds this to the builders, so a publisher added
+// without an entry fails rather than quietly getting no check.
+var distinguishes = map[string]string{
+	"file":              "dir",
+	"github":            "repo",
+	"github-pr-comment": "marker",
+	"azure-pr-comment":  "marker",
+	"gitlab-mr-comment": "marker",
+	"draugr-api":        "url",
+}
+
+// Distinguishes returns the field that makes a second entry of kind a second destination, empty
+// for a kind this build does not have.
+func Distinguishes(kind string) string { return distinguishes[kind] }
+
+// DistinguishingValue returns what cfg wrote in the field that tells two entries of its kind
+// apart.
+//
+// What the descriptor wrote, not what it resolves to. `repo`, `pr` and `url` all default from the
+// environment, so two entries that write nothing are the same entry twice however they resolve,
+// and that is the case worth catching.
+func DistinguishingValue(cfg saga.PublisherConfig) string {
+	switch distinguishes[cfg.Kind] {
+	case "dir":
+		return cfg.Dir
+	case "repo":
+		return cfg.Repo
+	case "marker":
+		return cfg.Marker
+	case "url":
+		return cfg.URL
+	}
+	return ""
+}
 
 // Kinds lists the available publisher kinds, sorted.
 func Kinds() []string {
@@ -118,15 +161,33 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 	// produced nothing, because of something a descriptor check catches in milliseconds. The
 	// publisher loop below has always tolerated one destination failing; this is the same reasoning
 	// applied one step earlier.
-	artifacts := make([]report.Artifact, 0, len(reports))
+	//
+	// Rendered once per distinct report, however many destinations ask for it. Two publishers
+	// wanting markdown is one document delivered twice, not one rendered twice, which is what
+	// separating the "what" from the "where" is worth keeping internally even now that the
+	// descriptor states them together.
+	built := map[string]report.Artifact{}
 	var buildErrs []error
-	for _, r := range reports {
+	render := func(r saga.ReportConfig) (report.Artifact, bool) {
+		id := reportKey(r)
+		if a, done := built[id]; done {
+			return a, a.Format != ""
+		}
 		a, err := report.Build(r, data)
 		if err != nil {
 			buildErrs = append(buildErrs, err)
-			continue
+			built[id] = report.Artifact{} // remembered, so one bad format is reported once
+			return report.Artifact{}, false
 		}
-		artifacts = append(artifacts, a)
+		built[id] = a
+		return a, true
+	}
+
+	artifacts := make([]report.Artifact, 0, len(reports))
+	for _, r := range reports {
+		if a, ok := render(r); ok {
+			artifacts = append(artifacts, a)
+		}
 	}
 	// Nothing rendered at all is a different situation: there is no partial delivery to make, and
 	// reporting only the first reason would hide the rest.
@@ -136,7 +197,8 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 	// SBOMs are already rendered by the time a run finishes, so they are appended rather than
 	// built from data. That is also why "sbom" is not a --format: a run produces one document
 	// per target, and a format that writes N files has no sensible meaning on stdout.
-	artifacts = append(artifacts, report.SBOMArtifacts(data.Run.SBOMs)...)
+	sboms := report.SBOMArtifacts(data.Run.SBOMs)
+	artifacts = append(artifacts, sboms...)
 
 	firstErr := errors.Join(buildErrs...)
 	for _, cfg := range publishers {
@@ -147,13 +209,35 @@ func Run(ctx context.Context, reports []saga.ReportConfig, publishers []saga.Pub
 			}
 			continue
 		}
-		if err := p.Publish(ctx, artifacts); err != nil {
+		// What this destination asked for, or everything when it asked for nothing. A publisher
+		// that names its own reports is saying what belongs here rather than taking the whole set
+		// and picking out what it recognizes.
+		deliver := artifacts
+		if len(cfg.Reports) > 0 {
+			deliver = make([]report.Artifact, 0, len(cfg.Reports))
+			for _, r := range cfg.Reports {
+				if a, ok := render(r); ok {
+					deliver = append(deliver, a)
+				}
+			}
+			// The SBOMs are the run's own documents rather than a rendered format, so they follow
+			// whoever is taking files. Only the file publisher writes them, and it ignores what it
+			// cannot use.
+			deliver = append(deliver, sboms...)
+		}
+		if err := p.Publish(ctx, deliver); err != nil {
 			if firstErr == nil {
 				firstErr = fmt.Errorf("publisher %q: %w", cfg.Kind, err)
 			}
 		}
 	}
 	return firstErr
+}
+
+// reportKey identifies a report by everything that changes what it renders, so two destinations
+// asking for the same document share one render and two asking for different ones do not.
+func reportKey(r saga.ReportConfig) string {
+	return strings.Join([]string{r.Format, r.Template, r.TemplateFile, r.MinPriority, r.Filename}, "\x00")
 }
 
 // DiffMarker identifies the sticky comment `draugr diff --publish` maintains.

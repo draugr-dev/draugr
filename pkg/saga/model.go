@@ -482,6 +482,20 @@ type PublisherConfig struct {
 	Kind string `yaml:"kind"`
 	Dir  string `yaml:"dir,omitempty"` // file: output directory
 
+	// Reports narrows what this destination is given, and is where the two lists finally meet.
+	//
+	// Left out, a destination is handed every report `config.reports` renders, which is what a
+	// descriptor written before this meant and still means. That cross product is almost never
+	// what anybody wants: writing HTML and JSON to a directory while posting the markdown to a
+	// pull request was not expressible, so every destination got all three and picked out what it
+	// recognized.
+	//
+	// A format named here is rendered whether or not `config.reports` also names it, so a
+	// descriptor that publishes and keeps no local artifacts need not declare the same format
+	// twice. Rendering still happens once per distinct report, however many destinations ask for
+	// it.
+	Reports []ReportConfig `yaml:"reports,omitempty"`
+
 	// github / github-pr-comment: Repo defaults to $GITHUB_REPOSITORY; the token to $GITHUB_TOKEN
 	// (or TokenEnv). github: Commit/Ref default to $GITHUB_SHA / $GITHUB_REF.
 	Repo     string `yaml:"repo,omitempty"`

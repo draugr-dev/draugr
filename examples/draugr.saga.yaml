@@ -139,19 +139,21 @@ config:
     #                        # deliberately, against a staging host, rather than something a
     #                        # descriptor turns on for everyone who copies it
 
-  # What to render, and where to send it. Both lists are needed: a destination that cannot use
-  # anything you render is refused when the descriptor loads.
+  # Where results go. A destination says what it takes, so the artifact on disk and the comment a
+  # reviewer reads need not be the same document.
   #
-  # This is the shortest useful pair. `examples/reporting.saga.yaml` has every format, and every
-  # publisher, with what each one needs.
-  reports:
-    - format: sarif          # the evidence, for code scanning and for `draugr diff`
-    - format: markdown       # the same run as a document, for a pull-request comment
+  # `examples/publishing.saga.yaml` has every format and every destination, with what each one
+  # needs and what tells two of a kind apart.
   publishers:
-    - kind: file             # → ./.draugr/out/{results.sarif,report.md}
+    - kind: file             # → ./.draugr/out/{results.sarif,report.html}
       dir: ./.draugr/out
-    # - kind: github         # upload the SARIF to code scanning. Needs the `sarif` report above,
-    #                        # and no-ops outside GitHub Actions, so it is safe to leave enabled
+      reports:
+        - format: sarif      # the evidence, for code scanning and for `draugr diff`
+        - format: html       # a shareable, browser-viewable artifact
+    # - kind: github-pr-comment
+    #   reports:
+    #     - format: markdown
+    #       minPriority: P2  # narrow the comment, not the artifact above
 
 components:
   # A public web app: source, the image it builds, and the endpoint it serves.
