@@ -1,1 +1,6 @@
-`report.json`'s priority counts are what the gate judged. They counted findings a `config.exclude` rule had set aside, and counted a flaw twice when two scanners both found it, so the console and `report.json` reported different numbers for one run: enabling the opt-in second matcher took a project from 4 P1 to 8 with nothing new wrong. Excused findings are now counted apart in a `suppressed` block rather than dropped, and each entry in `findings` says whether it was excused, with the reason and who accepted it.
+- `report.json`'s priority counts are what the gate judged. They counted findings a
+  `config.exclude` rule had set aside, and counted a flaw twice when two scanners both found it,
+  so the console and `report.json` reported different numbers for one run: enabling the opt-in
+  second matcher took a project from 4 P1 to 8 with nothing new wrong. Excused findings are now
+  counted apart in a `suppressed` block rather than dropped, and each entry in `findings` says
+  whether it was excused, with the reason and who accepted it.

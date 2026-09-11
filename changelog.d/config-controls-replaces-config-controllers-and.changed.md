@@ -1,1 +1,5 @@
-`config.controls` replaces `config.controllers`, and `controls:` replaces `controllers:` on a component. It is the word every other surface uses: `draugr controls` lists them, the catalog names them, every concept behind a `?` calls them controls, and `config.gate.controls` said it already, seventeen lines from the key that did not. The older spelling still loads and is folded into the new one when a descriptor is read, so no existing descriptor breaks.
+- `config.controls` replaces `config.controllers`, and `controls:` replaces `controllers:` on a
+  component. It is the word every other surface uses: `draugr controls` lists them, the catalog
+  names them, every concept behind a `?` calls them controls, and `config.gate.controls` said it
+  already, seventeen lines from the key that did not. The older spelling still loads and is folded
+  into the new one when a descriptor is read, so no existing descriptor breaks.
