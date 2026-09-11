@@ -243,6 +243,14 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err := checkWorkingTree(opts.workingTree, model); err != nil {
 		return err
 	}
+	// The same check `validate` runs, here as well, because a run is where it costs something. A
+	// format this build cannot render and a destination with nothing to deliver are both visible
+	// in the descriptor and were both reported once every scanner had finished.
+	if !opts.noPublish {
+		if err := checkReportNames(model); err != nil {
+			return err
+		}
+	}
 	expl, feedProv, err := loadExploitSource(ctx, exploitSettings(opts, model.Config.Exploitability))
 	if err != nil {
 		return err
