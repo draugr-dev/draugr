@@ -163,12 +163,18 @@ type Gate struct {
 
 // gateReport is the gate as the JSON document states it.
 type gateReport struct {
-	// Threshold is the severity band that fails a control, stated rather than left to the
-	// default: a consumer reading this document has no access to what our default happens to be.
-	Threshold string `json:"threshold"`
-	// PerControl are the controls judged against a different band.
+	// Threshold is the severity band that fails a control, on a run that gates on severity.
+	//
+	// Absent on a run that gates on the band, rather than empty: exactly one of this and
+	// FailOnPriority is set, because a run asks one question and a document naming both is the
+	// contradiction one descriptor field exists to prevent. An empty string would be a severity
+	// gate present and set to nothing, which is neither.
+	Threshold string `json:"threshold,omitempty"`
+	// PerControl are the controls judged against a different band. Only on a severity gate, which
+	// is the only kind they refine.
 	PerControl map[string]string `json:"perControl,omitempty"`
-	// FailOnPriority is the band that fails a control on priority as well as on severity.
+	// FailOnPriority is the band that fails a control, on a run that gates on the band. Written
+	// out including the default, because nothing downstream can look up what our default is.
 	FailOnPriority string `json:"failOnPriority,omitempty"`
 	// Disabled says the verdict did not decide the exit code, so anything reading that code was
 	// told the opposite of what this document says.
@@ -182,14 +188,20 @@ func describeGate(g *Gate) *gateReport {
 	if g == nil {
 		return nil
 	}
-	threshold := g.Policy.FailOn
-	if threshold == "" {
-		threshold = sarif.SeverityHigh
-	}
-	out := &gateReport{
-		Threshold:      string(threshold),
-		FailOnPriority: g.Policy.FailOnPriority,
-		Disabled:       g.Disabled,
+	// One of the two, never both. An empty FailOn does not mean "the default severity" any more,
+	// it means this run asks the other question, and filling in a threshold there wrote a document
+	// claiming a severity gate that was not in force beside the band that was. The console said
+	// `Gate: fails on P1.` and the document said `{"threshold":"high","failOnPriority":"P1"}`,
+	// which is the contradiction one field exists to prevent, reintroduced one layer down.
+	out := &gateReport{Disabled: g.Disabled}
+	if g.Policy.GatesOnSeverity() {
+		out.Threshold = string(g.Policy.FailOn)
+	} else {
+		band := g.Policy.PriorityBand()
+		if band == "" {
+			band = norn.DefaultPriority
+		}
+		out.FailOnPriority = band
 	}
 	for name, band := range g.Policy.PerControl {
 		if band == "" {
