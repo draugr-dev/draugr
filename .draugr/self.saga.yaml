@@ -8,10 +8,7 @@ project: draugr
 release:
   version: dev
 config:
-  # `controllers:` rather than `controls:`, which is what everything else now writes. The self-scan
-  # runs the latest *release*, and a release that knows the new spelling has not shipped yet, so
-  # renaming this would break the scan until one does. It moves the release after next.
-  controllers:
+  controls:
     sca:
       enabled: true
     secrets:
