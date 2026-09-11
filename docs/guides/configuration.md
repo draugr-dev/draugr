@@ -26,7 +26,7 @@ output:
   group: action
   top: 20
 
-controllers:
+controls:
   sca:
     trivyFs:
       pkgTypes: [library]
@@ -137,7 +137,7 @@ output:
 
 ### `controllers`
 
-The same shape as `config.controllers` in a Saga, merged underneath it. A platform team can set a
+The same shape as `config.controls` in a Saga, merged underneath it. A platform team can set a
 default for every repository, a scanner's options, a database mirror an internal network requires,
 without editing a descriptor anywhere.
 

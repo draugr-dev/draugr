@@ -27,7 +27,7 @@ release:
   version: "1.0"
 
 config:
-  controllers:
+  controls:
     images:
       enabled: true
       # trivy runs by default. Add `trivy: { enabled: false }` to run Grype alone.

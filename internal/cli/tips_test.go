@@ -129,7 +129,7 @@ func TestSurfaceNoteOmitsDastWithoutHosts(t *testing.T) {
 
 func TestSurfaceNoteSaysNothingWhenCovered(t *testing.T) {
 	model := &saga.Model{
-		Config:     saga.Config{Controllers: map[string]saga.ControllerSettings{"headers": {"enabled": true}, "tls": {"enabled": true}}},
+		Config:     saga.Config{Controls: map[string]saga.ControllerSettings{"headers": {"enabled": true}, "tls": {"enabled": true}}},
 		Components: []saga.Component{{Name: "web", Hosts: []saga.Host{{URL: "h"}}}},
 	}
 	var out bytes.Buffer

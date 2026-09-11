@@ -59,7 +59,7 @@ release:
   version: "${{ RELEASE_VERSION }}"   # env-var substitution
 
 config:                                # global controller config, overridable per component
-  controllers:
+  controls:
     sast:      { enabled: true }
     sca:       { enabled: true }
     images:    { enabled: true }
@@ -79,7 +79,7 @@ components:
     infrastructure:
       - kind: kubernetes
         ref: prod-cluster
-    controllers:                       # per-component overrides
+    controls:                       # per-component overrides
       sast: { semgrep: { config: p/owasp-top-ten } }
 
 references:      # links to manual/human controls (threat model, arch diagram, …)

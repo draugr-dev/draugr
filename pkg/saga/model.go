@@ -41,6 +41,18 @@ func (m *Model) ProjectName() string { return m.Project }
 // free-form (scanner-specific keys live under it); use ControllerEnabled to read the
 // common "enabled" flag.
 type Config struct {
+	// Controls is the per-control configuration: which of them run, and what each is told.
+	//
+	// Named for what a reader meets everywhere else. `draugr controls` lists them, the catalog
+	// names them, every concept behind a `?` calls them controls, and `config.gate.controls`
+	// seventeen lines from here already did. A controller is the Go type that plans the jobs, and
+	// that word belongs in the code rather than in the file people write.
+	Controls map[string]ControllerSettings `yaml:"controls,omitempty"`
+
+	// Controllers is the older spelling, still read so no descriptor breaks.
+	//
+	// Deprecated: write `controls`. Folded into Controls when a descriptor loads, so nothing else
+	// has to know both names.
 	Controllers map[string]ControllerSettings `yaml:"controllers,omitempty"`
 	// Reports are the report formats to render on a scan (e.g. json, sarif, markdown, html).
 	// Publishers deliver every rendered report to a destination.
@@ -517,12 +529,16 @@ type Component struct {
 	// Here as well as on each target because a component that is entirely somebody else's software, a
 	// vendor console, an open-source service you run from source. Otherwise needs the field written
 	// on every repository and every image, and a target added later silently defaults back to `self`.
-	BuiltBy        BuiltBy                       `yaml:"builtBy,omitempty"`
-	Repositories   []Repository                  `yaml:"repositories,omitempty"`
-	Images         []Image                       `yaml:"images,omitempty"`
-	Hosts          []Host                        `yaml:"hosts,omitempty"`
-	Infrastructure []Infrastructure              `yaml:"infrastructure,omitempty"`
-	Controllers    map[string]ControllerSettings `yaml:"controllers,omitempty"`
+	BuiltBy        BuiltBy          `yaml:"builtBy,omitempty"`
+	Repositories   []Repository     `yaml:"repositories,omitempty"`
+	Images         []Image          `yaml:"images,omitempty"`
+	Hosts          []Host           `yaml:"hosts,omitempty"`
+	Infrastructure []Infrastructure `yaml:"infrastructure,omitempty"`
+	// Controls overrides the project's per-control configuration for this component.
+	Controls map[string]ControllerSettings `yaml:"controls,omitempty"`
+
+	// Controllers is the older spelling, still read. Deprecated: write `controls`.
+	Controllers map[string]ControllerSettings `yaml:"controllers,omitempty"`
 	// VEX are exploitability claims somebody else made about this component, read and applied to
 	// its findings.
 	//
@@ -897,7 +913,7 @@ type FragmentConfig struct {
 // A controller is enabled when its config entry exists and its "enabled" key is not
 // explicitly false. Absent entries are considered disabled.
 func (c Config) ControllerEnabled(name string) bool {
-	settings, ok := c.Controllers[name]
+	settings, ok := c.Controls[name]
 	if !ok {
 		return false
 	}
@@ -907,7 +923,7 @@ func (c Config) ControllerEnabled(name string) bool {
 // ControllerEnabled reports whether the named controller is enabled for this component,
 // falling back to the project-level setting when the component has no override.
 func (comp Component) ControllerEnabled(name string, project Config) bool {
-	if settings, ok := comp.Controllers[name]; ok {
+	if settings, ok := comp.Controls[name]; ok {
 		return settingsEnabled(settings)
 	}
 	return project.ControllerEnabled(name)

@@ -46,7 +46,7 @@ func (cfgController) Aggregate(reports []sarif.Report) (plugin.ControlResult, er
 
 func cfgModel() saga.Model {
 	return saga.Model{
-		Config:     saga.Config{Controllers: map[string]saga.ControllerSettings{"cfgctl": {"enabled": true}}},
+		Config:     saga.Config{Controls: map[string]saga.ControllerSettings{"cfgctl": {"enabled": true}}},
 		Components: []saga.Component{{Name: "a"}},
 	}
 }

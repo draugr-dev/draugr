@@ -89,7 +89,7 @@ func (c fakeController) Aggregate(reports []sarif.Report) (plugin.ControlResult,
 func model() saga.Model {
 	return saga.Model{
 		Release: saga.Release{Version: "1"},
-		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 			"images": {"enabled": true},
 			"infra":  {"enabled": true},
 		}},
@@ -105,7 +105,7 @@ func TestWithPrioritizationStampsFindings(t *testing.T) {
 	reg.RegisterScanner(&fakeScanner{name: "s"})
 	m := saga.Model{
 		Release:    saga.Release{Version: "1"},
-		Config:     saga.Config{Controllers: map[string]saga.ControllerSettings{"images": {"enabled": true}}},
+		Config:     saga.Config{Controls: map[string]saga.ControllerSettings{"images": {"enabled": true}}},
 		Components: []saga.Component{{Name: "a", Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical}},
 	}
 	// The prioritizer receives the component's classification and the control name.
@@ -322,7 +322,7 @@ func TestRunAttributesScanErrorsToTheirControl(t *testing.T) {
 	res, err := New(reg).Run(context.Background(), saga.Model{
 		Release: saga.Release{Version: "1"},
 		Components: []saga.Component{
-			{Name: "c", Controllers: map[string]saga.ControllerSettings{"sca": {}}},
+			{Name: "c", Controls: map[string]saga.ControllerSettings{"sca": {}}},
 		},
 	})
 	if err == nil {
@@ -349,7 +349,7 @@ func TestRunReportsNoScanErrorsOnSuccess(t *testing.T) {
 	res, err := New(reg).Run(context.Background(), saga.Model{
 		Release: saga.Release{Version: "1"},
 		Components: []saga.Component{
-			{Name: "c", Controllers: map[string]saga.ControllerSettings{"sca": {}}},
+			{Name: "c", Controls: map[string]saga.ControllerSettings{"sca": {}}},
 		},
 	})
 	if err != nil {

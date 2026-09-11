@@ -223,7 +223,7 @@ draugr scan --controls sca
 draugr scan --components app --controls sca --log-level debug
 ```
 
-They are a **view over one run**, not a decision. `config.controllers` records that a project does
+They are a **view over one run**, not a decision. `config.controls` records that a project does
 not need `dast`; editing it to debug is how a temporary change gets committed.
 
 **A scoped run still gates**, because answering "is my fix good?" with "no verdict" would send you
@@ -1232,7 +1232,7 @@ cache:                  # where results are reused between runs, and for how lon
   ttl: 24h
 tools:                  # which build `draugr tools install` fetches
   trivy: { version: "0.69.3" }
-controllers:            # merged *underneath* the Saga, so a project overrides only what it names
+controls:            # merged *underneath* the Saga, so a project overrides only what it names
   sast:
     semgrep:
       config: p/owasp-top-ten
@@ -1332,7 +1332,7 @@ draugr controls sast --options     # just one control
 | `[control]` |, | Narrow everything below to one control. A name that is not a control says so and lists the ones that are. |
 | `--options` | off | List the Saga options each scanner accepts, read from the schemas the gate enforces. A scanner shown with no options is configured by choosing it, anything else under its block is an error, not a setting that quietly does nothing. |
 
-Enable a control in your Saga under `config.controllers.<name>` (or per component). A control's
+Enable a control in your Saga under `config.controls.<name>` (or per component). A control's
 scanners are configured under their own keys, `controllers.<name>.<scanner>`, each with an optional
 `enabled` flag plus that scanner's options (e.g. `sast: { gosec: { enabled: true } }`). See
 [per-scanner config](saga-schema.md#per-scanner-config).

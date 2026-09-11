@@ -53,7 +53,7 @@ config:
     # what an auditor asking what the product is made of wants. They answer different questions,
     # so `both` renders each.
 
-  controllers:
+  controls:
     images:
       enabled: true          # container images (Trivy)
       # grype:
@@ -209,7 +209,7 @@ components:
     criticality: supporting
     repositories:
       - url: https://github.com/acme/etl.git
-    controllers:             # per-component overrides win over config.controllers
+    controls:             # per-component overrides win over config.controllers
       tls:
         enabled: false       # no endpoint to probe
     infrastructure:

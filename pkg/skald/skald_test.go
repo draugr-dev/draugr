@@ -651,10 +651,10 @@ func TestMergedSARIFCarriesWhatTheRunConsulted(t *testing.T) {
 
 func TestTheDocumentStatesTheGateItWasJudgedAgainst(t *testing.T) {
 	var buf bytes.Buffer
+	// A severity gate, refined per control. One question, so no band beside it.
 	gate := &Gate{Policy: norn.Policy{
-		FailOn:         sarif.SeverityMedium,
-		PerControl:     map[string]sarif.Severity{"licenses": sarif.SeverityCritical, "sast": ""},
-		FailOnPriority: "P1",
+		FailOn:     sarif.SeverityMedium,
+		PerControl: map[string]sarif.Severity{"licenses": sarif.SeverityCritical, "sast": ""},
 	}}
 	err := RenderJSONFor(&buf, "gate-demo", saga.Release{Version: "1"}, prioritizedRun(),
 		sampleVerdict(), "", nil, sarif.MarshalOptions{}, Provenance{Gate: gate})
@@ -670,7 +670,7 @@ func TestTheDocumentStatesTheGateItWasJudgedAgainst(t *testing.T) {
 	if doc.Gate == nil {
 		t.Fatal("no gate block")
 	}
-	if doc.Gate.Threshold != "medium" || doc.Gate.FailOnPriority != "P1" {
+	if doc.Gate.Threshold != "medium" {
 		t.Errorf("gate = %+v", doc.Gate)
 	}
 	if doc.Gate.Disabled {
@@ -683,10 +683,16 @@ func TestTheDocumentStatesTheGateItWasJudgedAgainst(t *testing.T) {
 	}
 }
 
-func TestTheDefaultThresholdIsWrittenOutRatherThanLeftBlank(t *testing.T) {
+func TestTheDefaultGateIsWrittenOutRatherThanLeftBlank(t *testing.T) {
+	// Nothing named is the default, which is the band. Written out rather than left blank,
+	// because nothing downstream can look up what our default happens to be — and written as the
+	// band it is, not as a severity threshold nobody chose.
 	got := describeGate(&Gate{Disabled: true})
-	if got.Threshold != string(sarif.SeverityHigh) {
-		t.Errorf("threshold = %q, want the default written out", got.Threshold)
+	if got.FailOnPriority != norn.DefaultPriority {
+		t.Errorf("failOnPriority = %q, want the default written out", got.FailOnPriority)
+	}
+	if got.Threshold != "" {
+		t.Errorf("threshold = %q: this run does not gate on severity", got.Threshold)
 	}
 	if !got.Disabled {
 		t.Error("--no-gate not recorded, so a fail that stopped nothing reads as one that did")
@@ -788,5 +794,39 @@ func TestAnExcusedFindingStaysInTheListAndSaysWhy(t *testing.T) {
 	}
 	if got.Justification == "" || got.AcceptedBy == "" {
 		t.Errorf("suppressed = %+v, want the reason and who accepted it", got)
+	}
+}
+
+// TestTheDocumentNamesOneGate holds report.json to the rule the descriptor and the flags are held
+// to. The console says one thing; a document saying two is the contradiction arriving one layer
+// down, where a machine reads it and a person does not.
+func TestTheDocumentNamesOneGate(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		policy        norn.Policy
+		wantThreshold string
+		wantBand      string
+	}{
+		{"nothing named", norn.Policy{}, "", norn.DefaultPriority},
+		{"a band", norn.Policy{FailOnPriority: "P2"}, "", "P2"},
+		{"a severity", norn.Policy{FailOn: sarif.SeverityCritical}, "critical", ""},
+		{
+			"a per-control threshold alone still chooses severity",
+			norn.Policy{PerControl: map[string]sarif.Severity{"sca": sarif.SeverityLow}},
+			"", "",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := describeGate(&Gate{Policy: tc.policy})
+			if got.Threshold != tc.wantThreshold {
+				t.Errorf("threshold = %q, want %q", got.Threshold, tc.wantThreshold)
+			}
+			if got.FailOnPriority != tc.wantBand {
+				t.Errorf("failOnPriority = %q, want %q", got.FailOnPriority, tc.wantBand)
+			}
+			if got.Threshold != "" && got.FailOnPriority != "" {
+				t.Errorf("both stated: %+v", got)
+			}
+		})
 	}
 }

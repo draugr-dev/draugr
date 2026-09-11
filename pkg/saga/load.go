@@ -37,6 +37,7 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 			return nil, err
 		}
 	}
+	foldOlderSpellings(&m)
 	if validate {
 		// Load has no directory to resolve a relative path against, so a descriptor that needs
 		// fragments cannot be honored from bytes alone. Saying so beats returning a model that
@@ -177,4 +178,41 @@ func substituteEnv(root *yaml.Node) []string {
 
 	walk(root)
 	return missing
+}
+
+// foldOlderSpellings moves a descriptor written against a name we have moved off onto the current
+// one, once, at the point it loads.
+//
+// Here rather than at each reader. Sixty-odd places ask a model what controls it enables, and a
+// rename that leaves them all checking two fields is a rename that has to be got right sixty times
+// and will be got right fifty-nine.
+//
+// The current spelling wins where a descriptor somehow carries both. Validation refuses that, so
+// this only decides what a model built in code gets, and the newer name is the one somebody meant.
+func foldOlderSpellings(m *Model) {
+	m.Config.Controls = merged(m.Config.Controls, m.Config.Controllers)
+	m.Config.Controllers = nil
+	for i := range m.Components {
+		m.Components[i].Controls = merged(m.Components[i].Controls, m.Components[i].Controllers)
+		m.Components[i].Controllers = nil
+	}
+}
+
+// merged returns current where it has an entry and older where it does not, or nil when neither
+// has anything. Nil rather than an empty map, so "no controls configured" stays one answer.
+func merged(current, older map[string]ControllerSettings) map[string]ControllerSettings {
+	if len(older) == 0 {
+		return current
+	}
+	if len(current) == 0 {
+		return older
+	}
+	out := make(map[string]ControllerSettings, len(current)+len(older))
+	for k, v := range older {
+		out[k] = v
+	}
+	for k, v := range current {
+		out[k] = v
+	}
+	return out
 }

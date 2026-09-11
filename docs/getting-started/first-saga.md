@@ -26,7 +26,7 @@ project: my-app
 release:
   version: "1.0"
 config:
-  controllers:
+  controls:
     images:
       enabled: true
 components:
@@ -36,7 +36,7 @@ components:
 ```
 
 Run it with `draugr scan draugr.saga.yaml`. A control only runs when it is **enabled**, globally
-under `config.controllers`, or on an individual component.
+under `config.controls`, or on an individual component.
 
 ## Add more of your surface
 
@@ -45,7 +45,7 @@ infrastructure, and enable the controls that should cover it:
 
 ```yaml
 config:
-  controllers:
+  controls:
     images:  { enabled: true }
     sca:     { enabled: true }   # dependency scanning
     secrets: { enabled: true }   # leaked-credential detection

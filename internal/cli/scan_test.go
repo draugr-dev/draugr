@@ -285,7 +285,7 @@ func TestScanModelSynthesizesForDir(t *testing.T) {
 		t.Fatalf("dir should synthesize: synth=%v err=%v", synth, err)
 	}
 	for _, c := range []string{"sca", "secrets", "sast", "iac"} {
-		if _, ok := m.Config.Controllers[c]; !ok {
+		if _, ok := m.Config.Controls[c]; !ok {
 			t.Errorf("synthesized Saga missing control %q", c)
 		}
 	}
@@ -630,7 +630,7 @@ func TestScanUsesTheDescriptorInTheDirectory(t *testing.T) {
 	}
 	// The controls it declares, not the zero-config four.
 	if !m.Config.ControllerEnabled("images") || m.Config.ControllerEnabled("sca") {
-		t.Errorf("controls came from the wrong place: %+v", m.Config.Controllers)
+		t.Errorf("controls came from the wrong place: %+v", m.Config.Controls)
 	}
 }
 
@@ -667,7 +667,7 @@ func TestScanStaysZeroConfigWithoutADescriptor(t *testing.T) {
 		t.Fatal("a bare directory should still be scanned zero-config")
 	}
 	if !m.Config.ControllerEnabled("sca") {
-		t.Errorf("zero-config controls missing: %+v", m.Config.Controllers)
+		t.Errorf("zero-config controls missing: %+v", m.Config.Controls)
 	}
 }
 
@@ -1015,7 +1015,8 @@ func TestWriteArtifactsRecordsTheGateInReportJSON(t *testing.T) {
 	dir := t.TempDir()
 	data := report.Data{
 		Release: saga.Release{Version: "1"},
-		Gate:    report.GateSettings{Threshold: sarif.SeverityCritical, FailOnPriority: "P2"},
+		// One question, so one field. A severity gate here, and the band absent rather than empty.
+		Gate: report.GateSettings{Threshold: sarif.SeverityCritical},
 	}
 	err := writeArtifacts(dir, []string{"json"}, data, saga.Release{Version: "1"},
 		engine.Result{}, norn.Result{Verdict: norn.Pass}, "", "")
@@ -1035,7 +1036,7 @@ func TestWriteArtifactsRecordsTheGateInReportJSON(t *testing.T) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc.Gate.Threshold != "critical" || doc.Gate.FailOnPriority != "P2" {
+	if doc.Gate.Threshold != "critical" || doc.Gate.FailOnPriority != "" {
 		t.Errorf("gate = %+v, want the policy -o was given", doc.Gate)
 	}
 }
