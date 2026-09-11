@@ -127,7 +127,7 @@ type findingReport struct {
 	//
 	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
 	// means where a machine reads it: an excused finding stays visible with its justification. It
-	// was in this list already and said nothing about itself, so it read as work — which is the
+	// was in this list already and said nothing about itself, so it read as work, which is the
 	// half that made it wrong.
 	Suppressed *suppressionNote `json:"suppressed,omitempty"`
 }
@@ -500,7 +500,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 //
 // Excused findings are counted apart rather than dropped. An exclusion keeps a finding in the
 // report with the reason somebody gave, and a summary that loses it entirely is the deletion that
-// exclusion exists to avoid — the count just stops being mixed in with the work.
+// exclusion exists to avoid, the count just stops being mixed in with the work.
 func summarizePriorities(run engine.Result, minPriority string) (*priorityCounts, *suppressedCounts, []findingReport) {
 	var counts priorityCounts
 	var excused suppressedCounts

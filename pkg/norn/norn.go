@@ -28,7 +28,7 @@ const (
 // **A run has one gate.** Either it asks what a finding's own severity is, or it asks what band
 // that finding lands in for this component, and those are two different questions about the same
 // finding. Answering both meant a verdict had two possible reasons, and "why did this fail" could
-// not be answered from the policy alone — which is how a failure on the default severity threshold
+// not be answered from the policy alone, which is how a failure on the default severity threshold
 // came to be read as the priority gate somebody had actually configured.
 //
 // So FailOn and FailOnPriority are exclusive. The zero value gates on **P1**, which is the

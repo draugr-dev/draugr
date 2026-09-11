@@ -715,9 +715,9 @@ func TestAGateNobodyStatedIsAbsentRatherThanDefaulted(t *testing.T) {
 	}
 }
 
-// The priority counts are what the gate judged. Every other counter here already worked that way —
+// The priority counts are what the gate judged. Every other counter here already worked that way,
 // `Counts()` and the gate's own `highestPriority` both skip a suppressed finding and a second
-// scanner's copy of one already counted — and this one counted everything, so the console and
+// scanner's copy of one already counted, and this one counted everything, so the console and
 // report.json gave different numbers for one run.
 
 func TestPrioritiesCountWhatTheGateJudges(t *testing.T) {

@@ -10,7 +10,7 @@
 #
 # The version comes from the notes rather than from commit messages. The notes are written for
 # users and reviewed as prose, so the heading an author chose is a decision somebody made on
-# purpose — where a `feat:` prefix is a habit, and habits drift. `scripts/changelog.sh next`
+# purpose, where a `feat:` prefix is a habit, and habits drift. `scripts/changelog.sh next`
 # holds the rule, so it is testable without a runner.
 #
 # Deliberately not on every merge. #144 asked for that: a version per trivial change is noise in
@@ -40,7 +40,7 @@ jobs:
     steps:
       # A token that is not GITHUB_TOKEN, because GitHub raises no workflow-starting event for
       # anything GITHUB_TOKEN did and refuses it `gh pr create` unless the repository allows
-      # Actions to create *and approve* pull requests — one switch, and approval is not something
+      # Actions to create *and approve* pull requests, one switch, and approval is not something
       # to grant a workflow in order to fix a papercut.
       #
       # An App rather than a personal token: the installation token lives for an hour, is scoped
@@ -86,7 +86,7 @@ jobs:
           set -euo pipefail
           if git rev-parse "v$VERSION" >/dev/null 2>&1; then
             echo "::error::v$VERSION is already tagged. The CHANGELOG's last released section is" \
-                 "probably behind — check that a previous release promoted cleanly."
+                 "probably behind, check that a previous release promoted cleanly."
             exit 1
           fi
 
@@ -107,10 +107,10 @@ jobs:
           git push -u origin "$branch"
 
           # The body is the notes themselves, so the last review of a release is a review of what
-          # it will say — the same text the release workflow extracts for the GitHub release.
+          # it will say, the same text the release workflow extracts for the GitHub release.
           {
             echo "Promotes \`[Unreleased]\` to \`## [$VERSION]\`. Merging this tags \`v$VERSION\`,"
-            echo "which runs the release workflow — and that refuses to publish unless the"
+            echo "which runs the release workflow, and that refuses to publish unless the"
             echo "self-scan and the integration suite both pass on this exact tree."
             echo
             echo "The notes this will publish, verbatim:"
@@ -122,7 +122,7 @@ jobs:
 
           # Fails the run rather than degrading to a notice. A notice is printed into a log
           # nobody opens on a green workflow, so the branch sits pushed and unreviewed while
-          # everything reports success — which is the shape of failure this project refuses.
+          # everything reports success, which is the shape of failure this project refuses.
           #
           # The likely cause is named because the error GitHub returns does not name it, and the
           # setting is somewhere nobody looks while debugging a workflow. It is one toggle

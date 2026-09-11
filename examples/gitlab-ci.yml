@@ -1,6 +1,6 @@
 # Example .gitlab-ci.yml: one Draugr job serving both merge requests and the default branch.
 #
-# Copy this into your project root. The template does the rest — on a merge request it scans the
+# Copy this into your project root. The template does the rest, on a merge request it scans the
 # head and the merge base and posts one sticky comment with the delta; on the default branch it
 # scans and gates the whole descriptor. Both feed GitLab's own surfaces.
 #
@@ -11,18 +11,18 @@
 # ONE THING TO SET UP: Settings → CI/CD → Variables → add a *masked* variable named GITLAB_TOKEN
 # holding a project or group access token with `api` scope. The CI_JOB_TOKEN GitLab puts in every
 # job is read-only on the notes API, so the sticky comment cannot be posted with the credential
-# that is already there. Without it the job still scans and still gates — only the comment is
+# that is already there. Without it the job still scans and still gates, only the comment is
 # missing, and Draugr says which variable it wanted.
 
 include:
-  # `remote:` and not `project:` — `include: project:` resolves against your own GitLab instance,
+  # `remote:` and not `project:`, `include: project:` resolves against your own GitLab instance,
   # and Draugr is not on it. Pin the tag: the URL is fetched at pipeline time, so an unpinned
   # include changes under a pipeline that has not changed.
   - remote: 'https://raw.githubusercontent.com/draugr-dev/draugr/v0.90.0/gitlab-ci/draugr.yml'
 
 stages: [test]
 
-# Everything below is optional — the defaults are the sensible ones.
+# Everything below is optional, the defaults are the sensible ones.
 draugr:
   variables:
     # The descriptor to run. Defaults to draugr.saga.yaml in the project root.

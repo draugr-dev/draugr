@@ -44,7 +44,7 @@ refused rather than combined, because a verdict with two possible reasons cannot
 the rule that produced it.
 
 Which of the two catches more depends on the component, so neither is the stricter one. On a
-component that declares nothing, `P1` means critical or high — the same findings `--fail-on high`
+component that declares nothing, `P1` means critical or high, the same findings `--fail-on high`
 catches, arrived at by asking the other question. On a component declared `restricted` and
 `supporting`, nothing reaches `P1` at all, and the descriptor is saying that a flaw there does not
 stop a release.

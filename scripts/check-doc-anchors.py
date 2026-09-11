@@ -3,17 +3,17 @@
 
 A `[text](#some-heading)` that resolves to nothing renders as a normal link and jumps nowhere.
 Nothing else notices: it is valid Markdown, the build does not read it, and the reader who
-follows it is the first to find out — which makes it the kind of defect that accumulates
+follows it is the first to find out, which makes it the kind of defect that accumulates
 quietly in reference docs, where the cross-references are the navigation.
 
 Renaming a heading is what breaks them, and renaming a heading is a routine edit. `## draugr
 scan <saga.yaml>` becoming `## draugr scan [saga.yaml | dir]` invalidates every link to it, in
-a diff where nothing looks like it touched a link — and most of those links are in other files,
+a diff where nothing looks like it touched a link, and most of those links are in other files,
 so the change and the breakage are not even in the same part of the tree.
 
 Cross-file links are checked too, and they are the reason this is worth running: the reference
 pages are linked to from every guide and concept page, and it is the reference headings that
-move. A missing *file* is left alone — that is a different class of problem, and a checker that
+move. A missing *file* is left alone, because that is a different class of problem, and a checker that
 reports both at once tends to be run for neither.
 
 `/docs` is republished from this repo, so a heading link that is dead here is dead on the
@@ -35,11 +35,11 @@ HEADING = re.compile(r"^(#{1,6})\s+(.*)$", re.M)
 # A link with a fragment: an optional path, then #anchor. Titles and absolute URLs are excluded
 # by requiring the target to end at the closing paren.
 LINK = re.compile(r"\]\(([^)\s#]*)#([^)\s]+)\)")
-# A fenced block holds examples, not headings — a `# comment` in bash is not a heading.
+# A fenced block holds examples, not headings, a `# comment` in bash is not a heading.
 FENCE = re.compile(r"^```.*?^```", re.M | re.S)
 # An inline code span is a quotation of a link, not a link. `[text](#heading)` written to
 # describe the syntax must not be resolved as if it were one. Blanked rather than removed, so
-# byte offsets — and therefore the reported line numbers — stay true, and so headings, whose text
+# byte offsets, and therefore the reported line numbers, stay true, and so headings, whose text
 # is usually a code span, keep the words their slug is built from.
 CODE = re.compile(r"`[^`\n]*`")
 
