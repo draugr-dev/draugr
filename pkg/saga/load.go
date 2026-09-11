@@ -84,16 +84,56 @@ func unknownFieldHint(err error) error {
 		return err
 	}
 	field, goType := match[1], match[2]
-	section := strings.TrimPrefix(strings.ToLower(goType), "saga.")
-	if section == "model" {
-		// The root document isn't a named section to a reader; "model" is our Go type.
-		section = "the top level"
+	typeName := strings.TrimPrefix(strings.ToLower(goType), "saga.")
+	section, ok := sections[typeName]
+	if !ok {
+		// TestEverySectionHasAKeyPath keeps this unreachable. The type name is a poor answer and
+		// a better one than none.
+		section = typeName
 	}
 	if why, ok := removedFields[section+"."+field]; ok {
 		return fmt.Errorf("%s.%s was removed: %s", section, field, why)
 	}
 	return fmt.Errorf("unknown field %q in %s. Check the spelling, or see "+
 		"https://draugr.dev/docs/latest/reference/saga-schema/", field, section)
+}
+
+// sections gives, for each type a descriptor can decode into, the path a reader actually writes.
+//
+// yaml.v3 reports an unknown key against the Go type that was being filled in, and a reader has
+// never seen those names. `gateconfig` is `config.gate`, and the reference page is indexed by the
+// second, so an error naming the first cannot be searched with the word it offers a link for.
+//
+// Keyed by the lowercased type name, which is what the decoder's message carries.
+var sections = map[string]string{
+	// The root document is not a section to a reader; "model" is our word for the whole file.
+	"model":                "the top level",
+	"release":              "release",
+	"config":               "config",
+	"gateconfig":           "config.gate",
+	"excluderule":          "config.exclude",
+	"vexdecision":          "config.exclude[].vex",
+	"exploitabilityconfig": "config.exploitability",
+	"reachabilityconfig":   "config.reachability",
+	"sbomconfig":           "config.sbom",
+	"reportconfig":         "config.reports",
+	"publisherconfig":      "config.publishers",
+	"vexconfig":            "config.vex",
+	// One type with two homes, and naming either one alone would be a half-answer to somebody
+	// looking at the other.
+	"vexsource":      "config.vexSources or components[].vex",
+	"vexrepository":  "config.vexSources[].repository",
+	"component":      "components",
+	"repository":     "components[].repositories",
+	"image":          "components[].images",
+	"host":           "components[].hosts",
+	"hostauth":       "components[].hosts[].auth",
+	"hostspec":       "components[].hosts[].spec",
+	"infrastructure": "components[].infrastructure",
+	"fragmentref":    "fragments",
+	"reference":      "references",
+	"fragment":       "the top level of a fragment",
+	"fragmentconfig": "config, in a fragment",
 }
 
 // removedFields explains a field that used to parse, keyed by "section.field".
@@ -106,8 +146,8 @@ var removedFields = map[string]string{
 		"the value there, `project: payments-api`, and a release keeps only its version",
 	"release.stage": "nothing read it, so deleting the line changes no result. " +
 		"Where a scan is pointed is a property of the target, not of the release",
-	"host.environment":           environmentRemoved,
-	"infrastructure.environment": environmentRemoved,
+	"components[].hosts.environment":          environmentRemoved,
+	"components[].infrastructure.environment": environmentRemoved,
 }
 
 // environmentRemoved explains a target that still labels itself.
