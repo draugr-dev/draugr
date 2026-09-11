@@ -90,16 +90,16 @@ func TestApplyConfigDefaultsMergesUnderTheDescriptor(t *testing.T) {
 	}
 
 	// The descriptor has an opinion about config and none about timeout.
-	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"sast": {"semgrep": map[string]any{"config": "p/mine"}},
 	}}}
 	if _, err := applyConfigDefaults(context.Background(), m); err != nil {
 		t.Fatal(err)
 	}
 
-	sem, _ := m.Config.Controllers["sast"]["semgrep"].(map[string]any)
+	sem, _ := m.Config.Controls["sast"]["semgrep"].(map[string]any)
 	if sem == nil {
-		if s, ok := m.Config.Controllers["sast"]["semgrep"].(saga.ControllerSettings); ok {
+		if s, ok := m.Config.Controls["sast"]["semgrep"].(saga.ControllerSettings); ok {
 			sem = s
 		}
 	}
@@ -118,8 +118,8 @@ func TestApplyConfigDefaultsIsANoOpWithoutAFile(t *testing.T) {
 	if _, err := applyConfigDefaults(context.Background(), m); err != nil {
 		t.Fatal(err)
 	}
-	if len(m.Config.Controllers) != 0 {
-		t.Errorf("controllers invented from nowhere: %+v", m.Config.Controllers)
+	if len(m.Config.Controls) != 0 {
+		t.Errorf("controllers invented from nowhere: %+v", m.Config.Controls)
 	}
 }
 

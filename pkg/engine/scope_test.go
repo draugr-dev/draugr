@@ -108,7 +108,7 @@ func TestPlanRestrictsToTheScope(t *testing.T) {
 	// Two components and two controls, because one of each cannot tell a filter that works from
 	// one that drops everything or nothing.
 	model := saga.Model{
-		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 			"alpha": {"enabled": true}, "beta": {"enabled": true},
 		}},
 		Components: []saga.Component{
@@ -148,7 +148,7 @@ func TestRunCarriesItsScope(t *testing.T) {
 	reg.RegisterScanner(&fakeScanner{name: "alpha"})
 	sc := Scope{Components: []string{"app"}}
 	res, err := New(reg, WithScope(sc)).Run(t.Context(), saga.Model{
-		Config:     saga.Config{Controllers: map[string]saga.ControllerSettings{"alpha": {"enabled": true}}},
+		Config:     saga.Config{Controls: map[string]saga.ControllerSettings{"alpha": {"enabled": true}}},
 		Components: []saga.Component{{Name: "app"}},
 	})
 	if err != nil {

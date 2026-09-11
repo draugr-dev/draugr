@@ -37,7 +37,7 @@ func TestSASTPlanGosecOptIn(t *testing.T) {
 	comp := &saga.Component{
 		Name:         "backend",
 		Repositories: []saga.Repository{{URL: "https://git/a.git"}},
-		Controllers: map[string]saga.ControllerSettings{
+		Controls: map[string]saga.ControllerSettings{
 			"sast": {"gosec": map[string]any{"enabled": true}},
 		},
 	}
@@ -56,7 +56,7 @@ func TestSASTPlanGosecOptIn(t *testing.T) {
 
 func TestSASTPlanProjectGosecOptIn(t *testing.T) {
 	// Project-level gosec opt-in applies when the component has no override.
-	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"sast": {"gosec": map[string]any{"enabled": true}},
 	}}}
 	comp := &saga.Component{Name: "backend", Repositories: []saga.Repository{{URL: "https://git/a.git"}}}
@@ -78,7 +78,7 @@ func TestSASTPlanSemgrepConfigPassthrough(t *testing.T) {
 	comp := &saga.Component{
 		Name:         "backend",
 		Repositories: []saga.Repository{{URL: "https://git/a.git"}},
-		Controllers: map[string]saga.ControllerSettings{
+		Controls: map[string]saga.ControllerSettings{
 			"sast": {"semgrep": map[string]any{"config": "p/owasp-top-ten"}},
 		},
 	}
@@ -110,7 +110,7 @@ func TestSASTScannerSet(t *testing.T) {
 	model := saga.Model{Components: []saga.Component{
 		{Name: "a", Repositories: []saga.Repository{{URL: "u"}}},
 		{Name: "b", Repositories: []saga.Repository{{URL: "u"}},
-			Controllers: map[string]saga.ControllerSettings{
+			Controls: map[string]saga.ControllerSettings{
 				"sast": {"gosec": map[string]any{"enabled": true}},
 			}},
 	}}

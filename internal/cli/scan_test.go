@@ -285,7 +285,7 @@ func TestScanModelSynthesizesForDir(t *testing.T) {
 		t.Fatalf("dir should synthesize: synth=%v err=%v", synth, err)
 	}
 	for _, c := range []string{"sca", "secrets", "sast", "iac"} {
-		if _, ok := m.Config.Controllers[c]; !ok {
+		if _, ok := m.Config.Controls[c]; !ok {
 			t.Errorf("synthesized Saga missing control %q", c)
 		}
 	}
@@ -630,7 +630,7 @@ func TestScanUsesTheDescriptorInTheDirectory(t *testing.T) {
 	}
 	// The controls it declares, not the zero-config four.
 	if !m.Config.ControllerEnabled("images") || m.Config.ControllerEnabled("sca") {
-		t.Errorf("controls came from the wrong place: %+v", m.Config.Controllers)
+		t.Errorf("controls came from the wrong place: %+v", m.Config.Controls)
 	}
 }
 
@@ -667,7 +667,7 @@ func TestScanStaysZeroConfigWithoutADescriptor(t *testing.T) {
 		t.Fatal("a bare directory should still be scanned zero-config")
 	}
 	if !m.Config.ControllerEnabled("sca") {
-		t.Errorf("zero-config controls missing: %+v", m.Config.Controllers)
+		t.Errorf("zero-config controls missing: %+v", m.Config.Controls)
 	}
 }
 

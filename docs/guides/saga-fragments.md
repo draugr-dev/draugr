@@ -46,7 +46,7 @@ config:
 | `components` | yes, merged by name |
 | `config.exclude` | yes, appended |
 | `fragments` | yes, resolved relative to itself |
-| `release`, `config.gate`, `config.controllers`, publishers, reports | **no** |
+| `release`, `config.gate`, `config.controls`, publishers, reports | **no** |
 
 That rule is what makes a one-line `fragments:` entry safe to review. Including a file cannot
 lower your gate or switch a control off; the worst it can do is add suppressions, and every one

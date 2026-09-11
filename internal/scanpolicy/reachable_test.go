@@ -42,7 +42,7 @@ func TestAControlsFloorKeepsABandReachable(t *testing.T) {
 		t.Fatalf("without secrets, P1 should be out of reach: %v", got)
 	}
 
-	restricted.Controllers = map[string]saga.ControllerSettings{"secrets": {"enabled": true}}
+	restricted.Controls = map[string]saga.ControllerSettings{"secrets": {"enabled": true}}
 	withFloor := saga.Model{Components: []saga.Component{restricted}}
 	if got := Unreachable(withFloor, "P1"); len(got) != 0 {
 		t.Errorf("the secrets floor reaches P1 and this said otherwise: %v", got)

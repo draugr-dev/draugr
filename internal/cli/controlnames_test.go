@@ -12,7 +12,7 @@ func TestCheckControlNamesAcceptsWhatIsRegistered(t *testing.T) {
 	reg := builtins.Registry()
 	m := &saga.Model{
 		Config: saga.Config{
-			Controllers: map[string]saga.ControllerSettings{
+			Controls: map[string]saga.ControllerSettings{
 				"sca": {"enabled": true}, "licenses": {"enabled": true},
 				"infrastructure": {"enabled": true},
 			},
@@ -21,7 +21,7 @@ func TestCheckControlNamesAcceptsWhatIsRegistered(t *testing.T) {
 			Gate: &saga.GateConfig{Controls: map[string]string{"secrets": "error"}},
 		},
 		Components: []saga.Component{
-			{Name: "app", Controllers: map[string]saga.ControllerSettings{"iac": {"enabled": true}}},
+			{Name: "app", Controls: map[string]saga.ControllerSettings{"iac": {"enabled": true}}},
 		},
 	}
 	if err := checkControlNames(reg, m); err != nil {
@@ -37,10 +37,10 @@ func TestCheckControlNamesRejectsTypos(t *testing.T) {
 		where string
 	}{
 		{
-			"config.controllers",
+			"config.controls",
 			&saga.Model{Config: saga.Config{
-				Controllers: map[string]saga.ControllerSettings{"scaa": {"enabled": true}}}},
-			"config.controllers",
+				Controls: map[string]saga.ControllerSettings{"scaa": {"enabled": true}}}},
+			"config.controls",
 		},
 		{
 			"config.gate.controls",
@@ -49,10 +49,10 @@ func TestCheckControlNamesRejectsTypos(t *testing.T) {
 			"config.gate.controls",
 		},
 		{
-			"per-component controllers",
+			"per-component controls",
 			&saga.Model{Components: []saga.Component{
-				{Name: "web", Controllers: map[string]saga.ControllerSettings{"secrit": {"enabled": true}}}}},
-			`components["web"].controllers`,
+				{Name: "web", Controls: map[string]saga.ControllerSettings{"secrit": {"enabled": true}}}}},
+			`components["web"].controls`,
 		},
 	}
 	for _, c := range cases {
@@ -78,8 +78,8 @@ func TestCheckControlNamesRejectsTypos(t *testing.T) {
 func TestCheckControlNamesReportsEveryMistake(t *testing.T) {
 	// One per re-run would make fixing three typos a three-round trip.
 	m := &saga.Model{Config: saga.Config{
-		Controllers: map[string]saga.ControllerSettings{"scaa": {}, "imagez": {}},
-		Gate:        &saga.GateConfig{Controls: map[string]string{"iaac": "error"}},
+		Controls: map[string]saga.ControllerSettings{"scaa": {}, "imagez": {}},
+		Gate:     &saga.GateConfig{Controls: map[string]string{"iaac": "error"}},
 	}}
 	err := checkControlNames(builtins.Registry(), m)
 	if err == nil {
@@ -122,7 +122,7 @@ func TestCheckControlNamesRejectsUnknownScannerKeys(t *testing.T) {
 	// A key naming no scanner, accepted and ignored, is how a descriptor that disables a scanner
 	// runs it anyway. Rejecting any wrong key. For any reason. Is also what makes per-rename
 	// migration entries unnecessary: every one of them says what the control actually accepts.
-	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"headers": {"enabled": true, "httpHeaders": saga.ControllerSettings{"enabled": false}},
 	}}}
 	err := checkControlNames(builtins.Registry(), m)
@@ -137,7 +137,7 @@ func TestCheckControlNamesRejectsUnknownScannerKeys(t *testing.T) {
 }
 
 func TestCheckControlNamesAcceptsRealScannerKeys(t *testing.T) {
-	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"headers":        {"enabled": true, "draugrHeaders": saga.ControllerSettings{"enabled": false}},
 		"sast":           {"semgrep": saga.ControllerSettings{"config": "p/default"}, "gosec": saga.ControllerSettings{"enabled": true}},
 		"infrastructure": {"draugrK8sPolicies": saga.ControllerSettings{"enabled": true}},
@@ -150,7 +150,7 @@ func TestCheckControlNamesAcceptsRealScannerKeys(t *testing.T) {
 func TestCheckControlNamesIgnoresScalarOptions(t *testing.T) {
 	// A scalar under a control is a control-level option, not a scanner block, and this check
 	// has no opinion about it.
-	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"licenses": {"enabled": true, "forbidden": []any{"GPL-3.0-only"}, "threshold": "warn"},
 	}}}
 	if err := checkControlNames(builtins.Registry(), m); err != nil {
@@ -160,8 +160,8 @@ func TestCheckControlNamesIgnoresScalarOptions(t *testing.T) {
 
 func TestCheckControlNamesChecksComponentScannerKeys(t *testing.T) {
 	m := &saga.Model{Components: []saga.Component{{
-		Name:        "web",
-		Controllers: map[string]saga.ControllerSettings{"tls": {"tlsProbe": saga.ControllerSettings{"enabled": true}}},
+		Name:     "web",
+		Controls: map[string]saga.ControllerSettings{"tls": {"tlsProbe": saga.ControllerSettings{"enabled": true}}},
 	}}}
 	err := checkControlNames(builtins.Registry(), m)
 	if err == nil {
@@ -175,7 +175,7 @@ func TestCheckControlNamesChecksComponentScannerKeys(t *testing.T) {
 func TestCheckControlNamesRejectsAnOptionTheScannerDoesNotTake(t *testing.T) {
 	// The engine checks this too, when it plans the run, but by then the descriptor has passed
 	// `draugr validate`, been merged, and is failing in a pipeline. Validate is the cheap place.
-	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"secrets": {"enabled": true, "gitleaks": saga.ControllerSettings{"severity": "high"}},
 	}}}
 	err := checkControlNames(builtins.Registry(), m)
@@ -190,7 +190,7 @@ func TestCheckControlNamesRejectsAnOptionTheScannerDoesNotTake(t *testing.T) {
 }
 
 func TestCheckControlNamesRejectsAWrongTypedOption(t *testing.T) {
-	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"tls": {"draugrTls": saga.ControllerSettings{"expiryWarnDays": "thirty"}},
 	}}}
 	err := checkControlNames(builtins.Registry(), m)
@@ -205,7 +205,7 @@ func TestCheckControlNamesRejectsAWrongTypedOption(t *testing.T) {
 func TestCheckControlNamesAcceptsDeclaredOptionsAndTheEnabledFlag(t *testing.T) {
 	// `enabled` is the reserved flag, not one of the scanner's own options: a schema with
 	// additionalProperties:false would reject it if it reached the validator.
-	m := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"tls":      {"draugrTls": saga.ControllerSettings{"enabled": true, "expiryWarnDays": 21}},
 		"licenses": {"trivyLicense": saga.ControllerSettings{"deny": []any{"AGPL-3.0-only"}}},
 	}}}
@@ -217,7 +217,7 @@ func TestCheckControlNamesAcceptsDeclaredOptionsAndTheEnabledFlag(t *testing.T) 
 func TestReachabilityAnalyzerInAScannerBlockSaysWhereItGoes(t *testing.T) {
 	// Names something real, in the wrong place. "not a scanner" would send the reader hunting a
 	// typo they did not make.
-	model := &saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	model := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"sca": {"govulncheck": saga.ControllerSettings{"enabled": true}},
 	}}}
 	err := checkControlNames(builtins.Registry(), model)

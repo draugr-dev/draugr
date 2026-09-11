@@ -281,7 +281,7 @@ If your key allows more, say so, per scanner, not globally:
 
 ```yaml
 config:
-  controllers:
+  controls:
     threats:
       virustotal:
         requestsPerMinute: 1000    # a paid key; the default assumes the free tier's 4

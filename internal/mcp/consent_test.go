@@ -17,7 +17,7 @@ import (
 // descriptor.
 func TestDescribeScanNamesWhatThisDescriptorDoes(t *testing.T) {
 	model := &saga.Model{
-		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 			"secrets": {"enabled": true},
 			"sca":     {"enabled": true},
 		}},
@@ -41,7 +41,7 @@ func TestDescribeScanNamesWhatThisDescriptorDoes(t *testing.T) {
 func TestDescribeScanSaysWhenItWillProbeALiveHost(t *testing.T) {
 	model := &saga.Model{
 		Config: saga.Config{
-			Controllers:  map[string]saga.ControllerSettings{"dast": {"enabled": true}},
+			Controls:     map[string]saga.ControllerSettings{"dast": {"enabled": true}},
 			AllowEffects: saga.EffectPermissions{"network"},
 		},
 		Components: []saga.Component{
@@ -65,7 +65,7 @@ func TestDescribeScanSaysWhenItWillProbeALiveHost(t *testing.T) {
 func TestDescribeScanNamesWhereResultsGo(t *testing.T) {
 	model := &saga.Model{
 		Config: saga.Config{
-			Controllers: map[string]saga.ControllerSettings{"secrets": {"enabled": true}},
+			Controls: map[string]saga.ControllerSettings{"secrets": {"enabled": true}},
 			Publishers: []saga.PublisherConfig{
 				{Kind: "file", Dir: "out/reports"},
 				{Kind: "github", Repo: "acme/app"},

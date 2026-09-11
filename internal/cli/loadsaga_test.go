@@ -45,13 +45,13 @@ func TestLoadSagaInvalidHasContextAndHint(t *testing.T) {
 // from syntheticSaga's actual set, hard-coded copies drifted from reality twice before.
 func TestZeroConfigControlsMatchSyntheticSaga(t *testing.T) {
 	model := syntheticSaga(t.TempDir())
-	for name := range model.Config.Controllers {
+	for name := range model.Config.Controls {
 		if !strings.Contains(ZeroConfigControls("and"), name) {
 			t.Errorf("control %q is enabled zero-config but missing from the rendered list %q",
 				name, ZeroConfigControls("and"))
 		}
 	}
-	if got := len(model.Config.Controllers); got != len(zeroConfigControls) {
+	if got := len(model.Config.Controls); got != len(zeroConfigControls) {
 		t.Errorf("synthesized saga enables %d controls, the list names %d", got, len(zeroConfigControls))
 	}
 	// The help text uses the "and" form; the run notice uses the plain list.

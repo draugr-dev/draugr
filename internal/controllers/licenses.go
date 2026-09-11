@@ -117,8 +117,8 @@ func (Licenses) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) 
 // **tighten**. Loosening has exactly one route, `config.exclude`, which requires a reason and
 // leaves the finding in the report, suppressed and auditable, rather than deleted.
 func licensePolicy(model saga.Model, comp *saga.Component) plugin.Config {
-	deny := unionSetting(model.Config.Controllers, comp, denyKey)
-	warn := unionSetting(model.Config.Controllers, comp, warnKey)
+	deny := unionSetting(model.Config.Controls, comp, denyKey)
+	warn := unionSetting(model.Config.Controls, comp, warnKey)
 	if len(deny) == 0 && len(warn) == 0 {
 		return nil
 	}
@@ -147,7 +147,7 @@ func unionSetting(project map[string]saga.ControllerSettings, comp *saga.Compone
 	}
 	add(project[licensesControl])
 	if comp != nil {
-		add(comp.Controllers[licensesControl])
+		add(comp.Controls[licensesControl])
 	}
 	sort.Strings(out)
 	return out

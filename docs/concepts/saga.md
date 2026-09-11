@@ -43,7 +43,7 @@ release:                      # required. What is being qualified
   version: "1.4.0"
 
 config:                       # optional, controls, thresholds, reports, publishers
-  controllers:
+  controls:
     secrets: { enabled: true }
 
 components:                   # the app's parts

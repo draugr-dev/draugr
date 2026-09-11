@@ -29,7 +29,7 @@ func TestResolveScannersDefault(t *testing.T) {
 
 func TestResolveScannersDefaultDisabled(t *testing.T) {
 	// A default scanner can be turned off with enabled:false.
-	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
+	comp := &saga.Component{Controls: map[string]saga.ControllerSettings{
 		"sast": {"semgrep": map[string]any{"enabled": false}},
 	}}
 	sels := resolveScanners(saga.Model{}, comp, "sast", []string{"semgrep"})
@@ -40,7 +40,7 @@ func TestResolveScannersDefaultDisabled(t *testing.T) {
 
 func TestResolveScannersNonDefaultOptIn(t *testing.T) {
 	// A non-default scanner runs only when explicitly enabled; order is defaults then extras.
-	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
+	comp := &saga.Component{Controls: map[string]saga.ControllerSettings{
 		"sast": {"gosec": map[string]any{"enabled": true}},
 	}}
 	sels := resolveScanners(saga.Model{}, comp, "sast", []string{"semgrep"})
@@ -51,7 +51,7 @@ func TestResolveScannersNonDefaultOptIn(t *testing.T) {
 
 func TestResolveScannersNonDefaultNotEnabledIgnored(t *testing.T) {
 	// A non-default block without enabled:true is not run (config alone doesn't opt in).
-	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
+	comp := &saga.Component{Controls: map[string]saga.ControllerSettings{
 		"sast": {"gosec": map[string]any{"severity": "medium"}},
 	}}
 	sels := resolveScanners(saga.Model{}, comp, "sast", []string{"semgrep"})
@@ -61,7 +61,7 @@ func TestResolveScannersNonDefaultNotEnabledIgnored(t *testing.T) {
 }
 
 func TestResolveScannersExtrasSorted(t *testing.T) {
-	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
+	comp := &saga.Component{Controls: map[string]saga.ControllerSettings{
 		"sast": {
 			"zeta":  map[string]any{"enabled": true},
 			"alpha": map[string]any{"enabled": true},
@@ -75,7 +75,7 @@ func TestResolveScannersExtrasSorted(t *testing.T) {
 
 func TestResolveScannersConfig(t *testing.T) {
 	// The scanner's config is its block minus "enabled".
-	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
+	comp := &saga.Component{Controls: map[string]saga.ControllerSettings{
 		"sast": {"semgrep": map[string]any{"enabled": true, "config": "p/ci"}},
 	}}
 	sels := resolveScanners(saga.Model{}, comp, "sast", []string{"semgrep"})
@@ -90,10 +90,10 @@ func TestResolveScannersConfig(t *testing.T) {
 
 func TestResolveScannersComponentOverridesProject(t *testing.T) {
 	// Component keys deep-merge over project keys.
-	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"sast": {"semgrep": map[string]any{"config": "p/default", "extra": "keep"}},
 	}}}
-	comp := &saga.Component{Controllers: map[string]saga.ControllerSettings{
+	comp := &saga.Component{Controls: map[string]saga.ControllerSettings{
 		"sast": {"semgrep": map[string]any{"config": "p/override"}},
 	}}
 	sels := resolveScanners(model, comp, "sast", []string{"semgrep"})
@@ -106,7 +106,7 @@ func TestResolveScannersComponentOverridesProject(t *testing.T) {
 
 func TestResolveScannersProjectOnly(t *testing.T) {
 	// A nil component still resolves project-level blocks.
-	model := saga.Model{Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"sast": {"gosec": map[string]any{"enabled": true}},
 	}}}
 	sels := resolveScanners(model, nil, "sast", []string{"semgrep"})

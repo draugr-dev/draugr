@@ -195,11 +195,11 @@ func ValidateSagaTool(_ context.Context, _ *mcp.CallToolRequest, in ValidateInpu
 	for i := range model.Components {
 		out.Components = append(out.Components, model.Components[i].Name)
 	}
-	for name := range model.Config.Controllers {
+	for name := range model.Config.Controls {
 		enabled[name] = true
 	}
 	for i := range model.Components {
-		for name := range model.Components[i].Controllers {
+		for name := range model.Components[i].Controls {
 			enabled[name] = true
 		}
 	}

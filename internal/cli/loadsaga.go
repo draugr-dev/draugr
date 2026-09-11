@@ -212,7 +212,7 @@ func syntheticSaga(dir string) *saga.Model {
 		// `validate` walks through.
 		Project: name,
 		Release: saga.Release{Version: "0.0.0"},
-		Config:  saga.Config{Controllers: zeroConfigControllers()},
+		Config:  saga.Config{Controls: zeroConfigSettings()},
 		Components: []saga.Component{{
 			Name:         name,
 			Repositories: []saga.Repository{{URL: abs}},
@@ -268,8 +268,8 @@ func loadResolvedCtx(ctx context.Context, path string) (*saga.Resolved, error) {
 	return res, nil
 }
 
-// zeroConfigControllers enables each zero-config control in a fresh settings map.
-func zeroConfigControllers() map[string]saga.ControllerSettings {
+// zeroConfigSettings enables each zero-config control in a fresh settings map.
+func zeroConfigSettings() map[string]saga.ControllerSettings {
 	out := make(map[string]saga.ControllerSettings, len(zeroConfigControls))
 	for _, name := range zeroConfigControls {
 		out[name] = saga.ControllerSettings{"enabled": true}
