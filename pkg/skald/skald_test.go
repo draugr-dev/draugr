@@ -685,8 +685,8 @@ func TestTheDocumentStatesTheGateItWasJudgedAgainst(t *testing.T) {
 
 func TestTheDefaultGateIsWrittenOutRatherThanLeftBlank(t *testing.T) {
 	// Nothing named is the default, which is the band. Written out rather than left blank,
-	// because nothing downstream can look up what our default happens to be — and written as the
-	// band it is, not as a severity threshold nobody chose.
+	// because nothing downstream can look up what our default happens to be, and written as the
+	// band it is rather than as a severity threshold nobody chose.
 	got := describeGate(&Gate{Disabled: true})
 	if got.FailOnPriority != norn.DefaultPriority {
 		t.Errorf("failOnPriority = %q, want the default written out", got.FailOnPriority)
