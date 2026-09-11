@@ -124,9 +124,10 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noGate, "no-gate", false,
 		"report the verdict but exit 0 on a fail, for producing a report to compare later, "+
 			"where `draugr diff` is the gate")
-	cmd.Flags().StringVar(&opts.failOn, "fail-on", string(sarif.SeverityHigh),
-		"severity that fails the gate: critical, high, medium, low")
-	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "", "also fail the gate on any finding at or above this priority (P1-P4)")
+	cmd.Flags().StringVar(&opts.failOn, "fail-on", "",
+		"gate on a finding's own severity instead of its priority band: critical, high, medium, low")
+	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "",
+		"the priority band that fails the gate (P1-P4). The default gate is P1")
 	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
@@ -224,16 +225,22 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return err
 	}
-	// The flag wins over the descriptor, so a stricter run is possible without editing a file
-	// under review. The descriptor is the standing policy; the flag is this run.
-	if failOnPriority == "" && model.Config.Gate != nil {
-		failOnPriority = model.Config.Gate.FailOnPriority
-	}
 	// Before the scan, not after. A typo discovered once the scanners have finished is a wasted
 	// pipeline minute for a mistake that was visible on the command line.
-	failOn, err := sarif.ParseSeverity(opts.failOn)
+	var failOn sarif.Severity
+	if opts.failOn != "" {
+		if failOn, err = sarif.ParseSeverity(opts.failOn); err != nil {
+			return fmt.Errorf("--fail-on: %w", err)
+		}
+	}
+	failOn, failOnPriority, err = resolveGate(failOn, failOnPriority, model.Config.Gate)
 	if err != nil {
-		return fmt.Errorf("--fail-on: %w", err)
+		return err
+	}
+	// Before the scanners run, because the answer does not depend on what they find and a wasted
+	// pipeline is a poor way to learn that the gate was never going to fire.
+	if err := reportUnreachableGate(w, model, failOnPriority); err != nil {
+		return err
 	}
 	if err := checkWorkingTree(opts.workingTree, model); err != nil {
 		return err

@@ -1396,7 +1396,9 @@ func them(n int) string {
 // answer only if the report says so rather than leaving it to be assumed.
 func writeGate(w io.Writer, col tui.Painter, d Data, full bool) {
 	g := d.Gate
-	if !full && !g.weakened() {
+	// Printed unasked when it is not the default, and always under --evidence. A rule nobody chose
+	// is not news; a rule somebody chose qualifies every pass above it.
+	if !full && !g.chosen() {
 		return
 	}
 
@@ -1408,16 +1410,21 @@ func writeGate(w io.Writer, col tui.Painter, d Data, full bool) {
 		return
 	}
 
-	threshold := g.Threshold
-	if threshold == "" {
-		threshold = sarif.SeverityHigh
-	}
-	line := fmt.Sprintf("Gate: fails on %s", threshold)
-	if g.FailOnPriority != "" {
-		line += fmt.Sprintf(" or %s", g.FailOnPriority)
-	}
-	if overrides := gateOverrides(g); overrides != "" {
-		line += ", except " + overrides
+	// One question, so one clause. The gate asks either what a scanner called the flaw or what
+	// band it lands in here, and a line that could say both left a reader with two candidates for
+	// why their build was red.
+	var line string
+	if g.Threshold == "" && len(g.PerControl) == 0 {
+		band := g.FailOnPriority
+		if band == "" {
+			band = norn.DefaultPriority
+		}
+		line = fmt.Sprintf("Gate: fails on %s", band)
+	} else {
+		line = fmt.Sprintf("Gate: fails on %s severity", g.Threshold)
+		if overrides := gateOverrides(g); overrides != "" {
+			line += ", except " + overrides
+		}
 	}
 
 	// Dimmed when it is only a record, lit when it is a caveat. A narrowed gate qualifies every

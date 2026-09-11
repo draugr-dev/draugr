@@ -397,15 +397,49 @@ func TestWriteArtifactsMkdirError(t *testing.T) {
 
 func TestRunScanFailOnPriority(t *testing.T) {
 	path := writeSaga(t, sagaWithImage)
-	// A warning finding passes the fail-on-error level gate; on an unclassified component it
-	// resolves to P2, so --fail-on-priority P2 must flip the verdict to fail.
-	base := scanOptions{failOn: "error"}
-	if err := runScan(context.Background(), path, base, fakeRegistry(sarif.LevelWarning), &bytes.Buffer{}); err != nil {
-		t.Fatalf("without priority gate, warning should pass fail-on-error: %v", err)
+	// A warning finding is below a severity gate set to error, and on an unclassified component it
+	// ranks P2. Each gate is asked on its own, because a run only ever asks one.
+	severity := scanOptions{failOn: "error"}
+	if err := runScan(context.Background(), path, severity, fakeRegistry(sarif.LevelWarning), &bytes.Buffer{}); err != nil {
+		t.Fatalf("a warning should pass a gate set to error: %v", err)
 	}
-	withGate := scanOptions{failOn: "error", failOnPriority: "P2"}
-	if err := runScan(context.Background(), path, withGate, fakeRegistry(sarif.LevelWarning), &bytes.Buffer{}); err == nil {
+	priority := scanOptions{failOnPriority: "P2"}
+	if err := runScan(context.Background(), path, priority, fakeRegistry(sarif.LevelWarning), &bytes.Buffer{}); err == nil {
 		t.Fatal("expected fail: a P2 finding should trip --fail-on-priority P2")
+	}
+}
+
+// TestTheDefaultGateIsTheBandRatherThanTheSeverity is the behavior change stated where somebody
+// running the command would meet it.
+func TestTheDefaultGateIsTheBandRatherThanTheSeverity(t *testing.T) {
+	path := writeSaga(t, sagaWithImage)
+	// Nothing named. An unclassified component ranks at the most exposed tier, where an error-level
+	// finding is P1, so the default gate catches it — the same answer `--fail-on high` used to
+	// give, arrived at by asking the other question.
+	err := runScan(context.Background(), path, scanOptions{}, fakeRegistry(sarif.LevelError), &bytes.Buffer{})
+	if err == nil {
+		t.Error("the default gate let an unclassified error-level finding through")
+	}
+	// And a warning on the same component is P2, which the default does not catch.
+	if err := runScan(context.Background(), path, scanOptions{},
+		fakeRegistry(sarif.LevelWarning), &bytes.Buffer{}); err != nil {
+		t.Errorf("the default gate failed on a P2: %v", err)
+	}
+}
+
+// TestBothGatesTogetherIsRefused holds the flags to the rule the descriptor is held to. Silently
+// letting one win would leave somebody who passed both with no way to tell which did nothing.
+func TestBothGatesTogetherIsRefused(t *testing.T) {
+	both := scanOptions{failOn: "high", failOnPriority: "P1"}
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage), both,
+		fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("both gates were accepted")
+	}
+	for _, want := range []string{"--fail-on", "--fail-on-priority", "one"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("message does not mention %q: %v", want, err)
+		}
 	}
 }
 
@@ -1216,5 +1250,108 @@ func TestComponentVerdictsAttributeUnscannedTargets(t *testing.T) {
 				t.Errorf("%s was given %s's unscanned target", name, u.Component)
 			}
 		}
+	}
+}
+
+// TestAGateThatCannotFireIsRefused: the default gate is a band, so a descriptor that classifies
+// every component below where that band is reachable has no gate at all rather than a weak one.
+// Every scan passes, including one carrying an actively exploited critical vulnerability.
+func TestAGateThatCannotFireIsRefused(t *testing.T) {
+	saga := `project: p
+release: {version: "1"}
+config:
+  controllers: {images: {enabled: true}}
+components:
+  - name: api
+    exposure: restricted
+    criticality: important
+    images: [{image: alpine:3}]
+`
+	err := runScan(context.Background(), writeSaga(t, saga), scanOptions{},
+		fakeRegistry(sarif.LevelError), &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("a gate that cannot fire was accepted")
+	}
+	// The classification, the tier it produces, and what to do. A reader told only that something
+	// is wrong has to work out all three for themselves.
+	for _, want := range []string{"cannot fire", "restricted", "C4", "P2", "classify"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("message does not mention %q: %v", want, err)
+		}
+	}
+}
+
+// TestSomeComponentsOutOfReachIsSaidAndNotRefused: a restricted internal tool beside a public API
+// is an ordinary descriptor, and the run is still meaningful for the rest of it.
+func TestSomeComponentsOutOfReachIsSaidAndNotRefused(t *testing.T) {
+	saga := `project: p
+release: {version: "1"}
+config:
+  controllers: {images: {enabled: true}}
+components:
+  - name: public-api
+    exposure: public
+    criticality: critical
+    images: [{image: alpine:3}]
+  - name: internal-tool
+    exposure: restricted
+    criticality: supporting
+    images: [{image: alpine:3}]
+`
+	var out bytes.Buffer
+	err := runScan(context.Background(), writeSaga(t, saga), scanOptions{},
+		fakeRegistry(sarif.LevelNote), &out)
+	if err != nil {
+		t.Fatalf("the run should continue: %v", err)
+	}
+	// Only the warning block, because every component is named again further down in the results
+	// the scan produced, where naming them is the point.
+	warning := gateWarning(out.String())
+	if !strings.Contains(warning, "internal-tool") {
+		t.Errorf("the component out of reach was not named:\n%s", out.String())
+	}
+	if strings.Contains(warning, "public-api") {
+		t.Errorf("a component the gate does judge was named as out of reach:\n%s", warning)
+	}
+}
+
+// gateWarning is the block reportUnreachableGate wrote, from the line that opens it to the advice
+// that closes it.
+func gateWarning(output string) string {
+	lines := strings.Split(output, "\n")
+	for i, line := range lines {
+		if !strings.Contains(line, "cannot produce") {
+			continue
+		}
+		for j := i; j < len(lines); j++ {
+			if strings.HasPrefix(lines[j], "Gate on a band") {
+				return strings.Join(lines[i:j+1], "\n")
+			}
+		}
+	}
+	return ""
+}
+
+// TestASeverityGateIsNeverOutOfReach: a severity threshold does not read a classification, so no
+// classification can put it beyond one.
+func TestASeverityGateIsNeverOutOfReach(t *testing.T) {
+	saga := `project: p
+release: {version: "1"}
+config:
+  gate: {failOn: critical}
+  controllers: {images: {enabled: true}}
+components:
+  - name: api
+    exposure: restricted
+    criticality: supporting
+    images: [{image: alpine:3}]
+`
+	var out bytes.Buffer
+	if err := runScan(context.Background(), writeSaga(t, saga), scanOptions{},
+		fakeRegistry(sarif.LevelNote), &out); err != nil {
+		t.Fatalf("a severity gate was reported unreachable: %v", err)
+	}
+	if strings.Contains(out.String(), "cannot produce") {
+		t.Errorf("a severity gate was checked against a band:\n%s", out.String())
 	}
 }

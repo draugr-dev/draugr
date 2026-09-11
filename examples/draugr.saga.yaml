@@ -26,13 +26,22 @@ config:
   # What fails the build. `--fail-on` sets one threshold for everything; this says where that one
   # threshold does not fit.
   gate:
+    # A run has one gate, and there are two questions it could ask.
+    #
+    # Leave this block out entirely and the gate is `failOnPriority: P1`: the band a finding lands
+    # in for the component it was found in, which folds in the exposure and criticality declared
+    # below. That is the ranking Draugr computes, and the one it judges by unless told otherwise.
+    #
+    # `failOn` asks the other question instead, the severity the scanner gave the flaw on its own
+    # terms. Setting both is refused rather than combined, because a verdict with two possible
+    # reasons cannot be read back to the rule that produced it.
+    failOn: high             # critical | high | medium | low
     controls:
-      licenses: high         # critical | high | medium | low, per control
+      licenses: high         # the same bands, for one control, refining failOn above
       sca: critical
       # One threshold cannot serve every control: license policy is owned by legal and
       # vulnerability policy by security, and "fail on a forbidden license but only warn on a
       # medium CVE" is a reasonable position a single global threshold makes unsayable.
-    # failOnPriority: P1     # also fail on priority, which folds in what you declared below
 
   # An inventory of what you ship, rendered alongside the findings.
   sbom:

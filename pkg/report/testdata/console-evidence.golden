@@ -23,7 +23,7 @@ Components:
 
 Ran 11 jobs in 34.5s · 4 from cache, 1 shared with an identical job.
 
-Gate: fails on high.
+Gate: fails on P1.
 
 Fix first · 5 actions clear 6 findings:
   P1  Upgrade jinja2 2.10  sca · 2 findings

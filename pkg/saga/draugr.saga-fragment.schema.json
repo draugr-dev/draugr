@@ -938,6 +938,28 @@
           },
           "type": "object"
         },
+        "failOn": {
+          "anyOf": [
+            {
+              "const": "critical",
+              "description": "Only a critical finding fails the build."
+            },
+            {
+              "const": "high",
+              "description": "A high or critical finding fails the build."
+            },
+            {
+              "const": "medium",
+              "description": "A medium finding fails the build, and anything worse."
+            },
+            {
+              "const": "low",
+              "description": "Any rated finding fails the build."
+            }
+          ],
+          "description": "The severity band that fails the build, for a project that wants the scanner's own rating rather than the band a finding lands in here. Absent by default, which gates on priority instead. Cannot be combined with failOnPriority: a run has one gate.",
+          "type": "string"
+        },
         "failOnPriority": {
           "description": "Also fail the build on any finding at or above this priority band. Priority folds in the component's declared exposure and criticality, which severity alone cannot. A --fail-on-priority flag overrides this for a single run.",
           "enum": [

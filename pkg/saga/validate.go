@@ -75,6 +75,28 @@ func (m *Model) Validate() error {
 			errs = append(errs, fmt.Errorf("config.gate.failOnPriority is %q, but a priority band is one of %v",
 				g.FailOnPriority, Priorities))
 		}
+		if g.FailOn != "" {
+			if _, err := sarif.ParseSeverity(g.FailOn); err != nil {
+				errs = append(errs, fmt.Errorf("config.gate.failOn is %q, but a threshold is one of %v",
+					g.FailOn, GateThresholds))
+			}
+		}
+		// A run has one gate. Refused rather than resolved by a precedence nobody can see in the
+		// file, because whichever one lost would be a rule sitting in a reviewed descriptor doing
+		// nothing, and the reader with the failing build would have two candidates for why.
+		if g.FailOn != "" && g.FailOnPriority != "" {
+			errs = append(errs, fmt.Errorf(
+				"config.gate sets both failOn and failOnPriority. A run has one gate, so pick the "+
+					"question you are asking: a finding's own severity (failOn), or the band it "+
+					"lands in for this component (failOnPriority, the default)"))
+		}
+		// A per-control severity threshold under a priority gate is a rule that never fires: the
+		// gate is not asking about severity, so nothing consults it.
+		if len(g.Controls) > 0 && g.FailOn == "" {
+			errs = append(errs, fmt.Errorf(
+				"config.gate.controls needs config.gate.failOn. A per-control severity threshold "+
+					"refines a severity gate, and this descriptor gates on priority"))
+		}
 		for control, want := range g.Controls {
 			if _, err := sarif.ParseSeverity(want); err != nil {
 				errs = append(errs, fmt.Errorf("config.gate.controls[%q] = %q is not a threshold (want one of %v)",

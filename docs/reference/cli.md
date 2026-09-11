@@ -173,7 +173,7 @@ is gated on the run it is about, and none of them affects the verdict:
 
 | Tip | Shown when |
 |---|---|
-| Priority gating | The run passed, carries P1 or P2 findings, and `--fail-on-priority` is unset |
+| Priority gating | The run passed, carries P1 or P2 findings, and the gate is on severity instead |
 | Where the report went | `CI` is set in the environment, with no `-o` and no `config.publishers` |
 | Risk classification | There are findings and no component sets `exposure` or `criticality` |
 | Caching | The run took over a minute and `--cache-dir` is unset |
@@ -282,8 +282,8 @@ Grouped the way `draugr scan --help` groups them.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--fail-on` | `high` | Severity that fails the gate: `critical`, `high`, `medium`, `low` |
-| `--fail-on-priority` |. | Also fail the gate on any finding at or above this priority (`P1`–`P4`) |
+| `--fail-on` | | Gate on a finding's own severity instead of its band: `critical`, `high`, `medium`, `low`. Exclusive with `--fail-on-priority` |
+| `--fail-on-priority` | `P1` | The priority band that fails the gate (`P1`–`P4`). This is the default gate; `--fail-on` replaces it |
 | `--no-gate` | `false` | Report the verdict but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything |
 
@@ -337,7 +337,7 @@ and every pipeline on that runner wants the same one.
 draugr scan draugr.saga.yaml
 draugr scan draugr.saga.yaml -o out/ --fail-on medium
 draugr scan draugr.saga.yaml --min-priority P2        # focus on what matters now
-draugr scan draugr.saga.yaml --fail-on-priority P1    # also block on P1 findings
+draugr scan draugr.saga.yaml --fail-on-priority P2    # widen the default gate from P1 to P2
 draugr scan draugr.saga.yaml --cache-dir .draugr/cache
 draugr scan draugr.saga.yaml -j 4                      # cap parallelism (or -j 1 for serial)
 draugr scan draugr.saga.yaml --format markdown        # portable report (MR comment, wiki)
