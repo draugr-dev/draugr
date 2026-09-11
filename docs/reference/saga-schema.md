@@ -685,18 +685,34 @@ remembered by whoever wrote the workflow. `--allow-effects` does the same for a 
 ```yaml
 config:
   gate:
+    controls:
+      licenses: P2         # this control fails on a P2…
+      sast: P4             # …this one fails on anything at all
+```
+
+`controls` refines the gate, **in the gate's own vocabulary**. A descriptor that writes no `failOn`
+still has one, the default `P1`, so the thresholds above are bands. Writing a severity under a band
+gate is refused rather than compared against something it does not measure:
+
+```console
+draugr: config.gate.controls["licenses"] is "high" and the gate it refines is the band P1, which
+asks the other question. Write `failOn: high` to judge this run on severity, or write these
+thresholds as bands (P1, P2, P3, P4)
+```
+
+The severity form is the same shape with `failOn` written out:
+
+```yaml
+config:
+  gate:
     failOn: high           # gate on severity rather than on the band
     controls:
       licenses: critical   # this control fails only on a critical…
       sast: low            # …this one fails on anything at all
 ```
 
-`controls` refines `failOn`, so it needs one: a per-control **severity** threshold under a
-**priority** gate is a rule nothing consults. A descriptor that sets neither gates on `P1`.
-
-Per-control severity thresholds, overriding [`--fail-on`](cli.md#draugr-scan-sagayaml--dir) for the named
-control only. Values are severity bands: `critical`, `high`, `medium`, `low`. The SARIF levels
-`error`, `warning` and `note` are still accepted and mean `high`, `medium` and `low`.
+Severity values are `critical`, `high`, `medium`, `low`. The SARIF levels `error`, `warning` and
+`note` are still accepted and mean `high`, `medium` and `low`.
 
 One threshold can't serve every control. License policy is owned by legal and vulnerability
 policy by security; *"fail the build on a forbidden license but only warn on a medium CVE"* is a

@@ -295,3 +295,84 @@ func TestAnUnnamedThresholdGatesOnNothingRatherThanEverything(t *testing.T) {
 		t.Errorf("verdict = %s: an unnamed severity threshold gated on everything", res.Verdict)
 	}
 }
+
+// A per-control override is the gate's own question asked of one control, so on a band gate it has
+// to be a band and it has to decide something. Written as a severity map alone, the band was parsed,
+// failed, and dropped, so the whole per-control block did nothing on the gate the product
+// recommends.
+//
+// Two controls, one overridden and one not, because an override that applied to everything would
+// pass a test with one.
+func TestAPerControlBandDecidesThatControlAndNoOther(t *testing.T) {
+	// P2 on both controls. The gate is P1, so neither fails it; `licenses` is held to P2, so it
+	// does.
+	reports := map[string]sarif.Report{
+		"licenses": {Results: []sarif.Result{{RuleID: "l", Level: sarif.LevelWarning, Priority: "P2"}}},
+		"sca":      {Results: []sarif.Result{{RuleID: "s", Level: sarif.LevelWarning, Priority: "P2"}}},
+	}
+	p := Policy{FailOnPriority: "P1", PerControlBand: map[string]string{"licenses": "P2"}}
+	res := p.Evaluate(reports)
+
+	if res.Verdict != Fail {
+		t.Fatalf("verdict = %s, want fail: licenses is held to P2 and has a P2", res.Verdict)
+	}
+	for _, c := range res.Controls {
+		want := Pass
+		if c.Control == "licenses" {
+			want = Fail
+		}
+		if c.Verdict != want {
+			t.Errorf("%s = %s, want %s", c.Control, c.Verdict, want)
+		}
+	}
+}
+
+// The other direction, so the override is not just "fail more". A control held to a looser band
+// than the gate passes a finding the gate would have failed on.
+func TestAPerControlBandCanBeLooserThanTheGate(t *testing.T) {
+	reports := map[string]sarif.Report{
+		"licenses": {Results: []sarif.Result{{RuleID: "l", Level: sarif.LevelError, Priority: "P1"}}},
+		"sca":      {Results: []sarif.Result{{RuleID: "s", Level: sarif.LevelError, Priority: "P1"}}},
+	}
+	p := Policy{FailOnPriority: "P1", PerControlBand: map[string]string{"licenses": "P4"}}
+	res := p.Evaluate(reports)
+
+	if res.Verdict != Fail {
+		t.Fatalf("verdict = %s, want fail: sca is on the P1 gate", res.Verdict)
+	}
+	for _, c := range res.Controls {
+		if c.Control == "licenses" && c.Verdict != Fail {
+			t.Errorf("licenses = %s: P4 is looser than P1, and a P1 finding is still at or above it", c.Verdict)
+		}
+	}
+}
+
+// The default gate is a band, so a policy with per-control bands and nothing else still gates.
+// GatesOnSeverity reads the severity half only, and a band override must not switch the band gate
+// off the way a severity override does.
+func TestPerControlBandsAloneStillGateOnTheDefault(t *testing.T) {
+	p := Policy{PerControlBand: map[string]string{"licenses": "P3"}}
+	if p.GatesOnSeverity() {
+		t.Error("per-control bands are not a severity gate")
+	}
+	if got := p.PriorityBand(); got != DefaultPriority {
+		t.Errorf("PriorityBand = %q, want the default %q", got, DefaultPriority)
+	}
+	reports := map[string]sarif.Report{
+		"licenses": {Results: []sarif.Result{{RuleID: "l", Level: sarif.LevelWarning, Priority: "P3"}}},
+		"sca":      {Results: []sarif.Result{{RuleID: "s", Level: sarif.LevelWarning, Priority: "P3"}}},
+	}
+	res := p.Evaluate(reports)
+	if res.Verdict != Fail {
+		t.Fatalf("verdict = %s, want fail: licenses is held to P3", res.Verdict)
+	}
+	for _, c := range res.Controls {
+		want := Pass
+		if c.Control == "licenses" {
+			want = Fail
+		}
+		if c.Verdict != want {
+			t.Errorf("%s = %s, want %s (the default gate is P1, licenses is held to P3)", c.Control, c.Verdict, want)
+		}
+	}
+}

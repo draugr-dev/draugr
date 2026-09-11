@@ -203,14 +203,24 @@ func describeGate(g *Gate) *gateReport {
 		}
 		out.FailOnPriority = band
 	}
-	for name, band := range g.Policy.PerControl {
-		if band == "" {
-			continue
+	// Whichever half the gate reads. A per-control threshold in the other vocabulary decides
+	// nothing, so writing it here would be the document claiming a rule fired that did not.
+	applied := map[string]string{}
+	if g.Policy.GatesOnSeverity() {
+		for name, sev := range g.Policy.PerControl {
+			if sev != "" {
+				applied[name] = string(sev)
+			}
 		}
-		if out.PerControl == nil {
-			out.PerControl = make(map[string]string, len(g.Policy.PerControl))
+	} else {
+		for name, band := range g.Policy.PerControlBand {
+			if band != "" {
+				applied[name] = band
+			}
 		}
-		out.PerControl[name] = string(band)
+	}
+	if len(applied) > 0 {
+		out.PerControl = applied
 	}
 	return out
 }

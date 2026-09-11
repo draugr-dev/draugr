@@ -48,6 +48,14 @@ type Policy struct {
 	FailOn         sarif.Severity
 	PerControl     map[string]sarif.Severity
 	FailOnPriority string
+	// PerControlBand overrides the band for named controls, and is the band gate's half of
+	// PerControl.
+	//
+	// Two maps rather than one, because a threshold is only meaningful in the vocabulary the gate
+	// asks in, and FailOn and FailOnPriority are already a pair for the same reason. A single map
+	// would hold values that mean nothing to the gate reading it, which is how a per-control
+	// threshold came to be written, reviewed, and dropped without a word.
+	PerControlBand map[string]string
 }
 
 // GatesOnSeverity reports whether this policy judges a finding's own severity rather than the band
@@ -56,6 +64,22 @@ type Policy struct {
 // Set by asking: naming a threshold, globally or for one control, is what chooses the question.
 // Nothing named means the default, which is the priority band.
 func (p Policy) GatesOnSeverity() bool { return p.FailOn != "" || len(p.PerControl) > 0 }
+
+// bandFor returns the band this control is judged against, or empty where the policy gates on
+// severity instead.
+//
+// An override only applies in the gate's own vocabulary. PerControlBand is filled only on a band
+// gate and PerControl only on a severity gate, so neither can quietly answer for the other.
+func (p Policy) bandFor(control string) string {
+	band := p.PriorityBand()
+	if band == "" {
+		return ""
+	}
+	if want, ok := p.PerControlBand[control]; ok && want != "" {
+		return want
+	}
+	return band
+}
 
 // DefaultPriority is the band a run fails on when its policy names no threshold of its own.
 //
@@ -145,7 +169,7 @@ func (p Policy) Evaluate(reports map[string]sarif.Report) Result {
 		// AtLeast compares ranks, so passing one through would put it at or below every finding
 		// there is and fail the gate on everything.
 		failedOnSeverity := threshold != "" && highest.AtLeast(threshold) && highest.Rank() > 0
-		if failedOnSeverity || p.priorityFails(highestPrio) {
+		if failedOnSeverity || p.priorityFails(control, highestPrio) {
 			outcome.Verdict = Fail
 			res.Verdict = Fail
 		}
@@ -165,8 +189,8 @@ func sortedControls(reports map[string]sarif.Report) []string {
 }
 
 // priorityFails reports whether a control's most-urgent priority trips the priority gate.
-func (p Policy) priorityFails(highestPrio string) bool {
-	band := p.PriorityBand()
+func (p Policy) priorityFails(control, highestPrio string) bool {
+	band := p.bandFor(control)
 	if band == "" || highestPrio == "" {
 		return false
 	}

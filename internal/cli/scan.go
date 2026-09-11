@@ -351,10 +351,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	for name, cr := range run.Controls {
 		reports[name] = cr.Report
 	}
+	perControl, perControlBand := scanpolicy.GateThresholds(model.Config.Gate)
 	policy := norn.Policy{
 		FailOn:         failOn,
-		PerControl:     scanpolicy.GateThresholds(model.Config.Gate),
+		PerControl:     perControl,
 		FailOnPriority: failOnPriority,
+		PerControlBand: perControlBand,
 	}
 	verdict := policy.Evaluate(reports)
 	components, unattributed := componentVerdicts(policy, model, reports, scope, run.Stats.Unscanned)
@@ -400,6 +402,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			Threshold:      policy.FailOn,
 			PerControl:     policy.PerControl,
 			FailOnPriority: policy.FailOnPriority,
+			PerControlBand: policy.PerControlBand,
 			Disabled:       opts.noGate,
 		},
 		Compact:              opts.compact,
