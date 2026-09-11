@@ -29,7 +29,7 @@ fragments:
   #   path: services/**/draugr.saga-fragment.yaml
 
 config:
-  controllers:
+  controls:
     sca:
       enabled: true
     images:

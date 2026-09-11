@@ -133,13 +133,13 @@ func EnableControls(model *saga.Model) []string {
 
 	var added []string
 	for name := range wanted {
-		if _, configured := model.Config.Controllers[name]; configured {
+		if _, configured := model.Config.Controls[name]; configured {
 			continue
 		}
-		if model.Config.Controllers == nil {
-			model.Config.Controllers = map[string]saga.ControllerSettings{}
+		if model.Config.Controls == nil {
+			model.Config.Controls = map[string]saga.ControllerSettings{}
 		}
-		model.Config.Controllers[name] = saga.ControllerSettings{"enabled": true}
+		model.Config.Controls[name] = saga.ControllerSettings{"enabled": true}
 		added = append(added, name)
 	}
 	sort.Strings(added)

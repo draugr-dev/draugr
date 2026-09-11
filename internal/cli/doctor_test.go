@@ -343,7 +343,7 @@ func TestRequiredToolsIncludesSyftOnlyWhenSBOMIsEnabled(t *testing.T) {
 func TestRequiredToolsIncludesAReachabilityAnalyzer(t *testing.T) {
 	reg := builtins.Registry()
 	sca := saga.Config{
-		Controllers: map[string]saga.ControllerSettings{"sca": {"enabled": true}},
+		Controls: map[string]saga.ControllerSettings{"sca": {"enabled": true}},
 	}
 	requires := func(m *saga.Model, binary string) bool {
 		for _, tl := range requiredTools(reg, m) {
@@ -376,7 +376,7 @@ func TestRequiredToolsIncludesAReachabilityAnalyzer(t *testing.T) {
 		paused := &saga.Model{
 			Release: saga.Release{Version: "1"},
 			Config: saga.Config{
-				Controllers:  map[string]saga.ControllerSettings{"sca": {"enabled": false}},
+				Controls:     map[string]saga.ControllerSettings{"sca": {"enabled": false}},
 				Reachability: &saga.ReachabilityConfig{Analyzers: []string{"govulncheck"}},
 			},
 		}

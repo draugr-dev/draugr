@@ -127,9 +127,9 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 		}
 	}
 
-	for _, name := range sortedKeys(model.Config.Controllers) {
-		report("config.controllers", name)
-		reportScanners("config.controllers", name, model.Config.Controllers[name])
+	for _, name := range sortedKeys(model.Config.Controls) {
+		report("config.controls", name)
+		reportScanners("config.controls", name, model.Config.Controls[name])
 	}
 	// An analyzer this build cannot run is the same failure as a control it cannot run: the
 	// descriptor says findings will be ranked by reachability, and they silently are not.
@@ -159,10 +159,10 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 	}
 	for i := range model.Components {
 		c := &model.Components[i]
-		where := fmt.Sprintf("components[%q].controllers", c.Name)
-		for _, name := range sortedKeys(c.Controllers) {
+		where := fmt.Sprintf("components[%q].controls", c.Name)
+		for _, name := range sortedKeys(c.Controls) {
 			report(where, name)
-			reportScanners(where, name, c.Controllers[name])
+			reportScanners(where, name, c.Controls[name])
 		}
 	}
 

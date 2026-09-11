@@ -43,7 +43,7 @@ project: my-app
 release:
   version: "1.0"
 config:
-  controllers:
+  controls:
     images:
       enabled: true
 components:
@@ -52,7 +52,7 @@ components:
       - image: alpine:3.19
 ```
 
-A control only runs when it is **enabled** (globally under `config.controllers`, or on a
+A control only runs when it is **enabled** (globally under `config.controls`, or on a
 component). See [write your first Saga](first-saga.md) for a gentle walkthrough, or the
 [Saga schema](../reference/saga-schema.md) for every field.
 

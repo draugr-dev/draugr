@@ -101,7 +101,7 @@ project: my-app
 release:
   version: "1.0"
 config:
-  controllers:
+  controls:
     images:
       enabled: true
 components:

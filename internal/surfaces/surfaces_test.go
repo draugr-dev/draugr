@@ -11,7 +11,7 @@ func TestUncoveredSurfacesNamesWhatNobodyChecks(t *testing.T) {
 	// A descriptor declaring a host with the host controls off scans everything about that
 	// component except the thing it exposes to the internet, and says nothing.
 	model := &saga.Model{
-		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 			"sca": {"enabled": true},
 		}},
 		Components: []saga.Component{
@@ -33,7 +33,7 @@ func TestUncoveredSurfacesTreatsPartialCoverAsCovered(t *testing.T) {
 	// One enabled control means somebody is looking. Nagging about the rest would make the note
 	// routine, and a routine note is one nobody reads.
 	model := &saga.Model{
-		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 			"headers": {"enabled": true},
 		}},
 		Components: []saga.Component{{Name: "web", Hosts: []saga.Host{{URL: "h"}}}},
@@ -47,9 +47,9 @@ func TestUncoveredSurfacesRespectsAPerComponentOverride(t *testing.T) {
 	// A control enabled on the component alone still counts as looking.
 	model := &saga.Model{
 		Components: []saga.Component{{
-			Name:        "svc",
-			Images:      []saga.Image{{Image: "i"}},
-			Controllers: map[string]saga.ControllerSettings{"images": {"enabled": true}},
+			Name:     "svc",
+			Images:   []saga.Image{{Image: "i"}},
+			Controls: map[string]saga.ControllerSettings{"images": {"enabled": true}},
 		}},
 	}
 	if got := Uncovered(model); len(got) != 0 {
@@ -59,7 +59,7 @@ func TestUncoveredSurfacesRespectsAPerComponentOverride(t *testing.T) {
 
 func TestUncoveredSurfacesIsSilentWhenEverythingIsCovered(t *testing.T) {
 	model := &saga.Model{
-		Config:     saga.Config{Controllers: map[string]saga.ControllerSettings{"sca": {"enabled": true}}},
+		Config:     saga.Config{Controls: map[string]saga.ControllerSettings{"sca": {"enabled": true}}},
 		Components: []saga.Component{{Name: "web", Repositories: []saga.Repository{{URL: "u"}}}},
 	}
 	if got := Uncovered(model); len(got) != 0 {
@@ -119,11 +119,11 @@ func TestEnableControlsForSurface(t *testing.T) {
 				t.Fatalf("enabled %v, want %v", got, tc.want)
 			}
 			for _, name := range tc.want {
-				if m.Config.Controllers[name] == nil {
+				if m.Config.Controls[name] == nil {
 					t.Errorf("%s should be present in the descriptor", name)
 				}
 			}
-			if tc.name == "hosts" && m.Config.Controllers["dast"] != nil {
+			if tc.name == "hosts" && m.Config.Controls["dast"] != nil {
 				t.Error("dast must not be enabled by discovery")
 			}
 		})
@@ -136,7 +136,7 @@ func TestEnableControlsLeavesConfiguredControlsAlone(t *testing.T) {
 	t.Parallel()
 
 	m := &saga.Model{
-		Config: saga.Config{Controllers: map[string]saga.ControllerSettings{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 			"sca":     {"enabled": false},
 			"secrets": {"enabled": true, "someOption": "kept"},
 		}},
@@ -147,10 +147,10 @@ func TestEnableControlsLeavesConfiguredControlsAlone(t *testing.T) {
 	if slices.Contains(added, "sca") || slices.Contains(added, "secrets") {
 		t.Errorf("a configured control must be left alone, added %v", added)
 	}
-	if enabled, _ := m.Config.Controllers["sca"]["enabled"].(bool); enabled {
+	if enabled, _ := m.Config.Controls["sca"]["enabled"].(bool); enabled {
 		t.Error("a control switched off by hand must stay off")
 	}
-	if m.Config.Controllers["secrets"]["someOption"] != "kept" {
+	if m.Config.Controls["secrets"]["someOption"] != "kept" {
 		t.Error("an existing control's options must survive")
 	}
 	// The ones nobody mentioned are still filled in.

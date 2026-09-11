@@ -54,7 +54,7 @@ func (m *Model) Validate() error {
 				"or digit", m.Project))
 	}
 
-	errs = append(errs, validateControllerKeys("", m.Config.Controllers)...)
+	errs = append(errs, validateControllerKeys("", m.Config.Controls)...)
 
 	errs = append(errs, validateComponents(m.Components)...)
 	errs = append(errs, m.Config.AllowEffects.validate()...)
@@ -241,7 +241,7 @@ func validateComponents(comps []Component) []error {
 	var errs []error
 	seen := map[string]bool{}
 	for i, c := range comps {
-		errs = append(errs, validateControllerKeys(fmt.Sprintf("components[%d].", i), c.Controllers)...)
+		errs = append(errs, validateControllerKeys(fmt.Sprintf("components[%d].", i), c.Controls)...)
 		where := fmt.Sprintf("components[%d]", i)
 		if c.Name == "" {
 			errs = append(errs, fmt.Errorf("%s: name is required", where))
