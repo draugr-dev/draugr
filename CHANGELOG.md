@@ -12,6 +12,25 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.118.0] - 2026-09-11
+
+### Changed
+
+- A destination that can deliver only one thing renders it for itself. `kind: github`, `kind:
+  draugr-api` and the three sticky-comment publishers are complete instructions now: the format is
+  not a choice anybody makes, and a descriptor that had to name it was one that failed when
+  somebody forgot. `file` is the exception, because a directory has no format of its own, so it
+  says what goes in it.
+
+### Removed
+
+- `config.reports` is gone. A report is rendered for a destination, so it is named on the
+  destination that takes it: move each entry under the `config.publishers` entry it was for, which
+  is also where `filename` and `minPriority` now mean something. A descriptor still carrying it is
+  refused, with that sentence. For local artifacts and no destination at all, `-o <dir>` writes
+  `report.json` and `results.sarif` and `--report <format>` adds to them, which is what the key
+  never did.
+
 ## [0.117.0] - 2026-09-11
 
 ### Added
@@ -5413,7 +5432,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.117.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.118.0...HEAD
+[0.118.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.118.0
 [0.117.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.117.0
 [0.116.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.116.0
 [0.115.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.115.0
