@@ -282,6 +282,10 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 | `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus` | `enabled` only |
 
 
+[`examples/scanner-options.saga.yaml`](../../examples/scanner-options.saga.yaml) writes every
+option every scanner takes, with a line on what each one decides. It is a reference rather than a
+starting point; copy the two or three lines you need.
+
 ### Reachability for Go
 
 The `sca` control can also run [`govulncheck`](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck),

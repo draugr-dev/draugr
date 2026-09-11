@@ -1,0 +1,159 @@
+# Configuring the scanner behind a control.
+#
+# Enabling a control picks a scanner and sensible defaults, and that is all most descriptors ever
+# need. This file is the other half: every option a scanner takes, written out, because an option
+# nobody has seen written is one people do not know they have.
+#
+# It is a reference rather than a starting point. Nothing here is a recommendation, and several
+# blocks are commented because running them needs a credential, a cluster, or permission to change
+# something. Copy the two or three lines you need into your own descriptor.
+#
+#   draugr validate examples/scanner-options.saga.yaml
+
+project: scanner-options
+
+release:
+  version: "1.0"
+
+config:
+  # kube-bench runs a Job in your cluster and deletes it, and the Mend connectors create a project
+  # in your Mend account. Both declare that, and Draugr refuses to run a scanner whose effects are
+  # not listed here.
+  allowEffects: [mutate, privilege]
+
+  controls:
+    images:
+      enabled: true
+      trivy:
+        pkgTypes: [library]                          # os | library. Both by default. Narrow it to
+                                                     # library when a platform team owns the base
+                                                     # image, so the report covers what this
+                                                     # component can actually change
+        dbRepository:                                # in priority order, for a runner with no
+          - registry.internal/trivy-db:2             # route to a public registry
+          - ghcr.io/aquasecurity/trivy-db:2
+
+    sca:
+      enabled: true
+      # mendSca:
+      #   enabled: true
+      #   productToken: 1a2b3c4d                     # which Mend product this reports into.
+      #                                              # Required. It names a product and grants no
+      #                                              # access, so it belongs here rather than in
+      #                                              # the environment
+      #   project: payments-api                      # defaults to the component's name, which
+      #                                              # keeps one project per component rather than
+      #                                              # one per repository
+      #   resultTimeout: 15m                         # how long to wait for Mend to finish
+      #                                              # analyzing. Raise it for a large monorepo,
+      #                                              # where the upload finishes long before the
+      #                                              # analysis does
+      #   settings:                                  # Unified Agent keys, passed through verbatim.
+      #     fileSystemScan: "true"                   # Draugr writes the component's scope
+      #     resolveAllDependencies: "false"          # exclusions first, so anything here overrides
+      #                                              # them
+
+    licenses:
+      enabled: true
+      # mendLicenses:
+      #   enabled: true
+      #   productToken: 1a2b3c4d
+      #   project: payments-api
+      #   resultTimeout: 15m
+      #   deny: ["AGPL-3.0-only", "SSPL-1.0"]        # fail the gate
+      #   warn: ["GPL-3.0-only"]                     # report, do not fail
+      #   settings:
+      #     forceUpdate: "true"
+
+    sast:
+      enabled: true
+      gosec:
+        enabled: true
+        tags: [integration]                          # Go build tags to compile with. Code behind a
+                                                     # tag gosec does not build is code it does not
+                                                     # analyze
+        exclude: [G104]                              # rules that do not apply here. A finding you
+                                                     # have judged goes in config.exclude instead,
+                                                     # where it stays in the report as suppressed
+        # include: [G101, G204]                      # run only these, and skip everything else
+
+    headers:
+      enabled: true
+      draugrHeaders:
+        enabled: true                                # native, and the only option it takes
+
+    tls:
+      enabled: true
+      draugrTls:
+        expiryWarnDays: 30                           # warn this far ahead of expiry
+        expiryErrorDays: 14                          # error this far ahead. Lower both where
+                                                     # renewal is automated, so the gate fires when
+                                                     # renewal has failed rather than on schedule
+
+    infrastructure:
+      enabled: true
+      draugrK8sPolicies:
+        enabled: true                                # reads the cluster and changes nothing, which
+                                                     # is why it is the default
+      # Two ways to run the CIS Benchmark, and they answer different questions.
+      #
+      # kubeBench runs the binary where Draugr runs. It can only see what a client outside the
+      # control plane can see, which is the node checks.
+      # kubeBenchJob runs it as a Job on a node, which is the only way to read a node's own files,
+      # and that is why it needs `mutate` and `privilege` above.
+      # kubeBench:
+      #   enabled: true
+      #   benchmark: cis-1.9                         # or eks-1.5.0. Omit and kube-bench detects
+      #                                              # the cluster's version
+      #   version: "1.29"                            # selects the benchmark instead, ignored when
+      #                                              # benchmark is set
+      #   targets: "master,node"                     # defaults to the node checks
+      #   context: prod-eu                           # kubeconfig context, defaults to the current
+      #   configDir: /opt/kube-bench/cfg             # where the benchmark definitions live, for a
+      #                                              # binary whose cfg/ sits beside it
+      # kubeBenchJob:
+      #   enabled: true
+      #   image: aquasec/kube-bench@sha256:0000000000000000000000000000000000000000000000000000000000000000
+      #                                              # pin a digest for a reproducible benchmark,
+      #                                              # and an internal mirror where the cluster
+      #                                              # cannot reach a public registry
+      #   namespace: security                        # must already exist, Draugr creates none
+      #   nodeSelector: "node-role.kubernetes.io/control-plane="
+      #                                              # comma-separated key=value, to benchmark one
+      #                                              # node pool
+      #   timeout: 5m                                # how long to wait for the Job
+      #   benchmark: cis-1.9
+      #   targets: "master,node"
+      #   context: prod-eu
+
+    # dast:
+    #   enabled: true                                # sends real requests to a live endpoint, so
+    #   nuclei:                                      # point it at staging and nothing else
+    #     enabled: true                              # native options: it takes only this
+
+    # threats:
+    #   enabled: true
+    #   urlhaus:
+    #     enabled: true                              # needs URLHAUS_AUTH_KEY, free from
+    #                                                # https://auth.abuse.ch/
+    #   virustotal:
+    #     enabled: true                              # needs VIRUSTOTAL_API_KEY. The free tier is
+    #                                                # licensed for non-commercial use only
+    #     requestsPerMinute: 4                       # the public tier's allowance. Raise it only
+    #                                                # to what your key actually permits: exceeding
+    #                                                # VirusTotal's limit risks a permanent ban
+
+components:
+  - name: payments-api
+    exposure: public
+    criticality: critical
+    repositories:
+      - url: https://github.com/acme/payments-api.git
+    images:
+      - image: registry.example.com/acme/payments-api:1.0.0
+    hosts:
+      - name: api
+        url: https://api.example.com
+    infrastructure:
+      - kind: kubernetes
+        ref: prod-eu
