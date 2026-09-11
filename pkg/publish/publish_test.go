@@ -261,3 +261,39 @@ func TestRunReportsEveryFailureWhenNothingRendered(t *testing.T) {
 		t.Errorf("nothing rendered, so nothing should have been written: %v", entries)
 	}
 }
+
+// A publisher that needs a format and does not say so goes back to reporting it at delivery time,
+// which is after every scanner has run. Nothing about that looks wrong until somebody spends a
+// pipeline on it.
+func TestEveryPublisherSaysWhatItNeeds(t *testing.T) {
+	for _, kind := range Kinds() {
+		if _, ok := requirements[kind]; !ok {
+			t.Errorf("%s has no entry in requirements. Name the formats it cannot deliver "+
+				"without, or nil if it takes whatever it is handed", kind)
+		}
+	}
+	for kind := range requirements {
+		if _, ok := builders[kind]; !ok {
+			t.Errorf("requirements names %q, which is not a publisher this build has", kind)
+		}
+	}
+	// Every named format must be one something renders, or the check built on this asks for a
+	// report that cannot exist.
+	rendered := map[string]bool{}
+	for _, f := range report.Formats() {
+		rendered[f] = true
+	}
+	for kind, formats := range requirements {
+		for _, f := range formats {
+			if !rendered[f] {
+				t.Errorf("%s requires %q, which is not a format Draugr renders", kind, f)
+			}
+		}
+	}
+}
+
+func TestRequiresIsQuietAboutAKindWeDoNotHave(t *testing.T) {
+	if got := Requires("jira"); got != nil {
+		t.Errorf("Requires of an unknown kind = %v, want nil", got)
+	}
+}
