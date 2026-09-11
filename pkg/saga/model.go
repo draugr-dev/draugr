@@ -717,7 +717,22 @@ type HostAuth struct {
 	TokenEnv string `yaml:"tokenEnv"`
 }
 
-// Infrastructure is an infrastructure surface. Kind is e.g. "kubernetes"; Ref names the
+// InfrastructureKinds are the surfaces Draugr audits, and the only values `kind` accepts.
+//
+// Listed rather than left open because a kind nothing serves is dropped when jobs are planned, so
+// a component declaring `kind: k8s` is scanned for everything except the infrastructure it named,
+// and reads as covered. The same argument as `operatedBy` beside it: the run looks the same either
+// way.
+var InfrastructureKinds = []string{"kubernetes"}
+
+// ValidInfrastructureKind reports whether a kind is one Draugr audits.
+func ValidInfrastructureKind(kind string) bool {
+	return slices.ContainsFunc(InfrastructureKinds, func(k string) bool {
+		return strings.EqualFold(k, kind)
+	})
+}
+
+// Infrastructure is an infrastructure surface. Kind is one of InfrastructureKinds; Ref names the
 // concrete instance.
 type Infrastructure struct {
 	Kind string `yaml:"kind"`

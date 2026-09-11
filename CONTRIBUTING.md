@@ -201,6 +201,38 @@ it is text, so a stale one shows up in a diff.
 Two blog posts on the website quote console output as well. They live in a different repository,
 so no test here can catch them; the golden's failure message names them so they don't get missed.
 
+### Adding a field to the Saga
+
+The JSON schema is what an editor answers with before Draugr does, so any place it is looser than
+the loader is a place somebody is told a descriptor is fine and finds out from CI that it is not.
+It is **generated** from the registry (`internal/schemagen`), so the authority is always the Go
+side rather than a list maintained by hand in the JSON:
+
+```bash
+go generate ./pkg/saga/...     # after registering a plugin or changing a vocabulary
+go test ./internal/schemagen/
+```
+
+Every string property has to be **closed, or listed as deliberately open with the reason**. There
+is no third option that passes:
+
+```
+$defs.component.properties.nickname accepts any string.
+    Close it — an `anyOf` of `const` for a scalar, `items.enum` for an array, generated from
+    whatever in Go already knows the values — or add it to openStrings with the reason it
+    cannot be closed.
+```
+
+The same holds for objects and `additionalProperties: false`, which is what makes an editor flag a
+misspelled key where it is typed rather than leaving a block Draugr never reads.
+
+A scalar is closed with an `anyOf` of `const`, each carrying its own `description`, because that is
+what makes an editor show help beside every completion; an array uses `items.enum`. Copy `exposure`
+or `criticality` for the first and `allowEffects` for the second.
+
+The reason is not a formality. *"It is a name"* and *"we have not got round to it"* look identical
+in a list of paths, and only one of them should survive review.
+
 ### Integration tests
 
 Heavier tests that exercise real external dependencies, a real Trivy binary and an ephemeral

@@ -1309,7 +1309,7 @@ components:
                                                 #   for the credential itself, because a
                                                 #   descriptor is committed
     infrastructure:
-      - kind: kubernetes                        # e.g. kubernetes
+      - kind: kubernetes                        # required, the only surface Draugr audits today
         ref: prod-cluster
         namespaces: [team-a, team-a-jobs]       # optional, the namespaces this component owns
         operatedBy: provider                    # optional, self (default) or provider

@@ -17,6 +17,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/report"
+	"github.com/draugr-dev/draugr/pkg/saga"
 
 	"bytes"
 	"encoding/json"
@@ -82,6 +83,65 @@ func allowEffectsDef() map[string]any {
 		"items": map[string]any{"type": "string", "enum": enum},
 		// Listing a kind twice accepts nothing extra, so it is a typo rather than an intention.
 		"uniqueItems": true,
+	}
+}
+
+// analyzersDef builds the `config.reachability.analyzers` enum from the registry.
+//
+// Generated for the reason the control names and the effect kinds are, arriving at it from the
+// other side: the schema said `type: string` and accepted anything, while the loader refuses a
+// name no scanner answers to and offers the nearest one it has. An editor that accepts a
+// descriptor Draugr rejects teaches somebody the name is fine, and the correction arrives from CI
+// instead of from the line they are typing.
+//
+// Not closed by hand: a scanner declares `Reachability` on its own info, and this reads the same
+// flag the planner does, so a new analyzer is offered the moment it is registered.
+func analyzersDef(reg *engine.Registry) map[string]any {
+	var names []string
+	for _, sc := range reg.Scanners() {
+		if info := sc.Info(); info.Reachability {
+			names = append(names, info.Name)
+		}
+	}
+	sort.Strings(names)
+	enum := make([]any, 0, len(names))
+	for _, n := range names {
+		enum = append(enum, n)
+	}
+	return map[string]any{
+		"description": "Tools that decide reachability, e.g. `govulncheck`. Named rather than " +
+			"inferred, so the descriptor says which tool reached the verdict and `draugr doctor` " +
+			"can say what to install. An analyzer adds no findings: it ranks findings you " +
+			"already have downward.",
+		"type":  "array",
+		"items": map[string]any{"type": "string", "enum": enum},
+		// Naming one twice enables nothing extra, so it is a typo rather than an intention. The
+		// planner already deduplicates; this says so where it is being written.
+		"uniqueItems": true,
+	}
+}
+
+// infraKindDef builds the `infrastructure.kind` values from the surfaces Draugr audits.
+//
+// It said `type: string` and accepted anything, while the planner drops a kind nothing serves, so
+// a component declaring `kind: k8s` was scanned for everything except the infrastructure it named
+// and read as covered. `operatedBy`, the field beside it, has had a values list and a validation
+// error for exactly this reason since it was added.
+//
+// The `anyOf` of `const` shape rather than a plain enum, because that is what makes an editor show
+// the description beside each completion, the same as `exposure` and `criticality`.
+func infraKindDef() map[string]any {
+	one := make([]any, 0, len(saga.InfrastructureKinds))
+	for _, k := range saga.InfrastructureKinds {
+		one = append(one, map[string]any{
+			"const":       k,
+			"description": "A Kubernetes cluster, audited against a CIS benchmark.",
+		})
+	}
+	return map[string]any{
+		"description": "The infrastructure surface to audit. `ref` names the concrete instance.",
+		"type":        "string",
+		"anyOf":       one,
 	}
 }
 
@@ -256,6 +316,26 @@ func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
 		return nil, fmt.Errorf("schema config has no properties")
 	}
 	props["allowEffects"] = allowEffectsDef()
+
+	rch, ok := defs["reachabilityConfig"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("schema has no reachabilityConfig definition")
+	}
+	rchProps, ok := rch["properties"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("reachabilityConfig has no properties")
+	}
+	rchProps["analyzers"] = analyzersDef(reg)
+
+	infra, ok := defs["infrastructure"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("schema has no infrastructure definition")
+	}
+	infraProps, ok := infra["properties"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("infrastructure has no properties")
+	}
+	infraProps["kind"] = infraKindDef()
 
 	rc, ok := defs["reportConfig"].(map[string]any)
 	if !ok {
