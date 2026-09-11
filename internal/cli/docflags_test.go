@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -122,17 +123,25 @@ func ourFlags(t *testing.T) map[string]bool {
 func docFiles(t *testing.T) map[string]string {
 	t.Helper()
 	out := map[string]string{}
-	// #nosec G122 -- walking this repository's own checked-in documentation from a test. There is
-	// no untrusted input and no window for a symlink to be swapped under it.
-	err := filepath.Walk("../../docs", func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".md") {
+	// os.Root rather than filepath.Walk, so the read is scoped to the directory being walked and
+	// a symlink cannot point the reader at something outside it. The check that asked for this is
+	// about a window between deciding a path is safe and opening it; the root closes the window
+	// instead of arguing that nothing is in it.
+	root, err := os.OpenRoot("../../docs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = root.Close() }()
+
+	err = fs.WalkDir(root.FS(), ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
 			return err
 		}
-		body, err := os.ReadFile(path) //#nosec G304 -- walking this repository's own docs
+		body, err := fs.ReadFile(root.FS(), path)
 		if err != nil {
 			return err
 		}
-		out[filepath.ToSlash(strings.TrimPrefix(path, "../../"))] = string(body)
+		out["docs/"+filepath.ToSlash(path)] = string(body)
 		return nil
 	})
 	if err != nil {
