@@ -47,7 +47,7 @@ config:
   reachability:
     analyzers: [govulncheck]
 
-  controllers:
+  controls:
     sca:
       enabled: true    # trivy-fs runs by default and is what finds the vulnerabilities
 

@@ -841,11 +841,11 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, e
 	if len(res.File.Controllers) == 0 {
 		return res.File, nil
 	}
-	if model.Config.Controllers == nil {
-		model.Config.Controllers = map[string]saga.ControllerSettings{}
+	if model.Config.Controls == nil {
+		model.Config.Controls = map[string]saga.ControllerSettings{}
 	}
 	for control, defaults := range res.File.Controllers {
-		model.Config.Controllers[control] = config.DeepMerge(defaults, model.Config.Controllers[control])
+		model.Config.Controls[control] = config.DeepMerge(defaults, model.Config.Controls[control])
 	}
 	// Said once, at debug: a reader wondering why a control behaved unexpectedly needs to know a
 	// second file had a say, and `draugr config show` is where the detail lives.

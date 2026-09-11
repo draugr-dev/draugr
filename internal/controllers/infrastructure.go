@@ -84,7 +84,7 @@ func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.Sca
 // infraConfig resolves the control's settings for a component: the project's, with the
 // component's layered over.
 func infraConfig(model saga.Model, comp *saga.Component) plugin.Config {
-	settings := mergedSettings(model.Config.Controllers[infrastructureControl], comp.Controllers[infrastructureControl])
+	settings := mergedSettings(model.Config.Controls[infrastructureControl], comp.Controls[infrastructureControl])
 	if len(settings) == 0 {
 		return nil
 	}

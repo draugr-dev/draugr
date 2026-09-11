@@ -33,9 +33,9 @@ type scannerSelection struct {
 // enabled:true. The result is deterministic: default scanners first (in the given order), then
 // any extra enabled scanners sorted by name.
 func resolveScanners(model saga.Model, comp *saga.Component, control string, defaults []string) []scannerSelection {
-	merged := controlBlocks(model.Config.Controllers, control)
+	merged := controlBlocks(model.Config.Controls, control)
 	if comp != nil {
-		for name, blk := range controlBlocks(comp.Controllers, control) {
+		for name, blk := range controlBlocks(comp.Controls, control) {
 			merged[name] = deepMerge(merged[name], blk)
 		}
 	}

@@ -43,7 +43,7 @@ names). See the [Saga schema](../reference/saga-schema.md).
 **In:** the model + the registry of controllers. **Out:** a list of scan jobs.
 
 The engine expands **enabled controllers × components** into concrete scan jobs. A control runs only
-when enabled, globally under `config.controllers`, or per component. Controllers are either
+when enabled, globally under `config.controls`, or per component. Controllers are either
 **project-scoped** (run once) or **component-scoped** (run per component). Jobs are produced in
 deterministic (name) order, and each job carries a **cache key** derived from its inputs. You can
 inspect the plan without running it.

@@ -62,7 +62,7 @@ reg.RegisterScanner(scanners.NewYourTool())
 
 ## 3. Wire the control into the descriptor
 
-A new control is a new key under `config.controllers`, so:
+A new control is a new key under `config.controls`, so:
 
 ```bash
 go generate ./pkg/saga/...
