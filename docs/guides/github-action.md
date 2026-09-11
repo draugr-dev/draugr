@@ -38,8 +38,8 @@ jobs:
         with:
           saga: draugr.saga.yaml
           tools: true             # provision the scanners the controls need
-          # fail-on: high         # (scan/push) gate the build
-          # fail-on-new: high     # (diff/PR)   gate only on findings this PR introduces
+          # fail-on: P1           # (scan/push) gate the build; the default
+          # fail-on-new: P1       # (diff/PR)   gate only on findings this PR introduces
 ```
 
 **Versioning.** `@v0` is a moving major tag that always points at the newest `v0.x` release, so
@@ -74,10 +74,10 @@ scanning](code-scanning.md) for each mode in depth.
 | `saga` |, (required) | Path to the Saga descriptor to scan. |
 | `mode` | `auto` | `auto` (diff on PRs, scan otherwise), `scan`, or `diff`. |
 | `version` | `latest` | Draugr release to use (with or without a leading `v`). Pin for reproducibility. |
-| `fail-on` | `high` | (scan) Severity that fails the gate: `critical`, `high`, `medium`, `low`. |
-| `fail-on-priority` |. | (scan) Also fail on any finding at or above this priority band (`P1`–`P4`). |
-| `fail-on-new` |. | (diff) Fail on a **new** finding at or above this severity. |
-| `fail-on-new-priority` |. | (diff) Fail on a **new** finding at or above this priority band. |
+| `fail-on` | `P1` | (scan) What fails the gate: a priority band (`P1`–`P4`), which folds in what the descriptor declares about the component, or a severity (`critical`, `high`, `medium`, `low`). |
+| `fail-on-priority` | | Deprecated: write the band in `fail-on`, which takes either vocabulary. |
+| `fail-on-new` | | (diff) Fail on a **new** finding at or above this: a priority band (`P1`-`P4`) or a severity. |
+| `fail-on-new-priority` | | Deprecated: write the band in `fail-on-new`, which takes either vocabulary. |
 | `min-priority` |, | List findings at or above this band in the console output. |
 | `cache-dir` |, | Enable content-hash caching in this directory (relative to `working-directory`). |
 | `output` | `draugr-out` | Directory for `report.json`, `results.sarif` and any SBOMs (relative to `working-directory`). Written in both scan and diff mode. |

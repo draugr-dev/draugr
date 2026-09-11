@@ -106,7 +106,7 @@ thread. It is created active, like any other.
 
       draugr diff "$(Pipeline.Workspace)/base/results.sarif" \
                   "$(Pipeline.Workspace)/head/results.sarif" \
-                  --publish --fail-on-new-priority P1
+                  --publish --fail-on-new P1
     displayName: Gate on new findings
     condition: eq(variables['Build.Reason'], 'PullRequest')
     env:
@@ -121,7 +121,7 @@ Three details that are easy to get wrong:
   cannot tell those apart.
 - **`$BUILD_SOURCEVERSION` to get back.** A pull-request build checks out `refs/pull/N/merge`,
   which is on no branch, so `git checkout -` cannot find its way home.
-- **Priority, not severity.** `--fail-on-new-priority` folds in the component's exposure and
+- **Priority, not severity.** `--fail-on-new` takes a band, which folds in the component's exposure and
   criticality, so it blocks a critical finding in something exposed and lets one in a sandbox
   through.
 
