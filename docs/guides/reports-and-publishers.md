@@ -107,6 +107,24 @@ jq -r '.descriptor.digest' a/report.json b/report.json | uniq | wc -l
 Both blocks are absent when there is nothing to record, a scan with no descriptor, or one run
 outside CI, so a document that has them is one that knows, rather than one that defaulted.
 
+`priorities` counts what the gate judged, and `suppressed` counts what it did not:
+
+```json
+"priorities": {"p1": 4, "p2": 5, "p3": 0, "p4": 0},
+"suppressed": {"total": 1, "p1": 1, "p2": 0, "p3": 0, "p4": 0}
+```
+
+Two things are outside `priorities`, for the same reason the gate leaves them out. A finding a
+`config.exclude` rule set aside is not work, and it is counted in `suppressed` rather than dropped,
+because an exclusion keeps a finding in the report with the reason somebody gave. And a flaw two
+scanners both reported is one flaw: the copy is skipped outright, so enabling a second matcher does
+not double the count with nothing new wrong.
+
+`suppressed` is absent when nothing was excused, so a document carrying it is a run where somebody
+made a decision rather than one reporting that they did not. Each entry in `findings` carries the
+same thing per finding: a `suppressed` block with the justification and who accepted it, on the
+findings that have one.
+
 `gate` is the policy the verdict was judged against:
 
 ```json

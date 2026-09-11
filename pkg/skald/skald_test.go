@@ -128,7 +128,7 @@ func TestSummarizePrioritiesCountsP4(t *testing.T) {
 			{RuleID: "x", Level: sarif.LevelNote, Priority: "P4"},
 		}}},
 	}}
-	counts, _ := summarizePriorities(run, "")
+	counts, _, _ := summarizePriorities(run, "")
 	if counts == nil || counts.P4 != 1 {
 		t.Fatalf("P4 count = %+v", counts)
 	}
@@ -706,5 +706,87 @@ func TestAGateNobodyStatedIsAbsentRatherThanDefaulted(t *testing.T) {
 	}
 	if bytes.Contains(buf.Bytes(), []byte(`"gate"`)) {
 		t.Error("a caller that never had the policy emitted one, which reads as the default gate")
+	}
+}
+
+// The priority counts are what the gate judged. Every other counter here already worked that way —
+// `Counts()` and the gate's own `highestPriority` both skip a suppressed finding and a second
+// scanner's copy of one already counted — and this one counted everything, so the console and
+// report.json gave different numbers for one run.
+
+func TestPrioritiesCountWhatTheGateJudges(t *testing.T) {
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Control: "sca", Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "CVE-1", Level: sarif.LevelError, Priority: "P1"},
+			// Excused. Still in the report with its reason, and not work.
+			{RuleID: "CVE-2", Level: sarif.LevelError, Priority: "P1", Suppression: &sarif.Suppression{
+				Kind: "external", Justification: "a documentation example", AcceptedBy: "someone@example.test",
+			}},
+			// The other matcher's copy of CVE-1. Not work either, and not a suppression: it is
+			// already in the number above under the first tool's rule id.
+			{RuleID: "CVE-1-grype", Level: sarif.LevelError, Priority: "P1",
+				Correlation: &sarif.Correlation{CountedUnder: "CVE-1"}},
+		}}},
+	}}
+	counts, excused, _ := summarizePriorities(run, "")
+	if counts == nil || counts.P1 != 1 {
+		t.Fatalf("counts = %+v, want one P1: the work is one flaw", counts)
+	}
+	if excused == nil || excused.Total != 1 || excused.P1 != 1 {
+		t.Fatalf("suppressed = %+v, want the excused one counted apart", excused)
+	}
+}
+
+func TestNothingExcusedMeansNoSuppressedBlock(t *testing.T) {
+	// Absent rather than a block of zeroes, so a document carrying one is a run where somebody
+	// made a decision rather than one reporting that they did not.
+	_, excused, _ := summarizePriorities(prioritizedRun(), "")
+	if excused != nil {
+		t.Errorf("suppressed = %+v, want nothing", excused)
+	}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, prioritizedRun(), sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(buf.Bytes(), []byte(`"suppressed"`)) {
+		t.Error("a run with nothing excused emitted a suppressed block")
+	}
+}
+
+func TestAnExcusedFindingStaysInTheListAndSaysWhy(t *testing.T) {
+	// Suppress, don't delete, where a machine reads it. It was already in this list and said
+	// nothing about itself, which is the half that made it read as work.
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"secrets": {Control: "secrets", Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "github-pat", Level: sarif.LevelError, Priority: "P1", Suppression: &sarif.Suppression{
+				Kind: "external", Justification: "a documentation example", AcceptedBy: "someone@example.test",
+			}},
+		}}},
+	}}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, sampleVerdict(), "P4"); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Findings []struct {
+			RuleID     string `json:"ruleId"`
+			Suppressed *struct {
+				Justification string `json:"justification"`
+				AcceptedBy    string `json:"acceptedBy"`
+			} `json:"suppressed"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Findings) != 1 {
+		t.Fatalf("got %d findings, want the excused one kept", len(doc.Findings))
+	}
+	got := doc.Findings[0].Suppressed
+	if got == nil {
+		t.Fatal("the excused finding is in the list and does not say it was excused")
+	}
+	if got.Justification == "" || got.AcceptedBy == "" {
+		t.Errorf("suppressed = %+v, want the reason and who accepted it", got)
 	}
 }

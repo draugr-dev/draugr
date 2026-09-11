@@ -289,3 +289,92 @@ components:
 		t.Error("a gate set to high severity passed a high finding")
 	}
 }
+
+// TestPriorityCountsAreWhatTheGateJudged is the arithmetic two real matchers make visible.
+//
+// A flaw both tools report is one flaw. Counting both copies means enabling the opt-in second
+// matcher doubles a project's reported P1 count with nothing new wrong, which reads as a
+// regression caused by improving coverage. Measured by scanning once and then again with the
+// second matcher on, and requiring the counts to hold.
+func TestPriorityCountsAreWhatTheGateJudged(t *testing.T) {
+	requireTool(t, "trivy", "the first matcher")
+	requireTool(t, "grype", "the second matcher is what makes a flaw appear twice")
+	requireTool(t, "git", "the scan checks the repository out before scanning it")
+	repo := newVulnRepo(t)
+
+	counts := func(second bool) (p1 int, results int) {
+		t.Helper()
+		dir := t.TempDir()
+		grype := ""
+		if second {
+			grype = "      grypeFs: {enabled: true}\n"
+		}
+		body := `project: counts-fixture
+release: {version: "1.0.0"}
+config:
+  gate: {failOn: critical}
+  controllers:
+    sca:
+      enabled: true
+` + grype + `components:
+  - name: api
+    exposure: public
+    criticality: critical
+    repositories:
+      - url: ` + repo + `
+`
+		descriptor := filepath.Join(dir, "draugr.saga.yaml")
+		if err := os.WriteFile(descriptor, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out := t.TempDir()
+		// #nosec G204 -- the binary under test and a descriptor this test wrote into t.TempDir().
+		cmd := exec.Command(draugrBin(t), "scan", descriptor, "--output", out, "--log-level", "warn")
+		combined, err := cmd.CombinedOutput()
+		t.Logf("second=%v exit=%v\n%s", second, err, combined)
+
+		raw, err := os.ReadFile(filepath.Join(out, "report.json")) //#nosec G304 -- under t.TempDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc struct {
+			Priorities struct {
+				P1 int `json:"p1"`
+			} `json:"priorities"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			t.Fatal(err)
+		}
+		sarifRaw, err := os.ReadFile(filepath.Join(out, "results.sarif")) //#nosec G304 -- under t.TempDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var report struct {
+			Runs []struct {
+				Results []json.RawMessage `json:"results"`
+			} `json:"runs"`
+		}
+		if err := json.Unmarshal(sarifRaw, &report); err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range report.Runs {
+			results += len(r.Results)
+		}
+		return doc.Priorities.P1, results
+	}
+
+	alone, aloneResults := counts(false)
+	both, bothResults := counts(true)
+	if alone == 0 {
+		t.Skip("this fixture's dependencies no longer produce a P1; the case cannot discriminate")
+	}
+	if bothResults <= aloneResults {
+		t.Skip("the second matcher found nothing the first did not report; nothing to correlate")
+	}
+	// The point. More results in the document, the same count of work.
+	if both != alone {
+		t.Errorf("P1 went from %d to %d when the second matcher was enabled, over %d results "+
+			"against %d. A flaw two tools report is one flaw.",
+			alone, both, bothResults, aloneResults)
+	}
+}
