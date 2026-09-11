@@ -9,13 +9,16 @@ import (
 
 // TestTheSelfScanCachesWhatItPaysFor keeps a saving from being undone without anyone noticing.
 //
-// The self-scan is the slowest check on a pull request, and almost all of it was work already
-// done: provisioning four scanners that had not changed, and re-scanning a tree that had barely
-// moved. Both are cached now, and a cache is the kind of thing that survives being deleted.
-// Nothing fails, the job simply goes back to taking four minutes, and by then the reason is
-// somewhere in a diff nobody is looking at.
+// The self-scan is the slowest check on a pull request, and most of it is work already done:
+// provisioning four scanners that have not changed, and re-scanning a tree that has barely moved.
+// A cache is the kind of thing that survives being deleted, nothing fails, the job simply goes
+// back to taking four minutes, and by then the reason is somewhere in a diff nobody is reading.
 //
-// The pairing is what this asserts, because either half alone does nothing: a cache step whose
+// Scan results are the exception, and only while
+// https://github.com/draugr-dev/draugr/issues/999 stands: a repository that declares no revision
+// has one cache identity for its whole life, so an entry outlives the commit it described. A gate
+// reporting a verdict computed from a different tree is worse than a slow one. So the rule here is
+// the pairing rather than the presence, because either half alone does nothing: a cache step whose
 // path the action never writes, or a cache-dir the workflow never restores.
 func TestTheSelfScanCachesWhatItPaysFor(t *testing.T) {
 	t.Parallel()
@@ -56,10 +59,6 @@ func TestTheSelfScanCachesWhatItPaysFor(t *testing.T) {
 		}
 	}
 
-	if scanCacheDir == "" {
-		t.Error("the self-scan runs without cache-dir, so every run re-scans a tree that has not " +
-			"changed, and the content-hash caching Draugr offers users goes untested here")
-	}
 	if scanCacheDir != "" && !cached[scanCacheDir] {
 		t.Errorf("the scan writes its cache to %q and no cache step restores it, so it is "+
 			"rebuilt from nothing on every run", scanCacheDir)
