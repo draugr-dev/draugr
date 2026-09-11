@@ -172,17 +172,17 @@ passed or failed.
 
 ### Configuring it
 
-The gate is driven by `--fail-on` (a severity level) and, optionally, `--fail-on-priority`
+The gate is driven by `--fail-on`, which takes a priority band or a severity
 (a component-aware priority band) on `draugr scan`:
 
 ```bash
 draugr scan draugr.saga.yaml                       # fail on error (default)
 draugr scan draugr.saga.yaml --fail-on warning     # stricter: warnings fail too
-draugr scan draugr.saga.yaml --fail-on-priority P1 # also fail on any P1 finding
+draugr scan draugr.saga.yaml --fail-on P1         # the default: fail on any P1 finding
 ```
 
 The run fails if **either** gate trips. Because a finding's priority already folds in its
-component's `exposure` and `criticality`, `--fail-on-priority` gates per component without a
+component's `exposure` and `criticality`, a band in `--fail-on` gates per component without a
 per-component threshold. See [prioritization](../concepts/prioritization.md). Richer policy
 (waivers/exemptions, OPA/Rego) is planned; it'll be expressed in the Saga so the gate travels with
 the app.

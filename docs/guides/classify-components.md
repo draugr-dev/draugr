@@ -69,5 +69,5 @@ already **proposes** each component's `exposure` from topology (Ingress/external
 `public`, NetworkPolicy → `restricted`, else `internal`); review it, then fill in `criticality`. A
 component left **unclassified** is treated as high-risk, so nothing slips.
 
-Once classified, focus with `--min-priority P2` and gate with `--fail-on-priority P1` (see the
+Once classified, focus with `--min-priority P2`; the gate is already `--fail-on P1` (see the
 [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir)).
