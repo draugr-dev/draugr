@@ -259,9 +259,15 @@ ACCEPTED
   VEX  1 finding excused · 1 asserted by Platform Team <platform@example.internal>
 ```
 
-And a statement that matched nothing is reported too, because a document doing nothing looks
-exactly like one that is working. Usually it means the supplier and the scanner name a package
-differently.
+A statement that matched nothing gets a block of its own, because a document doing nothing looks
+exactly like one that is working, and it is named by the vulnerability and package that did not line
+up rather than counted. Usually the supplier and the scanner name the same package differently, and
+the two names side by side are what shows it:
+
+```console
+UNMATCHED
+  VEX  CVE-2023-45803 · pkg:pypi/urllib3
+```
 
 ### What you are accepting
 

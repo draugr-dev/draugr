@@ -19,6 +19,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
+	"github.com/draugr-dev/draugr/pkg/vex"
 )
 
 // update rewrites the golden files instead of comparing against them:
@@ -174,6 +175,20 @@ func goldenFullData() Data {
 		// One suppression signed and one not, because the line renders them differently and an
 		// element the fixture omits is an element the golden does not pin. This is the account
 		// of who decided what, which is the half of a suppression an auditor comes for.
+		//
+		// A rule whose date passed and a rule that matched nothing, which are the two ways a
+		// descriptor can claim a decision it is not making. They render in different places and at
+		// different weights, so a fixture carrying neither pins the easy half of the block.
+		LapsedExclusions: []saga.ExcludeRule{{
+			Rules: []string{"CVE-2021-0001"}, Expires: "2026-01-31",
+			AcceptedBy: "a.reviewer@example.com", Reason: "waiting on the upstream release",
+		}},
+		UnmatchedExclusions: []saga.ExcludeRule{{
+			Paths: []string{"tests*"}, Reason: "test files that are not deployed",
+		}},
+		UnmatchedClaims: []vex.Claim{{
+			Vulnerability: "CVE-2023-45803", PURL: "pkg:pypi/urllib3",
+		}},
 		SBOMs: []sbom.Document{{Format: "spdx-json"}, {Format: "spdx-json"}},
 	}
 	verdict := norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
