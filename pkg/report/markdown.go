@@ -35,6 +35,9 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "| Findings | %d | %d | %d | %d |\n\n", s.p1, s.p2, s.p3, s.p4)
 	}
 
+	// Beside the bands it qualifies, which is where the console and the page put it.
+	writeSignalRows(w, d, s)
+
 	if len(d.Verdict.Controls) > 0 || len(s.errored) > 0 {
 		_, _ = fmt.Fprintf(w, "### Controls\n\n")
 		// Bands, because the verdict, the components and the gate all talk about priority, and a
@@ -72,21 +75,19 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w)
 		writeScanErrors(w, s)
 		writeNotMeasuredRows(w, d)
-		writeRepositories(w, d)
-		writeProvenance(w, d)
-		writeExploitability(w, d)
 	}
 
 	writeComponentTable(w, d)
-	writeSignalRows(w, d, s)
-	writeEvidenceNotes(w, d, s)
+	writeEvidenceNotes(w, d)
 
 	if len(s.findings) == 0 {
 		if len(s.scanErrors) > 0 {
 			_, _ = fmt.Fprintln(w, "No findings from the controls that ran. See the errors reported above.")
-			return nil
+		} else {
+			_, _ = fmt.Fprintln(w, "No findings. ✓")
 		}
-		_, _ = fmt.Fprintln(w, "No findings. ✓")
+		_, _ = fmt.Fprintln(w)
+		writeRunEvidence(w, d, s)
 		return nil
 	}
 
@@ -133,6 +134,8 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	if len(s.findings) > markdownTopN {
 		_, _ = fmt.Fprintf(w, "\n_…and %d more finding(s)._\n", len(s.findings)-markdownTopN)
 	}
+	_, _ = fmt.Fprintln(w)
+	writeRunEvidence(w, d, s)
 	return nil
 }
 
@@ -174,7 +177,7 @@ func writeScanErrors(w io.Writer, s summary) {
 
 // writeEvidenceNotes records what the run set aside and what it produced alongside the findings.
 // A suppression that leaves no trace reads exactly like a finding that was never made.
-func writeEvidenceNotes(w io.Writer, d Data, s summary) {
+func writeEvidenceNotes(w io.Writer, d Data) {
 	// A table rather than three bold sentences with blank lines between them. Each of these is a
 	// decision with somebody at the end of it, and a sentence cannot be read down a column or
 	// counted. Named in full here: a rendered report is read once and kept, often by somebody
@@ -255,13 +258,32 @@ func writeEvidenceNotes(w io.Writer, d Data, s summary) {
 		_, _ = fmt.Fprintln(w)
 	}
 
-	if s.sboms > 0 {
-		_, _ = fmt.Fprintf(w, "_SBOM: %s (%s)._\n\n", plural(s.sboms, "document"), s.sbomFormat)
-	}
-	// What the verdict was measured against. A report that does not say what stopped the build
-	// cannot be checked by anybody who was not there when it ran.
+}
+
+// writeRunEvidence is what stands behind the verdict rather than what it found.
+//
+// One section at the end. These were four bold paragraphs and two italic lines scattered between
+// the tables, and a line with a blank one either side belongs to whichever section the reader
+// happens to attach it to.
+func writeRunEvidence(w io.Writer, d Data, s summary) {
+	var body strings.Builder
 	if line := gateSentence(d); line != "" {
-		_, _ = fmt.Fprintf(w, "_%s_\n\n", line)
+		_, _ = fmt.Fprintf(&body, "- **Gate:** %s\n", strings.TrimPrefix(line, "Gate: "))
+	}
+	if s.sboms > 0 {
+		_, _ = fmt.Fprintf(&body, "- **SBOM:** %s (%s)\n", plural(s.sboms, "document"), s.sbomFormat)
+	}
+	writeRepositories(&body, d)
+	writeProvenance(&body, d)
+	writeExploitability(&body, d)
+	if body.Len() == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "### Evidence")
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprint(w, body.String())
+	if !strings.HasSuffix(body.String(), "\n\n") {
+		_, _ = fmt.Fprintln(w)
 	}
 }
 
@@ -273,10 +295,9 @@ func writeRepositories(w io.Writer, d Data) {
 	if len(d.Repositories) == 0 {
 		return
 	}
-	_, _ = fmt.Fprintln(w, "**Scanned**")
-	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintf(w, "- **Scanned**\n")
 	for _, r := range d.Repositories {
-		line := "- `" + r.URL + "`"
+		line := "  - `" + r.URL + "`"
 		if rev := r.Short(); rev != "" {
 			line += " at `" + rev + "`"
 		}
@@ -285,7 +306,6 @@ func writeRepositories(w io.Writer, d Data) {
 		}
 		_, _ = fmt.Fprintln(w, line)
 	}
-	_, _ = fmt.Fprintln(w)
 }
 
 func writeProvenance(w io.Writer, d Data) {
@@ -293,14 +313,13 @@ func writeProvenance(w io.Writer, d Data) {
 	if len(lines) == 0 {
 		return
 	}
-	_, _ = fmt.Fprintln(w, "**Measured against**")
-	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintf(w, "- **Measured against**\n")
 	for _, l := range lines {
 		if l.Detail == "" {
-			_, _ = fmt.Fprintf(w, "- `%s` · %s\n", l.Control, l.Label())
+			_, _ = fmt.Fprintf(w, "  - `%s` · %s\n", l.Control, l.Label())
 			continue
 		}
-		_, _ = fmt.Fprintf(w, "- `%s` · %s: %s\n", l.Control, l.Label(), l.Detail)
+		_, _ = fmt.Fprintf(w, "  - `%s` · %s: %s\n", l.Control, l.Label(), l.Detail)
 	}
 	_, _ = fmt.Fprintln(w)
 }
@@ -342,8 +361,7 @@ func writeExploitability(w io.Writer, d Data) {
 	if len(d.Exploitability) == 0 {
 		return
 	}
-	_, _ = fmt.Fprintln(w, "**Exploitability data**")
-	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintf(w, "- **Exploitability data**\n")
 	for _, f := range d.Exploitability {
 		when := "supplied as a file"
 		if !f.FetchedAt.IsZero() {
@@ -352,7 +370,7 @@ func writeExploitability(w io.Writer, d Data) {
 		if f.Stale {
 			when += " · **stale**"
 		}
-		_, _ = fmt.Fprintf(w, "- `%s` · %s\n", f.Name, when)
+		_, _ = fmt.Fprintf(w, "  - `%s` · %s\n", f.Name, when)
 	}
 	_, _ = fmt.Fprintln(w)
 }

@@ -1021,7 +1021,7 @@ const htmlDoc = `<!doctype html>
   {{if .Errors}}<a class="tab err" href="#errors">Errors</a>{{end}}
   <a class="tab" href="#findings-h">Findings</a>
   {{if or .Suppressed .Decisions .Unmatched .Excluded}}<a class="tab" href="#suppressed">Accepted</a>{{end}}
-  {{if or .Gate .SBOMCount .Slowest}}<a class="tab" href="#timing">Evidence</a>{{end}}
+  {{if or .Gate .SBOMCount .Slowest .Scanned .Provenance .Exploitability}}<a class="tab" href="#timing">Evidence</a>{{end}}
   <a class="tab" href="#about">About</a>
   <span class="spacer"></span>
   <span class="themes" id="themes" hidden role="group" aria-label="Color theme">
@@ -1082,40 +1082,6 @@ the component is, so the same issue ranks differently on a public API than on an
   </span>{{end}}
 </li>{{end}}
 </ul>
-{{if .Exploitability}}
-<details class="fold sub" open><summary class="sub"><span class="sub">Exploitability data</span></summary>
-<table class="provenance">
-<thead><tr><th scope="col">Feed</th><th scope="col">Obtained</th><th scope="col">Digest</th></tr></thead>
-<tbody>
-{{range .Exploitability}}<tr><td>{{.Name}}</td><td>{{.Obtained}}</td><td>{{.Digest}}</td></tr>{{end}}
-</tbody>
-</table>
-</details>
-{{end}}
-{{if .Scanned}}
-<details class="fold sub" open><summary class="sub"><span class="sub">Scanned</span></summary>
-<table class="provenance">
-<thead><tr><th scope="col">Repository</th><th scope="col">Revision</th><th scope="col">Not included</th></tr></thead>
-<tbody>
-{{range .Scanned}}<tr>
-  <td>{{.Name}}{{if .Local}} <span class="ctl-none">local checkout, no remote</span>{{end}}</td>
-  <td><code>{{.Revision}}</code></td>
-  <td>{{if .Uncommitted}}{{.Uncommitted}} uncommitted{{else}}&mdash;{{end}}</td>
-</tr>{{end}}
-</tbody>
-</table>
-</details>
-{{end}}
-{{if .Provenance}}
-<details class="fold sub" open><summary class="sub"><span class="sub">Measured against</span></summary>
-<table class="provenance">
-<thead><tr><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Run</th></tr></thead>
-<tbody>
-{{range .Provenance}}<tr><td>{{.Control}}</td><td>{{.Label}}</td><td>{{.Detail}}</td></tr>{{end}}
-</tbody>
-</table>
-</details>
-{{end}}
 </details>
 {{end}}
 
@@ -1275,7 +1241,7 @@ about what they would have found. For everything the tool printed, re-run with
 </details>
 {{end}}
 
-{{if or .Gate .SBOMCount .Slowest}}
+{{if or .Gate .SBOMCount .Slowest .Scanned .Provenance .Exploitability}}
 <details class="fold" open><summary id="timing"><span class="sec">Evidence</span></summary>
 <p class="note">What stands behind the verdict rather than what it found.</p>
 
@@ -1287,6 +1253,44 @@ about what they would have found. For everything the tool printed, re-run with
 </tbody>
 </table>
 {{end}}
+
+{{if .Scanned}}
+<details class="fold sub" open><summary class="sub"><span class="sub">Scanned</span></summary>
+<table class="provenance">
+<thead><tr><th scope="col">Repository</th><th scope="col">Revision</th><th scope="col">Not included</th></tr></thead>
+<tbody>
+{{range .Scanned}}<tr>
+  <td>{{.Name}}{{if .Local}} <span class="ctl-none">local checkout, no remote</span>{{end}}</td>
+  <td><code>{{.Revision}}</code></td>
+  <td>{{if .Uncommitted}}{{.Uncommitted}} uncommitted{{else}}&mdash;{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+</details>
+{{end}}
+
+{{if .Provenance}}
+<details class="fold sub" open><summary class="sub"><span class="sub">Measured against</span></summary>
+<table class="provenance">
+<thead><tr><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Run</th></tr></thead>
+<tbody>
+{{range .Provenance}}<tr><td>{{.Control}}</td><td>{{.Label}}</td><td>{{.Detail}}</td></tr>{{end}}
+</tbody>
+</table>
+</details>
+{{end}}
+
+{{if .Exploitability}}
+<details class="fold sub" open><summary class="sub"><span class="sub">Exploitability data</span></summary>
+<table class="provenance">
+<thead><tr><th scope="col">Feed</th><th scope="col">Obtained</th><th scope="col">Digest</th></tr></thead>
+<tbody>
+{{range .Exploitability}}<tr><td>{{.Name}}</td><td>{{.Obtained}}</td><td>{{.Digest}}</td></tr>{{end}}
+</tbody>
+</table>
+</details>
+{{end}}
+
 
 {{if .Slowest}}
 <details class="fold sub" open><summary class="sub"><span class="sub">Where the time went</span></summary>
