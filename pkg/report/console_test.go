@@ -80,7 +80,7 @@ func TestRunLineReportsWaitingOnce(t *testing.T) {
 			name: "waiting, alongside a saving",
 			st: engine.Stats{Jobs: 17, Duration: 18200 * time.Millisecond, CacheHits: 4,
 				ToolWaits: map[string]time.Duration{"trivy": 11 * time.Second}},
-			want: "Ran 17 jobs in 18.2s · 4 from cache, 11s waiting for the trivy cache.",
+			want: "Ran 17 jobs in 18.2s · 4 from cache · 11s waiting for the trivy cache.",
 		},
 		{
 			// Too short to perceive, so it explains nothing and only competes with the findings.
@@ -201,7 +201,7 @@ func TestALoosenedGateIsSaidWithoutAsking(t *testing.T) {
 		{
 			name: "one control let off",
 			gate: GateSettings{Threshold: "high", PerControl: map[string]sarif.Severity{"licenses": "critical"}},
-			want: "except licenses on critical",
+			want: "licenses fails on critical severity",
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -234,7 +234,7 @@ func TestAGateSomebodyChoseSaysSo(t *testing.T) {
 		{
 			"a per-control threshold",
 			GateSettings{Threshold: "high", PerControl: map[string]sarif.Severity{"secrets": "low"}},
-			"except secrets on low",
+			"secrets fails on low severity",
 		},
 		{"a band other than the default", GateSettings{FailOnPriority: "P3"}, "fails on P3"},
 	} {
@@ -278,7 +278,7 @@ func TestGateOverridesAreNamedAndOrdered(t *testing.T) {
 	g := GateSettings{Threshold: "high", PerControl: map[string]sarif.Severity{
 		"licenses": "critical", "iac": "critical", "sca": "critical",
 	}}
-	want := "iac on critical, licenses on critical, sca on critical"
+	want := "iac fails on critical severity · licenses fails on critical severity · sca fails on critical severity"
 	for range 5 {
 		if got := gateOverrides(g); got != want {
 			t.Fatalf("gateOverrides = %q, want %q", got, want)

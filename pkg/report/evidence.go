@@ -21,7 +21,6 @@ type evidenceReporter struct{}
 func (evidenceReporter) Format() string { return "evidence" }
 
 func (evidenceReporter) Render(w io.Writer, d Data) error {
-	s := summarize(d)
 	col := tui.For(w)
 
 	_, _ = fmt.Fprintf(w, "Draugr evidence · %s", releaseLabel(d))
@@ -31,7 +30,12 @@ func (evidenceReporter) Render(w io.Writer, d Data) error {
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
 
-	writeEvidence(w, col, d, s)
+	// What was set aside, named in full. The console says how much and where the decision lives,
+	// because somebody reading it is deciding what to fix; this document is the one an auditor
+	// reads, and the question they arrive with is who decided.
+	writeAccepted(w, col, d, true)
+
+	writeEvidence(w, col, d, "")
 
 	// The verdict last, because this document exists to say what stands behind it. A reader who
 	// wanted only the verdict has it in every other format.

@@ -17,25 +17,24 @@ WHAT TO DO  5 actions clear 6 findings
 … and 2 actions not listed.
 
 CONTROLS
-  iac       FAIL   1 high 1 medium
-  licenses  pass   1 medium
-  sast      FAIL   1 high
-  sca       FAIL   1 critical 2 high 1 low
+  iac       FAIL   P1 1 P3 1
+  licenses  pass   P3 1
+  sast      FAIL   P2 1
+  sca       FAIL   P1 2 P2 1 P4 1
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
 MEASURED AGAINST
   iac       trivy 0.69.3
-  licenses  trivy-license 0.69.3 · policy deny copyleft
+  licenses  trivy-license 0.69.3 · policy: deny copyleft
 
 COMPONENTS
-  payments       FAIL   P1 3  P2 2  P3 1  sca, secrets
+  payments       FAIL   P1 3 P2 2 P3 1
   internal-tool  pass   no findings
   2 findings not tied to a component (project-wide controls)
 
-2 findings suppressed by config.exclude · 1 accepted by a.reviewer, 1 unattributed
-
-SBOM: 2 documents (spdx-json)
+ACCEPTED
+  config.exclude  2 findings suppressed
 
 TRY
   --top 0                every one of them, not the first ten

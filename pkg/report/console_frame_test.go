@@ -63,9 +63,9 @@ func TestComponentColumnOnlyWhenItDistinguishes(t *testing.T) {
 	}
 }
 
-// The engine has recorded this since caching was added and nothing showed it, which left
-// `--cache-dir` unverifiable at a terminal: the run is faster, and whether the cache did it is a
-// question the output did not answer.
+// A reader looking at this line is asking why the run took as long as it did, and the two answers
+// available are "it was waiting" and "one control is slow". Anything that is neither is a number
+// they cannot act on.
 func TestRunLine(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -98,16 +98,20 @@ func TestRunLine(t *testing.T) {
 			want:  "Ran 11 jobs in 3s · 4 from cache.",
 		},
 		{
-			// Two components sharing a repository plan two jobs and one scan answers both. Without
-			// a name for it, a reader counting jobs against scans finds a discrepancy and no cause.
-			name:  "a shared scan is a different saving from a cache hit",
+			// The scheduler's own bookkeeping, true and unactionable. It stays in report.json.
+			name:  "a shared scan is not the reader's problem",
 			stats: engine.Stats{Jobs: 16, Deduped: 5, Duration: 4951 * time.Millisecond},
-			want:  "Ran 16 jobs in 4.951s · 5 shared with an identical job.",
+			want:  "Ran 16 jobs in 4.951s.",
 		},
 		{
-			name:  "both savings",
-			stats: engine.Stats{Jobs: 11, CacheHits: 4, Deduped: 1, Duration: 34500 * time.Millisecond},
-			want:  "Ran 11 jobs in 34.5s · 4 from cache, 1 shared with an identical job.",
+			// How many ran at once says whether more parallelism is available; which control took
+			// longest says whether it would help.
+			name: "what to do about a slow run",
+			stats: engine.Stats{
+				Jobs: 30, Concurrency: 8, Duration: 12 * time.Second,
+				ByControl: map[string]time.Duration{"sca": 9 * time.Second, "iac": 2 * time.Second},
+			},
+			want: "Ran 30 jobs in 12s, 8 at a time · sca took the most scanner time, 9s.",
 		},
 	}
 	for _, tc := range tests {

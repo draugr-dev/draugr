@@ -81,7 +81,7 @@ func TestTheGateDecidesAndSaysWhy(t *testing.T) {
 			gate:     "    failOn: low\n    controls:\n      secrets: critical\n",
 			exposure: "public", criticality: "critical",
 			wantFail: false,
-			wantOut:  "except secrets on critical",
+			wantOut:  "secrets fails on critical severity",
 		},
 		{
 			// The gate the product recommends, refined for one control. Every per-control case
@@ -98,7 +98,7 @@ func TestTheGateDecidesAndSaysWhy(t *testing.T) {
 			controls: "    iac: {enabled: true}\n",
 			exposure: "restricted", criticality: "supporting",
 			wantFail: true,
-			wantOut:  "fails on P2, except iac on P3",
+			wantOut:  "fails on P2 · iac fails on P3",
 		},
 		{
 			// The same descriptor without the override, so the failure above is the override's
@@ -125,7 +125,7 @@ func TestTheGateDecidesAndSaysWhy(t *testing.T) {
 			controls: "    iac: {enabled: true}\n",
 			exposure: "public", criticality: "critical",
 			wantFail: true,
-			wantOut:  "Gate: fails on P1, except iac on P2",
+			wantOut:  "Gate: fails on P1 · iac fails on P2",
 		},
 		{
 			// `secrets` declares a context floor, so a leaked credential reaches P1 on a
@@ -208,7 +208,8 @@ components:
 	if err != nil {
 		t.Errorf("a suppressed finding failed the gate: %v", err)
 	}
-	if !strings.Contains(string(combined), "suppressed by config.exclude") {
+	if !strings.Contains(string(combined), "config.exclude") ||
+		!strings.Contains(string(combined), "finding suppressed") {
 		t.Errorf("the report does not say what was set aside:\n%s", combined)
 	}
 

@@ -684,11 +684,20 @@ type Field struct {
 	Value string `json:"value"`
 }
 
-// Describe returns the fields as "key value" pairs, for a reporter with one line to spend.
+// Describe returns the fields as "key: value" pairs, for a reporter with one line to spend.
+//
+// Punctuated, because a value is not always a phrase. "benchmark CIS 1.9" reads whichever way it is
+// written, and "coverage this repository has no go.mod, so its findings carry no verdict" reads as
+// a sentence that starts with a word left over from somewhere else. The colon is what says the
+// first word names the rest rather than beginning it.
 func (p Provenance) Describe() string {
 	parts := make([]string, 0, len(p.Fields))
 	for _, f := range p.Fields {
-		parts = append(parts, f.Key+" "+f.Value)
+		if f.Key == "" {
+			parts = append(parts, f.Value)
+			continue
+		}
+		parts = append(parts, f.Key+": "+f.Value)
 	}
 	return strings.Join(parts, " · ")
 }

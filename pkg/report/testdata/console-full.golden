@@ -3,23 +3,24 @@ DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
  P1 3 P2 2 P3 2 P4 1
 
 CONTROLS
-  iac       FAIL   1 high 1 medium
-  licenses  pass   1 medium
-  sast      FAIL   1 high
-  sca       FAIL   1 critical 2 high 1 low
+  iac       FAIL   P1 1 P3 1
+  licenses  pass   P3 1
+  sast      FAIL   P2 1
+  sca       FAIL   P1 2 P2 1 P4 1
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
 MEASURED AGAINST
   iac       trivy 0.69.3
-  licenses  trivy-license 0.69.3 · policy deny copyleft
+  licenses  trivy-license 0.69.3 · policy: deny copyleft
 
 COMPONENTS
-  payments       FAIL   P1 3  P2 2  P3 1  sca, secrets
+  payments       FAIL   P1 3 P2 2 P3 1
   internal-tool  pass   no findings
   2 findings not tied to a component (project-wide controls)
 
-2 findings suppressed by config.exclude · 1 accepted by a.reviewer, 1 unattributed
+ACCEPTED
+  config.exclude  2 findings suppressed
 
 FIX FIRST  top 5 of 8, by priority
   Priority  Severity  Rule                                    Scanner  Component      Location                Upgrade
@@ -35,8 +36,6 @@ FIX FIRST  top 5 of 8, by priority
             Detected user input flowing into a raw SQL string
 
 … and 3 findings not listed.
-
-SBOM: 2 documents (spdx-json)
 
 TRY
   --top 0                every one of them, not the first ten

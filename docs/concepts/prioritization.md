@@ -221,18 +221,30 @@ than one that stops.
 
 ### What the report says about it
 
-A run that used exploitability data says so, says which copy, and says what it changed:
+A run says what moved its ranking, beside everything else that moved it:
 
 ```
-Exploitability: KEV 2026-08-01 · EPSS 2026-08-02 · 3 findings raised
+SIGNALS
+  KEV           2 findings raised
+  EPSS          1 finding raised
+  reachability  govulncheck · 2 reachable, 2 unreachable
 ```
 
 **"nothing raised" is printed when nothing moved**, because that is a result rather than an
 absence. Without it, the only way to learn that a feed changed nothing is to read every finding
-looking for a note that is not there, and then wonder whether you missed one.
+looking for a mark that is not there, and then wonder whether you missed one.
 
 The count is over the whole run, not the visible listing, `--top` and `--min-priority` narrow what
-is shown, and this answers what the feeds did, not what fitted on the page.
+is shown, and this answers what the signals did, not what fitted on the page.
+
+Which copy of each feed was read, and when it was fetched, is provenance rather than effect, so it
+is under [`--evidence`](../reference/cli.md#draugr-scan-sagayaml--dir) with the rest of what the run
+read:
+
+```
+EVIDENCE
+  Exploitability: KEV 2026-08-01 · EPSS 2026-08-02
+```
 
 Each finding that was actually moved carries the reason underneath it:
 

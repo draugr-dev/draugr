@@ -74,7 +74,9 @@ func TestEvidenceAndTheModeAgree(t *testing.T) {
 	}
 	for _, line := range strings.Split(console.String(), "\n") {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.Contains(plain.String(), line) {
+		// The console puts the block under a heading of its own; the document is all provenance and
+		// carries its own title instead.
+		if line == "" || line == "EVIDENCE" || strings.Contains(plain.String(), line) {
 			continue
 		}
 		if !strings.Contains(doc.String(), line) {

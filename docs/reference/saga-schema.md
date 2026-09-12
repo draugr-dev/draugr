@@ -319,12 +319,11 @@ why. The severity the scanner reported is unchanged: reachability feeds the
 [priority](../concepts/prioritization.md) matrix, exactly as exploitability enrichment does in the
 other direction, and where exploitability has already raised a finding that wins.
 
-The report carries a block of its own, with a row per analyzer:
+The report says what it decided, beside everything else that moved a ranking:
 
 ```console
-REACHABILITY
-  govulncheck  2 reachable, 6 unreachable
-  Unreachable findings are ranked down in priority, not removed from the report.
+SIGNALS
+  reachability  govulncheck · 2 reachable, 6 unreachable
 ```
 
 and every finding whose band moved says so, the way an escalated one does:
@@ -920,7 +919,8 @@ closed-as-suppressed and an auditor can see exactly what was set aside and why. 
 counting: no summary, no verdict, no fix-first row. The console says how many:
 
 ```
-5 findings suppressed by config.exclude
+ACCEPTED
+  config.exclude  5 findings suppressed
 ```
 
 That line is the point. An exclusion that left no trace would read exactly like a finding that
@@ -940,11 +940,12 @@ is who decided this was acceptable, and when. `reason` answers why; the other tw
 and they are separate fields rather than prose because a name buried in a sentence cannot be
 reported on.
 
-`acceptedBy` is optional so existing descriptors keep working, and the console says how many
+`acceptedBy` is optional so existing descriptors keep working, and `--evidence` says how many
 suppressions have nobody attached:
 
 ```
-5 findings suppressed by config.exclude (2 unattributed)
+ACCEPTED
+  config.exclude  5 findings suppressed · 3 accepted by you@example.com, 2 unattributed
 ```
 
 ### Declaring what a suppression means in VEX
@@ -988,8 +989,9 @@ and the finding comes back, with the report saying the exclusion lapsed, so a fi
 be accepted does not simply reappear unexplained:
 
 ```
-1 exclusion expired and no longer suppressing:
-  expired 2026-08-14, accepted by Wilson Santos · Upstream fix lands in v2.4…
+ACCEPTED
+  config.exclude  4 findings suppressed · 1 expired and no longer suppressing
+                  expired 2026-08-14, accepted by Wilson Santos · Upstream fix lands in v2.4…
 ```
 
 An exclusion accepted "until the upstream fix lands" otherwise has nothing that brings the
@@ -1004,16 +1006,27 @@ a package name contains slashes, so a wildcard that stopped at `/` couldn't expr
 whichever package".
 
 A wide pattern is safe to use because it is **loud**. Nothing is deleted, so `rules: ["*"]`
-reports `N findings suppressed by config.exclude` and every one of them sits in the SARIF with
+reports `config.exclude: N findings suppressed` and every one of them sits in the SARIF with
 your justification. An exclusion that swallowed more than you meant shows up in the count.
 
 The report counts three kinds of acceptance separately, because they have different people at the
 end of them and one total could only support the weakest:
 
 ```console
-5 findings suppressed by config.exclude · 3 accepted by you@example.com, 2 unattributed
-1 finding excused by a supplier's VEX · 1 asserted by ACME Security <sec@acme.example>
-2 findings silenced in the source by a scanner directive · nobody signed these
+ACCEPTED
+  config.exclude     5 findings suppressed
+  VEX                1 finding excused
+  source directives  2 findings silenced, and nobody signed them
+```
+
+Who accepted each one is asked of the evidence rather than of a scan somebody is reading to find
+out what to fix, so `--evidence` adds it:
+
+```console
+ACCEPTED
+  config.exclude     5 findings suppressed · 3 accepted by you@example.com, 2 unattributed
+  VEX                1 finding excused · 1 asserted by ACME Security <sec@acme.example>
+  source directives  2 findings silenced, and nobody signed them
 ```
 
 The last is a `# nosemgrep`, a linter pragma, or anything else a scanner honors from a comment in
@@ -1246,13 +1259,12 @@ the four, rather than failing after the scan has run.
 verdict the gate acts on. An SBOM finds nothing, so it has no verdict to give; a control row
 that always reads "pass" without having looked is exactly the meaningless green Draugr exists
 to remove. So SBOMs are evidence: they never appear in the controls table and never affect
-pass or fail. The console reports them on their own line:
+pass or fail, and the console reports what was written where it reports the rest of what the run
+did, under `--evidence`:
 
 ```
-CONTROLS
-  secrets  FAIL   1 high
-
-SBOM: 2 documents (cyclonedx-json)
+EVIDENCE
+  SBOM: 2 documents (cyclonedx-json)
 ```
 
 ### One document per target, or one per product
@@ -1278,7 +1290,8 @@ config:
 ```
 
 ```
-SBOM: 1 project document (cyclonedx-json)
+EVIDENCE
+  SBOM: 1 project document (cyclonedx-json)
 ```
 
 The assembled document is written as `sbom-project.cdx.json`. Its root component is the release,
@@ -1436,8 +1449,9 @@ looks scoped and lists somebody else's namespaces against this component, so the
 planned, and the report says so, under **Not measured**, naming the scanner and the component:
 
 ```
-Not measured:
-  infrastructure  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed to namespace team-a
+NOT MEASURED
+  infrastructure  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed
+                  to namespace team-a
 ```
 
 Nothing has to be turned off by hand. To get both, node-level checks over the whole cluster, and API
