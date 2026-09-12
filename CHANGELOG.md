@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.119.1] - 2026-09-12
+
+### Fixed
+
+- **A mark never takes a line of its own.** A finding whose band was argued with opens its line
+  with `↑ KEV` or `↓ unreachable`, and where the sentence beside it did not fit, the mark used to
+  move to a line by itself. Two words between two rows that are one line each read as a row that
+  broke rather than one that is long, so the sentence gives way instead, cut at the width every
+  sentence Draugr prints is cut at.
+
 ## [0.119.0] - 2026-09-12
 
 ### Added
@@ -5488,7 +5498,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.119.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.119.1...HEAD
+[0.119.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.119.1
 [0.119.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.119.0
 [0.118.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.118.0
 [0.117.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.117.0
