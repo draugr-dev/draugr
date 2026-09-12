@@ -16,6 +16,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 func sampleData() Data {
@@ -78,14 +79,15 @@ func TestConsoleRender(t *testing.T) {
 	s := b.String()
 	// "by priority" rather than "Fix first:": the heading now says whether the table is a
 	// shortlist or the whole set, and this fixture is small enough to be the whole set.
-	for _, want := range []string{"Draugr · FAIL", "app 1.0", "Priorities:", "P1 1", "by priority", "CVE-1", "critical", "1 high"} {
+	for _, want := range []string{"DRAUGR  FAIL", "app 1.0", "P1 1", "by priority", "CVE-1", "critical", "1 high"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console output missing %q\n%s", want, s)
 		}
 	}
-	// The fix-first table carries a header (so newcomers can read it) and a Scanner column
-	// naming the tool that flagged each finding.
-	for _, want := range []string{"Scanner", "Control", "Location", "trivy", "gitleaks"} {
+	// The fix-first table carries a header (so newcomers can read it) and a Scanner column naming
+	// the tool that flagged each finding, which is most of what somebody deciding whether to
+	// believe a row is deciding about.
+	for _, want := range []string{"Scanner", "Location", "trivy", "gitleaks"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console fix-first table missing %q\n%s", want, s)
 		}
@@ -279,7 +281,7 @@ func TestConsoleTruncatesUnprioritized(t *testing.T) {
 	if strings.Contains(s, "Priorities:") {
 		t.Error("unprioritized run should not print a priorities line")
 	}
-	if !strings.Contains(s, "and 5 more") {
+	if !strings.Contains(s, "and 5 findings not listed") {
 		t.Errorf("expected truncation of 15 → 10 shown + 5 more:\n%s", s)
 	}
 }
@@ -305,11 +307,11 @@ func TestConsoleTopN(t *testing.T) {
 	}
 
 	// TopN 5 → 5 shown, "and 10 more".
-	if s := render(5); !strings.Contains(s, "and 10 more") {
+	if s := render(5); !strings.Contains(s, "and 10 findings not listed") {
 		t.Errorf("--top 5 of 15 should show 10 more:\n%s", s)
 	}
 	// TopN -1 (all) → no truncation tail.
-	if s := render(-1); strings.Contains(s, "more finding(s)") {
+	if s := render(-1); strings.Contains(s, "not listed") {
 		t.Errorf("--top 0/all should not truncate:\n%s", s)
 	}
 	// TopN larger than the finding count → no truncation tail.
@@ -545,7 +547,7 @@ func TestLongRuleIDStaysWholeInJSON(t *testing.T) {
 func TestCompactAffectsOnlyTheMachineFormats(t *testing.T) {
 	base := sampleData()
 	compact := sampleData()
-	compact.Compact = true
+	compact.View = ViewCompact
 
 	for _, format := range []string{"json", "sarif"} {
 		var full, lean bytes.Buffer
@@ -562,17 +564,35 @@ func TestCompactAffectsOnlyTheMachineFormats(t *testing.T) {
 			t.Errorf("%s: compact output is not valid JSON", format)
 		}
 	}
-	for _, format := range []string{"console", "markdown"} {
-		var full, lean bytes.Buffer
-		if err := reporters[format].Render(&full, base); err != nil {
-			t.Fatalf("%s: %v", format, err)
-		}
-		if err := reporters[format].Render(&lean, compact); err != nil {
-			t.Fatalf("%s compact: %v", format, err)
-		}
-		if full.String() != lean.String() {
-			t.Errorf("%s should ignore --compact", format)
-		}
+	// The console has a dense form of its own: the same columns with the explanation on the row
+	// rather than under it. Denser, and still the same report.
+	consoleFull, consoleLean := goldenEnrichedData(), goldenEnrichedData()
+	consoleLean.View = ViewCompact
+	var full, lean bytes.Buffer
+	if err := reporters["console"].Render(&full, consoleFull); err != nil {
+		t.Fatalf("console: %v", err)
+	}
+	if err := reporters["console"].Render(&lean, consoleLean); err != nil {
+		t.Fatalf("console compact: %v", err)
+	}
+	if lean.Len() >= full.Len() {
+		t.Errorf("console: compact (%d) not shorter than full (%d)", lean.Len(), full.Len())
+	}
+	if strings.Count(lean.String(), "\n") >= strings.Count(full.String(), "\n") {
+		t.Error("console: compact should take fewer lines")
+	}
+	// Markdown is read rendered, where a row that has to carry its own explanation is a table cell
+	// with a paragraph in it.
+	full.Reset()
+	lean.Reset()
+	if err := reporters["markdown"].Render(&full, base); err != nil {
+		t.Fatalf("markdown: %v", err)
+	}
+	if err := reporters["markdown"].Render(&lean, compact); err != nil {
+		t.Fatalf("markdown compact: %v", err)
+	}
+	if full.String() != lean.String() {
+		t.Error("markdown should ignore --compact")
 	}
 }
 
@@ -592,7 +612,7 @@ func TestConsoleNamesControlsThatCouldNotRun(t *testing.T) {
 		t.Fatalf("Render: %v", err)
 	}
 	out := buf.String()
-	for _, want := range []string{"Controls:", "sca", "ERROR", "did not run", "executable file not found"} {
+	for _, want := range []string{"CONTROLS", "sca", "ERROR", "did not run", "executable file not found"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
@@ -1074,22 +1094,64 @@ func TestExploitabilityLine(t *testing.T) {
 	}
 }
 
-func TestEscalationNote(t *testing.T) {
-	if got := escalationNote(nil); got != "" {
-		t.Errorf("nothing raised it, so nothing should be claimed: %q", got)
-	}
-	// What it was ranked as, not what it was raised from: the Severity column still shows the
-	// scanner's rating, so "raised from high" beside a row reading "high" would say nothing.
-	got := escalationNote(&sarif.Escalation{
-		From: sarif.SeverityHigh, To: sarif.SeverityCritical,
-		Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01",
+func TestNotesOpenWithWhatArguedWithTheBand(t *testing.T) {
+	// The mark first, so it aligns down a listing. It names the dataset; the day the data was
+	// fetched is not repeated per finding, because it is the same day for every row in the run.
+	got := notesFor(tui.Plain(), finding{
+		severity: sarif.SeverityHigh, message: "malicious code in the upstream tarballs",
+		escalation: &sarif.Escalation{
+			From: sarif.SeverityHigh, To: sarif.SeverityCritical,
+			Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01",
+		},
 	})
-	if got != "↑ ranked as critical · on KEV (2026-08-01)" {
+	if len(got) != 1 || got[0] != "↑ KEV · malicious code in the upstream tarballs" {
 		t.Errorf("got %q", got)
 	}
-	// No date: the claim stands without one rather than being dropped or dated wrongly.
-	got = escalationNote(&sarif.Escalation{From: sarif.SeverityLow, To: sarif.SeverityMedium, Detail: "EPSS 0.9"})
-	if got != "↑ ranked as medium · EPSS 0.9" {
+	// EPSS carries its score, which is the whole of what a threshold decision rests on.
+	got = notesFor(tui.Plain(), finding{
+		severity: sarif.SeverityLow, message: "a flaw",
+		escalation: &sarif.Escalation{
+			From: sarif.SeverityLow, To: sarif.SeverityMedium, Signal: "epss", Detail: "EPSS 0.90",
+		},
+	})
+	if len(got) != 1 || got[0] != "↑ EPSS 0.90 · a flaw" {
+		t.Errorf("got %q", got)
+	}
+	// An analyzer that lowered a band is named, because a call graph is a claim somebody can argue
+	// with and an unattributed one is not.
+	got = notesFor(tui.Plain(), finding{
+		severity: sarif.SeverityHigh, message: "a flaw",
+		reachability: &sarif.Reachability{
+			State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+			RankedAs: sarif.SeverityMedium, AsOf: "2026-08-21",
+		},
+	})
+	if len(got) != 1 || got[0] != "↓ unreachable · a flaw · govulncheck, 2026-08-21" {
+		t.Errorf("got %q", got)
+	}
+	// Nothing argued with it, so the line is the finding's own sentence and nothing else.
+	got = notesFor(tui.Plain(), finding{severity: sarif.SeverityHigh, message: "a flaw"})
+	if len(got) != 1 || got[0] != "a flaw" {
+		t.Errorf("got %q", got)
+	}
+}
+
+// A finding several things argued about goes back to a line per argument, because the alternative
+// is a sentence wrapped under a sentence.
+func TestNotesSplitWhenTheyCannotFitALine(t *testing.T) {
+	long := strings.Repeat("because ", 12) + "the control says so"
+	f := finding{
+		severity:      sarif.SeverityHigh,
+		message:       "a short sentence",
+		escalation:    &sarif.Escalation{From: sarif.SeverityHigh, To: sarif.SeverityCritical, Signal: "kev", Detail: "on KEV"},
+		priorityFloor: long,
+	}
+	if got := notesFor(tui.Plain(), f); len(got) != 3 {
+		t.Fatalf("got %d lines, want one per statement:\n%q", len(got), got)
+	}
+	// Short enough to read as one sentence, so it is one.
+	f.priorityFloor = ""
+	if got := notesFor(tui.Plain(), f); len(got) != 1 || got[0] != "↑ KEV · a short sentence" {
 		t.Errorf("got %q", got)
 	}
 }
@@ -1531,7 +1593,7 @@ func TestConsoleNamesAScannerThatCouldNotAnswer(t *testing.T) {
 	out := buf.String()
 	// The scanner, the component it did not answer for, and why, an entry naming only the scanner
 	// leaves a reader unable to tell whether it mattered.
-	for _, want := range []string{"Not measured:", "kube-bench-job", "team-a", "cannot be narrowed"} {
+	for _, want := range []string{"NOT MEASURED", "kube-bench-job", "team-a", "cannot be narrowed"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}

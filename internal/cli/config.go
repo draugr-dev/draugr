@@ -191,8 +191,8 @@ func flatten(f config.File) []kv {
 		}
 	}
 	if o := f.Output; o != (config.OutputSettings{}) {
-		if o.Group != "" {
-			out = append(out, kv{"output.group", o.Group})
+		if o.View != "" {
+			out = append(out, kv{"output.view", o.View})
 		}
 		if o.Evidence {
 			out = append(out, kv{"output.evidence", "true"})

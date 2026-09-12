@@ -70,7 +70,7 @@ than it was asked to**, so an empty report from it isn't evidence of anything. D
 and says which control it was:
 
 ```
-Controls:
+CONTROLS
   sca  ERROR  did not run
        trivy-fs: exec: "trivy": executable file not found in $PATH
 
@@ -127,7 +127,7 @@ A finding is described on **three related axes**. Knowing which is which removes
 
 | Axis | Values | What it is | Where it shows |
 |------|--------|------------|----------------|
-| **Priority** | P1 · P2 · P3 · P4 | Draugr's headline ranking: **severity × the component's exposure & criticality**. "What to fix first." | the `Priorities:` line and the order of "fix first" |
+| **Priority** | P1 · P2 · P3 · P4 | Draugr's headline ranking: **severity × the component's exposure & criticality**. "What to fix first." | the band counts under the verdict, and the order of "fix first" |
 | **Severity** | critical · high · medium · low | Normalized impact. From the **CVSS score** when a scanner provides one (`security-severity`), else derived from the finding's level (error→high, warning→medium, note→low). | the per-control counts and the "fix first" severity column |
 | **Level** | error · warning · note | The raw **SARIF** value each scanner maps into, the lowest common denominator. | the machine formats (`--format json`/`sarif`) and the gate (`--fail-on`) |
 
@@ -139,26 +139,26 @@ terminal (verdict, priorities, severities) and honors `NO_COLOR`.
 A worked example:
 
 ```text
-Draugr · FAIL   (draugr-demo 1.0)
+DRAUGR  FAIL  draugr-demo 1.0  5.238s
 
-Priorities:  P1 67   P2 102   P3 82   P4 18
+ P1 67 P2 102 P3 82 P4 18
 
-Controls:
-  iac      FAIL   4 high  5 medium  12 low
-  images   FAIL   9 critical  40 high  90 medium  77 low
-  sast     FAIL   7 high  6 medium
-  sca      FAIL   3 critical  6 high  8 medium  1 low
+CONTROLS
+  iac      FAIL   4 high 5 medium 12 low
+  images   FAIL   9 critical 40 high 90 medium 77 low
+  sast     FAIL   7 high 6 medium
+  sca      FAIL   3 critical 6 high 8 medium 1 low
   secrets  FAIL   1 high
 
-Components:
+COMPONENTS
   api       FAIL   P1 67  P2 102  P3 79  iac, images, sast, sca, secrets
   platform  FAIL   P3 3  P4 18  iac
 
-Fix first (top 10 of 269, by priority):
-  Priority  Severity  Score  Rule            Control  Scanner  Location
-  P1        critical  9.8    CVE-2019-20477  sca      Trivy    app/requirements.txt:4
-            PyYAML: command execution through python/object/apply constructor in FullLoader
-  P1        high      8.0    KSV-0014        iac      Trivy    deploy/pod.yaml:8
+FIX FIRST  top 10 of 269, by priority
+  Priority  Severity  Rule            Scanner  Location                Upgrade
+  P1        critical  CVE-2019-20477  trivy    app/requirements.txt:4  PyYAML 5.1 → 5.2
+            command execution through python/object/apply constructor in FullLoader
+  P1        high      KSV-0014        trivy    deploy/pod.yaml:8
             Root file system is not read-only
 ```
 

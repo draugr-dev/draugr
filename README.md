@@ -37,32 +37,32 @@ block every change.
 
 ```console
 $ draugr scan .
-Draugr · FAIL   (draugr-demo 1.0)
+DRAUGR  FAIL  draugr-demo 1.0  5.238s
 
-Priorities:  P1 197   P2 629   P3 229   P4 18
+ P1 197 P2 632 P3 231 P4 18
 
-Controls:
-  iac       FAIL   7 high  10 medium  23 low
-  images    FAIL   20 critical  153 high  248 medium  37 low
-  licenses  pass   353 medium  176 low
-  sast      FAIL   7 high  10 medium
-  sca       FAIL   4 critical  10 high  13 medium  1 low
+CONTROLS
+  iac       FAIL   7 high 10 medium 23 low
+  images    FAIL   20 critical 153 high 251 medium 39 low
+  licenses  FAIL   353 medium 176 low
+  sast      FAIL   7 high 10 medium
+  sca       FAIL   4 critical 10 high 13 medium 1 low
   secrets   FAIL   1 high
 
-Reachability:
+REACHABILITY
   govulncheck  2 reachable, 2 unreachable
   Unreachable findings are ranked down in priority, not removed from the report.
 
 1 finding suppressed by config.exclude · 1 accepted by demo@example.com
 
-Fix first (top 10 of 1073, by priority):
-  Priority  Severity  Score  Rule            Control  Scanner  Location
-  P1        critical  9.8    CVE-2026-42010  images   trivy    python:3.8-slim
-            libgnutls30: gnutls: Authentication Bypass via NUL Character in Username
-  P1        critical  9.8    CVE-2026-31789  images   trivy    python:3.8-slim
-            libssl3: OpenSSL: Heap buffer overflow on 32-bit systems from large X.509
-  P1        critical  9.8    CVE-2019-20477  sca      trivy    app/requirements.txt:4
-            PyYAML 5.1: command execution through python/object/apply in FullLoader
+FIX FIRST  top 10 of 1078, by priority
+  Priority  Severity  Rule            Scanner  Location                Upgrade
+  P1        critical  CVE-2026-42010  trivy    python:3.8-slim         libgnutls30 3.7.9-2+deb12u3 → 3.7.9-2+deb12u7
+            gnutls: Authentication Bypass via NUL Character in Username
+  P1        critical  CVE-2026-31789  trivy    python:3.8-slim         libssl3 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
+            OpenSSL: Heap buffer overflow on 32-bit systems from large X.509 certificate processing
+  P1        critical  CVE-2019-20477  trivy    app/requirements.txt:4  PyYAML 5.1 → 5.2
+            command execution through python/object/apply constructor in FullLoader
 ```
 
 Abridged: the real run lists ten and says how many it did not. That last block is the point, a

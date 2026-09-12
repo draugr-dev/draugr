@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // "Fix first" describes a shortlist. Over the whole set it stops being a recommendation and
@@ -18,17 +19,17 @@ func TestFixFirstHeading(t *testing.T) {
 		shown, total int
 		want         string
 	}{
-		{"a shortlist says so", summary{}, 10, 437, "Fix first (top 10 of 437, by priority):"},
-		{"the whole set is not a shortlist", summary{}, 437, 437, "All 437 findings, by priority:"},
-		{"one finding is not a list", summary{}, 1, 1, "The finding (by priority):"},
+		{"a shortlist says so", summary{}, 10, 437, "FIX FIRST  top 10 of 437, by priority"},
+		{"the whole set is not a shortlist", summary{}, 437, 437, "FIX FIRST  all 437, by priority"},
+		{"one finding is not a list", summary{}, 1, 1, "THE FINDING  by priority"},
 		{"filtered and capped", summary{minPriority: "p2"}, 10, 50,
-			"Fix first (top 10 of 50, by priority, P2 and above):"},
+			"FIX FIRST  top 10 of 50, by priority, P2 and above"},
 		{"filtered, hiding some", summary{minPriority: "p1", hidden: 12}, 3, 3,
-			"All 3 findings, by priority, P1 and above; 12 lower-priority finding(s) hidden:"},
+			"FIX FIRST  all 3, by priority, P1 and above; 12 lower-priority finding(s) hidden"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := fixFirstHeading(tc.s, tc.shown, tc.total); got != tc.want {
+			if got := fixFirstHeading(tui.Plain(), tc.s, tc.shown, tc.total); got != tc.want {
 				t.Errorf("heading = %q,\n    want %q", got, tc.want)
 			}
 		})

@@ -517,11 +517,11 @@ package, version and purl as fields, so the schema's requirement is met with fac
 
 ## Compact output, for tools and agents
 
-`--compact` strips what only a human reads, indentation, and the rule descriptions and remediation
+`--view compact` strips what only a human reads, indentation, and the rule descriptions and remediation
 text Draugr relays from each scanner, while keeping the output **valid SARIF**:
 
 ```bash
-draugr scan draugr.saga.yaml --format sarif --compact
+draugr scan draugr.saga.yaml --format sarif --view compact
 ```
 
 Measured on Draugr's own repository: **17,355 → 5,831 bytes**, the same 8 findings, still
@@ -537,8 +537,9 @@ byte of context. **Don't use it for your editor**: the descriptions it removes a
 SARIF viewer shows you beside a finding. And don't use it for GitHub code scanning, which renders
 those same fields on an alert.
 
-`--compact` has no effect on `console`, `markdown`, `html` or `junit`, making the human formats
-harder to read would be the opposite of the point.
+On the console, `--view compact` is the same idea in the same word: one line per finding, with the
+explanation on the row rather than under it. `markdown`, `html` and `junit` ignore it, because a
+row that has to carry its own explanation is a table cell with a paragraph in it.
 
 ### What each finding carries
 

@@ -83,8 +83,9 @@ type PublishSettings struct {
 
 // OutputSettings configures how the console renders a run. Each has a `--flag` that overrides it.
 type OutputSettings struct {
-	// Group is how the fix list is organized: "action" (one row per thing to do) or "none".
-	Group string `yaml:"group,omitempty"`
+	// View is what a console report shows: "findings" (a row each, with what argued with the band
+	// under it), "actions" (a row per thing to do) or "compact" (one line each).
+	View string `yaml:"view,omitempty"`
 	// Evidence also prints what stands behind the verdict, tool provenance, what each control
 	// measured against, the scanned revision, what the run cost.
 	Evidence bool `yaml:"evidence,omitempty"`
@@ -250,8 +251,8 @@ func merge(a, b File) File {
 	}
 
 	out.Output = a.Output
-	if b.Output.Group != "" {
-		out.Output.Group = b.Output.Group
+	if b.Output.View != "" {
+		out.Output.View = b.Output.View
 	}
 	if b.Output.Evidence {
 		out.Output.Evidence = true

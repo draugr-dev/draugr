@@ -73,7 +73,7 @@ without hyperlink support show the id as ordinary text, so nothing is lost.
 
 ## One flag to avoid here
 
-`draugr scan --compact` strips rule descriptions and remediation text from the SARIF to save
+`draugr scan --view compact` strips rule descriptions and remediation text from the SARIF to save
 bytes for scripts and agents. Those are exactly the fields a viewer shows you beside a finding,
 so leave it off when producing SARIF for your editor. See
 [compact output](reports-and-publishers.md#compact-output-for-tools-and-agents).

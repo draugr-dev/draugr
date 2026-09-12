@@ -74,9 +74,9 @@ and deduplicates results as SARIF, judges them against a policy, and prints a **
 summary** by default (verdict, priority/severity counts, and the top findings to fix first):
 
 ```text
-Draugr · PASS   (my-app 1.0)
+DRAUGR  PASS  my-app 1.0  1.104s
 
-Controls:
+CONTROLS
   images  pass   no findings
 
 No findings. ✓

@@ -237,15 +237,14 @@ is shown, and this answers what the feeds did, not what fitted on the page.
 Each finding that was actually moved carries the reason underneath it:
 
 ```
-  P1  high  8.1  CVE-2024-3094   sca  trivy  go.mod:12
-      xz: malicious code in the upstream tarballs
-      ↑ ranked as critical · on KEV (2026-08-01)
+  P1  critical  CVE-2024-3094  trivy  go.mod:12
+      ↑ KEV · xz: malicious code in the upstream tarballs
 ```
 
-**The Severity column keeps showing what the scanner said.** Enrichment feeds the ranking rather
-than rewriting the scanner's rating, so a finding can be `high` and still be P1, and the note is
-what explains it. Overwriting the scanner's number would leave nothing to compare against and no way
-to see that a signal was applied at all.
+**The Severity column shows the rating the band was computed from**, which is the scanner's own
+only where nothing argued with it. The mark opens the line under the row, so how much of a backlog
+has been argued with is readable without reading a row, and the scanner's own rating is not lost:
+the machine formats carry it unchanged, because that is what the scanner claimed.
 
 This is the difference between evidence and a hint. A P1 on its own is a conclusion with the
 premise withheld; *ranked as critical because CISA listed it on a date you can check* is

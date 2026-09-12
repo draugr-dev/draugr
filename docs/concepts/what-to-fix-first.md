@@ -42,7 +42,7 @@ three rows makes the repetitive work crowd out everything else.
 Only where the fix genuinely is one fix. Twelve benchmark checks against one cluster are twelve
 things to change, and folding them together because they share a prefix would hide eleven of them.
 
-**Grouping is opt-in for now.** `draugr scan --group action` turns it on; the default lists one
+**Grouping is opt-in for now.** `draugr scan --view actions` turns it on; the default lists one
 finding per row.
 
 Not because the list is the better view, but because grouping is only right once a descriptor says

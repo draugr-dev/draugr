@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -51,6 +52,7 @@ const (
 	cLow      = tui.StyleLow
 	cDim      = tui.StyleMuted
 	cAccent   = tui.StyleAccent
+	cInfo     = tui.StyleInfo
 )
 
 func (consoleReporter) Render(w io.Writer, d Data) error {
@@ -61,26 +63,51 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	if s.verdict == norn.Fail {
 		verdict, vcol = "FAIL", cFail
 	}
-	_, _ = fmt.Fprintf(w, "Draugr · %s", col.Paint(vcol, verdict))
+	// The verdict is filled rather than colored, the shape it wears in the dashboard and in the
+	// HTML report. A word in red is one of several red words on the screen; a filled one is the
+	// answer, and a reader who takes a single line from this report takes this one.
+	_, _ = fmt.Fprintf(w, "%s  %s", col.Paint(cDim, "DRAUGR"), col.Chip(vcol, verdict))
 	if rel := d.ProjectName(); rel != "" {
 		if d.Release.Version != "" {
 			rel += " " + d.Release.Version
 		}
-		_, _ = fmt.Fprintf(w, "   %s", col.Paint(cDim, "("+rel+")"))
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(tui.StyleStrong, rel))
 	}
-	// Beside the verdict rather than below it. A reader who takes one line from this report takes
-	// this one, and a PASS covering a fifth of the release must not be readable on its own.
+	// Beside the verdict rather than below it. A PASS covering a fifth of the release must not be
+	// readable on its own.
 	if note := scopeNote(d); note != "" {
-		_, _ = fmt.Fprintf(w, "   %s", col.Paint(cAccent, note))
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cAccent, note))
+	}
+	// What the run cost, where somebody asking is looking. It was reported only under --evidence,
+	// which is the flag for "can I trust this" rather than for "how long did that take", so the
+	// one question every reader has was the one answered furthest from the top.
+	if t := d.Run.Stats.Duration; t > 0 {
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cDim, t.Round(time.Millisecond).String()))
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
 
+	truncated := false
 	if s.prioritized {
-		_, _ = fmt.Fprintf(w, "Priorities:  %s   %s   %s   %s\n\n",
-			col.Paint(priorityColor("P1"), fmt.Sprintf("P1 %d", s.p1)),
-			col.Paint(priorityColor("P2"), fmt.Sprintf("P2 %d", s.p2)),
-			fmt.Sprintf("P3 %d", s.p3),
-			col.Paint(cDim, fmt.Sprintf("P4 %d", s.p4)))
+		_, _ = fmt.Fprintln(w, bandChips(col, s))
+		// Beside the counts, because it is a caveat on every one of them and a caveat printed away
+		// from the thing it qualifies is one the reader meets too late. Not dimmed, for the same
+		// reason: somebody reading these bands as a statement about their application has the
+		// wrong idea of the run, which is a different kind of gap from an incomplete one.
+		if d.Unclassified {
+			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cAccent,
+				"No component declares exposure or criticality, so every one is read as public and critical."))
+			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cDim,
+				"These bands rank severity alone. `draugr classify` makes them describe this application."))
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+
+	// The work, above everything that describes the run. Asked for, because leading with it is the
+	// right answer for somebody who already knows what Draugr found and the wrong one for somebody
+	// meeting a verdict for the first time: a list of fixes to apply, before the controls that
+	// produced them, reads as instructions from a tool the reader has not yet decided to trust.
+	if d.View == ViewActions && len(s.findings) > 0 {
+		truncated = writeActions(w, col, s, d, consoleFixFirstLimit(d.TopN))
 	}
 
 	// Controls that errored are listed alongside the ones that ran. A control that produced no report
@@ -89,7 +116,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// already know how many controls to expect.
 	errored := d.Run.ScanErrors
 	if len(d.Verdict.Controls) > 0 || len(errored) > 0 {
-		_, _ = fmt.Fprintln(w, "Controls:")
+		_, _ = fmt.Fprintln(w, heading(col, "Controls"))
 		width := 0
 		for _, c := range d.Verdict.Controls {
 			if len(c.Control) > width {
@@ -164,7 +191,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// analyzer can run, and a row each is the only shape that does not present two different
 	// methods as one number.
 	if rows, notes := reachabilityBlock(d); len(rows) > 0 {
-		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, "Reachability:"))
+		_, _ = fmt.Fprintf(w, "%s\n", heading(col, "Reachability"))
 		for _, r := range rows {
 			_, _ = fmt.Fprintf(w, "  %s\n", r)
 		}
@@ -264,38 +291,62 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		return nil
 	}
 
-	limit := consoleFixFirstLimit(d.TopN)
+	if d.View != ViewActions {
+		limit := consoleFixFirstLimit(d.TopN)
+		shown := s.findings
+		if limit >= 0 && len(shown) > limit {
+			shown = shown[:limit]
+		}
+		_, _ = fmt.Fprintln(w, fixFirstHeading(col, s, len(shown), len(s.findings)))
+		renderFixFirst(w, col, shown, d.View == ViewCompact, blobLinks(d))
 
-	if d.GroupActions {
-		return writeActions(w, col, s, d, limit)
-	}
-
-	shown := s.findings
-	if limit >= 0 && len(shown) > limit {
-		shown = shown[:limit]
-	}
-	_, _ = fmt.Fprintln(w, fixFirstHeading(s, len(shown), len(s.findings)))
-	renderFixFirst(w, col, shown)
-
-	// Two different readers, two different answers. Somebody looking at a truncated list wants the
-	// rest of *this* list, and answering that with a machine format sends them to a document they did
-	// not ask for. Human-readable is the default here, so the follow-up should be too.
-	if len(shown) < len(s.findings) {
-		_, _ = fmt.Fprintf(w, "\n… and %d more finding(s).\n", len(s.findings)-len(shown))
-		_, _ = fmt.Fprintln(w, col.Paint(cDim,
-			"Use --top 0 to list them all, or --group action to see them as things to do."))
-	} else {
+		// Two different readers, two different answers. Somebody looking at a truncated list wants
+		// the rest of *this* list, and answering that with a machine format sends them to a
+		// document they did not ask for. Human-readable is the default here, so the follow-up
+		// should be too.
+		if len(shown) < len(s.findings) {
+			_, _ = fmt.Fprintf(w, "\n… and %s not listed.\n",
+				plural(len(s.findings)-len(shown), "finding"))
+			truncated = true
+		}
 		_, _ = fmt.Fprint(w, "\n")
 	}
-	writeEffects(w, col, s, d)
-	_, _ = fmt.Fprintln(w, col.Paint(cDim,
-		"Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif."))
-	// The rule id in a row is enough to rank a finding and not enough to decide anything. What
-	// the check means and what to change is in the report already; without this the reader is
-	// sent to whatever a search engine offers for the identifier.
-	_, _ = fmt.Fprintln(w, col.Paint(cDim,
-		"`draugr explain <rule>` says what a finding means and how to fix it."))
+	writeTail(w, col, s, d, truncated)
 	return nil
+}
+
+// heading labels a section of the report.
+//
+// Set in muted capitals rather than in sentence case with a colon, which is how a section is
+// labeled in the dashboard and in the HTML report. It reads as a label instead of as the start of
+// a sentence, and it separates the report's own structure from everything it quotes: a control is
+// named in lower case because that is how it is written in the descriptor, and a heading that
+// looked the same made the two hard to tell apart in a column of text.
+func heading(col tui.Painter, name string) string {
+	return col.Paint(cDim, strings.ToUpper(name))
+}
+
+// bandChips is the four priority counts, each filled with its own band's color.
+//
+// One object per band rather than a colored number beside a plain label: the band and its count
+// answer together and a reader picking the row out of a screen of text is looking for the shape
+// rather than reading the words. A band with nothing in it is not filled, so the ink on the line
+// is the work there is.
+func bandChips(col tui.Painter, s summary) string {
+	counts := [4]int{s.p1, s.p2, s.p3, s.p4}
+	labels := [4]string{"P1", "P2", "P3", "P4"}
+	parts := make([]string, 0, len(counts))
+	for i, n := range counts {
+		text := fmt.Sprintf("%s %d", labels[i], n)
+		if n == 0 {
+			parts = append(parts, col.Paint(cDim, text))
+			continue
+		}
+		parts = append(parts, col.Chip(priorityColor(labels[i]), text))
+	}
+	// One space, because a filled chip carries its own. Where there is no fill to carry it, the
+	// destination is a log rather than a terminal and the indent is not what makes it readable.
+	return " " + strings.Join(parts, " ")
 }
 
 // writeEffects records what the run did to its targets beyond reading them.
@@ -340,7 +391,7 @@ func writeEffects(w io.Writer, col tui.Painter, s summary, d Data) {
 //
 // Both headings say the order is meaningful, because that is true either way and is not obvious
 // from a table that otherwise looks like any other scanner's dump.
-func fixFirstHeading(s summary, shown, total int) string {
+func fixFirstHeading(col tui.Painter, s summary, shown, total int) string {
 	filter := ""
 	if s.minPriority != "" {
 		// Say what was filtered, or a short list reads as a contradiction of the counts above.
@@ -349,27 +400,57 @@ func fixFirstHeading(s summary, shown, total int) string {
 			filter += fmt.Sprintf("; %d lower-priority finding(s) hidden", s.hidden)
 		}
 	}
-	if shown < total {
-		return fmt.Sprintf("Fix first (top %d of %d, by priority%s):", shown, total, filter)
+	switch {
+	case shown < total:
+		return heading(col, "Fix first") + "  " +
+			col.Paint(cDim, fmt.Sprintf("top %d of %d, by priority%s", shown, total, filter))
+	case total == 1:
+		return heading(col, "The finding") + "  " + col.Paint(cDim, "by priority"+filter)
+	default:
+		return heading(col, "Fix first") + "  " +
+			col.Paint(cDim, fmt.Sprintf("all %d, by priority%s", total, filter))
 	}
-	if total == 1 {
-		return fmt.Sprintf("The finding (by priority%s):", filter)
-	}
-	return fmt.Sprintf("All %d findings, by priority%s:", total, filter)
 }
 
-// fixFirstHeader labels the ranked-findings columns. It's included in the width calculation and
-// printed dimmed so the table is self-explanatory. Newcomers can see at a glance which control and
-// scanner flagged each finding. Component sits before Location because a path answers "where
-// inside" and, once a descriptor has more than one component, the reader needs "which one" first.
-// Two components can carry the same path. Omitted entirely when nothing has one, so a
-// single-component project keeps the narrower frame it had.
-var fixFirstHeader = []string{"Priority", "Severity", "Score", "Rule", "Control", "Scanner", "Component", "Location"}
-
-// fixFirstHeaderNoComponent is the frame for a run where no finding has a component: a
-// project-scoped control, or a zero-config scan. An always-present column of dashes costs width
-// and tells the reader nothing.
-var fixFirstHeaderNoComponent = []string{"Priority", "Severity", "Score", "Rule", "Control", "Scanner", "Location"}
+// fixFirstColumns is the frame for a set of findings: the columns that tell these findings apart,
+// and none that do not.
+//
+// Severity stays next to priority because they answer different questions and a reader deciding
+// whether to trust a band needs the rating it was computed from. The scanner stays because a
+// finding is somebody else's tool's claim, and a reader new to Draugr is deciding whether to
+// believe it; naming the tool is most of that. What went is the score, which is a number the
+// severity already summarizes, and the control, which the block above lists in full and which the
+// scanner nearly always implies.
+//
+// Component sits before Location because a path answers "where inside" and, once a descriptor has
+// more than one component, the reader needs "which one" first; two components can carry the same
+// path. Both it and Repository appear only where they tell rows apart, so the common project keeps
+// the narrow frame.
+func fixFirstColumns(fs []finding, compact bool) []string {
+	cols := []string{"Priority", "Severity", "Rule", "Scanner"}
+	if manyComponents(fs) {
+		cols = append(cols, "Component")
+	}
+	// A component may hold several repositories, and paths are repository-relative, so the same
+	// file in two of them produces rows identical in every column. The reader sees a duplicate and
+	// has no way to learn otherwise.
+	if manyRepositories(fs) {
+		cols = append(cols, "Repository")
+	}
+	cols = append(cols, "Location")
+	// What to upgrade, last, where a column costs no padding: nothing follows it, so its width is
+	// whatever each row needs. It was the first half of the line underneath, taking the room the
+	// advisory's own sentence needed and pushing the end of that sentence off the screen.
+	if slices.ContainsFunc(fs, func(f finding) bool { return upgradeLabel(f) != "" }) {
+		cols = append(cols, "Upgrade")
+	}
+	// The explanation, for a listing that has no line underneath to put it on. Absent where no
+	// finding carries one, which is every run of a scanner that reports rule ids and nothing else.
+	if compact && slices.ContainsFunc(fs, func(f finding) bool { return f.message != "" }) {
+		cols = append(cols, "Summary")
+	}
+	return cols
+}
 
 // manyComponents reports whether the findings span more than one component.
 //
@@ -416,21 +497,6 @@ func manyRepositories(fs []finding) bool {
 	return false
 }
 
-// insertBefore puts a column immediately before the named one, appending if it is absent.
-func insertBefore(header []string, before, col string) []string {
-	out := make([]string, 0, len(header)+1)
-	for _, h := range header {
-		if h == before {
-			out = append(out, col)
-		}
-		out = append(out, h)
-	}
-	if len(out) == len(header) {
-		out = append(out, col)
-	}
-	return out
-}
-
 // shortRepository is a repository named as a reader would say it: the last two path segments,
 // without the scheme or the .git suffix. A column of full clone URLs is a column of one prefix
 // repeated, and the part that differs is at the end.
@@ -448,50 +514,326 @@ func shortRepository(url string) string {
 
 // renderFixFirst prints the ranked findings as an aligned table with a header row, each
 // finding's own message on a dimmed line beneath it.
-func renderFixFirst(w io.Writer, col tui.Painter, fs []finding) {
-	withComponent := manyComponents(fs)
-	// A component may hold several repositories, and paths are repository-relative, so the same file
-	// in two of them produces rows identical in every column. The reader sees a duplicate and has no
-	// way to learn otherwise.
-	withRepository := manyRepositories(fs)
-	header := fixFirstHeaderNoComponent
-	if withComponent {
-		header = fixFirstHeader
+func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, blobs blobLinker) {
+	cols := fixFirstColumns(fs, compact)
+	has := func(name string) bool { return slices.Contains(cols, name) }
+	t := tui.NewTable(col, cols...).Indent("  ").StyledNotes()
+	if compact {
+		// The one listing whose last column is prose, and the one that has to fit: its whole
+		// argument is that a reader can see how much there is, which a row wrapping onto two lines
+		// takes away. Zero where the destination has no width to respect, and then the summary is
+		// bounded by messageWidth like every other sentence Draugr prints.
+		t.Fit(tui.Columns(w))
 	}
-	if withRepository {
-		// Before Location for the same reason Component is: a path answers "where inside", and
-		// "which project" comes first.
-		header = insertBefore(header, "Location", "Repository")
-	}
-	t := tui.NewTable(col, header...).Indent("  ")
 	for _, f := range fs {
+		sev := rankedSeverity(f)
 		cells := []tui.Cell{
-			tui.Styled(priorityColor(f.priority), dash(f.priority)),
-			tui.Styled(severityColor(f.severity), string(f.severity)),
-			tui.PlainCell(scoreStr(f)),
+			band(f),
+			tui.Styled(severityColor(sev), string(sev)),
+		}
+		cells = append(cells,
 			// A rule id names a finding; it doesn't explain it. The link is where a reader
 			// finds out what it means, and it costs no width.
-			{Text: shortRuleID(f.ruleID), URL: f.helpURI},
-			tui.PlainCell(f.control),
-			tui.PlainCell(dash(f.tool)),
-		}
-		if withComponent {
+			tui.Cell{Text: shortRuleID(f.ruleID), URL: f.helpURI},
+			// Lowercased. Half these names are what the tool calls itself in its own report
+			// ("Trivy") and half are what Draugr runs it as ("trivy"), so one column showed one
+			// tool under two spellings and read as two different scanners.
+			tui.PlainCell(strings.ToLower(dash(f.tool))))
+		if has("Component") {
 			cells = append(cells, tui.PlainCell(dash(f.component)))
 		}
-		if withRepository {
+		if has("Repository") {
 			cells = append(cells, tui.PlainCell(dash(shortRepository(f.repository))))
 		}
-		cells = append(cells, tui.PlainCell(dash(f.location)))
-		t.RowWithNotes([]string{
-			findingSummary(f.message),
-			escalationNote(f.escalation),
-			reachabilityNote(f.reachability),
-			agreementNote(f.alsoFoundBy, f.severity),
-			priorityFloorNote(f.priorityFloor),
-			historicalNote(f.historical),
-		}, cells...)
+		cells = append(cells, tui.Cell{Text: dash(f.location), URL: blobs.forFinding(f)})
+		if has("Upgrade") {
+			cells = append(cells, upgradeCell(f))
+		}
+		if compact {
+			// The explanation on the row rather than under it. That is what this view buys: one
+			// line per finding, so a reader can see how much there is without scrolling.
+			cells = append(cells, tui.PlainCell(elide(findingTitle(f), messageWidth)))
+			// What argued with the band still gets its line, on the rows that have one. This view
+			// drops what every row carries, not what some rows carry: a band nothing accounts for
+			// is the thing a reader disputes, and a listing that hides the argument to save a line
+			// has saved the wrong line.
+			t.RowWithNotes(painted(reasoning(col, f)), cells...)
+			continue
+		}
+		t.RowWithNotes(notesFor(col, f), cells...)
 	}
 	t.Render(w)
+}
+
+// upgradeLabel is the dependency this finding is about and what to do with it, or "" for a
+// finding that is not about one.
+//
+// The version to move to is the only instruction on the row, so it is stated rather than left in
+// the middle of a sentence somebody else wrote. Its absence is a real answer and says so.
+func upgradeLabel(f finding) string {
+	if f.pkg == nil || f.pkg.Name == "" {
+		return ""
+	}
+	label := f.pkg.Name
+	if f.pkg.Version != "" {
+		label += " " + f.pkg.Version
+	}
+	if f.pkg.FixedVersion != "" {
+		return label + " → " + f.pkg.FixedVersion
+	}
+	return label + ", no fix available"
+}
+
+// upgradeCell paints it: the release that ends the finding wears the color a passing verdict
+// wears, which is what the dashboard does with the same fact for the same reason.
+func upgradeCell(f finding) tui.Cell {
+	label := upgradeLabel(f)
+	if f.pkg == nil || f.pkg.FixedVersion == "" {
+		return tui.Styled(cDim, label)
+	}
+	return tui.Cell{
+		Text:      strings.TrimSuffix(label, " → "+f.pkg.FixedVersion) + " →",
+		Style:     cDim,
+		Note:      f.pkg.FixedVersion,
+		NoteStyle: tui.StyleFixed,
+	}
+}
+
+// notesFor is the lines under a row: what the finding is, and anything that argued with its band.
+//
+// One line where it fits. A mark is two words and a line of its own for it is a line of mostly
+// nothing, which on a listing of several hundred is most of the screen.
+func notesFor(col tui.Painter, f finding) []string {
+	parts := make([]notePart, 0, 4)
+	// The mark first, so the marks align down the list and how much of a backlog has been argued
+	// with is readable without reading a row. The same placement, and the same reason, as the
+	// dashboard's.
+	if m := movedBy(f); m != nil {
+		text := m.glyph + " " + m.label
+		parts = append(parts, notePart{plain: text, painted: col.Paint(m.style, text)})
+	}
+	if title := findingTitle(f); title != "" {
+		parts = append(parts, notePart{plain: title, painted: col.Paint(cDim, title)})
+	}
+	parts = append(parts, reasoning(col, f)...)
+	if len(parts) == 0 {
+		return nil
+	}
+	width, painted := 0, make([]string, 0, len(parts))
+	for _, p := range parts {
+		width += len(p.plain) + len(" · ")
+		painted = append(painted, p.painted)
+	}
+	// Where the whole thing does not fit, a line each, because the alternative is wrapping
+	// mid-sentence and a wrapped continuation under a wrapped continuation is unreadable.
+	if width <= messageWidth {
+		return []string{strings.Join(painted, col.Paint(cDim, " · "))}
+	}
+	return painted
+}
+
+// notePart is one statement under a row, in plain text for measuring and painted for writing.
+type notePart struct{ plain, painted string }
+
+// painted keeps the written half of each part, for a caller that is not measuring them together.
+func painted(parts []notePart) []string {
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		out = append(out, p.painted)
+	}
+	return out
+}
+
+// findingTitle is the finding's own sentence with the part the row already states removed.
+//
+// A dependency finding's message opens by naming the package and the version to move to, because
+// the message has to stand alone in a report with no columns. On a row that shows both, repeating
+// them costs a third of the line and the end of the sentence is what falls off.
+func findingTitle(f finding) string {
+	// Trimmed before it is shortened, or the sentence is cut to make room for the words about to
+	// be removed, and a row whose prefix is long ends up quoting a third of its own explanation.
+	msg := strings.Join(strings.Fields(strings.ReplaceAll(f.message, "\n", " ")), " ")
+	if prefix := upgradeLabel(f) + ": "; prefix != ": " {
+		msg = strings.TrimPrefix(msg, prefix)
+	}
+	return findingSummary(msg)
+}
+
+// reasoning is what stands behind a band beyond the mark that opens the line: the route that keeps
+// a finding where it is, who lowered one, what a second scanner said, and the floor a control
+// insisted on.
+func reasoning(col tui.Painter, f finding) []notePart {
+	var parts []notePart
+	for _, note := range []string{
+		reachabilityPath(f.reachability),
+		unreachableCredit(f.reachability),
+		agreementNote(f.alsoFoundBy, f.severity),
+		f.priorityFloor,
+		historicalNote(f.historical),
+	} {
+		if note != "" {
+			parts = append(parts, notePart{plain: note, painted: col.Paint(cDim, note)})
+		}
+	}
+	return parts
+}
+
+// signalColor is the dataset's own color: the pair the dashboard reserves for exploitability,
+// deliberately outside the priority ramp, because those four colors already mean a band. A reader
+// learns them once and meets them everywhere.
+func signalColor(signal string) tui.Style {
+	switch signal {
+	case "kev":
+		return cAccent
+	case "epss":
+		return cInfo
+	default:
+		return tui.StyleStrong
+	}
+}
+
+// blobLinker turns a finding's location into a URL somebody can open.
+type blobLinker struct {
+	// revisions is the commit each repository was read at, keyed by the URL the descriptor named.
+	revisions map[string]string
+}
+
+// blobLinks reads the run's own record of what was scanned.
+func blobLinks(d Data) blobLinker {
+	revs := make(map[string]string, len(d.Repositories))
+	for _, r := range d.Repositories {
+		// A working-tree scan read files that are in nobody's commit, so a link to the revision
+		// would point at content that is not what was scanned.
+		if r.Revision != "" && !r.WorkingTree {
+			revs[r.URL] = r.Revision
+		}
+	}
+	return blobLinker{revisions: revs}
+}
+
+// forFinding is where the reader can see the line this finding is about, or "" when there is
+// nowhere honest to point.
+//
+// Pinned to the commit that was read rather than to a branch. A repository scan reads a revision,
+// and a link to the tip shows whatever is there now: the same path, a different file, and a line
+// number that lands somewhere unrelated. A link that is silently wrong is worse than no link,
+// which is also why nothing is linked when the revision is unknown.
+func (b blobLinker) forFinding(f finding) string {
+	rev, ok := b.revisions[f.repository]
+	if !ok || f.location == "" {
+		return ""
+	}
+	path, line, _ := strings.Cut(f.location, ":")
+	base, ok := blobBase(f.repository)
+	if !ok {
+		return ""
+	}
+	url := base + "/" + rev + "/" + path
+	if line != "" {
+		// The two hosts that serve most repositories agree on the anchor, and one that does not
+		// understand it still opens the file.
+		url += "#L" + line
+	}
+	return url
+}
+
+// blobBase is the part of a file's URL before the revision, for the hosting a URL can be read as.
+//
+// Only https remotes, and only the path shape both GitHub and GitLab use. An SSH remote names a
+// host that may serve nothing over the web, and a self-hosted forge may use another shape
+// entirely; guessing produces a link that opens something wrong rather than nothing.
+func blobBase(repo string) (string, bool) {
+	if !strings.HasPrefix(repo, "https://") {
+		return "", false
+	}
+	trimmed := strings.TrimSuffix(strings.TrimSuffix(repo, "/"), ".git")
+	host, path, ok := strings.Cut(strings.TrimPrefix(trimmed, "https://"), "/")
+	if !ok || path == "" {
+		return "", false
+	}
+	switch host {
+	case "github.com", "gitlab.com":
+		return trimmed + "/blob", true
+	}
+	return "", false
+}
+
+// movement is the one mark on a row whose band was argued with: which way it went, what argued,
+// and the sentence behind it.
+type movement struct {
+	glyph string
+	label string
+	style tui.Style
+}
+
+// rankedSeverity is the rating the band was computed from, which is the scanner's own only where
+// nothing argued with it.
+//
+// The column used to show the scanner's word whatever happened to it, so a finding on KEV read
+// "P1 · high" with "ranked as critical" three lines below, and the reader had to assemble one fact
+// out of a value in one place and its history in another. Worse, the row read as a contradiction
+// first and resolved itself second, which is the order that costs trust.
+//
+// What the scanner said is not lost: the row is marked, and the line underneath says what it was
+// raised or lowered from and what did it. The machine formats carry the scanner's rating
+// unchanged, because that is what the scanner claimed.
+func rankedSeverity(f finding) sarif.Severity {
+	if f.escalation != nil && f.escalation.To != "" {
+		return f.escalation.To
+	}
+	if f.reachability != nil && f.reachability.State == sarif.ReachabilityUnreachable &&
+		f.reachability.RankedAs != "" {
+		return f.reachability.RankedAs
+	}
+	return f.severity
+}
+
+// band is the priority cell.
+//
+// What argued with the band is on the line under the row rather than in this column: a column is
+// as wide as its widest row, so "P1 (↑ EPSS 0.87)" sets it at sixteen characters and every row
+// without a mark then carries fourteen spaces before the next column, a gap running the length of
+// the table to label two rows.
+func band(f finding) tui.Cell {
+	return tui.Styled(priorityColor(f.priority), dash(f.priority))
+}
+
+// movedBy is what moved this finding's band, in the order the engine applies them.
+//
+// One mark, not one per input. A row has space for the answer and not for the working, and every
+// input still states itself in full on the line underneath; the mark is what makes a listing of
+// several hundred readable, because how much of a backlog has been argued with is then visible
+// without reading a single row.
+//
+// Exploitation first because it is the only one that can overrule another: an analyzer finding no
+// route does not lower a finding that is being exploited. The same order, and the same glyphs, as
+// the dashboard.
+func movedBy(f finding) *movement {
+	if e := f.escalation; e != nil {
+		label := "KEV"
+		if e.Signal != "kev" {
+			label = "EPSS"
+			if e.Detail != "" {
+				label = e.Detail
+			}
+		}
+		return &movement{glyph: "↑", label: label, style: signalColor(e.Signal)}
+	}
+	// A control that declares its findings are not bounded by where the component sits.
+	if f.priorityFloor != "" {
+		return &movement{glyph: "↑", label: "floor", style: cHigh}
+	}
+	if f.reachability != nil && f.reachability.State == sarif.ReachabilityUnreachable &&
+		f.reachability.RankedAs != "" {
+		return &movement{glyph: "↓", label: "unreachable", style: cInfo}
+	}
+	// Not a band that moved, and marked here for the same reason the others are: the location is a
+	// path in a commit rather than in the tree, and a reader who takes it for the current tree
+	// reads a finding that is still live as one already cleaned up.
+	if f.historical {
+		return &movement{glyph: "↩", label: "history", style: cAccent}
+	}
+	return nil
 }
 
 // ruleIDWidth caps the Rule column. Some scanners use long namespaced ids. Semgrep's run past a
@@ -601,7 +943,7 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 		}
 	}
 
-	_, _ = fmt.Fprintln(w, "Components:")
+	_, _ = fmt.Fprintln(w, heading(col, "Components"))
 	for _, c := range d.Components {
 		verdict, style := "pass", cPass
 		if c.Verdict == norn.Fail {
@@ -685,25 +1027,29 @@ func excludeSummary(e saga.ExcludeRule) string {
 	return strings.Join(parts, "; ") + " · " + findingSummary(e.Reason)
 }
 
-// bandsText renders per-control severity counts, omitting empty bands, each colorized.
+// bandsText renders per-control severity counts, omitting empty bands, each filled with its own
+// severity's color.
+//
+// Filled for the same reason the priority counts are: the count and the word it counts are one
+// fact, and a control row is read by shape rather than word by word.
 func bandsText(col tui.Painter, b sevCounts) string {
 	var parts []string
 	if b.critical > 0 {
-		parts = append(parts, col.Paint(cCritical, fmt.Sprintf("%d critical", b.critical)))
+		parts = append(parts, col.Chip(cCritical, fmt.Sprintf("%d critical", b.critical)))
 	}
 	if b.high > 0 {
-		parts = append(parts, col.Paint(cHigh, fmt.Sprintf("%d high", b.high)))
+		parts = append(parts, col.Chip(cHigh, fmt.Sprintf("%d high", b.high)))
 	}
 	if b.medium > 0 {
-		parts = append(parts, col.Paint(cMedium, fmt.Sprintf("%d medium", b.medium)))
+		parts = append(parts, col.Chip(cMedium, fmt.Sprintf("%d medium", b.medium)))
 	}
 	if b.low > 0 {
-		parts = append(parts, col.Paint(cLow, fmt.Sprintf("%d low", b.low)))
+		parts = append(parts, col.Chip(cLow, fmt.Sprintf("%d low", b.low)))
 	}
 	if len(parts) == 0 {
 		return col.Paint(cDim, "no findings")
 	}
-	return strings.Join(parts, "  ")
+	return strings.Join(parts, " ")
 }
 
 func priorityColor(p string) tui.Style {
@@ -712,6 +1058,11 @@ func priorityColor(p string) tui.Style {
 		return cFail
 	case "P2":
 		return cMedium
+	case "P3":
+		// The band had no color of its own and was drawn in whatever the terminal's text color is,
+		// which is also what an unranked row and a heading look like. Three of the four bands being
+		// distinguishable is not a ramp.
+		return cInfo
 	case "P4":
 		return cDim
 	default:
@@ -775,7 +1126,7 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 		return
 	}
 	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Measured against:")
+	_, _ = fmt.Fprintln(w, heading(col, "Measured against"))
 	for _, l := range lines {
 		text := l.Label()
 		if l.Detail != "" {
@@ -796,7 +1147,7 @@ func writeNotMeasured(w io.Writer, col tui.Painter, d Data, width int) {
 		return
 	}
 	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Not measured:")
+	_, _ = fmt.Fprintln(w, heading(col, "Not measured"))
 	for _, sk := range d.Run.Skipped {
 		text := sk.Scanner
 		if sk.Component != "" {
@@ -870,40 +1221,6 @@ func unpinnedCacheLine(refs []string) string {
 		plural(len(refs), "image"))
 }
 
-// escalationNote is the line under a finding saying why it outranks its severity, or "" when
-// nothing moved it.
-//
-// Says what the finding was *ranked* as rather than "raised from x": the Severity column keeps
-// showing what the scanner reported, because that is what the scanner reported. A note reading
-// "raised from high" beside a row reading "high" describes nothing. What the reader needs is why
-// a P1 is sitting on a high row, and the answer is that it was ranked as critical.
-//
-// Under the finding rather than in a column because it is the answer to a question only some
-// rows provoke, and a column of mostly-dashes costs every row width to serve a few.
-func escalationNote(e *sarif.Escalation) string {
-	if e == nil {
-		return ""
-	}
-	out := "↑ ranked as " + string(e.To) + " · " + e.Detail
-	if e.AsOf != "" {
-		out += " (" + e.AsOf + ")"
-	}
-	return out
-}
-
-// priorityFloorNote is the line under a finding saying why it outranks its component's
-// classification, or "" when the classification accounts for the band.
-//
-// Without it the band is unaccountable: a reader who knows this component is internal and
-// supporting, and reads P2 beside it, has no way to reconstruct the answer and has to take the
-// ranking on trust. The ranking is the thing they are being asked to act on.
-func priorityFloorNote(reason string) string {
-	if reason == "" {
-		return ""
-	}
-	return "↑ " + reason
-}
-
 // historicalNote says that a finding's location is a path in a commit rather than in the tree.
 //
 // Without it the location column is read as current, and a path that no longer exists reads as
@@ -915,7 +1232,7 @@ func historicalNote(historical bool) string {
 	if !historical {
 		return ""
 	}
-	return "↩ in git history · path as it was then. Rotate it; deleting it does not unpublish it."
+	return "in git history · path as it was then. Rotate it; deleting it does not unpublish it."
 }
 
 // runLine accounts for the run: how long it took, and how much of it was avoided.
@@ -1108,47 +1425,96 @@ func scopeNote(d Data) string {
 // spend an afternoon on is choosing between actions, and a list of findings makes them do the
 // grouping in their head, which for a library carrying a dozen CVEs is a dozen rows describing one
 // upgrade.
-func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) error {
+func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (truncated bool) {
 	actions, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits)
 
 	if len(actions) == 0 {
 		// Everything found belongs to somebody else. Saying "no findings" would be false and
 		// saying nothing would be worse, so say exactly that.
-		_, _ = fmt.Fprintln(w, col.Paint(cDim, externalLine(external)))
-		return nil
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, externalLine(external)))
+		return false
 	}
 
 	shown := actions
 	if limit >= 0 && len(shown) > limit {
 		shown = shown[:limit]
 	}
-	_, _ = fmt.Fprintf(w, "Fix first · %s %s %s:\n",
-		plural(len(shown), "action"), clears(shown), plural(cleared(shown), "finding"))
-	renderActions(w, col, shown)
+	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "What to do"), col.Paint(cDim, fmt.Sprintf(
+		"%s %s %s", plural(len(shown), "action"), clears(shown), plural(cleared(shown), "finding"))))
+	renderActions(w, col, shown, d.View == ViewCompact)
 
 	if len(shown) < len(actions) {
-		_, _ = fmt.Fprintf(w, "\n… and %d more %s.\n", len(actions)-len(shown),
-			noun(len(actions)-len(shown), "action"))
-		_, _ = fmt.Fprintln(w, col.Paint(cDim,
-			"Use --top 0 to list them all, or --group none to list every finding separately."))
-	} else {
-		_, _ = fmt.Fprint(w, "\n")
+		_, _ = fmt.Fprintf(w, "\n… and %s not listed.\n",
+			plural(len(actions)-len(shown), "action"))
+		truncated = true
 	}
 	if len(external) > 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(cDim, externalLine(external)))
 	}
-	// The same tail as the ungrouped listing. Both paths end a report, so both owe the record of what
-	// the run did and produced, a receipt that appears only in the view somebody is not using is one
-	// nobody sees.
+	_, _ = fmt.Fprintln(w)
+	return truncated
+}
+
+// writeTail ends a report with what the run produced and what else it can be asked.
+//
+// Shared by both listings. A receipt that appears only in the view somebody is not using is one
+// nobody sees, which is what a duplicated tail drifts into.
+func writeTail(w io.Writer, col tui.Painter, s summary, d Data, truncated bool) {
 	writeEffects(w, col, s, d)
-	_, _ = fmt.Fprintln(w, col.Paint(cDim,
-		"Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif."))
-	// The rule id in a row is enough to rank a finding and not enough to decide anything. What
-	// the check means and what to change is in the report already; without this the reader is
-	// sent to whatever a search engine offers for the identifier.
-	_, _ = fmt.Fprintln(w, col.Paint(cDim,
-		"`draugr explain <rule>` says what a finding means and how to fix it."))
-	return nil
+	writeUncovered(w, col, d)
+	if len(s.findings) == 0 && len(d.Suggestions) == 0 {
+		return
+	}
+	// "Try", because none of it is required and a heading that reads as instructions puts a reader
+	// who has already got their answer through a list of things they are apparently expected to do.
+	//
+	// A row each, rather than a sentence naming two flags with a comma between them. A reader
+	// scanning for something to type finds it in a column; the same two flags inside a sentence
+	// have to be read whole to find out neither of them applies.
+	t := tui.NewTable(col).Indent("  ")
+	row := func(what, does string) { t.Row(tui.Styled(cDim, what), tui.Styled(cDim, does)) }
+	if truncated {
+		// Only where something was left out. Offering to show everything below a list that is
+		// already everything is advice that reads as the product not knowing what it printed.
+		row("--top 0", "every one of them, not the first ten")
+	}
+	if d.View != ViewCompact {
+		row("--view compact", "one line each, to see how much there is")
+	}
+	if d.View == ViewActions {
+		row("--view findings", "the findings themselves, one row each")
+	} else {
+		row("--view actions", "the same findings as a list of things to do")
+	}
+	if len(s.findings) > 0 {
+		row("draugr explain <rule>", "what a rule means and how to fix it")
+	}
+	// Whatever this particular run makes worth trying, after the ones that are always true.
+	for _, sug := range d.Suggestions {
+		row(sug.What, sug.Why)
+	}
+	_, _ = fmt.Fprintln(w, heading(col, "Try"))
+	t.Render(w)
+}
+
+// writeUncovered names what the descriptor declares and no enabled control looks at.
+//
+// A table rather than a sentence each, because every line answers the same two questions and a
+// reader comparing them should not have to find the answer in a different place on every row.
+func writeUncovered(w io.Writer, col tui.Painter, d Data) {
+	if len(d.Uncovered) == 0 {
+		return
+	}
+	t := tui.NewTable(col).Indent("  ")
+	for _, g := range d.Uncovered {
+		t.Row(
+			tui.Styled(tui.StyleStrong, g.Component+" "+g.Surface),
+			tui.Styled(cDim, plural(len(g.Controls), "control")+" off: "+strings.Join(g.Controls, ", ")),
+		)
+	}
+	_, _ = fmt.Fprintln(w, heading(col, "Not checked"))
+	t.Render(w)
+	_, _ = fmt.Fprintln(w)
 }
 
 // clears reads as a verb agreeing with the count before it.
@@ -1190,7 +1556,7 @@ func externalLine(external []finding) string {
 }
 
 // renderActions draws the action rows.
-func renderActions(w io.Writer, col tui.Painter, actions []action) {
+func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool) {
 	const namedLocations = 2
 	for _, a := range actions {
 		band := a.priority
@@ -1214,7 +1580,7 @@ func renderActions(w io.Writer, col tui.Painter, actions []action) {
 			col.Paint(priorityColor(a.priority), fmt.Sprintf("%-2s", band)),
 			title,
 			col.Paint(cDim, meta))
-		if detail := actionDetail(col, a, namedLocations); detail != "" {
+		if detail := actionDetail(col, a, namedLocations); detail != "" && !compact {
 			_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(cDim, detail))
 		}
 	}
@@ -1267,6 +1633,11 @@ func isVowel(b byte) bool { return strings.IndexByte("aeiou", b) >= 0 }
 func elide(msg string, width int) string {
 	if width <= 1 {
 		return "…"
+	}
+	// Nothing to elide. Callers that wrap already know the line is too long; a caller fitting a
+	// value into a column does not, and every short one would otherwise be cut at the width.
+	if len(msg) <= width {
+		return msg
 	}
 	cut := strings.LastIndex(msg[:width-1], " ")
 	if cut <= 0 {

@@ -207,7 +207,7 @@ gone. A saved SARIF file is something your assistant can point you at, or read b
 `fix_list` answers "what should I do?", one row per remediation rather than per finding, because one
 change usually clears many, and each row names the release to move to. Eight vulnerabilities in one
 library are one upgrade, and every vulnerable package inside an image somebody else publishes is one
-newer image. It uses the same grouping `draugr scan --group action` prints, so an assistant and a
+newer image. It uses the same grouping `draugr scan --view actions` prints, so an assistant and a
 terminal cannot describe the same report differently.
 
 `explain_rule` answers "what does this mean and what do I change?". The remediation the scanner
@@ -249,7 +249,7 @@ The assistant could run Trivy and Semgrep itself. Three things it won't get that
 - **Far less context burned.** Raw scanner output for this repository is ~2.1 MB, most of it
   rule metadata for rules that never matched. Draugr's ranked answer for the same eight findings
   is a few kilobytes: deduplicated, normalized to one schema, suppressions honored. Add
-  [`--compact`](reports-and-publishers.md#compact-output-for-tools-and-agents) when producing
+  [`--view compact`](reports-and-publishers.md#compact-output-for-tools-and-agents) when producing
   reports a machine will read.
 
 ## Writing a Saga with the assistant

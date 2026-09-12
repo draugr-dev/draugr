@@ -20,15 +20,32 @@ import (
 // has not written itself. It has written a shape, whose first scan reports PASS having checked
 // nothing. This map is what turns a declared surface into the controls that would look at it.
 //
-// `dast` is deliberately absent from the host list. The passive host controls read a response;
-// dast sends attack traffic at a live service, and turning that on because something noticed the
-// service exists is not a decision Draugr gets to make on someone's behalf. Enable it yourself,
-// having decided.
+// `dast` is deliberately absent from the host list, and is in NeverSuggested instead. The passive
+// host controls read a response; dast sends real traffic at a live service, and turning that on
+// because something noticed the service exists is not a decision Draugr gets to make on someone's
+// behalf.
 var Controls = map[string][]string{
 	"repositories":   {"sca", "secrets", "sast", "iac"},
 	"images":         {"images"},
 	"hosts":          {"headers", "tls"},
 	"infrastructure": {"infrastructure"},
+}
+
+// NeverSuggested names controls that examine a surface and are never turned on for anybody.
+//
+// Two questions, two answers. "What should a descriptor enable for this" must not answer dast, and
+// "what is looking at this" must, because a host nothing is testing is a host nothing is testing
+// however the omission came about. Reporting coverage from the enabling list described a host as
+// covered by two controls when three exist.
+var NeverSuggested = map[string][]string{
+	"hosts": {"dast"},
+}
+
+// examine is every control that looks at a surface, in a stable order.
+func examine(surface string) []string {
+	all := append(append([]string{}, Controls[surface]...), NeverSuggested[surface]...)
+	sort.Strings(all)
+	return all
 }
 
 // ComponentHas reports whether a component declares the given surface.
@@ -46,7 +63,16 @@ func ComponentHas(c *saga.Component, surface string) bool {
 	return false
 }
 
-// Uncovered names each component surface that no enabled control looks at.
+// Gap is one component surface that no enabled control looks at, and the controls that would.
+type Gap struct {
+	// Component and Surface name what was declared and went unexamined.
+	Component, Surface string
+	// Controls are the ones that would have looked at it, every one of them off. Partial cover is
+	// still cover, so a gap is only a gap when none of them is enabled.
+	Controls []string
+}
+
+// Gaps names each component surface that no enabled control looks at.
 //
 // A descriptor that declares a `hosts:` entry with the host controls off scans everything about
 // that component except the thing it exposes to the internet, and says nothing. The run is a
@@ -55,39 +81,42 @@ func ComponentHas(c *saga.Component, surface string) bool {
 //
 // Advisory rather than fatal: the choice may be deliberate, and refusing to scan because a
 // control is off would be worse than the gap.
-func Uncovered(model *saga.Model) []string {
-	var out []string
+func Gaps(model *saga.Model) []Gap {
+	var out []Gap
 	for i := range model.Components {
 		c := &model.Components[i]
 		for _, surface := range sortedKeys(Controls) {
 			if !ComponentHas(c, surface) {
 				continue
 			}
+			all := examine(surface)
 			var off []string
-			for _, name := range Controls[surface] {
+			for _, name := range all {
 				if !c.ControllerEnabled(name, model.Config) {
 					off = append(off, name)
 				}
 			}
-			// Partial cover is still cover: one enabled control means someone is looking.
-			if len(off) == len(Controls[surface]) {
-				out = append(out, fmt.Sprintf("%s declares %s, and %s %s not enabled",
-					c.Name, surface, strings.Join(off, ", "), plural2(len(off), "is", "are")))
+			// Partial cover is still cover: one enabled control means someone is looking, and that
+			// includes the case where the only one off is the one Draugr would never have
+			// suggested.
+			if len(off) == len(all) {
+				out = append(out, Gap{Component: c.Name, Surface: surface, Controls: off})
 			}
 		}
 	}
 	return out
 }
 
-// DeclaresHosts reports whether any component exposes a host, which is the only case where the
-// absence of `dast` from an uncovered-surface list is a question a reader would ask.
-func DeclaresHosts(model *saga.Model) bool {
-	for i := range model.Components {
-		if len(model.Components[i].Hosts) > 0 {
-			return true
-		}
+// Uncovered is Gaps as sentences, for a caller with one line to say it in.
+func Uncovered(model *saga.Model) []string {
+	gaps := Gaps(model)
+	out := make([]string, 0, len(gaps))
+	for _, g := range gaps {
+		out = append(out, fmt.Sprintf("%s declares %s, and %s %s not enabled",
+			g.Component, g.Surface, strings.Join(g.Controls, ", "),
+			plural2(len(g.Controls), "is", "are")))
 	}
-	return false
+	return out
 }
 
 // plural2 picks between two forms by count.

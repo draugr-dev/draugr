@@ -322,7 +322,7 @@ other direction, and where exploitability has already raised a finding that wins
 The report carries a block of its own, with a row per analyzer:
 
 ```console
-Reachability:
+REACHABILITY
   govulncheck  2 reachable, 6 unreachable
   Unreachable findings are ranked down in priority, not removed from the report.
 ```
@@ -330,9 +330,8 @@ Reachability:
 and every finding whose band moved says so, the way an escalated one does:
 
 ```console
-  P2        high      7.5    CVE-2020-14040  sca      trivy    go.mod
-            golang.org/x/text v0.3.0: possibility to trigger an infinite loop…
-            ↓ ranked as medium · the vulnerable code is never called (govulncheck, 2026-08-21)
+  P2        medium    CVE-2020-14040  trivy  go.mod  golang.org/x/text v0.3.0 → v0.3.8
+            ↓ unreachable · possibility to trigger an infinite loop · govulncheck, 2026-08-21
 ```
 
 **It never suppresses.** An unreachable finding stays in the report at a lower band, because a
@@ -1246,11 +1245,11 @@ the four, rather than failing after the scan has run.
 **It is not a control, and this is deliberate.** Every control checks something and returns a
 verdict the gate acts on. An SBOM finds nothing, so it has no verdict to give; a control row
 that always reads "pass" without having looked is exactly the meaningless green Draugr exists
-to remove. So SBOMs are evidence: they never appear in the `Controls:` table and never affect
+to remove. So SBOMs are evidence: they never appear in the controls table and never affect
 pass or fail. The console reports them on their own line:
 
 ```
-Controls:
+CONTROLS
   secrets  FAIL   1 high
 
 SBOM: 2 documents (cyclonedx-json)

@@ -30,6 +30,10 @@ import (
 type Style string
 
 // The palette. Severity styles mirror the report bands; the rest are roles, not colors.
+//
+// The values are the sixteen-color codes every terminal has had since the 1980s, and they are
+// what a caller gets unless the terminal says it can do better. See exact, which carries the
+// same roles in the project's own colors.
 const (
 	StyleNone     Style = ""
 	StyleCritical Style = "1;31" // bold red
@@ -38,18 +42,63 @@ const (
 	StyleLow      Style = "2"
 	StyleFail     Style = "1;31"
 	StylePass     Style = "32"
-	StyleAccent   Style = "33" // draws the eye without implying severity
-	StyleMuted    Style = "2"  // supporting detail: headers, labels, units
-	StyleStrong   Style = "1"  // the part of a line to read first, at no cost in color
+	StyleAccent   Style = "33"   // draws the eye without implying severity
+	StyleInfo     Style = "36"   // a band that is neither urgent nor negligible
+	StyleFixed    Style = "1;32" // the release that ends a finding
+	StyleMuted    Style = "2"    // supporting detail: headers, labels, units
+	StyleStrong   Style = "1"    // the part of a line to read first, at no cost in color
 )
+
+// exact renders a role in the color the rest of the product uses for it, for a terminal that can
+// show all of them.
+//
+// Sixteen-color red is whatever the reader's theme decided red is, and across the dashboard, the
+// HTML report and the terminal that produced one red per surface. A band is a piece of
+// vocabulary, so it should be the same color wherever somebody meets it, and a terminal
+// announcing twenty-four-bit color can be held to that.
+//
+// Keyed by the sixteen-color value rather than by the constant. Roles that share a code are the
+// same color today, and keying this way keeps them the same color here rather than letting the two
+// palettes disagree about which roles are alike.
+// #nosec G101 -- SGR parameter strings, which a credential scanner reads as high-entropy values.
+var exact = map[Style]Style{
+	StyleCritical: "1;38;2;229;83;75",
+	StyleHigh:     "38;2;229;83;75",
+	StyleMedium:   "38;2;232;184;75",
+	StyleMuted:    "38;2;120;131;141",
+	StylePass:     "38;2;87;171;90",
+	StyleFixed:    "1;38;2;87;171;90",
+	StyleInfo:     "38;2;124;166;184",
+}
+
+// chipColors is the filled form of a role: the band's color behind text dark or light enough to
+// read on it.
+//
+// A filled label is how a band is drawn everywhere else, and it does something a colored word
+// cannot: the count and the band read as one object rather than as two words that happen to be
+// adjacent. The foregrounds are picked for contrast against their own background rather than
+// taken from the palette.
+var chipColors = map[Style]struct{ bg, fg string }{
+	StyleCritical: {"229;83;75", "18;6;5"},
+	StyleHigh:     {"229;83;75", "18;6;5"},
+	StyleMedium:   {"232;184;75", "22;17;10"},
+	StyleInfo:     {"124;166;184", "10;17;22"},
+	StyleMuted:    {"107;118;128", "255;255;255"},
+	StylePass:     {"87;171;90", "6;18;10"},
+}
 
 // Painter renders styled text, or plain text when color isn't appropriate for the destination.
 // The zero value is a valid plain-text painter, so a caller that forgets to construct one
 // degrades safely instead of emitting escape codes into a file.
-type Painter struct{ color bool }
+type Painter struct {
+	color bool
+	// full is whether the terminal can show the project's own colors rather than the sixteen
+	// every terminal has.
+	full bool
+}
 
 // For returns a Painter suited to w: color only for an interactive terminal with NO_COLOR unset.
-func For(w io.Writer) Painter { return Painter{color: ColorEnabled(w)} }
+func For(w io.Writer) Painter { return Painter{color: ColorEnabled(w), full: FullColor()} }
 
 // Plain returns a Painter that never colors, for tests and for building strings whose
 // destination isn't known yet.
@@ -58,6 +107,10 @@ func Plain() Painter { return Painter{} }
 // Colored returns a Painter for a caller that has already decided, such as one whose color
 // setting comes from configuration rather than from inspecting the writer.
 func Colored() Painter { return Painter{color: true} }
+
+// FullColorPainter is Colored for a caller that has also decided the terminal can show the
+// project's own colors. Used by the tests that pin what those look like.
+func FullColorPainter() Painter { return Painter{color: true, full: true} }
 
 // Enabled reports whether this painter emits color, so callers can skip work that only matters
 // when colored.
@@ -68,7 +121,35 @@ func (p Painter) Paint(style Style, s string) string {
 	if !p.color || style == StyleNone {
 		return s
 	}
-	return "\x1b[" + string(style) + "m" + s + "\x1b[0m"
+	return "\x1b[" + string(p.resolve(style)) + "m" + s + "\x1b[0m"
+}
+
+// resolve picks the rendering of a role for this terminal.
+func (p Painter) resolve(style Style) Style {
+	if !p.full {
+		return style
+	}
+	if e, ok := exact[style]; ok {
+		return e
+	}
+	return style
+}
+
+// Chip renders text as a filled label in the role's color, the shape a band wears everywhere else
+// Draugr shows one.
+//
+// It degrades twice rather than once. A terminal with full color gets the color itself; a
+// sixteen-color terminal gets the role reversed, which fills the same area in whatever red or
+// yellow that terminal calls the role; and a destination with no color at all, a pipe or a CI log,
+// gets the bare text, because a chip with no fill is a word with two extra spaces around it.
+func (p Painter) Chip(style Style, text string) string {
+	if !p.color || style == StyleNone {
+		return text
+	}
+	if c, ok := chipColors[style]; ok && p.full {
+		return "\x1b[48;2;" + c.bg + ";38;2;" + c.fg + "m " + text + " \x1b[0m"
+	}
+	return "\x1b[7;" + string(style) + "m " + text + " \x1b[0m"
 }
 
 // Append is Paint for a caller building a byte buffer, the log handler writes a line per record,
@@ -95,6 +176,20 @@ func (p Painter) Link(url, text string) string {
 		return text
 	}
 	return "\x1b]8;;" + url + "\a" + text + "\x1b]8;;\a"
+}
+
+// FullColor reports whether the terminal says it can show twenty-four-bit color.
+//
+// COLORTERM is the only signal there is: TERM describes a terminal type from a database that
+// mostly predates the capability, and probing means writing a color and reading back what the
+// terminal made of it, which a program writing to a pipe cannot do. An absent variable is read as
+// "no", so the sixteen-color rendering is what an unknown terminal gets.
+func FullColor() bool {
+	switch os.Getenv("COLORTERM") {
+	case "truecolor", "24bit":
+		return true
+	}
+	return false
 }
 
 // ColorEnabled reports whether colored output is appropriate for w: it must be an interactive

@@ -48,7 +48,6 @@ type scanOptions struct {
 	cacheTTL           time.Duration
 	cacheReadOnly      bool
 	cacheRequireDigest bool
-	group              string
 	evidence           bool
 	minPriority        string
 	// artifactMinPriority narrows the written artifacts as well, which --min-priority
@@ -73,7 +72,11 @@ type scanOptions struct {
 	components      []string
 	controls        []string
 	allowScanErrors bool
-	compact         bool
+	view            string
+	// group and compact are the two flags --view replaces, kept so a pipeline written against
+	// them keeps working while it says so.
+	group   string
+	compact bool
 }
 
 // scanFlagGroups is how `draugr scan --help` is organized: a heading per question a reader
@@ -87,8 +90,8 @@ var scanFlagGroups = []flagGroup{
 	{"What fails the build", []string{"fail-on", "fail-on-priority", "no-gate", "allow-scan-errors"}},
 	{"Exploitability data", []string{"kev", "epss", "epss-threshold"}},
 	{"Output", []string{
-		"format", "output", "report", "group", "evidence", "top", "min-priority",
-		"artifact-min-priority", "compact", "template", "template-file", "no-tips",
+		"format", "output", "report", "view", "group", "compact", "evidence", "top",
+		"min-priority", "artifact-min-priority", "template", "template-file", "no-tips",
 	}},
 	{"Caching", []string{"cache-dir", "cache-ttl", "cache-read-only", "cache-require-digest"}},
 	{"Running the scan", []string{"jobs", "allow-effects", "no-publish"}},
@@ -133,8 +136,13 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
-	cmd.Flags().StringVar(&opts.group, "group", groupNone,
-		"how the fix list is organized: none (one row per finding) or `action` (one row per thing to do)")
+	cmd.Flags().StringVar(&opts.view, "view", string(report.ViewFindings),
+		"what the report shows: `findings` (a row each, with what argued with the band under it), "+
+			"actions (a row per thing to do) or compact (one line each; in json and sarif, no "+
+			"indentation and no rule prose)")
+	cmd.Flags().StringVar(&opts.group, "group", "",
+		"deprecated: --view findings or --view actions")
+	_ = cmd.Flags().MarkDeprecated("group", "use --view, which also covers what --compact did")
 	cmd.Flags().StringVar(&opts.cacheDir, "cache-dir", "", "enable content-hash caching in this directory")
 	cmd.Flags().DurationVar(&opts.cacheTTL, "cache-ttl", 24*time.Hour, "cache entry lifetime (0 = no expiry)")
 	cmd.Flags().BoolVar(&opts.cacheReadOnly, "cache-read-only", false,
@@ -170,8 +178,8 @@ func newScanCommand() *cobra.Command {
 		"run only these controls; the verdict says what it covered")
 	cmd.Flags().BoolVar(&opts.allowScanErrors, "allow-scan-errors", false,
 		"treat a control that couldn't run as a warning rather than a failure (best-effort scanning)")
-	cmd.Flags().BoolVar(&opts.compact, "compact", false,
-		"strip indentation and rule documentation from json/sarif output, for a consumer that acts on the report rather than reads it")
+	cmd.Flags().BoolVar(&opts.compact, "compact", false, "deprecated: --view compact")
+	_ = cmd.Flags().MarkDeprecated("compact", "use --view compact")
 
 	useFlagGroups(cmd, scanFlagGroups)
 
@@ -262,7 +270,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if opts.top < 0 {
 		return fmt.Errorf("--top must be >= 0 (0 = show all)")
 	}
-	if err := validateGroup(opts.group); err != nil {
+	if err := resolveView(&opts); err != nil {
 		return err
 	}
 
@@ -391,14 +399,13 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 	}
 	data := report.Data{
-		Project:      model.ProjectName(),
-		Release:      model.Release,
-		Run:          run,
-		Verdict:      verdict,
-		MinPriority:  minPriority,
-		TopN:         fixFirstLimit(opts.top),
-		GroupActions: opts.group == groupAction, // "" is unset, and the default is a finding a row
-		Evidence:     opts.evidence,
+		Project:     model.ProjectName(),
+		Release:     model.Release,
+		Run:         run,
+		Verdict:     verdict,
+		MinPriority: minPriority,
+		TopN:        fixFirstLimit(opts.top),
+		Evidence:    opts.evidence,
 		// Built from the same policy the verdict came from, so the report cannot describe a gate
 		// the run did not use.
 		Gate: report.GateSettings{
@@ -408,7 +415,15 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			PerControlBand: policy.PerControlBand,
 			Disabled:       opts.noGate,
 		},
-		Compact:              opts.compact,
+		View:      report.View(opts.view),
+		Uncovered: uncoveredFor(model),
+		Suggestions: scanSuggestions(tipContext{
+			model: model, run: run, verdict: verdict, opts: &opts,
+		}),
+		// With nothing declared, every component is read as public and critical, so the bands rank
+		// severity alone. The report says so beside the counts rather than leaving a reader to
+		// take a ranking as a statement about their application.
+		Unclassified:         !usesRiskClassification(model),
 		Components:           components,
 		Scope:                reportScope(scope),
 		UnattributedFindings: unattributed,
@@ -443,9 +458,6 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 		if err := reporter.Render(w, data); err != nil {
 			return err
-		}
-		if format == "console" {
-			printScanTips(w, tipContext{model: model, run: run, verdict: verdict, opts: &opts})
 		}
 	}
 	if opts.outputDir != "" {
@@ -505,32 +517,33 @@ func alsoPublish(outcome, publishErr error) error {
 	return fmt.Errorf("%w (publishing also failed: %w)", outcome, publishErr)
 }
 
-// How the fix list is organized.
-const (
-	// groupNone is the default: one row per finding.
-	//
-	// Not because it is the better view. Grouping answers "what do I do" and this answers "what was
-	// found". But because grouping is only right once a descriptor says which images the team builds
-	// and which infrastructure it operates. Without that, an action row states a fix nobody can
-	// apply, where a finding row merely reports something true that a reader can look up. Stating
-	// wrong advice is worse than listing a fact.
-	groupNone = "none"
-	// groupAction gives one row per thing to do, saying how many findings it clears.
-	groupAction = "action"
-)
-
-// validateGroup rejects a value that is not one of the two, rather than quietly choosing.
+// resolveView settles what the report shows, folding in the two flags --view replaces.
 //
-// A mistyped --group that fell through to the default would render a list the reader did not ask
-// for and say nothing about it. A flag that either does something or explains why it did not.
-func validateGroup(v string) error {
-	switch v {
-	// Empty is unset rather than mistyped: a caller building the options directly, or a test,
-	// gets the same default the flag does rather than an error about a flag it never set.
-	case "", groupAction, groupNone:
+// --group and --compact were one question asked twice. Four combinations existed where three
+// answers do, and two of them meant the same thing, so a reader had to work out that
+// "--group action --compact" was a thing at all. Both still work and both say what to write
+// instead; an explicit --view wins over either, because that is the one the caller typed
+// deliberately.
+func resolveView(opts *scanOptions) error {
+	switch {
+	case opts.setFlags["view"]:
+	case opts.compact:
+		opts.view = string(report.ViewCompact)
+	case opts.group == "action":
+		opts.view = string(report.ViewActions)
+	case opts.group == "none":
+		opts.view = string(report.ViewFindings)
+	case opts.group != "":
+		return fmt.Errorf("--group %q is not action or none; --view replaces it", opts.group)
+	}
+	switch report.View(opts.view) {
+	// Empty is unset rather than mistyped: a caller building the options directly, or a test, gets
+	// the same default the flag does rather than an error about a flag it never set.
+	case "", report.ViewFindings, report.ViewActions, report.ViewCompact:
 		return nil
 	default:
-		return fmt.Errorf("--group %q is not %s or %s", v, groupAction, groupNone)
+		return fmt.Errorf("--view %q is not %s, %s or %s", opts.view,
+			report.ViewFindings, report.ViewActions, report.ViewCompact)
 	}
 }
 
@@ -877,8 +890,8 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, e
 // (show everything, deliberately) would read as absent and a configured cap would override an
 // explicit instruction.
 func outputOptionsFrom(opts *scanOptions, cfg config.OutputSettings) {
-	if cfg.Group != "" && !opts.setFlags["group"] {
-		opts.group = cfg.Group
+	if cfg.View != "" && !opts.setFlags["view"] {
+		opts.view = cfg.View
 	}
 	if cfg.Evidence && !opts.setFlags["evidence"] {
 		opts.evidence = true
