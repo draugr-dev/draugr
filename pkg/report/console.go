@@ -604,33 +604,65 @@ func upgradeCell(f finding) tui.Cell {
 // One line where it fits. A mark is two words and a line of its own for it is a line of mostly
 // nothing, which on a listing of several hundred is most of the screen.
 func notesFor(col tui.Painter, f finding) []string {
-	parts := make([]notePart, 0, 4)
+	// Everything except the finding's own sentence. These are short, fixed statements, and it is
+	// the sentence that gives way to fit them rather than the other way round.
+	fixed := make([]notePart, 0, 4)
 	// The mark first, so the marks align down the list and how much of a backlog has been argued
 	// with is readable without reading a row. The same placement, and the same reason, as the
 	// dashboard's.
 	if m := movedBy(f); m != nil {
 		text := m.glyph + " " + m.label
-		parts = append(parts, notePart{plain: text, painted: col.Paint(m.style, text)})
+		fixed = append(fixed, notePart{plain: text, painted: col.Paint(m.style, text)})
 	}
-	if title := findingTitle(f); title != "" {
-		parts = append(parts, notePart{plain: title, painted: col.Paint(cDim, title)})
-	}
-	parts = append(parts, reasoning(col, f)...)
-	if len(parts) == 0 {
-		return nil
-	}
-	width, painted := 0, make([]string, 0, len(parts))
-	for _, p := range parts {
-		width += len(p.plain) + len(" · ")
+	fixed = append(fixed, reasoning(col, f)...)
+
+	room := messageWidth
+	painted := make([]string, 0, len(fixed)+1)
+	for _, p := range fixed {
+		room -= len(p.plain) + len(" · ")
 		painted = append(painted, p.painted)
 	}
-	// Where the whole thing does not fit, a line each, because the alternative is wrapping
-	// mid-sentence and a wrapped continuation under a wrapped continuation is unreadable.
-	if width <= messageWidth {
-		return []string{strings.Join(painted, col.Paint(cDim, " · "))}
+	sep := col.Paint(cDim, " · ")
+
+	title := findingTitle(f)
+	switch {
+	case title == "":
+		if len(painted) == 0 {
+			return nil
+		}
+		return []string{strings.Join(painted, sep)}
+
+	// The sentence, cut to what the rest of the line leaves it.
+	//
+	// Cut rather than moved to a line of its own. A mark is two words, and a two-word line between
+	// two rows that are one line each reads as a row that broke rather than one that is long,
+	// which is worse than losing the tail of a sentence already being cut at a fixed width.
+	case room >= minTitleWidth:
+		// After the mark, so the sentence follows what argued with its band, and before anything
+		// that stands behind it.
+		with := make([]string, 0, len(painted)+1)
+		if len(painted) > 0 {
+			with = append(with, painted[0])
+		}
+		with = append(with, col.Paint(cDim, elide(title, room)))
+		if len(painted) > 1 {
+			with = append(with, painted[1:]...)
+		}
+		return []string{strings.Join(with, sep)}
+
+	// Several things argued about one finding and nothing is left for the sentence beside them, so
+	// it takes a line. Cutting it to a fragment would read as a different sentence, and a fragment
+	// somebody cannot place is worth less than a line.
+	default:
+		return append(painted, col.Paint(cDim, findingSummary(title)))
 	}
-	return painted
 }
+
+// minTitleWidth is the least room a finding's own sentence is worth keeping on a shared line.
+//
+// Below it the sentence is cut to a fragment that reads as a different sentence, which is the
+// point at which a line of its own costs less than the ambiguity.
+const minTitleWidth = 40
 
 // notePart is one statement under a row, in plain text for measuring and painted for writing.
 type notePart struct{ plain, painted string }
