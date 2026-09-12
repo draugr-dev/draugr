@@ -1009,6 +1009,21 @@ A wide pattern is safe to use because it is **loud**. Nothing is deleted, so `ru
 reports `config.exclude: N findings suppressed` and every one of them sits in the SARIF with
 your justification. An exclusion that swallowed more than you meant shows up in the count.
 
+**A rule that matched nothing gets a block of its own.** It is doing nothing and reads exactly like
+one that is working, and the cause is usually a typo, a rule id that moved, a finding somebody fixed
+and forgot to stop excusing, or a `paths` pattern that does not mean what it looks like. The rule is
+named rather than counted, because the thing to do about it is open the descriptor and edit that
+line:
+
+```console
+UNMATCHED
+  config.exclude  paths tests* · test files that are not deployed
+```
+
+That one is the `paths` glob rule above, met in the wild: `tests*` stops at the separator, so it
+matches a file called `testsuite.go` and nothing inside `tests/`. `tests/` is the spelling that
+excludes the directory.
+
 The report counts three kinds of acceptance separately, because they have different people at the
 end of them and one total could only support the weakest:
 

@@ -16,6 +16,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sbom"
 	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
+	"github.com/draugr-dev/draugr/pkg/vex"
 )
 
 // consoleReporter renders a human-readable terminal summary: verdict, priority counts,
@@ -1624,19 +1625,26 @@ func consulted(d Data, name string) bool {
 // document and a rule in the descriptor are answerable to different people, and a comment in the
 // code is answerable to nobody, which is why the three never share a count.
 func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
+	// said is what happened and lit says whether it needs somebody. Dimmed where the row is a
+	// record of a decision, lit where it carries a caveat, which is the test the gate line applies
+	// to itself. One style per cell rather than two inside one, so a table still measures its own
+	// widths.
 	type row struct {
 		where string
 		said  []string
+		lit   bool
 		notes []string
 	}
-	var rows []row
+	var rows, unmatched []row
 
 	if line := suppressionLine(d, full); line != "" {
 		r := row{where: "config.exclude", said: []string{strings.TrimPrefix(line, "config.exclude: ")}}
 		// An exclusion past its date stops suppressing. A finding that used to be accepted
-		// reappearing with no explanation is the confusing half of expiry; this is the other half.
+		// reappearing with no explanation is the confusing half of expiry; this is the other half,
+		// and it is a caveat rather than a record because the findings are back in the counts above.
 		if lapsed := d.Run.LapsedExclusions; len(lapsed) > 0 {
 			r.said = append(r.said, fmt.Sprintf("%d expired and no longer suppressing", len(lapsed)))
+			r.lit = true
 			for _, e := range lapsed {
 				who := e.AcceptedBy
 				if who == "" {
@@ -1646,15 +1654,6 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 					e.Expires, who, findingSummary(e.Reason)))
 			}
 		}
-		// An exclusion that matched nothing is doing nothing, and reads exactly like one that is
-		// working. Usually a typo, a rule id that moved, or a finding somebody fixed and forgot to
-		// stop excusing, and in every case the descriptor claims a decision it is not making.
-		if unmatched := d.Run.UnmatchedExclusions; len(unmatched) > 0 {
-			r.said = append(r.said, fmt.Sprintf("%d matched nothing", len(unmatched)))
-			for _, e := range unmatched {
-				r.notes = append(r.notes, excludeSummary(e))
-			}
-		}
 		rows = append(rows, r)
 	}
 
@@ -1662,14 +1661,7 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 	// cannot see is the failure this block exists to prevent, and one made by somebody outside the
 	// project is the case where seeing it matters most.
 	if line := importedLine(d, full); line != "" {
-		r := row{where: "VEX", said: []string{strings.TrimPrefix(line, "VEX: ")}}
-		// A statement that matched nothing is doing nothing and looks exactly like one that
-		// worked. Usually the supplier and the scanner name a package differently, which is a real
-		// finding about the document rather than a quiet no-op.
-		if n := len(d.Run.UnmatchedClaims); n > 0 {
-			r.said = append(r.said, fmt.Sprintf("%s matched nothing", plural(n, "statement")))
-		}
-		rows = append(rows, r)
+		rows = append(rows, row{where: "VEX", said: []string{strings.TrimPrefix(line, "VEX: ")}})
 	}
 
 	// A comment in the code. Without this a `nosem` is the one form of acceptance that leaves no
@@ -1682,18 +1674,53 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 		})
 	}
 
-	if len(rows) == 0 {
-		return
+	// A rule that matched nothing is doing nothing, and read as a clause on the row that counts the
+	// ones that worked it arrived at the same volume as them. Usually a typo, a rule id that moved,
+	// a path pattern that does not mean what it looks like, or a finding somebody fixed and forgot
+	// to stop excusing. In every case the descriptor claims a decision it is not making, which is a
+	// thing to go and edit rather than a number to read.
+	for _, e := range d.Run.UnmatchedExclusions {
+		unmatched = append(unmatched, row{where: "config.exclude", said: []string{excludeSummary(e)}, lit: true})
 	}
-	t := tui.NewTable(col).Indent("  ")
-	for _, r := range rows {
-		t.RowWithNotes(r.notes,
-			tui.Styled(tui.StyleStrong, r.where),
-			tui.Styled(cAccent, strings.Join(r.said, " · ")))
+	// Named rather than counted, for the same reason. A supplier statement matching nothing usually
+	// means they and the scanner name a package differently, and the name is the whole content of
+	// that finding.
+	for _, c := range d.Run.UnmatchedClaims {
+		unmatched = append(unmatched, row{where: "VEX", said: []string{claimSummary(c)}, lit: true})
 	}
-	_, _ = fmt.Fprintln(w, heading(col, "Accepted"))
-	t.Render(w)
-	_, _ = fmt.Fprintln(w)
+
+	draw := func(name string, rs []row) {
+		if len(rs) == 0 {
+			return
+		}
+		t := tui.NewTable(col).Indent("  ")
+		for _, r := range rs {
+			style := cDim
+			if r.lit {
+				style = cAccent
+			}
+			t.RowWithNotes(r.notes,
+				tui.Styled(tui.StyleStrong, r.where),
+				tui.Styled(style, strings.Join(r.said, " · ")))
+		}
+		_, _ = fmt.Fprintln(w, heading(col, name))
+		t.Render(w)
+		_, _ = fmt.Fprintln(w)
+	}
+	draw("Accepted", rows)
+	draw("Unmatched", unmatched)
+}
+
+// claimSummary names a supplier statement nothing matched, by what it is about.
+//
+// The vulnerability and the package, because that pair is what did not line up: a statement naming
+// a package the scanners never reported is the common case, and the name is what a reader compares
+// against their own inventory.
+func claimSummary(c vex.Claim) string {
+	if c.PURL == "" {
+		return c.Vulnerability
+	}
+	return c.Vulnerability + " · " + c.PURL
 }
 
 // writeUncovered names what the descriptor declares and no enabled control looks at.
