@@ -1,0 +1,1 @@
+**The caching guide covers GitLab and Azure, not only GitHub.** Persisting Trivy's databases and Draugr's own result cache was shown as GitHub Actions YAML and nowhere else, so a reader on either of the other two systems got the reasoning and no way to act on it. Both now have the keys, the scoping each one does and does not give you, and where `--cache-read-only` belongs.

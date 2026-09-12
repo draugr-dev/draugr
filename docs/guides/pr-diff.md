@@ -104,10 +104,9 @@ the first one pays and the rest do not:
   with: { saga: draugr.saga.yaml, cache-dir: .draugr/cache, fail-on-new: P1 }
 ```
 
-That snippet is GitHub's. On GitLab the equivalent is a `cache:` key on the job with
-`DRAUGR_CACHE_DIR` set, and on Azure a `Cache@2` task ahead of the template, both keyed the same
-way. None of the three templates wires the cache for you, because where a cache is kept is a
-property of the runner rather than of the scan.
+That snippet is GitHub's. [GitLab and Azure](caching-and-performance.md#on-gitlab-and-azure) cache
+the same directories with a `cache:` key and a `Cache@2` task. None of the three templates wires
+one for you, because where a cache is kept is a property of the runner rather than of the scan.
 
 The scan still runs, so the base is still the actual merge base and both sides still come from the
 same Draugr. Nothing about the comparison changes; only the work does. A cache that expired or was

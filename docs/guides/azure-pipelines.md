@@ -187,6 +187,17 @@ components:
 A remote `url:` also works, Draugr shells out to `git`, so it behaves exactly as `git clone` would
 on that agent. Letting `checkout:` do it is simpler and keeps Azure's credentials in play.
 
+## Make the second scan cheap
+
+A pull request scans the base as well as the head, which is what makes the two comparable. Caching
+Trivy's databases and Draugr's own results makes the pair cost about what one scan does, and a
+cache that expired or was never written costs time rather than correctness: the base is still
+scanned and both sides still come from the same binary.
+
+Two `Cache@2` tasks ahead of the template do it. See [caching and
+performance](caching-and-performance.md#on-gitlab-and-azure) for the keys and for what a hit does
+and does not promise, which is worth reading before sharing a cache with pull-request pipelines.
+
 ## Air-gapped and self-hosted agents
 
 [Running air-gapped](air-gapped.md) applies unchanged: `DRAUGR_OFFLINE=1`, a pre-provisioned

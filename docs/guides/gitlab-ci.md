@@ -161,6 +161,17 @@ draugr:
     DRAUGR_TOOLS: "false"                 # a runner image that already has the scanners
 ```
 
+## Make the second scan cheap
+
+A merge request scans the merge base as well as the head, which is what makes the two comparable.
+Caching Trivy's databases and Draugr's own results makes the pair cost about what one scan does,
+and a cache that expired or was never written costs time rather than correctness: the base is still
+scanned and both sides still come from the same binary.
+
+A `cache:` key on the job does it. See [caching and
+performance](caching-and-performance.md#on-gitlab-and-azure) for the keys, and for why a
+merge-request job should pull rather than push the result cache.
+
 ## Scanners the runner needs
 
 `draugr tools install` provisions every scanner the descriptor's controls need, Semgrep included.
