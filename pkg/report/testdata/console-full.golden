@@ -20,7 +20,12 @@ COMPONENTS
   2 findings not tied to a component (project-wide controls)
 
 ACCEPTED
-  config.exclude  2 findings suppressed
+  config.exclude  2 findings suppressed · 1 expired and no longer suppressing
+              expired 2026-01-31, accepted by a.reviewer@example.com · waiting on the upstream release
+
+UNMATCHED
+  config.exclude  paths tests* · test files that are not deployed
+  VEX             CVE-2023-45803 · pkg:pypi/urllib3
 
 FIX FIRST  top 5 of 8, by priority
   Priority  Severity  Rule                                    Scanner  Component      Location                Upgrade
