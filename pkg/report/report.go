@@ -863,38 +863,6 @@ func dedupeMessages(msgs []string) []string {
 	return out
 }
 
-// suppressionAttribution summarizes who accepted the suppressed findings.
-//
-// Returns the acceptors in a stable order with their counts, and how many nobody claimed.
-//
-// The name is the point of recording it. A count of unattributed suppressions says *that* there is
-// a gap; it does not say who to ask about the rest, which is the question an auditor actually
-// arrives with, and until this, the name reached no report at all: not the console, not the
-// markdown, not even SARIF.
-func suppressionAttribution(d Data) (acceptors []string, counts map[string]int, unattributed int) {
-	counts = map[string]int{}
-	for _, cr := range d.Run.Controls {
-		for _, res := range cr.Report.Results {
-			if !res.Suppressed() || res.Imported() {
-				// An imported claim has no acceptedBy and is not unattributed either, a named supplier asserted
-				// it. Counting it here would report somebody else's signed analysis as a decision nobody
-				// signed, which is the opposite of true.
-				continue
-			}
-			if by := res.Suppression.AcceptedBy; by != "" {
-				if _, seen := counts[by]; !seen {
-					acceptors = append(acceptors, by)
-				}
-				counts[by]++
-				continue
-			}
-			unattributed++
-		}
-	}
-	sort.Strings(acceptors)
-	return acceptors, counts, unattributed
-}
-
 // suppressionLine renders the one-line account of what was set aside, and under `full` by whom.
 //
 // Named for where the decision lives rather than opening with a count, so the lines that report an
@@ -924,20 +892,9 @@ func suppressionLine(d Data, full bool) string {
 		line = fmt.Sprintf("config.exclude: %s suppressed · %s",
 			plural(n, "finding"), strings.Join(where, ", "))
 	}
-	acceptors, counts, unattributed := suppressionAttribution(d)
-
-	var parts []string
-	for _, who := range acceptors {
-		parts = append(parts, fmt.Sprintf("%d accepted by %s", counts[who], who))
-	}
-	if unattributed > 0 {
-		// A blank is an answer worth seeing: an exclusion nobody signed is one nobody can be
-		// asked about.
-		parts = append(parts, fmt.Sprintf("%d unattributed", unattributed))
-	}
-	if len(parts) > 0 {
-		line += " · " + strings.Join(parts, ", ")
-	}
+	// Who accepted what used to be appended here, and it is a table now: one row per decision,
+	// carrying the reason as well as the name, which a clause in a sentence has no room for. A
+	// count and a roll call of the same findings on one line is the same fact twice.
 	return line
 }
 
@@ -1323,4 +1280,64 @@ func (g GateSettings) chosen() bool {
 		return true
 	}
 	return g.FailOnPriority != "" && g.FailOnPriority != norn.DefaultPriority
+}
+
+// decision is one acceptance: who made it, why, when it lapses, and how many findings it covers.
+type decision struct {
+	by      string
+	reason  string
+	expires string
+	n       int
+}
+
+// decisions groups suppressed findings by the decision that set them aside.
+//
+// The account an auditor comes for, and the one a single count cannot give: "4 findings suppressed
+// · 2 accepted by A, 1 accepted by B, 1 unattributed" is four facts in one sentence and says
+// nothing about why any of them was acceptable, though every suppressed finding carries the reason.
+//
+// Keyed on who, why and until when together, because those three are what makes two suppressions
+// one decision. Two rules with the same reason and the same signature really are one decision
+// spelled twice; the same reason accepted by two people is two.
+//
+// Imported claims are excluded. A supplier's analysis is not a decision anybody here made, and
+// counting it among them answers the auditor's question with the wrong name.
+func decisions(d Data) []decision {
+	index := map[string]*decision{}
+	var order []*decision
+	for _, cr := range d.Run.Controls {
+		for _, res := range cr.Report.Results {
+			if !res.Suppressed() || res.Imported() {
+				continue
+			}
+			by := res.Suppression.AcceptedBy
+			if by == "" {
+				by = "unattributed"
+			}
+			key := by + "\x00" + res.Suppression.Justification + "\x00" + res.Suppression.Expires
+			if got, ok := index[key]; ok {
+				got.n++
+				continue
+			}
+			dec := &decision{
+				by: by, reason: res.Suppression.Justification,
+				expires: res.Suppression.Expires, n: 1,
+			}
+			index[key] = dec
+			order = append(order, dec)
+		}
+	}
+	// Most findings first, then by who, so the order is a property of the run rather than of map
+	// iteration and two readings of one report agree.
+	sort.SliceStable(order, func(i, j int) bool {
+		if order[i].n != order[j].n {
+			return order[i].n > order[j].n
+		}
+		return order[i].by < order[j].by
+	})
+	out := make([]decision, 0, len(order))
+	for _, dec := range order {
+		out = append(out, *dec)
+	}
+	return out
 }

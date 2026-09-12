@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"path/filepath"
@@ -62,6 +63,18 @@ type htmlView struct {
 	SBOMFormat  string
 	MinPriority string // set when the listing was filtered, so the page can say so
 	Hidden      int
+	// Signals is what argued with the ranking: an exploitation catalog, a prediction, a control's
+	// own floor, a reachability verdict. Absent from this format entirely, which made the rendered
+	// report the one place a reader could not find out why a finding outranked its severity.
+	Signals []htmlSignal
+	// Decisions is one row per acceptance. This is the copy somebody keeps, so it carries the
+	// account rather than the count: who, why, and until when.
+	Decisions []htmlDecision
+	// Unmatched are the rules that suppressed nothing. In a report read apart from the descriptor,
+	// nothing else would say the line was dead.
+	Unmatched []htmlUnmatched
+	// Gate is the rule the verdict was produced under. A verdict nobody can check is a claim.
+	Gate string
 	// Excluded are the findings a config.exclude rule set aside, each with the reason given.
 	// The count alone answers "was anything hidden"; an auditor asks who decided it was
 	// acceptable, which needs the reason next to the finding.
@@ -95,15 +108,48 @@ type htmlTiming struct {
 type htmlError struct{ Control, Message string }
 
 type htmlControl struct {
-	Control                     string
-	Fail                        bool
-	Errored                     bool // its scanner failed: whatever it reported is partial
-	NoReport                    bool // it produced nothing at all, so has no counts to show
+	Control  string
+	Fail     bool
+	Errored  bool // its scanner failed: whatever it reported is partial
+	NoReport bool // it produced nothing at all, so has no counts to show
+	// Bands are how many findings landed in each priority, which is the vocabulary the verdict, the
+	// components and the gate all speak. The severities stay for a run that ranked nothing, where
+	// they are all there is.
+	P1, P2, P3, P4              int
+	Prioritized                 bool
 	Critical, High, Medium, Low int
+}
+
+// htmlSignal is one thing that argued with this run's ranking, and how many findings it moved.
+type htmlSignal struct{ Name, Effect string }
+
+// htmlDecision is one acceptance: how many findings it covers, who signed it, when it lapses, and
+// why. The count alone says how much was set aside and never what was acceptable about it.
+type htmlDecision struct {
+	N               int
+	By              string
+	Unattributed    bool
+	Expires, Reason string
+}
+
+// htmlUnmatched is a rule that suppressed nothing, named by what a reader would go and edit.
+//
+// The matchers stay a list of pairs rather than one sentence: the descriptor field and the pattern
+// written in it are different kinds of thing, and a reader deciding whether the pattern is right
+// should not have to work out which half is ours.
+type htmlUnmatched struct {
+	Source   string
+	Matchers []matcher
+	Reason   string
 }
 
 type htmlFinding struct {
 	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Component, Location, Message string
+	// Upgrade is the dependency and the release that clears it, which is the only instruction on
+	// the row. Empty for a finding that is not about a package.
+	Upgrade string
+	// Moved names what argued with this finding's band, in the words the console uses.
+	Moved string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
 	// link costs nothing, and a rule id names a finding without explaining it.
 	HelpURI string
@@ -162,10 +208,12 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		}
 	}
 	for _, c := range d.Verdict.Controls {
-		b := s.bands[c.Control]
+		b, at := s.bands[c.Control], s.controlBands[c.Control]
 		_, bad := s.scanErrors[c.Control]
 		view.Controls = append(view.Controls, htmlControl{
 			Control: c.Control, Fail: c.Verdict == norn.Fail, Errored: bad,
+			Prioritized: s.prioritized,
+			P1:          at[0], P2: at[1], P3: at[2], P4: at[3],
 			Critical: b.critical, High: b.high, Medium: b.medium, Low: b.low,
 		})
 	}
@@ -191,11 +239,68 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	for _, a := range grouped {
 		view.Actions = append(view.Actions, toHTMLAction(a))
 	}
+	view.Signals = htmlSignals(d, s)
+	for _, dec := range decisions(d) {
+		view.Decisions = append(view.Decisions, htmlDecision{
+			N: dec.n, By: dec.by, Unattributed: dec.by == "unattributed",
+			Expires: dec.expires, Reason: dec.reason,
+		})
+	}
+	for _, e := range d.Run.UnmatchedExclusions {
+		view.Unmatched = append(view.Unmatched, htmlUnmatched{
+			Source: "config.exclude", Matchers: excludeMatchers(e), Reason: findingSummary(e.Reason),
+		})
+	}
+	for _, c := range d.Run.UnmatchedClaims {
+		// A claim has no field to name: the vulnerability and the package are both values, and the
+		// pair is what did not line up.
+		view.Unmatched = append(view.Unmatched, htmlUnmatched{
+			Source: "VEX", Matchers: []matcher{{Key: "statement", Value: claimSummary(c)}},
+		})
+	}
+	// Without its own prefix: the row it sits in is labeled `gate`, and a value that names itself
+	// again says the same word twice.
+	view.Gate = strings.TrimPrefix(gateSentence(d), "Gate: ")
 	view.Priorities = ourVocabulary([]string{"P1", "P2", "P3", "P4"}, prio)
 	view.Severities = ourVocabulary([]string{"critical", "high", "medium", "low"}, sev)
 	view.ControlNames = theirVocabulary(ctl)
 	view.ComponentNames = theirVocabulary(comp)
 	return htmlTemplate.Execute(w, view)
+}
+
+// htmlSignals is what argued with this run's ranking, named the way the console names it.
+//
+// One list rather than four scattered facts: an exploitation catalog, a prediction about one, a
+// control's own floor and a reachability verdict all answer the same question, and a reader can
+// only compare them where they are together.
+func htmlSignals(d Data, s summary) []htmlSignal {
+	var out []htmlSignal
+	for _, name := range []string{"kev", "epss"} {
+		n := s.bySignal[name]
+		if n == 0 && !consulted(d, name) {
+			continue
+		}
+		// "nothing raised" is a result rather than an absence: without it the only way to learn a
+		// feed changed nothing is to read every finding looking for a mark that is not there.
+		effect := "nothing raised"
+		if n > 0 {
+			effect = fmt.Sprintf("%s raised", plural(n, "finding"))
+		}
+		out = append(out, htmlSignal{Name: strings.ToUpper(name), Effect: effect})
+	}
+	if n := s.floored; n > 0 {
+		out = append(out, htmlSignal{
+			Name: "floor", Effect: fmt.Sprintf("%s raised by a control's own rule", plural(n, "finding")),
+		})
+	}
+	rows, _ := reachabilityBlock(d)
+	for _, row := range rows {
+		analyzer, did, _ := strings.Cut(row, "  ")
+		out = append(out, htmlSignal{
+			Name: "reachability", Effect: strings.TrimSpace(analyzer) + " · " + strings.TrimSpace(did),
+		})
+	}
+	return out
 }
 
 // timings renders the run's wall-clock and a worst-first control breakdown.
@@ -239,15 +344,24 @@ func humanDuration(d time.Duration) string {
 }
 
 func toHTMLFinding(f finding) htmlFinding {
+	// The rating the band was computed from, so a row does not contradict the band beside it, and
+	// the mark that moved it. Both are what the console shows for the same finding.
+	sev := rankedSeverity(f)
+	var moved string
+	if m := movedBy(f); m != nil {
+		moved = m.glyph + " " + m.label
+	}
 	return htmlFinding{
-		Priority: dash(f.priority), Severity: string(f.severity), SevClass: "sev-" + string(f.severity),
+		Priority: dash(f.priority), Severity: string(sev), SevClass: "sev-" + string(sev),
 		Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: dash(f.tool),
 		Component: dash(f.component),
-		Location:  dash(f.location), Message: f.message, HelpURI: f.helpURI,
+		Location:  dash(f.location), Message: findingTitle(f), HelpURI: f.helpURI,
+		Upgrade:       upgradeLabel(f),
+		Moved:         moved,
 		Justification: f.justification,
 		ActionKey:     actionKeyFor(f),
 		Search: strings.ToLower(strings.Join(
-			[]string{f.ruleID, f.control, f.tool, f.location, f.message, f.priority, string(f.severity)}, " ")),
+			[]string{f.ruleID, f.control, f.tool, f.location, f.message, f.priority, string(sev)}, " ")),
 	}
 }
 
@@ -668,7 +782,65 @@ const htmlDoc = `<!doctype html>
   .sev.s-high     { background: var(--p1); color: var(--on-p1); }
   .sev.s-medium   { background: var(--p2); color: var(--on-p2); }
   .sev.s-low      { background: var(--p4); color: var(--on-p4); }
+  /* The bands wear the same chips, from the same ramp, because a control's counts and the strip
+   * above them are now the same measurement and a second palette would say otherwise. */
+  .sev.s-p1 { background: var(--p1); color: var(--on-p1); }
+  .sev.s-p2 { background: var(--p2); color: var(--on-p2); }
+  .sev.s-p3 { background: var(--p3); color: var(--on-p3); }
+  .sev.s-p4 { background: var(--p4); color: var(--on-p4); }
   .sev.off { background: transparent; color: var(--faint); border-color: var(--line); }
+
+  /* What moved a band, beside the rating it moved. Muted: the row is already found by its band,
+   * and the mark is the reason rather than the alarm. */
+  .moved { color: var(--muted); font-size: .74rem; white-space: nowrap; }
+  /* A date is one token. Wrapped across two lines it reads as two values. */
+  .when { white-space: nowrap; }
+
+  /* The descriptor field a rule was written in, beside what was written in it. Set apart because
+   * they are different kinds of thing: one is our vocabulary and the other is theirs, and one
+   * typeface for both leaves a reader working out which half to check. */
+  .mk { color: var(--faint); font-size: .78rem; }
+  .why { color: var(--muted); }
+  .why::before { content: "· "; color: var(--faint); }
+
+  /* Sections fold. Native disclosure rather than script, so a report opened from a file, an email
+   * attachment or a viewer that strips scripts folds exactly the same way, and the keyboard and
+   * screen-reader behavior is the browser's rather than ours to reimplement.
+   *
+   * Open on arrival, every one of them. A report is read once and kept; a section closed before
+   * anybody asked is one a reader has to know to look for, and the fold is for putting away what
+   * you have read rather than for deciding what somebody sees first. */
+  .fold { margin: 0 0 1.4rem; }
+  .fold > summary {
+    cursor: pointer; list-style: none; display: flex; align-items: center; gap: .5rem;
+    margin: 1.6rem 0 .7rem; border-radius: 4px;
+  }
+  .fold > summary::-webkit-details-marker { display: none; }
+  /* The marker turns rather than swaps, so the control says which way the section will move. */
+  .fold > summary::before {
+    content: ""; flex: none; width: 0; height: 0; border-style: solid;
+    border-width: .3rem 0 .3rem .42rem; border-color: transparent transparent transparent var(--faint);
+    transition: transform .12s ease;
+  }
+  .fold[open] > summary::before { transform: rotate(90deg); }
+  @media (prefers-reduced-motion: reduce) { .fold > summary::before { transition: none; } }
+  .fold > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .fold > summary .sec {
+    font-size: 1.02rem; font-weight: 600; color: var(--text); letter-spacing: -.01em;
+  }
+  .fold.sub { margin: 0 0 1rem; }
+  .fold.sub > summary { margin: 1.1rem 0 .5rem; }
+
+  /* Printed reports carry everything. A folded section is a reading convenience and must not
+   * decide what reaches an auditor's copy. */
+  @media print {
+    .fold > summary::before { display: none; }
+    .fold > summary { cursor: default; }
+  }
+  /* The release that ends a finding wears the color a passing verdict wears, which is what the
+   * console and the dashboard both do with this fact. */
+  .upg { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .78rem; white-space: nowrap; }
+  .upg { color: var(--muted); }
 
   /* Two views of one set, and the toggle between them. The plane leads with the work and keeps the
    * list beside it, because a reader opening a report is deciding what to do rather than scanning
@@ -844,11 +1016,12 @@ const htmlDoc = `<!doctype html>
 </header>
 
 <nav class="tabs" aria-label="Sections of this report">
+  {{if .Signals}}<a class="tab" href="#signals">Signals</a>{{end}}
   {{if .Controls}}<a class="tab" href="#controls">Controls</a>{{end}}
   {{if .Errors}}<a class="tab err" href="#errors">Errors</a>{{end}}
   <a class="tab" href="#findings-h">Findings</a>
-  {{if .Excluded}}<a class="tab" href="#suppressed">Suppressed</a>{{end}}
-  {{if .Slowest}}<a class="tab" href="#timing">Timing</a>{{end}}
+  {{if or .Suppressed .Decisions .Unmatched .Excluded}}<a class="tab" href="#suppressed">Accepted</a>{{end}}
+  {{if or .Gate .SBOMCount .Slowest .Scanned .Provenance .Exploitability}}<a class="tab" href="#timing">Evidence</a>{{end}}
   <a class="tab" href="#about">About</a>
   <span class="spacer"></span>
   <span class="themes" id="themes" hidden role="group" aria-label="Color theme">
@@ -876,16 +1049,31 @@ const htmlDoc = `<!doctype html>
 {{if .Prioritized}}
 <p class="note">Priority combines how severe a finding is with how exposed and how business-critical
 the component is, so the same issue ranks differently on a public API than on an internal tool.
-<strong>P1</strong> is act now, <strong>P4</strong> is track it. Counts cover the whole run.</p>
+<strong>P1</strong> is act now, <strong>P4</strong> is track it.</p>
 {{end}}
 
+{{if .Signals}}
+<details class="fold" open><summary id="signals"><span class="sec">Signals</span></summary>
+<p class="note">What argued with this run's ranking, and how many findings each one moved.</p>
+<table class="provenance">
+<thead><tr><th scope="col">Signal</th><th scope="col">Effect</th></tr></thead>
+{{range .Signals}}<tr><td><code>{{.Name}}</code></td><td>{{.Effect}}</td></tr>{{end}}
+</table>
+</details>
+{{end}}
 {{if .Controls}}
-<h2 id="controls">Controls</h2>
+<details class="fold" open><summary id="controls"><span class="sec">Controls</span></summary>
 <ul class="controls">
 {{range .Controls}}<li class="ctl{{if .Errored}} bad{{end}}">
   <span class="ctl-name">{{.Control}}</span>
   <span class="ctl-verdict">{{if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">pass</span>{{end}}</span>
   {{if .NoReport}}<span class="ctl-none">nothing to report, this control did not run</span>
+  {{else if .Prioritized}}<span class="sevs">
+    <span class="sev s-p1{{if not .P1}} off{{end}}">P1 {{.P1}}</span>
+    <span class="sev s-p2{{if not .P2}} off{{end}}">P2 {{.P2}}</span>
+    <span class="sev s-p3{{if not .P3}} off{{end}}">P3 {{.P3}}</span>
+    <span class="sev s-p4{{if not .P4}} off{{end}}">P4 {{.P4}}</span>
+  </span>
   {{else}}<span class="sevs">
     <span class="sev s-critical{{if not .Critical}} off{{end}}">{{.Critical}} critical</span>
     <span class="sev s-high{{if not .High}} off{{end}}">{{.High}} high</span>
@@ -894,54 +1082,21 @@ the component is, so the same issue ranks differently on a public API than on an
   </span>{{end}}
 </li>{{end}}
 </ul>
-{{if .Exploitability}}
-<h3 class="sub">Exploitability data</h3>
-<table class="provenance">
-<thead><tr><th scope="col">Feed</th><th scope="col">Obtained</th><th scope="col">Digest</th></tr></thead>
-<tbody>
-{{range .Exploitability}}<tr><td>{{.Name}}</td><td>{{.Obtained}}</td><td>{{.Digest}}</td></tr>{{end}}
-</tbody>
-</table>
-{{end}}
-{{if .Scanned}}
-<h3 class="sub">Scanned</h3>
-<table class="provenance">
-<thead><tr><th scope="col">Repository</th><th scope="col">Revision</th><th scope="col">Not included</th></tr></thead>
-<tbody>
-{{range .Scanned}}<tr>
-  <td>{{.Name}}{{if .Local}} <span class="ctl-none">local checkout, no remote</span>{{end}}</td>
-  <td><code>{{.Revision}}</code></td>
-  <td>{{if .Uncommitted}}{{.Uncommitted}} uncommitted{{else}}&mdash;{{end}}</td>
-</tr>{{end}}
-</tbody>
-</table>
-{{end}}
-{{if .Provenance}}
-<h3 class="sub">Measured against</h3>
-<table class="provenance">
-<thead><tr><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Run</th></tr></thead>
-<tbody>
-{{range .Provenance}}<tr><td>{{.Control}}</td><td>{{.Label}}</td><td>{{.Detail}}</td></tr>{{end}}
-</tbody>
-</table>
-{{end}}
+</details>
 {{end}}
 
 {{if .Errors}}
 <h3 id="errors" class="err">Controls that could not run</h3>
 <p class="note">These checks were requested and did not complete, so this report says nothing
-about what they would have found. For everything the tool printed, re-run with the
-<code class="cmd">--log-level trace</code> flag:</p>
+about what they would have found. For everything the tool printed, re-run with
+<code class="cmd">--log-level trace</code>.</p>
 <pre class="cmd">draugr scan &lt;saga.yaml&gt; --log-level trace</pre>
 <ul class="errors">
 {{range .Errors}}<li><strong>{{.Control}}</strong> · {{.Message}}</li>{{end}}
 </ul>
 {{end}}
 
-{{if .Suppressed}}<p class="note">{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code> · reported, not deleted; each carries the reason it was set aside.</p>{{end}}
-{{if .SBOMCount}}<p class="note">SBOM: {{.SBOMCount}} document(s) ({{.SBOMFormat}}).</p>{{end}}
-
-<h2 id="findings-h">Findings{{if .MinPriority}} · {{.MinPriority}} and above{{end}}</h2>
+<details class="fold" open><summary id="findings-h"><span class="sec">Findings{{if .MinPriority}} · {{.MinPriority}} and above{{end}}</span></summary>
 
 {{if .Actions}}
 <div class="views" id="views" hidden>
@@ -951,8 +1106,7 @@ about what they would have found. For everything the tool printed, re-run with t
 
 <section id="work">
   <h3 class="sub js-off">What to do</h3>
-  <p class="note">One row per thing to do rather than per finding: eight advisories in one library
-  are one upgrade. Always the whole run, so these agree with the counts at the top of the page.</p>
+  <p class="note">One row per thing to do rather than per finding.</p>
   <ul class="actions">
   {{range .Actions}}<li class="act">
     <span class="pri {{.Priority}}">{{.Priority}}</span>
@@ -961,15 +1115,14 @@ about what they would have found. For everything the tool printed, re-run with t
     {{if .Where}}<span class="act-where">{{.Where}}</span>{{end}}
   </li>{{end}}
   </ul>
-  {{if .External}}<p class="note">{{.External}} finding(s) belong to somebody else to fix, and are
-  in the list beside this one rather than here: work a reader cannot do, at the top of a list of
-  what to do, teaches them the list is not worth reading.</p>{{end}}
+  {{if .External}}<p class="note">{{.External}} finding(s) are somebody else's to fix, so they are
+  reported rather than listed as work.</p>{{end}}
 </section>
 {{end}}
 
 <section id="all">
 <h3 class="sub js-off">All findings</h3>
-{{if .MinPriority}}<p class="note">The counts above describe the whole run{{if .Hidden}}; {{.Hidden}} lower-priority finding(s) are not listed{{end}}.</p>{{end}}
+{{if .MinPriority}}<p class="note">{{if .Hidden}}{{.Hidden}} lower-priority finding(s) are not listed, and the counts still describe the whole run{{else}}The counts describe the whole run{{end}}.</p>{{end}}
 
 <p class="dl">
   {{if .SARIFHref}}<a href="{{.SARIFHref}}" download="results.sarif">⬇ SARIF</a>{{end}}
@@ -1013,21 +1166,20 @@ about what they would have found. For everything the tool printed, re-run with t
 {{if .Findings}}
 <table id="findings">
 <thead><tr>
-  <th scope="col">Priority</th><th scope="col">Severity</th><th scope="col" class="num">Score</th>
-  <th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Component</th><th scope="col">Location</th>
+  <th scope="col">Priority</th><th scope="col">Severity</th>
+  <th scope="col">Rule</th><th scope="col">Scanner</th><th scope="col">Component</th><th scope="col">Location</th><th scope="col">Upgrade</th>
 </tr></thead>
 {{range .Findings}}<tbody class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
 <tr class="meta">
   <td class="pri {{.Priority}}">{{.Priority}}</td>
-  <td class="{{.SevClass}}">{{.Severity}}</td>
-  <td class="num">{{.Score}}</td>
+  <td class="{{.SevClass}}">{{.Severity}}{{if .Moved}} <span class="moved">{{.Moved}}</span>{{end}}</td>
   <td><code>{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</code></td>
-  <td>{{.Control}}</td>
   <td>{{.Tool}}</td>
   <td>{{.Component}}</td>
   <td><code>{{.Location}}</code></td>
+  <td class="upg">{{.Upgrade}}</td>
 </tr>
-<tr class="msg"><td colspan="8">{{.Message}}</td></tr>
+<tr class="msg"><td colspan="7">{{.Message}}</td></tr>
 </tbody>{{end}}
 </table>
 <p class="empty" id="none" hidden>No findings match this filter.</p>
@@ -1036,13 +1188,43 @@ about what they would have found. For everything the tool printed, re-run with t
 {{else}}
 <p>No findings. ✓</p>
 {{end}}
+</details>
 </section>
 
+{{if or .Suppressed .Decisions .Unmatched .Excluded}}
+<details class="fold" open><summary id="suppressed"><span class="sec">Accepted</span></summary>
+<p class="note">{{if .Suppressed}}{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code>.{{else}}Suppressed by <code class="cmd">config.exclude</code>.{{end}}</p>
+{{if .Decisions}}
+<details class="fold sub" open><summary class="sub"><span class="sub">Decisions</span></summary>
+<table class="provenance">
+<thead><tr><th scope="col" class="num">Findings</th><th scope="col">Accepted by</th><th scope="col">Expires</th><th scope="col">Reason</th></tr></thead>
+{{range .Decisions}}<tr>
+  <td class="num">{{.N}}</td>
+  <td>{{if .Unattributed}}<span class="err">unattributed</span>{{else}}{{.By}}{{end}}</td>
+  <td class="when">{{if .Expires}}{{.Expires}}{{else}}<span class="faint">never</span>{{end}}</td>
+  <td>{{.Reason}}</td>
+</tr>{{end}}
+</table>
+</details>
+{{end}}
+
+{{if .Unmatched}}
+<details class="fold sub" open><summary class="sub"><span class="sub">Unmatched</span></summary>
+<p class="note">These rules suppressed nothing.</p>
+<table class="provenance">
+<thead><tr><th scope="col">Source</th><th scope="col">Rule</th></tr></thead>
+{{range .Unmatched}}<tr>
+  <td><code>{{.Source}}</code></td>
+  <td>{{range .Matchers}}<span class="mk">{{.Key}}</span> <code>{{.Value}}</code> {{end}}{{if .Reason}}<span class="why">{{.Reason}}</span>{{end}}</td>
+</tr>{{end}}
+</table>
+</details>
+{{end}}
+
 {{if .Excluded}}
-<h2 id="suppressed">Suppressed</h2>
-<p class="note">Excluded by <code class="cmd">config.exclude</code>. Reported rather than deleted, so the decision is visible and reviewable.</p>
+<details class="fold sub" open><summary class="sub"><span class="sub">What was set aside</span></summary>
 <table>
-<thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Location</th></tr></thead>
+<thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Component</th><th scope="col">Location</th></tr></thead>
 {{range .Excluded}}<tbody>
 <tr class="meta">
   <td class="{{.SevClass}}">{{.Severity}}</td>
@@ -1051,17 +1233,70 @@ about what they would have found. For everything the tool printed, re-run with t
   <td>{{.Component}}</td>
   <td><code>{{.Location}}</code></td>
 </tr>
-<tr class="msg"><td colspan="4">{{.Message}}<br><span class="just">Reason: {{.Justification}}</span></td></tr>
+<tr class="msg"><td colspan="5">{{.Message}}<br><span class="just">Reason: {{.Justification}}</span></td></tr>
 </tbody>{{end}}
+</table>
+</details>
+{{end}}
+</details>
+{{end}}
+
+{{if or .Gate .SBOMCount .Slowest .Scanned .Provenance .Exploitability}}
+<details class="fold" open><summary id="timing"><span class="sec">Evidence</span></summary>
+<p class="note">What stands behind the verdict rather than what it found.</p>
+
+{{if or .Gate .SBOMCount}}
+<table class="provenance">
+<tbody>
+{{if .Gate}}<tr><td><span class="mk">gate</span></td><td>{{.Gate}}</td></tr>{{end}}
+{{if .SBOMCount}}<tr><td><span class="mk">sbom</span></td><td>{{.SBOMCount}} document(s) ({{.SBOMFormat}})</td></tr>{{end}}
+</tbody>
 </table>
 {{end}}
 
+{{if .Scanned}}
+<details class="fold sub" open><summary class="sub"><span class="sub">Scanned</span></summary>
+<table class="provenance">
+<thead><tr><th scope="col">Repository</th><th scope="col">Revision</th><th scope="col">Not included</th></tr></thead>
+<tbody>
+{{range .Scanned}}<tr>
+  <td>{{.Name}}{{if .Local}} <span class="ctl-none">local checkout, no remote</span>{{end}}</td>
+  <td><code>{{.Revision}}</code></td>
+  <td>{{if .Uncommitted}}{{.Uncommitted}} uncommitted{{else}}&mdash;{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+</details>
+{{end}}
+
+{{if .Provenance}}
+<details class="fold sub" open><summary class="sub"><span class="sub">Measured against</span></summary>
+<table class="provenance">
+<thead><tr><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Run</th></tr></thead>
+<tbody>
+{{range .Provenance}}<tr><td>{{.Control}}</td><td>{{.Label}}</td><td>{{.Detail}}</td></tr>{{end}}
+</tbody>
+</table>
+</details>
+{{end}}
+
+{{if .Exploitability}}
+<details class="fold sub" open><summary class="sub"><span class="sub">Exploitability data</span></summary>
+<table class="provenance">
+<thead><tr><th scope="col">Feed</th><th scope="col">Obtained</th><th scope="col">Digest</th></tr></thead>
+<tbody>
+{{range .Exploitability}}<tr><td>{{.Name}}</td><td>{{.Obtained}}</td><td>{{.Digest}}</td></tr>{{end}}
+</tbody>
+</table>
+</details>
+{{end}}
+
+
 {{if .Slowest}}
-<h2 id="timing">Where the time went</h2>
-<p class="note">Time spent per control, worst first. Controls run in parallel, so these sum to
-more than the elapsed time, because the shares are of the total work rather than of the wall clock.</p>
+<details class="fold sub" open><summary class="sub"><span class="sub">Where the time went</span></summary>
+<p class="note">Time spent per control, worst first.</p>
 <table>
-<thead><tr><th scope="col">Control</th><th scope="col" class="num">Time</th><th scope="col">Share</th></tr></thead>
+<thead><tr><th scope="col">Control</th><th scope="col" class="num">Time</th><th scope="col">Share of scanner time</th></tr></thead>
 <tbody>
 {{range .Slowest}}<tr>
   <td>{{.Control}}</td>
@@ -1070,6 +1305,9 @@ more than the elapsed time, because the shares are of the total work rather than
 </tr>{{end}}
 </tbody>
 </table>
+</details>
+{{end}}
+</details>
 {{end}}
 
 <footer id="about">
@@ -1082,6 +1320,23 @@ more than the elapsed time, because the shares are of the total work rather than
 // client or artifact viewer that strips them, sees the full table rather than dead controls that
 // do nothing.
 (function () {
+  // A folded section still prints. A browser does not render a closed disclosure's content, so a
+  // reader who put a section away and then printed would hand somebody a report missing it, which
+  // is the one thing a fold must never decide. Reopened before the dialog and restored after, so
+  // the screen looks the way they left it.
+  var reopened = [];
+  window.addEventListener("beforeprint", function () {
+    reopened = [];
+    document.querySelectorAll("details:not([open])").forEach(function (el) {
+      reopened.push(el);
+      el.open = true;
+    });
+  });
+  window.addEventListener("afterprint", function () {
+    reopened.forEach(function (el) { el.open = false; });
+    reopened = [];
+  });
+
   // The theme chooser, first and on its own: it is the one control that is worth having even when
   // there is nothing to filter, and a report with no findings still gets printed.
   var themeBox = document.getElementById("themes");

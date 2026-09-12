@@ -1001,13 +1001,32 @@ func componentBands(col tui.Painter, p [4]int) string {
 // excludeSummary describes an exclusion by what it selects, so a reader can find it in the Saga.
 func excludeSummary(e saga.ExcludeRule) string {
 	var parts []string
-	if len(e.Rules) > 0 {
-		parts = append(parts, "rules "+strings.Join(e.Rules, ", "))
-	}
-	if len(e.Paths) > 0 {
-		parts = append(parts, "paths "+strings.Join(e.Paths, ", "))
+	for _, m := range excludeMatchers(e) {
+		parts = append(parts, m.Key+" "+m.Value)
 	}
 	return strings.Join(parts, "; ") + " · " + findingSummary(e.Reason)
+}
+
+// matcher is one thing an exclusion matches on: the descriptor field, and what was written in it.
+//
+// A pair rather than a sentence, because the two are different kinds of thing and a surface that
+// can tell them apart should. `paths tests*` sets a field name and a glob in one typeface, where a
+// reader deciding whether the pattern is right has to work out which half is ours.
+type matcher struct{ Key, Value string }
+
+// excludeMatchers is what a rule matches on, keyed by the descriptor field it was written in.
+//
+// Rules before paths, the order the matching is evaluated in, so a rule carrying both reads in the
+// order it applies.
+func excludeMatchers(e saga.ExcludeRule) []matcher {
+	var out []matcher
+	if len(e.Rules) > 0 {
+		out = append(out, matcher{"rules", strings.Join(e.Rules, ", ")})
+	}
+	if len(e.Paths) > 0 {
+		out = append(out, matcher{"paths", strings.Join(e.Paths, ", ")})
+	}
+	return out
 }
 
 // controlCounts is what a control accounts for, in bands.
@@ -1624,21 +1643,25 @@ func consulted(d Data, name string) bool {
 // A row per place a decision lives, because that is what a reader would go and edit. A supplier's
 // document and a rule in the descriptor are answerable to different people, and a comment in the
 // code is answerable to nobody, which is why the three never share a count.
+// acceptedRow is one line of the accepted, decisions or unmatched blocks: what it is about, what
+// happened, and whether it needs somebody. Dimmed where it records a decision, lit where it carries
+// a caveat, which is the test the gate line applies to itself.
+type acceptedRow struct {
+	where string
+	said  []string
+	lit   bool
+	notes []string
+}
+
 func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 	// said is what happened and lit says whether it needs somebody. Dimmed where the row is a
 	// record of a decision, lit where it carries a caveat, which is the test the gate line applies
 	// to itself. One style per cell rather than two inside one, so a table still measures its own
 	// widths.
-	type row struct {
-		where string
-		said  []string
-		lit   bool
-		notes []string
-	}
-	var rows, unmatched []row
+	var rows, unmatched []acceptedRow
 
 	if line := suppressionLine(d, full); line != "" {
-		r := row{where: "config.exclude", said: []string{strings.TrimPrefix(line, "config.exclude: ")}}
+		r := acceptedRow{where: "config.exclude", said: []string{strings.TrimPrefix(line, "config.exclude: ")}}
 		// An exclusion past its date stops suppressing. A finding that used to be accepted
 		// reappearing with no explanation is the confusing half of expiry; this is the other half,
 		// and it is a caveat rather than a record because the findings are back in the counts above.
@@ -1661,14 +1684,14 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 	// cannot see is the failure this block exists to prevent, and one made by somebody outside the
 	// project is the case where seeing it matters most.
 	if line := importedLine(d, full); line != "" {
-		rows = append(rows, row{where: "VEX", said: []string{strings.TrimPrefix(line, "VEX: ")}})
+		rows = append(rows, acceptedRow{where: "VEX", said: []string{strings.TrimPrefix(line, "VEX: ")}})
 	}
 
 	// A comment in the code. Without this a `nosem` is the one form of acceptance that leaves no
 	// trace anywhere, the weakest of the three, added by whoever was editing the file, and the
 	// easiest to add without anybody noticing.
 	if line := silencedLine(d); line != "" {
-		rows = append(rows, row{
+		rows = append(rows, acceptedRow{
 			where: "source directives",
 			said:  []string{strings.TrimPrefix(line, "source directives: ")},
 		})
@@ -1680,16 +1703,16 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 	// to stop excusing. In every case the descriptor claims a decision it is not making, which is a
 	// thing to go and edit rather than a number to read.
 	for _, e := range d.Run.UnmatchedExclusions {
-		unmatched = append(unmatched, row{where: "config.exclude", said: []string{excludeSummary(e)}, lit: true})
+		unmatched = append(unmatched, acceptedRow{where: "config.exclude", said: []string{excludeSummary(e)}, lit: true})
 	}
 	// Named rather than counted, for the same reason. A supplier statement matching nothing usually
 	// means they and the scanner name a package differently, and the name is the whole content of
 	// that finding.
 	for _, c := range d.Run.UnmatchedClaims {
-		unmatched = append(unmatched, row{where: "VEX", said: []string{claimSummary(c)}, lit: true})
+		unmatched = append(unmatched, acceptedRow{where: "VEX", said: []string{claimSummary(c)}, lit: true})
 	}
 
-	draw := func(name string, rs []row) {
+	draw := func(name string, rs []acceptedRow) {
 		if len(rs) == 0 {
 			return
 		}
@@ -1708,7 +1731,39 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 		_, _ = fmt.Fprintln(w)
 	}
 	draw("Accepted", rows)
+	draw("Decisions", decisionRows(d, full))
 	draw("Unmatched", unmatched)
+}
+
+// decisionRows accounts for each acceptance separately, under --evidence.
+//
+// The counted line answers how much was set aside and cannot answer what was acceptable about it,
+// though every suppressed finding carries the reason somebody gave. One row per decision: how many
+// it covers, who signed it, when it lapses, and why, which is the question an auditor arrives with
+// and the one the terminal could not answer at all.
+//
+// Only under --evidence. A developer deciding what to fix did not ask who signed what, and the
+// file reports are where this belongs when somebody is keeping it.
+func decisionRows(d Data, full bool) []acceptedRow {
+	if !full {
+		return nil
+	}
+	var out []acceptedRow
+	for _, dec := range decisions(d) {
+		said := []string{plural(dec.n, "finding")}
+		if dec.expires != "" {
+			said = append(said, "expires "+dec.expires)
+		}
+		out = append(out, acceptedRow{
+			where: dec.by,
+			said:  said,
+			// A suppression nobody signed is the one an auditor cannot follow up, so it is the only
+			// row here that is lit.
+			lit:   dec.by == "unattributed",
+			notes: []string{findingSummary(dec.reason)},
+		})
+	}
+	return out
 }
 
 // claimSummary names a supplier statement nothing matched, by what it is about.
@@ -1993,25 +2048,7 @@ func writeGate(w io.Writer, col tui.Painter, d Data, full bool, indent string) {
 		return
 	}
 
-	// One question, so one clause. The gate asks either what a scanner called the flaw or what
-	// band it lands in here, and a line that could say both left a reader with two candidates for
-	// why their build was red.
-	var line string
-	if g.Threshold == "" && len(g.PerControl) == 0 {
-		band := g.FailOnPriority
-		if band == "" {
-			band = norn.DefaultPriority
-		}
-		line = fmt.Sprintf("Gate: fails on %s", band)
-		if overrides := renderOverrides(g.PerControlBand, ""); overrides != "" {
-			line += " · " + overrides
-		}
-	} else {
-		line = fmt.Sprintf("Gate: fails on %s severity", g.Threshold)
-		if overrides := gateOverrides(g); overrides != "" {
-			line += " · " + overrides
-		}
-	}
+	line := gateSentence(d)
 
 	// Dimmed when it is only a record, lit when it is a caveat. A narrowed gate qualifies every
 	// pass in the report above it, and dimming it puts it below the reading threshold of the
@@ -2021,6 +2058,37 @@ func writeGate(w io.Writer, col tui.Painter, d Data, full bool, indent string) {
 		style = tui.StyleAccent
 	}
 	_, _ = fmt.Fprintf(w, "%s%s\n\n", indent, col.Paint(style, line+"."))
+}
+
+// gateSentence is the rule a verdict was produced under, in one clause.
+//
+// One question, so one clause. The gate asks either what a scanner called the flaw or what band it
+// lands in here, and a line that could say both left a reader with two candidates for why their
+// build was red.
+//
+// Shared with the rendered reports rather than phrased again there. A second wording is a second
+// thing to keep true, and it is the one that drifts.
+func gateSentence(d Data) string {
+	g := d.Gate
+	if g.Disabled {
+		return "Gate off (--no-gate) · this verdict does not decide the exit code"
+	}
+	if g.Threshold == "" && len(g.PerControl) == 0 {
+		band := g.FailOnPriority
+		if band == "" {
+			band = norn.DefaultPriority
+		}
+		line := fmt.Sprintf("Gate: fails on %s", band)
+		if overrides := renderOverrides(g.PerControlBand, ""); overrides != "" {
+			line += " · " + overrides
+		}
+		return line
+	}
+	line := fmt.Sprintf("Gate: fails on %s severity", g.Threshold)
+	if overrides := gateOverrides(g); overrides != "" {
+		line += " · " + overrides
+	}
+	return line
 }
 
 // gateOverrides renders the per-control thresholds in a stable order.

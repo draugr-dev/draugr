@@ -34,8 +34,14 @@ COMPONENTS
   2 findings not tied to a component (project-wide controls)
 
 ACCEPTED
-  config.exclude  2 findings suppressed · 1 accepted by a.reviewer, 1 unattributed · 1 expired and no longer suppressing
+  config.exclude  2 findings suppressed · 1 expired and no longer suppressing
               expired 2026-01-31, accepted by a.reviewer@example.com · waiting on the upstream release
+
+DECISIONS
+  a.reviewer    1 finding
+              legal reviewed; we do not distribute
+  unattributed  1 finding
+              same package tree
 
 UNMATCHED
   config.exclude  paths tests* · test files that are not deployed

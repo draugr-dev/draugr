@@ -91,6 +91,9 @@ echo "▶ slop"
 echo "▶ no-defect-recounts"
 ./scripts/check-no-defect-recounts.sh
 
+echo "▶ no-rationale-in-copy"
+./scripts/check-no-rationale-in-copy.py
+
 echo "▶ spelling"
 ./scripts/check-spelling.sh
 
