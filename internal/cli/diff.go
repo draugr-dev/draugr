@@ -49,12 +49,13 @@ func newDiffCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&opts.format, "format", "console", "output format: "+strings.Join(diff.Formats(), ", "))
 	cmd.Flags().StringVar(&opts.view, "view", string(diff.ViewFindings),
-		"console: how much of each row to show: "+strings.Join(diff.Views(), ", "))
+		"what the listing shows: `findings` (a row each, with the finding's own sentence under it), "+
+			"actions (a row per thing to do) or compact (one line each)")
 	// Zero, where `scan` defaults to ten. A diff is already narrowed to what one change did, so
 	// truncating it silently removes the thing the command exists to show; the flag is for the
 	// dependency bump that introduces forty, and the gate counts every one either way.
 	cmd.Flags().IntVar(&opts.top, "top", 0,
-		"console: max findings to list (0 = all, which is the default: a diff is already only what changed)")
+		"console: max findings to list (0 = all, the default)")
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
 		"fail if the change introduces a finding at or above this: a priority band (P1-P4) or a "+
 			"severity (critical, high, medium, low)")

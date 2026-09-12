@@ -688,6 +688,8 @@ in its own column. Within a band, what needs somebody comes before what does not
 | `--fail-on-new` |. | fail if a **new** finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
 | `--fail-on-new-priority` |. | Deprecated: write the band in `--fail-on-new` |
 
+| `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
+
 The gate reads **new** only. An accepted finding does not trip it, which is the point of accepting
 it, and an unaccepted one does not either: the gate exists to stop a change introducing something,
 and an acceptance ending is a decision to make again rather than a regression. Both are reported
@@ -695,7 +697,6 @@ regardless, which is where somebody should see them.
 
 Where no gate is asked for, the report states no verdict. `draugr diff` without `--fail-on-new`
 compares and exits 0, and a verdict nobody asked for would be inventing one.
-| `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
 ```bash
 draugr diff base/results.sarif head/results.sarif                     # console delta

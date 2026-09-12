@@ -52,6 +52,14 @@ parameters:
     type: string
     default: P1
 
+  # What the pull-request comment says. "findings" is a row per finding; "actions" groups them into
+  # the things somebody would do, so six advisories in one library are one upgrade. Which one a team
+  # wants is a property of how they review rather than of the change, which is why it is set here.
+  - name: diffView
+    type: string
+    default: findings
+    values: [findings, actions, compact]
+
   # Publish the JUnit findings to the Tests tab and the reports as a build artifact.
   - name: publishResults
     type: boolean
@@ -114,15 +122,27 @@ steps:
           if [ -n "${FAIL_ON_NEW_PRIORITY:-}" ]; then
             gate="--fail-on-new-priority $FAIL_ON_NEW_PRIORITY"
           fi
-          # shellcheck disable=SC2086 # gate is a deliberate word-split, empty when not gating
+          # Asked for rather than assumed: `version` pins any published release and this template
+          # moves independently of them, so the binary may predate the flag. Without it the comment
+          # is what it always was, and the step carries on rather than dying under set -e.
+          view=""
+          if [ -n "${DIFF_VIEW:-}" ] && [ "${DIFF_VIEW}" != "findings" ]; then
+            if draugr help diff 2>&1 | grep -q -- '--view'; then
+              view="--view ${DIFF_VIEW}"
+            else
+              echo "##vso[task.logissue type=warning]diffView needs a Draugr release with 'diff --view'; this one is older, so the comment lists findings."
+            fi
+          fi
+          # shellcheck disable=SC2086 # gate and view are deliberate word-splits, empty when unset
           draugr diff "$(Pipeline.Workspace)/draugr-base/results.sarif" \
                       "$(Pipeline.Workspace)/draugr-head/results.sarif" \
-                      --publish $gate
+                      --publish $gate $view
         displayName: Gate on new findings
         condition: eq(variables['Build.Reason'], 'PullRequest')
         env:
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
           FAIL_ON_NEW_PRIORITY: ${{ parameters.failOnNewPriority }}
+          DIFF_VIEW: ${{ parameters.diffView }}
 
   - ${{ if eq(parameters.publishResults, true) }}:
       # succeededOrFailed, because the run that failed is the one whose evidence you want.

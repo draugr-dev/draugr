@@ -7,8 +7,8 @@ order: 30
 
 # Gate PRs on new findings
 
-`draugr diff` compares two scans and classifies every finding as **new**, **fixed**, **accepted**,
-**unaccepted** or **unchanged**, the security delta of a change, typically a PR's head vs its base
+`draugr diff` compares two scans and classifies every finding as **new**, **unaccepted**,
+**accepted**, **fixed** or **unchanged**, the security delta of a change, typically a PR's head vs its base
 branch. This lets you gate a PR only on the findings it *introduces*, not the pre-existing backlog,
 so the gate stays adoptable where a whole-backlog gate would block every PR.
 
@@ -104,8 +104,14 @@ the first one pays and the rest do not:
   with: { saga: draugr.saga.yaml, cache-dir: .draugr/cache, fail-on-new: P1 }
 ```
 
+That snippet is GitHub's. On GitLab the equivalent is a `cache:` key on the job with
+`DRAUGR_CACHE_DIR` set, and on Azure a `Cache@2` task ahead of the template, both keyed the same
+way. None of the three templates wires the cache for you, because where a cache is kept is a
+property of the runner rather than of the scan.
+
 The scan still runs, so the base is still the actual merge base and both sides still come from the
-same Draugr. Nothing about the comparison changes; only the work does. Read [what a hit does and
+same Draugr. Nothing about the comparison changes; only the work does. A cache that expired or was
+never written costs time and cannot change the answer. Read [what a hit does and
 does not promise](caching-and-performance.md#what-a-hit-does-and-does-not-promise) before sharing a
 cache across a trust boundary: **an entry is a pass**, and anybody who can write one can hand you a
 verdict nobody earned.
@@ -122,13 +128,15 @@ new in yours. On a busy repository that is a comment nobody believes by Wednesda
 **Both sides must come from the same Draugr.** Findings are matched on what the scanners said, and
 a release that rewords a message rewords it on one side only when the stored base predates it:
 
-```
-Draugr diff · 31 new (4 critical, 14 high, 13 medium), 31 fixed, 1 unchanged
+```console
+DRAUGR DIFF  FAIL  31 new  31 fixed  1 unchanged
+
+ new  P1 18 P2 13 P3 0 P4 0
 ```
 
 That is the same tree on both sides, diffed across two Draugr versions. Every finding arrives as
 fixed *and* new, `--fail-on-new` fails the pull request on findings nobody introduced, and nothing
-in the output says why. **The tell is the symmetry**: the same count on both sides, with the
+in the output says why. **The tell is the symmetry**, the same count on both sides with the
 unchanged number near zero.
 
 Pin the version in both places if you take this route:
@@ -167,8 +175,8 @@ jobs:
 ```
 
 `diff-view: actions` changes what the comment says, grouping the change into the things somebody
-would do rather than listing every finding. GitLab has `DRAUGR_DIFF_VIEW` and Azure takes `--view`
-on the command; it belongs in the template because which shape a team wants is a property of how
+would do rather than listing every finding. GitLab's template takes `DRAUGR_DIFF_VIEW`, and Azure's
+takes `diffView`. It belongs in the template because which shape a team wants is a property of how
 they review rather than of the change.
 
 See the [GitHub Action guide](github-action.md) for all inputs and modes. The rest of this page

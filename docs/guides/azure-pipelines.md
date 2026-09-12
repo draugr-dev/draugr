@@ -40,6 +40,7 @@ and publishes findings to the Tests tab.
 | `version` | latest | pin a release. **do this for real pipelines** |
 | `tools` | `true` | provision the scanners the controls need |
 | `failOnNewPriority` | `P1` | fail a pull request on a new finding at or above this priority |
+| `diffView` | `findings` | what the pull-request comment says: a row per finding, or `actions` grouped into the things somebody would do |
 | `publishResults` | `true` | Tests tab and build artifacts |
 
 **Copy it rather than referencing it remotely.** Azure can pull a template from a GitHub
@@ -114,9 +115,9 @@ thread. It is created active, like any other.
 ```
 
 `--view actions` decides what the comment says. It groups the change into the things somebody would
-do, so six advisories in one library are one upgrade; drop it for a row per finding. Which one a
-team wants is a property of how they review rather than of the change, which is why it belongs in
-the template.
+do, so six advisories in one library are one upgrade; drop it for a row per finding. The reusable
+template takes it as `diffView`, which also handles an older pinned `version` that does not have
+the flag.
 
 Three details that are easy to get wrong:
 
