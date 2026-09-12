@@ -7,35 +7,42 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 )
 
-// TestTipsAreShortAndShaped keeps the tip block from drifting into prose.
+// TestTipsAreShortAndShaped keeps the suggestion block from drifting into prose.
 //
-// A tip interrupts somebody reading a report, so it has to earn the interruption in the space of
-// a glance. Left unchecked they grow: each one is written on its own, each addition is reasonable,
-// and the block ends up longer than the findings it sits under.
+// A suggestion interrupts somebody reading a report, so it has to earn the interruption in the
+// space of a glance. Left unchecked they grow: each one is written on its own, each addition is
+// reasonable, and the block ends up longer than the findings it sits under.
 //
-// One shape, so they read as one voice rather than four authors: an observation and what to do
-// about it, in one or two sentences, under the budget.
+// One shape, so they read as one voice rather than four authors: something to type, and a clause
+// saying why this run makes it worth typing.
 func TestTipsAreShortAndShaped(t *testing.T) {
-	const budget = 140
+	const (
+		whatBudget = 24
+		whyBudget  = 78
+	)
 
 	for _, tip := range scanTips {
 		t.Run(tip.name, func(t *testing.T) {
-			text := tip.text(tipContext{run: engine.Result{}})
-			if n := len(text); n > budget {
-				t.Errorf("%d chars, budget %d. Say less or say it in the docs:\n%s", n, budget, text)
+			c := tipContext{run: engine.Result{}}
+			what, why := tip.what(c), tip.why(c)
+			// The left column is a flag, a command or a descriptor key. A column is only scannable
+			// while every cell in it is the same kind of thing and roughly the same width.
+			if n := len(what); n > whatBudget {
+				t.Errorf("what is %d chars, budget %d: %q", n, whatBudget, what)
 			}
-			if strings.HasSuffix(text, "..") || !strings.HasSuffix(text, ".") {
-				t.Errorf("a tip is a sentence and ends in a full stop: %q", text)
+			if !strings.ContainsAny(what, "-`<:") && !strings.HasPrefix(what, "draugr ") {
+				t.Errorf("names no flag, setting or command to act on: %q", what)
 			}
-			// Lowercase first letter: the renderer prefixes "Tip: " and a capital after it reads
-			// as two sentences bolted together.
-			if r := []rune(text)[0]; r >= 'A' && r <= 'Z' {
-				t.Errorf("starts with a capital, which reads oddly after the prefix: %q", text)
+			// The right column is a clause, not a sentence. It sits beside the thing it explains,
+			// so a full stop and a capital both read as something ending that had not begun.
+			if n := len(why); n > whyBudget {
+				t.Errorf("why is %d chars, budget %d. Say less or say it in the docs:\n%s", n, whyBudget, why)
 			}
-			// Every tip names the thing to do. A tip that only reports a state is an observation,
-			// and the reader already has the report for those.
-			if !strings.ContainsAny(text, "`-") {
-				t.Errorf("names no flag, setting or command to act on: %q", text)
+			if strings.HasSuffix(why, ".") {
+				t.Errorf("a clause beside a value does not end in a full stop: %q", why)
+			}
+			if r := []rune(why)[0]; r >= 'A' && r <= 'Z' {
+				t.Errorf("starts with a capital, which reads as a sentence in a column: %q", why)
 			}
 		})
 	}

@@ -45,8 +45,11 @@ banner() { printf '\n\n===== %s =====\n\n' "$1"; }
 banner "draugr scan .   → README.md, docs/concepts/verdict-and-gating.md, docs/contributing/*.md"
 (cd "$workdir/draugr-demo" && NO_COLOR=1 "$DRAUGR" scan . 2>/dev/null) || true
 
-banner "draugr scan . --format json --compact   → the machine-readable summary quoted in the docs"
-(cd "$workdir/draugr-demo" && "$DRAUGR" scan . --format json --compact 2>/dev/null) || true
+banner "draugr scan . --view actions   → the work, for the pages that show it grouped"
+(cd "$workdir/draugr-demo" && NO_COLOR=1 "$DRAUGR" scan . --view actions 2>/dev/null) || true
+
+banner "draugr scan . --format json --view compact   → the machine-readable summary quoted in the docs"
+(cd "$workdir/draugr-demo" && "$DRAUGR" scan . --format json --view compact 2>/dev/null) || true
 
 cat >&2 <<'EOF'
 

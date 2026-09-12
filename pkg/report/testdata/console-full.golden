@@ -1,42 +1,45 @@
-Draugr · FAIL   (draugr-demo 0.0.0)
+DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
 
-Priorities:  P1 3   P2 2   P3 2   P4 1
+ P1 3 P2 2 P3 2 P4 1
 
-Controls:
-  iac       FAIL   1 high  1 medium
+CONTROLS
+  iac       FAIL   1 high 1 medium
   licenses  pass   1 medium
   sast      FAIL   1 high
-  sca       FAIL   1 critical  2 high  1 low
+  sca       FAIL   1 critical 2 high 1 low
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
-Measured against:
+MEASURED AGAINST
   iac       trivy 0.69.3
   licenses  trivy-license 0.69.3 · policy deny copyleft
 
-Components:
+COMPONENTS
   payments       FAIL   P1 3  P2 2  P3 1  sca, secrets
   internal-tool  pass   no findings
   2 findings not tied to a component (project-wide controls)
 
 2 findings suppressed by config.exclude · 1 accepted by a.reviewer, 1 unattributed
 
-Fix first (top 5 of 8, by priority):
-  Priority  Severity  Score  Rule                                    Control  Scanner  Component      Location
-  P1        high      8.6    CVE-2019-10906                          sca      trivy    payments       app/requirements.txt:5
+FIX FIRST  top 5 of 8, by priority
+  Priority  Severity  Rule                                    Scanner  Component      Location                Upgrade
+  P1        high      CVE-2019-10906                          trivy    payments       app/requirements.txt:5  jinja2 2.10 → 2.10.1
             python-jinja2: str.format_map allows sandbox escape
-  P1        critical  9.8    CVE-2019-20477                          sca      trivy    payments       app/requirements.txt:4
+  P1        critical  CVE-2019-20477                          trivy    payments       app/requirements.txt:4
             PyYAML: command execution through python/object/apply constructor in FullLoader
-  P1        high      8.0    DS-0002                                 iac      trivy    payments       app/Dockerfile:1
+  P1        high      DS-0002                                 trivy    payments       app/Dockerfile:1
             Image user should not be 'root'
-  P2        high      7.5    CVE-2018-1000656                        sca      trivy    internal-tool  app/requirements.txt:2
+  P2        high      CVE-2018-1000656                        trivy    internal-tool  app/requirements.txt:2
             python-flask: Denial of Service via crafted JSON file
-  P2        high      -      …tainted-sql-string.tainted-sql-string  sast     semgrep  -              app/main.py:42
+  P2        high      …tainted-sql-string.tainted-sql-string  semgrep  -              app/main.py:42
             Detected user input flowing into a raw SQL string
 
-… and 3 more finding(s).
-Use --top 0 to list them all, or --group action to see them as things to do.
+… and 3 findings not listed.
+
 SBOM: 2 documents (spdx-json)
 
-Machine-readable: --format json|sarif, or -o <dir> for report.json + results.sarif.
-`draugr explain <rule>` says what a finding means and how to fix it.
+TRY
+  --top 0                every one of them, not the first ten
+  --view compact         one line each, to see how much there is
+  --view actions         the same findings as a list of things to do
+  draugr explain <rule>  what a rule means and how to fix it

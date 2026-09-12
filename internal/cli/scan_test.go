@@ -429,7 +429,7 @@ func TestRunScanAllowsIncompleteScansOnRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--allow-scan-errors should not fail the gate, got %v", err)
 	}
-	if !strings.Contains(buf.String(), "Draugr · PASS") {
+	if !strings.Contains(buf.String(), "DRAUGR  PASS") {
 		t.Errorf("expected pass verdict:\n%s", buf.String())
 	}
 	if !strings.Contains(buf.String(), "ERROR") {
@@ -533,7 +533,7 @@ func TestRunScanFail(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected fail verdict to return an error")
 	}
-	if !strings.Contains(buf.String(), "Draugr · FAIL") {
+	if !strings.Contains(buf.String(), "DRAUGR  FAIL") {
 		t.Errorf("report should show fail verdict:\n%s", buf.String())
 	}
 }
@@ -546,7 +546,7 @@ func TestRunScanPass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected pass, got %v", err)
 	}
-	if !strings.Contains(buf.String(), "Draugr · PASS") {
+	if !strings.Contains(buf.String(), "DRAUGR  PASS") {
 		t.Errorf("report should show pass:\n%s", buf.String())
 	}
 }

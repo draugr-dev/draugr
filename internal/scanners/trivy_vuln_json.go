@@ -225,22 +225,78 @@ func trivyVulnRule(v trivyVuln) sarif.Rule {
 
 // trivyVulnMessage is the one line a console shows, and the sentence a reader acts on.
 //
-// It says what to do rather than restating the identifier: the fixed version is the action, and
-// its absence is the more alarming answer. "no fix available" is a decision to make, where a
+// It says what to do rather than restating the identifier: the version to move to is the action,
+// and its absence is the more alarming answer. "no fix available" is a decision to make, where a
 // version number is a change to schedule.
+//
+// The action goes first, before the advisory's own words. A line has to fit a column and the
+// advisory decides how long its half is, so anything after it is the part that gets cut, and what
+// was being cut was the only actionable thing on the line.
 func trivyVulnMessage(v trivyVuln) string {
 	subject := v.PkgName
 	if v.InstalledVersion != "" {
 		subject += " " + v.InstalledVersion
 	}
-	action := "no fixed version available"
 	if v.FixedVersion != "" {
-		action = "fixed in " + v.FixedVersion
+		subject += " → " + v.FixedVersion
+	} else {
+		subject += ", no fix available"
 	}
-	if v.Title != "" {
-		return subject + ": " + v.Title + " (" + action + ")"
+	if title := trimPackagePrefix(v.Title, v.PkgName); title != "" {
+		return subject + ": " + title
 	}
-	return subject + ": " + action
+	return subject
+}
+
+// trimPackagePrefix drops a leading "<name>: " from the advisory's own title when the name is
+// another spelling of the package the sentence already names.
+//
+// Advisory titles are written to stand alone, so most of them open with the package. Draugr opens
+// with it too, because a title alone does not say which of your dependencies it is about. Together
+// they read "Flask 0.12.2: python-flask: Denial of Service", where a third of the line is the same
+// word twice and the part a reader acts on is pushed toward the edge.
+//
+// Repeatedly, because the feeds do it to each other: a title arrives as "requests: Requests:
+// Security bypass", one prefix from the ecosystem's advisory and one from the distribution's copy
+// of it.
+func trimPackagePrefix(title, pkg string) string {
+	for {
+		head, rest, ok := strings.Cut(title, ": ")
+		if !ok || rest == "" {
+			return title
+		}
+		// The same label twice, whatever it is. A distribution's advisory repeats the upstream
+		// project's own prefix ("gnutls: gnutls: …", "openssl: OpenSSL: …"), and dropping the
+		// repeat loses nothing whether or not it is the package Draugr knows this finding by.
+		if next, _, again := strings.Cut(rest, ": "); again && sameName(head, next) {
+			title = rest
+			continue
+		}
+		if !sameName(head, pkg) {
+			return title
+		}
+		title = rest
+	}
+}
+
+// sameName reports whether two spellings name one package.
+//
+// A distribution renames what it packages, so the advisory says "python-flask" where the lockfile
+// says "Flask", and an ecosystem that allows both separators produces "ruamel.yaml" and
+// "ruamel-yaml" for one library. Case, separator and the packaging prefix are the three
+// differences that carry no information; anything else is a different package and the title stays
+// whole.
+func sameName(a, b string) bool {
+	norm := func(s string) string {
+		s = strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(s), "_", "-"), ".", "-")
+		for _, prefix := range []string{"python3-", "python-", "golang-", "rubygem-", "node-", "perl-", "php-", "py-"} {
+			if rest := strings.TrimPrefix(s, prefix); rest != s {
+				return rest
+			}
+		}
+		return s
+	}
+	return a != "" && norm(a) == norm(b)
 }
 
 // trivyVulnLevel maps Trivy's severity onto SARIF's three.

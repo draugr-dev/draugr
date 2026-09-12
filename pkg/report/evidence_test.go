@@ -105,7 +105,7 @@ func TestDefaultViewOmitsTheEvidence(t *testing.T) {
 	if !strings.Contains(out, "did not run") {
 		t.Error("the default view dropped the control that could not run")
 	}
-	if !strings.Contains(out, "Measured against") {
+	if !strings.Contains(out, "MEASURED AGAINST") {
 		t.Error("the default view dropped what each control was measured against")
 	}
 }

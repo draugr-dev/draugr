@@ -15,6 +15,14 @@ type Cell struct {
 	// URL turns the cell into a hyperlink where the terminal supports it. It costs no width,
 	// which is what makes it usable in a table that's already wide.
 	URL string
+	// Note is a second part of the same cell, set after Text in its own style and separated by a
+	// space. It is measured, so the column still lines up.
+	//
+	// For a qualifier that belongs to a value rather than beside it. A column of two-character
+	// values under an eight-character heading wastes six columns on every row, and a qualifier
+	// given a column of its own pays for the heading twice.
+	Note      string
+	NoteStyle Style
 }
 
 // PlainCell is a cell that's just text.
@@ -22,6 +30,14 @@ func PlainCell(text string) Cell { return Cell{Text: text} }
 
 // Styled is a cell that reads as the given role.
 func Styled(style Style, text string) Cell { return Cell{Text: text, Style: style} }
+
+// cellWidth is what a cell occupies on screen, both parts of it.
+func cellWidth(c Cell) int {
+	if c.Note == "" {
+		return width(c.Text)
+	}
+	return width(c.Text) + 1 + width(c.Note)
+}
 
 type row struct {
 	cells []Cell
@@ -42,6 +58,30 @@ type Table struct {
 	indent  string
 	headers []string
 	rows    []row
+	// styledNotes says the caller paints its own continuation lines, for a note where one part of
+	// the sentence is the part to read.
+	styledNotes bool
+	// fit is how wide the table may be, or zero for as wide as its content.
+	fit int
+}
+
+// Fit bounds the table's width, trimming the last column's text to what is left after the others.
+//
+// The last column because it is the only one nothing follows, and because a table is bounded by a
+// terminal rather than by a design: the columns before it are identifiers and locations, which are
+// useless shortened, and the last one is prose, which is readable shortened and still readable
+// gone. A width of zero leaves the table as wide as its content, which is the right answer when
+// the destination is a file or a pipe and there is no width to respect.
+func (t *Table) Fit(width int) *Table {
+	t.fit = width
+	return t
+}
+
+// StyledNotes tells the table its notes arrive painted, so it sets them as given rather than
+// dimming them whole.
+func (t *Table) StyledNotes() *Table {
+	t.styledNotes = true
+	return t
 }
 
 // NewTable starts a table written with p. Headers may be omitted for a table whose columns
@@ -102,16 +142,18 @@ func (t *Table) Render(w io.Writer) {
 	}
 	for _, r := range t.rows {
 		for i, c := range r.cells {
-			if n := width(c.Text); n > widths[i] {
+			if n := cellWidth(c); n > widths[i] {
 				widths[i] = n
 			}
 		}
 	}
 
+	widths = widths[:t.trimToFit(widths)]
+
 	if len(t.headers) > 0 {
-		cells := make([]Cell, len(t.headers))
-		for i, h := range t.headers {
-			cells[i] = Styled(StyleMuted, h)
+		cells := make([]Cell, min(len(t.headers), len(widths)))
+		for i := range cells {
+			cells[i] = Styled(StyleMuted, t.headers[i])
 		}
 		t.writeLine(w, widths, cells)
 	}
@@ -119,11 +161,74 @@ func (t *Table) Render(w io.Writer) {
 		t.writeLine(w, widths, r.cells)
 		// Align notes under the second column: far enough in to read as subordinate to the
 		// row, not as rows of their own.
-		pad := strings.Repeat(" ", widths[0]+columnGap)
+		//
+		// Capped, because the first column can carry a qualifier and grow. A note is usually the
+		// longest text in the table, and an indent that tracks a wide first column pushes the end
+		// of it off an ordinary terminal to keep an alignment nobody is checking.
+		pad := strings.Repeat(" ", min(widths[0], noteIndent)+columnGap)
 		for _, n := range r.notes {
-			_, _ = fmt.Fprintf(w, "%s%s%s\n", t.indent, pad, t.painter.Paint(StyleMuted, n))
+			if !t.styledNotes {
+				n = t.painter.Paint(StyleMuted, n)
+			}
+			_, _ = fmt.Fprintf(w, "%s%s%s\n", t.indent, pad, n)
 		}
 	}
+}
+
+// noteIndent is how far a continuation line may be pushed in before the alignment costs more
+// than it is worth.
+const noteIndent = 10
+
+// trimToFit shortens the last column so the whole row fits, and returns how many columns are left.
+//
+// Below minLastColumn there is no sentence worth reading, so the column goes entirely rather than
+// leaving a ragged edge of first words.
+func (t *Table) trimToFit(widths []int) int {
+	last := len(widths) - 1
+	if t.fit <= 0 || last < 1 {
+		return len(widths)
+	}
+	used := width(t.indent) + last*columnGap
+	for _, w := range widths[:last] {
+		used += w
+	}
+	room := t.fit - used
+	if room >= widths[last] {
+		return len(widths)
+	}
+	if room < minLastColumn {
+		return last
+	}
+	widths[last] = room
+	for _, r := range t.rows {
+		if last < len(r.cells) {
+			r.cells[last].Text = clip(r.cells[last].Text, room)
+		}
+	}
+	if last < len(t.headers) {
+		t.headers[last] = clip(t.headers[last], room)
+	}
+	return len(widths)
+}
+
+// minLastColumn is the narrowest a trimmed column may be before it says nothing worth the space.
+const minLastColumn = 24
+
+// clip shortens s to n cells, marking that it was cut. Cutting at a space where one is near the
+// edge: a fragment of a word reads as a different word, and a reader cannot tell which they have.
+func clip(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	cut := n - 1
+	if space := strings.LastIndex(string(r[:cut]), " "); space > n/2 {
+		cut = len([]rune(string(r[:cut])[:space]))
+	}
+	return strings.TrimRight(string(r[:cut]), " ") + "…"
 }
 
 // columnGap is the space between columns. Two is enough to separate them and tight enough that
@@ -140,11 +245,16 @@ func (t *Table) writeLine(w io.Writer, widths []int, cells []Cell) {
 		}
 		text := c.Text
 		last := i == len(widths)-1
-		if !last {
-			// Pad before painting: escape codes have no width on screen but plenty in a string.
-			text += strings.Repeat(" ", widths[i]-width(text))
+		painted := t.painter.Link(c.URL, t.painter.Paint(c.Style, text))
+		if c.Note != "" {
+			painted += " " + t.painter.Paint(c.NoteStyle, c.Note)
 		}
-		b.WriteString(t.painter.Link(c.URL, t.painter.Paint(c.Style, text)))
+		if !last {
+			// Pad after painting, measured on the text: escape codes have no width on screen but
+			// plenty in a string.
+			painted += strings.Repeat(" ", widths[i]-cellWidth(c))
+		}
+		b.WriteString(painted)
 		if !last {
 			b.WriteString(strings.Repeat(" ", columnGap))
 		}

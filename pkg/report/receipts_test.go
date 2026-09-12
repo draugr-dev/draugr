@@ -41,7 +41,9 @@ func TestBothListingsCarryTheReceipts(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			d := base
-			d.GroupActions = grouped
+			if grouped {
+				d.View = ViewActions
+			}
 			var buf bytes.Buffer
 			if err := (consoleReporter{}).Render(&buf, d); err != nil {
 				t.Fatal(err)

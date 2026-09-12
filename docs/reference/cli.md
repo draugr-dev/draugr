@@ -42,7 +42,7 @@ DEBUG scan complete control=sca scanner=trivy-fs findings=0 duration=50ms
 a pass, and the error carries the tool's own first line of output:
 
 ```
-Controls:
+CONTROLS
   dast  ERROR  did not run
         nuclei: run nuclei: exit status 1: could not read templates: no such file or directory
 ```
@@ -231,9 +231,9 @@ back to a full scan and make the flags useless for the loop they exist for. What
 look like an unscoped run:
 
 ```
-Draugr · FAIL   (multi 1.0.0)   (scope: 1 of 3 components; sca)
+DRAUGR  FAIL  multi 1.0.0  (scope: 1 of 3 components; sca)  1.882s
 
-Components:
+COMPONENTS
   app       FAIL   P1 9  P2 8  P3 1  sca
   frontend  not scanned  (--components)
   payments  not scanned  (--components)
@@ -302,12 +302,13 @@ Grouped the way `draugr scan --help` groups them.
 | `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
 | `-o, --output` |, | Directory to write `report.json`, `results.sarif`, and any SBOMs |
 | `--report` | `json,sarif` | Formats to write into `-o`: `console`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, `evidence`, and the `gitlab-*` reports. `--format` prints, `--report` writes. See [below](#--format-prints---report-writes) |
-| `--group` | `none` | Console: how the fix list is organized. `action` gives one row per thing to do, saying how many findings it clears; `none` gives one row per finding. Grouping is a rendering, the report files always carry every finding separately. See [what to fix first](../concepts/what-to-fix-first.md) |
+| `--view` | `findings` | What the report shows. `findings` gives a row each with what argued with the band underneath; `actions` gives a row per thing to do, saying how many findings it clears; `compact` gives one line each, and in `json`/`sarif` output strips indentation and rule documentation for a consumer that parses rather than reads. A view is a rendering: the report files always carry every finding separately. See [what to fix first](../concepts/what-to-fix-first.md) and [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
+| `--group` | | Deprecated. `--group action` is `--view actions`, `--group none` is `--view findings` |
 | `--evidence` | `false` | Console: also print what stands behind the verdict, tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
 | `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding |
 | `--min-priority` |, | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set. See [below](#what---min-priority-narrows) |
 | `--artifact-min-priority` |, | Also narrow the `-o` artifacts to this band, and record the band inside them. The deliberate opposite of `--min-priority`, and safe for the same reason it is declared. See [below](#what---min-priority-narrows) |
-| `--compact` | `false` | Strip indentation and rule documentation from `json`/`sarif` output. For a consumer that acts on the report rather than reads it. See [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
+| `--compact` | `false` | Deprecated. Use `--view compact` |
 | `--template` |, | inline Go `text/template` (with `--format template`) |
 | `--template-file` |, | Go `text/template` file (with `--format template`) |
 | `--no-tips` | `false` | Suppress the console's contextual tips (also `DRAUGR_NO_TIPS`) |
@@ -614,7 +615,7 @@ diff`](#draugr-diff-basesarif-headsarif) and the [GitHub Action's](../guides/git
 upload, and a baseline missing findings makes the next scan's delta wrong.
 
 So the flag is for reading, a terminal, or an agent asking for the short list. On `draugr-demo`,
-`--format sarif --compact --min-priority p1` is 61% smaller than the full report (11.7 KB against
+`--format sarif --view compact --min-priority p1` is 61% smaller than the full report (11.7 KB against
 30.1 KB) because the rules the omitted findings referenced leave with them.
 
 ---
@@ -998,10 +999,9 @@ Doctor reports that too, from the same place [`draugr scan`](#draugr-scan-sagaya
 does, so the two cannot give different answers:
 
 ```
-Not checked:
-      api declares hosts, and headers, tls are not enabled
-      api declares images, and images is not enabled
-      dast is never suggested, it sends attack traffic. Enable it yourself.
+NOT CHECKED
+  api hosts   3 controls off: dast, headers, tls
+  api images  1 control off: images
 ```
 
 **Reported, not failed**. A deliberately narrow descriptor is a legitimate thing to have, and a

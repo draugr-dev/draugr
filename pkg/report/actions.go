@@ -208,6 +208,16 @@ func actionFor(f finding) (key, title string) {
 		return "upgrade\x00" + f.pkg.Ecosystem + "\x00" + f.pkg.Name,
 			fmt.Sprintf("Upgrade %s %s", f.pkg.Name, f.pkg.Version)
 
+	// A dependency nobody has fixed yet. Still one decision per package rather than one per
+	// advisory, and still an action: there is no version to move to, so the choice is to replace
+	// the library, to accept it, or to wait, and a reader has to make it once for the package.
+	//
+	// Without this the finding falls through to its own rule and the row is titled with the
+	// advisory's description of the flaw, which describes what is wrong and never says what to do.
+	case f.pkg != nil && f.pkg.Name != "" && f.remediation != sarif.RemediationUpstream:
+		return "nofix\x00" + f.pkg.Ecosystem + "\x00" + f.pkg.Name,
+			fmt.Sprintf("Replace or accept %s %s, no fix available", f.pkg.Name, f.pkg.Version)
+
 	// Nothing fixes these where they are, and the release underneath is the fix, one move for every
 	// finding in that layer, and usually the largest single reduction available.
 	case f.remediation == sarif.RemediationUpstream && f.operatingSystem != "":

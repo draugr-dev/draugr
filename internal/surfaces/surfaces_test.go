@@ -2,6 +2,7 @@ package surfaces
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -21,7 +22,7 @@ func TestUncoveredSurfacesNamesWhatNobodyChecks(t *testing.T) {
 	}
 	got := Uncovered(model)
 	want := []string{
-		"web declares hosts, and headers, tls are not enabled",
+		"web declares hosts, and dast, headers, tls are not enabled",
 		"svc declares images, and images is not enabled",
 	}
 	if !slices.Equal(got, want) {
@@ -67,16 +68,31 @@ func TestUncoveredSurfacesIsSilentWhenEverythingIsCovered(t *testing.T) {
 	}
 }
 
-func TestDeclaresHostsIsWhatDecidesTheDastCaveat(t *testing.T) {
-	// The caveat is only worth printing when there is a host to attack; on a repository-only
-	// descriptor it answers a question nobody asked.
+// A host is examined by three controls, and one of them is never suggested. Coverage has to count
+// all three, or a host with the passive controls off is reported as missing two when nothing at
+// all is looking at it.
+func TestAHostGapCountsTheControlNobodyIsOffered(t *testing.T) {
 	withHost := &saga.Model{Components: []saga.Component{{Name: "web", Hosts: []saga.Host{{URL: "h"}}}}}
-	if !DeclaresHosts(withHost) {
-		t.Error("a declared host should be reported")
+	gaps := Gaps(withHost)
+	if len(gaps) != 1 {
+		t.Fatalf("got %d gaps, want the host: %+v", len(gaps), gaps)
 	}
-	repoOnly := &saga.Model{Components: []saga.Component{{Name: "lib", Repositories: []saga.Repository{{URL: "u"}}}}}
-	if DeclaresHosts(repoOnly) {
-		t.Error("no host declared, so nothing to caveat")
+	if got := strings.Join(gaps[0].Controls, ","); got != "dast,headers,tls" {
+		t.Errorf("controls = %q, want every control that looks at a host", got)
+	}
+}
+
+// And the one nobody is offered does not keep a covered host in the list forever: a descriptor
+// that enabled the passive controls has somebody looking, which is what the gap is about.
+func TestAHostIsCoveredWithoutTheControlNobodyIsOffered(t *testing.T) {
+	covered := &saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+			"headers": {"enabled": true}, "tls": {"enabled": true},
+		}},
+		Components: []saga.Component{{Name: "web", Hosts: []saga.Host{{URL: "h"}}}},
+	}
+	if gaps := Gaps(covered); len(gaps) != 0 {
+		t.Errorf("a host two controls are reading is not unexamined: %+v", gaps)
 	}
 }
 

@@ -156,12 +156,34 @@ func TestTrivyVulnMessageSaysWhatToDo(t *testing.T) {
 	for _, r := range rep.Results {
 		byRule[r.RuleID] = r
 	}
-	if got := byRule["CVE-2018-1000656"].Message; !strings.Contains(got, "fixed in 0.12.3") {
-		t.Errorf("message = %q, want the fixed version", got)
+	// Before the advisory's own words, which decide how long the line is and therefore what gets
+	// cut off the end of it.
+	if got := byRule["CVE-2018-1000656"].Message; !strings.HasPrefix(got, "Flask 0.12.2 → 0.12.3:") {
+		t.Errorf("message = %q, want the version to move to, first", got)
 	}
 	// The more alarming answer has to be the louder one.
-	if got := byRule["CVE-2020-28493"].Message; !strings.Contains(got, "no fixed version available") {
+	if got := byRule["CVE-2020-28493"].Message; !strings.Contains(got, "no fix available") {
 		t.Errorf("message = %q, want it to say there is no fix", got)
+	}
+}
+
+// A distribution's advisory repeats the upstream project's own prefix, and Draugr names the
+// package a third time, so the line opens with three labels before it says anything.
+func TestTrivyVulnTitleDropsARepeatedLabel(t *testing.T) {
+	for _, tc := range []struct{ title, pkg, want string }{
+		// The same label twice, which loses nothing whichever one goes.
+		{"gnutls: gnutls: Authentication Bypass", "libgnutls30", "gnutls: Authentication Bypass"},
+		{"openssl: OpenSSL: Heap buffer overflow", "libssl3", "OpenSSL: Heap buffer overflow"},
+		// The package under another spelling, which Draugr already states.
+		{"python-flask: Denial of Service", "Flask", "Denial of Service"},
+		{"requests: Requests: Security bypass", "requests", "Security bypass"},
+		// A label naming something else is the advisory's own words, and stays.
+		{"sqlite: Integer Truncation", "libsqlite3-0", "sqlite: Integer Truncation"},
+		{"Something: else entirely", "openssl", "Something: else entirely"},
+	} {
+		if got := trimPackagePrefix(tc.title, tc.pkg); got != tc.want {
+			t.Errorf("trimPackagePrefix(%q, %q) = %q, want %q", tc.title, tc.pkg, got, tc.want)
+		}
 	}
 }
 

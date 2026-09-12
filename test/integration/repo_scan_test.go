@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -41,8 +42,10 @@ func TestZeroConfigRepoScanWithRealScanners(t *testing.T) {
 
 	// --- console: priorities + severity bands (not raw SARIF levels) ---
 	console := string(combined)
-	if !strings.Contains(console, "Priorities:") {
-		t.Errorf("console output missing the Priorities line:\n%s", console)
+	// The band counts, which carry no label of their own: each names its own band, and a run that
+	// ranked nothing prints none of them.
+	if !regexp.MustCompile(`P1 \d+ P2 \d+ P3 \d+ P4 \d+`).MatchString(console) {
+		t.Errorf("console output missing the band counts:\n%s", console)
 	}
 	if !containsAny(console, "critical", "high", "medium", "low") {
 		t.Errorf("console output missing any severity band:\n%s", console)

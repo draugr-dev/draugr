@@ -13,12 +13,6 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-func runWithFindings() engine.Result {
-	return engine.Result{Controls: map[string]plugin.ControlResult{
-		"sast": {Report: sarif.Report{Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelError}}}},
-	}}
-}
-
 func unclassifiedModel() *saga.Model {
 	return &saga.Model{Components: []saga.Component{{Name: "web"}}}
 }
@@ -32,93 +26,51 @@ func tips(model *saga.Model, run engine.Result, opts *scanOptions) tipContext {
 	return tipContext{model: model, run: run, opts: opts}
 }
 
-func TestPrintScanTipsShownWhenUnclassified(t *testing.T) {
-	t.Setenv("CI", "")
-	var b bytes.Buffer
-	printScanTips(&b, tips(unclassifiedModel(), runWithFindings(), nil))
-	if !strings.Contains(b.String(), "draugr classify") {
-		t.Errorf("expected the classify tip for an unclassified saga:\n%s", b.String())
+func TestSuggestionsAreSuppressible(t *testing.T) {
+	// --no-tips and DRAUGR_NO_TIPS take the advisory rows away and leave the report's own alone.
+	slow := engine.Result{Stats: engine.Stats{Duration: 3 * time.Minute}}
+	if got := scanSuggestions(tips(unclassifiedModel(), slow, nil)); len(got) == 0 {
+		t.Fatal("an uncached three-minute run is the case --cache-dir exists for")
 	}
-}
-
-func TestPrintScanTipsSuppressed(t *testing.T) {
-	// --no-tips
-	var b bytes.Buffer
-	printScanTips(&b, tips(unclassifiedModel(), runWithFindings(), &scanOptions{noTips: true}))
-	if b.Len() != 0 {
-		t.Errorf("--no-tips should suppress tips, got %q", b.String())
-	}
-	// DRAUGR_NO_TIPS
-	t.Setenv("DRAUGR_NO_TIPS", "1")
-	var b2 bytes.Buffer
-	printScanTips(&b2, tips(unclassifiedModel(), runWithFindings(), nil))
-	if b2.Len() != 0 {
-		t.Errorf("DRAUGR_NO_TIPS should suppress tips, got %q", b2.String())
-	}
-}
-
-func TestPrintScanTipsSkippedWhenClassified(t *testing.T) {
-	t.Setenv("CI", "")
-	m := &saga.Model{Components: []saga.Component{{Name: "web", Exposure: saga.Exposure("public")}}}
-	var b bytes.Buffer
-	printScanTips(&b, tips(m, runWithFindings(), nil))
-	if b.Len() != 0 {
-		t.Errorf("classified saga should get no exposure/criticality tip, got %q", b.String())
-	}
-}
-
-func TestPrintScanTipsSkippedWhenNoFindings(t *testing.T) {
-	t.Setenv("CI", "")
-	var b bytes.Buffer
-	printScanTips(&b, tips(unclassifiedModel(), engine.Result{}, nil))
-	if b.Len() != 0 {
-		t.Errorf("no findings should mean no tip, got %q", b.String())
-	}
-}
-
-func TestScanTipsNoteAppearsWithoutAnyFindings(t *testing.T) {
-	// The case the note exists for: an empty report over a surface nobody looked at is exactly
-	// when a reader concludes there is nothing to find.
-	model := &saga.Model{Components: []saga.Component{{Name: "svc", Images: []saga.Image{{Image: "i"}}}}}
-	var out bytes.Buffer
-	printScanTips(&out, tips(model, engine.Result{}, nil))
-	if !strings.Contains(out.String(), "Not checked:") {
-		t.Errorf("the note must not depend on findings:\n%s", out.String())
-	}
-}
-
-func TestScanTipsNoteIsSuppressible(t *testing.T) {
-	model := &saga.Model{Components: []saga.Component{{Name: "svc", Images: []saga.Image{{Image: "i"}}}}}
-	var out bytes.Buffer
-	printScanTips(&out, tips(model, engine.Result{}, &scanOptions{noTips: true}))
-	if out.Len() != 0 {
-		t.Errorf("--no-tips should silence it:\n%s", out.String())
+	if got := scanSuggestions(tips(unclassifiedModel(), slow, &scanOptions{noTips: true})); got != nil {
+		t.Errorf("--no-tips should suppress them, got %+v", got)
 	}
 	t.Setenv("DRAUGR_NO_TIPS", "1")
-	var env bytes.Buffer
-	printScanTips(&env, tips(model, engine.Result{}, nil))
-	if env.Len() != 0 {
-		t.Errorf("DRAUGR_NO_TIPS should silence it:\n%s", env.String())
+	if got := scanSuggestions(tips(unclassifiedModel(), slow, nil)); got != nil {
+		t.Errorf("DRAUGR_NO_TIPS should suppress them, got %+v", got)
 	}
 }
 
-func TestSurfaceNoteExplainsWhyDastIsAbsent(t *testing.T) {
-	// A reader who knows Draugr has a dast control, and sees a host listed as unchecked without
-	// it, reads the omission as a gap in the note rather than as the deliberate choice it is.
+func TestUncoveredSurfacesReachTheReport(t *testing.T) {
+	// The case it exists for: an empty report over a surface nobody looked at is exactly when a
+	// reader concludes there is nothing to find.
+	model := &saga.Model{Components: []saga.Component{{Name: "svc", Images: []saga.Image{{Image: "i"}}}}}
+	got := uncoveredFor(model)
+	if len(got) != 1 || got[0].Component != "svc" || got[0].Surface != "images" {
+		t.Fatalf("the gap must travel with the report, got %+v", got)
+	}
+	if len(got[0].Controls) == 0 {
+		t.Error("a gap that does not name the control that would close it cannot be acted on")
+	}
+}
+
+func TestSurfaceNoteCountsEveryControlThatLooksAtAHost(t *testing.T) {
+	// dast is one of the three, and a note that leaves it out describes a host nothing is testing
+	// as missing two controls. What Draugr will and will not enable for somebody is a different
+	// question from what is looking at their service.
 	model := &saga.Model{Components: []saga.Component{{Name: "web", Hosts: []saga.Host{{URL: "h"}}}}}
 	var out bytes.Buffer
 	printUncoveredSurfaceNote(&out, model)
-	if !strings.Contains(out.String(), "dast is never suggested") {
-		t.Errorf("a host surface must say why dast is not among the controls named:\n%s", out.String())
-	}
-	if !strings.Contains(out.String(), "attack traffic") {
-		t.Errorf("naming dast without the reason is worse than not naming it:\n%s", out.String())
+	for _, want := range []string{"web hosts", "3 controls off", "dast, headers, tls"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the note never said %q:\n%s", want, out.String())
+		}
 	}
 }
 
 func TestSurfaceNoteOmitsDastWithoutHosts(t *testing.T) {
-	// dast only scans a host, so on a repository-only descriptor the clause answers a question
-	// nobody asked. And the note is already at the length where a spare line costs it readers.
+	// dast only looks at a host, so on an image-only descriptor it is not among the controls that
+	// would have examined anything.
 	model := &saga.Model{Components: []saga.Component{{Name: "svc", Images: []saga.Image{{Image: "i"}}}}}
 	var out bytes.Buffer
 	printUncoveredSurfaceNote(&out, model)
@@ -161,7 +113,7 @@ func TestPriorityGateTipFiresOnAPassCarryingP1s(t *testing.T) {
 	if !tipByName(t, "priority-gate").when(c) {
 		t.Fatal("a pass carrying a P1 under a severity gate is the case this exists for")
 	}
-	if got := tipByName(t, "priority-gate").text(c); !strings.Contains(got, "--fail-on P2") {
+	if got := tipByName(t, "priority-gate").what(c); got != "--fail-on P2" {
 		t.Errorf("the tip must name the flag that changes the outcome: %q", got)
 	}
 	// And it says nothing where the gate already reads the band: telling somebody to add the gate
@@ -235,38 +187,6 @@ func TestCountAtOrAboveSkipsSuppressed(t *testing.T) {
 	}
 }
 
-func TestPublishTipFiresOnlyInCIWithNowhereToPutTheReport(t *testing.T) {
-	base := tipContext{
-		model: &saga.Model{Components: []saga.Component{{Name: "web"}}},
-		run:   runWithFindings(),
-		opts:  &scanOptions{format: "console"},
-	}
-	t.Setenv("CI", "true")
-	if !tipByName(t, "publish").when(base) {
-		t.Fatal("in CI with no -o and no publishers, the report exists only in the log")
-	}
-
-	withOutput := base
-	withOutput.opts = &scanOptions{format: "console", outputDir: "out"}
-	if tipByName(t, "publish").when(withOutput) {
-		t.Error("-o keeps the report, so there is nothing to say")
-	}
-
-	withPublisher := base
-	withPublisher.model = &saga.Model{
-		Config:     saga.Config{Publishers: []saga.PublisherConfig{{Kind: "github"}}},
-		Components: []saga.Component{{Name: "web"}},
-	}
-	if tipByName(t, "publish").when(withPublisher) {
-		t.Error("a configured publisher is already the answer")
-	}
-
-	t.Setenv("CI", "")
-	if tipByName(t, "publish").when(base) {
-		t.Error("at a terminal the report is on screen, which is where the reader is looking")
-	}
-}
-
 func TestCacheTipWaitsForARunSlowEnoughToMatter(t *testing.T) {
 	slow := tipContext{
 		model: unclassifiedModel(),
@@ -276,7 +196,7 @@ func TestCacheTipWaitsForARunSlowEnoughToMatter(t *testing.T) {
 	if !tipByName(t, "cache").when(slow) {
 		t.Error("three uncached minutes is what --cache-dir is for")
 	}
-	if got := tipByName(t, "cache").text(slow); !strings.Contains(got, "3m0s") {
+	if got := tipByName(t, "cache").why(slow); !strings.Contains(got, "3m0s") {
 		t.Errorf("the tip should quote the time it is arguing about: %q", got)
 	}
 
@@ -298,7 +218,8 @@ func TestScanTipsAreCappedPerRun(t *testing.T) {
 	// furniture. The cap is the thing being tested.
 	t.Setenv("CI", "true")
 	c := tipContext{
-		model:   unclassifiedModel(),
+		// A declared surface nothing looks at, so the controls tip has something to answer too.
+		model:   &saga.Model{Components: []saga.Component{{Name: "web", Hosts: []saga.Host{{URL: "h"}}}}},
 		run:     engine.Result{Stats: engine.Stats{Duration: 5 * time.Minute}, Controls: capRunControls()},
 		verdict: norn.Result{Verdict: norn.Pass},
 		// Judged on severity, which is what the priority-gate tip is about. Under the default the
@@ -311,14 +232,13 @@ func TestScanTipsAreCappedPerRun(t *testing.T) {
 			t.Fatalf("test setup no longer triggers %q, so the cap is not what is being measured", tip.name)
 		}
 	}
-	var out bytes.Buffer
-	printScanTips(&out, c)
-	if got := strings.Count(out.String(), "\nTip: "); got != maxTipsPerRun {
-		t.Errorf("printed %d tips, want the cap of %d:\n%s", got, maxTipsPerRun, out.String())
+	got := scanSuggestions(c)
+	if len(got) != maxTipsPerRun {
+		t.Errorf("offered %d, want the cap of %d: %+v", len(got), maxTipsPerRun, got)
 	}
-	// And the ones printed are the two the ordering promises.
-	if !strings.Contains(out.String(), "--fail-on P2") || !strings.Contains(out.String(), "only in this log") {
-		t.Errorf("the cap must keep the highest-consequence tips, not the first two to evaluate:\n%s", out.String())
+	// And the ones offered are the two the ordering promises.
+	if got[0].What != "--fail-on P2" || got[1].What != "builtBy: upstream" {
+		t.Errorf("the cap must keep the highest-consequence tips, not the first two to evaluate: %+v", got)
 	}
 }
 

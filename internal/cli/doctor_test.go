@@ -558,7 +558,7 @@ func TestDoctorReportsUncoveredSurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reporting is not failing: %v\n%s", err, out.String())
 	}
-	for _, want := range []string{"Not checked", "declares images", "declares hosts"} {
+	for _, want := range []string{"NOT CHECKED", "web images", "web hosts", "dast"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("doctor never mentioned %q:\n%s", want, out.String())
 		}

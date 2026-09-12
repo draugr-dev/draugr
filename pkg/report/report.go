@@ -63,13 +63,6 @@ type Data struct {
 	// TopN caps how many findings the console "Fix first" table shows: 0 uses the default,
 	// a negative value shows all, and a positive value shows that many. Ignored by other formats.
 	TopN int
-	// GroupActions renders the fix list as actions rather than findings: one row per thing to do,
-	// each saying how many findings it clears.
-	//
-	// A reader deciding what to spend an afternoon on is choosing between actions, and a list of
-	// findings makes them do that grouping in their head. Off gives the finding-per-row listing,
-	// which is what somebody auditing a specific finding wants.
-	GroupActions bool
 	// Evidence restores the blocks that make a run defensible, tool provenance, what each control
 	// measured against, declared effects, the scanned revision, job and cache counts.
 	//
@@ -96,10 +89,20 @@ type Data struct {
 	// is never "did the scanner run" but "who decided this was acceptable".
 	Gate GateSettings
 
-	// Compact strips what only a human reads, indentation and relayed rule prose, from the machine
-	// formats (json, sarif), for a consumer that acts on the report rather than reads it. The human
-	// formats ignore it: making those harder to read is the opposite of the point.
-	Compact bool
+	// View is what the report shows and how densely, one setting rather than two that have to be
+	// combined. The zero value is ViewFindings.
+	View View
+	// Uncovered is what this descriptor declares and no enabled control examines.
+	Uncovered []Gap
+	// Suggestions are the things this particular run makes worth trying, decided by the caller
+	// because they depend on how it was invoked rather than on what it found.
+	Suggestions []Suggestion
+	// Unclassified reports that no component declares exposure or criticality.
+	//
+	// A caveat on every band in the report: with nothing declared, each component is read as public
+	// and critical, which is the most severe reading, so the bands rank severity alone. A reader
+	// who does not know that is reading a ranking as though it described their application.
+	Unclassified bool
 	// Generated and Version stamp a report with when it ran and what produced it. A report
 	// offered as evidence has to answer both; a reader who cannot tell whether they are looking
 	// at today's scan or last quarter's has nothing they can rely on. Zero values are omitted,
@@ -150,6 +153,62 @@ type ToolBuild struct {
 	// Reason renders the level for someone who has not read its definition.
 	Reason string
 }
+
+// Gap is one surface a descriptor declares that no enabled control looks at.
+//
+// Carried in the report rather than left to whoever renders it, because a run that examined
+// everything except the thing a component exposes to the internet reads exactly like one that
+// examined everything, and the difference is the descriptor's own words.
+type Gap struct {
+	// Component and Surface name what was declared and went unexamined.
+	Component, Surface string
+	// Controls are the ones that would have looked at it, every one of them off.
+	Controls []string
+}
+
+// Suggestion is something a reader may try, and the reason it is worth trying.
+//
+// Two fields rather than a sentence. A sentence naming a flag has to be read whole to find out
+// whether it applies, where a column of flags is scanned for the one that does.
+type Suggestion struct {
+	// What to type, or the key to add to the descriptor.
+	What string
+	// Why, in a clause. Not an instruction: none of this is required, and a reader who already has
+	// their answer should be able to pass over the whole block.
+	Why string
+}
+
+// View is what a report shows and how densely.
+//
+// One setting rather than a shape flag and a density flag that have to be combined. The three are
+// answers to one question, what does this reader want to see, and as two flags four combinations
+// exist of which two mean the same thing. It also gives the machine formats the same word: a
+// consumer that acts on a report rather than reading it asks for the same view as somebody who
+// already knows what they are looking at.
+type View string
+
+// The views. Findings is the default, and is the one that explains itself.
+const (
+	// ViewFindings is a row per finding with what it is, and what argued with its band, underneath.
+	//
+	// The default, and the fuller one, for the reason it carries any reasoning at all: a reader
+	// meeting a ranking for the first time is deciding whether to believe it, and the line under
+	// each row is where a band accounts for itself.
+	ViewFindings View = "findings"
+	// ViewActions is a row per thing to do, each saying how many findings it clears.
+	//
+	// A reader deciding what to spend an afternoon on is choosing between actions, and a list of
+	// findings makes them do that grouping in their head. Not the default, because a list of fixes
+	// above the controls that produced them reads as instructions from a tool the reader has not
+	// yet decided to trust.
+	ViewActions View = "actions"
+	// ViewCompact is one line per finding, and in json and sarif no indentation and no relayed
+	// rule prose.
+	//
+	// For a reader who already knows what they are looking at and is asking how much there is, and
+	// for a consumer that parses rather than reads.
+	ViewCompact View = "compact"
+)
 
 // RepositoryProvenance is one repository as this run read it.
 //
@@ -396,7 +455,7 @@ func erroredControls(d Data) []string {
 }
 
 func (d Data) marshalOptions() sarif.MarshalOptions {
-	return sarif.MarshalOptions{Compact: d.Compact}
+	return sarif.MarshalOptions{Compact: d.View == ViewCompact}
 }
 
 // --- shared summary used by the human reporters ---
@@ -893,7 +952,7 @@ func reachabilityBlock(d Data) (rows []string, notes []string) {
 	for _, a := range r.Analyzers {
 		row := fmt.Sprintf("%-*s  %d reachable, %d unreachable", width, a.Analyzer, a.Reachable, a.Unreachable)
 		if a.Unknown > 0 {
-			row += fmt.Sprintf(", %d undetermined", a.Unknown)
+			row += fmt.Sprintf(", %d unknown", a.Unknown)
 		}
 		if a.Contributed > 0 {
 			row += fmt.Sprintf(" (%s only it reported)", plural(a.Contributed, "finding"))
@@ -904,38 +963,42 @@ func reachabilityBlock(d Data) (rows []string, notes []string) {
 	if r.Unknown > 0 {
 		// Named whenever there is any, because it is the qualifier on everything above it: an
 		// analyzer that could not cover a dependency has not found it safe.
-		notes = append(notes, "Undetermined findings were not analyzed and are ranked as reported.")
+		//
+		// "unknown" rather than a second word for it. It is the value the descriptor, the schema
+		// and `report.json` all carry, and a reader who meets one word in the terminal and goes
+		// looking for it in the documentation should find the same one.
+		notes = append(notes, "Unknown means the analyzer did not cover it. Those are ranked as reported.")
 	}
 	return rows, notes
 }
 
-// reachabilityNote is the line under a finding saying that reachability moved its band, or named
-// the path that keeps it where it is. Empty when analysis had nothing to say about it.
+// reachabilityPath is the line under a finding naming the call path that keeps it where it is, or
+// "" where analysis had nothing to say.
 //
-// The counterpart of escalationNote, and it exists for the same reason: a band a reader cannot
-// account for is one they have to take on trust, and the ranking is the thing they are being asked
-// to act on. Downward movement needs it most, a high-severity finding sitting low is the one
-// somebody will ask about.
-func reachabilityNote(r *sarif.Reachability) string {
-	if r == nil {
+// Only the reachable verdict, because that is the one with something to add: nothing moved, and
+// the reason the finding stands is a path through the reader's own code. A verdict that lowered a
+// band is marked on the row instead, and says who lowered it.
+func reachabilityPath(r *sarif.Reachability) string {
+	if r == nil || r.State != sarif.ReachabilityReachable {
 		return ""
 	}
-	switch r.State {
-	case sarif.ReachabilityReachable:
-		out := "→ reachable"
-		if p := shortestCallPath(r.Paths); p != "" {
-			out += ": " + p
-		}
-		return out + attribution(r)
-	case sarif.ReachabilityUnreachable:
-		if r.RankedAs == "" {
-			// Already at the lowest band, so nothing moved and there is nothing to account for.
-			return ""
-		}
-		return "↓ ranked as " + string(r.RankedAs) + " · the vulnerable code is never called" + attribution(r)
-	default:
+	out := "reachable"
+	if p := shortestCallPath(r.Paths); p != "" {
+		out += ": " + p
+	}
+	return out + attribution(r)
+}
+
+// unreachableCredit names who decided a finding is never called, and when.
+//
+// The mark on the row says the band was lowered; this is the part a reader would otherwise have to
+// take on trust. A call graph does not see reflection or code generated tomorrow, so which
+// analyzer ran and which day it ran are what make the claim one somebody can argue with.
+func unreachableCredit(r *sarif.Reachability) string {
+	if r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs == "" {
 		return ""
 	}
+	return strings.TrimSuffix(strings.TrimPrefix(attribution(r), " ("), ")")
 }
 
 // attribution names the analyzer and the day it ran. A reachability verdict describes one

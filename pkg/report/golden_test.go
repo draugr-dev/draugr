@@ -50,6 +50,10 @@ func TestConsoleGolden(t *testing.T) {
 		{"evidence", goldenEvidenceData()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// No terminal width, whatever the shell running the tests thinks. The compact listing
+			// trims itself to the width it is given, and a golden that moved with the window would
+			// pin the window rather than the layout.
+			t.Setenv("COLUMNS", "")
 			var b bytes.Buffer
 			if err := (consoleReporter{}).Render(&b, tc.data); err != nil {
 				t.Fatal(err)
@@ -88,15 +92,16 @@ func goldenMismatch(path string) string {
 		"  3. update what quotes or describes the layout:\n" +
 		"     pasted, and pinned by TestEveryPasteOfTheConsoleIsTracked:\n" +
 		"       README.md (the block under \"See it in action\"),\n" +
-		"       docs/concepts/verdict-and-gating.md, docs/concepts/prioritization.md,\n" +
-		"       docs/getting-started/quickstart.md, docs/reference/cli.md,\n" +
+		"       docs/concepts/verdict-and-gating.md,\n" +
+		"       docs/getting-started/first-saga.md, docs/getting-started/quickstart.md,\n" +
+		"       docs/reference/cli.md,\n" +
 		"       docs/reference/saga-schema.md\n" +
 		"     described rather than pasted, so only a shape change reaches them:\n" +
 		"       docs/concepts/principles.md, docs/concepts/what-to-fix-first.md,\n" +
 		"       docs/guides/findings-in-your-editor.md, docs/guides/caching-and-performance.md\n" +
 		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
-		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
-		"     (grep for 'Draugr · ' there; they are a separate repo, so nothing else will catch them)\n"
+		"     src/content/blog/{security-scan-with-zero-config,what-scanner-output-costs-your-agent}.md\n" +
+		"     (grep for 'FIX FIRST' there; they are a separate repo, so nothing else will catch them)\n"
 }
 
 // goldenFullData exercises every element of the frame at once: a failing verdict with a release,
@@ -278,7 +283,7 @@ func goldenEnrichedData() Data {
 // goldenGroupedData is the full fixture rendered the way `draugr scan` renders it.
 func goldenGroupedData() Data {
 	d := goldenFullData()
-	d.GroupActions = true
+	d.View = ViewActions
 	return d
 }
 
@@ -302,7 +307,7 @@ func goldenEvidenceData() Data {
 var pastesConsoleOutput = map[string]bool{
 	"README.md":                           true,
 	"docs/concepts/verdict-and-gating.md": true,
-	"docs/concepts/prioritization.md":     true,
+	"docs/getting-started/first-saga.md":  true,
 	"docs/getting-started/quickstart.md":  true,
 	"docs/reference/cli.md":               true,
 	"docs/reference/saga-schema.md":       true,
@@ -311,8 +316,9 @@ var pastesConsoleOutput = map[string]bool{
 // consoleShapes are strings only this renderer produces, so a fence carrying one is a paste rather
 // than a shell session or a scanner's own output.
 var consoleShapes = []string{
-	"Draugr · ", "Fix first · ", "Priorities:", "Measured against:", "Reachability:",
-	"↑ ranked as ", "↓ ranked as ", "suppressed by config.exclude",
+	"DRAUGR  ", "FIX FIRST", "WHAT TO DO", "CONTROLS", "COMPONENTS", "MEASURED AGAINST",
+	"NOT MEASURED", "NOT CHECKED", "REACHABILITY", "raised from ", "lowered from ",
+	"suppressed by config.exclude",
 }
 
 func TestEveryPasteOfTheConsoleIsTracked(t *testing.T) {

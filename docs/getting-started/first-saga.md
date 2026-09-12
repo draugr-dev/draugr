@@ -67,8 +67,8 @@ whether anything is set to look at what you just declared. A descriptor that nam
 the `images` control is off scans clean over them, and a first Saga is exactly where that happens:
 
 ```
-Not checked:
-      web declares images, and images is not enabled
+NOT CHECKED
+  web images  1 control off: images
 ```
 
 ## Classify components so priority means something

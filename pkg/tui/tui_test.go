@@ -240,3 +240,49 @@ func TestColumnsIsZeroForAFileThatIsNotATerminal(t *testing.T) {
 		t.Errorf("Columns of a regular file = %d, want 0", got)
 	}
 }
+
+// A chip degrades twice rather than once: the color itself where the terminal says it can show it,
+// the role reversed where it cannot, and the bare word where there is no color at all. The last is
+// what a pipe and a CI log get, and a chip with no fill is a word with two extra spaces around it.
+func TestChipDegradesToWhatTheDestinationCanShow(t *testing.T) {
+	full := FullColorPainter().Chip(StyleFail, "FAIL")
+	if !strings.Contains(full, "48;2;229;83;75") || !strings.Contains(full, " FAIL ") {
+		t.Errorf("full color = %q, want the project's own fill", full)
+	}
+	sixteen := Colored().Chip(StyleFail, "FAIL")
+	if !strings.HasPrefix(sixteen, "\x1b[7;") || !strings.Contains(sixteen, " FAIL ") {
+		t.Errorf("sixteen color = %q, want the role reversed", sixteen)
+	}
+	if got := Plain().Chip(StyleFail, "FAIL"); got != "FAIL" {
+		t.Errorf("plain = %q, want the bare word", got)
+	}
+	// A role with no fill of its own is painted rather than filled, and nothing is invented for it.
+	if got := FullColorPainter().Chip(StyleStrong, "x"); !strings.HasPrefix(got, "\x1b[7;1m") {
+		t.Errorf("unfilled role = %q", got)
+	}
+	if got := FullColorPainter().Chip(StyleNone, "x"); got != "x" {
+		t.Errorf("no role = %q, want the text unchanged", got)
+	}
+}
+
+// A band is a piece of vocabulary, so it is the same color wherever somebody meets it. A terminal
+// that cannot say it can show them gets the sixteen it has, which is the safe answer for a
+// destination that never said.
+func TestFullColorIsAskedForRatherThanAssumed(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  bool
+	}{{"truecolor", true}, {"24bit", true}, {"", false}, {"256", false}} {
+		t.Setenv("COLORTERM", tc.value)
+		if got := FullColor(); got != tc.want {
+			t.Errorf("COLORTERM=%q: FullColor() = %v, want %v", tc.value, got, tc.want)
+		}
+	}
+	// The exact palette reaches Paint too, not only the chips.
+	if got := FullColorPainter().Paint(StyleMedium, "x"); !strings.Contains(got, "38;2;232;184;75") {
+		t.Errorf("painted = %q, want the project's own gold", got)
+	}
+	if got := Colored().Paint(StyleMedium, "x"); got != "\x1b[33mx\x1b[0m" {
+		t.Errorf("painted = %q, want the sixteen-color role", got)
+	}
+}
