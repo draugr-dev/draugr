@@ -300,6 +300,7 @@ func TestAnUnknownWidthCutsNothing(t *testing.T) {
 // carry color and the control sequence each line is prefixed with.
 func visibleCells(line string) int {
 	line = strings.TrimPrefix(line, "\r\033[2K")
+	line = strings.TrimPrefix(line, "\r")
 	return len([]rune(tui.Truncate(line, 1<<30))) - escapeRunes(line)
 }
 
@@ -309,4 +310,101 @@ func escapeRunes(s string) int {
 		n += len([]rune(m))
 	}
 	return n
+}
+
+// countingWriter records how many Write calls it received, which is what decides whether a
+// terminal can render half a frame.
+// Not an embedded bytes.Buffer: that promotes WriteString, which io.WriteString prefers over
+// Write, so every frame would arrive uncounted.
+type countingWriter struct {
+	buf    bytes.Buffer
+	writes int
+}
+
+func (c *countingWriter) Write(b []byte) (int, error) {
+	c.writes++
+	return c.buf.Write(b)
+}
+
+// A frame the terminal receives in pieces is a frame it can draw in pieces, and the pieces are
+// what a reader sees as flicker.
+func TestAFrameReachesTheTerminalInOneWrite(t *testing.T) {
+	var w countingWriter
+	p := &progressLine{w: &w}
+	t.Cleanup(func() { active.Store(nil) })
+
+	p.update(engine.ProgressEvent{
+		Total: 9, Complete: 1,
+		Steps: []engine.ProgressStep{
+			{Control: "images", Scanner: "trivy", Total: 4, Done: 1, Running: 2},
+			{Control: "sca", Scanner: "trivy-fs", Total: 5, Done: 0, Running: 1},
+		},
+	})
+	if w.writes != 1 {
+		t.Errorf("a repaint took %d writes, so the terminal can render a frame it has only half received", w.writes)
+	}
+}
+
+// The ticker repaints while a slow job runs. A frame that says exactly what is already on the
+// terminal costs a write and buys nothing.
+func TestARepaintWithNothingNewSaysNothing(t *testing.T) {
+	var w countingWriter
+	// Started just now, so the headline stays quiet and the frame carries no clock. A duration is
+	// legitimately part of a frame, and two repaints either side of a second really are different.
+	p := &progressLine{w: &w, start: time.Now()}
+	t.Cleanup(func() { active.Store(nil) })
+
+	ev := engine.ProgressEvent{
+		Total: 9, Complete: 1,
+		Steps: []engine.ProgressStep{{Control: "sca", Scanner: "trivy-fs", Total: 5, Running: 1}},
+	}
+	p.update(ev)
+	first := w.writes
+	p.update(ev)
+	if w.writes != first {
+		t.Errorf("an identical frame was written again (%d writes, want %d)", w.writes, first)
+	}
+}
+
+// A row cleared and then filled is a row that was briefly empty, and because the old erase walked
+// up a line at a time the emptiness climbed the block in front of whoever was watching. Content
+// first, erase to the end of the line after it, so no row is ever blank between two states.
+func TestARepaintNeverBlanksARowItIsAboutToFill(t *testing.T) {
+	var buf bytes.Buffer
+	p := &progressLine{w: &buf}
+	t.Cleanup(func() { active.Store(nil) })
+
+	p.update(engine.ProgressEvent{Total: 9, Complete: 1,
+		Steps: []engine.ProgressStep{{Control: "sca", Scanner: "trivy-fs", Total: 5, Running: 1}}})
+	buf.Reset()
+	p.update(engine.ProgressEvent{Total: 9, Complete: 4,
+		Steps: []engine.ProgressStep{{Control: "sca", Scanner: "trivy-fs", Total: 5, Done: 3, Running: 1}}})
+
+	if out := buf.String(); strings.Contains(out, "\x1b[2K") {
+		t.Errorf("a repaint blanks a whole row before rewriting it: %q", out)
+	}
+}
+
+// A frame with fewer rows than the last leaves the surplus behind unless it clears them, and a
+// stale row under a live frame reads as part of it.
+func TestAShorterFrameClearsTheRowsItGaveUp(t *testing.T) {
+	var buf bytes.Buffer
+	p := &progressLine{w: &buf}
+	t.Cleanup(func() { active.Store(nil) })
+
+	p.update(engine.ProgressEvent{Total: 9, Complete: 1,
+		Steps: []engine.ProgressStep{
+			{Control: "images", Scanner: "trivy", Total: 4, Running: 2},
+			{Control: "sca", Scanner: "trivy-fs", Total: 5, Running: 1},
+		}})
+	tall := p.drawn
+	buf.Reset()
+	p.update(engine.ProgressEvent{Total: 9, Complete: 9})
+
+	if p.drawn >= tall {
+		t.Fatalf("the frame did not shrink: %d rows then %d", tall, p.drawn)
+	}
+	if out := buf.String(); !strings.Contains(out, "\x1b[K") {
+		t.Errorf("the rows it gave up were not cleared: %q", out)
+	}
 }
