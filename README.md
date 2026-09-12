@@ -36,8 +36,8 @@ block every change.
 ## See it in action
 
 ```console
-$ draugr scan .
-DRAUGR  FAIL  draugr-demo 1.0  5.238s
+$ draugr scan . --view actions
+DRAUGR  FAIL  draugr-demo 1.0  5.406s
 
  P1 197 P2 632 P3 231 P4 18
 
@@ -49,24 +49,24 @@ CONTROLS
   sca       FAIL   4 critical 10 high 13 medium 1 low
   secrets   FAIL   1 high
 
-REACHABILITY
-  govulncheck  2 reachable, 2 unreachable
-  Unreachable findings are ranked down in priority, not removed from the report.
+WHAT TO DO  10 actions clear 491 findings
+  P1  Update python:3.8-slim  images · 463 findings · upstream
+      CVE-2026-42010 +462
+  P1  Upgrade Jinja2 2.10  sca · 6 findings
+      app/requirements.txt:5 · CVE-2019-10906 +5
+  P1  Upgrade requests 2.19.1  sca · 5 findings
+      app/requirements.txt:3 · CVE-2018-18074 +4
+  P1  Upgrade golang.org/x/text v0.3.0  sca · 4 findings
+      checkout/go.mod:5 · CVE-2021-38561 +3
+  P1  Upgrade PyYAML 5.1  sca · 3 findings
+      app/requirements.txt:4 · CVE-2019-20477 +2
 
-1 finding suppressed by config.exclude · 1 accepted by demo@example.com
-
-FIX FIRST  top 10 of 1078, by priority
-  Priority  Severity  Rule            Scanner  Location                Upgrade
-  P1        critical  CVE-2026-42010  trivy    python:3.8-slim         libgnutls30 3.7.9-2+deb12u3 → 3.7.9-2+deb12u7
-            gnutls: Authentication Bypass via NUL Character in Username
-  P1        critical  CVE-2026-31789  trivy    python:3.8-slim         libssl3 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
-            OpenSSL: Heap buffer overflow on 32-bit systems from large X.509 certificate processing
-  P1        critical  CVE-2019-20477  trivy    app/requirements.txt:4  PyYAML 5.1 → 5.2
-            command execution through python/object/apply constructor in FullLoader
+… and 35 actions not listed.
 ```
 
-Abridged: the real run lists ten and says how many it did not. That last block is the point, a
-thousand findings, ordered, with the three that matter this week at the top.
+Abridged: the real run lists ten actions and says how many it did not. That last block is the
+point, a thousand findings folded into the handful of changes that clear them, worst first. The
+default lists the findings themselves, a row each, with what to upgrade to beside them.
 
 **Priority (P1–P4) is not severity.** Severity says how bad a flaw is at its worst, anywhere.
 Priority weighs that against how exposed and how important the part of your app it sits in is, which

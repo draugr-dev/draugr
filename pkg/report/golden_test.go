@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -382,6 +383,148 @@ func TestEveryPasteOfTheConsoleIsTracked(t *testing.T) {
 				"the set of files a layout change actually invalidates.", rel)
 		}
 	}
+}
+
+// retiredShapes are strings this renderer used to produce and does not any more, wherever they
+// appear inside a fenced block.
+//
+// The paste tracking says which documents quote a run; nothing said whether what they quote is
+// still what the tool prints, and a document holding a layout from two releases ago reads as
+// current to everybody except the person who changed it. These are cheap to check and they are
+// exactly what goes stale.
+var retiredShapes = []string{
+	"Draugr · ", "Priorities:", "Fix first (", "Fix first · ",
+	"↑ ranked as ", "↓ ranked as ", "more finding(s)",
+}
+
+// retiredHeadings are the section labels this renderer used to write, matched on the whole line.
+//
+// On the whole line because the words are ordinary: a Go struct literal and an MCP answer both say
+// "Controls:" and neither is quoting this renderer. What made them headings was standing alone.
+var retiredHeadings = []string{
+	"Controls:", "Components:", "Reachability:", "Measured against:", "Not measured:",
+	"Not checked:",
+}
+
+// TestNoPasteShowsAShapeTheRendererRetired reads every fenced block in the repository, not only the
+// ones tracked as pastes: a block quoting a layout old enough carries none of the strings that
+// identify a paste today, so the tracking cannot see it and this is what does.
+func TestNoPasteShowsAShapeTheRendererRetired(t *testing.T) {
+	for rel, body := range documents(t) {
+		inFence := false
+		for i, line := range strings.Split(body, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "```") ||
+				strings.HasPrefix(strings.TrimSpace(line), "~~~") {
+				inFence = !inFence
+				continue
+			}
+			if !inFence {
+				continue
+			}
+			stale := ""
+			for _, shape := range retiredShapes {
+				if strings.Contains(line, shape) {
+					stale = shape
+				}
+			}
+			for _, heading := range retiredHeadings {
+				if strings.TrimSpace(line) == heading {
+					stale = heading
+				}
+			}
+			if stale == "" {
+				continue
+			}
+			t.Errorf("%s:%d quotes %q, which this renderer no longer prints:\n  %s\n"+
+				"Refresh it from a real run (make examples). If the shape is gone for good, take it\n"+
+				"out of retiredShapes so the list stays what a stale document would be holding.",
+				rel, i+1, stale, strings.TrimSpace(line))
+		}
+	}
+}
+
+// consolePasteWidth is how wide a quoted run may be.
+//
+// The same width every sentence Draugr prints is held to, and about what a code block shows before
+// it scrolls sideways in a README on github.com. Past it the columns on the right are off the
+// screen, and the rightmost is the one carrying what to do about the finding, so the example
+// teaches the opposite of what it was pasted to teach.
+//
+// A real run is allowed to be wider than this; a pasted example is not. Choose a narrower run.
+const consolePasteWidth = 96
+
+// TestAPastedRunFitsWhereItIsRead holds every quoted run to that width.
+func TestAPastedRunFitsWhereItIsRead(t *testing.T) {
+	placeholder := regexp.MustCompile(`<[a-z][^>]*>`)
+	for rel, body := range documents(t) {
+		inFence, fence, at := false, []string{}, 0
+		for i, line := range strings.Split(body, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "```") ||
+				strings.HasPrefix(strings.TrimSpace(line), "~~~") {
+				if inFence && pastesARun(fence, placeholder) {
+					for n, quoted := range fence {
+						if w := utf8.RuneCountInString(quoted); w > consolePasteWidth {
+							t.Errorf("%s:%d is %d cells wide, past the %d a reader sees:\n  %s",
+								rel, at+n+1, w, consolePasteWidth, quoted)
+						}
+					}
+				}
+				inFence, fence, at = !inFence, nil, i+1
+				continue
+			}
+			if inFence {
+				fence = append(fence, line)
+			}
+		}
+	}
+}
+
+// documents reads every markdown file in the repository, keyed by its path.
+//
+// The changelog records what output looked like at a release, which is the one place a stale paste
+// is the correct content.
+func documents(t *testing.T) map[string]string {
+	t.Helper()
+	root := filepath.Join("..", "..")
+	out, found := map[string]string{}, []string{}
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == "changelog.d" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".md" {
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		rel = filepath.ToSlash(rel)
+		if rel == "CHANGELOG.md" {
+			return nil
+		}
+		found = append(found, rel)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking the repository: %v", err)
+	}
+	// Read after the walk rather than inside it, so nothing here opens a path the walk is still
+	// resolving.
+	for _, rel := range found {
+		// #nosec G304 -- a path this test collected from this repository's own tree.
+		body, readErr := os.ReadFile(filepath.Join(root, rel))
+		if readErr != nil {
+			t.Fatalf("reading %s: %v", rel, readErr)
+		}
+		out[rel] = string(body)
+	}
+	return out
 }
 
 // fencedConsole reports whether a fenced block in this document pastes a run.

@@ -1164,7 +1164,7 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 		if l.Detail != "" {
 			text += " · " + l.Detail
 		}
-		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, l.Control), col.Paint(cDim, text))
+		writeUnder(w, col, width, l.Control, text)
 	}
 }
 
@@ -1188,7 +1188,23 @@ func writeNotMeasured(w io.Writer, col tui.Painter, d Data, width int) {
 		if sk.Reason != "" {
 			text += " · " + sk.Reason
 		}
-		_, _ = fmt.Fprintf(w, "  %s  %s\n", fmt.Sprintf("%-*s", width, sk.Control), col.Paint(cDim, text))
+		writeUnder(w, col, width, sk.Control, text)
+	}
+}
+
+// writeUnder prints a control's row and wraps what it has to say under itself.
+//
+// Wrapped rather than left to run off the edge. These carry a sentence explaining what a scanner
+// covered or could not, and the half a reader acts on is the end of it: a line that leaves the
+// screen has taken away the reason and kept the name. The same treatment a control's errors get,
+// and for the same reason.
+func writeUnder(w io.Writer, col tui.Painter, width int, control, text string) {
+	for i, line := range wrapMessage(text, messageWidth-width-4) {
+		name := fmt.Sprintf("%-*s", width, control)
+		if i > 0 {
+			name = strings.Repeat(" ", width)
+		}
+		_, _ = fmt.Fprintf(w, "  %s  %s\n", name, col.Paint(cDim, line))
 	}
 }
 

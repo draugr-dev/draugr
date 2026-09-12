@@ -1436,8 +1436,9 @@ looks scoped and lists somebody else's namespaces against this component, so the
 planned, and the report says so, under **Not measured**, naming the scanner and the component:
 
 ```
-Not measured:
-  infrastructure  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed to namespace team-a
+NOT MEASURED
+  infrastructure  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed
+                  to namespace team-a
 ```
 
 Nothing has to be turned off by hand. To get both, node-level checks over the whole cluster, and API

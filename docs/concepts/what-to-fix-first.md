@@ -14,9 +14,9 @@ it can do.
 Draugr's fix list answers a different question: **what should I do, and what will it clear?**
 
 ```
-Fix first · <n> actions clear <m> findings:
+WHAT TO DO  <n> actions clear <m> findings
   <band>  <the action>  <control> · <n> findings · <builtBy, when not yours>
-          <the rule it names, and how many more it clears>
+          <where it applies> · <the rule it names, and how many more it clears>
 ```
 
 A schematic rather than a scan, because the shape is what this page is about and a pasted run
