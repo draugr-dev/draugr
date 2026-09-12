@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -43,6 +44,10 @@ type progressLine struct {
 	// columns reports the terminal's width, asked per frame because a window can be resized while
 	// a scan runs. A field so a test can render at a width it does not have.
 	columns func() int
+	// lastFrame is the bytes the last repaint wrote, so an identical one can be skipped. Progress
+	// events and the ticker both land here, and a frame that says exactly what is already on the
+	// terminal costs a write and buys nothing.
+	lastFrame string
 }
 
 // active is the progress line currently drawn on the terminal, if any.
@@ -87,11 +92,17 @@ func (p *progressLine) erase() {
 	if p.drawn == 0 {
 		return
 	}
+	// One write, for the reason draw builds one: a block cleared a row at a time is a block a
+	// reader watches empty.
+	var b strings.Builder
 	for range p.drawn {
-		_, _ = fmt.Fprint(p.w, "\r\033[2K\033[1A")
+		b.WriteString("\r\033[2K\033[1A")
 	}
-	_, _ = fmt.Fprint(p.w, "\r\033[2K")
+	b.WriteString("\r\033[2K")
+	_, _ = io.WriteString(p.w, b.String())
 	p.drawn = 0
+	// The block is gone, so the next frame has to be written even if it says what this one said.
+	p.lastFrame = ""
 }
 
 // newProgressLine returns a renderer, or nil when nothing should be drawn.
@@ -170,13 +181,51 @@ func (p *progressLine) draw(ev engine.ProgressEvent) {
 	if p.columns != nil {
 		width = p.columns()
 	}
-	p.erase()
+
+	// Overwritten in place rather than erased and redrawn.
+	//
+	// Clearing the old frame first means every row is briefly empty, and because the erase walks up
+	// a row at a time the emptiness visibly climbs the block before the new frame lands. Moving to
+	// the top in one jump and writing each row over its predecessor never shows a row without
+	// content; the erase-to-end-of-line after each one is what makes a shorter line clear the tail
+	// of the longer one it replaces.
+	var body strings.Builder
 	for i, line := range lines {
 		if i > 0 {
-			_, _ = fmt.Fprint(p.w, "\n")
+			body.WriteString("\n")
 		}
-		_, _ = fmt.Fprintf(p.w, "\r\033[2K%s", tui.Truncate(line, width))
+		body.WriteString("\r")
+		body.WriteString(tui.Truncate(line, width))
+		body.WriteString("\033[K")
 	}
+	// A repaint with nothing new to say is a write that can only cost something. Compared on the
+	// rows rather than on the bytes sent: where the cursor has to travel to reach them depends on
+	// what was drawn last, so two identical frames differ by their prefix and would never match.
+	// The clock in the headline is what usually makes a frame genuinely new.
+	rows := body.String()
+	if rows == p.lastFrame {
+		return
+	}
+	p.lastFrame = rows
+
+	var b strings.Builder
+	if p.drawn > 1 {
+		fmt.Fprintf(&b, "\033[%dA", p.drawn-1)
+	}
+	b.WriteString(p.lastFrame)
+	// Any row the last frame had and this one does not. Left alone it would sit under the new frame
+	// reading as part of it, and the next repaint would count from the wrong place.
+	extra := p.drawn - len(lines)
+	for range extra {
+		b.WriteString("\n\r\033[K")
+	}
+	if extra > 0 {
+		fmt.Fprintf(&b, "\033[%dA", extra)
+	}
+
+	// One write, so the terminal cannot render a frame it has only half received. The frame reached
+	// it as a dozen small writes before, which is the other half of the flicker.
+	_, _ = io.WriteString(p.w, b.String())
 	p.drawn = len(lines)
 }
 
