@@ -146,3 +146,74 @@ func stripANSI(s string) string {
 	}
 	return out.String()
 }
+
+// A table is bounded by a terminal rather than by its content. The last column gives way because
+// nothing follows it and because it is the prose: an identifier or a location is useless
+// shortened, where a sentence is readable shortened and still readable gone.
+func TestFitTrimsTheLastColumn(t *testing.T) {
+	build := func(width int) string {
+		var b strings.Builder
+		NewTable(Plain(), "Rule", "Summary").Indent("  ").Fit(width).
+			Row(PlainCell("CVE-2019-20477"), PlainCell("command execution through a constructor")).
+			Row(PlainCell("CVE-2018-1000656"), PlainCell("denial of service via crafted JSON")).
+			Render(&b)
+		return b.String()
+	}
+
+	// Wide enough for everything: nothing is touched.
+	full := build(200)
+	if !strings.Contains(full, "command execution through a constructor") {
+		t.Errorf("a table that fits was trimmed:\n%s", full)
+	}
+	// Narrow: the sentence is cut at a word, and says it was cut.
+	narrow := build(50)
+	for _, line := range strings.Split(strings.TrimRight(narrow, "\n"), "\n") {
+		if n := len([]rune(line)); n > 50 {
+			t.Errorf("line is %d cells, past the 50 it was given: %q", n, line)
+		}
+	}
+	if !strings.Contains(narrow, "…") {
+		t.Errorf("a cut line should say so:\n%s", narrow)
+	}
+	// Cut at a word. A fragment reads as a different word, and a reader cannot tell which they
+	// are looking at.
+	if !strings.Contains(narrow, " a…") {
+		t.Errorf("cut mid-word, which reads as a different word:\n%s", narrow)
+	}
+	// Narrower than a sentence is worth: the column goes, and takes its heading with it.
+	gone := build(40)
+	if strings.Contains(gone, "Summary") || strings.Contains(gone, "…") {
+		t.Errorf("a column with no room left should go entirely:\n%s", gone)
+	}
+	if !strings.Contains(gone, "CVE-2019-20477") {
+		t.Errorf("the columns that fit must survive:\n%s", gone)
+	}
+	// No width to respect, which is what a file or a pipe gives: nothing is guessed at.
+	if build(0) != full {
+		t.Errorf("a table given no width should be as wide as its content:\n%s", build(0))
+	}
+}
+
+// A cell can carry a second, quieter part, and the column still lines up: the width is measured on
+// both halves, so a qualifier does not push the next column out on the rows that have one.
+func TestStyledNotesAndCellNotesKeepTheColumns(t *testing.T) {
+	var b strings.Builder
+	NewTable(Colored(), "Upgrade", "Where").Indent("  ").StyledNotes().
+		RowWithNote("\x1b[2malready painted\x1b[0m",
+			Cell{Text: "Flask 0.12.2 →", Note: "0.12.3", NoteStyle: StyleFixed},
+			PlainCell("requirements.txt:1")).
+		Row(PlainCell("x"), PlainCell("y")).
+		Render(&b)
+	out := b.String()
+	// The note the caller painted is set as given rather than dimmed a second time.
+	if strings.Contains(out, "\x1b[2m\x1b[2malready painted") {
+		t.Errorf("a painted note was painted again:\n%q", out)
+	}
+	if !strings.Contains(out, "already painted") {
+		t.Errorf("the note is missing:\n%q", out)
+	}
+	// Both halves of the cell are there, each in its own style.
+	if !strings.Contains(out, "Flask 0.12.2 →") || !strings.Contains(out, "0.12.3") {
+		t.Errorf("the cell lost a half:\n%q", out)
+	}
+}
