@@ -156,9 +156,21 @@ draugr:
     DRAUGR_SAGA: services/api/draugr.saga.yaml
     DRAUGR_VERSION: v0.90.0               # empty installs the latest release
     DRAUGR_FAIL_ON_NEW_PRIORITY: P2       # empty disables the differential gate
+    DRAUGR_DIFF_VIEW: actions             # the comment lists what to do, not every finding
     DRAUGR_GATE_DEFAULT_BRANCH: "false"   # keep the default branch green so the widgets populate
     DRAUGR_TOOLS: "false"                 # a runner image that already has the scanners
 ```
+
+## Make the second scan cheap
+
+A merge request scans the merge base as well as the head, which is what makes the two comparable.
+Caching Trivy's databases and Draugr's own results makes the pair cost about what one scan does,
+and a cache that expired or was never written costs time rather than correctness: the base is still
+scanned and both sides still come from the same binary.
+
+A `cache:` key on the job does it. See [caching and
+performance](caching-and-performance.md#on-gitlab-and-azure) for the keys, and for why a
+merge-request job should pull rather than push the result cache.
 
 ## Scanners the runner needs
 

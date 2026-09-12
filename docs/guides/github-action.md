@@ -40,6 +40,7 @@ jobs:
           tools: true             # provision the scanners the controls need
           # fail-on: P1           # (scan/push) gate the build; the default
           # fail-on-new: P1       # (diff/PR)   gate only on findings this PR introduces
+          # diff-view: actions    # (diff/PR)   the comment lists what to do, not every finding
 ```
 
 **Versioning.** `@v0` is a moving major tag that always points at the newest `v0.x` release, so
@@ -78,6 +79,7 @@ scanning](code-scanning.md) for each mode in depth.
 | `fail-on-priority` | | Deprecated: write the band in `fail-on`, which takes either vocabulary. |
 | `fail-on-new` | | (diff) Fail on a **new** finding at or above this: a priority band (`P1`-`P4`) or a severity. |
 | `fail-on-new-priority` | | Deprecated: write the band in `fail-on-new`, which takes either vocabulary. |
+| `diff-view` | `findings` | (diff) What the pull-request comment says. `findings` is a row per finding; `actions` groups them into the things somebody would do, so six advisories in one library are one upgrade. |
 | `min-priority` |, | List findings at or above this band in the console output. |
 | `cache-dir` |, | Enable content-hash caching in this directory (relative to `working-directory`). |
 | `output` | `draugr-out` | Directory for `report.json`, `results.sarif` and any SBOMs (relative to `working-directory`). Written in both scan and diff mode. |

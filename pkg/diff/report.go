@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/sarif"
-
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -15,12 +15,12 @@ import (
 func Formats() []string { return []string{"console", "json", "markdown", "sarif"} }
 
 // Render writes the diff in the named format. Unknown formats error.
-func Render(w io.Writer, format string, r Result) error {
+func Render(w io.Writer, format string, r Result, opts Options) error {
 	switch format {
 	case "", "console":
-		return renderConsole(w, r)
+		return renderConsole(w, r, opts)
 	case "markdown":
-		return renderMarkdown(w, r)
+		return renderMarkdown(w, r, opts)
 	case "json":
 		return renderJSON(w, r)
 	case "sarif":
@@ -59,38 +59,75 @@ func renderSARIF(w io.Writer, r Result) error {
 	return err
 }
 
-// headline summarizes the delta in one line, e.g.
-// "2 new (1 critical, 1 high), 3 fixed, 5 unchanged".
+// View is how much of each row a listing draws, the same three names `draugr scan` takes and with
+// the same meaning, so a reader who has learned one has learned the other.
+type View string
+
+// The three views.
+const (
+	ViewFindings View = "findings"
+	ViewActions  View = "actions"
+	ViewCompact  View = "compact"
+)
+
+// Views lists them, sorted, for the flag's own help.
+func Views() []string { return []string{"actions", "compact", "findings"} }
+
+// Options are what the caller asked for, beyond the comparison itself.
+type Options struct {
+	View View
+	// Top caps the listing. Zero shows everything, which is the default here and not on `scan`:
+	// a diff is already narrowed to what one change did, and hiding part of that removes the thing
+	// the command exists to show. The flag is for the dependency bump that introduces forty.
+	Top int
+}
+
+// changeStates is the four states in the order a reader meets them, with the mark each one wears
+// in a forge comment.
 //
-// Only the bands that occur are named. A run with nothing critical should not have to read past
-// "0 critical" to find the number that is not zero.
-func headline(r Result) string {
-	c := countSeverities(r.New)
+// Emoji only in markdown. A terminal has the priority ramp to find a row by and a comment has
+// nothing, so the mark is what separates four counts in one line of a paragraph somebody skims.
+var changeStates = []struct {
+	change Change
+	emoji  string
+}{
+	{ChangeNew, "🔺"},
+	{ChangeUnaccepted, "⚠️"},
+	{ChangeAccepted, "🤝"},
+	{ChangeFixed, "✅"},
+}
+
+// counts is how many findings are in each state, in order.
+func counts(r Result) []int {
+	return []int{len(r.New), len(r.Unaccepted), len(r.Accepted), len(r.Fixed)}
+}
+
+// headline counts the states, naming only the ones that happened.
+//
+// A run with nothing accepted should not have to read past "0 accepted" to find the number that is
+// not zero. Unchanged is always named, because zero there is the answer rather than noise: a diff
+// of two identical scans has to say it compared something.
+func headline(r Result, emoji bool) []string {
 	var parts []string
-	for _, b := range []struct {
-		name string
-		n    int
-	}{{"critical", c.Critical}, {"high", c.High}, {"medium", c.Medium}, {"low", c.Low}} {
-		if b.n > 0 {
-			parts = append(parts, fmt.Sprintf("%d %s", b.n, b.name))
+	for i, n := range counts(r) {
+		if n == 0 {
+			continue
 		}
+		part := fmt.Sprintf("%d %s", n, changeStates[i].change)
+		if emoji {
+			part = changeStates[i].emoji + " " + part
+		}
+		parts = append(parts, part)
 	}
-	bands := ""
-	if len(parts) > 0 {
-		bands = " (" + strings.Join(parts, ", ") + ")"
+	return append(parts, fmt.Sprintf("%d unchanged", len(r.Unchanged)))
+}
+
+// verdict is what the gate decided, or empty where nothing was asked of this run.
+func verdict(r Result) (string, bool) {
+	if !r.Gate.Stated() {
+		return "", false
 	}
-	// Accepted and reopened only when there are any. Most diffs have neither, and five numbers where
-	// three would do makes the two that matter harder to see rather than easier. While a diff that
-	// does have them is exactly the one where they should be unmissable.
-	middle := ""
-	if len(r.Accepted) > 0 {
-		middle += fmt.Sprintf(", %d accepted", len(r.Accepted))
-	}
-	if len(r.Reopened) > 0 {
-		middle += fmt.Sprintf(", %d reopened", len(r.Reopened))
-	}
-	return fmt.Sprintf("%d new%s, %d fixed%s, %d unchanged",
-		len(r.New), bands, len(r.Fixed), middle, len(r.Unchanged))
+	return map[bool]string{true: "FAIL", false: "pass"}[len(r.Tripped) > 0], len(r.Tripped) > 0
 }
 
 func loc(f string, line int) string {
@@ -110,170 +147,465 @@ func dash(s string) string {
 	return s
 }
 
-// --- console ---
-
-func renderConsole(w io.Writer, r Result) error {
-	col := tui.For(w)
-
-	// A diff's headline is its verdict: new findings are the thing to act on, and a clean
-	// diff deserves to look clean.
-	headlineStyle := tui.StylePass
-	if len(r.New) > 0 {
-		headlineStyle = tui.StyleFail
+// upgrade is the package this finding is about and the release that clears it.
+//
+// The target is advice, so it is drawn only where something is still to be done. On a fixed row it
+// would name a version nobody may have gone to: the diff knows the finding is gone, not how it
+// left, and removing the dependency outright produces the same row.
+func upgrade(e Entry) (label, fix string) {
+	pkg := e.Package
+	if pkg == nil || pkg.Name == "" {
+		return "", ""
 	}
-	_, _ = fmt.Fprintf(w, "Draugr diff · %s\n", col.Paint(headlineStyle, headline(r)))
-
-	np, fp := countPriorities(r.New), countPriorities(r.Fixed)
-	if np != (PriorityCounts{}) || fp != (PriorityCounts{}) {
-		_, _ = fmt.Fprintf(w, "New priorities:   P1 %d  P2 %d  P3 %d  P4 %d\n", np.P1, np.P2, np.P3, np.P4)
-		_, _ = fmt.Fprintf(w, "Fixed priorities: P1 %d  P2 %d  P3 %d  P4 %d\n", fp.P1, fp.P2, fp.P3, fp.P4)
+	label = pkg.Name
+	if pkg.Version != "" {
+		label += " " + pkg.Version
 	}
-	_, _ = fmt.Fprintln(w)
-
-	if len(r.New) == 0 && len(r.Fixed) == 0 && len(r.Accepted) == 0 && len(r.Reopened) == 0 {
-		_, _ = fmt.Fprintln(w, col.Paint(tui.StylePass, "No change in the finding footprint. ✓"))
-		return nil
+	if e.Change == ChangeFixed || pkg.FixedVersion == "" {
+		return label, ""
 	}
-
-	withComponent := anyComponent(r.New, r.Fixed)
-	if len(r.New) > 0 {
-		_, _ = fmt.Fprintf(w, "New (%d):\n", len(r.New))
-		renderDiffFindings(w, col, "+", tui.StyleFail, r.New, withComponent, r.HelpURI)
-		_, _ = fmt.Fprintln(w)
-	}
-	// Before fixed, because a reviewer reading top-down should meet the decisions before the good
-	// news. Nothing here was removed by anybody; these are the lines that need a person.
-	if len(r.Reopened) > 0 {
-		_, _ = fmt.Fprintf(w, "Reopened (%d) · an exclusion lapsed or was removed:\n", len(r.Reopened))
-		renderDiffFindings(w, col, "!", tui.StyleFail, r.Reopened, withComponent, r.HelpURI)
-		_, _ = fmt.Fprintln(w)
-	}
-	if len(r.Accepted) > 0 {
-		_, _ = fmt.Fprintf(w, "Accepted (%d) · still present, somebody decided to live with them:\n",
-			len(r.Accepted))
-		renderDiffFindings(w, col, "~", tui.StyleAccent, r.Accepted, withComponent, r.HelpURI)
-		_, _ = fmt.Fprintln(w)
-	}
-	if len(r.Fixed) > 0 {
-		_, _ = fmt.Fprintf(w, "Fixed (%d):\n", len(r.Fixed))
-		renderDiffFindings(w, col, "-", tui.StylePass, r.Fixed, withComponent, r.HelpURI)
-	}
-	return nil
+	return label + " →", pkg.FixedVersion
 }
 
-// renderDiffFindings lists findings under a sign, using the same table the scan report uses so
-// a diff and a scan read alike.
-func renderDiffFindings(w io.Writer, col tui.Painter, sign string, style tui.Style, fs []sarif.Result, showComponent bool, help func(string) string) {
-	t := tui.NewTable(col).Indent("  ")
-	for _, f := range fs {
-		cells := []tui.Cell{
-			// The sign and the priority travel together. Both answer "what is this finding in this diff",
-			// so they share a cell and the spacing stays tight.
-			tui.Styled(style, sign+" "+dash(f.Priority)),
-			// Severity, not Level. A scan reports critical/high/medium/low; printing the SARIF
-			// wire value here made the same finding read as "error" in a diff and "critical" in
-			// the report it came from, and left a reader translating between two vocabularies to
-			// decide whether a pull request had made things worse.
-			tui.PlainCell(string(f.Severity(""))),
-			ruleCell(f.RuleID, help(f.RuleID)),
-		}
-		if showComponent {
-			cells = append(cells, tui.PlainCell(dash(f.Component)))
-		}
-		cells = append(cells, tui.Styled(tui.StyleMuted, loc(f.Location.URI, f.Location.StartLine)))
-		t.Row(cells...)
-	}
-	t.Render(w)
-}
-
-// anyComponent reports whether any finding in either list names one.
+// manyComponents reports whether the rows name more than one, which is the rule the scan report
+// follows and the only time the column says anything.
 //
-// Shown only when there is something to say. A single-component project would get a column
-// repeating itself, which is the rule the scan report already follows.
+// It matters most here: a pull-request comment is the multi-component case, one change touches one
+// service in a monorepo, and the first question is whether the finding is yours. Two components
+// sharing a dependency otherwise produce rows identical in every visible column. A project with
+// one component gets a column repeating itself, and in a comment that width is scarce.
 //
-// It matters most here: a pull-request comment is the multi-component case, one PR touches one
-// service in a monorepo, and the first question is whether the finding is yours. Without it two
-// components sharing a dependency produce rows identical in every visible column, and a reviewer
-// reasonably reads the second as the tool repeating itself.
-func anyComponent(lists ...[]sarif.Result) bool {
-	for _, fs := range lists {
-		for _, f := range fs {
-			if f.Component != "" {
-				return true
-			}
+// Read over every state rather than over the new and fixed ones alone. A change whose only news is
+// an acceptance ending used to lose the column entirely.
+func manyComponents(es []Entry) bool {
+	var first string
+	for i, e := range es {
+		if i == 0 {
+			first = e.Component
+			continue
+		}
+		if e.Component != first {
+			return true
 		}
 	}
 	return false
 }
 
-// --- markdown ---
+// anyUpgrade reports whether any row has a package to name. A column every row leaves empty is a
+// heading paid for and never used.
+func anyUpgrade(es []Entry) bool {
+	for _, e := range es {
+		if label, _ := upgrade(e); label != "" {
+			return true
+		}
+	}
+	return false
+}
 
-func renderMarkdown(w io.Writer, r Result) error {
-	_, _ = fmt.Fprintf(w, "## Draugr diff\n\n**%s**\n\n", headline(r))
+// --- console ---
 
-	if len(r.New) == 0 && len(r.Fixed) == 0 && len(r.Accepted) == 0 && len(r.Reopened) == 0 {
-		_, _ = fmt.Fprintln(w, "No change in the finding footprint. ✓")
+func renderConsole(w io.Writer, r Result, opts Options) error {
+	col := tui.For(w)
+
+	line := []string{col.Paint(tui.StyleMuted, "DRAUGR DIFF")}
+	if v, failed := verdict(r); v != "" {
+		style := tui.StylePass
+		if failed {
+			style = tui.StyleFail
+		}
+		line = append(line, col.Chip(style, v))
+	}
+	// The first count is what the reader came for and the rest is context.
+	counts := headline(r, false)
+	line = append(line, col.Paint(tui.StyleStrong, counts[0]))
+	for _, part := range counts[1:] {
+		line = append(line, col.Paint(tui.StyleMuted, part))
+	}
+	_, _ = fmt.Fprintf(w, "%s\n\n", strings.Join(line, "  "))
+
+	if bands := newBands(r.New); bands != ([4]int{}) {
+		_, _ = fmt.Fprintf(w, " %s  %s\n\n", col.Paint(tui.StyleMuted, "new"), col.BandChips(bands))
+	}
+
+	entries := r.Changed()
+	if len(entries) == 0 {
+		_, _ = fmt.Fprintln(w, col.Paint(tui.StylePass, "Nothing changed. Every finding was already there."))
+		writeGate(w, col, r)
 		return nil
 	}
 
-	withComponent := anyComponent(r.New, r.Fixed)
-	if len(r.New) > 0 {
-		_, _ = fmt.Fprintf(w, "### 🔺 New (%d)\n\n", len(r.New))
-		mdTable(w, r.New, withComponent, r.HelpURI)
-		_, _ = fmt.Fprintln(w)
+	if opts.View == ViewActions {
+		writeDiffActions(w, col, entries, opts)
+	} else {
+		writeChanged(w, col, r, entries, opts)
 	}
-	if len(r.Reopened) > 0 {
-		_, _ = fmt.Fprintf(w, "### ♻️ Reopened (%d)\n\n_An exclusion lapsed or was removed; these count again._\n\n",
-			len(r.Reopened))
-		mdTable(w, r.Reopened, withComponent, r.HelpURI)
-		_, _ = fmt.Fprintln(w)
-	}
-	if len(r.Accepted) > 0 {
-		_, _ = fmt.Fprintf(w, "### 🤝 Accepted (%d)\n\n_Still present. Somebody decided to live with them._\n\n",
-			len(r.Accepted))
-		mdTable(w, r.Accepted, withComponent, r.HelpURI)
-		_, _ = fmt.Fprintln(w)
-	}
-	if len(r.Fixed) > 0 {
-		_, _ = fmt.Fprintf(w, "### ✅ Fixed (%d)\n\n", len(r.Fixed))
-		mdTable(w, r.Fixed, withComponent, r.HelpURI)
-	}
+	writeGate(w, col, r)
+	writeTry(w, col, r, opts, entries)
 	return nil
 }
 
-// ruleCell renders a rule id, linked to what the scanner published about it where the terminal
-// supports it. The URL costs no width, which is what makes it usable in a table this wide, the
-// scan report's findings table does the same, so the two read alike.
-func ruleCell(ruleID, helpURI string) tui.Cell {
-	return tui.Cell{Text: ruleID, URL: helpURI}
+// writeChanged lists every finding the change touched, in one table.
+func writeChanged(w io.Writer, col tui.Painter, r Result, entries []Entry, opts Options) {
+	shown := entries
+	heading := fmt.Sprintf("%d, by priority", len(entries))
+	if opts.Top > 0 && len(entries) > opts.Top {
+		shown = entries[:opts.Top]
+		heading = fmt.Sprintf("top %d of %d, by priority", opts.Top, len(entries))
+	}
+	_, _ = fmt.Fprintf(w, "%s  %s\n", col.Paint(tui.StyleMuted, "CHANGED"), col.Paint(tui.StyleMuted, heading))
+
+	withComponent := manyComponents(shown)
+	cols := []string{"Change", "Priority", "Severity", "Rule", "Scanner"}
+	if withComponent {
+		cols = append(cols, "Component")
+	}
+	cols = append(cols, "Location")
+	withUpgrade := anyUpgrade(shown)
+	if withUpgrade {
+		cols = append(cols, "Upgrade")
+	}
+	t := tui.NewTable(col, cols...).Indent("  ").StyledNotes()
+
+	for _, e := range shown {
+		// Bold is what a reader reads first and costs no color, which keeps the ramp the band's.
+		// A hue here would collide with the severities two columns over.
+		mark := tui.Styled(tui.StyleMuted, e.Change.Mark()+" "+string(e.Change))
+		if e.Change.NeedsSomebody() {
+			mark = tui.Styled(tui.StyleStrong, e.Change.Mark()+" "+string(e.Change))
+		}
+		label, fix := upgrade(e)
+		cells := []tui.Cell{
+			mark,
+			tui.Styled(tui.PriorityStyle(e.Priority), dash(e.Priority)),
+			tui.PlainCell(string(e.Severity(""))),
+			{Text: e.RuleID, URL: r.HelpURI(e.RuleID)},
+			tui.PlainCell(dash(e.Tool)),
+		}
+		if withComponent {
+			cells = append(cells, tui.PlainCell(dash(e.Component)))
+		}
+		cells = append(cells, tui.Styled(tui.StyleMuted, loc(e.Location.URI, e.Location.StartLine)))
+		if withUpgrade {
+			cells = append(cells, tui.Cell{Text: label, Style: tui.StyleMuted, Note: fix, NoteStyle: tui.StyleFixed})
+		}
+		if opts.View == ViewCompact {
+			t.Row(cells...)
+			continue
+		}
+		t.RowWithNotes([]string{findingTitle(e)}, cells...)
+	}
+	t.Render(w)
+	if len(shown) < len(entries) {
+		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted,
+			fmt.Sprintf("… and %d changed findings not listed.", len(entries)-len(shown))))
+	}
 }
 
-func mdTable(w io.Writer, rs []sarif.Result, showComponent bool, help func(string) string) {
-	// Component before Location, as in the scan report: a path answers "where inside", and the
-	// reader of a monorepo pull request needs "which one" first.
-	if showComponent {
-		_, _ = fmt.Fprintln(w, "| Priority | Severity | Rule | Tool | Component | Location |")
-		_, _ = fmt.Fprintln(w, "|---|---|---|---|---|---|")
-	} else {
-		_, _ = fmt.Fprintln(w, "| Priority | Severity | Rule | Tool | Location |")
-		_, _ = fmt.Fprintln(w, "|---|---|---|---|---|")
+// action is one thing to do and the findings it covers.
+type action struct {
+	what  string
+	lead  Entry
+	group []Entry
+}
+
+// groupChanges turns what a change did into the things somebody would do about it.
+//
+// One remediation usually covers many findings: six advisories in one library are one upgrade.
+// Only where the fix genuinely is one fix, which for a diff means the package, and an acceptance
+// that ended is its own kind of work because the thing to do is decide again rather than upgrade.
+//
+// Shared by both formats. A work list that is a different shape depending on where it is read is
+// two answers to one question.
+func groupChanges(entries []Entry) (actions []action, covered int) {
+	index := map[string]*action{}
+	for _, e := range entries {
+		if !e.Change.NeedsSomebody() {
+			continue
+		}
+		label, _ := upgrade(e)
+		key := strings.TrimSuffix(label, " →")
+		if key == "" {
+			key = e.RuleID
+		}
+		key = string(e.Change) + "\x00" + key
+		if got, ok := index[key]; ok {
+			got.group = append(got.group, e)
+			covered++
+			continue
+		}
+		// The verb is the change's, not the package's. An accepted finding is a decision somebody
+		// already made and the thing to do is read it, not upgrade anything; an acceptance that
+		// ended has to be made again. Presenting either as an upgrade tells a reviewer to do work
+		// that is not theirs and hides the decision that is.
+		subject := strings.TrimSuffix(label, " →")
+		if subject == "" {
+			subject = e.RuleID
+		}
+		what := "Upgrade " + subject
+		switch e.Change {
+		case ChangeUnaccepted:
+			what = "Decide on " + subject + " again"
+		case ChangeAccepted:
+			what = "Review the acceptance of " + subject
+		default:
+			if label == "" {
+				what = "Fix " + subject
+			}
+		}
+		a := &action{what: what, lead: e, group: []Entry{e}}
+		index[key] = a
+		actions = append(actions, *a)
+		covered++
 	}
-	for _, f := range rs {
+	// The slice holds copies, so the groups have to be read back from the index.
+	for i := range actions {
+		lead := actions[i].lead
+		label, _ := upgrade(lead)
+		key := strings.TrimSuffix(label, " →")
+		if key == "" {
+			key = lead.RuleID
+		}
+		actions[i].group = index[string(lead.Change)+"\x00"+key].group
+	}
+	return actions, covered
+}
+
+// writeDiffActions groups what a change introduced into the things somebody would do about it.
+func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Options) {
+	actions, covered := groupChanges(entries)
+	// The same sentence the scan report's fix list uses, so one reader has learned both.
+	// --top caps the listing, and in this view the listing is the actions. A flag that quietly did
+	// nothing in one view would be the same silence as a scanner that did not run.
+	shown, held := actions, 0
+	if opts.Top > 0 && len(actions) > opts.Top {
+		shown, held = actions[:opts.Top], len(actions)-opts.Top
+	}
+	verb := "clear"
+	if len(actions) == 1 {
+		verb = "clears"
+	}
+	heading := fmt.Sprintf("%s %s %s", plural(len(actions), "action"), verb, plural(covered, "finding"))
+	if held > 0 {
+		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, plural(len(actions), "action"),
+			plural(covered, "finding"))
+	}
+	_, _ = fmt.Fprintf(w, "%s  %s\n", col.Paint(tui.StyleMuted, "WHAT TO DO"),
+		col.Paint(tui.StyleMuted, heading))
+	for _, a := range shown {
+		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
+			col.Paint(tui.PriorityStyle(a.lead.Priority), dash(a.lead.Priority)),
+			col.Paint(tui.StyleStrong, a.what),
+			col.Paint(tui.StyleMuted, fmt.Sprintf("%s · %s", dash(a.lead.Control), plural(len(a.group), "finding"))))
+		// One rule named and the rest counted, because a row listing six identifiers is six things
+		// to read to learn one thing to do.
+		rules := a.lead.RuleID
+		if more := len(a.group) - 1; more > 0 {
+			rules += fmt.Sprintf(" +%d", more)
+		}
+		_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(tui.StyleMuted,
+			loc(a.lead.Location.URI, a.lead.Location.StartLine)+" · "+rules))
+	}
+	if held > 0 {
+		_, _ = fmt.Fprintf(w, "\n  %s\n", col.Paint(tui.StyleMuted,
+			fmt.Sprintf("… and %s not listed.", plural(held, "action"))))
+	}
+	if rest := len(entries) - covered; rest > 0 {
+		_, _ = fmt.Fprintf(w, "\n  %s\n", col.Paint(tui.StyleMuted,
+			fmt.Sprintf("%s nobody has to act on.", plural(rest, "finding"))))
+	}
+}
+
+// writeGate states the rule the verdict came from, or says none was asked for.
+func writeGate(w io.Writer, col tui.Painter, r Result) {
+	if !r.Gate.Stated() {
+		return
+	}
+	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "Gate: "+r.Gate.Sentence()+"."))
+}
+
+// writeTry offers what else this run can be asked, and only what applies to it.
+func writeTry(w io.Writer, col tui.Painter, r Result, opts Options, entries []Entry) {
+	t := tui.NewTable(col).Indent("  ")
+	row := func(what, does string) {
+		t.Row(tui.Styled(tui.StyleMuted, what), tui.Styled(tui.StyleMuted, does))
+	}
+	if opts.Top > 0 && len(entries) > opts.Top {
+		row("--top 0", "every one of them, not the first "+fmt.Sprint(opts.Top))
+	}
+	if opts.View != ViewCompact {
+		row("--view compact", "one line each, to see how much there is")
+	}
+	if opts.View != ViewActions && len(r.New) > 0 {
+		row("--view actions", "the same findings as a list of things to do")
+	}
+	if !r.Gate.Stated() {
+		row("--fail-on-new P1", "no gate was set; this makes the diff decide the exit code")
+	}
+	row("--format markdown", "the comment a pull request gets")
+	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "TRY"))
+	t.Render(w)
+}
+
+// --- markdown ---
+
+func renderMarkdown(w io.Writer, r Result, opts Options) error {
+	if opts.View == ViewActions {
+		return renderMarkdownActions(w, r, opts)
+	}
+	return renderMarkdownTable(w, r, opts)
+}
+
+// renderMarkdownActions is the comment for a pipeline that wants the work rather than the list.
+//
+// Six advisories in one library are one upgrade, and a comment that says so is one a reviewer acts
+// on where a table of six rows is one they scroll past. Set it in the pipeline template rather than
+// per run: which of the two a team wants is a property of how they review, not of the change.
+func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
+	_, _ = fmt.Fprintln(w, "## Draugr diff")
+	_, _ = fmt.Fprintln(w)
+	writeMarkdownVerdict(w, r)
+
+	entries := r.Changed()
+	if len(entries) == 0 {
+		_, _ = fmt.Fprintln(w, "Nothing changed. Every finding was already there.")
+		writeMarkdownGate(w, r)
+		return nil
+	}
+
+	actions, covered := groupChanges(entries)
+	if len(actions) == 0 {
+		_, _ = fmt.Fprintf(w, "Nothing here is work. %s changed and none of it needs anybody.\n",
+			plural(len(entries), "finding"))
+		writeMarkdownGate(w, r)
+		return nil
+	}
+	shown, held := actions, 0
+	if opts.Top > 0 && len(actions) > opts.Top {
+		shown, held = actions[:opts.Top], len(actions)-opts.Top
+	}
+	verb := "clear"
+	if len(actions) == 1 {
+		verb = "clears"
+	}
+	heading := fmt.Sprintf("%s %s %s", plural(len(actions), "action"), verb, plural(covered, "finding"))
+	if held > 0 {
+		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, plural(len(actions), "action"),
+			plural(covered, "finding"))
+	}
+	_, _ = fmt.Fprintf(w, "### What to do · %s\n\n", heading)
+	_, _ = fmt.Fprintln(w, "| Priority | What to do | Control | Findings | Where |")
+	_, _ = fmt.Fprintln(w, "|---|---|---|---:|---|")
+	for _, a := range shown {
+		rules := "`" + a.lead.RuleID + "`"
+		if more := len(a.group) - 1; more > 0 {
+			rules += fmt.Sprintf(" +%d", more)
+		}
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %d | %s · %s |\n",
+			dash(a.lead.Priority), a.what, dash(a.lead.Control), len(a.group),
+			loc(a.lead.Location.URI, a.lead.Location.StartLine), rules)
+	}
+	if held > 0 {
+		_, _ = fmt.Fprintf(w, "\n_…and %s not listed._\n", plural(held, "action"))
+	}
+	if rest := len(entries) - covered; rest > 0 {
+		_, _ = fmt.Fprintf(w, "\n_%s nobody has to act on._\n", plural(rest, "finding"))
+	}
+	writeMarkdownGate(w, r)
+	return nil
+}
+
+// writeMarkdownVerdict states what the gate decided, or nothing where none was asked for.
+func writeMarkdownVerdict(w io.Writer, r Result) {
+	if v, failed := verdict(r); v != "" {
+		mark := "✅"
+		if failed {
+			mark = "❌"
+		}
+		_, _ = fmt.Fprintf(w, "%s **%s** · %s\n\n", mark, v, strings.Join(headline(r, true), " · "))
+		return
+	}
+	_, _ = fmt.Fprintf(w, "**%s**\n\n", strings.Join(headline(r, true), " · "))
+}
+
+func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
+	_, _ = fmt.Fprintln(w, "## Draugr diff")
+	_, _ = fmt.Fprintln(w)
+	writeMarkdownVerdict(w, r)
+
+	entries := r.Changed()
+	if len(entries) == 0 {
+		_, _ = fmt.Fprintln(w, "Nothing changed. Every finding was already there.")
+		writeMarkdownGate(w, r)
+		return nil
+	}
+
+	shown := entries
+	heading := fmt.Sprintf("%d, by priority", len(entries))
+	if opts.Top > 0 && len(entries) > opts.Top {
+		shown = entries[:opts.Top]
+		heading = fmt.Sprintf("top %d of %d, by priority", opts.Top, len(entries))
+	}
+	_, _ = fmt.Fprintf(w, "### Changed · %s\n\n", heading)
+
+	// No column for the finding's own sentence. This is the comment a pull request gets, where a
+	// reviewer has the inline annotations and the rule's own link, and a column of prose is what
+	// makes the table too wide to read in the width a comment is given.
+	withComponent := manyComponents(shown)
+	cols := []string{"Change", "Priority", "Severity", "Rule", "Scanner"}
+	if withComponent {
+		cols = append(cols, "Component")
+	}
+	cols = append(cols, "Location")
+	withUpgrade := anyUpgrade(shown)
+	if withUpgrade {
+		cols = append(cols, "Upgrade")
+	}
+	head := "| " + strings.Join(cols, " | ") + " |"
+	rule := "|" + strings.Repeat("---|", len(cols))
+	_, _ = fmt.Fprintln(w, head)
+	_, _ = fmt.Fprintln(w, rule)
+	for _, e := range shown {
 		component := ""
-		if showComponent {
-			component = " " + dash(f.Component) + " |"
+		if withComponent {
+			component = " " + dash(e.Component) + " |"
 		}
-		// Linked to what the scanner published about it, Trivy's advisory page for a CVE, the rule's
-		// documentation for a static-analysis finding. A reader deciding whether a new finding matters
-		// is one click from the answer rather than one search.
-		rule := "`" + f.RuleID + "`"
-		if u := help(f.RuleID); u != "" {
-			rule = "[" + rule + "](" + u + ")"
+		// Linked to what the scanner published. A reader deciding whether a new finding matters is
+		// one click from the advisory rather than one search, and in a comment the link is the only
+		// way there.
+		id := "`" + e.RuleID + "`"
+		if u := r.HelpURI(e.RuleID); u != "" {
+			id = "[" + id + "](" + u + ")"
 		}
-		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s |\n",
-			dash(f.Priority), f.Severity(""), rule, dash(f.Tool), component,
-			loc(f.Location.URI, f.Location.StartLine))
+		label, fix := upgrade(e)
+		if fix != "" {
+			label += " " + fix
+		}
+		change := string(e.Change)
+		if e.Change.NeedsSomebody() {
+			change = "**" + change + "**"
+		}
+		up := ""
+		if withUpgrade {
+			up = " " + dash(label) + " |"
+		}
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s | %s |%s %s |%s\n",
+			change, dash(e.Priority), e.Severity(""), id, dash(e.Tool), component,
+			loc(e.Location.URI, e.Location.StartLine), up)
 	}
+	if len(shown) < len(entries) {
+		_, _ = fmt.Fprintf(w, "\n_…and %d changed finding(s) not listed._\n", len(entries)-len(shown))
+	}
+	writeMarkdownGate(w, r)
+	return nil
+}
+
+// writeMarkdownGate states what the verdict was measured against, for a comment read by somebody
+// who was not there when it ran.
+func writeMarkdownGate(w io.Writer, r Result) {
+	if !r.Gate.Stated() {
+		return
+	}
+	_, _ = fmt.Fprintf(w, "\n_Gate: %s._\n", r.Gate.Sentence())
 }
 
 // --- json ---
@@ -314,4 +646,58 @@ func renderJSON(w io.Writer, r Result) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(doc)
+}
+
+// newBands counts the findings this change introduced, by band.
+//
+// Over the new ones alone, because that is what the chips are asked about: a strip covering fixed
+// findings too would put the good news in the same red as the bad.
+func newBands(fs []sarif.Result) [4]int {
+	var out [4]int
+	for _, f := range fs {
+		switch prioritization.Priority(f.Priority) {
+		case prioritization.P1:
+			out[0]++
+		case prioritization.P2:
+			out[1]++
+		case prioritization.P3:
+			out[2]++
+		case prioritization.P4:
+			out[3]++
+		}
+	}
+	return out
+}
+
+// findingTitle is what the finding says, with the package prefix the Upgrade column already shows
+// removed, so a row does not quote a third of its own explanation back at the reader.
+func findingTitle(e Entry) string {
+	msg := strings.Join(strings.Fields(strings.ReplaceAll(e.Message, "\n", " ")), " ")
+	if label, fix := upgrade(e); label != "" {
+		prefix := strings.TrimSuffix(label, " →")
+		if fix != "" {
+			prefix = label + " " + fix
+		}
+		msg = strings.TrimPrefix(msg, prefix+": ")
+	}
+	return elide(msg, messageWidth)
+}
+
+// messageWidth is how much of a finding's own sentence a row carries, the same as the scan report
+// so one finding reads the same length in both.
+const messageWidth = 96
+
+func elide(s string, width int) string {
+	if len(s) <= width {
+		return s
+	}
+	return strings.TrimRight(s[:width-1], " ") + "…"
+}
+
+// plural renders a count with its noun, pluralized the simple way.
+func plural(n int, word string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, word)
+	}
+	return fmt.Sprintf("%d %ss", n, word)
 }

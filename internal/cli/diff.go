@@ -20,6 +20,8 @@ import (
 
 type diffOptions struct {
 	format            string
+	view              string
+	top               int
 	failOnNew         string
 	failOnNewPriority string
 	minPriority       string
@@ -31,12 +33,13 @@ func newDiffCommand() *cobra.Command {
 	opts := &diffOptions{}
 	cmd := &cobra.Command{
 		Use:   "diff <base.sarif> <head.sarif>",
-		Short: "Compare two scans and classify findings as new, fixed, accepted, reopened or unchanged",
+		Short: "Compare two scans and classify findings as new, unaccepted, accepted, fixed or unchanged",
 		Long: "Compare two Draugr SARIF results (the results.sarif that `draugr scan -o` writes)\n" +
-			"and classify every finding as new / fixed / accepted / reopened / unchanged, the\n" +
+			"and classify every finding as new / unaccepted / accepted / fixed / unchanged, the\n" +
 			"security delta of a change, typically a PR's head vs its base branch.\n\n" +
-			"Accepted is a finding somebody excused rather than fixed; reopened is one whose\n" +
-			"exclusion lapsed. Both are printed only when they are not zero.\n\n" +
+			"Accepted is a finding somebody excused rather than fixed. Unaccepted is one whose\n" +
+			"exclusion was removed or reached its expiry date, so it counts again; nobody\n" +
+			"introduced it and nothing about it was ever fixed.\n\n" +
 			"--fail-on-new gates on findings the change introduces, not on the existing backlog,\n" +
 			"and takes a priority band or a severity. Exits non-zero when that gate trips.",
 		Args: cobra.ExactArgs(2),
@@ -45,6 +48,14 @@ func newDiffCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&opts.format, "format", "console", "output format: "+strings.Join(diff.Formats(), ", "))
+	cmd.Flags().StringVar(&opts.view, "view", string(diff.ViewFindings),
+		"what the listing shows: `findings` (a row each, with the finding's own sentence under it), "+
+			"actions (a row per thing to do) or compact (one line each)")
+	// Zero, where `scan` defaults to ten. A diff is already narrowed to what one change did, so
+	// truncating it silently removes the thing the command exists to show; the flag is for the
+	// dependency bump that introduces forty, and the gate counts every one either way.
+	cmd.Flags().IntVar(&opts.top, "top", 0,
+		"console: max findings to list (0 = all, the default)")
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
 		"fail if the change introduces a finding at or above this: a priority band (P1-P4) or a "+
 			"severity (critical, high, medium, low)")
@@ -91,7 +102,18 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	// Narrowed after the comparison, never before it: a diff computed from filtered inputs reads
 	// every finding the filter removed as fixed.
 	result := diff.Compare(base, head).NarrowNew(opts.minPriority).OnlyRepository(opts.repository)
-	if err := diff.Render(w, opts.format, result); err != nil {
+
+	// The gate travels with the result so every rendering states what the verdict was measured
+	// against, and so the verdict itself is computed once rather than in each format.
+	result.Gate = diff.Gate{FailOn: failOn, FailOnPriority: failOnNewPriority}
+	result.Tripped = result.GateNew(failOn, failOnNewPriority)
+
+	view, err := resolveDiffView(opts.view)
+	if err != nil {
+		return err
+	}
+	render := diff.Options{View: view, Top: opts.top}
+	if err := diff.Render(w, opts.format, result, render); err != nil {
 		return err
 	}
 
@@ -103,13 +125,15 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	// it did not.
 	var publishErr error
 	if opts.publish {
-		publishErr = publishDiff(ctx, result)
+		// The same view the run was asked for. Which of the two shapes a team wants is a property
+		// of how they review rather than of the change, so it is set once in the pipeline template
+		// and the comment follows it.
+		publishErr = publishDiff(ctx, result, render)
 	}
 
-	tripped := result.GateNew(failOn, failOnNewPriority)
-	if len(tripped) > 0 {
+	if len(result.Tripped) > 0 {
 		return alsoPublish(
-			fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(tripped)),
+			fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(result.Tripped)),
 			publishErr)
 	}
 	// The gate passed and only delivery failed, which is still non-zero. But the message has to
@@ -139,9 +163,9 @@ func diffPublisherKind() string {
 
 // publishDiff renders the diff as markdown and delivers it as a sticky pull-request comment on
 // whichever CI system is running it. Outside a pull request the publisher no-ops.
-func publishDiff(ctx context.Context, result diff.Result) error {
+func publishDiff(ctx context.Context, result diff.Result, opts diff.Options) error {
 	var md bytes.Buffer
-	if err := diff.Render(&md, "markdown", result); err != nil {
+	if err := diff.Render(&md, "markdown", result, opts); err != nil {
 		return err
 	}
 	// A distinct marker from the Saga's own PR-comment publisher. A pipeline running both, a full
@@ -196,4 +220,20 @@ func comparableScopes(basePath string, base sarif.Report, headPath string, head 
 		"a finding the head did not look for would be reported as fixed. Re-run the scoped side "+
 		"unscoped, or scope both the same way",
 		describe(basePath, baseScope, baseScoped), describe(headPath, headScope, headScoped))
+}
+
+// resolveDiffView turns the flag into a view, refusing a name that is not one.
+//
+// The same three names `scan` takes, so a reader who has learned one has learned the other, and a
+// typo says which names exist rather than quietly falling back to the default.
+func resolveDiffView(name string) (diff.View, error) {
+	switch diff.View(name) {
+	case "", diff.ViewFindings:
+		return diff.ViewFindings, nil
+	case diff.ViewActions:
+		return diff.ViewActions, nil
+	case diff.ViewCompact:
+		return diff.ViewCompact, nil
+	}
+	return "", fmt.Errorf("unknown view %q (available: %s)", name, strings.Join(diff.Views(), ", "))
 }

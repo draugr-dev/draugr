@@ -198,8 +198,20 @@ func TestDiffGatesOnNewFindingsOnly(t *testing.T) {
 		t.Errorf("two scans of one unchanged repository introduced nothing, so the gate should "+
 			"pass, inheriting a backlog must not block every change:\n%s", out)
 	}
-	if !strings.Contains(string(out), "new") && !strings.Contains(string(out), "New") {
-		t.Errorf("the diff never reported what it compared:\n%s", out)
+	// It compared two scans of one unchanged repository, so there is nothing new to name. What it
+	// has to say is that it compared something and found no change, which is the state a silent
+	// pass and a broken diff would look identical in.
+	report := string(out)
+	if !strings.Contains(report, "unchanged") {
+		t.Errorf("the diff never reported what it compared:\n%s", report)
+	}
+	if !strings.Contains(report, "Nothing changed") {
+		t.Errorf("a diff that found no change should say so rather than printing an empty listing:\n%s", report)
+	}
+	// The gate was asked for, so the verdict is stated. A pass nobody can see the rule behind is a
+	// claim rather than a result.
+	if !strings.Contains(report, "pass") || !strings.Contains(report, "Gate:") {
+		t.Errorf("the verdict and the rule it came from are missing:\n%s", report)
 	}
 }
 

@@ -87,6 +87,11 @@ A runner is fresh every time, so a pipeline pays full price for scanning artifac
 changed since the last run. Two different things are worth persisting, and they are not equally
 risky.
 
+The snippets below are GitHub Actions. [On GitLab and Azure](#on-gitlab-and-azure) they are a
+`cache:` key and a `Cache@2` task over the same directories; the reasoning does not change, only
+the syntax does. None of the three Draugr templates wires a cache itself, because where one is kept
+is a property of the runner rather than of the scan.
+
 ### Cache the scanner's data first
 
 This is the bigger win and it carries no trust question at all. Trivy's databases are up to **2.6
@@ -162,6 +167,54 @@ attack on the gate itself, and it is worth being plain about what does and does 
   write there, pass `--cache-read-only` yourself on those jobs.
 - **Nothing here is signed.** Draugr does not verify who wrote an entry. If that matters for your
   threat model, do not share a cache across trust boundaries.
+
+### On GitLab and Azure
+
+The same two directories, cached the way each system caches anything.
+
+**GitLab** keys a `cache:` on the job. A cache is per branch by default, and `pull: true` on a
+merge-request job with `push: false` is the equivalent of `--cache-read-only`: a branch anybody can
+open cannot then decide what the default branch reads.
+
+```yaml
+draugr:
+  variables:
+    DRAUGR_CACHE_DIR: .draugr/cache
+  cache:
+    - key: trivy-db
+      paths: [.cache/trivy]
+    - key: "draugr-$CI_COMMIT_REF_SLUG"
+      paths: [.draugr/cache]
+      policy: pull-push        # pull on a merge request, pull-push on the default branch
+  variables:
+    TRIVY_CACHE_DIR: .cache/trivy
+```
+
+GitLab caches paths inside the project directory only, which is why `TRIVY_CACHE_DIR` moves the
+database there rather than leaving it in `$HOME`.
+
+**Azure** uses the `Cache@2` task, which has to run before the template:
+
+```yaml
+- task: Cache@2
+  inputs:
+    key: 'trivy-db | "$(Agent.OS)"'
+    path: $(Pipeline.Workspace)/.cache/trivy
+  displayName: Trivy database
+
+- task: Cache@2
+  inputs:
+    key: 'draugr | "$(Agent.OS)" | draugr.saga.yaml'
+    path: $(Pipeline.Workspace)/.draugr/cache
+  displayName: Draugr results
+
+- template: azure-pipelines/draugr.yml@draugr
+```
+
+`Cache@2` restores on a key match and saves at the end of a successful job, so a failing job leaves
+the previous entry in place. It has no branch scoping of its own: a repository where anybody can
+run a pull-request pipeline shares one cache, so pass `--cache-read-only` on that path if untrusted
+code can reach it.
 
 ### What a hit does and does not promise
 

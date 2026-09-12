@@ -662,32 +662,41 @@ what was found rather than a catalog.
 
 ## `draugr diff <base.sarif> <head.sarif>`
 
-Compare two scans and classify every finding as **new**, **fixed**, **accepted**, **reopened** or
+Compare two scans and classify every finding as **new**, **unaccepted**, **accepted**, **fixed** or
 **unchanged**, the security delta of a change, typically a PR's head vs its base branch. Inputs are
 the `results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are
 always complete regardless of `--min-priority`.
 
 **Accepted** is a finding somebody excused rather than fixed, an exclusion added, or a finding that
-arrived already covered by one. **Reopened** is a finding whose exclusion was removed or reached its
-`expires` date: nobody introduced it, a decision about it lapsed. Both are printed only when they
-are not zero, so a diff with neither reads as it always has.
+arrived already covered by one. **Unaccepted** is a finding whose exclusion was removed or reached
+its `expires` date, so it counts again. Nobody introduced it and nothing about it was ever fixed,
+which is why it is not called reopened.
 
 Accepting a risk is not fixing it, and the two are counted apart for that reason: the first is a
 decision worth a reviewer's attention and the second is work somebody did.
 
+Everything the change touched is one table, ranked by priority, with what happened to each finding
+in its own column. Within a band, what needs somebody comes before what does not.
+
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--format` | `console` | output format: `console`, `json`, `markdown`, `sarif`. `sarif` emits the **new** findings only, for code scanning on a pull request |
+| `--view` | `findings` | console: how much of each row to show. `findings` adds the finding's own sentence under the row, `compact` is one line each, `actions` groups by the thing to do |
+| `--top` | `0` | console: how many findings to list, `0` being all of them. Zero by default because a diff is already only what one change did; the flag is for a dependency bump that introduces forty |
 | `--min-priority` |, | report only **new** findings at or above this priority band (`P1`–`P4`); fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
 | `--repository` |. | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
 | `--fail-on-new` |. | fail if a **new** finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
 | `--fail-on-new-priority` |. | Deprecated: write the band in `--fail-on-new` |
 
-The gate reads **new** only. An accepted finding does not trip it, which is the point of accepting
-it; a reopened one does not either, because the gate exists to stop a change introducing something
-and a lapsed exclusion is a decision to revisit rather than a regression in the diff. Both are
-reported in the output regardless, which is where somebody should see them.
 | `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
+
+The gate reads **new** only. An accepted finding does not trip it, which is the point of accepting
+it, and an unaccepted one does not either: the gate exists to stop a change introducing something,
+and an acceptance ending is a decision to make again rather than a regression. Both are reported
+regardless, which is where somebody should see them.
+
+Where no gate is asked for, the report states no verdict. `draugr diff` without `--fail-on-new`
+compares and exits 0, and a verdict nobody asked for would be inventing one.
 
 ```bash
 draugr diff base/results.sarif head/results.sarif                     # console delta

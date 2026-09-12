@@ -40,6 +40,7 @@ and publishes findings to the Tests tab.
 | `version` | latest | pin a release. **do this for real pipelines** |
 | `tools` | `true` | provision the scanners the controls need |
 | `failOnNewPriority` | `P1` | fail a pull request on a new finding at or above this priority |
+| `diffView` | `findings` | what the pull-request comment says: a row per finding, or `actions` grouped into the things somebody would do |
 | `publishResults` | `true` | Tests tab and build artifacts |
 
 **Copy it rather than referencing it remotely.** Azure can pull a template from a GitHub
@@ -106,12 +107,17 @@ thread. It is created active, like any other.
 
       draugr diff "$(Pipeline.Workspace)/base/results.sarif" \
                   "$(Pipeline.Workspace)/head/results.sarif" \
-                  --publish --fail-on-new P1
+                  --publish --fail-on-new P1 --view actions
     displayName: Gate on new findings
     condition: eq(variables['Build.Reason'], 'PullRequest')
     env:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 ```
+
+`--view actions` decides what the comment says. It groups the change into the things somebody would
+do, so six advisories in one library are one upgrade; drop it for a row per finding. The reusable
+template takes it as `diffView`, which also handles an older pinned `version` that does not have
+the flag.
 
 Three details that are easy to get wrong:
 
@@ -180,6 +186,17 @@ components:
 
 A remote `url:` also works, Draugr shells out to `git`, so it behaves exactly as `git clone` would
 on that agent. Letting `checkout:` do it is simpler and keeps Azure's credentials in play.
+
+## Make the second scan cheap
+
+A pull request scans the base as well as the head, which is what makes the two comparable. Caching
+Trivy's databases and Draugr's own results makes the pair cost about what one scan does, and a
+cache that expired or was never written costs time rather than correctness: the base is still
+scanned and both sides still come from the same binary.
+
+Two `Cache@2` tasks ahead of the template do it. See [caching and
+performance](caching-and-performance.md#on-gitlab-and-azure) for the keys and for what a hit does
+and does not promise, which is worth reading before sharing a cache with pull-request pipelines.
 
 ## Air-gapped and self-hosted agents
 

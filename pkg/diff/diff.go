@@ -27,13 +27,16 @@ type Result struct {
 	// live with it. That decision is the change most worth a second pair of eyes, and it used to
 	// read as good news.
 	Accepted []sarif.Result
-	// Reopened is a finding that was excused in the base and counts again in the head, an exclusion
-	// removed, or one that reached its expiry date.
+	// Unaccepted is a finding that was excused in the base and counts again in the head, an
+	// exclusion removed, or one that reached its expiry date.
 	//
 	// Distinct from New because nobody introduced it. It was known, it was accepted, and the
-	// acceptance ran out; reporting it as a fresh discovery loses the part somebody needs to act
-	// on, which is that a decision lapsed and has to be made again.
-	Reopened []sarif.Result
+	// acceptance ended; reporting it as a fresh discovery loses the part somebody needs to act on,
+	// which is that a decision has to be made again.
+	//
+	// Named for the decision rather than for the finding. "Reopened" is issue-tracker vocabulary
+	// for something that was fixed and came back, and nothing here was ever fixed.
+	Unaccepted []sarif.Result
 	// Rules is what the scanners said about the rules these findings cite, carried over from the
 	// reports being compared.
 	//
@@ -43,6 +46,12 @@ type Result struct {
 	// published both. Keeping the rules is what lets a reader click the finding instead of looking it
 	// up.
 	Rules map[string]sarif.Rule
+	// Gate is the differential rule this run applied, so every rendering can say what the verdict
+	// was measured against rather than leaving a reader to assume it.
+	Gate Gate
+	// Tripped is the new findings that met the gate. Empty where none did, and where no gate was
+	// asked for at all, which are different states the Gate itself tells apart.
+	Tripped []sarif.Result
 }
 
 // HelpURI is where a reader can look up a rule: what the scanner published, or a URL derived from
@@ -74,7 +83,7 @@ func Compare(base, head sarif.Report) Result {
 			// Suppressed in both. The decision did not change, so neither did anything.
 			r.Unchanged = append(r.Unchanged, res)
 		case inBase && was.Suppressed():
-			r.Reopened = append(r.Reopened, res)
+			r.Unaccepted = append(r.Unaccepted, res)
 		case inBase:
 			r.Unchanged = append(r.Unchanged, res)
 		default:
@@ -93,7 +102,7 @@ func Compare(base, head sarif.Report) Result {
 	sortResults(r.Fixed)
 	sortResults(r.Unchanged)
 	sortResults(r.Accepted)
-	sortResults(r.Reopened)
+	sortResults(r.Unaccepted)
 	// Head first, so a rule the change updated is described as it is now; base fills in whatever
 	// only the old scan saw, which is every fixed finding's rule.
 	r.Rules = map[string]sarif.Rule{}
@@ -138,6 +147,12 @@ func sortResults(rs []sarif.Result) {
 		a, b := rs[i], rs[j]
 		if ra, rb := prioritization.Priority(a.Priority).Rank(), prioritization.Priority(b.Priority).Rank(); ra != rb {
 			return ra > rb
+		}
+		// Severity before the number behind it. The rating is the comparable thing; the score
+		// refines it where both have one, and a finding raised to critical by an exploitation
+		// catalog usually carries no score at all.
+		if sa, sb := a.Severity("").Rank(), b.Severity("").Rank(); sa != sb {
+			return sa > sb
 		}
 		if a.Score != b.Score {
 			return a.Score > b.Score
@@ -282,4 +297,111 @@ func (r Result) GateNew(failOn sarif.Severity, failOnPriority string) []sarif.Re
 		}
 	}
 	return tripped
+}
+
+// Change is what happened to a finding between the two scans.
+//
+// One vocabulary for the four states, so a renderer, a gate and a reader all name them the same
+// way. Unchanged is not here: it is the pre-existing backlog this exists to leave out.
+type Change string
+
+// The four states a diff reports, and the mark each one carries.
+const (
+	ChangeNew        Change = "new"
+	ChangeUnaccepted Change = "unaccepted"
+	ChangeAccepted   Change = "accepted"
+	ChangeFixed      Change = "fixed"
+)
+
+// Mark is the sign this change wears in a listing.
+//
+// A glyph as well as a word, because a column of words is read and a column of marks is scanned,
+// and the four are told apart at a glance where a reader is looking for the new ones among sixty.
+func (c Change) Mark() string {
+	switch c {
+	case ChangeNew:
+		return "+"
+	case ChangeUnaccepted:
+		return "!"
+	case ChangeAccepted:
+		return "~"
+	case ChangeFixed:
+		return "-"
+	}
+	return " "
+}
+
+// NeedsSomebody reports whether this change is work or a decision rather than good news.
+//
+// A fix is the one state nobody has to do anything about. The rest are something introduced,
+// something whose acceptance ended, or something somebody chose to live with, and each of those
+// wants a person.
+func (c Change) NeedsSomebody() bool { return c != ChangeFixed }
+
+// Entry is one finding and what happened to it.
+type Entry struct {
+	Change Change
+	sarif.Result
+}
+
+// Changed is every finding this change touched, worst first.
+//
+// One list rather than four, because a reviewer asks "what did this change do" and gets the answer
+// in priority order, where four sections make them read the same ranking four times and compare
+// across the gaps. The lists stay separately addressable for the gate and the SARIF upload, which
+// ask about the new findings alone.
+func (r Result) Changed() []Entry {
+	var out []Entry
+	for _, group := range []struct {
+		change Change
+		fs     []sarif.Result
+	}{
+		{ChangeNew, r.New},
+		{ChangeUnaccepted, r.Unaccepted},
+		{ChangeAccepted, r.Accepted},
+		{ChangeFixed, r.Fixed},
+	} {
+		for _, f := range group.fs {
+			out = append(out, Entry{Change: group.change, Result: f})
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if ra, rb := prioritization.Priority(a.Priority).Rank(), prioritization.Priority(b.Priority).Rank(); ra != rb {
+			return ra > rb
+		}
+		// Within a band, what somebody has to act on or decide about before the one nobody does.
+		if aw, bw := a.Change.NeedsSomebody(), b.Change.NeedsSomebody(); aw != bw {
+			return aw
+		}
+		if sa, sb := a.Severity("").Rank(), b.Severity("").Rank(); sa != sb {
+			return sa > sb
+		}
+		return a.RuleID < b.RuleID
+	})
+	return out
+}
+
+// Gate is the differential rule a run applied, carried on the result so every rendering can state
+// what the verdict was measured against.
+//
+// Empty when nothing was asked for, which is a real state and not a default: `draugr diff` with no
+// gate reports and exits 0, and a report claiming a verdict nobody asked for would be inventing one.
+type Gate struct {
+	FailOn         sarif.Severity
+	FailOnPriority string
+}
+
+// Stated reports whether a gate was asked for at all.
+func (g Gate) Stated() bool { return g.FailOn != "" || g.FailOnPriority != "" }
+
+// Sentence is the rule in one clause, for a reader who was not there when it ran.
+func (g Gate) Sentence() string {
+	switch {
+	case g.FailOnPriority != "":
+		return "fails on any " + g.FailOnPriority + " this change introduces"
+	case g.FailOn != "":
+		return "fails on any " + string(g.FailOn) + " severity this change introduces"
+	}
+	return ""
 }
