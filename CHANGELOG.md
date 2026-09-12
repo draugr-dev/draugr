@@ -12,6 +12,42 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.121.0] - 2026-09-12
+
+### Changed
+
+**A pipeline can post the work instead of the findings.** `--view actions` applies to `--format markdown`, so the pull-request comment groups a change into the things somebody would do and six advisories in one library are one upgrade. Set it once in the template rather than per run: `diff-view` on the GitHub Action, `DRAUGR_DIFF_VIEW` in the GitLab template, `--view` on the documented Azure step. The comment's summary carries a mark per state, which the terminal does not, because a terminal has the priority ramp to find a count by and a comment has one line somebody skims.
+
+**A rule that suppressed nothing stands apart from one that worked.** `config.exclude` entries and supplier statements that matched no finding were a clause appended to the count of the ones that did, at the same weight, with the line naming which rule was dead dimmer than either. They are their own `UNMATCHED` block now, a row each, keyed by what you would open and edit, and each VEX statement is named by the vulnerability and package that did not line up rather than counted. A descriptor claiming a decision it is not making is a thing to go and fix, not a number to read.
+
+**All three reports agree on where things are.** The console, the markdown and the HTML now run in one order: what argued with the ranking, then the controls, then the components, then what was accepted, then the findings, and last what stands behind the verdict. Everything describing the run rather than the findings, the gate, the SBOM, what was scanned, what each control measured against and which feeds were read, is one `Evidence` section at the end of each of them instead of bold paragraphs and stray italic lines between the tables.
+
+**`draugr diff` takes the same `--view` as `draugr scan`.** `findings` carries the finding's own sentence under each row, `compact` is one line each, and `actions` groups a change into the things somebody would do about it, so six advisories in one library are one upgrade. Everything the change touched is one table ranked by priority instead of four lists read in sequence, with what happened to each finding in its own column and, within a band, what needs somebody before what does not.
+
+**A diff row says what to upgrade to, and which verdict it was measured against.** The listing carried a CVSS score and the control's name and not the release that clears the finding, which is the only instruction on the row. It now shows the upgrade, the finding's own title, and the gate the verdict came from. Where no gate was asked for, no verdict is stated: `draugr diff` without `--fail-on-new` compares and exits 0, and a verdict nobody asked for would be inventing one.
+
+**`draugr diff --top` caps a listing that had no cap at all.** A diff across two Draugr versions printed sixty-nine lines into a pull-request comment. It is `0` by default, unlike `scan`, because a diff is already only what one change did and truncating it silently removes the thing the command exists to show.
+
+**The rendered reports say what the console says.** The markdown and HTML reports had drifted from every decision the console made: controls counted severities while the verdict beside them counted bands, the findings table carried a CVSS score and the control's name but not the release that clears the finding, what argued with the ranking was not reported at all, and everything set aside was one bold sentence. All three formats now answer in bands, name each signal and how many findings it moved, carry the upgrade and the finding's own title on the row, and give what was accepted a block. A rule that suppressed nothing is named in every format rather than only in the terminal.
+
+**The rendered reports account for each acceptance.** A count says how much was set aside and cannot say what anybody thought was acceptable about it, though every suppressed finding carries the reason. The file reports now carry a row per decision, with how many findings it covers, who signed it, when it lapses and why, and the terminal shows the same under `--evidence`. An acceptance nobody signed is marked rather than left to be noticed among the names.
+
+**Every report states the gate.** A verdict travels away from the machine that produced it, and the rule it was measured against did not travel with it.
+
+**The report says what a thing is and stops.** Seven notes in the HTML report opened with a description and then argued for the design after it, so the half a reader came for was the half they had to dig out. The argument is in the code where it belongs. Where a number needed a caption to stop it looking wrong, the number is labeled instead: the timing table's share column says what it is a share of.
+
+### Fixed
+
+**A finding whose acceptance ended is no longer called "reopened".** The word is issue-tracker vocabulary for something that was fixed and came back; nothing here was ever fixed. It is `unaccepted`, named for the decision that ended rather than for a regression that did not happen. `pkg/diff.Result.Reopened` is `Unaccepted`.
+
+**A diff ranks a critical nobody scored above a high that was scored.** The listing ordered on the CVSS score behind a severity, and not every scanner publishes one, so a finding raised to critical by an exploitation catalog sank beneath every scored high. Severity decides first now, and the score refines it where both have one, which is what the scan report already did.
+
+**A diff whose only change is an acceptance keeps its component column.** Which component a finding belongs to was decided from the new and fixed findings alone, so a change that only accepted or un-accepted something lost the column that answers whether the finding is yours.
+
+**The caching guide covers GitLab and Azure, not only GitHub.** Persisting Trivy's databases and Draugr's own result cache was shown as GitHub Actions YAML and nowhere else, so a reader on either of the other two systems got the reasoning and no way to act on it. Both now have the keys, the scoping each one does and does not give you, and where `--cache-read-only` belongs.
+
+**The progress display stops emptying itself before it repaints.** Each update cleared the block a row at a time, walking up the screen, and then drew the new frame, so the emptiness visibly climbed the rows in front of whoever was watching. A frame is now written over its predecessor in one go, a row at a time from the top with no blank state in between, and a repaint that would say exactly what is already on screen writes nothing at all.
+
 ## [0.120.0] - 2026-09-12
 
 ### Changed
@@ -5587,7 +5623,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.120.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.121.0...HEAD
+[0.121.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.121.0
 [0.120.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.120.0
 [0.119.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.119.1
 [0.119.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.119.0
