@@ -37,18 +37,6 @@ block every change.
 
 <img src="docs/assets/scan.svg" width="900" alt="A draugr scan of the demo sandbox: a FAIL verdict, the four priority bands, the two controls that ran with their severity counts, what each was measured against, a per-component verdict, what reachability analysis concluded, an accepted risk and a supplier's VEX, then the ranked findings. The fifth is a vendored jQuery raised to critical and marked as being on CISA's exploited catalog.">
 
-
-A picture, because GitHub cannot show a terminal's colors. A fenced block here goes through a
-syntax highlighter that has no idea what it is looking at, so the bands, the severities and the
-version that clears a finding all arrive in one shade of blue. The
-[website](https://draugr.dev/blog/security-scan-with-zero-config/) carries the same output as text
-you can select.
-
-Narrowed to two controls so the page is readable, where the unnarrowed run reports a thousand
-findings and says so. The fifth row is the one to look at. It is a jQuery nobody installed with a
-package manager, found by fingerprinting the file itself, and raised to critical because CISA lists
-it as being exploited.
-
 **Priority (P1–P4) is not severity.** Severity says how bad a flaw is at its worst, anywhere.
 Priority weighs that against how exposed and how important the part of your app it sits in is, which
 no scanner can work out, because it is not in the code.
