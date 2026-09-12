@@ -248,7 +248,15 @@ talks somebody into shipping something.
 **Nothing is silent.** The console names what was excused and by whom:
 
 ```console
-1 finding excused by a supplier's VEX · 1 asserted by Platform Team <platform@example.internal>
+ACCEPTED
+  VEX  1 finding excused
+```
+
+Under `--evidence`, with who asserted it:
+
+```console
+ACCEPTED
+  VEX  1 finding excused · 1 asserted by Platform Team <platform@example.internal>
 ```
 
 And a statement that matched nothing is reported too, because a document doing nothing looks

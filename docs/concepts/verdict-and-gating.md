@@ -143,15 +143,15 @@ DRAUGR  FAIL  draugr-demo 1.0  5.238s
  P1 67 P2 102 P3 82 P4 18
 
 CONTROLS
-  iac      FAIL   4 high 5 medium 12 low
-  images   FAIL   9 critical 40 high 90 medium 77 low
-  sast     FAIL   7 high 6 medium
-  sca      FAIL   3 critical 6 high 8 medium 1 low
-  secrets  FAIL   1 high
+  iac      FAIL   P1 4 P2 5 P3 12
+  images   FAIL   P1 40 P2 90 P3 77
+  sast     FAIL   P1 7 P2 6
+  sca      FAIL   P1 9 P2 8 P3 1
+  secrets  FAIL   P1 1
 
 COMPONENTS
-  api       FAIL   P1 67  P2 102  P3 79  iac, images, sast, sca, secrets
-  platform  FAIL   P3 3  P4 18  iac
+  api       FAIL   P1 67 P2 102 P3 79
+  platform  FAIL   P3 3 P4 18
 
 FIX FIRST  top 10 of 269, by priority
   Priority  Severity  Rule            Scanner  Location                Upgrade
@@ -165,6 +165,10 @@ The **Components** block is where the classification pays off. `api` and `platfo
 control and the same rules, and the same findings land at P1/P2 on one and P3/P4 on the other,
 because one is internet-facing and business-important and the other is neither. Severity did not
 change; the consequence of it did.
+
+Every block above answers in bands, which is what the gate is set in and what the fix list is
+ordered by. What a scanner called a flaw is on the finding's own row, where the judgment about it
+was made.
 
 ## Observability & security posture
 

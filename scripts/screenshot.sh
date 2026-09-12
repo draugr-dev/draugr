@@ -39,8 +39,10 @@ echo "Warming the scanner databases (first run downloads Trivy's, which is slow)
 cmd="draugr scan draugr.saga.yaml --controls $CONTROLS"
 # Under a pty, so the renderer colors its output the way it would for a person. COLORTERM is what
 # a terminal uses to say it can show the project's own colors rather than the sixteen it has.
+# The scan exits non-zero because the sandbox fails its own gate, which is the point of it, so the
+# exit code is not this script's answer to anything.
 ( cd "$workdir/draugr-demo" &&
-  COLORTERM=truecolor script -qec "$DRAUGR scan draugr.saga.yaml --controls $CONTROLS --top $TOP --no-publish" /dev/null
+  COLORTERM=truecolor script -qec "$DRAUGR scan draugr.saga.yaml --controls $CONTROLS --top $TOP --no-publish" /dev/null || true
 ) 2>/dev/null | "$ROOT/scripts/screenshot.py" "$cmd" > "$OUT"
 
 echo "wrote $OUT" >&2
