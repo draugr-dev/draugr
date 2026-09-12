@@ -12,7 +12,7 @@ CONTROLS
 
 MEASURED AGAINST
   iac       trivy 0.69.3
-  licenses  trivy-license 0.69.3 · policy deny copyleft
+  licenses  trivy-license 0.69.3 · policy: deny copyleft
 
 COMPONENTS
   payments       FAIL   P1 3  P2 2  P3 1  sca, secrets

@@ -165,7 +165,13 @@ func TestMergeDropsEmptyProvenance(t *testing.T) {
 func TestProvenanceDescribe(t *testing.T) {
 	t.Parallel()
 	p := Provenance{Fields: []Field{{Key: "benchmark", Value: "cis-1.12"}, {Key: "coverage", Value: "20 of 34"}}}
-	if got, want := p.Describe(), "benchmark cis-1.12 · coverage 20 of 34"; got != want {
+	if got, want := p.Describe(), "benchmark: cis-1.12 · coverage: 20 of 34"; got != want {
+		t.Errorf("Describe() = %q, want %q", got, want)
+	}
+	// A statement with nothing to name it is the statement, rather than a stray separator in front
+	// of one.
+	bare := Provenance{Fields: []Field{{Value: "the analyzer covered every module"}}}
+	if got, want := bare.Describe(), "the analyzer covered every module"; got != want {
 		t.Errorf("Describe() = %q, want %q", got, want)
 	}
 	// Order is the scanner's choice, not alphabetical. "coverage" must not sort ahead of

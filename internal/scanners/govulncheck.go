@@ -182,16 +182,20 @@ type govulncheckFrame struct {
 func parseGovulncheck(out []byte, _ string, _ plugin.Config) (sarif.Report, error) {
 	if len(out) == 0 {
 		// No module was found, so nothing ran. Reported rather than returned as a clean result:
-		// a repository this analyzer could not answer for must not be indistinguishable from one
-		// where it looked and found everything unreachable. The findings keep no verdict, which
-		// is the honest outcome, and the report says why there is none.
+		// a tree this analyzer could not answer for must not be indistinguishable from one where
+		// it looked and found everything unreachable. The findings keep no verdict, which is the
+		// honest outcome, and the report says why there is none.
+		//
+		// "where it ran" rather than "this repository". A component scopes a repository by paths,
+		// so one repository is scanned as several trees, and a sentence about the repository sits
+		// beside a count of what the analyzer decided elsewhere in it and reads as a contradiction.
 		return sarif.Report{
 			Tool: govulncheckScanner,
 			Provenance: []sarif.Provenance{{
 				Tool: govulncheckScanner,
 				Fields: []sarif.Field{{
 					Key:   "coverage",
-					Value: "this repository has no go.mod, so its findings carry no verdict",
+					Value: "no go.mod where it ran, so those findings carry no verdict",
 				}},
 			}},
 		}, nil

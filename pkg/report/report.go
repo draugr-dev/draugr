@@ -750,9 +750,19 @@ func provenanceLines(d Data) []provenanceLine {
 	}
 	sort.Strings(names)
 
+	// A reachability analyzer accounts for itself in its own block, beside the counts its
+	// statement qualifies.
+	analyzers := map[string]bool{}
+	for _, a := range d.Run.Reachability.Analyzers {
+		analyzers[a.Analyzer] = true
+	}
+
 	var out []provenanceLine
 	for _, name := range names {
 		for _, p := range d.Run.Controls[name].Report.Provenance {
+			if analyzers[p.Tool] {
+				continue
+			}
 			// The repository and revision are reported once for the run, not once per control:
 			// five controls reading one checkout is one fact, and repeating it five times in a
 			// block headed "measured against" is how a useful section becomes wallpaper.
@@ -767,6 +777,34 @@ func provenanceLines(d Data) []provenanceLine {
 		}
 	}
 	return out
+}
+
+// analyzerCoverage is what an analyzer said about how far it got, joined into one clause.
+func analyzerCoverage(d Data, analyzer string) string {
+	var said []string
+	for _, name := range sortedControlNames(d) {
+		for _, p := range d.Run.Controls[name].Report.Provenance {
+			if p.Tool != analyzer {
+				continue
+			}
+			for _, f := range p.Fields {
+				if f.Key == "coverage" {
+					said = append(said, f.Value)
+				}
+			}
+		}
+	}
+	return strings.Join(said, " · ")
+}
+
+// sortedControlNames orders the run's controls, so a report built twice reads the same.
+func sortedControlNames(d Data) []string {
+	names := make([]string, 0, len(d.Run.Controls))
+	for name := range d.Run.Controls {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // Label renders the tool and version as one string, the version omitted when unknown.
@@ -981,9 +1019,17 @@ func reachabilityBlock(d Data) (rows []string, notes []string) {
 		if a.Contributed > 0 {
 			row += fmt.Sprintf(" (%s only it reported)", plural(a.Contributed, "finding"))
 		}
+		// What the analyzer itself said about how far it got, beside its own counts.
+		//
+		// It was in the block naming what each control was measured against, which is where a
+		// benchmark and a policy belong. An analyzer's account of where it could not look sat
+		// there beside a count of what it decided here, and the two read as contradicting each
+		// other while both were true.
+		if said := analyzerCoverage(d, a.Analyzer); said != "" {
+			row += " · " + said
+		}
 		rows = append(rows, row)
 	}
-	notes = append(notes, "Unreachable findings are ranked down in priority, not removed from the report.")
 	if r.Unknown > 0 {
 		// Named whenever there is any, because it is the qualifier on everything above it: an
 		// analyzer that could not cover a dependency has not found it safe.

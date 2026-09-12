@@ -43,12 +43,14 @@ func TestReachabilityBlockKeepsAnalyzersApart(t *testing.T) {
 }
 
 func TestReachabilityBlockNamesTheUnknownOnlyWhenThereIsAny(t *testing.T) {
-	_, notes := blockFor(engine.AnalyzerReachability{Analyzer: "govulncheck", Unreachable: 4})
-	if len(notes) != 1 || !strings.Contains(notes[0], "ranked down in priority, not removed") {
-		t.Fatalf("notes = %v", notes)
+	// A verdict that moved a band is accounted for on the finding it moved, so the block carries
+	// no standing sentence about what a verdict does. What it does carry is the one thing the
+	// counts cannot say: that some findings were never looked at.
+	if _, notes := blockFor(engine.AnalyzerReachability{Analyzer: "govulncheck", Unreachable: 4}); len(notes) != 0 {
+		t.Fatalf("notes = %v, want nothing where everything was decided", notes)
 	}
-	_, notes = blockFor(engine.AnalyzerReachability{Analyzer: "govulncheck", Unreachable: 4, Unknown: 3})
-	if len(notes) != 2 || !strings.Contains(notes[1], "did not cover it") {
+	_, notes := blockFor(engine.AnalyzerReachability{Analyzer: "govulncheck", Unreachable: 4, Unknown: 3})
+	if len(notes) != 1 || !strings.Contains(notes[0], "did not cover it") {
 		t.Fatalf("notes = %v, want the caveat about what was not analyzed", notes)
 	}
 }
