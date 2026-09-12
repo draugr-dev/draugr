@@ -79,7 +79,9 @@ func TestConsoleRender(t *testing.T) {
 	s := b.String()
 	// "by priority" rather than "Fix first:": the heading now says whether the table is a
 	// shortlist or the whole set, and this fixture is small enough to be the whole set.
-	for _, want := range []string{"DRAUGR  FAIL", "app 1.0", "P1 1", "by priority", "CVE-1", "critical", "1 high"} {
+	// The controls block answers in bands, like the verdict and the components above it. Severity
+	// is what a scanner called the flaw, and it is on the finding's own row.
+	for _, want := range []string{"DRAUGR  FAIL", "app 1.0", "P1 1", "by priority", "CVE-1", "critical"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console output missing %q\n%s", want, s)
 		}

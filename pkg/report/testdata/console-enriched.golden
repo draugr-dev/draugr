@@ -3,7 +3,7 @@ DRAUGR  FAIL  acme-api 1.4.0
  P1 2 P2 1 P3 0 P4 0
 
 CONTROLS
-  sca  FAIL   2 high 1 medium
+  sca  FAIL   P1 2 P2 1
 
 SIGNALS
   KEV   1 finding raised

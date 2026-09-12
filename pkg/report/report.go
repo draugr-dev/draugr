@@ -528,8 +528,13 @@ type summary struct {
 	verdict        norn.Verdict
 	prioritized    bool
 	p1, p2, p3, p4 int
-	bands          map[string]sevCounts // per-control severity counts
-	findings       []finding            // sorted most-urgent first
+	bands          map[string]sevCounts // per-control severity counts, for a run nothing ranked
+	// controlBands is the same breakdown in the vocabulary the rest of the report speaks: how many
+	// of each band a control accounts for. The verdict, the components and the gate all talk about
+	// bands, and the control rows were the one place still answering in what a scanner called the
+	// flaw rather than in what Draugr decided about it.
+	controlBands map[string][4]int
+	findings     []finding // sorted most-urgent first
 	// bySignal is how many findings each dataset moved up a band, and floored how many a control's
 	// own rule raised. Counted over every finding, not only the ones shown: --top and
 	// --min-priority narrow the listing, and "nothing raised" has to mean nothing in the run
@@ -600,16 +605,25 @@ func summarize(d Data) summary {
 			}
 			if res.Priority != "" {
 				s.prioritized = true
+				at := s.controlBands[name]
 				switch prioritization.Priority(res.Priority) {
 				case prioritization.P1:
 					s.p1++
+					at[0]++
 				case prioritization.P2:
 					s.p2++
+					at[1]++
 				case prioritization.P3:
 					s.p3++
+					at[2]++
 				case prioritization.P4:
 					s.p4++
+					at[3]++
 				}
+				if s.controlBands == nil {
+					s.controlBands = map[string][4]int{}
+				}
+				s.controlBands[name] = at
 			}
 			loc := locationOf(res)
 			sev := res.Severity("")

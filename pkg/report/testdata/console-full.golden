@@ -3,10 +3,10 @@ DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
  P1 3 P2 2 P3 2 P4 1
 
 CONTROLS
-  iac       FAIL   1 high 1 medium
-  licenses  pass   1 medium
-  sast      FAIL   1 high
-  sca       FAIL   1 critical 2 high 1 low
+  iac       FAIL   P1 1 P3 1
+  licenses  pass   P3 1
+  sast      FAIL   P2 1
+  sca       FAIL   P1 2 P2 1 P4 1
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 

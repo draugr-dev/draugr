@@ -114,8 +114,12 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// has no verdict entry to hang a row on, so listing only the ones that succeeded makes the output
 	// shorter exactly when something has gone wrong. Which reads as a clean run to anyone who does not
 	// already know how many controls to expect.
+	// In the dense view, only the ones with something to say. What each control found is already
+	// in the band counts above, and this is the block that repeats them broken down; a control
+	// that could not run is the other half, and it stays, because an empty report from it is not
+	// evidence of anything.
 	errored := d.Run.ScanErrors
-	if len(d.Verdict.Controls) > 0 || len(errored) > 0 {
+	if len(d.Verdict.Controls) > 0 && !dense(d) || len(errored) > 0 {
 		_, _ = fmt.Fprintln(w, heading(col, "Controls"))
 		width := 0
 		for _, c := range d.Verdict.Controls {
@@ -150,18 +154,22 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			}
 		}
 		for _, c := range d.Verdict.Controls {
+			_, bad := errored[c.Control]
+			if dense(d) && !bad {
+				continue
+			}
 			v, vc := "pass", cDim
 			if c.Verdict == norn.Fail {
 				v, vc = "FAIL", cFail
 			}
-			if _, bad := errored[c.Control]; bad {
+			if bad {
 				// It produced findings *and* something failed: what it did report is partial.
 				v, vc = "ERROR", cFail
 			}
 			_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 				fmt.Sprintf("%-*s", width, c.Control),
 				col.Paint(vc, fmt.Sprintf("%-5s", v)),
-				bandsText(col, s.bands[c.Control]))
+				controlCounts(col, s, c.Control))
 			why(c.Control)
 		}
 		// Controls that produced nothing at all have no verdict entry, so they're listed here.
@@ -474,7 +482,7 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, bl
 	for _, f := range fs {
 		sev := rankedSeverity(f)
 		cells := []tui.Cell{
-			band(f),
+			band(f, compact),
 			tui.Styled(severityColor(sev), string(sev)),
 		}
 		cells = append(cells,
@@ -499,11 +507,10 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, bl
 			// The explanation on the row rather than under it. That is what this view buys: one
 			// line per finding, so a reader can see how much there is without scrolling.
 			cells = append(cells, tui.PlainCell(elide(findingTitle(f), messageWidth)))
-			// What argued with the band still gets its line, on the rows that have one. This view
-			// drops what every row carries, not what some rows carry: a band nothing accounts for
-			// is the thing a reader disputes, and a listing that hides the argument to save a line
-			// has saved the wrong line.
-			t.RowWithNotes(painted(reasoning(col, f)), cells...)
+			// One line, and no more. A band something argued with is marked beside the band
+			// itself, so the listing still says which rows were argued with; what it gives up is
+			// the name of the argument, which is what the default view is for.
+			t.Row(cells...)
 			continue
 		}
 		t.RowWithNotes(notesFor(col, f), cells...)
@@ -612,15 +619,6 @@ const minTitleWidth = 40
 
 // notePart is one statement under a row, in plain text for measuring and painted for writing.
 type notePart struct{ plain, painted string }
-
-// painted keeps the written half of each part, for a caller that is not measuring them together.
-func painted(parts []notePart) []string {
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		out = append(out, p.painted)
-	}
-	return out
-}
 
 // findingTitle is the finding's own sentence with the part the row already states removed.
 //
@@ -772,8 +770,18 @@ func rankedSeverity(f finding) sarif.Severity {
 // as wide as its widest row, so "P1 (↑ EPSS 0.87)" sets it at sixteen characters and every row
 // without a mark then carries fourteen spaces before the next column, a gap running the length of
 // the table to label two rows.
-func band(f finding) tui.Cell {
-	return tui.Styled(priorityColor(f.priority), dash(f.priority))
+func band(f finding, marked bool) tui.Cell {
+	c := tui.Styled(priorityColor(f.priority), dash(f.priority))
+	if !marked {
+		return c
+	}
+	// The glyph alone, and only where there is no line underneath to name what moved the band. It
+	// fits inside the heading's own width, so a column of two-character values does not grow to
+	// carry it and no row pays for the ones that have one.
+	if m := movedBy(f); m != nil {
+		c.Note, c.NoteStyle = m.glyph, m.style
+	}
+	return c
 }
 
 // movedBy is what moved this finding's band, in the order the engine applies them.
@@ -999,6 +1007,21 @@ func excludeSummary(e saga.ExcludeRule) string {
 		parts = append(parts, "paths "+strings.Join(e.Paths, ", "))
 	}
 	return strings.Join(parts, "; ") + " · " + findingSummary(e.Reason)
+}
+
+// controlCounts is what a control accounts for, in bands.
+//
+// Bands rather than severities, because that is what the rest of the report is about: the verdict
+// is a band, the components are broken down by band, and the gate is set in bands by default. A
+// row answering in what the scanner called the flaw asked a reader to hold two vocabularies and
+// map between them, in the block that is supposed to be the summary.
+//
+// A run that ranked nothing has no bands to show, and falls back to what it does have.
+func controlCounts(col tui.Painter, s summary, control string) string {
+	if !s.prioritized {
+		return bandsText(col, s.bands[control])
+	}
+	return componentBands(col, s.controlBands[control])
 }
 
 // bandsText renders per-control severity counts, omitting empty bands, each filled with its own
@@ -1240,7 +1263,10 @@ func runLine(st engine.Stats) string {
 		return ""
 	}
 	line := fmt.Sprintf("Ran %s in %s", plural(st.Jobs, "job"), st.Duration.Round(time.Millisecond))
-	if st.Concurrency > 0 {
+	// Only where it bound the run. Concurrency is a ceiling, and a run with fewer jobs than the
+	// ceiling never reached it: "30 jobs, 32 at a time" is arithmetic that does not add up, and a
+	// reader who tries to make it add up is reading a number that was never going to help them.
+	if st.Concurrency > 0 && st.Jobs > st.Concurrency {
 		line += fmt.Sprintf(", %d at a time", st.Concurrency)
 	}
 	if name, took := slowestControl(st.ByControl); name != "" {
@@ -1518,13 +1544,15 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, truncated bool) 
 // Counted over every finding rather than the listed ones. `--top` and `--min-priority` narrow what
 // is shown, and this answers what the signals did, not what fitted on the page.
 func writeSignals(w io.Writer, col tui.Painter, d Data, s summary) {
-	type signal struct {
-		name, did string
-		style     tui.Style
-	}
+	type signal struct{ name, did string }
 	var signals []signal
 
 	// In the order the engine applies them, which is the order the concept introduces them.
+	//
+	// Every row reads the same, because every row is the same kind of thing: something that argued
+	// with a band, and how much it moved. The colors belong on the marks in the listing below,
+	// where a reader is looking for the argued-with rows among hundreds; here there are four rows
+	// and a label on each, and a hue would be decoration on a thing that is already found.
 	for _, name := range []string{"kev", "epss"} {
 		n := s.bySignal[name]
 		if n == 0 && !consulted(d, name) {
@@ -1536,20 +1564,23 @@ func writeSignals(w io.Writer, col tui.Painter, d Data, s summary) {
 		if n > 0 {
 			did = fmt.Sprintf("%s raised", plural(n, "finding"))
 		}
-		signals = append(signals, signal{name: strings.ToUpper(name), did: did, style: signalColor(name)})
+		signals = append(signals, signal{name: strings.ToUpper(name), did: did})
 	}
 	if n := s.floored; n > 0 {
 		signals = append(signals, signal{
-			name:  "floor",
-			did:   fmt.Sprintf("%s raised by a control's own rule", plural(n, "finding")),
-			style: cHigh,
+			name: "floor",
+			did:  fmt.Sprintf("%s raised by a control's own rule", plural(n, "finding")),
 		})
 	}
+	// Named for what it is rather than for the tool that did it. "govulncheck" in the left column
+	// tells a reader which binary ran and not what it decided, and this is the one signal whose
+	// name they have no reason to know.
 	rows, notes := reachabilityBlock(d)
 	for _, row := range rows {
-		name, did, _ := strings.Cut(row, "  ")
+		analyzer, did, _ := strings.Cut(row, "  ")
 		signals = append(signals, signal{
-			name: strings.TrimSpace(name), did: strings.TrimSpace(did), style: cInfo,
+			name: "reachability",
+			did:  strings.TrimSpace(analyzer) + " · " + strings.TrimSpace(did),
 		})
 	}
 	if len(signals) == 0 {
@@ -1558,7 +1589,7 @@ func writeSignals(w io.Writer, col tui.Painter, d Data, s summary) {
 
 	t := tui.NewTable(col).Indent("  ")
 	for _, sig := range signals {
-		t.Row(tui.Styled(sig.style, sig.name), tui.Styled(cDim, sig.did))
+		t.Row(tui.Styled(tui.StyleStrong, sig.name), tui.Styled(cDim, sig.did))
 	}
 	_, _ = fmt.Fprintln(w, heading(col, "Signals"))
 	t.Render(w)
