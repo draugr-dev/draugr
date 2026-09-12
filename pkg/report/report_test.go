@@ -1005,28 +1005,36 @@ func suppressedBy(names ...string) Data {
 	}
 }
 
-func TestSuppressionLineNamesWhoAccepted(t *testing.T) {
-	// The name is the point of recording it. A count of unattributed says *that* there is a gap;
-	// it does not say who to ask about the rest, which is the question an auditor arrives with.
-	//
-	// Behind the fuller form, because that question is asked of the evidence. A scan somebody is
-	// reading to find out what to fix gets the count and the file to go and edit.
+func TestDecisionsNameWhoAcceptedWhatAndWhy(t *testing.T) {
+	// The name is the point of recording it. A count of unattributed says *that* there is a gap; it
+	// does not say who to ask about the rest, nor what any of them thought was acceptable, which is
+	// the question an auditor arrives with. The line above it counts; this answers.
 	if got, want := suppressionLine(suppressedBy("a.reviewer", ""), false),
 		"config.exclude: 2 findings suppressed"; got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
-	got := suppressionLine(suppressedBy("a.reviewer", "a.reviewer", "b.owner", ""), true)
-	want := "config.exclude: 4 findings suppressed · 2 accepted by a.reviewer, 1 accepted by b.owner, 1 unattributed"
-	if got != want {
-		t.Errorf("got  %q\nwant %q", got, want)
+	got := decisions(suppressedBy("a.reviewer", "a.reviewer", "b.owner", ""))
+	if len(got) != 3 {
+		t.Fatalf("got %d decisions, want one per acceptance: %+v", len(got), got)
+	}
+	if got[0].by != "a.reviewer" || got[0].n != 2 {
+		t.Errorf("the largest decision should lead: %+v", got[0])
+	}
+	var unsigned bool
+	for _, dec := range got {
+		if dec.by == "unattributed" && dec.n == 1 {
+			unsigned = true
+		}
+	}
+	if !unsigned {
+		t.Errorf("a suppression nobody signed is the one worth naming, and it is missing: %+v", got)
 	}
 }
 
-func TestSuppressionLineWithNobodyNamed(t *testing.T) {
-	got := suppressionLine(suppressedBy("", ""), true)
-	want := "config.exclude: 2 findings suppressed · 2 unattributed"
-	if got != want {
-		t.Errorf("got  %q\nwant %q", got, want)
+func TestDecisionsWithNobodyNamed(t *testing.T) {
+	got := decisions(suppressedBy("", ""))
+	if len(got) != 1 || got[0].by != "unattributed" || got[0].n != 2 {
+		t.Errorf("got %+v, want one unattributed decision covering both", got)
 	}
 }
 
@@ -1036,17 +1044,24 @@ func TestSuppressionLineIsAbsentWithNothingSuppressed(t *testing.T) {
 	}
 }
 
-func TestSuppressionLineOrdersAcceptorsStably(t *testing.T) {
+func TestDecisionsOrderStably(t *testing.T) {
 	// Map iteration would reorder this between runs, and a report offered as evidence should
 	// not differ from itself.
-	first := suppressionLine(suppressedBy("z.last", "a.first"), true)
+	first := decisions(suppressedBy("z.last", "a.first"))
 	for range 5 {
-		if got := suppressionLine(suppressedBy("z.last", "a.first"), true); got != first {
-			t.Fatalf("unstable order:\n%s\n%s", first, got)
+		got := decisions(suppressedBy("z.last", "a.first"))
+		if len(got) != len(first) {
+			t.Fatalf("unstable length: %d then %d", len(first), len(got))
+		}
+		for i := range got {
+			if got[i].by != first[i].by {
+				t.Fatalf("unstable order:\n%+v\n%+v", first, got)
+			}
 		}
 	}
-	if !strings.Contains(first, "a.first, 1 accepted by z.last") {
-		t.Errorf("expected alphabetical: %q", first)
+	// Equal counts fall back to the name, so two readings of one report agree.
+	if first[0].by != "a.first" {
+		t.Errorf("expected alphabetical on a tie: %+v", first)
 	}
 }
 
