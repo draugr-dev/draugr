@@ -12,6 +12,95 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.120.0] - 2026-09-12
+
+### Changed
+
+- **A control judged on its own threshold states it.** The gate read "fails on P1, except licenses
+  on P2", which asks a reader to hold the first clause and subtract from it. Each control now says
+  what it fails on, in the words the gate above it used.
+
+- **A JavaScript finding says what to upgrade to, in the column that says it.** retire.js findings
+  opened with the library and version, which the row already shows, and named the version that
+  clears them at the end of a sentence that was being cut to fit.
+
+- **One block says what moved your ranking.** KEV, EPSS, a control's floor and a reachability
+  analyzer each accounted for themselves somewhere else, in three registers a reader could not
+  compare. `SIGNALS` names each one and how many findings it moved, counted over the whole run
+  rather than the listed part of it. The feeds keep their dates under `--evidence`, where the rest
+  of what the run read is.
+
+- **The compact view drops what describes the run.** Components, reachability, what each control
+  was measured against and the block of things to try are gone from `--view compact`, which is for
+  somebody who already knows what they are looking at. What stays is the answer and anything saying
+  the answer is less than it appears.
+
+- **The compact view marks a moved band beside the band.** `P1 ↑` on the row, in place of the line
+  underneath naming what moved it, so the listing is one line per finding and still says which rows
+  were argued with. It also drops the controls block, keeping only a control that could not run.
+
+- **The controls block answers in bands.** It counted severities while the verdict, the components
+  and the gate all talk about priority, so the one block meant to summarize the run asked a reader
+  to hold two vocabularies and map between them. Severity stays where it is decided, on the
+  finding's own row, and a run that ranked nothing still falls back to what it has.
+
+- **The descriptor digest says what it is a digest of.** Eight characters of hex is not
+  self-evidently anything; it is the merged document, fragments folded in, which is what makes two
+  runs comparable when a descriptor is assembled from several files.
+
+- **The documentation shows the report the way it prints now.** Every quoted run in `docs/` and the
+  README's picture were refreshed from a real scan, including the blocks that changed name and the
+  ones that moved behind `--evidence`.
+
+- **The evidence is a section, below the findings.** Six paragraphs of provenance sat between the
+  verdict and the list, so a reader who asked for both was pushed off the screen by the half they
+  did not come for. What the run wrote, including an SBOM, is in there with it: Draugr writes a
+  report and a SARIF file without announcing either, and one artifact naming itself beside the
+  findings read as the important one.
+
+- **The reachability block stopped repeating itself.** It printed a standing sentence about what a
+  verdict does on every run that had one. What a verdict did is on the finding it moved.
+
+- **The run line says what to do about a slow scan.** How many jobs ran at once, and which control
+  took the most scanner time. It used to report how many jobs were answered by an identical one,
+  which is the scheduler's own bookkeeping and nothing a reader can act on.
+
+- **What was scanned is a table.** One row per repository, the host dropped because every row
+  carries the same one. A descriptor with fifty repositories printed fifty sentences each naming a
+  URL in the middle of it.
+
+- **What was set aside is one block.** `config.exclude`, a supplier's VEX and a directive in the
+  source each had a paragraph of their own, separated by blank lines, and a run with a couple of
+  exclusions spent a third of the screen on them. `ACCEPTED` gives each a row, and the expired and
+  matched-nothing cases fold into the row they belong to. Who accepted a finding moved to
+  `--evidence`, where the question it answers is asked; it is unchanged in report.json and the SARIF.
+
+### Fixed
+
+- **A critical nothing scored no longer sorts below a high that was.** The ranked list ordered on
+  the CVSS score behind a severity, and not every scanner publishes one, so a finding raised to
+  critical by CISA's exploited catalog sank beneath every scored high on a list headed "fix first".
+  Severity decides first now, and the score refines it where both have one.
+
+- **A line that explains a control no longer runs off the screen.** What each control was measured
+  against, and what a scanner could not narrow, wrap under themselves the way a control's errors
+  already do. The half a reader acts on is the end of those sentences, and a line that leaves the
+  screen keeps the name and takes away the reason.
+
+- **An analyzer accounts for itself beside its own counts.** What a reachability analyzer could not
+  cover was printed in the block naming what each control was measured against, where it sat apart
+  from the counts it qualifies and read as contradicting them. It is on the analyzer's own row now,
+  and it says where it could not look rather than making a claim about the repository, which a
+  component scoped by paths scans as several trees.
+
+- **How many jobs ran at once is reported only where it bound the run.** Concurrency is a ceiling,
+  and "30 jobs, 32 at a time" is arithmetic a reader tries to make add up and cannot.
+
+- **The docs are held to what the renderer prints.** A quoted run carrying a heading or a column
+  set Draugr has stopped printing now fails the build, and so does one too wide to be read where it
+  is published. Nothing checked that before: the goldens pin the layout and the tracking says which
+  documents quote it, and neither could see a document still showing a layout from two releases ago.
+
 ## [0.119.1] - 2026-09-12
 
 ### Fixed
@@ -5498,7 +5587,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.119.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.120.0...HEAD
+[0.120.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.120.0
 [0.119.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.119.1
 [0.119.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.119.0
 [0.118.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.118.0
