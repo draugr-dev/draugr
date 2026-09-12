@@ -12,6 +12,62 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.119.0] - 2026-09-12
+
+### Added
+
+- **`--view` replaces `--group` and `--compact`, which were one question asked twice.**
+  `--view findings` is the default, a row per finding with what argued with its band underneath;
+  `--view actions` leads the report with the work, one row per thing to do; `--view compact` gives
+  one line each, trimmed to your terminal, and in `json` and `sarif` strips indentation and relayed
+  rule prose for a consumer that parses rather than reads. Both old flags still work and name what
+  to write instead, and `config.output.group` became `config.output.view`.
+
+### Changed
+
+- **A band something argued with says so on the row.** A finding raised by KEV or EPSS, lowered by
+  a reachability analyzer, or floored by a control opens its line with a named mark (`↑ KEV`,
+  `↓ unreachable`) in that signal's own color, and the severity column shows the rating the band
+  was actually computed from rather than the scanner's original word three lines above the note
+  correcting it. The machine formats still carry what the scanner claimed.
+
+- **`draugr scan` output speaks the same visual language as the dashboard and the HTML report.**
+  The verdict, the priority bands and the per-control severity counts are filled chips in the
+  project's own colors, exactly matching on a terminal that can show them and falling back to the
+  sixteen every terminal has. P3 has a color of its own for the first time, so all four bands are
+  distinguishable. The run's elapsed time sits beside the verdict rather than only under
+  `--evidence`, and a finding that carries a link to its rule now carries one to the line it was
+  found on, pinned to the commit that was scanned.
+
+- The HTML report looks and works like the control plane. It carries the same palette and the same
+  priority ramp, in both themes, with a theme control that follows your machine until you tell it
+  otherwise. The findings list narrows the way the dashboard's does, by ticking values in a menu
+  rather than choosing one: P1 and P2 together, cumulative across priority, severity, control and
+  the component that was missing entirely. Every narrowing that is on shows as a chip you can take
+  off, and "Show everything" clears them. A "What to do" view leads, grouping findings into the
+  work that clears them, the same grouping `--view actions` prints, and clicking what an action
+  clears opens the list narrowed to exactly those findings. The controls section states what each
+  one found rather than laying four columns of mostly zeros, a repository with no remote says so
+  and names the checkout instead of printing a bare dot, and the run's elapsed time sits beside
+  the verdict rather than in the colophon.
+
+- **The tips at the end of a scan became one block of things you may try.** They were sentences
+  naming a flag in the middle of them, printed after a report that had just finished with a
+  different block of sentences. `TRY` lists what to type and why, a row each. What no control looks
+  at is its own `NOT CHECKED` block, and it now counts every control that examines a surface rather
+  than only the ones Draugr would suggest enabling.
+
+- **A finding says what to upgrade to before it says what is wrong.** The version that clears a
+  dependency finding is a column of its own, colored like a passing verdict, so it cannot be cut
+  off the end of a long advisory title. The title itself stops repeating the package: an advisory
+  that opens with its own name, and a distribution that repeats it, are trimmed down to the
+  sentence.
+
+- **A scan with nothing classified says what its bands mean, beside them.** With no component
+  declaring exposure or criticality, every one is read as public and critical, so the bands rank
+  severity alone. That used to be a tip at the foot of the report, where a reader met it after
+  taking the counts as a statement about their application.
+
 ## [0.118.0] - 2026-09-11
 
 ### Changed
@@ -5432,7 +5488,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.118.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.119.0...HEAD
+[0.119.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.119.0
 [0.118.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.118.0
 [0.117.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.117.0
 [0.116.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.116.0
