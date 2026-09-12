@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -192,5 +193,43 @@ func TestUncoveredSurfacesAreATable(t *testing.T) {
 	writeUncovered(&empty, tui.Plain(), Data{})
 	if empty.Len() != 0 {
 		t.Errorf("a fully covered descriptor should print nothing:\n%s", empty.String())
+	}
+}
+
+// A mark is two words. A two-word line between two rows that are one line each reads as a row that
+// broke rather than one that is long, so the sentence beside it gives way instead.
+func TestAMarkNeverTakesALineOfItsOwn(t *testing.T) {
+	t.Parallel()
+
+	const long = "Possible disclosure of permanent session cookie due to missing Vary: Cookie header when a proxy is in front"
+	got := notesFor(tui.Plain(), finding{
+		message:    long,
+		escalation: &sarif.Escalation{Signal: "epss", Detail: "EPSS 0.87"},
+	})
+	if len(got) != 1 {
+		t.Fatalf("got %d lines, want the mark and the sentence on one:\n%q", len(got), got)
+	}
+	if !strings.HasPrefix(got[0], "↑ EPSS 0.87 · Possible disclosure") {
+		t.Errorf("line = %q", got[0])
+	}
+	if n := len([]rune(got[0])); n > messageWidth {
+		t.Errorf("line is %d, past the %d every sentence here is held to: %q", n, messageWidth, got[0])
+	}
+	if !strings.HasSuffix(got[0], "…") {
+		t.Errorf("a sentence cut to fit should say so: %q", got[0])
+	}
+
+	// Where several things argued about one finding there is no room left to cut the sentence to,
+	// and a fragment somebody cannot place is worth less than a line.
+	crowded := notesFor(tui.Plain(), finding{
+		message:       long,
+		escalation:    &sarif.Escalation{Signal: "epss", Detail: "EPSS 0.87"},
+		priorityFloor: "secrets are ranked P1 wherever they are found, whatever the component is",
+	})
+	if len(crowded) != 3 {
+		t.Fatalf("got %d lines, want one per statement:\n%q", len(crowded), crowded)
+	}
+	if !strings.HasPrefix(crowded[2], "Possible disclosure") {
+		t.Errorf("the sentence should be whole on its own line: %q", crowded[2])
 	}
 }
