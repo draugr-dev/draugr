@@ -90,9 +90,9 @@ func goldenMismatch(path string) string {
 		"If the change is intended, regenerate and refresh what copies this layout:\n" +
 		"  1. go test ./pkg/report -update\n" +
 		"  2. make examples          # real output from the demo sandbox, to paste into docs\n" +
-		"  3. update what quotes or describes the layout:\n" +
+		"  3. make screenshot        # redraws docs/assets/scan.svg, the README's picture of a run\n" +
+		"  4. update what quotes or describes the layout:\n" +
 		"     pasted, and pinned by TestEveryPasteOfTheConsoleIsTracked:\n" +
-		"       README.md (the block under \"See it in action\"),\n" +
 		"       docs/concepts/verdict-and-gating.md,\n" +
 		"       docs/getting-started/first-saga.md, docs/getting-started/quickstart.md,\n" +
 		"       docs/reference/cli.md,\n" +
@@ -100,7 +100,7 @@ func goldenMismatch(path string) string {
 		"     described rather than pasted, so only a shape change reaches them:\n" +
 		"       docs/concepts/principles.md, docs/concepts/what-to-fix-first.md,\n" +
 		"       docs/guides/findings-in-your-editor.md, docs/guides/caching-and-performance.md\n" +
-		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
+		"  5. update the blog posts in the draugr.dev repo that quote console output:\n" +
 		"     src/content/blog/{security-scan-with-zero-config,what-scanner-output-costs-your-agent}.md\n" +
 		"     (grep for 'FIX FIRST' there; they are a separate repo, so nothing else will catch them)\n"
 }
@@ -306,7 +306,6 @@ func goldenEvidenceData() Data {
 // A page may leave this list by describing the shape instead of pasting a run, which is what a
 // concept page usually wants anyway. It may not leave it by staying pasted and unlisted.
 var pastesConsoleOutput = map[string]bool{
-	"README.md":                           true,
 	"docs/concepts/verdict-and-gating.md": true,
 	"docs/getting-started/first-saga.md":  true,
 	"docs/getting-started/quickstart.md":  true,

@@ -54,6 +54,9 @@ gate: ## Run the full local quality gate (fmt, vet, lint, race tests, vulncheck)
 examples: build ## Print real scan output from the demo sandbox, to refresh the examples in README/docs
 	@./scripts/examples.sh
 
+screenshot: build ## Redraw docs/assets/scan.svg, the README's picture of a real run
+	@./scripts/screenshot.sh
+
 changelog: ## Check the CHANGELOG's structure and that released sections are unchanged
 	@./scripts/changelog.sh check
 

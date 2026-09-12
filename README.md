@@ -35,38 +35,19 @@ block every change.
 
 ## See it in action
 
-```console
-$ draugr scan . --view actions
-DRAUGR  FAIL  draugr-demo 1.0  5.406s
+<img src="docs/assets/scan.svg" width="900" alt="A draugr scan of the demo sandbox: a FAIL verdict, the four priority bands, the two controls that ran with their severity counts, what each was measured against, a per-component verdict, what reachability analysis concluded, an accepted risk and a supplier's VEX, then the ranked findings. The fifth is a vendored jQuery raised to critical and marked as being on CISA's exploited catalog.">
 
- P1 197 P2 632 P3 231 P4 18
 
-CONTROLS
-  iac       FAIL   7 high 10 medium 23 low
-  images    FAIL   20 critical 153 high 251 medium 39 low
-  licenses  FAIL   353 medium 176 low
-  sast      FAIL   7 high 10 medium
-  sca       FAIL   4 critical 10 high 13 medium 1 low
-  secrets   FAIL   1 high
+A picture, because GitHub cannot show a terminal's colors. A fenced block here goes through a
+syntax highlighter that has no idea what it is looking at, so the bands, the severities and the
+version that clears a finding all arrive in one shade of blue. The
+[website](https://draugr.dev/blog/security-scan-with-zero-config/) carries the same output as text
+you can select.
 
-WHAT TO DO  10 actions clear 491 findings
-  P1  Update python:3.8-slim  images · 463 findings · upstream
-      CVE-2026-42010 +462
-  P1  Upgrade Jinja2 2.10  sca · 6 findings
-      app/requirements.txt:5 · CVE-2019-10906 +5
-  P1  Upgrade requests 2.19.1  sca · 5 findings
-      app/requirements.txt:3 · CVE-2018-18074 +4
-  P1  Upgrade golang.org/x/text v0.3.0  sca · 4 findings
-      checkout/go.mod:5 · CVE-2021-38561 +3
-  P1  Upgrade PyYAML 5.1  sca · 3 findings
-      app/requirements.txt:4 · CVE-2019-20477 +2
-
-… and 35 actions not listed.
-```
-
-Abridged: the real run lists ten actions and says how many it did not. That last block is the
-point, a thousand findings folded into the handful of changes that clear them, worst first. The
-default lists the findings themselves, a row each, with what to upgrade to beside them.
+Narrowed to two controls so the page is readable, where the unnarrowed run reports a thousand
+findings and says so. The fifth row is the one to look at. It is a jQuery nobody installed with a
+package manager, found by fingerprinting the file itself, and raised to critical because CISA lists
+it as being exploited.
 
 **Priority (P1–P4) is not severity.** Severity says how bad a flaw is at its worst, anywhere.
 Priority weighs that against how exposed and how important the part of your app it sits in is, which

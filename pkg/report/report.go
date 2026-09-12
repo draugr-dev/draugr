@@ -685,11 +685,35 @@ func sortFindings(fs []finding) {
 		if ao, bo := actionableRank(a), actionableRank(b); ao != bo {
 			return ao > bo
 		}
+		// Severity before the number behind it. Not every scanner publishes a score, and ordering
+		// on the number alone sinks a critical nothing scored below every high that was, which on
+		// a list headed "fix first" is the one place that cannot be wrong. The rating the band was
+		// computed from is the comparable thing; the score refines it where both have one.
+		if sa, sb := severityRank(rankedSeverity(a)), severityRank(rankedSeverity(b)); sa != sb {
+			return sa > sb
+		}
 		if a.score != b.score {
 			return a.score > b.score
 		}
 		return levelRank(a.level) > levelRank(b.level)
 	})
+}
+
+// severityRank orders the four ratings, with an unrated finding below all of them: a scanner that
+// said nothing about how bad this is has not said it is worse than one that did.
+func severityRank(sev sarif.Severity) int {
+	switch sev {
+	case sarif.SeverityCritical:
+		return 4
+	case sarif.SeverityHigh:
+		return 3
+	case sarif.SeverityMedium:
+		return 2
+	case sarif.SeverityLow:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func levelRank(l sarif.Level) int {

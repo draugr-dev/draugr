@@ -160,10 +160,16 @@ func retireMessage(component, version, detection string, v retireVulnerable) str
 	if summary == "" {
 		summary = "known vulnerability"
 	}
-	msg := fmt.Sprintf("%s %s: %s", component, version, summary)
+	// The version to move to goes with the library, before the advisory's own words, the same shape
+	// every other dependency finding takes. A line has to fit a column and the advisory decides how
+	// long its half is, so anything after it is the part that gets cut.
+	subject := fmt.Sprintf("%s %s", component, version)
 	if v.Below != "" {
-		msg += fmt.Sprintf(" (fixed in %s)", v.Below)
+		subject += " → " + v.Below
+	} else {
+		subject += ", no fix available"
 	}
+	msg := subject + ": " + summary
 	// How the library was recognized, because it is the answer to "why is this not in my lockfile", a
 	// file matched by content is one the package manager never installed.
 	if detection != "" {
