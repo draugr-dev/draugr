@@ -952,7 +952,7 @@ func reachabilityBlock(d Data) (rows []string, notes []string) {
 	for _, a := range r.Analyzers {
 		row := fmt.Sprintf("%-*s  %d reachable, %d unreachable", width, a.Analyzer, a.Reachable, a.Unreachable)
 		if a.Unknown > 0 {
-			row += fmt.Sprintf(", %d undetermined", a.Unknown)
+			row += fmt.Sprintf(", %d unknown", a.Unknown)
 		}
 		if a.Contributed > 0 {
 			row += fmt.Sprintf(" (%s only it reported)", plural(a.Contributed, "finding"))
@@ -963,7 +963,11 @@ func reachabilityBlock(d Data) (rows []string, notes []string) {
 	if r.Unknown > 0 {
 		// Named whenever there is any, because it is the qualifier on everything above it: an
 		// analyzer that could not cover a dependency has not found it safe.
-		notes = append(notes, "Undetermined findings were not analyzed and are ranked as reported.")
+		//
+		// "unknown" rather than a second word for it. It is the value the descriptor, the schema
+		// and `report.json` all carry, and a reader who meets one word in the terminal and goes
+		// looking for it in the documentation should find the same one.
+		notes = append(notes, "Unknown means the analyzer did not cover it. Those are ranked as reported.")
 	}
 	return rows, notes
 }

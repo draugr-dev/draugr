@@ -231,7 +231,7 @@ back to a full scan and make the flags useless for the loop they exist for. What
 look like an unscoped run:
 
 ```
-DRAUGR  FAIL  multi 1.0.0  scope: 1 of 3 components; sca  1.882s
+DRAUGR  FAIL  multi 1.0.0  (scope: 1 of 3 components; sca)  1.882s
 
 COMPONENTS
   app       FAIL   P1 9  P2 8  P3 1  sca
@@ -999,10 +999,9 @@ Doctor reports that too, from the same place [`draugr scan`](#draugr-scan-sagaya
 does, so the two cannot give different answers:
 
 ```
-Not checked:
-      api declares hosts, and headers, tls are not enabled
-      api declares images, and images is not enabled
-      dast is never suggested, it sends attack traffic. Enable it yourself.
+NOT CHECKED
+  api hosts   3 controls off: dast, headers, tls
+  api images  1 control off: images
 ```
 
 **Reported, not failed**. A deliberately narrow descriptor is a legitimate thing to have, and a

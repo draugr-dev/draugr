@@ -93,14 +93,15 @@ func goldenMismatch(path string) string {
 		"     pasted, and pinned by TestEveryPasteOfTheConsoleIsTracked:\n" +
 		"       README.md (the block under \"See it in action\"),\n" +
 		"       docs/concepts/verdict-and-gating.md,\n" +
-		"       docs/getting-started/quickstart.md, docs/reference/cli.md,\n" +
+		"       docs/getting-started/first-saga.md, docs/getting-started/quickstart.md,\n" +
+		"       docs/reference/cli.md,\n" +
 		"       docs/reference/saga-schema.md\n" +
 		"     described rather than pasted, so only a shape change reaches them:\n" +
 		"       docs/concepts/principles.md, docs/concepts/what-to-fix-first.md,\n" +
 		"       docs/guides/findings-in-your-editor.md, docs/guides/caching-and-performance.md\n" +
 		"  4. update the blog posts in the draugr.dev repo that quote console output:\n" +
-		"     src/content/blog/{security-scan-in-60-seconds,what-scanner-output-costs-your-agent}.md\n" +
-		"     (grep for 'Draugr · ' there; they are a separate repo, so nothing else will catch them)\n"
+		"     src/content/blog/{security-scan-with-zero-config,what-scanner-output-costs-your-agent}.md\n" +
+		"     (grep for 'FIX FIRST' there; they are a separate repo, so nothing else will catch them)\n"
 }
 
 // goldenFullData exercises every element of the frame at once: a failing verdict with a release,
@@ -306,6 +307,7 @@ func goldenEvidenceData() Data {
 var pastesConsoleOutput = map[string]bool{
 	"README.md":                           true,
 	"docs/concepts/verdict-and-gating.md": true,
+	"docs/getting-started/first-saga.md":  true,
 	"docs/getting-started/quickstart.md":  true,
 	"docs/reference/cli.md":               true,
 	"docs/reference/saga-schema.md":       true,

@@ -32,22 +32,24 @@ func TestReachabilityBlockKeepsAnalyzersApart(t *testing.T) {
 	if !strings.HasPrefix(rows[0], "dep-scan") || !strings.HasPrefix(rows[1], "govulncheck") {
 		t.Errorf("rows not one per analyzer in name order: %v", rows)
 	}
-	if !strings.Contains(rows[0], "3 undetermined") {
-		t.Errorf("row = %q, want the undetermined count", rows[0])
+	// "unknown" is what the descriptor, the schema and report.json call it, so it is what the
+	// terminal calls it too.
+	if !strings.Contains(rows[0], "3 unknown") {
+		t.Errorf("row = %q, want the unknown count", rows[0])
 	}
-	if strings.Contains(rows[1], "undetermined") {
-		t.Errorf("row = %q, should omit undetermined when there are none", rows[1])
+	if strings.Contains(rows[1], "unknown") {
+		t.Errorf("row = %q, should omit the count when there are none", rows[1])
 	}
 }
 
-func TestReachabilityBlockNamesUndeterminedOnlyWhenThereIsAny(t *testing.T) {
+func TestReachabilityBlockNamesTheUnknownOnlyWhenThereIsAny(t *testing.T) {
 	_, notes := blockFor(engine.AnalyzerReachability{Analyzer: "govulncheck", Unreachable: 4})
 	if len(notes) != 1 || !strings.Contains(notes[0], "ranked down in priority, not removed") {
 		t.Fatalf("notes = %v", notes)
 	}
 	_, notes = blockFor(engine.AnalyzerReachability{Analyzer: "govulncheck", Unreachable: 4, Unknown: 3})
-	if len(notes) != 2 || !strings.Contains(notes[1], "not analyzed") {
-		t.Fatalf("notes = %v, want the undetermined caveat", notes)
+	if len(notes) != 2 || !strings.Contains(notes[1], "did not cover it") {
+		t.Fatalf("notes = %v, want the caveat about what was not analyzed", notes)
 	}
 }
 
@@ -123,7 +125,7 @@ func TestReachabilityPathCarriesTheShortestRoute(t *testing.T) {
 		t.Errorf("unreachable path = %q", got)
 	}
 	if got := reachabilityPath(&sarif.Reachability{State: sarif.ReachabilityUnknown}); got != "" {
-		t.Errorf("undetermined path = %q", got)
+		t.Errorf("unknown path = %q", got)
 	}
 	if got := reachabilityPath(nil); got != "" {
 		t.Errorf("nil path = %q", got)

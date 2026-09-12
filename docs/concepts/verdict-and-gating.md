@@ -99,10 +99,9 @@ gate that objects to intent is one people learn to work around.
 So it is reported rather than enforced. Every scan says what it did not look at:
 
 ```
-Not checked:
-      api declares hosts, and headers, tls are not enabled
-      api declares images, and images is not enabled
-      dast is never suggested, it sends attack traffic. Enable it yourself.
+NOT CHECKED
+  api hosts   3 controls off: dast, headers, tls
+  api images  1 control off: images
 ```
 
 [`draugr doctor`](../reference/cli.md#draugr-doctor-sagayaml) says the same thing **before** the
