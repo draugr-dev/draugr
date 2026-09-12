@@ -116,6 +116,14 @@ inputs:
       Deprecated: write the band in fail-on-new, which now takes either vocabulary.
     required: false
     default: ""
+  diff-view:
+    description: >-
+      (diff mode) What the pull-request comment says. "findings" (default) is a row per finding.
+      "actions" groups them into the things somebody would do, so six advisories in one library
+      are one upgrade. Which one a team wants is a property of how they review rather than of the
+      change, so it belongs here rather than on a run.
+    required: false
+    default: findings
 
 outputs:
   sarif:
@@ -321,6 +329,7 @@ runs:
         CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'true' || '' }}
         INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
         INPUT_FAIL_ON_NEW_PRIORITY: ${{ inputs.fail-on-new-priority }}
+        INPUT_DIFF_VIEW: ${{ inputs.diff-view }}
         INPUT_CODE_SCANNING: ${{ inputs.code-scanning }}
         INPUT_CODE_SCANNING_MIN_PRIORITY: ${{ inputs.code-scanning-min-priority }}
         INPUT_ARGS: ${{ inputs.args }}
@@ -367,6 +376,16 @@ runs:
         diff_args=("$base_out/results.sarif" "$head_out/results.sarif" --publish)
         [ -n "$INPUT_FAIL_ON_NEW" ]          && diff_args+=(--fail-on-new "$INPUT_FAIL_ON_NEW")
         [ -n "$INPUT_FAIL_ON_NEW_PRIORITY" ] && diff_args+=(--fail-on-new-priority "$INPUT_FAIL_ON_NEW_PRIORITY")
+        # Asked for rather than assumed, the same way --format sarif is below: `version` lets a
+        # caller pin any published release, and this tag moves independently of them, so the binary
+        # in front of us may predate the flag. Without it the comment is what it always was.
+        if [ -n "$INPUT_DIFF_VIEW" ] && [ "$INPUT_DIFF_VIEW" != "findings" ]; then
+          if draugr help diff 2>&1 | grep -q -- '--view'; then
+            diff_args+=(--view "$INPUT_DIFF_VIEW")
+          else
+            echo "::warning::diff-view needs a Draugr release with 'diff --view'; this one is older, so the comment lists findings."
+          fi
+        fi
         draugr diff "${diff_args[@]}"
 
         # What code scanning receives on a pull request. By default the findings this branch

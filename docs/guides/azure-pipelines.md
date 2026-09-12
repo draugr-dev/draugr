@@ -106,12 +106,17 @@ thread. It is created active, like any other.
 
       draugr diff "$(Pipeline.Workspace)/base/results.sarif" \
                   "$(Pipeline.Workspace)/head/results.sarif" \
-                  --publish --fail-on-new P1
+                  --publish --fail-on-new P1 --view actions
     displayName: Gate on new findings
     condition: eq(variables['Build.Reason'], 'PullRequest')
     env:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 ```
+
+`--view actions` decides what the comment says. It groups the change into the things somebody would
+do, so six advisories in one library are one upgrade; drop it for a row per finding. Which one a
+team wants is a property of how they review rather than of the change, which is why it belongs in
+the template.
 
 Three details that are easy to get wrong:
 

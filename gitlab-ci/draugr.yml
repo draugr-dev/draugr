@@ -14,6 +14,7 @@
 #     variables:
 #       DRAUGR_SAGA: services/api/draugr.saga.yaml
 #       DRAUGR_FAIL_ON_NEW_PRIORITY: P1
+#       DRAUGR_DIFF_VIEW: actions
 #
 # On a merge request it scans the head and the merge base and reports the delta as a sticky
 # comment, gated on what the change introduces. On the default branch it scans and gates the whole
@@ -31,6 +32,10 @@ variables:
   # Gate a merge request on what it introduces rather than on the backlog it inherited. Empty
   # disables the differential gate; the descriptor's own gate still applies on the default branch.
   DRAUGR_FAIL_ON_NEW_PRIORITY: P1
+  # What the merge-request comment says. "findings" is a row per finding; "actions" groups them into
+  # the things somebody would do, so six advisories in one library are one upgrade. Which one a team
+  # wants is a property of how they review rather than of the change, which is why it is set here.
+  DRAUGR_DIFF_VIEW: findings
   # Gate the default branch on the descriptor's own policy. On by default, because a gate that does
   # not fail is not a gate.
   #
@@ -122,9 +127,20 @@ draugr:
       if [ -n "${DRAUGR_FAIL_ON_NEW_PRIORITY:-}" ]; then
         gate="--fail-on-new-priority ${DRAUGR_FAIL_ON_NEW_PRIORITY}"
       fi
+      # Asked for rather than assumed: DRAUGR_VERSION pins any published release and this template
+      # moves independently of them, so the binary may predate the flag. Without it the comment is
+      # what it always was.
+      view=""
+      if [ -n "${DRAUGR_DIFF_VIEW:-}" ] && [ "${DRAUGR_DIFF_VIEW}" != "findings" ]; then
+        if draugr help diff 2>&1 | grep -q -- '--view'; then
+          view="--view ${DRAUGR_DIFF_VIEW}"
+        else
+          echo "DRAUGR_DIFF_VIEW needs a Draugr release with 'diff --view'; this one is older, so the comment lists findings."
+        fi
+      fi
       # --publish selects gitlab-mr-comment from the runner's own environment, and no-ops with an
       # explanation rather than an error when GITLAB_TOKEN is not set.
-      draugr diff "${CI_PROJECT_DIR}/draugr-base-out/results.sarif" draugr-out/results.sarif --publish ${gate}
+      draugr diff "${CI_PROJECT_DIR}/draugr-base-out/results.sarif" draugr-out/results.sarif --publish ${gate} ${view}
   artifacts:
     # A blocked merge request is exactly when a reviewer needs to see why, and reports produced
     # only on success are reports nobody reads.

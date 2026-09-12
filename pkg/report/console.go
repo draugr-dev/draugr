@@ -287,27 +287,9 @@ func heading(col tui.Painter, name string) string {
 	return col.Paint(cDim, strings.ToUpper(name))
 }
 
-// bandChips is the four priority counts, each filled with its own band's color.
-//
-// One object per band rather than a colored number beside a plain label: the band and its count
-// answer together and a reader picking the row out of a screen of text is looking for the shape
-// rather than reading the words. A band with nothing in it is not filled, so the ink on the line
-// is the work there is.
+// bandChips renders this run's four counts, from the one place that draws them.
 func bandChips(col tui.Painter, s summary) string {
-	counts := [4]int{s.p1, s.p2, s.p3, s.p4}
-	labels := [4]string{"P1", "P2", "P3", "P4"}
-	parts := make([]string, 0, len(counts))
-	for i, n := range counts {
-		text := fmt.Sprintf("%s %d", labels[i], n)
-		if n == 0 {
-			parts = append(parts, col.Paint(cDim, text))
-			continue
-		}
-		parts = append(parts, col.Chip(priorityColor(labels[i]), text))
-	}
-	// One space, because a filled chip carries its own. Where there is no fill to carry it, the
-	// destination is a log rather than a terminal and the indent is not what makes it readable.
-	return " " + strings.Join(parts, " ")
+	return " " + col.BandChips([4]int{s.p1, s.p2, s.p3, s.p4})
 }
 
 // writeEffects records what the run did to its targets beyond reading them.
@@ -1069,23 +1051,8 @@ func bandsText(col tui.Painter, b sevCounts) string {
 	return strings.Join(parts, " ")
 }
 
-func priorityColor(p string) tui.Style {
-	switch strings.ToUpper(p) {
-	case "P1":
-		return cFail
-	case "P2":
-		return cMedium
-	case "P3":
-		// The band had no color of its own and was drawn in whatever the terminal's text color is,
-		// which is also what an unranked row and a heading look like. Three of the four bands being
-		// distinguishable is not a ramp.
-		return cInfo
-	case "P4":
-		return cDim
-	default:
-		return tui.StyleNone
-	}
-}
+// priorityColor is the band's own color, from the one place that decides it.
+func priorityColor(p string) tui.Style { return tui.PriorityStyle(p) }
 
 func severityColor(s sarif.Severity) tui.Style {
 	switch s {

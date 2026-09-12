@@ -106,11 +106,11 @@ func TestRenderConsole(t *testing.T) {
 		sarif.Report{Results: []sarif.Result{res("trivy", "NEW", sarif.LevelError, "img", 0, "P1")}},
 	)
 	var b bytes.Buffer
-	if err := Render(&b, "console", d); err != nil {
+	if err := Render(&b, "console", d, Options{}); err != nil {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"Draugr diff ·", "1 new", "New (1):", "NEW", "Fixed (1):", "OLD"} {
+	for _, want := range []string{"DRAUGR DIFF", "1 new", "1 fixed", "CHANGED", "+ new", "NEW", "- fixed", "OLD"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console diff missing %q\n%s", want, s)
 		}
@@ -119,10 +119,10 @@ func TestRenderConsole(t *testing.T) {
 
 func TestRenderMarkdownAndNoChange(t *testing.T) {
 	var b bytes.Buffer
-	if err := Render(&b, "markdown", Compare(sarif.Report{}, sarif.Report{})); err != nil {
+	if err := Render(&b, "markdown", Compare(sarif.Report{}, sarif.Report{}), Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(b.String(), "No change in the finding footprint") {
+	if !strings.Contains(b.String(), "Nothing changed") {
 		t.Errorf("expected no-change message, got:\n%s", b.String())
 	}
 }
@@ -133,7 +133,7 @@ func TestRenderJSON(t *testing.T) {
 		sarif.Report{Results: []sarif.Result{res("trivy", "NEW", sarif.LevelError, "img", 0, "P1")}},
 	)
 	var b bytes.Buffer
-	if err := Render(&b, "json", d); err != nil {
+	if err := Render(&b, "json", d, Options{}); err != nil {
 		t.Fatal(err)
 	}
 	var doc jsonDiff
@@ -146,7 +146,7 @@ func TestRenderJSON(t *testing.T) {
 }
 
 func TestRenderUnknownFormat(t *testing.T) {
-	if err := Render(&bytes.Buffer{}, "bogus", Result{}); err == nil {
+	if err := Render(&bytes.Buffer{}, "bogus", Result{}, Options{}); err == nil {
 		t.Error("expected error for unknown format")
 	}
 }
@@ -165,7 +165,7 @@ func TestFormats(t *testing.T) {
 		t.Errorf("Formats() = %v, want sorted", got)
 	}
 	for _, f := range got {
-		if err := Render(&bytes.Buffer{}, f, Result{}); err != nil {
+		if err := Render(&bytes.Buffer{}, f, Result{}, Options{}); err != nil {
 			t.Errorf("advertised format %q does not render: %v", f, err)
 		}
 	}
@@ -177,11 +177,11 @@ func TestRenderMarkdownWithFindings(t *testing.T) {
 		sarif.Report{Results: []sarif.Result{res("semgrep", "NEW", sarif.LevelWarning, "src/b.go", 12, "P1")}},
 	)
 	var b bytes.Buffer
-	if err := Render(&b, "markdown", d); err != nil {
+	if err := Render(&b, "markdown", d, Options{}); err != nil {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"### 🔺 New (1)", "`NEW`", "semgrep", "src/b.go:12", "### ✅ Fixed (1)", "`OLD`", "src/a.go:5"} {
+	for _, want := range []string{"### Changed", "**new**", "`NEW`", "semgrep", "src/b.go:12", "fixed", "`OLD`", "src/a.go:5"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("markdown diff missing %q\n%s", want, s)
 		}
@@ -229,16 +229,17 @@ func TestConsoleNoLocationAndUnprioritized(t *testing.T) {
 	// A new finding with no location and no priority exercises loc("")/dash("") fallbacks.
 	head := sarif.Report{Results: []sarif.Result{res("t", "R", sarif.LevelWarning, "", 0, "")}}
 	var b bytes.Buffer
-	if err := Render(&b, "console", Compare(sarif.Report{}, head)); err != nil {
+	if err := Render(&b, "console", Compare(sarif.Report{}, head), Options{}); err != nil {
 		t.Fatal(err)
 	}
 	s := b.String()
-	if !strings.Contains(s, "+ -") || !strings.Contains(s, "-\n") {
+	if !strings.Contains(s, "+ new") || !strings.Contains(s, "-") {
 		t.Errorf("expected dash fallbacks for missing priority/location:\n%s", s)
 	}
-	// Unprioritized-only delta prints no priority breakdown lines.
-	if strings.Contains(s, "New priorities:") {
-		t.Errorf("unprioritized delta should not print priority lines:\n%s", s)
+	// A run that ranked nothing has no bands to draw, and a strip of four zeroes says less than
+	// nothing at all.
+	if strings.Contains(s, "P1 0") {
+		t.Errorf("unprioritized delta should not draw a band strip:\n%s", s)
 	}
 }
 
@@ -416,7 +417,7 @@ func TestAcceptingARiskIsNotFixingIt(t *testing.T) {
 	}
 }
 
-func TestALapsedExclusionIsReopenedRatherThanNew(t *testing.T) {
+func TestALapsedExclusionIsUnacceptedRatherThanNew(t *testing.T) {
 	// Nobody introduced it. It was known, it was accepted, and the acceptance ran out, and "new"
 	// loses the part somebody has to act on, which is that a decision needs making again.
 	f := finding("CVE-2024-11111", "requirements.txt", 3)
@@ -428,8 +429,8 @@ func TestALapsedExclusionIsReopenedRatherThanNew(t *testing.T) {
 	if len(r.New) != 0 {
 		t.Errorf("reported %d new; this one was already known", len(r.New))
 	}
-	if len(r.Reopened) != 1 {
-		t.Errorf("reopened = %d, want 1", len(r.Reopened))
+	if len(r.Unaccepted) != 1 {
+		t.Errorf("reopened = %d, want 1", len(r.Unaccepted))
 	}
 }
 
@@ -456,8 +457,8 @@ func TestADecisionThatDidNotChangeIsUnchanged(t *testing.T) {
 		sarif.Report{Results: []sarif.Result{f}},
 		sarif.Report{Results: []sarif.Result{f}},
 	)
-	if len(r.Unchanged) != 1 || len(r.Accepted) != 0 || len(r.Reopened) != 0 {
-		t.Errorf("unchanged=%d accepted=%d reopened=%d", len(r.Unchanged), len(r.Accepted), len(r.Reopened))
+	if len(r.Unchanged) != 1 || len(r.Accepted) != 0 || len(r.Unaccepted) != 0 {
+		t.Errorf("unchanged=%d accepted=%d reopened=%d", len(r.Unchanged), len(r.Accepted), len(r.Unaccepted))
 	}
 }
 
@@ -481,8 +482,8 @@ func TestTheOrdinaryCasesAreUnchanged(t *testing.T) {
 		t.Errorf("a real fix: fixed=%d accepted=%d", len(fixedOnly.Fixed), len(fixedOnly.Accepted))
 	}
 	newOnly := Compare(sarif.Report{}, sarif.Report{Results: []sarif.Result{g}})
-	if len(newOnly.New) != 1 || len(newOnly.Reopened) != 0 {
-		t.Errorf("a genuinely new finding: new=%d reopened=%d", len(newOnly.New), len(newOnly.Reopened))
+	if len(newOnly.New) != 1 || len(newOnly.Unaccepted) != 0 {
+		t.Errorf("a genuinely new finding: new=%d reopened=%d", len(newOnly.New), len(newOnly.Unaccepted))
 	}
 }
 

@@ -329,3 +329,43 @@ func escapeEnd(s string, i int) int {
 	}
 	return i + 1
 }
+
+// PriorityStyle is the color a band wears, everywhere the product draws one.
+//
+// P3 had no color of its own once and was drawn in whatever the terminal's text color is, which is
+// also what an unranked row and a heading look like. Three of four bands being distinguishable is
+// not a ramp.
+func PriorityStyle(band string) Style {
+	switch strings.ToUpper(band) {
+	case "P1":
+		return StyleFail
+	case "P2":
+		return StyleMedium
+	case "P3":
+		return StyleInfo
+	case "P4":
+		return StyleMuted
+	}
+	return StyleNone
+}
+
+// BandChips renders the four counts as filled labels.
+//
+// Filled, because that is how a band is drawn everywhere else and it does something a colored word
+// cannot: the count and the band read as one object rather than two words that happen to be
+// adjacent. A band with nothing in it stays on the row and says zero, so the shape of the ramp is
+// learnable from any run.
+func (p Painter) BandChips(counts [4]int) string {
+	labels := [4]string{"P1", "P2", "P3", "P4"}
+	parts := make([]string, 0, len(counts))
+	for i, n := range counts {
+		text := labels[i] + " " + strconv.Itoa(n)
+		if n == 0 {
+			parts = append(parts, p.Paint(StyleMuted, text))
+			continue
+		}
+		parts = append(parts, p.Chip(PriorityStyle(labels[i]), text))
+	}
+	// One space, because a filled chip carries its own.
+	return strings.Join(parts, " ")
+}

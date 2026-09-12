@@ -156,6 +156,7 @@ draugr:
     DRAUGR_SAGA: services/api/draugr.saga.yaml
     DRAUGR_VERSION: v0.90.0               # empty installs the latest release
     DRAUGR_FAIL_ON_NEW_PRIORITY: P2       # empty disables the differential gate
+    DRAUGR_DIFF_VIEW: actions             # the comment lists what to do, not every finding
     DRAUGR_GATE_DEFAULT_BRANCH: "false"   # keep the default branch green so the widgets populate
     DRAUGR_TOOLS: "false"                 # a runner image that already has the scanners
 ```
