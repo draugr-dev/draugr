@@ -1006,23 +1006,30 @@ func suppressedBy(names ...string) Data {
 func TestSuppressionLineNamesWhoAccepted(t *testing.T) {
 	// The name is the point of recording it. A count of unattributed says *that* there is a gap;
 	// it does not say who to ask about the rest, which is the question an auditor arrives with.
-	got := suppressionLine(suppressedBy("a.reviewer", "a.reviewer", "b.owner", ""))
-	want := "4 findings suppressed by config.exclude · 2 accepted by a.reviewer, 1 accepted by b.owner, 1 unattributed"
+	//
+	// Behind the fuller form, because that question is asked of the evidence. A scan somebody is
+	// reading to find out what to fix gets the count and the file to go and edit.
+	if got, want := suppressionLine(suppressedBy("a.reviewer", ""), false),
+		"config.exclude: 2 findings suppressed"; got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+	got := suppressionLine(suppressedBy("a.reviewer", "a.reviewer", "b.owner", ""), true)
+	want := "config.exclude: 4 findings suppressed · 2 accepted by a.reviewer, 1 accepted by b.owner, 1 unattributed"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
 func TestSuppressionLineWithNobodyNamed(t *testing.T) {
-	got := suppressionLine(suppressedBy("", ""))
-	want := "2 findings suppressed by config.exclude · 2 unattributed"
+	got := suppressionLine(suppressedBy("", ""), true)
+	want := "config.exclude: 2 findings suppressed · 2 unattributed"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
 func TestSuppressionLineIsAbsentWithNothingSuppressed(t *testing.T) {
-	if got := suppressionLine(Data{}); got != "" {
+	if got := suppressionLine(Data{}, true); got != "" {
 		t.Errorf("got %q, want empty", got)
 	}
 }
@@ -1030,9 +1037,9 @@ func TestSuppressionLineIsAbsentWithNothingSuppressed(t *testing.T) {
 func TestSuppressionLineOrdersAcceptorsStably(t *testing.T) {
 	// Map iteration would reorder this between runs, and a report offered as evidence should
 	// not differ from itself.
-	first := suppressionLine(suppressedBy("z.last", "a.first"))
+	first := suppressionLine(suppressedBy("z.last", "a.first"), true)
 	for range 5 {
-		if got := suppressionLine(suppressedBy("z.last", "a.first")); got != first {
+		if got := suppressionLine(suppressedBy("z.last", "a.first"), true); got != first {
 			t.Fatalf("unstable order:\n%s\n%s", first, got)
 		}
 	}
@@ -1042,52 +1049,30 @@ func TestSuppressionLineOrdersAcceptorsStably(t *testing.T) {
 }
 
 func TestExploitabilityLine(t *testing.T) {
+	// The feeds and their dates. What they did to this run is counted in the signals block, beside
+	// what every other signal did, so the two can be compared.
 	fetched := time.Date(2026, 8, 1, 9, 12, 0, 0, time.UTC)
-	cases := []struct {
-		name      string
-		feeds     []FeedProvenance
-		escalated int
-		want      string
+	for _, c := range []struct {
+		name  string
+		feeds []FeedProvenance
+		want  string
 	}{
-		{"none", nil, 0, ""},
-		{
-			// Dates alone say the feeds were consulted, not what they did. Without the effect the
-			// only way to find out is to read every finding and then doubt yourself.
-			"consulted and changed nothing",
-			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 0,
-			"Exploitability: KEV 2026-08-01 · nothing raised",
-		},
-		{
-			"one finding raised",
-			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 1,
-			"Exploitability: KEV 2026-08-01 · 1 finding raised",
-		},
-		{
-			"several raised",
-			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}}, 4,
-			"Exploitability: KEV 2026-08-01 · 4 findings raised",
-		},
-		{
-			// A file the operator supplied has no fetch date, and saying so is more accurate
-			// than inventing today's.
-			"a supplied file",
-			[]FeedProvenance{{Name: "kev"}}, 0,
-			"Exploitability: KEV (file) · nothing raised",
-		},
-		{
-			"stale is said out loud",
-			[]FeedProvenance{{Name: "epss", FetchedAt: fetched, Stale: true}}, 0,
-			"Exploitability: EPSS 2026-08-01, stale · nothing raised",
-		},
-		{
-			"both",
-			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}, {Name: "epss", FetchedAt: fetched}}, 2,
-			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01 · 2 findings raised",
-		},
-	}
-	for _, c := range cases {
+		{"nothing loaded says nothing", nil, ""},
+		{"a fetched copy carries its date",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}},
+			"Exploitability: KEV 2026-08-01"},
+		{"a file has no fetch to record",
+			[]FeedProvenance{{Name: "kev"}},
+			"Exploitability: KEV (file)"},
+		{"stale is said out loud",
+			[]FeedProvenance{{Name: "epss", FetchedAt: fetched, Stale: true}},
+			"Exploitability: EPSS 2026-08-01, stale"},
+		{"both",
+			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}, {Name: "epss", FetchedAt: fetched}},
+			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01"},
+	} {
 		t.Run(c.name, func(t *testing.T) {
-			if got := exploitabilityLine(c.feeds, c.escalated); got != c.want {
+			if got := exploitabilityLine(c.feeds); got != c.want {
 				t.Errorf("got %q, want %q", got, c.want)
 			}
 		})
@@ -1390,21 +1375,28 @@ func TestRepositoriesFromIgnoresProvenanceAboutSomethingElse(t *testing.T) {
 	}
 }
 
-func TestRepositoryLinesReadAsAClauseNotAnAlarm(t *testing.T) {
-	got := repositoryLines([]RepositoryProvenance{{URL: ".", Revision: "abc123def456"}})
-	if len(got) != 1 || got[0] != "Scanned: . at abc123de" {
+func TestRepositoryRowsReadAsAClauseNotAnAlarm(t *testing.T) {
+	// One row per repository, because this is the block that grows without bound: a component may
+	// hold several and a descriptor many components.
+	got := repositoryRows([]RepositoryProvenance{{URL: ".", Revision: "abc123def456"}})
+	if len(got) != 1 || got[0] != [2]string{".", "abc123de"} {
 		t.Errorf("got %q", got)
 	}
-	got = repositoryLines([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 7}})
-	if len(got) != 1 || got[0] != "Scanned: . at abc123de (7 uncommitted files not included)" {
+	// The host goes: every row carries the same one, and the path is what tells them apart.
+	got = repositoryRows([]RepositoryProvenance{{URL: "https://github.com/acme/api", Revision: "abc123def456"}})
+	if len(got) != 1 || got[0][0] != "acme/api" {
+		t.Errorf("got %q", got)
+	}
+	got = repositoryRows([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 7}})
+	if len(got) != 1 || got[0][1] != "abc123de · 7 uncommitted files not included" {
 		t.Errorf("got %q", got)
 	}
 	// One file is one file. A report that says "1 uncommitted files" was written by a program.
-	got = repositoryLines([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 1}})
-	if !strings.Contains(got[0], "1 uncommitted file ") {
+	got = repositoryRows([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 1}})
+	if !strings.Contains(got[0][1], "1 uncommitted file ") {
 		t.Errorf("got %q", got)
 	}
-	if repositoryLines(nil) != nil {
+	if len(repositoryRows(nil)) != 0 {
 		t.Error("a run that read no repository should say nothing")
 	}
 }
@@ -1425,27 +1417,20 @@ func TestPerControlProvenanceDropsTheRepositoryFields(t *testing.T) {
 	}
 }
 
-func TestRepositoryLineSaysWhenTheTreeIsNotReproducible(t *testing.T) {
-	// The committed line and the working-tree line describe opposite situations with the same
+func TestRepositoryRowSaysWhenTheTreeIsNotReproducible(t *testing.T) {
+	// The committed row and the working-tree row describe opposite situations with the same
 	// number: one counts what is missing, the other counts what is uniquely there.
-	working := repositoryLines([]RepositoryProvenance{{
+	working := repositoryRows([]RepositoryProvenance{{
 		URL: ".", Revision: "abc123def456", Uncommitted: 2, WorkingTree: true,
 	}})
-	if len(working) != 1 || working[0] != "Scanned: . working tree at abc123de+ (2 uncommitted files, not reproducible)" {
+	if len(working) != 1 || working[0][1] != "working tree abc123de+ · 2 uncommitted files, not reproducible" {
 		t.Errorf("got %q", working)
 	}
-	committed := repositoryLines([]RepositoryProvenance{{
+	committed := repositoryRows([]RepositoryProvenance{{
 		URL: ".", Revision: "abc123def456", Uncommitted: 2,
 	}})
-	if committed[0] != "Scanned: . at abc123de (2 uncommitted files not included)" {
+	if committed[0][1] != "abc123de · 2 uncommitted files not included" {
 		t.Errorf("got %q", committed)
-	}
-	// A clean working tree is the same bytes as its commit, so no "+" and nothing to warn about.
-	clean := repositoryLines([]RepositoryProvenance{{
-		URL: ".", Revision: "abc123def456", WorkingTree: true,
-	}})
-	if clean[0] != "Scanned: . working tree at abc123de" {
-		t.Errorf("got %q", clean)
 	}
 }
 
@@ -1676,7 +1661,7 @@ func TestTheThreeKindsOfAcceptanceStayApart(t *testing.T) {
 	// end of them. One total could only support the weakest.
 	d := Data{Run: engine.Result{Suppressed: 2, Imported: 1, Silenced: 4}}
 
-	suppressed, imported, silenced := suppressionLine(d), importedLine(d), silencedLine(d)
+	suppressed, imported, silenced := suppressionLine(d, false), importedLine(d, false), silencedLine(d)
 	for name, line := range map[string]string{
 		"suppressed": suppressed, "imported": imported, "silenced": silenced,
 	} {

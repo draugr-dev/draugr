@@ -5,6 +5,10 @@ DRAUGR  FAIL  acme-api 1.4.0
 CONTROLS
   sca  FAIL   2 high 1 medium
 
+SIGNALS
+  KEV   1 finding raised
+  EPSS  1 finding raised
+
 FIX FIRST  all 3, by priority
   Priority  Severity  Rule              Scanner  Location
   P1        critical  CVE-2024-3094     trivy    go.mod:12

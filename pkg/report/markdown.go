@@ -144,10 +144,12 @@ func writeScanErrors(w io.Writer, s summary) {
 // writeEvidenceNotes records what the run set aside and what it produced alongside the findings.
 // A suppression that leaves no trace reads exactly like a finding that was never made.
 func writeEvidenceNotes(w io.Writer, d Data, s summary) {
-	if line := suppressionLine(d); line != "" {
+	// Named in full here. A rendered report is read once and kept, often by somebody asking who
+	// decided, where the console is read while somebody is deciding what to fix.
+	if line := suppressionLine(d, true); line != "" {
 		_, _ = fmt.Fprintf(w, "**%s**\n\n", line)
 	}
-	if line := importedLine(d); line != "" {
+	if line := importedLine(d, true); line != "" {
 		_, _ = fmt.Fprintf(w, "**%s**\n\n", line)
 	}
 	if line := silencedLine(d); line != "" {

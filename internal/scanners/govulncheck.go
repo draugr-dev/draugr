@@ -186,16 +186,17 @@ func parseGovulncheck(out []byte, _ string, _ plugin.Config) (sarif.Report, erro
 		// it looked and found everything unreachable. The findings keep no verdict, which is the
 		// honest outcome, and the report says why there is none.
 		//
-		// "where it ran" rather than "this repository". A component scopes a repository by paths,
-		// so one repository is scanned as several trees, and a sentence about the repository sits
-		// beside a count of what the analyzer decided elsewhere in it and reads as a contradiction.
+		// Not a claim about the repository. A component scopes a repository by paths, so one
+		// repository is scanned as several trees, and this is about the tree it was given. The
+		// report prints it only where the analyzer decided nothing at all, so it never sits beside
+		// a count of what it decided somewhere else.
 		return sarif.Report{
 			Tool: govulncheckScanner,
 			Provenance: []sarif.Provenance{{
 				Tool: govulncheckScanner,
 				Fields: []sarif.Field{{
 					Key:   "coverage",
-					Value: "no go.mod where it ran, so those findings carry no verdict",
+					Value: "no go.mod found, so nothing here carries a verdict",
 				}},
 			}},
 		}, nil

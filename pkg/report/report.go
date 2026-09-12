@@ -530,10 +530,12 @@ type summary struct {
 	p1, p2, p3, p4 int
 	bands          map[string]sevCounts // per-control severity counts
 	findings       []finding            // sorted most-urgent first
-	// escalated is how many findings a feed moved up a band. Counted over every finding, not
-	// only the ones shown: --top and --min-priority narrow the listing, and "nothing raised"
-	// has to mean nothing in the run rather than nothing on this page.
-	escalated int
+	// bySignal is how many findings each dataset moved up a band, and floored how many a control's
+	// own rule raised. Counted over every finding, not only the ones shown: --top and
+	// --min-priority narrow the listing, and "nothing raised" has to mean nothing in the run
+	// rather than nothing on this page.
+	bySignal map[string]int
+	floored  int
 
 	// What the run could not do, and what it set aside. A report that omits these describes a thinner
 	// run rather than a broken one. And a reader cannot tell the difference, which is the reading that
@@ -615,7 +617,13 @@ func summarize(d Data) summary {
 			b.add(sev)
 			s.bands[name] = b
 			if res.Escalation != nil {
-				s.escalated++
+				if s.bySignal == nil {
+					s.bySignal = map[string]int{}
+				}
+				s.bySignal[res.Escalation.Signal]++
+			}
+			if res.PriorityFloor != "" {
+				s.floored++
 			}
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
@@ -873,22 +881,34 @@ func suppressionAttribution(d Data) (acceptors []string, counts map[string]int, 
 	return acceptors, counts, unattributed
 }
 
-// suppressionLine renders the one-line account of what was set aside and by whom.
-func suppressionLine(d Data) string {
+// suppressionLine renders the one-line account of what was set aside, and under `full` by whom.
+//
+// Named for where the decision lives rather than opening with a count, so the lines that report an
+// acceptance all begin with the thing a reader would go and edit, and read as one set.
+//
+// Who accepted it is behind `full`. A descriptor with thirty exclusions signed by eight people
+// prints eight names on one line every run, and the question they answer, who decided this was
+// acceptable, is asked of the evidence rather than of a scan somebody is reading to find out what
+// to fix. It stays in report.json and in the SARIF beside the result it justifies either way.
+func suppressionLine(d Data, full bool) string {
 	n := d.Run.Suppressed
 	if n == 0 {
 		return ""
 	}
-	line := fmt.Sprintf("%s suppressed by config.exclude", plural(n, "finding"))
+	line := fmt.Sprintf("config.exclude: %s suppressed", plural(n, "finding"))
+	if !full {
+		return line
+	}
 	// Only named when there is more than one, so a descriptor that is a single file reads exactly
 	// as it did before fragments existed. The breakdown answers a question that only arises once
 	// the exclusions live somewhere other than the file you opened.
 	if sources := suppressionSources(d); len(sources) > 1 {
 		var where []string
-		for _, s := range sources {
-			where = append(where, fmt.Sprintf("%d from %s", s.n, s.name))
+		for _, src := range sources {
+			where = append(where, fmt.Sprintf("%d from %s", src.n, src.name))
 		}
-		line = fmt.Sprintf("%s suppressed · %s", plural(n, "finding"), strings.Join(where, ", "))
+		line = fmt.Sprintf("config.exclude: %s suppressed · %s",
+			plural(n, "finding"), strings.Join(where, ", "))
 	}
 	acceptors, counts, unattributed := suppressionAttribution(d)
 
@@ -907,19 +927,21 @@ func suppressionLine(d Data) string {
 	return line
 }
 
-// importedLine renders the one-line account of what a supplier's own analysis excused.
+// importedLine renders the one-line account of what a supplier's own analysis excused, and under
+// `full` which supplier said so.
 //
-// Its own line rather than folded into the suppression count, because the two answer the
-// auditor's question differently. "We accepted this" and "our supplier states it does not apply"
-// are different sentences with different people at the end of them, and a total that merges them
-// can only support the weaker one.
-func importedLine(d Data) string {
+// The same shape as the exclusion line, for the same reason: three suppliers named on one line is
+// three names a reader scans past on every run, and it is the evidence they belong to.
+func importedLine(d Data, full bool) string {
 	n := d.Run.Imported
 	if n == 0 {
 		return ""
 	}
+	line := fmt.Sprintf("VEX: %s excused", plural(n, "finding"))
+	if !full {
+		return line
+	}
 	authors, counts := importedAttribution(d)
-	line := fmt.Sprintf("%s excused by a supplier's VEX", plural(n, "finding"))
 	var parts []string
 	for _, who := range authors {
 		parts = append(parts, fmt.Sprintf("%d asserted by %s", counts[who], who))
@@ -943,8 +965,9 @@ func silencedLine(d Data) string {
 	if n == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%s silenced in the source by a scanner directive · nobody signed these",
-		plural(n, "finding"))
+	// Named for where it lives, like the others, and keeping what makes it the weakest of the
+	// three: a directive in the code is an acceptance with no author and no date.
+	return fmt.Sprintf("source directives: %s silenced, and nobody signed them", plural(n, "finding"))
 }
 
 // alsoFoundBy is what the other scanners said about this same flaw.
@@ -1012,21 +1035,24 @@ func reachabilityBlock(d Data) (rows []string, notes []string) {
 		}
 	}
 	for _, a := range r.Analyzers {
+		// An analyzer that decided nothing has one thing to say, and it is not a pair of zeros.
+		// The counts are the answer where there is one; where there is none, why there is none is
+		// the answer, and printing both put a sentence about finding no module beside a count of
+		// what was decided, which reads as the report contradicting itself.
+		if a.Reachable+a.Unreachable+a.Unknown == 0 {
+			said := analyzerCoverage(d, a.Analyzer)
+			if said == "" {
+				said = "nothing it could analyze"
+			}
+			rows = append(rows, fmt.Sprintf("%-*s  %s", width, a.Analyzer, said))
+			continue
+		}
 		row := fmt.Sprintf("%-*s  %d reachable, %d unreachable", width, a.Analyzer, a.Reachable, a.Unreachable)
 		if a.Unknown > 0 {
 			row += fmt.Sprintf(", %d unknown", a.Unknown)
 		}
 		if a.Contributed > 0 {
 			row += fmt.Sprintf(" (%s only it reported)", plural(a.Contributed, "finding"))
-		}
-		// What the analyzer itself said about how far it got, beside its own counts.
-		//
-		// It was in the block naming what each control was measured against, which is where a
-		// benchmark and a policy belong. An analyzer's account of where it could not look sat
-		// there beside a count of what it decided here, and the two read as contradicting each
-		// other while both were true.
-		if said := analyzerCoverage(d, a.Analyzer); said != "" {
-			row += " · " + said
 		}
 		rows = append(rows, row)
 	}

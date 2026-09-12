@@ -25,7 +25,7 @@ func TestDescriptorLine(t *testing.T) {
 				Digest:  "sha256:aabbccddeeff00112233",
 				Sources: []skald.DescriptorSource{{Path: "draugr.saga.yaml", Root: true}},
 			},
-			"Descriptor: draugr.saga.yaml · aabbccddeeff",
+			"Descriptor: draugr.saga.yaml · merged digest aabbccddeeff",
 		},
 		"with fragments": {
 			&skald.DescriptorRef{
@@ -36,7 +36,7 @@ func TestDescriptorLine(t *testing.T) {
 					{Path: "b.saga-fragment.yaml"},
 				},
 			},
-			"Descriptor: draugr.saga.yaml + 2 fragments · aabbccddeeff",
+			"Descriptor: draugr.saga.yaml + 2 fragments · merged digest aabbccddeeff",
 		},
 		"root is not first": {
 			&skald.DescriptorRef{

@@ -105,6 +105,10 @@ func TestConsoleReportsSBOMsWithoutMakingThemAControl(t *testing.T) {
 		}},
 		Verdict: norn.Result{Verdict: norn.Pass},
 	}
+	// What the run wrote is part of what it did, which is what --evidence answers. Draugr writes a
+	// report and a SARIF file without announcing either, and an inventory naming itself beside the
+	// findings read as the important one rather than the one that happened to have a line.
+	d.Evidence = true
 	var buf bytes.Buffer
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatalf("Render: %v", err)
@@ -112,6 +116,14 @@ func TestConsoleReportsSBOMsWithoutMakingThemAControl(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "SBOM: 2 documents (spdx-json)") {
 		t.Errorf("want the SBOM summary line:\n%s", out)
+	}
+	var plain bytes.Buffer
+	d.Evidence = false
+	if err := (consoleReporter{}).Render(&plain, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if strings.Contains(plain.String(), "SBOM") {
+		t.Errorf("the default view should not name what the run wrote:\n%s", plain.String())
 	}
 	// It must not appear in the Controls table: every row there means "checked, and here is the
 	// verdict", and an inventory has no verdict to give.
@@ -123,12 +135,13 @@ func TestConsoleReportsSBOMsWithoutMakingThemAControl(t *testing.T) {
 }
 
 func TestConsoleReportsSBOMsOnACleanRun(t *testing.T) {
-	// The early return for "no findings" must not swallow the evidence line, a clean scan still
+	// The early return for "no findings" must not swallow the evidence, a clean scan still
 	// produced the inventory.
 	d := Data{
-		Release: saga.Release{Version: "1"},
-		Run:     engine.Result{SBOMs: []sbom.Document{{Component: "web", Target: "r", Format: saga.SBOMSPDXJSON}}},
-		Verdict: norn.Result{Verdict: norn.Pass},
+		Release:  saga.Release{Version: "1"},
+		Evidence: true,
+		Run:      engine.Result{SBOMs: []sbom.Document{{Component: "web", Target: "r", Format: saga.SBOMSPDXJSON}}},
+		Verdict:  norn.Result{Verdict: norn.Pass},
 	}
 	var buf bytes.Buffer
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
@@ -206,8 +219,10 @@ func TestConsoleReportsSuppressionsAndKeepsThemOutOfFixFirst(t *testing.T) {
 		t.Fatalf("Render: %v", err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "1 finding suppressed by config.exclude") {
-		t.Errorf("want the suppression count:\n%s", out)
+	for _, want := range []string{"ACCEPTED", "config.exclude", "1 finding suppressed"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("want %q in the accepted block:\n%s", want, out)
+		}
 	}
 	if strings.Contains(out, "private-key") {
 		t.Errorf("a suppressed finding must not appear in the fix-first list:\n%s", out)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -66,6 +67,38 @@ func TestReachabilityBlockSilentWhenNothingRan(t *testing.T) {
 	rows, notes := reachabilityBlock(Data{Run: engine.Result{}})
 	if rows != nil || notes != nil {
 		t.Errorf("rows=%v notes=%v, want nothing when no analyzer ran", rows, notes)
+	}
+}
+
+// An analyzer that decided nothing has one thing to say, and it is not a pair of zeros. Printing
+// both put a sentence about finding no module beside a count of what was decided.
+func TestAnAnalyzerThatDecidedNothingSaysWhyInstead(t *testing.T) {
+	d := Data{Run: engine.Result{
+		Reachability: engine.ReachabilitySummary{
+			Analyzers: []engine.AnalyzerReachability{{Analyzer: "govulncheck"}},
+		},
+		Controls: map[string]plugin.ControlResult{"sca": {Report: sarif.Report{
+			Provenance: []sarif.Provenance{{Tool: "govulncheck", Fields: []sarif.Field{
+				{Key: "coverage", Value: "no go.mod found, so nothing here carries a verdict"},
+			}}},
+		}}},
+	}}
+	rows, _ := reachabilityBlock(d)
+	if len(rows) != 1 || !strings.Contains(rows[0], "no go.mod found") {
+		t.Fatalf("rows = %q, want the reason in place of the counts", rows)
+	}
+	if strings.Contains(rows[0], "0 reachable") {
+		t.Errorf("row = %q, a pair of zeros says nothing", rows[0])
+	}
+
+	// And where it decided something, the counts stand alone: a reader does not need to hear that
+	// some other tree had no module.
+	d.Run.Reachability.Analyzers = []engine.AnalyzerReachability{
+		{Analyzer: "govulncheck", Reachable: 2, Unreachable: 2},
+	}
+	rows, _ = reachabilityBlock(d)
+	if len(rows) != 1 || rows[0] != "govulncheck  2 reachable, 2 unreachable" {
+		t.Errorf("row = %q, want the counts and nothing else", rows)
 	}
 }
 

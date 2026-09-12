@@ -1697,7 +1697,20 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 			verdicts[key] = strongerReachability(verdicts[key], res.Reachability)
 		}
 	}
-	if len(verdicts) == 0 {
+	// An analyzer that ran and decided nothing still ran, and a block that omits it is
+	// indistinguishable from a descriptor that never enabled one. It stamps its own provenance
+	// whatever it found, so that is what says it was here.
+	for _, cr := range controls {
+		for _, p := range cr.Report.Provenance {
+			if sc, ok := e.reg.Scanner(p.Tool); !ok || !sc.Info().Reachability {
+				continue
+			}
+			if _, ok := analyzers[p.Tool]; !ok {
+				analyzers[p.Tool] = &AnalyzerReachability{Analyzer: p.Tool}
+			}
+		}
+	}
+	if len(verdicts) == 0 && len(analyzers) == 0 {
 		return ReachabilitySummary{}
 	}
 

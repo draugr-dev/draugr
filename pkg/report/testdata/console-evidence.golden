@@ -29,17 +29,19 @@ MEASURED AGAINST
   licenses  trivy-license 0.69.3 · policy: deny copyleft
 
 COMPONENTS
-  payments       FAIL   P1 3  P2 2  P3 1  sca, secrets
+  payments       FAIL   P1 3 P2 2 P3 1
   internal-tool  pass   no findings
   2 findings not tied to a component (project-wide controls)
 
-2 findings suppressed by config.exclude · 1 accepted by a.reviewer, 1 unattributed
+ACCEPTED
+  config.exclude  2 findings suppressed · 1 accepted by a.reviewer, 1 unattributed
 
-Ran 11 jobs in 34.5s · 4 from cache, 1 shared with an identical job.
+EVIDENCE
+  Ran 11 jobs in 34.5s, 8 at a time · 4 from cache.
 
-Gate: fails on P1.
+  SBOM: 2 documents (spdx-json)
 
-SBOM: 2 documents (spdx-json)
+  Gate: fails on P1.
 
 TRY
   --top 0                every one of them, not the first ten

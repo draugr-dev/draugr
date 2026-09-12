@@ -76,7 +76,7 @@ func TestParseGovulncheckSaysWhenThereWasNothingToAnalyze(t *testing.T) {
 		t.Fatalf("provenance = %+v, want one statement about coverage", report.Provenance)
 	}
 	if !strings.Contains(report.Provenance[0].Fields[0].Value, "no go.mod") ||
-		!strings.Contains(report.Provenance[0].Fields[0].Value, "no verdict") {
+		!strings.Contains(report.Provenance[0].Fields[0].Value, "carries a verdict") {
 		t.Errorf("provenance = %q, want it to say why nothing was analyzed", report.Provenance[0].Fields[0].Value)
 	}
 }
