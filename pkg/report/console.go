@@ -1001,13 +1001,32 @@ func componentBands(col tui.Painter, p [4]int) string {
 // excludeSummary describes an exclusion by what it selects, so a reader can find it in the Saga.
 func excludeSummary(e saga.ExcludeRule) string {
 	var parts []string
-	if len(e.Rules) > 0 {
-		parts = append(parts, "rules "+strings.Join(e.Rules, ", "))
-	}
-	if len(e.Paths) > 0 {
-		parts = append(parts, "paths "+strings.Join(e.Paths, ", "))
+	for _, m := range excludeMatchers(e) {
+		parts = append(parts, m.Key+" "+m.Value)
 	}
 	return strings.Join(parts, "; ") + " · " + findingSummary(e.Reason)
+}
+
+// matcher is one thing an exclusion matches on: the descriptor field, and what was written in it.
+//
+// A pair rather than a sentence, because the two are different kinds of thing and a surface that
+// can tell them apart should. `paths tests*` sets a field name and a glob in one typeface, where a
+// reader deciding whether the pattern is right has to work out which half is ours.
+type matcher struct{ Key, Value string }
+
+// excludeMatchers is what a rule matches on, keyed by the descriptor field it was written in.
+//
+// Rules before paths, the order the matching is evaluated in, so a rule carrying both reads in the
+// order it applies.
+func excludeMatchers(e saga.ExcludeRule) []matcher {
+	var out []matcher
+	if len(e.Rules) > 0 {
+		out = append(out, matcher{"rules", strings.Join(e.Rules, ", ")})
+	}
+	if len(e.Paths) > 0 {
+		out = append(out, matcher{"paths", strings.Join(e.Paths, ", ")})
+	}
+	return out
 }
 
 // controlCounts is what a control accounts for, in bands.

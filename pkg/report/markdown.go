@@ -232,7 +232,14 @@ func writeEvidenceNotes(w io.Writer, d Data, s summary) {
 	// so nothing else here would say the line was dead.
 	var unmatched []row
 	for _, e := range d.Run.UnmatchedExclusions {
-		unmatched = append(unmatched, row{"`config.exclude`", excludeSummary(e)})
+		// The field and the pattern set apart, the way the page does it. A pattern in code is
+		// something a reader compares against their tree; the field name beside it is ours.
+		var parts []string
+		for _, m := range excludeMatchers(e) {
+			parts = append(parts, m.Key+" `"+m.Value+"`")
+		}
+		unmatched = append(unmatched, row{"`config.exclude`",
+			strings.Join(parts, "; ") + " · " + findingSummary(e.Reason)})
 	}
 	for _, c := range d.Run.UnmatchedClaims {
 		unmatched = append(unmatched, row{"VEX", claimSummary(c)})

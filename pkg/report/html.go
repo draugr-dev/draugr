@@ -133,7 +133,15 @@ type htmlDecision struct {
 }
 
 // htmlUnmatched is a rule that suppressed nothing, named by what a reader would go and edit.
-type htmlUnmatched struct{ Source, Rule string }
+//
+// The matchers stay a list of pairs rather than one sentence: the descriptor field and the pattern
+// written in it are different kinds of thing, and a reader deciding whether the pattern is right
+// should not have to work out which half is ours.
+type htmlUnmatched struct {
+	Source   string
+	Matchers []matcher
+	Reason   string
+}
 
 type htmlFinding struct {
 	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Component, Location, Message string
@@ -239,12 +247,20 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		})
 	}
 	for _, e := range d.Run.UnmatchedExclusions {
-		view.Unmatched = append(view.Unmatched, htmlUnmatched{Source: "config.exclude", Rule: excludeSummary(e)})
+		view.Unmatched = append(view.Unmatched, htmlUnmatched{
+			Source: "config.exclude", Matchers: excludeMatchers(e), Reason: findingSummary(e.Reason),
+		})
 	}
 	for _, c := range d.Run.UnmatchedClaims {
-		view.Unmatched = append(view.Unmatched, htmlUnmatched{Source: "VEX", Rule: claimSummary(c)})
+		// A claim has no field to name: the vulnerability and the package are both values, and the
+		// pair is what did not line up.
+		view.Unmatched = append(view.Unmatched, htmlUnmatched{
+			Source: "VEX", Matchers: []matcher{{Key: "statement", Value: claimSummary(c)}},
+		})
 	}
-	view.Gate = gateSentence(d)
+	// Without its own prefix: the row it sits in is labeled `gate`, and a value that names itself
+	// again says the same word twice.
+	view.Gate = strings.TrimPrefix(gateSentence(d), "Gate: ")
 	view.Priorities = ourVocabulary([]string{"P1", "P2", "P3", "P4"}, prio)
 	view.Severities = ourVocabulary([]string{"critical", "high", "medium", "low"}, sev)
 	view.ControlNames = theirVocabulary(ctl)
@@ -779,6 +795,48 @@ const htmlDoc = `<!doctype html>
   .moved { color: var(--muted); font-size: .74rem; white-space: nowrap; }
   /* A date is one token. Wrapped across two lines it reads as two values. */
   .when { white-space: nowrap; }
+
+  /* The descriptor field a rule was written in, beside what was written in it. Set apart because
+   * they are different kinds of thing: one is our vocabulary and the other is theirs, and one
+   * typeface for both leaves a reader working out which half to check. */
+  .mk { color: var(--faint); font-size: .78rem; }
+  .why { color: var(--muted); }
+  .why::before { content: "· "; color: var(--faint); }
+
+  /* Sections fold. Native disclosure rather than script, so a report opened from a file, an email
+   * attachment or a viewer that strips scripts folds exactly the same way, and the keyboard and
+   * screen-reader behavior is the browser's rather than ours to reimplement.
+   *
+   * Open on arrival, every one of them. A report is read once and kept; a section closed before
+   * anybody asked is one a reader has to know to look for, and the fold is for putting away what
+   * you have read rather than for deciding what somebody sees first. */
+  .fold { margin: 0 0 1.4rem; }
+  .fold > summary {
+    cursor: pointer; list-style: none; display: flex; align-items: center; gap: .5rem;
+    margin: 1.6rem 0 .7rem; border-radius: 4px;
+  }
+  .fold > summary::-webkit-details-marker { display: none; }
+  /* The marker turns rather than swaps, so the control says which way the section will move. */
+  .fold > summary::before {
+    content: ""; flex: none; width: 0; height: 0; border-style: solid;
+    border-width: .3rem 0 .3rem .42rem; border-color: transparent transparent transparent var(--faint);
+    transition: transform .12s ease;
+  }
+  .fold[open] > summary::before { transform: rotate(90deg); }
+  @media (prefers-reduced-motion: reduce) { .fold > summary::before { transition: none; } }
+  .fold > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .fold > summary .sec {
+    font-size: 1.02rem; font-weight: 600; color: var(--text); letter-spacing: -.01em;
+  }
+  .fold.sub { margin: 0 0 1rem; }
+  .fold.sub > summary { margin: 1.1rem 0 .5rem; }
+
+  /* Printed reports carry everything. A folded section is a reading convenience and must not
+   * decide what reaches an auditor's copy. */
+  @media print {
+    .fold > summary::before { display: none; }
+    .fold > summary { cursor: default; }
+  }
   /* The release that ends a finding wears the color a passing verdict wears, which is what the
    * console and the dashboard both do with this fact. */
   .upg { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .78rem; white-space: nowrap; }
@@ -962,8 +1020,8 @@ const htmlDoc = `<!doctype html>
   {{if .Controls}}<a class="tab" href="#controls">Controls</a>{{end}}
   {{if .Errors}}<a class="tab err" href="#errors">Errors</a>{{end}}
   <a class="tab" href="#findings-h">Findings</a>
-  {{if .Decisions}}<a class="tab" href="#suppressed">Accepted</a>{{end}}
-  {{if .Slowest}}<a class="tab" href="#timing">Timing</a>{{end}}
+  {{if or .Suppressed .Decisions .Unmatched .Excluded}}<a class="tab" href="#suppressed">Accepted</a>{{end}}
+  {{if or .Gate .SBOMCount .Slowest}}<a class="tab" href="#timing">Evidence</a>{{end}}
   <a class="tab" href="#about">About</a>
   <span class="spacer"></span>
   <span class="themes" id="themes" hidden role="group" aria-label="Color theme">
@@ -991,19 +1049,20 @@ const htmlDoc = `<!doctype html>
 {{if .Prioritized}}
 <p class="note">Priority combines how severe a finding is with how exposed and how business-critical
 the component is, so the same issue ranks differently on a public API than on an internal tool.
-<strong>P1</strong> is act now, <strong>P4</strong> is track it. Counts cover the whole run.</p>
+<strong>P1</strong> is act now, <strong>P4</strong> is track it.</p>
 {{end}}
 
 {{if .Signals}}
-<h2 id="signals">Signals</h2>
-<p class="note">What argued with this run's ranking, and how many findings each one moved. Counted over the whole run rather than over the list below, which any filter narrows.</p>
+<details class="fold" open><summary id="signals"><span class="sec">Signals</span></summary>
+<p class="note">What argued with this run's ranking, and how many findings each one moved.</p>
 <table class="provenance">
 <thead><tr><th scope="col">Signal</th><th scope="col">Effect</th></tr></thead>
 {{range .Signals}}<tr><td><code>{{.Name}}</code></td><td>{{.Effect}}</td></tr>{{end}}
 </table>
+</details>
 {{end}}
 {{if .Controls}}
-<h2 id="controls">Controls</h2>
+<details class="fold" open><summary id="controls"><span class="sec">Controls</span></summary>
 <ul class="controls">
 {{range .Controls}}<li class="ctl{{if .Errored}} bad{{end}}">
   <span class="ctl-name">{{.Control}}</span>
@@ -1024,16 +1083,17 @@ the component is, so the same issue ranks differently on a public API than on an
 </li>{{end}}
 </ul>
 {{if .Exploitability}}
-<h3 class="sub">Exploitability data</h3>
+<details class="fold sub" open><summary class="sub"><span class="sub">Exploitability data</span></summary>
 <table class="provenance">
 <thead><tr><th scope="col">Feed</th><th scope="col">Obtained</th><th scope="col">Digest</th></tr></thead>
 <tbody>
 {{range .Exploitability}}<tr><td>{{.Name}}</td><td>{{.Obtained}}</td><td>{{.Digest}}</td></tr>{{end}}
 </tbody>
 </table>
+</details>
 {{end}}
 {{if .Scanned}}
-<h3 class="sub">Scanned</h3>
+<details class="fold sub" open><summary class="sub"><span class="sub">Scanned</span></summary>
 <table class="provenance">
 <thead><tr><th scope="col">Repository</th><th scope="col">Revision</th><th scope="col">Not included</th></tr></thead>
 <tbody>
@@ -1044,34 +1104,33 @@ the component is, so the same issue ranks differently on a public API than on an
 </tr>{{end}}
 </tbody>
 </table>
+</details>
 {{end}}
 {{if .Provenance}}
-<h3 class="sub">Measured against</h3>
+<details class="fold sub" open><summary class="sub"><span class="sub">Measured against</span></summary>
 <table class="provenance">
 <thead><tr><th scope="col">Control</th><th scope="col">Scanner</th><th scope="col">Run</th></tr></thead>
 <tbody>
 {{range .Provenance}}<tr><td>{{.Control}}</td><td>{{.Label}}</td><td>{{.Detail}}</td></tr>{{end}}
 </tbody>
 </table>
+</details>
 {{end}}
+</details>
 {{end}}
 
 {{if .Errors}}
 <h3 id="errors" class="err">Controls that could not run</h3>
 <p class="note">These checks were requested and did not complete, so this report says nothing
-about what they would have found. For everything the tool printed, re-run with the
-<code class="cmd">--log-level trace</code> flag:</p>
+about what they would have found. For everything the tool printed, re-run with
+<code class="cmd">--log-level trace</code>.</p>
 <pre class="cmd">draugr scan &lt;saga.yaml&gt; --log-level trace</pre>
 <ul class="errors">
 {{range .Errors}}<li><strong>{{.Control}}</strong> · {{.Message}}</li>{{end}}
 </ul>
 {{end}}
 
-{{if .Suppressed}}<p class="note">{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code> · reported, not deleted; each carries the reason it was set aside.</p>{{end}}
-{{if .Gate}}<p class="note">{{.Gate}}.</p>{{end}}
-{{if .SBOMCount}}<p class="note">SBOM: {{.SBOMCount}} document(s) ({{.SBOMFormat}}).</p>{{end}}
-
-<h2 id="findings-h">Findings{{if .MinPriority}} · {{.MinPriority}} and above{{end}}</h2>
+<details class="fold" open><summary id="findings-h"><span class="sec">Findings{{if .MinPriority}} · {{.MinPriority}} and above{{end}}</span></summary>
 
 {{if .Actions}}
 <div class="views" id="views" hidden>
@@ -1081,8 +1140,7 @@ about what they would have found. For everything the tool printed, re-run with t
 
 <section id="work">
   <h3 class="sub js-off">What to do</h3>
-  <p class="note">One row per thing to do rather than per finding: eight advisories in one library
-  are one upgrade. Always the whole run, so these agree with the counts at the top of the page.</p>
+  <p class="note">One row per thing to do rather than per finding.</p>
   <ul class="actions">
   {{range .Actions}}<li class="act">
     <span class="pri {{.Priority}}">{{.Priority}}</span>
@@ -1091,15 +1149,14 @@ about what they would have found. For everything the tool printed, re-run with t
     {{if .Where}}<span class="act-where">{{.Where}}</span>{{end}}
   </li>{{end}}
   </ul>
-  {{if .External}}<p class="note">{{.External}} finding(s) belong to somebody else to fix, and are
-  in the list beside this one rather than here: work a reader cannot do, at the top of a list of
-  what to do, teaches them the list is not worth reading.</p>{{end}}
+  {{if .External}}<p class="note">{{.External}} finding(s) are somebody else's to fix, so they are
+  reported rather than listed as work.</p>{{end}}
 </section>
 {{end}}
 
 <section id="all">
 <h3 class="sub js-off">All findings</h3>
-{{if .MinPriority}}<p class="note">The counts above describe the whole run{{if .Hidden}}; {{.Hidden}} lower-priority finding(s) are not listed{{end}}.</p>{{end}}
+{{if .MinPriority}}<p class="note">{{if .Hidden}}{{.Hidden}} lower-priority finding(s) are not listed, and the counts still describe the whole run{{else}}The counts describe the whole run{{end}}.</p>{{end}}
 
 <p class="dl">
   {{if .SARIFHref}}<a href="{{.SARIFHref}}" download="results.sarif">⬇ SARIF</a>{{end}}
@@ -1165,12 +1222,14 @@ about what they would have found. For everything the tool printed, re-run with t
 {{else}}
 <p>No findings. ✓</p>
 {{end}}
+</details>
 </section>
 
+{{if or .Suppressed .Decisions .Unmatched .Excluded}}
+<details class="fold" open><summary id="suppressed"><span class="sec">Accepted</span></summary>
+<p class="note">{{if .Suppressed}}{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code>.{{else}}Suppressed by <code class="cmd">config.exclude</code>.{{end}}</p>
 {{if .Decisions}}
-<h2 id="suppressed">Accepted</h2>
-<p class="note">Set aside by <code class="cmd">config.exclude</code>. Reported rather than deleted, so the decision is visible and reviewable.</p>
-<h3 class="sub">Decisions</h3>
+<details class="fold sub" open><summary class="sub"><span class="sub">Decisions</span></summary>
 <table class="provenance">
 <thead><tr><th scope="col" class="num">Findings</th><th scope="col">Accepted by</th><th scope="col">Expires</th><th scope="col">Reason</th></tr></thead>
 {{range .Decisions}}<tr>
@@ -1180,19 +1239,24 @@ about what they would have found. For everything the tool printed, re-run with t
   <td>{{.Reason}}</td>
 </tr>{{end}}
 </table>
+</details>
 {{end}}
 
 {{if .Unmatched}}
-<h3 class="sub">Unmatched</h3>
-<p class="note">These rules suppressed nothing. A rule that matches nothing claims a decision it is not making, and reads exactly like one that is working.</p>
+<details class="fold sub" open><summary class="sub"><span class="sub">Unmatched</span></summary>
+<p class="note">These rules suppressed nothing.</p>
 <table class="provenance">
 <thead><tr><th scope="col">Source</th><th scope="col">Rule</th></tr></thead>
-{{range .Unmatched}}<tr><td><code>{{.Source}}</code></td><td>{{.Rule}}</td></tr>{{end}}
+{{range .Unmatched}}<tr>
+  <td><code>{{.Source}}</code></td>
+  <td>{{range .Matchers}}<span class="mk">{{.Key}}</span> <code>{{.Value}}</code> {{end}}{{if .Reason}}<span class="why">{{.Reason}}</span>{{end}}</td>
+</tr>{{end}}
 </table>
+</details>
 {{end}}
 
 {{if .Excluded}}
-<h3 class="sub">What was set aside</h3>
+<details class="fold sub" open><summary class="sub"><span class="sub">What was set aside</span></summary>
 <table>
 <thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Component</th><th scope="col">Location</th></tr></thead>
 {{range .Excluded}}<tbody>
@@ -1206,14 +1270,29 @@ about what they would have found. For everything the tool printed, re-run with t
 <tr class="msg"><td colspan="5">{{.Message}}<br><span class="just">Reason: {{.Justification}}</span></td></tr>
 </tbody>{{end}}
 </table>
+</details>
+{{end}}
+</details>
+{{end}}
+
+{{if or .Gate .SBOMCount .Slowest}}
+<details class="fold" open><summary id="timing"><span class="sec">Evidence</span></summary>
+<p class="note">What stands behind the verdict rather than what it found.</p>
+
+{{if or .Gate .SBOMCount}}
+<table class="provenance">
+<tbody>
+{{if .Gate}}<tr><td><span class="mk">gate</span></td><td>{{.Gate}}</td></tr>{{end}}
+{{if .SBOMCount}}<tr><td><span class="mk">sbom</span></td><td>{{.SBOMCount}} document(s) ({{.SBOMFormat}})</td></tr>{{end}}
+</tbody>
+</table>
 {{end}}
 
 {{if .Slowest}}
-<h2 id="timing">Where the time went</h2>
-<p class="note">Time spent per control, worst first. Controls run in parallel, so these sum to
-more than the elapsed time, because the shares are of the total work rather than of the wall clock.</p>
+<details class="fold sub" open><summary class="sub"><span class="sub">Where the time went</span></summary>
+<p class="note">Time spent per control, worst first.</p>
 <table>
-<thead><tr><th scope="col">Control</th><th scope="col" class="num">Time</th><th scope="col">Share</th></tr></thead>
+<thead><tr><th scope="col">Control</th><th scope="col" class="num">Time</th><th scope="col">Share of scanner time</th></tr></thead>
 <tbody>
 {{range .Slowest}}<tr>
   <td>{{.Control}}</td>
@@ -1222,6 +1301,9 @@ more than the elapsed time, because the shares are of the total work rather than
 </tr>{{end}}
 </tbody>
 </table>
+</details>
+{{end}}
+</details>
 {{end}}
 
 <footer id="about">
@@ -1234,6 +1316,23 @@ more than the elapsed time, because the shares are of the total work rather than
 // client or artifact viewer that strips them, sees the full table rather than dead controls that
 // do nothing.
 (function () {
+  // A folded section still prints. A browser does not render a closed disclosure's content, so a
+  // reader who put a section away and then printed would hand somebody a report missing it, which
+  // is the one thing a fold must never decide. Reopened before the dialog and restored after, so
+  // the screen looks the way they left it.
+  var reopened = [];
+  window.addEventListener("beforeprint", function () {
+    reopened = [];
+    document.querySelectorAll("details:not([open])").forEach(function (el) {
+      reopened.push(el);
+      el.open = true;
+    });
+  });
+  window.addEventListener("afterprint", function () {
+    reopened.forEach(function (el) { el.open = false; });
+    reopened = [];
+  });
+
   // The theme chooser, first and on its own: it is the one control that is worth having even when
   // there is nothing to filter, and a report with no findings still gets printed.
   var themeBox = document.getElementById("themes");
