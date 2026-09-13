@@ -511,16 +511,22 @@ func TestTheCommentSaysWhenNothingChanged(t *testing.T) {
 	}
 }
 
-// Everything that changed is somebody else's problem to fix or nobody's: a diff of fixes alone has
-// no work in it, and an actions listing has to say so rather than drawing an empty table.
+// A diff of fixes alone has no work in it, and an actions listing has to say so rather than
+// heading a blank space with a count of zero.
 func TestAnActionsListingWithNoWorkSaysSo(t *testing.T) {
 	r := Result{Fixed: []sarif.Result{{RuleID: "CVE-1", Level: sarif.LevelError, Priority: "P1"}}}
-	var b strings.Builder
-	if err := Render(&b, "markdown", r, Options{View: ViewActions}); err != nil {
-		t.Fatal(err)
-	}
-	if got := b.String(); !strings.Contains(got, "none of it needs anybody") {
-		t.Errorf("an empty work list should say why it is empty:\n%s", got)
+	for _, format := range []string{"console", "markdown"} {
+		var b strings.Builder
+		if err := Render(&b, format, r, Options{View: ViewActions}); err != nil {
+			t.Fatal(err)
+		}
+		got := b.String()
+		if !strings.Contains(got, "none of it needs anybody") {
+			t.Errorf("%s: an empty work list should say why it is empty:\n%s", format, got)
+		}
+		if strings.Contains(got, "0 actions") {
+			t.Errorf("%s: a heading of zeros is not how to say nothing:\n%s", format, got)
+		}
 	}
 }
 
@@ -535,5 +541,30 @@ func TestViewsAreTheOnesTheFlagNames(t *testing.T) {
 		if got[i] != string(v) {
 			t.Errorf("Views()[%d] = %q, want %q, sorted", i, got[i], v)
 		}
+	}
+}
+
+// A fixed row draws no target, so a prefix assembled from what the row shows misses the one the
+// scanner wrote, and the sentence repeats a version the column beside it has already stated.
+func TestAFixedRowDoesNotRepeatItsVersionInTheSentence(t *testing.T) {
+	pkg := &sarif.Package{Name: "Jinja2", Version: "2.10", FixedVersion: "2.10.1"}
+	fixed := Entry{Change: ChangeFixed, Result: sarif.Result{
+		Message: "Jinja2 2.10 → 2.10.1: str.format_map allows sandbox escape", Package: pkg,
+	}}
+	if got := findingTitle(fixed); got != "str.format_map allows sandbox escape" {
+		t.Errorf("findingTitle = %q, want the sentence alone", got)
+	}
+	// And the live case it already handled, so the fix did not trade one for the other.
+	introduced := Entry{Change: ChangeNew, Result: fixed.Result}
+	if got := findingTitle(introduced); got != "str.format_map allows sandbox escape" {
+		t.Errorf("findingTitle = %q, want the sentence alone", got)
+	}
+	// A sentence carrying a colon of its own keeps all of itself, because the message does not
+	// open with this package.
+	other := Entry{Change: ChangeNew, Result: sarif.Result{
+		Message: "golang: out-of-bounds read leads to DoS", Package: pkg,
+	}}
+	if got := findingTitle(other); got != "golang: out-of-bounds read leads to DoS" {
+		t.Errorf("findingTitle = %q, want the message untouched", got)
 	}
 }
