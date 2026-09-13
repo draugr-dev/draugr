@@ -42,3 +42,12 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 
 - Integration mode: **exec** (separate process); Trivy must be on `PATH`.
 - Trivy pulls the image itself, no local checkout needed.
+
+## Data
+
+The **vulnerability database**, from `mirror.gcr.io` and `ghcr.io`, which are Trivy's own
+defaults in that order. Draugr warms it once before the jobs fan out, and passes
+`--skip-db-update` when `--offline` is set so an offline run reads the local copy rather than
+reaching out once per job.
+
+`config.controls.images.trivy.dbRepository` replaces both with an internal mirror.

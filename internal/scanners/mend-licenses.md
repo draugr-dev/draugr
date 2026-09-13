@@ -79,3 +79,8 @@ Identical to [`mend-sca`](mend-sca.md), because it is the same upload: the resol
 inventory, names, versions, ecosystems, checksums, and the absolute paths on the scanning machine
 where they were found. See that document for Mend's published position on source code, and for
 what their privacy notice does and does not address.
+
+## Data
+
+Nothing fetched ahead of a scan. Mend is an API this scanner calls per target, so the traffic
+is about the target rather than a database to warm, and it is declared as an effect instead.

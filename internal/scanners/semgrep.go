@@ -1,7 +1,10 @@
 package scanners
 
 import (
+	"context"
 	"encoding/json"
+
+	"github.com/draugr-dev/draugr/internal/toolexec"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
@@ -29,6 +32,7 @@ func NewSemgrep() plugin.Scanner {
 		plugin.ScannerInfo{
 			Name:         "semgrep",
 			Origin:       "semgrep",
+			Data:         semgrepData,
 			Binary:       "semgrep",
 			Controls:     []string{"sast"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
@@ -37,7 +41,16 @@ func NewSemgrep() plugin.Scanner {
 		semgrepArgs,
 	)
 	s.cacheVersion = sharedSemgrepVersion.version
+	// The scan asks semgrep.dev whether a newer Semgrep exists, separately from --metrics=off and
+	// separately from the rule pack it fetches. A version check is not part of scanning, and a run
+	// that has said it has no network should not make one.
+	s.run = runSemgrepInDir
 	return s
+}
+
+// runSemgrepInDir runs Semgrep with its update check off.
+func runSemgrepInDir(ctx context.Context, dir string, argv []string) ([]byte, error) {
+	return toolexec.RunWithEnv(ctx, dir, argv, []string{"SEMGREP_ENABLE_VERSION_CHECK=0"})
 }
 
 // semgrepArgs builds `semgrep scan --sarif ... <dir>`.

@@ -260,3 +260,8 @@ run until they are accepted.
   `ref`, an explicit `context` setting, or the ambient kubeconfig context.
 - Findings are located at the cluster (`kubernetes/<ref>`), not a file. That is what was
   assessed.
+
+## Data
+
+Nothing. The CIS policy set is compiled into Draugr, which is why the cache key carries
+Draugr's own version: a corrected check has to invalidate results the previous one produced.

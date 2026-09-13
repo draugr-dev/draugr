@@ -63,3 +63,7 @@ check does not apply to this codebase at all.
 - gosec signs its releases with a **key-based** cosign bundle; Draugr's identity-based signature
   verification (used for Trivy) doesn't cover that yet, so `tools install` verifies gosec by
   SHA-256 only for now.
+
+## Data
+
+Nothing. gosec's rules are compiled into its binary.

@@ -76,3 +76,8 @@ library rather than an exec-able binary, and Draugr executes tools rather than l
 - Making the ruleset **org-configurable** (required headers, per-header severity, exemptions,
   expected values) is a follow-up that will consume the `draugr.config.yaml`
   `controllers.headers` layer ([#129](https://github.com/draugr-dev/draugr/issues/129)).
+
+## Data
+
+Nothing. The checks are Draugr's own and travel in the binary, so a run behind an egress
+allowlist needs nothing permitted for this scanner beyond reaching the host it is testing.

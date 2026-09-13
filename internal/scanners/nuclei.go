@@ -39,6 +39,7 @@ func NewNuclei() plugin.Scanner {
 		info: plugin.ScannerInfo{
 			Name:         "nuclei",
 			Origin:       "projectdiscovery",
+			Data:         nucleiData,
 			Binary:       "nuclei",
 			Controls:     []string{"dast"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},

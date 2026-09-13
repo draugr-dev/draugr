@@ -88,3 +88,8 @@ publish that report is a question for abuse.ch and Spamhaus, not one this docume
 
 Draugr **execs nothing and bundles nothing**. It reads a documented API over HTTPS. Their terms
 are theirs, changed most recently on 2025-11-04, and can change again.
+
+## Data
+
+Nothing fetched ahead of a scan. URLhaus is queried per host, so the traffic is about the
+target rather than a database to warm, and it is declared as a disclosure effect instead.

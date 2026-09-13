@@ -1,0 +1,3 @@
+**A scan fetches a scanner's data once, not once per job.** retire.js honors its own cache and a cold one did not survive concurrency: jobs starting together all found nothing, all fetched, and all kept their own copy, which nothing pruned. Scanning `draugr-demo` with the cache cleared went from four copies and 1.7 MB to one copy and 420 KB, with identical findings. Offline, retire.js is pointed at the copy already on disk, and says so by name when there is none.
+
+**A scan no longer asks Semgrep for its version over the network.** `semgrep --version` contacts semgrep.dev to check for a newer release, and Draugr asks on every run, so the question reached the network on a machine that may have said it has none.

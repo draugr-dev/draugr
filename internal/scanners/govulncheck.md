@@ -113,3 +113,12 @@ access to that host, or a mirror pointed at with the tool's own `-db` flag.
 **Go only.** The docs say *reachability for Go* every time, because a reachability claim without
 its language is an overclaim, and because the analysis behind the word differs between tools: a
 call graph and a framework heuristic are both called reachability and are not the same evidence.
+
+## Data
+
+The **vulnerability database**, from `vuln.go.dev`, on **every** invocation, and there is one
+invocation per Go module in the checkout. Nothing is cached locally, so there is nothing to warm.
+
+The tool's `-db` flag takes a `file://` URL, and Draugr does not pass it. An empty or stale
+directory behind it makes govulncheck report no vulnerabilities and exit 0, so an offline mirror
+wired without validating it would turn "no network" into "no findings".

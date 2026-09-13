@@ -124,3 +124,8 @@ which is exactly what takes longest to process, would report a clean bill of hea
 ecosystem's package manager is told to run. `settings` is passed through verbatim rather than
 curated, because the keys are Mend's, they differ per ecosystem, and anyone already running Mend
 knows them. See Mend's Unified Agent configuration reference.
+
+## Data
+
+Nothing fetched ahead of a scan. Mend is an API this scanner calls per target, so the traffic
+is about the target rather than a database to warm, and it is declared as an effect instead.

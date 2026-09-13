@@ -179,3 +179,10 @@ them rather than reusing them.
 - A deeper engine (e.g. OWASP ZAP) could serve the same control later without changing callers;
   it needs container mode ([#92](https://github.com/draugr-dev/draugr/issues/92)) and config
   selection ([#129](https://github.com/draugr-dev/draugr/issues/129)).
+
+## Data
+
+The **template set**, from `github.com`. Warmed once before the jobs fan out, because it is
+republished daily and it is the template version rather than the binary that decides what a scan
+finds. A populated template directory is read without asking, which is how an offline runner is
+prepared.

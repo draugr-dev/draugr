@@ -133,3 +133,9 @@ downloads of the vulnerability database. No account, no key, no telemetry.
 - Database guide: https://oss.anchore.com/docs/guides/vulnerability/database/
 - Sibling scanner over a repository: [`grype-fs`](grype-fs.md)
 - The default for this control: [`trivy`](trivy.md)
+
+## Data
+
+The **vulnerability database**, from `grype.anchore.io`. Warmed once before the jobs fan out.
+An offline run reads the cache Grype keeps; `GRYPE_DB_AUTO_UPDATE=false` against a populated
+cache is how to hold it to that.

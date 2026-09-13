@@ -35,6 +35,13 @@ type Tool struct {
 	// VersionFrom reads the version out of the probe's output, for a tool that names more than
 	// one. Nil takes the first semver-looking token, which is right for almost everything.
 	VersionFrom func([]byte) string
+	// ProbeEnv is layered over the environment for the probes below, each "K=V".
+	//
+	// For a tool that treats "what version are you" as an opportunity to call home. Semgrep does:
+	// `semgrep --version` contacts semgrep.dev to see whether a newer release exists, and Draugr
+	// asks on every scan, so the question would reach the network on a machine that has said it
+	// has none. Disabling that returns the same answer.
+	ProbeEnv []string
 	// DataArgs probes for data the tool needs beyond its own binary, Nuclei's template set, for
 	// instance. Empty means the binary is all there is.
 	//
@@ -79,7 +86,7 @@ type Status struct {
 type LookPathFunc func(string) (string, error)
 
 // RunFunc executes argv and returns its output (defaults to running the command).
-type RunFunc func(ctx context.Context, argv []string) ([]byte, error)
+type RunFunc func(ctx context.Context, argv []string, env ...string) ([]byte, error)
 
 // semverRE extracts the first dotted version number from tool output, e.g. "0.58.1" from
 // Trivy's "Version: 0.58.1" or "2.43.0" from "git version 2.43.0".
@@ -126,6 +133,7 @@ func Catalog() map[string]Tool {
 			VersionArgs: []string{"--version"},
 			InstallHint: "https://semgrep.dev/docs/getting-started/",
 			Category:    CategoryScanner,
+			ProbeEnv:    []string{"SEMGREP_ENABLE_VERSION_CHECK=0"},
 		},
 		"govulncheck": {
 			Binary:      "govulncheck",
@@ -239,7 +247,7 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 	if len(t.VersionArgs) == 0 {
 		return st
 	}
-	out, err := run(ctx, append([]string{t.Binary}, t.VersionArgs...))
+	out, err := run(ctx, append([]string{t.Binary}, t.VersionArgs...), t.ProbeEnv...)
 	if err != nil {
 		st.Err = err // found, but couldn't read version; report it rather than failing detection
 		return st
@@ -253,7 +261,7 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 	switch {
 	case len(t.DataArgs) > 0 && t.DataOK != nil:
 		st.DataChecked = true
-		dataOut, dataErr := run(ctx, append([]string{t.Binary}, t.DataArgs...))
+		dataOut, dataErr := run(ctx, append([]string{t.Binary}, t.DataArgs...), t.ProbeEnv...)
 		if dataErr == nil {
 			st.DataFound, st.DataDetail = t.DataOK(dataOut)
 		}
@@ -315,10 +323,13 @@ func expandHome(path string) string {
 
 // defaultRun runs the version probe, capturing stdout and stderr (some tools print their
 // version to stderr).
-func defaultRun(ctx context.Context, argv []string) ([]byte, error) {
+func defaultRun(ctx context.Context, argv []string, env ...string) ([]byte, error) {
 	// Running the configured tool is the point; no shell, and argv comes from the typed
 	// catalog above, not user input.
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- version probe of a catalog-defined tool // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	return cmd.CombinedOutput()
 }
 

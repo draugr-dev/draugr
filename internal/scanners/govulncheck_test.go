@@ -260,3 +260,24 @@ func TestGovulncheckPathSummaryPicksTheShortest(t *testing.T) {
 		t.Errorf("summary with no paths = %q", got)
 	}
 }
+
+// govulncheck is never pointed at a database, and the reason is worth a test rather than a memory.
+//
+// `-db` accepts a `file://` URL and is the obvious way to make this scanner work offline. Measured
+// against a module with two known vulnerabilities: the default database reports both and exits 3,
+// an unreachable host exits 1, and an empty directory behind `-db file://` reports "No
+// vulnerabilities found" and exits 0. Wiring it would convert "this machine has no network" into
+// "this code has no vulnerabilities", silently, which is the one thing this project refuses.
+func TestGovulncheckIsNeverPointedAtADatabase(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/m\n\ngo 1.21\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, argv := range govulncheckArgs(dir, plugin.Config{}) {
+		for _, a := range argv {
+			if a == "-db" || strings.HasPrefix(a, "-db=") {
+				t.Errorf("argv passes -db (%v); an unusable database there reports clean and exits 0", argv)
+			}
+		}
+	}
+}

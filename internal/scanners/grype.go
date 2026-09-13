@@ -44,6 +44,7 @@ func NewGrype() plugin.Scanner {
 	return tooladapter.New(tooladapter.Config{
 		Name:         "grype",
 		Origin:       "anchore",
+		Data:         grypeData,
 		Binary:       "grype",
 		Controls:     []string{"images"},
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
@@ -63,6 +64,7 @@ func NewGrypeFS() plugin.Scanner {
 		plugin.ScannerInfo{
 			Name:         "grype-fs",
 			Origin:       "anchore",
+			Data:         grypeData,
 			Binary:       "grype",
 			Controls:     []string{"sca"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},

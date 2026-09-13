@@ -138,11 +138,24 @@ What has to be established, and written into the colocated doc:
 - **Privacy and data handling**, what the other party receives, keeps, and shares. This is the
   half that has no technical signal: an integration that uploads a repository looks, in code,
   much like one that fetches a database.
+- **What it reads from outside, and from where.** A tool that fetches a database, a rule pack or a
+  template set contacts a host on every run, and most readers are behind an egress allowlist rather
+  than disconnected. Declare it as `ScannerInfo.Data` with the host, and warm it: without a warm, a
+  run fetches once per job rather than once, which on a cold cache is jobs racing to download the
+  same file. Where the tool re-fetches on every invocation and has no cache to warm, say so with
+  `PerScan` rather than leaving it to be discovered.
 
-Two of these are enforced mechanically, because they are checkable and a rule people remember is
+Three of these are enforced mechanically, because they are checkable and a rule people remember is
 a rule people forget: `TestEveryToolDocStatesItsTerms` requires the statement in every scanner and
-surveyor doc, and `TestDisclosingScannersDocumentWhatTheySend` requires a `## What is sent` section
-from any scanner declaring the `disclosure` effect.
+surveyor doc, `TestDisclosingScannersDocumentWhatTheySend` requires a `## What is sent` section from
+any scanner declaring the `disclosure` effect, and `TestEveryToolDocSaysWhatItReads` requires a
+`## Data` section naming every host the code declares. A scanner that reads nothing says that, which
+is an answer.
+
+**A local copy is not automatically safe to reach for.** govulncheck's `-db` takes a `file://` URL
+and reports "No vulnerabilities found", exit 0, against an empty or stale one. Before wiring any
+offline path, check what the tool does with a copy that is missing or wrong: a scanner that cannot
+consult its data has found nothing, and must say so rather than pass.
 
 **If you cannot identify the document that governs the tier we are using, the integration does not
 ship.** Finding *a* contract is not the same as finding *the* one. A vendor owned by a larger

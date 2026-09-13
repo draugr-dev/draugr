@@ -34,3 +34,11 @@ the project's **own source code** for security bugs (injection, unsafe APIs, etc
   ERROR/WARNING/INFO map through to error/warning/note correctly.
 - `--config p/default` fetches rules from the registry on first run (network required; cached
   after). Making the ruleset configurable per component is a natural follow-up.
+
+## Data
+
+The **rule pack**, from `semgrep.dev`. `p/default` is resolved on **every** invocation: there is
+no local cache to warm, so a run contacts the registry once per job rather than once, and a
+machine with no network cannot run this scanner on the default pack.
+
+`--config` against rules on disk is the way to run it without the registry.

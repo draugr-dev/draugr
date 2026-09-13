@@ -34,6 +34,7 @@ func NewRetireJS() plugin.Scanner {
 		plugin.ScannerInfo{
 			Name:         "retirejs",
 			Origin:       "RetireJS",
+			Data:         retireJSData,
 			Binary:       "retire",
 			Controls:     []string{"sca"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},

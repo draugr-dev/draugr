@@ -8,7 +8,12 @@ order: 70
 # Run Draugr air-gapped
 
 Draugr reaches out from a handful of places. `--offline`, or `DRAUGR_OFFLINE=1`, says once that this
-machine has no network, and every one of them honors it.
+machine has no network, and every one of Draugr's own fetches honors it.
+
+**Three scanners cannot run without a network at all**, and that is a property of the tools rather
+than a setting. They are named below. Most readers of this page are not disconnected but behind an
+egress allowlist, and for them the useful list is the hosts rather than the flag: `draugr doctor`
+prints it.
 
 ```bash
 draugr scan draugr.saga.yaml --offline
@@ -29,7 +34,7 @@ downloaded.
 | `draugr feeds update` | the CISA KEV catalog and the FIRST EPSS scores |
 | `draugr self-update` | the latest Draugr release |
 | `draugr doctor` | the latest Draugr release, to compare against yours |
-| a scan, before it starts | Trivy's vulnerability database and Nuclei's template set |
+| a scan, before it starts | the reference data each scanner reads, warmed once for the whole run |
 | a scan, per target | the registry, for an image; the endpoint itself, for a host or DAST target |
 
 The last row is the one `--offline` cannot help with. Scanning a remote image or probing a live
@@ -48,9 +53,33 @@ grype db update                 # Grype's vulnerability database, if you run it
 nuclei -update-templates        # Nuclei's template set, if you run dast
 ```
 
-**These databases and template sets live in their own caches, not in `~/.draugr`.** Copy those too,
-`~/.cache/trivy`, `~/.cache/grype` and `~/.local/nuclei-templates` by default, all relocatable with
-`TRIVY_CACHE_DIR`, `GRYPE_DB_CACHE_DIR` and `NUCLEI_TEMPLATES_DIR`.
+```bash
+retire --path /tmp/empty --cachedir ~/.draugr/data/retirejs   # retire.js advisory database, if you run sca
+```
+
+**Most of these live in their own caches, not in `~/.draugr`.** Copy those too, `~/.cache/trivy`,
+`~/.cache/grype` and `~/.local/nuclei-templates` by default, all relocatable with
+`TRIVY_CACHE_DIR`, `GRYPE_DB_CACHE_DIR` and `NUCLEI_TEMPLATES_DIR`. retire.js is the exception:
+Draugr already points it under `~/.draugr/data`, and passes `--jsrepo` at that copy when offline.
+
+## What cannot run offline
+
+Two scanners fetch on every invocation, with no cache to prepare and no local copy to hand them.
+
+| Scanner | What it fetches | From |
+|---|---|---|
+| `semgrep` | the `p/default` rule pack | `semgrep.dev` |
+| `govulncheck` | the Go vulnerability database | `vuln.go.dev` |
+
+Semgrep can be pointed at rules on disk with its own `config` option, which is the way to run
+`sast` without the registry. govulncheck's `-db` flag takes a local URL and **Draugr does not pass
+it**: govulncheck reports "No vulnerabilities found" and exits 0 against an empty or stale database,
+so a mirror that was never populated would read as a clean result. Without it, a machine that
+cannot reach `vuln.go.dev` gets an error and the control says it did not run, which is the answer
+you want.
+
+`draugr doctor` lists every host a scan contacts, and marks which are fetched per scan rather than
+warmed once, so the distinction is visible before a pipeline is written rather than after it fails.
 
 **Grype refuses a database older than five days**, and copying one across takes time the clock
 keeps counting. `GRYPE_DB_UPDATE_URL` points it at an internal mirror so a runner refreshes from
