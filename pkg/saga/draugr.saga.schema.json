@@ -1383,63 +1383,63 @@
           "anyOf": [
             {
               "const": "console",
-              "description": "the terminal report, for a run somebody is watching"
+              "description": "The terminal report, for a run somebody is watching."
             },
             {
               "const": "evidence",
-              "description": "the console report with what makes it defensible: tools, revisions, what each control measured against"
+              "description": "The console report plus what makes it defensible: tools, revisions, and what each control measured against."
             },
             {
               "const": "gitlab-codequality",
-              "description": "GitLab's Code Quality report, which carries every finding and shows on every plan"
+              "description": "GitLab Code Quality: every finding, in the merge request, on any tier."
             },
             {
               "const": "gitlab-container-scanning",
-              "description": "GitLab's container scanning report, for the Vulnerability Report on Ultimate"
+              "description": "The same, for vulnerable packages in a container image."
             },
             {
               "const": "gitlab-cyclonedx",
-              "description": "the SBOM as GitLab reads it, filling the Dependency List and License Compliance"
+              "description": "The SBOM as GitLab reads it, filling the Dependency List and License Compliance."
             },
             {
               "const": "gitlab-dependency-scanning",
-              "description": "GitLab's dependency scanning report, for the Vulnerability Report on Ultimate"
+              "description": "The same, for vulnerable dependencies."
             },
             {
               "const": "gitlab-sast",
-              "description": "GitLab's SAST report, for the Vulnerability Report on Ultimate"
+              "description": "GitLab's own security schema, for its Vulnerability Report. A build artifact rather than an upload."
             },
             {
               "const": "gitlab-secret-detection",
-              "description": "GitLab's secret detection report, for the Vulnerability Report on Ultimate"
+              "description": "The same, for leaked credentials."
             },
             {
               "const": "html",
-              "description": "a self-contained page to attach to a ticket or an audit"
+              "description": "A self-contained page, for attaching to a ticket or an audit."
             },
             {
               "const": "json",
-              "description": "the whole run as one document, for a platform or a script"
+              "description": "The whole run as one document, for a platform or a script."
             },
             {
               "const": "junit",
-              "description": "one failed test per finding, for a CI test panel"
+              "description": "One failed test per finding, for a CI test panel."
             },
             {
               "const": "markdown",
-              "description": "the report as prose and tables, for a pull-request comment or a wiki"
+              "description": "The report as prose and tables, for a merge request comment or a wiki."
             },
             {
               "const": "sarif",
-              "description": "the finding currency: what code scanning and editors read"
+              "description": "SARIF 2.1.0, which code scanning and editors read."
             },
             {
               "const": "template",
-              "description": "your own layout, from --template or --template-file"
+              "description": "Your own layout, from --template or --template-file."
             },
             {
               "const": "vex",
-              "description": "an OpenVEX document saying which vulnerabilities apply to this product"
+              "description": "An OpenVEX document saying which vulnerabilities apply to this product."
             }
           ],
           "description": "Report format to render.",
@@ -1604,7 +1604,7 @@
             },
             {
               "const": "vulnerable_code_cannot_be_controlled_by_adversary",
-              "description": "The vulnerable code cannot be controlled by an attacker to exploit it. Difficult to prove conclusively."
+              "description": "The vulnerable code does run, and nothing an attacker supplies reaches it. The specification calls this difficult to prove conclusively."
             },
             {
               "const": "inline_mitigations_already_exist",

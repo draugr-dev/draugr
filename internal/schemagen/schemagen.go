@@ -276,55 +276,13 @@ func reportFormatDef() map[string]any {
 	sort.Strings(formats)
 	vals := make([]any, len(formats))
 	for i, f := range formats {
-		vals[i] = map[string]any{"const": f, "description": reportFormatSummary(f)}
+		vals[i] = map[string]any{"const": f, "description": report.Summary(f)}
 	}
 	return map[string]any{
 		"type":        "string",
 		"description": "Report format to render.",
 		"anyOf":       vals,
 	}
-}
-
-// reportFormatSummary says what one format is for, in the words `--report` uses.
-//
-// Fifteen of them, several rendering one thing for one platform, and the name alone separates
-// almost none: `gitlab-sast` and `gitlab-codequality` are both GitLab and land on different tabs
-// under different plans. A reader choosing between them from an editor's completion list has the
-// names and nothing else.
-func reportFormatSummary(format string) string {
-	switch format {
-	case "console":
-		return "the terminal report, for a run somebody is watching"
-	case "evidence":
-		return "the console report with what makes it defensible: tools, revisions, what each control measured against"
-	case "html":
-		return "a self-contained page to attach to a ticket or an audit"
-	case "json":
-		return "the whole run as one document, for a platform or a script"
-	case "junit":
-		return "one failed test per finding, for a CI test panel"
-	case "markdown":
-		return "the report as prose and tables, for a pull-request comment or a wiki"
-	case "sarif":
-		return "the finding currency: what code scanning and editors read"
-	case "template":
-		return "your own layout, from --template or --template-file"
-	case "vex":
-		return "an OpenVEX document saying which vulnerabilities apply to this product"
-	case "gitlab-codequality":
-		return "GitLab's Code Quality report, which carries every finding and shows on every plan"
-	case "gitlab-sast":
-		return "GitLab's SAST report, for the Vulnerability Report on Ultimate"
-	case "gitlab-dependency-scanning":
-		return "GitLab's dependency scanning report, for the Vulnerability Report on Ultimate"
-	case "gitlab-secret-detection":
-		return "GitLab's secret detection report, for the Vulnerability Report on Ultimate"
-	case "gitlab-container-scanning":
-		return "GitLab's container scanning report, for the Vulnerability Report on Ultimate"
-	case "gitlab-cyclonedx":
-		return "the SBOM as GitLab reads it, filling the Dependency List and License Compliance"
-	}
-	return "a report format this build renders"
 }
 
 // Apply rewrites the generated parts of the schema document in place and returns the encoded

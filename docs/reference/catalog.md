@@ -94,18 +94,21 @@ Scan results render in any of these formats, selected with `draugr scan --format
 
 | Format | Purpose |
 |--------|---------|
-| `console` | human summary on stdout (default), verdict, P1–P4 counts, "fix first" |
-| `markdown` | portable report for MR comments, wikis, Slack |
-| `html` | self-contained HTML report (inline CSS), a shareable, browser-viewable artifact |
-| `junit` | JUnit XML, surfaces findings in CI test panels (GitLab, Jenkins, Azure DevOps…) |
-| `json` | machine-readable report |
-| `sarif` | SARIF 2.1.0 for code-scanning dashboards |
-| `gitlab-sast` | GitLab's own security schema, for its Vulnerability Report (a build artifact, not an upload) |
-| `gitlab-dependency-scanning` | the same, for vulnerable dependencies |
-| `gitlab-secret-detection` | the same, for leaked credentials |
-| `gitlab-container-scanning` | the same, for vulnerable packages in a container image |
-| `gitlab-codequality` | GitLab Code Quality, every finding, in the merge request, on any tier |
-| `template` | custom payload from a Go `text/template` (inline or file), no code needed |
+| `console` | The terminal report, for a run somebody is watching. |
+| `evidence` | The console report plus what makes it defensible: tools, revisions, and what each control measured against. |
+| `markdown` | The report as prose and tables, for a merge request comment or a wiki. |
+| `html` | A self-contained page, for attaching to a ticket or an audit. |
+| `junit` | One failed test per finding, for a CI test panel. |
+| `json` | The whole run as one document, for a platform or a script. |
+| `sarif` | SARIF 2.1.0, which code scanning and editors read. |
+| `vex` | An OpenVEX document saying which vulnerabilities apply to this product. |
+| `gitlab-sast` | GitLab's own security schema, for its Vulnerability Report. A build artifact rather than an upload. |
+| `gitlab-dependency-scanning` | The same, for vulnerable dependencies. |
+| `gitlab-secret-detection` | The same, for leaked credentials. |
+| `gitlab-container-scanning` | The same, for vulnerable packages in a container image. |
+| `gitlab-codequality` | GitLab Code Quality: every finding, in the merge request, on any tier. |
+| `gitlab-cyclonedx` | The SBOM as GitLab reads it, filling the Dependency List and License Compliance. |
+| `template` | Your own layout, from --template or --template-file. |
 
 `-o/--output <dir>` also writes `report.json` + `results.sarif`.
 

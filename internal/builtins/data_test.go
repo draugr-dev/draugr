@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/report"
 )
 
 // A scanner that reads reference data warms it.
@@ -96,6 +97,24 @@ func TestEveryToolDocSaysWhatItReads(t *testing.T) {
 						info.Name, h, path)
 				}
 			}
+		}
+	}
+}
+
+// The catalog names every format this build renders.
+//
+// It is a hand-written table beside a registry that knows, which is the shape that goes stale
+// without anything saying so: a format shipped and absent from the catalog is one a reader looking
+// for it concludes does not exist.
+func TestTheCatalogNamesEveryReportFormat(t *testing.T) {
+	path := filepath.Join(repoRoot, "docs/reference/catalog.md")
+	body, err := os.ReadFile(path) //nolint:gosec // a path inside this repository
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range append(report.Formats(), "template") {
+		if !strings.Contains(string(body), "`"+f+"`") {
+			t.Errorf("catalog.md does not name the %q format, which this build renders (%s)", f, path)
 		}
 	}
 }

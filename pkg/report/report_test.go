@@ -1754,3 +1754,25 @@ func TestTheJSONReportCarriesTheSameGateTheConsolePrints(t *testing.T) {
 		t.Errorf("perControl = %v", doc.Gate.PerControl)
 	}
 }
+
+// Every format this build renders says what it is for.
+//
+// The summary is read in an editor's completion popup, where it is the only thing separating
+// fifteen names from each other: four of them are GitLab schemas that differ only in which tab
+// they reach and which plan shows it.
+func TestEveryFormatSaysWhatItIsFor(t *testing.T) {
+	for _, f := range append(Formats(), "template") {
+		if Summary(f) == "" {
+			t.Errorf("format %q renders and says nothing about what it writes", f)
+		}
+	}
+	// A summary for a format nothing renders is one nobody will notice is stale.
+	for f := range formatSummaries {
+		if f == "template" {
+			continue // rendered through a different path, and offered by the schema
+		}
+		if _, ok := reporters[f]; !ok {
+			t.Errorf("formatSummaries describes %q, which this build does not render", f)
+		}
+	}
+}
