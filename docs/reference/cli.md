@@ -223,6 +223,42 @@ draugr scan --controls sca
 draugr scan --components app --controls sca --log-level debug
 ```
 
+**`--labels`, `--exposure` and `--criticality` select components by what they are** rather than by
+name, which is what a repository holding many of them needs. A team knows the label it files under;
+it does not know which of two hundred component names carry that label this week, and a list
+written out by hand goes stale the first time somebody adds one.
+
+```bash
+draugr scan --labels team=web                  # what the web team owns
+draugr scan --labels team=web --labels tier=1  # the web team's tier-1 components
+draugr scan --exposure public                  # everything internet-facing
+draugr scan --exposure public --criticality critical
+```
+
+Values within one flag are alternatives and the flags narrow together, so `--labels team=web
+--labels team=payments` is either team and `--labels team=web --exposure public` is that team's
+public components. `--labels` reads the component's own `labels`, which is the organization's
+vocabulary, so Draugr reads no key there and attaches no meaning to one. `--exposure` and
+`--criticality` are Draugr's own, so a value that is not one of them is refused by name:
+
+```
+draugr: --exposure: no such exposure "pubic" (want one of: public, authenticated, internal, restricted)
+```
+
+**A selector that matches nothing is an error**, not an empty run. A typo, or a label somebody has
+since moved, would otherwise scan nothing and pass. The error offers the values that key does have,
+which is where the mistyped word usually is:
+
+```
+draugr: --labels team=nope matches no component (this descriptor uses team=platform, team=web)
+draugr: --labels squad=web matches no component (no component declares label "squad")
+```
+
+The selector is resolved to component names before the run starts, so the verdict line, the
+component list and the SARIF analysis category all describe what was actually covered. The report
+records the selector as well, because "everything labeled `team=web`" and "the component
+storefront" are different requests even on a day they cover the same thing.
+
 They are a **view over one run**, not a decision. `config.controls` records that a project does
 not need `dast`; editing it to debug is how a temporary change gets committed.
 

@@ -170,7 +170,7 @@ func (s Scope) Validate(model saga.Model, controls []string) error {
 	}
 	if bad := missing(s.Components, declared); len(bad) > 0 {
 		errs = append(errs, fmt.Sprintf("--components: this descriptor declares no %s (it has: %s)",
-			quoteList("component", bad), strings.Join(sorted(declared), ", ")))
+			quoteList("component", bad), atMost(sorted(declared), listCap)))
 	}
 	if bad := missing(s.Controls, controls); len(bad) > 0 {
 		errs = append(errs, fmt.Sprintf("--controls: no such %s (run `draugr controls`, this build has: %s)",
@@ -200,13 +200,70 @@ func (s Scope) Validate(model saga.Model, controls []string) error {
 	// type is careful not to produce by accident. Checked after the values themselves, so a typo in
 	// a known field is reported as a typo rather than as an empty result.
 	if len(errs) == 0 && s.selects() && len(s.selected(model)) == 0 {
-		errs = append(errs, fmt.Sprintf("%s matches no component in this descriptor (it declares: %s)",
-			s.describeSelectors(), strings.Join(sorted(declared), ", ")))
+		errs = append(errs, fmt.Sprintf("%s matches no component%s",
+			s.describeSelectors(), s.nearMiss(model)))
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
+}
+
+// listCap is how many names a message may enumerate before it stops being help.
+//
+// A descriptor with two components can print both; one with three hundred prints a wall, and the
+// reader is looking for the one word they mistyped. The tail is counted rather than dropped, so
+// nobody reads a truncated list as the whole set.
+const listCap = 8
+
+// atMost renders a list, keeping it short enough to read.
+func atMost(names []string, most int) string {
+	if len(names) <= most {
+		return strings.Join(names, ", ")
+	}
+	return fmt.Sprintf("%s, and %d more", strings.Join(names[:most], ", "), len(names)-most)
+}
+
+// nearMiss is what the descriptor does say about the keys a selector asked for, or "" where
+// naming anything would be noise.
+//
+// For a label, the values in use for that key. A reader who typed `team=paymnets` is one word from
+// the answer, and the component names are not it: they may not carry the key at all, and there can
+// be hundreds. For an exposure or a criticality there is nothing to add, because the valid values
+// are Draugr's own and every message about them already lists all of them.
+func (s Scope) nearMiss(model saga.Model) string {
+	keys := map[string]bool{}
+	for _, sel := range s.Labels {
+		if k, _, ok := strings.Cut(sel, "="); ok {
+			keys[k] = true
+		}
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	var known []string
+	for k := range keys {
+		seen := map[string]bool{}
+		for i := range model.Components {
+			if v := model.Components[i].Labels[k]; v != "" && !seen[v] {
+				seen[v] = true
+				known = append(known, k+"="+v)
+			}
+		}
+	}
+	if len(known) == 0 {
+		return " (no component declares " + quoteList("label", sortedKeys(keys)) + ")"
+	}
+	return " (this descriptor uses " + atMost(sorted(known), listCap) + ")"
+}
+
+// sortedKeys is the keys of a set, ordered, so a message reads the same twice.
+func sortedKeys(set map[string]bool) []string {
+	out := make([]string, 0, len(set))
+	for k := range set {
+		out = append(out, k)
+	}
+	return sorted(out)
 }
 
 // Selector is one narrowing a caller asked for by what a component is rather than by its name.

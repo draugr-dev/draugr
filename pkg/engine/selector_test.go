@@ -92,10 +92,54 @@ func TestASelectorThatMatchesNothingIsRefused(t *testing.T) {
 	if err == nil {
 		t.Fatal("a selector matching nothing was accepted, so the run would scan nothing and pass")
 	}
-	for _, want := range []string{"team=nope", "matches no component", "storefront"} {
+	// What it offers is the values that key has, because a reader who mistyped one is a word away
+	// from the answer. Component names are not that answer: they may not carry the key at all, and
+	// a monorepo, which is the case these selectors exist for, has hundreds of them.
+	for _, want := range []string{"team=nope", "matches no component", "team=web", "team=payments"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not say %q: %v", want, err)
 		}
+	}
+	if strings.Contains(err.Error(), "storefront") {
+		t.Errorf("the error lists component names, which is a wall on the repositories this is for: %v", err)
+	}
+}
+
+// A key nothing declares is said plainly, rather than offering an empty list of values.
+func TestAnUnknownLabelKeySaysSo(t *testing.T) {
+	err := Scope{Labels: []string{"squad=web"}}.Validate(monorepo(), nil)
+	if err == nil || !strings.Contains(err.Error(), `no component declares label "squad"`) {
+		t.Errorf("error = %v, want one naming the key nothing carries", err)
+	}
+}
+
+// A classification that matches nothing adds no list. Every message about these already names all
+// four values, so repeating them where the reader has already chosen one is noise.
+func TestAClassificationThatMatchesNothingOffersNoList(t *testing.T) {
+	err := Scope{Exposure: []saga.Exposure{saga.ExposureAuthenticated}}.Validate(monorepo(), nil)
+	if err == nil {
+		t.Fatal("an exposure no component declares was accepted")
+	}
+	if strings.Contains(err.Error(), "(") {
+		t.Errorf("the error appends a list where the reader needs none: %v", err)
+	}
+}
+
+// A long list is cut, and the tail is counted so nobody reads what is left as the whole set.
+func TestALongListIsNotAWall(t *testing.T) {
+	var big saga.Model
+	for _, n := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"} {
+		big.Components = append(big.Components, saga.Component{Name: n})
+	}
+	err := Scope{Components: []string{"nope"}}.Validate(big, nil)
+	if err == nil {
+		t.Fatal("an unknown component was accepted")
+	}
+	if !strings.Contains(err.Error(), "and 4 more") {
+		t.Errorf("error does not count what it left out: %v", err)
+	}
+	if strings.Contains(err.Error(), ", l") {
+		t.Errorf("error lists every component: %v", err)
 	}
 }
 
