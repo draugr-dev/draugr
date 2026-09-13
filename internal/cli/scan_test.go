@@ -1439,3 +1439,45 @@ components:
 		t.Errorf("--no-gate was told its gate cannot fire:\n%s", out.String())
 	}
 }
+
+// A component's row counts what the rest of the report counts.
+//
+// Counted here and skipped by the bands, the controls and the gate, one report gave two answers for
+// one set, and the larger one was on the row naming the team. Reporting one vulnerability as two
+// because two scanners found it is the arithmetic correlation exists to prevent.
+//
+// The suppressed finding is here to hold the other half of that line: it is dropped where the
+// reports are grouped, and a change that moved the filtering would take it with them.
+func TestAComponentCountsWhatTheRunCounts(t *testing.T) {
+	policy := norn.Policy{FailOn: sarif.SeverityHigh}
+	// Two, because a single-component breakdown repeats the headline and is not drawn at all.
+	model := &saga.Model{Components: []saga.Component{{Name: "storefront"}, {Name: "api"}}}
+	reports := map[string]sarif.Report{"sca": {Tool: "trivy", Results: []sarif.Result{
+		// The one that counts, and what the other scanner said about it.
+		{RuleID: "CVE-1", Level: sarif.LevelError, Component: "storefront", Priority: "P1",
+			Correlation: &sarif.Correlation{AlsoFoundBy: []sarif.Observation{{Tool: "retirejs"}}}},
+		// The copy. Still a finding, deliberately not a second count.
+		{RuleID: "CVE-1", Level: sarif.LevelError, Component: "storefront", Priority: "P1",
+			Tool: "retirejs", Correlation: &sarif.Correlation{CountedUnder: "trivy"}},
+		// Somebody decided about this one, and the accepted block reports it.
+		{RuleID: "CVE-2", Level: sarif.LevelError, Component: "storefront", Priority: "P1",
+			Suppression: &sarif.Suppression{Kind: "external", Justification: "reviewed"}},
+	}}}
+
+	got, _ := componentVerdicts(policy, model, reports, engine.Scope{}, nil)
+	var store report.ComponentVerdict
+	for _, c := range got {
+		if c.Name == "storefront" {
+			store = c
+		}
+	}
+	if store.Name == "" {
+		t.Fatalf("no row for storefront: %+v", got)
+	}
+	if store.Priorities[0] != 1 {
+		t.Errorf("P1 = %d, want the flaw counted once: %+v", store.Priorities[0], store)
+	}
+	if store.Findings != 1 {
+		t.Errorf("findings = %d, want the copy and the suppression left out", store.Findings)
+	}
+}
