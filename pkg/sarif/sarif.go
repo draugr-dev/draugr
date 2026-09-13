@@ -26,8 +26,11 @@ type sarifLog struct {
 }
 
 type sarifRun struct {
-	Tool    sarifTool     `json:"tool"`
-	Results []sarifResult `json:"results"`
+	Tool sarifTool `json:"tool"`
+	// AutomationDetails names which analysis this run is, among several over one commit. Set from
+	// MarshalOptions.AutomationID, and absent when that is empty.
+	AutomationDetails *sarifAutomationDetails `json:"automationDetails,omitempty"`
+	Results           []sarifResult           `json:"results"`
 	// OriginalURIBaseIDs declares what Draugr's relative result paths are relative to. Required
 	// by the SARIF spec whenever relative URI references are used; it's what lets an editor's
 	// viewer resolve a finding onto a file in the open workspace instead of asking the reader.
@@ -40,6 +43,15 @@ type sarifRun struct {
 	// SARIF's own mechanism for saying "these two rules are about the same thing", which is what lets
 	// a consumer group findings across tools without guessing from rule ids.
 	Taxonomies []sarifTaxonomy `json:"taxonomies,omitempty"`
+}
+
+// sarifAutomationDetails is SARIF's runAutomationDetails, of which Draugr writes the id.
+//
+// GitHub reads the id as "category/run-id", split on the last "/", so a string with no "/" in it
+// is all run id and no category. Draugr's ends in one. See report.AutomationID for what goes in
+// it and why it has to be stable.
+type sarifAutomationDetails struct {
+	ID string `json:"id"`
 }
 
 // sarifRunProperties is Draugr's run-level property bag.
@@ -360,6 +372,13 @@ type MarshalOptions struct {
 	// that can follow a link doesn't need them inlined. So helpUri survives compaction and the
 	// prose doesn't: keep the pointer, drop the paragraphs.
 	Compact bool
+	// AutomationID is written to runs[].automationDetails.id, which is how a consumer tells two
+	// analyses of one commit apart. Empty writes no automationDetails at all, which is what a
+	// report carried before this existed and what a scan with nothing to name still produces.
+	//
+	// See report.AutomationID for what Draugr puts in it, and for what GitHub code scanning does
+	// to an upload that carries none.
+	AutomationID string
 }
 
 // MarshalSARIF serializes the report to standard SARIF 2.1.0 JSON as a single "Draugr" run,
@@ -371,6 +390,9 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 // MarshalSARIFWith is MarshalSARIF with explicit options.
 func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 	run := sarifRun{Tool: sarifTool{Driver: sarifDriver{Name: driverName}}, Results: []sarifResult{}}
+	if opts.AutomationID != "" {
+		run.AutomationDetails = &sarifAutomationDetails{ID: opts.AutomationID}
+	}
 	run.Properties = runProperties(r.Provenance, r.Decided, r.Consulted)
 	// Track which scanner(s) produced each ruleId so the emitted rules[] can carry a "scanner:<name>"
 	// tag, the only place GitHub code scanning surfaces the underlying tool.

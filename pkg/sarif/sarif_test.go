@@ -1242,3 +1242,45 @@ func TestAnUncorrelatedFindingCarriesNothing(t *testing.T) {
 		t.Errorf("a finding only one scanner reported claims a correlation:\n%s", data)
 	}
 }
+
+// An automation id given is written; none given writes no automationDetails at all.
+//
+// The empty case is not cosmetic. SARIF's runAutomationDetails requires nothing, so an object
+// carrying an empty id is valid, and GitHub reads it as a category of "", which is the collision
+// the field exists to prevent, now stated explicitly.
+func TestMarshalSARIFAutomationDetails(t *testing.T) {
+	r := Report{Tool: "trivy", Results: []Result{{RuleID: "CVE-1", Level: LevelError}}}
+
+	data, err := r.MarshalSARIFWith(MarshalOptions{AutomationID: "storefront/components:web/"})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var doc struct {
+		Runs []struct {
+			AutomationDetails *struct {
+				ID string `json:"id"`
+			} `json:"automationDetails"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if doc.Runs[0].AutomationDetails == nil {
+		t.Fatal("automationDetails absent")
+	}
+	if got, want := doc.Runs[0].AutomationDetails.ID, "storefront/components:web/"; got != want {
+		t.Errorf("id = %q, want %q", got, want)
+	}
+
+	data, err = r.MarshalSARIFWith(MarshalOptions{})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	doc.Runs = nil
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if doc.Runs[0].AutomationDetails != nil {
+		t.Errorf("automationDetails written with no id: %+v", doc.Runs[0].AutomationDetails)
+	}
+}
