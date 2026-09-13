@@ -1,0 +1,1 @@
+**A fixed row in a diff no longer repeats its version.** The sentence under it still opened with the package and the release that cleared it, both of which the Upgrade column beside it had already stated, because the prefix being removed was assembled from what the row draws and a fixed row draws no target.

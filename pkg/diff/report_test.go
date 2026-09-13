@@ -537,3 +537,28 @@ func TestViewsAreTheOnesTheFlagNames(t *testing.T) {
 		}
 	}
 }
+
+// A fixed row draws no target, so a prefix assembled from what the row shows misses the one the
+// scanner wrote, and the sentence repeats a version the column beside it has already stated.
+func TestAFixedRowDoesNotRepeatItsVersionInTheSentence(t *testing.T) {
+	pkg := &sarif.Package{Name: "Jinja2", Version: "2.10", FixedVersion: "2.10.1"}
+	fixed := Entry{Change: ChangeFixed, Result: sarif.Result{
+		Message: "Jinja2 2.10 → 2.10.1: str.format_map allows sandbox escape", Package: pkg,
+	}}
+	if got := findingTitle(fixed); got != "str.format_map allows sandbox escape" {
+		t.Errorf("findingTitle = %q, want the sentence alone", got)
+	}
+	// And the live case it already handled, so the fix did not trade one for the other.
+	introduced := Entry{Change: ChangeNew, Result: fixed.Result}
+	if got := findingTitle(introduced); got != "str.format_map allows sandbox escape" {
+		t.Errorf("findingTitle = %q, want the sentence alone", got)
+	}
+	// A sentence carrying a colon of its own keeps all of itself, because the message does not
+	// open with this package.
+	other := Entry{Change: ChangeNew, Result: sarif.Result{
+		Message: "golang: out-of-bounds read leads to DoS", Package: pkg,
+	}}
+	if got := findingTitle(other); got != "golang: out-of-bounds read leads to DoS" {
+		t.Errorf("findingTitle = %q, want the message untouched", got)
+	}
+}

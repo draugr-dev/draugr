@@ -671,14 +671,19 @@ func newBands(fs []sarif.Result) [4]int {
 
 // findingTitle is what the finding says, with the package prefix the Upgrade column already shows
 // removed, so a row does not quote a third of its own explanation back at the reader.
+//
+// Stripped from the message rather than rebuilt from the row: a fixed row draws no target, and a
+// prefix assembled from what is drawn missed the one the scanner actually wrote, leaving the
+// sentence repeating a version the column beside it had just stated.
 func findingTitle(e Entry) string {
 	msg := strings.Join(strings.Fields(strings.ReplaceAll(e.Message, "\n", " ")), " ")
-	if label, fix := upgrade(e); label != "" {
-		prefix := strings.TrimSuffix(label, " →")
-		if fix != "" {
-			prefix = label + " " + fix
-		}
-		msg = strings.TrimPrefix(msg, prefix+": ")
+	if e.Package == nil || e.Package.Name == "" {
+		return elide(msg, messageWidth)
+	}
+	// Only where the message opens with this package, so a sentence that happens to contain a colon
+	// keeps all of itself.
+	if head, rest, found := strings.Cut(msg, ": "); found && strings.HasPrefix(head, e.Package.Name) {
+		msg = rest
 	}
 	return elide(msg, messageWidth)
 }
