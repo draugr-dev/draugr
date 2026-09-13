@@ -105,8 +105,40 @@ jq -e '[.controls[].scanErrors // empty] | length == 0' out/report.json   # fail
 
 ### What produced the run
 
-`report.json` records what a scan found. Two blocks record what was asked for, and both exist only
-in the process that ran the scan. Nothing downstream can recover them.
+`report.json` records what a scan found. Two blocks record what produced it and two record what it
+was asked to do, and all four exist only in the process that ran the scan. Nothing downstream can
+recover them.
+
+`draugr` and `scanners` are the software that did the scanning, as opposed to `release`, which is
+the version of the software being scanned:
+
+```json
+"draugr": { "version": "0.121.1", "commit": "273db6e" },
+"scanners": [
+  { "name": "gitleaks",    "version": "8.30.1" },
+  { "name": "govulncheck", "version": "v1.7.0;db@2026-09-10 14:48:42" },
+  { "name": "retirejs",    "version": "5.4.3" },
+  { "name": "trivy-fs",    "version": "trivy@0.69.3;db@2026-09-12T13:01:09Z" }
+]
+```
+
+A version names the tool and, where the data is what moves the answer, the data too. The same
+Trivy against a database a week older answers a different question, and a reader comparing two runs
+needs to know which of the two changed.
+
+```bash
+# Two runs a month apart disagree. Did the code change, or did the scanner?
+jq -r '.scanners[] | "\(.name) \(.version)"' a/report.json b/report.json | sort -u
+```
+
+Only scanners that ran are listed. One named here having never executed would claim coverage that
+did not happen, and a control that was planned and then skipped is under `notMeasured` instead. A
+tool that would not say what version it is appears without one, because an unreadable version is a
+fact about the run and a placeholder would make two genuinely different builds look identical.
+
+`results.sarif` carries the same two facts in SARIF's own fields, `runs[].tool.driver.version` and
+a `version` on each entry of `runs[].properties["draugr/provenance"]`, so a consumer reading either
+document can answer the same question.
 
 `descriptor` is the Saga the run came from:
 
@@ -155,8 +187,8 @@ guessed at.
 jq -r '.descriptor.digest' a/report.json b/report.json | uniq | wc -l
 ```
 
-Both blocks are absent when there is nothing to record, a scan with no descriptor, or one run
-outside CI, so a document that has them is one that knows, rather than one that defaulted.
+`descriptor` and `ci` are absent when there is nothing to record, a scan with no descriptor, or one
+run outside CI, so a document that has them is one that knows, rather than one that defaulted.
 
 `priorities` counts what the gate judged, and `suppressed` counts what it did not:
 

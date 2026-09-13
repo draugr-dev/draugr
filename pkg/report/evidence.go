@@ -26,7 +26,7 @@ func (evidenceReporter) Render(w io.Writer, d Data) error {
 	_, _ = fmt.Fprintf(w, "Draugr evidence · %s", releaseLabel(d))
 	if !d.Generated.IsZero() {
 		_, _ = fmt.Fprintf(w, "\nGenerated %s by Draugr %s",
-			d.Generated.UTC().Format("2006-01-02 15:04:05 UTC"), d.Version)
+			d.Generated.UTC().Format("2006-01-02 15:04:05 UTC"), BuildLabel(d.Version))
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
 

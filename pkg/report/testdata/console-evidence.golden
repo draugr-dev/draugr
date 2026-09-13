@@ -25,7 +25,6 @@ CONTROLS
             nuclei: executable file not found in $PATH
 
 MEASURED AGAINST
-  iac       trivy 0.69.3
   licenses  trivy-license 0.69.3 · policy: deny copyleft
 
 COMPONENTS

@@ -67,6 +67,18 @@ var (
 	// template set is republished daily, so it is the template version that decides whether a
 	// cached "clean" is still true.
 	nucleiTemplateVersionRE = regexp.MustCompile(`nuclei-templates version:\s*(\S+)\s*\(`)
+	// retire.js prints a bare version: "5.4.3".
+	retireJSVersionRE = regexp.MustCompile(`([0-9]+\.[0-9]+\.[0-9]+[^\s]*)`)
+	// govulncheck prints a block naming itself and the database it read:
+	//
+	//   Scanner: govulncheck@v1.7.0
+	//   DB updated: 2026-09-10 14:48:42 +0000 UTC
+	//
+	// Both matter for the same reason Trivy's pair does: the same binary against a database a
+	// week older answers a different question, and a reader comparing two runs needs to know
+	// which of the two moved.
+	govulncheckScannerRE = regexp.MustCompile(`Scanner:\s*govulncheck@(\S+)`)
+	govulncheckDBRE      = regexp.MustCompile(`DB updated:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`)
 )
 
 var (
@@ -90,7 +102,30 @@ var (
 		extract: firstMatch(nucleiTemplateVersionRE),
 		run:     execArgvCombined,
 	}
+	sharedRetireJSVersion = &toolVersionProbe{
+		argv: []string{"retire", "--version"}, extract: firstMatch(retireJSVersionRE), run: execArgv,
+	}
+	sharedGovulncheckVersion = &toolVersionProbe{
+		argv: []string{"govulncheck", "-version"}, extract: govulncheckVersion, run: execArgvCombined,
+	}
 )
+
+// govulncheckVersion reads the scanner and the database out of govulncheck's version block, as
+// `v1.7.0;db@2026-09-10 14:48:42`.
+//
+// The scanner alone where no database line was printed, and "" where neither was: a version that
+// names the binary and silently drops the database it read would claim two runs are comparable
+// when the thing that changed between them is the half that is missing.
+func govulncheckVersion(out []byte) string {
+	scanner := firstMatch(govulncheckScannerRE)(out)
+	if scanner == "" {
+		return ""
+	}
+	if db := firstMatch(govulncheckDBRE)(out); db != "" {
+		return scanner + ";db@" + db
+	}
+	return scanner
+}
 
 // draugrCacheVersion is the cache version for a scanner whose rules live in this binary.
 //

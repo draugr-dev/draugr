@@ -882,12 +882,17 @@ func TestProvenanceLines(t *testing.T) {
 	}}}
 
 	got := provenanceLines(d)
-	if len(got) != 3 {
-		t.Fatalf("want an entry per scanner account, got %d: %+v", len(got), got)
+	// Two, not three. The trivy entry has a version and nothing it was measured against, and this
+	// block answers the second question: a row per scanner carrying only a build string turns a
+	// compliance record into a version list. Which build ran is answered under Evidence and in the
+	// report document, both of which say it for every scanner rather than for the ones with a
+	// benchmark to name.
+	if len(got) != 2 {
+		t.Fatalf("want an entry per scanner account with something measured, got %d: %+v", len(got), got)
 	}
 	// Control order is deterministic, or two runs of the same scan render differently.
-	if got[0].Control != "infrastructure" || got[2].Control != "sca" {
-		t.Errorf("controls should be ordered, got %q then %q", got[0].Control, got[2].Control)
+	if got[0].Control != "infrastructure" || got[1].Control != "infrastructure" {
+		t.Errorf("controls should be ordered, got %q then %q", got[0].Control, got[1].Control)
 	}
 	if got[0].Label() != "kube-bench-job 0.15.6" {
 		t.Errorf("Label = %q", got[0].Label())
@@ -896,9 +901,23 @@ func TestProvenanceLines(t *testing.T) {
 	if got[1].Label() != "draugr-k8s-policies" {
 		t.Errorf("Label without a version = %q", got[1].Label())
 	}
-	// A version alone is still worth reporting: it answers "what produced this".
-	if got[2].Detail != "" || got[2].Label() != "trivy 0.69.3" {
-		t.Errorf("version-only entry = %+v", got[2])
+}
+
+// A scanner that only says which build it was does not appear here, whatever else the run holds.
+//
+// Every scanner reports a version now, so without this the block would grow a row for each of them
+// and stop being about what anything was measured against.
+func TestAVersionAloneIsNotSomethingMeasuredAgainst(t *testing.T) {
+	t.Parallel()
+
+	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Provenance: []sarif.Provenance{
+			{Tool: "trivy-fs", Version: "trivy@0.69.3;db@2026-09-12T13:01:09Z"},
+			{Tool: "retirejs", Version: "5.4.3"},
+		}}},
+	}}}
+	if got := provenanceLines(d); len(got) != 0 {
+		t.Errorf("want nothing, got %+v", got)
 	}
 }
 

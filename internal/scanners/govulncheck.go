@@ -26,7 +26,7 @@ const govulncheckScanner = "govulncheck"
 // reach. The two are complementary rather than competing, which is why what this produces is
 // folded onto existing findings rather than reported alongside them.
 func NewGovulncheck() plugin.Scanner {
-	return newRepoScannerPerModule(
+	s := newRepoScannerPerModule(
 		plugin.ScannerInfo{
 			Name:         govulncheckScanner,
 			Origin:       "Go team",
@@ -39,6 +39,8 @@ func NewGovulncheck() plugin.Scanner {
 		govulncheckArgs,
 		parseGovulncheck,
 	)
+	s.cacheVersion = sharedGovulncheckVersion.version
+	return s
 }
 
 // govulncheckArgs builds one `govulncheck -C <module> -format json ./...` per Go module in the

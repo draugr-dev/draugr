@@ -68,7 +68,7 @@ func TestEffectiveKeyUsesCacheVersioner(t *testing.T) {
 	}
 }
 
-func TestCacheVersionProbedOnlyWhenCaching(t *testing.T) {
+func TestTheVersionProbeRunsWhetherOrNotCachingIsOn(t *testing.T) {
 	newReg := func(sc plugin.Scanner) *Registry {
 		reg := NewRegistry()
 		reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
@@ -76,16 +76,21 @@ func TestCacheVersionProbedOnlyWhenCaching(t *testing.T) {
 		return reg
 	}
 
-	// No cache → the version probe must never run.
+	// Without a cache there is no key to build, and the probe still runs: the report has to say
+	// what produced it, and most runs do not cache.
 	noCache := &versionedScanner{name: "s", version: "db@1"}
-	if _, err := New(newReg(noCache)).Run(context.Background(), model()); err != nil {
+	res, err := New(newReg(noCache)).Run(context.Background(), model())
+	if err != nil {
 		t.Fatal(err)
 	}
-	if noCache.versionCalls() != 0 {
-		t.Errorf("CacheVersion should not be probed without caching, got %d calls", noCache.versionCalls())
+	if noCache.versionCalls() == 0 {
+		t.Error("the version was never asked for, so the report cannot say what ran")
+	}
+	if got := provenanceVersion(res, "s"); got != "db@1" {
+		t.Errorf("provenance version = %q, want %q", got, "db@1")
 	}
 
-	// With cache → the probe runs (to build the key).
+	// With a cache it runs as it always did, and the key is built from it.
 	withCache := &versionedScanner{name: "s", version: "db@1"}
 	if _, err := New(newReg(withCache), WithCache(cache.NewMemory())).Run(context.Background(), model()); err != nil {
 		t.Fatal(err)
@@ -93,4 +98,32 @@ func TestCacheVersionProbedOnlyWhenCaching(t *testing.T) {
 	if withCache.versionCalls() == 0 {
 		t.Error("CacheVersion should be probed when caching is enabled")
 	}
+}
+
+// A version nothing could read is recorded as absent. A placeholder would make two genuinely
+// different tools look identical to whoever compares two reports later.
+func TestAnUnreadableVersionIsAbsentRatherThanInvented(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterScanner(&versionedScanner{name: "s", version: ""})
+	res, err := New(reg).Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := provenanceVersion(res, "s"); got != "" {
+		t.Errorf("provenance version = %q, want nothing", got)
+	}
+}
+
+// provenanceVersion is what the run recorded as the version of one scanner, or "" where it
+// recorded none.
+func provenanceVersion(res Result, tool string) string {
+	for _, cr := range res.Controls {
+		for _, p := range cr.Report.Provenance {
+			if p.Tool == tool {
+				return p.Version
+			}
+		}
+	}
+	return ""
 }

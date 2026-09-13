@@ -108,8 +108,13 @@ type sarifTool struct {
 }
 
 type sarifDriver struct {
-	Name  string      `json:"name"`
-	Rules []sarifRule `json:"rules,omitempty"`
+	Name string `json:"name"`
+	// Version is the Draugr that produced this run. SARIF's own field for it, so a consumer asking
+	// what analyzed a commit reads it where every other analyzer puts it. Two reports a month apart
+	// can differ because the code changed or because Draugr did, and without this there is nothing
+	// in either document to tell a reader which.
+	Version string      `json:"version,omitempty"`
+	Rules   []sarifRule `json:"rules,omitempty"`
 }
 
 type sarifRule struct {
@@ -379,6 +384,9 @@ type MarshalOptions struct {
 	// See report.AutomationID for what Draugr puts in it, and for what GitHub code scanning does
 	// to an upload that carries none.
 	AutomationID string
+	// ToolVersion is the Draugr that produced the run, written to the run's tool driver. Empty
+	// writes no version, which is what a report built outside a Draugr run carries.
+	ToolVersion string
 }
 
 // MarshalSARIF serializes the report to standard SARIF 2.1.0 JSON as a single "Draugr" run,
@@ -389,7 +397,10 @@ func (r Report) MarshalSARIF() ([]byte, error) {
 
 // MarshalSARIFWith is MarshalSARIF with explicit options.
 func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
-	run := sarifRun{Tool: sarifTool{Driver: sarifDriver{Name: driverName}}, Results: []sarifResult{}}
+	run := sarifRun{
+		Tool:    sarifTool{Driver: sarifDriver{Name: driverName, Version: opts.ToolVersion}},
+		Results: []sarifResult{},
+	}
 	if opts.AutomationID != "" {
 		run.AutomationDetails = &sarifAutomationDetails{ID: opts.AutomationID}
 	}

@@ -191,7 +191,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	if !d.Generated.IsZero() {
 		view.Generated = d.Generated.UTC().Format("2006-01-02 15:04:05 UTC")
 	}
-	view.Version = d.Version
+	view.Version = BuildLabel(d.Version)
 	view.Duration, view.Slowest = timings(d.Run.Stats)
 	view.CacheHits = d.Run.Stats.CacheHits
 	for _, f := range s.excluded {
