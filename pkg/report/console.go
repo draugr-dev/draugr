@@ -626,7 +626,7 @@ func reasoning(col tui.Painter, f finding) []notePart {
 	for _, note := range []string{
 		reachabilityPath(f.reachability),
 		unreachableCredit(f.reachability),
-		agreementNote(f.alsoFoundBy, f.severity),
+		sarif.AgreementNote(f.alsoFoundBy, f.severity),
 		f.priorityFloor,
 		historicalNote(f.historical),
 	} {

@@ -8,7 +8,6 @@ import (
 	"io"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -999,40 +998,6 @@ func alsoFoundBy(res sarif.Result) []sarif.Observation {
 		return nil
 	}
 	return res.Correlation.AlsoFoundBy
-}
-
-// agreementNote is the line under a finding saying which other scanners found it, and where they
-// disagree about how bad it is.
-//
-// Said rather than hidden, because two tools agreeing is itself a signal, and because a reader who
-// enabled a second scanner should be able to see it working, without this the row looks exactly
-// like a run with one scanner and the second appears to have found nothing.
-//
-// A rating is shown only when it differs from the one being counted. Where the scanners agree,
-// repeating the same numbers on every row is noise a reader has to look past; where they disagree,
-// it is the one thing this line is carrying that they could not get anywhere else. The full record
-// is in the JSON and the SARIF either way.
-func agreementNote(others []sarif.Observation, counted sarif.Severity) string {
-	if len(others) == 0 {
-		return ""
-	}
-	parts := make([]string, 0, len(others))
-	for _, o := range others {
-		if o.Severity != "" && o.Severity != counted {
-			parts = append(parts, fmt.Sprintf("%s (%s)", o.Tool, ratingOf(o)))
-			continue
-		}
-		parts = append(parts, o.Tool)
-	}
-	return "also found by " + strings.Join(parts, ", ")
-}
-
-// ratingOf renders one scanner's rating, with its score where it gave one.
-func ratingOf(o sarif.Observation) string {
-	if o.Score > 0 {
-		return fmt.Sprintf("%s %s", o.Severity, strconv.FormatFloat(o.Score, 'f', -1, 64))
-	}
-	return string(o.Severity)
 }
 
 // reachabilityBlock reports what reachability analysis concluded, as a labeled block: a row per
