@@ -166,3 +166,41 @@ func TestCorrelationIsNotPartOfFingerprint(t *testing.T) {
 		t.Error("correlation changed the fingerprint")
 	}
 }
+
+// Two components shipping the same package at the same version have two flaws, not one.
+//
+// The monorepo shape makes this the common case rather than an edge one: several components over a
+// single repository URL scoped by `paths:`, so the repository is identical across them and only the
+// component tells them apart. Collapsed, one team's finding is counted under a component that
+// cannot fix it, and the team that can is told it has one fewer than it does.
+func TestCorrelationDoesNotCrossAComponent(t *testing.T) {
+	inComponent := func(name, tool, path string) sarif.Result {
+		r := found(tool, "CVE-2020-11023", "pkg:npm/jquery@1.8.3", sarif.LevelWarning, 6.9)
+		r.Component = name
+		r.Location = sarif.Location{URI: path}
+		return r
+	}
+	ctrls := controlsWith(
+		inComponent("api", "retirejs", "app/static/js/jquery.min.js"),
+		inComponent("storefront", "trivy", "web/package-lock.json"),
+		inComponent("storefront", "retirejs", "web/static/js/jquery.min.js"),
+	)
+	groups, _ := applyCorrelation(ctrls)
+	if groups != 1 {
+		t.Fatalf("groups = %d, want only the two inside one component", groups)
+	}
+	for _, r := range ctrls["sca"].Report.Results {
+		if r.Component == "api" && r.Correlated() {
+			t.Errorf("api's finding is counted under another component: %+v", r.Correlation)
+		}
+	}
+	var counted int
+	for _, r := range ctrls["sca"].Report.Results {
+		if !r.Correlated() {
+			counted++
+		}
+	}
+	if counted != 2 {
+		t.Errorf("counted = %d, want one per component", counted)
+	}
+}
