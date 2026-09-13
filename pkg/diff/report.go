@@ -17,12 +17,14 @@ func Formats() []string { return []string{"console", "json", "markdown", "sarif"
 // Render writes the diff in the named format. Unknown formats error.
 func Render(w io.Writer, format string, r Result, opts Options) error {
 	switch format {
+	// Everything that states a number works from the counted result; the SARIF keeps every
+	// scanner's own finding. See Result.Counted.
 	case "", "console":
-		return renderConsole(w, r, opts)
+		return renderConsole(w, r.Counted(), opts)
 	case "markdown":
-		return renderMarkdown(w, r, opts)
+		return renderMarkdown(w, r.Counted(), opts)
 	case "json":
-		return renderJSON(w, r)
+		return renderJSON(w, r.Counted())
 	case "sarif":
 		return renderSARIF(w, r)
 	default:
@@ -292,13 +294,30 @@ func writeChanged(w io.Writer, col tui.Painter, r Result, entries []Entry, opts 
 			t.Row(cells...)
 			continue
 		}
-		t.RowWithNotes([]string{findingTitle(e)}, cells...)
+		t.RowWithNotes(rowNotes(e), cells...)
 	}
 	t.Render(w)
 	if len(shown) < len(entries) {
 		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted,
 			fmt.Sprintf("… and %d changed findings not listed.", len(entries)-len(shown))))
 	}
+}
+
+// rowNotes is what goes under a row: which other scanners found the same flaw, then what the
+// finding says.
+//
+// The agreement line comes first because it qualifies the row above it rather than the sentence
+// below it, and it is the same line, from the same function, that a scan report draws. A reader
+// who enabled a second scanner can see it working here too; without it a correlated flaw is drawn
+// exactly like one only one tool found, and the second appears to have found nothing.
+func rowNotes(e Entry) []string {
+	notes := make([]string, 0, 2)
+	if e.Correlation != nil {
+		if note := sarif.AgreementNote(e.Correlation.AlsoFoundBy, e.Severity("")); note != "" {
+			notes = append(notes, note)
+		}
+	}
+	return append(notes, findingTitle(e))
 }
 
 // action is one thing to do and the findings it covers.

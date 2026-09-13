@@ -1208,3 +1208,40 @@ var vulnerabilityID = regexp.MustCompile(
 func (r Result) VulnerabilityID() string {
 	return vulnerabilityID.FindString(r.RuleID)
 }
+
+// AgreementNote is the line under a finding saying which other scanners found it, and where they
+// disagree about how bad it is.
+//
+// Said rather than hidden, because two tools agreeing is itself a signal, and because a reader who
+// enabled a second scanner should be able to see it working, without this the row looks exactly
+// like a run with one scanner and the second appears to have found nothing.
+//
+// Here rather than beside one renderer because the scan report and the diff both draw it, and a
+// reader who has learned the line in a terminal meets the same words in a pull-request comment.
+//
+// A rating is shown only when it differs from the one being counted. Where the scanners agree,
+// repeating the same numbers on every row is noise a reader has to look past; where they disagree,
+// it is the one thing this line is carrying that they could not get anywhere else. The full record
+// is in the JSON and the SARIF either way.
+func AgreementNote(others []Observation, counted Severity) string {
+	if len(others) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(others))
+	for _, o := range others {
+		if o.Severity != "" && o.Severity != counted {
+			parts = append(parts, fmt.Sprintf("%s (%s)", o.Tool, ratingOf(o)))
+			continue
+		}
+		parts = append(parts, o.Tool)
+	}
+	return "also found by " + strings.Join(parts, ", ")
+}
+
+// ratingOf renders one scanner's rating, with its score where it gave one.
+func ratingOf(o Observation) string {
+	if o.Score > 0 {
+		return fmt.Sprintf("%s %s", o.Severity, strconv.FormatFloat(o.Score, 'f', -1, 64))
+	}
+	return string(o.Severity)
+}

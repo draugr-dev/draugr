@@ -382,6 +382,50 @@ func (r Result) Changed() []Entry {
 	return out
 }
 
+// Counted drops a second scanner's copy of a flaw the first one already accounts for, from every
+// state a reader is shown a number for.
+//
+// Two scanners over one target report one flaw twice, and the scan already answers for that: the
+// copy carries correlation.countedUnder, and every count a person reads leaves it out. A diff that
+// did not would put two numbers for one change in front of the same reader, nine in the terminal
+// and fourteen on the pull request, with nothing on either screen saying which is the arithmetic.
+//
+// The copies are dropped from the lists rather than from the report. renderSARIF works from the
+// uncounted result, so what is uploaded to code scanning still carries what each scanner said,
+// and so does the head scan's own SARIF.
+//
+// The gate already asked the right question, so Tripped is carried through untouched.
+func (r Result) Counted() Result {
+	out := r
+	out.New = counted(r.New)
+	out.Fixed = counted(r.Fixed)
+	out.Unchanged = counted(r.Unchanged)
+	out.Accepted = counted(r.Accepted)
+	out.Unaccepted = counted(r.Unaccepted)
+	return out
+}
+
+// counted keeps the findings that are somebody's to act on, and returns the input untouched when
+// nothing in it is a copy, so the common case allocates nothing.
+func counted(rs []sarif.Result) []sarif.Result {
+	n := 0
+	for _, r := range rs {
+		if r.Correlated() {
+			n++
+		}
+	}
+	if n == 0 {
+		return rs
+	}
+	out := make([]sarif.Result, 0, len(rs)-n)
+	for _, r := range rs {
+		if !r.Correlated() {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // Gate is the differential rule a run applied, carried on the result so every rendering can state
 // what the verdict was measured against.
 //

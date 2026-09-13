@@ -415,3 +415,37 @@ func TestSameRepository(t *testing.T) {
 		}
 	}
 }
+
+func TestAgreementNoteShowsARatingOnlyWhenItDiffers(t *testing.T) {
+	// Where the scanners agree, repeating the same numbers on every row is noise. Where they
+	// disagree, it is the one thing this line carries that a reader cannot get anywhere else.
+	agree := AgreementNote([]Observation{
+		{Tool: "grype", Severity: SeverityHigh, Score: 8.7},
+	}, SeverityHigh)
+	if agree != "also found by grype" {
+		t.Errorf("note = %q, want no rating when they agree", agree)
+	}
+
+	differ := AgreementNote([]Observation{
+		{Tool: "grype", Severity: SeverityLow, Score: 2.3},
+	}, SeverityMedium)
+	if differ != "also found by grype (low 2.3)" {
+		t.Errorf("note = %q, want the other scanner's own reading", differ)
+	}
+}
+
+func TestAgreementNoteHandlesSeveralScanners(t *testing.T) {
+	got := AgreementNote([]Observation{
+		{Tool: "grype", Severity: SeverityLow, Score: 2.3},
+		{Tool: "osv", Severity: SeverityMedium},
+	}, SeverityMedium)
+	if got != "also found by grype (low 2.3), osv" {
+		t.Errorf("note = %q", got)
+	}
+}
+
+func TestAgreementNoteSilentWhenOnlyOneScannerFoundIt(t *testing.T) {
+	if got := AgreementNote(nil, SeverityHigh); got != "" {
+		t.Errorf("note = %q, want nothing", got)
+	}
+}
