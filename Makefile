@@ -75,5 +75,8 @@ public-scope: ## Fail if a tracked file describes the business around Draugr rat
 slop: ## Fail if published prose announces its point instead of making it
 	@./scripts/check-slop.py
 
+console-matches-command: ## Fail if a pasted console block is the output of a different command
+	@./scripts/check-console-matches-command.py
+
 clean: ## Remove build artifacts
 	rm -rf bin

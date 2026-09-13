@@ -97,6 +97,11 @@ echo "▶ no-defect-recounts"
 echo "▶ no-rationale-in-copy"
 ./scripts/check-no-rationale-in-copy.py
 
+echo "▶ console-matches-command"
+# A block pasted from a slightly different run is invisible to review: the prose is right, the
+# output is real, and the only wrong part is which command produced it.
+./scripts/check-console-matches-command.py
+
 echo "▶ spelling"
 ./scripts/check-spelling.sh
 
