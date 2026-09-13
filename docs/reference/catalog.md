@@ -91,8 +91,7 @@ reference](saga-schema.md#sbom-generation).
 
 ## Reporters
 
-Scan results render through a pluggable **Reporter** interface (`pkg/report`), selected with
-`draugr scan --format`:
+Scan results render in any of these formats, selected with `draugr scan --format`:
 
 | Format | Purpose |
 |--------|---------|
