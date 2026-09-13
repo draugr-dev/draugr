@@ -96,6 +96,7 @@ func goldenMismatch(path string) string {
 		"     pasted, and pinned by TestEveryPasteOfTheConsoleIsTracked:\n" +
 		"       docs/concepts/verdict-and-gating.md,\n" +
 		"       docs/getting-started/first-saga.md, docs/getting-started/quickstart.md,\n" +
+		"       docs/guides/monorepos.md,\n" +
 		"       docs/reference/cli.md,\n" +
 		"       docs/reference/saga-schema.md\n" +
 		"     described rather than pasted, so only a shape change reaches them:\n" +
@@ -324,6 +325,7 @@ var pastesConsoleOutput = map[string]bool{
 	"docs/concepts/verdict-and-gating.md": true,
 	"docs/getting-started/first-saga.md":  true,
 	"docs/getting-started/quickstart.md":  true,
+	"docs/guides/monorepos.md":            true,
 	"docs/reference/cli.md":               true,
 	"docs/reference/saga-schema.md":       true,
 }

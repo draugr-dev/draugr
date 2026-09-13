@@ -92,6 +92,9 @@ Each product publishes to GitHub code scanning under its own category, taken fro
 two pipelines uploading against one commit keep both sets of alerts. See [publish to GitHub code
 scanning](code-scanning.md#two-products-in-one-repository).
 
+The same mechanics serve several **teams** rather than several products, and which of the two shapes
+a repository wants is the first decision in [scanning a monorepo](monorepos.md).
+
 ### Name the audience in the stem
 
 This is the convention that makes it work. `**/*.saga-fragment.yaml` matches *everything*, including
