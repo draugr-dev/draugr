@@ -1,12 +1,16 @@
 package scanners
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/tools"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -39,7 +43,116 @@ func NewRetireJS() plugin.Scanner {
 		parseRetireJS,
 	)
 	s.cacheVersion = sharedRetireJSVersion.version
+	s.prewarm = sharedRetireJSRepo.warm
 	return s
+}
+
+// retireJSRepoWarmer fetches the advisory database once, before the jobs fan out.
+//
+// retire.js honors its own cache, so a warm one costs nothing however many jobs run. A cold one
+// does not survive concurrency: three jobs starting together all find nothing, all fetch, and all
+// write their own copy, which shows up as duplicate files a millisecond apart. Nothing prunes
+// them, so the directory grows by a copy of the database per job per expiry.
+//
+// Warmed by running the tool against an empty directory, which takes about a fifth of a second and
+// asks retire.js to populate its cache the way it would anyway. Draugr does not fetch the file
+// itself: the URL and the format are retire.js's, and a copy Draugr placed would be Draugr's to
+// keep valid against a tool that can change both.
+type retireJSRepoWarmer struct {
+	once sync.Once
+	err  error
+	run  func(ctx context.Context, dir string, argv []string) ([]byte, error)
+}
+
+var sharedRetireJSRepo = &retireJSRepoWarmer{run: execArgvInDir}
+
+func (w *retireJSRepoWarmer) warm(ctx context.Context) error {
+	w.once.Do(func() {
+		cache := retireCacheDir()
+		if cache == "" {
+			return
+		}
+		if netpolicy.Offline() {
+			// Nothing to fetch, and the scan reads whatever copy is already there. Said here
+			// rather than left to the tool, because "offline with no local copy" is a different
+			// problem from "offline", and only one of them stops the scan.
+			if retireLocalRepo(cache) == "" {
+				w.err = fmt.Errorf("offline and no cached retire.js advisory database in %s: "+
+					"copy one across, or run once with a network", cache)
+			}
+			return
+		}
+		empty, err := os.MkdirTemp("", "draugr-retire-warm-")
+		if err != nil {
+			w.err = err
+			return
+		}
+		defer func() { _ = os.RemoveAll(empty) }()
+		if _, err := w.run(ctx, "", []string{
+			"retire", "--path", empty, "--outputformat", "json", "--exitwith", "0",
+			"--cachedir", cache,
+		}); err != nil {
+			w.err = err
+			return
+		}
+		pruneRetireCache(cache)
+	})
+	return w.err
+}
+
+// retireIndex is retire.js's own cache index: each source URL against the copy it last wrote.
+type retireIndex map[string]struct {
+	Date int64  `json:"date"`
+	File string `json:"file"`
+}
+
+// readRetireIndex reads the cache index, or nil where there is none to read.
+func readRetireIndex(cache string) retireIndex {
+	body, err := os.ReadFile(filepath.Join(cache, "index.json")) // #nosec G304 -- a path Draugr owns
+	if err != nil {
+		return nil
+	}
+	var idx retireIndex
+	if json.Unmarshal(body, &idx) != nil {
+		return nil
+	}
+	return idx
+}
+
+// retireLocalRepo is the cached advisory database retire.js would read, or "" where there is none.
+func retireLocalRepo(cache string) string {
+	for _, entry := range readRetireIndex(cache) {
+		if entry.File == "" {
+			continue
+		}
+		path := filepath.Join(cache, entry.File)
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return ""
+}
+
+// pruneRetireCache removes copies of the database the index no longer names.
+//
+// Each expiry leaves the previous copy behind, at roughly 420 KB a time, so a directory nothing
+// tidies grows without limit while holding one useful file. Failing to remove one is not worth
+// failing a scan over.
+func pruneRetireCache(cache string) {
+	keep := map[string]bool{"index.json": true}
+	for _, entry := range readRetireIndex(cache) {
+		keep[entry.File] = true
+	}
+	entries, err := os.ReadDir(cache)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() || keep[e.Name()] || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		_ = os.Remove(filepath.Join(cache, e.Name()))
+	}
 }
 
 // retireJSArgs builds `retire --path <dir> --outputformat json --exitwith 0`.
@@ -55,8 +168,18 @@ func NewRetireJS() plugin.Scanner {
 // copy across.
 func retireJSArgs(dir string, _ plugin.Config) []string {
 	argv := []string{"retire", "--path", dir, "--outputformat", "json", "--exitwith", "0"}
-	if cache := retireCacheDir(); cache != "" {
-		argv = append(argv, "--cachedir", cache)
+	cache := retireCacheDir()
+	if cache == "" {
+		return argv
+	}
+	argv = append(argv, "--cachedir", cache)
+	// Offline, point the tool at the copy already on disk. Warming is not enough on its own:
+	// retire.js checks its cache at scan time too, so a run whose copy has expired reaches out
+	// again, once per job, on a machine that has said it has no network.
+	if netpolicy.Offline() {
+		if local := retireLocalRepo(cache); local != "" {
+			argv = append(argv, "--jsrepo", local)
+		}
 	}
 	return argv
 }
