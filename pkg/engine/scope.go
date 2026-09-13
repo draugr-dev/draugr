@@ -289,6 +289,12 @@ func (s Scope) Selectors() []Selector {
 // only its outcome.
 func (s Scope) describeSelectors() string {
 	var parts []string
+	// Named first when it is set, because it narrows before any selector does. Without it the
+	// message can report a label that is genuinely in use as matching nothing, which reads as a
+	// contradiction and offers no next step.
+	if len(s.Components) > 0 {
+		parts = append(parts, "--components "+strings.Join(s.Components, ","))
+	}
 	if len(s.Labels) > 0 {
 		parts = append(parts, "--labels "+strings.Join(s.Labels, " "))
 	}

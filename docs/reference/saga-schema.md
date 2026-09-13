@@ -1518,8 +1518,8 @@ components:
 They never reach a verdict. What they do is answer *whose*, in the two places that question is
 asked. `draugr scan --labels team=web` runs only what that team owns, which is how a pipeline in a
 repository holding many teams' code stays about one of them. And every finding carries its
-component's labels into `results.sarif` and `report.json`, so a platform holding many components
-can narrow a list to the ones somebody is answerable for.
+component's labels into `results.sarif`, which is the document a platform expands a run from, so a
+fleet of many components can be narrowed to the ones somebody is answerable for.
 
 They are deliberately absent from the console, the Markdown report and a pull-request comment.
 Those answer what to fix, for a reader who already knows the work is theirs; filtering is a

@@ -197,3 +197,24 @@ func TestTheSelectorTravelsWithTheResult(t *testing.T) {
 		t.Error("a scope that named components claims a selector")
 	}
 }
+
+// An error names every flag that narrowed, not only the last one.
+//
+// `--components storefront --labels team=platform` fails on a label that is genuinely in use, and
+// the message would otherwise say so while reporting no match, which reads as a contradiction and
+// offers nothing to do about it. The component list is what excluded the one component carrying
+// that label, so the message has to show it.
+func TestTheErrorNamesEveryFlagThatNarrowed(t *testing.T) {
+	err := Scope{
+		Components: []string{"storefront"},
+		Labels:     []string{"team=payments"},
+	}.Validate(monorepo(), nil)
+	if err == nil {
+		t.Fatal("a combination matching nothing was accepted")
+	}
+	for _, want := range []string{"--components storefront", "--labels team=payments"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error does not name %q: %v", want, err)
+		}
+	}
+}

@@ -181,9 +181,11 @@ func newScanCommand() *cobra.Command {
 		"scan only components carrying these `key=value` labels; repeat for more, "+
 			"one key twice means either value")
 	cmd.Flags().StringSliceVar(&opts.exposure, "exposure", nil,
-		"scan only components declaring one of these exposures")
+		"scan only components declaring one of these exposures: "+
+			strings.Join(namesOf(saga.Exposures), ", "))
 	cmd.Flags().StringSliceVar(&opts.criticality, "criticality", nil,
-		"scan only components declaring one of these criticalities")
+		"scan only components declaring one of these criticalities: "+
+			strings.Join(namesOf(saga.Criticalities), ", "))
 	cmd.Flags().StringSliceVar(&opts.controls, "controls", nil,
 		"run only these controls; the verdict says what it covered")
 	cmd.Flags().BoolVar(&opts.allowScanErrors, "allow-scan-errors", false,
@@ -598,6 +600,16 @@ func validatePriority(flag, v string) (string, error) {
 // Converted rather than validated here, so the error comes from Scope.Validate with the other
 // scope problems and names the values that are right. A flag that rejected its own value would
 // report one typo in a different voice from the rest.
+// namesOf renders a closed vocabulary for a flag's own help, so the values are learnable without
+// running the command and reading the error.
+func namesOf[T ~string](vals []T) []string {
+	out := make([]string, 0, len(vals))
+	for _, v := range vals {
+		out = append(out, string(v))
+	}
+	return out
+}
+
 func exposures(vals []string) []saga.Exposure {
 	out := make([]saga.Exposure, 0, len(vals))
 	for _, v := range vals {

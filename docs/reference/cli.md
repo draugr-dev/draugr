@@ -237,9 +237,9 @@ draugr scan --exposure public --criticality critical
 
 Values within one flag are alternatives and the flags narrow together, so `--labels team=web
 --labels team=payments` is either team and `--labels team=web --exposure public` is that team's
-public components. `--labels` reads the component's own `labels`, which is the organization's
-vocabulary, so Draugr reads no key there and attaches no meaning to one. `--exposure` and
-`--criticality` are Draugr's own, so a value that is not one of them is refused by name:
+public components. `--labels` reads the component's own [`labels`](saga-schema.md), which is the
+organization's vocabulary. `--exposure` and `--criticality` are Draugr's own, so a value that is
+not one of them is refused by name:
 
 ```
 draugr: --exposure: no such exposure "pubic" (want one of: public, authenticated, internal, restricted)
@@ -255,9 +255,9 @@ draugr: --labels squad=web matches no component (no component declares label "sq
 ```
 
 The selector is resolved to component names before the run starts, so the verdict line, the
-component list and the SARIF analysis category all describe what was actually covered. The report
-records the selector as well, because "everything labeled `team=web`" and "the component
-storefront" are different requests even on a day they cover the same thing.
+component list and the SARIF analysis category all describe what was actually covered.
+`results.sarif` records the selector itself beside them, because "everything labeled `team=web`"
+and "the component storefront" are different requests even on a day they cover the same thing.
 
 They are a **view over one run**, not a decision. `config.controls` records that a project does
 not need `dast`; editing it to debug is how a temporary change gets committed.
