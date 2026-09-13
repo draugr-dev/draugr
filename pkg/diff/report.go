@@ -374,6 +374,14 @@ func groupChanges(entries []Entry) (actions []action, covered int) {
 func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Options) {
 	actions, covered := groupChanges(entries)
 	// The same sentence the scan report's fix list uses, so one reader has learned both.
+	// Nothing to do is a result, and a heading of zeros over a blank space is not how to say it.
+	if len(actions) == 0 {
+		_, _ = fmt.Fprintf(w, "%s\n  %s\n", col.Paint(tui.StyleMuted, "WHAT TO DO"),
+			col.Paint(tui.StylePass, fmt.Sprintf("Nothing. %s changed and none of it needs anybody.",
+				plural(len(entries), "finding"))))
+		return
+	}
+
 	// --top caps the listing, and in this view the listing is the actions. A flag that quietly did
 	// nothing in one view would be the same silence as a scanner that did not run.
 	shown, held := actions, 0

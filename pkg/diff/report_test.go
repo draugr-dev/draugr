@@ -511,16 +511,22 @@ func TestTheCommentSaysWhenNothingChanged(t *testing.T) {
 	}
 }
 
-// Everything that changed is somebody else's problem to fix or nobody's: a diff of fixes alone has
-// no work in it, and an actions listing has to say so rather than drawing an empty table.
+// A diff of fixes alone has no work in it, and an actions listing has to say so rather than
+// heading a blank space with a count of zero.
 func TestAnActionsListingWithNoWorkSaysSo(t *testing.T) {
 	r := Result{Fixed: []sarif.Result{{RuleID: "CVE-1", Level: sarif.LevelError, Priority: "P1"}}}
-	var b strings.Builder
-	if err := Render(&b, "markdown", r, Options{View: ViewActions}); err != nil {
-		t.Fatal(err)
-	}
-	if got := b.String(); !strings.Contains(got, "none of it needs anybody") {
-		t.Errorf("an empty work list should say why it is empty:\n%s", got)
+	for _, format := range []string{"console", "markdown"} {
+		var b strings.Builder
+		if err := Render(&b, format, r, Options{View: ViewActions}); err != nil {
+			t.Fatal(err)
+		}
+		got := b.String()
+		if !strings.Contains(got, "none of it needs anybody") {
+			t.Errorf("%s: an empty work list should say why it is empty:\n%s", format, got)
+		}
+		if strings.Contains(got, "0 actions") {
+			t.Errorf("%s: a heading of zeros is not how to say nothing:\n%s", format, got)
+		}
 	}
 }
 
