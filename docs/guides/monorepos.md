@@ -88,18 +88,24 @@ draugr scan draugr.saga.yaml --labels team=web
 ```
 
 ```console
-DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components; sca)  2.818s
+DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components)  6.061s
 
  P1 4 P2 4 P3 1 P4 0
 
 CONTROLS
-  sca  FAIL   P1 4 P2 4 P3 1
+  iac       pass   no priorities set
+  licenses  pass   no priorities set
+  sast      pass   no priorities set
+  sca       FAIL   P1 4 P2 4 P3 1
+  secrets   pass   no priorities set
 
 COMPONENTS
   storefront  FAIL   P1 4 P2 4 P3 1
   api         not scanned
   platform    not scanned
 ```
+
+Every control still runs; what narrowed is which components they ran against.
 
 The team's pipeline is about the team's code, so its pull-request comment is too. Use a label rather
 than `--components`: a team knows the label it files under, and a list of component names in a
@@ -144,19 +150,13 @@ alert is a positive claim that somebody fixed something.
 ## Scanning the same tree repeatedly stays cheap
 
 A job scoped with `paths:` is cached against the content of its own subtree rather than the
-repository's commit, which matters here because a monorepo takes a commit every few minutes.
+repository's commit, so a commit touching one component leaves every other component's result
+valid. That is what keeps a monorepo affordable, because a monorepo takes a commit every few
+minutes and a key naming the whole repository would be invalidated by every one of them.
 
-Measured on a two-component tree, twelve `sca` jobs:
-
-| | hits | scans |
-|---|---|---|
-| a warm run, nothing changed | 12 | 0 |
-| a commit touching one component | 9 | 3 |
-
-The three that re-scan belong to the component that changed. See [caching and
-performance](caching-and-performance.md#one-repository-several-components) for what keeps the
-commit instead, which is a job that reads the repository's history and a repository Draugr clones
-from a URL.
+[Caching and performance](caching-and-performance.md#one-repository-several-components) has the
+measurement, and the two cases that keep the commit: a job that reads the repository's history, and
+a repository Draugr clones from a URL.
 
 ## Gate a pull request on what it introduced
 
