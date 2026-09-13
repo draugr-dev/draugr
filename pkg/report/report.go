@@ -455,8 +455,59 @@ func erroredControls(d Data) []string {
 }
 
 func (d Data) marshalOptions() sarif.MarshalOptions {
-	return sarif.MarshalOptions{Compact: d.View == ViewCompact}
+	return sarif.MarshalOptions{
+		Compact:      d.View == ViewCompact,
+		AutomationID: AutomationID(d.Project, d.Run.Scope),
+	}
 }
+
+// AutomationID is what a run writes to SARIF's runs[].automationDetails.id, and it decides
+// whether two analyses of one commit can coexist.
+//
+// GitHub code scanning splits the id on its last "/" into a category and a run id, and an upload
+// replaces whatever it last received under the same tool and category. A report carrying no id is
+// filed under the empty category, so a monorepo publishing two products over one commit keeps
+// only whichever pipeline finished last, with nothing in either run saying so. An upload made
+// through the code-scanning API cannot correct this from outside: that endpoint takes no category
+// of its own, and the id in the file is the only thing it reads.
+//
+// The id is the project and, when the run was narrowed, what it was narrowed to. Both are asked
+// for rather than found, which is what makes the id identical on every run of the same product,
+// and an identical id is what lets an alert fixed in one run resolve instead of reappearing under
+// a new category. The trailing "/" puts all of it in the category and leaves the run id empty.
+//
+// Empty when there is no project and no narrowing, which is a scan with no descriptor behind it.
+func AutomationID(project string, scope engine.Scope) string {
+	parts := make([]string, 0, 3)
+	if project != "" {
+		parts = append(parts, automationSegment(project))
+	}
+	if len(scope.Components) > 0 {
+		parts = append(parts, "components:"+automationList(scope.Components))
+	}
+	if len(scope.Controls) > 0 {
+		parts = append(parts, "controls:"+automationList(scope.Controls))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, "/") + "/"
+}
+
+// automationList renders one axis of a scope, sorted, so that --components api,web and
+// --components web,api are one category rather than two.
+func automationList(names []string) string {
+	sorted := slices.Clone(names)
+	slices.Sort(sorted)
+	for i, n := range sorted {
+		sorted[i] = automationSegment(n)
+	}
+	return strings.Join(sorted, ",")
+}
+
+// automationSegment keeps a name out of the category/run-id split, which is made on the last "/"
+// in the whole id.
+func automationSegment(s string) string { return strings.ReplaceAll(s, "/", "-") }
 
 // --- shared summary used by the human reporters ---
 

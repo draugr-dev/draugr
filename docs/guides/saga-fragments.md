@@ -88,6 +88,10 @@ fragments:
 Two products over one tree, and **adding a component is one new directory with no edit to either
 product's Saga.**
 
+Each product publishes to GitHub code scanning under its own category, taken from `project:`, so
+two pipelines uploading against one commit keep both sets of alerts. See [publish to GitHub code
+scanning](code-scanning.md#two-products-in-one-repository).
+
 ### Name the audience in the stem
 
 This is the convention that makes it work. `**/*.saga-fragment.yaml` matches *everything*, including

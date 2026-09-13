@@ -91,6 +91,31 @@ A narrowed SARIF records the band it was narrowed to, so nothing reading it late
 [`draugr diff`](pr-diff.md), which reads a missing finding as a fixed one, mistakes it for a
 complete scan.
 
+### Two products in one repository
+
+The category an upload belongs to is what separates one analysis of a commit from another, and
+Draugr sets it from the descriptor. Scan `azure.saga.yaml` and `gcp.saga.yaml` over the same
+commit and each product keeps its own alerts; without a category the second upload would replace
+the first, and both runs would report success.
+
+It is written into the SARIF as `runs[].automationDetails.id`, so it travels with the file and
+applies whether Draugr uploads it or `github/codeql-action/upload-sarif` does. The upload endpoint
+has no category of its own to correct it with.
+
+| The run | The category |
+|---|---|
+| `project: acme-azure` | `acme-azure` |
+| `project: acme-gcp` | `acme-gcp` |
+| `--components web --controls sca` | `acme-azure/components:web/controls:sca` |
+
+A matrix leg is its own category for the same reason a product is, so splitting a scan across jobs
+by component or by control does not leave each job erasing the last one's alerts.
+
+The category comes from what was asked for rather than from what was found, so it is the same on
+every push of the same product. That is what lets code scanning close an alert when the finding
+behind it goes away: a category that moved between runs would leave the old alerts open forever
+and open the new ones from scratch.
+
 See [`examples/publishing.saga.yaml`](../../examples/publishing.saga.yaml) for a fuller,
 multi-format, multi-publisher Saga.
 

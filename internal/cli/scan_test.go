@@ -1481,3 +1481,69 @@ func TestAComponentCountsWhatTheRunCounts(t *testing.T) {
 		t.Errorf("findings = %d, want the copy and the suppression left out", store.Findings)
 	}
 }
+
+// The written results.sarif names which analysis it is.
+//
+// This is the file an action uploads, and the upload endpoint takes no category of its own, so
+// what is in the file is the only thing separating two products scanned over one commit. Without
+// it the second upload replaces the first and both pipelines report success.
+func TestTheWrittenSARIFNamesWhichAnalysisItIs(t *testing.T) {
+	run := engine.Result{
+		Scope: engine.Scope{Components: []string{"web"}},
+		Controls: map[string]plugin.ControlResult{
+			"sca": {Report: sarif.Report{Results: []sarif.Result{
+				{RuleID: "CVE-1", Level: sarif.LevelError, Priority: "P1"},
+			}}},
+		},
+	}
+	verdict := norn.Result{Verdict: norn.Fail}
+
+	id := func(t *testing.T, data report.Data) string {
+		t.Helper()
+		dir := t.TempDir()
+		if err := writeArtifacts(dir, []string{"sarif"}, data, saga.Release{}, data.Run, verdict, "", ""); err != nil {
+			t.Fatal(err)
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, "results.sarif")) //#nosec G304 -- under t.TempDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc struct {
+			Runs []struct {
+				AutomationDetails *struct {
+					ID string `json:"id"`
+				} `json:"automationDetails"`
+			} `json:"runs"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if doc.Runs[0].AutomationDetails == nil {
+			return ""
+		}
+		return doc.Runs[0].AutomationDetails.ID
+	}
+
+	got := id(t, report.Data{Project: "acme-azure", Run: run, Verdict: verdict})
+	if want := "acme-azure/components:web/"; got != want {
+		t.Errorf("automationDetails.id = %q, want %q", got, want)
+	}
+
+	// The other product from the same tree, over the same commit, keeps its own alerts.
+	other := id(t, report.Data{Project: "acme-gcp", Run: run, Verdict: verdict})
+	if other == got {
+		t.Errorf("both products publish under %q, so one erases the other", got)
+	}
+
+	// The id is the descriptor's, not the findings'. A run that found something else still
+	// files under the category whose alerts it is meant to update.
+	changed := run
+	changed.Controls = map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "CVE-2", Level: sarif.LevelWarning, Priority: "P3"},
+		}}},
+	}
+	if again := id(t, report.Data{Project: "acme-azure", Run: changed, Verdict: verdict}); again != got {
+		t.Errorf("id moved with the findings: %q then %q", got, again)
+	}
+}
