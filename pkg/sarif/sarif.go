@@ -27,10 +27,8 @@ type sarifLog struct {
 
 type sarifRun struct {
 	Tool sarifTool `json:"tool"`
-	// AutomationDetails names which analysis this run is, among several over one commit. GitHub
-	// code scanning reads a category out of it and replaces whatever it last received under the
-	// same tool and category, so two products scanned over one repository need two ids or the
-	// second upload removes the first one's alerts.
+	// AutomationDetails names which analysis this run is, among several over one commit. Set from
+	// MarshalOptions.AutomationID, and absent when that is empty.
 	AutomationDetails *sarifAutomationDetails `json:"automationDetails,omitempty"`
 	Results           []sarifResult           `json:"results"`
 	// OriginalURIBaseIDs declares what Draugr's relative result paths are relative to. Required
@@ -49,10 +47,9 @@ type sarifRun struct {
 
 // sarifAutomationDetails is SARIF's runAutomationDetails, of which Draugr writes the id.
 //
-// The id is read as "category/run-id", split on the last "/", and a string with no "/" in it is
-// all run-id and no category. So the id ends in "/": the whole of it is the category, and the run
-// id is empty, which is what keeps an alert fixed in one run from reappearing under a new
-// category in the next.
+// GitHub reads the id as "category/run-id", split on the last "/", so a string with no "/" in it
+// is all run id and no category. Draugr's ends in one. See report.AutomationID for what goes in
+// it and why it has to be stable.
 type sarifAutomationDetails struct {
 	ID string `json:"id"`
 }
@@ -376,12 +373,11 @@ type MarshalOptions struct {
 	// prose doesn't: keep the pointer, drop the paragraphs.
 	Compact bool
 	// AutomationID is written to runs[].automationDetails.id, which is how a consumer tells two
-	// analyses of one commit apart. Empty writes no automationDetails at all.
+	// analyses of one commit apart. Empty writes no automationDetails at all, which is what a
+	// report carried before this existed and what a scan with nothing to name still produces.
 	//
-	// GitHub code scanning derives a category from it and replaces the last upload that carried
-	// the same tool and category. Two products assembled from one repository therefore need two
-	// ids, or the second pipeline removes the first product's alerts and both runs report
-	// success. See report.AutomationID for what Draugr puts in it.
+	// See report.AutomationID for what Draugr puts in it, and for what GitHub code scanning does
+	// to an upload that carries none.
 	AutomationID string
 }
 

@@ -476,7 +476,8 @@ func (d Data) marshalOptions() sarif.MarshalOptions {
 // and an identical id is what lets an alert fixed in one run resolve instead of reappearing under
 // a new category. The trailing "/" puts all of it in the category and leaves the run id empty.
 //
-// Empty when there is no project and no narrowing, which is a scan with no descriptor behind it.
+// Empty when there is no project and no narrowing. That is a scan with no descriptor at all, and
+// also an ordinary descriptor that never set project:, which the schema does not require.
 func AutomationID(project string, scope engine.Scope) string {
 	parts := make([]string, 0, 3)
 	if project != "" {
