@@ -76,10 +76,13 @@ what one change did.
 | | How | What it costs |
 |---|---|---|
 | **The GitHub Action** | `mode: auto` scans both sides for you | nothing to wire; two scans per pull request |
-| **Scan both in one job** | check out the base, scan, check out head, scan | two scans per pull request |
+| **The GitLab template** | [`gitlab-ci/draugr.yml`](gitlab-ci.md#gating-a-merge-request-on-new-findings) does it on every merge request | nothing to wire; two scans per merge request |
+| **The Azure template** | [`azure-pipelines/draugr.yml`](azure-pipelines.md#gating-on-new-findings) with `mode: auto` | nothing to wire; two scans per pull request |
+| **Scan both in one job** | check out the base, scan, check out head, scan | two scans, on any CI system |
 | **A stored artifact** | the last build of `main` published its `results.sarif` | one scan, and a base that is not the merge base |
 
-The middle one works on any CI system and is where to start. What to do about the second scan is
+The three templates gate a merge request on new findings with nothing to set up, GitLab's at `P1`
+by default. Scanning both sides by hand is where to start anywhere else. What to do about the second scan is
 the next section, because the answer is usually not the artifact.
 
 ## Do not pay for the base scan twice
@@ -199,8 +202,9 @@ takes the whole step with it under `set -e`. It suppresses the verdict's exit co
 could not run still fails, so a missing report never reaches the diff disguised as "no new
 findings".
 
-For a complete pipeline, see [Azure Pipelines](azure-pipelines.md#gating-on-new-findings); on GitHub
-the action's `mode: auto` does all of this for you.
+For a complete pipeline, see [Azure Pipelines](azure-pipelines.md#gating-on-new-findings) or
+[GitLab CI](gitlab-ci.md#gating-a-merge-request-on-new-findings); on GitHub the action's
+`mode: auto` does all of this for you.
 
 Each scan clones the repository before reading it, so a `results.sarif` always describes a
 **committed revision**, which is what makes the two comparable, and what a reader needs in order to
