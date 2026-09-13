@@ -162,10 +162,16 @@ func TestSchemaAllowsEveryEffectKind(t *testing.T) {
 		t.Fatalf("allowEffects is %v, want an array", allow["type"])
 	}
 
+	// anyOf of const rather than a plain enum, so an editor shows what each kind means beside the
+	// completion. A reader consenting to an effect is the one who must not be guessing at the word.
 	got := map[string]bool{}
 	items := allow["items"].(map[string]any)
-	for _, v := range items["enum"].([]any) {
-		got[v.(string)] = true
+	for _, v := range items["anyOf"].([]any) {
+		variant := v.(map[string]any)
+		got[variant["const"].(string)] = true
+		if variant["description"] == "" || variant["description"] == nil {
+			t.Errorf("effect %v completes with no explanation of what it permits", variant["const"])
+		}
 	}
 	for _, k := range plugin.EffectKinds() {
 		if !got[string(k)] {
@@ -315,8 +321,14 @@ func TestSchemaKnowsEveryReportFormat(t *testing.T) {
 	defs := generated(t)["$defs"].(map[string]any)
 	rc := defs["reportConfig"].(map[string]any)["properties"].(map[string]any)
 	got := map[string]bool{}
-	for _, v := range rc["format"].(map[string]any)["enum"].([]any) {
-		got[v.(string)] = true
+	for _, v := range rc["format"].(map[string]any)["anyOf"].([]any) {
+		variant := v.(map[string]any)
+		got[variant["const"].(string)] = true
+		// Fifteen of them, and several render one thing for one platform. A name alone separates
+		// almost none of them in a completion list.
+		if variant["description"] == "" || variant["description"] == nil {
+			t.Errorf("format %v completes with no explanation of what it writes", variant["const"])
+		}
 	}
 	for _, f := range append(report.Formats(), "template") {
 		if !got[f] {

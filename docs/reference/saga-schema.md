@@ -970,11 +970,20 @@ config:
 | `status` | `not_affected`, `affected`, or `fixed`. |
 | `justification` | Why the product is not affected, from VEX's fixed vocabulary. Valid only with `not_affected`. |
 
-The justifications are `component_not_present`, `vulnerable_code_not_present`,
-`vulnerable_code_not_in_execute_path`, `vulnerable_code_cannot_be_controlled_by_adversary` and
-`inline_mitigations_already_exist`. A closed list, because the entire value of the field is that
-a consumer can act on it without reading English. Omit it and the `reason` is published as VEX's
-prose alternative instead, which is valid and simply less useful to a machine.
+A closed list, because the entire value of the field is that a consumer can act on it without
+reading English. These are the five, in the words the OpenVEX specification defines them in:
+
+| `justification` | The claim |
+|---|---|
+| `component_not_present` | The component is not included in the product at all. |
+| `vulnerable_code_not_present` | The component is included, but the vulnerable code is not, typically because of how it was configured or built. |
+| `vulnerable_code_not_in_execute_path` | The vulnerable code is present and cannot be executed as the product uses it: the product does not call it. |
+| `vulnerable_code_cannot_be_controlled_by_adversary` | The vulnerable code cannot be controlled by an attacker to exploit it. Difficult to prove conclusively. |
+| `inline_mitigations_already_exist` | Built-in protections completely prevent exploitation by known attack vectors, and a user cannot disable them. |
+
+The same words are on each value in the schema, so an editor shows them beside the completion.
+Omit the field and the `reason` is published as VEX's prose alternative instead, which is valid and
+simply less useful to a machine.
 
 **Omitting `vex` entirely is fine.** The suppression is then published as `affected` carrying your
 reason. True, since you did find it and did decide to accept it. Draugr will not read the reason to

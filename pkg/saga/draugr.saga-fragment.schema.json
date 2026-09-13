@@ -6,11 +6,17 @@
       "description": "One logical part of the app. All surface lists are optional — declare what applies.",
       "properties": {
         "builtBy": {
-          "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image — where a target added later silently defaults back to self.",
-          "enum": [
-            "self",
-            "upstream"
+          "anyOf": [
+            {
+              "const": "self",
+              "description": "You build this, so a finding in it is yours to fix in the code."
+            },
+            {
+              "const": "upstream",
+              "description": "Somebody else publishes this, so the fix is a newer version rather than a change here."
+            }
           ],
+          "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image — where a target added later silently defaults back to self.",
           "type": "string"
         },
         "controllers": {
@@ -86,11 +92,23 @@
         "allowEffects": {
           "description": "Scanner effects the project accepts. A scanner that does more to a target than read it declares an effect; kinds that require consent (\"mutate\", \"privilege\") will not run unless listed here or allowed with --allow-effects.",
           "items": {
-            "enum": [
-              "mutate",
-              "privilege",
-              "network",
-              "disclosure"
+            "anyOf": [
+              {
+                "const": "mutate",
+                "description": "creates or changes something that outlives the scan; will not run unless allowed"
+              },
+              {
+                "const": "privilege",
+                "description": "needs access beyond what reading the target requires; will not run unless allowed"
+              },
+              {
+                "const": "network",
+                "description": "sends traffic to the target rather than reading an artifact"
+              },
+              {
+                "const": "disclosure",
+                "description": "sends information about the target to a third party"
+              }
             ],
             "type": "string"
           },
@@ -1145,11 +1163,17 @@
       "additionalProperties": false,
       "properties": {
         "builtBy": {
-          "description": "Who builds this image: \"self\" (the default) or \"upstream\" for one this component runs but somebody else publishes. It decides what the report tells you to do about a vulnerable package inside it — a library in an image you build is yours to upgrade, and the same library in an image you only run is fixed by taking a newer image.",
-          "enum": [
-            "self",
-            "upstream"
+          "anyOf": [
+            {
+              "const": "self",
+              "description": "You build this, so a finding in it is yours to fix in the code."
+            },
+            {
+              "const": "upstream",
+              "description": "Somebody else publishes this, so the fix is a newer version rather than a change here."
+            }
           ],
+          "description": "Who builds this image: \"self\" (the default) or \"upstream\" for one this component runs but somebody else publishes. It decides what the report tells you to do about a vulnerable package inside it — a library in an image you build is yours to upgrade, and the same library in an image you only run is fixed by taking a newer image.",
           "type": "string"
         },
         "digest": {
@@ -1189,11 +1213,17 @@
           "uniqueItems": true
         },
         "operatedBy": {
-          "description": "Who runs this surface. \"provider\" for a managed service, where the control plane, API server and etcd are not reachable by the team that owns the workloads — findings about those are reported but never presented as work this team can do. RBAC, Pod Security and network policy stay theirs either way. Defaults to \"self\".",
-          "enum": [
-            "self",
-            "provider"
+          "anyOf": [
+            {
+              "const": "self",
+              "description": "You operate this, so a misconfiguration is yours to change."
+            },
+            {
+              "const": "provider",
+              "description": "A cloud provider operates it, so controls it owns are reported as theirs rather than as yours to fix."
+            }
           ],
+          "description": "Who runs this surface. \"provider\" for a managed service, where the control plane, API server and etcd are not reachable by the team that owns the workloads — findings about those are reported but never presented as work this team can do. RBAC, Pod Security and network policy stay theirs either way. Defaults to \"self\".",
           "type": "string"
         },
         "ref": {
@@ -1350,24 +1380,69 @@
           "type": "string"
         },
         "format": {
-          "description": "Report format to render.",
-          "enum": [
-            "console",
-            "evidence",
-            "gitlab-codequality",
-            "gitlab-container-scanning",
-            "gitlab-cyclonedx",
-            "gitlab-dependency-scanning",
-            "gitlab-sast",
-            "gitlab-secret-detection",
-            "html",
-            "json",
-            "junit",
-            "markdown",
-            "sarif",
-            "template",
-            "vex"
+          "anyOf": [
+            {
+              "const": "console",
+              "description": "the terminal report, for a run somebody is watching"
+            },
+            {
+              "const": "evidence",
+              "description": "the console report with what makes it defensible: tools, revisions, what each control measured against"
+            },
+            {
+              "const": "gitlab-codequality",
+              "description": "GitLab's Code Quality report, which carries every finding and shows on every plan"
+            },
+            {
+              "const": "gitlab-container-scanning",
+              "description": "GitLab's container scanning report, for the Vulnerability Report on Ultimate"
+            },
+            {
+              "const": "gitlab-cyclonedx",
+              "description": "the SBOM as GitLab reads it, filling the Dependency List and License Compliance"
+            },
+            {
+              "const": "gitlab-dependency-scanning",
+              "description": "GitLab's dependency scanning report, for the Vulnerability Report on Ultimate"
+            },
+            {
+              "const": "gitlab-sast",
+              "description": "GitLab's SAST report, for the Vulnerability Report on Ultimate"
+            },
+            {
+              "const": "gitlab-secret-detection",
+              "description": "GitLab's secret detection report, for the Vulnerability Report on Ultimate"
+            },
+            {
+              "const": "html",
+              "description": "a self-contained page to attach to a ticket or an audit"
+            },
+            {
+              "const": "json",
+              "description": "the whole run as one document, for a platform or a script"
+            },
+            {
+              "const": "junit",
+              "description": "one failed test per finding, for a CI test panel"
+            },
+            {
+              "const": "markdown",
+              "description": "the report as prose and tables, for a pull-request comment or a wiki"
+            },
+            {
+              "const": "sarif",
+              "description": "the finding currency: what code scanning and editors read"
+            },
+            {
+              "const": "template",
+              "description": "your own layout, from --template or --template-file"
+            },
+            {
+              "const": "vex",
+              "description": "an OpenVEX document saying which vulnerabilities apply to this product"
+            }
           ],
+          "description": "Report format to render.",
           "type": "string"
         },
         "minPriority": {
@@ -1398,11 +1473,17 @@
       "additionalProperties": false,
       "properties": {
         "builtBy": {
-          "description": "Who publishes this repository: \"self\" (the default) or \"upstream\" for one this component uses and somebody else maintains. Falls back to the component's own builtBy. It decides what the report tells you to do — a denied license in the dependency tree of a repository you do not publish is not one you chose and not one you can swap out, so \"change the code\" is the wrong advice.",
-          "enum": [
-            "self",
-            "upstream"
+          "anyOf": [
+            {
+              "const": "self",
+              "description": "You build this, so a finding in it is yours to fix in the code."
+            },
+            {
+              "const": "upstream",
+              "description": "Somebody else publishes this, so the fix is a newer version rather than a change here."
+            }
           ],
+          "description": "Who publishes this repository: \"self\" (the default) or \"upstream\" for one this component uses and somebody else maintains. Falls back to the component's own builtBy. It decides what the report tells you to do — a denied license in the dependency tree of a repository you do not publish is not one you chose and not one you can swap out, so \"change the code\" is the wrong advice.",
           "type": "string"
         },
         "ignore": {
@@ -1444,22 +1525,43 @@
           "type": "boolean"
         },
         "format": {
-          "description": "SBOM document format. Defaults to cyclonedx-json. CycloneDX and SPDX are each offered in both of their standard encodings; pick whichever your consumer reads.",
-          "enum": [
-            "cyclonedx-json",
-            "cyclonedx-xml",
-            "spdx-json",
-            "spdx-tag-value"
+          "anyOf": [
+            {
+              "const": "cyclonedx-json",
+              "description": "CycloneDX as JSON. The widest support among scanners and platforms, and what GitLab reads."
+            },
+            {
+              "const": "cyclonedx-xml",
+              "description": "CycloneDX as XML, for a consumer that asks for it specifically."
+            },
+            {
+              "const": "spdx-json",
+              "description": "SPDX as JSON. Common where licensing and compliance tooling is the consumer."
+            },
+            {
+              "const": "spdx-tag-value",
+              "description": "SPDX in its own tag-value text format, the oldest of the four."
+            }
           ],
+          "description": "SBOM document format. Defaults to cyclonedx-json. CycloneDX and SPDX are each offered in both of their standard encodings; pick whichever your consumer reads.",
           "type": "string"
         },
         "scope": {
-          "description": "What each document covers. component (default) is one per repository and image; project is one covering the whole release, assembled along the hierarchy the Saga declares; both emits the parts and the whole. project and both require format cyclonedx-json.",
-          "enum": [
-            "component",
-            "project",
-            "both"
+          "anyOf": [
+            {
+              "const": "component",
+              "description": "One document per component, describing what that part of the application ships."
+            },
+            {
+              "const": "project",
+              "description": "One document for the whole project, describing what the release ships."
+            },
+            {
+              "const": "both",
+              "description": "A document per component and one for the project."
+            }
           ],
+          "description": "What each document covers. component (default) is one per repository and image; project is one covering the whole release, assembled along the hierarchy the Saga declares; both emits the parts and the whole. project and both require format cyclonedx-json.",
           "type": "string"
         }
       },
@@ -1487,23 +1589,47 @@
       "description": "What this suppression claims in VEX terms, for `--report vex`. Optional: without it the finding is reported as affected, the reading that is never an overstatement.",
       "properties": {
         "justification": {
-          "description": "Why the product is not affected, from VEX's fixed vocabulary. Valid only with status not_affected; without it the exclusion's reason is emitted as prose.",
-          "enum": [
-            "component_not_present",
-            "vulnerable_code_not_present",
-            "vulnerable_code_not_in_execute_path",
-            "vulnerable_code_cannot_be_controlled_by_adversary",
-            "inline_mitigations_already_exist"
+          "anyOf": [
+            {
+              "const": "component_not_present",
+              "description": "The component is not included in the product at all."
+            },
+            {
+              "const": "vulnerable_code_not_present",
+              "description": "The component is included, but the vulnerable code is not, typically because of how it was configured or built."
+            },
+            {
+              "const": "vulnerable_code_not_in_execute_path",
+              "description": "The vulnerable code is present and cannot be executed as the product uses it: the product does not call it."
+            },
+            {
+              "const": "vulnerable_code_cannot_be_controlled_by_adversary",
+              "description": "The vulnerable code cannot be controlled by an attacker to exploit it. Difficult to prove conclusively."
+            },
+            {
+              "const": "inline_mitigations_already_exist",
+              "description": "Built-in protections completely prevent exploitation by known attack vectors, and a user cannot disable them."
+            }
           ],
+          "description": "Why the product is not affected, from VEX's fixed vocabulary. Valid only with status not_affected; without it the exclusion's reason is emitted as prose.",
           "type": "string"
         },
         "status": {
-          "description": "The claim. under_investigation is not accepted here: it is what an untriaged finding already reports, and a finding you have suppressed is one you have finished investigating.",
-          "enum": [
-            "not_affected",
-            "affected",
-            "fixed"
+          "anyOf": [
+            {
+              "const": "not_affected",
+              "description": "No remediation is required regarding this vulnerability. Requires a justification."
+            },
+            {
+              "const": "affected",
+              "description": "Actions are recommended to remediate or address this vulnerability."
+            },
+            {
+              "const": "fixed",
+              "description": "These product versions contain a fix for the vulnerability."
+            }
           ],
+          "description": "The claim. under_investigation is not accepted here: it is what an untriaged finding already reports, and a finding you have suppressed is one you have finished investigating.",
           "type": "string"
         }
       },

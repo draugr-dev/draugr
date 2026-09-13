@@ -62,10 +62,17 @@ func controlNameDef(reg *engine.Registry) map[string]any {
 // the binary accepts. An editor that disagrees with Draugr is worse than one that says nothing.
 func allowEffectsDef() map[string]any {
 	kinds := plugin.EffectKinds()
+	// anyOf of const rather than a plain enum, so an editor shows what each kind means beside the
+	// completion. Consenting to something is the one place a reader must not be guessing at the
+	// word, and the taxonomy already explains itself.
 	enum := make([]any, 0, len(kinds))
 	var consent []string
 	for _, k := range kinds {
-		enum = append(enum, string(k))
+		desc := k.Describe()
+		if k.RequiresConsent() {
+			desc += "; will not run unless allowed"
+		}
+		enum = append(enum, map[string]any{"const": string(k), "description": desc})
 		if k.RequiresConsent() {
 			consent = append(consent, strconv.Quote(string(k)))
 		}
@@ -80,7 +87,7 @@ func allowEffectsDef() map[string]any {
 		// reached for. A scan that may do different things to different targets is a second
 		// descriptor.
 		"type":  "array",
-		"items": map[string]any{"type": "string", "enum": enum},
+		"items": map[string]any{"type": "string", "anyOf": enum},
 		// Listing a kind twice accepts nothing extra, so it is a typo rather than an intention.
 		"uniqueItems": true,
 	}
@@ -269,13 +276,55 @@ func reportFormatDef() map[string]any {
 	sort.Strings(formats)
 	vals := make([]any, len(formats))
 	for i, f := range formats {
-		vals[i] = f
+		vals[i] = map[string]any{"const": f, "description": reportFormatSummary(f)}
 	}
 	return map[string]any{
 		"type":        "string",
 		"description": "Report format to render.",
-		"enum":        vals,
+		"anyOf":       vals,
 	}
+}
+
+// reportFormatSummary says what one format is for, in the words `--report` uses.
+//
+// Fifteen of them, several rendering one thing for one platform, and the name alone separates
+// almost none: `gitlab-sast` and `gitlab-codequality` are both GitLab and land on different tabs
+// under different plans. A reader choosing between them from an editor's completion list has the
+// names and nothing else.
+func reportFormatSummary(format string) string {
+	switch format {
+	case "console":
+		return "the terminal report, for a run somebody is watching"
+	case "evidence":
+		return "the console report with what makes it defensible: tools, revisions, what each control measured against"
+	case "html":
+		return "a self-contained page to attach to a ticket or an audit"
+	case "json":
+		return "the whole run as one document, for a platform or a script"
+	case "junit":
+		return "one failed test per finding, for a CI test panel"
+	case "markdown":
+		return "the report as prose and tables, for a pull-request comment or a wiki"
+	case "sarif":
+		return "the finding currency: what code scanning and editors read"
+	case "template":
+		return "your own layout, from --template or --template-file"
+	case "vex":
+		return "an OpenVEX document saying which vulnerabilities apply to this product"
+	case "gitlab-codequality":
+		return "GitLab's Code Quality report, which carries every finding and shows on every plan"
+	case "gitlab-sast":
+		return "GitLab's SAST report, for the Vulnerability Report on Ultimate"
+	case "gitlab-dependency-scanning":
+		return "GitLab's dependency scanning report, for the Vulnerability Report on Ultimate"
+	case "gitlab-secret-detection":
+		return "GitLab's secret detection report, for the Vulnerability Report on Ultimate"
+	case "gitlab-container-scanning":
+		return "GitLab's container scanning report, for the Vulnerability Report on Ultimate"
+	case "gitlab-cyclonedx":
+		return "the SBOM as GitLab reads it, filling the Dependency List and License Compliance"
+	}
+	return "a report format this build renders"
 }
 
 // Apply rewrites the generated parts of the schema document in place and returns the encoded
