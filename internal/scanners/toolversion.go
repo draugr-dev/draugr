@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/version"
 )
 
@@ -42,6 +43,11 @@ func (p *toolVersionProbe) version(ctx context.Context) string {
 		p.val = p.extract(out)
 	})
 	return p.val
+}
+
+// runWithoutSemgrepVersionCheck runs a semgrep command with its update check disabled.
+func runWithoutSemgrepVersionCheck(ctx context.Context, argv []string) ([]byte, error) {
+	return toolexec.RunWithEnv(ctx, "", argv, []string{"SEMGREP_ENABLE_VERSION_CHECK=0"})
 }
 
 // firstMatch returns the first capture of re, trimmed, or "".
@@ -82,8 +88,14 @@ var (
 )
 
 var (
+	// Asked with its update check off. `semgrep --version` otherwise calls semgrep.dev to see
+	// whether a newer release exists, so the question "which build is this" would reach the
+	// network on every scan, on a machine that may have said it has none. The answer is the same
+	// either way, and without the check it is the version and nothing else.
 	sharedSemgrepVersion = &toolVersionProbe{
-		argv: []string{"semgrep", "--version"}, extract: firstMatch(semgrepVersionRE), run: execArgv,
+		argv:    []string{"semgrep", "--version"},
+		extract: firstMatch(semgrepVersionRE),
+		run:     runWithoutSemgrepVersionCheck,
 	}
 	sharedGitleaksVersion = &toolVersionProbe{
 		argv: []string{"gitleaks", "version"}, extract: firstMatch(gitleaksVersionRE), run: execArgv,

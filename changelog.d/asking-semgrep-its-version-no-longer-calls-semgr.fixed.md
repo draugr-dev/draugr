@@ -1,0 +1,1 @@
+**Asking Semgrep its version no longer calls Semgrep.** `semgrep --version` contacts semgrep.dev to check for a newer release, and Draugr asks every scanner its version on every run, so the question "which build is this" reached the network on a machine that may have said it has none. It is asked with the update check off, which returns the same answer.
