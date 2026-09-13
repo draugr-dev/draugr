@@ -80,8 +80,7 @@ pipeline built on those keeps working.
 Later sources win per key, and only per key: a project that sets one thing inherits the rest.
 
 Controller settings are merged **underneath** the descriptor's, so a project that has an opinion
-keeps it. That is deliberate, defaults a Saga cannot override are a guarantee a CLI cannot keep,
-because the configuration file lives on a machine the same person controls.
+keeps it and nothing set here can override a committed Saga.
 
 ## Reading and editing it
 

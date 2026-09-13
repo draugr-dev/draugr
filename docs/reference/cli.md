@@ -1396,8 +1396,8 @@ for client setup and why routing through Draugr beats letting the assistant run 
 
 Update the running `draugr` binary in place to the latest published release (or a specific
 `--version`), verified against the release's **SHA-256 checksums** (mandatory) and its keyless
-**cosign** signature (when the `cosign` CLI is present). It replaces the binary you're actually
-running (`os.Executable()`), so there's no second copy or PATH confusion.
+**cosign** signature (when the `cosign` CLI is present). It replaces the binary you are actually
+running, so you are never left with a second copy or an older one earlier on your `PATH`.
 
 | Flag | Default | Description |
 |------|---------|-------------|

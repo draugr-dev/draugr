@@ -14,9 +14,8 @@ The single place to navigate every
 [concepts](../concepts/saga.md)). Each component has a **markdown doc kept next to its
 implementation**. What it is, which control it relates to, links, and license/terms.
 
-> **Convention:** every new scanner/controller/surveyor ships a colocated `.md` (e.g.
-> `internal/scanners/<name>.md`) covering: what it does · control · tool + links ·
-> **license & terms of use** · integration notes. Add a row here too.
+Every row below links to its doc, which covers what the component does, the control it serves, the
+tool behind it, and that tool's license and terms of use.
 
 See also: [control taxonomy](../contributing/naming.md#security-controls-taxonomy) ·
 [glossary](glossary.md).
@@ -91,8 +90,7 @@ reference](saga-schema.md#sbom-generation).
 
 ## Reporters
 
-Scan results render through a pluggable **Reporter** interface (`pkg/report`), selected with
-`draugr scan --format`:
+Scan results render in any of these formats, selected with `draugr scan --format`:
 
 | Format | Purpose |
 |--------|---------|

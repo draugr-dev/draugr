@@ -79,6 +79,9 @@ echo "▶ no-conflict-markers"
 echo "▶ doc-anchors"
 ./scripts/check-doc-anchors.py
 
+echo "▶ docs-vocabulary"
+./scripts/check-docs-vocabulary.py
+
 echo "▶ public-scope"
 ./scripts/check-public-scope.sh
 

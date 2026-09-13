@@ -37,8 +37,8 @@ or with the guided [`draugr classify`](../reference/cli.md#draugr-classify-sagay
 
 ## The two matrices
 
-Nothing here is inferred at runtime. These are the shipped defaults
-(`pkg/prioritization/prioritization.go`), and a descriptor can override individual cells.
+Nothing here is inferred at runtime. These are the shipped defaults, and a descriptor can override
+individual cells.
 
 ### Two different meanings of "critical"
 
