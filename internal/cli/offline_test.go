@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/feeds"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 )
@@ -74,7 +75,7 @@ func TestSelfUpdateRefusesOffline(t *testing.T) {
 
 func TestDoctorListsNetworkCalls(t *testing.T) {
 	var buf bytes.Buffer
-	writeNetworkCalls(&buf)
+	writeNetworkCalls(&buf, builtins.Registry())
 	got := buf.String()
 	// The list is the air-gap preparation checklist. Every command that reaches out has to be
 	// on it, or someone finds out one failure at a time.
@@ -83,10 +84,23 @@ func TestDoctorListsNetworkCalls(t *testing.T) {
 			t.Errorf("network list omits %q:\n%s", want, got)
 		}
 	}
+	// And the hosts, which is the part somebody pastes into an egress rule. Derived from the
+	// registry, so a scanner that declares a source cannot be missing from it, which is how the
+	// hand-written version came to name two of seven.
+	for _, want := range []string{"vuln.go.dev", "semgrep.dev", "raw.githubusercontent.com", "grype.anchore.io"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("host list omits %q, so a reader behind an allowlist cannot permit it:\n%s", want, got)
+		}
+	}
+	// Data fetched on every invocation is marked, because it is the difference between a scanner
+	// that works behind an allowlist and one that also works without a network.
+	if !strings.Contains(got, "every scan") {
+		t.Errorf("nothing distinguishes data fetched per scan from data warmed once:\n%s", got)
+	}
 
 	goOffline(t)
 	buf.Reset()
-	writeNetworkCalls(&buf)
+	writeNetworkCalls(&buf, builtins.Registry())
 	if !strings.Contains(buf.String(), "none of these will happen") {
 		t.Errorf("offline heading not shown:\n%s", buf.String())
 	}

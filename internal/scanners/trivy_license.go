@@ -65,6 +65,7 @@ func NewTrivyLicense() plugin.Scanner {
 	info := plugin.ScannerInfo{
 		Name:     trivyLicenseScannerName,
 		Origin:   "aquasecurity",
+		Data:     trivyData,
 		Binary:   "trivy",
 		Controls: []string{"licenses"},
 		TargetKinds: []plugin.TargetKind{

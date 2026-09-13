@@ -46,3 +46,11 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
   conversion rather than another flag on this one.
 - OSV-Scanner is a planned second SCA scanner ([#49](https://github.com/draugr-dev/draugr/issues/49)); its non-zero exit-on-findings needs
   special handling.
+
+## Data
+
+The **vulnerability database**, from `mirror.gcr.io` and `ghcr.io`, which are Trivy's own
+defaults in that order. Warmed once per run, and `--skip-db-update` is passed when `--offline`
+is set.
+
+`config.controls.sca.trivy.dbRepository` replaces both with an internal mirror.

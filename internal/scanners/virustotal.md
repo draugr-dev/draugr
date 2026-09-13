@@ -103,3 +103,8 @@ terms](https://docs.virustotal.com/docs/terms-of-service) before enabling this a
 Note that Google's Cloud terms and the SecOps Privacy Notice, which VirusTotal's documentation
 links to, scope themselves to **purchased** Google Cloud services. The privacy notice says it
 "does not apply to any other Google services". They do not govern a free public API key.
+
+## Data
+
+Nothing fetched ahead of a scan. VirusTotal is queried per target, so the traffic is about the
+target rather than a database to warm, and it is declared as a disclosure effect instead.

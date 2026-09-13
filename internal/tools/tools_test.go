@@ -24,7 +24,7 @@ func TestDetect(t *testing.T) {
 			name:        "found with parsed version",
 			tool:        tool,
 			lookPath:    func(string) (string, error) { return "/usr/bin/trivy", nil },
-			run:         func(context.Context, []string) ([]byte, error) { return []byte("Version: 0.58.1\n"), nil },
+			run:         func(context.Context, []string, ...string) ([]byte, error) { return []byte("Version: 0.58.1\n"), nil },
 			wantFound:   true,
 			wantVersion: "0.58.1",
 		},
@@ -32,7 +32,7 @@ func TestDetect(t *testing.T) {
 			name:      "missing on PATH",
 			tool:      tool,
 			lookPath:  func(string) (string, error) { return "", errors.New("not found") },
-			run:       func(context.Context, []string) ([]byte, error) { return nil, errors.New("unreached") },
+			run:       func(context.Context, []string, ...string) ([]byte, error) { return nil, errors.New("unreached") },
 			wantFound: false,
 		},
 		{
@@ -46,7 +46,7 @@ func TestDetect(t *testing.T) {
 			name:      "found, version probe errors",
 			tool:      tool,
 			lookPath:  func(string) (string, error) { return "/usr/bin/trivy", nil },
-			run:       func(context.Context, []string) ([]byte, error) { return nil, errors.New("boom") },
+			run:       func(context.Context, []string, ...string) ([]byte, error) { return nil, errors.New("boom") },
 			wantFound: true,
 			wantErr:   true,
 		},
@@ -54,7 +54,7 @@ func TestDetect(t *testing.T) {
 			name:        "found, version unparseable",
 			tool:        tool,
 			lookPath:    func(string) (string, error) { return "/usr/bin/trivy", nil },
-			run:         func(context.Context, []string) ([]byte, error) { return []byte("no digits here"), nil },
+			run:         func(context.Context, []string, ...string) ([]byte, error) { return []byte("no digits here"), nil },
 			wantFound:   true,
 			wantVersion: "",
 		},
@@ -188,7 +188,7 @@ func TestDetectProbesForAToolsData(t *testing.T) {
 		DataArgs:    []string{"-templates-version"},
 		DataOK:      NucleiTemplatesOK,
 	}
-	run := func(_ context.Context, argv []string) ([]byte, error) {
+	run := func(_ context.Context, argv []string, _ ...string) ([]byte, error) {
 		if argv[1] == "-templates-version" {
 			return []byte("Public nuclei-templates version:  (/t)\n"), nil
 		}
@@ -205,7 +205,7 @@ func TestDetectProbesForAToolsData(t *testing.T) {
 
 func TestDetectSkipsTheDataProbeWhenNoneIsDeclared(t *testing.T) {
 	tool := Tool{Binary: "trivy", VersionArgs: []string{"--version"}}
-	run := func(context.Context, []string) ([]byte, error) { return []byte("0.69.3"), nil }
+	run := func(context.Context, []string, ...string) ([]byte, error) { return []byte("0.69.3"), nil }
 	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/trivy", nil }, run)
 	if st.DataChecked {
 		t.Error("a tool with no data files must not be probed for any")
@@ -225,7 +225,7 @@ func TestDetectFindsDataOnDisk(t *testing.T) {
 		VersionArgs: []string{"version"},
 		DataFiles:   []string{filepath.Join(dir, "nope.yaml"), cfg},
 	}
-	run := func(context.Context, []string) ([]byte, error) { return []byte("0.15.6"), nil }
+	run := func(context.Context, []string, ...string) ([]byte, error) { return []byte("0.15.6"), nil }
 	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/kb", nil }, run)
 	if !st.DataChecked || !st.DataFound {
 		t.Fatalf("checked=%v found=%v, the second path exists", st.DataChecked, st.DataFound)
@@ -241,7 +241,7 @@ func TestDetectReportsDataMissingOnDisk(t *testing.T) {
 		VersionArgs: []string{"version"},
 		DataFiles:   []string{filepath.Join(t.TempDir(), "absent.yaml")},
 	}
-	run := func(context.Context, []string) ([]byte, error) { return []byte("0.15.6"), nil }
+	run := func(context.Context, []string, ...string) ([]byte, error) { return []byte("0.15.6"), nil }
 	st := Detect(context.Background(), tool, func(string) (string, error) { return "/bin/kb", nil }, run)
 	if !st.DataChecked || st.DataFound {
 		t.Errorf("checked=%v found=%v, nothing is there", st.DataChecked, st.DataFound)
@@ -281,7 +281,7 @@ func TestDetectFindsDataBesideTheBinary(t *testing.T) {
 		VersionArgs: []string{"version"},
 		DataFiles:   []string{"/nowhere/config.yaml", "{bindir}/cfg/config.yaml"},
 	}
-	run := func(context.Context, []string) ([]byte, error) { return []byte("0.15.6"), nil }
+	run := func(context.Context, []string, ...string) ([]byte, error) { return []byte("0.15.6"), nil }
 	st := Detect(context.Background(), tool, func(string) (string, error) { return bin, nil }, run)
 	if !st.DataFound {
 		t.Errorf("cfg beside the binary should count: %+v", st)

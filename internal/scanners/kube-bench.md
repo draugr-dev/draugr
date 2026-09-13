@@ -249,3 +249,8 @@ descriptor said nothing.
   `/etc/kube-bench/cfg` by default. Installing only the binary leaves them elsewhere, and the
   tool then fails with `config file is missing 'version_mapping' section`. Point the
   `configDir` setting at the directory to resolve it.
+
+## Data
+
+Nothing fetched. The benchmark definitions ship with the binary; the scan talks to the
+cluster's API server, which is the target rather than a data source.

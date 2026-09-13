@@ -96,3 +96,8 @@ account, no key, no telemetry.
 - Data sources: https://oss.anchore.com/docs/reference/grype/data-sources/
 - Sibling scanner over an image: [`grype`](grype.md)
 - The default for this control: [`trivy-fs`](trivy-fs.md)
+
+## Data
+
+The **vulnerability database**, from `grype.anchore.io`. The same copy `grype` reads, warmed
+once per run.

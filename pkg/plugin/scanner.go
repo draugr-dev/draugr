@@ -16,6 +16,35 @@ type Scanner interface {
 	Scan(ctx context.Context, target Target, cfg Config) (sarif.Report, error)
 }
 
+// DataSource is reference data a scanner reads to do its work: a vulnerability database, a rule
+// pack, a template set. Fetched independently of any target, which is what separates it from the
+// network a scan touches to reach the thing it is scanning.
+//
+// Declared rather than left in each scanner, for two readers. A pipeline behind an egress allowlist
+// needs the hosts, and `draugr doctor` is where somebody looks for them; and a scanner that reads
+// something has to warm it once per run rather than once per job, which is checkable only against a
+// declaration. A scanner whose rules are compiled into its own binary declares none, and that is an
+// answer rather than an omission.
+type DataSource struct {
+	// Name is what the data is, in the words a reader meets elsewhere: "vulnerability database",
+	// "rule pack", "template set".
+	Name string
+	// Hosts are what the tool contacts to fetch or refresh it. More than one where the tool has
+	// fallbacks, in the order it tries them.
+	Hosts []string
+	// Local is how to point the tool at a copy already on disk, spelled the way the tool spells
+	// it: "--jsrepo <file>", "--skip-db-update". Empty where the tool offers nothing of the kind,
+	// which is a fact about the tool and worth stating.
+	Local string
+	// PerScan marks data the tool fetches on every invocation, with no cache Draugr can warm.
+	// The run then contacts Hosts once per job rather than once, and there is nothing to put on a
+	// machine before it starts.
+	//
+	// The difference between a scanner that works behind an allowlist and one that also works
+	// without a network, which is the question an operator is actually asking.
+	PerScan bool
+}
+
 // CacheVersioner is an optional interface a Scanner may implement to say what version of the tool
 // and its data produced a result, so that an update to either invalidates cached results rather
 // than waiting out the TTL.
@@ -101,6 +130,9 @@ type ScannerInfo struct {
 	AlsoRequires []string
 	// Version is the scanner/plugin version; it participates in the cache key.
 	Version string
+	// Data is the reference data this scanner reads to do its work, and nil for one whose rules
+	// travel in its own binary. See DataSource.
+	Data []DataSource
 	// Origin names who publishes the tool this scanner runs, the upstream project, not the scanner's
 	// author. "aquasecurity" for Trivy and kube-bench, "projectdiscovery" for Nuclei, "draugr" for a
 	// scanner whose detection logic is Draugr's own.

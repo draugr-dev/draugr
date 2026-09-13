@@ -72,3 +72,8 @@ on. When it can't, the finding still points at the file; a line of 0 is honest.
   `MIT OR Apache-2.0`, so no link is emitted rather than a broken one.
 - Trivy classifies; it does not advise. See the
   [scope and disclaimer](../../docs/trust-and-operations/disclaimer.md).
+
+## Data
+
+The **vulnerability database**, from `mirror.gcr.io` and `ghcr.io`, which are Trivy's own
+defaults in that order. The same copy the other Trivy-backed scanners read, warmed once per run.

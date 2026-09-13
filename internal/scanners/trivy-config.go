@@ -37,6 +37,7 @@ func NewTrivyConfig() plugin.Scanner {
 		plugin.ScannerInfo{
 			Name:         "trivy-config",
 			Origin:       "aquasecurity",
+			Data:         trivyData,
 			Binary:       "trivy",
 			Controls:     []string{"iac"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},

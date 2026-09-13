@@ -78,3 +78,8 @@ rule is worth losing; the secrets control is not.
   every finding to `error`. A leaked secret is always gate-failing.
 - Module path caveat: install via `github.com/zricethezav/gitleaks/v8` (the module's declared
   path), not `github.com/gitleaks/gitleaks/v8`.
+
+## Data
+
+Nothing. Gitleaks' rules are compiled into its binary, so an upgrade of the tool is the only
+thing that changes what it finds, and that is what the cache key records.

@@ -99,3 +99,13 @@ happens to be on it.
 - Advisory repository: https://github.com/RetireJS/retire.js/tree/master/repository
 - The default for this control: [`trivy-fs`](trivy-fs.md)
 - Concepts: [controls and scanners](../../docs/concepts/controls-and-scanners.md)
+
+## Data
+
+The **advisory database**, from `raw.githubusercontent.com`. retire.js bundles none and fetches
+one on first use.
+
+Warmed once before the jobs fan out, because retire.js honors its own cache but a cold one does
+not survive concurrency: jobs starting together all find nothing and all fetch. Offline, Draugr
+passes `--jsrepo <file>` at the copy already in `~/.draugr/data/retirejs`, and says so by name
+when there is no copy to point at.

@@ -44,3 +44,11 @@ visible.
   come from the SARIF report; the [`iac`](../controllers/iac.md) controller judges severity.
 - [Checkov](https://www.checkov.io) is a planned optional second IaC scanner
   ([#52](https://github.com/draugr-dev/draugr/issues/52)).
+
+## Data
+
+The **vulnerability database**, from `mirror.gcr.io` and `ghcr.io`, which are Trivy's own
+defaults in that order. Warmed once per run, and `--skip-db-update` is passed when `--offline`
+is set.
+
+`config.controls.iac.trivy.dbRepository` replaces both with an internal mirror.

@@ -172,7 +172,7 @@ func runDoctor(
 				col.Paint(tui.StylePass, "✓ valid"), col.Paint(tui.StyleMuted, "("+sagaPath+")"))
 		}
 		writeDoctorTable(w, statuses)
-		writeNetworkCalls(w)
+		writeNetworkCalls(w, reg)
 		if model != nil {
 			printUncoveredSurfaceNote(w, model)
 		}
@@ -469,7 +469,7 @@ var networkCalls = []networkCall{
 	{"draugr feeds update", "the CISA KEV catalog and the FIRST EPSS scores"},
 	{"draugr self-update", "the latest draugr release"},
 	{"draugr doctor", "the latest draugr release, to compare against yours (skipped by --offline)"},
-	{"a scan, before it starts", "Trivy's vulnerability database and Nuclei's template set"},
+	{"a scan, before it starts", "the reference data each scanner reads, listed by host below"},
 	{"a scan, per target", "the registry, for an image; the endpoint itself, for a host or DAST target"},
 	// The only entry where the traffic does not go to something of yours. Listed separately
 	// because an air-gapped runner is not the only reason to care: this one discloses your
@@ -483,7 +483,7 @@ var networkCalls = []networkCall{
 // Shown always rather than only under --offline. Someone deciding whether Draugr can run in
 // their environment is asking this before they have a reason to pass the flag, and a list that
 // appears only once you already know to ask for it answers the wrong question.
-func writeNetworkCalls(w io.Writer) {
+func writeNetworkCalls(w io.Writer, reg *engine.Registry) {
 	col := tui.For(w)
 	_, _ = fmt.Fprintf(w, "\nNetwork  %s\n", col.Paint(tui.StyleMuted, networkHeading()))
 	// Width from the longest entry rather than a constant: a hardcoded 26 silently stops
@@ -496,6 +496,74 @@ func writeNetworkCalls(w io.Writer) {
 	}
 	for _, c := range networkCalls {
 		_, _ = fmt.Fprintf(w, "  %-*s %s\n", width, c.When, col.Paint(tui.StyleMuted, c.What))
+	}
+	writeScannerHosts(w, reg)
+}
+
+// scannerHost is one host a scanner contacts for its reference data, and what for.
+type scannerHost struct {
+	Host string
+	What string
+	When string
+}
+
+// writeScannerHosts lists the hosts a scan contacts, from the registry rather than from a list
+// kept by hand.
+//
+// This is the section somebody copies into an egress rule, which is the common case: a runner that
+// blocks outbound by default is ordinary, and a disconnected one is not. A host is what such a rule
+// takes, so a host is what this prints.
+//
+// Derived, because the hand-kept version of this was wrong. It named two of the seven sources, and
+// nothing about it could have said so. What keeps a derived list from silently shrinking is the
+// test holding every scanner to declaring what it reads, which a list written here could never do.
+func writeScannerHosts(w io.Writer, reg *engine.Registry) {
+	if reg == nil {
+		return
+	}
+	seen := map[string]bool{}
+	var rows []scannerHost
+	for _, sc := range reg.Scanners() {
+		info := sc.Info()
+		for _, d := range info.Data {
+			when := "before the scan"
+			if d.PerScan {
+				when = "every scan"
+			}
+			for _, host := range d.Hosts {
+				// Four Trivy-backed scanners read one database. One row, because a reader is
+				// writing a firewall rule rather than auditing the registry.
+				key := host + "\x00" + d.Name
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				rows = append(rows, scannerHost{Host: host, What: d.Name, When: when})
+			}
+		}
+	}
+	if len(rows) == 0 {
+		return
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Host != rows[j].Host {
+			return rows[i].Host < rows[j].Host
+		}
+		return rows[i].What < rows[j].What
+	})
+
+	col := tui.For(w)
+	_, _ = fmt.Fprintf(w, "\nHosts a scan contacts  %s\n",
+		col.Paint(tui.StyleMuted, "(for an egress allowlist)"))
+	width := 0
+	for _, r := range rows {
+		if len(r.Host) > width {
+			width = len(r.Host)
+		}
+	}
+	for _, r := range rows {
+		_, _ = fmt.Fprintf(w, "  %-*s %s\n", width, r.Host,
+			col.Paint(tui.StyleMuted, r.What+" · "+r.When))
 	}
 }
 

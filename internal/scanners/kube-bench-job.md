@@ -125,3 +125,8 @@ scanner could do. If the wait times out, the Job is removed and the error says s
   `etcd` and `controlplane` cannot be inspected by any tool. `targets: node` is the useful
   setting there.
 - Findings are located at the cluster (`kubernetes/<ref>`), the same as the read-only scanner.
+
+## Data
+
+Nothing fetched. The benchmark definitions ship with the binary, and the image the Job runs is
+pulled by the cluster from wherever the descriptor names.

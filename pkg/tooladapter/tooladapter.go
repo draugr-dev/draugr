@@ -24,7 +24,9 @@ type Config struct {
 	Binary  string
 	Version string
 	// Origin is the upstream project that publishes the tool (see plugin.ScannerInfo.Origin).
-	Origin      string
+	Origin string
+	// Data is the reference data the tool reads (see plugin.ScannerInfo.Data). Optional.
+	Data        []plugin.DataSource
 	Controls    []string
 	TargetKinds []plugin.TargetKind
 	// ConfigSchema is the JSON Schema for this scanner's Saga options (see
@@ -76,6 +78,7 @@ func (a *Adapter) Info() plugin.ScannerInfo {
 		Binary:       a.cfg.Binary,
 		Origin:       a.cfg.Origin,
 		Version:      a.cfg.Version,
+		Data:         a.cfg.Data,
 		Controls:     a.cfg.Controls,
 		TargetKinds:  a.cfg.TargetKinds,
 		ConfigSchema: a.cfg.ConfigSchema,

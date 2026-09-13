@@ -54,6 +54,10 @@ var notOurs = map[string]string{
 	"--token":            "Trivy server's, named in a comment about its environment variable",
 	"--config":           "a scanner's own, several of them",
 	"--exitwith":         "a scanner's own exit-code flag, in the extending guide",
+	// retire.js's, for the air-gapped guide: warming its advisory cache and reading a local copy.
+	"--cachedir": "retire.js's",
+	"--jsrepo":   "retire.js's",
+	"--path":     "retire.js's",
 
 	// Verification, where the reader runs these against our released artifacts.
 	"--certificate-identity-regexp": "cosign's",

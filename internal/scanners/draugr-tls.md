@@ -84,3 +84,8 @@ exactly what the opt-in testssl.sh engine would add.
 - A URL without a port defaults to **443**; a bare hostname is treated as `https://`.
 - Certificate verification is left **on**: a verification failure is classified into a finding
   rather than skipped, which is the point of the check.
+
+## Data
+
+Nothing. The checks are Draugr's own and travel in the binary. The scan reaches the endpoint
+under test, which is the point of the control rather than a fetch.

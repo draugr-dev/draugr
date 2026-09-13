@@ -30,6 +30,7 @@ func NewGovulncheck() plugin.Scanner {
 		plugin.ScannerInfo{
 			Name:         govulncheckScanner,
 			Origin:       "Go team",
+			Data:         govulncheckData,
 			Reachability: true,
 			Binary:       "govulncheck",
 			Controls:     []string{"sca"},
@@ -61,6 +62,13 @@ func NewGovulncheck() plugin.Scanner {
 // Deliberately not -test. Analyzing tests would report vulnerabilities reachable only from code
 // that never ships, and the finding a developer cannot act on is the one that teaches them to
 // ignore the report.
+// No -db, deliberately. The flag takes a URL, `file://` included, and pointing it at a local copy
+// is the obvious way to make this scanner work without a network. It is also unsafe: govulncheck
+// reports "No vulnerabilities found" and exits 0 against an empty or unreadable database, so a
+// mirror that was never populated, or one that went stale, reads as a clean result.
+//
+// Left out, a machine with no route to vuln.go.dev gets exit 1 and an error, and the control says
+// it could not run. That is the right answer and it is the one this scanner is meant to give.
 func govulncheckArgs(dir string, _ plugin.Config) [][]string {
 	var out [][]string
 	for _, mod := range goModuleDirs(dir) {

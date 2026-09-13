@@ -147,16 +147,33 @@ only function is to authorize the behavior, naming the environment variable hold
 instance, is a deliberate act by the operator, and a second consent gate on top of it adds ceremony
 rather than safety. Say so in the doc, so the reasoning is reviewable.
 
-## 6b. Caching, if your answer depends on downloaded data
+## 6b. Data your answer depends on
 
-Two optional interfaces, and forgetting either is silent. The scanner works and only its cache
-behavior is wrong:
+Declare it in `ScannerInfo.Data`, with the host it comes from and how to point the tool at a copy
+on disk. A scanner whose rules travel in its own binary declares none, which is an answer.
 
-- **`plugin.CacheVersioner`** contributes the version of whatever actually decides your answer, a
-  vulnerability database, a template set, to the cache key. Without it a database refresh leaves
-  every cached entry describing the old one.
-- **`plugin.Prewarmer`** warms that data once before the run fans out, instead of every job
-  discovering it missing at the same moment.
+The host is the field with a reader outside this repository. Most people running Draugr are behind
+an egress allowlist rather than disconnected, and `draugr doctor` prints the list they need from
+these declarations. A source with no host describes a fetch nobody can permit.
+
+Then two optional interfaces, and forgetting either is silent. The scanner works and only its
+behavior around that data is wrong:
+
+- **`plugin.CacheVersioner`** contributes the version of whatever actually decides your answer to
+  the cache key. Without it a database refresh leaves every cached entry describing the old one.
+- **`plugin.Prewarmer`** warms the data once before the run fans out, instead of every job
+  discovering it missing at the same moment. Measured on retire.js: three concurrent jobs against
+  a cold cache each fetched the same 420 KB file and each kept its own copy.
+
+`TestAScannerThatReadsDataWarmsIt` holds a declared source to a warm, and
+`TestEveryToolDocSaysWhatItReads` holds the colocated doc to a `## Data` section naming every host
+the code declares. Where the tool re-fetches on every invocation and keeps no cache, set `PerScan`
+and there is nothing to warm.
+
+**Check what the tool does with a local copy that is missing or wrong before wiring an offline
+path.** govulncheck's `-db` takes a `file://` URL and reports "No vulnerabilities found", exit 0,
+against an empty directory. A scanner that could not consult its data has found nothing and must
+say so.
 
 See [the cache architecture](../cache.md).
 
