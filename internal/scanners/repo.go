@@ -97,6 +97,13 @@ func (s repoScanner) CacheVersion(ctx context.Context) string {
 	return s.cacheVersion(ctx)
 }
 
+// ReadsHistory reports whether this scan needs the repository's commit history rather than only
+// the tree (implements plugin.HistoryReader). False for the scanners that read a tree, which is
+// all but one.
+func (s repoScanner) ReadsHistory(cfg plugin.Config) bool {
+	return s.wantsHistory != nil && s.wantsHistory(cfg)
+}
+
 // Prewarm warms shared tool state before a run, when one is wired (implements
 // plugin.Prewarmer). No-op otherwise.
 func (s repoScanner) Prewarm(ctx context.Context) error {

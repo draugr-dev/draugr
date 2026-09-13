@@ -101,6 +101,21 @@ type RateLimited interface {
 	RateLimit(cfg Config) Rate
 }
 
+// HistoryReader is an optional interface a Scanner may implement to say that its answer depends on
+// the repository's commit history rather than only on the tree at one revision.
+//
+// It changes what a cached result may be keyed on. A job that reads a tree can be keyed on the
+// content of the part it reads, so a monorepo commit touching one component leaves every other
+// component's entry valid. A job that reads history cannot: two commits can carry an identical
+// tree and different history, a revert of a revert or an empty commit, and a key over the tree
+// would serve one run's answer to the other.
+//
+// Gitleaks in history mode is the case this exists for. A scanner that does not implement it is
+// taken to read the tree, which is true of everything else.
+type HistoryReader interface {
+	ReadsHistory(cfg Config) bool
+}
+
 // Prewarmer is an optional interface a Scanner may implement to warm shared, expensive state once
 // before a run's concurrent fan-out, e.g. downloading a vulnerability database, so that many
 // parallel scans don't each cold-start it (a thundering herd). The engine calls Prewarm once per

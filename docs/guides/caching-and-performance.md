@@ -308,12 +308,32 @@ Read it in this order:
    fix is a warm cache rather than more parallelism.
 4. **`cacheHits: 0` with a `--cache-dir` set** means the cache was there and nothing matched.
    Entries are keyed on content, and for a repository that includes the revision, so a run on a
-   new commit is *expected* to miss. A content cache is worth what it saves when the same input
-   is scanned again. A re-run, a retry, a second component sharing a repository, not on the
-   next commit.
+   new commit is *expected* to miss for whatever that commit changed.
 
 The timings are absent rather than zero when a run recorded none, so a consumer charting them
 can tell "not measured" from "took no time".
+
+### One repository, several components
+
+A component scoped with `paths:` is keyed on the content of its own subtree rather than on the
+repository's commit. In a monorepo, a commit touching one component leaves every other component's
+entry valid.
+
+Measured on a two-component tree, twelve jobs, scanning `sca`:
+
+| | hits | scans |
+|---|---|---|
+| a warm run with nothing changed | 12 | 0 |
+| a commit touching one component | 9 | 3 |
+
+The three that re-scanned are the ones belonging to the component that changed. Keyed on the
+repository's commit, all twelve would.
+
+This holds for a local checkout, which is what CI has. A repository Draugr clones from a URL is
+resolved with `ls-remote`, which answers about refs and knows nothing about trees, so those keep
+the commit. So does any job that reads the repository's history rather than its tree, secret
+scanning over history being the one that does: two commits can carry an identical tree and
+different history, and a key over the tree would serve one run's answer to the other.
 
 ## Scanners that call a rate-limited API
 

@@ -63,13 +63,17 @@ type retireJSRepoWarmer struct {
 	once sync.Once
 	err  error
 	run  func(ctx context.Context, dir string, argv []string) ([]byte, error)
+	// cacheDir is where the tool keeps its copy. A field rather than a call, so a test says which
+	// directory it means: read from the environment, this would answer about the machine running
+	// the test rather than about the case being tested.
+	cacheDir func() string
 }
 
-var sharedRetireJSRepo = &retireJSRepoWarmer{run: execArgvInDir}
+var sharedRetireJSRepo = &retireJSRepoWarmer{run: execArgvInDir, cacheDir: retireCacheDir}
 
 func (w *retireJSRepoWarmer) warm(ctx context.Context) error {
 	w.once.Do(func() {
-		cache := retireCacheDir()
+		cache := w.cacheDir()
 		if cache == "" {
 			return
 		}

@@ -457,3 +457,137 @@ func TestResolveRevisionAgainstALocalRepository(t *testing.T) {
 		t.Error("a revision that does not exist should be an error, not an answer")
 	}
 }
+
+// The subtree identity moves when and only when something under it moves.
+//
+// This is the whole basis for keying a scoped job on its own part of a repository, so it is worth
+// asserting against a real repository rather than trusting the flag.
+func TestResolveTreeFollowsOneSubtree(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...) // #nosec G204 -- a temp dir and literal git args, in a test
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(dir, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	head := func() string {
+		t.Helper()
+		out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output() // #nosec G204 -- a temp dir, in a test
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.TrimSpace(string(out))
+	}
+
+	run("init", "-q")
+	write("web/a.js", "one")
+	write("api/b.go", "one")
+	run("add", "-A")
+	run("commit", "-q", "-m", "first")
+
+	ctx := context.Background()
+	webBefore, err := ResolveTree(ctx, dir, head(), []string{"web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiBefore, err := ResolveTree(ctx, dir, head(), []string{"api"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if webBefore == "" || apiBefore == "" {
+		t.Fatalf("no identity read: web %q api %q", webBefore, apiBefore)
+	}
+	if webBefore == apiBefore {
+		t.Error("two different subtrees share an identity")
+	}
+
+	// A commit touching one component.
+	write("web/a.js", "two")
+	run("add", "-A")
+	run("commit", "-q", "-m", "second")
+
+	webAfter, _ := ResolveTree(ctx, dir, head(), []string{"web"})
+	apiAfter, _ := ResolveTree(ctx, dir, head(), []string{"api"})
+	if webAfter == webBefore {
+		t.Error("the touched component's identity did not move, so a stale result would be served")
+	}
+	if apiAfter != apiBefore {
+		t.Error("an untouched component's identity moved, so a commit anywhere would invalidate everything")
+	}
+}
+
+// Where no identity can be read the caller is told so, and falls back to the commit it had.
+func TestResolveTreeDeclinesWhatItCannotAnswer(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name, url, commit string
+		paths             []string
+	}{
+		{"a remote repository", "https://github.com/acme/repo.git", "abc123", []string{"web"}},
+		{"no commit", t.TempDir(), "", []string{"web"}},
+		{"no paths, which is the whole tree", t.TempDir(), "abc123", nil},
+		{"a path that is the root", t.TempDir(), "abc123", []string{"."}},
+		{"a path absent at this commit", t.TempDir(), "abc123", []string{"nope"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ResolveTree(ctx, tc.url, tc.commit, tc.paths)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != "" {
+				t.Errorf("ResolveTree = %q, want nothing so the caller keeps the commit", got)
+			}
+		})
+	}
+}
+
+// Two spellings of one scope are one key, or half a monorepo's cache disappears whenever somebody
+// reorders a list in a descriptor.
+func TestResolveTreeDoesNotDependOnTheOrderPathsWereWritten(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...) // #nosec G204 -- a temp dir and literal git args, in a test
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	for _, p := range []string{"web", "api"} {
+		if err := os.MkdirAll(filepath.Join(dir, p), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, p, "f"), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run("init", "-q")
+	run("add", "-A")
+	run("commit", "-q", "-m", "first")
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output() // #nosec G204 -- a temp dir, in a test
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit := strings.TrimSpace(string(out))
+
+	ctx := context.Background()
+	one, _ := ResolveTree(ctx, dir, commit, []string{"web", "api"})
+	two, _ := ResolveTree(ctx, dir, commit, []string{"api", "web"})
+	if one == "" || one != two {
+		t.Errorf("order changed the identity: %q then %q", one, two)
+	}
+}

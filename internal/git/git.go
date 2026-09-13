@@ -423,3 +423,46 @@ func ResolveRevision(ctx context.Context, url, revision string) (string, error) 
 	}
 	return first, nil
 }
+
+// ResolveTree returns an identity for the content of paths at commit, or "" where one cannot be
+// read without fetching the repository.
+//
+// `git rev-parse <commit>:<path>` names the tree object a directory is at that commit, which
+// changes when and only when something under it changes. That is what lets a job scoped to part of
+// a repository be keyed on the part it can actually read: in a monorepo, a commit touching one
+// component leaves every other component's cached result valid, where a key carrying the
+// repository's commit invalidates all of them.
+//
+// Local checkouts only. A remote is resolved with ls-remote, which answers about refs and knows
+// nothing about trees, and fetching one to build a cache key would cost more than the cache saves.
+// The caller falls back to the commit, which is what it used before.
+func ResolveTree(ctx context.Context, url, commit string, paths []string) (string, error) {
+	if !IsLocalPath(url) || commit == "" || len(paths) == 0 {
+		return "", nil
+	}
+	// Sorted, so two spellings of one scope produce one key. The caller's slice is left alone.
+	sorted := append([]string(nil), paths...)
+	sort.Strings(sorted)
+
+	ids := make([]string, 0, len(sorted))
+	for _, p := range sorted {
+		p = strings.Trim(strings.TrimSpace(p), "/")
+		if p == "" || p == "." {
+			// The whole tree, which the commit already identifies exactly.
+			return "", nil
+		}
+		// #nosec G204 -- the descriptor's own repository path and its declared paths
+		out, err := exec.CommandContext(ctx, "git", "-C", url, "rev-parse", commit+":"+p).Output()
+		if err != nil {
+			// A path that is not in the tree at this commit, or a repository git will not read.
+			// Either way there is no identity to compute, and the commit is the honest fallback.
+			return "", nil
+		}
+		id := strings.TrimSpace(string(out))
+		if id == "" {
+			return "", nil
+		}
+		ids = append(ids, p+"="+id)
+	}
+	return strings.Join(ids, ";"), nil
+}

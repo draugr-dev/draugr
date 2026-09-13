@@ -285,6 +285,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// under it. One `ls-remote` per repository, against the server a clone would use anyway,
 		// and only when caching is on.
 		engine.WithRevisionResolver(git.ResolveRevision),
+		engine.WithTreeResolver(git.ResolveTree),
 		// Name a local checkout by the repository it came from, so a scan here and a scan in a
 		// pipeline recognize each other as one source rather than two.
 		engine.WithRemoteResolver(func(path string) string {

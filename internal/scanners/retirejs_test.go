@@ -1,6 +1,10 @@
 package scanners
 
 import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -177,5 +181,144 @@ func TestRetireJSIsSelectableOnSCA(t *testing.T) {
 	}
 	if len(info.TargetKinds) != 1 || info.TargetKinds[0] != plugin.TargetRepository {
 		t.Errorf("target kinds = %v, want a repository", info.TargetKinds)
+	}
+}
+
+// writeRetireCache lays out a cache directory the way retire.js does: an index naming the copy it
+// last wrote, beside whatever copies it has written over time.
+func writeRetireCache(t *testing.T, dir, current string, others ...string) {
+	t.Helper()
+	idx := `{"https://example.invalid/jsrepository-v5.json":{"date":1,"file":"` + current + `"}}`
+	if err := os.WriteFile(filepath.Join(dir, "index.json"), []byte(idx), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range append([]string{current}, others...) {
+		if err := os.WriteFile(filepath.Join(dir, f), []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// The local copy is the one the index names, which is what gets handed to --jsrepo.
+func TestRetireLocalRepoFindsWhatTheIndexNames(t *testing.T) {
+	dir := t.TempDir()
+	writeRetireCache(t, dir, "111.json", "222.json")
+	if got, want := retireLocalRepo(dir), filepath.Join(dir, "111.json"); got != want {
+		t.Errorf("retireLocalRepo = %q, want %q", got, want)
+	}
+}
+
+// No index, or an index naming a file that is gone, is no local copy. Handing --jsrepo a path that
+// is not there would fail at the tool rather than saying what is missing.
+func TestRetireLocalRepoDeclinesWhatIsNotThere(t *testing.T) {
+	empty := t.TempDir()
+	if got := retireLocalRepo(empty); got != "" {
+		t.Errorf("retireLocalRepo on an empty dir = %q", got)
+	}
+
+	stale := t.TempDir()
+	idx := `{"u":{"date":1,"file":"gone.json"}}`
+	if err := os.WriteFile(filepath.Join(stale, "index.json"), []byte(idx), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := retireLocalRepo(stale); got != "" {
+		t.Errorf("retireLocalRepo with a missing file = %q", got)
+	}
+
+	broken := t.TempDir()
+	if err := os.WriteFile(filepath.Join(broken, "index.json"), []byte("not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := retireLocalRepo(broken); got != "" {
+		t.Errorf("retireLocalRepo with an unreadable index = %q", got)
+	}
+}
+
+// Copies the index no longer names are removed, so the directory stops growing by one database per
+// expiry. The current copy and the index itself survive, and so does anything that is not a copy.
+func TestPruneRetireCacheKeepsWhatIsInUse(t *testing.T) {
+	dir := t.TempDir()
+	writeRetireCache(t, dir, "111.json", "222.json", "333.json")
+	if err := os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	pruneRetireCache(dir)
+
+	left := map[string]bool{}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		left[e.Name()] = true
+	}
+	for _, want := range []string{"index.json", "111.json", "notes.txt"} {
+		if !left[want] {
+			t.Errorf("pruning removed %q", want)
+		}
+	}
+	for _, gone := range []string{"222.json", "333.json"} {
+		if left[gone] {
+			t.Errorf("pruning kept %q, so the directory still grows per expiry", gone)
+		}
+	}
+}
+
+// Pruning a directory that is not there is not worth failing a scan over.
+func TestPruneRetireCacheSurvivesNoDirectory(t *testing.T) {
+	pruneRetireCache(filepath.Join(t.TempDir(), "nope"))
+}
+
+// The warm runs the tool once, however many times it is asked.
+func TestTheWarmFetchesOnce(t *testing.T) {
+	var calls int
+	dir := t.TempDir()
+	w := &retireJSRepoWarmer{cacheDir: func() string { return dir },
+		run: func(_ context.Context, _ string, argv []string) ([]byte, error) {
+			calls++
+			if argv[0] != "retire" {
+				t.Errorf("warm ran %q", argv[0])
+			}
+			return nil, nil
+		}}
+	for range 3 {
+		if err := w.warm(context.Background()); err != nil {
+			t.Fatalf("warm: %v", err)
+		}
+	}
+	if calls != 1 {
+		t.Errorf("warm ran the tool %d times; concurrent jobs would each fetch", calls)
+	}
+}
+
+// A warm that could not run says so, rather than leaving every job to find out separately.
+func TestTheWarmReportsWhatWentWrong(t *testing.T) {
+	dir := t.TempDir()
+	w := &retireJSRepoWarmer{cacheDir: func() string { return dir },
+		run: func(context.Context, string, []string) ([]byte, error) {
+			return nil, errors.New("retire: not found")
+		}}
+	if err := w.warm(context.Background()); err == nil {
+		t.Error("a warm that failed reported nothing")
+	}
+}
+
+// Offline, the warm fetches nothing and refuses by name when there is no copy to read.
+func TestTheWarmOfflineNeedsACopyToPointAt(t *testing.T) {
+	t.Setenv("DRAUGR_OFFLINE", "1")
+	var calls int
+	dir := t.TempDir()
+	w := &retireJSRepoWarmer{cacheDir: func() string { return dir },
+		run: func(context.Context, string, []string) ([]byte, error) {
+			calls++
+			return nil, nil
+		}}
+	err := w.warm(context.Background())
+	if calls != 0 {
+		t.Error("the warm reached out on a machine that said it has no network")
+	}
+	if err == nil || !strings.Contains(err.Error(), "offline") {
+		t.Errorf("warm err = %v, want one naming what is missing", err)
 	}
 }

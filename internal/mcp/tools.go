@@ -510,6 +510,7 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		run, runErr := engine.New(reg,
 			engine.WithPrioritization(scanpolicy.DefaultPrioritizer(nil)),
 			engine.WithRevisionResolver(git.ResolveRevision),
+			engine.WithTreeResolver(git.ResolveTree),
 		).Run(ctx, *model)
 		if runErr != nil {
 			// Say so rather than swallowing it: a partial scan that reads as complete is worse

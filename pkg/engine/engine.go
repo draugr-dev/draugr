@@ -41,6 +41,9 @@ type Engine struct {
 	// keyed on what was scanned rather than on a name that moves. Nil means nothing can answer,
 	// and an unpinned repository is then not cached at all.
 	resolveRevision func(ctx context.Context, url, revision string) (string, error)
+	// resolveTree identifies the content of a scoped job's own subtree, so a job reading part of a
+	// repository is keyed on the part rather than on the whole. Nil falls back to the commit.
+	resolveTree func(ctx context.Context, url, commit string, paths []string) (string, error)
 	// revisions memoizes that per run. A descriptor naming one repository from several components
 	// would otherwise ask the same question once per control.
 	revisions   map[string]string
@@ -138,6 +141,15 @@ func WithCacheableTarget(fn func(plugin.Target) bool) Option {
 // normally and not cached: a slower run is a fair price, and a wrong answer is not.
 func WithRevisionResolver(fn func(ctx context.Context, url, revision string) (string, error)) Option {
 	return func(e *Engine) { e.resolveRevision = fn }
+}
+
+// WithTreeResolver supplies the identity of a scoped job's own subtree at a commit.
+//
+// Without one, every job over a repository is keyed on that repository's commit, so a monorepo
+// commit touching one component invalidates every other component's cached result. A monorepo
+// takes a commit every few minutes, which is where the cache was going to matter most.
+func WithTreeResolver(fn func(ctx context.Context, url, commit string, paths []string) (string, error)) Option {
+	return func(e *Engine) { e.resolveTree = fn }
 }
 
 // WithWorkingTree scans repositories as they are on disk, uncommitted work included, instead of
@@ -674,6 +686,39 @@ func effectiveKey(ctx context.Context, job plugin.ScanJob, scanner plugin.Scanne
 	return string(plugin.ComputeCacheKey(job.Scanner, scannerVersion(ctx, scanner), job.Target, job.Config))
 }
 
+// revisionKey is what a cached result is pinned to: the content of the part this job reads, or the
+// repository's commit where that cannot be narrowed.
+//
+// A job scoped with `paths:` sees a pruned checkout, so nothing outside its own subtree can reach
+// the scanner, and a key naming the whole repository names content the job could not read. In a
+// monorepo, which is one repository carved into components, that meant a commit touching one
+// component invalidated every other component's entry. Measured on a two-component tree: a warm
+// run served twelve jobs from cache, and a one-file commit to one component took that to zero.
+//
+// Two cases keep the commit, and both are narrower rather than weaker:
+//
+//   - A job that reads the commit history. Two commits can carry an identical tree and different
+//     history, so a tree key would serve one run's answer to the other.
+//   - Anything a tree identity cannot be read for: a remote repository, an unscoped job whose
+//     subtree is the whole tree, a path absent at that commit.
+func (e *Engine) revisionKey(ctx context.Context, scanner plugin.Scanner, job plugin.ScanJob, commit string) string {
+	if commit == "" || e.resolveTree == nil {
+		return commit
+	}
+	repo, ok := job.Target.(plugin.RepositoryTarget)
+	if !ok || len(repo.Paths) == 0 {
+		return commit
+	}
+	if hr, ok := scanner.(plugin.HistoryReader); ok && hr.ReadsHistory(job.Config) {
+		return commit
+	}
+	tree, err := e.resolveTree(ctx, repo.URL, commit, repo.Paths)
+	if err != nil || tree == "" {
+		return commit
+	}
+	return tree
+}
+
 // scannerVersion identifies everything that decides what a scanner answers: a CacheVersioner's
 // reading, which folds in the tool's data where the data is what moves the answer, over the static
 // ScannerInfo.Version.
@@ -980,8 +1025,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					}
 					// Appended rather than folded into the identity, so a controller that computed
 					// its own key gets the same protection as one that did not.
-					if commit != "" {
-						key += "@" + commit
+					if at := e.revisionKey(jobCtx, scanner, pj.Job, commit); at != "" {
+						key += "@" + at
 					}
 					if rep, hit := e.cache.Get(key); hit {
 						slog.DebugContext(jobCtx, "cache hit",

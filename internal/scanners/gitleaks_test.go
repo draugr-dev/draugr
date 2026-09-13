@@ -41,3 +41,32 @@ func TestGitleaksArgs(t *testing.T) {
 		}
 	}
 }
+
+// Gitleaks says when it is reading history, so the engine can tell a job it may key on a subtree
+// from one it may not.
+//
+// Two commits can carry an identical tree and different history, so a result keyed on the tree
+// would be served to a run asking a different question.
+func TestGitleaksSaysWhenItReadsHistory(t *testing.T) {
+	s, ok := NewGitleaks().(plugin.HistoryReader)
+	if !ok {
+		t.Fatal("gitleaks does not implement plugin.HistoryReader, so a history scan may be keyed on a tree")
+	}
+	if !s.ReadsHistory(plugin.Config{"history": true}) {
+		t.Error("a history scan does not say so")
+	}
+	if s.ReadsHistory(plugin.Config{}) {
+		t.Error("a tree scan claims to read history, which costs it the narrower cache key")
+	}
+}
+
+// A scanner with nothing wired reads the tree, which is true of everything but one.
+func TestAScannerWithNoHistoryModeReadsTheTree(t *testing.T) {
+	s, ok := NewSemgrep().(plugin.HistoryReader)
+	if !ok {
+		t.Fatal("expected the shared repo scanner to answer")
+	}
+	if s.ReadsHistory(plugin.Config{"history": true}) {
+		t.Error("semgrep claims to read history")
+	}
+}

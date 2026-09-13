@@ -52,6 +52,17 @@ correctness lives:
   scope marker when `paths`/`ignore` narrow it. Credentials are deliberately **excluded**: they are
   how a repository is fetched, not which repository it is, so including them would give two people
   scanning one repository different identities.
+
+  **The revision a scoped job is pinned to is its own subtree**, not the repository's commit.
+  `paths:` produces a pruned checkout, so nothing outside that subtree can reach the scanner, and a
+  key naming the whole repository names content the job could not read. In a monorepo, which is one
+  repository carved into components, that meant a commit touching one component invalidated every
+  other component's entry. `engine.revisionKey` narrows it, from `git rev-parse <commit>:<path>`.
+
+  Two cases keep the commit, and both are narrower rather than weaker: a job that reads the
+  repository's **history**, since two commits can carry an identical tree and different history;
+  and anything a tree identity cannot be read for, a remote repository resolved with `ls-remote`,
+  an unscoped job whose subtree is the whole tree, a path absent at that commit.
 - **Image**. The digest when there is one, otherwise the reference.
 - **Host**, the normalized URL, plus markers for the authentication and the spec in use. Two scans
   of one URL that are not comparable, one authenticated, one not, must not share a key.
