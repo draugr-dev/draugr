@@ -12,6 +12,24 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.121.1] - 2026-09-13
+
+### Fixed
+
+**A component's row counts what the rest of the report counts.** Where two scanners report one flaw, the breakdown counted both copies while the bands, the controls and the gate counted one, so a run could say `P2 6` on one line and `P2 11` two lines down. Reporting one vulnerability as two because two scanners found it is the arithmetic that correlation exists to prevent, and the row naming the team was the one place it survived.
+
+**A fixed row in a diff no longer repeats its version.** The sentence under it still opened with the package and the release that cleared it, both of which the Upgrade column beside it had already stated, because the prefix being removed was assembled from what the row draws and a fixed row draws no target.
+
+**An actions listing with no work in it says so.** A change that only fixes things has nothing to do about it, and the heading counted to zero over a blank space rather than saying that.
+
+**A GitLab reader can find that their platform is already covered.** The page routing somebody to their own CI system named GitHub and Azure and not GitLab, and the merge-request behavior in the GitLab guide sat under a heading containing none of the words anybody scans a contents list for, so the platform needing the least setup read as the one with no support. It is named where a reader looks, and the section is called what it does.
+
+**`draugr diff` counts a flaw two scanners reported once**, the way `draugr scan` always has. A pull request adding a library that both a manifest scanner and a file scanner report was described as fourteen new findings in the comment and nine in the terminal, and both numbers were about the same change. The console row now also names the other scanner, as the scan report does, and the diff's SARIF is unchanged and still carries what each scanner found.
+
+**Two components shipping the same vulnerable package are two findings again.** Where one repository holds several components scoped by `paths:`, which is how a monorepo is described, a flaw found in one component was counted under another and taken off the component that has it. A team fixing their own copy would have been told the flaw was handled somewhere else, and the team that still had it would have seen one fewer finding than it does.
+
+**Two products scanned from one repository keep both sets of code-scanning alerts.** The SARIF Draugr writes now names which analysis it is, taken from the descriptor's `project:` and from what the run was narrowed to, so a monorepo publishing an `azure.saga.yaml` and a `gcp.saga.yaml` over the same commit no longer has the second upload silently replace the first. It applies to the file as well as to the `github` publisher, so an upload made by `github/codeql-action/upload-sarif` gets it too.
+
 ## [0.121.0] - 2026-09-12
 
 ### Changed
@@ -5623,7 +5641,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.121.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.121.1...HEAD
+[0.121.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.121.1
 [0.121.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.121.0
 [0.120.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.120.0
 [0.119.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.119.1
