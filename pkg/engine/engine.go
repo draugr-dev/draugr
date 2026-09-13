@@ -674,12 +674,18 @@ func effectiveKey(ctx context.Context, job plugin.ScanJob, scanner plugin.Scanne
 	return string(plugin.ComputeCacheKey(job.Scanner, scannerVersion(ctx, scanner), job.Target, job.Config))
 }
 
-// scannerVersion resolves the version of what actually ran: a CacheVersioner's answer (Trivy
-// folding in its vulnerability-DB version) over the static ScannerInfo.Version.
+// scannerVersion identifies everything that decides what a scanner answers: a CacheVersioner's
+// reading, which folds in the tool's data where the data is what moves the answer, over the static
+// ScannerInfo.Version.
 //
-// Only called where a cache key is being built. The probe can cost a subprocess, and a run without
-// caching has no reason to pay it. Which is why the provenance a report carries uses the static
-// version rather than calling this.
+// It reads as the producer spells it, `trivy@0.69.3;db@2026-07-15T00:56:58Z`, because the tool and
+// the database behind it are two facts a reader needs and one of them explains a run that found
+// something yesterday's did not. A template set six months old finds a different set of problems
+// from the same binary.
+//
+// Empty when nothing could be read, which the caller records as an absence. A version invented to
+// fill the field would make two genuinely different tools look identical, in a cache key and in a
+// report alike.
 func scannerVersion(ctx context.Context, scanner plugin.Scanner) string {
 	if cv, ok := scanner.(plugin.CacheVersioner); ok {
 		if v := cv.CacheVersion(ctx); v != "" {
@@ -695,15 +701,21 @@ func scannerVersion(ctx context.Context, scanner plugin.Scanner) string {
 // produced it, including scanners written later by someone who never read this comment. A
 // scanner that already added an entry for itself keeps its fields and gains the version.
 func recordProvenance(report *sarif.Report, tool, version string) {
+	// Every entry the tool wrote, not the first. One invocation can account for itself more than
+	// once, govulncheck writes a row per module and another saying what it could not cover, and
+	// stamping one of them leaves the rest reading as a run by a version nobody can name, beside
+	// a sibling that names one.
+	var found bool
 	for i := range report.Provenance {
-		if report.Provenance[i].Tool == tool {
-			if report.Provenance[i].Version == "" {
-				report.Provenance[i].Version = version
-			}
-			return
+		if report.Provenance[i].Tool != tool {
+			continue
+		}
+		found = true
+		if report.Provenance[i].Version == "" {
+			report.Provenance[i].Version = version
 		}
 	}
-	if version == "" {
+	if found || version == "" {
 		return // nothing to say about a scanner that reports no version
 	}
 	report.Provenance = append(report.Provenance, sarif.Provenance{Tool: tool, Version: version})
@@ -939,12 +951,17 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			// The version-less identity is cheap (no DB-version probe) and constant within a run.
 			ident := string(plugin.ComputeCacheKey(pj.Job.Scanner, "", pj.Job.Target, pj.Job.Config))
 			out, shared, scanErr := sf.do(ident, func() (any, error) {
-				// The cache key (and any tool/DB version probe) is built only when caching is on. version is
-				// what provenance reports. Caching resolves the live one anyway, Trivy's includes its
-				// vulnerability-DB version, so reuse it rather than probing twice, and fall back to the static
-				// one when nothing resolved it.
+				// What ran, asked for whether or not this job caches. The report has to say what
+				// produced it, and a run without caching is still a run somebody will come back to
+				// and ask whether two results are comparable. Probed at most once per tool per
+				// process and only for scanners that reach here, which is to say only for ones
+				// that actually ran; the static version stands in where nothing resolved it, and
+				// an unreadable version stays empty rather than being invented.
 				var key string
-				version := scanner.Info().Version
+				version := scannerVersion(jobCtx, scanner)
+				if version == "" {
+					version = scanner.Info().Version
+				}
 				// A vetoed target is scanned as though caching were off: no lookup, no store.
 				// Checked once here so the two cannot disagree about whether this job caches.
 				caches := e.cache != nil && (e.cacheable == nil || e.cacheable(pj.Job.Target))
@@ -957,9 +974,6 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					caches = known
 				}
 				if caches {
-					if v := scannerVersion(jobCtx, scanner); v != "" {
-						version = v
-					}
 					key = string(plugin.ComputeCacheKey(pj.Job.Scanner, version, pj.Job.Target, pj.Job.Config))
 					if pj.Job.CacheKey != "" {
 						key = string(pj.Job.CacheKey)

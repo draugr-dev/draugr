@@ -26,7 +26,7 @@ import (
 // jQuery scans clean today. The control runs, reports, and passes, so nothing about the output
 // suggests anywhere left to look.
 func NewRetireJS() plugin.Scanner {
-	return newRepoScannerWithParser(
+	s := newRepoScannerWithParser(
 		plugin.ScannerInfo{
 			Name:         "retirejs",
 			Origin:       "RetireJS",
@@ -38,6 +38,8 @@ func NewRetireJS() plugin.Scanner {
 		retireJSArgs,
 		parseRetireJS,
 	)
+	s.cacheVersion = sharedRetireJSVersion.version
+	return s
 }
 
 // retireJSArgs builds `retire --path <dir> --outputformat json --exitwith 0`.

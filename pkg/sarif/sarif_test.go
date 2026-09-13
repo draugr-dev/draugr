@@ -1284,3 +1284,35 @@ func TestMarshalSARIFAutomationDetails(t *testing.T) {
 		t.Errorf("automationDetails written with no id: %+v", doc.Runs[0].AutomationDetails)
 	}
 }
+
+// The run says which Draugr produced it, in SARIF's own field for it.
+func TestMarshalSARIFToolVersion(t *testing.T) {
+	r := Report{Tool: "trivy", Results: []Result{{RuleID: "CVE-1", Level: LevelError}}}
+	read := func(opts MarshalOptions) string {
+		t.Helper()
+		data, err := r.MarshalSARIFWith(opts)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		var doc struct {
+			Runs []struct {
+				Tool struct {
+					Driver struct {
+						Version string `json:"version"`
+					} `json:"driver"`
+				} `json:"tool"`
+			} `json:"runs"`
+		}
+		if err := json.Unmarshal(data, &doc); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		return doc.Runs[0].Tool.Driver.Version
+	}
+	if got := read(MarshalOptions{ToolVersion: "0.121.1"}); got != "0.121.1" {
+		t.Errorf("driver version = %q, want %q", got, "0.121.1")
+	}
+	// A report built outside a run knows no version and claims none.
+	if got := read(MarshalOptions{}); got != "" {
+		t.Errorf("driver version = %q, want nothing", got)
+	}
+}

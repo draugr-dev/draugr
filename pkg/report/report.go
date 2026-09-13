@@ -391,6 +391,18 @@ func skaldFeeds(feeds []FeedProvenance) []skald.FeedProvenance {
 	return out
 }
 
+// BuildLabel is the Draugr that produced a report, spelled for somebody reading it.
+//
+// A binary not built from a release tag is stamped "dev", which in a footer reads as though "dev"
+// were the version number. Only the formats a person reads use this; the rest carry what Data
+// holds, which is what a consumer comparing two reports can compare.
+func BuildLabel(build string) string {
+	if build == "" || build == "dev" {
+		return "(development build)"
+	}
+	return "v" + strings.TrimPrefix(build, "v")
+}
+
 type sarifReporter struct{}
 
 func (sarifReporter) Format() string { return "sarif" }
@@ -457,6 +469,7 @@ func (d Data) marshalOptions() sarif.MarshalOptions {
 	return sarif.MarshalOptions{
 		Compact:      d.View == ViewCompact,
 		AutomationID: AutomationID(d.Project, d.Run.Scope),
+		ToolVersion:  d.Version,
 	}
 }
 
@@ -840,8 +853,13 @@ func provenanceLines(d Data) []provenanceLine {
 			// five controls reading one checkout is one fact, and repeating it five times in a
 			// block headed "measured against" is how a useful section becomes wallpaper.
 			p.Fields = withoutRepositoryFields(p.Fields)
+			// A version with nothing else to say does not earn a line here. This block answers what
+			// a control was measured against, which for a compliance control is the standard it
+			// applied, and a row per scanner carrying only a build string turns that into a
+			// version list. Which build ran is answered under Evidence, by the block that also
+			// says how strongly Draugr can vouch for it, and in the report document itself.
 			detail := p.Describe()
-			if detail == "" && p.Version == "" {
+			if detail == "" {
 				continue
 			}
 			out = append(out, provenanceLine{

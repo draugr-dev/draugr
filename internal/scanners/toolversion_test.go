@@ -162,3 +162,31 @@ func TestNativeAndPinnedScannersAnswerWithoutATool(t *testing.T) {
 		}
 	}
 }
+
+// govulncheck names itself and the database it read, and both travel.
+func TestGovulncheckVersionReadsTheScannerAndTheDatabase(t *testing.T) {
+	full := []byte("Go: go1.26.7\nScanner: govulncheck@v1.7.0\nDB: https://vuln.go.dev\nDB updated: 2026-09-10 14:48:42 +0000 UTC\n")
+	if got, want := govulncheckVersion(full), "v1.7.0;db@2026-09-10 14:48:42"; got != want {
+		t.Errorf("govulncheckVersion = %q, want %q", got, want)
+	}
+
+	// A build that names itself and no database is still worth recording, as far as it goes.
+	if got, want := govulncheckVersion([]byte("Scanner: govulncheck@v1.7.0\n")), "v1.7.0"; got != want {
+		t.Errorf("govulncheckVersion = %q, want %q", got, want)
+	}
+
+	// Nothing readable is nothing claimed.
+	if got := govulncheckVersion([]byte("go: command not found\n")); got != "" {
+		t.Errorf("govulncheckVersion = %q, want nothing", got)
+	}
+}
+
+// retire.js prints a bare version and nothing else.
+func TestRetireJSVersion(t *testing.T) {
+	if got, want := firstMatch(retireJSVersionRE)([]byte("5.4.3\n")), "5.4.3"; got != want {
+		t.Errorf("retireJS version = %q, want %q", got, want)
+	}
+	if got := firstMatch(retireJSVersionRE)([]byte("")); got != "" {
+		t.Errorf("retireJS version = %q, want nothing", got)
+	}
+}

@@ -20,6 +20,14 @@ import (
 
 // jsonReport is the JSON evidence document.
 type jsonReport struct {
+	// Draugr and Scanners are what produced this document, as opposed to what it describes.
+	//
+	// Three questions are asked of a stored report and none of them could be answered from it:
+	// whether this finding set is comparable to that one, which runs predate a scanner's
+	// correction, and whether this run can be reproduced. `draugr doctor` reports what is on the
+	// machine now; the report is what survives.
+	Draugr   *Build        `json:"draugr,omitempty"`
+	Scanners []scannerUsed `json:"scanners,omitempty"`
 	// Project is what a platform files this run under. First, because it is the identity of the
 	// thing the rest of the document is about.
 	Project string      `json:"project,omitempty"`
@@ -81,6 +89,44 @@ func sortedControls(errs map[string][]string) []string {
 }
 
 // scopeInfo mirrors engine.Scope in the report document.
+// scannerUsed is one scanner that ran, and what it was.
+//
+// Only scanners that ran: one listed with a version having never executed claims coverage that did
+// not happen, and a control that was skipped is already reported under notMeasured.
+type scannerUsed struct {
+	Name string `json:"name"`
+	// Version is what the scanner reported through plugin.CacheVersioner, in the producer's own
+	// spelling: "trivy@0.69.3;db@2026-09-12T13:01:09Z". Absent where nothing could be read. That
+	// interface documents what goes in it and why an unreadable one stays empty.
+	Version string `json:"version,omitempty"`
+}
+
+// scannersOf lists the scanners this run used, sorted, one entry per tool however many jobs it ran.
+//
+// Read back from the provenance each scan recorded rather than from the registry, so the list is
+// what executed rather than what was available. A scanner whose control was planned and then
+// skipped is not here, and neither is one the descriptor never reached.
+func scannersOf(run engine.Result) []scannerUsed {
+	versions := map[string]string{}
+	for _, name := range sortedControlNames(run) {
+		for _, p := range run.Controls[name].Report.Provenance {
+			// draugr/scope and its siblings account for the run rather than for a tool.
+			if strings.HasPrefix(p.Tool, "draugr/") {
+				continue
+			}
+			if v, seen := versions[p.Tool]; !seen || v == "" {
+				versions[p.Tool] = p.Version
+			}
+		}
+	}
+	out := make([]scannerUsed, 0, len(versions))
+	for name, v := range versions {
+		out = append(out, scannerUsed{Name: name, Version: v})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
 type scopeInfo struct {
 	Components        []string `json:"components,omitempty"`
 	Controls          []string `json:"controls,omitempty"`
@@ -149,6 +195,20 @@ type Provenance struct {
 	// that did not have it, which is why the field it renders is omitted rather than defaulted: a
 	// consumer must be able to tell "the gate was the default" from "nobody said".
 	Gate *Gate
+	// Build is the Draugr that produced the run, and the commit it was built from. Known only to
+	// the command that ran, and gone when the process exits.
+	Build *Build
+}
+
+// Build identifies the Draugr that produced a report.
+//
+// The document already names release.version, which is the version of the software being scanned.
+// Nothing in it said which version did the scanning, so two reports a month apart that disagree
+// could not be told apart: the code changed, or Draugr did, and the CI logs that would have said
+// are long gone.
+type Build struct {
+	Version string `json:"version,omitempty"`
+	Commit  string `json:"commit,omitempty"`
 }
 
 // Gate is the policy a verdict was produced under, and whether it decided the exit code.
@@ -417,6 +477,8 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 // outside this repository and say what they leave out.
 func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions, prov Provenance) error {
 	doc := jsonReport{
+		Draugr:     prov.Build,
+		Scanners:   scannersOf(run),
 		Descriptor: prov.Descriptor,
 		CI:         prov.CI,
 		Project:    project,
