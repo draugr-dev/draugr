@@ -221,6 +221,10 @@ type sarifProperties struct {
 	// necessarily the one that produced this finding.
 	Exposure    string `json:"exposure,omitempty"`
 	Criticality string `json:"criticality,omitempty"`
+	// Labels are the component's own metadata, so a consumer holding many components can narrow to
+	// the ones somebody is answerable for. The organization's vocabulary rather than Draugr's, and
+	// no key here is privileged or read.
+	Labels map[string]string `json:"labels,omitempty"`
 	// Repository is which repository the finding was found in, for a component holding more than
 	// one. Part of a finding's identity, so it has to survive the file: a report is written and
 	// read back by `draugr diff`, and an identity that only exists in memory is not one.
@@ -462,10 +466,10 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		if tool != "" || res.Control != "" || res.Escalation != nil || res.PriorityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
-			res.ProviderOperated || res.BuiltUpstream {
+			res.ProviderOperated || res.BuiltUpstream || len(res.Labels) > 0 {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
-				Exposure: res.Exposure, Criticality: res.Criticality,
+				Exposure: res.Exposure, Criticality: res.Criticality, Labels: res.Labels,
 				Escalation:    res.Escalation,
 				PriorityFloor: res.PriorityFloor,
 				Repository:    res.Repository, Package: res.Package,
@@ -710,6 +714,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Component = sr.Properties.Component
 				res.Exposure = sr.Properties.Exposure
 				res.Criticality = sr.Properties.Criticality
+				res.Labels = sr.Properties.Labels
 				res.Repository = sr.Properties.Repository
 				res.Image = sr.Properties.Image
 				res.OperatingSystem = sr.Properties.OperatingSystem

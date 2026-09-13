@@ -1356,7 +1356,7 @@ what applies.
 ```yaml
 components:
   - name: web                 # required, unique
-    labels: { team: platform } # optional key/value metadata
+    labels: { team: platform } # optional key/value metadata; --labels selects on it
     exposure: public          # optional, risk exposure
     criticality: critical     # optional, business criticality
     builtBy: self             # optional, self (default) or upstream, for every target below
@@ -1500,6 +1500,30 @@ stay stable). They feed finding prioritization; a component may be left unclassi
 The wording names no platform on purpose: a Kubernetes network policy is one way to arrange
 `restricted`, and Draugr classifies repositories and images as well as clusters. `draugr classify`
 asks these same questions with the same words.
+
+**`labels`** is free-form `key: value` metadata about a component, optional, and it is the
+organization's vocabulary rather than Draugr's. Nothing here reads a key or attaches a meaning to
+one, and no key is privileged: a team filing by squad, by regime, by data class or by all three is
+describing its own shape, and a tool that decided what `team` meant would be describing a different
+one.
+
+```yaml
+components:
+  - name: storefront
+    labels:
+      team: web
+      data-class: pii
+```
+
+They never reach a verdict. What they do is answer *whose*, in the two places that question is
+asked. `draugr scan --labels team=web` runs only what that team owns, which is how a pipeline in a
+repository holding many teams' code stays about one of them. And every finding carries its
+component's labels into `results.sarif` and `report.json`, so a platform holding many components
+can narrow a list to the ones somebody is answerable for.
+
+They are deliberately absent from the console, the Markdown report and a pull-request comment.
+Those answer what to fix, for a reader who already knows the work is theirs; filtering is a
+question asked where there is a fleet.
 
 ## `fragments`
 

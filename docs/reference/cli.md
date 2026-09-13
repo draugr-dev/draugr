@@ -275,6 +275,9 @@ Grouped the way `draugr scan --help` groups them.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--components` |, | Scan only these components; the verdict says what it covered |
+| `--labels` |, | Scan only components carrying these `key=value` labels; repeat for more, one key twice means either value |
+| `--exposure` |, | Scan only components declaring one of these exposures |
+| `--criticality` |, | Scan only components declaring one of these criticalities |
 | `--controls` |. | Run only these controls; the verdict says what it covered |
 | `--working-tree` | `false` | Scan the checkout as it is on disk, uncommitted work included, for iterating on a fix without committing |
 

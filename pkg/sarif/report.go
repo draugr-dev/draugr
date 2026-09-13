@@ -123,6 +123,18 @@ type Result struct {
 	// values.
 	Exposure    string `json:"exposure,omitempty"`
 	Criticality string `json:"criticality,omitempty"`
+	// Labels are the component's own metadata, carried so a consumer holding many components can
+	// narrow to the ones somebody is answerable for.
+	//
+	// The organization's vocabulary rather than Draugr's: nothing here reads a key or attaches a
+	// meaning to one, and no key is privileged. A team that files by squad, by tier, by regime or
+	// by all three is describing its own shape, and a tool that decided what `team` meant would be
+	// describing a different one.
+	//
+	// They never reach a verdict, and never reach the console, the markdown report or a
+	// pull-request comment. Those answer what to fix for somebody who already knows the work is
+	// theirs. Filtering a fleet is a question asked where there is a fleet.
+	Labels map[string]string `json:"labels,omitempty"`
 	// Repository is the repository this finding was found in, for a component that has more than one,
 	// or a fragment that contributed one from somewhere else.
 	//

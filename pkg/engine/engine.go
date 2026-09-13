@@ -336,6 +336,8 @@ type PlannedJob struct {
 	Component   string
 	Exposure    saga.Exposure
 	Criticality saga.Criticality
+	// Labels are what the component declares about itself, carried onto every finding it produces.
+	Labels map[string]string
 }
 
 // Plan expands the model into scan jobs. Only registered controllers that are enabled
@@ -360,7 +362,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			}
 			jobs, verrs := e.validateConfigs(name, jobs, permitted)
 			errs = append(errs, verrs...)
-			planned = appendJobs(planned, name, "", "", "", e.resolveRemotes(e.markWorkingTree(jobs)))
+			planned = appendJobs(planned, name, nil, e.resolveRemotes(e.markWorkingTree(jobs)))
 		case plugin.ScopeComponent:
 			if !e.scope.includesControl(name) {
 				continue
@@ -377,8 +379,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				}
 				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs, permitted)
 				errs = append(errs, verrs...)
-				planned = appendJobs(planned, name, comp.Name, comp.Exposure, comp.Criticality,
-					e.resolveRemotes(e.markWorkingTree(jobs)))
+				planned = appendJobs(planned, name, comp, e.resolveRemotes(e.markWorkingTree(jobs)))
 			}
 		}
 	}
@@ -1244,12 +1245,23 @@ func (e *Engine) markWorkingTree(jobs []plugin.ScanJob) []plugin.ScanJob {
 	return jobs
 }
 
-func appendJobs(dst []PlannedJob, control, component string, exposure saga.Exposure, criticality saga.Criticality, jobs []plugin.ScanJob) []PlannedJob {
+// appendJobs tags a controller's jobs with the component they belong to, so a finding can say what
+// it is about without the descriptor in hand.
+//
+// comp is nil for a project-scoped control, which belongs to no component and therefore carries no
+// classification and no labels.
+func appendJobs(dst []PlannedJob, control string, comp *saga.Component, jobs []plugin.ScanJob) []PlannedJob {
+	var p PlannedJob
+	if comp != nil {
+		p = PlannedJob{
+			Component: comp.Name, Exposure: comp.Exposure,
+			Criticality: comp.Criticality, Labels: comp.Labels,
+		}
+	}
+	p.Control = control
 	for _, j := range jobs {
-		dst = append(dst, PlannedJob{
-			Control: control, Job: j, Component: component,
-			Exposure: exposure, Criticality: criticality,
-		})
+		p.Job = j
+		dst = append(dst, p)
 	}
 	return dst
 }
@@ -1290,6 +1302,7 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		// its arithmetic without the descriptor in hand.
 		out.Results[i].Exposure = string(pj.Exposure)
 		out.Results[i].Criticality = string(pj.Criticality)
+		out.Results[i].Labels = pj.Labels
 		if e.prioritize != nil {
 			p := e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
 			out.Results[i].Priority = p.Band

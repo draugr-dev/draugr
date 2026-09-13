@@ -722,6 +722,16 @@ func ScopeProvenance(scope engine.Scope) (sarif.Provenance, bool) {
 	if len(scope.Controls) > 0 {
 		p.Fields = append(p.Fields, sarif.Field{Key: "controls", Value: strings.Join(scope.Controls, ",")})
 	}
+	// What was asked for, beside what it came to. A selector and a component list are different
+	// claims: "everything labeled team=web" covers whatever carries that label on the day it runs,
+	// so two runs naming the same components may have been asked different questions, and a run
+	// whose set shrank because somebody moved a label looks from here like a run that was narrowed
+	// on purpose.
+	if sel := scope.Selectors(); len(sel) > 0 {
+		for _, f := range sel {
+			p.Fields = append(p.Fields, sarif.Field{Key: f.Key, Value: f.Value})
+		}
+	}
 	return p, true
 }
 
