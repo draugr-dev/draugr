@@ -64,12 +64,16 @@ draugr: differential gate: 1 new finding(s) at or above the threshold
 The gate is what the job is for. A run that reported only the token would send you to fix a
 credential while the P1 the change introduced went unmentioned.
 
-## What the job does
+## Gating a merge request on new findings
 
-**On a merge request** it scans the head, scans the merge base, and reports the delta as a sticky
-comment, one note per merge request, edited in place on each push rather than stacking up. The gate
-is on what the change *introduces* (`DRAUGR_FAIL_ON_NEW_PRIORITY`, default `P1`), not on the backlog
-it inherited.
+This is on by default and needs nothing set up.
+
+**On a merge request** the template scans the head, scans the merge base, and reports the delta as a
+sticky comment, one note per merge request, edited in place on each push rather than stacking up.
+The gate is on what the change *introduces* (`DRAUGR_FAIL_ON_NEW_PRIORITY`, default `P1`), not on
+the backlog it inherited, so a project with two hundred existing findings is not blocked on every
+merge request. `DRAUGR_DIFF_VIEW` decides what the comment says. See [gate PRs on new
+findings](pr-diff.md) for what the states mean and how findings are matched across two scans.
 
 **On the default branch** it scans the whole descriptor and applies the descriptor's own gate.
 
