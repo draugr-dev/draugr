@@ -1940,6 +1940,14 @@ func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSu
 
 // correlationKey identifies one flaw in one dependency in one repository.
 type correlationKey struct {
+	// component and repository are the subject rather than the observation. The same package at the
+	// same version in two components is two flaws: two teams, two places to fix, and two
+	// classifications, so one can be P1 and the other P4. Collapsing them would take a finding off
+	// the component that has it and count it under a component that cannot fix it.
+	//
+	// Both are needed. A monorepo declares several components over one repository URL scoped by
+	// `paths:`, so the repository is identical across them and only the component tells them apart.
+	component  string
 	repository string
 	pkg        string
 	vuln       string
@@ -1960,7 +1968,9 @@ func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 	if vuln == "" || res.Package == nil || res.Package.PURL == "" {
 		return correlationKey{}, false
 	}
-	return correlationKey{repository: res.Repository, pkg: res.Package.PURL, vuln: vuln}, true
+	return correlationKey{
+		component: res.Component, repository: res.Repository, pkg: res.Package.PURL, vuln: vuln,
+	}, true
 }
 
 // strongestOf picks the finding a group is counted under: the one claiming most exposure.
