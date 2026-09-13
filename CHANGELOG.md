@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.122.0] - 2026-09-13
+
+### Added
+
+**A report says what produced it.** `report.json` gained a `draugr` block naming the version and commit that ran, and a `scanners` list naming each tool that ran and what decides its answers, the tool and its data together, so `trivy@0.69.3;db@2026-09-12T13:01:09Z` rather than a binary version alone. `results.sarif` carries the same two facts in SARIF's own fields. Two runs a month apart that disagree can now be told apart, because the documents say whether the code changed or the scanner did. A tool that will not say what version it is appears without one rather than with a placeholder.
+
+**`draugr doctor` prints the hosts a scan contacts.** A new section lists each host, what it is fetched for, and whether it is warmed once or fetched on every scan, so a pipeline behind an egress allowlist has the list to permit rather than discovering it one failure at a time. Derived from what each scanner declares rather than kept by hand, which is how the previous list came to name two of seven sources.
+
+### Fixed
+
+**A scan fetches a scanner's data once, not once per job.** retire.js honors its own cache and a cold one did not survive concurrency: jobs starting together all found nothing, all fetched, and all kept their own copy, which nothing pruned. Scanning `draugr-demo` with the cache cleared went from four copies and 1.7 MB to one copy and 420 KB, with identical findings. Offline, retire.js is pointed at the copy already on disk, and says so by name when there is none.
+
+**A scan without caching still records what ran.** The version of each scanner was only ever asked for when caching was enabled, so most runs recorded none, and `retirejs` and `govulncheck` had no probe wired at all despite both reporting one. A tool that accounts for itself more than once in a run, as `govulncheck` does per Go module, now carries its version on every entry rather than only the first.
+
+**Asking Semgrep its version no longer calls Semgrep.** `semgrep --version` contacts semgrep.dev to check for a newer release, and Draugr asks every scanner its version on every run, so the question "which build is this" reached the network on a machine that may have said it has none. It is asked with the update check off, in the scan as well as the probe, which returns the same answer.
+
 ## [0.121.1] - 2026-09-13
 
 ### Fixed
@@ -5641,7 +5657,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.121.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.122.0...HEAD
+[0.122.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.122.0
 [0.121.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.121.1
 [0.121.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.121.0
 [0.120.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.120.0
