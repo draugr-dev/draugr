@@ -786,6 +786,16 @@ func componentVerdicts(
 		}
 		for _, rep := range byComponent[name] {
 			for _, r := range rep.Results {
+				// A second scanner's copy of a flaw already counted, which the bands, the controls
+				// and the gate all skip. Counted here alone, one report gave two answers for one
+				// set, and the larger one was on the row naming the team. Reporting one
+				// vulnerability as two is the arithmetic correlation exists to prevent.
+				//
+				// Suppressed findings are already out: they are dropped where the reports are
+				// grouped above, for the same reason.
+				if r.Correlated() {
+					continue
+				}
 				cv.Findings++
 				if band := priorityBand(r.Priority); band >= 0 {
 					cv.Priorities[band]++
