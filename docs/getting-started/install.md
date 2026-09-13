@@ -22,19 +22,16 @@ curl -fsSL https://draugr.dev/install.sh | sh
 It detects your OS and architecture, installs to `~/.local/bin`, and tells you if that isn't on
 your `PATH`.
 
-**It verifies before it installs, and says which checks ran.** The archive's SHA-256 is always
-checked against the release's `checksums.txt`. If [cosign](https://docs.sigstore.dev/cosign/) is on
-your `PATH`, it also verifies that `checksums.txt` was signed by Draugr's release workflow, which is
-the check that carries weight, because a host able to serve you a bad archive could serve a matching
-checksums file too. Nothing is installed if a check fails.
+**It verifies before it installs, says which checks ran, and installs nothing if one fails.**
+Install [cosign](https://docs.sigstore.dev/cosign/) first to get the stronger of the two, which
+[verifying releases](../trust-and-operations/verifying-releases.md) covers along with how to run
+them yourself.
 
 Piping a script into a shell means trusting the host that served it. If you'd rather not, the
 script is [readable in the repo](https://github.com/draugr-dev/draugr/blob/main/install.sh) and
 the [manual steps](#from-a-release-by-hand) below do the same work.
 
-Three knobs, all optional. **They go on `sh`, not on `curl`**, in a pipeline each side gets its own
-environment, so `DRAUGR_INSTALL_DIR=~/bin curl … | sh` sets the variable on the download and the
-script never sees it:
+Three knobs, all optional. **They go on `sh`, not on `curl`**, where they are silently ignored:
 
 ```bash
 curl -fsSL https://draugr.dev/install.sh | DRAUGR_INSTALL_DIR=~/bin sh
@@ -160,10 +157,8 @@ Prefer your own install (Homebrew, package manager, an existing copy)? That work
   control.
 - `git`, needed for any repository scan (`sca`, `secrets`, `sast`, `licenses`).
 
-Two of these are language packages rather than release binaries, so Draugr installs them with the
-language's own package manager and needs it present: **Semgrep** needs Python 3.10 or newer with `pip`, and
-**retire.js** needs Node 18 or newer with `npm`. Every package is checked against a digest recorded
-in Draugr, and `draugr tools list` says `pinned` only when that check actually ran.
+Two of these need a language runtime already present: **Semgrep** needs Python 3.10 or newer with
+`pip`, and **retire.js** needs Node 18 or newer with `npm`.
 
 `headers` and `tls` are native and need nothing installed. `draugr doctor` reports which of these
 *your* Saga requires, so the list you have to care about is usually shorter than this one.

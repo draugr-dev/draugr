@@ -205,9 +205,8 @@ which control crossed which band without reading the descriptor:
 jq -r '.controls[] | select(.verdict=="fail") | "\(.name): \(.highest) against \(.threshold)"' report.json
 ```
 
-The block is absent on a document written before this existed, and on one written by an embedder
-calling `skald.RenderJSONFor` without it. Absent is not the same as a default gate, which is why
-nothing is filled in for it.
+The block is absent on a document written before this existed, and on one written without a gate at
+all. Absent is not the same as a default gate, which is why nothing is filled in for it.
 
 ## Declare formats and destinations
 
