@@ -147,6 +147,31 @@ jobs:
       - name: Build draugr
         run: make build
 
+      # The week this run belongs to, so the template cache is written once a week and read the
+      # rest of the time. A key that changes every run writes an entry every run and evicts
+      # everything else in the process.
+      - name: Name the week
+        id: week
+        run: echo "stamp=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      # The one piece of scanner data this job fetches from a host it does not control, from a
+      # runner on a shared IP pool, against a repository republished daily.
+      #
+      # Restored before the tools are provisioned, so the set is on disk when the first scan warms
+      # it. A warm that cannot reach GitHub then scans with what is here and says so, rather than
+      # failing the control.
+      #
+      # A week-old copy is the right trade for this suite and not for a user: these tests point
+      # Nuclei at a server they start themselves and assert which requests arrive, so they need
+      # templates rather than today's templates. The stamp rolls so the set cannot drift forever.
+      - name: Restore the Nuclei template set
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/nuclei-templates
+          key: nuclei-templates-${{ runner.os }}-${{ steps.week.outputs.stamp }}
+          restore-keys: |
+            nuclei-templates-${{ runner.os }}-
+
       - name: Provision the scanners with draugr
         # The tools come from the same pinned, verified manifest users get, so what these tests
         # prove Draugr's argv and parsing against is the build everybody runs, and the installer

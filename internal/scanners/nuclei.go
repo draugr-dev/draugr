@@ -379,7 +379,7 @@ type nucleiTemplateWarmer struct {
 	run  func(ctx context.Context, argv []string) ([]byte, error)
 }
 
-// warm downloads the template set at most once, and checks that it is actually there.
+// warm brings the template set up to date at most once, and checks that there is one.
 //
 // No -duc here, though the scan invocation uses it and should. On a scan it disables the update
 // check, which is what keeps a run deterministic. On `-update-templates` it disables the update
@@ -389,14 +389,33 @@ type nucleiTemplateWarmer struct {
 //
 // The exit code is checked and then disbelieved. Nuclei exits 0 whether or not it fetched
 // anything, so the only honest confirmation is to ask afterwards what it has.
+//
+// A failed update over a set that is already on disk is a warning and not an error, which is the
+// rule Draugr already applies to an exploitability feed: a fetch that fails where there is a usable
+// copy on disk uses the copy and says so, and only an empty hand is fatal. The template set is
+// republished daily from a host a scan does not control, and refusing to run over yesterday's
+// copy of it means an egress allowlist, a rate limit or an outage stops a gate that had everything
+// it needed. Said out loud rather than swallowed, because a scan run against a set of unknown age
+// is a different claim from one run against today's.
 func (w *nucleiTemplateWarmer) warm(ctx context.Context) error {
 	w.once.Do(func() {
+		onDisk := w.version(ctx)
 		if _, err := w.run(ctx, []string{"nuclei", "-update-templates"}); err != nil {
+			if onDisk != "" {
+				slog.WarnContext(ctx, "nuclei templates not updated, scanning with the set on disk",
+					"templates", onDisk, "error", err)
+				return
+			}
 			w.err = fmt.Errorf("download nuclei templates: %w", err)
 			return
 		}
 		out, err := w.run(ctx, []string{"nuclei", "-templates-version"})
 		if err != nil {
+			if onDisk != "" {
+				slog.WarnContext(ctx, "nuclei templates could not be checked after updating, "+
+					"scanning with the set on disk", "templates", onDisk, "error", err)
+				return
+			}
 			w.err = fmt.Errorf("check nuclei templates: %w", err)
 			return
 		}
@@ -406,6 +425,23 @@ func (w *nucleiTemplateWarmer) warm(ctx context.Context) error {
 		}
 	})
 	return w.err
+}
+
+// version is the template set already installed, or "" where there is none.
+//
+// Asked before the update, so a failure afterwards can be told apart from an empty machine. Every
+// error here reads as "no templates", which is the conservative direction: it costs a warning that
+// could have been avoided and never claims a set that is not there.
+func (w *nucleiTemplateWarmer) version(ctx context.Context) string {
+	out, err := w.run(ctx, []string{"nuclei", "-templates-version"})
+	if err != nil {
+		return ""
+	}
+	ok, describe := tools.NucleiTemplatesOK(out)
+	if !ok {
+		return ""
+	}
+	return describe
 }
 
 // templatesErr returns the reason the template set is unavailable, if it is.

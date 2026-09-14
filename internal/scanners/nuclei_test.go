@@ -203,7 +203,12 @@ func TestNucleiPrewarmDownloadsThenVerifies(t *testing.T) {
 	if err := w.warm(context.Background()); err != nil {
 		t.Fatalf("warm: %v", err)
 	}
-	want := [][]string{{"nuclei", "-update-templates"}, {"nuclei", "-templates-version"}}
+	// Asked what is on disk first, so a failed update can be told apart from an empty machine.
+	want := [][]string{
+		{"nuclei", "-templates-version"},
+		{"nuclei", "-update-templates"},
+		{"nuclei", "-templates-version"},
+	}
 	if !reflect.DeepEqual(argvs, want) {
 		t.Errorf("argv = %v, want %v", argvs, want)
 	}
@@ -225,8 +230,8 @@ func TestNucleiPrewarmIsMemoized(t *testing.T) {
 			t.Fatalf("warm: %v", err)
 		}
 	}
-	if calls != 2 {
-		t.Errorf("ran %d commands, want 2 (download + verify, once)", calls)
+	if calls != 3 {
+		t.Errorf("ran %d commands, want 3 (look, download, verify, once)", calls)
 	}
 }
 
@@ -313,8 +318,70 @@ func TestNucleiPrewarmDelegates(t *testing.T) {
 	if err := NewNuclei().(plugin.Prewarmer).Prewarm(context.Background()); err != nil {
 		t.Fatalf("Prewarm: %v", err)
 	}
-	if calls != 2 {
-		t.Errorf("Prewarm ran %d commands, want 2 (download + verify)", calls)
+	if calls != 3 {
+		t.Errorf("Prewarm ran %d commands, want 3 (look, download, verify)", calls)
+	}
+}
+
+// A template set republished daily, fetched from a host a scan does not control, over an egress
+// allowlist or a rate limit. Refusing to run over the copy already on disk stops a gate that had
+// everything it needed, which is the rule an exploitability feed already follows.
+func TestNucleiPrewarmScansOnWhatIsOnDiskWhenTheUpdateFails(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		broken string
+	}{
+		{"the download fails", "-update-templates"},
+		{"the check after it fails", "-templates-version-after"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			seen := 0
+			w := &nucleiTemplateWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
+				if argv[1] == "-templates-version" {
+					seen++
+					if tc.broken == "-templates-version-after" && seen > 1 {
+						return nil, errors.New("nuclei: exit status 1")
+					}
+					return []byte(templatesPresent), nil
+				}
+				if argv[1] == tc.broken {
+					return nil, errors.New("dial tcp: lookup github.com: no such host")
+				}
+				return nil, nil
+			}}
+			if err := w.warm(context.Background()); err != nil {
+				t.Errorf("warm = %v, want the run to go ahead on the set already installed", err)
+			}
+		})
+	}
+}
+
+// An empty machine is the case the error exists for, and it stays an error. A scanner that could
+// not run has found nothing, and a suite that is inconvenient is not a reason to weaken that.
+func TestNucleiPrewarmStillFailsWithNothingOnDisk(t *testing.T) {
+	w := &nucleiTemplateWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
+		if argv[1] == "-templates-version" {
+			return []byte(templatesAbsent), nil
+		}
+		return nil, errors.New("dial tcp: lookup github.com: no such host")
+	}}
+	err := w.warm(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "download nuclei templates") {
+		t.Fatalf("warm = %v, want the download failure", err)
+	}
+}
+
+// A machine whose nuclei cannot answer at all reads as having nothing, which is the conservative
+// direction: it costs a warning that could have been avoided and never claims a set that is absent.
+func TestNucleiPrewarmTreatsAnUnreadableInstallAsEmpty(t *testing.T) {
+	w := &nucleiTemplateWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
+		if argv[1] == "-templates-version" {
+			return nil, errors.New("nuclei: executable file not found in $PATH")
+		}
+		return nil, errors.New("dial tcp: lookup github.com: no such host")
+	}}
+	if err := w.warm(context.Background()); err == nil {
+		t.Error("warm succeeded with no templates and no way to check for any")
 	}
 }
 
