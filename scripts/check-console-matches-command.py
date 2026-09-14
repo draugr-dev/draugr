@@ -20,8 +20,13 @@ Four claims are checkable, all of them rendered by the scan report from what it 
 
   (scope: N of M components)   a component was narrowed  → --components/--labels/--exposure/--criticality
   (scope: …; sca, secrets)     a control was narrowed    → --controls
-  FIX FIRST  top N of M        the table was capped      → --top N
+  FIX FIRST  top N of M        the table was capped      → --top N, unless N is the default
   EVIDENCE                     the evidence block ran    → --evidence
+
+`--top` has a **different default per subcommand**, 10 for `scan` and 0 for `diff`, so a capped
+table is evidence of a flag only when the cap is not the one that subcommand would have produced
+anyway. Reading `top 10` after a bare `draugr scan` as a mismatch fails the most ordinary paste
+there is, and a check that fails correct pages is one somebody switches off.
 
 Everything else about a block is beyond a static check. `make examples` regenerates output from a
 real run and is what keeps the rest honest.
@@ -40,7 +45,10 @@ FENCE = re.compile(r"```(\w*)\n(.*?)```", re.S)
 # What only this renderer prints, so a console fence carrying one is a run rather than a shell session.
 CONSOLE_SHAPES = ("DRAUGR ", "FIX FIRST", "WHAT TO DO", "CONTROLS\n", "COMPONENTS\n", "EVIDENCE\n")
 SCOPE = re.compile(r"\(scope: ([^)]*)\)")
-TOP = re.compile(r"^(?:FIX FIRST|CHANGED)\s+top (\d+) of \d+", re.M)
+TOP = re.compile(r"^(FIX FIRST|CHANGED)\s+top (\d+) of \d+", re.M)
+# What each subcommand caps at when nobody asks. The heading names which one rendered the block,
+# which is a surer signal than the command, since the pairing takes whichever command came last.
+DEFAULT_TOP = {"FIX FIRST": 10, "CHANGED": 0}
 # Narrowing a run to part of the components, by name or by what they are.
 COMPONENT_FLAGS = ("--components", "--labels", "--exposure", "--criticality")
 
@@ -82,16 +90,34 @@ def problems(cmd: str, block: str) -> list[str]:
         out.append("the command narrows the run and the block claims no scope")
 
     top = TOP.search(block)
-    if top and f"--top {top.group(1)}" not in cmd:
-        out.append(f"the block shows a table capped at {top.group(1)} and the command does not ask for it")
+    if top:
+        shown = int(top.group(2))
+        default = DEFAULT_TOP[top.group(1)]
+        if shown != default and f"--top {shown}" not in cmd:
+            out.append(
+                f"the block shows a table capped at {shown} and the command does not ask for it "
+                f"({top.group(1)} caps at {default} on its own)"
+            )
 
     if re.search(r"^EVIDENCE\s*$", block, re.M) and "--evidence" not in cmd:
         out.append("the block carries the evidence section and the command does not ask for it")
     return out
 
 
-def main() -> int:
-    files = sorted(ROOT.glob("docs/**/*.md")) + [ROOT / "README.md"]
+def markdown_under(roots: list[str]) -> list[Path]:
+    """Every .md under each root, or the roots themselves where one names a file."""
+    out: list[Path] = []
+    for root in roots:
+        path = Path(root)
+        out.extend(sorted(path.rglob("*.md")) if path.is_dir() else [path])
+    return out
+
+
+def main(argv: list[str]) -> int:
+    # Paths make this usable on a corpus that is not this repository. The website quotes the same
+    # console output and lives somewhere this repo's CI cannot reach, so it runs the script from
+    # its own build rather than keeping a second copy of these rules in step with this one.
+    files = markdown_under(argv) if argv else sorted(ROOT.glob("docs/**/*.md")) + [ROOT / "README.md"]
     checked, bad = 0, 0
     for path in files:
         if not path.exists():
@@ -100,7 +126,7 @@ def main() -> int:
             checked += 1
             for problem in problems(cmd, block):
                 bad += 1
-                rel = path.relative_to(ROOT)
+                rel = path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
                 print(f"{rel}: {problem}")
                 print(f"    command: {cmd}")
     if bad:
@@ -114,4 +140,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
