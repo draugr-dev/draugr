@@ -1144,11 +1144,24 @@ func TestNotesOpenWithWhatArguedWithTheBand(t *testing.T) {
 		severity: sarif.SeverityHigh, message: "a flaw",
 		reachability: &sarif.Reachability{
 			State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+			Method:   sarif.MethodCallGraph,
 			RankedAs: sarif.SeverityMedium, AsOf: "2026-08-21",
 		},
 	})
 	if len(got) != 1 || got[0] != "↓ unreachable · a flaw · govulncheck, 2026-08-21" {
 		t.Errorf("got %q", got)
+	}
+	// A verdict that earned nothing still reaches the row. Without it the finding reads as one no
+	// analyzer has looked at, which is the opposite of what happened.
+	got = notesFor(tui.Plain(), finding{
+		severity: sarif.SeverityHigh, message: "a flaw",
+		reachability: &sarif.Reachability{
+			State: sarif.ReachabilityUnreachable, Analyzer: "dep-scan",
+			Method: sarif.MethodFrameworkHeuristic,
+		},
+	})
+	if len(got) == 0 || !strings.Contains(strings.Join(got, " "), "framework-heuristic · band unchanged") {
+		t.Errorf("got %q, want the standing verdict under the row", got)
 	}
 	// Nothing argued with it, so the line is the finding's own sentence and nothing else.
 	got = notesFor(tui.Plain(), finding{severity: sarif.SeverityHigh, message: "a flaw"})

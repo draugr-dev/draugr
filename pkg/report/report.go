@@ -1132,11 +1132,39 @@ func reachabilityPath(r *sarif.Reachability) string {
 // The mark on the row says the band was lowered; this is the part a reader would otherwise have to
 // take on trust. A call graph does not see reflection or code generated tomorrow, so which
 // analyzer ran and which day it ran are what make the claim one somebody can argue with.
+//
+// Not the method. Every method that lowers a band is one Draugr treats as evidence of absence, so
+// naming it here separates two analyzers a reader would act on identically, at the cost of the
+// line the finding's own sentence shares. Where the method decided something the reader cannot
+// otherwise see, it is named: see unreachableStanding.
 func unreachableCredit(r *sarif.Reachability) string {
 	if r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs == "" {
 		return ""
 	}
 	return strings.TrimSuffix(strings.TrimPrefix(attribution(r), " ("), ")")
+}
+
+// unreachableStanding reports an unreachable verdict that left the band where it was.
+//
+// The row carries no mark in that case, so without this line the finding reads as one nothing was
+// ever said about. Two things put a verdict here, and the reader's next move differs by which: a
+// method whose negative Draugr does not treat as evidence of absence, where the verdict is a lead
+// worth following by hand; and an analyzer that did not say how it decided, where it is not.
+//
+// A finding already at the lowest band is neither. Nothing moved because there was nowhere to move
+// it, and the analyzer was believed.
+func unreachableStanding(r *sarif.Reachability) string {
+	if r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs != "" {
+		return ""
+	}
+	if sarif.ProvesAbsence(r.Method) {
+		return ""
+	}
+	method := r.Method
+	if method == "" {
+		method = "method not stated"
+	}
+	return "unreachable · " + method + " · band unchanged" + attribution(r)
 }
 
 // attribution names the analyzer and the day it ran. A reachability verdict describes one

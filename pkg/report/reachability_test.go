@@ -136,6 +136,51 @@ func TestUnreachableCreditNamesWhoLoweredIt(t *testing.T) {
 	}
 }
 
+func TestUnreachableStandingSaysTheVerdictEarnedNothing(t *testing.T) {
+	// A row with no mark and no line reads as a finding nothing was said about. The verdict is a
+	// lead the reader can follow by hand, and it is only theirs to follow if they are told it
+	// exists.
+	got := unreachableStanding(&sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, Analyzer: "dep-scan",
+		Method: sarif.MethodFrameworkHeuristic, AsOf: "2026-08-21",
+	})
+	want := "unreachable · framework-heuristic · band unchanged (dep-scan, 2026-08-21)"
+	if got != want {
+		t.Errorf("standing = %q, want %q", got, want)
+	}
+	// An analyzer that will not say how it decided has not earned a band, and the line says which
+	// of the two reasons applies rather than leaving the reader to guess.
+	got = unreachableStanding(&sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, Analyzer: "dep-scan",
+	})
+	if got != "unreachable · method not stated · band unchanged (dep-scan)" {
+		t.Errorf("standing = %q", got)
+	}
+	// The band moved, so the mark and the credit carry it and this line would say it twice.
+	if got := unreachableStanding(&sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+		Method: sarif.MethodCallGraph, RankedAs: sarif.SeverityMedium,
+	}); got != "" {
+		t.Errorf("standing = %q, want nothing where the band moved", got)
+	}
+	// Already at the lowest band. Nothing moved because there was nowhere to move it, and the
+	// analyzer was believed, so there is nothing for the reader to follow up.
+	if got := unreachableStanding(&sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck", Method: sarif.MethodCallGraph,
+	}); got != "" {
+		t.Errorf("standing = %q, want nothing where the method was believed", got)
+	}
+	for _, r := range []*sarif.Reachability{
+		nil,
+		{State: sarif.ReachabilityReachable, Analyzer: "dep-scan", Method: sarif.MethodImportCheck},
+		{State: sarif.ReachabilityUnknown, Analyzer: "dep-scan", Method: sarif.MethodImportCheck},
+	} {
+		if got := unreachableStanding(r); got != "" {
+			t.Errorf("standing = %q for %+v", got, r)
+		}
+	}
+}
+
 func TestReachabilityPathCarriesTheShortestRoute(t *testing.T) {
 	got := reachabilityPath(&sarif.Reachability{
 		State: sarif.ReachabilityReachable, Analyzer: "govulncheck", AsOf: "2026-08-21",

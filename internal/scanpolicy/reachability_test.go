@@ -15,9 +15,9 @@ func bandFor(res sarif.Result, expl *exploit.Source) (string, sarif.Severity) {
 func TestUnreachableRanksDown(t *testing.T) {
 	high := sarif.Result{RuleID: "CVE-2020-14040", Level: sarif.LevelError, Score: 7.5, HasScore: true}
 	reachable := high
-	reachable.Reachability = &sarif.Reachability{State: sarif.ReachabilityReachable}
+	reachable.Reachability = &sarif.Reachability{State: sarif.ReachabilityReachable, Method: sarif.MethodCallGraph}
 	unreachable := high
-	unreachable.Reachability = &sarif.Reachability{State: sarif.ReachabilityUnreachable}
+	unreachable.Reachability = &sarif.Reachability{State: sarif.ReachabilityUnreachable, Method: sarif.MethodCallGraph}
 
 	reachBand, reachRanked := bandFor(reachable, nil)
 	unreachBand, unreachRanked := bandFor(unreachable, nil)
@@ -33,13 +33,36 @@ func TestUnreachableRanksDown(t *testing.T) {
 	}
 }
 
+func TestAWeakMethodDoesNotMoveTheBand(t *testing.T) {
+	// The verdict still travels and is still shown. What it does not do is move the band, because
+	// the reader deciding whether to act on it has to make that call rather than have it made by a
+	// framework's own account of which handlers are wired.
+	res := sarif.Result{
+		RuleID: "CVE-2020-14040", Level: sarif.LevelError, Score: 7.5, HasScore: true,
+		Reachability: &sarif.Reachability{
+			State: sarif.ReachabilityUnreachable, Method: sarif.MethodFrameworkHeuristic,
+		},
+	}
+	band, ranked := bandFor(res, nil)
+	if ranked != "" {
+		t.Errorf("a framework heuristic recorded rankedAs %q", ranked)
+	}
+	strong := res
+	strong.Reachability = &sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, Method: sarif.MethodCallGraph,
+	}
+	if strongBand, _ := bandFor(strong, nil); strongBand == band {
+		t.Errorf("both banded %q; the method changed nothing", band)
+	}
+}
+
 func TestExploitabilityOutranksReachability(t *testing.T) {
 	// Observed exploitation outranks a call graph's inability to find a path. The same rule that
 	// makes KEV outrank EPSS. Where both speak, the stronger claim of exposure wins.
 	kev := exploit.New(map[string]bool{"CVE-2020-14040": true}, nil, 0)
 	res := sarif.Result{
 		RuleID: "CVE-2020-14040", Level: sarif.LevelError, Score: 7.5, HasScore: true,
-		Reachability: &sarif.Reachability{State: sarif.ReachabilityUnreachable},
+		Reachability: &sarif.Reachability{State: sarif.ReachabilityUnreachable, Method: sarif.MethodCallGraph},
 	}
 	band, ranked := bandFor(res, kev)
 	if ranked != "" {

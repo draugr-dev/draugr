@@ -347,6 +347,39 @@ that matters, because somebody is exploiting it today.
 [CVE, CVSS and severity](/learn/cve-cvss-and-severity/) ·
 [`scan` flags](../reference/cli.md#draugr-scan-sagayaml--dir)
 
+## Reachability: what lowers a band
+
+Exploitability moves a finding up; reachability analysis is the only thing that moves one down. An
+analyzer that finds no path from your entry points to the vulnerable code lowers the band by one,
+and a path it does find changes nothing, because severity already assumes the vulnerable code runs.
+
+**A lowered band depends on how the analyzer decided.** Four things are sold as reachability, and
+they differ entirely in what a *negative* is worth: finding a path is a claim you can go and check,
+while finding none is worth exactly what the analysis could not see.
+
+| method | what it did | an unreachable verdict |
+| --- | --- | --- |
+| `call-graph` | followed calls from an entry point to the vulnerable symbol | lowers the band |
+| `data-flow` | followed the data as well as the calls | lowers the band |
+| `framework-heuristic` | read a framework's conventions about which handlers are wired | reported, band unchanged |
+| `import-check` | saw whether the vulnerable package is referenced anywhere | reported, band unchanged |
+
+A verdict that does not lower a band still travels in the report, in `report.json` and in the SARIF,
+and the console says so under the finding:
+
+```
+unreachable · framework-heuristic · band unchanged (dep-scan, 2026-08-21)
+```
+
+That line is a lead worth following by hand and not a band you can act on, which is why it says
+both. An analyzer that does not state its method is read the same way: a tool that will not say how
+it decided has not earned a de-escalation.
+
+**It never suppresses**, at any strength. Static analysis is defeated by reflection, dynamic
+dispatch and code generation, and a suppression in Draugr records that a person decided, with a name
+attached. Where exploitability has already raised a finding, that wins: observed exploitation
+outranks a call graph's failure to find a path.
+
 ## The component is part of the finding
 
 A finding records which component it came from, and that is what makes its band checkable. The

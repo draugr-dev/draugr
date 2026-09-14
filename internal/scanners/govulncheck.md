@@ -48,6 +48,11 @@ It feeds the priority band and never rewrites the severity the scanner reported,
 exploitability enrichment does in the other direction. An `unreachable` finding is ranked one band
 down; a `reachable` one is unchanged, because severity already assumes the code runs.
 
+The band moves because of **how** this scanner decided, not because it decided. It records
+`method: call-graph`, which Draugr treats as evidence that the vulnerable code does not run; an
+analyzer whose negative rests on a framework's own account of its routing is reported and lowers
+nothing. [Prioritization](../../docs/concepts/prioritization.md) has the table.
+
 It never suppresses. Static analysis is defeated by reflection, dynamic dispatch and code
 generation, and a suppression in Draugr records that a *person* decided, with a name attached. An
 inference is not a decision. Where exploitability enrichment has already raised a finding, that

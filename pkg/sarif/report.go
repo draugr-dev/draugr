@@ -403,9 +403,10 @@ type Reachability struct {
 	State ReachabilityState `json:"state"`
 	// Analyzer names the tool that decided, e.g. "govulncheck".
 	Analyzer string `json:"analyzer"`
-	// Method is how it decided, e.g. "call-graph". Buyers are told to reject reachability
-	// claims that do not say how they were reached, and they are right to: a call graph and a
-	// framework heuristic are both called reachability and are not the same evidence.
+	// Method is how it decided, one of the Method constants below. Buyers are told to reject
+	// reachability claims that do not say how they were reached, and they are right to: a call
+	// graph and a framework heuristic are both called reachability and are not the same evidence.
+	// ProvesAbsence is where that difference is acted on.
 	Method string `json:"method,omitempty"`
 	// Symbols are the vulnerable functions the advisory names, whether or not they are called.
 	// Reported for both reachable and unreachable, because "which functions would have to be
@@ -1180,14 +1181,59 @@ func RepositoriesIn(reports []Report) []RepositoryRef {
 	return out
 }
 
+// Methods an analyzer may report, strongest evidence first.
+//
+// Four things are sold as reachability and they are not the same claim. The difference is entirely
+// about the negative: saying a flaw is reachable is a positive claim somebody can go and check,
+// and saying it is unreachable is an absence claim worth exactly what the analysis cannot see.
+const (
+	// MethodCallGraph followed calls from an entry point to the vulnerable symbol. Bounded by what
+	// the language lets a static analysis see, which every such tool publishes and none of which
+	// is nothing.
+	MethodCallGraph = "call-graph"
+	// MethodDataFlow followed the data as well as the calls, so it can find a path unreachable
+	// where a call graph finds one.
+	MethodDataFlow = "data-flow"
+	// MethodFrameworkHeuristic read a framework's own conventions about which handlers are wired.
+	// A statement about configuration rather than about code, and a guess where the two disagree.
+	MethodFrameworkHeuristic = "framework-heuristic"
+	// MethodImportCheck saw whether the vulnerable package is referenced anywhere in the tree,
+	// which is presence with extra steps.
+	MethodImportCheck = "import-check"
+)
+
+// ProvesAbsence reports whether a method's unreachable verdict is strong enough to lower a band.
+//
+// The one place this is decided. A call graph that finds no path has looked for one; a framework
+// heuristic that finds no route has read a configuration file. Only the first is evidence that the
+// vulnerable code does not run, and a band lowered by the second is a finding somebody stops
+// looking at on the strength of a guess.
+//
+// An unrecognized or absent method is not strong. That is the conservative direction and the right
+// default for a field an analyzer wrote: a tool that will not say how it decided has not earned a
+// de-escalation, and one added later gets the strict reading until somebody classifies it here.
+func ProvesAbsence(method string) bool {
+	switch method {
+	case MethodCallGraph, MethodDataFlow:
+		return true
+	default:
+		return false
+	}
+}
+
 // RankAt returns the severity a finding's priority band should be computed from, given what
 // reachability analysis concluded.
 //
-// Only an unreachable verdict moves anything. Reachable does not raise: severity already assumes
-// the vulnerable code runs, so treating a confirmed call as an escalation would count the same
-// assumption twice. Unknown moves nothing by definition. It is the absence of a finding, not one.
+// Only an unreachable verdict moves anything, and only from a method that proves absence.
+// Reachable does not raise: severity already assumes the vulnerable code runs, so treating a
+// confirmed call as an escalation would count the same assumption twice. Unknown moves nothing by
+// definition. It is the absence of a finding, not one.
+//
+// A weak method's unreachable verdict still travels and is still shown. What it does not do is
+// lower the band, because the reader deciding whether to act on it needs to make that call
+// themselves rather than have it made by a guess.
 func (r *Reachability) RankAt(base Severity) Severity {
-	if r == nil || r.State != ReachabilityUnreachable {
+	if r == nil || r.State != ReachabilityUnreachable || !ProvesAbsence(r.Method) {
 		return base
 	}
 	return base.Deescalate()

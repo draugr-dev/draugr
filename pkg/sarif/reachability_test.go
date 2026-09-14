@@ -27,12 +27,50 @@ func TestRankAtOnlyMovesUnreachable(t *testing.T) {
 		want  Severity
 	}{
 		{"no analysis", nil, SeverityHigh},
-		{"reachable", &Reachability{State: ReachabilityReachable}, SeverityHigh},
-		{"undetermined", &Reachability{State: ReachabilityUnknown}, SeverityHigh},
-		{"unreachable", &Reachability{State: ReachabilityUnreachable}, SeverityMedium},
+		{"reachable", &Reachability{State: ReachabilityReachable, Method: MethodCallGraph}, SeverityHigh},
+		{"undetermined", &Reachability{State: ReachabilityUnknown, Method: MethodCallGraph}, SeverityHigh},
+		{"unreachable", &Reachability{State: ReachabilityUnreachable, Method: MethodCallGraph}, SeverityMedium},
 	} {
 		if got := tc.reach.RankAt(SeverityHigh); got != tc.want {
 			t.Errorf("%s: RankAt(high) = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestOnlyAStrongMethodLowersABand(t *testing.T) {
+	// What separates the four is what a *negative* is worth. A call graph that finds no path has
+	// searched for one; a framework heuristic that finds no route has read a configuration file,
+	// and a band lowered on that is a finding somebody stops looking at on the strength of a guess.
+	for _, tc := range []struct {
+		method string
+		want   Severity
+	}{
+		{MethodCallGraph, SeverityMedium},
+		{MethodDataFlow, SeverityMedium},
+		{MethodFrameworkHeuristic, SeverityHigh},
+		{MethodImportCheck, SeverityHigh},
+		{"", SeverityHigh},
+		{"whatever-ships-next", SeverityHigh},
+	} {
+		reach := &Reachability{State: ReachabilityUnreachable, Method: tc.method}
+		if got := reach.RankAt(SeverityHigh); got != tc.want {
+			t.Errorf("method %q: RankAt(high) = %q, want %q", tc.method, got, tc.want)
+		}
+	}
+}
+
+func TestEveryNamedMethodIsClassified(t *testing.T) {
+	// A method constant added without a line in ProvesAbsence reads as unknown and silently stops
+	// de-escalating, which looks like the analysis not running rather than like a missing case.
+	strong := map[string]bool{
+		MethodCallGraph:          true,
+		MethodDataFlow:           true,
+		MethodFrameworkHeuristic: false,
+		MethodImportCheck:        false,
+	}
+	for method, want := range strong {
+		if got := ProvesAbsence(method); got != want {
+			t.Errorf("ProvesAbsence(%q) = %v, want %v", method, got, want)
 		}
 	}
 }

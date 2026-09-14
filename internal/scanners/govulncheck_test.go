@@ -126,7 +126,7 @@ func TestParseGovulncheckReachability(t *testing.T) {
 		if res.Package != nil && res.Package.PURL != "pkg:golang/golang.org/x/text@v0.3.0" {
 			t.Errorf("%s: purl = %q", rule, res.Package.PURL)
 		}
-		if res.Reachability.Analyzer != "govulncheck" || res.Reachability.Method != "call-graph" {
+		if res.Reachability.Analyzer != "govulncheck" || res.Reachability.Method != sarif.MethodCallGraph {
 			t.Errorf("%s: analyzer/method = %q/%q", rule, res.Reachability.Analyzer, res.Reachability.Method)
 		}
 	}

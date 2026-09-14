@@ -298,7 +298,7 @@ func govulncheckResults(
 	reach := &sarif.Reachability{
 		State:    govulncheckState(findings, key.Module, analyzed, scanLevel),
 		Analyzer: govulncheckScanner,
-		Method:   "call-graph",
+		Method:   sarif.MethodCallGraph,
 		Symbols:  govulncheckSymbols(advisory, key.Module),
 		AsOf:     asOf,
 	}
