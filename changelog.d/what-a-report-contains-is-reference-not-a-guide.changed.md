@@ -1,0 +1,1 @@
+What a report contains is reference. The SARIF property bag, the run's provenance and the fields that tell a partial run from a clean one were sections of the reports how-to, so anything consuming Draugr's output programmatically had to read a guide about rendering formats to find them. They are `reference/report-schema.md` now.
