@@ -558,7 +558,12 @@ func TestDoctorReportsUncoveredSurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reporting is not failing: %v\n%s", err, out.String())
 	}
-	for _, want := range []string{"NOT CHECKED", "web images", "web hosts", "dast"} {
+	// Column values rather than a welded pair. `web images` ran two vocabularies together, and
+	// the control that would close the gap is spelled the same as the surface it reads.
+	for _, want := range []string{
+		"NOT CHECKED", "Component  Surface  Controls off",
+		"web        images   images", "web        hosts    dast, headers, tls",
+	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("doctor never mentioned %q:\n%s", want, out.String())
 		}

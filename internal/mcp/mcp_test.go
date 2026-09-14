@@ -370,7 +370,7 @@ func TestScanToolSaysWhatItDidNotLookAt(t *testing.T) {
 	if out.Verdict != "pass" {
 		t.Fatalf("verdict = %q, want pass with nothing enabled", out.Verdict)
 	}
-	want := []string{"api declares images, and images is not enabled"}
+	want := []string{"api declares the images surface, and the images control is not enabled"}
 	if !slices.Equal(out.Uncovered, want) {
 		t.Errorf("uncovered = %q, want %q", out.Uncovered, want)
 	}

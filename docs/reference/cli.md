@@ -1048,8 +1048,9 @@ does, so the two cannot give different answers:
 
 ```
 NOT CHECKED
-  api hosts   3 controls off: dast, headers, tls
-  api images  1 control off: images
+  Component  Surface  Controls off
+  api        hosts    dast, headers, tls
+  api        images   images
 ```
 
 **Reported, not failed**. A deliberately narrow descriptor is a legitimate thing to have, and a

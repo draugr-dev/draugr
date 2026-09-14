@@ -185,8 +185,12 @@ func TestUncoveredSurfacesAreATable(t *testing.T) {
 	out := b.String()
 	for _, want := range []string{
 		"NOT CHECKED",
-		"api hosts   3 controls off: dast, headers, tls",
-		"api images  1 control off: images",
+		// A heading row, because a surface is the reader's own word and a control is Draugr's and
+		// they are spelled alike. Without it `api images … images` is one word twice and says
+		// nothing about which is which.
+		"Component  Surface  Controls off",
+		"api        hosts    dast, headers, tls",
+		"api        images   images",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)

@@ -139,11 +139,14 @@ func printUncoveredSurfaceNote(w io.Writer, model *saga.Model) {
 	}
 	col := tui.For(w)
 	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "NOT CHECKED"))
-	t := tui.NewTable(col).Indent("  ")
+	// The same columns the scan report uses, and for the same reason: a surface is the reader's
+	// own word and a control is Draugr's, they are spelled alike for most of these rows, and a
+	// header is what says which is which. Two spellings of one block would be worse than either.
+	t := tui.NewTable(col, report.UncoveredColumns()...).Indent("  ")
 	for _, g := range gaps {
-		t.Row(tui.Styled(tui.StyleStrong, g.Component+" "+g.Surface),
-			tui.Styled(tui.StyleMuted, fmt.Sprintf("%d %s off: %s", len(g.Controls),
-				plural2(len(g.Controls), "control", "controls"), strings.Join(g.Controls, ", "))))
+		t.Row(tui.Styled(tui.StyleStrong, g.Component),
+			tui.Styled(tui.StyleStrong, g.Surface),
+			tui.Styled(tui.StyleMuted, strings.Join(g.Controls, ", ")))
 	}
 	t.Render(w)
 }

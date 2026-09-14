@@ -165,6 +165,13 @@ type Gap struct {
 	Controls []string
 }
 
+// UncoveredColumns are the column names the "Not checked" block is headed with.
+//
+// Exported so `doctor` renders the same block as the scan report rather than a second one. The two
+// answer the same question and diverging would leave a reader comparing them with no way to tell
+// which is stale.
+func UncoveredColumns() []string { return append([]string{}, uncoveredColumns...) }
+
 // Suggestion is something a reader may try, and the reason it is worth trying.
 //
 // Two fields rather than a sentence. A sentence naming a flag has to be read whole to find out

@@ -61,7 +61,9 @@ func TestSurfaceNoteCountsEveryControlThatLooksAtAHost(t *testing.T) {
 	model := &saga.Model{Components: []saga.Component{{Name: "web", Hosts: []saga.Host{{URL: "h"}}}}}
 	var out bytes.Buffer
 	printUncoveredSurfaceNote(&out, model)
-	for _, want := range []string{"web hosts", "3 controls off", "dast, headers, tls"} {
+	// The three are listed rather than counted and listed. A count beside the thing it counts is
+	// the same number twice, and the list is what a reader acts on.
+	for _, want := range []string{"Component  Surface  Controls off", "web        hosts    dast, headers, tls"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("the note never said %q:\n%s", want, out.String())
 		}

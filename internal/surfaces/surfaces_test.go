@@ -22,8 +22,8 @@ func TestUncoveredSurfacesNamesWhatNobodyChecks(t *testing.T) {
 	}
 	got := Uncovered(model)
 	want := []string{
-		"web declares hosts, and dast, headers, tls are not enabled",
-		"svc declares images, and images is not enabled",
+		"web declares the hosts surface, and the dast, headers and tls controls are not enabled",
+		"svc declares the images surface, and the images control is not enabled",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("got  %q\nwant %q", got, want)

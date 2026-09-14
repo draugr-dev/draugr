@@ -1746,19 +1746,31 @@ func claimSummary(c vex.Claim) string {
 	return c.Vulnerability + " · " + c.PURL
 }
 
+// uncoveredColumns label the two vocabularies this block puts side by side.
+//
+// A surface is a word the reader wrote in their own descriptor and a control is a word from
+// Draugr's, and for `images`, `hosts` and `repositories` they are spelled the same, which is most
+// of the rows this block exists for. Unlabeled and adjacent they read as one word repeated, and
+// `api images … images` says nothing about which is which.
+//
+// Headed rather than reworded, because the fix first listing above already answers this the same
+// way: columns whose values cannot identify themselves get a row that names them.
+var uncoveredColumns = []string{"Component", "Surface", "Controls off"}
+
 // writeUncovered names what the descriptor declares and no enabled control looks at.
 //
-// A table rather than a sentence each, because every line answers the same two questions and a
+// A table rather than a sentence each, because every line answers the same three questions and a
 // reader comparing them should not have to find the answer in a different place on every row.
 func writeUncovered(w io.Writer, col tui.Painter, d Data) {
 	if len(d.Uncovered) == 0 {
 		return
 	}
-	t := tui.NewTable(col).Indent("  ")
+	t := tui.NewTable(col, uncoveredColumns...).Indent("  ")
 	for _, g := range d.Uncovered {
 		t.Row(
-			tui.Styled(tui.StyleStrong, g.Component+" "+g.Surface),
-			tui.Styled(cDim, plural(len(g.Controls), "control")+" off: "+strings.Join(g.Controls, ", ")),
+			tui.Styled(tui.StyleStrong, g.Component),
+			tui.Styled(tui.StyleStrong, g.Surface),
+			tui.Styled(cDim, strings.Join(g.Controls, ", ")),
 		)
 	}
 	_, _ = fmt.Fprintln(w, heading(col, "Not checked"))

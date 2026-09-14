@@ -100,8 +100,9 @@ So it is reported rather than enforced. Every scan says what it did not look at:
 
 ```
 NOT CHECKED
-  api hosts   3 controls off: dast, headers, tls
-  api images  1 control off: images
+  Component  Surface  Controls off
+  api        hosts    dast, headers, tls
+  api        images   images
 ```
 
 [`draugr doctor`](../reference/cli.md#draugr-doctor-sagayaml) says the same thing **before** the

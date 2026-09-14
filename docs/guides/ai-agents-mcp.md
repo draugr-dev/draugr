@@ -101,7 +101,7 @@ build-context hygiene, how credentials reach a subprocess, protocol assumptions:
 {
   "verdict": "pass",
   "controls": ["sca", "secrets"],
-  "uncovered": ["api declares images, and images is not enabled"],
+  "uncovered": ["api declares the images surface, and the images control is not enabled"],
   "unexamined": "This verdict covers the controls above and nothing else. …"
 }
 ```

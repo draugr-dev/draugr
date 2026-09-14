@@ -68,7 +68,8 @@ the `images` control is off scans clean over them, and a first Saga is exactly w
 
 ```
 NOT CHECKED
-  web images  1 control off: images
+  Component  Surface  Controls off
+  web        images   images
 ```
 
 ## Classify components so priority means something

@@ -108,15 +108,35 @@ func Gaps(model *saga.Model) []Gap {
 }
 
 // Uncovered is Gaps as sentences, for a caller with one line to say it in.
+//
+// Each name carries the noun that says which vocabulary it came from. A surface is a word the
+// reader wrote in their own descriptor and a control is a word from Draugr's, and for `images`,
+// `hosts` and `repositories` they are spelled the same. Without the nouns the sentence reads
+// "api declares images, and images is not enabled", which parses as a tautology until somebody
+// already knows one of them is a control, and the reader this is written for does not.
+//
+// The console says it with column headings instead. A caller with one line has nowhere to put
+// those, so the line carries them.
 func Uncovered(model *saga.Model) []string {
 	gaps := Gaps(model)
 	out := make([]string, 0, len(gaps))
 	for _, g := range gaps {
-		out = append(out, fmt.Sprintf("%s declares %s, and %s %s not enabled",
-			g.Component, g.Surface, strings.Join(g.Controls, ", "),
-			plural2(len(g.Controls), "is", "are")))
+		out = append(out, fmt.Sprintf("%s declares the %s surface, and the %s %s not enabled",
+			g.Component, g.Surface, andList(g.Controls),
+			plural2(len(g.Controls), "control is", "controls are")))
 	}
 	return out
+}
+
+// andList joins names the way a sentence does, so three of them do not read as a chain of ands.
+func andList(names []string) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
 // plural2 picks between two forms by count.
