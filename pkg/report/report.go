@@ -1099,13 +1099,17 @@ func reachabilityBlock(d Data) (rows []string, notes []string) {
 		rows = append(rows, row)
 	}
 	if r.Unknown > 0 {
-		// Named whenever there is any, because it is the qualifier on everything above it: an
-		// analyzer that could not cover a dependency has not found it safe.
+		// Named whenever there is any, because it is the qualifier on everything above it: a
+		// dependency no analysis could cover has not been found safe.
+		//
+		// "no analyzer" rather than "the analyzer", which is the same count read as a statement
+		// about one tool. The block above prints a row per analyzer precisely because more than
+		// one can run, and unknown is the state where none of them reached a verdict.
 		//
 		// "unknown" rather than a second word for it. It is the value the descriptor, the schema
 		// and `report.json` all carry, and a reader who meets one word in the terminal and goes
 		// looking for it in the documentation should find the same one.
-		notes = append(notes, "Unknown means the analyzer did not cover it. Those are ranked as reported.")
+		notes = append(notes, "Unknown means no analyzer covered it. Those are ranked as reported.")
 	}
 	return rows, notes
 }

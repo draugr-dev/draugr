@@ -52,8 +52,18 @@ func TestReachabilityBlockNamesTheUnknownOnlyWhenThereIsAny(t *testing.T) {
 		t.Fatalf("notes = %v, want nothing where everything was decided", notes)
 	}
 	_, notes := blockFor(engine.AnalyzerReachability{Analyzer: "govulncheck", Unreachable: 4, Unknown: 3})
-	if len(notes) != 1 || !strings.Contains(notes[0], "did not cover it") {
+	if len(notes) != 1 || !strings.Contains(notes[0], "no analyzer covered it") {
 		t.Fatalf("notes = %v, want the caveat about what was not analyzed", notes)
+	}
+	// Not "the analyzer". The block prints a row per analyzer because more than one can run, and
+	// unknown is the state where none of them reached a verdict, so a sentence naming one answers
+	// a narrower question than the reader asked and reads as a complete answer to theirs.
+	_, notes = blockFor(
+		engine.AnalyzerReachability{Analyzer: "govulncheck", Unreachable: 4, Unknown: 3},
+		engine.AnalyzerReachability{Analyzer: "dep-scan", Reachable: 1, Unknown: 2},
+	)
+	if len(notes) != 1 || strings.Contains(notes[0], "the analyzer") {
+		t.Fatalf("notes = %v, want one caveat that names no single analyzer", notes)
 	}
 }
 
