@@ -197,6 +197,11 @@ func controlDefs(reg *engine.Registry) map[string]map[string]any {
 					"as enabled; an absent entry means disabled.",
 			},
 		}
+		// The control's own settings, before the scanner blocks, so `deny` under `licenses` is
+		// offered where a descriptor writes it rather than flagged as a scanner that does not exist.
+		for _, opt := range plugin.Options(ctrl.Info().OptionSchema) {
+			props[opt.Name] = optionDef(opt)
+		}
 		defaults := map[string]bool{}
 		for _, d := range ctrl.Info().DefaultScanners {
 			defaults[d] = true

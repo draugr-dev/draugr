@@ -433,6 +433,10 @@
       "additionalProperties": false,
       "description": "Report license terms attached to code you did not write, where they carry an obligation.",
       "properties": {
+        "deny": {
+          "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. A component may add to the project's list; it cannot remove from it.",
+          "type": "array"
+        },
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
           "type": "boolean"
@@ -494,6 +498,10 @@
             }
           },
           "type": "object"
+        },
+        "warn": {
+          "description": "SPDX identifiers reported as a warning rather than an error, e.g. [\"MPL-2.0\"].",
+          "type": "array"
         }
       },
       "type": "object"

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"slices"
 	"sort"
 
@@ -37,8 +38,30 @@ func (Licenses) Info() plugin.ControllerInfo {
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Report license terms attached to code you did not write, where they carry an obligation.",
 		DefaultScanners: []string{trivyLicenseScanner},
+		// The policy belongs to the control rather than to a scanner: it is the same answer
+		// whichever scanner produced the finding, and a component may tighten it. Declared so
+		// that `draugr validate`, the published schema and an editor all know these two keys are
+		// settings rather than a misspelled scanner.
+		OptionSchema: licenseOptionSchema,
 	}
 }
+
+// licenseOptionSchema describes `deny` and `warn` where they sit, under the control.
+var licenseOptionSchema = json.RawMessage(`{
+  "type": "object",
+  "properties": {
+    "deny": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. A component may add to the project's list; it cannot remove from it."
+    },
+    "warn": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "SPDX identifiers reported as a warning rather than an error, e.g. [\"MPL-2.0\"]."
+    }
+  }
+}`)
 
 // Plan produces one scan job per repository and per image, carrying the resolved license policy.
 //
