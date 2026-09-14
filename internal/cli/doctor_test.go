@@ -523,8 +523,17 @@ func TestDoctorWithADescriptorStillFailsOnWhatItNeeds(t *testing.T) {
 	if err == nil {
 		t.Fatalf("a descriptor whose tools are absent should fail\n%s", out.String())
 	}
-	if !strings.Contains(err.Error(), "required tool(s) not found") {
+	// The error is the advice. Printed as a line above it as well, the count and the remedy
+	// appeared together and the count again on the next line.
+	if !strings.Contains(err.Error(), "required tool missing") {
 		t.Errorf("got %v", err)
+	}
+	if !strings.Contains(err.Error(), "draugr tools install") {
+		t.Errorf("the failure should say what to run: %v", err)
+	}
+	// And it is not printed twice: the block above ends with the table, not with a copy of this.
+	if strings.Contains(out.String(), "required tool missing") {
+		t.Errorf("the advice is in the error and was written to the output too:\n%s", out.String())
 	}
 }
 

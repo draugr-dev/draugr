@@ -3,10 +3,12 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -117,7 +119,10 @@ func runDoctor(
 				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil)
 			} else {
 				col := tui.For(w)
-				_, _ = fmt.Fprintf(w, "Descriptor  %s · %s\n", col.Paint(tui.StyleFail, "✗ invalid"), err)
+				// The reason is carried by the error, which the CLI prints. Written here too it
+				// appeared twice, verbatim, on adjacent lines.
+				_, _ = fmt.Fprintf(w, "Descriptor  %s (%s)\n", col.Paint(tui.StyleFail, "✗ invalid"),
+					sagaPath)
 			}
 			return fmt.Errorf("invalid descriptor: %w", err)
 		}
@@ -190,10 +195,15 @@ func runDoctor(
 		return nil
 	}
 	if missing > 0 {
-		if !run.json {
-			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleFail, missingToolsAdvice(statuses)))
+		// The advice is the error rather than a line above it. Printed as both, the count and the
+		// remedy appeared on one line and the count again on the next, which is the same fact
+		// twice in the place a reader is already deciding what to do. JSON callers get the
+		// structure and the exit code, and no prose either way.
+		advice := missingToolsAdvice(statuses)
+		if run.json {
+			return errors.New(advice)
 		}
-		return fmt.Errorf("%d required tool(s) not found", missing)
+		return fmt.Errorf("%s", advice)
 	}
 	// After the missing-tool checks, because a tool that is absent stops the scan outright while
 	// an uncovered surface only narrows it, and the more serious answer should be the one given.
@@ -330,6 +340,9 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 
 func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 	col := tui.For(w)
+	// Named like every other block here. It was the one section with no heading, which made the
+	// two that had one read as asides to it rather than as its equals.
+	_, _ = fmt.Fprintf(w, "%s\n", doctorHeading(col, "Tools"))
 	t := tui.NewTable(col, "Tool", "Status", "Version", "Notes")
 	for _, st := range statuses {
 		status, version, notes := "✓ found", st.Version, st.Path
@@ -469,13 +482,22 @@ var networkCalls = []networkCall{
 	{"draugr feeds update", "the CISA KEV catalog and the FIRST EPSS scores"},
 	{"draugr self-update", "the latest draugr release"},
 	{"draugr doctor", "the latest draugr release, to compare against yours (skipped by --offline)"},
-	{"a scan, before it starts", "the reference data each scanner reads, listed by host below"},
+	{"a scan, before it starts", "the reference data each scanner reads, host by host under HOSTS"},
 	{"a scan, per target", "the registry, for an image; the endpoint itself, for a host or DAST target"},
 	// The only entry where the traffic does not go to something of yours. Listed separately
 	// because an air-gapped runner is not the only reason to care: this one discloses your
 	// hostnames to a third party, and someone reading this list to decide what Draugr may reach
 	// should see that without having to know the control exists.
 	{"a scan, with the threats control", "abuse.ch, which learns each host's name"},
+}
+
+// doctorHeading names a section the way a scan report names one.
+//
+// The same shape rather than a second one. A reader meets `CONTROLS` and `SIGNALS` in a report and
+// `Network` here, and two casings for one idea is a thing to learn twice; whichever is right, one
+// of them is the product's.
+func doctorHeading(col tui.Painter, name string) string {
+	return col.Paint(tui.StyleMuted, strings.ToUpper(name))
 }
 
 // writeNetworkCalls lists what Draugr fetches and when.
@@ -485,7 +507,8 @@ var networkCalls = []networkCall{
 // appears only once you already know to ask for it answers the wrong question.
 func writeNetworkCalls(w io.Writer, reg *engine.Registry) {
 	col := tui.For(w)
-	_, _ = fmt.Fprintf(w, "\nNetwork  %s\n", col.Paint(tui.StyleMuted, networkHeading()))
+	_, _ = fmt.Fprintf(w, "\n%s  %s\n", doctorHeading(col, "Network"),
+		col.Paint(tui.StyleMuted, networkHeading()))
 	// Width from the longest entry rather than a constant: a hardcoded 26 silently stops
 	// aligning the moment an entry outgrows it, and the misalignment is the only warning.
 	width := 0
@@ -553,8 +576,8 @@ func writeScannerHosts(w io.Writer, reg *engine.Registry) {
 	})
 
 	col := tui.For(w)
-	_, _ = fmt.Fprintf(w, "\nHosts a scan contacts  %s\n",
-		col.Paint(tui.StyleMuted, "(for an egress allowlist)"))
+	_, _ = fmt.Fprintf(w, "\n%s  %s\n", doctorHeading(col, "Hosts"),
+		col.Paint(tui.StyleMuted, "(a scan contacts these; for an egress allowlist)"))
 	width := 0
 	for _, r := range rows {
 		if len(r.Host) > width {
@@ -572,7 +595,7 @@ func networkHeading() string {
 	if netpolicy.Offline() {
 		return "(offline: none of these will happen)"
 	}
-	return "(what Draugr fetches, and when, suppress with --offline)"
+	return "(what Draugr fetches, and when · --offline stops all of it)"
 }
 
 // missingToolsAdvice counts what is missing and suggests `tools install` only when it could
@@ -593,11 +616,18 @@ func missingToolsAdvice(statuses []tools.Status) string {
 			fetchable++
 		}
 	}
-	advice := fmt.Sprintf("%d required tool(s) missing. Install them (see notes above)", missing)
-	if fetchable > 0 {
-		advice += ", or run `draugr tools install`"
+	// The remedy first, because it is what somebody does next, and only then where the rest come
+	// from. A column has a name; "above" is a position, and a reflow is the first thing that moves
+	// it.
+	if fetchable == missing {
+		return fmt.Sprintf("%s missing. Run `draugr tools install`.", plural(missing, "required tool"))
 	}
-	return advice + "."
+	if fetchable > 0 {
+		return fmt.Sprintf("%s missing. Run `draugr tools install` for %d of them; the Notes "+
+			"column says where the rest come from.", plural(missing, "required tool"), fetchable)
+	}
+	return fmt.Sprintf("%s missing. The Notes column says where each one comes from.",
+		plural(missing, "required tool"))
 }
 
 // externalInstallHint says where a tool Draugr does not distribute comes from.
