@@ -387,13 +387,16 @@ func stubDetect(t *testing.T, found map[string]string) {
 func TestInstallPlanMarksWhatIsAlreadyThere(t *testing.T) {
 	// The plan is the moment someone decides whether to let a security tool write to their machine,
 	// and it was describing work it would not do, six rows for one download.
-	stubDetect(t, map[string]string{"trivy": "0.69.3"})
+	// The pinned version, read from the manifest rather than written here, so a version bump does
+	// not leave this asserting a string the product stopped producing.
+	pinned, _ := tools.Spec("trivy")
+	stubDetect(t, map[string]string{"trivy": pinned.Version})
 	var out bytes.Buffer
 	names := []string{"trivy", "gitleaks"}
 	writeInstallPlan(&out, names, false, present(context.Background(), names, toolsInstallOptions{}), toolsInstallOptions{})
 
 	got := out.String()
-	if !strings.Contains(got, "already at 0.69.3") {
+	if !strings.Contains(got, "already at "+pinned.Version) {
 		t.Errorf("a satisfied tool should say so:\n%s", got)
 	}
 	if !strings.Contains(got, "1 tool to install, 1 already current") {

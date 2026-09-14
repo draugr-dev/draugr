@@ -214,7 +214,7 @@ func TestInstallPythonBuildsAnEnvironmentAndLinksIt(t *testing.T) {
 	root := t.TempDir()
 
 	shim, level, err := installPython(context.Background(), root, "semgrep",
-		pythonInstallable["semgrep"], "1.173.0")
+		pythonInstallable["semgrep"], "1.177.0")
 	if err != nil {
 		t.Fatalf("installPython: %v", err)
 	}
@@ -235,7 +235,7 @@ func TestInstallPythonBuildsAnEnvironmentAndLinksIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no requirements file: %v", err)
 	}
-	if !strings.Contains(string(reqs), "semgrep==1.173.0") {
+	if !strings.Contains(string(reqs), "semgrep==1.177.0") {
 		t.Error("the requirements written are not the pinned ones")
 	}
 }
@@ -256,7 +256,7 @@ done
 exit 0`)
 
 	_, level, err := installPython(context.Background(), t.TempDir(), "semgrep",
-		pythonInstallable["semgrep"], "1.173.0")
+		pythonInstallable["semgrep"], "1.177.0")
 	if err != nil {
 		t.Fatalf("installPython should fall back rather than fail: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestInstallPythonReportsWhatPipSaid(t *testing.T) {
 	stubPython(t, "#!/bin/sh\necho \"no matching distribution\" >&2\nexit 1")
 
 	_, _, err := installPython(context.Background(), t.TempDir(), "semgrep",
-		pythonInstallable["semgrep"], "1.173.0")
+		pythonInstallable["semgrep"], "1.177.0")
 	if err == nil {
 		t.Fatal("a failed install was reported as a success")
 	}
@@ -361,7 +361,7 @@ func TestInstallPythonClearsTheOldEnvironment(t *testing.T) {
 	}
 
 	if _, _, err := installPython(context.Background(), root, "semgrep",
-		pythonInstallable["semgrep"], "1.173.0"); err != nil {
+		pythonInstallable["semgrep"], "1.177.0"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {

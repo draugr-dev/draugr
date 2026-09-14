@@ -40,7 +40,7 @@ var goInstallable = map[string]GoSpec{
 var goVersions = map[string]string{"govulncheck": govulncheckVersion}
 
 // govulncheckVersion is the pinned govulncheck release.
-const govulncheckVersion = "1.7.0"
+const govulncheckVersion = "1.8.0"
 
 // GoTool reports the spec for a tool built with the Go toolchain.
 func GoTool(name string) (GoSpec, bool) {

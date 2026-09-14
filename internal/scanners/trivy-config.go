@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -46,7 +47,14 @@ func NewTrivyConfig() plugin.Scanner {
 		trivyConfigArgs,
 	)
 	s.cacheVersion = sharedTrivyVersion.cacheVersion
-	s.prewarm = sharedTrivyDB.warm
+	// Both, because they are two downloads into one cache and this is the only scanner that needs
+	// the second. The database first, so a failure there is reported the way it always was.
+	s.prewarm = func(ctx context.Context) error {
+		if err := sharedTrivyDB.warm(ctx); err != nil {
+			return err
+		}
+		return sharedTrivyChecks.warm(ctx)
+	}
 	s.run = retryingRunInDir("trivy", s.run)
 	return s
 }

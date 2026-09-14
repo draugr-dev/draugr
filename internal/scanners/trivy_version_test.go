@@ -3,6 +3,7 @@ package scanners
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -87,5 +88,46 @@ func TestRepoScannerPrewarm(t *testing.T) {
 		Prewarm(context.Context) error
 	}); !ok || s.Prewarm(context.Background()) != nil {
 		t.Error("gitleaks Prewarm should be a nil-returning no-op")
+	}
+}
+
+// The vuln database and the checks bundle are two downloads into one cache directory, and warming
+// the first does nothing for the second. Several `trivy config` jobs against a cold cache race to
+// populate it and the losers read a bundle still being written, which surfaces as
+// `init Rego scanner: load checks` and reads like a descriptor naming bad Rego.
+func TestTrivyChecksWarmFetchesTheBundleOnceAgainstAnEmptyDirectory(t *testing.T) {
+	var argvs [][]string
+	removed := 0
+	w := &trivyChecksWarmer{
+		run: func(_ context.Context, argv []string) ([]byte, error) {
+			argvs = append(argvs, argv)
+			return nil, nil
+		},
+		dir: func() (string, func(), error) { return "/tmp/empty", func() { removed++ }, nil },
+	}
+	for range 3 {
+		if err := w.warm(context.Background()); err != nil {
+			t.Fatalf("warm: %v", err)
+		}
+	}
+	want := [][]string{{"trivy", "config", "--quiet", "/tmp/empty"}}
+	if !reflect.DeepEqual(argvs, want) {
+		t.Errorf("argv = %v, want %v once", argvs, want)
+	}
+	// The directory it scans is its own, and it does not outlive the warm.
+	if removed != 1 {
+		t.Errorf("the temporary directory was cleaned up %d times, want 1", removed)
+	}
+}
+
+// Best-effort, like the database warm. A warm that cannot run should not stop a scan that might
+// still work, and the real problem resurfaces at scan time with the scanner's own message.
+func TestTrivyChecksWarmReportsButDoesNotPanicOnAFailedDirectory(t *testing.T) {
+	w := &trivyChecksWarmer{
+		run: func(context.Context, []string) ([]byte, error) { return nil, nil },
+		dir: func() (string, func(), error) { return "", func() {}, errors.New("read-only") },
+	}
+	if err := w.warm(context.Background()); err == nil {
+		t.Error("a directory that could not be made reported success")
 	}
 }

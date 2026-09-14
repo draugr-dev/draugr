@@ -1,0 +1,1 @@
+Every pinned scanner moves to its current release: Trivy 0.74.0, Syft 1.51.1, Grype 0.118.0, gosec 2.29.0, kube-bench 0.16.0, cosign 3.1.3, Nuclei 3.11.1, govulncheck 1.8.0, Semgrep 1.177.0 and retire.js 5.7.0.

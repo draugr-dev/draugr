@@ -48,7 +48,7 @@ var nodeVersions = map[string]string{"retire": retireVersion}
 
 // retireVersion is the pinned retire.js version. Keep it in step with nodepins/retire.*.json,
 // which is generated for exactly this version.
-const retireVersion = "5.4.3"
+const retireVersion = "5.7.0"
 
 // NodeTool reports the spec for a tool obtained as an npm package.
 func NodeTool(name string) (NodeSpec, bool) {
