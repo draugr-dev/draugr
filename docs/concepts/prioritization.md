@@ -365,7 +365,8 @@ while finding none is worth exactly what the analysis could not see.
 | `import-check` | saw whether the vulnerable package is referenced anywhere | reported, band unchanged |
 
 A verdict that does not lower a band still travels in the report, in `report.json` and in the SARIF,
-and the console says so under the finding:
+and the console says so under the finding. Every analyzer Draugr ships follows the call graph, so
+this is the shape a third-party SARIF import takes when it reports a weaker method:
 
 ```
 unreachable · framework-heuristic · band unchanged (dep-scan, 2026-08-21)
@@ -378,7 +379,7 @@ it decided has not earned a de-escalation.
 **It never suppresses**, at any strength. Static analysis is defeated by reflection, dynamic
 dispatch and code generation, and a suppression in Draugr records that a person decided, with a name
 attached. Where exploitability has already raised a finding, that wins: observed exploitation
-outranks a call graph's failure to find a path.
+outranks any analysis's failure to find a path.
 
 ## The component is part of the finding
 

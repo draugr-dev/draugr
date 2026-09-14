@@ -157,6 +157,12 @@ func TestUnreachableStandingSaysTheVerdictEarnedNothing(t *testing.T) {
 	if got != "unreachable · method not stated · band unchanged (dep-scan)" {
 		t.Errorf("standing = %q", got)
 	}
+	// Neither the analyzer nor the method: "not stated" would dangle with no subject, so the line
+	// names both absences rather than one.
+	got = unreachableStanding(&sarif.Reachability{State: sarif.ReachabilityUnreachable})
+	if got != "unreachable · no analyzer or method named · band unchanged" {
+		t.Errorf("standing = %q", got)
+	}
 	// The band moved, so the mark and the credit carry it and this line would say it twice.
 	if got := unreachableStanding(&sarif.Reachability{
 		State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",

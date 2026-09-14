@@ -314,10 +314,13 @@ It adds no findings of its own. Its verdicts are folded onto the findings the ma
 already produced, so a Go vulnerability is still reported once, not once as `CVE-2022-32149` and
 again as `GO-2022-1059`. A vulnerability only it reports is kept.
 
-**What a verdict does.** A finding nothing can reach is ranked one band down, and the report says
-why. The severity the scanner reported is unchanged: reachability feeds the
-[priority](../concepts/prioritization.md) matrix, exactly as exploitability enrichment does in the
-other direction, and where exploitability has already raised a finding that wins.
+**What a verdict does.** A finding nothing can reach is ranked one band down when the analyzer says
+it followed calls or data to get there, and the report says why. A verdict reached any other way is
+reported and moves nothing;
+[prioritization](../concepts/prioritization.md#reachability-what-lowers-a-band) has the methods and
+what each one earns. The severity the scanner reported is unchanged either way: reachability feeds
+the [priority](../concepts/prioritization.md) matrix, exactly as exploitability enrichment does in
+the other direction, and where exploitability has already raised a finding that wins.
 
 The report says what it decided, beside everything else that moved a ranking:
 

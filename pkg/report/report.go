@@ -1160,11 +1160,17 @@ func unreachableStanding(r *sarif.Reachability) string {
 	if sarif.ProvesAbsence(r.Method) {
 		return ""
 	}
-	method := r.Method
-	if method == "" {
-		method = "method not stated"
+	credit := attribution(r)
+	switch {
+	case r.Method != "":
+		return "unreachable · " + r.Method + " · band unchanged" + credit
+	case credit != "":
+		return "unreachable · method not stated · band unchanged" + credit
+	default:
+		// Nothing said who decided or how. "method not stated" on its own has no subject, and a
+		// line whose subject a reader has to guess at is worse than one that names both absences.
+		return "unreachable · no analyzer or method named · band unchanged"
 	}
-	return "unreachable · " + method + " · band unchanged" + attribution(r)
 }
 
 // attribution names the analyzer and the day it ran. A reachability verdict describes one
