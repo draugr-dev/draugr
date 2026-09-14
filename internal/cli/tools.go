@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -323,9 +324,22 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 
 	col := tui.For(w)
 	var failed, unchanged int
+	var skipped []string
 	for _, name := range names {
 		res, err := install(name)
 		if err != nil {
+			// With no arguments the request was "everything this host can have", so a tool whose
+			// runtime is not here is not something this command was asked for and failed to do.
+			// Refusing the batch over it fails nine installs to report a tenth, and the tenth is
+			// usually a scanner the descriptor never names.
+			//
+			// Named, it stays a failure. Asking for a tool and being told it worked is the
+			// guarantee worth keeping, and it is the one `--saga` and every pipeline rely on.
+			if all && errors.Is(err, tools.ErrRuntimeMissing) {
+				_, _ = fmt.Fprintf(w, "%s %s: %v\n", col.Paint(tui.StyleMuted, "–"), name, err)
+				skipped = append(skipped, name)
+				continue
+			}
 			_, _ = fmt.Fprintf(w, "%s %s: %v\n", col.Paint(tui.StyleFail, "✗"), name, err)
 			failed++
 			continue
@@ -349,10 +363,27 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstal
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, fmt.Sprintf("%s unchanged.", plural(unchanged, "tool"))))
 	}
 
+	// Named, so the command that installs them is one somebody can copy. A count alone leaves a
+	// reader to work out which of ten rows was the skipped one.
+	if len(skipped) > 0 {
+		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, fmt.Sprintf(
+			"%s skipped, this host has no runtime to build %s with. Install one and run "+
+				"`draugr tools install %s`.",
+			plural(len(skipped), "tool"), pronounFor(len(skipped)), strings.Join(skipped, " "))))
+	}
+
 	if failed > 0 {
 		return fmt.Errorf("%d tool(s) failed to install", failed)
 	}
 	return nil
+}
+
+// pronounFor keeps the skipped line reading as a sentence at either count.
+func pronounFor(n int) string {
+	if n == 1 {
+		return "it"
+	}
+	return "them"
 }
 
 // downloads counts what Draugr will actually fetch.
@@ -532,15 +563,19 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 			sort.Strings(cs)
 			controls = strings.Join(cs, ",")
 		}
+		// The runtime is named where there is one, because `draugr tools install` on its own is
+		// advice that does not work on a host without it, and nothing else in this table says a
+		// prerequisite exists. Three of these tools publish no release binary at all and are built
+		// here from source, which is not a fact a reader can infer from anything else on the row.
 		pinned, source := "-", "system PATH"
 		if spec, ok := tools.Spec(t.Binary); ok {
 			pinned, source = spec.Version, "draugr tools install"
 		} else if _, ok := tools.PythonTool(t.Binary); ok {
-			pinned, source = tools.PythonVersion(t.Binary), "draugr tools install"
+			pinned, source = tools.PythonVersion(t.Binary), "draugr tools install · needs Python"
 		} else if _, ok := tools.NodeTool(t.Binary); ok {
-			pinned, source = tools.NodeVersion(t.Binary), "draugr tools install"
+			pinned, source = tools.NodeVersion(t.Binary), "draugr tools install · needs Node"
 		} else if _, ok := tools.GoTool(t.Binary); ok {
-			pinned, source = tools.GoVersion(t.Binary), "draugr tools install"
+			pinned, source = tools.GoVersion(t.Binary), "draugr tools install · needs Go"
 		}
 
 		status, statusStyle := "✗ not found", tui.StyleFail

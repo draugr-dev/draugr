@@ -1091,7 +1091,23 @@ checksum-verified**. Nothing is ever downloaded during a scan.
 Download **pinned** tool binaries, verify each against a **SHA-256 recorded in Draugr** (sourced
 from the upstream checksums files), and install them into `~/.draugr/bin`, which Draugr **adds to
 `PATH` automatically**, so `scan`/`doctor` use them with no shell config. With no arguments,
-installs everything Draugr can provision (`trivy`, `gitleaks`, `gosec`, `cosign`).
+installs everything this host can have.
+
+**Three of them are built from source, not downloaded.** `govulncheck` needs a Go toolchain,
+`retire` needs Node, and `semgrep` needs Python, because none publishes a release binary. With no
+arguments, a tool whose runtime is not on this machine is **skipped and named**, with the command
+to run once it is there, and the rest install:
+
+```
+– govulncheck: govulncheck is distributed as a Go package and no `go` is on PATH, install Go 1.21
+  or newer from https://go.dev/dl/, or install it yourself with `go install …`
+3 tools skipped, this host has no runtime to build them with. Install one and run
+`draugr tools install govulncheck retire semgrep`.
+```
+
+**Naming a tool is different.** `draugr tools install govulncheck` on a host without Go is a
+failure and exits non-zero: asking for a tool and being told it worked is what a pipeline relies
+on. `draugr tools list` names the runtime each of the three needs.
 
 | Flag | Default | Description |
 |------|---------|-------------|

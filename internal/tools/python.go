@@ -165,12 +165,13 @@ func findPython(ctx context.Context, minMinor int) (string, error) {
 		}
 	}
 	if found != "" {
-		return "", fmt.Errorf("python 3.%d or newer is required and this machine has %s, "+
-			"install a newer Python, or install the tool yourself and leave it on PATH",
-			minMinor, found)
+		return "", RuntimeMissing(fmt.Errorf(
+			"python 3.%d or newer is required and this machine has %s, install a newer Python, "+
+				"or install the tool yourself and leave it on PATH", minMinor, found))
 	}
-	return "", fmt.Errorf("python 3.%d or newer is required and no python3 was found on PATH, "+
-		"install one, or install the tool yourself and leave it on PATH", minMinor)
+	return "", RuntimeMissing(fmt.Errorf(
+		"python 3.%d or newer is required and no python3 was found on PATH, install one, or "+
+			"install the tool yourself and leave it on PATH", minMinor))
 }
 
 // pythonAtLeast reports whether an interpreter is new enough, and what version it is.
