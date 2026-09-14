@@ -10,6 +10,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -279,6 +280,31 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 	}
 	return st
 }
+
+// ErrRuntimeMissing marks an install that failed because this host lacks the runtime a tool is
+// built with, rather than because of the tool, the network or the pin.
+//
+// The distinction is what lets `draugr tools install` with no arguments mean "everything this host
+// can have". Asking for a named tool and being told it worked has to stay a guarantee, so a named
+// install still fails; asking for what is available should not refuse nine installs to report that
+// a tenth needs a toolchain nobody asked for.
+//
+// Three runtimes reach this: the Go toolchain, npm and Python. Each is absent or too old in the
+// same way and for the same kind of reason.
+var ErrRuntimeMissing = errors.New("this host does not have the runtime the tool is built with")
+
+// RuntimeMissing marks an error as one of those without changing what it says.
+//
+// Wrapping with %w would append the sentinel's own sentence to a message that has already said the
+// same thing more precisely, and the reader gets the specific one. This keeps the text theirs and
+// makes the classification something the caller can test for.
+func RuntimeMissing(err error) error { return runtimeMissing{err} }
+
+type runtimeMissing struct{ err error }
+
+func (e runtimeMissing) Error() string      { return e.err.Error() }
+func (e runtimeMissing) Unwrap() error      { return e.err }
+func (runtimeMissing) Is(target error) bool { return target == ErrRuntimeMissing }
 
 // GovulncheckVersion reads govulncheck's own version from its `-version` output.
 //
