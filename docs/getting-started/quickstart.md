@@ -35,33 +35,21 @@ The rest of this guide covers that descriptor-driven flow.
 
 ## 1. Describe your app
 
-Create `draugr.saga.yaml`. The **Saga** is the one artifact that maps your software to the
-controls that must pass. A minimal, runnable example:
+Create `draugr.saga.yaml`. The **Saga** maps your software to the controls that must pass, and
+`draugr init` writes a runnable one:
 
-```yaml
-project: my-app
-release:
-  version: "1.0"
-config:
-  controls:
-    images:
-      enabled: true
-components:
-  - name: web
-    images:
-      - image: alpine:3.19
+```bash
+draugr init
 ```
 
-A control only runs when it is **enabled** (globally under `config.controls`, or on a
-component). See [write your first Saga](first-saga.md) for a gentle walkthrough, or the
-[Saga schema](../reference/saga-schema.md) for every field.
+A control only runs when it is **enabled**, globally under `config.controls` or on a component.
+[Write your first Saga](first-saga.md) builds one field by field; the
+[Saga schema](../reference/saga-schema.md) has every field.
 
-> **Tip. Turn on editor support first.** A Saga written with schema-backed completion is
-> quicker and harder to get wrong: your editor offers the valid control names, `exposure` and
-> `criticality` values, and flags typos immediately. Most editors need no setup. `*.saga.yaml` is
-> registered with SchemaStore, and `draugr init` writes a `$schema` line for the ones that aren't
-> covered; see [editor support](../guides/editor-support.md)
-> for VS Code, JetBrains and Neovim.
+> **Turn on editor support first.** A Saga written with schema-backed completion is quicker and
+> harder to get wrong: your editor offers the valid control names, the `exposure` and `criticality`
+> values, and flags a typo as you type. Most editors need no setup. See
+> [write a Saga in your editor](../guides/editor-support.md).
 
 ## 2. Scan
 
@@ -116,58 +104,17 @@ See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for every
 
 ## Focus: what to fix first
 
-**Classify your components.** The fastest way to set up prioritization is the guided wizard. It asks
-a few questions per component and writes `exposure` and `criticality` back into your Saga (comments
-and formatting preserved):
+Priority folds in what you declared about each component, so a `critical` CVE on something nobody
+can reach ranks below a `medium` on your login. `draugr classify` asks a few questions per
+component and writes `exposure` and `criticality` back into your Saga, keeping your comments and
+formatting:
 
 ```bash
 draugr classify
 ```
 
-```
-Component: web
-  Exposure, who can reach it?
-    1) public         anyone on the internet can reach it, no sign-in
-    2) authenticated  on the internet, but behind a login
-    3) internal       only from inside your own network or VPN
-    4) restricted     inside your network and locked down further, an allowlist, a private link, its own segment
-  Choose [1-4]: 1
-  Criticality, what happens if it fails or is breached?
-    1) critical       an outage or data loss for the business
-    2) important      degraded service, but no outage
-    3) supporting     limited impact, easily worked around
-  Choose [1-3]: 1
-  → web: exposure=public, criticality=critical
-```
-
-(Prefer to hand-edit? The fields are in the [Saga schema](../reference/saga-schema.md). And
-`draugr survey` on a k8s namespace already *proposes* `exposure` for you.)
-
-Once components declare `exposure` and `criticality`, Draugr ranks every finding into a priority
-band, combining the finding's severity with how exposed and how business-critical its component is.
-The report always includes a `priorities` count (P1–P4); `--min-priority` adds a ranked `findings`
-list of just those at or above the band, so you can act on the short list instead of the whole wall:
-
-```json
-{
-  "priorities": { "p1": 2, "p2": 5, "p3": 3, "p4": 0 },
-  "findings": [
-    { "priority": "P1", "level": "error", "score": 9.1, "control": "sca",
-      "ruleId": "CVE-2025-0001", "message": "…", "location": "go.mod" }
-  ]
-}
-```
-
-P1 = act now · P2 = this cycle · P3 = backlog · P4 = track. A component left unclassified is
-treated as high-risk so nothing slips.
-
-**Gate on priority.** `--fail-on P1` is the default, and fails the build when any finding reaches
-that band, component-aware gating without a per-component config, since priority already folds in
-exposure and criticality. A run has **one** gate: pass a severity instead (`--fail-on critical`,
-`high`, `medium`, `low`) to judge the scanner's own rating rather than the band. Each control also
-reports its `highestPriority` as evidence. See
-[prioritization](../concepts/prioritization.md) for how the bands are computed, and
-[verdict & gating](../concepts/verdict-and-gating.md) for the two questions the gate can ask.
+[Rank findings by priority](../guides/classify-components.md) walks through the questions and what
+each answer means. `draugr survey` on a Kubernetes namespace already *proposes* `exposure`.
 
 ## 3. Let discovery write the descriptor
 
