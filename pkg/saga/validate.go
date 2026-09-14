@@ -431,6 +431,28 @@ func validateExclusions(rules []ExcludeRule, prefix string) []error {
 			if strings.TrimSpace(p) == "" {
 				errs = append(errs, fmt.Errorf("%s: paths[%d] is empty", where, j))
 			}
+			// `**` is not a syntax this matcher has, and the way it fails is the problem: nothing
+			// rejects it, `path.Match` reads the second star as another single-segment wildcard,
+			// and `tests/**` matches exactly one level down. Somebody writing it means any depth,
+			// which is what every tool that supports it does, so the suppression they reviewed and
+			// agreed to covers a fraction of what they think and the part it misses is the deep
+			// part of the tree that motivated writing it.
+			//
+			// Refused rather than supported. The trailing-slash form already matches everything
+			// beneath a directory at any depth, so supporting `**` would add a second path
+			// semantics to keep true beside one that already expresses the same thing.
+			//
+			// The error names `ignore`, because that is where somebody learned the syntax. Two
+			// fields in one descriptor take path patterns and only one of them crosses a
+			// separator, which is a difference nothing on the page announces and the reason this
+			// is worth an error rather than a shrug.
+			if strings.Contains(p, "**") {
+				errs = append(errs, fmt.Errorf(
+					"%s: paths[%d] %q uses ** which this field does not have, and * does not "+
+						"cross /. Write %q to exclude a directory and everything beneath it. "+
+						"(repositories[].ignore is a different matcher and does support **)",
+					where, j, p, doubleStarAsDirectory(p)))
+			}
 		}
 		// A VEX status is a claim a consumer acts on without reading it, so a value outside the
 		// vocabulary cannot be passed through and cannot be dropped: either would publish
@@ -540,4 +562,24 @@ func validateVEXSources(where string, sources []VEXSource) []error {
 		}
 	}
 	return errs
+}
+
+// doubleStarAsDirectory rewrites a pattern containing ** into the directory form that means what
+// the author meant, for the error to name.
+//
+// The spelling rather than a description of the semantics. A reader who has just been told their
+// pattern is wrong wants the one that is right, and everything up to the first wildcard is the
+// part they were trying to name.
+func doubleStarAsDirectory(p string) string {
+	prefix := p
+	if i := strings.IndexAny(p, "*?["); i >= 0 {
+		prefix = p[:i]
+	}
+	prefix = strings.TrimSuffix(prefix, "/")
+	if prefix == "" {
+		// `**` on its own, or leading. There is no directory to name, and the honest suggestion is
+		// the rule the author almost certainly does not want rather than an invented path.
+		return "./"
+	}
+	return prefix + "/"
 }

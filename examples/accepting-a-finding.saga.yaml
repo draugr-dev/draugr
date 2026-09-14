@@ -47,10 +47,16 @@ config:
     # hardcoded-credential rule in test fixtures and nowhere else, so the same rule firing in
     # `src/` still fails the gate.
     #
-    # A trailing `/` is a directory prefix. Without `paths` this would accept the finding
-    # everywhere, which is a much larger decision than the reason describes.
+    # A trailing `/` is a directory prefix and matches everything beneath, at any depth. Without
+    # `paths` this would accept the finding everywhere, which is a much larger decision than the
+    # reason describes.
+    #
+    # One directory per line, each named from the repository root. `*` here stays inside a single
+    # path segment, so there is no pattern for "every fixtures directory wherever it is" and a
+    # tree with several is several lines. `repositories[].ignore` is the field that crosses
+    # separators; this one does not.
     - rules: [gitleaks.generic-api-key]
-      paths: [testdata/, "**/fixtures/**"]
+      paths: [testdata/, internal/api/fixtures/]
       reason: fixtures hold deliberately fake credentials
 
     # A claim about the product, not just a note to ourselves.

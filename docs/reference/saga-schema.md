@@ -916,6 +916,34 @@ vendored trees, and rules that don't apply to them. Saying so in the Saga means 
 scanner, in the file that already describes your scope, rather than learning each tool's own ignore
 format.
 
+### How `paths` matches
+
+Two rules, and which one applies is decided by the last character.
+
+| Pattern | Rule | Matches |
+| --- | --- | --- |
+| ends in `/` | prefix | everything beneath that directory, at **any depth** |
+| anything else | glob | one path, where `*` and `?` stay **inside a single segment** |
+
+**`*` does not cross a `/`.** `tests*` matches `tests` and `testsuite.go`, and matches nothing
+inside `tests/`. To exclude a directory and everything under it, write the trailing slash:
+
+```yaml
+paths: ["tests/"]        # the whole tree beneath tests/
+paths: ["tests/*.go"]    # Go files directly in tests/, and no deeper
+```
+
+**`**` is refused.** It is not a syntax this field has, and left to the glob the second star reads
+as another single-segment wildcard, so `tests/**` would quietly match one level down while looking
+like it matched every level. `draugr validate` rejects it and names the trailing-slash form, which
+already expresses the same thing.
+
+**Two fields take path patterns and they do not match alike.**
+[`repositories[].ignore`](#scoping-a-repository) decides what is *scanned* and does cross
+separators, so `**/testdata/**` is valid there. `config.exclude[].paths` decides what is *counted*
+and does not. There is no pattern here for "every `fixtures` directory wherever it sits"; name each
+one from the repository root, one per line.
+
 **A suppressed finding is reported, not deleted.** It stays in the SARIF marked with its
 justification (`suppressions[].kind: external`), so GitHub code scanning files it as
 closed-as-suppressed and an auditor can see exactly what was set aside and why. It stops
