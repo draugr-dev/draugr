@@ -139,33 +139,69 @@ terminal (verdict, priorities, severities) and honors `NO_COLOR`.
 A worked example:
 
 ```text
-DRAUGR  FAIL  draugr-demo 1.0  5.238s
+DRAUGR  FAIL  draugr-demo 1.0  6.232s
 
- P1 67 P2 102 P3 82 P4 18
+ P1 205 P2 638 P3 225 P4 18
 
 CONTROLS
-  iac      FAIL   P1 4 P2 5 P3 12
-  images   FAIL   P1 40 P2 90 P3 77
-  sast     FAIL   P1 7 P2 6
-  sca      FAIL   P1 9 P2 8 P3 1
-  secrets  FAIL   P1 1
+  iac       FAIL   P1 4 P2 5 P3 15 P4 16
+  images    FAIL   P1 175 P2 255 P3 32
+  licenses  FAIL   P2 353 P3 176
+  sast      FAIL   P1 7 P2 8 P4 2
+  sca       FAIL   P1 18 P2 17 P3 2
+  secrets   FAIL   P1 1
 
 COMPONENTS
-  api       FAIL   P1 67 P2 102 P3 79
-  platform  FAIL   P3 3 P4 18
+  api         FAIL   P1 201 P2 634 P3 221
+  storefront  FAIL   P1 4 P2 4 P3 1
+  platform    pass   P3 3 P4 18
 
-FIX FIRST  top 10 of 269, by priority
+SIGNALS
+  KEV           2 findings raised
+  EPSS          3 findings raised
+  reachability  govulncheck · 2 reachable, 2 unreachable
+
+ACCEPTED
+  config.exclude  1 finding suppressed
+  VEX             1 finding excused
+
+FIX FIRST  top 10 of 1086, by priority
   Priority  Severity  Rule            Scanner  Location                Upgrade
+  P1        critical  CVE-2026-42010  trivy    python:3.8-slim         libgnutls30 3.7.9-2+deb12u3 → 3.7.9-2+deb12u7
+            gnutls: Authentication Bypass via NUL Character in Username
+  P1        critical  CVE-2025-6965   trivy    python:3.8-slim         libsqlite3-0 3.40.1-2 → 3.40.1-2+deb12u2
+            sqlite: Integer Truncation in SQLite
+  P1        critical  CVE-2026-31789  trivy    python:3.8-slim         libssl3 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
+            OpenSSL: Heap buffer overflow on 32-bit systems from large X.509 certificate processing
+  P1        critical  CVE-2025-15467  trivy    python:3.8-slim         libssl3 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
+            OpenSSL: Remote code execution or Denial of Service via oversized Initialization Vector in…
+  P1        critical  CVE-2026-31789  trivy    python:3.8-slim         openssl 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
+            Heap buffer overflow on 32-bit systems from large X.509 certificate processing
+  P1        critical  CVE-2025-15467  trivy    python:3.8-slim         openssl 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
+            Remote code execution or Denial of Service via oversized Initialization Vector in CMS parsing
   P1        critical  CVE-2019-20477  trivy    app/requirements.txt:4  PyYAML 5.1 → 5.2
             command execution through python/object/apply constructor in FullLoader
-  P1        high      KSV-0014        trivy    deploy/pod.yaml:8
-            Root file system is not read-only
+  P1        critical  CVE-2020-14343  trivy    app/requirements.txt:4  PyYAML 5.1 → 5.4
+            incomplete fix for CVE-2020-1747
+  P1        critical  CVE-2020-1747   trivy    app/requirements.txt:4  PyYAML 5.1 → 5.3.1
+            arbitrary command execution through python/object/new when FullLoader is used
+  P1        critical  CVE-2026-33845  trivy    python:3.8-slim         libgnutls30 3.7.9-2+deb12u3 → 3.7.9-2+deb12u7
+            GnuTLS: Denial of Service via DTLS zero-length fragment
+
+… and 1076 findings not listed.
+
+TRY
+  --top 0                every one of them, not the first ten
+  --view compact         one line each, to see how much there is
+  --view actions         the same findings as a list of things to do
+  draugr explain <rule>  what a rule means and how to fix it
 ```
 
 The **Components** block is where the classification pays off. `api` and `platform` share the `iac`
-control and the same rules, and the same findings land at P1/P2 on one and P3/P4 on the other,
-because one is internet-facing and business-important and the other is neither. Severity did not
-change; the consequence of it did.
+control and the same rules, and the same findings land at P1 and P2 on one and P3 and P4 on the
+other, because one is internet-facing and business-important and the other is neither. Severity did
+not change; the consequence of it did, and it is the reason `platform` passes a run the project
+fails.
 
 Every block above answers in bands, which is what the gate is set in and what the fix list is
 ordered by. What a scanner called a flaw is on the finding's own row, where the judgment about it

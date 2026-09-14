@@ -32,8 +32,8 @@ type ControllerInfo struct {
 	// Summary is a one-line description of what the control does, for `draugr controls`.
 	Summary string
 	// DefaultScanners lists the scanner(s) the control runs by default. Some controls accept
-	// additional opt-in scanners (see controllers.<name>.scanners); those are discovered from
-	// the registry rather than listed here.
+	// additional opt-in scanners, turned on with controls.<name>.<scanner>.enabled; those are
+	// discovered from the registry rather than listed here.
 	DefaultScanners []string
 }
 

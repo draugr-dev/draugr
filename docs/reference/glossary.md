@@ -47,7 +47,8 @@ so it gets its own gate threshold and its own policy. (Implemented today.)
 
 Analyzes your **own source code** (without running it) for security bugs, injection, unsafe APIs,
 hardcoded logic flaws. In Draugr: **`sast`** via [Semgrep](https://semgrep.dev), with opt-in
-**[gosec](https://github.com/securego/gosec)** for Go components (`controllers.sast.scanners`).
+**[gosec](https://github.com/securego/gosec)** for Go components, enabled with
+`controls.sast.gosec.enabled: true`.
 (Implemented today.)
 
 ## DAST, Dynamic Application Security Testing
