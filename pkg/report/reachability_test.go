@@ -1,6 +1,7 @@
 package report
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -178,6 +179,24 @@ func TestUnreachableStandingSaysTheVerdictEarnedNothing(t *testing.T) {
 		if got := unreachableStanding(r); got != "" {
 			t.Errorf("standing = %q for %+v", got, r)
 		}
+	}
+}
+
+func TestTheDocumentedStandingLineIsTheOneWeWrite(t *testing.T) {
+	// No analyzer in the tree reports a weak method yet, so the line in the documentation is a
+	// shape nobody can produce by running the tool. Pinning it to the function is what makes it
+	// a quote rather than an invention, and what fails the day the format moves.
+	const doc = "../../docs/concepts/prioritization.md"
+	body, err := os.ReadFile(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := unreachableStanding(&sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, Analyzer: "dep-scan",
+		Method: sarif.MethodFrameworkHeuristic, AsOf: "2026-08-21",
+	})
+	if !strings.Contains(string(body), line) {
+		t.Errorf("%s does not quote %q; the documented line and the written one have parted", doc, line)
 	}
 }
 
