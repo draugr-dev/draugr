@@ -17,6 +17,7 @@ not published. They live here for readers browsing the repo.
 - [Prioritization](concepts/prioritization.md), exposure × criticality × severity → P1–P4.
 - [Surveyors](concepts/surveyors.md), discovery that writes the Saga for you.
 - [Verdict & gating](concepts/verdict-and-gating.md), the pipeline, the gate, and exit codes.
+- [Scanner versions](concepts/tool-versions.md), which build of each tool Draugr runs, and when a pin moves.
 
 ## Guides
 - [Use in CI with the GitHub Action](guides/github-action.md), the first-party action and its inputs.

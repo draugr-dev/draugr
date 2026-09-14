@@ -1,0 +1,1 @@
+`draugr tools outdated` compares every pinned scanner against the version its upstream publishes, as a table or as JSON. A pin moves when a bump has been tested rather than when one appears, so this says what is available without changing anything.

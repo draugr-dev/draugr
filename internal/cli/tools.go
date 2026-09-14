@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -30,7 +31,94 @@ func newToolsCommand() *cobra.Command {
 	}
 	cmd.AddCommand(newToolsInstallCommand())
 	cmd.AddCommand(newToolsListCommand())
+	cmd.AddCommand(newToolsOutdatedCommand())
 	return cmd
+}
+
+func newToolsOutdatedCommand() *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:   "outdated",
+		Short: "Compare each pinned tool against the version its upstream publishes",
+		Long: "Asks each tool's upstream what it publishes now and reports it beside the version " +
+			"this Draugr installs.\n\n" +
+			"The only command here that reaches the network without being asked to install " +
+			"something. Nothing is downloaded and nothing on disk changes.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if netpolicy.Offline() {
+				return netpolicy.Refuse("draugr tools outdated",
+					"the release listings each tool publishes")
+			}
+			return runToolsOutdated(cmd.Context(), cmd.OutOrStdout(), asJSON)
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false,
+		"write the comparison as JSON, for a pipeline proposing a bump")
+	return cmd
+}
+
+// runToolsOutdated reports what each upstream publishes beside what Draugr pins.
+//
+// Exits non-zero only where something could not be asked. Being behind is a fact to act on rather
+// than a failure: a pipeline reads the JSON and decides, and a person reading the table has not
+// done anything wrong by being one release back.
+func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool) error {
+	drift := tools.Outdated(ctx, nil)
+
+	if asJSON {
+		type row struct {
+			Tool   string `json:"tool"`
+			Pinned string `json:"pinned"`
+			Latest string `json:"latest,omitempty"`
+			Behind bool   `json:"behind"`
+			Error  string `json:"error,omitempty"`
+		}
+		out := make([]row, 0, len(drift))
+		for _, d := range drift {
+			r := row{Tool: d.Tool, Pinned: d.Pinned, Latest: d.Latest, Behind: d.Behind()}
+			if d.Err != nil {
+				r.Error = d.Err.Error()
+			}
+			out = append(out, r)
+		}
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		return enc.Encode(out)
+	}
+
+	col := tui.For(w)
+	table := tui.NewTable(col, "Tool", "Pinned", "Upstream", "")
+	var behind, unknown int
+	for _, d := range drift {
+		switch {
+		case d.Err != nil:
+			unknown++
+			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(d.Pinned),
+				tui.Styled(tui.StyleMuted, "?"),
+				tui.Styled(tui.StyleMuted, "could not ask: "+d.Err.Error()))
+		case d.Behind():
+			behind++
+			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(d.Pinned),
+				tui.Styled(tui.StyleAccent, d.Latest),
+				tui.Styled(tui.StyleMuted, "draugr tools install "+d.Tool))
+		default:
+			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(d.Pinned),
+				tui.Styled(tui.StyleMuted, d.Latest), tui.Styled(tui.StyleMuted, "current"))
+		}
+	}
+	table.Render(w)
+
+	// A pin is not a version somebody forgot to update. It is the build Draugr verified, so the
+	// line says what being behind means rather than implying the reader is late.
+	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, fmt.Sprintf(
+		"%d of %d behind the version their upstream publishes. A pin is the build Draugr "+
+			"checksum-verified, so it moves when a bump has been tested, not when one appears.",
+		behind, len(drift))))
+	if unknown > 0 {
+		return fmt.Errorf("%d tool(s) could not be compared", unknown)
+	}
+	return nil
 }
 
 type toolsInstallOptions struct {
