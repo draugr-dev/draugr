@@ -89,22 +89,26 @@ func runValidate(args []string, w io.Writer) error {
 	// it as `draugr: <problem>`. Fanning out to a per-file report only helps when there are files
 	// to tell apart.
 	if len(paths) == 1 {
-		if err := loadAndCheck(paths[0]); err != nil {
+		warnings, err := loadAndWarn(paths[0])
+		if err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(w, "✓ %s is valid\n", paths[0])
+		writeWarnings(w, warnings)
 		return nil
 	}
 
 	var failed int
 	for _, p := range paths {
-		if err := loadAndCheck(p); err != nil {
+		warnings, err := loadAndWarn(p)
+		if err != nil {
 			failed++
 			// Strip the loader's own path prefix: the file is already the line's subject.
 			_, _ = fmt.Fprintf(w, "✗ %s\n    %s\n", p, strings.TrimPrefix(err.Error(), p+": "))
 			continue
 		}
 		_, _ = fmt.Fprintf(w, "✓ %s is valid\n", p)
+		writeWarnings(w, warnings)
 	}
 
 	if failed > 0 {
@@ -183,7 +187,52 @@ func discoverSagas(root string) ([]string, error) {
 //
 // Separate from loadSaga because validate *is* the check. LoadSaga's error tells the reader to
 // run validate, which would be circular here.
-func loadAndCheck(path string) error { return loadAndCheckInner(path) }
+func loadAndCheck(path string) error {
+	_, err := loadAndWarn(path)
+	return err
+}
+
+// writeWarnings prints what is legal and probably not what was meant, under the line saying the
+// file is valid.
+//
+// Under it rather than instead of it, because the file is valid and saying otherwise would make a
+// deliberate pattern into a failure. Indented to the same column as the failure detail above, so a
+// run over many files reads as one list whichever kind of remark a file drew.
+func writeWarnings(w io.Writer, warnings []string) {
+	for _, warning := range warnings {
+		_, _ = fmt.Fprintf(w, "  ! %s\n", warning)
+	}
+}
+
+// loadAndWarn checks a descriptor and reports what is legal and suspicious.
+//
+// The warnings are taken against the directory the file sits in, which is the tree for a descriptor
+// that describes its own repository and is nothing for one whose repositories are remote. A pattern
+// is only a mistake against a tree, so no tree means no warning rather than a guess.
+func loadAndWarn(path string) ([]string, error) {
+	if err := loadAndCheckInner(path); err != nil {
+		return nil, err
+	}
+	if IsFragmentFile(filepath.Base(path)) {
+		data, err := os.ReadFile(path) // #nosec G304 -- operator-provided path, by design
+		if err != nil {
+			return nil, nil
+		}
+		frag, err := saga.LoadFragment(data, path)
+		if err != nil {
+			return nil, nil
+		}
+		return (&saga.Model{Config: saga.Config{Exclude: frag.Config.Exclude}}).
+			ExcludeWarnings(filepath.Dir(path)), nil
+	}
+	fetcher := sagafetch.New(context.Background())
+	defer fetcher.Close()
+	res, err := saga.ResolveFile(path, fetcher)
+	if err != nil {
+		return nil, nil
+	}
+	return res.Model.ExcludeWarnings(filepath.Dir(path)), nil
+}
 
 func loadAndCheckInner(path string) error {
 	// A fragment is checked as a fragment. Held to the Saga's rules it would fail on a missing

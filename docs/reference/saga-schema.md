@@ -938,6 +938,19 @@ as another single-segment wildcard, so `tests/**` would quietly match one level 
 like it matched every level. `draugr validate` rejects it and names the trailing-slash form, which
 already expresses the same thing.
 
+`draugr validate` warns when a pattern names a directory that exists and does not select what is
+in it, which is the shape that reads as written and applies to nothing:
+
+```
+✓ draugr.saga.yaml is valid
+  ! config.exclude[0].paths[0] "tests*" matches inside one path segment, so it will not match
+    anything under tests/. Write "tests/" to exclude the directory and everything beneath it
+```
+
+A warning rather than a failure, because a rule written ahead of the file it covers is legal, and
+the check is against whatever tree sits beside the descriptor. A descriptor whose repositories are
+all remote has nothing to check against and says nothing.
+
 **Two fields take path patterns and they do not match alike.**
 [`repositories[].ignore`](#scoping-a-repository) decides what is *scanned* and does cross
 separators, so `**/testdata/**` is valid there. `config.exclude[].paths` decides what is *counted*
