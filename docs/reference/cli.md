@@ -1544,7 +1544,7 @@ why the two file types are distinguishable by name.
 
 Editors normally fetch the schema from draugr.dev, which needs network access and follows a
 published version. A local copy pins validation to the Draugr you actually have, and works offline.
-See [editor support](saga-schema.md#editor-support-autocomplete-hover-docs-validation).
+See [editor support](../guides/editor-support.md).
 
 ## `draugr completion <shell>`
 

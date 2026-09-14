@@ -14,97 +14,8 @@ the controls that must pass.
 name is yours: `draugr scan azure.saga.yaml`, `payments.saga.yaml`, a bare `.saga.yaml`, Draugr
 loads whatever path you hand it, so a repo can hold several.
 
-## Editor support (autocomplete, hover docs, validation)
-
-Draugr publishes a [JSON Schema](https://draugr.dev/schema/draugr.saga.schema.json) for the Saga.
-With it, your editor completes control and field names, shows the documentation for each one on
-hover, offers the valid values for `exposure`, `criticality` and report formats, and flags typos
-as you type instead of at scan time.
-
-**In most editors, nothing to configure.** The Saga is registered with
-[SchemaStore](https://www.schemastore.org/), the catalog that VS Code's [YAML
-extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) and JetBrains
-IDEs consult by default. Any file named `*.saga.yaml`, `*.saga.yml` or `.saga.yaml` is recognized
-the moment you open it, no modeline, no setting, nothing committed to the repo.
-
-Editors cache that catalog and some ship a snapshot inside the extension, so a copy older than the
-registration won't have it yet. Both routes below work regardless, and keep working if you'd
-rather not depend on a third-party catalog at all.
-
-**A modeline in the file.** `draugr init` writes one at the top:
-
-```yaml
-# yaml-language-server: $schema=https://draugr.dev/schema/draugr.saga.schema.json
-```
-
-Any editor running the YAML language server picks it up on open, catalog or not, VS Code, JetBrains,
-Neovim. Paste that line at the top of an existing Saga to get the same.
-
-**Or map it once, for every Saga in the project.** No modeline in the files. This is also the
-route for filenames the catalog doesn't match, and for pinning a version across a repo.
-
-**VS Code**, commit `.vscode/settings.json` so the whole team gets it automatically (requires the
-[YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)):
-
-```json
-{
-  "yaml.schemas": {
-    "https://draugr.dev/schema/draugr.saga.schema.json": ["*.saga.yaml", "*.saga.yml"]
-  }
-}
-```
-
-**JetBrains** (IntelliJ, GoLand, PyCharm), *Settings → Languages & Frameworks → Schemas and DTDs →
-JSON Schema Mappings*. Add a mapping with the URL above and file-path pattern `*.saga.yaml`.
-
-**Neovim**. `yamlls` may not have SchemaStore enabled depending on how you configure it, so mapping
-it explicitly is the dependable route, via `nvim-lspconfig`:
-
-```lua
-require('lspconfig').yamlls.setup {
-  settings = {
-    yaml = {
-      schemas = {
-        ['https://draugr.dev/schema/draugr.saga.schema.json'] = '*.saga.{yaml,yml}',
-      },
-    },
-  },
-}
-```
-
-**Anything else**, any editor speaking the [YAML language
-server](https://github.com/redhat-developer/yaml-language-server) supports both the modeline and a
-schema mapping; point it at the same URL.
-
-That covers *writing* the descriptor. For the scan's **findings** to appear inline on the lines
-that caused them, see [findings in your editor](../guides/findings-in-your-editor.md).
-
-### Matching the schema to your Draugr version
-
-A schema newer than your binary will happily autocomplete fields it doesn't understand; an older
-one will flag valid fields as errors. Three ways to control which you get, loosest to strictest:
-
-| Reference | Behavior | Use when |
-|-----------|-----------|----------|
-| `…/schema/draugr.saga.schema.json` | tracks the newest release | you keep Draugr current |
-| `…/schema/v0.33.0/draugr.saga.schema.json` | that release, forever | you pin Draugr in CI |
-| a local file from `draugr schema` | exactly your installed binary | offline, air-gapped, or strictest |
-
-**`draugr init` pins by default**. It writes the URL for its own version, so a scaffolded Saga is
-matched to the binary that created it. Change the line to the unversioned URL if you'd rather track
-latest. Every release publishes its own immutable copy, so a pin keeps resolving after newer
-versions ship.
-
-**The strongest guarantee is the binary's own copy.** Draugr embeds the schema it enforces, so
-this needs no network and cannot mismatch:
-
-```bash
-draugr schema -o .saga.schema.json
-# then in your Saga:
-# yaml-language-server: $schema=./.saga.schema.json
-```
-
-`draugr schema` with no `-o` prints to stdout, so you can diff two versions or pipe it anywhere.
+Your editor can complete these fields, document them on hover and flag a typo as you type, from
+the JSON Schema Draugr publishes. See [write a Saga in your editor](../guides/editor-support.md).
 
 ## Top level
 
@@ -145,6 +56,183 @@ release:
 |-------|----------|-------------|
 | `version` | ✅ | The version being assessed. What changes between builds |
 
+## `components`
+
+Each component is one logical part of the app. All surface lists are optional; provide
+what applies.
+
+```yaml
+components:
+  - name: web                 # required, unique
+    labels: { team: platform } # optional key/value metadata; --labels selects on it
+    exposure: public          # optional, risk exposure
+    criticality: critical     # optional, business criticality
+    builtBy: self             # optional, self (default) or upstream, for every target below
+    repositories:
+      - url: https://github.com/acme/web.git   # required
+        revision: main                          # optional
+        paths: ["services/web"]                 # optional, scan only this subtree
+        ignore: ["**/testdata/**"]              # optional. Remove these from the scan
+        builtBy: self                           # optional, overrides the component's
+    images:
+      - image: registry.example.com/acme/web:1.0  # required
+        builtBy: self                             # optional, overrides the component's
+        digest: sha256:…                          # optional. Pin the immutable content digest
+    hosts:
+      - name: api
+        url: https://api.example.com            # required
+        type: api                               # browser | api (default browser); tunes header checks
+        auth:                                   # optional, authenticates the dast scan
+          type: bearer                          #   bearer | header
+          header: X-API-Key                     #   required with type: header
+          tokenEnv: DRAUGR_API_TOKEN            #   the variable holding it; there is no field
+                                                #   for the credential itself, because a
+                                                #   descriptor is committed
+    infrastructure:
+      - kind: kubernetes                        # required, the only surface Draugr audits today
+        ref: prod-cluster
+        namespaces: [team-a, team-a-jobs]       # optional, the namespaces this component owns
+        operatedBy: provider                    # optional, self (default) or provider
+    controls:              # optional per-component overrides (same shape as config.controls)
+      images:
+        enabled: true
+```
+
+**Control resolution:** a component-scoped control runs for a component when it is enabled
+on the component, or (absent an override) enabled globally under `config.controls`.
+
+**Several repositories on one component** is supported and worth knowing the shape of: Draugr plans
+one job per repository and runs them concurrently, and paths in a finding are relative to the
+repository it came from. Two repositories that share a path therefore produce findings that look
+alike, so a finding records which repository it came from, that is part of what makes it a distinct
+finding, and the report grows a `Repository` column when findings span more than one. The same
+applies to repositories a [fragment](../guides/saga-fragments.md) contributes from another project.
+
+**Who publishes it:** `builtBy` says whether this team publishes the thing being scanned (`self`,
+the default) or somebody else does (`upstream`). It may be declared on a **repository**, on an
+**image**, or on the **component**, where it covers every target that does not say otherwise. Most
+specific wins, the same rule `controls:` follows.
+
+It decides what the report tells you to do, and nothing else. The finding keeps its severity and
+its band, is still counted, and still reaches the gate: a flaw in somebody else's software is
+exactly as dangerous, and what differs is who can end it.
+
+Nobody can upgrade a library inside an image they do not build. The fix is a newer image, or a wait
+for whoever publishes it, so for an `upstream` image the fix list groups every finding in it into
+one action, *take a newer image*, instead of listing each library as something to upgrade.
+
+The same holds for a repository, and licenses are where it is felt most. A denied license in the
+dependency tree of a repository you do not publish is not a license you chose and not one you can
+swap out. The answers are to stop using the component or to record an exception, and "change the
+code" is neither. It applies to every control for the same reason: the declaration is about who can
+change the thing, which does not vary by what found the problem.
+
+**It is declared, never detected.** Nothing inside an image says who built it, and a git remote is
+not a statement of ownership, plenty of teams publish from a fork, and plenty consume from one.
+
+`self` is the default because a descriptor written by hand describes what a team builds. One
+written by a surveyor describes a running cluster, where most images come from somebody else, and
+that is the case worth declaring.
+
+**Component-wide is the form to reach for** when the whole component is somebody else's software, a
+vendor console, an open-source service you run from source. Writing it on each target instead means
+a repository or image added later silently defaults back to `self`.
+
+```yaml
+- name: analytics-console
+  builtBy: upstream            # everything here is the vendor's
+  repositories:
+    - url: https://github.com/vendor/console.git
+    - url: https://github.com/acme/console-config.git
+      builtBy: self            # …except this, which we do publish
+  images:
+    - image: ghcr.io/vendor/console:4.2
+```
+
+**Who operates it:** `operatedBy` says whether this team runs the surface (`self`, the default) or a
+managed platform does (`provider`). It states a fact, and what follows from it is derived rather
+than asserted: on a managed cluster the control plane, the API server and etcd are not reachable.
+There is no host to log into and no file to change, so findings about their configuration are
+reported and counted but never presented as work this team can do.
+
+It narrows what it excuses, deliberately. RBAC, Pod Security, network policy and the rest of the
+policies section stay this team's whoever runs the cluster underneath, and node configuration is
+usually theirs too through node pool settings. Marking a whole cluster as somebody else's problem
+would hide the half that is not, and those are usually the findings that matter.
+
+Whether a cluster is managed is a fact about a contract, not something a scanner can see in what
+it reads, which is why it is declared here alongside `exposure` and `criticality`.
+
+**Infrastructure namespaces:** `namespaces` narrows an infrastructure surface to the part of a
+cluster the component owns; omit it and the audit covers the whole cluster. Not every scanner can
+honor it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
+reads a node's own filesystem, which has no namespace, so both always describe the whole cluster.
+Neither is run against a component that sets `namespaces`. The alternative would be a report that
+looks scoped and lists somebody else's namespaces against this component, so the scan is not
+planned, and the report says so, under **Not measured**, naming the scanner and the component:
+
+```
+NOT MEASURED
+  infrastructure  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed
+                  to namespace team-a
+```
+
+Nothing has to be turned off by hand. To get both, node-level checks over the whole cluster, and API
+checks scoped to what you own, declare the cluster twice:
+
+```yaml
+components:
+  - name: team-a
+    infrastructure:
+      - kind: kubernetes
+        ref: prod-cluster
+        namespaces: [team-a]     # draugr-k8s-policies narrows to this
+  - name: prod-cluster           # the same cluster, claimed whole
+    infrastructure:
+      - kind: kubernetes
+        ref: prod-cluster        # kube-bench and kubeBenchJob run here
+```
+
+**Risk classification** (`exposure`, `criticality`), optional, and the two axes of risk
+prioritization: exposure is how reachable the component is (likelihood), criticality is the business
+impact if it fails. Both are fixed ladders whose meaning an organization can redefine (the levels
+stay stable). They feed finding prioritization; a component may be left unclassified.
+
+| `exposure` | meaning | | `criticality` | meaning |
+|------------|---------|-|---------------|---------|
+| `public` | anyone on the internet, no sign-in | | `critical` | an outage or data loss for the business |
+| `authenticated` | on the internet, behind a login | | `important` | degraded service, but no outage |
+| `internal` | only from inside your network or VPN | | `supporting` | limited impact, easily worked around |
+| `restricted` | inside your network and locked down further, an allowlist, a private link, its own segment | | | |
+
+The wording names no platform on purpose: a Kubernetes network policy is one way to arrange
+`restricted`, and Draugr classifies repositories and images as well as clusters. `draugr classify`
+asks these same questions with the same words.
+
+**`labels`** is free-form `key: value` metadata about a component, optional, and it is the
+organization's vocabulary rather than Draugr's. Nothing here reads a key or attaches a meaning to
+one, and no key is privileged: a team filing by squad, by regime, by data class or by all three is
+describing its own shape, and a tool that decided what `team` meant would be describing a different
+one.
+
+```yaml
+components:
+  - name: storefront
+    labels:
+      team: web
+      data-class: pii
+```
+
+They never reach a verdict. What they do is answer *whose*, in the two places that question is
+asked. `draugr scan --labels team=web` runs only what that team owns, which is how a pipeline in a
+repository holding many teams' code stays about one of them. And every finding carries its
+component's labels into `results.sarif`, which is the document a platform expands a run from, so a
+fleet of many components can be narrowed to the ones somebody is answerable for.
+
+They are deliberately absent from the console, the Markdown report and a pull-request comment.
+Those answer what to fix, for a reader who already knows the work is theirs; filtering is a
+question asked where there is a fleet.
+
 ## `config.controls`
 
 A map of control name → free-form settings. A control runs only when **enabled**:
@@ -172,7 +260,7 @@ draugr: config.gate.controls: "iaac" is not a control this build of Draugr provi
 
 Checked against what **this build** can run, which is also what [`draugr
 controls`](cli.md#draugr-controls) lists and what the [JSON
-Schema](#editor-support-autocomplete-hover-docs-validation) offers for autocompletion. All three
+Schema](../guides/editor-support.md) offers for autocompletion. All three
 come from one place and cannot disagree.
 
 ### Scanning an API from its specification
@@ -1425,183 +1513,6 @@ that's what you want; the error is still reported either way.
 
 Deduplicated by target: several controls scan the same repository, and its inventory is one
 document however many touched it. The same image referenced by two components is likewise one.
-
-## `components`
-
-Each component is one logical part of the app. All surface lists are optional; provide
-what applies.
-
-```yaml
-components:
-  - name: web                 # required, unique
-    labels: { team: platform } # optional key/value metadata; --labels selects on it
-    exposure: public          # optional, risk exposure
-    criticality: critical     # optional, business criticality
-    builtBy: self             # optional, self (default) or upstream, for every target below
-    repositories:
-      - url: https://github.com/acme/web.git   # required
-        revision: main                          # optional
-        paths: ["services/web"]                 # optional, scan only this subtree
-        ignore: ["**/testdata/**"]              # optional. Remove these from the scan
-        builtBy: self                           # optional, overrides the component's
-    images:
-      - image: registry.example.com/acme/web:1.0  # required
-        builtBy: self                             # optional, overrides the component's
-        digest: sha256:…                          # optional. Pin the immutable content digest
-    hosts:
-      - name: api
-        url: https://api.example.com            # required
-        type: api                               # browser | api (default browser); tunes header checks
-        auth:                                   # optional, authenticates the dast scan
-          type: bearer                          #   bearer | header
-          header: X-API-Key                     #   required with type: header
-          tokenEnv: DRAUGR_API_TOKEN            #   the variable holding it; there is no field
-                                                #   for the credential itself, because a
-                                                #   descriptor is committed
-    infrastructure:
-      - kind: kubernetes                        # required, the only surface Draugr audits today
-        ref: prod-cluster
-        namespaces: [team-a, team-a-jobs]       # optional, the namespaces this component owns
-        operatedBy: provider                    # optional, self (default) or provider
-    controls:              # optional per-component overrides (same shape as config.controls)
-      images:
-        enabled: true
-```
-
-**Control resolution:** a component-scoped control runs for a component when it is enabled
-on the component, or (absent an override) enabled globally under `config.controls`.
-
-**Several repositories on one component** is supported and worth knowing the shape of: Draugr plans
-one job per repository and runs them concurrently, and paths in a finding are relative to the
-repository it came from. Two repositories that share a path therefore produce findings that look
-alike, so a finding records which repository it came from, that is part of what makes it a distinct
-finding, and the report grows a `Repository` column when findings span more than one. The same
-applies to repositories a [fragment](../guides/saga-fragments.md) contributes from another project.
-
-**Who publishes it:** `builtBy` says whether this team publishes the thing being scanned (`self`,
-the default) or somebody else does (`upstream`). It may be declared on a **repository**, on an
-**image**, or on the **component**, where it covers every target that does not say otherwise. Most
-specific wins, the same rule `controls:` follows.
-
-It decides what the report tells you to do, and nothing else. The finding keeps its severity and
-its band, is still counted, and still reaches the gate: a flaw in somebody else's software is
-exactly as dangerous, and what differs is who can end it.
-
-Nobody can upgrade a library inside an image they do not build. The fix is a newer image, or a wait
-for whoever publishes it, so for an `upstream` image the fix list groups every finding in it into
-one action, *take a newer image*, instead of listing each library as something to upgrade.
-
-The same holds for a repository, and licenses are where it is felt most. A denied license in the
-dependency tree of a repository you do not publish is not a license you chose and not one you can
-swap out. The answers are to stop using the component or to record an exception, and "change the
-code" is neither. It applies to every control for the same reason: the declaration is about who can
-change the thing, which does not vary by what found the problem.
-
-**It is declared, never detected.** Nothing inside an image says who built it, and a git remote is
-not a statement of ownership, plenty of teams publish from a fork, and plenty consume from one.
-
-`self` is the default because a descriptor written by hand describes what a team builds. One
-written by a surveyor describes a running cluster, where most images come from somebody else, and
-that is the case worth declaring.
-
-**Component-wide is the form to reach for** when the whole component is somebody else's software, a
-vendor console, an open-source service you run from source. Writing it on each target instead means
-a repository or image added later silently defaults back to `self`.
-
-```yaml
-- name: analytics-console
-  builtBy: upstream            # everything here is the vendor's
-  repositories:
-    - url: https://github.com/vendor/console.git
-    - url: https://github.com/acme/console-config.git
-      builtBy: self            # …except this, which we do publish
-  images:
-    - image: ghcr.io/vendor/console:4.2
-```
-
-**Who operates it:** `operatedBy` says whether this team runs the surface (`self`, the default) or a
-managed platform does (`provider`). It states a fact, and what follows from it is derived rather
-than asserted: on a managed cluster the control plane, the API server and etcd are not reachable.
-There is no host to log into and no file to change, so findings about their configuration are
-reported and counted but never presented as work this team can do.
-
-It narrows what it excuses, deliberately. RBAC, Pod Security, network policy and the rest of the
-policies section stay this team's whoever runs the cluster underneath, and node configuration is
-usually theirs too through node pool settings. Marking a whole cluster as somebody else's problem
-would hide the half that is not, and those are usually the findings that matter.
-
-Whether a cluster is managed is a fact about a contract, not something a scanner can see in what
-it reads, which is why it is declared here alongside `exposure` and `criticality`.
-
-**Infrastructure namespaces:** `namespaces` narrows an infrastructure surface to the part of a
-cluster the component owns; omit it and the audit covers the whole cluster. Not every scanner can
-honor it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
-reads a node's own filesystem, which has no namespace, so both always describe the whole cluster.
-Neither is run against a component that sets `namespaces`. The alternative would be a report that
-looks scoped and lists somebody else's namespaces against this component, so the scan is not
-planned, and the report says so, under **Not measured**, naming the scanner and the component:
-
-```
-NOT MEASURED
-  infrastructure  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed
-                  to namespace team-a
-```
-
-Nothing has to be turned off by hand. To get both, node-level checks over the whole cluster, and API
-checks scoped to what you own, declare the cluster twice:
-
-```yaml
-components:
-  - name: team-a
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-cluster
-        namespaces: [team-a]     # draugr-k8s-policies narrows to this
-  - name: prod-cluster           # the same cluster, claimed whole
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-cluster        # kube-bench and kubeBenchJob run here
-```
-
-**Risk classification** (`exposure`, `criticality`), optional, and the two axes of risk
-prioritization: exposure is how reachable the component is (likelihood), criticality is the business
-impact if it fails. Both are fixed ladders whose meaning an organization can redefine (the levels
-stay stable). They feed finding prioritization; a component may be left unclassified.
-
-| `exposure` | meaning | | `criticality` | meaning |
-|------------|---------|-|---------------|---------|
-| `public` | anyone on the internet, no sign-in | | `critical` | an outage or data loss for the business |
-| `authenticated` | on the internet, behind a login | | `important` | degraded service, but no outage |
-| `internal` | only from inside your network or VPN | | `supporting` | limited impact, easily worked around |
-| `restricted` | inside your network and locked down further, an allowlist, a private link, its own segment | | | |
-
-The wording names no platform on purpose: a Kubernetes network policy is one way to arrange
-`restricted`, and Draugr classifies repositories and images as well as clusters. `draugr classify`
-asks these same questions with the same words.
-
-**`labels`** is free-form `key: value` metadata about a component, optional, and it is the
-organization's vocabulary rather than Draugr's. Nothing here reads a key or attaches a meaning to
-one, and no key is privileged: a team filing by squad, by regime, by data class or by all three is
-describing its own shape, and a tool that decided what `team` meant would be describing a different
-one.
-
-```yaml
-components:
-  - name: storefront
-    labels:
-      team: web
-      data-class: pii
-```
-
-They never reach a verdict. What they do is answer *whose*, in the two places that question is
-asked. `draugr scan --labels team=web` runs only what that team owns, which is how a pipeline in a
-repository holding many teams' code stays about one of them. And every finding carries its
-component's labels into `results.sarif`, which is the document a platform expands a run from, so a
-fleet of many components can be narrowed to the ones somebody is answerable for.
-
-They are deliberately absent from the console, the Markdown report and a pull-request comment.
-Those answer what to fix, for a reader who already knows the work is theirs; filtering is a
-question asked where there is a fleet.
 
 ## `fragments`
 

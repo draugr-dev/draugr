@@ -1,5 +1,5 @@
 ---
-title: Classify components
+title: Rank findings by priority
 description: Set exposure and criticality so Draugr can rank findings by priority.
 section: Guides
 order: 60

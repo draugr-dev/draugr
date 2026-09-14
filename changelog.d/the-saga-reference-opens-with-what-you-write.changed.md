@@ -1,0 +1,1 @@
+The Saga reference opens with what you write. `components` was at line 1429 of 1660, after every `config` section, and the page began with ninety lines of editor setup. It now follows the descriptor, `project` then `release` then `components` then `config`, and editor setup is its own guide, which is also where somebody looking for autocomplete would have gone first.
