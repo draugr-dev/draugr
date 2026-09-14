@@ -23,7 +23,7 @@ func newControlsCommand() *cobra.Command {
 		Short: "List the security controls Draugr can run, their purpose, and scanners",
 		Long: "List every security control Draugr can run, what it checks, its scope, and which\n" +
 			"scanner(s) implement it (default, plus any opt-in alternatives). Enable a control in\n" +
-			"your Saga under config.controllers.<name> (or per component).\n\n" +
+			"your Saga under config.controls.<name> (or per component).\n\n" +
 			"--options adds what each scanner accepts in its Saga block. A scanner listed with no\n" +
 			"options accepts none, and anything written under its block is rejected before the\n" +
 			"scan runs.\n\n" +
@@ -122,14 +122,14 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 
 	if optIn {
 		_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
-			"* opt-in scanner. Enable with controllers.<control>.<scanner>.enabled: true in the Saga."))
+			"* opt-in scanner. Enable with controls.<control>.<scanner>.enabled: true in the Saga."))
 	}
 	writeEffects(w, col, reg, only)
 	if showOptions {
 		writeScannerOptions(w, col, reg, only)
 	}
 	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
-		"Enable a control under config.controllers.<name> (or per component) in your Saga."))
+		"Enable a control under config.controls.<name> (or per component) in your Saga."))
 	if !showOptions {
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
 			"Run `draugr controls --options` for what each scanner accepts in its block."))

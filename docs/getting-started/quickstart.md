@@ -161,11 +161,13 @@ list of just those at or above the band, so you can act on the short list instea
 P1 = act now · P2 = this cycle · P3 = backlog · P4 = track. A component left unclassified is
 treated as high-risk so nothing slips.
 
-**Gate on priority.** `--fail-on P1` is the default, and fails the build when any finding reaches that band,
-component-aware gating without a per-component config, since priority already folds in exposure and
-criticality. It composes with the level gate (`--fail-on`): the run fails if *either* trips. Each
-control also reports its `highestPriority` as evidence. See
-[prioritization](../concepts/prioritization.md) for how the bands are computed.
+**Gate on priority.** `--fail-on P1` is the default, and fails the build when any finding reaches
+that band, component-aware gating without a per-component config, since priority already folds in
+exposure and criticality. A run has **one** gate: pass a severity instead (`--fail-on critical`,
+`high`, `medium`, `low`) to judge the scanner's own rating rather than the band. Each control also
+reports its `highestPriority` as evidence. See
+[prioritization](../concepts/prioritization.md) for how the bands are computed, and
+[verdict & gating](../concepts/verdict-and-gating.md) for the two questions the gate can ask.
 
 ## 3. Let discovery write the descriptor
 

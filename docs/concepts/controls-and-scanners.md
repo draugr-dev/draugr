@@ -17,7 +17,7 @@ applies to and aggregates the results. Controllers are either **project-scoped**
 **component-scoped**.
 
 > Implemented today: **`images`**, **`sca`**, **`licenses`**, **`secrets`**, **`sast`**,
-> **`iac`**, **`headers`**, **`dast`**, **`tls`**, **`infrastructure`**. On the roadmap: `threats`.
+> **`iac`**, **`headers`**, **`dast`**, **`tls`**, **`infrastructure`**, **`threats`**.
 > See the [integrations catalog](../reference/catalog.md) or run `draugr controls`.
 >
 > **An SBOM is not a control.** Every row in the controls table means "checked, and here is the
@@ -27,16 +27,24 @@ applies to and aggregates the results. Controllers are either **project-scoped**
 
 ## Scanners
 
-A **scanner** wraps a single security tool and normalizes its output to **SARIF**. Most tools are
-integrated declaratively via a *tool adapter*, describe how to invoke the tool and Draugr runs it
-and parses its SARIF. Built-in today: **Trivy** in four modes, `trivy` (`images`), `trivy-fs`
-(`sca`), `trivy-config` (`iac`) and `trivy-license` (`licenses`), **Gitleaks** (`secrets`),
-**Semgrep** (`sast`, with opt-in **gosec** for Go components), **Nuclei** (`dast`), **kube-bench**
-(`infrastructure`), and native scanners for `headers` and `tls` that need no external tool.
+A **scanner** wraps a single security tool and normalizes its output to **SARIF**. Most are
+integrated declaratively through a *tool adapter*: the adapter describes how to invoke the tool,
+and Draugr runs it and parses the SARIF it returns.
 
-`trivy-license` and `kube-bench` are the two that do not consume SARIF, Trivy reports licenses only
-in its JSON output, and kube-bench has no SARIF mode at all, so those scanners do the conversion
-themselves.
+Several scanners need no external tool at all, because they read an API or a response directly:
+`headers`, `tls` and the default `infrastructure` scanner are Draugr's own code, so there is
+nothing to install for them.
+
+```bash
+draugr controls   # every control, the scanners behind it, and which are opt-in
+```
+
+That command reads the same registry the gate consults, so it cannot disagree with what this build
+will run. The [integrations catalog](../reference/catalog.md) is the same list with links to each
+scanner's own documentation.
+
+Two scanners do the conversion themselves rather than consuming SARIF: Trivy reports licenses only
+in its JSON output, and kube-bench has no SARIF mode at all.
 
 ## How much of a tool a descriptor can reach
 

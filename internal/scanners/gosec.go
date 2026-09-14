@@ -39,7 +39,7 @@ const gosecConfigSchema = `{
 // NewGosec returns a Scanner that runs gosec, a Go-specialized static analyzer, over a
 // checked-out repository. It is an optional second scanner for the "sast" control (alongside
 // Semgrep); it only makes sense on Go components, so it is opt-in via
-// controllers.sast.scanners.
+// controls.sast.gosec.enabled.
 func NewGosec() plugin.Scanner {
 	s := newRepoScanner(
 		plugin.ScannerInfo{

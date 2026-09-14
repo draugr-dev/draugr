@@ -92,10 +92,10 @@ a short list. Both are optional; a component may stay unclassified.
 
 ### `config`
 
-Project-wide settings: which controllers run and how they're tuned, the
+Project-wide settings: which controls run and how they're tuned, the
 [gate](verdict-and-gating.md) thresholds, exclusions, reports and publishers, SBOM generation,
 and `allowEffects` for scanners that would otherwise change something in your environment. A
-component's own `controllers` block overrides the project default for that component.
+component's own `controls` block overrides the project default for that component.
 
 ## Exclusions are not deletions
 
@@ -128,7 +128,7 @@ Three ways in, in rough order of how much you already know:
 |---|---|---|
 | **Nothing** | You want output now | `draugr scan .` runs `sca`, `secrets`, `sast` and `iac` against a repository with no descriptor at all |
 | **[`draugr init`](../reference/cli.md#draugr-init-dir)** | You have a repo and want a starting point | Detects the stack and pre-fills sensible controls, Go adds `gosec`, a Dockerfile adds an `images` stub |
-| **[`draugr survey`](surveyors.md)** | Something you already run can be enumerated, today a Kubernetes cluster or a GitHub org | [Surveyors](surveyors.md) enumerate the surface and write the components for you |
+| **[`draugr survey`](surveyors.md)** | Something you already run can be enumerated, today a Kubernetes cluster, or a GitHub, GitLab or Azure DevOps organization | [Surveyors](surveyors.md) enumerate the surface and write the components for you |
 
 Zero-config mode is a way to start, not a way to finish: it scans a single repository, and it
 has no way to know a component's exposure or criticality, so it cannot prioritize. The
