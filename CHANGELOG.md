@@ -12,6 +12,52 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.123.0] - 2026-09-14
+
+### Added
+
+**A guide for scanning a monorepo.** One repository holding many teams' code breaks the model most scanners assume, and what to do about it was spread across the guides for fragments, caching and code scanning. [Scan a monorepo](https://github.com/draugr-dev/draugr/blob/main/docs/guides/monorepos.md) starts from the decision the rest follows from, whether the repository is one project or several, and covers carving it into components, giving each team a pipeline that covers its own code, and why two pipelines uploading against one commit keep both sets of alerts.
+
+**A run can be scoped by what a component is, not only by its name.** `--labels team=web` scans what that team owns, and `--exposure public` or `--criticality critical` scan by the classification a component declares. Values within one flag are alternatives and the flags narrow together, so `--labels team=web --exposure public` is that team's public components. A repository holding many teams' code is the case they exist for: a team knows the label it files under, and a list of component names written out by hand goes stale the first time somebody adds one. A selector that matches nothing is an error rather than an empty run, so a typo or a label somebody moved cannot scan nothing and pass, and the error offers the values that key does have rather than every component name.
+
+**A finding carries its component's labels.** `results.sarif` records them, so a platform holding many components can narrow a list to the ones somebody is answerable for. They are absent from the console, the Markdown report and pull-request comments, which answer what to fix for a reader who already knows the work is theirs.
+
+**An editor explains every value a descriptor field accepts.** Choosing `justification: vulnerable_code_not_present` over `vulnerable_code_not_in_execute_path` is a published claim about your product, and the schema offered five identifiers and explained none of them. Both VEX fields now carry the OpenVEX specification's own words on each value, and so do `allowEffects`, the fifteen report formats, the four SBOM formats, `sbom.scope`, `builtBy` and `operatedBy`. A closed vocabulary that genuinely explains itself, such as `P1` to `P4`, says so in one place rather than being left bare by accident.
+
+`draugr tools outdated` compares every pinned scanner against the version its upstream publishes, as a table or as JSON. A pin moves when a bump has been tested rather than when one appears, so this says what is available without changing anything.
+
+Scanner pins are now proposed by a scheduled job rather than found by hand. It moves one tool at a time, installs it, scans a real project with every control three times against a cold cache, compares the findings with the previous pin, and opens a pull request per tool. Nothing merges itself.
+
+### Changed
+
+A reachability verdict now lowers a finding's priority band only when the analyzer says it followed calls or data to get there. A verdict reached from a framework's routing conventions, from whether a package is imported anywhere, or from an analyzer that does not say how it decided, is reported under the finding and leaves the band where it is.
+
+`draugr doctor` reads like a scan report: its three sections carry the same kind of heading the report uses, the tool table is named like the others, and no line points at another part of the screen. A missing tool or an invalid descriptor is now stated once rather than in a summary and again in the error under it.
+
+Every pinned scanner moves to its current release: Trivy 0.74.0, Syft 1.51.1, Grype 0.118.0, gosec 2.29.0, kube-bench 0.16.0, cosign 3.1.3, Nuclei 3.11.1, govulncheck 1.8.0, Semgrep 1.177.0 and retire.js 5.7.0.
+
+The "Not checked" block now has column headings. A surface is a word you wrote in your own descriptor and a control is one of Draugr's, and for `images`, `hosts` and `repositories` they are spelled the same, so `api images  1 control off: images` said nothing about which was which. The same block is what `doctor` prints, and the one-line form an agent reads over MCP names both vocabularies too.
+
+### Fixed
+
+A `dast` scan no longer fails when Nuclei's template set cannot be refreshed and a copy is already on disk. The set is republished daily from a host a scan does not control, and an egress allowlist, a rate limit or an outage used to stop a gate that had everything it needed. The run says which set it used. With nothing on disk it is still an error, because a scanner that could not run has found nothing.
+
+A key under a control that Draugr does not read is now an error rather than a silent pass. `scanners: [gosec]` was the shape people wrote from memory, since it was a real key until 0.29.0, and it validated clean while gosec never ran. So did `gosec: true`, which reads as enabling a scanner and enables nothing, and so did a misspelled `deny`. Each of those descriptors claimed a decision it was not making, and the run went green either way. A control now declares the settings it takes, so a key that is neither `enabled`, a scanner, nor one of those settings is reported with what it should have been.
+
+**A monorepo's cache survives a commit to one component.** A scan job scoped with `paths:` is now pinned to the content of its own subtree rather than to the repository's commit, so a commit touching one component leaves every other component's cached result valid. Measured on a two-component tree of twelve jobs: a warm run served all twelve, and a commit touching one component previously took that to zero and now takes it to nine. A job that reads the repository's history keeps the commit, because two commits can carry an identical tree and different history; so does a repository Draugr clones from a URL, whose trees it cannot read without fetching.
+
+An editor no longer rejects a license policy that Draugr accepts. `config.controls.licenses.deny` and `warn` are documented and supported, and the published JSON Schema left them out, so a valid descriptor was flagged as invalid at the moment it was typed. Both are in the schema now, with the rest of a control's own settings, because the schema and the validator read one declaration.
+
+`draugr tools install` with no arguments installs what this host can build and skips what it cannot, naming each skipped tool and the command to run once its runtime is there. Three scanners are built from source rather than downloaded, and a machine without Go, Node or Python used to have nine installs refused to report one. Asking for a tool by name still fails if it cannot be installed. `draugr tools list` now names the runtime each of those three needs.
+
+`draugr validate` now warns when a `config.exclude` path names a directory that exists and does not select what is inside it. `tests*` matches the directory entry and `testsuite.go` and nothing under `tests/`, which reads as written and applies to nothing; the warning names the trailing-slash spelling that works.
+
+A `config.exclude` path containing `**` is now refused at validation, naming the trailing-slash form instead. `repositories[].ignore` is unaffected and still crosses separators. The matcher has no `**`, so the second star read as an ordinary wildcard and `tests/**` matched one level down while looking like it matched every level, which is a suppression somebody reviewed and agreed to that covers a fraction of what they think.
+
+The `iac` control could fail with `init Rego scanner: load checks` on a machine whose Trivy cache was cold. Trivy's vulnerability database and its checks bundle are two downloads into one cache directory, and only the first was warmed before a run's config scans started, so they raced to fetch the second and the losers read a bundle still being written. The message reads like a descriptor naming bad Rego and was not.
+
+The reachability summary said "Unknown means the analyzer did not cover it", which named one tool for a state that means no analysis reached a verdict. More than one analyzer can run, and the line now says so.
+
 ## [0.122.0] - 2026-09-13
 
 ### Added
@@ -5657,7 +5703,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.122.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.123.0...HEAD
+[0.123.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.123.0
 [0.122.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.122.0
 [0.121.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.121.1
 [0.121.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.121.0

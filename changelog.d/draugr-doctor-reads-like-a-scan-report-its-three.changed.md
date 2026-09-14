@@ -1,1 +1,0 @@
-`draugr doctor` reads like a scan report: its three sections carry the same kind of heading the report uses, the tool table is named like the others, and no line points at another part of the screen. A missing tool or an invalid descriptor is now stated once rather than in a summary and again in the error under it.

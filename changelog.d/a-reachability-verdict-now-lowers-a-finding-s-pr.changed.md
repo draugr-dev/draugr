@@ -1,1 +1,0 @@
-A reachability verdict now lowers a finding's priority band only when the analyzer says it followed calls or data to get there. A verdict reached from a framework's routing conventions, from whether a package is imported anywhere, or from an analyzer that does not say how it decided, is reported under the finding and leaves the band where it is.

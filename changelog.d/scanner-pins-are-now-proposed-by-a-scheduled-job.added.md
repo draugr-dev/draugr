@@ -1,1 +1,0 @@
-Scanner pins are now proposed by a scheduled job rather than found by hand. It moves one tool at a time, installs it, scans a real project with every control three times against a cold cache, compares the findings with the previous pin, and opens a pull request per tool. Nothing merges itself.

@@ -1,1 +1,0 @@
-The reachability summary said "Unknown means the analyzer did not cover it", which named one tool for a state that means no analysis reached a verdict. More than one analyzer can run, and the line now says so.

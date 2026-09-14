@@ -1,1 +1,0 @@
-`draugr validate` now warns when a `config.exclude` path names a directory that exists and does not select what is inside it. `tests*` matches the directory entry and `testsuite.go` and nothing under `tests/`, which reads as written and applies to nothing; the warning names the trailing-slash spelling that works.
