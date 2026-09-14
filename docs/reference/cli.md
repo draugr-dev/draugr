@@ -102,8 +102,58 @@ all of it.
 
 Logs go to **stderr**, so they never pollute a machine-readable report on stdout.
 
-Telemetry (traces/metrics) is opt-in via standard `OTEL_*` environment variables; it is a
-no-op when unset.
+Telemetry is opt-in and a no-op until an endpoint is set. Draugr exports OpenTelemetry traces and
+metrics over OTLP and reads the standard variables, so anything that already collects OTLP needs
+no Draugr-specific configuration:
+
+| | |
+|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | both signals, e.g. `http://localhost:4318` |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | traces alone, where they go somewhere else |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | metrics alone |
+
+Setting none of them disables both exporters. The rest of the specification's variables, headers,
+TLS, sampling, are read by the SDK and behave as they do everywhere else. Span attributes never
+carry secrets.
+
+---
+
+## Environment
+
+Every variable Draugr reads that you would set yourself. Flags win over variables, and variables
+win over a settings file.
+
+**Behavior**
+
+| | |
+|---|---|
+| `DRAUGR_CONFIG` | the machine or organization settings file to read, instead of the discovered ones |
+| `DRAUGR_OFFLINE` | make no network calls. Equivalent to `--offline` |
+| `DRAUGR_NO_UPDATE_CHECK` | skip the check for a newer release, without disabling the rest of the network |
+| `DRAUGR_NO_TIPS` | suppress the console's contextual tips |
+| `NO_COLOR` | render without color. Honored whatever the terminal reports |
+
+**Credentials.** Each is read at the moment it is needed and never written to a report, a log line,
+a span attribute or a cache key.
+
+| | Used by |
+|---|---|
+| `GITHUB_TOKEN` | `draugr survey github repos`, and the `github` publisher |
+| `GITLAB_TOKEN` | `draugr survey gitlab projects` |
+| `AZURE_DEVOPS_EXT_PAT` | `draugr survey azure repos` |
+| `URLHAUS_AUTH_KEY` | the `urlhaus` scanner, the `threats` default. Free from <https://auth.abuse.ch/> |
+| `VIRUSTOTAL_API_KEY` | the `virustotal` scanner, opt-in under `threats` |
+| `DRAUGR_API_TOKEN`, `DRAUGR_API_URL` | the `draugr-api` publisher |
+
+A descriptor names the variable holding a credential and never the credential: `tokenEnv` on a
+host, for instance. A descriptor is committed, so a token in one is a leaked token.
+
+**Observability**
+
+`OTEL_EXPORTER_OTLP_ENDPOINT` and its per-signal variants, above.
+
+In a pipeline Draugr also reads the CI platform's own variables to work out where it is running
+and which change it is looking at. You do not set those; the platform does.
 
 ---
 
