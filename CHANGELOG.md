@@ -24,9 +24,9 @@ _Nothing yet._
 
 **An editor explains every value a descriptor field accepts.** Choosing `justification: vulnerable_code_not_present` over `vulnerable_code_not_in_execute_path` is a published claim about your product, and the schema offered five identifiers and explained none of them. Both VEX fields now carry the OpenVEX specification's own words on each value, and so do `allowEffects`, the fifteen report formats, the four SBOM formats, `sbom.scope`, `builtBy` and `operatedBy`. A closed vocabulary that genuinely explains itself, such as `P1` to `P4`, says so in one place rather than being left bare by accident.
 
-`draugr tools outdated` compares every pinned scanner against the version its upstream publishes, as a table or as JSON. A pin moves when a bump has been tested rather than when one appears, so this says what is available without changing anything.
+**`draugr tools outdated` says which scanners have moved on without you.** It compares every pinned tool against the version its upstream publishes, as a table or as JSON. A pin moves when a bump has been tested rather than when one appears, so this says what is available without changing anything.
 
-Scanner pins are now proposed by a scheduled job rather than found by hand. It moves one tool at a time, installs it, scans a real project with every control three times against a cold cache, compares the findings with the previous pin, and opens a pull request per tool. Nothing merges itself.
+**A scanner upgrade is proposed by a job that has already tried to break it.** One tool at a time: the pin moves, every tool installs, and a real project is scanned with every control three times against a cold cache, because the failure this guards against is intermittent and needs several scanners racing for one cache directory. The findings are compared with the previous pin and a control that goes quiet stops the bump. One pull request per tool, and nothing merges itself.
 
 ### Changed
 
