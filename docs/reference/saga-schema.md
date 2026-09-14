@@ -261,6 +261,24 @@ config:
 before the scan runs, naming the key it could not honor. That includes the scanners that accept
 nothing: an option a scanner does not read is an error, not a setting that quietly does nothing.
 
+**A control declares its own settings too**, so a key directly under a control is one of exactly
+three things: `enabled`, a scanner's block, or a setting the control takes. Anything else is
+rejected, whatever shape its value has.
+
+```console
+$ draugr validate draugr.saga.yaml
+draugr: config.controls.sast: scanners are enabled under their own name, not in a list. Write `config.controls.sast.<scanner>.enabled: true` (it has gosec or semgrep)
+
+run `draugr controls` to see what this build provides
+```
+
+The shapes that used to be accepted and do nothing: a list of scanner names, a scanner given a
+value rather than a block (`gosec: true` enables nothing, because only a block is read), and a
+misspelled setting. Each produced a descriptor that claimed a decision it was not making.
+
+`licenses` is the control that takes settings of its own, `deny` and `warn`; the rest take none
+beyond their scanners'.
+
 **Which scanners take options, and which take only `enabled`:**
 
 | Scanner | Options |

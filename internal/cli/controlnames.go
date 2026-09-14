@@ -44,6 +44,20 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 		problems = append(problems, msg)
 	}
 
+	// The settings each control takes itself, as distinct from the ones its scanners take. A key
+	// that is one of these is a setting; a key that is neither this nor a scanner is a mistake,
+	// whatever shape its value has.
+	optionsFor := map[string]map[string]bool{}
+	for _, c := range reg.Controllers() {
+		info := c.Info()
+		for _, opt := range plugin.Options(info.OptionSchema) {
+			if optionsFor[info.Name] == nil {
+				optionsFor[info.Name] = map[string]bool{}
+			}
+			optionsFor[info.Name][opt.Name] = true
+		}
+	}
+
 	// Which scanners serve each control, by the key a descriptor writes them under.
 	keysFor := map[string]map[string]bool{}
 	scannerForKey := map[string]map[string]plugin.ScannerInfo{}
@@ -76,18 +90,15 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			return // the control itself is already reported; its keys would be noise
 		}
 		for _, key := range sortedKeys(settings) {
-			if key == "enabled" || keysFor[control][key] {
+			if key == "enabled" || keysFor[control][key] || optionsFor[control][key] {
 				continue
 			}
-			// A scanner block is a mapping; a scalar is a control-level option and not this check's
-			// business. YAML decodes the nested mapping as saga.ControllerSettings rather than a bare map,
-			// so both shapes are accepted, asserting only the bare one is why the first version of this
-			// check silently matched nothing.
-			switch settings[key].(type) {
-			case saga.ControllerSettings, map[string]any:
-			default:
-				continue
-			}
+			// Every remaining key is unaccounted for, whatever its value looks like. Shape used to
+			// decide this: a mapping was a scanner block and anything else was assumed to be a
+			// control-level option. That assumption is what let a list through, so
+			// `scanners: [gosec]` validated clean and gosec never ran, which is a descriptor
+			// claiming a decision it is not making. Controls now declare the settings they take,
+			// so the assumption is no longer needed.
 			if analyzer, ok := analyzerKeys[key]; ok {
 				// Names something real, in the wrong place. Saying so beats "not a scanner",
 				// which sends the reader looking for a typo they did not make.
@@ -97,9 +108,22 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 					where, control, key, analyzer))
 				continue
 			}
-			problems = append(problems, fmt.Sprintf(
-				"%s.%s: %q is not a scanner of the %q control (it has %s)",
-				where, control, key, control, list(sortedKeys(keysFor[control]))))
+			if key == "scanners" {
+				// A real key until 0.29.0, and still the natural guess, so it is worth answering
+				// with the shape rather than with "not a scanner", which reads as a typo the
+				// reader did not make.
+				problems = append(problems, fmt.Sprintf(
+					"%s.%s: scanners are enabled under their own name, not in a list. "+
+						"Write `%s.%s.<scanner>.enabled: true` (it has %s)",
+					where, control, where, control, list(sortedKeys(keysFor[control]))))
+				continue
+			}
+			msg := fmt.Sprintf("%s.%s: %q is not a scanner of the %q control (it has %s)",
+				where, control, key, control, list(sortedKeys(keysFor[control])))
+			if opts := sortedKeys(optionsFor[control]); len(opts) > 0 {
+				msg += fmt.Sprintf(", nor one of its settings (%s)", list(opts))
+			}
+			problems = append(problems, msg)
 		}
 		// And what the block says, not only whose block it is. The engine checks this again when
 		// it plans the run, but by then the descriptor has been accepted by `draugr validate`,
@@ -112,6 +136,12 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			}
 			block, ok := blockOf(settings[key])
 			if !ok {
+				// A scanner is configured by a block, and only a block is read. `gosec: true`
+				// reads as "enable gosec" and enables nothing, which is the same silence as a
+				// misspelled key arriving by a different route.
+				problems = append(problems, fmt.Sprintf(
+					"%s.%s.%s: a scanner is configured with a block, not a value. "+
+						"Write `%s: { enabled: true }`", where, control, key, key))
 				continue
 			}
 			cfg := plugin.Config{}

@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"encoding/json"
+
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -35,6 +37,18 @@ type ControllerInfo struct {
 	// additional opt-in scanners, turned on with controls.<name>.<scanner>.enabled; those are
 	// discovered from the registry rather than listed here.
 	DefaultScanners []string
+	// OptionSchema is a JSON Schema for the settings the control itself takes, as distinct from
+	// the ones its scanners take. Empty for a control that takes none, which is most of them.
+	//
+	// A key under a control is one of three things: `enabled`, a scanner's block, or an option
+	// like this. The first two are known from the registry; without this the third cannot be
+	// told from a typo, so either every unrecognized key is accepted, which is how a descriptor
+	// comes to claim a decision it is not making, or every one is rejected, which breaks the
+	// controls that legitimately take settings of their own.
+	//
+	// Declared the same way a scanner declares its options, so `draugr validate`, the published
+	// JSON Schema and an editor's completion all read one source and cannot disagree.
+	OptionSchema json.RawMessage
 }
 
 // ScanJob is a unit of scan work produced by a controller's Plan.

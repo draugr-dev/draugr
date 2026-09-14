@@ -147,14 +147,62 @@ func TestCheckControlNamesAcceptsRealScannerKeys(t *testing.T) {
 	}
 }
 
-func TestCheckControlNamesIgnoresScalarOptions(t *testing.T) {
-	// A scalar under a control is a control-level option, not a scanner block, and this check
-	// has no opinion about it.
+func TestCheckControlNamesAcceptsTheOptionsAControlDeclares(t *testing.T) {
+	// `deny` and `warn` belong to the licenses control rather than to either of its scanners,
+	// and both are lists. Nothing about their shape marks them as settings, so the control
+	// declares them and this check reads that declaration.
 	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
-		"licenses": {"enabled": true, "forbidden": []any{"GPL-3.0-only"}, "threshold": "warn"},
+		"licenses": {"enabled": true, "deny": []any{"AGPL-3.0-only"}, "warn": []any{"MPL-2.0"}},
 	}}}
 	if err := checkControlNames(builtins.Registry(), m); err != nil {
-		t.Errorf("a scalar option was treated as a scanner: %v", err)
+		t.Errorf("a declared control option was rejected: %v", err)
+	}
+}
+
+func TestCheckControlNamesRejectsAKeyThatIsNeitherScannerNorOption(t *testing.T) {
+	// Shape used to decide this, and a list was assumed to be a control-level option. So a key
+	// that named nothing at all was accepted, and the descriptor claimed a decision it was not
+	// making.
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"licenses": {"enabled": true, "forbidden": []any{"GPL-3.0-only"}},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("a key that is neither a scanner nor a setting was accepted")
+	}
+	for _, want := range []string{"forbidden", "trivyLicense", "deny"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should name %q so the reader can see both lists: %v", want, err)
+		}
+	}
+}
+
+func TestCheckControlNamesRejectsAScannerList(t *testing.T) {
+	// `controllers.<control>.scanners` was a real key until 0.29.0 and is still the natural
+	// guess. It validated clean and enabled nothing.
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"sast": {"enabled": true, "scanners": []any{"gosec"}},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("a list of scanner names was accepted and would have run none of them")
+	}
+	if !strings.Contains(err.Error(), "under their own name") {
+		t.Errorf("error should say what to write instead: %v", err)
+	}
+}
+
+func TestCheckControlNamesRejectsAScannerGivenAValue(t *testing.T) {
+	// `gosec: true` reads as "enable gosec" and enables nothing, because only a block is read.
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"sast": {"enabled": true, "gosec": true},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("a scanner given a scalar was accepted and would not have run")
+	}
+	if !strings.Contains(err.Error(), "enabled: true") {
+		t.Errorf("error should show the block form: %v", err)
 	}
 }
 
