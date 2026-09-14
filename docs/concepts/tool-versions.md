@@ -88,6 +88,29 @@ cannot be applied on your platform, the install falls back to an unpinned resolv
 because a pin that only holds on the maintainer's machine would make the tool uninstallable
 everywhere else.
 
+## How a pin moves
+
+A scheduled job asks the same question `draugr tools outdated` does, and for each tool that is
+behind it moves the pin, then tries to break it:
+
+- every tool installed for real at the new version and checksum-verified;
+- a full scan of every control against a live project, **three times against a cold cache**;
+- the findings compared with what the previous pin produced.
+
+It opens one pull request per tool, with that comparison in the body, and merges nothing.
+
+**Three cold runs rather than one, and the reason is worth knowing if you run scanners
+concurrently yourself.** A scanner release once broke a control only when several tools raced for
+one cache directory on a machine that had never run them, in roughly one run in three. The hashes
+were right, the unit tests passed, and a single warm scan proved none of it.
+
+**A difference in findings is not automatically wrong.** A scanner release changes what it reports,
+and a threshold that failed on every real improvement would be one people route around. A control
+that reported findings before and reports none after is different, and stops the bump.
+
+Only the platform CI runs on is exercised. The other three are pinned by hash and unrun, which is
+the next bullet.
+
 ## What a pin does not cover
 
 - **The data the tool reads.** A vulnerability database, a rule pack and a template set are

@@ -1,0 +1,234 @@
+# Propose a pinned scanner upgrade, once it has been shown to still work.
+#
+# A pin is not a version somebody forgot to update. It is the build Draugr checksum-verified and
+# ran a scan with, so it moves when a bump has been tested rather than when one appears. Everything
+# below exists to make "has been tested" mean something more than "the hashes matched".
+#
+# The shape is one pull request per tool. A single branch carrying ten bumps that fails tells
+# nobody which tool broke, and reverting it takes the nine that were fine with it.
+#
+# Nothing here merges anything. A scanner writing to somebody's machine at a new version is a
+# decision a person makes.
+name: Tool bump
+
+on:
+  schedule:
+    # Weekly rather than daily. A scanner release is not an emergency, and a pull request nobody
+    # has time to read is one people learn to close unread, which is worse than not opening it.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      tool:
+        description: "One tool, instead of everything that is behind"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # What is behind, asked by Draugr itself rather than by a script written here. `tools outdated`
+  # is the same code a person runs, so the answer a pull request is opened on is the answer they
+  # would have got, and there is no second implementation of release-API handling to keep true.
+  behind:
+    name: What is behind
+    runs-on: ubuntu-latest
+    outputs:
+      tools: ${{ steps.pick.outputs.tools }}
+      any: ${{ steps.pick.outputs.any }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26"
+          cache: true
+
+      - name: Ask Draugr what is behind
+        id: pick
+        env:
+          ONLY: ${{ inputs.tool }}
+          # The listings are public and unauthenticated requests are rate-limited per runner IP,
+          # which is shared. The job's own token lifts that and reaches nothing else.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          go run ./cmd/draugr tools outdated --json > /tmp/outdated.json
+          if [ -n "$ONLY" ]; then
+            list=$(jq -c --arg t "$ONLY" '[.[] | select(.tool == $t) | .tool]' /tmp/outdated.json)
+          else
+            list=$(jq -c '[.[] | select(.behind) | .tool]' /tmp/outdated.json)
+          fi
+          echo "tools=$list" >> "$GITHUB_OUTPUT"
+          echo "any=$(jq -r 'length > 0' <<<"$list")" >> "$GITHUB_OUTPUT"
+          jq -r '.[] | select(.error) | "could not ask \(.tool): \(.error)"' /tmp/outdated.json
+
+  # One tool, bumped and then made to prove itself. `fail-fast: false` because these are
+  # independent proposals and one bad release should not withdraw the others.
+  propose:
+    name: ${{ matrix.tool }}
+    needs: behind
+    if: needs.behind.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        tool: ${{ fromJSON(needs.behind.outputs.tools) }}
+    steps:
+      # Not GITHUB_TOKEN: GitHub raises no workflow-starting event for anything it did, so a pull
+      # request opened with it would sit with no checks having run on it, which is the opposite of
+      # what this workflow is for.
+      - name: Mint an installation token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.app.outputs.token }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26"
+          cache: true
+
+      # The sandbox the scan runs against, and the thing every measurement below is taken over.
+      - name: Check out the demo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: draugr-dev/draugr-demo
+          path: demo
+
+      # What the current pins report, before anything moves. A bump that changes what a scanner
+      # finds is the failure worth catching: a tool that silently stops reporting passes every
+      # check that only asks whether it ran.
+      - name: Measure the scan on the pinned versions
+        id: before
+        env:
+          BASE: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          go build -o /tmp/draugr-before ./cmd/draugr
+          /tmp/draugr-before tools install -y
+          /tmp/draugr-before feeds update
+          cd demo
+          /tmp/draugr-before scan --format json --output /tmp/before.json --allow-scan-errors || true
+          jq -S '[.findings[] | {control, rule, severity}] | group_by(.control)
+                 | map({control: .[0].control, n: length})' /tmp/before.json > /tmp/before-shape.json
+          cat /tmp/before-shape.json
+
+      - name: Move the pin
+        id: bump
+        env:
+          TOOL: ${{ matrix.tool }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          set -euo pipefail
+          go run ./internal/tools/cmd/pinbump "$TOOL" | tee /tmp/bump.txt
+          version=$(go run ./cmd/draugr tools outdated --json \
+            | jq -r --arg t "$TOOL" '.[] | select(.tool == $t) | .pinned')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # The entry belongs to the change, so it is written with it. A bump that reaches a
+          # release with nothing in the notes is one users find by reading a diff.
+          ./scripts/changelog.sh add changed <<EOF
+          $TOOL moves to $version.
+          EOF
+
+      - name: Unit tests and the repository's own gate
+        run: make gate
+
+      # The half a hash cannot tell you. Every tool installed for real at the new pin, then a full
+      # scan of every control, three times against a cold cache.
+      #
+      # Cold and repeated deliberately. The failure this is built for was intermittent and only
+      # appeared with several scanners racing for one cache directory on a machine that had never
+      # run them: hashes correct, unit tests green, and one control erroring in roughly one run in
+      # three. A single warm run proves none of that.
+      - name: Install the new pin and scan, three times, cold
+        id: after
+        run: |
+          set -euo pipefail
+          go build -o /tmp/draugr-after ./cmd/draugr
+          /tmp/draugr-after tools install -y --force
+          /tmp/draugr-after feeds update
+          cd demo
+          for run in 1 2 3; do
+            rm -rf "$HOME/.cache/trivy" "$HOME/.cache/grype" "$HOME/nuclei-templates"
+            echo "::group::cold run $run"
+            /tmp/draugr-after scan --format json --output "/tmp/after-$run.json" --allow-scan-errors
+            # A control that could not run has found nothing, and a bump that leaves one erroring
+            # is not a bump to propose however clean the rest of the report is.
+            if jq -e '[.controls[] | select(.status == "error")] | length > 0' "/tmp/after-$run.json" >/dev/null; then
+              echo "::error::a control errored on cold run $run with the new pin"
+              jq -r '.controls[] | select(.status == "error") | "\(.name): \(.error)"' "/tmp/after-$run.json"
+              exit 1
+            fi
+            echo "::endgroup::"
+          done
+          jq -S '[.findings[] | {control, rule, severity}] | group_by(.control)
+                 | map({control: .[0].control, n: length})' /tmp/after-1.json > /tmp/after-shape.json
+
+      # A tool that finds nothing where it used to find plenty has broken in the way that looks
+      # like success. Reported rather than enforced: a scanner release genuinely changes what it
+      # reports, and a threshold that fails on every real improvement is one people route around.
+      - name: What the bump changed about the findings
+        id: diff
+        run: |
+          set -euo pipefail
+          echo "| control | before | after |" > /tmp/shape.md
+          echo "|---|---|---|" >> /tmp/shape.md
+          jq -r -s '
+            (.[0] | map({(.control): .n}) | add // {}) as $b |
+            (.[1] | map({(.control): .n}) | add // {}) as $a |
+            (($b | keys) + ($a | keys) | unique)[] |
+            "| \(.) | \($b[.] // 0) | \($a[.] // 0) |"
+          ' /tmp/before-shape.json /tmp/after-shape.json >> /tmp/shape.md
+          cat /tmp/shape.md
+          # Loud where a control stopped reporting entirely, which is the one shape that is always
+          # a defect rather than a difference of opinion between two scanner releases.
+          if jq -r -s '
+            (.[0] | map({(.control): .n}) | add // {}) as $b |
+            (.[1] | map({(.control): .n}) | add // {}) as $a |
+            [($b | keys)[] | select(($b[.] > 0) and (($a[.] // 0) == 0))] | join(" ")
+          ' /tmp/before-shape.json /tmp/after-shape.json | grep -q '[a-z]'; then
+            echo "::error::a control reported findings before the bump and none after"
+            exit 1
+          fi
+
+      - name: Open the pull request
+        env:
+          TOOL: ${{ matrix.tool }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          set -euo pipefail
+          branch="bump/$TOOL-$VERSION"
+          git config user.name "Wilson Santos"
+          git config user.email "wilson@draugr.dev"
+          git checkout -b "$branch"
+          git add internal/tools changelog.d
+          git commit -m "Pin $TOOL at $VERSION" -m "$(cat /tmp/bump.txt)"
+          git push -u origin "$branch"
+          {
+            echo "\`$TOOL\` moves to **$VERSION**. Every hash is of the bytes at the URL beside it."
+            echo
+            echo "## What was run against it"
+            echo
+            echo "- \`make gate\`"
+            echo "- every tool installed for real at the new pin and checksum-verified"
+            echo "- a full scan of the demo, **three times against a cold cache**, with no control erroring"
+            echo
+            echo "## What it changed about the findings"
+            echo
+            cat /tmp/shape.md
+            echo
+            echo "A difference here is not automatically wrong: a scanner release changes what it"
+            echo "reports. A control dropping to zero is, and fails this job rather than reaching here."
+            echo
+            echo "Only linux/amd64 was exercised. The other three platforms are pinned by hash and unrun."
+          } > /tmp/body.md
+          gh pr create --title "Pin $TOOL at $VERSION" --body-file /tmp/body.md
