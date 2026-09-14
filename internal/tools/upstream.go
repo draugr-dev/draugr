@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -155,12 +156,26 @@ func getJSON(ctx context.Context, client *http.Client, url string, into any) err
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "draugr")
+	// GitHub rate-limits by source address for an unauthenticated caller, and a CI runner shares
+	// its address with everybody else on the pool. A token here reads public release listings and
+	// nothing else; the variable is the one every CI already sets, and its absence is ordinary.
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" && strings.HasPrefix(url, githubAPI) {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
+		// A rate limit answers 403 like a refusal does, and the two need different things from
+		// the reader: one is waiting or a token, the other is a URL that is wrong. GitHub tells
+		// them apart in a header, so this does too rather than leaving "403 Forbidden" to mean
+		// both.
+		if resp.Header.Get("X-RateLimit-Remaining") == "0" {
+			return fmt.Errorf("%s rate-limited this machine; it resets shortly, or set "+
+				"GITHUB_TOKEN to raise the limit", hostOf(url))
+		}
 		return fmt.Errorf("%s answered %s", url, resp.Status)
 	}
 	// A truncated body decodes as a JSON error, which reads as an upstream that answered badly
@@ -174,6 +189,17 @@ func getJSON(ctx context.Context, client *http.Client, url string, into any) err
 			"listing should be", url, maxMetadataForTest)
 	}
 	return json.Unmarshal(body, into)
+}
+
+// githubAPI is where a token is worth sending, and nowhere else is.
+const githubAPI = "https://api.github.com/"
+
+// hostOf names the service in a message, because the full URL is Draugr's business and the reader
+// needs to know which upstream went quiet.
+func hostOf(url string) string {
+	rest := strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "http://")
+	host, _, _ := strings.Cut(rest, "/")
+	return host
 }
 
 // maxMetadataBytes caps a release listing.

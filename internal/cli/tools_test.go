@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -825,5 +826,40 @@ func TestRunToolsInstallAllStillFailsOnAnOrdinaryError(t *testing.T) {
 	}
 	if err := runToolsInstall(&out, nil, nil, toolsInstallOptions{yes: true}, install); err == nil {
 		t.Fatal("a checksum mismatch in the batch reported success")
+	}
+}
+
+// The JSON is what a pipeline gates on, and it reported success while every upstream was
+// unreachable. "Could not reach npm" read as "current", which is the one confusion this format
+// exists to prevent and the table mode already avoided.
+func TestToolsOutdatedJSONFailsWhenAnUpstreamCouldNotBeAsked(t *testing.T) {
+	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:1")
+	t.Setenv("HTTP_PROXY", "http://127.0.0.1:1")
+	var out bytes.Buffer
+	err := runToolsOutdated(context.Background(), &out, true)
+	if err == nil {
+		t.Fatal("every upstream unreachable and the exit code said success")
+	}
+	// The rows are written even so, because a pipeline wants both the reasons and the failure.
+	var rows []struct {
+		Tool   string `json:"tool"`
+		Behind bool   `json:"behind"`
+		Error  string `json:"error"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &rows); err != nil {
+		t.Fatalf("the document was not written: %v\n%s", err, out.String())
+	}
+	if len(rows) == 0 {
+		t.Fatal("no rows")
+	}
+	for _, r := range rows {
+		if r.Error == "" {
+			t.Errorf("%s reports no error though nothing could be reached", r.Tool)
+		}
+		// The trap this documents: unreachable and current are both `behind: false`, so a
+		// consumer reading that field alone cannot tell them apart.
+		if r.Behind {
+			t.Errorf("%s is marked behind on an answer nobody got", r.Tool)
+		}
 	}
 }

@@ -41,7 +41,9 @@ Nothing is downloaded and nothing on disk changes. **Being behind is not a fault
 command exits zero when tools are behind; it exits non-zero only where an upstream could not be
 asked, because a network that refused is a different answer from "current".
 
-`--json` gives the same comparison for a pipeline to read.
+`--json` gives the same comparison for a pipeline to read. A tool that could not be asked carries
+`error` there and has `behind: false`, the same value a current tool has, so a consumer checks
+`error` rather than `behind` alone.
 
 ## Running a version Draugr has not pinned
 

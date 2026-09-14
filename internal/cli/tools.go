@@ -75,16 +75,28 @@ func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool) error {
 			Error  string `json:"error,omitempty"`
 		}
 		out := make([]row, 0, len(drift))
+		var unreachable int
 		for _, d := range drift {
 			r := row{Tool: d.Tool, Pinned: d.Pinned, Latest: d.Latest, Behind: d.Behind()}
 			if d.Err != nil {
 				r.Error = d.Err.Error()
+				unreachable++
 			}
 			out = append(out, r)
 		}
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		if err := enc.Encode(out); err != nil {
+			return err
+		}
+		// The document is written first and the failure reported after, so a pipeline gets both
+		// the rows and the exit code. Without the second, the one consumer this format exists for
+		// reads "could not reach npm" as "current", which is the confusion `Drift.Err` is shaped
+		// to prevent and the table mode already avoids.
+		if unreachable > 0 {
+			return fmt.Errorf("%d tool(s) could not be compared", unreachable)
+		}
+		return nil
 	}
 
 	col := tui.For(w)
@@ -111,10 +123,14 @@ func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool) error {
 
 	// A pin is not a version somebody forgot to update. It is the build Draugr verified, so the
 	// line says what being behind means rather than implying the reader is late.
-	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, fmt.Sprintf(
-		"%d of %d behind the version their upstream publishes. A pin is the build Draugr "+
-			"checksum-verified, so it moves when a bump has been tested, not when one appears.",
-		behind, len(drift))))
+	// Counted over what answered, not over everything. "0 of 11 behind" beside two rows that
+	// could not be reached reads as a clean bill of health for tools nobody asked about.
+	line := fmt.Sprintf("%d of %d behind the version their upstream publishes.",
+		behind, len(drift)-unknown)
+	if unknown > 0 {
+		line += fmt.Sprintf(" %s could not be asked.", plural(unknown, "tool"))
+	}
+	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, line))
 	if unknown > 0 {
 		return fmt.Errorf("%d tool(s) could not be compared", unknown)
 	}
