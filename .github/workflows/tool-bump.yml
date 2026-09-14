@@ -132,6 +132,15 @@ jobs:
           version=$(go run ./cmd/draugr tools outdated --json \
             | jq -r --arg t "$TOOL" '.[] | select(.tool == $t) | .pinned')
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          # A tool named by hand is often one that is already current, and a run that scans for
+          # twenty minutes and then fails on an empty commit says nothing about why. Answered
+          # here, where the answer is one line and costs nothing.
+          if git diff --quiet; then
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$TOOL is already at $version; nothing to propose"
+            exit 0
+          fi
+          echo "moved=true" >> "$GITHUB_OUTPUT"
           # The entry belongs to the change, so it is written with it. A bump that reaches a
           # release with nothing in the notes is one users find by reading a diff.
           ./scripts/changelog.sh add changed <<EOF
@@ -139,6 +148,7 @@ jobs:
           EOF
 
       - name: Unit tests and the repository's own gate
+        if: steps.bump.outputs.moved == 'true'
         run: make gate
 
       # The half a hash cannot tell you. Every tool installed for real at the new pin, then a full
@@ -149,6 +159,7 @@ jobs:
       # run them: hashes correct, unit tests green, and one control erroring in roughly one run in
       # three. A single warm run proves none of that.
       - name: Install the new pin and scan, three times, cold
+        if: steps.bump.outputs.moved == 'true'
         id: after
         run: |
           set -euo pipefail
@@ -176,6 +187,7 @@ jobs:
       # like success. Reported rather than enforced: a scanner release genuinely changes what it
       # reports, and a threshold that fails on every real improvement is one people route around.
       - name: What the bump changed about the findings
+        if: steps.bump.outputs.moved == 'true'
         id: diff
         run: |
           set -euo pipefail
@@ -200,6 +212,7 @@ jobs:
           fi
 
       - name: Open the pull request
+        if: steps.bump.outputs.moved == 'true'
         env:
           TOOL: ${{ matrix.tool }}
           VERSION: ${{ steps.bump.outputs.version }}
