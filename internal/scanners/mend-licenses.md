@@ -1,3 +1,10 @@
+---
+title: "mend-licenses"
+description: "Dependency license findings from Mend, for organizations that already pay for it. Opt-in, and it uploads your dependency inventory."
+section: Scanners
+order: 110
+---
+
 # `mend-licenses`
 
 Dependency license reporting by [Mend](https://www.mend.io), for the `licenses` control.

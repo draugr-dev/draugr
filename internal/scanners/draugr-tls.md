@@ -1,3 +1,10 @@
+---
+title: "draugr-tls"
+description: "Probes an endpoint's certificate, protocol versions and key strength. Native, seconds per host, nothing to install."
+section: Scanners
+order: 30
+---
+
 # Scanner: `draugr-tls` (native TLS configuration probe)
 
 - **Control:** [`tls`](../controllers/tls.md)
@@ -55,8 +62,7 @@ license. It uses the Go standard library's `crypto/tls` and `crypto/x509`.
 
 ## Why native rather than testssl.sh
 
-[testssl.sh](https://testssl.sh) is the reference tool for deep TLS auditing, and
-[#56](https://github.com/draugr-dev/draugr/issues/56) originally proposed it. It's a poor fit as
+[testssl.sh](https://testssl.sh) is the reference tool for deep TLS auditing, and a poor fit as
 the *default* engine:
 
 - it's a **bash script plus a data directory**, not a single binary, so it doesn't fit Draugr's

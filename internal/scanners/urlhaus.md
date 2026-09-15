@@ -1,3 +1,10 @@
+---
+title: "urlhaus"
+description: "Asks abuse.ch whether a host is already known to serve malware. The default for the threats control, and it sends the hostname."
+section: Scanners
+order: 200
+---
+
 # `urlhaus` scanner
 
 Asks [abuse.ch URLhaus](https://urlhaus.abuse.ch/) whether a host is known to serve malware.

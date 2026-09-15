@@ -1,3 +1,10 @@
+---
+title: "draugr-headers"
+description: "Evaluates a response's security headers against OWASP guidance, tuned by host type. Native, no external tool."
+section: Scanners
+order: 10
+---
+
 # Scanner: `draugr-headers` (HTTP security headers)
 
 - **Control:** [`headers`](../controllers/headers.md)
@@ -73,9 +80,9 @@ library rather than an exec-able binary, and Draugr executes tools rather than l
   control (only network reachability to the hosts).
 - The control talks to a scanner by name, so a tool-backed alternative (e.g. OWASP ZAP passive
   rules, Mozilla HTTP Observatory) could serve the same control later without changing callers.
-- Making the ruleset **org-configurable** (required headers, per-header severity, exemptions,
-  expected values) is a follow-up that will consume the `draugr.config.yaml`
-  `controllers.headers` layer ([#129](https://github.com/draugr-dev/draugr/issues/129)).
+- The ruleset is OWASP's and is not configurable per organization. A header you have decided not
+  to set is accepted the way any other finding is, with [`config.exclude`](../../docs/reference/saga-schema.md#configexclude)
+  and a reason.
 
 ## Data
 

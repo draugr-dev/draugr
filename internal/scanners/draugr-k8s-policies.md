@@ -1,3 +1,10 @@
+---
+title: "draugr-k8s-policies"
+description: "Evaluates the CIS Benchmark's policies section against a live cluster through the Kubernetes API. Native, and the default for the infrastructure control."
+section: Scanners
+order: 20
+---
+
 # Scanner: `draugr-k8s-policies` (CIS policies section, natively)
 
 - **Control:** [`infrastructure`](../controllers/infrastructure.md)
@@ -46,8 +53,7 @@ Speed is the visible reason. Two others matter more:
   blunt instrument for correlating roles, bindings and pod specs.
 - **Namespace scoping becomes possible at all.** kube-bench's queries carry `--all-namespaces`
   inside its config, with no flag to change it, so a team on a shared cluster cannot ask about
-  the namespaces it owns. See
-  [#407](https://github.com/draugr-dev/draugr/issues/407).
+  the namespaces it owns.
 
 ## Coverage, stated rather than implied
 
@@ -114,10 +120,10 @@ directions. A check added upstream and missing here is never reported at all, so
 less than the benchmark and says nothing about it. A check retired upstream but left here is
 reported forever, sending a reader after a requirement that no longer exists.
 
-`TestCISCatalogMatchesKubeBench` diffs the catalog against kube-bench's own definitions and fails on
-either, naming the check. It runs in the integration suite, which fetches those definitions at a
-pinned commit. The tag is verified against it, because a benchmark that changed under a stable tag
-is precisely what the check exists to notice.
+A test diffs the catalog against kube-bench's own definitions and fails on either drift, naming
+the check. It runs in the integration suite against those definitions at a pinned commit, and the
+tag is verified against them, because a benchmark that changed under a stable tag is precisely what
+the check exists to notice.
 
 The pin is kept in step with the image the in-cluster Job runs, so **bumping kube-bench is when a
 benchmark revision is discovered**, rather than some later scan quietly covering the wrong thing.
@@ -185,8 +191,8 @@ nothing in the section is evaluated, and saying so once is unambiguous where fif
 identical "review this yourself" entries would bury the findings that came from an actual
 assessment.
 
-The counts are held to kube-bench's own definitions by `TestManagedServicesCountsMatchKubeBench`, a
-number that drifts understates the very thing it exists to disclose.
+The counts are held to kube-bench's own definitions by a test, because a number that drifts
+understates the very thing it exists to disclose.
 
 ## What the report says about the run
 
@@ -249,7 +255,6 @@ run until they are accepted.
 ## Links
 
 - CIS Kubernetes Benchmark: https://www.cisecurity.org/benchmark/kubernetes
-- Native implementation tracking issue: https://github.com/draugr-dev/draugr/issues/389
 
 ## Notes
 

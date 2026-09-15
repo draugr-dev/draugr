@@ -1,3 +1,10 @@
+---
+title: "grype"
+description: "A second opinion on container image vulnerabilities, alongside or instead of Trivy."
+section: Scanners
+order: 70
+---
+
 # Scanner: `grype`
 
 - **Control:** `images`

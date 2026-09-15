@@ -1,3 +1,10 @@
+---
+title: "kube-bench"
+description: "Audits a cluster against the CIS Kubernetes Benchmark by shelling out to kubectl. Opt-in."
+section: Scanners
+order: 90
+---
+
 # Scanner: `kube-bench` (CIS Kubernetes Benchmark)
 
 - **Control:** [`infrastructure`](../controllers/infrastructure.md)
@@ -17,9 +24,9 @@ kube-bench run --json --targets policies [--version <cluster version>] [--config
 and converts the result to SARIF. `--version` is supplied for a vanilla cluster and deliberately
 withheld for a managed one. See [choosing the benchmark](#draugr-chooses-the-benchmark).
 
-**JSON rather than SARIF**: kube-bench has no SARIF output, so the conversion is ours. This is
-the second such scanner after [`trivy-license`](trivy-license.md), and the reason
-`tooladapter.Config` has a `Parse` hook.
+**JSON rather than SARIF**: kube-bench has no SARIF output, so the conversion is ours. It is the
+second such scanner after [`trivy-license`](trivy-license.md), which is why a tool adapter can
+declare a parser of its own rather than assuming SARIF.
 
 ## Draugr points it at the right cluster
 
@@ -55,7 +62,8 @@ or `benchmark` to override.
 
 ### On a managed cluster, supplying the version is the wrong move
 
-kube-bench chooses like this ([`cmd/common.go`](https://github.com/aquasecurity/kube-bench/blob/main/cmd/common.go), `getBenchmarkVersion`):
+kube-bench chooses like this, in
+[its own benchmark resolution](https://github.com/aquasecurity/kube-bench/blob/main/cmd/common.go):
 
 ```go
 if isEmpty(benchmarkVersion) && isEmpty(kubeVersion) && !isEmpty(platform.Name) {
@@ -184,9 +192,9 @@ serves both.
 
 `kubeBenchJob` is the answer to both where a privileged pod is permitted. Where it is not, a
 namespace enforcing the restricted Pod Security Standard will reject it, this mode is what runs, and
-11 automated advisory checks beat nothing. Implementing the section natively against the Kubernetes
-API would fix the speed, drop the `kubectl` dependency, and make more of the 34 decidable than a
-shell pipeline can: [#389](https://github.com/draugr-dev/draugr/issues/389).
+11 automated advisory checks beat nothing. [`draugr-k8s-policies`](draugr-k8s-policies.md) answers
+the same section against the Kubernetes API instead, which is faster, needs no `kubectl`, and
+decides more of the 34 than a shell pipeline can. It is the default.
 
 ## Mapping
 
@@ -235,14 +243,13 @@ descriptor said nothing.
 
 - Integration mode: **exec**. `kube-bench` and `kubectl` must both be on `PATH`, and the
   kubeconfig must reach the cluster. Both are declared, so `draugr doctor` reports either as
-  missing before a scan rather than after. `draugr tools install` does not yet fetch them,
-  [#386](https://github.com/draugr-dev/draugr/issues/386).
+  missing before a scan rather than after. Neither is fetched by `draugr tools install`, so both
+  are yours to provide.
 - **The kubectl requirement is kube-bench's, not Draugr's.** Its section 5 checks are shell
-  scripts that invoke kubectl; exec'ing the tool means exec'ing kubectl. Implementing those
-  checks natively against the Kubernetes API is
-  [#389](https://github.com/draugr-dev/draugr/issues/389).
-- Running the node-level sections needs kube-bench inside the cluster as a Job,
-  [#388](https://github.com/draugr-dev/draugr/issues/388).
+  scripts that invoke kubectl; exec'ing the tool means exec'ing kubectl.
+  [`draugr-k8s-policies`](draugr-k8s-policies.md) reads the API directly and needs neither.
+- Running the node-level sections needs kube-bench inside the cluster as a Job, which is what
+  [`kube-bench-job`](kube-bench-job.md) does.
 - Findings are located at the cluster (`kubernetes/<ref>`), not a file. That is what was
   assessed.
 - kube-bench ships its own `cfg/` benchmark definitions and looks for them in
