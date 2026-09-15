@@ -82,6 +82,9 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 	if varyingScope {
 		headers = []string{"Control", "Scope", "Scanners", "Purpose"}
 	}
+	// The first block was the one with no heading, which made the two that had one read as asides
+	// to it rather than as its equals.
+	_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, "CONTROLS"))
 	t := tui.NewTable(col, headers...)
 	optIn := false
 	for _, ctrl := range reg.Controllers() {
@@ -210,7 +213,14 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry, only strin
 	if len(rows) == 0 {
 		return
 	}
-	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleAccent, "Scanners that do more than read:"))
+	// Named the way a report names a section, and in one word. Three blocks here carried three
+	// heading styles, one of them none at all, so a reader met the same idea spelled three ways
+	// in one screen.
+	//
+	// Muted rather than accent: the accent is the color of the act the product is recommending,
+	// and a heading recommends nothing. What is worth reading in this block is the row.
+	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted, "EFFECTS")+
+		col.Paint(tui.StyleMuted, "  (scanners that do more than read)"))
 	t := tui.NewTable(col, "Scanner", "Effect", "What happens").Indent("  ")
 	for _, r := range rows {
 		t.Row(
@@ -268,7 +278,8 @@ func writeScannerOrigins(w io.Writer, col tui.Painter, reg *engine.Registry, onl
 		return origins[i] < origins[j]
 	})
 
-	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleAccent, "Who publishes each scanner:"))
+	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted, "PUBLISHERS")+
+		col.Paint(tui.StyleMuted, "  (who each scanner comes from)"))
 	t := tui.NewTable(col, "Origin", "Scanners").Indent("  ")
 	for _, o := range origins {
 		names := byOrigin[o]

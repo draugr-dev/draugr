@@ -71,7 +71,7 @@ func TestControlsShowsWhoPublishesEachScanner(t *testing.T) {
 	}
 	out := buf.String()
 
-	if !strings.Contains(out, "Who publishes each scanner:") {
+	if !strings.Contains(out, "PUBLISHERS") {
 		t.Fatalf("no provenance section:\n%s", out)
 	}
 	// The question this answers: reading the control table, draugr-headers and gitleaks look
@@ -82,7 +82,7 @@ func TestControlsShowsWhoPublishesEachScanner(t *testing.T) {
 		}
 	}
 	// Draugr's own scanners come first. The reader is usually asking which are *not* ours.
-	i := strings.Index(out, "Who publishes each scanner:")
+	i := strings.Index(out, "PUBLISHERS")
 	rest := out[i:]
 	if strings.Index(rest, "draugr ") > strings.Index(rest, "aquasecurity") {
 		t.Error("draugr is not listed first")

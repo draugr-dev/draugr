@@ -1,0 +1,1 @@
+`draugr controls` names its three blocks the way a scan report names a section. The first had no heading at all, which left the two that did have one reading as asides to it, and the two that did were written three different ways between them.
