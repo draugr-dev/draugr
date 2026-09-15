@@ -58,10 +58,13 @@ func runInit(dir string, opts initOptions, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	name := filepath.Base(abs)
-	if name == "" || name == "." || name == string(filepath.Separator) {
-		name = "app"
-	}
+	// Folded to what a project name may be, rather than taken as the directory is spelled.
+	//
+	// `init` in a directory called `My.Service` wrote `project: My.Service`, which Draugr rejects,
+	// so the scaffold this command exists to produce failed the validation of the very next
+	// command it suggests. A capital letter or a dot in a directory name is ordinary, and being
+	// told to go and fix the file the tool just wrote is the worst possible first minute.
+	name := projectNameFrom(filepath.Base(abs))
 	body := scaffoldSaga(dir, name)
 	if opts.fragment {
 		body = scaffoldFragment(name)
@@ -195,4 +198,33 @@ func scaffoldFragment(name string) string {
 	b.WriteString("    repositories:\n")
 	b.WriteString("      - url: .\n")
 	return b.String()
+}
+
+// projectNameFrom turns a directory name into one a descriptor accepts.
+//
+// Lowercase letters, digits and dashes, starting and ending with a letter or digit, which is what
+// `pkg/saga` enforces. Anything else becomes a dash, runs of dashes collapse, and the ends are
+// trimmed. A name with nothing usable left in it, which a directory of punctuation or of
+// non-Latin script produces, falls back to the same placeholder an unnamed directory gets: a
+// scaffold somebody renames beats one that will not load.
+func projectNameFrom(dir string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(dir) {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
+		}
+	}
+	name := strings.Trim(b.String(), "-")
+	for strings.Contains(name, "--") {
+		name = strings.ReplaceAll(name, "--", "-")
+	}
+	// The rule wants a letter or digit at each end, and the trim above leaves one there or leaves
+	// nothing at all.
+	if name == "" {
+		return "app"
+	}
+	return name
 }
