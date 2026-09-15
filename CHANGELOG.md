@@ -12,6 +12,50 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.124.0] - 2026-09-15
+
+### Added
+
+Every environment variable you would set is in one table in the CLI reference, with the OpenTelemetry endpoints named rather than gestured at as `OTEL_*`. Sixteen of them were spread over eight pages, and `URLHAUS_AUTH_KEY` was in none of them, so the `threats` control could not be turned on from the published documentation at all.
+
+Every scanner's reference page is on the docs site, versioned with the release it describes. What a tool sends to a third party, what data it reads and from where, its license and its terms were only on GitHub's default branch, so the catalog's links took a reader off `/docs/latest/` and showed them whatever was on `main`. The pages travel with the docs now.
+
+What a scan sends to a third party, and what it changes, has a page of its own under Trust & operations. The four effects were an unlisted subsection of the `draugr scan` reference, so the answer to "what will this tell a vendor about my code" was reachable only by scrolling a 1,500-line page. Scope and disclaimer now names the scanners that upload rather than only fetch, which it had never said in either direction.
+
+### Changed
+
+`draugr controls` names its three blocks the way a scan report names a section. The first had no heading at all, which left the two that did have one reading as asides to it, and the two that did were written three different ways between them.
+
+`draugr feeds status` names where the feeds come from the way the rest of the product names a section, and the cache path sits beside the title rather than being it.
+
+`draugr tools list` asks for each tool's status through the same path the install plan does. It read the machine directly, which meant the one command whose whole output is a table of what is on this machine was the one nothing could pin.
+
+`draugr tools list` marks a tool that is present at a version other than the pinned one, rather than ticking it as though it matched. `tools install` already treated it as work to do, so the two commands disagreed about one machine. The install plan and `feeds status` also spell an absent value the way every other table does.
+
+The published JSON Schema no longer opens with a note written for whoever edits it. A thousand characters about Go structs, a test name and `go generate` was the first thing `draugr schema` printed, the first thing an editor read when somebody pinned validation to their build, and it is served from draugr.dev. It is one line now, pointing at a contributing page that holds the rest.
+
+The quickstart stopped teaching the next page's material. It carried the same minimal descriptor as "Write your first Saga", byte for byte, and the same `draugr classify` transcript as the prioritization guide, so three pages had to be kept true about two things. It now points at each and gets on with running a scan.
+
+The Saga reference opens with what you write. `components` was at line 1429 of 1660, after every `config` section, and the page began with ninety lines of editor setup. It now follows the descriptor, `project` then `release` then `components` then `config`, and editor setup is its own guide, which is also where somebody looking for autocomplete would have gone first.
+
+What a report contains is reference. The SARIF property bag, the run's provenance and the fields that tell a partial run from a clean one were sections of the reports how-to, so anything consuming Draugr's output programmatically had to read a guide about rendering formats to find them. They are `reference/report-schema.md` now.
+
+### Fixed
+
+A descriptor error offers the values a field takes as a sentence rather than as a Go slice. `want one of [public authenticated internal restricted]` is brackets nobody typed and no separators between the words, shown at the moment somebody is stuck; it now reads `want public, authenticated, internal or restricted`.
+
+Two documentation links pointed at pages that do not exist, and `check-doc-anchors` now catches the shape. It validated headings and skipped a link whose target file was missing, which is the half that breaks when a section moves between directories: the relative link travels with it and resolves against its new parent, staying correct markdown and pointing nowhere. It checks 723 links now rather than 190.
+
+A survey that reaches nothing says so once. It printed the same sentence twice, as a warning about a run that had not happened and again as the failure, and the surveyor named itself inside a message the registry had already named it in. A Kubernetes survey with no cluster configured now names what Draugr actually reads, rather than relaying client-go's advice to set `KUBERNETES_MASTER`, which this command's own help does not mention.
+
+`draugr classify` says which classifications it guessed. Running it with no answers, which a pipeline or a truncated session does, fell back to the middle of each ladder and reported the result exactly as it reports a choice somebody made. Exposure and criticality are what every priority band is computed from, so a guess mistaken for a decision is a whole backlog ranked on nothing. The file is still written and the run still succeeds.
+
+`draugr config` tells a mistyped setting from one nobody set. Both answered "is not set", and a bad key on `config set` reported `field nope not found in type config.File`, which names a Go type at the reader least able to read one. A key that does not exist now says so and names the command that writes a file with every key in it.
+
+`draugr explain` no longer heads a rule's description as though it were remediation. The block printed the scanner's `fullDescription`, which across a real report is a mixture of what the flaw is and what practice the rule enforces, under a heading that promised how to fix it. Its three sections are also named the way a scan report names one.
+
+`draugr init` writes a project name a descriptor accepts. A directory called `My.Service` or `payments_api` produced `project: My.Service`, which Draugr rejects, so the scaffold this command exists to write failed on the very next command it suggests. The name is folded to lowercase letters, digits and dashes and stays recognizable.
+
 ## [0.123.0] - 2026-09-14
 
 ### Added
@@ -5703,7 +5747,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.123.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.124.0...HEAD
+[0.124.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.124.0
 [0.123.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.123.0
 [0.122.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.122.0
 [0.121.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.121.1

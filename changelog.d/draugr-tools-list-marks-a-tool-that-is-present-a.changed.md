@@ -1,1 +1,0 @@
-`draugr tools list` marks a tool that is present at a version other than the pinned one, rather than ticking it as though it matched. `tools install` already treated it as work to do, so the two commands disagreed about one machine. The install plan and `feeds status` also spell an absent value the way every other table does.

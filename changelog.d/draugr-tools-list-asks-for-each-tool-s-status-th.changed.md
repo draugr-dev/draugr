@@ -1,1 +1,0 @@
-`draugr tools list` asks for each tool's status through the same path the install plan does. It read the machine directly, which meant the one command whose whole output is a table of what is on this machine was the one nothing could pin.

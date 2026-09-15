@@ -1,1 +1,0 @@
-`draugr init` writes a project name a descriptor accepts. A directory called `My.Service` or `payments_api` produced `project: My.Service`, which Draugr rejects, so the scaffold this command exists to write failed on the very next command it suggests. The name is folded to lowercase letters, digits and dashes and stays recognizable.

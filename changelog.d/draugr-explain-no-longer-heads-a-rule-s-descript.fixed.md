@@ -1,1 +1,0 @@
-`draugr explain` no longer heads a rule's description as though it were remediation. The block printed the scanner's `fullDescription`, which across a real report is a mixture of what the flaw is and what practice the rule enforces, under a heading that promised how to fix it. Its three sections are also named the way a scan report names one.

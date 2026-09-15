@@ -1,1 +1,0 @@
-Every environment variable you would set is in one table in the CLI reference, with the OpenTelemetry endpoints named rather than gestured at as `OTEL_*`. Sixteen of them were spread over eight pages, and `URLHAUS_AUTH_KEY` was in none of them, so the `threats` control could not be turned on from the published documentation at all.

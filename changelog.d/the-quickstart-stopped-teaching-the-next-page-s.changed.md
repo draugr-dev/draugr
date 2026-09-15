@@ -1,1 +1,0 @@
-The quickstart stopped teaching the next page's material. It carried the same minimal descriptor as "Write your first Saga", byte for byte, and the same `draugr classify` transcript as the prioritization guide, so three pages had to be kept true about two things. It now points at each and gets on with running a scan.
