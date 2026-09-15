@@ -680,14 +680,14 @@ draugr explain kube-bench/cis/4.3.1 -r out/results.sarif
 kube-bench/cis/4.3.1
 Ensure that the kube-proxy metrics service is bound to localhost (Automated)
 
-How to fix
+DETAIL
   Modify or remove any values which bind the metrics service to a non-localhost address.
   The default value is 127.0.0.1:10249.
 
-Found in
+LOCATION
   kubernetes/prod-cluster
 
-Reference
+REFERENCE
   https://www.cisecurity.org/benchmark/kubernetes
 ```
 
