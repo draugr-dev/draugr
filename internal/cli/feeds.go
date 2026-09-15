@@ -140,7 +140,7 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 		rec, ok := cached[n]
 		if !ok {
 			missing = append(missing, n)
-			_, _ = fmt.Fprintf(out, "%-6s %-22s %-14s %-10s %s\n", n, "—", "—", "—", "—")
+			_, _ = fmt.Fprintf(out, "%-6s %-22s %-14s %-10s %s\n", n, "-", "-", "-", "-")
 			continue
 		}
 		age := humanAge(rec.Age(now))

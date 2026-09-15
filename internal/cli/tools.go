@@ -557,7 +557,7 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 		}
 		return "-"
 	}
-	_, _ = fmt.Fprintln(w, "Install plan:")
+	_, _ = fmt.Fprintln(w, tui.For(w).Paint(tui.StyleMuted, "PLAN"))
 	col := tui.For(w)
 	table := tui.NewTable(col, "Tool", "Version", "Category", "Verify", "Destination").Indent("  ")
 
@@ -572,7 +572,7 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 		if pySpec, isPython := tools.PythonTool(name); isPython {
 			if satisfied(name) {
 				table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(tools.PythonVersion(name)),
-					tui.PlainCell(category(name)), tui.PlainCell("—"),
+					tui.PlainCell(category(name)), tui.PlainCell("-"),
 					tui.Styled(tui.StyleMuted, "already at "+have[name]))
 				continue
 			}
@@ -588,7 +588,7 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 		if nodeSpec, isNode := tools.NodeTool(name); isNode {
 			if satisfied(name) {
 				table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(tools.NodeVersion(name)),
-					tui.PlainCell(category(name)), tui.PlainCell("—"),
+					tui.PlainCell(category(name)), tui.PlainCell("-"),
 					tui.Styled(tui.StyleMuted, "already at "+have[name]))
 				continue
 			}
@@ -604,7 +604,7 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 		if _, isGo := tools.GoTool(name); isGo {
 			if satisfied(name) {
 				table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(tools.GoVersion(name)),
-					tui.PlainCell(category(name)), tui.PlainCell("—"),
+					tui.PlainCell(category(name)), tui.PlainCell("-"),
 					tui.Styled(tui.StyleMuted, "already at "+have[name]))
 				continue
 			}
@@ -624,7 +624,7 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 		}
 		if satisfied(name) {
 			table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(spec.Version),
-				tui.PlainCell(category(name)), tui.PlainCell("—"),
+				tui.PlainCell(category(name)), tui.PlainCell("-"),
 				tui.Styled(tui.StyleMuted, "already at "+have[name]))
 			continue
 		}
@@ -689,6 +689,13 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 				version = "?"
 			}
 			status, statusStyle = fmt.Sprintf("✓ %s (%s)", version, st.Path), tui.StylePass
+			// Present is not the same answer as present at the version this build pins, and a
+			// tick said both. `tools install` already knew the difference and would have replaced
+			// it, so the two commands disagreed about one machine.
+			if pinned != "-" && version != "?" && version != pinned {
+				status = fmt.Sprintf("~ %s (%s)", version, st.Path)
+				statusStyle = tui.StyleAccent
+			}
 		}
 		table.Row(
 			tui.Styled(tui.StyleAccent, t.Binary),
