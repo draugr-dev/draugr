@@ -80,10 +80,6 @@ PHRASES = [
 ]
 
 FENCE = re.compile(r"^\s*(?:```|~~~)")
-# An em dash alone inside quotes is a glyph, not punctuation: it is what a table cell holds where
-# there is nothing to show, and the console prints it. The rule is about a dash standing in for a
-# conjunction between two halves of a sentence, and a cell has no halves.
-GLYPH_CELL = re.compile(r"""(["'`])\s*\u2014\s*\1""")
 
 SKIP_LINE = re.compile(r"^\s*(?:#{1,6}\s|\||-{3,}\s*$|\s*[-*+]\s|\d+\.\s)")
 
@@ -145,7 +141,10 @@ def em_dashes(path: Path) -> list:
             continue
         if fenced or "\u2014" not in line:
             continue
-        line = GLYPH_CELL.sub("", line)
+        # No exemption for one alone in quotes. It used to be allowed as "a glyph a table cell
+        # holds where there is nothing to show", and the product settled on a hyphen for that
+        # everywhere else, so the exemption only let two commands drift to a second spelling of
+        # nothing. One absent value looks one way.
         for m in re.finditer("\u2014", line):
             out.append((n, "em dash", line.strip()[max(0, m.start() - 40):m.start() + 40]))
     return out

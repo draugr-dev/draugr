@@ -68,7 +68,7 @@ func TestRunToolsInstallPlanAndDryRun(t *testing.T) {
 		t.Error("--dry-run must not install anything")
 	}
 	s := out.String()
-	for _, want := range []string{"Install plan", "trivy", "cosign", "scanner", "utility", "dry run"} {
+	for _, want := range []string{"PLAN", "trivy", "cosign", "scanner", "utility", "dry run"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("plan output missing %q\n%s", want, s)
 		}
