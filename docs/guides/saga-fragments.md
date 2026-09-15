@@ -2,7 +2,7 @@
 title: Split a Saga across files
 description: Keep exclusions and per-component descriptions in their own files, and assemble several products from one monorepo.
 section: Guides
-order: 18
+order: 25
 ---
 
 # Split a Saga across files

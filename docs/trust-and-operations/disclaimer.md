@@ -66,6 +66,11 @@ installed them yourself or via `draugr tools install`, you do so under **their**
 of use, not Draugr's. Some fetch data from third-party services at scan time (Trivy's vulnerability
 database, Nuclei's template repository), which may have their own terms and privacy implications.
 
+Some send information about your code *to* a third party rather than only fetching from one: the
+Mend scanners upload a component's resolved dependency inventory, and the `threats` scanners send
+hostnames to abuse.ch or VirusTotal. Each declares that as a `disclosure` effect and states what it
+sends, before the scan runs and again in the report. See [what a scan does](what-a-scan-does.md).
+
 `draugr tools list` names each tool. The [integrations catalog](../reference/catalog.md) links
 each one's project and license.
 
