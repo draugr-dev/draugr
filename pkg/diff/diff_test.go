@@ -507,3 +507,77 @@ func TestGateNewIgnoresACopyOfAFlawAlreadyCounted(t *testing.T) {
 		t.Errorf("the counted finding no longer gates: %+v", tripped)
 	}
 }
+
+// secretFinding builds a result with an optional content fingerprint.
+func secretFinding(msg, hash string) sarif.Result {
+	r := sarif.Result{
+		Tool: "gitleaks", RuleID: "private-key", Message: msg,
+		Location:  sarif.Location{URI: "keys/id_rsa", StartLine: 1},
+		Component: "api", Repository: "r",
+	}
+	if hash != "" {
+		r.PartialFingerprints = map[string]string{sarif.LineHashKey: hash}
+	}
+	return r
+}
+
+// Gitleaks puts commit context in its message, so the same secret in an unchanged file used to
+// hash differently on either side and arrive as new and fixed at once.
+func TestASecretInAnUnchangedFileIsNotBothNewAndFixed(t *testing.T) {
+	got := Compare(
+		sarif.Report{Results: []sarif.Result{secretFinding("private-key at commit aaaa111", "SAME")}},
+		sarif.Report{Results: []sarif.Result{secretFinding("private-key at commit bbbb222", "SAME")}},
+	)
+	if len(got.New) != 0 || len(got.Fixed) != 0 {
+		t.Errorf("an unchanged secret churned: new=%d fixed=%d", len(got.New), len(got.Fixed))
+	}
+	if len(got.Unchanged) != 1 {
+		t.Errorf("unchanged = %d, want the finding to be recognized", len(got.Unchanged))
+	}
+}
+
+// The fingerprint covers the lines around a finding, so editing them changes it. Matching on
+// either key means the message still recognizes the finding, rather than the fix trading one
+// source of churn for another.
+func TestAFingerprintOnOneSideOnlyDoesNotChurn(t *testing.T) {
+	for _, tc := range []struct{ name, baseHash, headHash string }{
+		{"the base has none", "", "H"},
+		{"the head has none", "H", ""},
+		{"the window was edited", "OLD", "NEW"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Compare(
+				sarif.Report{Results: []sarif.Result{secretFinding("same message", tc.baseHash)}},
+				sarif.Report{Results: []sarif.Result{secretFinding("same message", tc.headHash)}},
+			)
+			if len(got.New) != 0 || len(got.Fixed) != 0 {
+				t.Errorf("new=%d fixed=%d, want the message to still recognize it", len(got.New), len(got.Fixed))
+			}
+		})
+	}
+}
+
+// Matching on either key must not match findings that are genuinely different.
+func TestADifferentFindingIsStillNew(t *testing.T) {
+	head := secretFinding("private-key at commit bbbb222", "DIFFERENT")
+	head.Location.URI = "keys/other_rsa"
+	got := Compare(
+		sarif.Report{Results: []sarif.Result{secretFinding("private-key at commit aaaa111", "SAME")}},
+		sarif.Report{Results: []sarif.Result{head}},
+	)
+	if len(got.New) != 1 || len(got.Fixed) != 1 {
+		t.Errorf("new=%d fixed=%d, want a different file to be a different finding", len(got.New), len(got.Fixed))
+	}
+}
+
+// A secret that was really removed still has to be reported as fixed, or the fix would hide the
+// good news it exists to report.
+func TestARemovedSecretIsStillFixed(t *testing.T) {
+	got := Compare(
+		sarif.Report{Results: []sarif.Result{secretFinding("private-key at commit aaaa111", "SAME")}},
+		sarif.Report{},
+	)
+	if len(got.Fixed) != 1 || len(got.New) != 0 {
+		t.Errorf("fixed=%d new=%d, want the removal reported", len(got.Fixed), len(got.New))
+	}
+}

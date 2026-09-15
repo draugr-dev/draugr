@@ -4,6 +4,7 @@ package integration
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -226,4 +227,66 @@ func currentKubeContext(t *testing.T) string {
 		t.Fatal("the kubeconfig names no current context, so there is no cluster to audit")
 	}
 	return raw.CurrentContext
+}
+
+// A commit that touches nothing a scanner reads must produce no diff at all.
+//
+// This pins the property rather than reproducing a past defect: the reported symptom, a secret
+// arriving as new and fixed at once because Gitleaks put commit context in its message, does not
+// occur with the current integration, whose message for a given rule and file is the same across
+// commits. The property is worth holding anyway, because what a third-party scanner writes in a
+// message is not ours to depend on, and the direction it fails in is a reviewer learning to
+// scroll past a diff that invents findings.
+//
+// A unit test cannot stand in for it. The message is the scanner's, so asserting on one asserts on
+// a fixture somebody wrote, and the identity that has to survive is computed during the scan from
+// a checkout a unit test does not have.
+func TestAnUnchangedSecretSurvivesACommit(t *testing.T) {
+	requireTool(t, "gitleaks", "the finding whose message carries commit context is its")
+	requireTool(t, "git", "the point is two commits of one repository")
+
+	repo := newVulnRepo(t)
+	scan := func() string {
+		t.Helper()
+		out := t.TempDir()
+		// #nosec G204 -- the binary under test, against a fixture repository in t.TempDir().
+		cmd := exec.Command(draugrBin(t), "scan", repo, "--output", out, "--log-level", "warn")
+		if combined, err := cmd.CombinedOutput(); err != nil {
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) {
+				t.Fatalf("scan: %v\n%s", err, combined)
+			}
+		}
+		return filepath.Join(out, "results.sarif")
+	}
+
+	baseSarif := scan()
+
+	// An unrelated change, so every finding's commit context moves and no finding does.
+	if err := os.WriteFile(filepath.Join(repo, "NOTES.md"), []byte("unrelated\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"add", "."}, {"commit", "--quiet", "-m", "unrelated"}} {
+		// #nosec G204 -- a fixed binary and the literal argument lists above it.
+		c := exec.Command("git", args...)
+		c.Dir = repo
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	headSarif := scan()
+
+	// #nosec G204 -- both paths are t.TempDir() outputs written above.
+	out, err := exec.Command(draugrBin(t), "diff", baseSarif, headSarif).CombinedOutput()
+	t.Logf("draugr diff exit=%v\n%s", err, out)
+	report := string(out)
+
+	// The secret did not move and nothing was fixed. Either word appearing about it means the
+	// finding lost its identity between two scans of the same unchanged file.
+	if !strings.Contains(report, "Nothing changed") {
+		t.Errorf("a commit that touched nothing a scanner reads produced a change:\n%s", report)
+	}
+	if strings.Contains(report, "private-key") {
+		t.Errorf("the unchanged secret was named as new or fixed:\n%s", report)
+	}
 }

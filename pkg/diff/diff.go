@@ -66,12 +66,34 @@ func (r Result) HelpURI(ruleID string) string {
 // reason to stop tracking it. A finding that became suppressed was accepted, not fixed; one that
 // stopped being suppressed came back, and nobody introduced it.
 func Compare(base, head sarif.Report) Result {
-	baseIdx := index(base.Results)
+	// Two indexes, because a finding can be recognized two ways and the safe rule is "either".
+	// byID is the canonical one, keyed the way it has always been; lookup maps every key a base
+	// finding answers to, including its content fingerprint, onto that canonical id.
+	baseByID := make(map[string]sarif.Result, len(base.Results))
+	lookup := make(map[string]string, 2*len(base.Results))
+	for _, res := range base.Results {
+		id := identity(res)
+		baseByID[id] = res
+		for _, k := range keysOf(res) {
+			lookup[k] = id
+		}
+	}
+	matched := make(map[string]bool, len(baseByID))
 	headIdx := index(head.Results)
 
 	var r Result
-	for k, res := range headIdx {
-		was, inBase := baseIdx[k]
+	for _, res := range headIdx {
+		var was sarif.Result
+		var inBase bool
+		for _, k := range keysOf(res) {
+			id, ok := lookup[k]
+			if !ok {
+				continue
+			}
+			was, inBase = baseByID[id], true
+			matched[id] = true
+			break
+		}
 		switch {
 		case res.Suppressed() && (!inBase || !was.Suppressed()):
 			// Excused in this change: either somebody wrote a rule for a finding that was counting, or a
@@ -90,8 +112,8 @@ func Compare(base, head sarif.Report) Result {
 			r.New = append(r.New, res)
 		}
 	}
-	for k, res := range baseIdx {
-		if _, ok := headIdx[k]; !ok && !res.Suppressed() {
+	for id, res := range baseByID {
+		if !matched[id] && !res.Suppressed() {
 			// A finding that was suppressed in the base and is gone from the head was not
 			// counting either way, so calling it fixed would inflate the good news.
 			r.Fixed = append(r.Fixed, res)
@@ -129,6 +151,35 @@ func index(results []sarif.Result) map[string]sarif.Result {
 // unchanged finding as fixed+new) and the severity level (a re-scored finding is still the same
 // underlying issue). For CVE findings (SCA/images) the ruleID is the CVE and the URI is the
 // package/image, so this is stable; for SAST it keys on rule + file + message.
+// keysOf returns every key a finding answers to, most specific first.
+//
+// **The message is the weak part of the identity, and some scanners put the commit in it.**
+// Gitleaks describes a secret with context that changes between two scans of the same unchanged
+// file, so the finding hashes differently on either side and is reported as new *and* fixed at
+// once. A diff that invents a finding and retires it in the same breath is one a reviewer learns
+// to scroll past, which costs more than the case it was built for.
+//
+// So a content fingerprint, where the finding has one, is tried first. Draugr computes it from the
+// lines around the finding rather than taking a scanner's word for it, so it means the same thing
+// whichever tool reported it.
+//
+// Both keys, not the better one, because matching on either can only find more pairs than matching
+// on one. A fingerprint present on just one side, which is what happens when the lines around a
+// finding were edited, would otherwise make it new and fixed for the opposite reason.
+func keysOf(r sarif.Result) []string {
+	id := identity(r)
+	hash := r.PartialFingerprints[sarif.LineHashKey]
+	if hash == "" {
+		return []string{id}
+	}
+	// The tool and the subject stay in the key. A content hash identifies a place in a file, and
+	// two scanners finding different things there are two findings.
+	content := strings.Join([]string{
+		"content", r.Tool, r.RuleID, r.Location.URI, hash, r.Component, r.Repository,
+	}, "\x00")
+	return []string{content, id}
+}
+
 func identity(r sarif.Result) string {
 	// Component and repository are included for the opposite reason line and level are not: they do
 	// not drift, they are the subject. The same flaw at the same line in two components is two
