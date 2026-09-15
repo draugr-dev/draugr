@@ -743,3 +743,91 @@ func TestEveryExternalToolIsStillNeeded(t *testing.T) {
 		}
 	}
 }
+
+// toolAt builds a found tool at a version, for the comparison against what Draugr pins.
+func toolAt(binary, version string) tools.Status {
+	return tools.Status{Tool: tools.Tool{Binary: binary}, Found: true, Version: version, Path: "/x/" + binary}
+}
+
+// A tool Draugr does not pin has nothing to be compared against, and a tool matching its pin has
+// nothing to say. Only the third case is information.
+func TestUntestedVersionOnlySpeaksWhenItHasSomethingToSay(t *testing.T) {
+	pinned := tools.PinnedVersion("trivy")
+	if pinned == "" {
+		t.Fatal("trivy has no pin, so this test cannot say anything")
+	}
+	for _, tc := range []struct {
+		name string
+		st   tools.Status
+		want string
+	}{
+		{"running the pinned build", toolAt("trivy", pinned), ""},
+		{"a leading v is not a difference", toolAt("trivy", "v"+pinned), ""},
+		{"running something else", toolAt("trivy", "0.1.0"), pinned},
+		{"no pin to compare against", toolAt("git", "2.55.0"), ""},
+		{"not found", tools.Status{Tool: tools.Tool{Binary: "trivy"}}, ""},
+		{"found but the version could not be read", tools.Status{
+			Tool: tools.Tool{Binary: "trivy"}, Found: true, Err: errors.New("probe failed"),
+		}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := untestedVersion(tc.st); got != tc.want {
+				t.Errorf("untestedVersion = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// The row carries the detail and one line carries the count, because a machine that has not
+// reinstalled in a while has most of them and a mark on every row is not a mark.
+func TestTheTableNamesTheTestedVersionAndCountsThemOnce(t *testing.T) {
+	pinned := tools.PinnedVersion("trivy")
+	var buf bytes.Buffer
+	writeDoctorTable(&buf, []tools.Status{toolAt("trivy", "0.1.0"), toolAt("git", "2.55.0")})
+	out := buf.String()
+	if !strings.Contains(out, "tested against "+pinned) {
+		t.Errorf("the row does not name the version Draugr tests:\n%s", out)
+	}
+	if !strings.Contains(out, "1 tool is not the version Draugr tests") {
+		t.Errorf("the count is missing or does not agree with itself:\n%s", out)
+	}
+	if !strings.Contains(out, "tools install --force") {
+		t.Errorf("the line says there is a problem and not what closes it:\n%s", out)
+	}
+}
+
+// Nothing to say means saying nothing: a machine running exactly what Draugr tests must not be
+// told about it.
+func TestTheTableIsSilentWhenEveryToolMatches(t *testing.T) {
+	var buf bytes.Buffer
+	writeDoctorTable(&buf, []tools.Status{toolAt("trivy", tools.PinnedVersion("trivy"))})
+	if strings.Contains(buf.String(), "not the version") {
+		t.Errorf("a machine running the tested build was warned:\n%s", buf.String())
+	}
+}
+
+// --strict is for a pipeline that would rather stop than scan with a build nothing has exercised.
+// Without it the same machine passes, because a different version is very likely fine and a check
+// that fails on very-likely-fine is one people stop running.
+func TestDoctorStrictFailsOnAnUntestedVersionAndTheDefaultDoesNot(t *testing.T) {
+	// fakeDetect reports 1.2.3 for everything, which is nothing's pin.
+	detect := fakeDetect("semgrep", "git", "trivy", "gitleaks")
+	saga := writeSaga(t, doctorSagaSASTDefault)
+
+	var out bytes.Buffer
+	if err := runDoctor(context.Background(), &out, builtins.Registry(), saga, doctorRun{}, detect, nil); err != nil {
+		t.Fatalf("a version difference must not fail by default: %v\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), "not the version Draugr tests") {
+		t.Errorf("the default should still say so, just not fail:\n%s", out.String())
+	}
+
+	out.Reset()
+	err := runDoctor(context.Background(), &out, builtins.Registry(), saga, doctorRun{strict: true}, detect, nil)
+	if err == nil {
+		t.Fatalf("--strict was asked for and an untested version passed\n%s", out.String())
+	}
+	if !strings.Contains(err.Error(), "tools install --force") {
+		t.Errorf("the error says there is a problem and not what closes it: %v", err)
+	}
+}

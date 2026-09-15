@@ -1045,6 +1045,31 @@ A tool is also reported as unusable when it is installed but its supporting data
 `kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates. Being on PATH is not the
 same as being able to run.
 
+### A tool that is not the version Draugr tested
+
+Draugr pins a version of each tool it can install, and its own suite runs against that build. A
+tool on `PATH` from a distribution package, or installed with `--version`, is very likely fine and
+is not the one anything exercised. The row says which version was tested and one line counts them:
+
+```console
+$ draugr doctor
+trivy  ✓ found  0.69.3  /home/you/.draugr/bin/trivy · tested against 0.74.0
+
+1 tool is not the version Draugr tests. Older scanners find fewer things; `draugr tools install --force` installs the tested build.
+```
+
+**A note rather than a failure.** Refusing to run would be Draugr mistaking *I have not tested
+this* for *this is wrong*. It is said out loud because an older scanner finds **fewer** things, and
+a scan that quietly finds fewer things is the failure a security tool must not have.
+
+| | |
+|---|---|
+| `--strict` | fails the command as well, for a pipeline that would rather stop than scan with a build nothing has exercised |
+| `--json` | carries `testedVersion` on a tool that is not running its pin, and omits it on one that is |
+
+The count and the remedy, rather than a mark on every row: a machine that has not reinstalled in a
+while has most of them, and a mark on every row is not a mark.
+
 ### What nothing is looking at
 
 Every tool being present is only half of "will this scan tell me what I think it will". The other
@@ -1071,6 +1096,7 @@ only narrows it.
 |------|---------|-------------|
 | `--json` | `false` | Emit the report as JSON instead of a table (uncovered surfaces come too, as `uncoveredSurfaces`) |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at |
+| `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, as well as when one is missing |
 | `--offline` | `false` | Skip the check for a newer draugr release (also `DRAUGR_NO_UPDATE_CHECK=1`) |
 
 ```bash

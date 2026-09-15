@@ -34,6 +34,8 @@ type doctorOptions struct {
 	// deliberately narrow descriptor is a legitimate thing to have, and a preflight that fails on
 	// a choice somebody made is one people learn to ignore.
 	failOnUncovered bool
+	// strict does the same for a tool that is not the version Draugr tests.
+	strict bool
 }
 
 // doctorRun is what runDoctor needs from the command's flags.
@@ -43,6 +45,11 @@ type doctorOptions struct {
 type doctorRun struct {
 	json            bool
 	failOnUncovered bool
+	// strict turns "not the version we tested" from a note into a failure, for a pipeline that
+	// would rather stop than scan with a build nothing has exercised. Off by default: a different
+	// version is very likely fine, and a check that fails on very-likely-fine is one people stop
+	// running.
+	strict bool
 }
 
 func newDoctorCommand() *cobra.Command {
@@ -74,11 +81,13 @@ func newDoctorCommand() *cobra.Command {
 					return selfupdate.LatestVersion(ctx, nil)
 				}
 			}
-			run := doctorRun{json: opts.json, failOnUncovered: opts.failOnUncovered}
+			run := doctorRun{json: opts.json, failOnUncovered: opts.failOnUncovered, strict: opts.strict}
 			return runDoctor(cmd.Context(), cmd.OutOrStdout(), builtins.Registry(), sagaPath, run, detect, latest)
 		},
 	}
 	cmd.Flags().BoolVar(&opts.json, "json", false, "output results as JSON")
+	cmd.Flags().BoolVar(&opts.strict, "strict", false,
+		"also fail when a tool is not the version Draugr tests, not only when one is missing")
 	cmd.Flags().BoolVar(&opts.failOnUncovered, "fail-on-uncovered", false,
 		"fail if the descriptor declares a surface no enabled control looks at (reported either way)")
 	// Kept as a command-local flag as well as the root one: it is documented, it is in people's
@@ -193,6 +202,14 @@ func runDoctor(
 					"`draugr tools install` to fetch them all.", missing)))
 		}
 		return nil
+	}
+	// Asked for, so it decides the exit code. After the missing check, because a tool that is not
+	// there is the larger problem and its message is the one to lead with.
+	if run.strict {
+		if n := untestedCount(statuses); n > 0 {
+			return fmt.Errorf("%s not the version Draugr tests; run `draugr tools install --force`, "+
+				"or drop --strict to accept them", isAre(n, plural(n, "tool")))
+		}
 	}
 	if missing > 0 {
 		// The advice is the error rather than a line above it. Printed as both, the count and the
@@ -362,6 +379,14 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 		case st.DataChecked && st.DataDetail != "":
 			notes = st.Path + " · " + st.DataDetail
 		}
+		// Found and runnable, and not the build Draugr's own suite ran against. In the row
+		// because this is where somebody looks up one tool, and counted below because a machine
+		// that has not reinstalled in a while has most of them and a mark on every row is not a
+		// mark. Never a failure: refusing to work would be Draugr mistaking "I have not tested
+		// this" for "this is wrong".
+		if pin := untestedVersion(st); pin != "" {
+			notes = fmt.Sprintf("%s · tested against %s", notes, pin)
+		}
 		if version == "" {
 			version = "-"
 		}
@@ -373,6 +398,52 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 		)
 	}
 	t.Render(w)
+
+	// One line rather than eleven marks. An older scanner finds fewer things, and a scan that
+	// quietly finds fewer things is the failure a security tool must not have, so this says the
+	// count and the command that closes it rather than leaving a reader to compare two columns
+	// fourteen times.
+	if n := untestedCount(statuses); n > 0 {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, fmt.Sprintf(
+			"%s not the version Draugr tests. Older scanners find fewer things; "+
+				"`draugr tools install --force` installs the tested build.", isAre(n, plural(n, "tool")))))
+	}
+}
+
+// isAre agrees the verb with the count, which plural does not do for the caller.
+func isAre(n int, subject string) string {
+	if n == 1 {
+		return subject + " is"
+	}
+	return subject + " are"
+}
+
+// untestedCount is how many found tools are running something other than the pinned version.
+func untestedCount(statuses []tools.Status) int {
+	n := 0
+	for _, st := range statuses {
+		if untestedVersion(st) != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// untestedVersion returns the version Draugr pins when a found tool is not running it, and ""
+// when it matches, when there is no pin, or when the version could not be read.
+//
+// String equality after dropping a leading v. Not an ordering: "older than tested" and "newer than
+// tested" are both untested, and a comparison that ranked them would have to decide what a version
+// scheme means for eight tools that do not share one.
+func untestedVersion(st tools.Status) string {
+	if !st.Found || st.Err != nil || st.Version == "" {
+		return ""
+	}
+	pin := strings.TrimPrefix(tools.PinnedVersion(st.Tool.Binary), "v")
+	if pin == "" || pin == strings.TrimPrefix(st.Version, "v") {
+		return ""
+	}
+	return pin
 }
 
 type descriptorReport struct {
@@ -432,6 +503,10 @@ type toolReport struct {
 	Version string `json:"version,omitempty"`
 	Path    string `json:"path,omitempty"`
 	Hint    string `json:"hint,omitempty"`
+	// TestedVersion is the version Draugr pins, present only when this tool is not running it.
+	// Absent means the two agree, or that there is no pin to compare against, and a consumer can
+	// treat its presence as the whole answer rather than comparing two strings itself.
+	TestedVersion string `json:"testedVersion,omitempty"`
 }
 
 func writeDoctorJSON(
@@ -452,7 +527,10 @@ func writeDoctorJSON(
 	}
 
 	for _, st := range statuses {
-		tr := toolReport{Binary: st.Tool.Binary, Found: st.Found, Version: st.Version, Path: st.Path}
+		tr := toolReport{
+			Binary: st.Tool.Binary, Found: st.Found, Version: st.Version, Path: st.Path,
+			TestedVersion: untestedVersion(st),
+		}
 		if !st.Found {
 			tr.Hint = st.Tool.InstallHint
 			report.Missing++
