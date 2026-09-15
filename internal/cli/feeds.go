@@ -11,6 +11,8 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/feeds"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
+
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // fetchFeed is feeds.Fetch, indirected so tests can exercise the command without a network.
@@ -152,7 +154,12 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 			n, rec.FetchedAt.Format("2006-01-02 15:04Z"), age, humanBytes(rec.Bytes), short(rec.SHA256))
 	}
 
-	_, _ = fmt.Fprintf(out, "\ncache: %s\n", dir)
+	// Named like every other block, with the path beside the title rather than as it. The first
+	// block here is headed in the product's own shape and this one was a lowercase label, so one
+	// screen carried both.
+	col := tui.For(out)
+	_, _ = fmt.Fprintf(out, "\n%s  %s\n", col.Paint(tui.StyleMuted, "SOURCES"),
+		col.Paint(tui.StyleMuted, "(cached in "+dir+")"))
 	for _, n := range feeds.Names() {
 		_, _ = fmt.Fprintf(out, "  %-5s %s · %s\n", n, feeds.Describe(n), feeds.URL(n))
 	}

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -71,6 +72,17 @@ func TestCommandGolden(t *testing.T) {
 		{"doctor-with-a-descriptor", func(t *testing.T, w *bytes.Buffer) {
 			stubDetect(t, allToolsPresent())
 			runDoctorForGolden(t, w, writeSaga(t, doctorSagaUncovered))
+		}},
+		{"feeds-status-empty", func(t *testing.T, w *bytes.Buffer) {
+			// A fixed date, so the golden pins the layout rather than the day it ran.
+			feedsStatus(w, filepath.Join(t.TempDir(), "feeds"),
+				time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC))
+		}},
+		{"classify-nobody-answered", func(t *testing.T, w *bytes.Buffer) {
+			path := writeSagaAt(t, t.TempDir(), "draugr.saga.yaml", classifySaga)
+			if err := runClassify(path, classifyOptions{all: true}, strings.NewReader(""), w); err != nil {
+				t.Fatal(err)
+			}
 		}},
 		{"init", func(t *testing.T, w *bytes.Buffer) {
 			dir := filepath.Join(t.TempDir(), "My.Service")
