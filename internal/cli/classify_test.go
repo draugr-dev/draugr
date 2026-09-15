@@ -16,15 +16,50 @@ import (
 // TestClassifyMapsChoicesToValues covers every rung of both ladders. What is kept here is the
 // behavior that is easy to lose in a rewrite. Reprompting, and what happens at EOF.
 func TestAskCriticalityRepromptsAndDefaults(t *testing.T) {
-	cases := map[string]saga.Criticality{
-		"x\n9\n2\n": saga.CriticalityImportant, // reprompts until valid
-		"":          saga.CriticalityImportant, // EOF → the middle of the ladder
+	cases := map[string]struct {
+		want   saga.Criticality
+		chosen bool
+	}{
+		"x\n9\n2\n": {saga.CriticalityImportant, true},  // reprompts until valid
+		"":          {saga.CriticalityImportant, false}, // EOF → the middle of the ladder
 	}
 	for answers, want := range cases {
 		sc := bufio.NewScanner(strings.NewReader(answers))
-		if got := askCriticality(sc, &bytes.Buffer{}); got != want {
-			t.Errorf("answers %q → %s, want %s", answers, got, want)
+		got, chosen := askCriticality(sc, &bytes.Buffer{})
+		if got != want.want {
+			t.Errorf("answers %q → %s, want %s", answers, got, want.want)
 		}
+		// Whether somebody chose it is the half that was missing. The fallback is right for a
+		// piped session; reporting it as a choice is what made a guess indistinguishable from a
+		// decision, on the two values every priority band is computed from.
+		if chosen != want.chosen {
+			t.Errorf("answers %q reported chosen=%v, want %v", answers, chosen, want.chosen)
+		}
+	}
+}
+
+// A run nobody answered writes the file and says which values it guessed, on the row and at the
+// end. Silence here is a whole backlog ranked on values nobody chose.
+func TestClassifyMarksWhatNobodyChose(t *testing.T) {
+	path := writeSagaAt(t, t.TempDir(), "draugr.saga.yaml", classifySaga)
+	var out bytes.Buffer
+	if err := runClassify(path, classifyOptions{all: true}, strings.NewReader(""), &out); err != nil {
+		t.Fatalf("classify: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{"(guessed)", "left with a guess", "because the answers ran out"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("a guessed classification never said so, missing %q:\n%s", want, got)
+		}
+	}
+	// And a run somebody answered says nothing of the kind.
+	var answered bytes.Buffer
+	if err := runClassify(path, classifyOptions{all: true},
+		strings.NewReader("1\n1\n1\n1\n1\n1\n"), &answered); err != nil {
+		t.Fatalf("classify: %v", err)
+	}
+	if strings.Contains(answered.String(), "guessed") {
+		t.Errorf("an answered run reported a guess:\n%s", answered.String())
 	}
 }
 
@@ -182,15 +217,15 @@ func TestClassifyMapsChoicesToValues(t *testing.T) {
 		"1\n": saga.ExposurePublic, "2\n": saga.ExposureAuthenticated,
 		"3\n": saga.ExposureInternal, "4\n": saga.ExposureRestricted,
 	} {
-		if got := askExposure(bufio.NewScanner(strings.NewReader(in)), io.Discard); got != want {
-			t.Errorf("exposure %q → %q, want %q", strings.TrimSpace(in), got, want)
+		if got, chosen := askExposure(bufio.NewScanner(strings.NewReader(in)), io.Discard); got != want || !chosen {
+			t.Errorf("exposure %q → %q chosen=%v, want %q chosen", strings.TrimSpace(in), got, chosen, want)
 		}
 	}
 	for in, want := range map[string]saga.Criticality{
 		"1\n": saga.CriticalityCritical, "2\n": saga.CriticalityImportant, "3\n": saga.CriticalitySupporting,
 	} {
-		if got := askCriticality(bufio.NewScanner(strings.NewReader(in)), io.Discard); got != want {
-			t.Errorf("criticality %q → %q, want %q", strings.TrimSpace(in), got, want)
+		if got, chosen := askCriticality(bufio.NewScanner(strings.NewReader(in)), io.Discard); got != want || !chosen {
+			t.Errorf("criticality %q → %q chosen=%v, want %q chosen", strings.TrimSpace(in), got, chosen, want)
 		}
 	}
 }
@@ -198,17 +233,18 @@ func TestClassifyMapsChoicesToValues(t *testing.T) {
 func TestClassifyRepromptsAndFallsBack(t *testing.T) {
 	var buf bytes.Buffer
 	// A bad answer is re-asked rather than guessed at.
-	got := askExposure(bufio.NewScanner(strings.NewReader("9\nbanana\n2\n")), &buf)
-	if got != saga.ExposureAuthenticated {
-		t.Errorf("got %q after two bad answers", got)
+	got, chosen := askExposure(bufio.NewScanner(strings.NewReader("9\nbanana\n2\n")), &buf)
+	if got != saga.ExposureAuthenticated || !chosen {
+		t.Errorf("got %q chosen=%v after two bad answers", got, chosen)
 	}
 	if !strings.Contains(buf.String(), "Please enter a number from 1 to 4") {
 		t.Errorf("no reprompt:\n%s", buf.String())
 	}
 	// At EOF, a piped or truncated session, the middle of the ladder, which neither hides risk nor
 	// invents it.
-	if got := askExposure(bufio.NewScanner(strings.NewReader("")), io.Discard); got != saga.ExposureInternal {
-		t.Errorf("EOF fallback = %q, want internal", got)
+	// And reported as not chosen, which is what keeps it from reading as a decision.
+	if got, chosen := askExposure(bufio.NewScanner(strings.NewReader("")), io.Discard); got != saga.ExposureInternal || chosen {
+		t.Errorf("EOF fallback = %q chosen=%v, want internal and not chosen", got, chosen)
 	}
 }
 

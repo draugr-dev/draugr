@@ -80,6 +80,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 
 	sc := bufio.NewScanner(in)
 	class := map[string]saga.Classification{}
+	guessed := 0
 	for _, comp := range model.Components {
 		if !selected[comp.Name] {
 			continue
@@ -91,10 +92,18 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 			continue
 		}
 		_, _ = fmt.Fprintf(out, "\nComponent: %s\n", comp.Name)
-		exposure := askExposure(sc, out)
-		criticality := askCriticality(sc, out)
+		exposure, choseExposure := askExposure(sc, out)
+		criticality, choseCriticality := askCriticality(sc, out)
 		class[comp.Name] = saga.Classification{Exposure: exposure, Criticality: criticality}
-		_, _ = fmt.Fprintf(out, "  → %s: exposure=%s, criticality=%s\n", comp.Name, exposure, criticality)
+		if !choseExposure || !choseCriticality {
+			guessed++
+		}
+		// A value nobody chose is marked as one. The fallback itself is right for a piped or
+		// truncated session, and printing it exactly as a chosen value reads as a decision
+		// somebody made: these two are what every priority band is computed from, so a guess
+		// mistaken for a choice is a whole backlog ranked on nothing.
+		_, _ = fmt.Fprintf(out, "  → %s: exposure=%s%s, criticality=%s%s\n", comp.Name,
+			exposure, guessMark(choseExposure), criticality, guessMark(choseCriticality))
 	}
 
 	if len(class) == 0 {
@@ -113,8 +122,25 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 	if err := os.WriteFile(path, updated, 0o600); err != nil { // #nosec G703 -- operator-provided saga path
 		return err
 	}
-	_, _ = fmt.Fprintf(out, "\nClassified %d component(s) in %s.\n", len(class), path)
+	_, _ = fmt.Fprintf(out, "\nClassified %s in %s.\n", plural(len(class), "component"), path)
+	if guessed > 0 {
+		// Said at the end as well as on the row, because the end is what a pipeline's log shows
+		// and what somebody scrolls to. Not an error: a truncated session is a real way to use
+		// this, and the file is written either way.
+		_, _ = fmt.Fprintf(out, "%s\n", tui.For(out).Paint(tui.StyleAccent, fmt.Sprintf(
+			"%s left with a guess, because the answers ran out. Edit the file, or run "+
+				"`draugr classify --all` with somebody at the keyboard.",
+			plural(guessed, "component"))))
+	}
 	return nil
+}
+
+// guessMark distinguishes a value somebody chose from one the command fell back to.
+func guessMark(chosen bool) string {
+	if chosen {
+		return ""
+	}
+	return " (guessed)"
 }
 
 // dirOf names the directory a target refers to, for a message about what is not in it.
@@ -220,15 +246,17 @@ var criticalityChoices = []choice{
 }
 
 // askExposure asks who can reach the component.
-func askExposure(sc *bufio.Scanner, out io.Writer) saga.Exposure {
-	return saga.Exposure(ask(sc, out, "Exposure, who can reach it?", exposureChoices,
-		string(saga.ExposureInternal)))
+func askExposure(sc *bufio.Scanner, out io.Writer) (saga.Exposure, bool) {
+	v, chosen := ask(sc, out, "Exposure, who can reach it?", exposureChoices,
+		string(saga.ExposureInternal))
+	return saga.Exposure(v), chosen
 }
 
 // askCriticality asks what happens if the component fails.
-func askCriticality(sc *bufio.Scanner, out io.Writer) saga.Criticality {
-	return saga.Criticality(ask(sc, out, "Criticality, what happens if it fails or is breached?",
-		criticalityChoices, string(saga.CriticalityImportant)))
+func askCriticality(sc *bufio.Scanner, out io.Writer) (saga.Criticality, bool) {
+	v, chosen := ask(sc, out, "Criticality, what happens if it fails or is breached?",
+		criticalityChoices, string(saga.CriticalityImportant))
+	return saga.Criticality(v), chosen
 }
 
 // ask presents a numbered list and returns the chosen value.
@@ -239,7 +267,7 @@ func askCriticality(sc *bufio.Scanner, out io.Writer) saga.Criticality {
 //
 // A numbered list also shows the whole ladder at once, which a decision tree cannot: someone
 // answering "no, not public" never saw that "restricted" was a rung below "internal".
-func ask(sc *bufio.Scanner, out io.Writer, question string, choices []choice, fallback string) string {
+func ask(sc *bufio.Scanner, out io.Writer, question string, choices []choice, fallback string) (string, bool) {
 	col := tui.For(out)
 	_, _ = fmt.Fprintf(out, "  %s\n", question)
 	for i, c := range choices {
@@ -254,12 +282,14 @@ func ask(sc *bufio.Scanner, out io.Writer, question string, choices []choice, fa
 		_, _ = fmt.Fprintf(out, "  Choose [1-%d]: ", len(choices))
 		line, ok := readLine(sc)
 		if n, err := strconv.Atoi(strings.TrimSpace(line)); err == nil && n >= 1 && n <= len(choices) {
-			return choices[n-1].value
+			return choices[n-1].value, true
 		}
 		if !ok {
-			// No more input, a piped or truncated session. The middle of the ladder is the honest guess:
-			// neither hiding risk nor inventing it.
-			return fallback
+			// No more input, a piped or truncated session. The middle of the ladder is the honest
+			// guess: neither hiding risk nor inventing it. The newline is the prompt's, which
+			// nobody answered, so the next thing written does not continue the question.
+			_, _ = fmt.Fprintln(out)
+			return fallback, false
 		}
 		_, _ = fmt.Fprintf(out, "  Please enter a number from 1 to %d.\n", len(choices))
 	}
