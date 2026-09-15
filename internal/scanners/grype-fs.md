@@ -1,3 +1,10 @@
+---
+title: "grype-fs"
+description: "A second opinion on dependency vulnerabilities, alongside or instead of Trivy."
+section: Scanners
+order: 80
+---
+
 # Scanner: `grype-fs`
 
 - **Control:** `sca`

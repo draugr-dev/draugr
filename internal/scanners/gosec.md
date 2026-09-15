@@ -1,9 +1,16 @@
+---
+title: "gosec"
+description: "Go-specialized static analysis, type-aware and deep on Go idioms. Opt-in alongside Semgrep."
+section: Scanners
+order: 50
+---
+
 # Scanner: `gosec` (Go static analysis)
 
 - **Control:** [`sast`](../controllers/sast.md)
 - **Tool:** **gosec**, https://github.com/securego/gosec
 - **Status:** ✅ implemented
-- **Target:** source repository (`RepositoryTarget`), checked out via `internal/git`
+- **Target:** source repository (`RepositoryTarget`), checked out at the scanned revision
 - **License / terms:** **Apache-2.0** (permissive). Exec only, do not bundle or import.
 
 ## What it does

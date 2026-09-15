@@ -1,9 +1,16 @@
+---
+title: "trivy-license"
+description: "Dependency licenses that carry an obligation, read from repositories and from images."
+section: Scanners
+order: 190
+---
+
 # Scanner: `trivy-license` (dependency licenses)
 
 - **Control:** [`licenses`](../controllers/licenses.md)
 - **Tool:** Aqua **Trivy** (filesystem and image modes, license scanner), https://trivy.dev
 - **Status:** ✅ implemented (0.43.0)
-- **Target:** source repository (`RepositoryTarget`), checked out via `internal/git`, and
+- **Target:** source repository (`RepositoryTarget`), checked out at the scanned revision, and
   container image (`ImageTarget`), named on the command line
 - **License / terms:** **Apache-2.0** (permissive). Run via **exec**.
 

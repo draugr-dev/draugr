@@ -1,3 +1,10 @@
+---
+title: "retirejs"
+description: "Identifies a JavaScript library from a fingerprint of the file itself, so a vendored copy no lockfile lists is still reported."
+section: Scanners
+order: 140
+---
+
 # Scanner: `retirejs`
 
 - **Control:** `sca`

@@ -1,0 +1,1 @@
+Every scanner's reference page is on the docs site, versioned with the release it describes. What a tool sends to a third party, what data it reads and from where, its license and its terms were only on GitHub's default branch, so the catalog's links took a reader off `/docs/latest/` and showed them whatever was on `main`. The pages travel with the docs now.

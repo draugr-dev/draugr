@@ -1,3 +1,10 @@
+---
+title: "kube-bench-job"
+description: "Audits the node and control-plane sections of the CIS Benchmark from a short-lived Job in the cluster. Declares mutate and privilege effects."
+section: Scanners
+order: 100
+---
+
 # Scanner: `kube-bench-job` (CIS benchmark, run inside the cluster)
 
 - **Control:** [`infrastructure`](../controllers/infrastructure.md)

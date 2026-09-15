@@ -37,6 +37,10 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 EXEMPT = {"contributing"}
+# The scanner docs are published to the site alongside docs/, so they meet the same reader and are
+# held to the same vocabulary. The controller and surveyor docs beside them are not published and
+# are not checked: their reader is somebody adding one.
+PUBLISHED_PLUGINS = ROOT / "internal" / "scanners"
 
 # Fenced blocks come out first: a command that genuinely prints a package path, or an example in
 # another language, is quoting something real rather than explaining Draugr to the reader.
@@ -84,9 +88,9 @@ def main() -> int:
         return 1
 
     found = 0
-    for f in sorted(DOCS.rglob("*.md")):
-        if set(f.relative_to(DOCS).parts) & EXEMPT:
-            continue
+    published = [f for f in sorted(DOCS.rglob("*.md")) if not set(f.relative_to(DOCS).parts) & EXEMPT]
+    published += sorted(PUBLISHED_PLUGINS.glob("*.md"))
+    for f in published:
         hits = offenders(f.read_text())
         if not hits:
             continue

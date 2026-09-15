@@ -1,3 +1,10 @@
+---
+title: "virustotal"
+description: "A second opinion on host reputation, from VirusTotal. Opt-in, and it sends the hostname."
+section: Scanners
+order: 210
+---
+
 # `virustotal` scanner
 
 Reads what [VirusTotal](https://www.virustotal.com/)'s engines currently say about a host's

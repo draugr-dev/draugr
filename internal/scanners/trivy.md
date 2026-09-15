@@ -1,3 +1,10 @@
+---
+title: "trivy"
+description: "Container image vulnerabilities: OS packages and language dependencies baked into an image."
+section: Scanners
+order: 160
+---
+
 # Scanner: `trivy` (container images)
 
 - **Control:** [`images`](../controllers/images.md)

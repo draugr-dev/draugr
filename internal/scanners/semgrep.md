@@ -1,9 +1,16 @@
+---
+title: "semgrep"
+description: "Polyglot static analysis with no build step. The default for the sast control."
+section: Scanners
+order: 150
+---
+
 # Scanner: `semgrep` (static analysis)
 
 - **Control:** [`sast`](../controllers/sast.md)
 - **Tool:** **Semgrep**, https://semgrep.dev (repo https://github.com/semgrep/semgrep)
 - **Status:** ✅ implemented
-- **Target:** source repository (`RepositoryTarget`), checked out via `internal/git`
+- **Target:** source repository (`RepositoryTarget`), checked out at the scanned revision
 - **License / terms:** **LGPL-2.1** (copyleft). **exec only, do not bundle or import**.
   Semgrep Pro and some registry rules are separate/commercial; Draugr uses the OSS CLI with
   OSS/user-provided rules.

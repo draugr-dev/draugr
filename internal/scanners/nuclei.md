@@ -1,3 +1,10 @@
+---
+title: "nuclei"
+description: "Template-based dynamic testing against a running endpoint. A single binary, with no container to stand up."
+section: Scanners
+order: 130
+---
+
 # Scanner: `nuclei` (dynamic application security testing)
 
 - **Control:** [`dast`](../controllers/dast.md)
@@ -163,9 +170,8 @@ them rather than reusing them.
   regulated environment.
 - **Runtime fetch:** Nuclei downloads its template set from ProjectDiscovery at runtime
   (analogous to Trivy's vulnerability DB). This is a network call to a third-party service
-  governed by ProjectDiscovery's terms. Template pinning/caching for full reproducibility and
-  air-gapped operation is a documented follow-up
-  ([#54](https://github.com/draugr-dev/draugr/issues/54)).
+  governed by ProjectDiscovery's terms. The set is not pinned, so two runs a week apart may test
+  different things; the report records which set was used.
 
 ## Notes
 
@@ -176,9 +182,8 @@ them rather than reusing them.
   failure is non-fatal and resurfaces at scan time.
 - **Active/attack scanning stays out of scope**. `dast` runs Nuclei's default (safe) template
   set. Intrusive testing is a deliberate, authorized opt-in, never a default gate.
-- A deeper engine (e.g. OWASP ZAP) could serve the same control later without changing callers;
-  it needs container mode ([#92](https://github.com/draugr-dev/draugr/issues/92)) and config
-  selection ([#129](https://github.com/draugr-dev/draugr/issues/129)).
+- The control can be served by another engine without changing anything that calls it, which is
+  what the scanner boundary is for.
 
 ## Data
 
