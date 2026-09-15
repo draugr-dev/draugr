@@ -2,7 +2,9 @@ package surveyors
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -54,10 +56,10 @@ func (K8sCluster) Info() plugin.SurveyorInfo {
 func (k K8sCluster) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.Fragment, error) {
 	cs, err := k.clientset(scope)
 	if err != nil {
-		return saga.Fragment{}, fmt.Errorf("k8s-cluster: %w", err)
+		return saga.Fragment{}, kubeConfigError(err)
 	}
 	if _, err := cs.Discovery().ServerVersion(); err != nil {
-		return saga.Fragment{}, fmt.Errorf("k8s-cluster: reach the cluster: %w", err)
+		return saga.Fragment{}, fmt.Errorf("reach the cluster: %w", err)
 	}
 
 	ref := scopeContext(scope)
@@ -73,7 +75,7 @@ func (k K8sCluster) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.
 		}},
 	}
 	if err := requireNamespace(ctx, cs, scope.Ref); err != nil {
-		return saga.Fragment{}, fmt.Errorf("k8s-cluster: %w", err)
+		return saga.Fragment{}, err
 	}
 
 	// A survey scoped to a namespace describes a component that owns that namespace, not the
@@ -119,4 +121,18 @@ func currentKubeContext() string {
 		return ""
 	}
 	return raw.CurrentContext
+}
+
+// kubeConfigError replaces client-go's advice with Draugr's own where there is no configuration at
+// all.
+//
+// client-go says to set KUBERNETES_MASTER, which this command's own help does not mention and
+// which is not how anybody configures a cluster now. Two sentences about the same machine, one of
+// them ours and one of them wrong, is worse than either alone.
+func kubeConfigError(err error) error {
+	if err != nil && strings.Contains(err.Error(), "no configuration has been provided") {
+		return errors.New("no cluster is configured. Draugr reads KUBECONFIG, ~/.kube/config, " +
+			"or the in-cluster credentials when it runs inside one")
+	}
+	return err
 }

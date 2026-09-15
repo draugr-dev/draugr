@@ -49,16 +49,16 @@ func (K8sImages) Info() plugin.SurveyorInfo {
 func (k K8sImages) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.Fragment, error) {
 	cs, err := k.clientset(scope)
 	if err != nil {
-		return saga.Fragment{}, fmt.Errorf("k8s-images: %w", err)
+		return saga.Fragment{}, err
 	}
 
 	namespace := scope.Ref
 	if err := requireNamespace(ctx, cs, namespace); err != nil {
-		return saga.Fragment{}, fmt.Errorf("k8s-images: %w", err)
+		return saga.Fragment{}, err
 	}
 	pods, err := cs.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return saga.Fragment{}, fmt.Errorf("k8s-images: list pods: %w", err)
+		return saga.Fragment{}, fmt.Errorf("list pods: %w", err)
 	}
 
 	byNamespace := imagesByNamespace(pods.Items)

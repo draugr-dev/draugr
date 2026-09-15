@@ -344,10 +344,14 @@ func runSurvey(ctx context.Context, opts surveyOptions, requests []surveyor.Requ
 	// nosemgrep: trailofbits.go.invalid-usage-of-modified-variable.invalid-usage-of-modified-variable
 	frag, err := reg.Run(ctx, requests)
 	if err != nil {
-		slog.Warn("survey completed with issues", "error", err)
+		// Warned only where the survey went on to find something, because then the warning is the
+		// only place it is said. Where nothing was found the error is returned and the CLI prints
+		// it, and logging it first put the same sentence on two adjacent lines: one as a warning
+		// about a run that did not happen, and one as the failure.
 		if len(frag.Components) == 0 {
 			return err
 		}
+		slog.Warn("survey completed with issues", "error", err)
 	}
 
 	if opts.fragment {
