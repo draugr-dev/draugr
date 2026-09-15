@@ -133,23 +133,32 @@ func writeExplanation(w io.Writer, report sarif.Report, id string, rule sarif.Ru
 		_, _ = fmt.Fprintf(w, "%s\n", d)
 	}
 
-	// The remediation first among the details, because it is the reason to run this at all.
-	if fix := strings.TrimSpace(rule.FullDescription); fix != "" && fix != rule.ShortDescription {
-		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "How to fix"))
-		for _, line := range strings.Split(fix, "\n") {
+	// DETAIL, not FIX, which is what this said while printing `fullDescription`.
+	//
+	// That field is whatever the scanner chose to put in it, and across a real report it is a
+	// mixture: some rules describe the flaw, some state the practice the rule exists to enforce,
+	// and some do neither. A heading promising remediation over a sentence explaining what the
+	// problem is teaches a reader that the labels here are decorative, which costs more than the
+	// heading was worth.
+	//
+	// Where a scanner does supply remediation it is on the finding, and the report's own FIX
+	// column carries it.
+	if detail := strings.TrimSpace(rule.FullDescription); detail != "" && detail != rule.ShortDescription {
+		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "DETAIL"))
+		for _, line := range strings.Split(detail, "\n") {
 			_, _ = fmt.Fprintf(w, "  %s\n", strings.TrimSpace(line))
 		}
 	}
 
 	if where := findingsFor(report, id); len(where) > 0 {
-		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "Found in"))
+		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "LOCATION"))
 		for _, line := range where {
 			_, _ = fmt.Fprintf(w, "  %s\n", line)
 		}
 	}
 
 	if rule.HelpURI != "" {
-		_, _ = fmt.Fprintf(w, "\n%s\n  %s\n", col.Paint(tui.StyleMuted, "Reference"), rule.HelpURI)
+		_, _ = fmt.Fprintf(w, "\n%s\n  %s\n", col.Paint(tui.StyleMuted, "REFERENCE"), rule.HelpURI)
 	}
 }
 
