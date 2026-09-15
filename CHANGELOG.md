@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.125.0] - 2026-09-15
+
+### Added
+
+A run says whether its findings came from a cache, how old the oldest reused one is, and which directory it came from. `stats.cache` in the report carries `enabled`, `dir`, `ttl`, `readOnly`, `hits`, `oldestHit` and the unpinned targets; the console adds the age of the oldest hit beside the count. `enabled` is the fact the counts could never carry: a run told not to cache and a run whose every entry had expired both reported zero hits, and they are not the same run. `stats.unpinnedCacheHits` moves to `stats.cache.unpinned`, where it reads as a fact about the cache rather than about scanning.
+
+`draugr doctor` says when a tool is not the version Draugr tests. A scanner installed from a distribution package, or with `tools install --version`, is very likely fine and is not the build Draugr's own suite ran against; the row now names the tested version and one line counts them with the command that closes the gap. A note rather than a failure, because refusing to run would mistake "I have not tested this" for "this is wrong", and said out loud because an older scanner finds fewer things. `--strict` fails the command as well, and `--json` carries `testedVersion` on a tool that is not running its pin.
+
+### Fixed
+
+A finding keeps its identity in `draugr diff` when a scanner's wording changes. Identity was the tool, rule, file and **message**, so a scanner that varies its message between runs, by naming the commit in it for instance, produced the same finding as new and fixed at once. Draugr already computes a content fingerprint from the lines around each finding, and the diff now recognizes a finding by that as well as by the message, matching on either. Matching on either rather than replacing one with the other: a fingerprint present on only one side, which is what an edit near the finding produces, would otherwise churn for the opposite reason.
+
 ## [0.124.0] - 2026-09-15
 
 ### Added
@@ -5747,7 +5759,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.124.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.125.0...HEAD
+[0.125.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.125.0
 [0.124.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.124.0
 [0.123.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.123.0
 [0.122.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.122.0
