@@ -1,0 +1,1 @@
+A descriptor error offers the values a field takes as a sentence rather than as a Go slice. `want one of [public authenticated internal restricted]` is brackets nobody typed and no separators between the words, shown at the moment somebody is stuck; it now reads `want public, authenticated, internal or restricted`.

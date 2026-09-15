@@ -66,15 +66,15 @@ func (m *Model) Validate() error {
 			}
 			if r.MinPriority != "" && !slices.Contains(Priorities, r.MinPriority) {
 				errs = append(errs, fmt.Errorf(
-					"config.publishers[%d].reports[%d].minPriority is %q, but a priority band is one of %v",
-					i, j, r.MinPriority, Priorities))
+					"config.publishers[%d].reports[%d].minPriority is %q, but a priority band is %s",
+					i, j, r.MinPriority, orList(Priorities)))
 			}
 		}
 	}
 	if g := m.Config.Gate; g != nil {
 		if g.FailOnPriority != "" && !slices.Contains(Priorities, g.FailOnPriority) {
-			errs = append(errs, fmt.Errorf("config.gate.failOnPriority is %q, but a priority band is one of %v",
-				g.FailOnPriority, Priorities))
+			errs = append(errs, fmt.Errorf("config.gate.failOnPriority is %q, but a priority band is %s",
+				g.FailOnPriority, orList(Priorities)))
 		}
 		kind, _, err := ParseGate(g.FailOn)
 		if err != nil {
@@ -146,10 +146,10 @@ func (m *Model) Validate() error {
 		// scan-time error rather than a validation one.
 	}
 	if s := m.Config.SBOM; s != nil && s.Format != "" && !s.Format.Valid() {
-		errs = append(errs, fmt.Errorf("config.sbom.format %q is not a known format (want one of %v)", s.Format, SBOMFormats))
+		errs = append(errs, fmt.Errorf("config.sbom.format %q is not a known format (want %s)", s.Format, orList(SBOMFormats)))
 	}
 	if s := m.Config.SBOM; s != nil && s.Scope != "" && !s.Scope.Valid() {
-		errs = append(errs, fmt.Errorf("config.sbom.scope %q is not a known scope (want one of %v)", s.Scope, SBOMScopes))
+		errs = append(errs, fmt.Errorf("config.sbom.scope %q is not a known scope (want %s)", s.Scope, orList(SBOMScopes)))
 	}
 	for i, p := range m.Config.Publishers {
 		if p.Kind == "" {
@@ -268,13 +268,13 @@ func validateComponents(comps []Component) []error {
 		}
 
 		if c.Exposure != "" && !c.Exposure.Valid() {
-			errs = append(errs, fmt.Errorf("%s: invalid exposure %q (want one of %v)", where, c.Exposure, Exposures))
+			errs = append(errs, fmt.Errorf("%s: invalid exposure %q (want %s)", where, c.Exposure, orList(Exposures)))
 		}
 		if c.Criticality != "" && !c.Criticality.Valid() {
-			errs = append(errs, fmt.Errorf("%s: invalid criticality %q (want one of %v)", where, c.Criticality, Criticalities))
+			errs = append(errs, fmt.Errorf("%s: invalid criticality %q (want %s)", where, c.Criticality, orList(Criticalities)))
 		}
 		if c.BuiltBy != "" && !c.BuiltBy.Valid() {
-			errs = append(errs, fmt.Errorf("%s: builtBy %q is not one of %v", where, c.BuiltBy, BuiltByValues))
+			errs = append(errs, fmt.Errorf("%s: builtBy %q is not %s", where, c.BuiltBy, orList(BuiltByValues)))
 		}
 
 		for j, r := range c.Repositories {
@@ -282,7 +282,7 @@ func validateComponents(comps []Component) []error {
 				errs = append(errs, fmt.Errorf("%s: repositories[%d].url is required", where, j))
 			}
 			if r.BuiltBy != "" && !r.BuiltBy.Valid() {
-				errs = append(errs, fmt.Errorf("%s: repositories[%d].builtBy %q is not one of %v",
+				errs = append(errs, fmt.Errorf("%s: repositories[%d].builtBy %q is not %s",
 					where, j, r.BuiltBy, BuiltByValues))
 			}
 			errs = append(errs, validateRepoScope(fmt.Sprintf("%s: repositories[%d]", where, j), r)...)
@@ -293,7 +293,7 @@ func validateComponents(comps []Component) []error {
 				errs = append(errs, fmt.Errorf("%s: images[%d].image is required", where, j))
 			}
 			if img.BuiltBy != "" && !img.BuiltBy.Valid() {
-				errs = append(errs, fmt.Errorf("%s: images[%d].builtBy %q is not one of %v",
+				errs = append(errs, fmt.Errorf("%s: images[%d].builtBy %q is not %s",
 					where, j, img.BuiltBy, BuiltByValues))
 			}
 			if img.Digest != "" && !validDigest(img.Digest) {
@@ -312,7 +312,7 @@ func validateComponents(comps []Component) []error {
 			// stay at the top of the list, the descriptor claims a decision it is not making, and the run
 			// looks the same either way.
 			if infra.OperatedBy != "" && !infra.OperatedBy.Valid() {
-				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].operatedBy %q is not one of %v",
+				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].operatedBy %q is not %s",
 					where, j, infra.OperatedBy, OperatedByValues))
 			}
 			// A kind nothing audits is dropped when jobs are planned, so the component is scanned
@@ -320,7 +320,7 @@ func validateComponents(comps []Component) []error {
 			// here, where the descriptor can still be corrected, rather than at the point where
 			// the only symptom is a control that found nothing.
 			if strings.TrimSpace(infra.Kind) == "" {
-				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].kind is required (one of %v)",
+				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].kind is required (%s)",
 					where, j, InfrastructureKinds))
 			} else if !ValidInfrastructureKind(infra.Kind) {
 				errs = append(errs, fmt.Errorf(
@@ -583,3 +583,27 @@ func doubleStarAsDirectory(p string) string {
 	}
 	return prefix + "/"
 }
+
+// orList joins values the way a sentence offers a choice, so an error reads as English rather than
+// as a Go slice.
+//
+// `%v` on a string slice prints `[public authenticated internal restricted]`: brackets somebody
+// did not type and no separators between the words. It is read by somebody who is stuck, which is
+// the worst moment to be shown the shape of a value rather than the choice.
+func orList[T ~string](values []T) string {
+	words := make([]string, len(values))
+	for i, v := range values {
+		words[i] = string(v)
+	}
+	switch len(words) {
+	case 0:
+		return ""
+	case 1:
+		return words[0]
+	}
+	return strings.Join(words[:len(words)-1], ", ") + " or " + words[len(words)-1]
+}
+
+// OrList is orList for callers outside this package, so one phrasing serves every place a closed
+// vocabulary is offered back to somebody who missed it.
+func OrList[T ~string](values []T) string { return orList(values) }
