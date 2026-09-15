@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -50,7 +51,7 @@ func newToolsOutdatedCommand() *cobra.Command {
 				return netpolicy.Refuse("draugr tools outdated",
 					"the release listings each tool publishes")
 			}
-			return runToolsOutdated(cmd.Context(), cmd.OutOrStdout(), asJSON)
+			return runToolsOutdated(cmd.Context(), cmd.OutOrStdout(), asJSON, nil)
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false,
@@ -63,8 +64,12 @@ func newToolsOutdatedCommand() *cobra.Command {
 // Exits non-zero only where something could not be asked. Being behind is a fact to act on rather
 // than a failure: a pipeline reads the JSON and decides, and a person reading the table has not
 // done anything wrong by being one release back.
-func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool) error {
-	drift := tools.Outdated(ctx, nil)
+// A nil client is the default one, which is what the command passes. It is a parameter so a test
+// can supply a transport that cannot reach anything: making every upstream unreachable by setting
+// proxy variables works only while nothing in the process has read them first, and whether
+// anything has is a property of the dependency graph rather than of this code.
+func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool, client *http.Client) error {
+	drift := tools.Outdated(ctx, client)
 
 	if asJSON {
 		type row struct {

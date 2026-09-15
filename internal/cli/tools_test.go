@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -833,10 +834,12 @@ func TestRunToolsInstallAllStillFailsOnAnOrdinaryError(t *testing.T) {
 // unreachable. "Could not reach npm" read as "current", which is the one confusion this format
 // exists to prevent and the table mode already avoided.
 func TestToolsOutdatedJSONFailsWhenAnUpstreamCouldNotBeAsked(t *testing.T) {
-	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:1")
-	t.Setenv("HTTP_PROXY", "http://127.0.0.1:1")
+	// A transport that refuses, rather than proxy variables that ask the process to refuse.
+	// http.ProxyFromEnvironment reads the environment once and caches it, so setting those
+	// variables from inside a test works only while nothing has read them first, and whether
+	// anything has is a property of the dependency graph. It is also faster than dialing.
 	var out bytes.Buffer
-	err := runToolsOutdated(context.Background(), &out, true)
+	err := runToolsOutdated(context.Background(), &out, true, unreachableClient())
 	if err == nil {
 		t.Fatal("every upstream unreachable and the exit code said success")
 	}
@@ -863,3 +866,14 @@ func TestToolsOutdatedJSONFailsWhenAnUpstreamCouldNotBeAsked(t *testing.T) {
 		}
 	}
 }
+
+// unreachableClient answers every request with a failure, whatever the URL.
+func unreachableClient() *http.Client {
+	return &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("no route to host")
+	})}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
