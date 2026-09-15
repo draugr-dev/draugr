@@ -48,6 +48,7 @@ not published. They live here for readers browsing the repo.
 - [Architecture](contributing/architecture.md), package layout and design.
 - [Plugin API](contributing/plugin-api.md), the Scanner / Controller / Surveyor / Reporter / Publisher interfaces.
 - [Pipeline](contributing/pipeline.md). The run stage by stage, with a deep-dive on the gate.
+- [The Saga schema](contributing/schema.md), which half is authored, which half is regenerated, and what to run after changing a descriptor struct.
 - [Naming & control taxonomy](contributing/naming.md). What each control means and the Norse names.
 - [The cache architecture](contributing/cache.md), the three caches, how a key is derived, and what a hit does not promise.
 

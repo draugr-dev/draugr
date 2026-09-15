@@ -390,10 +390,13 @@ func FragmentSchema(sagaJSON []byte) ([]byte, error) {
 	// safe to edit by hand, and none of them are here: this file is derived in full, so the
 	// inherited advice would send somebody to edit a file that is overwritten on the next
 	// `go generate`.
-	doc["$comment"] = "Generated in full from draugr.saga.schema.json by internal/schemagen, " +
-		"every edit here is lost. Change the Saga schema or the generator instead, then run " +
-		"`go generate ./pkg/saga/...`. A fragment adds scope or attributed suppressions and " +
-		"cannot change policy, which is the rule this file expresses so an editor can enforce it."
+	//
+	// What a reader of a fragment needs, and a pointer for the one person editing this repository.
+	// The long form is a contributing page rather than a line every editor loads and the schema
+	// site serves: the same reason the Saga schema's own comment is one line.
+	doc["$comment"] = "A fragment adds scope or attributed suppressions and cannot change policy, " +
+		"which is the rule this file expresses so an editor can enforce it. Generated in full; " +
+		"before editing it by hand, read docs/contributing/schema.md in the draugr repository."
 
 	props, ok := doc["properties"].(map[string]any)
 	if !ok {
