@@ -198,3 +198,77 @@ func TestReadOnlyServesButDoesNotStore(t *testing.T) {
 		t.Error("a read-only cache wrote an entry")
 	}
 }
+
+// A report that has to explain a reused finding needs to say where the cache was and how long it
+// keeps things, and the cache is the only thing that knows.
+func TestLocalDescribesItself(t *testing.T) {
+	dir := t.TempDir()
+	got := NewLocal(dir, 24*time.Hour).Describe()
+	if got.Dir != dir || got.TTL != 24*time.Hour || got.ReadOnly {
+		t.Errorf("Describe() = %+v", got)
+	}
+}
+
+// Read-only is a property of the wrapper, not of the cache underneath, so it has to be added to
+// whatever the wrapped one says rather than replacing it.
+func TestReadOnlyDescribesTheCacheItWraps(t *testing.T) {
+	dir := t.TempDir()
+	got := ReadOnly(NewLocal(dir, time.Hour)).(Describer).Describe()
+	if got.Dir != dir || got.TTL != time.Hour {
+		t.Errorf("the wrapped cache's description was lost: %+v", got)
+	}
+	if !got.ReadOnly {
+		t.Error("a read-only view described itself as writable")
+	}
+}
+
+// The age of a reused entry is the difference between trusting it and re-running, and Get throws
+// it away.
+func TestGetStampedReturnsWhenTheEntryWasWritten(t *testing.T) {
+	dir := t.TempDir()
+	at := time.Date(2026, 8, 31, 4, 11, 2, 0, time.UTC)
+	c := NewLocal(dir, 0)
+	c.now = func() time.Time { return at }
+	if err := c.Put("k", sarif.Report{}); err != nil {
+		t.Fatal(err)
+	}
+	_, storedAt, ok := c.GetStamped("k")
+	if !ok {
+		t.Fatal("miss on an entry just written")
+	}
+	if !storedAt.Equal(at) {
+		t.Errorf("storedAt = %v, want %v", storedAt, at)
+	}
+	if _, _, ok := c.GetStamped("absent"); ok {
+		t.Error("a miss reported a hit")
+	}
+}
+
+// Expiry is decided the same way whichever accessor asked, or a stamped read would serve entries
+// a plain one refuses.
+func TestGetStampedHonorsTheTTL(t *testing.T) {
+	c := NewLocal(t.TempDir(), time.Hour)
+	c.now = func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }
+	if err := c.Put("k", sarif.Report{}); err != nil {
+		t.Fatal(err)
+	}
+	c.now = func() time.Time { return time.Date(2026, 1, 1, 2, 0, 0, 0, time.UTC) }
+	if _, _, ok := c.GetStamped("k"); ok {
+		t.Error("an expired entry was served")
+	}
+}
+
+// A cache that cannot say when it wrote something still answers what it holds.
+func TestReadOnlyFallsBackWhenTheWrappedCacheCannotStamp(t *testing.T) {
+	m := NewMemory()
+	if err := m.Put("k", sarif.Report{}); err != nil {
+		t.Fatal(err)
+	}
+	_, storedAt, ok := ReadOnly(m).(StampedGetter).GetStamped("k")
+	if !ok {
+		t.Fatal("the entry was lost on the way through the wrapper")
+	}
+	if !storedAt.IsZero() {
+		t.Errorf("a time was invented for a cache that does not record one: %v", storedAt)
+	}
+}

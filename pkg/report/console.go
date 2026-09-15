@@ -1265,11 +1265,27 @@ func runLine(st engine.Stats) string {
 	}
 	if st.CacheHits > 0 {
 		line += fmt.Sprintf(" · %d from cache", st.CacheHits)
+		// The age of the oldest thing this run trusted. Twelve results reused is a different
+		// statement an hour old and a day old, and the count alone does not distinguish them.
+		if st.OldestCacheAge > 0 {
+			line += fmt.Sprintf(", oldest %s", roundAge(st.OldestCacheAge))
+		}
 	}
 	if w := waitSummary(st.ToolWaits); w != "" {
 		line += " · " + w
 	}
 	return line + "."
+}
+
+// roundAge renders a cache entry's age at the precision a reader acts on.
+//
+// Minutes under an hour, hours beyond it. "19h" and "42m" answer "should I re-run"; "19h3m12.4s"
+// asks the reader to do the rounding themselves, in a line already carrying four other numbers.
+func roundAge(d time.Duration) time.Duration {
+	if d < time.Hour {
+		return d.Round(time.Minute)
+	}
+	return d.Round(time.Hour)
 }
 
 // slowestControl names the control that took longest, summed across its jobs.

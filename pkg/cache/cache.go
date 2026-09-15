@@ -23,6 +23,36 @@ type Cache interface {
 	Put(key string, report sarif.Report) error
 }
 
+// Description is what a cache can say about itself, for a report that has to explain a reused
+// finding to somebody reading it later.
+//
+// The directory as it was given, not resolved and not probed. In CI it is usually an archive the
+// platform restored under a key the pipeline chose, and whether that key still describes this tree
+// is the pipeline's fact rather than the scan's. Naming the path is enough to tell a CI cache from
+// a laptop's.
+type Description struct {
+	Dir      string
+	TTL      time.Duration
+	ReadOnly bool
+}
+
+// Describer is a cache that can say where it is and how long it keeps things.
+//
+// Optional, and asked for with a type assertion, so a cache that cannot answer stays a valid Cache
+// and a caller that does not care is unaffected.
+type Describer interface {
+	Describe() Description
+}
+
+// StampedGetter is a cache that reports when an entry was written, as well as what it holds.
+//
+// Age is the difference between reusing an hour-old answer and a day-old one, and the entry knows
+// it. Get throws it away, and widening Get would break every implementation for the one caller
+// that wants it.
+type StampedGetter interface {
+	GetStamped(key string) (report sarif.Report, storedAt time.Time, ok bool)
+}
+
 // entry is a stored record with its creation time (for TTL).
 type entry struct {
 	Report   sarif.Report `json:"report"`
@@ -89,6 +119,27 @@ func ReadOnly(c Cache) Cache { return readOnly{c} }
 
 type readOnly struct{ Cache }
 
+// Describe reports the wrapped cache's description, marked read-only.
+func (r readOnly) Describe() Description {
+	d, _ := r.Cache.(Describer)
+	if d == nil {
+		return Description{ReadOnly: true}
+	}
+	out := d.Describe()
+	out.ReadOnly = true
+	return out
+}
+
+// GetStamped forwards to the wrapped cache where it can answer.
+func (r readOnly) GetStamped(key string) (sarif.Report, time.Time, bool) {
+	g, ok := r.Cache.(StampedGetter)
+	if !ok {
+		report, hit := r.Get(key)
+		return report, time.Time{}, hit
+	}
+	return g.GetStamped(key)
+}
+
 // Put discards the report. Silently: a read-only cache is a deliberate configuration, not an
 // error, and a scan that failed because it could not write a cache would be absurd.
 func (readOnly) Put(string, sarif.Report) error { return nil }
@@ -111,26 +162,46 @@ func (l *Local) legacyPathFor(key string) string {
 	return filepath.Join(l.dir, key+legacySuffix)
 }
 
+// Describe reports where this cache is and how long it keeps entries.
+func (l *Local) Describe() Description { return Description{Dir: l.dir, TTL: l.ttl} }
+
+// GetStamped returns the cached report for key and when it was written.
+func (l *Local) GetStamped(key string) (sarif.Report, time.Time, bool) {
+	e, ok := l.entryFor(key)
+	if !ok {
+		return sarif.Report{}, time.Time{}, false
+	}
+	return e.Report, e.StoredAt, true
+}
+
 // Get returns the cached report for key, missing on absence, unreadable data, or expiry.
 func (l *Local) Get(key string) (sarif.Report, bool) {
+	e, ok := l.entryFor(key)
+	if !ok {
+		return sarif.Report{}, false
+	}
+	return e.Report, true
+}
+
+func (l *Local) entryFor(key string) (entry, bool) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
 	data, err := os.ReadFile(l.pathFor(key)) //nolint:gosec // key is a content-hash filename
 	if err != nil {
-		return sarif.Report{}, false
+		return entry{}, false
 	}
 	if data, err = gunzip(data); err != nil {
-		return sarif.Report{}, false
+		return entry{}, false
 	}
 	var e entry
 	if err := json.Unmarshal(data, &e); err != nil {
-		return sarif.Report{}, false
+		return entry{}, false
 	}
 	if l.ttl > 0 && l.now().Sub(e.StoredAt) > l.ttl {
-		return sarif.Report{}, false
+		return entry{}, false
 	}
-	return e.Report, true
+	return e, true
 }
 
 // Put stores report under key with the current timestamp.

@@ -396,12 +396,11 @@ type statsInfo struct {
 	Jobs      int `json:"jobs"`
 	Scans     int `json:"scans"`
 	CacheHits int `json:"cacheHits"`
-	// UnpinnedCacheHits names images whose findings were reused from a cache entry keyed on a
-	// tag rather than a digest, so they may describe an earlier image. Omitted when empty, and
-	// present here because a machine reading this report needs the same caveat a person gets.
-	UnpinnedCacheHits []string `json:"unpinnedCacheHits,omitempty"`
-	Deduped           int      `json:"deduped"`
-	Concurrency       int      `json:"concurrency"`
+	// Cache says what a reused finding rests on. Counts alone cannot: a run told not to cache and
+	// a run whose every entry had expired both report zero hits, and they are not the same run.
+	Cache       cacheInfo `json:"cache"`
+	Deduped     int       `json:"deduped"`
+	Concurrency int       `json:"concurrency"`
 
 	// DurationMs is wall-clock for the run, ByControlMs is each control's job time summed
 	// across its jobs, and ToolWaitsMs is time spent queueing for a tool's own cache instead of
@@ -423,6 +422,60 @@ type statsInfo struct {
 	DurationMs  int64            `json:"durationMs,omitempty"`
 	ByControlMs map[string]int64 `json:"byControlMs,omitempty"`
 	ToolWaitsMs map[string]int64 `json:"toolWaitsMs,omitempty"`
+}
+
+// cacheInfo describes the cache a run was given and what it took from it.
+//
+// Together these answer the question a reused finding raises, which is whether to believe it: a
+// result reused from a day-old entry restored out of another branch's archive is a different claim
+// from one written an hour ago on this machine.
+type cacheInfo struct {
+	// Enabled is the fact the counts cannot carry. Everything else is meaningless without it.
+	Enabled bool `json:"enabled"`
+	// Dir is the directory as it was given, neither resolved nor probed. Enough to recognize a CI
+	// cache from a local one; what restored an archive into it is the pipeline's fact.
+	Dir string `json:"dir,omitempty"`
+	// TTL is how long an entry stays usable. Empty when there is no expiry, which `--cache-ttl 0`
+	// selects and which means a hit has no upper bound on its age.
+	TTL string `json:"ttl,omitempty"`
+	// ReadOnly reports a cache this run served from and did not write to.
+	ReadOnly bool `json:"readOnly,omitempty"`
+	// Hits repeats cacheHits inside the object so a consumer reading only this key has the count
+	// beside the caveats that qualify it.
+	Hits int `json:"hits"`
+	// OldestHit is when the oldest reused entry was written. An instant rather than an age,
+	// because a duration is true only at the moment it is computed and a report is read later.
+	OldestHit *time.Time `json:"oldestHit,omitempty"`
+	// Unpinned names targets whose reused result could not be content-addressed, today images the
+	// descriptor identifies by a tag alone. Such a hit is right about its key and possibly wrong
+	// about the image: the tag can have been rebuilt since, and nothing in the reused report says
+	// so.
+	Unpinned []string `json:"unpinned,omitempty"`
+}
+
+// cacheInfoFrom renders what the engine recorded about the cache.
+//
+// An absent description means no cache was configured, which is reported as such rather than as an
+// empty object: `enabled: false` is an answer, and a missing key is not.
+func cacheInfoFrom(st engine.Stats) cacheInfo {
+	if st.Cache == nil {
+		return cacheInfo{}
+	}
+	out := cacheInfo{
+		Enabled:  true,
+		Dir:      st.Cache.Dir,
+		ReadOnly: st.Cache.ReadOnly,
+		Hits:     st.CacheHits,
+		Unpinned: st.UnpinnedCacheHits,
+	}
+	if st.Cache.TTL > 0 {
+		out.TTL = st.Cache.TTL.String()
+	}
+	if !st.OldestCacheHit.IsZero() {
+		at := st.OldestCacheHit.UTC()
+		out.OldestHit = &at
+	}
+	return out
 }
 
 // millis converts a duration for the report, rounding rather than truncating.
@@ -487,15 +540,15 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		Scope:      scopeOf(run),
 		Gate:       describeGate(prov.Gate),
 		Stats: statsInfo{
-			Jobs:              run.Stats.Jobs,
-			Scans:             run.Stats.Scans,
-			CacheHits:         run.Stats.CacheHits,
-			UnpinnedCacheHits: run.Stats.UnpinnedCacheHits,
-			Deduped:           run.Stats.Deduped,
-			Concurrency:       run.Stats.Concurrency,
-			DurationMs:        millis(run.Stats.Duration),
-			ByControlMs:       millisBy(run.Stats.ByControl),
-			ToolWaitsMs:       millisBy(run.Stats.ToolWaits),
+			Jobs:        run.Stats.Jobs,
+			Scans:       run.Stats.Scans,
+			CacheHits:   run.Stats.CacheHits,
+			Cache:       cacheInfoFrom(run.Stats),
+			Deduped:     run.Stats.Deduped,
+			Concurrency: run.Stats.Concurrency,
+			DurationMs:  millis(run.Stats.Duration),
+			ByControlMs: millisBy(run.Stats.ByControl),
+			ToolWaitsMs: millisBy(run.Stats.ToolWaits),
 		},
 	}
 	seen := make(map[string]bool, len(verdict.Controls))

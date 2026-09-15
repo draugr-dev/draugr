@@ -285,3 +285,31 @@ func TestGateOverridesAreNamedAndOrdered(t *testing.T) {
 		}
 	}
 }
+
+// Twelve results reused is a different statement an hour old and a day old, and the count alone
+// does not distinguish them.
+func TestTimingLineSaysHowOldTheOldestReusedEntryWas(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		age  time.Duration
+		want string
+	}{
+		{"hours are rounded to hours", 19*time.Hour + 3*time.Minute + 12*time.Second, "oldest 19h0m0s"},
+		{"under an hour, to minutes", 42*time.Minute + 30*time.Second, "oldest 43m0s"},
+		{"no age recorded, nothing claimed", 0, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			st := engine.Stats{Jobs: 4, CacheHits: 3, Duration: time.Second, OldestCacheAge: tc.age}
+			got := runLine(st)
+			if tc.want == "" {
+				if strings.Contains(got, "oldest") {
+					t.Errorf("age claimed with none recorded: %s", got)
+				}
+				return
+			}
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("runLine = %q, want it to contain %q", got, tc.want)
+			}
+		})
+	}
+}

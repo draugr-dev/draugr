@@ -630,6 +630,19 @@ type Stats struct {
 	// cannot know without asking the registry, so it reports which results rest on that
 	// assumption instead of presenting them as though they did not.
 	UnpinnedCacheHits []string
+	// OldestCacheHit is when the oldest reused entry was written, zero when nothing was reused
+	// or the cache cannot say. An instant rather than an age: a duration is only true at the
+	// moment it is computed, and a kept report is read later.
+	OldestCacheHit time.Time
+	// OldestCacheAge is that same entry's age at the moment it was reused, for the console, which
+	// is read now and where a date is a thing to subtract rather than a thing to know. Recorded
+	// here because rendering holds no clock: the console is a pure function of this struct, which
+	// is what lets a golden test pin it.
+	OldestCacheAge time.Duration
+	// Cache describes the cache this run was given, and is nil when it was given none. That
+	// distinction is the one the counts cannot carry: a run told not to cache and a run whose
+	// every entry had expired both report zero hits.
+	Cache *cache.Description
 	// Deduped counts jobs that reused an identical scan already running/completed in this run
 	// (in-run singleflight), rather than scanning or hitting the persistent cache.
 	Deduped int
@@ -674,6 +687,22 @@ type Unscanned struct {
 type scanOutcome struct {
 	report sarif.Report
 	cached bool
+	// storedAt is when the reused entry was written, zero for a fresh scan or a cache that
+	// cannot say. The age of the oldest thing a run trusted is the question a reader has, and
+	// only the entry knows it.
+	storedAt time.Time
+}
+
+// cacheGet reads an entry and, where the cache can say, when it was written.
+//
+// A cache that does not implement StampedGetter still answers the question it was asked; the run
+// simply reports no age rather than a wrong one.
+func cacheGet(c cache.Cache, key string) (sarif.Report, time.Time, bool) {
+	if g, ok := c.(cache.StampedGetter); ok {
+		return g.GetStamped(key)
+	}
+	rep, hit := c.Get(key)
+	return rep, time.Time{}, hit
 }
 
 // effectiveKey returns the job's cache key, computing one from the scan inputs when the
@@ -1029,11 +1058,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					if at := e.revisionKey(jobCtx, scanner, pj.Job, commit); at != "" {
 						key += "@" + at
 					}
-					if rep, hit := e.cache.Get(key); hit {
+					rep, storedAt, hit := cacheGet(e.cache, key)
+					if hit {
 						slog.DebugContext(jobCtx, "cache hit",
 							"control", pj.Control, "scanner", pj.Job.Scanner, "key", key)
 						cacheHitCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("control", pj.Control)))
-						return scanOutcome{report: rep, cached: true}, nil
+						return scanOutcome{report: rep, cached: true, storedAt: storedAt}, nil
 					}
 				}
 				slog.DebugContext(jobCtx, "scanning",
@@ -1094,6 +1124,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				stats.Deduped++
 			case res.cached:
 				stats.CacheHits++
+				if !res.storedAt.IsZero() && (stats.OldestCacheHit.IsZero() || res.storedAt.Before(stats.OldestCacheHit)) {
+					stats.OldestCacheHit = res.storedAt
+					stats.OldestCacheAge = time.Since(res.storedAt)
+				}
 				// Recorded per hit rather than per job: a target only rests on this assumption
 				// when its result was actually reused. A fresh scan of a tag scanned whatever the
 				// tag points at now, which is the right answer whether or not it moved.
@@ -1111,6 +1145,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		errs = append(errs, ctx.Err())
 	}
 	stats.UnpinnedCacheHits = slices.Sorted(maps.Keys(unpinnedHits))
+	// Asked of the cache rather than passed alongside it, so a caller cannot describe one cache
+	// and hand over another.
+	if d, ok := e.cache.(cache.Describer); ok {
+		desc := d.Describe()
+		stats.Cache = &desc
+	}
 
 	// Evidence, after the controls: an SBOM describes what a component contains rather than
 	// judging it, so it never reaches the verdict. A failure is still recorded, because

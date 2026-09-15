@@ -63,6 +63,38 @@ the analyzer and method for reachability, the dataset and the date for escalatio
 to reject a reachability claim that does not say how it was reached; the same standard applies to a
 claim that something is more urgent than its score.
 
+## What the cache contributed
+
+A finding can come from a cache rather than from a scan, and `stats.cache` says what that rests on.
+
+```jsonc
+"cache": {
+  "enabled": true,
+  "dir": "/home/runner/.cache/draugr",
+  "ttl": "24h0m0s",
+  "readOnly": false,
+  "hits": 12,
+  "oldestHit": "2026-08-31T04:11:02Z",
+  "unpinned": ["ghcr.io/acme/api:1.4.2"]
+}
+```
+
+| Field | What it says |
+|---|---|
+| `enabled` | whether a cache was in use at all. Always present, because a run told not to cache and a run whose every entry expired both report zero hits, and a missing key is not an answer |
+| `dir` | the directory as it was given, neither resolved nor probed. Enough to tell a CI cache from a laptop's; what restored an archive into it is the pipeline's fact rather than the scan's |
+| `ttl` | how long an entry stays usable. Absent when there is no expiry, which `--cache-ttl 0` selects and which means a hit has no upper bound on its age |
+| `readOnly` | a cache this run served from and did not write to |
+| `hits` | the same number as `cacheHits`, beside the caveats that qualify it |
+| `oldestHit` | when the oldest reused entry was written. An instant rather than an age, because a duration is true only at the moment it is computed and a kept report is read later |
+| `unpinned` | targets whose reused result could not be content-addressed, today images named by a tag alone. Such a hit is right about its key and possibly wrong about the image: the tag can have been rebuilt since, and nothing in the reused report says so |
+
+A gate that re-runs when results are too old has everything it needs here:
+
+```bash
+jq -e '.stats.cache.enabled and (.stats.cache.unpinned // [] | length == 0)' out/report.json
+```
+
 ## What the run carries
 
 Some statements are about the scan rather than about any one finding, and those live in the run's

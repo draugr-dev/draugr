@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -182,16 +183,107 @@ func TestRenderJSONStats(t *testing.T) {
 	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
 		t.Fatal(err)
 	}
+	// map[string]any rather than map[string]int: `stats` holds the cache object as well as counts.
 	var doc struct {
-		Stats map[string]int `json:"stats"`
+		Stats map[string]any `json:"stats"`
 	}
 	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
 		t.Fatalf("not JSON: %v", err)
 	}
-	for k, want := range map[string]int{"jobs": 12, "scans": 9, "cacheHits": 2, "deduped": 1, "concurrency": 4} {
-		if doc.Stats[k] != want {
-			t.Errorf("stats.%s = %d, want %d", k, doc.Stats[k], want)
+	for k, want := range map[string]float64{"jobs": 12, "scans": 9, "cacheHits": 2, "deduped": 1, "concurrency": 4} {
+		if got, _ := doc.Stats[k].(float64); got != want {
+			t.Errorf("stats.%s = %v, want %v", k, doc.Stats[k], want)
 		}
+	}
+}
+
+// A run told not to cache and a run whose every entry had expired both report zero hits. The
+// report has to tell them apart, and `enabled` is the only field that can.
+func TestRenderJSONSaysWhetherACacheWasInUse(t *testing.T) {
+	run := sampleRun()
+	run.Stats = engine.Stats{Jobs: 3, Scans: 3}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Stats struct {
+			Cache cacheInfo `json:"cache"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Stats.Cache.Enabled {
+		t.Error("no cache was configured and the report says one was")
+	}
+	// Present rather than omitted: a missing key is not an answer, so the raw document is checked
+	// for the field as well as the decoded struct, which cannot tell absent from false.
+	var raw struct {
+		Stats struct {
+			Cache map[string]any `json:"cache"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw.Stats.Cache["enabled"]; !ok {
+		t.Error("enabled is omitted, so a reader cannot tell 'no cache' from 'field not written'")
+	}
+}
+
+func TestRenderJSONDescribesTheCacheItUsed(t *testing.T) {
+	stored := time.Date(2026, 8, 31, 4, 11, 2, 0, time.UTC)
+	run := sampleRun()
+	run.Stats = engine.Stats{
+		Jobs: 4, Scans: 1, CacheHits: 3,
+		OldestCacheHit:    stored,
+		UnpinnedCacheHits: []string{"ghcr.io/acme/api:1.4.2"},
+		Cache:             &cache.Description{Dir: "/home/runner/.cache/draugr", TTL: 24 * time.Hour},
+	}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Stats struct {
+			Cache cacheInfo `json:"cache"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	c := doc.Stats.Cache
+	if !c.Enabled || c.Dir != "/home/runner/.cache/draugr" || c.TTL != "24h0m0s" || c.Hits != 3 {
+		t.Errorf("cache described wrong: %+v", c)
+	}
+	if c.OldestHit == nil || !c.OldestHit.Equal(stored) {
+		t.Errorf("oldestHit = %v, want %v", c.OldestHit, stored)
+	}
+	if len(c.Unpinned) != 1 {
+		t.Errorf("the unpinned hit moved under cache and is not there: %+v", c.Unpinned)
+	}
+}
+
+// No expiry is a real setting, and reporting it as "0s" would read as an entry that expires
+// immediately, which is the opposite of what it means.
+func TestRenderJSONOmitsTheTTLWhenThereIsNone(t *testing.T) {
+	run := sampleRun()
+	run.Stats = engine.Stats{Cache: &cache.Description{Dir: "/tmp/c"}}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var raw struct {
+		Stats struct {
+			Cache map[string]any `json:"cache"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw.Stats.Cache["ttl"]; ok {
+		t.Error("ttl reported for a cache that never expires")
 	}
 }
 
