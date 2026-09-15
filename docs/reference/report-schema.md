@@ -95,7 +95,7 @@ an accident depends on the answer.
 A run that loaded no exploitability data writes no `consulted` block at all.
 
 The `sarif` report is also what your editor reads. See [see findings in your
-editor](findings-in-your-editor.md) for inline diagnostics in VS Code and JetBrains.
+editor](../guides/findings-in-your-editor.md) for inline diagnostics in VS Code and JetBrains.
 
 For the exact schema of `config.publishers`, see the
 [Saga schema](../reference/saga-schema.md#configpublishers); for the full

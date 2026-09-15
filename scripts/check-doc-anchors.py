@@ -35,6 +35,9 @@ HEADING = re.compile(r"^(#{1,6})\s+(.*)$", re.M)
 # A link with a fragment: an optional path, then #anchor. Titles and absolute URLs are excluded
 # by requiring the target to end at the closing paren.
 LINK = re.compile(r"\]\(([^)\s#]*)#([^)\s]+)\)")
+# A link to another page, with or without an anchor. Only `.md`, because everything else a
+# document links to, a license, a workflow, a source file, is not this check's to resolve.
+PAGE = re.compile(r"\]\((?!https?:|/)([^)\s#]+\.md)(?:#[^)\s]*)?\)")
 # A fenced block holds examples, not headings, a `# comment` in bash is not a heading.
 FENCE = re.compile(r"^```.*?^```", re.M | re.S)
 # An inline code span is a quotation of a link, not a link. `[text](#heading)` written to
@@ -65,6 +68,17 @@ def main() -> int:
 
     broken: list[str] = []
     checked = 0
+
+    # A page that does not exist, before asking about its headings. Moving a section between
+    # directories carries its relative links along, and they then resolve against the new parent:
+    # correct markdown, pointing nowhere, rendering as an ordinary link on the site.
+    for path, body in linkable.items():
+        for m in PAGE.finditer(body):
+            dest = Path(os.path.normpath(path.parent / m.group(1)))
+            checked += 1
+            if not (root / dest).is_file():
+                line = body[: m.start()].count("\n") + 1
+                broken.append(f"{path}:{line}: {dest} does not exist")
     for path, body in linkable.items():
         for m in LINK.finditer(body):
             target, anchor = m.group(1), m.group(2)
@@ -83,11 +97,11 @@ def main() -> int:
                 broken.append(f"{path}:{line}: {where} matches no heading in {dest}")
 
     if broken:
-        print("✗ Markdown links to headings that do not exist", file=sys.stderr)
+        print("✗ Markdown links that resolve to nothing", file=sys.stderr)
         for b in broken:
             print(f"  {b}", file=sys.stderr)
         return 1
-    print(f"check-doc-anchors: {checked} heading link(s) resolve ✓")
+    print(f"check-doc-anchors: {checked} link(s) resolve ✓")
     return 0
 
 
