@@ -1,9 +1,16 @@
+---
+title: "trivy-fs"
+description: "Dependency vulnerabilities from a repository's manifests and lockfiles. The default for the sca control."
+section: Scanners
+order: 180
+---
+
 # Scanner: `trivy-fs` (dependency SCA)
 
 - **Control:** [`sca`](../controllers/sca.md)
 - **Tool:** Aqua **Trivy** (filesystem mode), https://trivy.dev
 - **Status:** ✅ implemented (dependency vulnerabilities)
-- **Target:** source repository (`RepositoryTarget`), checked out via `internal/git`
+- **Target:** source repository (`RepositoryTarget`), checked out at the scanned revision
 - **License / terms:** **Apache-2.0** (permissive). Run via **exec**. Vulnerability DB has
   separate terms (see the Trivy scanner doc).
 
@@ -44,8 +51,6 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 - Trivy's SARIF output does **not** include license findings. They exist only in its JSON. That
   is why [`trivy-license`](trivy-license.md) is a separate scanner with its own JSON→SARIF
   conversion rather than another flag on this one.
-- OSV-Scanner is a planned second SCA scanner ([#49](https://github.com/draugr-dev/draugr/issues/49)); its non-zero exit-on-findings needs
-  special handling.
 
 ## Data
 

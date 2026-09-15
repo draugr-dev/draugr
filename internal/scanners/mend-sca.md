@@ -1,3 +1,10 @@
+---
+title: "mend-sca"
+description: "Dependency vulnerabilities from Mend, for organizations that already pay for it. Opt-in, and it uploads your dependency inventory."
+section: Scanners
+order: 120
+---
+
 # `mend-sca`
 
 Software composition analysis by [Mend](https://www.mend.io), for the `sca` control.

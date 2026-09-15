@@ -1,9 +1,16 @@
+---
+title: "gitleaks"
+description: "Finds credentials committed to a repository, in the tree at the scanned revision and optionally across its history."
+section: Scanners
+order: 40
+---
+
 # Scanner: `gitleaks` (secret detection)
 
 - **Control:** [`secrets`](../controllers/secrets.md)
 - **Tool:** **Gitleaks**, https://github.com/gitleaks/gitleaks
 - **Status:** ✅ implemented
-- **Target:** source repository (`RepositoryTarget`), checked out via `internal/git`
+- **Target:** source repository (`RepositoryTarget`), checked out at the scanned revision
 - **License / terms:** **MIT** (permissive). Run via **exec**.
 
 ## What it does

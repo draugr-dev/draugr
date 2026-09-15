@@ -1,9 +1,16 @@
+---
+title: "trivy-config"
+description: "Misconfiguration scanning over Terraform, Kubernetes manifests, Dockerfiles and Helm, with your own Rego alongside the built-in policies."
+section: Scanners
+order: 170
+---
+
 # Scanner: `trivy-config` (IaC misconfiguration)
 
 - **Control:** [`iac`](../controllers/iac.md)
 - **Tool:** Aqua **Trivy** (config/misconfiguration mode), https://trivy.dev
 - **Status:** ✅ implemented
-- **Target:** source repository (`RepositoryTarget`), checked out via `internal/git`
+- **Target:** source repository (`RepositoryTarget`), checked out at the scanned revision
 - **License / terms:** **Apache-2.0** (permissive). Run via **exec**. The bundled misconfig
   policies have their own terms.
 
@@ -42,8 +49,9 @@ visible.
 - Integration mode: **exec** over a local checkout; Trivy + `git` must be on `PATH`.
 - Trivy exits 0 even when misconfigurations are found (no `--exit-code` set), so findings
   come from the SARIF report; the [`iac`](../controllers/iac.md) controller judges severity.
-- [Checkov](https://www.checkov.io) is a planned optional second IaC scanner
-  ([#52](https://github.com/draugr-dev/draugr/issues/52)).
+- Custom policy is where most of the value is. `checks` takes paths to your own Rego and
+  `namespaces` names the packages they declare, so a rule encoding a mistake your team repeats
+  gates the same way the built-in ones do.
 
 ## Data
 

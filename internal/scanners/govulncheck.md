@@ -1,3 +1,10 @@
+---
+title: "govulncheck"
+description: "Decides which known vulnerabilities this Go code can actually reach, with the call path as evidence."
+section: Scanners
+order: 60
+---
+
 # `govulncheck` scanner
 
 Reachability analysis for Go modules: which of a repository's known vulnerabilities this code can

@@ -72,7 +72,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		format = pkgsbom.DefaultFormat
 	}
 	if !format.Valid() {
-		return pkgsbom.Document{}, fmt.Errorf("unknown sbom format %q (want one of %v)", format, saga.SBOMFormats)
+		return pkgsbom.Document{}, fmt.Errorf("unknown sbom format %q (want %s)", format, saga.OrList(saga.SBOMFormats))
 	}
 
 	var src, label, sourceName, checkoutDir string
