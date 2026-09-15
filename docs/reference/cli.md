@@ -102,8 +102,58 @@ all of it.
 
 Logs go to **stderr**, so they never pollute a machine-readable report on stdout.
 
-Telemetry (traces/metrics) is opt-in via standard `OTEL_*` environment variables; it is a
-no-op when unset.
+Telemetry is opt-in and a no-op until an endpoint is set. Draugr exports OpenTelemetry traces and
+metrics over OTLP and reads the standard variables, so anything that already collects OTLP needs
+no Draugr-specific configuration:
+
+| | |
+|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | both signals, e.g. `http://localhost:4318` |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | traces alone, where they go somewhere else |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | metrics alone |
+
+Setting none of them disables both exporters. The rest of the specification's variables, headers,
+TLS, sampling, are read by the SDK and behave as they do everywhere else. Span attributes never
+carry secrets.
+
+---
+
+## Environment
+
+Every variable Draugr reads that you would set yourself. Flags win over variables, and variables
+win over a settings file.
+
+**Behavior**
+
+| | |
+|---|---|
+| `DRAUGR_CONFIG` | the machine or organization settings file to read, instead of the discovered ones |
+| `DRAUGR_OFFLINE` | make no network calls. Equivalent to `--offline` |
+| `DRAUGR_NO_UPDATE_CHECK` | skip the check for a newer release, without disabling the rest of the network |
+| `DRAUGR_NO_TIPS` | suppress the console's contextual tips |
+| `NO_COLOR` | render without color. Honored whatever the terminal reports |
+
+**Credentials.** Each is read at the moment it is needed and never written to a report, a log line,
+a span attribute or a cache key.
+
+| | Used by |
+|---|---|
+| `GITHUB_TOKEN` | `draugr survey github repos`, and the `github` publisher |
+| `GITLAB_TOKEN` | `draugr survey gitlab projects` |
+| `AZURE_DEVOPS_EXT_PAT` | `draugr survey azure repos` |
+| `URLHAUS_AUTH_KEY` | the `urlhaus` scanner, the `threats` default. Free from <https://auth.abuse.ch/> |
+| `VIRUSTOTAL_API_KEY` | the `virustotal` scanner, opt-in under `threats` |
+| `DRAUGR_API_TOKEN`, `DRAUGR_API_URL` | the `draugr-api` publisher |
+
+A descriptor names the variable holding a credential and never the credential: `tokenEnv` on a
+host, for instance. A descriptor is committed, so a token in one is a leaked token.
+
+**Observability**
+
+`OTEL_EXPORTER_OTLP_ENDPOINT` and its per-signal variants, above.
+
+In a pipeline Draugr also reads the CI platform's own variables to work out where it is running
+and which change it is looking at. You do not set those; the platform does.
 
 ---
 
@@ -451,55 +501,13 @@ and only affect findings whose rule id is a CVE.
 
 ### Scanners that do more than read
 
-Most scanners read an artifact and nothing else. A few do more, and say so: they declare an
-**effect**, which Draugr shows before a scan, enforces during one, and records afterwards.
+Most scanners read an artifact and nothing else. A few send traffic to a target, tell a third party
+about it, change something, or need elevated access, and each of those is declared as an **effect**
+that Draugr shows before a scan and records afterwards. Two of the four do not run until a
+descriptor accepts them.
 
-| Effect | Meaning |
-|---|---|
-| `network` | Sends traffic to the target rather than reading an artifact |
-| `disclosure` | Sends information about the target to a **third party** |
-| `mutate` | Creates or changes something that outlives the scan |
-| `privilege` | Needs access beyond what reading the target requires |
-
-**`network` and `disclosure` differ in who is affected.** Network traffic asks whether you are
-entitled to probe a host. Disclosure asks whether you are content for a vendor to learn what you
-just told them, a hostname, a dependency manifest, a repository's source. Those are not the same
-decision, so what is actually sent appears in the effect's detail line, and every scanner that
-discloses documents it under *What is sent* in its colocated doc.
-
-Run `draugr controls` to see which scanners declare what.
-
-**`mutate` and `privilege` do not run until accepted.** Changing a target, or asking for elevated
-access, is a decision someone should make on purpose:
-
-```yaml
-config:
-  allowEffects: [mutate]
-```
-
-or `--allow-effects mutate` for a single run. A scanner whose effect has not been accepted stops
-the run *before* it does anything, and the refusal says what it would have done.
-
-**The permission applies to everything the descriptor points at.** A scan that may do different
-things to different targets is a second descriptor, which is also a second file to review and a
-second run to point at something. The refusal names the scanner and what it would have done:
-
-```
-infrastructure/platform/kube-bench-job: this scanner has effects that have not been accepted:
-  mutate (creates a short-lived Job in the cluster and deletes it when the scan finishes);
-  privilege (that Job runs with hostPID and mounts host paths read-only…)
-```
-
-`--allow-effects` applies to the whole run: it is one person accepting one scan, not a policy.
-
-**`network` is declared, not gated.** A dynamic scanner exists to send traffic; requiring consent
-per run for the thing the control is *for* teaches people to accept without reading. It is stated
-and recorded instead, and the obligation it carries, that you are entitled to probe the host, is in
-the [scope and disclaimer](../trust-and-operations/disclaimer.md).
-
-What a run actually did appears in the report, so evidence describes what happened rather than
-what was configured. Only scans that really executed count: a cache hit means the traffic was not
-sent this time.
+See [what a scan does](../trust-and-operations/what-a-scan-does.md) for the four effects, which
+are gated, and how to accept one.
 
 ### Which build of each scanner ran
 
@@ -1536,7 +1544,7 @@ why the two file types are distinguishable by name.
 
 Editors normally fetch the schema from draugr.dev, which needs network access and follows a
 published version. A local copy pins validation to the Draugr you actually have, and works offline.
-See [editor support](saga-schema.md#editor-support-autocomplete-hover-docs-validation).
+See [editor support](../guides/editor-support.md).
 
 ## `draugr completion <shell>`
 

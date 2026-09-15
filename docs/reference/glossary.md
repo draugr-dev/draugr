@@ -31,9 +31,7 @@ transitive trees), so this is where a large share of real risk lives.
 
 **In Draugr:** the **`sca`** control, backed by [Trivy](https://trivy.dev) (filesystem mode), covers
 the first two. The third is the separate **`licenses`** control, license risk isn't a vulnerability,
-so it gets its own gate threshold and its own policy. (Implemented today.)
-[OSV-Scanner](https://google.github.io/osv-scanner/) as a second SCA scanner is on the roadmap:
-[#49](https://github.com/draugr-dev/draugr/issues/49).
+so it gets its own gate threshold and its own policy.
 
 **Not to be confused with:**
 - **SAST**, analyzes *your* code, not dependencies.
@@ -49,7 +47,6 @@ Analyzes your **own source code** (without running it) for security bugs, inject
 hardcoded logic flaws. In Draugr: **`sast`** via [Semgrep](https://semgrep.dev), with opt-in
 **[gosec](https://github.com/securego/gosec)** for Go components, enabled with
 `controls.sast.gosec.enabled: true`.
-(Implemented today.)
 
 ## DAST, Dynamic Application Security Testing
 
@@ -57,15 +54,14 @@ hardcoded logic flaws. In Draugr: **`sast`** via [Semgrep](https://semgrep.dev),
 
 Tests a **running application** from the outside (like an attacker), probing endpoints for issues
 (exposures, misconfigurations, info disclosure, outdated libraries). In Draugr: **`dast`** via
-[Nuclei](https://github.com/projectdiscovery/nuclei) (implemented today). A deeper opt-in engine
-such as [OWASP ZAP](https://www.zaproxy.org) is a future follow-up.
+[Nuclei](https://github.com/projectdiscovery/nuclei).
 
 ## Secret detection
 
 *Go deeper: [Secret detection](/learn/secret-scanning/) in Learn.*
 
 Scans code/history for **leaked credentials**, API keys, tokens, private keys. In Draugr:
-**`secrets`** via [Gitleaks](https://github.com/gitleaks/gitleaks). (Implemented today.)
+**`secrets`** via [Gitleaks](https://github.com/gitleaks/gitleaks).
 
 ## IaC scanning, Infrastructure as Code
 
@@ -73,15 +69,14 @@ Scans code/history for **leaked credentials**, API keys, tokens, private keys. I
 
 Finds **misconfigurations** in infrastructure definitions (Terraform, Kubernetes manifests,
 Dockerfiles, CloudFormation), open security groups, privileged containers, etc. In Draugr: **`iac`**
-via Trivy config (optionally [Checkov](https://www.checkov.io),
-[#52](https://github.com/draugr-dev/draugr/issues/52)). (Implemented today.)
+via Trivy config.
 
 ## Container image scanning
 
 *Go deeper: [Container image scanning](/learn/container-image-scanning/) in Learn.*
 
 Inspects a **built container image** for known vulns in its OS packages and bundled
-libraries. In Draugr: **`images`** via Trivy. (Implemented today.)
+libraries. In Draugr: **`images`** via Trivy.
 
 ## SBOM, Software Bill of Materials
 
@@ -91,7 +86,7 @@ A formal, shareable **inventory of everything in your software** (components + v
 licenses), in a standard format ([SPDX](https://spdx.dev/),
 [CycloneDX](https://cyclonedx.org/)). Foundation for SCA, incident response ("am I affected
 by X?"), and compliance. In Draugr: `config.sbom` via
-[Syft](https://github.com/anchore/syft). (Implemented today.)
+[Syft](https://github.com/anchore/syft).
 
 Note that it is **not** a control. A control checks something and returns a verdict; an SBOM
 is an inventory and has no verdict to give. Draugr treats it as evidence: generated during a
@@ -112,7 +107,7 @@ or diligence during an acquisition. It is also harder to undo. You fix a CVE by 
 license obligation by removing the dependency and rewriting what it did.
 
 In Draugr: the `licenses` control, backed by
-[Trivy](https://trivy.dev/latest/docs/scanner/license/). (Implemented today.) It reports licenses
+[Trivy](https://trivy.dev/latest/docs/scanner/license/). It reports licenses
 that carry an obligation and stays quiet about permissive ones, which are inventory, the job of an
 SBOM. Findings are **information, not legal advice**; see [scope and
 disclaimer](../trust-and-operations/disclaimer.md).
@@ -125,7 +120,7 @@ Checks a web endpoint's **response headers** (CSP, HSTS, X-Content-Type-Options,
 browser against classes of attack. In Draugr: **`headers`** (native; tuned per host `type`, browser
 vs. api). The Content-Security-Policy is **graded, not just counted**: a CSP allowing
 `'unsafe-inline'` in `script-src` permits what a CSP exists to prevent, so its content is judged
-too. (Implemented today.)
+too.
 
 ## TLS / certificate assessment
 
@@ -133,15 +128,15 @@ too. (Implemented today.)
 
 Evaluates an endpoint's **TLS configuration and certificates**, protocol versions, certificate
 expiry, chain validity, and key/signature strength. In Draugr: **`tls`**, using a native probe (no
-external tool). (Implemented today.) Deeper protocol auditing via [testssl.sh](https://testssl.sh)
-is a planned opt-in.
+external tool).
 
 ## Threat intelligence
 
 *Go deeper: [Threat intelligence](/learn/threat-intelligence/) in Learn.*
 
 Checks the **reputation** of hosts/URLs against known-bad feeds (malware, phishing,
-command-and-control). In Draugr: **`threats`** via URLhaus. (Implemented today.)
+command-and-control). In Draugr: **`threats`** via [abuse.ch URLhaus](https://urlhaus.abuse.ch/), with VirusTotal as an
+opt-in second opinion.
 
 It answers a question no scan of your own endpoint can. A scanner you point at your host checks the
 paths you know about; this asks whether **somebody else has already seen** that host serving
@@ -165,7 +160,7 @@ Unlike the other controls this one assesses a *platform* rather than an artifact
 its findings are located at a cluster rather than a file, and why a cluster can sensibly be a
 component with no code of its own.
 
-In Draugr: the **`infrastructure`** control. (Implemented today.) By default it reads the
+In Draugr: the **`infrastructure`** control. By default it reads the
 benchmark's **policies** section, RBAC, service accounts, Pod Security Standards, network policies,
 secrets usage, straight from the Kubernetes API, which needs no tool installed and takes seconds on
 a large cluster.
@@ -173,7 +168,7 @@ a large cluster.
 That section is the benchmark's *advisory* one: CIS marks every check in it manual, so a clean
 result there is a list of things to review rather than a measured pass. The **scored** checks cover
 how the nodes and control plane were installed, are read from a node's own filesystem, and need
-kube-bench running inside the cluster, which [`kubeBenchJob`](catalog.md) does, as a short-lived
+kube-bench running inside the cluster, which [`kube-bench-job`](catalog.md) does, as a short-lived
 privileged Job that runs only once its effects are accepted in the descriptor.
 
 A component can also declare the **namespaces** it owns, so a team on a shared cluster is
