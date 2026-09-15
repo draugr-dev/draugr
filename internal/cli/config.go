@@ -248,6 +248,14 @@ func newConfigGetCommand() *cobra.Command {
 					return nil
 				}
 			}
+			// A key nobody set and a key that does not exist are different answers, and this
+			// gave one message for both. The first is a choice and the second is a typo, and
+			// somebody who has just mistyped a setting is the reader least able to tell.
+			if !isSetting(args[0]) {
+				return fmt.Errorf("%q is not a setting Draugr has. `draugr config show` lists "+
+					"what is set, and `draugr config init` writes a file with every key in it",
+					args[0])
+			}
 			return fmt.Errorf("%q is not set (see `draugr config show`)", args[0])
 		},
 	}
@@ -310,7 +318,7 @@ func editConfig(w io.Writer, global bool, apply func([]byte) ([]byte, error)) er
 	}
 	if _, err := config.Parse(out, path); err != nil {
 		return fmt.Errorf("that edit would produce a file Draugr cannot load, so nothing was "+
-			"written:\n  %w", err)
+			"written:\n  %s", settingProblem(err))
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
@@ -397,4 +405,35 @@ func newConfigValidateCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// isSetting reports whether a dotted key names something the config file may hold.
+//
+// Asked by writing it into an empty document and parsing the result, which is the same check
+// `config set` already makes, so the two cannot disagree about what a setting is. A second list of
+// valid keys kept by hand is the one that goes stale the first time somebody adds a field.
+func isSetting(key string) bool {
+	doc, err := config.Set(nil, key, "probe")
+	if err != nil {
+		return false
+	}
+	_, err = config.Parse(doc, "")
+	return err == nil
+}
+
+// settingProblem turns a parse failure into something a reader can act on.
+//
+// yaml reports an unknown field as `field nope not found in type config.File`, which names a Go
+// type at somebody who has just mistyped a setting. The rest of a parse error is about their file
+// and is left as it is.
+func settingProblem(err error) string {
+	msg := err.Error()
+	if i := strings.Index(msg, "field "); i >= 0 {
+		if j := strings.Index(msg[i:], " not found in type"); j >= 0 {
+			field := msg[i+len("field ") : i+j]
+			return fmt.Sprintf("%q is not a setting Draugr has. `draugr config init` writes a "+
+				"file with every key in it", field)
+		}
+	}
+	return msg
 }

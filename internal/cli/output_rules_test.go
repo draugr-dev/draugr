@@ -42,7 +42,11 @@ var outputRules = []struct {
 	},
 	{
 		"a Go type or test named at a user",
-		regexp.MustCompile(`\b(Test[A-Z]\w+|\*?\w+\.\w+Config\b|go generate|reflect\.)`),
+		// `in type config.File` is what yaml says about an unknown setting, and the first cut of
+		// this rule missed it: it looked for a name ending in Config and this one begins with it.
+		// A package-qualified Go identifier is the shape, whichever half carries the word.
+		regexp.MustCompile(`\b(Test[A-Z]\w+|in type \w+\.\w+|\*?\w+\.\w+Config\b|` +
+			`go generate|reflect\.)`),
 		"the reasoning belongs in the comment beside the code, not on the screen",
 	},
 }

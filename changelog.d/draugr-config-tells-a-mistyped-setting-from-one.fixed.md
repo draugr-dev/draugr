@@ -1,0 +1,1 @@
+`draugr config` tells a mistyped setting from one nobody set. Both answered "is not set", and a bad key on `config set` reported `field nope not found in type config.File`, which names a Go type at the reader least able to read one. A key that does not exist now says so and names the command that writes a file with every key in it.
