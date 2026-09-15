@@ -16,9 +16,13 @@ _Nothing yet._
 
 ### Added
 
-A run says whether its findings came from a cache, how old the oldest reused one is, and which directory it came from. `stats.cache` in the report carries `enabled`, `dir`, `ttl`, `readOnly`, `hits`, `oldestHit` and the unpinned targets; the console adds the age of the oldest hit beside the count. `enabled` is the fact the counts could never carry: a run told not to cache and a run whose every entry had expired both reported zero hits, and they are not the same run. `stats.unpinnedCacheHits` moves to `stats.cache.unpinned`, where it reads as a fact about the cache rather than about scanning.
+A run says whether its findings came from a cache, how old the oldest reused one is, and which directory it came from. `stats.cache` in the report carries `enabled`, `dir`, `ttl`, `readOnly`, `hits`, `oldestHit` and the unpinned targets; the console adds the age of the oldest hit beside the count. `enabled` is the fact the counts could never carry: a run told not to cache and a run whose every entry had expired both reported zero hits, and they are not the same run.
 
 `draugr doctor` says when a tool is not the version Draugr tests. A scanner installed from a distribution package, or with `tools install --version`, is very likely fine and is not the build Draugr's own suite ran against; the row now names the tested version and one line counts them with the command that closes the gap. A note rather than a failure, because refusing to run would mistake "I have not tested this" for "this is wrong", and said out loud because an older scanner finds fewer things. `--strict` fails the command as well, and `--json` carries `testedVersion` on a tool that is not running its pin.
+
+### Changed
+
+`stats.unpinnedCacheHits` in the report is now `stats.cache.unpinned`. It is a fact about the cache and, beside `scans`, it read as a fact about scanning. Anything reading the old key by name will find nothing there.
 
 ### Fixed
 
