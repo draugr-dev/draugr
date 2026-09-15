@@ -1,0 +1,37 @@
+Draugr      dev  (latest: vv9.9.9. Run 'draugr self-update')
+
+TOOLS
+Tool         Status      Version  Notes
+cosign       – optional  -        optional: https://docs.sigstore.dev/cosign/system_config/installation/
+git          ✗ missing   -        install: https://git-scm.com/downloads
+gitleaks     ✗ missing   -        install: https://github.com/gitleaks/gitleaks#installing
+gosec        ✗ missing   -        install: https://github.com/securego/gosec#installation
+govulncheck  ✗ missing   -        install: draugr tools install govulncheck, it is distributed as a Go package and needs a Go toolchain to build
+grype        ✗ missing   -        install: https://github.com/anchore/grype#installation
+kube-bench   ✗ missing   -        install: https://github.com/aquasecurity/kube-bench/releases, extract both the binary and its cfg/ directory
+kubectl      ✗ missing   -        install: https://kubernetes.io/docs/tasks/tools/
+nuclei       ✗ missing   -        install: https://docs.projectdiscovery.io/tools/nuclei/install
+retire       ✗ missing   -        install: npm install -g retire, retire.js publishes to npm only, so it needs a Node runtime
+semgrep      ✗ missing   -        install: https://semgrep.dev/docs/getting-started/
+syft         ✗ missing   -        install: https://github.com/anchore/syft#installation
+trivy        ✗ missing   -        install: https://trivy.dev/latest/getting-started/installation/
+
+NETWORK  (what Draugr fetches, and when · --offline stops all of it)
+  draugr tools install             each tool's pinned release archive, verified against a recorded SHA-256
+  draugr feeds update              the CISA KEV catalog and the FIRST EPSS scores
+  draugr self-update               the latest draugr release
+  draugr doctor                    the latest draugr release, to compare against yours (skipped by --offline)
+  a scan, before it starts         the reference data each scanner reads, host by host under HOSTS
+  a scan, per target               the registry, for an image; the endpoint itself, for a host or DAST target
+  a scan, with the threats control abuse.ch, which learns each host's name
+
+HOSTS  (a scan contacts these; for an egress allowlist)
+  ghcr.io                   vulnerability database · before the scan
+  github.com                template set · before the scan
+  grype.anchore.io          vulnerability database · before the scan
+  mirror.gcr.io             vulnerability database · before the scan
+  raw.githubusercontent.com advisory database · before the scan
+  semgrep.dev               rule pack · every scan
+  vuln.go.dev               vulnerability database · every scan
+
+12 of these are not installed. Which you need depends on your descriptor. Run `draugr doctor <saga>` to check just those, or `draugr tools install` to fetch them all.

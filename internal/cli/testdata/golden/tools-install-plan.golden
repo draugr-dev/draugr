@@ -1,0 +1,6 @@
+PLAN
+  Tool      Version  Category  Verify  Destination
+  trivy     0.74.0   scanner   -       already at 0.74.0
+  gitleaks  8.30.1   scanner   sha256  <path>
+
+1 tool to install, 1 already current.

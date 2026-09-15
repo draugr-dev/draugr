@@ -1,0 +1,37 @@
+Draugr      dev  (latest: vv9.9.9. Run 'draugr self-update')
+
+TOOLS
+Tool         Status   Version  Notes
+cosign       ✓ found  3.1.3    /somewhere/cosign
+git          ✓ found  2.55.0   /somewhere/git
+gitleaks     ✓ found  8.30.1   /somewhere/gitleaks
+gosec        ✓ found  2.29.0   /somewhere/gosec
+govulncheck  ✓ found  1.8.0    /somewhere/govulncheck
+grype        ✓ found  0.118.0  /somewhere/grype
+kube-bench   ✓ found  0.16.0   /somewhere/kube-bench
+kubectl      ✓ found  1.31.0   /somewhere/kubectl
+nuclei       ✓ found  3.11.1   /somewhere/nuclei
+retire       ✓ found  5.7.0    /somewhere/retire
+semgrep      ✓ found  1.177.0  /somewhere/semgrep
+syft         ✓ found  1.51.1   /somewhere/syft
+trivy        ✓ found  0.74.0   /somewhere/trivy
+
+NETWORK  (what Draugr fetches, and when · --offline stops all of it)
+  draugr tools install             each tool's pinned release archive, verified against a recorded SHA-256
+  draugr feeds update              the CISA KEV catalog and the FIRST EPSS scores
+  draugr self-update               the latest draugr release
+  draugr doctor                    the latest draugr release, to compare against yours (skipped by --offline)
+  a scan, before it starts         the reference data each scanner reads, host by host under HOSTS
+  a scan, per target               the registry, for an image; the endpoint itself, for a host or DAST target
+  a scan, with the threats control abuse.ch, which learns each host's name
+
+HOSTS  (a scan contacts these; for an egress allowlist)
+  ghcr.io                   vulnerability database · before the scan
+  github.com                template set · before the scan
+  grype.anchore.io          vulnerability database · before the scan
+  mirror.gcr.io             vulnerability database · before the scan
+  raw.githubusercontent.com advisory database · before the scan
+  semgrep.dev               rule pack · every scan
+  vuln.go.dev               vulnerability database · every scan
+
+All required tools present.

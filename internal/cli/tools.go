@@ -683,7 +683,10 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 		}
 
 		status, statusStyle := "✗ not found", tui.StyleFail
-		if st := tools.Detect(ctx, t, nil, nil); st.Found {
+		// Through detectTool, like the install plan above it. Called directly, this row read the
+		// machine the test happened to run on, so the one command whose whole output is a table of
+		// what is on this machine was the one nothing could pin.
+		if st := detectTool(ctx, t); st.Found {
 			version := st.Version
 			if version == "" {
 				version = "?"
