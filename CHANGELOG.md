@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.126.0] - 2026-09-16
+
+### Added
+
+A new `provenance` control checks that a container image is signed by the identity you expect, with `cosign`. Declare your signers once under `config.controls.provenance.signers`, saying which images each covers, and every pipeline applies the same expectation. An image signed by a workload the descriptor does not name is a critical finding, ranked by the exposure and criticality of the component running it. Turn it on with no signers to get an inventory of who signs what you already run, formatted to paste back. An image no signer covers is reported rather than failed, so the control is useful before it is configured; `unmatched: fail` requires full coverage once you are ready.
+
+`provenance` verifies Notary Project signatures too, with `notation`. Declare an `x509:` signer naming the roots a certificate must chain to and the subject it must carry, and Draugr checks images signed that way: an Azure Pipelines build signing with a key in Azure Key Vault, or anything signed by your own certificate authority. Which verifier runs follows from the signer, so a project signing some images with Sigstore and others with a certificate declares both and passes no flag. `draugr tools install notation` provisions the pinned build.
+
+### Changed
+
+The GitHub Action provisions with `draugr tools install --saga`, so setting `tools: true` fetches the scanners your descriptor's scan will run instead of the whole catalog, which is several hundred megabytes. `draugr tools install --all` asks for all of them by name, which is still what no arguments does, and passing it alongside `--saga` or a tool list is an error rather than a precedence rule. The note pointing at `--saga` now finds any `*.saga.yaml` rather than only `draugr.saga.yaml`, and the install plan states how many tools it will fetch even on a host that has none of them.
+
+### Fixed
+
+A control setting of the wrong shape is now refused at `draugr validate` instead of being ignored. `deny: "AGPL-3.0-only"` under `config.controls.licenses` names a real setting, reads as a policy and resolved to an empty list, so the license gate a descriptor was written to apply was not applied and the run passed. Scanner options were already checked this way; a control's own settings now are too, on the project and on a component.
+
+An image carrying a GitHub artifact attestation is checked properly. cosign reads one out of the registry as an OCI referrer and then answers about it with a message rather than an exit code, so an attestation signed by a workflow the descriptor does not name was reported as an error instead of a critical finding, and discovery said nothing at all about images carrying one. Both now work, and the finding names the workflow that did sign. This is what `actions/attest` with `push-to-registry: true` produces, which makes it the common shape rather than an unusual one.
+
+The provenance how-to appears in the documentation menu. Its section name did not match the ones the site renders, so the page published and was reachable only by its URL.
+
 ## [0.125.0] - 2026-09-15
 
 ### Added
@@ -5763,7 +5783,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.125.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.126.0...HEAD
+[0.126.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.126.0
 [0.125.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.125.0
 [0.124.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.124.0
 [0.123.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.123.0
