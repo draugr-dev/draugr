@@ -10,6 +10,7 @@ govulncheck  ✗ missing   -        install: draugr tools install govulncheck, i
 grype        ✗ missing   -        install: https://github.com/anchore/grype#installation
 kube-bench   ✗ missing   -        install: https://github.com/aquasecurity/kube-bench/releases, extract both the binary and its cfg/ directory
 kubectl      ✗ missing   -        install: https://kubernetes.io/docs/tasks/tools/
+notation     ✗ missing   -        install: https://notaryproject.dev/docs/user-guides/installation/cli/
 nuclei       ✗ missing   -        install: https://docs.projectdiscovery.io/tools/nuclei/install
 retire       ✗ missing   -        install: npm install -g retire, retire.js publishes to npm only, so it needs a Node runtime
 semgrep      ✗ missing   -        install: https://semgrep.dev/docs/getting-started/
@@ -35,4 +36,4 @@ HOSTS  (a scan contacts these; for an egress allowlist)
   tuf-repo-cdn.sigstore.dev Sigstore trust root · before the scan
   vuln.go.dev               vulnerability database · every scan
 
-12 of these are not installed. Which you need depends on your descriptor. Run `draugr doctor <saga>` to check just those, or `draugr tools install` to fetch them all.
+13 of these are not installed. Which you need depends on your descriptor. Run `draugr doctor <saga>` to check just those, or `draugr tools install` to fetch them all.

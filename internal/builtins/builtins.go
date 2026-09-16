@@ -48,6 +48,7 @@ func Registry() *engine.Registry {
 	reg.RegisterScanner(scanners.NewTrivyLicense())
 	reg.RegisterScanner(scanners.NewTLSProbe())
 	reg.RegisterScanner(scanners.NewCosign())
+	reg.RegisterScanner(scanners.NewNotation())
 	return reg
 }
 

@@ -84,8 +84,15 @@ config:
           keyless:                                 # the general form, one field per cosign flag
             issuer: https://token.actions.githubusercontent.com
             identityRegexp: ^https://github\.com/chainguard-images/images/.*$
-      # cosign:                                    # the scanner takes no options of its own; the
-      #   enabled: true                            # expectation is the control's, from signers
+        # - name: acme-pki                         # a Notary Project signature instead, which is
+        #   images: ["acme.azurecr.io/*"]          # what Azure Pipelines and an in-house PKI
+        #   x509:                                  # produce. Needs the roots on disk, so it is
+        #     trustStore: .draugr/acme-ca.pem      # commented out here
+        #     subject: "C=US, ST=WA, O=Acme, CN=Acme Release Signing"
+      # cosign:                                    # neither scanner takes options of its own: the
+      #   enabled: true                            # expectation is the control's, from signers.
+      # notation:                                  # Which one runs follows from the signer, and
+      #   enabled: false                           # either can be switched off here
 
     sast:
       enabled: true

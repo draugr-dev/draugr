@@ -198,6 +198,41 @@ Two `Cache@2` tasks ahead of the template do it. See [caching and
 performance](caching-and-performance.md#on-gitlab-and-azure) for the keys and for what a hit does
 and does not promise, which is worth reading before sharing a cache with pull-request pipelines.
 
+## Verifying the images you sign
+
+Azure Pipelines signs container images with the `Notation@0` task and a certificate in Azure Key
+Vault, which pushes the signature into Azure Container Registry. That is the Notary Project trust
+model rather than the Sigstore one: a certificate chaining to roots you hold, rather than a
+short-lived identity tied to a workload.
+
+The [`provenance`](provenance.md) control checks it. Declare the roots and the subject, and Draugr
+runs `notation` against each image:
+
+```yaml
+config:
+  controls:
+    provenance:
+      enabled: true
+      signers:
+        - name: acme-pki
+          images: ["acme.azurecr.io/*"]
+          x509:
+            trustStore: .draugr/truststore/acme-ca.pem
+            subject: "C=US, ST=WA, O=Acme, CN=Acme Release Signing"
+```
+
+`trustStore` is a PEM file of root certificates, committed beside the descriptor or fetched by the
+pipeline before the scan. `subject` is the signing certificate's subject as a comma-separated
+distinguished name; run `notation inspect <image>` against something you have signed and copy the
+`issued to:` line verbatim, because it has to match exactly.
+
+Draugr writes the trust policy itself, scoped to the image being verified. There is no
+`trustpolicy.json` to maintain beside the descriptor, which would be a second place stating who may
+sign.
+
+Nothing here contacts a transparency log, so this path works on an agent whose only egress is the
+registry.
+
 ## Air-gapped and self-hosted agents
 
 [Running air-gapped](air-gapped.md) applies unchanged: `DRAUGR_OFFLINE=1`, a pre-provisioned

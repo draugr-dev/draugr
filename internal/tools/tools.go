@@ -177,6 +177,12 @@ func Catalog() map[string]Tool {
 			Category:    CategoryUtility,
 			Optional:    true, // enhances provenance verification; not required
 		},
+		"notation": {
+			Binary:      "notation",
+			VersionArgs: []string{"version"},
+			InstallHint: "https://notaryproject.dev/docs/user-guides/installation/cli/",
+			Category:    CategoryScanner,
+		},
 		"git": {
 			Binary:      "git",
 			VersionArgs: []string{"--version"},

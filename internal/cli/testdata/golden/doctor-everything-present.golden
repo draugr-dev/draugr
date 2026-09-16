@@ -10,6 +10,7 @@ govulncheck  ✓ found  1.8.0    /somewhere/govulncheck
 grype        ✓ found  0.118.0  /somewhere/grype
 kube-bench   ✓ found  0.16.0   /somewhere/kube-bench
 kubectl      ✓ found  1.31.0   /somewhere/kubectl
+notation     ✓ found  1.3.2    /somewhere/notation
 nuclei       ✓ found  3.11.1   /somewhere/nuclei
 retire       ✓ found  5.7.0    /somewhere/retire
 semgrep      ✓ found  1.177.0  /somewhere/semgrep

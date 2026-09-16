@@ -692,13 +692,24 @@ config:
           keyless:                            # the general form, one field per cosign flag
             issuer: https://token.actions.githubusercontent.com
             identityRegexp: ^https://github\.com/chainguard-images/images/.*$
+        - name: acme-pki
+          images: ["acme.azurecr.io/*"]
+          x509:                               # a Notary Project signature, checked with notation
+            trustStore: .draugr/truststore/acme-ca.pem
+            subject: "C=US, ST=WA, O=Acme, CN=Acme Release Signing"
 ```
 
-Checks that each image is signed by the identity declared for it. Requires cosign.
+Checks that each image is signed by the identity declared for it.
 
-A signer declares either `keyless` or `github`, never both. `keyless` takes an `issuer` and one of
-`identity` or `identityRegexp`; `github` takes the three parts and expands to the same thing,
-which `draugr validate` prints.
+A signer declares exactly one of `keyless`, `github` and `x509`, because a signature is checked one
+way. `keyless` takes an `issuer` and one of `identity` or `identityRegexp`; `github` takes the three
+parts and expands to the same thing, which `draugr validate` prints; `x509` takes a PEM file of
+root certificates and the subject the signing certificate must carry.
+
+**Which verifier runs follows from that.** `keyless` and `github` go to `cosign`, `x509` goes to
+`notation`, and an image no signer covers goes to `cosign`, which is the only one that can read
+back a signer nobody named. A project signing some images with Sigstore and others with a
+certificate declares both kinds and needs no flag.
 
 **An identity is not optional.** A signer with none would accept a signature from anybody, which
 is the failure this control exists to catch, and it is refused rather than treated as a default.

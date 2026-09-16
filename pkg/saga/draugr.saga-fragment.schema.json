@@ -529,6 +529,17 @@
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
           "type": "boolean"
         },
+        "notation": {
+          "additionalProperties": false,
+          "description": "notation, published by notaryproject.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "signers": {
           "description": "Who is expected to have signed what. A signer names itself, the images it covers, and the identity to check against.",
           "type": "array"

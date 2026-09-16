@@ -54,6 +54,7 @@ const (
 var upstreams = map[string]Upstream{
 	"trivy":       {KindGitHubRelease, "aquasecurity/trivy"},
 	"cosign":      {KindGitHubRelease, "sigstore/cosign"},
+	"notation":    {KindGitHubRelease, "notaryproject/notation"},
 	"kube-bench":  {KindGitHubRelease, "aquasecurity/kube-bench"},
 	"gosec":       {KindGitHubRelease, "securego/gosec"},
 	"gitleaks":    {KindGitHubRelease, "gitleaks/gitleaks"},

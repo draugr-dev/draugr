@@ -3,7 +3,7 @@
 - **Industry term:** Artifact provenance / image signature verification
 - **Scope:** component
 - **Status:** ✅ implemented
-- **Scanners:** [`cosign`](../scanners/cosign.md)
+- **Scanners:** [`cosign`](../scanners/cosign.md) (Sigstore), [`notation`](../scanners/notation.md) (Notary Project)
 - **Resource:** a component's `images:`
 
 ## What it does
@@ -51,6 +51,30 @@ A component may add signers of its own. They are added to the project's rather t
 them, the way the [`licenses`](licenses.md) policy is unioned: a component that declared one signer
 and thereby discarded the organization's would stop checking most of what it runs, and the
 descriptor would still read as a policy.
+
+### Which verifier runs
+
+The signer's trust model decides, per image. `keyless` and `github` are Sigstore, verified with
+[`cosign`](../scanners/cosign.md); `x509` is a Notary Project signature, verified with
+[`notation`](../scanners/notation.md). An image no signer covers goes to cosign, because reading
+back an unknown signer needs no prior trust and an X.509 check needs a trust store nobody named.
+
+Both scanners are defaults, so a descriptor can switch either off and have it stay off. What it
+cannot do is point one at the other's signatures, which would report every image signed the other
+way as unsigned.
+
+```yaml
+- name: acme-pki
+  images: ["acme.azurecr.io/*"]
+  x509:
+    trustStore: .draugr/truststore/acme-ca.pem   # PEM roots the certificate must chain to
+    subject: "C=US, ST=WA, O=Acme, CN=Acme Release Signing"
+```
+
+`subject` has to match the certificate exactly, as a comma-separated distinguished name.
+`notation inspect <image>` prints the string to copy. An `x509` signer declaring no trust store
+would let any certificate through, and one declaring no subject would accept any certificate that
+authority ever issued, so both are required.
 
 ### `keyless` or `github`
 

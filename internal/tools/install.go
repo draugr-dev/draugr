@@ -180,6 +180,43 @@ var installable = map[string]InstallSpec{
 			},
 		},
 	},
+	// notation verifies Notary Project signatures, which is the X.509 half of the provenance
+	// control: a certificate chaining to a trust store the descriptor names, rather than a
+	// short-lived Sigstore identity. Azure Pipelines signs this way, and so does anybody with
+	// their own PKI.
+	//
+	// SHA-256 only. notation publishes a checksums file and cosign signatures over its release
+	// assets, and the floor is what every tool here is held to.
+	"notation": {
+		Binary:  "notation",
+		Version: "1.3.2",
+		Assets: map[string]Asset{
+			"linux/amd64": {
+				URL:             "https://github.com/notaryproject/notation/releases/download/v1.3.2/notation_1.3.2_linux_amd64.tar.gz",
+				URLTemplate:     "https://github.com/notaryproject/notation/releases/download/v{version}/notation_{version}_linux_amd64.tar.gz",
+				SHA256:          "e1a0f060308086bf8020b2d31defb7c5348f133ca0dba6a1a7820ef3cbb6dfe5",
+				BinaryInArchive: "notation",
+			},
+			"linux/arm64": {
+				URL:             "https://github.com/notaryproject/notation/releases/download/v1.3.2/notation_1.3.2_linux_arm64.tar.gz",
+				URLTemplate:     "https://github.com/notaryproject/notation/releases/download/v{version}/notation_{version}_linux_arm64.tar.gz",
+				SHA256:          "34143c7b816a50104824278080a5cf12bbf855488e003f62e6acf27ed25c423c",
+				BinaryInArchive: "notation",
+			},
+			"darwin/amd64": {
+				URL:             "https://github.com/notaryproject/notation/releases/download/v1.3.2/notation_1.3.2_darwin_amd64.tar.gz",
+				URLTemplate:     "https://github.com/notaryproject/notation/releases/download/v{version}/notation_{version}_darwin_amd64.tar.gz",
+				SHA256:          "72fade2ccb0765e2ff26b53c9ca663dd33dc4f2020b2b8493e703a9ccf6174a2",
+				BinaryInArchive: "notation",
+			},
+			"darwin/arm64": {
+				URL:             "https://github.com/notaryproject/notation/releases/download/v1.3.2/notation_1.3.2_darwin_arm64.tar.gz",
+				URLTemplate:     "https://github.com/notaryproject/notation/releases/download/v{version}/notation_{version}_darwin_arm64.tar.gz",
+				SHA256:          "054bf6e9fb2619390dab9c74e5d6c511bde7609f3a060ee512c6aead2440c214",
+				BinaryInArchive: "notation",
+			},
+		},
+	},
 	// kube-bench is the alternative infrastructure scanner: the native reader is the default, and
 	// this exists for anyone who wants the upstream tool's own answers. Its release carries the
 	// binary and a 276-file cfg/ tree of benchmark definitions, installing one without the other

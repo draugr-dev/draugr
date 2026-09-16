@@ -15,10 +15,13 @@ import (
 const (
 	provenanceControl = "provenance"
 	cosignScanner     = "cosign"
+	notationScanner   = "notation"
 
-	signersKey   = "signers"
-	unmatchedKey = "unmatched"
-	trustRootKey = "trustRoot"
+	signersKey    = "signers"
+	trustStoreKey = "trustStore"
+	subjectKey    = "subject"
+	unmatchedKey  = "unmatched"
+	trustRootKey  = "trustRoot"
 )
 
 // Unmatched is what an image no signer covers is worth.
@@ -53,7 +56,7 @@ func (Provenance) Info() plugin.ControllerInfo {
 		Name:            provenanceControl,
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Check that a container image is signed by the identity this descriptor expects.",
-		DefaultScanners: []string{cosignScanner},
+		DefaultScanners: []string{cosignScanner, notationScanner},
 		OptionSchema:    provenanceOptionSchema,
 	}
 }
@@ -103,6 +106,21 @@ var provenanceOptionSchema = json.RawMessage(`{
               }
             }
           },
+          "x509": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "A Notary Project signature, identified by the certificate it carries and the roots that certificate must chain to. What Azure Pipelines produces with a key in Azure Key Vault, and what an in-house PKI produces.",
+            "properties": {
+              "trustStore": {
+                "type": "string",
+                "description": "Path to a PEM file of root certificates the signing certificate must chain to, relative to where Draugr runs."
+              },
+              "subject": {
+                "type": "string",
+                "description": "The certificate subject to require, as a comma-separated distinguished name, e.g. \"C=US, ST=WA, O=Acme, CN=Acme Release Signing\". Run notation inspect on the image to read the exact string."
+              }
+            }
+          },
           "github": {
             "type": "object",
             "additionalProperties": false,
@@ -148,6 +166,11 @@ type signer struct {
 	Issuer   string
 	Identity string
 	Regexp   string
+	// TrustStore is a PEM file of root certificates a Notary Project signature must chain to, and
+	// Subject the certificate subject it must carry. Both set, or neither: this is the X.509 trust
+	// model rather than the keyless one, and a signer belongs to exactly one.
+	TrustStore string
+	Subject    string
 	// Display is the identity a shorthand stands for, written the way it appears in a
 	// certificate rather than as the pattern cosign is given.
 	//
@@ -170,15 +193,23 @@ func (Provenance) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob
 		return nil, err
 	}
 	settings := provenanceSettings(model, comp)
-	selections := resolveScanners(model, comp, provenanceControl, []string{cosignScanner})
+	selections := resolveScanners(model, comp, provenanceControl, []string{cosignScanner, notationScanner})
 
-	jobs := make([]plugin.ScanJob, 0, len(comp.Images)*len(selections))
+	jobs := make([]plugin.ScanJob, 0, len(comp.Images))
 	for _, img := range comp.Images {
 		expected, err := signerFor(signers, img)
 		if err != nil {
 			return nil, err
 		}
+		// One scanner per image, chosen by the trust model the signer belongs to. Both are
+		// defaults, so a descriptor can still switch either off and have it stay off; what it
+		// cannot do is run a Sigstore verifier against a Notary signature, which would report
+		// every X.509-signed image as unsigned.
+		want := scannerForSigner(expected)
 		for _, sel := range selections {
+			if sel.Name != want {
+				continue
+			}
 			cfg := plugin.Config{}
 			for k, v := range sel.Config {
 				cfg[k] = v
@@ -192,14 +223,23 @@ func (Provenance) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob
 			// keys, and overwriting them as well means a descriptor that reached one anyway cannot
 			// decide what is verified: an identity pattern loose enough to match anything would
 			// otherwise turn the control green without changing the signer it appears to obey.
-			var name, issuer, identity, pattern string
+			var e signer
 			if expected != nil {
-				name, issuer, identity, pattern = expected.Name, expected.Issuer, expected.Identity, expected.Regexp
+				e = *expected
 			}
-			cfg["signer"], cfg["issuer"] = name, issuer
-			cfg["identity"], cfg["identityRegexp"] = identity, pattern
-			cfg[unmatchedKey] = settings.unmatched
-			cfg[trustRootKey] = settings.trustRoot
+			// Every key the scanner reads, written on every job, and none that it does not. All
+			// of them, because a key left absent could be supplied from the scanner's own block;
+			// none of the others, because a scanner's schema is closed and a key it has no use
+			// for would fail the job rather than be ignored.
+			cfg["signer"] = e.Name
+			switch want {
+			case notationScanner:
+				cfg[trustStoreKey], cfg[subjectKey] = e.TrustStore, e.Subject
+			default:
+				cfg["issuer"], cfg["identity"], cfg["identityRegexp"] = e.Issuer, e.Identity, e.Regexp
+				cfg[unmatchedKey] = settings.unmatched
+				cfg[trustRootKey] = settings.trustRoot
+			}
 			jobs = append(jobs, plugin.ScanJob{
 				Scanner: sel.Name,
 				Target:  plugin.ImageTarget{Ref: img.Image, Digest: img.Digest},
@@ -501,10 +541,28 @@ func parseSigner(raw any) (signer, error) {
 	}
 	keyless, hasKeyless := asMap(m["keyless"])
 	gh, hasGitHub := asMap(m["github"])
+	x509, hasX509 := asMap(m["x509"])
+	declared := 0
+	for _, has := range []bool{hasKeyless, hasGitHub, hasX509} {
+		if has {
+			declared++
+		}
+	}
 	switch {
-	case hasKeyless && hasGitHub:
-		return signer{}, fmt.Errorf("signer %q declares both keyless and github, which are two ways to write one identity; keep the one you want to read",
+	case declared > 1:
+		return signer{}, fmt.Errorf("signer %q declares more than one of keyless, github and x509; a signature is checked one way, so a signer belongs to one trust model",
 			s.Name)
+	case hasX509:
+		s.TrustStore = stringAt(x509, "trustStore")
+		s.Subject = stringAt(x509, "subject")
+		if s.TrustStore == "" {
+			return signer{}, fmt.Errorf("signer %q declares no trustStore, so there is nothing for a certificate to chain to and any certificate would do",
+				s.Name)
+		}
+		if s.Subject == "" {
+			return signer{}, fmt.Errorf("signer %q declares no subject, so any certificate from that authority would pass; an authority is who may sign, not who did",
+				s.Name)
+		}
 	case hasKeyless:
 		s.Issuer = stringAt(keyless, "issuer")
 		s.Identity = stringAt(keyless, "identity")
@@ -528,7 +586,7 @@ func parseSigner(raw any) (signer, error) {
 		}
 		s.Issuer, s.Regexp, s.Display = expanded.Issuer, expanded.Regexp, expanded.Display
 	default:
-		return signer{}, fmt.Errorf("signer %q says nothing about who signs; declare keyless or github", s.Name)
+		return signer{}, fmt.Errorf("signer %q says nothing about who signs; declare keyless, github or x509", s.Name)
 	}
 	return s, nil
 }
@@ -562,6 +620,16 @@ func githubSigner(name string, gh map[string]any) (signer, error) {
 		Regexp:  "^" + regexp.QuoteMeta(literal) + "$",
 		Display: literal,
 	}, nil
+}
+
+// scannerForSigner picks the verifier for a signer's trust model, and Sigstore for an image no
+// signer covers: reading back an unknown signer is something only the keyless side can do, because
+// an X.509 check needs a trust store nobody has named.
+func scannerForSigner(s *signer) string {
+	if s != nil && s.TrustStore != "" {
+		return notationScanner
+	}
+	return cosignScanner
 }
 
 // signerFor decides which signer covers an image: the one it names, or the one whose patterns

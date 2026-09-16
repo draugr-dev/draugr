@@ -50,6 +50,26 @@ func RunCombined(ctx context.Context, dir string, argv []string) ([]byte, error)
 	return out, explain(argv[0], err)
 }
 
+// RunCombinedWithEnv is RunCombined with extra environment variables layered over the parent's.
+//
+// For a tool that is told where to work through the environment and answers on stderr. notation
+// reads its trust policy from NOTATION_CONFIG and says why verification failed on stderr, with
+// nothing on stdout to parse, so a caller needs both halves at once.
+func RunCombinedWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+	if len(argv) == 0 {
+		return nil, errors.New("empty command")
+	}
+	started := time.Now()
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd.Dir = dir
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
+	out, err := cmd.CombinedOutput()
+	log(ctx, argv, dir, started, out, err)
+	return out, explain(argv[0], err)
+}
+
 // RunWithEnv is Run with extra environment variables layered over the parent's, each "K=V".
 //
 // A tool that shells out to another tool cannot be told which context to work in through argv,

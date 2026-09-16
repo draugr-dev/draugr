@@ -20,6 +20,7 @@ what it is told to. Provenance is about origin.
 - [Declare what you found](#declare-what-you-found)
 - [GitHub Actions](#github-actions)
 - [GitLab CI](#gitlab-ci)
+- [Azure Pipelines and an in-house PKI](#azure-pipelines-and-an-in-house-pki)
 - [What a failure looks like](#what-a-failure-looks-like)
 - [Requiring coverage](#requiring-coverage)
 - [Digests](#digests)
@@ -142,6 +143,33 @@ file. The double slash is not a typo.
 
 For a self-managed instance the issuer is that instance's URL. Read both back from a discovery run
 rather than assembling them by hand.
+
+## Azure Pipelines and an in-house PKI
+
+Sigstore is not the only way an image gets signed. Azure Pipelines signs with the `Notation@0` task
+and a certificate in Azure Key Vault, and an organization with its own certificate authority signs
+the same way. That is a different trust model, not a different string: a certificate chaining to
+roots you hold, rather than a short-lived identity tied to a workload.
+
+Declare `x509:` instead of `keyless:` and Draugr verifies with `notation`:
+
+```yaml
+- name: acme-pki
+  images: ["acme.azurecr.io/*"]
+  x509:
+    trustStore: .draugr/truststore/acme-ca.pem
+    subject: "C=US, ST=WA, O=Acme, CN=Acme Release Signing"
+```
+
+`subject` has to match the certificate exactly, as a comma-separated distinguished name. Run
+`notation inspect <image>` against something you have signed and copy the `issued to:` line.
+
+Which verifier runs is decided per image by the signer that matched, so a project signing some
+images with Sigstore and others with a certificate declares both and needs no flag.
+
+Draugr writes notation's trust policy itself, scoped to the image in front of it. There is no
+policy file to keep beside the descriptor, and nothing contacts a transparency log, so this path
+works wherever the registry is reachable.
 
 ## What a failure looks like
 

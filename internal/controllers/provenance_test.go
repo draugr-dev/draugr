@@ -209,8 +209,12 @@ func TestParseSignerRefusesWhatWouldCheckNothing(t *testing.T) {
 			"keyless": saga.ControllerSettings{"issuer": "x", "identity": "y", "identityRegexp": "z"}}, "both identity and identityRegexp"},
 		{"keyless and github", saga.ControllerSettings{"name": "a",
 			"keyless": saga.ControllerSettings{"issuer": "x", "identity": "y"},
-			"github":  saga.ControllerSettings{"repository": "r", "workflow": "w", "ref": "f"}}, "two ways to write one identity"},
+			"github":  saga.ControllerSettings{"repository": "r", "workflow": "w", "ref": "f"}}, "more than one of keyless, github and x509"},
 		{"nothing at all", saga.ControllerSettings{"name": "a"}, "says nothing about who signs"},
+		{"x509 with no trust store", saga.ControllerSettings{"name": "a",
+			"x509": saga.ControllerSettings{"subject": "CN=Acme"}}, "declares no trustStore"},
+		{"x509 with no subject", saga.ControllerSettings{"name": "a",
+			"x509": saga.ControllerSettings{"trustStore": "ca.pem"}}, "declares no subject"},
 		{"github missing a part", saga.ControllerSettings{"name": "a",
 			"github": saga.ControllerSettings{"repository": "r"}}, "github needs"},
 		{"not a block", "our-ci", "written as a block"},
@@ -363,5 +367,84 @@ func TestProvenanceInfo(t *testing.T) {
 	}
 	if len(info.OptionSchema) == 0 {
 		t.Error("the control declares settings, so it must declare their schema")
+	}
+}
+
+// x509Signer builds the settings a descriptor would carry for a Notary Project signer.
+func x509Signer(name, images, trustStore, subject string) saga.ControllerSettings {
+	return saga.ControllerSettings{
+		"name":   name,
+		"images": []any{images},
+		"x509":   saga.ControllerSettings{"trustStore": trustStore, "subject": subject},
+	}
+}
+
+// Which verifier runs is decided by the trust model, not by a descriptor listing scanners. Running
+// a Sigstore verifier against a Notary Project signature reports every X.509-signed image as
+// unsigned, which is the wrong answer arrived at confidently.
+func TestProvenancePicksTheVerifierForTheTrustModel(t *testing.T) {
+	t.Parallel()
+	settings := signersBlock(
+		keylessSigner("our-ci", "ghcr.io/acme/*", "https://gitlab.com", "x"),
+		x509Signer("acme-pki", "acme.azurecr.io/*", "ca.pem", "CN=Acme Release Signing"),
+	)
+	model, comp := modelWith(settings,
+		saga.Image{Image: "ghcr.io/acme/payments"},
+		saga.Image{Image: "acme.azurecr.io/payments"},
+		saga.Image{Image: "docker.io/library/redis"},
+	)
+	jobs, err := Provenance{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 3 {
+		t.Fatalf("want one job per image, got %d", len(jobs))
+	}
+	want := map[string]string{
+		"ghcr.io/acme/payments":    cosignScanner,
+		"acme.azurecr.io/payments": notationScanner,
+		"docker.io/library/redis":  cosignScanner, // uncovered: only Sigstore can read back an unknown signer
+	}
+	for _, job := range jobs {
+		img, _ := job.Target.(plugin.ImageTarget)
+		if got := job.Scanner; got != want[img.Ref] {
+			t.Errorf("%s went to %q, want %q", img.Ref, got, want[img.Ref])
+		}
+	}
+}
+
+// The trust store and subject reach the scanner, because without both it would verify against a
+// policy built from nothing and trust any certificate.
+func TestProvenanceCarriesTheX509Expectation(t *testing.T) {
+	t.Parallel()
+	model, comp := modelWith(
+		signersBlock(x509Signer("acme-pki", "acme.azurecr.io/*", "roots.pem", "CN=Acme")),
+		saga.Image{Image: "acme.azurecr.io/payments"},
+	)
+	jobs, err := Provenance{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := jobs[0].Config[trustStoreKey]; got != "roots.pem" {
+		t.Errorf("trustStore = %v", got)
+	}
+	if got := jobs[0].Config[subjectKey]; got != "CN=Acme" {
+		t.Errorf("subject = %v", got)
+	}
+}
+
+// A descriptor can still switch a verifier off, and an image needing it then plans no job rather
+// than quietly going to the other one, which would check a signature it cannot read.
+func TestProvenanceHonorsADisabledVerifier(t *testing.T) {
+	t.Parallel()
+	settings := signersBlock(x509Signer("acme-pki", "acme.azurecr.io/*", "ca.pem", "CN=Acme"))
+	settings[configKeyFor(notationScanner)] = saga.ControllerSettings{"enabled": false}
+	model, comp := modelWith(settings, saga.Image{Image: "acme.azurecr.io/payments"})
+	jobs, err := Provenance{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 0 {
+		t.Errorf("notation is off, so the image it would have verified plans nothing: %v", jobs)
 	}
 }

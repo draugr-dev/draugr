@@ -41,7 +41,13 @@ executing on your machine, which is a question worth being able to answer withou
 | `tls` | TLS/certificate assessment | component | ✅ | `draugr-tls` (native) | [doc](../../internal/controllers/tls.md) |
 | `licenses` | Dependency license compliance, in repositories and images | component | ✅ | `trivy-license` (default), `mend-licenses` (opt-in) | [doc](../../internal/controllers/licenses.md) |
 | `threats` | Threat intelligence | component | ✅ | `urlhaus` (default), `virustotal` (opt-in) | [doc](../../internal/controllers/threats.md) |
-| `provenance` | Artifact provenance / image signature verification | component | ✅ | `cosign` | [doc](../../internal/controllers/provenance.md) |
+| `provenance` | Artifact provenance / image signature verification | component | ✅ | `cosign` (default), `notation` (default) | [doc](../../internal/controllers/provenance.md) |
+
+`provenance` runs one of its two scanners per image, chosen by the trust model the signer it
+matched belongs to: `cosign` for a Sigstore keyless signature, `notation` for a Notary Project one.
+Both are defaults because either may be needed in a project, and a descriptor can still switch one
+off. An image no signer covers goes to `cosign`, which is the only one that can read back a signer
+nobody named.
 
 `licenses` is a control rather than part of `sca` because license risk isn't a vulnerability. The
 exposure is legal, the policy is owned by different people, and
@@ -79,6 +85,7 @@ reference](saga-schema.md#sbom-generation).
 | `urlhaus` | threats | abuse.ch URLhaus (hosted API, free key) | data: abuse.ch terms | ✅ | [doc](../../internal/scanners/urlhaus.md) |
 | `virustotal` | threats | VirusTotal (hosted API, free key) | data: VirusTotal/Google terms | ✅ | [doc](../../internal/scanners/virustotal.md) |
 | `cosign` | provenance | Sigstore cosign | Apache-2.0 | ✅ | [doc](../../internal/scanners/cosign.md) |
+| `notation` | provenance | Notary Project notation | Apache-2.0 | ✅ | [doc](../../internal/scanners/notation.md) |
 
 ## Surveyors
 

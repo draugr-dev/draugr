@@ -7,6 +7,7 @@ govulncheck  scanner   sca                      1.8.0    draugr tools install ·
 grype        scanner   images,sca               0.118.0  draugr tools install                 ✗ not found
 kube-bench   scanner   infrastructure           0.16.0   draugr tools install                 ✗ not found
 kubectl      utility   -                        -        system PATH                          ✗ not found
+notation     scanner   provenance               1.3.2    draugr tools install                 ✗ not found
 nuclei       scanner   dast                     3.11.1   draugr tools install                 ✗ not found
 retire       scanner   sca                      5.7.0    draugr tools install · needs Node    ✗ not found
 semgrep      scanner   sast                     1.177.0  draugr tools install · needs Python  ✗ not found
