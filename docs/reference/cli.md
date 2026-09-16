@@ -1150,8 +1150,11 @@ code as the answer.
 
 Download **pinned** tool binaries, verify each against a **SHA-256 recorded in Draugr** (sourced
 from the upstream checksums files), and install them into `~/.draugr/bin`, which Draugr **adds to
-`PATH` automatically**, so `scan`/`doctor` use them with no shell config. With no arguments,
-installs everything this host can have.
+`PATH` automatically**, so `scan`/`doctor` use them with no shell config.
+
+**Name a descriptor and the download is a fraction of the size.** `--saga` installs the tools that
+descriptor's scan will run and nothing else; the whole catalog is several hundred megabytes and
+most projects reach part of it. `--all`, or no arguments, installs everything this host can have.
 
 **Three of them are built from source, not downloaded.** `govulncheck` needs a Go toolchain,
 `retire` needs Node, and `semgrep` needs Python, because none publishes a release binary. With no
@@ -1176,15 +1179,19 @@ on. `draugr tools list` names the runtime each of the three needs.
 | `--force` | `false` | Reinstall even when the pinned build is already present |
 | `--version` |, | Install this version instead of the one Draugr ships (one tool at a time) |
 | `--saga` |, | Install only the tools that descriptor's scan will run |
+| `--all` | `false` | Install every tool Draugr can provision, which is what no arguments does |
 
 ```bash
-draugr tools install            # plan → confirm → install everything, into ~/.draugr/bin
+draugr tools install --saga draugr.saga.yaml   # only what this project's scan runs
 draugr tools install trivy      # just one
+draugr tools install --all      # plan → confirm → the whole catalog, into ~/.draugr/bin
 draugr tools install --dry-run  # preview the plan, change nothing
 draugr tools install -y         # non-interactive
-draugr tools install --saga draugr.saga.yaml   # only what this project's scan runs
 draugr tools install trivy --version 0.68.0    # a version other than the one Draugr ships
 ```
+
+`--all`, `--saga` and a tool list each answer the same question differently, so passing two is an
+error rather than a precedence rule to remember.
 
 **Pinning a version.** A team wanting every pipeline to scan with the same Trivy writes it once,
 where it gets reviewed:

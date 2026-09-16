@@ -46,12 +46,16 @@ than a pass.
 Do this once, on a machine that has a network, and copy `~/.draugr` across.
 
 ```bash
-draugr tools install            # binaries and their data into ~/.draugr/bin
+draugr tools install --all      # binaries and their data into ~/.draugr/bin
 draugr feeds update             # KEV and EPSS into ~/.draugr/feeds
 trivy image --download-db-only  # Trivy's vulnerability database, into its own cache
 grype db update                 # Grype's vulnerability database, if you run it
 nuclei -update-templates        # Nuclei's template set, if you run dast
 ```
+
+A runner that serves one project can carry less: `draugr tools install --saga <descriptor>` fetches
+the tools that descriptor's scan will run, and `--offline` names the archives it would have needed
+so the list can be assembled somewhere with a network.
 
 ```bash
 retire --path /tmp/empty --cachedir ~/.draugr/data/retirejs   # retire.js advisory database, if you run sca

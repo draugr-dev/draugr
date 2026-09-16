@@ -78,9 +78,9 @@ inputs:
     default: "true"
   tools:
     description: >-
-      Provision the external scanners Draugr's controls use before scanning: `draugr tools
-      install` for every scanner the controls need (Trivy, Gitleaks, gosec, Semgrep). Set "true"
-      when the runner doesn't already have them (e.g. the code-scanning starter workflow).
+      Provision the external scanners before scanning, with `draugr tools install --saga`, which
+      fetches the ones this descriptor's controls will run and leaves the rest. Set "true" when
+      the runner doesn't already have them (e.g. the code-scanning starter workflow).
     required: false
     default: "false"
   feeds:
@@ -245,12 +245,26 @@ runs:
     - name: Provision scanner tools
       if: inputs.tools == 'true'
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_SAGA: ${{ inputs.saga }}
       run: |
         set -euo pipefail
-        # Every scanner, into ~/.draugr/bin, which draugr prepends to PATH for its own scanner
-        # execution. Semgrep included: it publishes no release binary, so Draugr installs it from
-        # PyPI into an environment it owns and puts a launcher there with the rest.
-        draugr tools install -y
+        # cosign first, because `tools install` uses it to check the upstream signature on every
+        # tool that publishes one, and falls back to the SHA-256 pin alone when it is absent.
+        # Already on PATH when `verify` is true, which is the default; this covers the case where
+        # somebody turned that off and would otherwise get a quieter guarantee than they had.
+        command -v cosign >/dev/null 2>&1 || draugr tools install -y cosign
+
+        # Only what this descriptor's scan will run, into ~/.draugr/bin, which draugr prepends to
+        # PATH for its own scanner execution. The full catalog is several hundred megabytes and a
+        # descriptor typically reaches a fraction of it, so provisioning all of it spends most of
+        # the step on scanners the run never starts.
+        #
+        # Semgrep arrives this way too when the descriptor asks for it: it publishes no release
+        # binary, so Draugr installs it from PyPI into an environment it owns and puts a launcher
+        # there with the rest.
+        draugr tools install -y --saga "$INPUT_SAGA"
 
     - name: Fetch exploitability feeds
       if: inputs.feeds == 'true'

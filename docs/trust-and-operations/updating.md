@@ -36,17 +36,24 @@ For CI, **pin a released version** rather than self-updating.
 `draugr tools install` downloads **pinned** tool binaries, verifies each against a **SHA-256
 recorded in Draugr** (sourced from the upstream checksums files), and installs them into
 `~/.draugr/bin`, which Draugr **adds to `PATH` automatically**, so `scan`/`doctor` use them with
-no shell config. With no arguments it installs everything Draugr can provision (`trivy`,
-`gitleaks`, `gosec`, `cosign`).
+no shell config.
+
+**Point it at your descriptor.** `--saga` installs the tools that descriptor's scan will run and
+leaves the rest. The whole catalog is several hundred megabytes, most of it scanners a given
+project never starts, and every binary on `PATH` is one more thing to trust and keep patched.
+`--all`, or no arguments, installs everything Draugr can provision.
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `--saga` |, | Install only the tools that descriptor's scan will run |
+| `--all` | `false` | Install every tool Draugr can provision, which is what no arguments does |
 | `-y, --yes` |, | Skip the confirmation prompt |
 | `--dry-run` |, | Print the install plan and exit |
 
 ```bash
-draugr tools install            # plan → confirm → install everything, into ~/.draugr/bin
+draugr tools install --saga draugr.saga.yaml   # only what this project's scan runs
 draugr tools install trivy      # just one
+draugr tools install --all      # plan → confirm → the whole catalog, into ~/.draugr/bin
 draugr tools install --dry-run  # preview the plan, change nothing
 draugr tools install -y         # non-interactive
 ```

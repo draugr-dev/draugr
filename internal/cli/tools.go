@@ -146,6 +146,7 @@ type toolsInstallOptions struct {
 	yes     bool
 	dryRun  bool
 	force   bool
+	all     bool
 	saga    string
 	version string
 	// wanted is the version to install per tool, resolved from draugr.config.yaml and then
@@ -163,8 +164,8 @@ func newToolsInstallCommand() *cobra.Command {
 		Short: "Download pinned, checksum-verified tools into ~/.draugr/bin",
 		Long: "Download pinned scanner/utility binaries, verify each against a SHA-256 recorded in\n" +
 			"Draugr, and install them into ~/.draugr/bin (which Draugr adds to PATH automatically).\n" +
-			"With no arguments, installs every tool Draugr can provision; with --saga, only the\n" +
-			"tools that descriptor's scan will actually run. Prints the plan first; when run\n" +
+			"With --saga, installs only the tools that descriptor's scan will run; with --all or no\n" +
+			"arguments, every tool Draugr can provision. Prints the plan first; when run\n" +
 			"interactively it asks for confirmation. Never downloads without being asked.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -172,7 +173,7 @@ func newToolsInstallCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			names, err := installNames(cmd.OutOrStdout(), args, *opts)
+			names, all, err := installNames(cmd.OutOrStdout(), args, *opts)
 			if err != nil {
 				return err
 			}
@@ -183,16 +184,19 @@ func newToolsInstallCommand() *cobra.Command {
 				return tools.InstallVersion(cmd.Context(), name, opts.want(name), dir, nil, opts.force)
 			}
 			// Names them, because someone preparing an air-gapped machine wants the list of what
-			// they will have to bring across. An empty selection means everything installable.
+			// they will have to bring across.
 			if netpolicy.Offline() {
 				wanted := names
-				if len(wanted) == 0 {
+				if all {
 					wanted = tools.Installable()
+				}
+				if len(wanted) == 0 {
+					return nil
 				}
 				return netpolicy.Refuse("draugr tools install",
 					"the pinned release archive for: "+strings.Join(wanted, ", "))
 			}
-			return runToolsInstall(cmd.OutOrStdout(), cmd.InOrStdin(), names, *opts, install)
+			return runToolsInstall(cmd.OutOrStdout(), cmd.InOrStdin(), names, all, *opts, install)
 		},
 	}
 	cmd.Flags().BoolVarP(&opts.yes, "yes", "y", false, "skip the confirmation prompt")
@@ -203,6 +207,8 @@ func newToolsInstallCommand() *cobra.Command {
 		"reinstall even when the pinned version is already present (repairs a modified binary)")
 	cmd.Flags().StringVar(&opts.saga, "saga", "",
 		"install only the tools this descriptor's scan will run")
+	cmd.Flags().BoolVar(&opts.all, "all", false,
+		"install every tool Draugr can provision (what no arguments already does)")
 	return cmd
 }
 
@@ -212,22 +218,44 @@ func newToolsInstallCommand() *cobra.Command {
 // one more thing to trust, patch and explain. But it is the existing behavior and changing it
 // silently would provision less than a pipeline expects. So --saga is opt-in, and the case for it
 // is made where it is relevant rather than in the docs.
-func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]string, error) {
+//
+// The second result says the selection is the whole catalog, and it is not the same as an empty
+// list. A descriptor whose controls all run on scanners built into Draugr needs nothing installed,
+// and inferring "everything" from the empty result would answer `--saga` by downloading the
+// catalog it was passed to avoid, one line under a message saying there was nothing to install.
+func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]string, bool, error) {
+	// --all is what no arguments already does, so it changes nothing about the outcome. It exists so
+	// that the expensive case can be asked for deliberately, and so a reader of a pipeline can tell
+	// a considered choice from a command that was never narrowed.
+	if opts.all {
+		switch {
+		case opts.saga != "":
+			return nil, false, fmt.Errorf(
+				"--all and --saga ask for different things: one installs every tool Draugr provisions, "+
+					"the other installs what %s needs. Pick one", opts.saga)
+		case len(args) > 0:
+			return nil, false, fmt.Errorf(
+				"--all and an explicit tool list ask for different things: one installs every tool "+
+					"Draugr provisions, the other installs %s. Pick one", strings.Join(quoteAll(args), ", "))
+		}
+		return nil, true, nil
+	}
 	if opts.saga == "" {
 		if len(args) == 0 {
 			noteDescriptorInWorkingDir(w)
+			return nil, true, nil
 		}
-		return args, nil
+		return args, false, nil
 	}
 	if len(args) > 0 {
-		return nil, fmt.Errorf(
+		return nil, false, fmt.Errorf(
 			"--saga and an explicit tool list ask for different things: one installs what %s needs, "+
 				"the other installs %s. Pick one", opts.saga, strings.Join(quoteAll(args), ", "))
 	}
 
 	model, err := loadSaga(opts.saga)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	required := requiredTools(builtins.Registry(), model)
 
@@ -253,7 +281,7 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 	if len(names) == 0 {
 		_, _ = fmt.Fprintf(w, "Nothing to install: %s needs no tool Draugr provisions.\n", opts.saga)
 	}
-	return names, nil
+	return names, false, nil
 }
 
 func pluralThem(n int) string {
@@ -270,10 +298,18 @@ func pluralThem(n int) string {
 // provisions a smaller set, and it may then be handed a different Saga to scan. Installing less
 // than before, silently, is how a mystery failure appears in somebody else's pipeline.
 func noteDescriptorInWorkingDir(w io.Writer) {
-	const descriptor = "draugr.saga.yaml"
-	if _, err := os.Stat(descriptor); err != nil {
+	// Every name a scan would find, not just the one `draugr init` writes. A project whose
+	// descriptor is called anything else got no note at all, which is the project least likely to
+	// know the flag exists.
+	//
+	// Exactly one, because the note quotes a path and a saving. With several descriptors beside
+	// each other there is no way to tell which one this host is being prepared for, and naming the
+	// first alphabetically would put a specific number against a guess.
+	found, err := descriptorsIn(".")
+	if err != nil || len(found) != 1 {
 		return
 	}
+	descriptor := found[0]
 	model, err := loadSaga(descriptor)
 	if err != nil {
 		return // not our problem here; scan and doctor will say so properly
@@ -393,10 +429,15 @@ func editDistance(a, b string) int {
 	return prev[len(b)]
 }
 
-func runToolsInstall(w io.Writer, in io.Reader, names []string, opts toolsInstallOptions, install func(name string) (tools.Installed, error)) error {
-	all := len(names) == 0
+func runToolsInstall(w io.Writer, in io.Reader, names []string, all bool, opts toolsInstallOptions, install func(name string) (tools.Installed, error)) error {
 	if all {
 		names = tools.Installable()
+	}
+	// A selection can legitimately be empty: a descriptor whose controls all run on scanners built
+	// into Draugr asks for nothing. installNames has already said so, and a plan with no rows under
+	// it would read as a second, contradictory answer.
+	if len(names) == 0 {
+		return nil
 	}
 	// An unknown name is a typo, not a choice. Reject it up front rather than rendering a row of
 	// dashes and asking whether to proceed. And fail the whole command, since half-installing after a
@@ -641,9 +682,18 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 	}
 	table.Render(w)
 
+	// Always, not only when something is already present. A fresh host is where the count matters
+	// most, and it was the one case that got none: eleven rows and nothing saying eleven.
+	//
+	// Nothing here says the selection was the whole catalog. Where that is worth knowing a
+	// descriptor is present, and noteDescriptorInWorkingDir has already said it with a number and
+	// the flag that narrows it. Where no descriptor is present, `--saga` is not advice anybody can
+	// take.
+	line := fmt.Sprintf("%s to install", plural(todo, "tool"))
 	if n := len(have); n > 0 {
-		_, _ = fmt.Fprintf(w, "\n%s to install, %d already current.\n", plural(todo, "tool"), n)
+		line += fmt.Sprintf(", %d already current", n)
 	}
+	_, _ = fmt.Fprintf(w, "\n%s.\n", line)
 }
 
 // isTTY reports whether r is an interactive terminal, used to decide whether to prompt

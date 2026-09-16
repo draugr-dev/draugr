@@ -31,7 +31,7 @@ func TestRunToolsInstallSuccess(t *testing.T) {
 		}
 		return i, nil
 	}
-	if err := runToolsInstall(&out, nil, []string{"trivy", "gitleaks"}, toolsInstallOptions{yes: true}, install); err != nil {
+	if err := runToolsInstall(&out, nil, []string{"trivy", "gitleaks"}, false, toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
 	}
 	s := out.String()
@@ -62,7 +62,7 @@ func TestRunToolsInstallPlanAndDryRun(t *testing.T) {
 	var out bytes.Buffer
 	called := false
 	install := func(string) (tools.Installed, error) { called = true; return tools.Installed{}, nil }
-	if err := runToolsInstall(&out, nil, []string{"trivy", "cosign"}, toolsInstallOptions{dryRun: true}, install); err != nil {
+	if err := runToolsInstall(&out, nil, []string{"trivy", "cosign"}, false, toolsInstallOptions{dryRun: true}, install); err != nil {
 		t.Fatal(err)
 	}
 	if called {
@@ -88,7 +88,7 @@ func TestRunToolsInstallInteractiveAbort(t *testing.T) {
 	called := false
 	install := func(string) (tools.Installed, error) { called = true; return tools.Installed{}, nil }
 	// interactive + "n" → abort before installing.
-	if err := runToolsInstall(&out, strings.NewReader("n\n"), []string{"trivy"}, toolsInstallOptions{}, install); err != nil {
+	if err := runToolsInstall(&out, strings.NewReader("n\n"), []string{"trivy"}, false, toolsInstallOptions{}, install); err != nil {
 		t.Fatal(err)
 	}
 	if called {
@@ -110,7 +110,7 @@ func TestRunToolsInstallHandlesSemgrepLikeAnyOtherTool(t *testing.T) {
 		got = append(got, name)
 		return tools.Installed{Name: name, Version: tools.SemgrepVersion(), Path: "/x/" + name}, nil
 	}
-	if err := runToolsInstall(&out, nil, []string{"semgrep"}, toolsInstallOptions{yes: true}, install); err != nil {
+	if err := runToolsInstall(&out, nil, []string{"semgrep"}, false, toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
 	}
 	if len(got) != 1 || got[0] != "semgrep" {
@@ -130,7 +130,7 @@ func TestRunToolsInstallFailure(t *testing.T) {
 	install := func(string) (tools.Installed, error) {
 		return tools.Installed{}, errors.New("boom")
 	}
-	err := runToolsInstall(&out, nil, []string{"trivy"}, toolsInstallOptions{yes: true}, install)
+	err := runToolsInstall(&out, nil, []string{"trivy"}, false, toolsInstallOptions{yes: true}, install)
 	if err == nil {
 		t.Fatal("expected error when an install fails")
 	}
@@ -150,7 +150,7 @@ func TestRunToolsInstallAllInstallsInstallable(t *testing.T) {
 		return tools.Installed{Name: name, Version: "1.0.0", Path: "/x/" + name}, nil
 	}
 	// Empty names → install everything installable, semgrep included.
-	if err := runToolsInstall(&out, nil, nil, toolsInstallOptions{yes: true}, install); err != nil {
+	if err := runToolsInstall(&out, nil, nil, true, toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
 	}
 	if len(got) == 0 {
@@ -199,7 +199,7 @@ func TestToolsInstallRejectsUnknownTool(t *testing.T) {
 		called = true
 		return tools.Installed{}, nil
 	}
-	err := runToolsInstall(&out, nil, []string{"notarealtool"}, toolsInstallOptions{yes: true}, install)
+	err := runToolsInstall(&out, nil, []string{"notarealtool"}, false, toolsInstallOptions{yes: true}, install)
 	if err == nil {
 		t.Fatal("an unknown tool should be an error")
 	}
@@ -215,7 +215,7 @@ func TestToolsInstallRejectsUnknownTool(t *testing.T) {
 }
 
 func TestToolsInstallSuggestsNearMiss(t *testing.T) {
-	err := runToolsInstall(&bytes.Buffer{}, nil, []string{"trivvy"}, toolsInstallOptions{yes: true},
+	err := runToolsInstall(&bytes.Buffer{}, nil, []string{"trivvy"}, false, toolsInstallOptions{yes: true},
 		func(string) (tools.Installed, error) { return tools.Installed{}, nil })
 	if err == nil || !strings.Contains(err.Error(), `did you mean "trivy"`) {
 		t.Errorf("expected a suggestion for a near-miss, got %v", err)
@@ -225,7 +225,7 @@ func TestToolsInstallSuggestsNearMiss(t *testing.T) {
 // One bad name fails the whole command: half-installing after a typo is the surprising outcome.
 func TestToolsInstallRejectsMixedValidAndInvalid(t *testing.T) {
 	installed := 0
-	err := runToolsInstall(&bytes.Buffer{}, nil, []string{"trivy", "nope"}, toolsInstallOptions{yes: true},
+	err := runToolsInstall(&bytes.Buffer{}, nil, []string{"trivy", "nope"}, false, toolsInstallOptions{yes: true},
 		func(string) (tools.Installed, error) { installed++; return tools.Installed{}, nil })
 	if err == nil {
 		t.Fatal("a mix containing an unknown tool should fail")
@@ -267,7 +267,7 @@ func TestInstallNamesFromSaga(t *testing.T) {
 	t.Parallel()
 
 	var out bytes.Buffer
-	got, err := installNames(&out, nil, toolsInstallOptions{saga: writeSaga(t, toolsSagaTwoControls)})
+	got, _, err := installNames(&out, nil, toolsInstallOptions{saga: writeSaga(t, toolsSagaTwoControls)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func TestInstallNamesWithoutSagaIsUnchanged(t *testing.T) {
 	t.Parallel()
 
 	var out bytes.Buffer
-	got, err := installNames(&out, nil, toolsInstallOptions{})
+	got, _, err := installNames(&out, nil, toolsInstallOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +297,7 @@ func TestInstallNamesWithoutSagaIsUnchanged(t *testing.T) {
 		t.Errorf("names = %v, want none, an empty list means the whole catalog downstream", got)
 	}
 
-	named, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{})
+	named, _, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +312,7 @@ func TestInstallNamesRejectsSagaWithExplicitTools(t *testing.T) {
 	t.Parallel()
 
 	var out bytes.Buffer
-	_, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{saga: writeSaga(t, toolsSagaTwoControls)})
+	_, _, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{saga: writeSaga(t, toolsSagaTwoControls)})
 	if err == nil {
 		t.Fatal("want an error")
 	}
@@ -321,10 +321,100 @@ func TestInstallNamesRejectsSagaWithExplicitTools(t *testing.T) {
 	}
 }
 
+// Every control here runs on a scanner built into Draugr, so there is nothing to provision.
+const toolsSagaNeedsNothing = `project: t
+release: {version: "1.0"}
+components:
+  - name: c
+    hosts: [{name: site, url: "https://example.com", type: browser}]
+    controls:
+      headers: {}
+`
+
+// An empty selection and no selection are different answers, and the difference is the whole
+// catalog. Reading one as the other would answer --saga by downloading what it was passed to
+// avoid, directly under a line saying there was nothing to install.
+func TestInstallNamesSagaNeedingNothingIsNotEverything(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	got, all, err := installNames(&out, nil, toolsInstallOptions{saga: writeSaga(t, toolsSagaNeedsNothing)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Errorf("names = %v, want none", got)
+	}
+	if all {
+		t.Error("a descriptor that needs no tool has not asked for the catalog")
+	}
+	if !strings.Contains(out.String(), "Nothing to install") {
+		t.Errorf("output should say so, got %q", out.String())
+	}
+}
+
+// And the half of it downstream: an empty selection installs nothing rather than falling through
+// to every tool the host can have.
+func TestRunToolsInstallEmptySelectionInstallsNothing(t *testing.T) {
+	stubDetect(t, map[string]string{})
+	var out bytes.Buffer
+	var got []string
+	install := func(name string) (tools.Installed, error) {
+		got = append(got, name)
+		return tools.Installed{Name: name, Version: "1.0.0", Path: "/x/" + name}, nil
+	}
+	if err := runToolsInstall(&out, nil, nil, false, toolsInstallOptions{yes: true}, install); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Errorf("nothing was selected, so nothing should install; got %v", got)
+	}
+	if strings.Contains(out.String(), "PLAN") {
+		t.Errorf("a plan with no rows contradicts the line above it, got %q", out.String())
+	}
+}
+
+// --all asks for what no arguments already installs, so the one thing it must not do is change
+// the set. A flag that quietly narrowed or widened it would be worse than not having one.
+func TestInstallNamesAllSelectsEverything(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	got, _, err := installNames(&out, nil, toolsInstallOptions{all: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Errorf("names = %v, want none, an empty list means the whole catalog downstream", got)
+	}
+	// The note argues for narrowing the selection. Somebody who passed --all has answered that.
+	if out.String() != "" {
+		t.Errorf("--all is a decision; got unsolicited advice: %q", out.String())
+	}
+}
+
+// Three ways of saying what to install, pointing at different sets. Picking a winner quietly is
+// how a pipeline provisions something other than what it reads as asking for.
+func TestInstallNamesAllRejectsAnyOtherSelection(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	saga := writeSaga(t, toolsSagaTwoControls)
+	_, _, err := installNames(&out, nil, toolsInstallOptions{all: true, saga: saga})
+	if err == nil || !strings.Contains(err.Error(), saga) {
+		t.Errorf("--all with --saga should fail and name the descriptor, got: %v", err)
+	}
+
+	_, _, err = installNames(&out, []string{"trivy"}, toolsInstallOptions{all: true})
+	if err == nil || !strings.Contains(err.Error(), "trivy") {
+		t.Errorf("--all with a tool list should fail and name the tool, got: %v", err)
+	}
+}
+
 func TestInstallNamesReportsABadSaga(t *testing.T) {
 	t.Parallel()
 	var out bytes.Buffer
-	if _, err := installNames(&out, nil, toolsInstallOptions{saga: "/nonexistent/saga.yaml"}); err == nil {
+	if _, _, err := installNames(&out, nil, toolsInstallOptions{saga: "/nonexistent/saga.yaml"}); err == nil {
 		t.Error("an unreadable descriptor must fail rather than installing everything")
 	}
 }
@@ -362,6 +452,34 @@ func TestNoteDescriptorInWorkingDir(t *testing.T) {
 	noteDescriptorInWorkingDir(&out)
 	if out.String() != "" {
 		t.Errorf("a broken descriptor should be left to scan and doctor, got %q", out.String())
+	}
+}
+
+// A scan finds any `*.saga.yaml`, so the note has to as well. A project whose descriptor carries
+// the product's name rather than Draugr's is the one least likely to know the flag exists.
+func TestNoteDescriptorFindsAnySagaName(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.WriteFile(filepath.Join(dir, "acme.saga.yaml"), []byte(toolsSagaTwoControls), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	noteDescriptorInWorkingDir(&out)
+	if !strings.Contains(out.String(), "acme.saga.yaml") {
+		t.Errorf("note = %q, want it to name acme.saga.yaml", out.String())
+	}
+
+	// With two beside each other there is no way to tell which one this host is being prepared
+	// for, and the note quotes a path and a count. Naming either would put a number against a
+	// guess, so it says nothing.
+	if err := os.WriteFile(filepath.Join(dir, "other.saga.yaml"), []byte(toolsSagaTwoControls), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	noteDescriptorInWorkingDir(&out)
+	if out.String() != "" {
+		t.Errorf("two descriptors leave nothing to name; got %q", out.String())
 	}
 }
 
@@ -438,7 +556,7 @@ func TestInstallAsksNothingWhenEverythingIsCurrent(t *testing.T) {
 
 	var out bytes.Buffer
 	installed := 0
-	err := runToolsInstall(&out, strings.NewReader(""), nil, toolsInstallOptions{},
+	err := runToolsInstall(&out, strings.NewReader(""), nil, true, toolsInstallOptions{},
 		func(string) (tools.Installed, error) { installed++; return tools.Installed{}, nil })
 	if err != nil {
 		t.Fatalf("runToolsInstall: %v", err)
@@ -470,7 +588,7 @@ func TestInstallPlansSemgrepAsAnInstall(t *testing.T) {
 	stubDetect(t, current) // everything but semgrep is current
 
 	var out bytes.Buffer
-	err := runToolsInstall(&out, strings.NewReader(""), nil, toolsInstallOptions{yes: true},
+	err := runToolsInstall(&out, strings.NewReader(""), nil, true, toolsInstallOptions{yes: true},
 		func(name string) (tools.Installed, error) {
 			return tools.Installed{Name: name, Version: tools.PythonVersion(name), Path: "/x/" + name}, nil
 		})
@@ -599,7 +717,7 @@ func TestInstallReportsWhatChangedAndCountsTheRest(t *testing.T) {
 		}
 		return tools.Installed{Name: name, Version: "x", Path: "/bin/" + name, AlreadyPresent: true}, nil
 	}
-	err := runToolsInstall(&out, strings.NewReader(""), []string{"trivy", "gitleaks", "syft"},
+	err := runToolsInstall(&out, strings.NewReader(""), []string{"trivy", "gitleaks", "syft"}, false,
 		toolsInstallOptions{yes: true}, install)
 	if err != nil {
 		t.Fatal(err)
@@ -627,7 +745,7 @@ func TestInstallStillNamesAToolItReplaced(t *testing.T) {
 		// Present at the pinned version by the plan's reckoning, but the checksum did not match.
 		return tools.Installed{Name: name, Version: "0.69.3", Path: "/bin/" + name}, nil
 	}
-	if err := runToolsInstall(&out, strings.NewReader(""), []string{"trivy", "syft"},
+	if err := runToolsInstall(&out, strings.NewReader(""), []string{"trivy", "syft"}, false,
 		toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatal(err)
 	}
@@ -664,7 +782,7 @@ func TestInstallCountsAgreeAcrossEveryTool(t *testing.T) {
 		}, nil
 	}
 	// No names at all is the full install, which is where semgrep enters the plan.
-	if err := runToolsInstall(&out, strings.NewReader(""), nil,
+	if err := runToolsInstall(&out, strings.NewReader(""), nil, true,
 		toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatal(err)
 	}
@@ -720,7 +838,7 @@ func TestInstallingSemgrepIsPlannedAndConfirmedLikeAnythingElse(t *testing.T) {
 	isTTY = func(io.Reader) bool { return true }
 
 	// "y" on a terminal: the prompt has something to gate now.
-	if err := runToolsInstall(&out, strings.NewReader("y\n"), []string{"semgrep", "trivy"},
+	if err := runToolsInstall(&out, strings.NewReader("y\n"), []string{"semgrep", "trivy"}, false,
 		toolsInstallOptions{}, install); err != nil {
 		t.Fatal(err)
 	}
@@ -752,7 +870,7 @@ func TestARealDownloadStillAsks(t *testing.T) {
 		return tools.Installed{Name: "syft", Version: "1", Path: "/bin/syft"}, nil
 	}
 	// "n". Declining proves the prompt was real rather than printed and ignored.
-	if err := runToolsInstall(&out, strings.NewReader("n\n"), []string{"syft"},
+	if err := runToolsInstall(&out, strings.NewReader("n\n"), []string{"syft"}, false,
 		toolsInstallOptions{}, install); err != nil {
 		t.Fatal(err)
 	}
@@ -779,7 +897,7 @@ func TestRunToolsInstallAllSkipsAToolWhoseRuntimeIsAbsent(t *testing.T) {
 		installed = append(installed, name)
 		return tools.Installed{Name: name, Version: "1.0.0", Path: "/x/" + name}, nil
 	}
-	if err := runToolsInstall(&out, nil, nil, toolsInstallOptions{yes: true}, install); err != nil {
+	if err := runToolsInstall(&out, nil, nil, true, toolsInstallOptions{yes: true}, install); err != nil {
 		t.Fatalf("one absent runtime failed the whole batch: %v\n%s", err, out.String())
 	}
 	if slices.Contains(installed, "govulncheck") {
@@ -805,7 +923,7 @@ func TestRunToolsInstallNamedStillFailsOnAnAbsentRuntime(t *testing.T) {
 	install := func(string) (tools.Installed, error) {
 		return tools.Installed{}, fmt.Errorf("no `go` is on PATH: %w", tools.ErrRuntimeMissing)
 	}
-	err := runToolsInstall(&out, nil, []string{"govulncheck"}, toolsInstallOptions{yes: true}, install)
+	err := runToolsInstall(&out, nil, []string{"govulncheck"}, false, toolsInstallOptions{yes: true}, install)
 	if err == nil {
 		t.Fatal("a named install with no runtime reported success")
 	}
@@ -825,7 +943,7 @@ func TestRunToolsInstallAllStillFailsOnAnOrdinaryError(t *testing.T) {
 		}
 		return tools.Installed{Name: name, Version: "1.0.0", Path: "/x/" + name}, nil
 	}
-	if err := runToolsInstall(&out, nil, nil, toolsInstallOptions{yes: true}, install); err == nil {
+	if err := runToolsInstall(&out, nil, nil, true, toolsInstallOptions{yes: true}, install); err == nil {
 		t.Fatal("a checksum mismatch in the batch reported success")
 	}
 }
