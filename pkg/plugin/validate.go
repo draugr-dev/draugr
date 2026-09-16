@@ -51,7 +51,7 @@ func validateValue(node schemaNode, val any, path string) error {
 
 	switch node.Type {
 	case "object":
-		m := val.(map[string]any) // safe: checkType passed
+		m, _ := asObject(val) // a map: checkType passed
 		if node.AdditionalProperties != nil && !*node.AdditionalProperties {
 			for _, k := range sortedKeys(m) {
 				if _, known := node.Properties[k]; !known {
@@ -101,7 +101,7 @@ func checkType(typ string, val any, path string) error {
 	case "array":
 		ok = asSlice(val) != nil
 	case "object":
-		_, ok = val.(map[string]any)
+		_, ok = asObject(val)
 	default:
 		return nil // unsupported type keyword: don't constrain
 	}
@@ -109,6 +109,34 @@ func checkType(typ string, val any, path string) error {
 		return fmt.Errorf("%s: expected %s, got %s", optionLabel(path), typ, jsonType(val))
 	}
 	return nil
+}
+
+// asObject returns a value's fields when it is any kind of string-keyed map, and nil when it is
+// not.
+//
+// The same reason asSlice exists, arriving from the other direction. yaml.v3 decodes a nested
+// mapping into the named map type of whatever encloses it, so a block inside a descriptor's
+// controller settings is a saga.ControllerSettings rather than a map[string]any. A plain type
+// assertion refuses it as "expected object", which would reject every nested option a control
+// ever declares while the same shape written in JSON passed.
+// The second result distinguishes "not a map" from "an empty one". A nil map of the right type is
+// a valid empty object, and reading it as absent refuses every config nobody set.
+func asObject(v any) (map[string]any, bool) {
+	switch typed := v.(type) {
+	case nil:
+		return nil, false
+	case map[string]any:
+		return typed, true
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Map || rv.Type().Key().Kind() != reflect.String {
+		return nil, false
+	}
+	out := make(map[string]any, rv.Len())
+	for _, k := range rv.MapKeys() {
+		out[k.String()] = rv.MapIndex(k).Interface()
+	}
+	return out, true
 }
 
 // asSlice returns a value's elements when it is any kind of slice, and nil when it is not.

@@ -174,6 +174,25 @@ privileged Job that runs only once its effects are accepted in the descriptor.
 A component can also declare the **namespaces** it owns, so a team on a shared cluster is
 assessed on its own workloads rather than everybody's.
 
+## Artifact provenance
+
+Establishes **where an artifact came from**: that a container image carries a cryptographic
+signature, and that the signature names the builder you expected rather than any builder at all.
+
+In Draugr: the **`provenance`** control, which runs
+[cosign](https://github.com/sigstore/cosign) against each image a component declares. The identity
+to expect is written in the descriptor beside the exposure and criticality of the thing it signs,
+so it is reviewed in a pull request and applied identically by every pipeline.
+
+Checking that an artifact is signed, without checking **who** signed it, establishes nothing: a
+signature anybody can make is one anybody can make. The expected identity is therefore not
+optional, and an image no signer covers is reported as observed rather than passed.
+
+A signature says nothing about whether the artifact is safe. A build platform that has been
+compromised signs what it is told to, and packages carrying valid attestations that named the real
+repository and the real workflow have shipped malicious code. Provenance answers a question about
+origin, and the answer is worth having on its own terms.
+
 ---
 
 ## Cross-cutting terms

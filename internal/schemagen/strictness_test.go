@@ -70,6 +70,8 @@ var openStrings = map[string]string{
 	"$defs.publisherConfig.properties.commit":          "a commit to attach a comment to",
 	"$defs.publisherConfig.properties.marker":          "the marker identifying our own comment",
 	"$defs.reportConfig.properties.filename":           "what to call the file",
+	"$defs.control_provenance.properties.trustRoot":    "a path to a Sigstore trusted-root file",
+	"$defs.image.properties.signedBy":                  "the name somebody gave one of their signers",
 	"$defs.reportConfig.properties.template":           "an inline Go template",
 	"$defs.reportConfig.properties.templateFile":       "a path to one",
 

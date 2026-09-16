@@ -78,6 +78,8 @@ components:
       - image: registry.example.com/acme/web:1.0  # required
         builtBy: self                             # optional, overrides the component's
         digest: sha256:…                          # optional. Pin the immutable content digest
+        signedBy: our-ci                          # optional. The provenance signer to expect here,
+                                                  # whatever that signer's own patterns say
     hosts:
       - name: api
         url: https://api.example.com            # required
@@ -668,6 +670,52 @@ Two things follow that are worth knowing when reading a build log:
 With neither the URL nor the token set, the publisher **skips**, so the same descriptor a pipeline
 uses still runs on a developer's machine. Setting one without the other is an error: a scan that
 silently did not publish is one somebody believes was published.
+
+## Provenance signers (`controls.provenance`)
+
+```yaml
+config:
+  controls:
+    provenance:
+      enabled: true
+      unmatched: observe          # observe (default) | warn | fail
+      trustRoot: .draugr/sigstore-root.json   # optional, for a runner with no egress
+      signers:
+        - name: our-ci            # required. How an image's signedBy refers to it
+          images: ["ghcr.io/acme/*"]          # what this signer covers; * spans any characters
+          github:                             # a GitHub Actions signer, written as its parts
+            repository: acme/ci-workflows
+            workflow: .github/workflows/build-image.yml
+            ref: refs/tags/v3
+        - name: chainguard
+          images: ["cgr.dev/chainguard/*"]
+          keyless:                            # the general form, one field per cosign flag
+            issuer: https://token.actions.githubusercontent.com
+            identityRegexp: ^https://github\.com/chainguard-images/images/.*$
+```
+
+Checks that each image is signed by the identity declared for it. Requires cosign.
+
+A signer declares either `keyless` or `github`, never both. `keyless` takes an `issuer` and one of
+`identity` or `identityRegexp`; `github` takes the three parts and expands to the same thing,
+which `draugr validate` prints.
+
+**An identity is not optional.** A signer with none would accept a signature from anybody, which
+is the failure this control exists to catch, and it is refused rather than treated as a default.
+
+**Which signer covers an image:** the one its `signedBy` names, or the one whose `images` patterns
+match. Two signers matching one image is refused; narrow the patterns, or name one with `signedBy`.
+An image no signer covers is observed, and `unmatched` decides what that absence is worth.
+
+A component's signers are **added to** the project's rather than replacing them, the same way the
+license policy is unioned. A component that replaced the list could stop checking most of what it
+runs while still reading as a policy.
+
+`builtBy` is not consulted here. `draugr survey` records images with no `builtBy`, which resolves
+to `self`, so keying on it would expect the organization's own signer on every sidecar in a
+surveyed namespace.
+
+See the [how-to](../guides/provenance.md) for finding the identity your builds already sign with.
 
 ## License policy (`controls.licenses`)
 

@@ -13,6 +13,8 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
+	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -95,6 +97,7 @@ func runValidate(args []string, w io.Writer) error {
 		}
 		_, _ = fmt.Fprintf(w, "✓ %s is valid\n", paths[0])
 		writeWarnings(w, warnings)
+		writeExplanations(w, explanationsFor(paths[0]))
 		return nil
 	}
 
@@ -109,6 +112,7 @@ func runValidate(args []string, w io.Writer) error {
 		}
 		_, _ = fmt.Fprintf(w, "✓ %s is valid\n", p)
 		writeWarnings(w, warnings)
+		writeExplanations(w, explanationsFor(p))
 	}
 
 	if failed > 0 {
@@ -232,6 +236,47 @@ func loadAndWarn(path string) ([]string, error) {
 		return nil, nil
 	}
 	return res.Model.ExcludeWarnings(filepath.Dir(path)), nil
+}
+
+// explanations collects what each control has to say about a descriptor that has already
+// validated: what a shorthand in it expanded to, and nothing else.
+func explanationsFor(path string) []string {
+	fetcher := sagafetch.New(context.Background())
+	defer fetcher.Close()
+	res, err := saga.ResolveFile(path, fetcher)
+	if err != nil || res.Model == nil {
+		return nil
+	}
+	return explanations(builtins.Registry(), res.Model)
+}
+
+func explanations(reg *engine.Registry, model *saga.Model) []string {
+	if model == nil {
+		return nil
+	}
+	var out []string
+	for _, c := range reg.Controllers() {
+		if e, ok := c.(plugin.Explainer); ok {
+			out = append(out, e.Explain(*model)...)
+		}
+	}
+	return out
+}
+
+// writeExplanations prints them under the line saying the file is valid, marked apart from the
+// warnings beside them: one says something may be wrong, the other says what a value became.
+func writeExplanations(w io.Writer, notes []string) {
+	for _, note := range notes {
+		// One mark per note, whatever it spans. A continuation wearing its own mark reads as a
+		// second remark about something else, and an identity is too long for one line.
+		for i, line := range strings.Split(note, "\n") {
+			mark := "  · "
+			if i > 0 {
+				mark = "    "
+			}
+			_, _ = fmt.Fprintf(w, "%s%s\n", mark, line)
+		}
+	}
 }
 
 func loadAndCheckInner(path string) error {

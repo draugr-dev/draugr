@@ -326,6 +326,7 @@ var pastesConsoleOutput = map[string]bool{
 	"docs/getting-started/first-saga.md":  true,
 	"docs/getting-started/quickstart.md":  true,
 	"docs/guides/monorepos.md":            true,
+	"docs/guides/provenance.md":           true,
 	"docs/reference/cli.md":               true,
 	"docs/reference/saga-schema.md":       true,
 }

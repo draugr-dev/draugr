@@ -23,6 +23,13 @@ type Option struct {
 	Required bool `json:"required,omitempty"`
 	// Enum lists the accepted values, when the schema constrains them.
 	Enum []string `json:"enum,omitempty"`
+	// Meanings says what each value in Enum does, keyed by the value, for the ones whose schema
+	// explains them.
+	//
+	// A list of values a reader has to guess at is a list they guess wrong. `observe`, `warn` and
+	// `fail` are three words that each name a policy, and an editor offering the three with no
+	// gloss has told somebody the spelling and nothing else.
+	Meanings map[string]string `json:"meanings,omitempty"`
 }
 
 // Options reports the settings a scanner accepts, sorted by name, from its declared ConfigSchema.
@@ -41,6 +48,16 @@ func Options(schema json.RawMessage) []Option {
 			Type        string `json:"type"`
 			Description string `json:"description"`
 			Enum        []any  `json:"enum"`
+			// ReadOnly marks a key a controller writes into the job config and a descriptor may
+			// not. The scanner declares it because the engine holds a job's config to this
+			// schema; it is not something anybody chooses, so it is not offered as an option.
+			ReadOnly bool `json:"readOnly"`
+			// AnyOf carries an enum whose values explain themselves, one const per variant. The
+			// shape the descriptor's own enums use, so a scanner's and the Saga's read alike.
+			AnyOf []struct {
+				Const       any    `json:"const"`
+				Description string `json:"description"`
+			} `json:"anyOf"`
 			// Items carries an array option's element constraint. Without reading it, the accepted values
 			// of a list are lost, and a caller rendering the option shows none, while the validator still
 			// enforces them. The two disagreeing is the failure to avoid.
@@ -58,6 +75,9 @@ func Options(schema json.RawMessage) []Option {
 	}
 	out := make([]Option, 0, len(node.Properties))
 	for name, prop := range node.Properties {
+		if prop.ReadOnly {
+			continue
+		}
 		opt := Option{
 			Name:        name,
 			Type:        prop.Type,
@@ -72,6 +92,19 @@ func Options(schema json.RawMessage) []Option {
 		}
 		for _, e := range values {
 			opt.Enum = append(opt.Enum, fmt.Sprint(e))
+		}
+		for _, v := range prop.AnyOf {
+			if v.Const == nil {
+				continue
+			}
+			val := fmt.Sprint(v.Const)
+			opt.Enum = append(opt.Enum, val)
+			if v.Description != "" {
+				if opt.Meanings == nil {
+					opt.Meanings = map[string]string{}
+				}
+				opt.Meanings[val] = v.Description
+			}
 		}
 		out = append(out, opt)
 	}

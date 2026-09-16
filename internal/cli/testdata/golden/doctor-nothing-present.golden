@@ -32,6 +32,7 @@ HOSTS  (a scan contacts these; for an egress allowlist)
   mirror.gcr.io             vulnerability database · before the scan
   raw.githubusercontent.com advisory database · before the scan
   semgrep.dev               rule pack · every scan
+  tuf-repo-cdn.sigstore.dev Sigstore trust root · before the scan
   vuln.go.dev               vulnerability database · every scan
 
 12 of these are not installed. Which you need depends on your descriptor. Run `draugr doctor <saga>` to check just those, or `draugr tools install` to fetch them all.

@@ -262,9 +262,22 @@ func optionDef(opt plugin.Option) map[string]any {
 		for i, e := range opt.Enum {
 			vals[i] = e
 		}
-		if opt.Type == "array" {
+		switch {
+		case opt.Type == "array":
 			d["items"] = map[string]any{"enum": vals}
-		} else {
+		case len(opt.Meanings) > 0:
+			// One const per value, each carrying what it does. An editor lists a bare enum and
+			// explains none of it, which on a policy setting leaves the reader picking a word.
+			variants := make([]any, 0, len(opt.Enum))
+			for _, e := range opt.Enum {
+				v := map[string]any{"const": e}
+				if why := opt.Meanings[e]; why != "" {
+					v["description"] = why
+				}
+				variants = append(variants, v)
+			}
+			d["anyOf"] = variants
+		default:
 			d["enum"] = vals
 		}
 	}

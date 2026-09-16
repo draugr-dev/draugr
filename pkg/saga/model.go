@@ -247,17 +247,23 @@ func (e ExcludeRule) Matches(uri, ruleID string) bool {
 // the common case.
 func matchesAnyRule(patterns []string, ruleID string) bool {
 	for _, p := range patterns {
-		if wildcardMatch(p, ruleID) {
+		if WildcardMatch(p, ruleID) {
 			return true
 		}
 	}
 	return false
 }
 
-// wildcardMatch reports whether s matches pattern, where `*` matches any run of characters.
+// WildcardMatch reports whether s matches pattern, where `*` matches any run of characters.
 // Written out rather than compiled to a regexp: the patterns come from a Saga, and a regexp
 // built from user input is a denial-of-service waiting to be discovered.
-func wildcardMatch(pattern, s string) bool {
+//
+// The dialect for anything whose segments are not path segments: a rule ID, a package name, an
+// image reference. `path.Match` is right for `paths:` and wrong here, because all three contain
+// slashes that a reader does not mean to anchor on. Exported because it is part of what the
+// descriptor means by a pattern, and a second copy would be a second dialect the first time one
+// of them was fixed.
+func WildcardMatch(pattern, s string) bool {
 	parts := strings.Split(pattern, "*")
 	if len(parts) == 1 {
 		return pattern == s // no wildcard: exact match
@@ -703,6 +709,13 @@ type Image struct {
 	// "self" so a descriptor that says nothing keeps describing its own work, which is the common
 	// case for a hand-written one. A surveyed cluster is the case that needs saying.
 	BuiltBy BuiltBy `yaml:"builtBy,omitempty"`
+	// SignedBy names the signer this image is expected to carry, from
+	// `config.controls.provenance.signers`, whatever the signers' own patterns say.
+	//
+	// The exception, not the rule. A signer states which images it covers, so a project whose
+	// registry is its own needs nothing here; this is for the one image that came from somewhere
+	// else, or the one built by a pipeline the others are not.
+	SignedBy string `yaml:"signedBy,omitempty"`
 }
 
 // BuiltBy says who publishes a thing Draugr scans: a repository, an image, or every target on a

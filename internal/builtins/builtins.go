@@ -25,6 +25,7 @@ func Registry() *engine.Registry {
 	reg.RegisterController(controllers.NewThreats())
 	reg.RegisterController(controllers.NewDAST())
 	reg.RegisterController(controllers.NewTLS())
+	reg.RegisterController(controllers.NewProvenance())
 	reg.RegisterScanner(scanners.NewTrivy())
 	reg.RegisterScanner(scanners.NewTrivyFS())
 	reg.RegisterScanner(scanners.NewGrype())
@@ -46,6 +47,7 @@ func Registry() *engine.Registry {
 	reg.RegisterScanner(scanners.NewNuclei())
 	reg.RegisterScanner(scanners.NewTrivyLicense())
 	reg.RegisterScanner(scanners.NewTLSProbe())
+	reg.RegisterScanner(scanners.NewCosign())
 	return reg
 }
 

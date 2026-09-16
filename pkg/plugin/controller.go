@@ -51,6 +51,37 @@ type ControllerInfo struct {
 	OptionSchema json.RawMessage
 }
 
+// Validator is an optional interface a Controller may implement to check a descriptor for
+// mistakes its own settings can make and nothing else can see.
+//
+// A JSON Schema decides whether a setting is well formed. It cannot decide whether the settings
+// agree with each other or with the rest of the descriptor: that an image naming a signer names
+// one that was declared, that two patterns do not both claim the same image. Those are policy
+// questions, and the control is the only thing that knows them.
+//
+// Returns every problem rather than the first, so a descriptor with three mistakes reports three
+// rather than one per re-run. An empty result means nothing to say.
+//
+// Called by `draugr validate` and before a scan, which is the point: a control's settings decide
+// what is checked and what is let through, so being told at the cheap moment is worth more here
+// than a clear error at the expensive one.
+type Validator interface {
+	Validate(model saga.Model) []error
+}
+
+// Explainer is an optional interface a Controller may implement to state what a shorthand in the
+// descriptor expanded to, once the descriptor is known to be valid.
+//
+// A shorthand exists where the literal value has a trap, so what it produces is exactly the thing
+// nobody can check by reading the file. Printing the expansion turns a generated value into one
+// somebody can compare against what they meant, before a scan depends on it.
+//
+// Not warnings. Nothing here is wrong, and reporting it as though it were teaches a reader to skim
+// the marks that matter.
+type Explainer interface {
+	Explain(model saga.Model) []string
+}
+
 // ScanJob is a unit of scan work produced by a controller's Plan.
 type ScanJob struct {
 	Scanner  string

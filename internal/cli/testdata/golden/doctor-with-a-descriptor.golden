@@ -23,6 +23,7 @@ HOSTS  (a scan contacts these; for an egress allowlist)
   mirror.gcr.io             vulnerability database · before the scan
   raw.githubusercontent.com advisory database · before the scan
   semgrep.dev               rule pack · every scan
+  tuf-repo-cdn.sigstore.dev Sigstore trust root · before the scan
   vuln.go.dev               vulnerability database · every scan
 
 NOT CHECKED

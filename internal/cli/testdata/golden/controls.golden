@@ -6,6 +6,7 @@ iac             trivy-config                                             Find se
 images          trivy, grype*                                            Find known flaws in the operating system and packages baked into a container image.
 infrastructure  draugr-k8s-policies, kube-bench*, kube-bench-job*        Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust.
 licenses        trivy-license, mend-licenses*                            Report license terms attached to code you did not write, where they carry an obligation.
+provenance      cosign                                                   Check that a container image is signed by the identity this descriptor expects.
 sast            semgrep, gosec*                                          Find patterns in a repo's own code that let somebody in (static analysis).
 sca             trivy-fs, govulncheck*, grype-fs*, mend-sca*, retirejs*  Find known flaws in the libraries a repo depends on (software composition analysis).
 secrets         gitleaks                                                 Find passwords and keys committed by accident, history included.
@@ -26,6 +27,7 @@ PUBLISHERS  (who each scanner comes from)
   projectdiscovery     nuclei
   securego             gosec
   semgrep              semgrep
+  sigstore             cosign
 Draugr executes third-party tools rather than bundling them, so each stays under its own
 license. `draugr tools list` shows which are installed and where.
 
@@ -33,6 +35,7 @@ license. `draugr tools list` shows which are installed and where.
 
 EFFECTS  (scanners that do more than read)
   Scanner         Effect      What happens
+  cosign          disclosure  the digest of each image checked, to the registry holding it and, where a signature carries no inclusion proof, to the Sigstore transparency log
   kube-bench-job  mutate      creates a short-lived Job in the cluster and deletes it when the scan finishes
   kube-bench-job  privilege   that Job runs with hostPID and mounts host paths read-only, which is what reading a node's kubelet and control-plane configuration requires
   mend-licenses   disclosure  uploads this component's resolved dependency inventory to Mend, names, versions, checksums, and the absolute paths they were found at

@@ -117,6 +117,7 @@ under its own license, and you can swap it.
 | `tls` | certificates and encryption | native |
 | `infrastructure` | your Kubernetes cluster, against the CIS benchmarks | native, kube-bench opt-in |
 | `threats` | whether anything you talk to is on a public blocklist | abuse.ch URLhaus |
+| `provenance` | whether an image is signed by the builder you expect | Sigstore cosign |
 
 Every scanner, what it sends and whose terms it carries:
 [integrations catalog](docs/reference/catalog.md).

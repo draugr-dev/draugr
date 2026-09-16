@@ -189,6 +189,10 @@
           "description": "Report license terms attached to code you did not write, where they carry an obligation."
         },
         {
+          "const": "provenance",
+          "description": "Check that a container image is signed by the identity this descriptor expects."
+        },
+        {
           "const": "sast",
           "description": "Find patterns in a repo's own code that let somebody in (static analysis)."
         },
@@ -506,6 +510,54 @@
       },
       "type": "object"
     },
+    "control_provenance": {
+      "additionalProperties": false,
+      "description": "Check that a container image is signed by the identity this descriptor expects.",
+      "properties": {
+        "cosign": {
+          "additionalProperties": false,
+          "description": "cosign, published by sigstore.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "signers": {
+          "description": "Who is expected to have signed what. A signer names itself, the images it covers, and the identity to check against.",
+          "type": "array"
+        },
+        "trustRoot": {
+          "description": "Path to a Sigstore trusted-root JSON file, for a runner that cannot reach the transparency log. Without one, a runner with no egress reports an error rather than a pass.",
+          "type": "string"
+        },
+        "unmatched": {
+          "anyOf": [
+            {
+              "const": "observe",
+              "description": "Report the identity found and expect nothing. Most of what a project runs is published by somebody else, so this is where a policy starts rather than where it ends."
+            },
+            {
+              "const": "warn",
+              "description": "Report an image no signer covers as a warning, without failing the gate on it."
+            },
+            {
+              "const": "fail",
+              "description": "Require every image to be covered by a signer. The end state, once the inventory has been worked through."
+            }
+          ],
+          "description": "What an image no signer covers is worth. Defaults to observe.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "control_sast": {
       "additionalProperties": false,
       "description": "Find patterns in a repo's own code that let somebody in (static analysis).",
@@ -762,6 +814,9 @@
         },
         "licenses": {
           "$ref": "#/$defs/control_licenses"
+        },
+        "provenance": {
+          "$ref": "#/$defs/control_provenance"
         },
         "sast": {
           "$ref": "#/$defs/control_sast"
@@ -1190,6 +1245,10 @@
         },
         "image": {
           "description": "Image reference, e.g. registry.example.com/acme/web:1.0",
+          "type": "string"
+        },
+        "signedBy": {
+          "description": "The signer this image is expected to carry, from config.controls.provenance.signers, whatever that signer's own image patterns say. For the one image that came from somewhere else; a signer states which images it covers, so a project whose registry is its own needs nothing here.",
           "type": "string"
         }
       },

@@ -192,6 +192,21 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 		report("config.controls", name)
 		reportScanners("config.controls", name, model.Config.Controls[name])
 	}
+	// What a control's settings mean together, which only the control knows. A schema says whether
+	// a signer is well formed; whether an image names one that was declared is a different
+	// question, and the answer to it decides whether anything gets checked at all.
+	for _, c := range reg.Controllers() {
+		v, ok := c.(plugin.Validator)
+		if !ok {
+			continue
+		}
+		// Reported as the control wrote it. Each of these already names where in the descriptor
+		// it is, and a control's own prefix on top of that reads as two locations for one mistake.
+		for _, err := range v.Validate(*model) {
+			problems = append(problems, err.Error())
+			optionProblem = true
+		}
+	}
 	// An analyzer this build cannot run is the same failure as a control it cannot run: the
 	// descriptor says findings will be ranked by reachability, and they silently are not.
 	if r := model.Config.Reachability; r != nil {

@@ -65,6 +65,28 @@ config:
       #   settings:
       #     forceUpdate: "true"
 
+    provenance:
+      enabled: true
+      unmatched: observe                           # observe (default) reports what an image no
+      #                                            # signer covers is signed by; warn and fail
+      #                                            # turn that absence into a finding
+      # trustRoot: .draugr/sigstore-root.json      # verify against a cached Sigstore root, for a
+      #                                            # runner that cannot reach the transparency log
+      signers:
+        - name: our-ci                             # how an image's signedBy refers to this signer
+          images: ["ghcr.io/acme/*"]               # what it covers; * spans any characters
+          github:                                  # expands to the identity Fulcio puts in the
+            repository: acme/ci-workflows          # certificate. The repository whose workflow
+            workflow: .github/workflows/build.yml  # signs, which for a reusable workflow is not
+            ref: refs/heads/main                   # the repository being built
+        - name: chainguard
+          images: ["cgr.dev/chainguard/*"]
+          keyless:                                 # the general form, one field per cosign flag
+            issuer: https://token.actions.githubusercontent.com
+            identityRegexp: ^https://github\.com/chainguard-images/images/.*$
+      # cosign:                                    # the scanner takes no options of its own; the
+      #   enabled: true                            # expectation is the control's, from signers
+
     sast:
       enabled: true
       gosec:
