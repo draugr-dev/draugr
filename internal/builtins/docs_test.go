@@ -266,3 +266,50 @@ func TestReachabilityAnalyzersAreNotSelectableAsScanners(t *testing.T) {
 		}
 	}
 }
+
+// publishedSections are the section names the website renders a menu for.
+//
+// A second copy of a list that lives in the site's DocsNav, which is usually the wrong shape and is
+// right here: the two repositories are deployed independently, and the failure without it is that
+// a page merges, publishes, gets indexed by search, and appears in no menu on the site. The site
+// does refuse to build, which is the correct behavior and the wrong moment. This is the same
+// refusal, in the repository where the file was written.
+var publishedSections = []string{
+	"Getting started", "Core concepts", "Guides", "Reference", "Scanners", "Trust & operations",
+}
+
+// TestEveryDocsPageIsInASectionTheSiteRenders catches a `section:` the website has no menu for.
+func TestEveryDocsPageIsInASectionTheSiteRenders(t *testing.T) {
+	root := filepath.Join("..", "..", "docs")
+	section := regexp.MustCompile(`(?m)^section:\s*(.+?)\s*$`)
+
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
+			return err
+		}
+		// contributing/ is for people working on Draugr and is not published as reference.
+		if strings.Contains(path, string(filepath.Separator)+"contributing"+string(filepath.Separator)) {
+			return nil
+		}
+		// #nosec G304,G122 -- a path from walking this repository's own docs tree in a test;
+		// there is no untrusted input and nothing races with it.
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		m := section.FindSubmatch(body)
+		if m == nil {
+			return nil // no frontmatter section: not a page the site's nav places
+		}
+		got := strings.Trim(string(m[1]), `"'`)
+		if !slices.Contains(publishedSections, got) {
+			t.Errorf("%s declares section %q, which the site has no menu for.\n"+
+				"  It would publish, be indexed, and appear nowhere. Use one of: %s",
+				path, got, strings.Join(publishedSections, ", "))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

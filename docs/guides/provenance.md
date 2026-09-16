@@ -1,7 +1,7 @@
 ---
 title: Verify where an image came from
 description: Find the identity your builds sign with, declare it, and move from observing signatures to requiring them.
-section: How-to guides
+section: Guides
 order: 95
 ---
 
