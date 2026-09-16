@@ -12,17 +12,17 @@ import (
 
 // signedJSON is the shape cosign writes to stdout, trimmed to the two fields this scanner reads.
 // Taken from a real `cosign verify -o json` run against a signed public image.
-const signedJSON = `[{"critical":{"identity":{"docker-reference":"cgr.dev/chainguard/static"}},` +
+const signedJSON = `[{"critical":{"type":"cosign container image signature","identity":{"docker-reference":"cgr.dev/chainguard/static"}},` +
 	`"optional":{"Issuer":"https://token.actions.githubusercontent.com",` +
 	`"Subject":"https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main"}}]`
 
 // stubCosign replaces the exec with a scripted answer per invocation, and records the argv.
-func stubCosign(t *testing.T, answers ...func(argv []string) ([]byte, int, error)) (*cosignVerifier, *[][]string) {
+func stubCosign(t *testing.T, answers ...func(argv []string) ([]byte, []byte, int, error)) (*cosignVerifier, *[][]string) {
 	t.Helper()
 	s, _ := NewCosign().(*cosignVerifier)
 	var calls [][]string
 	i := 0
-	s.run = func(_ context.Context, argv []string) ([]byte, int, error) {
+	s.run = func(_ context.Context, argv []string) ([]byte, []byte, int, error) {
 		calls = append(calls, argv)
 		if i >= len(answers) {
 			t.Fatalf("cosign called %d times, only %d answers scripted: %v", i+1, len(answers), argv)
@@ -34,12 +34,21 @@ func stubCosign(t *testing.T, answers ...func(argv []string) ([]byte, int, error
 	return s, &calls
 }
 
-func ok(out string) func([]string) ([]byte, int, error) {
-	return func([]string) ([]byte, int, error) { return []byte(out), 0, nil }
+func ok(out string) func([]string) ([]byte, []byte, int, error) {
+	return func([]string) ([]byte, []byte, int, error) { return []byte(out), nil, 0, nil }
 }
 
-func exits(code int) func([]string) ([]byte, int, error) {
-	return func([]string) ([]byte, int, error) { return nil, code, errors.New("cosign said no") }
+func exits(code int) func([]string) ([]byte, []byte, int, error) {
+	return func([]string) ([]byte, []byte, int, error) {
+		return nil, nil, code, errors.New("cosign said no")
+	}
+}
+
+// said is cosign exiting 1 with a sentence, which is how it answers about an attestation.
+func said(stderr string) func([]string) ([]byte, []byte, int, error) {
+	return func([]string) ([]byte, []byte, int, error) {
+		return nil, []byte(stderr), 1, errors.New("exit status 1")
+	}
 }
 
 func scan(t *testing.T, s *cosignVerifier, cfg plugin.Config) sarif.Report {
@@ -102,41 +111,41 @@ func TestCosignClassifiesEveryOutcome(t *testing.T) {
 	cases := []struct {
 		name     string
 		cfg      plugin.Config
-		answers  []func([]string) ([]byte, int, error)
+		answers  []func([]string) ([]byte, []byte, int, error)
 		wantRule string
 		wantErr  string
 	}{
 		{"signed by somebody else", expecting(),
-			[]func([]string) ([]byte, int, error){exits(cosignExitNoMatch), ok(signedJSON)},
+			[]func([]string) ([]byte, []byte, int, error){exits(cosignExitNoMatch), ok(signedJSON)},
 			"provenance-unexpected-identity", ""},
 		{"no certificate on the signature", expecting(),
-			[]func([]string) ([]byte, int, error){exits(cosignExitNoCertificate), ok(signedJSON)},
+			[]func([]string) ([]byte, []byte, int, error){exits(cosignExitNoCertificate), ok(signedJSON)},
 			"provenance-unexpected-identity", ""},
 		{"expected and unsigned", expecting(),
-			[]func([]string) ([]byte, int, error){exits(cosignExitNoSignature)},
+			[]func([]string) ([]byte, []byte, int, error){exits(cosignExitNoSignature)},
 			"provenance-unsigned", ""},
 		{"expected and the reference does not exist", expecting(),
-			[]func([]string) ([]byte, int, error){exits(cosignExitNonExistent)},
+			[]func([]string) ([]byte, []byte, int, error){exits(cosignExitNonExistent)},
 			"provenance-unsigned", ""},
 		// The row that matters most. cosign returns 1 for a registry it could not reach, and
 		// reading that as unsigned would turn a network failure into a clean bill of health.
 		{"cosign could not answer", expecting(),
-			[]func([]string) ([]byte, int, error){exits(1)},
+			[]func([]string) ([]byte, []byte, int, error){exits(1)},
 			"", "verifying"},
 		{"uncovered and unsigned, observed", plugin.Config{"unmatched": "observe"},
-			[]func([]string) ([]byte, int, error){exits(cosignExitNoSignature)},
+			[]func([]string) ([]byte, []byte, int, error){exits(cosignExitNoSignature)},
 			"", ""},
 		{"uncovered and unsigned, warned", plugin.Config{"unmatched": "warn"},
-			[]func([]string) ([]byte, int, error){exits(cosignExitNoSignature)},
+			[]func([]string) ([]byte, []byte, int, error){exits(cosignExitNoSignature)},
 			"provenance-not-covered", ""},
 		{"uncovered and unsigned, failed", plugin.Config{"unmatched": "fail"},
-			[]func([]string) ([]byte, int, error){exits(cosignExitNoSignature)},
+			[]func([]string) ([]byte, []byte, int, error){exits(cosignExitNoSignature)},
 			"provenance-not-covered", ""},
 		{"uncovered and signed", plugin.Config{"unmatched": "observe"},
-			[]func([]string) ([]byte, int, error){ok(signedJSON)},
+			[]func([]string) ([]byte, []byte, int, error){ok(signedJSON)},
 			"", ""},
 		{"uncovered and cosign could not answer", plugin.Config{"unmatched": "observe"},
-			[]func([]string) ([]byte, int, error){exits(1)},
+			[]func([]string) ([]byte, []byte, int, error){exits(1)},
 			"", "reading the signature"},
 	}
 	for _, c := range cases {
@@ -289,13 +298,81 @@ func TestCosignWarmReportsAFailure(t *testing.T) {
 	}
 }
 
-// cosign verified the signature and reported no subject, which is not a state it should reach.
-// Saying so beats an empty name in a finding that claims somebody signed.
+// An identity cosign did not report is still a fact worth carrying: an image that holds something
+// is a different answer from one that holds nothing, and reporting neither would let the images
+// most likely to carry provenance vanish from the account.
 func TestCosignSaysWhenTheIdentityCouldNotBeRead(t *testing.T) {
 	if got := describeObserved(signature{}); !strings.Contains(got, "could not be read") {
 		t.Errorf("describeObserved = %q", got)
 	}
-	if got := observedNote("ghcr.io/acme/p", signature{}); got != "" {
-		t.Errorf("an unreadable identity has nothing to record, got %q", got)
+	got := observedNote("ghcr.io/acme/p", signature{})
+	if !strings.HasPrefix(got, "ghcr.io/acme/p\t") || !strings.Contains(got, "identity not reported") {
+		t.Errorf("observedNote = %q, want the image recorded with the gap named", got)
+	}
+}
+
+// The path that matters most, because it is what GitHub Actions produces. cosign reads a GitHub
+// artifact attestation out of the registry as an OCI referrer and then answers about it with a
+// sentence rather than an exit code: exit 1, and the identity it found written into the message.
+// Read only as a code, that is "cosign could not answer", and the critical finding is lost.
+func TestCosignReadsAnAttestationIdentityFailure(t *testing.T) {
+	const refusal = `Error: no matching attestations: failed to verify certificate identity: ` +
+		`no matching CertificateIdentity found, last error: expected SAN value ` +
+		`"https://github.com/acme/nope/.github/workflows/x.yml@refs/heads/main", got ` +
+		`"https://github.com/github/artifact-attestations-helm-charts/.github/workflows/release.yml@refs/tags/v1"`
+
+	s, _ := stubCosign(t, said(refusal))
+	rep := scan(t, s, expecting())
+	if len(rep.Results) != 1 || rep.Results[0].RuleID != "provenance-unexpected-identity" {
+		t.Fatalf("results = %v, want one provenance-unexpected-identity", rep.Results)
+	}
+	// The identity comes out of the same message, so this path needs no second read.
+	if !strings.Contains(rep.Results[0].Message, "artifact-attestations-helm-charts") {
+		t.Errorf("the finding should name who did sign: %q", rep.Results[0].Message)
+	}
+}
+
+// Every other reason cosign exits 1 stays an error. A registry it could not reach must not be
+// read as an artifact signed by somebody unexpected.
+func TestCosignKeepsOtherExitOneFailuresAnError(t *testing.T) {
+	s, _ := stubCosign(t, said("Error: GET https://ghcr.io/token: DENIED: requested access to the resource is denied"))
+	if _, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: "ghcr.io/acme/p:1.0"}, expecting()); err == nil {
+		t.Error("a registry that refused access was read as a finding")
+	}
+}
+
+// An attestation's identity is not in the payload cosign prints, so discovery asks for it. Without
+// this the images most likely to carry provenance are the ones the account says nothing about.
+func TestCosignDiscoversAnAttestationIdentity(t *testing.T) {
+	const attestationPayload = `[{"critical":{"type":"https://slsa.dev/provenance/v1"},"optional":{}}]`
+	const refusal = `Error: no matching attestations: failed to verify certificate identity: ` +
+		`expected SAN value "x", got "https://github.com/acme/payments/.github/workflows/release.yml@refs/heads/main"`
+
+	s, calls := stubCosign(t, ok(attestationPayload), said(refusal))
+	rep := scan(t, s, plugin.Config{"unmatched": "observe"})
+	if len(rep.Results) != 0 {
+		t.Errorf("observing is not a finding, got %v", rep.Results)
+	}
+	if got := rep.Provenance[0].Describe(); !strings.Contains(got, "acme/payments/.github/workflows/release.yml") {
+		t.Errorf("account = %q, want the identity the attestation carries", got)
+	}
+	if len(*calls) != 2 {
+		t.Fatalf("want a permissive read then a probe, got %d calls", len(*calls))
+	}
+	// The probe names an identity nothing can carry, which is what makes cosign say what it found.
+	if !strings.Contains(strings.Join((*calls)[1], " "), impossibleIdentity) {
+		t.Errorf("the probe should ask for an impossible identity: %v", (*calls)[1])
+	}
+}
+
+// A bare signature still reports its identity in the payload, so it takes one call and not two.
+func TestCosignDoesNotProbeABareSignature(t *testing.T) {
+	s, calls := stubCosign(t, ok(signedJSON))
+	if _, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: "ghcr.io/acme/p:1.0"},
+		plugin.Config{"unmatched": "observe"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 1 {
+		t.Errorf("a signature carries its own identity, so one read is enough: %d calls", len(*calls))
 	}
 }

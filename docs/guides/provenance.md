@@ -124,9 +124,13 @@ $ draugr validate
     issued by https://token.actions.githubusercontent.com
 ```
 
-**`actions/attest` defaults `push-to-registry` to `false`**, which writes the attestation to
-GitHub's attestations API and not to the registry. cosign reads the registry, so an image built
-that way reports as unsigned. Set `push-to-registry: true` on the attest step.
+**Set `push-to-registry: true` on the attest step.** `actions/attest` defaults it to `false`, which
+writes the attestation to GitHub's attestations API and nowhere else. Draugr reads the registry, so
+an image attested that way reports as unsigned.
+
+With it on, the attestation is written to the registry as an OCI referrer and Draugr checks it like
+any other signature. Nothing else changes: the same `github:` signer covers both, because the
+identity in the certificate is the same one either way.
 
 ## GitLab CI
 

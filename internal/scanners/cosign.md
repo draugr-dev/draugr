@@ -33,10 +33,28 @@ signature back with a permissive pattern and then compares the subject itself. A
 enough to match anything accepts a signature from anybody, and putting the guarantee behind a
 string comparison in Draugr would be the same weakness one layer further in.
 
+### Signatures and attestations answer differently
+
+An artifact can carry a bare cosign **signature** or an **attestation**, and cosign reports on the
+two in different ways. A GitHub artifact attestation pushed to the registry with
+`push-to-registry: true` is the second kind, which makes it the common case rather than the
+exotic one.
+
+For an **attestation**, cosign exits 1 and explains, naming the identity it found in the same
+sentence. So a refusal carrying both `no matching attestations` and `failed to verify certificate
+identity` is an unexpected signer, and the identity is read out of that message rather than by
+asking a second time. Every other reason for exit 1 stays an error: reading them all as a mismatch
+would turn a registry nobody could reach into a finding about somebody's artifact.
+
+An attestation's identity is also absent from the payload a successful read prints, so discovery
+asks for it separately, by naming an identity no certificate can carry and reading the one cosign
+names instead. Without that, the images most likely to carry provenance are the ones discovery
+says nothing about.
+
 ### What the exit code means
 
-cosign distinguishes its failures with exit codes it defines, and this scanner reads only
-those. Observed against cosign 3.1.3:
+For a **signature**, cosign distinguishes its failures with exit codes it defines, and this scanner
+reads only those. Observed against cosign 3.1.1:
 
 | Code | Meaning | Finding |
 |---|---|---|

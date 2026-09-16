@@ -222,3 +222,64 @@ func TestProvenanceNotationAgainstARealRegistry(t *testing.T) {
 		t.Error("an image that should carry a Notary Project signature and does not must fail the gate")
 	}
 }
+
+// attestedImage carries a GitHub artifact attestation pushed to the registry as an OCI referrer,
+// which is what `actions/attest` with `push-to-registry: true` produces and therefore the shape
+// most images with provenance have.
+//
+// cosign answers about an attestation with a sentence rather than an exit code, so the codes this
+// scanner reads say nothing here. Scripted tests prove the sentence is parsed; only a real one
+// proves it is the sentence cosign writes.
+const attestedImage = "ghcr.io/github/artifact-attestations-helm-charts/policy-controller:v0.10.0-github5"
+
+func TestProvenanceReadsARealGitHubAttestation(t *testing.T) {
+	requireTool(t, "cosign", "the point of this test is cosign refusing a real attestation")
+
+	got, passed := runScan(t, descriptor(attestedImage, `      signers:
+        - name: our-ci
+          images: ["ghcr.io/github/*"]
+          github:
+            repository: acme/ci-workflows
+            workflow: .github/workflows/build.yml
+            ref: refs/heads/main
+`))
+	// Before this was classified, cosign's exit 1 read as "could not answer" and the critical
+	// finding was reported as an error instead.
+	if len(got) != 1 || !strings.HasPrefix(got[0], "provenance-unexpected-identity") {
+		t.Fatalf("findings = %v, want one provenance-unexpected-identity", got)
+	}
+	if !strings.Contains(got[0], "artifact-attestations-helm-charts") {
+		t.Errorf("the finding should name the workflow that did sign: %q", got[0])
+	}
+	if passed {
+		t.Error("an attestation from an unexpected workflow must fail the gate")
+	}
+}
+
+// And discovery on the same image, which is how somebody finds the identity to declare. An
+// attestation keeps its identity in the certificate rather than in the payload, so this is the
+// path that would otherwise report nothing at all.
+func TestProvenanceDiscoversARealAttestationIdentity(t *testing.T) {
+	requireTool(t, "cosign", "the point of this test is reading back a real attestation's identity")
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "discover.saga.yaml")
+	if err := os.WriteFile(path, []byte(descriptor(attestedImage, "")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "out")
+	// #nosec G204 -- as above.
+	cmd := exec.Command(draugrBin(t), "scan", path, "--output", out, "--log-level", "warn")
+	combined, err := cmd.CombinedOutput()
+	t.Logf("draugr scan exit=%v\n%s", err, combined)
+	if err != nil {
+		t.Fatalf("a descriptor with no signers must not fail: %v", err)
+	}
+	sarif, readErr := os.ReadFile(filepath.Join(out, "results.sarif")) // #nosec G304 -- t.TempDir()
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !strings.Contains(string(sarif), "artifact-attestations-helm-charts/.github/workflows/release.yml") {
+		t.Error("the run should record the identity the attestation carries, in full")
+	}
+}

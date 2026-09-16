@@ -31,6 +31,20 @@ const (
 	unmatchedFail = "fail"
 )
 
+// What cosign says about an attestation, which is the form a GitHub artifact attestation takes.
+// Observed against cosign 3.1.1.
+//
+// An attestation gets no exit code of its own: cosign exits 1 and explains. So the outcomes that
+// mean something on that path are recognized by the sentence, and anything unrecognized stays an
+// error. Wording that moves upstream turns a finding into an error rather than into a pass.
+//
+// The message carries the identity it found, which is why this path needs no second read.
+const (
+	cosignAttestationNoMatch = "no matching attestations"
+	cosignIdentityFailed     = "failed to verify certificate identity"
+	cosignFoundSAN           = `got "`
+)
+
 const (
 	cosignExitNoSignature   = 10
 	cosignExitNonExistent   = 11
@@ -98,9 +112,12 @@ const cosignConfigSchema = `{
 // The permissive read happens only after a failure, to say who did sign. It never produces a pass.
 type cosignVerifier struct {
 	info plugin.ScannerInfo
-	// run executes cosign and returns stdout with the process exit code. Injected so tests need
-	// neither the binary nor a registry.
-	run func(ctx context.Context, argv []string) (stdout []byte, code int, err error)
+	// run executes cosign and returns stdout, stderr and the process exit code. Injected so tests
+	// need neither the binary nor a registry.
+	//
+	// stderr as well as the code, because cosign answers about a signature with an exit code and
+	// about an attestation with a sentence. Reading only the code loses half the outcomes.
+	run func(ctx context.Context, argv []string) (stdout, stderr []byte, code int, err error)
 }
 
 // NewCosign returns the Sigstore verification scanner.
@@ -138,7 +155,7 @@ func (s *cosignVerifier) Info() plugin.ScannerInfo { return s.info }
 // that needs it, and a run that cannot reach it fails there with a message about the image it was
 // checking rather than about a warm nobody asked for.
 func (s *cosignVerifier) Prewarm(ctx context.Context) error {
-	if _, _, err := s.run(ctx, []string{"cosign", "initialize"}); err != nil {
+	if _, _, _, err := s.run(ctx, []string{"cosign", "initialize"}); err != nil {
 		return fmt.Errorf("cosign: fetching the Sigstore trust root: %w", err)
 	}
 	return nil
@@ -209,7 +226,21 @@ func (s *cosignVerifier) check(ctx context.Context, ref string, expect expectati
 	if !expect.declared() {
 		return s.observe(ctx, ref, expect)
 	}
-	_, code, err := s.run(ctx, cosignArgs(ref, expect, false))
+	_, stderr, code, err := s.run(ctx, cosignArgs(ref, expect, false))
+	// An attestation rather than a signature: cosign exits 1 and names the identity it found in
+	// the same breath, so there is nothing to read back. This is the shape a GitHub artifact
+	// attestation takes, which makes it the common path rather than the exotic one.
+	if code == 1 && attestationIdentityFailed(string(stderr)) {
+		return &sarif.Result{
+			Tool:     cosignScannerName,
+			RuleID:   "provenance-unexpected-identity",
+			Level:    sarif.LevelError,
+			Score:    9.0,
+			HasScore: true,
+			Message: fmt.Sprintf("Signed by %s, not %s.",
+				withoutHost(sanFrom(string(stderr))), expect.Signer),
+		}, "", nil
+	}
 	switch code {
 	case 0:
 		return nil, "", nil
@@ -254,6 +285,13 @@ func (s *cosignVerifier) observe(ctx context.Context, ref string, expect expecta
 		// No finding. An image somebody else signed, that this descriptor has not claimed, is not
 		// something to fix, and a note per image is how an inventory of fourteen becomes fourteen
 		// rows nobody reads. It is recorded instead, where the control accounts for the run.
+		if sig.Optional.Subject == "" && sig.Critical.Type != cosignSignatureType {
+			// An attestation. Its identity is in the certificate and not in the payload, so it
+			// has to be asked for separately; without this the images most likely to carry
+			// provenance are the ones discovery says nothing about.
+			subject, issuer := s.attestedBy(ctx, ref, expect)
+			return nil, observedIdentity(ref, subject, issuer), nil
+		}
 		return nil, observedNote(ref, sig), nil
 	case cosignExitNoSignature, cosignExitNonExistent:
 		if expect.Unmatched != unmatchedWarn && expect.Unmatched != unmatchedFail {
@@ -280,12 +318,32 @@ const (
 	unsignedMark = "\tunsigned"
 )
 
+// attestedBy asks cosign what an attestation is signed by, by refusing an identity it cannot
+// carry and reading the one it names instead. Empty when the answer could not be read.
+func (s *cosignVerifier) attestedBy(ctx context.Context, ref string, expect expectation) (subject, issuer string) {
+	probe := expect
+	probe.Identity, probe.Regexp = impossibleIdentity, ""
+	probe.Issuer = githubOIDCIssuer
+	_, stderr, _, _ := s.run(ctx, cosignArgs(ref, probe, false))
+	return sanFrom(string(stderr)), githubOIDCIssuer
+}
+
+// githubOIDCIssuer is the issuer every GitHub Actions attestation carries, and the one the probe
+// above has to name to get as far as the identity check.
+const githubOIDCIssuer = "https://token.actions.githubusercontent.com"
+
 // observedNote records who signed an image, for the control's account of the run.
 func observedNote(ref string, sig signature) string {
-	if sig.Optional.Subject == "" {
-		return ""
+	return observedIdentity(ref, sig.Optional.Subject, sig.Optional.Issuer)
+}
+
+// observedIdentity records one image and who signed it. An unreadable identity is still recorded,
+// because an image that carries something is a different fact from one that carries nothing.
+func observedIdentity(ref, subject, issuer string) string {
+	if subject == "" {
+		return ref + "\tsigned, identity not reported\t"
 	}
-	return ref + "\t" + sig.Optional.Subject + "\t" + sig.Optional.Issuer
+	return ref + "\t" + subject + "\t" + issuer
 }
 
 // unsignedNote records that an image carries no signature at all.
@@ -293,11 +351,31 @@ func unsignedNote(ref string) string { return ref + unsignedMark }
 
 // signature is the part of cosign's JSON this scanner reads.
 type signature struct {
+	Critical struct {
+		// Type is "cosign container image signature" for a signature, and the predicate URI for
+		// an attestation. Which decides whether the identity is in the payload at all.
+		Type string `json:"type"`
+	} `json:"critical"`
 	Optional struct {
 		Issuer  string `json:"Issuer"`
 		Subject string `json:"Subject"`
 	} `json:"optional"`
 }
+
+// cosignSignatureType is what cosign calls its own signature. Anything else in that field is a
+// predicate URI, which means the artifact carries an attestation rather than a bare signature.
+const cosignSignatureType = "cosign container image signature"
+
+// impossibleIdentity is a value no Fulcio certificate can carry, used to ask cosign what an
+// attestation *is* signed by.
+//
+// An attestation's identity is not in the payload cosign prints: a permissive read of one
+// succeeds with an empty `optional` block, so discovery would report nothing about the images
+// most likely to have provenance. Refusing a specific identity is the one channel cosign offers,
+// and its refusal names what it found instead. A space cannot appear in a SAN URI, so nothing
+// real collides with it, and a message that stops reporting the identity leaves discovery saying
+// so rather than saying something wrong.
+const impossibleIdentity = "draugr asked what this is signed by"
 
 // identityOf reads back who signed, with an identity pattern that matches anything.
 //
@@ -305,7 +383,7 @@ type signature struct {
 // a keyless verification with no identity at all, so reading one back means asking for any, and a
 // call that accepts any signature must never be mistaken for a call that checked one.
 func (s *cosignVerifier) identityOf(ctx context.Context, ref string, expect expectation) (signature, int, error) {
-	out, code, err := s.run(ctx, cosignArgs(ref, expect, true))
+	out, _, code, err := s.run(ctx, cosignArgs(ref, expect, true))
 	if code != 0 {
 		return signature{}, code, err
 	}
@@ -314,6 +392,27 @@ func (s *cosignVerifier) identityOf(ctx context.Context, ref string, expect expe
 		return signature{}, code, fmt.Errorf("cosign: reading the signature on %s: %w", ref, err)
 	}
 	return sigs[0], 0, nil
+}
+
+// attestationIdentityFailed reports whether cosign refused an attestation because the identity on
+// it was not the expected one, as distinct from every other reason it exits 1.
+func attestationIdentityFailed(said string) bool {
+	return strings.Contains(said, cosignAttestationNoMatch) &&
+		strings.Contains(said, cosignIdentityFailed)
+}
+
+// sanFrom pulls the identity cosign found out of the sentence it refused with. An empty result
+// leaves the finding saying the identity could not be read, which is true and better than a guess.
+func sanFrom(said string) string {
+	_, rest, ok := strings.Cut(said, cosignFoundSAN)
+	if !ok {
+		return ""
+	}
+	got, _, ok := strings.Cut(rest, `"`)
+	if !ok {
+		return ""
+	}
+	return got
 }
 
 // cosignArgs builds the command. `readBack` swaps the declared identity for a pattern that
@@ -394,15 +493,15 @@ func cosignFields(expect expectation, byDigest bool, ref, observed string) []sar
 // workflow and the ref, is the part a reader is trying to compare against what they expected, and
 // it fits. The identity in full is in the control's account of the run and in the report document.
 func describeObserved(sig signature) string {
-	if sig.Optional.Subject == "" {
-		return "a workload whose identity could not be read"
-	}
 	return withoutHost(sig.Optional.Subject)
 }
 
 // withoutHost drops a leading scheme and host from an identity URI, and leaves anything that is
 // not one alone: an email address and a SPIFFE ID are both valid Fulcio subjects.
 func withoutHost(subject string) string {
+	if subject == "" {
+		return "a workload whose identity could not be read"
+	}
 	rest, ok := strings.CutPrefix(subject, "https://")
 	if !ok {
 		return subject
@@ -415,16 +514,18 @@ func withoutHost(subject string) string {
 }
 
 // runCosign executes cosign and separates the exit code from a failure to run it at all.
-func runCosign(ctx context.Context, argv []string) ([]byte, int, error) {
+func runCosign(ctx context.Context, argv []string) ([]byte, []byte, int, error) {
 	out, err := toolexec.Run(ctx, "", argv)
 	if err == nil {
-		return out, 0, nil
+		return out, nil, 0, nil
 	}
 	var exit *exec.ExitError
 	if errors.As(err, &exit) {
-		return out, exit.ExitCode(), err
+		// exit.Stderr rather than the wrapped message: the message is one shortened line, and the
+		// identity cosign found sits at the end of a long one.
+		return out, exit.Stderr, exit.ExitCode(), err
 	}
 	// Not a failed verification: cosign could not be started. Code -1 falls through every case
 	// that means something, so the caller reports it rather than reading it as a result.
-	return out, -1, err
+	return out, nil, -1, err
 }
