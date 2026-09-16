@@ -159,6 +159,42 @@ func TestCheckControlNamesAcceptsTheOptionsAControlDeclares(t *testing.T) {
 	}
 }
 
+// A setting that exists is not a setting that works. `deny` spelled correctly and given a string
+// reads as a license policy, resolves to an empty list, and leaves the gate it was written to
+// apply unapplied, on a green run.
+func TestCheckControlNamesChecksWhatAControlSettingSays(t *testing.T) {
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"licenses": {"enabled": true, "deny": "AGPL-3.0-only"},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("a policy of the wrong shape was accepted and would have denied nothing")
+	}
+	for _, want := range []string{"deny", "array", "string"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should name the setting and both shapes, got: %v", err)
+		}
+	}
+}
+
+// The same on a component, which is where a team narrows the organization's policy and where a
+// silent one would be hardest to notice.
+func TestCheckControlNamesChecksAComponentsControlSettings(t *testing.T) {
+	m := &saga.Model{Components: []saga.Component{{
+		Name: "web",
+		Controls: map[string]saga.ControllerSettings{
+			"licenses": {"deny": "AGPL-3.0-only"},
+		},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("a component's policy of the wrong shape was accepted")
+	}
+	if !strings.Contains(err.Error(), `components["web"]`) {
+		t.Errorf("error should name the component: %v", err)
+	}
+}
+
 func TestCheckControlNamesRejectsAKeyThatIsNeitherScannerNorOption(t *testing.T) {
 	// Shape used to decide this, and a list was assumed to be a control-level option. So a key
 	// that named nothing at all was accepted, and the descriptor claimed a decision it was not

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -48,8 +49,15 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 	// that is one of these is a setting; a key that is neither this nor a scanner is a mistake,
 	// whatever shape its value has.
 	optionsFor := map[string]map[string]bool{}
+	// The schema behind those names, so what a setting *says* can be checked as well as whether
+	// it exists. Held separately because the name list is consulted on every key and the schema
+	// only on the ones that turn out to be settings.
+	optionSchemaFor := map[string]json.RawMessage{}
 	for _, c := range reg.Controllers() {
 		info := c.Info()
+		if len(info.OptionSchema) > 0 {
+			optionSchemaFor[info.Name] = info.OptionSchema
+		}
 		for _, opt := range plugin.Options(info.OptionSchema) {
 			if optionsFor[info.Name] == nil {
 				optionsFor[info.Name] = map[string]bool{}
@@ -154,6 +162,29 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 				problems = append(problems, fmt.Sprintf("%s.%s.%s: %v", where, control, key, err))
 				optionProblem = true
 			}
+		}
+		// And the control's own settings, held to the same standard as a scanner's.
+		//
+		// A name that exists is not a value that works. `deny: "AGPL-3.0-only"` names a real
+		// setting, reads as a policy, and yields an empty list, so the gate the descriptor was
+		// written to apply is not applied and the run is green. A control's settings are policy
+		// more often than a scanner's are, which makes a silent one worse here than anywhere else.
+		schema, has := optionSchemaFor[control]
+		if !has {
+			return
+		}
+		cfg := plugin.Config{}
+		for _, key := range sortedKeys(settings) {
+			if optionsFor[control][key] {
+				cfg[key] = settings[key]
+			}
+		}
+		if len(cfg) == 0 {
+			return
+		}
+		if err := plugin.ValidateConfig(schema, cfg); err != nil {
+			problems = append(problems, fmt.Sprintf("%s.%s: %v", where, control, err))
+			optionProblem = true
 		}
 	}
 
