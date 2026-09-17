@@ -1,0 +1,1 @@
+`draugr doctor` names the command that installs a missing tool, where Draugr has one. A tool it distributes was listed with its upstream page, which fetches whatever version is current rather than the pinned release with its checksum checked, and the summary line under the table named `draugr tools install` at the same time, so one screen gave two answers.

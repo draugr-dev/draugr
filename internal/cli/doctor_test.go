@@ -17,6 +17,19 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
+const doctorSagaProvenance = `project: app
+release:
+  version: "1.0"
+config:
+  controls:
+    provenance:
+      enabled: true
+components:
+  - name: web
+    images:
+      - image: ghcr.io/acme/web:1
+`
+
 const doctorSagaRepoAndImage = `project: app
 release:
   version: "1.0"
@@ -148,8 +161,11 @@ func TestRunDoctorMissingFails(t *testing.T) {
 		t.Fatal("expected error when a required tool is missing")
 	}
 	s := out.String()
-	if !strings.Contains(s, "✗ missing") || !strings.Contains(s, "trivy.dev") {
-		t.Errorf("output should flag the missing tool with a hint\n%s", s)
+	// The row names the command rather than trivy.dev: Draugr distributes trivy, and the pinned
+	// archive with its checksum checked is a better answer than whatever the download page is
+	// serving today.
+	if !strings.Contains(s, "✗ missing") || !strings.Contains(s, "install: draugr tools install trivy") {
+		t.Errorf("output should flag the missing tool and name how to get it\n%s", s)
 	}
 	if !strings.Contains(s, "tools install") {
 		t.Errorf("output should nudge provisioning\n%s", s)
@@ -239,6 +255,57 @@ func TestRequiredToolsDerivation(t *testing.T) {
 	}
 	if got := binaries(requiredTools(reg, model)); !slices.Equal(got, []string{"trivy"}) {
 		t.Errorf("images-only required = %v, want [trivy]", got)
+	}
+}
+
+// A tool the descriptor selected is required, whatever the catalog calls it. cosign is optional in
+// the inventory view, where nothing has been chosen and the question is what Draugr could use. Once
+// a descriptor turns on the control cosign is the scanner for, a doctor that still calls it
+// optional reports a clean environment for a scan that cannot run.
+func TestASelectedToolIsRequiredEvenIfTheCatalogCallsItOptional(t *testing.T) {
+	reg := builtins.Registry()
+	model, err := saga.LoadFile(writeSaga(t, doctorSagaProvenance))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, tl := range requiredTools(reg, model) {
+		if tl.Binary != "cosign" {
+			continue
+		}
+		found = true
+		if tl.Optional {
+			t.Error("cosign is provenance's scanner here, so a missing one has to fail doctor")
+		}
+	}
+	if !found {
+		t.Fatal("provenance is enabled, so cosign should be required")
+	}
+}
+
+// The row beside a tool name is where somebody reads what to do about it, so it names the command
+// that fetches the pinned, checksum-verified build rather than an upstream page.
+func TestTheInstallNoteNamesTheCommandWhereThereIsOne(t *testing.T) {
+	if got := installAdvice(tools.Tool{Binary: "notation", InstallHint: "https://notaryproject.dev/x"}); got != "draugr tools install notation" {
+		t.Errorf("advice = %q, want the command", got)
+	}
+	// And the upstream page for one Draugr does not distribute, where the command would succeed
+	// and leave the tool missing.
+	hint := "proprietary; install from the vendor"
+	if got := installAdvice(tools.Tool{Binary: "mend", InstallHint: hint}); got != hint {
+		t.Errorf("advice = %q, want %q", got, hint)
+	}
+	// A hint carrying a prerequisite keeps it, even for a tool the command fetches. kube-bench
+	// ships its benchmarks as a cfg/ tree beside the binary and people install the binary alone,
+	// after which every run dies naming an internal structure rather than the missing directory.
+	// The command does not remove that, so replacing the sentence with it drops the half the
+	// reader is about to need.
+	kb := tools.Catalog()["kube-bench"]
+	if got := installAdvice(kb); got != kb.InstallHint {
+		t.Errorf("advice = %q, want the hint kept: %q", got, kb.InstallHint)
+	}
+	if !strings.Contains(installAdvice(kb), "cfg/") {
+		t.Error("the cfg/ directory is the whole of what somebody gets wrong here")
 	}
 }
 

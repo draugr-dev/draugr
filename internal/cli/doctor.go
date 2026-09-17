@@ -277,6 +277,13 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 		}
 		seen[binary] = true
 		if t, ok := catalog[binary]; ok {
+			// Everything reaching this function was selected by the descriptor: a scanner serving
+			// an enabled control, something that scanner also requires, or a block the Saga turned
+			// on. `Optional` in the catalog is about the inventory view, where nothing has been
+			// chosen and the question is "what could Draugr use". Carried through to here it means
+			// doctor reports a clean environment for a scan that cannot run, which is the one
+			// answer this command must never give.
+			t.Optional = false
 			out = append(out, t)
 			return
 		}
@@ -367,9 +374,9 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 		switch {
 		case !st.Found && st.Tool.Optional:
 			// Optional tools aren't a problem, so they mustn't read as one.
-			status, notes, style = "– optional", "optional: "+st.Tool.InstallHint, tui.StyleMuted
+			status, notes, style = "– optional", "optional: "+installAdvice(st.Tool), tui.StyleMuted
 		case !st.Found:
-			status, notes, style = "✗ missing", "install: "+st.Tool.InstallHint, tui.StyleFail
+			status, notes, style = "✗ missing", "install: "+installAdvice(st.Tool), tui.StyleFail
 		case st.Err != nil:
 			version, notes = "?", fmt.Sprintf("%s (version check failed)", st.Path)
 		case st.DataChecked && !st.DataFound:
@@ -706,6 +713,31 @@ func missingToolsAdvice(statuses []tools.Status) string {
 	}
 	return fmt.Sprintf("%s missing. The Notes column says where each one comes from.",
 		plural(missing, "required tool"))
+}
+
+// installAdvice says how to get one missing tool, preferring the command Draugr can run.
+//
+// The row beside a tool's name is where somebody reads what to do about it, and a bare upstream
+// URL was printed there even for tools `draugr tools install` fetches. Following it gets whatever
+// version the internet offers, where the command gets the pinned release with its SHA-256 checked,
+// which is the difference `tools install` exists to make. The summary line under the table already
+// named the command, so one screen gave two answers and the wrong one sat closer to the question.
+//
+// Only a bare URL is replaced. Several hints carry a prerequisite the command does not remove:
+// kube-bench needs its cfg/ directory beside the binary or every run dies, retire.js needs a Node
+// runtime, govulncheck needs a Go toolchain. A hint with prose in it is doing work, and swapping
+// it for the command would drop the half a reader is about to need.
+func installAdvice(t tools.Tool) string {
+	if isBareURL(t.InstallHint) && slices.Contains(tools.Installable(), t.Binary) {
+		return "draugr tools install " + t.Binary
+	}
+	return t.InstallHint
+}
+
+// isBareURL reports whether a hint is a link and nothing else, which is a hint carrying no
+// prerequisite and therefore one the install command can replace outright.
+func isBareURL(hint string) bool {
+	return strings.HasPrefix(hint, "http") && !strings.ContainsAny(hint, " ,")
 }
 
 // externalInstallHint says where a tool Draugr does not distribute comes from.

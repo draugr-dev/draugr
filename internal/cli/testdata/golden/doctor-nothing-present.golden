@@ -2,20 +2,20 @@ Draugr      dev  (latest: vv9.9.9. Run 'draugr self-update')
 
 TOOLS
 Tool         Status      Version  Notes
-cosign       – optional  -        optional: https://docs.sigstore.dev/cosign/system_config/installation/
+cosign       – optional  -        optional: draugr tools install cosign
 git          ✗ missing   -        install: https://git-scm.com/downloads
-gitleaks     ✗ missing   -        install: https://github.com/gitleaks/gitleaks#installing
-gosec        ✗ missing   -        install: https://github.com/securego/gosec#installation
+gitleaks     ✗ missing   -        install: draugr tools install gitleaks
+gosec        ✗ missing   -        install: draugr tools install gosec
 govulncheck  ✗ missing   -        install: draugr tools install govulncheck, it is distributed as a Go package and needs a Go toolchain to build
-grype        ✗ missing   -        install: https://github.com/anchore/grype#installation
+grype        ✗ missing   -        install: draugr tools install grype
 kube-bench   ✗ missing   -        install: https://github.com/aquasecurity/kube-bench/releases, extract both the binary and its cfg/ directory
 kubectl      ✗ missing   -        install: https://kubernetes.io/docs/tasks/tools/
-notation     ✗ missing   -        install: https://notaryproject.dev/docs/user-guides/installation/cli/
-nuclei       ✗ missing   -        install: https://docs.projectdiscovery.io/tools/nuclei/install
+notation     ✗ missing   -        install: draugr tools install notation
+nuclei       ✗ missing   -        install: draugr tools install nuclei
 retire       ✗ missing   -        install: npm install -g retire, retire.js publishes to npm only, so it needs a Node runtime
-semgrep      ✗ missing   -        install: https://semgrep.dev/docs/getting-started/
-syft         ✗ missing   -        install: https://github.com/anchore/syft#installation
-trivy        ✗ missing   -        install: https://trivy.dev/latest/getting-started/installation/
+semgrep      ✗ missing   -        install: draugr tools install semgrep
+syft         ✗ missing   -        install: draugr tools install syft
+trivy        ✗ missing   -        install: draugr tools install trivy
 
 NETWORK  (what Draugr fetches, and when · --offline stops all of it)
   draugr tools install             each tool's pinned release archive, verified against a recorded SHA-256
