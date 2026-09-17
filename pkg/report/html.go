@@ -143,11 +143,44 @@ type htmlUnmatched struct {
 	Reason   string
 }
 
+// upgradeName is the package an upgrade is about, and upgradePair the versions. Between them they
+// are upgradeLabel, split where a line may break.
+func upgradeName(f finding) string {
+	if f.pkg == nil {
+		return ""
+	}
+	return f.pkg.Name
+}
+
+// upgradePair is what to change the version to, or the reason there is nothing to change it to.
+// Never broken across lines: a version cut in half reads as a different version.
+func upgradePair(f finding) string {
+	if f.pkg == nil || f.pkg.Name == "" {
+		return ""
+	}
+	if f.pkg.FixedVersion == "" {
+		if f.pkg.Version == "" {
+			return "no fix available"
+		}
+		return f.pkg.Version + ", no fix available"
+	}
+	if f.pkg.Version == "" {
+		return "→ " + f.pkg.FixedVersion
+	}
+	return f.pkg.Version + " → " + f.pkg.FixedVersion
+}
+
 type htmlFinding struct {
 	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Component, Location, Message string
 	// Upgrade is the dependency and the release that clears it, which is the only instruction on
 	// the row. Empty for a finding that is not about a package.
 	Upgrade string
+	// UpgradeName is the package, and UpgradePair the versions with the arrow between them.
+	//
+	// Split so the cell can break between them and not inside them. Together they are the same
+	// string as Upgrade, which the other formats still take whole; only this one has a column
+	// width to answer to.
+	UpgradeName, UpgradePair string
 	// Moved names what argued with this finding's band, in the words the console uses.
 	Moved string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
@@ -357,6 +390,8 @@ func toHTMLFinding(f finding) htmlFinding {
 		Component: dash(f.component),
 		Location:  dash(f.location), Message: findingTitle(f), HelpURI: f.helpURI,
 		Upgrade:       upgradeLabel(f),
+		UpgradeName:   upgradeName(f),
+		UpgradePair:   upgradePair(f),
 		Moved:         moved,
 		Justification: f.justification,
 		ActionKey:     actionKeyFor(f),
@@ -839,8 +874,27 @@ const htmlDoc = `<!doctype html>
   }
   /* The release that ends a finding wears the color a passing verdict wears, which is what the
    * console and the dashboard both do with this fact. */
-  .upg { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .78rem; white-space: nowrap; }
+  .upg { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .78rem; }
   .upg { color: var(--muted); }
+  /* The package name may wrap; the versions on either side of the arrow may not.
+   *
+   * The whole cell used to refuse to wrap, and a Debian version pair runs to sixty-five
+   * characters, so one column pushed the table past the body's own width and the page gained a
+   * horizontal scrollbar at any viewport. Letting it break anywhere is the other wrong answer: a
+   * version severed mid-string reads as a different version, and the pair is the instruction.
+   *
+   * So the break goes where a reader would put it, between what to upgrade and what to upgrade it
+   * to. */
+  .upg .pair { white-space: nowrap; }
+
+  /* The one table that can outgrow the column the page is read in, boxed so that it scrolls
+   * instead of the document.
+   *
+   * Breaking the cells where a reader would break them is the first half and cannot be the whole
+   * of it: what a scanner puts in a version string is not ours to bound, and a report that widens
+   * the page for one row makes every other row harder to read. So the guarantee is here, and the
+   * break points are what keep it from being needed. */
+  .wide { overflow-x: auto; }
 
   /* Two views of one set, and the toggle between them. The plane leads with the work and keeps the
    * list beside it, because a reader opening a report is deciding what to do rather than scanning
@@ -1164,6 +1218,7 @@ about what they would have found. For everything the tool printed, re-run with
 </span>
 {{end}}
 {{if .Findings}}
+<div class="wide">
 <table id="findings">
 <thead><tr>
   <th scope="col">Priority</th><th scope="col">Severity</th>
@@ -1177,11 +1232,12 @@ about what they would have found. For everything the tool printed, re-run with
   <td>{{.Tool}}</td>
   <td>{{.Component}}</td>
   <td><code>{{.Location}}</code></td>
-  <td class="upg">{{.Upgrade}}</td>
+  <td class="upg">{{.UpgradeName}}{{if .UpgradeName}} {{end}}<span class="pair">{{.UpgradePair}}</span></td>
 </tr>
 <tr class="msg"><td colspan="7">{{.Message}}</td></tr>
 </tbody>{{end}}
 </table>
+</div>
 <p class="empty" id="none" hidden>No findings match this filter.</p>
 {{else if .Errors}}
 <p>No findings from the controls that ran. See the errors reported above.</p>
