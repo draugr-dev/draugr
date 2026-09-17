@@ -49,6 +49,16 @@ type Config struct {
 	// that word belongs in the code rather than in the file people write.
 	Controls map[string]ControllerSettings `yaml:"controls,omitempty"`
 
+	// ControlSources names the fragments each control setting arrived from, keyed
+	// "control.option", for the settings FragmentControlOptions admits.
+	//
+	// A descriptor's own values are not listed: they came from the file in front of the reader.
+	// What this answers is which included file expects an identity nobody reading the descriptor
+	// declared, which is the attribution that makes carrying the setting in a fragment safe.
+	//
+	// Never written by hand, so it is not part of the descriptor's schema.
+	ControlSources map[string][]string `yaml:"-" json:"-"`
+
 	// Controllers is the older spelling, still read so no descriptor breaks.
 	//
 	// Deprecated: write `controls`. Folded into Controls when a descriptor loads, so nothing else
@@ -920,6 +930,12 @@ type Fragment struct {
 	// fragment somebody writes by hand has no use for it. It exists so a survey can put the
 	// reasoning beside the value it wrote, where the value gets reviewed.
 	ExposureReasons map[string]string `yaml:"-" json:"-"`
+	// Source names the file this fragment was read from, so what it contributes can be attributed
+	// to it. Set by the resolver, and empty for a fragment a surveyor built in memory.
+	//
+	// Never serialized, for the same reason as ExposureReasons: it is a fact about where the
+	// document came from rather than part of the document.
+	Source string `yaml:"-" json:"-"`
 }
 
 // FragmentConfig is the part of Config a fragment is allowed to set.
@@ -931,6 +947,13 @@ type FragmentConfig struct {
 	// Exclude suppresses findings that match, with a stated reason. Appended to whatever the
 	// descriptor and other fragments already carry.
 	Exclude []ExcludeRule `yaml:"exclude,omitempty"`
+	// Controls carries the control settings a fragment is allowed to contribute, which is a short
+	// list held in FragmentControlOptions rather than everything a descriptor may write.
+	//
+	// Appended, never replacing, and refused outright for anything not on that list. A fragment
+	// that could reach a control's settings in full could switch it off, which is the one thing
+	// including a file must never be able to do.
+	Controls map[string]ControllerSettings `yaml:"controls,omitempty"`
 }
 
 // ControllerEnabled reports whether the named controller is enabled at the project level.

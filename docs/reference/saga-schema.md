@@ -1595,11 +1595,26 @@ fragments:
 | `url` | A git repository to read from. Omit for a local path. |
 | `revision` | Branch, tag or commit. **Required with `url`**, and not defaulted. See below. |
 
-**A fragment adds scope or adds attributed suppressions; it cannot change policy.** It may carry
-`components`, `config.exclude`, and further `fragments`. Nothing else. `release`, `config.gate` and
-`config.controls` are rejected, naming the rule. That is what makes a `fragments:` line safe to
-review: pulling a file in can never quietly lower your gate or switch a control off, and the worst
-it can do is add suppressions, which are individually attributed and counted in the report.
+**A fragment adds scope, adds attributed suppressions, or contributes a setting that can only add
+findings. It cannot change policy.** It may carry `components`, `config.exclude`, further
+`fragments`, and the short list of control settings in the table below. Nothing else. `release`,
+`config.gate` and any other control setting are rejected, naming the rule. That is what makes a
+`fragments:` line safe to review: pulling a file in can never quietly lower your gate or switch a
+control off, and the worst it can do is add suppressions, which are individually attributed and
+counted in the report.
+
+| Setting a fragment may contribute | What it does |
+|---|---|
+| `config.controls.provenance.signers` | Adds signers to the descriptor's own, so an organization can declare who signs what once and include it everywhere. |
+
+A contributed setting is **appended, never assigned**: the descriptor's own values stay, and the
+fragment's are added after them. `report.json` records which file each one came from, under
+`descriptor.contributed`, so a reviewer can find out which included file expects an identity nobody
+reading the descriptor declared.
+
+`config.controls.provenance.unmatched` and `trustRoot` are **not** on the list. Whether an
+uncovered image is a gap or a fact about the ecosystem, and which certificate roots are trusted,
+stay with whoever answers for the verdict.
 
 **A pattern that matches nothing is an error.** Somebody wrote the line on purpose, so silence from
 it is indistinguishable from a typo, and the result would be a descriptor scanning less than it

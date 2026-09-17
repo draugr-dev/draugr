@@ -308,6 +308,15 @@ type DescriptorRef struct {
 	//
 	// A few kilobytes against a report that is already larger.
 	Effective string `json:"effective,omitempty"`
+	// Contributed names the fragments each control setting came from, keyed "control.option", for
+	// the settings a fragment is allowed to carry.
+	//
+	// Sources says which files were merged and Effective says what the merged descriptor holds.
+	// Neither answers which of those files expects an identity nobody reading the root descriptor
+	// declared, and that is the question a reviewer of an included policy is asking.
+	//
+	// Absent when every setting came from the descriptor itself, which is the ordinary case.
+	Contributed map[string][]string `json:"contributed,omitempty"`
 }
 
 // DescriptorSource is one file a descriptor was assembled from.
@@ -344,6 +353,12 @@ func DescriptorFrom(res *saga.Resolved) *DescriptorRef {
 			Path: s.Path, URL: s.URL, Revision: s.Revision, Resolved: s.Resolved,
 			Digest: s.Digest, Root: s.Root,
 		})
+	}
+	if res.Model != nil && len(res.Model.Config.ControlSources) > 0 {
+		out.Contributed = make(map[string][]string, len(res.Model.Config.ControlSources))
+		for setting, files := range res.Model.Config.ControlSources {
+			out.Contributed[setting] = append([]string(nil), files...)
+		}
 	}
 	return out
 }

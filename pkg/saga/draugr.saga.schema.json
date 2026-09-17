@@ -974,6 +974,9 @@
       "additionalProperties": false,
       "description": "The part of config a fragment may set.",
       "properties": {
+        "controls": {
+          "$ref": "#/$defs/fragmentControls"
+        },
         "exclude": {
           "description": "Suppressions this fragment contributes, appended to the descriptor's own.",
           "items": {
@@ -984,9 +987,27 @@
       },
       "type": "object"
     },
+    "fragmentControls": {
+      "additionalProperties": false,
+      "description": "Control settings this fragment contributes, appended to the descriptor's own. Only settings that can add findings appear here; a fragment cannot switch a control off, change what is trusted, or change what a finding is worth.",
+      "properties": {
+        "provenance": {
+          "additionalProperties": false,
+          "description": "Check that a container image is signed by the identity this descriptor expects.",
+          "properties": {
+            "signers": {
+              "description": "Who is expected to have signed what. A signer names itself, the images it covers, and the identity to check against.",
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "fragmentRef": {
       "additionalProperties": false,
-      "description": "Saga fragments to merge in. A fragment adds components and exclusions; it cannot change policy, so including one can never lower the gate or turn a control off.",
+      "description": "Saga fragments to merge in. A fragment adds components, exclusions and a short list of control settings that can only add findings; it cannot change policy, so including one can never lower the gate or turn a control off.",
       "properties": {
         "path": {
           "description": "Which fragment files to read. Globs use the same dialect as paths and ignore — * within a segment, ** across them. Relative to the file that names it.",

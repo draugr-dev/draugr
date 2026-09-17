@@ -39,18 +39,61 @@ config:
 
 ## What a fragment may contain
 
-**A fragment adds scope or adds attributed suppressions. It cannot change policy.**
+**A fragment adds scope, adds attributed suppressions, or contributes a setting that can only add
+findings. It cannot change policy.**
 
 | | |
 |---|---|
 | `components` | yes, merged by name |
 | `config.exclude` | yes, appended |
+| `config.controls.provenance.signers` | yes, appended |
 | `fragments` | yes, resolved relative to itself |
-| `release`, `config.gate`, `config.controls`, publishers, reports | **no** |
+| `release`, `config.gate`, every other control setting, publishers, reports | **no** |
 
 That rule is what makes a one-line `fragments:` entry safe to review. Including a file cannot
 lower your gate or switch a control off; the worst it can do is add suppressions, and every one
 of those is attributed and counted in the report.
+
+A setting is on that list only when contributing it can add findings and never remove them, when
+two files can both contribute without either losing anything, and when the report can say which
+file each contribution came from. `signers` qualifies: adding one turns an image that was merely
+observed into one that is checked.
+
+## A signing policy written once
+
+Who signs what a product runs is the same answer across every descriptor an organization owns, and
+copying it into each one means correcting it in each one.
+
+```yaml
+# security/signers.saga-fragment.yaml
+config:
+  controls:
+    provenance:
+      signers:
+        - name: platform-ci
+          images: ["ghcr.io/acme/*"]
+          github:
+            repository: acme/ci-workflows
+            workflow: .github/workflows/build-image.yml
+            ref: refs/heads/main
+```
+
+```yaml
+# draugr.saga.yaml
+fragments:
+  - path: security/signers.saga-fragment.yaml
+config:
+  controls:
+    provenance:
+      enabled: true
+      unmatched: warn     # the descriptor decides this, not the fragment
+```
+
+The descriptor's own signers, if it declares any, keep working: the fragment's are added after
+them. `report.json` records which file contributed them under `descriptor.contributed`.
+
+Two signers matching one image is refused, so a fragment whose patterns overlap the descriptor's
+fails the descriptor loudly rather than quietly winning.
 
 ## A monorepo serving several products
 

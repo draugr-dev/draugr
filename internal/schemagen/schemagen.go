@@ -219,6 +219,56 @@ func controlDefs(reg *engine.Registry) map[string]map[string]any {
 	return out
 }
 
+// fragmentControlsDef describes what a fragment may set under `config.controls`.
+//
+// Built from the same registry and the same option definitions as the descriptor's own controls
+// block, filtered by saga.FragmentControlOptions, so an editor offers exactly what the decoder
+// accepts. Writing the short list out by hand would be a second copy of a rule whose whole value
+// is that there is one of it.
+//
+// No `enabled` key and no scanner blocks, which is the point: a fragment contributes to a control
+// and cannot decide whether it runs or what runs it.
+func fragmentControlsDef(reg *engine.Registry) map[string]any {
+	options := map[string]plugin.Option{}
+	summaries := map[string]string{}
+	for _, ctrl := range reg.Controllers() {
+		info := ctrl.Info()
+		summaries[info.Name] = info.Summary
+		for _, opt := range plugin.Options(info.OptionSchema) {
+			options[info.Name+"."+opt.Name] = opt
+		}
+	}
+
+	props := map[string]any{}
+	for _, control := range saga.FragmentControls() {
+		allowed := map[string]any{}
+		for _, name := range saga.FragmentControlOptionsFor(control) {
+			opt, found := options[control+"."+name]
+			if !found {
+				continue
+			}
+			allowed[name] = optionDef(opt)
+		}
+		if len(allowed) == 0 {
+			continue
+		}
+		props[control] = map[string]any{
+			"type":                 "object",
+			"description":          summaries[control],
+			"properties":           allowed,
+			"additionalProperties": false,
+		}
+	}
+	return map[string]any{
+		"type": "object",
+		"description": "Control settings this fragment contributes, appended to the descriptor's " +
+			"own. Only settings that can add findings appear here; a fragment cannot switch a " +
+			"control off, change what is trusted, or change what a finding is worth.",
+		"properties":           props,
+		"additionalProperties": false,
+	}
+}
+
 // scannerDef describes one scanner's block: `enabled`, plus the options it declares.
 //
 // The options come from the scanner's own ConfigSchema, so what an editor offers and what the
@@ -372,6 +422,17 @@ func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
 	}
 	rcProps["format"] = reportFormatDef()
 
+	fc, ok := defs["fragmentConfig"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("schema has no fragmentConfig definition")
+	}
+	fcProps, ok := fc["properties"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("fragmentConfig has no properties")
+	}
+	defs["fragmentControls"] = fragmentControlsDef(reg)
+	fcProps["controls"] = map[string]any{"$ref": "#/$defs/fragmentControls"}
+
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")
@@ -418,9 +479,10 @@ func FragmentSchema(sagaJSON []byte) ([]byte, error) {
 
 	doc["$id"] = "https://draugr.dev/schema/draugr.saga-fragment.schema.json"
 	doc["title"] = "Draugr Saga fragment"
-	doc["description"] = "A partial Draugr Saga: components and exclusions merged into the " +
-		"descriptor that names it. A fragment adds scope or adds attributed suppressions; it " +
-		"cannot change policy, so it carries no release, gate or controller settings."
+	doc["description"] = "A partial Draugr Saga: components, exclusions and a short list of " +
+		"control settings, merged into the descriptor that names it. A fragment adds scope, adds " +
+		"attributed suppressions, or contributes a setting that can only add findings; it cannot " +
+		"change policy, so it carries no release or gate, and cannot switch a control off."
 	// A fragment requires nothing. One carrying only exclusions is a perfectly good fragment, and
 	// so is one carrying only components.
 	delete(doc, "required")

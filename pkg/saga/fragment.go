@@ -203,6 +203,7 @@ func (r *resolver) mergeFrom(model *Model, ref FragmentRef, dir string, src Sour
 		named.Digest = digestFile(full)
 		r.sources = append(r.sources, named)
 		stampExclusions(frag.Config.Exclude, named.String())
+		frag.Source = named.String()
 		Merge(model, frag)
 
 		r.stack = append(r.stack, named.String())
@@ -222,16 +223,22 @@ func stampExclusions(rules []ExcludeRule, source string) {
 	}
 }
 
-// Merge folds a fragment into a model: components by name, exclusions appended.
+// Merge folds a fragment into a model: components by name, exclusions and control settings
+// appended.
 //
 // Components upsert and union rather than replace, so two fragments describing one component, a
 // shared one naming its repository and a per-product one adding its image, end up as a single
 // component with both. That is the same merge a Surveyor's fragment goes through.
+//
+// Control settings append for the same reason and under a shorter list: FragmentControlOptions
+// says which ones a fragment may carry at all, and every one of them adds to what the descriptor
+// declares rather than answering over it.
 func Merge(model *Model, frag Fragment) {
 	for _, comp := range frag.Components {
 		model.Components = UpsertComponent(model.Components, comp)
 	}
 	model.Config.Exclude = append(model.Config.Exclude, frag.Config.Exclude...)
+	mergeFragmentControls(&model.Config, frag.Config.Controls, frag.Source)
 }
 
 // loadFragmentFile reads and decodes one fragment.
@@ -301,6 +308,7 @@ func (f Fragment) Validate() error {
 	var errs []error
 	errs = append(errs, validateComponents(f.Components)...)
 	errs = append(errs, validateExclusions(f.Config.Exclude, "config.exclude")...)
+	errs = append(errs, validateFragmentControls(f.Config.Controls)...)
 	errs = append(errs, validateFragmentRefs(f.Fragments, "fragments")...)
 	return joinErrs(errs)
 }
