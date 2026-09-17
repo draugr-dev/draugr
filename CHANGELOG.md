@@ -20,6 +20,10 @@ A new `provenance` control checks that a container image is signed by the identi
 
 A Saga fragment can carry `config.controls.provenance.signers`, so an organization declares who signs its images once and every descriptor includes it. Contributed signers are appended to whatever the descriptor declares rather than replacing them, and `report.json` records which file each one came from under `descriptor.contributed`. The rest of a control's settings are still refused: `unmatched` and `trustRoot` decide what a finding is worth and what is trusted, which stays with whoever answers for the verdict.
 
+An image carrying a GitHub artifact attestation is checked the same way, which is what `actions/attest` with `push-to-registry: true` produces. Set that flag: at its default the attestation is written to GitHub's attestations API and nowhere else, and Draugr reads the registry, so the image reports as unsigned.
+
+The control's account of the run reports `coverage`, `scope` and `pinning` as counts, in the shape the infrastructure control already uses, so the row says the same thing whether a descriptor declares one signer or twenty. Pinning counts the images named by digest rather than by tag, because a tag can be moved to other bytes after the run that verified it.
+
 `provenance` verifies Notary Project signatures too, with `notation`. Declare an `x509:` signer naming the roots a certificate must chain to and the subject it must carry, and Draugr checks images signed that way: an Azure Pipelines build signing with a key in Azure Key Vault, or anything signed by your own certificate authority. Which verifier runs follows from the signer, so a project signing some images with Sigstore and others with a certificate declares both and passes no flag. `draugr tools install notation` provisions the pinned build.
 
 ### Changed
@@ -33,12 +37,6 @@ The HTML report says what to do about every finding. The old `UPGRADE` column he
 ### Fixed
 
 A control setting of the wrong shape is now refused at `draugr validate` instead of being ignored. `deny: "AGPL-3.0-only"` under `config.controls.licenses` names a real setting, reads as a policy and resolved to an empty list, so the license gate a descriptor was written to apply was not applied and the run passed. Scanner options were already checked this way; a control's own settings now are too, on the project and on a component.
-
-An image carrying a GitHub artifact attestation is checked properly. cosign reads one out of the registry as an OCI referrer and then answers about it with a message rather than an exit code, so an attestation signed by a workflow the descriptor does not name was reported as an error instead of a critical finding, and discovery said nothing at all about images carrying one. Both now work, and the finding names the workflow that did sign. This is what `actions/attest` with `push-to-registry: true` produces, which makes it the common shape rather than an unusual one.
-
-`draugr scan --format sarif` records the signing identity of every image a provenance run observed, under `draugr/provenance` as `detail`, with the issuer beside it. Those are the two fields a `keyless:` signer is written from, so a run with no signers declared is how to find what to put in `identity`. The console row still reports counts: the block it sits in gives a control three lines, and an inventory is as long as the inventory.
-
-The provenance control's line in `MEASURED AGAINST` says the same thing whatever size the descriptor is. It named every signer and listed the identity of every image it observed, and that block gives a control three lines, so a project with six signers saw three names and a severed URL where the rest had been. It now reports `coverage`, `scope` and `pinning` as counts, in the shape the infrastructure control already uses, and nothing on the row grows with the number of signers or images. Pinning counts the images named by digest, so the number worth moving is the number that grows, and the row names every verifier that ran instead of only cosign.
 
 ## [0.125.0] - 2026-09-15
 
