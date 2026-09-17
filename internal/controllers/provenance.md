@@ -106,10 +106,9 @@ through overlapping patterns.
 
 ## Starting from nothing
 
-Run the control with no signers declared and it records the issuer and identity of everything it
-finds, in its account of the run. That is the answer to *what do I put in `identity`*, and it is
-more reliable than constructing one by hand. `draugr scan --format json` carries each identity in
-full, which is what to copy from.
+Run the control with no signers declared and nothing fails. Its account of the run counts the
+images signed by somebody this descriptor has not named, and the images carrying no signature at
+all. Together those are how much of the inventory a policy would have to cover.
 
 ```yaml
 config:
@@ -117,9 +116,6 @@ config:
     provenance:
       enabled: true
 ```
-
-Nothing fails. What comes back is an inventory of who signs what you run, which is the step before
-a policy exists.
 
 ## What `builtBy` has to do with it
 

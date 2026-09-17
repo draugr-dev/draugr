@@ -302,16 +302,18 @@ func TestAggregateCountsPinningOverTheJobs(t *testing.T) {
 		t.Fatalf("want one account of the run, got %d", len(res.Report.Provenance))
 	}
 	got := res.Report.Provenance[0].Describe()
-	for _, want := range []string{"signers: our-ci", "4 images: 4 checked", "1 of 4 verified by tag"} {
+	for _, want := range []string{"coverage: 4 of 4 images checked", "scope: 1 signer", "pinning: 3 of 4 by digest"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("account = %q, want it to contain %q", got, want)
 		}
 	}
 }
 
-// Observations are the answer to "what do I put in identity", so they have to survive
-// aggregation rather than being deduplicated away with the rest.
-func TestAggregateKeepsWhatWasObserved(t *testing.T) {
+// An image nobody declared a signer for is counted apart from one carrying no signature at all.
+// The first is a policy that has not caught up with the inventory; the second is an artifact
+// nothing can be established about. The identities themselves stay off the row, which has three
+// lines and spends them on counts like every other control's.
+func TestAggregateCountsWhatWasObserved(t *testing.T) {
 	t.Parallel()
 	reports := []sarif.Report{{Tool: cosignScanner, Provenance: []sarif.Provenance{{
 		Tool: cosignScanner,
@@ -333,10 +335,16 @@ func TestAggregateKeepsWhatWasObserved(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := res.Report.Provenance[0].Describe()
-	for _, want := range []string{"cgr.dev/chainguard/static", "cg/images/.github/workflows",
-		"2 images: 1 observed, 1 unsigned", "no signers declared"} {
+	for _, want := range []string{
+		"coverage: 0 of 2 images checked, 1 observed, 1 unsigned", "scope: no signers declared"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("account = %q, want it to contain %q", got, want)
+		}
+	}
+	// One image reference fills a third of the row on its own, and there is one per image.
+	for _, unwanted := range []string{"cgr.dev/chainguard/static", "cg/images/.github/workflows"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("account = %q, want it to count the observations rather than list them", got)
 		}
 	}
 }
@@ -472,15 +480,19 @@ func TestAggregateAccountStaysBoundedAsItGrows(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := res.Report.Provenance[0].Describe()
-	// Three names and a count, rather than twenty names.
-	if !strings.Contains(got, "and 17 more") {
-		t.Errorf("account = %q, want the signers capped and counted", got)
+	// A count, rather than twenty names. Nothing here grows with the policy, so there is no size
+	// at which the row starts dropping what it was holding.
+	if strings.Contains(got, "team-") {
+		t.Errorf("account = %q, want the signers counted rather than named", got)
 	}
-	if strings.Count(got, "team-") != maxNamedSigners {
-		t.Errorf("account names %d signers, want %d: %q", strings.Count(got, "team-"), maxNamedSigners, got)
+	if !strings.Contains(got, "scope: 20 signers") {
+		t.Errorf("account = %q, want the policy counted", got)
 	}
-	if !strings.Contains(got, "20 images: 20 checked") {
+	if !strings.Contains(got, "coverage: 20 of 20 images checked") {
 		t.Errorf("account = %q, want the coverage counted", got)
+	}
+	if !strings.Contains(got, "pinning: all 20 by digest") {
+		t.Errorf("account = %q, want what is pinned counted", got)
 	}
 	// Whatever it holds, the summary in front of the detail fits the three lines the block gives
 	// it. Measured against the width the console wraps a control's row to.

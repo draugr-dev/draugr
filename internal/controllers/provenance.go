@@ -98,7 +98,7 @@ var provenanceOptionSchema = json.RawMessage(`{
               },
               "identity": {
                 "type": "string",
-                "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". Run the control with no signers declared to read the identity off what you already publish."
+                "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". A job calling a reusable workflow is signed as that workflow, not as the caller."
               },
               "identityRegexp": {
                 "type": "string",
@@ -279,26 +279,26 @@ func (Provenance) Aggregate(reports []sarif.Report) (plugin.ControlResult, error
 // checked against the same signer are one entry after merging and four facts before it.
 func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 	signers := map[string]bool{}
-	var images, byTag, unsigned, verified, observedCount int
-	var observed []string
+	verifiers := map[string]bool{}
+	var images, byDigest, unsigned, verified, observedCount int
 	for _, rep := range reports {
 		for _, p := range rep.Provenance {
 			if p.Tool == "" {
 				continue
 			}
+			verifiers[p.Tool] = true
 			images++
 			for _, f := range p.Fields {
 				switch {
 				case f.Key == "signer" && f.Value != "" && f.Value != "no signer declared":
 					signers[f.Value] = true
 					verified++
-				case f.Key == "pinned" && f.Value == "tag":
-					byTag++
+				case f.Key == "pinned" && f.Value == "digest":
+					byDigest++
 				case f.Key == "observed" && strings.HasSuffix(f.Value, "\tunsigned"):
 					unsigned++
 				case f.Key == "observed":
 					observedCount++
-					observed = append(observed, f.Value)
 				}
 			}
 		}
@@ -306,105 +306,80 @@ func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 	if images == 0 {
 		return nil
 	}
-	names := make([]string, 0, len(signers))
-	for name := range signers {
+
+	// The shape the other controls in this block use: what was covered, over what, and the one
+	// qualifier that changes how much the coverage is worth. `coverage` and `scope` are the
+	// infrastructure control's own keys, carrying the same meaning here.
+	//
+	// Counts, not lists. The things worth saying grow with the descriptor: an identity is about
+	// ninety-five characters and a project can declare a dozen signers over twenty images. Written
+	// out, three of them filled the line and the rest were cut, so the account reported less than
+	// it had at exactly the sizes where it mattered. A count says the same thing at any size.
+	fields := []sarif.Field{
+		{Key: "coverage", Value: describeCoverage(images, verified, observedCount, unsigned)},
+		{Key: "scope", Value: describeScope(len(signers))},
+	}
+	// Said whether or not anything failed. A green verdict over images named by tag is a weaker
+	// statement than it looks, and this is the line that says so. Stated as what is pinned rather
+	// than what is not, so the number a reader is working to move is the number that grows.
+	//
+	// Not said where nothing was verified. Pinning qualifies a verification, and a run with no
+	// policy has none to qualify.
+	if verified > 0 {
+		fields = append(fields, sarif.Field{Key: "pinning", Value: describePinning(byDigest, images)})
+	}
+	// Every verifier that ran, not the one this control reaches for most. A descriptor whose
+	// signers use two trust models is checked by two tools, and a row naming only one credits it
+	// with work it did not do while leaving the other unaccounted for.
+	names := make([]string, 0, len(verifiers))
+	for name := range verifiers {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-
-	// Counts, not a list. This block gives a control one line, and the things worth saying here
-	// grow with the descriptor: an identity is about ninety-five characters and a project can
-	// declare a dozen signers over twenty images. Written as a list, three of them filled the
-	// line and the rest were cut, so the account silently reported less than it had. A count says
-	// the same thing at any size.
-	// Keyed where the label adds something, keyless where the phrase already says what it is.
-	// "images: 8 images, 6 checked" is a label stuttering into its own value.
-	fields := []sarif.Field{describeSigners(names)}
-	fields = append(fields, sarif.Field{Value: describeCoverage(images, verified, observedCount, unsigned)})
-	// Said whether or not anything failed. A green verdict that checked three images by digest
-	// and one by tag is a weaker statement than it looks, and this is the line that says so.
-	if byTag > 0 {
-		pinning := fmt.Sprintf("%d of %d verified by tag, not digest", byTag, images)
-		if byTag == images {
-			pinning = fmt.Sprintf("all %d verified by tag, not digest", images)
-		}
-		fields = append(fields, sarif.Field{Value: pinning})
-	}
-	// After the counts, deliberately. The console gives this row three lines and elides the rest,
-	// so what survives on screen is the summary and what survives in the report document is
-	// everything. An identity is the one thing here worth copying and the one thing too long to
-	// read off a terminal, which is the split those two surfaces already make everywhere else.
-	sort.Strings(observed)
-	for _, o := range observed {
-		ref, subject, _ := splitObserved(o)
-		fields = append(fields, sarif.Field{Key: ref, Value: shortIdentity(subject)})
-	}
-	return []sarif.Provenance{{Tool: cosignScanner, Fields: fields}}
+	return []sarif.Provenance{{Tool: strings.Join(names, ", "), Fields: fields}}
 }
 
-// describeSigners names the policy without growing with it.
+// describeScope is how much of a policy the run was measured against.
 //
-// Two names are worth reading and eight are a wall, so the first few are named and the rest
-// counted. The same shape the finding list uses when it says "top 5 of 8": a reader learns what
-// kind of thing is in the list and how much of it there is.
-func describeSigners(names []string) sarif.Field {
-	switch {
-	case len(names) == 0:
-		return sarif.Field{Value: "no signers declared, observed only"}
-	case len(names) <= maxNamedSigners:
-		return sarif.Field{Key: "signers", Value: strings.Join(names, ", ")}
+// The count rather than the names. A signer's identity answers a different question, "which one
+// refused", and that one is answered on the finding, beside the image it refused.
+func describeScope(signers int) string {
+	if signers == 0 {
+		return "no signers declared"
 	}
-	return sarif.Field{Key: "signers", Value: fmt.Sprintf("%s and %d more",
-		strings.Join(names[:maxNamedSigners], ", "), len(names)-maxNamedSigners)}
+	return plural(signers, "signer")
 }
-
-// maxNamedSigners is where naming them stops being useful and starts being a list to skim.
-const maxNamedSigners = 3
 
 // describeCoverage says what happened to the images, in the vocabulary the control uses: an image
 // is checked against a signer, observed because none covers it, or carries nothing at all.
 func describeCoverage(total, verified, observed, unsigned int) string {
-	parts := make([]string, 0, 3)
-	if verified > 0 {
-		parts = append(parts, fmt.Sprintf("%d checked", verified))
-	}
+	head := fmt.Sprintf("%d of %s checked", verified, plural(total, "image"))
+	rest := make([]string, 0, 2)
 	if observed > 0 {
-		parts = append(parts, fmt.Sprintf("%d observed", observed))
+		rest = append(rest, fmt.Sprintf("%d observed", observed))
 	}
 	if unsigned > 0 {
-		parts = append(parts, fmt.Sprintf("%d unsigned", unsigned))
+		rest = append(rest, fmt.Sprintf("%d unsigned", unsigned))
 	}
-	if len(parts) == 0 {
-		return plural(total, "image")
+	if len(rest) == 0 {
+		return head
 	}
-	return fmt.Sprintf("%s: %s", plural(total, "image"), strings.Join(parts, ", "))
+	return head + ", " + strings.Join(rest, ", ")
 }
 
-// shortIdentity drops the scheme and host from a signing identity.
+// describePinning says how many images were named in a way that pins what was verified.
 //
-// The first nineteen characters of a Fulcio SAN are "https://github.com/" and say nothing that
-// distinguishes one signer from another. What is left is the repository, the workflow and the
-// ref, which is both the part worth reading and short enough to land on a line whole. A severed
-// URL is unusable, so the choice is between fitting and not printing.
-func shortIdentity(subject string) string {
-	rest, ok := strings.CutPrefix(subject, "https://")
-	if !ok {
-		return subject
+// An image named by tag is verified against whatever that tag pointed at during the run, and the
+// tag can be moved to other bytes afterwards. A digest names the bytes, so a verdict over one
+// still describes the artifact somebody pulls a week later.
+func describePinning(byDigest, total int) string {
+	switch byDigest {
+	case 0:
+		return "none, all by tag"
+	case total:
+		return fmt.Sprintf("all %d by digest", total)
 	}
-	_, path, ok := strings.Cut(rest, "/")
-	if !ok {
-		return subject
-	}
-	return path
-}
-
-// splitObserved unpacks what the scanner recorded about one image's signature.
-func splitObserved(note string) (ref, subject, issuer string) {
-	parts := strings.Split(note, "\t")
-	for len(parts) < 3 {
-		parts = append(parts, "")
-	}
-	return parts[0], parts[1], parts[2]
+	return fmt.Sprintf("%d of %d by digest", byDigest, total)
 }
 
 // plural renders a count with its noun, so a single image is not "1 images".

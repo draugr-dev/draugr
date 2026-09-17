@@ -1,6 +1,6 @@
 ---
 title: Verify where an image came from
-description: Find the identity your builds sign with, declare it, and move from observing signatures to requiring them.
+description: Declare the identity your builds sign with, and move from observing signatures to requiring them.
 section: Guides
 order: 95
 ---
@@ -16,8 +16,8 @@ what it is told to. Provenance is about origin.
 
 ## Contents
 
-- [Start by looking](#start-by-looking)
-- [Declare what you found](#declare-what-you-found)
+- [Start by counting](#start-by-counting)
+- [Declare a signer](#declare-a-signer)
 - [GitHub Actions](#github-actions)
 - [GitLab CI](#gitlab-ci)
 - [Azure Pipelines and an in-house PKI](#azure-pipelines-and-an-in-house-pki)
@@ -26,7 +26,7 @@ what it is told to. Provenance is about origin.
 - [Digests](#digests)
 - [A runner with no egress](#a-runner-with-no-egress)
 
-## Start by looking
+## Start by counting
 
 Turn the control on with no policy at all.
 
@@ -45,20 +45,17 @@ CONTROLS
   provenance  pass   no findings
 
 MEASURED AGAINST
-  provenance  cosign · policy: no signers declared, observed only · pinning: 2 of 2 images
-              verified by tag, not digest · cgr.dev/chainguard/static:latest:
-              https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/h…
+  provenance  cosign · coverage: 0 of 2 images checked, 1 observed, 1 unsigned · scope: no
+              signers declared
 
 No findings. ✓
 ```
 
-Nothing fails. What comes back is an inventory of who signs what you run: each image that carries
-a signature, the identity on it, and a count of the ones that carry none.
+Nothing fails. `observed` counts the images signed by somebody this descriptor has not named, and
+`unsigned` the images carrying no signature at all. Together those are how much of the inventory a
+policy would have to cover.
 
-A Sigstore identity runs to about 95 characters, so a narrow terminal cuts the tail. `draugr scan
---format json` carries every one in full, which is what to copy from.
-
-## Declare what you found
+## Declare a signer
 
 A signer says which images it covers and how to recognize whoever signed them.
 
@@ -145,8 +142,7 @@ file. The double slash is not a typo.
     identity: https://gitlab.com/acme/payments//.gitlab-ci.yml@refs/heads/main
 ```
 
-For a self-managed instance the issuer is that instance's URL. Read both back from a discovery run
-rather than assembling them by hand.
+For a self-managed instance the issuer is that instance's URL.
 
 ## Azure Pipelines and an in-house PKI
 

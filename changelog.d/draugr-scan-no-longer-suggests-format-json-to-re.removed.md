@@ -1,0 +1,1 @@
+`draugr scan` no longer suggests `--format json` to read the signing identity of each image a provenance run observed. That output has never carried them, and the identities themselves are no longer listed in the run's account of the control.
