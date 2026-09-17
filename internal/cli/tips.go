@@ -122,6 +122,19 @@ var scanTips = []scanTip{
 		what: func(tipContext) string { return "draugr controls" },
 		why:  func(tipContext) string { return "what each control looks at, and what turns it on" },
 	},
+	{
+		// Discovery hands back the identity of everything that signs what you run, which is the
+		// answer to "what do I put in the descriptor". It does not fit on a terminal: the block it
+		// lands in gives a control three lines, and one identity is most of one. So the run says
+		// how many it found and this says where to read them.
+		name: "provenance-identities",
+		when: func(c tipContext) bool { return observedIdentities(c.run) > 1 },
+		what: func(tipContext) string { return "--format json" },
+		why: func(c tipContext) string {
+			return fmt.Sprintf("the signing identity of each of the %d images that carry one, in full",
+				observedIdentities(c.run))
+		},
+	},
 }
 
 // cacheTipThreshold is how long a run must take before suggesting a cache is worth the words.
@@ -189,6 +202,29 @@ func scanSuggestions(c tipContext) []report.Suggestion {
 		out = append(out, report.Suggestion{What: tip.what(c), Why: tip.why(c)})
 	}
 	return out
+}
+
+// observedIdentities counts the images a run found a signature on and had no expectation for.
+//
+// Read off the provenance control's account of itself rather than off its findings, because
+// observing is deliberately not a finding: an image somebody else signed, that this descriptor has
+// not claimed, is not something to fix.
+func observedIdentities(run engine.Result) int {
+	cr, ok := run.Controls["provenance"]
+	if !ok {
+		return 0
+	}
+	n := 0
+	for _, p := range cr.Report.Provenance {
+		for _, f := range p.Fields {
+			// A keyed field whose key is an image reference: the summary fields are keyless or
+			// named for what they summarize.
+			if strings.Contains(f.Key, "/") {
+				n++
+			}
+		}
+	}
+	return n
 }
 
 // countAtOrAbove counts findings whose priority is at or above a band.

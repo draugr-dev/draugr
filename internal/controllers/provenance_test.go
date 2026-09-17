@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -301,7 +302,7 @@ func TestAggregateCountsPinningOverTheJobs(t *testing.T) {
 		t.Fatalf("want one account of the run, got %d", len(res.Report.Provenance))
 	}
 	got := res.Report.Provenance[0].Describe()
-	for _, want := range []string{"signers: our-ci", "1 of 4 images verified by tag"} {
+	for _, want := range []string{"signers: our-ci", "4 images: 4 checked", "1 of 4 verified by tag"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("account = %q, want it to contain %q", got, want)
 		}
@@ -332,7 +333,8 @@ func TestAggregateKeepsWhatWasObserved(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := res.Report.Provenance[0].Describe()
-	for _, want := range []string{"cgr.dev/chainguard/static", "github.com/cg/images", "1 image carry", "no signers declared"} {
+	for _, want := range []string{"cgr.dev/chainguard/static", "cg/images/.github/workflows",
+		"2 images: 1 observed, 1 unsigned", "no signers declared"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("account = %q, want it to contain %q", got, want)
 		}
@@ -446,5 +448,44 @@ func TestProvenanceHonorsADisabledVerifier(t *testing.T) {
 	}
 	if len(jobs) != 0 {
 		t.Errorf("notation is off, so the image it would have verified plans nothing: %v", jobs)
+	}
+}
+
+// The account is one row in a block that gives a control three lines, so it has to say the same
+// thing at any size. Written as a list, three signers filled the line and the rest were cut, which
+// is an account reporting less than it holds.
+func TestAggregateAccountStaysBoundedAsItGrows(t *testing.T) {
+	t.Parallel()
+	var reports []sarif.Report
+	for i := range 20 {
+		name := fmt.Sprintf("team-%02d-ci", i)
+		reports = append(reports, sarif.Report{Tool: cosignScanner, Provenance: []sarif.Provenance{{
+			Tool: cosignScanner,
+			Fields: []sarif.Field{
+				{Key: "signer", Value: name},
+				{Key: "pinned", Value: "digest"},
+			},
+		}}})
+	}
+	res, err := Provenance{}.Aggregate(reports)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := res.Report.Provenance[0].Describe()
+	// Three names and a count, rather than twenty names.
+	if !strings.Contains(got, "and 17 more") {
+		t.Errorf("account = %q, want the signers capped and counted", got)
+	}
+	if strings.Count(got, "team-") != maxNamedSigners {
+		t.Errorf("account names %d signers, want %d: %q", strings.Count(got, "team-"), maxNamedSigners, got)
+	}
+	if !strings.Contains(got, "20 images: 20 checked") {
+		t.Errorf("account = %q, want the coverage counted", got)
+	}
+	// Whatever it holds, the summary in front of the detail fits the three lines the block gives
+	// it. Measured against the width the console wraps a control's row to.
+	summary, _, _ := strings.Cut(got, " · cgr.dev")
+	if len(summary) > 3*80 {
+		t.Errorf("the summary is %d characters, past what three wrapped lines hold: %q", len(summary), summary)
 	}
 }

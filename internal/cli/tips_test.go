@@ -276,5 +276,15 @@ func capRunControls() map[string]plugin.ControlResult {
 	controls["images"] = plugin.ControlResult{Report: sarif.Report{Results: []sarif.Result{
 		{RuleID: "CVE-2", Level: sarif.LevelError, Priority: "P1", Image: "vendor/redis:8.2.2"},
 	}}}
+	// Two signatures the descriptor expected nothing about, which is what makes the identities
+	// worth pointing at: one fits the line it lands on and two do not.
+	controls["provenance"] = plugin.ControlResult{Report: sarif.Report{Provenance: []sarif.Provenance{{
+		Tool: "cosign",
+		Fields: []sarif.Field{
+			{Value: "no signers declared, observed only"},
+			{Key: "ghcr.io/acme/a:1", Value: "acme/a/.github/workflows/r.yml@refs/heads/main"},
+			{Key: "ghcr.io/acme/b:1", Value: "acme/b/.github/workflows/r.yml@refs/heads/main"},
+		},
+	}}}}
 	return controls
 }
