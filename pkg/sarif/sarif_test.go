@@ -827,6 +827,7 @@ func TestProvenanceSurvivesASARIFRoundTrip(t *testing.T) {
 			Tool:    "draugr/scope",
 			Version: "1.2.3",
 			Fields:  []Field{{Key: "components", Value: "app"}, {Key: "controls", Value: "sca"}},
+			Detail:  []Field{{Key: "ghcr.io/acme/api", Value: "signed by acme/ci"}},
 		}}}
 	data, err := in.MarshalSARIF()
 	if err != nil {
@@ -848,6 +849,12 @@ func TestProvenanceSurvivesASARIFRoundTrip(t *testing.T) {
 	want := []Field{{Key: "components", Value: "app"}, {Key: "controls", Value: "sca"}}
 	if !reflect.DeepEqual(got.Fields, want) {
 		t.Errorf("got %+v, want %+v", got.Fields, want)
+	}
+	// The per-item half survives too, and stays the per-item half. A consumer reading a reloaded
+	// report has to be able to tell the run's own summary from what it recorded about each thing.
+	wantDetail := []Field{{Key: "ghcr.io/acme/api", Value: "signed by acme/ci"}}
+	if !reflect.DeepEqual(got.Detail, wantDetail) {
+		t.Errorf("detail = %+v, want %+v", got.Detail, wantDetail)
 	}
 }
 

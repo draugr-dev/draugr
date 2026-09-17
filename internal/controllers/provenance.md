@@ -110,6 +110,11 @@ Run the control with no signers declared and nothing fails. Its account of the r
 images signed by somebody this descriptor has not named, and the images carrying no signature at
 all. Together those are how much of the inventory a policy would have to cover.
 
+The identities themselves are recorded per image, in the account's `Detail` rather than its
+`Fields`, which is what keeps them out of a console row that gets three lines and into
+`--format sarif` whole. That is the answer to *what do I put in `identity`*, and it is more
+reliable than constructing one by hand.
+
 ```yaml
 config:
   controls:

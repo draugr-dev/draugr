@@ -98,7 +98,7 @@ var provenanceOptionSchema = json.RawMessage(`{
               },
               "identity": {
                 "type": "string",
-                "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". A job calling a reusable workflow is signed as that workflow, not as the caller."
+                "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". A job calling a reusable workflow is signed as that workflow, not as the caller. Run the control with no signers declared and read it back from --format sarif."
               },
               "identityRegexp": {
                 "type": "string",
@@ -281,6 +281,7 @@ func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 	signers := map[string]bool{}
 	verifiers := map[string]bool{}
 	var images, byDigest, unsigned, verified, observedCount int
+	var observed []string
 	for _, rep := range reports {
 		for _, p := range rep.Provenance {
 			if p.Tool == "" {
@@ -299,6 +300,7 @@ func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 					unsigned++
 				case f.Key == "observed":
 					observedCount++
+					observed = append(observed, f.Value)
 				}
 			}
 		}
@@ -336,7 +338,49 @@ func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	return []sarif.Provenance{{Tool: strings.Join(names, ", "), Fields: fields}}
+	return []sarif.Provenance{{Tool: strings.Join(names, ", "), Fields: fields, Detail: observedIdentities(observed)}}
+}
+
+// observedIdentities is who signed each image this descriptor has not named a signer for, in full.
+//
+// The answer to "what do I put in `identity`", which is a question somebody has while writing a
+// descriptor rather than while reading a terminal. It goes in Detail, so a run over an inventory
+// of any size carries every one of them to a consumer and none of them to the console row.
+//
+// The identity whole, scheme and host included, because this is the value to copy and a shortened
+// one does not verify anything.
+func observedIdentities(observed []string) []sarif.Field {
+	sort.Strings(observed)
+	out := make([]sarif.Field, 0, len(observed))
+	for _, o := range observed {
+		ref, subject, issuer := splitObserved(o)
+		if subject == "" || subject == "unsigned" {
+			continue
+		}
+		// Both halves, under their own keys. An identity is only an expectation together with who
+		// issued it: the same string from a different issuer is a different signer, and a
+		// descriptor naming one without the other does not describe a check. They are also the
+		// two fields a `keyless:` signer is written from, so this is the shape of the answer.
+		out = append(out, sarif.Field{Key: ref + " identity", Value: subject})
+		if issuer != "" {
+			out = append(out, sarif.Field{Key: ref + " issuer", Value: issuer})
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// splitObserved unpacks what the scanner recorded about one image's signature: the reference, the
+// identity on it, and who issued that identity. An unsigned image records only the first two, the
+// second being the word "unsigned".
+func splitObserved(note string) (ref, subject, issuer string) {
+	parts := strings.Split(note, "\t")
+	for len(parts) < 3 {
+		parts = append(parts, "")
+	}
+	return parts[0], parts[1], parts[2]
 }
 
 // describeScope is how much of a policy the run was measured against.

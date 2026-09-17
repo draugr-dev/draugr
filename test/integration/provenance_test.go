@@ -179,9 +179,25 @@ func TestProvenanceDiscoveryReportsWhatItFound(t *testing.T) {
 	if got := findings(t, out); len(got) != 0 {
 		t.Errorf("observing is not a finding, got %v", got)
 	}
-	// The identity belongs in the control's account of the run, which is what somebody copies.
-	if !strings.Contains(string(combined), "chainguard-images/images") {
-		t.Errorf("the run should report the identity it observed:\n%s", combined)
+	// The terminal gets the count. The block this row lands in gives a control three lines, and an
+	// inventory is as long as the inventory, so a run over fifty images would have reported less
+	// than a run over two.
+	if !strings.Contains(string(combined), "1 observed") {
+		t.Errorf("the run should count what it observed:\n%s", combined)
+	}
+	if strings.Contains(string(combined), "chainguard-images/images") {
+		t.Errorf("the identity belongs in the machine formats, not on a terminal row:\n%s", combined)
+	}
+	// And the identity itself, whole, where somebody copies it from.
+	sarif, readErr := os.ReadFile(filepath.Join(out, "results.sarif")) // #nosec G304 -- t.TempDir()
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !strings.Contains(string(sarif), "chainguard-images/images") {
+		t.Error("the run should record the identity it observed, in full")
+	}
+	if !strings.Contains(string(sarif), sigstoreIssuer) {
+		t.Error("an identity without its issuer does not describe a check, so both are recorded")
 	}
 }
 

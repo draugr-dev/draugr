@@ -685,6 +685,14 @@ type Provenance struct {
 	// And this package is the finding currency for every scanner Draugr will ever have. It should not
 	// learn what a CIS benchmark is to carry the fact that one was applied.
 	Fields []Field `json:"fields,omitempty"`
+	// Detail is what the scanner recorded per item, for a consumer rather than for a terminal.
+	//
+	// Describe() joins Fields onto one line, and the block that reads it gives a control three of
+	// them. So a field whose count grows with the descriptor crowds out the summary and is then
+	// elided itself, which is an account reporting less than it holds at exactly the sizes where
+	// it matters. Anything per-image, per-package or per-file belongs here: the machine formats
+	// carry all of it and the console carries none of it.
+	Detail []Field `json:"detail,omitempty"`
 }
 
 // Field is one statement in a Provenance entry.

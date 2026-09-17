@@ -347,7 +347,31 @@ func TestAggregateCountsWhatWasObserved(t *testing.T) {
 			t.Errorf("account = %q, want it to count the observations rather than list them", got)
 		}
 	}
+
+	// And the identities themselves, whole, where a consumer reads them. This is the answer to
+	// "what do I put in `identity`", so a shortened one would be a value that verifies nothing.
+	detail := map[string]string{}
+	for _, f := range res.Report.Provenance[0].Detail {
+		detail[f.Key] = f.Value
+	}
+	wantIdentity := "https://github.com/cg/images/.github/workflows/r.yaml@refs/heads/main"
+	if got := detail["cgr.dev/chainguard/static identity"]; got != wantIdentity {
+		t.Errorf("identity = %q, want %q", got, wantIdentity)
+	}
+	if got := detail["cgr.dev/chainguard/static issuer"]; got != sigstoreGitHubIssuer {
+		t.Errorf("issuer = %q, want it recorded beside the identity", got)
+	}
+	// An image carrying nothing has no identity to record, and a key whose value is the word
+	// "unsigned" would read as a signer called that.
+	for key := range detail {
+		if strings.HasPrefix(key, "docker.io/library/alpine") {
+			t.Errorf("detail holds %q for an unsigned image", key)
+		}
+	}
 }
+
+// sigstoreGitHubIssuer is the OIDC issuer GitHub Actions signs through.
+const sigstoreGitHubIssuer = "https://token.actions.githubusercontent.com"
 
 // A control with nothing to say says nothing, rather than an empty account.
 func TestAggregateWithNoJobsHasNoAccount(t *testing.T) {

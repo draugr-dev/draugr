@@ -1,6 +1,6 @@
 ---
 title: Verify where an image came from
-description: Declare the identity your builds sign with, and move from observing signatures to requiring them.
+description: Read the identity your builds sign with, declare it, and move from observing signatures to requiring them.
 section: Guides
 order: 95
 ---
@@ -16,7 +16,7 @@ what it is told to. Provenance is about origin.
 
 ## Contents
 
-- [Start by counting](#start-by-counting)
+- [Discovery](#discovery)
 - [Declare a signer](#declare-a-signer)
 - [GitHub Actions](#github-actions)
 - [GitLab CI](#gitlab-ci)
@@ -26,7 +26,7 @@ what it is told to. Provenance is about origin.
 - [Digests](#digests)
 - [A runner with no egress](#a-runner-with-no-egress)
 
-## Start by counting
+## Discovery
 
 Turn the control on with no policy at all.
 
@@ -54,6 +54,20 @@ No findings. ✓
 Nothing fails. `observed` counts the images signed by somebody this descriptor has not named, and
 `unsigned` the images carrying no signature at all. Together those are how much of the inventory a
 policy would have to cover.
+
+The identities themselves are in `--format sarif`, under `draugr/provenance`, which is what to
+copy from when writing a signer:
+
+```console
+$ draugr scan --format sarif | jq '.runs[].properties["draugr/provenance"][].detail'
+{
+  "cgr.dev/chainguard/static:latest identity": "https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main",
+  "cgr.dev/chainguard/static:latest issuer": "https://token.actions.githubusercontent.com"
+}
+```
+
+Both halves, because an identity is only an expectation together with who issued it. They are also
+the two fields a `keyless:` signer is written from.
 
 ## Declare a signer
 

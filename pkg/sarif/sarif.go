@@ -72,6 +72,9 @@ type sarifProvenance struct {
 	Tool    string            `json:"tool"`
 	Version string            `json:"version,omitempty"`
 	Fields  map[string]string `json:"fields,omitempty"`
+	// Detail is what the scanner recorded per item, kept apart from the run's own summary so a
+	// consumer reading one is not reading a list as long as the inventory.
+	Detail map[string]string `json:"detail,omitempty"`
 }
 
 // runProperties renders provenance into the bag, or nil when there is nothing to say.
@@ -90,6 +93,12 @@ func runProperties(entries []Provenance, decided []Taxon, consulted []Consulted)
 			sp.Fields = make(map[string]string, len(p.Fields))
 			for _, f := range p.Fields {
 				sp.Fields[f.Key] = f.Value
+			}
+		}
+		if len(p.Detail) > 0 {
+			sp.Detail = make(map[string]string, len(p.Detail))
+			for _, f := range p.Detail {
+				sp.Detail[f.Key] = f.Value
 			}
 		}
 		out = append(out, sp)
@@ -882,6 +891,9 @@ func provenanceFrom(props *sarifRunProperties) []Provenance {
 		// differ, which is the opposite of what an artifact offered as evidence is for.
 		for _, k := range slices.Sorted(maps.Keys(sp.Fields)) {
 			p.Fields = append(p.Fields, Field{Key: k, Value: sp.Fields[k]})
+		}
+		for _, k := range slices.Sorted(maps.Keys(sp.Detail)) {
+			p.Detail = append(p.Detail, Field{Key: k, Value: sp.Detail[k]})
 		}
 		out = append(out, p)
 	}

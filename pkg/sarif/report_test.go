@@ -174,6 +174,16 @@ func TestProvenanceDescribe(t *testing.T) {
 	if got, want := bare.Describe(), "the analyzer covered every module"; got != want {
 		t.Errorf("Describe() = %q, want %q", got, want)
 	}
+	// Detail is per-item and there is one of it per item, so a line that picked it up would grow
+	// with the inventory and be elided at exactly the sizes where the summary matters. This is the
+	// property the split exists for, and nothing else enforces it.
+	withDetail := Provenance{
+		Fields: []Field{{Key: "coverage", Value: "20 of 34"}},
+		Detail: []Field{{Key: "ghcr.io/acme/api", Value: "https://github.com/acme/ci/.github/workflows/r.yml@refs/heads/main"}},
+	}
+	if got, want := withDetail.Describe(), "coverage: 20 of 34"; got != want {
+		t.Errorf("Describe() = %q, want %q: detail belongs in the machine formats", got, want)
+	}
 	// Order is the scanner's choice, not alphabetical. "coverage" must not sort ahead of
 	// "benchmark".
 	if strings.Index(p.Describe(), "benchmark") > strings.Index(p.Describe(), "coverage") {
