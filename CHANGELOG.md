@@ -30,17 +30,13 @@ The HTML report's findings list is a block per finding rather than a seven-colum
 
 The HTML report says what to do about every finding. The old `UPGRADE` column held a version where there was one and nothing at all for a misconfiguration, a hardcoded secret or a flaw in your own code, which is most of what a scan finds. `FIX` answers all of them: `upgrade to 3.3.7-r0`, `change the code`, `no upgrade published`, or `somebody else publishes it` for an image the descriptor declares `builtBy: upstream`.
 
-### Removed
-
-`draugr scan` no longer suggests `--format json` to read the signing identity of each image a provenance run observed. That output has never carried them, and the identities themselves are no longer listed in the run's account of the control.
-
 ### Fixed
 
 A control setting of the wrong shape is now refused at `draugr validate` instead of being ignored. `deny: "AGPL-3.0-only"` under `config.controls.licenses` names a real setting, reads as a policy and resolved to an empty list, so the license gate a descriptor was written to apply was not applied and the run passed. Scanner options were already checked this way; a control's own settings now are too, on the project and on a component.
 
 An image carrying a GitHub artifact attestation is checked properly. cosign reads one out of the registry as an OCI referrer and then answers about it with a message rather than an exit code, so an attestation signed by a workflow the descriptor does not name was reported as an error instead of a critical finding, and discovery said nothing at all about images carrying one. Both now work, and the finding names the workflow that did sign. This is what `actions/attest` with `push-to-registry: true` produces, which makes it the common shape rather than an unusual one.
 
-`draugr scan --format sarif` records the signing identity of every image a provenance run observed, under `draugr/provenance` as `detail`, with the issuer beside it. Those are the two fields a `keyless:` signer is written from, so a run with no signers declared is again the way to find what to put in `identity`. The console row still reports counts: the block it sits in gives a control three lines, and an inventory is as long as the inventory.
+`draugr scan --format sarif` records the signing identity of every image a provenance run observed, under `draugr/provenance` as `detail`, with the issuer beside it. Those are the two fields a `keyless:` signer is written from, so a run with no signers declared is how to find what to put in `identity`. The console row still reports counts: the block it sits in gives a control three lines, and an inventory is as long as the inventory.
 
 The provenance control's line in `MEASURED AGAINST` says the same thing whatever size the descriptor is. It named every signer and listed the identity of every image it observed, and that block gives a control three lines, so a project with six signers saw three names and a severed URL where the rest had been. It now reports `coverage`, `scope` and `pinning` as counts, in the shape the infrastructure control already uses, and nothing on the row grows with the number of signers or images. Pinning counts the images named by digest, so the number worth moving is the number that grows, and the row names every verifier that ran instead of only cosign.
 
