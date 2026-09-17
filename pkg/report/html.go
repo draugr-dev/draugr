@@ -143,11 +143,36 @@ type htmlUnmatched struct {
 	Reason   string
 }
 
+// fixPhrase says what to do about a finding, in one clause.
+//
+// Four answers, because there are four situations and a reader needs to tell them apart: there is
+// a release that ends it, there is no release yet, somebody else has to publish one, or the thing
+// to change is the code. The last covers every finding that is not about a package at all, which
+// a version column left blank.
+func fixPhrase(f finding) string {
+	if f.pkg == nil || f.pkg.Name == "" {
+		return "change the code"
+	}
+	if f.pkg.FixedVersion != "" {
+		return "upgrade to " + f.pkg.FixedVersion
+	}
+	if f.builtUpstream {
+		return "somebody else publishes it"
+	}
+	return "no upgrade published"
+}
+
 type htmlFinding struct {
 	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Component, Location, Message string
 	// Upgrade is the dependency and the release that clears it, which is the only instruction on
 	// the row. Empty for a finding that is not about a package.
 	Upgrade string
+	// Fix is what to do about this finding, as a phrase rather than a version diff.
+	//
+	// Always set. A column carrying "jinja2 2.10 → 2.10.1" is empty for every finding that is not
+	// about a package, which is most of iac, sast and secrets, and a reader learns to skip it. A
+	// phrase answers for all of them, and says so in the words the plane already uses.
+	Fix string
 	// Moved names what argued with this finding's band, in the words the console uses.
 	Moved string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
@@ -357,6 +382,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Component: dash(f.component),
 		Location:  dash(f.location), Message: findingTitle(f), HelpURI: f.helpURI,
 		Upgrade:       upgradeLabel(f),
+		Fix:           fixPhrase(f),
 		Moved:         moved,
 		Justification: f.justification,
 		ActionKey:     actionKeyFor(f),
@@ -839,8 +865,36 @@ const htmlDoc = `<!doctype html>
   }
   /* The release that ends a finding wears the color a passing verdict wears, which is what the
    * console and the dashboard both do with this fact. */
-  .upg { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .78rem; white-space: nowrap; }
-  .upg { color: var(--muted); }
+  /* A finding is a block, not a row.
+   *
+   * Columns were the wrong shape for this content and no width answered it: a version pair runs
+   * to sixty-five characters, a rule id to fifty, a location to forty, and seven columns of that
+   * in one reading column means something is always cut. The thing that was always cut was the
+   * one column carrying an instruction.
+   *
+   * So the same grammar the plane's findings list uses: chips, then what it is, then a line of
+   * labeled context underneath. Nothing here has a width to blow out. */
+  #findings .f { display: flex; gap: .7rem; padding: .55rem 0; border-top: 1px solid var(--line); }
+  /* Louder than the rule above it, because the rule above it is louder than the hide class.
+   *
+   * The filter hides a finding by adding one class, and a bare one-class rule loses to anything
+   * scoped by an id. The symptom is every filter appearing to do nothing: the count under the
+   * menus moves and not one row leaves the page. */
+  #findings .f.hide { display: none; }
+  #findings .f:first-child { border-top: 0; }
+  #findings .chips { display: flex; gap: .35rem; align-items: flex-start; flex: 0 0 auto; }
+  #findings .what { min-width: 0; }
+  #findings .rule { line-height: 1.45; }
+  #findings .rule .id { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; }
+  #findings .rule .said { color: var(--muted); }
+  /* The context line. Labeled in the vocabulary the rest of the product uses, and small, because
+   * it answers "where" after the row has already answered "what". */
+  #findings .sub {
+    font-size: .78rem; color: var(--faint); margin-top: .15rem;
+    overflow-wrap: anywhere;
+  }
+  #findings .sub .lbl { text-transform: uppercase; letter-spacing: .04em; opacity: .75; }
+  #findings .faint { color: var(--line-strong); }
 
   /* Two views of one set, and the toggle between them. The plane leads with the work and keeps the
    * list beside it, because a reader opening a report is deciding what to do rather than scanning
@@ -1164,24 +1218,15 @@ about what they would have found. For everything the tool printed, re-run with
 </span>
 {{end}}
 {{if .Findings}}
-<table id="findings">
-<thead><tr>
-  <th scope="col">Priority</th><th scope="col">Severity</th>
-  <th scope="col">Rule</th><th scope="col">Scanner</th><th scope="col">Component</th><th scope="col">Location</th><th scope="col">Upgrade</th>
-</tr></thead>
-{{range .Findings}}<tbody class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
-<tr class="meta">
-  <td class="pri {{.Priority}}">{{.Priority}}</td>
-  <td class="{{.SevClass}}">{{.Severity}}{{if .Moved}} <span class="moved">{{.Moved}}</span>{{end}}</td>
-  <td><code>{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</code></td>
-  <td>{{.Tool}}</td>
-  <td>{{.Component}}</td>
-  <td><code>{{.Location}}</code></td>
-  <td class="upg">{{.Upgrade}}</td>
-</tr>
-<tr class="msg"><td colspan="7">{{.Message}}</td></tr>
-</tbody>{{end}}
-</table>
+<div id="findings">
+{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
+  <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="{{.SevClass}}">{{.Severity}}</span></span>
+  <div class="what">
+    <div class="rule"><span class="id">{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</span>{{if .Message}}<span class="faint"> · </span><span class="said">{{.Message}}</span>{{end}}</div>
+    <div class="sub mono">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}{{if .Moved}}<span class="faint"> · </span><span class="moved">{{.Moved}}</span>{{end}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
+  </div>
+</div>{{end}}
+</div>
 <p class="empty" id="none" hidden>No findings match this filter.</p>
 {{else if .Errors}}
 <p>No findings from the controls that ran. See the errors reported above.</p>
@@ -1222,7 +1267,7 @@ about what they would have found. For everything the tool printed, re-run with
 {{end}}
 
 {{if .Excluded}}
-<details class="fold sub" open><summary class="sub"><span class="sub">What was set aside</span></summary>
+<details class="fold sub" open><summary class="sub"><span class="sub">Findings</span></summary>
 <table>
 <thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Component</th><th scope="col">Location</th></tr></thead>
 {{range .Excluded}}<tbody>
@@ -1293,7 +1338,7 @@ about what they would have found. For everything the tool printed, re-run with
 
 
 {{if .Slowest}}
-<details class="fold sub" open><summary class="sub"><span class="sub">Where the time went</span></summary>
+<details class="fold sub" open><summary class="sub"><span class="sub">Timing</span></summary>
 <p class="note">Time spent per control, worst first.</p>
 <table>
 <thead><tr><th scope="col">Control</th><th scope="col" class="num">Time</th><th scope="col">Share of scanner time</th></tr></thead>
@@ -1368,7 +1413,7 @@ about what they would have found. For everything the tool printed, re-run with
   }
 
   var tools = document.getElementById("tools");
-  var rows = Array.prototype.slice.call(document.querySelectorAll("tbody.f"));
+  var rows = Array.prototype.slice.call(document.querySelectorAll("#findings .f"));
   if (!tools || !rows.length) return;
   tools.hidden = false;
 

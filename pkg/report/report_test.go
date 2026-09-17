@@ -160,7 +160,9 @@ func TestHTMLRender(t *testing.T) {
 	s := b.String()
 	for _, want := range []string{
 		"<!doctype html>", `class="mark">Draugr`, "FAIL", "app 1.0", "CVE-1", "gitleaks",
-		">Scanner</th>", "</html>",
+		// A finding is a block carrying a labeled context line, not a row in a table. The
+		// scanner is named there, where the plane's findings list names it.
+		`<span class="lbl">scanner</span>`, `<span class="lbl">fix</span>`, "</html>",
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("html output missing %q", want)
