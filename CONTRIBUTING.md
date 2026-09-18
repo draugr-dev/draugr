@@ -260,9 +260,9 @@ make build
 DRAUGR_BIN="$PWD/bin/draugr" go test -tags integration ./test/integration/...
 ```
 
-In CI they run in the dedicated **Integration** workflow, on `main`, nightly, on demand, and on a PR
-only when it carries the `ci-integration` label (add the label to run them against a PR). The
-workflow is advisory: failures are visible but it is not a required check.
+In CI they run in the dedicated **Integration** workflow, on every pull request, on `main`, nightly,
+on demand, and against a release tag. It is a required check, so expect a pull request to spend
+several minutes on a kind cluster before it can merge.
 
 ## Pull requests
 

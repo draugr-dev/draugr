@@ -3,7 +3,8 @@
 // Package integration holds Draugr's integration tests: they exercise real external
 // dependencies (a real Trivy binary, a real kind cluster) that unit tests stub out. They are
 // gated behind the `integration` build tag so `go test ./...` stays fast and hermetic, and
-// run in the dedicated .github/workflows/integration.yml pipeline (not on every PR).
+// run in the dedicated .github/workflows/integration.yml pipeline, which is required on every
+// pull request.
 package integration
 
 import (

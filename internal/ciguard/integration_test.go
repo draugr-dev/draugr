@@ -4,66 +4,70 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
-// TestIntegrationRunsWhenItsOwnSuiteChanges keeps the opt-in from swallowing the one case where it
-// must not apply.
+// TestIntegrationRunsOnEveryPullRequest holds the suite to being unconditional.
 //
-// The integration job is advisory on a pull request: it costs a kind cluster and several minutes,
-// and most changes learn nothing from it. But a pull request that adds or edits an integration
-// test and does not run it merges a test that has never executed, reviewed, green, and proving
-// nothing. A skipped job in the checks list reads much like a passing one, so nothing about that
-// is visible to the person merging.
-func TestIntegrationRunsWhenItsOwnSuiteChanges(t *testing.T) {
+// It is a required check, and the two halves of that are one decision. A condition on the job, or a
+// pull request trigger narrowed to some paths, turns a failure into a job that never reports, and
+// a branch waiting on a report that will not arrive cannot merge at all. The suite is also the only
+// place several behaviors are checked against real tools, real registries and a real cluster rather
+// than against fixtures, so a run it skips is a claim nothing else makes.
+func TestIntegrationRunsOnEveryPullRequest(t *testing.T) {
 	t.Parallel()
 	raw, err := os.ReadFile("../../.github/workflows/integration.yml")
 	if err != nil {
 		t.Fatalf("read the integration workflow: %v", err)
 	}
-	workflow := string(raw)
 
-	if !strings.Contains(workflow, "needs.suite.outputs.changed == 'true'") {
-		t.Error("the integration job no longer runs when the suite itself changes, so a pull " +
-			"request adding an integration test can merge without that test ever having run")
+	var workflow struct {
+		On   map[string]any `yaml:"on"`
+		Jobs map[string]struct {
+			If    string `yaml:"if"`
+			Steps []struct {
+				Run string            `yaml:"run"`
+				Env map[string]string `yaml:"env"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
 	}
-	if !strings.Contains(workflow, "test/integration/") {
-		t.Error("the change detection no longer looks at test/integration/, so it can never " +
-			"report that the suite changed")
+	if err := yaml.Unmarshal(raw, &workflow); err != nil {
+		t.Fatalf("parse the integration workflow: %v", err)
 	}
-	// Without the dependency the condition reads an output that is never produced, which is
-	// indistinguishable from "nothing changed". And fails exactly when it matters.
-	if !strings.Contains(workflow, "needs: suite") {
-		t.Error("the integration job does not depend on the detection job, so its output is empty")
-	}
-}
 
-// TestIntegrationRunsWhenWhatItReadsBackChanges keeps the packages that produce a scan's output
-// inside the change filter.
-//
-// These tests are the only ones that check a claim against a real run rather than a fixture: they
-// scan something, then read the artifacts back to assert which tools actually ran and what the
-// scan recorded about the repository. That makes them the only thing that notices when the code
-// writing those artifacts changes shape. And they are opt-in, so a change outside the filter
-// leaves them skipped. A skipped job reads like a passing one, and the next run is the release
-// tag.
-//
-// Named per package with what each contributes, so a package leaving the list has to argue with
-// the reason rather than delete a path.
-func TestIntegrationRunsWhenWhatItReadsBackChanges(t *testing.T) {
-	t.Parallel()
-	raw, err := os.ReadFile("../../.github/workflows/integration.yml")
-	if err != nil {
-		t.Fatalf("read the integration workflow: %v", err)
+	trigger, ok := workflow.On["pull_request"]
+	if !ok {
+		t.Error("the suite no longer runs on a pull request, so the required check never reports " +
+			"and nothing can merge")
 	}
-	workflow := string(raw)
+	// `pull_request:` on its own parses as nil, which is the unfiltered trigger. Anything else is a
+	// narrowing, and the ones that matter here, `paths` and `paths-ignore`, decide silently.
+	if trigger != nil {
+		t.Errorf("the pull request trigger is filtered (%v); a pull request it excludes waits "+
+			"forever on a required check that will not run", trigger)
+	}
 
-	for path, produces := range map[string]string{
-		"pkg/report/": "renders what a scan prints, which several of these tests assert on",
-		"pkg/skald/":  "writes the SARIF and the JSON evidence these tests parse back",
-	} {
-		if !strings.Contains(workflow, path) {
-			t.Errorf("%s is not in the integration change filter, but it %s, a change there "+
-				"leaves the only tests that would catch it skipped, and green", path, produces)
+	job, ok := workflow.Jobs["integration"]
+	if !ok {
+		t.Fatal("no integration job; branch protection requires it by name")
+	}
+	if job.If != "" {
+		t.Errorf("the integration job is conditional on %q, so it can be skipped, and a skipped "+
+			"required check blocks a pull request rather than failing it", job.If)
+	}
+
+	// The suite provisions its own scanners, so a missing one is provisioning being wrong rather
+	// than the test being unrunnable. Without this the tests skip themselves and the job reports
+	// success for having run nothing, which is the one failure that stays quiet now.
+	strict := false
+	for _, step := range job.Steps {
+		if strings.Contains(step.Run, "go test -tags integration") {
+			strict = step.Env["DRAUGR_INTEGRATION_STRICT"] == "1"
 		}
+	}
+	if !strict {
+		t.Error("DRAUGR_INTEGRATION_STRICT is not set on the test step, so a scanner that failed " +
+			"to install leaves the tests skipping and the job green")
 	}
 }
