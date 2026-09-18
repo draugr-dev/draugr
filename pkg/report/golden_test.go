@@ -103,7 +103,8 @@ func goldenMismatch(path string) string {
 		"       docs/concepts/principles.md, docs/concepts/what-to-fix-first.md,\n" +
 		"       docs/guides/findings-in-your-editor.md, docs/guides/caching-and-performance.md\n" +
 		"  5. update the blog posts in the draugr.dev repo that quote console output:\n" +
-		"     src/content/blog/{security-scan-with-zero-config,what-scanner-output-costs-your-agent}.md\n" +
+		"     src/content/blog/{security-scan-with-zero-config,what-scanner-output-costs-your-agent,\n" +
+		"                       what-to-fix-first}.md\n" +
 		"     (grep for 'FIX FIRST' there; they are a separate repo, so nothing else will catch them)\n"
 }
 
