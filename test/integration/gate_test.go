@@ -125,7 +125,8 @@ func TestTheGateDecidesAndSaysWhy(t *testing.T) {
 			controls: "    iac: {enabled: true}\n",
 			exposure: "public", criticality: "critical",
 			wantFail: true,
-			wantOut:  "Gate: fails on P1 · iac fails on P2",
+			// The evidence block labels the row "gate", so the value beside it is the rule alone.
+			wantOut: "fails on P1 · iac fails on P2",
 		},
 		{
 			// `secrets` declares a context floor, so a leaked credential reaches P1 on a
