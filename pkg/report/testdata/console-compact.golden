@@ -1,0 +1,26 @@
+DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
+
+ P1 3 P2 2 P3 2 P4 1
+
+CONTROLS
+  dast      ERROR  did not run
+            nuclei: executable file not found in $PATH
+
+ACCEPTED
+  config.exclude  2 findings suppressed · 1 expired and no longer suppressing
+              expired 2026-01-31, accepted by a.reviewer@example.com · waiting on the upstream release
+
+UNMATCHED
+  config.exclude  paths tests* · test files that are not deployed
+  VEX             CVE-2023-45803 · pkg:pypi/urllib3
+
+FIX FIRST  top 5 of 8, by priority
+  Priority  Rule                                    Location                Fix                   Summary
+  P1        CVE-2019-10906                          app/requirements.txt:5  upgrade to 2.10.1 +2  python-jinja2: str.format_map allows sandbox escape
+  P1        CVE-2019-20477                          app/requirements.txt:4  no package reported   PyYAML: command execution through python/object/apply constructor in FullLoader
+  P1        DS-0002                                 app/Dockerfile:1        change the code       Image user should not be 'root'
+  P2        CVE-2018-1000656                        app/requirements.txt:2  no package reported   python-flask: Denial of Service via crafted JSON file
+  P2        …tainted-sql-string.tainted-sql-string  app/main.py:42          change the code       Detected user input flowing into a raw SQL string
+
+… and 3 findings not listed.
+

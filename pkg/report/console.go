@@ -364,25 +364,19 @@ func fixFirstHeading(col tui.Painter, s summary, shown, total int) string {
 // path. Both it and Repository appear only where they tell rows apart, so the common project keeps
 // the narrow frame.
 func fixFirstColumns(fs []finding, compact bool) []string {
-	cols := []string{"Priority", "Severity", "Rule", "Scanner"}
-	if manyComponents(fs) {
-		cols = append(cols, "Component")
-	}
+	cols := []string{"Priority", "Rule"}
 	// A component may hold several repositories, and paths are repository-relative, so the same
 	// file in two of them produces rows identical in every column. The reader sees a duplicate and
 	// has no way to learn otherwise.
 	if manyRepositories(fs) {
 		cols = append(cols, "Repository")
 	}
-	cols = append(cols, "Location")
-	// What to upgrade, last, where a column costs no padding: nothing follows it, so its width is
-	// whatever each row needs. It was the first half of the line underneath, taking the room the
-	// advisory's own sentence needed and pushing the end of that sentence off the screen.
-	if slices.ContainsFunc(fs, func(f finding) bool { return upgradeLabel(f) != "" }) {
-		cols = append(cols, "Upgrade")
-	}
+	cols = append(cols, "Location", "Fix")
 	// The explanation, for a listing that has no line underneath to put it on. Absent where no
 	// finding carries one, which is every run of a scanner that reports rule ids and nothing else.
+	//
+	// Last, so Fit spends what is left on it and renders nothing where nothing is left. It is the
+	// one column here that is readable shortened and still worth having gone.
 	if compact && slices.ContainsFunc(fs, func(f finding) bool { return f.message != "" }) {
 		cols = append(cols, "Summary")
 	}
@@ -459,51 +453,43 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, bl
 	cols := fixFirstColumns(fs, compact)
 	has := func(name string) bool { return slices.Contains(cols, name) }
 	t := tui.NewTable(col, cols...).Indent("  ").StyledNotes()
-	if compact {
-		// The one listing whose last column is prose, and the one that has to fit: its whole
-		// argument is that a reader can see how much there is, which a row wrapping onto two lines
-		// takes away. Zero where the destination has no width to respect, and then the summary is
-		// bounded by messageWidth like every other sentence Draugr prints.
-		t.Fit(tui.Columns(w))
-	}
+	// The one listing whose last column is prose, and the one that has to fit: its whole argument
+	// is that a reader can see how much there is, which a row wrapping onto two lines takes away.
+	// Zero where the destination has no width to respect, and then the summary is bounded by
+	// messageWidth like every other sentence Draugr prints.
+	t.Fit(tui.Columns(w))
+
+	// Four columns, where there were seven. Severity, Scanner and Component went because this view
+	// is documented as the one for a reader who already knows what they are looking at: severity
+	// beside the band teaches somebody to trust the band, a scanner is the same value on nearly
+	// every row, and the components are broken out above. Seven columns could not fit a terminal
+	// at all, and the ones that went are the ones whose absence a reader here does not feel.
 	for _, f := range fs {
-		sev := rankedSeverity(f)
 		cells := []tui.Cell{
-			band(f, compact),
-			tui.Styled(severityColor(sev), string(sev)),
-		}
-		cells = append(cells,
-			// A rule id names a finding; it doesn't explain it. The link is where a reader
-			// finds out what it means, and it costs no width.
-			tui.Cell{Text: shortRuleID(f.ruleID), URL: f.helpURI},
-			// Lowercased. Half these names are what the tool calls itself in its own report
-			// ("Trivy") and half are what Draugr runs it as ("trivy"), so one column showed one
-			// tool under two spellings and read as two different scanners.
-			tui.PlainCell(strings.ToLower(dash(f.tool))))
-		if has("Component") {
-			cells = append(cells, tui.PlainCell(dash(f.component)))
+			// The band keeps its mark, so a listing of several hundred still says which rows were
+			// argued with, even though the name of the argument only appears in the default view.
+			band(f, true),
+			// A rule id names a finding; it doesn't explain it. The link is where a reader finds
+			// out what it means, and it costs no width.
+			{Text: shortRuleID(f.ruleID), URL: f.helpURI},
 		}
 		if has("Repository") {
 			cells = append(cells, tui.PlainCell(dash(shortRepository(f.repository))))
 		}
-		// The same shortening the actions view has always used. A column is as wide as its widest
-		// value, so one image carrying a 71-character digest sets the width every other row pays
-		// for, and `Fit` cannot recover it: it trims the last column, and this one is not last.
-		cells = append(cells, tui.Cell{Text: dash(displayLocation(f)), URL: blobs.forFinding(f)})
-		if has("Upgrade") {
-			cells = append(cells, upgradeCell(f))
-		}
-		if compact {
+		cells = append(cells,
+			// The same shortening the actions view has always used: one image carrying a
+			// 71-character digest would otherwise set a width every other row pays for.
+			tui.Cell{Text: dash(displayLocation(f)), URL: blobs.forFinding(f)},
+			// The phrase rather than the version diff, which is what the other two views say and
+			// is a fixed short width. `jinja2 2.10 → 2.10.1` is as long as the names in it, and it
+			// was the column that clipped first.
+			tui.Styled(tui.StyleFixed, fixPhrase(f)))
+		if has("Summary") {
 			// The explanation on the row rather than under it. That is what this view buys: one
 			// line per finding, so a reader can see how much there is without scrolling.
 			cells = append(cells, tui.PlainCell(elide(findingTitle(f), messageWidth)))
-			// One line, and no more. A band something argued with is marked beside the band
-			// itself, so the listing still says which rows were argued with; what it gives up is
-			// the name of the argument, which is what the default view is for.
-			t.Row(cells...)
-			continue
 		}
-		t.RowWithNotes(notesFor(col, f), cells...)
+		t.Row(cells...)
 	}
 	t.Render(w)
 }
@@ -525,21 +511,6 @@ func upgradeLabel(f finding) string {
 		return label + " → " + f.pkg.FixedVersion
 	}
 	return label + ", no fix available"
-}
-
-// upgradeCell paints it: the release that ends the finding wears the color a passing verdict
-// wears, which is what the dashboard does with the same fact for the same reason.
-func upgradeCell(f finding) tui.Cell {
-	label := upgradeLabel(f)
-	if f.pkg == nil || f.pkg.FixedVersion == "" {
-		return tui.Styled(cDim, label)
-	}
-	return tui.Cell{
-		Text:      strings.TrimSuffix(label, " → "+f.pkg.FixedVersion) + " →",
-		Style:     cDim,
-		Note:      f.pkg.FixedVersion,
-		NoteStyle: tui.StyleFixed,
-	}
 }
 
 // notesFor is the lines under a row: what the finding is, and anything that argued with its band.

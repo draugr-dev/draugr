@@ -50,6 +50,8 @@ func TestConsoleGolden(t *testing.T) {
 		{"grouped", goldenGroupedData()},
 		// --evidence, which is the auditor's view: the same run with what stands behind it.
 		{"evidence", goldenEvidenceData()},
+		// --view compact. Nothing pinned it, so it was rewritten and no test noticed.
+		{"compact", goldenCompactData()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// No terminal width, whatever the shell running the tests thinks. The compact listing
@@ -125,7 +127,11 @@ func goldenFullData() Data {
 		{RuleID: "CVE-2019-10906", Level: sarif.LevelError, Score: 8.6, HasScore: true, Priority: "P1",
 			Tool: "trivy", Component: "payments", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5},
 			Message: "python-jinja2: str.format_map allows sandbox escape",
-			Package: &sarif.Package{Name: "jinja2", Version: "2.10", FixedVersion: "2.10.1", Ecosystem: "pip"}},
+			// Several fixed versions, one per maintained branch, which is what trivy reports for a
+			// stdlib advisory. Unbounded it ran the row past the terminal; pinned here so it stays
+			// a phrase.
+			Package: &sarif.Package{Name: "jinja2", Version: "2.10",
+				FixedVersion: "2.10.1, 2.11.3, 3.0.0-rc.1", Ecosystem: "pip"}},
 		{RuleID: "CVE-2018-1000656", Level: sarif.LevelWarning, Score: 7.5, HasScore: true, Priority: "P2",
 			Tool: "trivy", Component: "internal-tool", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 2},
 			Message: "python-flask: Denial of Service via crafted JSON file"},
@@ -309,6 +315,14 @@ func goldenGroupedData() Data {
 }
 
 // goldenEvidenceData is the full fixture rendered with --evidence.
+// goldenCompactData is the dense listing: one line per finding, for a reader who already knows
+// what they are looking at.
+func goldenCompactData() Data {
+	d := goldenGroupedData()
+	d.View = ViewCompact
+	return d
+}
+
 func goldenEvidenceData() Data {
 	d := goldenGroupedData()
 	d.Evidence = true

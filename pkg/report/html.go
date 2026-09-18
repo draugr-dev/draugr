@@ -152,7 +152,7 @@ type htmlUnmatched struct {
 func fixPhrase(f finding) string {
 	if f.pkg != nil && f.pkg.Name != "" {
 		if f.pkg.FixedVersion != "" {
-			return "upgrade to " + f.pkg.FixedVersion
+			return "upgrade to " + firstFixedVersion(f.pkg.FixedVersion)
 		}
 		if f.builtUpstream {
 			return "somebody else publishes it"
@@ -167,6 +167,20 @@ func fixPhrase(f finding) string {
 		return "no package reported"
 	}
 	return "change the code"
+}
+
+// firstFixedVersion is the release to move to, where a scanner named several.
+//
+// Trivy reports one per maintained branch, so `1.24.13, 1.25.7, 1.26.0-rc.3` is three answers to
+// "which branch are you on" rather than one instruction, and it is as long as the number of
+// branches upstream maintains. The first is the lowest release that clears the finding; the count
+// says the others exist, and the report document carries them all.
+func firstFixedVersion(fixed string) string {
+	first, rest, found := strings.Cut(fixed, ",")
+	if !found {
+		return fixed
+	}
+	return fmt.Sprintf("%s +%d", strings.TrimSpace(first), strings.Count(rest, ",")+1)
 }
 
 type htmlFinding struct {

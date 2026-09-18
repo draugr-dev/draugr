@@ -28,7 +28,7 @@ UNMATCHED
 
 FIX FIRST  top 5 of 8, by priority
   P1  high      CVE-2019-10906 · python-jinja2: str.format_map allows sandbox escape
-      component payments · scanner trivy · fix upgrade to 2.10.1
+      component payments · scanner trivy · fix upgrade to 2.10.1 +2
       app/requirements.txt:5
 
   P1  critical  CVE-2019-20477 · PyYAML: command execution through python/object/apply constructor in…
