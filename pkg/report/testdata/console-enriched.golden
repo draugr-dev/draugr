@@ -10,13 +10,17 @@ SIGNALS
   EPSS  1 finding raised
 
 FIX FIRST  all 3, by priority
-  Priority  Severity  Rule              Scanner  Location
-  P1        critical  CVE-2024-3094     trivy    go.mod:12
-            ↑ KEV · xz: malicious code in the upstream tarballs
-  P1        high      CVE-2019-20477    trivy    app/requirements.txt:4
-            ↑ EPSS 0.87 · PyYAML: command execution through python/object/apply constructor
-  P2        high      CVE-2018-1000656  trivy    app/requirements.txt:2
-            python-flask: Denial of Service via crafted JSON file
+  P1  critical  CVE-2024-3094 · xz: malicious code in the upstream tarballs
+      ↑ KEV · scanner trivy · fix upgrade to 0.5.12
+      go.mod:12
+
+  P1  high      CVE-2019-20477 · PyYAML: command execution through python/object/apply constructor
+      ↑ EPSS 0.87 · scanner trivy · fix upgrade to 5.2
+      app/requirements.txt:4
+
+  P2  high      CVE-2018-1000656 · python-flask: Denial of Service via crafted JSON file
+      scanner trivy · fix upgrade to 0.12.3
+      app/requirements.txt:2
 
 TRY
   --view compact         one line each, to see how much there is

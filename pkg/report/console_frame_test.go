@@ -85,23 +85,23 @@ func TestRunLine(t *testing.T) {
 		{
 			name:  "jobs and wall-clock",
 			stats: engine.Stats{Jobs: 4, Duration: 2500 * time.Millisecond},
-			want:  "Ran 4 jobs in 2.5s.",
+			want:  "4 jobs in 2.5s",
 		},
 		{
 			name:  "one job reads as one",
 			stats: engine.Stats{Jobs: 1, Duration: 247 * time.Millisecond},
-			want:  "Ran 1 job in 247ms.",
+			want:  "1 job in 247ms",
 		},
 		{
 			name:  "cache hits are the answer to whether the cache worked",
 			stats: engine.Stats{Jobs: 11, CacheHits: 4, Duration: 3 * time.Second},
-			want:  "Ran 11 jobs in 3s · 4 from cache.",
+			want:  "11 jobs in 3s · 4 from cache",
 		},
 		{
 			// The scheduler's own bookkeeping, true and unactionable. It stays in report.json.
 			name:  "a shared scan is not the reader's problem",
 			stats: engine.Stats{Jobs: 16, Deduped: 5, Duration: 4951 * time.Millisecond},
-			want:  "Ran 16 jobs in 4.951s.",
+			want:  "16 jobs in 4.951s",
 		},
 		{
 			// How many ran at once says whether more parallelism is available; which control took
@@ -111,7 +111,7 @@ func TestRunLine(t *testing.T) {
 				Jobs: 30, Concurrency: 8, Duration: 12 * time.Second,
 				ByControl: map[string]time.Duration{"sca": 9 * time.Second, "iac": 2 * time.Second},
 			},
-			want: "Ran 30 jobs in 12s, 8 at a time · sca took the most scanner time, 9s.",
+			want: "30 jobs in 12s, 8 at a time · sca took the most scanner time, 9s",
 		},
 	}
 	for _, tc := range tests {

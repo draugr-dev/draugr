@@ -140,9 +140,9 @@ func newScanCommand() *cobra.Command {
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
 	cmd.Flags().StringVar(&opts.view, "view", string(report.ViewFindings),
-		"what the report shows: `findings` (a row each, with what argued with the band under it), "+
-			"actions (a row per thing to do) or compact (one line each; in json and sarif, no "+
-			"indentation and no rule prose)")
+		"what the report shows: `findings` (a block each: what it is, what is known about it, and "+
+			"where), actions (a row per thing to do) or compact (one line each; in json and sarif, "+
+			"no indentation and no rule prose)")
 	cmd.Flags().StringVar(&opts.group, "group", "",
 		"deprecated: --view findings or --view actions")
 	_ = cmd.Flags().MarkDeprecated("group", "use --view, which also covers what --compact did")

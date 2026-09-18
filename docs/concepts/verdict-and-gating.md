@@ -165,36 +165,30 @@ ACCEPTED
   config.exclude  1 finding suppressed
   VEX             1 finding excused
 
-FIX FIRST  top 10 of 1086, by priority
-  Priority  Severity  Rule            Scanner  Location                Upgrade
-  P1        critical  CVE-2026-42010  trivy    python:3.8-slim         libgnutls30 3.7.9-2+deb12u3 → 3.7.9-2+deb12u7
-            gnutls: Authentication Bypass via NUL Character in Username
-  P1        critical  CVE-2025-6965   trivy    python:3.8-slim         libsqlite3-0 3.40.1-2 → 3.40.1-2+deb12u2
-            sqlite: Integer Truncation in SQLite
-  P1        critical  CVE-2026-31789  trivy    python:3.8-slim         libssl3 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
-            OpenSSL: Heap buffer overflow on 32-bit systems from large X.509 certificate processing
-  P1        critical  CVE-2025-15467  trivy    python:3.8-slim         libssl3 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
-            OpenSSL: Remote code execution or Denial of Service via oversized Initialization Vector in…
-  P1        critical  CVE-2026-31789  trivy    python:3.8-slim         openssl 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
-            Heap buffer overflow on 32-bit systems from large X.509 certificate processing
-  P1        critical  CVE-2025-15467  trivy    python:3.8-slim         openssl 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
-            Remote code execution or Denial of Service via oversized Initialization Vector in CMS parsing
-  P1        critical  CVE-2019-20477  trivy    app/requirements.txt:4  PyYAML 5.1 → 5.2
-            command execution through python/object/apply constructor in FullLoader
-  P1        critical  CVE-2020-14343  trivy    app/requirements.txt:4  PyYAML 5.1 → 5.4
-            incomplete fix for CVE-2020-1747
-  P1        critical  CVE-2020-1747   trivy    app/requirements.txt:4  PyYAML 5.1 → 5.3.1
-            arbitrary command execution through python/object/new when FullLoader is used
-  P1        critical  CVE-2026-33845  trivy    python:3.8-slim         libgnutls30 3.7.9-2+deb12u3 → 3.7.9-2+deb12u7
-            GnuTLS: Denial of Service via DTLS zero-length fragment
+FIX FIRST  top 10 of 1091, by priority
+  P1  critical  CVE-2026-42010 · gnutls: Authentication Bypass via NUL Character in Username
+      scanner trivy · fix upgrade to 3.7.9-2+deb12u7
+      python:3.8-slim
 
-… and 1076 findings not listed.
+  P1  critical  CVE-2025-6965 · sqlite: Integer Truncation in SQLite
+      scanner trivy · fix upgrade to 3.40.1-2+deb12u2
+      python:3.8-slim
 
-TRY
-  --top 0                every one of them, not the first ten
-  --view compact         one line each, to see how much there is
-  --view actions         the same findings as a list of things to do
-  draugr explain <rule>  what a rule means and how to fix it
+  P1  critical  CVE-2026-31789 · OpenSSL: Heap buffer overflow on 32-bit systems from large…
+      scanner trivy · fix upgrade to 3.0.19-1~deb12u2
+      python:3.8-slim
+
+  P1  critical  CVE-2025-15467 · OpenSSL: Remote code execution or Denial of Service via…
+      scanner trivy · fix upgrade to 3.0.18-1~deb12u2
+      python:3.8-slim
+
+  P1  critical  CVE-2026-31789 · Heap buffer overflow on 32-bit systems from large X.509…
+      scanner trivy · fix upgrade to 3.0.19-1~deb12u2
+      python:3.8-slim
+
+  P1  critical  CVE-2025-15467 · Remote code execution or Denial of Service via oversized…
+      scanner trivy · fix upgrade to 3.0.18-1~deb12u2
+      python:3.8-slim
 ```
 
 The **Components** block is where the classification pays off. `api` and `platform` share the `iac`

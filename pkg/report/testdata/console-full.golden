@@ -27,17 +27,25 @@ UNMATCHED
   VEX             CVE-2023-45803 · pkg:pypi/urllib3
 
 FIX FIRST  top 5 of 8, by priority
-  Priority  Severity  Rule                                    Scanner  Component      Location                Upgrade
-  P1        high      CVE-2019-10906                          trivy    payments       app/requirements.txt:5  jinja2 2.10 → 2.10.1
-            python-jinja2: str.format_map allows sandbox escape
-  P1        critical  CVE-2019-20477                          trivy    payments       app/requirements.txt:4
-            PyYAML: command execution through python/object/apply constructor in FullLoader
-  P1        high      DS-0002                                 trivy    payments       app/Dockerfile:1
-            Image user should not be 'root'
-  P2        high      CVE-2018-1000656                        trivy    internal-tool  app/requirements.txt:2
-            python-flask: Denial of Service via crafted JSON file
-  P2        high      …tainted-sql-string.tainted-sql-string  semgrep  -              app/main.py:42
-            Detected user input flowing into a raw SQL string
+  P1  high      CVE-2019-10906 · python-jinja2: str.format_map allows sandbox escape
+      component payments · scanner trivy · fix upgrade to 2.10.1
+      app/requirements.txt:5
+
+  P1  critical  CVE-2019-20477 · PyYAML: command execution through python/object/apply constructor in…
+      component payments · scanner trivy · fix no package reported
+      app/requirements.txt:4
+
+  P1  high      DS-0002 · Image user should not be 'root'
+      component payments · scanner trivy · fix change the code
+      app/Dockerfile:1
+
+  P2  high      CVE-2018-1000656 · python-flask: Denial of Service via crafted JSON file
+      component internal-tool · scanner trivy · fix no package reported
+      app/requirements.txt:2
+
+  P2  high      …tainted-sql-string.tainted-sql-string · Detected user input flowing into a raw SQL string
+      scanner semgrep · fix change the code
+      app/main.py:42
 
 … and 3 findings not listed.
 

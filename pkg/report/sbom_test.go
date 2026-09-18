@@ -114,7 +114,7 @@ func TestConsoleReportsSBOMsWithoutMakingThemAControl(t *testing.T) {
 		t.Fatalf("Render: %v", err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "SBOM: 2 documents (spdx-json)") {
+	if !strings.Contains(out, "2 documents (spdx-json)") {
 		t.Errorf("want the SBOM summary line:\n%s", out)
 	}
 	var plain bytes.Buffer
@@ -147,7 +147,7 @@ func TestConsoleReportsSBOMsOnACleanRun(t *testing.T) {
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	if !strings.Contains(buf.String(), "SBOM: 1 document (spdx-json)") {
+	if !strings.Contains(buf.String(), "1 document (spdx-json)") {
 		t.Errorf("want a singular summary line on a clean run:\n%s", buf.String())
 	}
 }
@@ -267,10 +267,10 @@ func TestSBOMLine(t *testing.T) {
 		want string
 	}{
 		{"nothing", nil, ""},
-		{"parts only", []sbom.Document{part, part}, "SBOM: 2 documents (cyclonedx-json)"},
-		{"project only", []sbom.Document{project}, "SBOM: 1 project document (cyclonedx-json)"},
+		{"parts only", []sbom.Document{part, part}, "2 documents (cyclonedx-json)"},
+		{"project only", []sbom.Document{project}, "1 project document (cyclonedx-json)"},
 		{"both", []sbom.Document{part, part, project},
-			"SBOM: 1 project document + 2 component documents (cyclonedx-json)"},
+			"1 project document + 2 component documents (cyclonedx-json)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := sbomLine(tc.docs); got != tc.want {

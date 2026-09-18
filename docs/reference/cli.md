@@ -253,7 +253,7 @@ turn it off along with the tips.
 Under the scanner builds, the run accounts for itself:
 
 ```
-Ran 11 jobs in 34.5s · 4 from cache, 1 shared with an identical job.
+run         11 jobs in 34.5s · 4 from cache, 1 shared with an identical job
 ```
 
 Wall-clock, not the sum of the jobs: they run concurrently, and their sum is a number matching
@@ -518,8 +518,9 @@ fork, or a distribution package with a vendor suffix, and refusing them would be
 But a report that cannot say which build produced its findings cannot be reproduced, so it says:
 
 ```
-Scanners: gitleaks 8.30.1, trivy 0.69.3
-Scanners: gitleaks 8.30.1, semgrep 1.173.0, trivy 0.69.3
+scanners    gitleaks 8.30.1, trivy 0.69.3
+unverified  semgrep 1.173.0 · found on PATH; Draugr did not install it, `draugr tools install
+            semgrep` provisions a pinned build
 ```
 
 The first line lists the builds Draugr fetched **and checked**: each sits in `~/.draugr/bin`, the

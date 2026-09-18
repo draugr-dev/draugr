@@ -3,16 +3,16 @@ DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
  P1 3 P2 2 P3 2 P4 1
 
 WHAT TO DO  5 actions clear 6 findings
-  P1  Upgrade jinja2 2.10  sca · 2 findings
-      app/requirements.txt:5 · CVE-2019-10906 +1
-  P1  PyYAML: command execution through python/object/apply constructor in Fu…  sca · 1 finding
-      app/requirements.txt:4 · CVE-2019-20477
-  P1  Image user should not be 'root'  iac · 1 finding
-      app/Dockerfile:1 · DS-0002
-  P2  python-flask: Denial of Service via crafted JSON file  sca · 1 finding
-      app/requirements.txt:2 · CVE-2018-1000656
-  P2  Detected user input flowing into a raw SQL string  sast · 1 finding
-      app/main.py:42 · …tainted-sql-string.tainted-sql-string
+  P1  Upgrade jinja2 2.10
+      control sca · 2 findings · app/requirements.txt:5 · CVE-2019-10906 +1
+  P1  PyYAML: command execution through python/object/apply constructor in Fu…
+      control sca · 1 finding · app/requirements.txt:4 · CVE-2019-20477
+  P1  Image user should not be 'root'
+      control iac · 1 finding · app/Dockerfile:1 · DS-0002
+  P2  python-flask: Denial of Service via crafted JSON file
+      control sca · 1 finding · app/requirements.txt:2 · CVE-2018-1000656
+  P2  Detected user input flowing into a raw SQL string
+      control sast · 1 finding · app/main.py:42 · …tainted-sql-string.tainted-sql-string
 
 … and 2 actions not listed.
 
@@ -37,21 +37,23 @@ ACCEPTED
               expired 2026-01-31, accepted by a.reviewer@example.com · waiting on the upstream release
 
 DECISIONS
-  a.reviewer    1 finding
-              legal reviewed; we do not distribute
-  unattributed  1 finding
-              same package tree
+  legal reviewed; we do not distribute
+  accepted by a.reviewer · covers 1 finding · license/GPL-3.0-only/x · no expiry
+
+  same package tree
+  accepted by unattributed · covers 1 finding · license/GPL-3.0-only/y · no expiry
 
 UNMATCHED
   config.exclude  paths tests* · test files that are not deployed
   VEX             CVE-2023-45803 · pkg:pypi/urllib3
 
 EVIDENCE
-  Ran 11 jobs in 34.5s, 8 at a time · 4 from cache.
-
-  SBOM: 2 documents (spdx-json)
-
-  Gate: fails on P1.
+  scanners    trivy 0.69.3
+  unverified  semgrep 1.169.0 · found on PATH; Draugr did not install it, `draugr tools install semgrep`
+              provisions a pinned build
+  run         11 jobs in 34.5s, 8 at a time · 4 from cache
+  sbom        2 documents (spdx-json)
+  gate        fails on P1
 
 TRY
   --top 0                every one of them, not the first ten

@@ -15,7 +15,8 @@ Draugr's fix list answers a different question: **what should I do, and what wil
 
 ```
 WHAT TO DO  <n> actions clear <m> findings
-  <band>  <the action>  <control> · <n> findings · <builtBy, when not yours>
+  <band>  <the action>
+          control <control> · <n> findings · <upstream, when not yours> ·
           <where it applies> · <the rule it names, and how many more it clears>
 ```
 

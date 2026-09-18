@@ -25,7 +25,7 @@ func TestDescriptorLine(t *testing.T) {
 				Digest:  "sha256:aabbccddeeff00112233",
 				Sources: []skald.DescriptorSource{{Path: "draugr.saga.yaml", Root: true}},
 			},
-			"Descriptor: draugr.saga.yaml · merged digest aabbccddeeff",
+			"draugr.saga.yaml · merged digest aabbccddeeff",
 		},
 		"with fragments": {
 			&skald.DescriptorRef{
@@ -36,7 +36,7 @@ func TestDescriptorLine(t *testing.T) {
 					{Path: "b.saga-fragment.yaml"},
 				},
 			},
-			"Descriptor: draugr.saga.yaml + 2 fragments · merged digest aabbccddeeff",
+			"draugr.saga.yaml + 2 fragments · merged digest aabbccddeeff",
 		},
 		"root is not first": {
 			&skald.DescriptorRef{
@@ -45,7 +45,7 @@ func TestDescriptorLine(t *testing.T) {
 					{Path: "draugr.saga.yaml", Root: true},
 				},
 			},
-			"Descriptor: draugr.saga.yaml + 1 fragment",
+			"draugr.saga.yaml + 1 fragment",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -65,10 +65,10 @@ func TestCILine(t *testing.T) {
 	}{
 		"not in CI":     {nil, ""},
 		"undetected":    {&ci.Context{}, ""},
-		"everything":    {&ci.Context{System: "github-actions", Repository: "acme/payments", Workflow: "security", Job: "scan", RunID: "77", Attempt: "2"}, "CI: github-actions · acme/payments · security/scan · 77-2"},
-		"job only":      {&ci.Context{System: "buildkite", Job: "scan", RunID: "bk-1"}, "CI: buildkite · scan · bk-1"},
-		"workflow only": {&ci.Context{System: "circleci", Workflow: "wf-1"}, "CI: circleci · wf-1"},
-		"bare system":   {&ci.Context{System: "gitlab-ci"}, "CI: gitlab-ci"},
+		"everything":    {&ci.Context{System: "github-actions", Repository: "acme/payments", Workflow: "security", Job: "scan", RunID: "77", Attempt: "2"}, "github-actions · acme/payments · security/scan · 77-2"},
+		"job only":      {&ci.Context{System: "buildkite", Job: "scan", RunID: "bk-1"}, "buildkite · scan · bk-1"},
+		"workflow only": {&ci.Context{System: "circleci", Workflow: "wf-1"}, "circleci · wf-1"},
+		"bare system":   {&ci.Context{System: "gitlab-ci"}, "gitlab-ci"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if got := ciLine(tc.in); got != tc.want {
@@ -110,7 +110,7 @@ func TestProvenanceIsEvidenceOnly(t *testing.T) {
 	}
 	d.Evidence = true
 	withEvidence := renderConsole(t, d)
-	for _, want := range []string{"Descriptor: draugr.saga.yaml", "CI: github-actions"} {
+	for _, want := range []string{"draugr.saga.yaml", "github-actions"} {
 		if !strings.Contains(withEvidence, want) {
 			t.Errorf("--evidence is missing %q:\n%s", want, withEvidence)
 		}

@@ -86,10 +86,10 @@ func TestConsoleRender(t *testing.T) {
 			t.Errorf("console output missing %q\n%s", want, s)
 		}
 	}
-	// The fix-first table carries a header (so newcomers can read it) and a Scanner column naming
-	// the tool that flagged each finding, which is most of what somebody deciding whether to
-	// believe a row is deciding about.
-	for _, want := range []string{"Scanner", "Location", "trivy", "gitleaks"} {
+	// Each finding names the tool that flagged it, which is most of what somebody deciding whether
+	// to believe it is deciding about. Labeled inline rather than by a column header: a block has
+	// no columns, so the label travels with the value.
+	for _, want := range []string{"scanner trivy", "scanner gitleaks", "fix "} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console fix-first table missing %q\n%s", want, s)
 		}
@@ -1098,16 +1098,16 @@ func TestExploitabilityLine(t *testing.T) {
 		{"nothing loaded says nothing", nil, ""},
 		{"a fetched copy carries its date",
 			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}},
-			"Exploitability: KEV 2026-08-01"},
+			"KEV 2026-08-01"},
 		{"a file has no fetch to record",
 			[]FeedProvenance{{Name: "kev"}},
-			"Exploitability: KEV (file)"},
+			"KEV (file)"},
 		{"stale is said out loud",
 			[]FeedProvenance{{Name: "epss", FetchedAt: fetched, Stale: true}},
-			"Exploitability: EPSS 2026-08-01, stale"},
+			"EPSS 2026-08-01, stale"},
 		{"both",
 			[]FeedProvenance{{Name: "kev", FetchedAt: fetched}, {Name: "epss", FetchedAt: fetched}},
-			"Exploitability: KEV 2026-08-01 · EPSS 2026-08-01"},
+			"KEV 2026-08-01 · EPSS 2026-08-01"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := exploitabilityLine(c.feeds); got != c.want {

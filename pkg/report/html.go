@@ -150,16 +150,23 @@ type htmlUnmatched struct {
 // to change is the code. The last covers every finding that is not about a package at all, which
 // a version column left blank.
 func fixPhrase(f finding) string {
-	if f.pkg == nil || f.pkg.Name == "" {
-		return "change the code"
+	if f.pkg != nil && f.pkg.Name != "" {
+		if f.pkg.FixedVersion != "" {
+			return "upgrade to " + f.pkg.FixedVersion
+		}
+		if f.builtUpstream {
+			return "somebody else publishes it"
+		}
+		return "no upgrade published"
 	}
-	if f.pkg.FixedVersion != "" {
-		return "upgrade to " + f.pkg.FixedVersion
+	// Which control found it, rather than whether a package came with it. A dependency scanner
+	// that reported no package metadata has still reported a dependency, and telling somebody to
+	// change their code about a CVE in a lockfile is an instruction they cannot carry out.
+	switch f.control {
+	case "sca", "images", "licenses":
+		return "no package reported"
 	}
-	if f.builtUpstream {
-		return "somebody else publishes it"
-	}
-	return "no upgrade published"
+	return "change the code"
 }
 
 type htmlFinding struct {

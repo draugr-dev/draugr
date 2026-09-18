@@ -1398,12 +1398,20 @@ func (g GateSettings) chosen() bool {
 	return g.FailOnPriority != "" && g.FailOnPriority != norn.DefaultPriority
 }
 
-// decision is one acceptance: who made it, why, when it lapses, and how many findings it covers.
+// decision is one acceptance: who made it, what it covers, why, when it lapses, and how many
+// findings it covers.
 type decision struct {
 	by      string
 	reason  string
 	expires string
 	n       int
+	// rules are the distinct rules this decision set aside, in the order they were met.
+	//
+	// A reason is only auditable against what it excused. "Not a real secret" is a judgment about
+	// a particular rule matching a particular file, and printed alone it is a sentence nobody can
+	// check: the reader cannot tell whether it covers one planted test fixture or every secret the
+	// scanner can find.
+	rules []string
 }
 
 // decisions groups suppressed findings by the decision that set them aside.
@@ -1433,11 +1441,17 @@ func decisions(d Data) []decision {
 			key := by + "\x00" + res.Suppression.Justification + "\x00" + res.Suppression.Expires
 			if got, ok := index[key]; ok {
 				got.n++
+				if !slices.Contains(got.rules, res.RuleID) && res.RuleID != "" {
+					got.rules = append(got.rules, res.RuleID)
+				}
 				continue
 			}
 			dec := &decision{
 				by: by, reason: res.Suppression.Justification,
 				expires: res.Suppression.Expires, n: 1,
+			}
+			if res.RuleID != "" {
+				dec.rules = []string{res.RuleID}
 			}
 			index[key] = dec
 			order = append(order, dec)

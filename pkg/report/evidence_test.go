@@ -20,7 +20,7 @@ func TestEvidenceFormatCarriesProvenanceWithoutTheFindings(t *testing.T) {
 
 	for _, want := range []string{
 		"Draugr evidence", // says what it is
-		"Ran 11 jobs",     // what it cost
+		"11 jobs",         // what it cost
 		"Verdict:",        // and what it stands behind
 	} {
 		if !strings.Contains(out, want) {

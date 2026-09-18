@@ -257,6 +257,7 @@ func goldenEnrichedData() Data {
 		{RuleID: "CVE-2024-3094", Level: sarif.LevelError, Score: 8.1, HasScore: true, Priority: "P1",
 			Tool: "trivy", Location: sarif.Location{URI: "go.mod", StartLine: 12},
 			Message: "xz: malicious code in the upstream tarballs",
+			Package: &sarif.Package{Name: "github.com/ulikunitz/xz", Version: "0.5.11", FixedVersion: "0.5.12"},
 			Escalation: &sarif.Escalation{
 				From: sarif.SeverityHigh, To: sarif.SeverityCritical,
 				Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01",
@@ -264,6 +265,7 @@ func goldenEnrichedData() Data {
 		{RuleID: "CVE-2019-20477", Level: sarif.LevelWarning, Score: 6.5, HasScore: true, Priority: "P1",
 			Tool: "trivy", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 4},
 			Message: "PyYAML: command execution through python/object/apply constructor",
+			Package: &sarif.Package{Name: "PyYAML", Version: "3.13", FixedVersion: "5.2"},
 			Escalation: &sarif.Escalation{
 				From: sarif.SeverityMedium, To: sarif.SeverityHigh,
 				Signal: "epss", Detail: "EPSS 0.87", AsOf: "2026-08-02",
@@ -272,7 +274,8 @@ func goldenEnrichedData() Data {
 		// note means something.
 		{RuleID: "CVE-2018-1000656", Level: sarif.LevelWarning, Score: 7.5, HasScore: true, Priority: "P2",
 			Tool: "trivy", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 2},
-			Message: "python-flask: Denial of Service via crafted JSON file"},
+			Message: "python-flask: Denial of Service via crafted JSON file",
+			Package: &sarif.Package{Name: "flask", Version: "0.12.2", FixedVersion: "0.12.3"}},
 	}
 	run := engine.Result{
 		Controls: map[string]plugin.ControlResult{
@@ -308,6 +311,15 @@ func goldenGroupedData() Data {
 func goldenEvidenceData() Data {
 	d := goldenGroupedData()
 	d.Evidence = true
+	// One verified build and one Draugr cannot vouch for, because the evidence block renders them
+	// on separate rows and nothing else exercises that path. It went unrendered in every golden
+	// until a real scan showed the row printing its own label beside the column's.
+	d.Tools = []ToolBuild{
+		{Name: "trivy", Version: "0.69.3", Level: "pinned"},
+		{Name: "semgrep", Version: "1.169.0", Level: "external",
+			Reason: "found on PATH; Draugr did not install it, `draugr tools install semgrep` " +
+				"provisions a pinned build"},
+	}
 	return d
 }
 

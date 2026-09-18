@@ -1504,7 +1504,7 @@ did, under `--evidence`:
 
 ```
 EVIDENCE
-  SBOM: 2 documents (cyclonedx-json)
+  sbom        2 documents (cyclonedx-json)
 ```
 
 ### One document per target, or one per product
@@ -1531,7 +1531,7 @@ config:
 
 ```
 EVIDENCE
-  SBOM: 1 project document (cyclonedx-json)
+  sbom        1 project document (cyclonedx-json)
 ```
 
 The assembled document is written as `sbom-project.cdx.json`. Its root component is the release,

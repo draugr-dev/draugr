@@ -74,26 +74,26 @@ func TestRunLineReportsWaitingOnce(t *testing.T) {
 			name: "waiting, with nothing else to report",
 			st: engine.Stats{Jobs: 17, Duration: 18200 * time.Millisecond,
 				ToolWaits: map[string]time.Duration{"trivy": 11 * time.Second}},
-			want: "Ran 17 jobs in 18.2s · 11s waiting for the trivy cache.",
+			want: "17 jobs in 18.2s · 11s waiting for the trivy cache",
 		},
 		{
 			name: "waiting, alongside a saving",
 			st: engine.Stats{Jobs: 17, Duration: 18200 * time.Millisecond, CacheHits: 4,
 				ToolWaits: map[string]time.Duration{"trivy": 11 * time.Second}},
-			want: "Ran 17 jobs in 18.2s · 4 from cache · 11s waiting for the trivy cache.",
+			want: "17 jobs in 18.2s · 4 from cache · 11s waiting for the trivy cache",
 		},
 		{
 			// Too short to perceive, so it explains nothing and only competes with the findings.
 			name: "a wait too short to be a reason",
 			st: engine.Stats{Jobs: 2, Duration: time.Second,
 				ToolWaits: map[string]time.Duration{"trivy": 200 * time.Millisecond}},
-			want: "Ran 2 jobs in 1s.",
+			want: "2 jobs in 1s",
 		},
 		{
 			name: "two tools are named in a stable order",
 			st: engine.Stats{Jobs: 9, Duration: 30 * time.Second,
 				ToolWaits: map[string]time.Duration{"trivy": 8 * time.Second, "grype": 3 * time.Second}},
-			want: "Ran 9 jobs in 30s · 3s waiting for the grype cache, 8s waiting for the trivy cache.",
+			want: "9 jobs in 30s · 3s waiting for the grype cache, 8s waiting for the trivy cache",
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -180,7 +180,8 @@ func TestADefaultGateSaysNothingUntilAsked(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Including the default, because "the default" is an answer only when the report gives it.
-	if !strings.Contains(buf.String(), "Gate: fails on P1") {
+	// The word "gate" is the label on its own column now, so the fact beside it is the rule.
+	if !strings.Contains(buf.String(), "gate") || !strings.Contains(buf.String(), "fails on P1") {
 		t.Errorf("--evidence should state the gate whatever it is:\n%s", buf.String())
 	}
 }
