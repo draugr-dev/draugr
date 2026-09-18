@@ -10,14 +10,13 @@ name: Integration
 #
 # This suite is the only place several behaviors are checked against real tools, real registries
 # and a real cluster rather than against fixtures, so it is the only place their failure is visible
-# before a release tag. Deciding when to run it from a path filter means naming every package those
-# assertions depend on, including the ones that merely produce what the tests read back, and a
-# filter that misses one turns a failure into a skipped job. Nothing in the checks tells a reader
-# those apart.
+# before a release tag.
 #
-# The cost is several minutes on a kind cluster for every pull request, including the ones that
-# could not break it. That is deliberate. A release nobody has to re-check afterwards is worth more
-# than a fast docs change.
+# The job always runs and always reports. What it decides first is whether it has anything to
+# judge: a pull request whose diff is nothing but prose, pictures and release notes reports in
+# seconds instead of spending several minutes on a kind cluster. scripts/integration-needed.sh
+# holds that decision, and it names what cannot reach the suite rather than what can, so anything
+# new runs by default and the list is only ever wrong about how long a pull request waits.
 
 on:
   push:
@@ -65,16 +64,50 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
+          # The whole history, because the step below diffs this branch against the commit it
+          # branched from, and a shallow clone holds neither end of that.
+          fetch-depth: 0
+
+      # Whether this run has anything to judge. Only a pull request has a diff to narrow; a push, a
+      # schedule, a dispatch and a release tag all run the suite, because the question they answer
+      # is about a tree rather than about a change.
+      - name: Decide whether the diff needs the suite
+        id: needed
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Running: $GITHUB_EVENT_NAME judges a tree, not a change." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BASE" HEAD)
+          run=$(printf '%s\n' "$changed" | ./scripts/integration-needed.sh)
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          if [ "$run" = "true" ]; then
+            echo "Running the suite." >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "Nothing to run. Every changed path is prose, a picture or release notes, none"
+              echo "of which a Go test, a scanner or a build reads:"
+              echo
+              printf '%s\n' "$changed" | sed 's/^/    /'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.needed.outputs.run == 'true'
         with:
           go-version: ${{ env.GO_VERSION }}
           check-latest: true
 
       - name: Create kind cluster
+        if: steps.needed.outputs.run == 'true'
         uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
 
       - name: Fetch kube-bench's benchmark definitions
+        if: steps.needed.outputs.run == 'true'
         # Read, never executed, these are the YAML files the CIS catalog is diffed against.
         # The tag is verified against a commit because a tag can be repushed, and a benchmark
         # that changed under a stable tag is exactly what this checkout exists to detect.
@@ -89,12 +122,14 @@ jobs:
           echo "KUBE_BENCH_CFG=$RUNNER_TEMP/kube-bench/cfg" >> "$GITHUB_ENV"
 
       - name: Build draugr
+        if: steps.needed.outputs.run == 'true'
         run: make build
 
       # The week this run belongs to, so the template cache is written once a week and read the
       # rest of the time. A key that changes every run writes an entry every run and evicts
       # everything else in the process.
       - name: Name the week
+        if: steps.needed.outputs.run == 'true'
         id: week
         run: echo "stamp=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
 
@@ -109,6 +144,7 @@ jobs:
       # Nuclei at a server they start themselves and assert which requests arrive, so they need
       # templates rather than today's templates. The stamp rolls so the set cannot drift forever.
       - name: Restore the Nuclei template set
+        if: steps.needed.outputs.run == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/nuclei-templates
@@ -117,6 +153,7 @@ jobs:
             nuclei-templates-${{ runner.os }}-
 
       - name: Provision the scanners with draugr
+        if: steps.needed.outputs.run == 'true'
         # The tools come from the same pinned, verified manifest users get, so what these tests
         # prove Draugr's argv and parsing against is the build everybody runs, and the installer
         # itself gets exercised by the job whose premise is real tools.
@@ -130,6 +167,7 @@ jobs:
           echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
 
       - name: Run integration tests
+        if: steps.needed.outputs.run == 'true'
         env:
           # Exercise the real built binary in the end-to-end scan test.
           DRAUGR_BIN: ${{ github.workspace }}/bin/draugr

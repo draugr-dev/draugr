@@ -262,7 +262,10 @@ DRAUGR_BIN="$PWD/bin/draugr" go test -tags integration ./test/integration/...
 
 In CI they run in the dedicated **Integration** workflow, on every pull request, on `main`, nightly,
 on demand, and against a release tag. It is a required check, so expect a pull request to spend
-several minutes on a kind cluster before it can merge.
+several minutes on a kind cluster before it can merge, unless its diff is nothing but prose,
+pictures or release notes, which the job recognizes and reports in seconds.
+[`scripts/integration-needed.sh`](scripts/integration-needed.sh) holds that list, and it names what
+cannot reach the suite rather than what can: a path it has never heard of runs the suite.
 
 ## Pull requests
 
