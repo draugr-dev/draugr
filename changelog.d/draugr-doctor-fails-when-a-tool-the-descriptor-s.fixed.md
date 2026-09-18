@@ -1,1 +1,0 @@
-`draugr doctor` fails when a tool the descriptor selected is missing, whatever the catalog calls it. `cosign` is listed as optional because it is optional to have, and a descriptor that enables the `provenance` control it serves made that reading wrong: doctor reported a clean environment for a scan that could not run.

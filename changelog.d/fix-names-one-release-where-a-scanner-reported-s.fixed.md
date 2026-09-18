@@ -1,1 +1,0 @@
-`FIX` names one release where a scanner reported several. Trivy reports one fixed version per maintained branch, so `upgrade to 1.24.13, 1.25.7, 1.26.0-rc.3` was three answers to "which branch are you on" rather than one instruction, and it grew with the number of branches upstream keeps. It now reads `upgrade to 1.24.13 +2`, and the report document carries them all.

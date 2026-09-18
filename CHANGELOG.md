@@ -12,6 +12,28 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.127.0] - 2026-09-18
+
+### Changed
+
+A decision in `DECISIONS` leads with the reason somebody gave, and the line under it says who accepted it, how many findings it covers, which rules, and when it lapses. The reason was a bare sentence indented under a row that gave neither what was excused nor, where an acceptance had no end date, anything at all: an exclusion that never expires was indistinguishable from one whose expiry the report failed to record. It now says `no expiry`, names the rules while there are no more than two, and counts them past that.
+
+`draugr scan` prints each ranked finding as a block rather than as a row of columns: what it is, then what is known about it, then where. A table sizes every column to its widest value, and one image reference carrying a digest set a width every other finding paid for, so a scan of a real project drew 217 columns on a 120-column terminal and every row wrapped. `--view findings` now fits any terminal, and so does `--view actions`, whose locations were printed with no bound at all.
+
+The `EVIDENCE` block is one label column. Its seven facts were written in four grammars, double-spaced: two labeled with a colon, two as sentences ending in a full stop, one as a sub-heading with its own indented row beneath. They now read as `scanners`, `unverified`, `run`, `scanned`, `sbom`, `feeds`, `descriptor`, `ci` and `gate`, each with its value in the same column, and a value too long for the line wraps under its own label.
+
+`--view compact` fits a terminal. It carried seven columns, whose header alone was 144 characters before the summary started, so the dense listing was the widest thing Draugr printed. It now shows the band, the rule, where it is and what to do: severity beside the band teaches a reader to trust the band and this view is for somebody who already knows, a scanner is the same value on nearly every row, and the components are broken out above it.
+
+### Fixed
+
+`draugr doctor` fails when a tool the descriptor selected is missing, whatever the catalog calls it. `cosign` is listed as optional because it is optional to have, and a descriptor that enables the `provenance` control it serves made that reading wrong: doctor reported a clean environment for a scan that could not run.
+
+`draugr doctor` names the command that installs a missing tool, where Draugr has one. A tool it distributes was listed with its upstream page, which fetches whatever version is current rather than the pinned release with its checksum checked, and the summary line under the table named `draugr tools install` at the same time, so one screen gave two answers.
+
+`FIX` names one release where a scanner reported several. Trivy reports one fixed version per maintained branch, so `upgrade to 1.24.13, 1.25.7, 1.26.0-rc.3` was three answers to "which branch are you on" rather than one instruction, and it grew with the number of branches upstream keeps. It now reads `upgrade to 1.24.13 +2`, and the report document carries them all.
+
+`FIX` says what to do about a finding whose scanner reported no package. It said `change the code`, which is the wrong instruction for a CVE in a lockfile, because it keyed off whether package metadata arrived rather than off which control found it. A finding from `sca`, `images` or `licenses` with no package now says `no package reported`. This affects the HTML report as well as the console.
+
 ## [0.126.0] - 2026-09-17
 
 ### Added
@@ -5789,7 +5811,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.126.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.127.0...HEAD
+[0.127.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.127.0
 [0.126.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.126.0
 [0.125.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.125.0
 [0.124.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.124.0
