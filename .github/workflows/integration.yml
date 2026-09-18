@@ -96,8 +96,13 @@ jobs:
           # and that is the only place provisioning runs against the actual registries rather
           # than a stubbed toolchain. A unit test can prove the code calls what it meant to; it
           # cannot prove pip, npm or the Go toolchain answer, which is the half that breaks.
+          # internal/controllers and internal/scanners because they decide what a control records
+          # and what a scanner reports, which is what most of these tests assert on. The filter
+          # named the packages that render the answer and not the ones that produce it, so a
+          # change to a control's account of itself skipped the only suite that checks it against
+          # a real registry, and the suite went red on main for hours with every gate green.
           if git diff --name-only "$base" HEAD \
-             | grep -qE '^(test/integration/|pkg/report/|pkg/skald/|internal/tools/|\.github/workflows/integration\.yml$)'; then
+             | grep -qE '^(test/integration/|pkg/report/|pkg/skald/|internal/tools/|internal/controllers/|internal/scanners/|\.github/workflows/integration\.yml$)'; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -198,3 +203,80 @@ jobs:
         # fetched above. It is listed explicitly because ./test/integration/... would not reach it,
         # and a drift guard that never runs is the failure it was written to prevent.
         run: go test -tags integration -v -timeout 15m ./test/integration/... ./internal/scanners/...
+
+  # A red suite on main has to reach a person.
+  #
+  # This gate is not required and is skipped on most pull requests by design, so a failure can
+  # reach main and sit there: it did, for hours, with every required check green. The site's own
+  # scan carries this same job for the same reason, and the argument is its: a check that is only
+  # a color on a page somebody has already closed is not a signal.
+  #
+  # One issue, reused, closed when the suite is green again. A fresh issue per red run turns one
+  # slow-moving break into a week of duplicates, and closing on green is what makes an open one
+  # mean "red now" rather than "was red once".
+  notify:
+    name: A red suite on main raises an issue
+    needs: integration
+    # Not on pull requests: the author is looking at the failing check already, and an issue would
+    # be telling them what their own screen says.
+    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update the issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          RESULT: ${{ needs.integration.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            // Through the API rather than the `gh` binary, so the notifier does not depend on what
+            // happens to be installed on the machine it lands on. It exists to speak up when the
+            // suite cannot, and one that dies with "command not found" is a silence with a red
+            // tick on it.
+            const label = "integration-red";
+            const { owner, repo } = context.repo;
+            const sha = context.sha.slice(0, 8);
+            const commit = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/commit/${context.sha}`;
+
+            await github.rest.issues.createLabel({
+              owner, repo, name: label, color: "B60205",
+              description: "The integration suite is failing on main",
+            }).catch(() => {}); // already there
+
+            const open = await github.rest.issues.listForRepo({
+              owner, repo, labels: label, state: "open", per_page: 1,
+            });
+            const existing = open.data[0];
+
+            if (process.env.RESULT !== "failure") {
+              if (!existing) return console.log("green, and nothing open");
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number,
+                body: `Green again as of \`${sha}\`. Closing, because an open issue with this label means the suite is failing now rather than that it failed once.`,
+              });
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: "closed" });
+              return console.log(`closed #${existing.number}`);
+            }
+
+            const body = [
+              `The integration suite is failing on main as of [\`${sha}\`](${commit}).`,
+              "",
+              `[The run](${process.env.RUN_URL}) has the log.`,
+              "",
+              "**This suite is the only place several behaviors are checked against real tools and real registries rather than fixtures.** It is skipped on a pull request whose diff does not touch the paths it covers, so a change can reach main without it ever having run, and it is not a required check, so a failure does not block a merge either.",
+              "",
+              "This issue closes itself when the suite is green again.",
+            ].join("\n");
+
+            if (existing) {
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
+              return console.log(`updated #${existing.number}`);
+            }
+            const made = await github.rest.issues.create({
+              owner, repo, labels: [label], body,
+              title: "The integration suite is failing on main",
+            });
+            console.log(`opened #${made.data.number}`);

@@ -80,6 +80,12 @@ jobs:
       ref: ${{ inputs.tag || github.ref_name }}
     permissions:
       contents: read
+      # For the notifier that workflow carries, which raises an issue when the suite goes red on
+      # main. It cannot fire from here: its own condition is `ref == refs/heads/main`, and a
+      # release runs against a tag. A called workflow inherits the caller's grants whatever its
+      # jobs do or do not run, though, so withholding this fails the release at startup with no
+      # job and no message naming the scope, which is what internal/ciguard exists to catch.
+      issues: write
 
   goreleaser:
     needs: [selfscan, integration]
