@@ -16,11 +16,11 @@ _Nothing yet._
 
 ### Changed
 
-A decision in `DECISIONS` leads with the reason somebody gave, and the line under it says who accepted it, how many findings it covers, which rules, and when it lapses. The reason was a bare sentence indented under a row that gave neither what was excused nor, where an acceptance had no end date, anything at all: an exclusion that never expires was indistinguishable from one whose expiry the report failed to record. It now says `no expiry`, names the rules while there are no more than two, and counts them past that.
-
 `draugr scan` prints each ranked finding as a block rather than as a row of columns: what it is, then what is known about it, then where. A table sizes every column to its widest value, and one image reference carrying a digest set a width every other finding paid for, so a scan of a real project drew 217 columns on a 120-column terminal and every row wrapped. `--view findings` now fits any terminal, and so does `--view actions`, whose locations were printed with no bound at all.
 
 The `EVIDENCE` block is one label column. Its seven facts were written in four grammars, double-spaced: two labeled with a colon, two as sentences ending in a full stop, one as a sub-heading with its own indented row beneath. They now read as `scanners`, `unverified`, `run`, `scanned`, `sbom`, `feeds`, `descriptor`, `ci` and `gate`, each with its value in the same column, and a value too long for the line wraps under its own label.
+
+A decision in `DECISIONS` leads with the reason somebody gave, and the line under it says who accepted it, how many findings it covers, which rules, and when it lapses. The reason was a bare sentence indented under a row that gave neither what was excused nor, where an acceptance had no end date, anything at all: an exclusion that never expires was indistinguishable from one whose expiry the report failed to record. It now says `no expiry`, names the rules while there are no more than two, and counts them past that.
 
 `--view compact` fits a terminal. It carried seven columns, whose header alone was 144 characters before the summary started, so the dense listing was the widest thing Draugr printed. It now shows the band, the rule, where it is and what to do: severity beside the band teaches a reader to trust the band and this view is for somebody who already knows, a scanner is the same value on nearly every row, and the components are broken out above it.
 
