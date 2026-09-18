@@ -303,7 +303,7 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 		if len(ci.DefaultScanners) == 0 {
 			continue
 		}
-		selected[ci.Name] = controllers.SelectedScanners(*model, ci.Name, ci.DefaultScanners)
+		selected[ci.Name] = controllers.SelectedScanners(*model, c)
 	}
 
 	// An analyzer named in config.reachability is required and is not selectable from a scanner

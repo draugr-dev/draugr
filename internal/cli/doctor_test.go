@@ -17,6 +17,44 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
+const doctorSagaProvenanceSigstore = `project: app
+release:
+  version: "1.0"
+config:
+  controls:
+    provenance:
+      enabled: true
+      signers:
+        - name: our-ci
+          images: ["ghcr.io/acme/*"]
+          keyless:
+            issuer: https://token.actions.githubusercontent.com
+            identity: https://github.com/acme/ci/.github/workflows/r.yml@refs/heads/main
+components:
+  - name: web
+    images:
+      - image: ghcr.io/acme/web:1
+`
+
+const doctorSagaProvenanceX509 = `project: app
+release:
+  version: "1.0"
+config:
+  controls:
+    provenance:
+      enabled: true
+      signers:
+        - name: acme-pki
+          images: ["acme.azurecr.io/*"]
+          x509:
+            trustStore: roots.pem
+            subject: "C=US, O=Acme, CN=Acme Release Signing"
+components:
+  - name: web
+    images:
+      - image: acme.azurecr.io/web:1
+`
+
 const doctorSagaProvenance = `project: app
 release:
   version: "1.0"
@@ -555,12 +593,45 @@ func (unknownToolController) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{Name: "images", Scope: plugin.ScopeComponent, DefaultScanners: []string{"future"}}
 }
 
-func (unknownToolController) Plan(saga.Model, *saga.Component) ([]plugin.ScanJob, error) {
-	return nil, nil
+// Plans a job, because the selection now asks a control what it would run rather than working it
+// out from its scanner blocks, and a controller that plans nothing needs nothing. A real one with
+// its control enabled and a target to point at plans something.
+func (unknownToolController) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+	if comp == nil {
+		return nil, nil
+	}
+	return []plugin.ScanJob{{Scanner: "future", Target: plugin.ImageTarget{Ref: "example.test/app"}}}, nil
 }
 
 func (unknownToolController) Aggregate([]sarif.Report) (plugin.ControlResult, error) {
 	return plugin.ControlResult{Control: "images"}, nil
+}
+
+// provenance picks its verifier per image from the matched signer's trust model, so which scanners
+// it needs cannot be read off the descriptor's scanner blocks. Both halves, because a check that
+// only proves notation is absent would pass against a build that never asks for it at all.
+func TestProvenanceRequiresOnlyTheVerifierItsSignersUse(t *testing.T) {
+	reg := builtins.Registry()
+
+	sigstore, err := saga.LoadFile(writeSaga(t, doctorSagaProvenanceSigstore))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := binaries(requiredTools(reg, sigstore))
+	if slices.Contains(got, "notation") {
+		t.Errorf("no x509 signer, so notation never runs and must not be demanded: %v", got)
+	}
+	if !slices.Contains(got, "cosign") {
+		t.Errorf("a keyless signer is verified with cosign: %v", got)
+	}
+
+	x509, err := saga.LoadFile(writeSaga(t, doctorSagaProvenanceX509))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := binaries(requiredTools(reg, x509)); !slices.Contains(got, "notation") {
+		t.Errorf("an x509 signer is verified with notation, which has to be installed: %v", got)
+	}
 }
 
 func TestDoctorWithoutADescriptorReportsRatherThanFails(t *testing.T) {
