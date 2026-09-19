@@ -578,6 +578,13 @@ type finding struct {
 	// helpURI is where the rule is documented: what the scanner published, or a URL derived
 	// from a well-known identifier. Empty when we have nowhere honest to point.
 	helpURI string
+	// acceptedVia names the authority that set a suppressed finding aside: this project's own
+	// descriptor, a supplier's document, or a comment in the source. Empty for an active finding.
+	//
+	// Carried on the finding rather than derived where it is rendered, because the three are
+	// counted apart everywhere else and a list that drops the distinction turns a supplier's
+	// assertion into a decision this project made.
+	acceptedVia string
 	// justification is why a suppressed finding was set aside. Empty for an active finding.
 	justification string
 	// escalation is why this finding's severity was raised, if it was.
@@ -705,6 +712,7 @@ func summarize(d Data) summary {
 					repository: res.Repository,
 					location:   locationOf(res), message: res.Message,
 					severity:      res.Severity(""),
+					acceptedVia:   acceptedVia(res),
 					justification: res.Suppression.Justification,
 					helpURI:       rep.HelpURI(res.RuleID),
 				})
@@ -1414,6 +1422,24 @@ type decision struct {
 	rules []string
 }
 
+// acceptedVia names the authority that set a finding aside, in the words the console already uses
+// for the same three counts.
+//
+// A reader looking at a list of accepted findings is asking who accepted them, and the three
+// answers are not interchangeable: a rule in this descriptor is a decision somebody here signed, a
+// supplier's document is an assertion whose author can be asked about it, and a comment in the
+// source was written by whoever was editing the file, possibly to get a build green.
+func acceptedVia(res sarif.Result) string {
+	switch {
+	case res.Imported():
+		return "VEX"
+	case res.SilencedInSource():
+		return "source directive"
+	default:
+		return "config.exclude"
+	}
+}
+
 // decisions groups suppressed findings by the decision that set them aside.
 //
 // The account an auditor comes for, and the one a single count cannot give: "4 findings suppressed
@@ -1424,14 +1450,17 @@ type decision struct {
 // one decision. Two rules with the same reason and the same signature really are one decision
 // spelled twice; the same reason accepted by two people is two.
 //
-// Imported claims are excluded. A supplier's analysis is not a decision anybody here made, and
-// counting it among them answers the auditor's question with the wrong name.
+// Only what this project decided. A supplier's analysis and a comment in the source are both
+// reasons a finding stopped counting, and neither is a decision anybody here recorded: counting
+// either among them answers the auditor's question with the wrong name. The comment is the one
+// worth naming twice, because it carries no author at all, so it lands in this table as an
+// unattributed decision and reads as a gap in our own records rather than as what it is.
 func decisions(d Data) []decision {
 	index := map[string]*decision{}
 	var order []*decision
 	for _, cr := range d.Run.Controls {
 		for _, res := range cr.Report.Results {
-			if !res.Suppressed() || res.Imported() {
+			if !res.Suppressed() || res.Imported() || res.SilencedInSource() {
 				continue
 			}
 			by := res.Suppression.AcceptedBy

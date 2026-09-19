@@ -751,6 +751,90 @@ func TestSARIFFilterLeavesTheRunIntact(t *testing.T) {
 // erroredRunData is a run where one control reported findings and another could not run at all.
 // The second is the dangerous case: with no verdict entry, a reporter that only walks
 // Verdict.Controls omits it, and the report describes a thinner run rather than a broken one.
+// mixedAcceptanceData is a run where three different authorities set a finding aside: a rule in
+// this project's descriptor, a supplier's VEX document, and a comment somebody wrote in the source.
+func mixedAcceptanceData() Data {
+	res := func(id, origin, why string) sarif.Result {
+		return sarif.Result{
+			RuleID: id, Level: sarif.LevelError, Priority: "P1", Tool: "trivy",
+			Suppression: &sarif.Suppression{Kind: "external", Origin: origin, Justification: why},
+		}
+	}
+	return Data{
+		Release: saga.Release{Version: "1.0"},
+		Run: engine.Result{
+			Controls: map[string]plugin.ControlResult{
+				"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+					res("CVE-OURS", sarif.OriginSaga, "we pinned the upstream host"),
+					res("CVE-SUPPLIER", sarif.OriginVEX, "the vendor says the path is unreachable"),
+					res("CVE-COMMENT", sarif.OriginTool, "nosem"),
+				}}},
+			},
+			Suppressed: 1,
+			Imported:   1,
+			Silenced:   1,
+		},
+		Verdict: norn.Result{Verdict: norn.Pass},
+	}
+}
+
+// A count that does not add up to the list beneath it is worse than no count, because the reader
+// checks the number rather than the rows and leaves believing the smaller figure.
+//
+// Three authorities can set a finding aside and they answer an auditor differently: this project
+// decided, a supplier asserts, or whoever was editing the file wrote a comment. A report that
+// attributes all three to `config.exclude` claims the project accepted things it never saw.
+func TestTheAcceptedSectionAccountsForEveryFindingItLists(t *testing.T) {
+	r, err := For("html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	if err := r.Render(&b, mixedAcceptanceData()); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+
+	// Everything set aside is listed, whoever set it aside.
+	for _, id := range []string{"CVE-OURS", "CVE-SUPPLIER", "CVE-COMMENT"} {
+		if !strings.Contains(out, id) {
+			t.Errorf("%s is not in the report at all, so it was dropped rather than accepted", id)
+		}
+	}
+	// And the note over that list accounts for all three rather than for one.
+	for _, want := range []string{
+		"1 finding suppressed",
+		"1 finding excused",
+		"1 finding silenced",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the accepted note does not say %q, so the count under-reports what is listed "+
+				"below it:\n%s", want, acceptedSection(out))
+		}
+	}
+	// Each row says which authority set it aside. Without that a supplier's assertion reads as a
+	// decision this project made, which is the one thing the separate counts exist to prevent.
+	for _, want := range []string{"config.exclude", "VEX", "source directive"} {
+		if !strings.Contains(acceptedSection(out), want) {
+			t.Errorf("no row attributes a finding to %q:\n%s", want, acceptedSection(out))
+		}
+	}
+}
+
+// acceptedSection is the part of the report this test is about, so a failure prints that rather
+// than half a megabyte of document.
+func acceptedSection(html string) string {
+	i := strings.Index(html, `id="suppressed"`)
+	if i < 0 {
+		return "(no Accepted section at all)"
+	}
+	end := strings.Index(html[i:], "</section>")
+	if end < 0 {
+		end = len(html) - i
+	}
+	return html[i : i+end]
+}
+
 func erroredRunData() Data {
 	return Data{
 		Release: saga.Release{Version: "1.0"},
@@ -809,8 +893,7 @@ func TestEveryHumanFormatReportsSuppressions(t *testing.T) {
 			if err := r.Render(&b, erroredRunData()); err != nil {
 				t.Fatal(err)
 			}
-			if out := b.String(); !strings.Contains(out, "3 findings suppressed") &&
-				!strings.Contains(out, "3 finding(s) suppressed") {
+			if out := b.String(); !strings.Contains(out, "3 findings suppressed") {
 				t.Errorf("%s: the suppression count is not reported:\n%s", format, out)
 			}
 		})

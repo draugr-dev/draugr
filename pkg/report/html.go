@@ -57,8 +57,15 @@ type htmlView struct {
 	// Errors, Suppressed and SBOM describe what the run couldn't do and what it set aside. A
 	// shared report that omits them describes a thinner run rather than a broken one, and the
 	// reader has no way to tell which they are looking at.
-	Errors      []htmlError
+	Errors []htmlError
+	// Suppressed, Imported and Silenced are the three authorities that can set a finding aside, and
+	// they are counted apart because they answer an auditor differently: this project decided, a
+	// supplier asserts, or whoever was editing the file wrote a comment the scanner honored. One
+	// total can only report the weakest of the three, and a note that names `config.exclude` over a
+	// list holding all three claims we accepted things nobody here ever saw.
 	Suppressed  int
+	Imported    int
+	Silenced    int
 	SBOMCount   int
 	SBOMFormat  string
 	MinPriority string // set when the listing was filtered, so the page can say so
@@ -75,9 +82,9 @@ type htmlView struct {
 	Unmatched []htmlUnmatched
 	// Gate is the rule the verdict was produced under. A verdict nobody can check is a claim.
 	Gate string
-	// Excluded are the findings a config.exclude rule set aside, each with the reason given.
-	// The count alone answers "was anything hidden"; an auditor asks who decided it was
-	// acceptable, which needs the reason next to the finding.
+	// Excluded are the findings that were set aside, each with the reason given and the authority
+	// that gave it. The count alone answers "was anything hidden"; an auditor asks who decided it
+	// was acceptable, which needs both the reason and the name next to the finding.
 	Excluded []htmlFinding
 	// Facets are the distinct values the filter controls offer, so the toolbar only ever shows
 	// options that match something.
@@ -199,6 +206,11 @@ type htmlFinding struct {
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
 	// link costs nothing, and a rule id names a finding without explaining it.
 	HelpURI string
+	// AcceptedVia names the authority that set this finding aside: a rule in this project's
+	// descriptor, a supplier's document, or a comment in the source. Only set for a suppressed
+	// finding, and set for every one of them, because a row with a reason and no author reads as a
+	// decision this project made whoever actually made it.
+	AcceptedVia string
 	// Justification is why the finding was set aside. Only set for suppressed findings.
 	Justification string
 	// Search is the lower-cased haystack the filter box matches against, precomputed so the
@@ -222,6 +234,8 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		Prioritized:    s.prioritized,
 		P1:             s.p1, P2: s.p2, P3: s.p3, P4: s.p4,
 		Suppressed:  s.suppressed,
+		Imported:    d.Run.Imported,
+		Silenced:    d.Run.Silenced,
 		SBOMCount:   s.sboms,
 		SBOMFormat:  s.sbomFormat,
 		MinPriority: strings.ToUpper(s.minPriority),
@@ -405,6 +419,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Upgrade:       upgradeLabel(f),
 		Fix:           fixPhrase(f),
 		Moved:         moved,
+		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
 		ActionKey:     actionKeyFor(f),
 		Search: strings.ToLower(strings.Join(
@@ -542,6 +557,10 @@ var htmlTemplate = template.Must(template.New("report").Funcs(template.FuncMap{
 		}
 		return out
 	},
+	// The same pluralization the console uses, so one finding is a finding here too. "1 finding(s)"
+	// is a sentence nobody would write by hand and the only reason it survives is that it is never
+	// read aloud.
+	"plural": plural,
 }).Parse(htmlDoc))
 
 const htmlDoc = `<!doctype html>
@@ -1190,14 +1209,14 @@ about what they would have found. For everything the tool printed, re-run with
     {{if .Where}}<span class="act-where">{{.Where}}</span>{{end}}
   </li>{{end}}
   </ul>
-  {{if .External}}<p class="note">{{.External}} finding(s) are somebody else's to fix, so they are
+  {{if .External}}<p class="note">{{plural .External "finding"}} are somebody else's to fix, so they are
   reported rather than listed as work.</p>{{end}}
 </section>
 {{end}}
 
 <section id="all">
 <h3 class="sub js-off">All findings</h3>
-{{if .MinPriority}}<p class="note">{{if .Hidden}}{{.Hidden}} lower-priority finding(s) are not listed, and the counts still describe the whole run{{else}}The counts describe the whole run{{end}}.</p>{{end}}
+{{if .MinPriority}}<p class="note">{{if .Hidden}}{{plural .Hidden "lower-priority finding"}} are not listed, and the counts still describe the whole run{{else}}The counts describe the whole run{{end}}.</p>{{end}}
 
 <p class="dl">
   {{if .SARIFHref}}<a href="{{.SARIFHref}}" download="results.sarif">⬇ SARIF</a>{{end}}
@@ -1257,9 +1276,14 @@ about what they would have found. For everything the tool printed, re-run with
 </details>
 </section>
 
-{{if or .Suppressed .Decisions .Unmatched .Excluded}}
+{{if or .Suppressed .Imported .Silenced .Decisions .Unmatched .Excluded}}
 <details class="fold" open><summary id="suppressed"><span class="sec">Accepted</span></summary>
-<p class="note">{{if .Suppressed}}{{.Suppressed}} finding(s) suppressed by <code class="cmd">config.exclude</code>.{{else}}Suppressed by <code class="cmd">config.exclude</code>.{{end}}</p>
+<p class="note">
+{{- if .Suppressed}}<code class="cmd">config.exclude</code>: {{plural .Suppressed "finding"}} suppressed. {{end -}}
+{{- if .Imported}}VEX: {{plural .Imported "finding"}} excused. {{end -}}
+{{- if .Silenced}}Source directives: {{plural .Silenced "finding"}} silenced, and nobody signed them. {{end -}}
+{{- if not (or .Suppressed .Imported .Silenced)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
+</p>
 {{if .Decisions}}
 <details class="fold sub" open><summary class="sub"><span class="sub">Decisions</span></summary>
 <table class="provenance">
@@ -1290,7 +1314,7 @@ about what they would have found. For everything the tool printed, re-run with
 {{if .Excluded}}
 <details class="fold sub" open><summary class="sub"><span class="sub">Findings</span></summary>
 <table>
-<thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Component</th><th scope="col">Location</th></tr></thead>
+<thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Component</th><th scope="col">Location</th><th scope="col">Accepted via</th></tr></thead>
 {{range .Excluded}}<tbody>
 <tr class="meta">
   <td class="{{.SevClass}}">{{.Severity}}</td>
@@ -1298,8 +1322,9 @@ about what they would have found. For everything the tool printed, re-run with
   <td>{{.Control}}</td>
   <td>{{.Component}}</td>
   <td><code>{{.Location}}</code></td>
+  <td>{{.AcceptedVia}}</td>
 </tr>
-<tr class="msg"><td colspan="5">{{.Message}}<br><span class="just">Reason: {{.Justification}}</span></td></tr>
+<tr class="msg"><td colspan="6">{{.Message}}<br><span class="just">Reason: {{.Justification}}</span></td></tr>
 </tbody>{{end}}
 </table>
 </details>
@@ -1557,7 +1582,7 @@ about what they would have found. For everything the tool printed, re-run with
     a11yRows();
     tokens();
     count.textContent = shown === rows.length
-      ? shown + " finding(s)"
+      ? shown + (shown === 1 ? " finding" : " findings")
       : "showing " + shown + " of " + rows.length;
     none.hidden = shown > 0;
   }
