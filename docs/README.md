@@ -15,6 +15,7 @@ not published. They live here for readers browsing the repo.
 - [Controls & scanners](concepts/controls-and-scanners.md), controllers, scanners, SARIF, and caching.
 - [What to fix first](concepts/what-to-fix-first.md). How findings become a list of actions, and how `operatedBy` and `builtBy` change what it recommends.
 - [Prioritization](concepts/prioritization.md), exposure × criticality × severity → P1–P4.
+- [Reducing the noise](concepts/reducing-the-noise.md), every lever for turning a wall of findings into a short list, and what each does to the number.
 - [Surveyors](concepts/surveyors.md), discovery that writes the Saga for you.
 - [Verdict & gating](concepts/verdict-and-gating.md), the pipeline, the gate, and exit codes.
 - [Scanner versions](concepts/tool-versions.md), which build of each tool Draugr runs, and when a pin moves.
