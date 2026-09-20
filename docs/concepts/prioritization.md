@@ -119,7 +119,7 @@ finding along it before step 2 above reads it:
    the scanner's severity
            │
            ▼
-   ↑  1  control floor      some findings are never low
+   ↑  1  control floor      a control's minimum, e.g. secrets is never below high
            │
            ▼
    ↑  2  exploitability     on KEV, or EPSS at or above your threshold
@@ -136,7 +136,7 @@ finding along it before step 2 above reads it:
 
 | | Signal | Moves | By how much | Where it comes from |
 |---|---|:---:|---|---|
-| 1 | **Control floor** | ↑ | to a minimum the control insists on | Draugr, per control |
+| 1 | **Control floor** | ↑ | to the control's minimum: `secrets` is never below `high` | Draugr, per control |
 | 2 | **KEV** | ↑ | straight to `critical` | CISA's catalog, cached |
 | 2 | **EPSS** | ↑ | one band | FIRST's scores, cached |
 | 3 | **Malicious** | ↑ | straight to `critical` | the OSSF Malicious Packages Project |
