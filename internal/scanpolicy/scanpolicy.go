@@ -41,18 +41,38 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 		// nil-safe on both: a no-op when no source is loaded, and the escalation is nil unless
 		// something actually moved.
 		sev, esc := expl.Explain(sev, res.RuleID)
+		// Whether anything so far stands against an unreachable verdict, read from the table that
+		// every signal has to declare itself in. Recorded as we go, because a later signal can
+		// replace the escalation that carries the answer.
+		overrules := esc != nil && OverrulesUnreachable[esc.Signal]
+
 		// Keyed on the package rather than on the rule, which is the difference from
 		// exploitability: the subject is the dependency, and the finding is only how it came to
 		// somebody's attention. A finding about no package, which is most of sast, iac and
 		// secrets, carries no purl and is left alone.
+		//
+		// The two health signals are not interchangeable here, and the split is the whole of it.
+		// Malicious is a claim about the package being dangerous now, which is the same kind of
+		// claim as exploitation and overrules an unreachable verdict for the same reason.
+		// Deprecated is a claim about who is maintaining it, which says nothing about whether this
+		// flaw can fire in this codebase, so a proof that nothing reaches it still stands.
 		if res.Package != nil && res.Package.PURL != "" {
 			base := res.Severity(controllers.SeverityFloor(control))
-			if hsev, hesc := health.Explain(base, res.Package.PURL); hesc != nil && hsev.Rank() > sev.Rank() {
-				sev, esc = hsev, hesc
+			if hsev, hesc := health.Explain(base, res.Package.PURL); hesc != nil {
+				stands := OverrulesUnreachable[hesc.Signal]
+				// A signal that does not stand against an unreachable verdict is not applied to a
+				// finding about to be ranked down, rather than applied and then undone. Raising and
+				// lowering the same finding leaves an escalation claiming a band the report does not
+				// show, and a record that disagrees with the number beside it is worse than none.
+				applies := stands || res.Reachability.RankAt(sev) == sev
+				if applies && hsev.Rank() > sev.Rank() {
+					sev, esc = hsev, hesc
+				}
+				overrules = overrules || stands
 			}
 		}
 		// Reachability ranks a finding down when nothing can reach it, but never one that
-		// exploitability just raised.
+		// exploitation, or a malicious package, just raised.
 		//
 		// The asymmetry is confidence in a negative rather than observation against prediction.
 		// An unreachable verdict is an absence claim: it says analysis found no route today, on one
@@ -67,7 +87,7 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 		// the world, reachability is about this codebase, and neither is automatically the stronger
 		// claim. What decides it is which claim is easier to be wrong about.
 		var rankedAs sarif.Severity
-		if esc == nil {
+		if !overrules {
 			if lowered := res.Reachability.RankAt(sev); lowered != sev {
 				sev, rankedAs = lowered, lowered
 			}

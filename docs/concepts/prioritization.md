@@ -105,6 +105,83 @@ A scanner reporting a CVSS score is banded on the standard v3 ranges:
 A finding with no score, a secret, a static-analysis rule, an IaC check, is banded from the SARIF
 level instead: `error` is high, `warning` is medium, `note` and `none` are low.
 
+### Every signal, and what each one moves
+
+Five things can change where a finding lands. They run in one order, each takes the severity the one
+before it produced, and **none of them rewrites what the scanner reported**: the report still shows
+the scanner's own rating beside the band it was ranked at.
+
+```
+  the scanner's severity
+          │
+          ▼
+  ┌───────────────────┐
+  │ 1  control floor  │   ↑   some findings are never low
+  └───────────────────┘
+          │
+          ▼
+  ┌───────────────────┐
+  │ 2  exploitability │   ↑   KEV, or EPSS at or above your threshold
+  └───────────────────┘
+          │
+          ▼
+  ┌───────────────────┐
+  │ 3  dependency     │   ↑   the package is malicious, or deprecated
+  │    health         │
+  └───────────────────┘
+          │
+          ▼
+  ┌───────────────────┐
+  │ 4  reachability   │   ↓   nothing in your code can reach it
+  └───────────────────┘
+          │
+          ▼
+  ┌───────────────────┐
+  │ 5  exposure ×     │   →   the band: P1 … P4
+  │    criticality    │
+  └───────────────────┘
+```
+
+| | Signal | Moves | By how much | Where it comes from |
+|---|---|:---:|---|---|
+| 1 | **Control floor** | ↑ | to a minimum the control insists on | Draugr, per control |
+| 2 | **KEV** | ↑ | straight to `critical` | CISA's catalog, cached |
+| 2 | **EPSS** | ↑ | one band | FIRST's scores, cached |
+| 3 | **Malicious** | ↑ | straight to `critical` | the OSSF Malicious Packages Project |
+| 3 | **Deprecated** | ↑ | one band | the package's own publisher |
+| 4 | **Unreachable** | ↓ | one band | an analyzer, e.g. `govulncheck` |
+| 5 | **Exposure × criticality** | → | decides the band from the severity | **you**, in the descriptor |
+
+Only the last one is yours, and it is the one no scanner can compute.
+
+### When two signals hit one finding
+
+The interesting cases are the collisions, and there are two rules.
+
+**Two signals that both raise: the higher one wins.** Exploitability and dependency health answer
+different questions, *is this flaw being used* against *should you depend on this at all*, and
+neither is automatically stronger. So the higher resulting severity decides, and the mark names the
+signal that produced it. A tie goes to exploitability, because a statement about this specific flaw
+is the more useful thing to show.
+
+**A signal that raises against one that lowers: it depends what the raise claims.** An unreachable
+verdict is an *absence* claim, and absence claims are the easiest thing to be wrong about: a call
+graph is defeated by reflection, dynamic dispatch and code generation, and the route appears the day
+somebody writes the call. So a signal saying *this is dangerous now* overrules it, and a signal
+saying something else does not.
+
+| Signal | Against an unreachable verdict | Why |
+|---|---|---|
+| KEV | **overrules** | somebody is exploiting it; a missed route is the expensive mistake |
+| EPSS | **overrules** | same question, answered by prediction rather than observation |
+| Malicious | **overrules** | a hostile package is a problem whichever function anybody calls |
+| Deprecated | **yields** | it says who maintains the package, not whether this flaw can fire here |
+
+That last row is the one worth reading twice. A CVE nothing can reach, in a package whose publisher
+walked away, still ranks down. The deprecation is an argument for replacing the dependency, and it
+appears in the report either way; it is not evidence that this particular flaw is live.
+
+
 ### Four findings, worked through
 
 **A P1.** `CVE-2021-44228` scores 10.0, so its **severity** is `critical`. The component declares
