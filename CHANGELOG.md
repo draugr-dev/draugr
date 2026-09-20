@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.128.0] - 2026-09-20
+
+### Added
+
+A hub page for every lever that makes a finding count smaller: what each one does to the number, and the order to reach for them in. Linked from the docs index between Prioritization and Surveyors.
+
+The `sca` control can rank a finding higher when the dependency it is in has been deprecated by its publisher or flagged as malicious, with `config.dependencyHealth.enabled: true`. Two statements move a finding and both name who made them; health scores are read as context and never change a band, and it never fails a build on its own. Off unless you switch it on, because a scan with it enabled sends the list of packages it found to deps.dev.
+
+### Fixed
+
+The HTML report's **Accepted** section now accounts for every finding it lists. It reported only the `config.exclude` count over a list that also held findings excused by a supplier's VEX document and findings silenced by a comment in the source, so the number under-reported the rows beneath it. Each row now names which of the three set it aside, and a source directive no longer appears among this project's own decisions as an unattributed acceptance.
+
+`draugr doctor` asks each control what it would run rather than working it out beside it, so it no longer demands a tool a scan will never reach for. The `provenance` control picks its verifier per image from the matched signer's trust model, and a descriptor with no `x509:` signer never runs `notation` however its scanner blocks read, so doctor reported a missing tool and a control that could not run when it could.
+
+The integration suite runs on a pull request that changes what it tests. It ran when the tests, the workflow or the rendering packages changed, and not when `internal/controllers` or `internal/scanners` did, though those decide what a control records and what a scanner reports, which is what most of the suite asserts against a real registry. A red suite on `main` now also raises an issue and closes it when the suite is green again: the check is advisory on a pull request and skipped on most of them, so a failure could reach `main` and stay there with every required check green.
+
 ## [0.127.0] - 2026-09-18
 
 ### Changed
@@ -5811,7 +5827,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.127.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.128.0...HEAD
+[0.128.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.128.0
 [0.127.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.127.0
 [0.126.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.126.0
 [0.125.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.125.0
