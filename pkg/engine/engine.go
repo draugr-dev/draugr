@@ -23,6 +23,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/draugr-dev/draugr/pkg/cache"
+	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -53,6 +54,11 @@ type Engine struct {
 	// resolveRemote names a local checkout by its remote. See WithRemoteResolver.
 	resolveRemote RemoteResolver
 	prioritize    Prioritizer
+	// resolveHealth fills `health` with what is known about the packages this run found, and
+	// health is handed to the prioritizer before any of them are known. Nil unless a descriptor
+	// asked for the signal.
+	resolveHealth DependencyHealthResolver
+	health        *dephealth.Source
 	// skipPrewarm suppresses the pre-run warm-up of shared scanner state (Trivy's database,
 	// Nuclei's templates), which is the only part of a scan that reaches the network on its own.
 	skipPrewarm bool
@@ -1191,6 +1197,11 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		res.Controls[control] = cr
 	}
 
+	// Dependency health before reachability, so the ranking a reachability verdict is compared
+	// against already includes anything the dependency itself said. Both are enrichment that can
+	// only run once the scanners have produced something to enrich.
+	e.applyDependencyHealth(ctx, res.Controls, model)
+
 	// Reachability first, so a suppression decision is made against a fully enriched finding and
 	// an excused finding still carries the evidence about whether anything could reach it.
 	res.Reachability = e.applyReachability(res.Controls, model)
@@ -1851,7 +1862,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 				// shared struct would record whichever was banded last for all of them.
 				verdictCopy := *verdict
 				res.Reachability = &verdictCopy
-				e.rebandForReachability(&res, name, model)
+				e.reband(&res, name, model)
 			}
 			kept = append(kept, res)
 		}
@@ -1933,12 +1944,15 @@ func packageName(res sarif.Result) string {
 	return res.Package.Name
 }
 
-// rebandForReachability recomputes a finding's priority now that reachability is attached.
+// reband recomputes a finding's priority after an enrichment has attached something new to it.
+//
+// Named for what it does rather than for who calls it: reachability and dependency health both
+// arrive after ranking and both need the band worked out again from the same inputs.
 //
 // The band is derived from the component's declared exposure and criticality, which the
 // prioritizer needs and a finding does not carry, so they are read back from the descriptor by
 // the component the finding was stamped with.
-func (e *Engine) rebandForReachability(res *sarif.Result, control string, model saga.Model) {
+func (e *Engine) reband(res *sarif.Result, control string, model saga.Model) {
 	if e.prioritize == nil {
 		return
 	}
@@ -2176,4 +2190,61 @@ func (e *Engine) commitOf(ctx context.Context, t plugin.Target) (string, bool) {
 	// Stored either way, including the failure, so one unreachable remote is asked about once.
 	e.revisions[id] = commit
 	return commit, commit != ""
+}
+
+// DependencyHealthResolver answers what is known about the packages a run found.
+//
+// A function rather than a client, so pkg/engine holds no opinion about where the answer comes
+// from and no HTTP. The caller supplies one that reaches a service, or one that reads a fixture.
+type DependencyHealthResolver func(ctx context.Context, purls []string) error
+
+// WithDependencyHealth supplies the resolver and the source it fills.
+//
+// Both, because the source is handed to the prioritizer before a scan and filled after one: the
+// packages are not known until the scanners have run. The engine calls the resolver once, between
+// aggregation and ranking, and rebands what it changed.
+func WithDependencyHealth(resolve DependencyHealthResolver, src *dephealth.Source) Option {
+	return func(e *Engine) { e.resolveHealth, e.health = resolve, src }
+}
+
+// applyDependencyHealth asks about every package this run found, then reranks the findings the
+// answer moves.
+//
+// A resolver that fails is reported by whoever supplied it and does not stop the run. This signal
+// never gates, so a lookup that did not happen costs a reader a line of evidence rather than a
+// verdict, which is the same trade the Nuclei template cache makes.
+func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]plugin.ControlResult, model saga.Model) {
+	if e.resolveHealth == nil || e.health == nil {
+		return
+	}
+	seen := map[string]bool{}
+	var purls []string
+	for _, cr := range controls {
+		for _, res := range cr.Report.Results {
+			if res.Package == nil || res.Package.PURL == "" || seen[res.Package.PURL] {
+				continue
+			}
+			seen[res.Package.PURL] = true
+			purls = append(purls, res.Package.PURL)
+		}
+	}
+	if len(purls) == 0 {
+		return
+	}
+	sort.Strings(purls) // so two runs over one tree ask the same question in the same order
+	if err := e.resolveHealth(ctx, purls); err != nil {
+		return // reported by the caller; the run continues unenriched
+	}
+	if e.health.Empty() {
+		return
+	}
+	for name, cr := range controls {
+		for i := range cr.Report.Results {
+			if cr.Report.Results[i].Package == nil || cr.Report.Results[i].Package.PURL == "" {
+				continue
+			}
+			e.reband(&cr.Report.Results[i], name, model)
+		}
+		controls[name] = cr
+	}
 }

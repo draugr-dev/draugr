@@ -125,7 +125,7 @@ func TestAQualifierDoesNotHideAMatch(t *testing.T) {
 }
 
 // The case that would have shipped bad advice. github.com/golang/protobuf@v1.5.4 is deprecated in
-// favour of a different module, and the version offered against it is v1.5.1, which is older.
+// favor of a different module, and the version offered against it is v1.5.1, which is older.
 // Rendering that as the fix tells somebody to downgrade a working dependency.
 func TestARecommendationIsOnlyEverForwards(t *testing.T) {
 	for name, tc := range map[string]struct {
@@ -232,5 +232,42 @@ func TestDeprecatedWithNoReasonStillExplainsItself(t *testing.T) {
 	_, why := s.Explain(sarif.SeverityLow, "pkg:npm/x")
 	if why == nil || why.Detail != "deprecated by its publisher" {
 		t.Errorf("unhelpful detail: %+v", why)
+	}
+}
+
+// The prioritizer is handed a source before a scan and the packages are only known after one, so
+// this pointer is filled in between. A source that could not be filled has to stay inert rather
+// than half-answer.
+func TestLoadFillsASourceHandedOutEmpty(t *testing.T) {
+	s := dephealth.New(nil, "")
+	if !s.Empty() {
+		t.Fatal("a source with nothing in it is not empty")
+	}
+	if _, why := s.Explain(sarif.SeverityLow, "pkg:npm/evil"); why != nil {
+		t.Error("an unfilled source moved a finding")
+	}
+
+	s.Load(map[string]dephealth.Package{
+		"pkg:npm/evil": {Findings: []dephealth.Finding{{Kind: dephealth.KindMalicious}}},
+	}, "2026-09-20")
+
+	if s.Empty() {
+		t.Error("a filled source still reports itself empty")
+	}
+	got, why := s.Explain(sarif.SeverityLow, "pkg:npm/evil")
+	if got != sarif.SeverityCritical || why == nil {
+		t.Errorf("a filled source did not rank: %s %+v", got, why)
+	}
+	if why.AsOf != "2026-09-20" {
+		t.Errorf("the date handed to Load was lost: %q", why.AsOf)
+	}
+}
+
+// A nil source is what a run with the signal off carries into the same call.
+func TestLoadOnNilIsHarmless(t *testing.T) {
+	var s *dephealth.Source
+	s.Load(map[string]dephealth.Package{"pkg:npm/x": {}}, "2026-09-20")
+	if !s.Empty() {
+		t.Error("loading nil produced something")
 	}
 }

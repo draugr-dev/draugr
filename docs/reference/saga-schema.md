@@ -460,6 +460,60 @@ The call path is in the SARIF and in `report.json`, ordered from your own code t
 symbol. **Go only**, a reachability claim without its language is an overclaim.
 
 
+### Dependency health (`config.dependencyHealth`)
+
+A CVE in a package whose publisher has walked away is a different problem from the same CVE in one
+that ships a fix next week, and no scanner reports the difference because it is not in the code.
+
+```yaml
+config:
+  dependencyHealth:
+    enabled: true
+```
+
+Off unless you switch it on. Unlike the other two enrichments, which read a local cache somebody
+chose to fill, this one reaches [deps.dev](https://deps.dev) during the scan and sends it the list
+of packages the run found. Nothing else leaves the machine: no source, no findings, no descriptor.
+
+**Two statements move a finding, and both name who made them.**
+
+| Signal | What it means | What it does |
+|---|---|---|
+| Malicious | the package is in the [OSSF Malicious Packages Project](https://github.com/ossf/malicious-packages) | ranks it critical |
+| Deprecated | the publisher marked this version as no longer supported | ranks it one band higher |
+
+Everything else the service reports is read and deliberately ignored. A newer version existing is
+true of nearly every dependency, and a vulnerability it knows about is one your scanners already
+found, so acting on either would count one problem twice or rank on nothing.
+
+**Health scores never move a band.** Not a simplification, a finding: reported vulnerability counts
+*rise* with OpenSSF Scorecard's aggregate score rather than falling, at an R² of 9% to 12%, and
+Scorecard's `Maintained` check scores PyYAML zero because it reads a 90-day activity window and
+PyYAML is stable rather than abandoned. Ranking a CVE up because a maintainer commits rarely would
+be wrong in a way the people who depend on that package would notice first.
+
+**It never gates on its own.** A dependency choice is not a defect, and a build that failed because
+a maintainer walked away is one people learn to route around.
+
+In the report, beside the other signals:
+
+```console
+P1  critical  NSWG-ECO-328 · Cross-Site Scripting (XSS)
+    ↑ deprecated · component web · scanner trivy · fix upgrade to >=3.0.0
+    web/package-lock.json:10
+```
+
+The publisher's own words travel in `report.json` and the SARIF, where there is room for a sentence.
+
+**What it covers.** The language ecosystems deps.dev indexes: Cargo, Go, Maven, npm, NuGet, PyPI and
+RubyGems. Operating-system packages from a container image are not among them, so on an image-heavy
+project this speaks to the dependencies you chose rather than to the base you built on.
+
+**What it costs.** One request per hundred packages, cached for an hour. The hour is the API's own
+`max-age`, so it is a term rather than a setting, and it is why this signal has no offline path: a
+run with no network reports that it could not consult the data and ranks without it.
+
+
 ### Running two scanners on one control
 
 A flaw both of them find is **counted once**. Both findings stay in the report. Each keeps its own

@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/draugr-dev/draugr/internal/controllers"
+	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
@@ -19,11 +20,37 @@ import (
 // and criticality, optionally escalating on exploitability. expl may be nil, in which case
 // enrichment is skipped.
 func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
+	return PrioritizerWith(expl, nil)
+}
+
+// PrioritizerWith is DefaultPrioritizer plus the dependency-health signal, which is off unless a
+// descriptor asked for it.
+//
+// Both enrichments may fire on one finding and they answer different questions: exploitability asks
+// whether this flaw is being used, dependency health asks whether the package should be depended on
+// at all. Neither is automatically the stronger claim, so the higher resulting severity wins and
+// the escalation recorded is the one that produced it.
+//
+// Exploitability takes a tie. Where both reach the same band, the statement about this specific
+// flaw is the more useful thing for a reader to be shown, and a malicious package that only ties is
+// one whose flaw was already critical.
+func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prioritizer {
 	matrices := prioritization.DefaultMatrices()
 	return func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) engine.Priority {
 		sev := res.Severity(controllers.SeverityFloor(control))
-		// nil-safe: no-op when no source, and the escalation is nil unless something moved.
+		// nil-safe on both: a no-op when no source is loaded, and the escalation is nil unless
+		// something actually moved.
 		sev, esc := expl.Explain(sev, res.RuleID)
+		// Keyed on the package rather than on the rule, which is the difference from
+		// exploitability: the subject is the dependency, and the finding is only how it came to
+		// somebody's attention. A finding about no package, which is most of sast, iac and
+		// secrets, carries no purl and is left alone.
+		if res.Package != nil && res.Package.PURL != "" {
+			base := res.Severity(controllers.SeverityFloor(control))
+			if hsev, hesc := health.Explain(base, res.Package.PURL); hesc != nil && hsev.Rank() > sev.Rank() {
+				sev, esc = hsev, hesc
+			}
+		}
 		// Reachability ranks a finding down when nothing can reach it, but never one that
 		// exploitability just raised.
 		//

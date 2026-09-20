@@ -24,7 +24,6 @@ import (
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
-	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
@@ -289,12 +288,15 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		return err
 	}
 
+	// Empty until the scan has found packages to ask about; see dependencyHealth.
+	health, healthOpts := dependencyHealth(model.Config.DependencyHealth, os.Stderr)
+
 	eopts := []engine.Option{
-		engine.WithPrioritization(defaultPrioritizer(expl)),
+		engine.WithPrioritization(scanpolicy.PrioritizerWith(expl, health)),
 		// Beside the prioritizer, because they describe the same decision from two sides: what
 		// it did, and what it had to work from. A run that enriched without saying what it
 		// consulted produces evidence nobody can check the ranking against.
-		engine.WithConsulted(expl.Consulted()),
+		engine.WithConsulted(append(expl.Consulted(), health.Consulted()...)),
 		engine.WithSBOM(sbomgen.New()),
 		// So a cache entry names the commit it describes rather than a branch that has moved
 		// under it. One `ls-remote` per repository, against the server a clone would use anyway,
@@ -310,6 +312,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			return git.RemoteURL(context.Background(), path)
 		}),
 	}
+	eopts = append(eopts, healthOpts...)
 	if netpolicy.Offline() {
 		eopts = append(eopts, engine.WithoutPrewarm())
 	}
@@ -570,14 +573,6 @@ func fixFirstLimit(top int) int {
 		return -1
 	}
 	return top
-}
-
-// defaultPrioritizer builds the engine prioritizer from the shipped matrices and the
-// per-control severity floors: resolve each finding's normalized severity, enrich it with
-// exploitability (KEV/EPSS) when a source is loaded, then rank it by the component's exposure
-// and criticality.
-func defaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
-	return scanpolicy.DefaultPrioritizer(expl)
 }
 
 // validatePriority validates and upper-cases a priority-band flag value. Empty is allowed

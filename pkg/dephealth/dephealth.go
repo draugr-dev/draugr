@@ -23,7 +23,7 @@
 // # Why a recommended version is not always an upgrade
 //
 // The upstream data offers a version to move to, and it is not always ahead of the one in use.
-// `github.com/golang/protobuf@v1.5.4` is deprecated in favour of a *different module*, and the
+// `github.com/golang/protobuf@v1.5.4` is deprecated in favor of a *different module*, and the
 // recommendation offered against it is v1.5.1, which is older. Rendering that as the fix would tell
 // somebody to downgrade for no reason, so a recommendation is carried only when it can be shown to
 // be strictly newer, and the publisher's own reason is the part that always travels.
@@ -91,6 +91,19 @@ type Source struct {
 // nobody can date is a verdict nobody can re-check.
 func New(byPurl map[string]Package, asOf string) *Source {
 	return &Source{byPurl: byPurl, asOf: asOf}
+}
+
+// Load fills in a source that was handed out before the answers were known.
+//
+// The prioritizer is built before a scan and the packages are only known after it, so this is a
+// pointer somebody already holds being given its contents once, between aggregation and ranking. It
+// is not a cache and must not be called twice: a second call would change how findings rank halfway
+// through a run.
+func (s *Source) Load(byPurl map[string]Package, asOf string) {
+	if s == nil {
+		return
+	}
+	s.byPurl, s.asOf = byPurl, asOf
 }
 
 // Empty reports whether this source can say anything at all.

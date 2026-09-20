@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/ci"
+	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -758,14 +760,7 @@ func band(f finding, marked bool) tui.Cell {
 // the dashboard.
 func movedBy(f finding) *movement {
 	if e := f.escalation; e != nil {
-		label := "KEV"
-		if e.Signal != "kev" {
-			label = "EPSS"
-			if e.Detail != "" {
-				label = e.Detail
-			}
-		}
-		return &movement{glyph: "↑", label: label, style: signalColor(e.Signal)}
+		return &movement{glyph: "↑", label: signalLabel(e), style: signalColor(e.Signal)}
 	}
 	// A control that declares its findings are not bounded by where the component sits.
 	if f.priorityFloor != "" {
@@ -2259,5 +2254,30 @@ func jobPath(c *ci.Context) string {
 		return c.Workflow
 	default:
 		return c.Job
+	}
+}
+
+// signalLabel is what a mark says on one line of a report.
+//
+// Short, because it sits between a finding's title and the things a reader acts on: the component,
+// the scanner and the fix. EPSS is the exception that earns its value, because the number is the
+// whole signal and "EPSS" alone says only that a prediction exists.
+//
+// A publisher's deprecation notice can run to a paragraph and is not this. It travels in full in
+// the SARIF and the JSON, and the rendered report has the width to show it; a terminal does not,
+// and a sentence here pushes the fix off the screen to repeat a word already in the label.
+func signalLabel(e *sarif.Escalation) string {
+	switch e.Signal {
+	case exploit.SignalKEV:
+		return "KEV"
+	case dephealth.SignalMalicious:
+		return "malicious"
+	case dephealth.SignalDeprecated:
+		return "deprecated"
+	default: // EPSS, whose detail carries the score
+		if e.Detail != "" {
+			return e.Detail
+		}
+		return "EPSS"
 	}
 }

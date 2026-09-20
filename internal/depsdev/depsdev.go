@@ -89,8 +89,8 @@ func New() *Client {
 	}
 }
 
-// key identifies one package version to the service.
-type key struct {
+// Key identifies one package version to the service.
+type Key struct {
 	System, Name, Version string
 }
 
@@ -154,7 +154,7 @@ func (c *Client) fetch(ctx context.Context, purls []string) (map[string]dephealt
 		VersionKey versionKey `json:"versionKey"`
 	}
 
-	byKey := map[key]string{} // back to the purl that asked
+	byKey := map[Key]string{} // back to the purl that asked
 	var reqs []request
 	for _, p := range purls {
 		k, ok := Parse(p)
@@ -162,7 +162,7 @@ func (c *Client) fetch(ctx context.Context, purls []string) (map[string]dephealt
 			continue
 		}
 		byKey[k] = p
-		reqs = append(reqs, request{versionKey{k.System, k.Name, k.Version}})
+		reqs = append(reqs, request{versionKey(k)})
 	}
 	if len(reqs) == 0 {
 		return nil, nil
@@ -210,10 +210,10 @@ func (c *Client) url() string {
 //
 // The name is everything between the type and the version, which for Go is a module path with
 // slashes in it and for Maven is a group and an artifact the service joins with a colon.
-func Parse(purl string) (key, bool) {
+func Parse(purl string) (Key, bool) {
 	rest, ok := strings.CutPrefix(strings.TrimSpace(purl), "pkg:")
 	if !ok {
-		return key{}, false
+		return Key{}, false
 	}
 	// Qualifiers and subpaths say where a package came from rather than which package it is.
 	if i := strings.IndexAny(rest, "?#"); i >= 0 {
@@ -221,24 +221,24 @@ func Parse(purl string) (key, bool) {
 	}
 	typ, path, ok := strings.Cut(rest, "/")
 	if !ok {
-		return key{}, false
+		return Key{}, false
 	}
 	system, known := systems[strings.ToLower(typ)]
 	if !known {
-		return key{}, false
+		return Key{}, false
 	}
 	at := strings.LastIndex(path, "@")
 	// A scoped npm name begins with @, which is not the version separator.
 	if at <= 0 {
-		return key{}, false
+		return Key{}, false
 	}
 	name, version := path[:at], path[at+1:]
 	if name == "" || version == "" {
-		return key{}, false
+		return Key{}, false
 	}
 	name, err := url.PathUnescape(name)
 	if err != nil {
-		return key{}, false
+		return Key{}, false
 	}
 	if system == "MAVEN" {
 		// A purl carries the group as a namespace; deps.dev names the artifact group:artifact.
@@ -249,7 +249,7 @@ func Parse(purl string) (key, bool) {
 	if v, err := url.PathUnescape(version); err == nil {
 		version = v
 	}
-	return key{System: system, Name: name, Version: version}, true
+	return Key{System: system, Name: name, Version: version}, true
 }
 
 // decode reads a batch response into what the ranking needs.
@@ -257,7 +257,7 @@ func Parse(purl string) (key, bool) {
 // The response nests three ways and only one of them is about the version that was asked for.
 // `packageFindings` applies to every version of the package, which is how MALICIOUS arrives, and
 // `recommendedVersions` is a suggestion rather than an instruction.
-func decode(raw []byte, byKey map[key]string) (map[string]dephealth.Package, error) {
+func decode(raw []byte, byKey map[Key]string) (map[string]dephealth.Package, error) {
 	type finding struct {
 		Type              string `json:"type"`
 		DeprecatedContext struct {
@@ -290,7 +290,7 @@ func decode(raw []byte, byKey map[key]string) (map[string]dephealth.Package, err
 
 	out := map[string]dephealth.Package{}
 	for _, r := range body.Responses {
-		k := key{r.Request.VersionKey.System, r.Request.VersionKey.Name, r.Request.VersionKey.Version}
+		k := Key{r.Request.VersionKey.System, r.Request.VersionKey.Name, r.Request.VersionKey.Version}
 		purl, asked := byKey[k]
 		if !asked {
 			continue // not something this batch requested
