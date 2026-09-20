@@ -105,41 +105,33 @@ A scanner reporting a CVSS score is banded on the standard v3 ranges:
 A finding with no score, a secret, a static-analysis rule, an IaC check, is banded from the SARIF
 level instead: `error` is high, `warning` is medium, `note` and `none` are low.
 
-### Every signal, and what each one moves
+### What moves a finding along the severity axis
 
-Five things can change where a finding lands. They run in one order, each takes the severity the one
-before it produced, and **none of them rewrites what the scanner reported**: the report still shows
-the scanner's own rating beside the band it was ranked at.
+The two matrices above take two inputs, and **exposure and criticality are one of them**. They are
+declared once per component and do not change from finding to finding. They are not a step in a
+chain; they are the axis you supply, and the reason a `medium` on a public, critical service
+outranks a `critical` on an internal batch job.
+
+The other axis is severity, and it is not simply what the scanner called it. Four signals move a
+finding along it before step 2 above reads it:
 
 ```
-  the scanner's severity
-          │
-          ▼
-  ┌───────────────────┐
-  │ 1  control floor  │   ↑   some findings are never low
-  └───────────────────┘
-          │
-          ▼
-  ┌───────────────────┐
-  │ 2  exploitability │   ↑   KEV, or EPSS at or above your threshold
-  └───────────────────┘
-          │
-          ▼
-  ┌───────────────────┐
-  │ 3  dependency     │   ↑   the package is malicious, or deprecated
-  │    health         │
-  └───────────────────┘
-          │
-          ▼
-  ┌───────────────────┐
-  │ 4  reachability   │   ↓   nothing in your code can reach it
-  └───────────────────┘
-          │
-          ▼
-  ┌───────────────────┐
-  │ 5  exposure ×     │   →   the band: P1 … P4
-  │    criticality    │
-  └───────────────────┘
+   the scanner's severity
+           │
+           ▼
+   ↑  1  control floor      some findings are never low
+           │
+           ▼
+   ↑  2  exploitability     on KEV, or EPSS at or above your threshold
+           │
+           ▼
+   ↑  3  dependency health  the package is malicious, or deprecated
+           │
+           ▼
+   ↓  4  reachability       nothing in your code can reach it
+           │
+           ▼
+   the severity the matrix reads   ──→   crossed with exposure × criticality   ──→   P1 … P4
 ```
 
 | | Signal | Moves | By how much | Where it comes from |
@@ -150,9 +142,10 @@ the scanner's own rating beside the band it was ranked at.
 | 3 | **Malicious** | ↑ | straight to `critical` | the OSSF Malicious Packages Project |
 | 3 | **Deprecated** | ↑ | one band | the package's own publisher |
 | 4 | **Unreachable** | ↓ | one band | an analyzer, e.g. `govulncheck` |
-| 5 | **Exposure × criticality** | → | decides the band from the severity | **you**, in the descriptor |
 
-Only the last one is yours, and it is the one no scanner can compute.
+**None of them rewrites what the scanner reported.** The report shows the scanner's own rating
+beside the band it was ranked at and names the signal that moved it, so the distance between the two
+is always visible.
 
 ### When two signals hit one finding
 
