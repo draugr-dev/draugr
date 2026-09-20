@@ -107,18 +107,19 @@ func unknownFieldHint(err error) error {
 // Keyed by the lowercased type name, which is what the decoder's message carries.
 var sections = map[string]string{
 	// The root document is not a section to a reader; "model" is our word for the whole file.
-	"model":                "the top level",
-	"release":              "release",
-	"config":               "config",
-	"gateconfig":           "config.gate",
-	"excluderule":          "config.exclude",
-	"vexdecision":          "config.exclude[].vex",
-	"exploitabilityconfig": "config.exploitability",
-	"reachabilityconfig":   "config.reachability",
-	"sbomconfig":           "config.sbom",
-	"reportconfig":         "config.reports",
-	"publisherconfig":      "config.publishers",
-	"vexconfig":            "config.vex",
+	"model":                  "the top level",
+	"release":                "release",
+	"config":                 "config",
+	"gateconfig":             "config.gate",
+	"excluderule":            "config.exclude",
+	"vexdecision":            "config.exclude[].vex",
+	"exploitabilityconfig":   "config.exploitability",
+	"reachabilityconfig":     "config.reachability",
+	"dependencyhealthconfig": "config.dependencyHealth",
+	"sbomconfig":             "config.sbom",
+	"reportconfig":           "config.reports",
+	"publisherconfig":        "config.publishers",
+	"vexconfig":              "config.vex",
 	// One type with two homes, and naming either one alone would be a half-answer to somebody
 	// looking at the other.
 	"vexsource":      "config.vexSources or components[].vex",

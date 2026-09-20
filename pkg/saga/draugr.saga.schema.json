@@ -123,6 +123,9 @@
           "$ref": "#/$defs/controllers",
           "description": "Which controls run here, and what each is told. Named for what you meet everywhere else: `draugr controls` lists them, the catalog names them, and `config.gate.controls` already used the word. A controller is the Go type that plans the jobs."
         },
+        "dependencyHealth": {
+          "$ref": "#/$defs/dependencyHealthConfig"
+        },
         "exclude": {
           "description": "Findings to suppress, each with a stated reason. A suppressed finding is still reported — marked, with its justification — it just stops counting toward the verdict.",
           "items": {
@@ -864,6 +867,17 @@
       ],
       "description": "Business impact if this component fails — the impact axis of risk prioritization.",
       "type": "string"
+    },
+    "dependencyHealthConfig": {
+      "additionalProperties": false,
+      "description": "Rank a finding up when the dependency it is in has been deprecated by its publisher or flagged as malicious. Beside `exploitability` and `reachability` because all three decide how findings are ranked. Only statements by somebody who can be named move a finding; health scores are read as context and never change a band, and this never gates on its own.",
+      "properties": {
+        "enabled": {
+          "description": "Turn the signal on. Off when absent. A field rather than the block's presence, because a scan with this on sends the list of packages it found to deps.dev, and writing the block to see what it does should not be the same act as agreeing to that.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
     },
     "excludeRule": {
       "additionalProperties": false,

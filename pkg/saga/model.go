@@ -101,6 +101,14 @@ type Config struct {
 	// ranked, and a decision that can move a finding across the gate belongs somewhere a team
 	// reviews rather than in a list of tools to run.
 	Reachability *ReachabilityConfig `yaml:"reachability,omitempty"`
+	// DependencyHealth ranks a finding up when the dependency it is in has been deprecated by its
+	// publisher or flagged as malicious, so a flaw in something nobody is maintaining outranks the
+	// same flaw in something that ships a fix next week.
+	//
+	// The third enrichment, and off unless asked for. The other two read a local cache; this one
+	// sends the list of packages a scan found to a third party, which is a disclosure a team should
+	// agree to in a pull request rather than discover in a proxy log.
+	DependencyHealth *DependencyHealthConfig `yaml:"dependencyHealth,omitempty"`
 	// AllowEffects acknowledges scanner effects that would otherwise stop a run, the kinds a scanner
 	// declares when it does more to a target than read it ("mutate", "privilege").
 	//
@@ -356,6 +364,24 @@ type ExploitabilityConfig struct {
 // enabling one there means "check this too". An analyzer named here adds none. It ranks findings
 // already found, downward, which can turn a failing gate green. That is not something to discover
 // from the reference docs after the fact.
+// DependencyHealthConfig turns on ranking by what is known about a dependency itself.
+//
+// Two signals move a finding and both are statements by somebody who can be named: a package the
+// OSSF Malicious Packages Project has flagged, and a version its own publisher has deprecated.
+// Health *scores* are deliberately not used; see the package comment on `pkg/dephealth` for the
+// evidence against ranking on one.
+//
+// It never gates on its own. A dependency choice is not a defect, and a build that failed because
+// a maintainer walked away is a build people learn to route around.
+type DependencyHealthConfig struct {
+	// Enabled turns the signal on. False, or an omitted block, leaves it off.
+	//
+	// A field rather than the block's presence, because this one reaches the network and "I wrote
+	// the block to read what it would do" should not be the same act as "I agreed to send our
+	// dependency list to deps.dev".
+	Enabled bool `yaml:"enabled,omitempty"`
+}
+
 type ReachabilityConfig struct {
 	// Analyzers names the tools that decide reachability, e.g. "govulncheck". An analyzer is
 	// named rather than inferred so the descriptor says which tool reached the verdict, and so
