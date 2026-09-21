@@ -16,6 +16,7 @@ what it is told to. Provenance is about origin.
 
 ## Contents
 
+- [Where a signature lives](#where-a-signature-lives)
 - [Discovery](#discovery)
 - [Declare a signer](#declare-a-signer)
 - [GitHub Actions](#github-actions)
@@ -25,6 +26,64 @@ what it is told to. Provenance is about origin.
 - [Requiring coverage](#requiring-coverage)
 - [Digests](#digests)
 - [A runner with no egress](#a-runner-with-no-egress)
+
+## Where a signature lives
+
+Nothing is read out of the image. A Sigstore signature is a **separate artifact in the same
+registry**, named after the image's digest:
+
+```console
+$ cosign tree cgr.dev/chainguard/static:latest
+📦 Supply Chain Security Related artifacts for an image: cgr.dev/chainguard/static:latest
+└── 💾 Attestations for an image tag: cgr.dev/chainguard/static:sha256-bf639cba...96e6b82.att
+   ├── 🍒 sha256:a359663b7dfccf0971cbf9c6aada1c71b4e428b7f851c6e7ede4ba42301121f8
+   ├── 🍒 sha256:54124f51bf99b7ddbeb7a6624cefd15d610699a8e3ec51732414135aad97874b
+   └── 🍒 sha256:84be16de40bfd936a936c91e742006a10467d388c1fedc602afe92f95631c47e
+└── 🔐 Signatures for an image tag: cgr.dev/chainguard/static:sha256-bf639cba...96e6b82.sig
+   └── 🍒 sha256:3170452cf30566399ec7dc0128e04791ec3c990acd6f6a61c5ef481342f4bf97
+```
+
+Two artifacts, both named after the image's digest and neither part of it. The `.sig` is the
+signature; the `.att` is an attestation, which says something *about* how the image was built.
+
+That artifact holds the signature and a short-lived **certificate issued by Fulcio**. When a build
+signs, it presents an OIDC token from its CI platform, and Fulcio issues a certificate whose subject
+is the workload that asked: a workflow file at a ref, a GitLab project, a service account. The
+identity Draugr checks against is that subject, and the issuer is the platform that vouched for it.
+
+So an image tells you nothing about who signed it. The signature beside it does, and only because
+a certificate authority wrote the identity down at the moment of signing.
+
+Three consequences worth knowing:
+
+- **A signature can be added or replaced without the image changing.** The image digest stays the
+  same; the artifact next to it does not. This is why the check is worth re-running rather than
+  recording once.
+- **An image can carry several**, as above. Different signers, or a signature and an attestation,
+  sit side by side under the same digest.
+- **Deleting the signature makes an image unsigned**, and looks like an image that was never signed.
+  That is what `unmatched: warn` and `unmatched: fail` exist to notice.
+
+### It is verified, not read
+
+Draugr never parses a certificate and compares strings. It asks cosign to verify, and believes the
+exit code:
+
+```bash
+cosign verify --certificate-identity <what you declared> \
+              --certificate-oidc-issuer <who you declared> <image>
+```
+
+Verifying means the signature checks out against the certificate, the certificate chains to
+Fulcio's root, and the entry is in the [Rekor](https://docs.sigstore.dev/logging/overview/)
+transparency log. The log is what establishes that the certificate was valid **when it signed**
+rather than valid now. A Fulcio certificate lives about ten minutes, so without it a signature would
+stop verifying almost immediately, and `--insecure-ignore-tlog` is never passed.
+
+Reading the certificate back with a permissive pattern and matching the subject in Go would put the
+whole guarantee behind one string comparison, and a pattern loose enough to match anything is the
+documented way this mechanism gets bypassed. Draugr decides *what* to expect and cosign decides
+whether it holds.
 
 ## Discovery
 
@@ -68,6 +127,29 @@ $ draugr scan --format sarif | jq '.runs[].properties["draugr/provenance"][].det
 
 Both halves, because an identity is only an expectation together with who issued it. They are also
 the two fields a `keyless:` signer is written from.
+
+### Or let the survey write them
+
+`draugr survey provenance` performs the same read and writes the signers straight into the
+descriptor, which saves copying two long URLs per image by hand:
+
+```console
+$ draugr survey provenance -o draugr.saga.yaml
+
+signers adopted from what signs these images today, not confirmed. Read them before you rely on them:
+  chainguard-images
+    https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main
+    read from the signature on cgr.dev/chainguard/static:latest
+```
+
+It writes the exact identity and the exact image, never a pattern, and groups images sharing an
+identity under one signer. An unsigned image produces no signer and is not an error.
+
+**Read what it proposes before you rely on it.** A signer derived from what signs an image today
+cannot fail the check it was derived from. That is what makes it useful, because it is a tripwire
+for the signature changing rather than proof that today's is right, and it is worth exactly what the
+first observation was worth. The command says what it adopted and writes the same note beside each
+value in the descriptor, so the reasoning is where the review happens.
 
 ## Declare a signer
 

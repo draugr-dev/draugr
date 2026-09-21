@@ -62,6 +62,8 @@ var notOurs = map[string]string{
 	// Verification, where the reader runs these against our released artifacts.
 	"--certificate-identity-regexp": "cosign's",
 	"--certificate-oidc-issuer":     "cosign's",
+	"--certificate-identity":        "cosign's, shown in the provenance guide as what a signer becomes",
+	"--insecure-ignore-tlog":        "cosign's, named in the provenance guide as the one never passed",
 	"--ignore-missing":              "sha256sum's",
 	"--bundle":                      "cosign's",
 	"--repo":                        "gh release download's, in the install guide",
