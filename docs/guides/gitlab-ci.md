@@ -57,7 +57,7 @@ Without the variable the job fails, because `--publish` was asked for and could 
 it fails **with the verdict**, not instead of it:
 
 ```
-draugr: differential gate: 1 new finding(s) at or above the threshold
+draugr: differential gate: 1 new finding at or above the threshold
   (publishing also failed: gitlab-mr-comment publisher missing: $GITLAB_TOKEN …)
 ```
 

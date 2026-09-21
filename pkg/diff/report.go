@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tui"
@@ -620,7 +621,8 @@ func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
 			loc(e.Location.URI, e.Location.StartLine), up)
 	}
 	if len(shown) < len(entries) {
-		_, _ = fmt.Fprintf(w, "\n_…and %d changed finding(s) not listed._\n", len(entries)-len(shown))
+		_, _ = fmt.Fprintf(w, "\n_…and %s not listed._\n",
+			english.Count(len(entries)-len(shown), "changed finding"))
 	}
 	writeMarkdownGate(w, r)
 	return nil
