@@ -94,13 +94,20 @@ func declaredImages(opts surveyOptions) ([]string, error) {
 }
 
 // imageRef is the reference to ask the registry about.
+//
+// The tag is cut only after the last slash. A registry carrying a port puts a colon in the host,
+// and cutting at the first one turns `registry.local:5000/acme/api:1.0` into `registry.local`,
+// which is a question about a different thing that the registry answers without complaint.
 func imageRef(img saga.Image) string {
-	if img.Digest != "" {
-		name, _, _ := strings.Cut(img.Image, ":")
-		if name != "" {
-			return name + "@" + img.Digest
-		}
+	if img.Digest == "" {
+		return img.Image
+	}
+	name := img.Image
+	if at := strings.LastIndex(name, "/"); strings.Contains(name[at+1:], ":") {
+		name = name[:at+1+strings.Index(name[at+1:], ":")]
+	}
+	if name == "" {
 		return img.Digest
 	}
-	return img.Image
+	return name + "@" + img.Digest
 }
