@@ -94,8 +94,47 @@ func MergeFragments(frags ...saga.Fragment) saga.Fragment {
 				out.ExposureReasons[name] = reason
 			}
 		}
+		for name, reason := range frag.SignerReasons {
+			if out.SignerReasons == nil {
+				out.SignerReasons = map[string]string{}
+			}
+			if _, seen := out.SignerReasons[name]; !seen {
+				out.SignerReasons[name] = reason
+			}
+		}
+		// The settings a fragment is allowed to carry, appended the way a fragment read from a
+		// file is. Dropped here, a surveyor could propose one and the merge would discard it
+		// without saying so, which is the shape of a survey that reports success and writes
+		// nothing.
+		out.Config.Controls = appendControls(out.Config.Controls, frag.Config.Controls)
+		out.Config.Exclude = append(out.Config.Exclude, frag.Config.Exclude...)
 	}
 	return out
+}
+
+// appendControls unions two fragments' control settings, appending each option's list rather than
+// letting the later fragment answer over the earlier one.
+//
+// The rule FragmentControlOptions is written under: every option a fragment may set is a sequence,
+// and merging appends, so two sources both contribute and neither loses anything.
+func appendControls(into, from map[string]saga.ControllerSettings) map[string]saga.ControllerSettings {
+	for control, settings := range from {
+		if into == nil {
+			into = map[string]saga.ControllerSettings{}
+		}
+		if into[control] == nil {
+			into[control] = saga.ControllerSettings{}
+		}
+		for option, value := range settings {
+			add, ok := value.([]any)
+			if !ok {
+				continue
+			}
+			existing, _ := into[control][option].([]any)
+			into[control][option] = append(existing, add...)
+		}
+	}
+	return into
 }
 
 // Apply merges a fragment into an existing model, upserting components by name.

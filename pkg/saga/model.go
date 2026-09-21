@@ -956,6 +956,14 @@ type Fragment struct {
 	// fragment somebody writes by hand has no use for it. It exists so a survey can put the
 	// reasoning beside the value it wrote, where the value gets reviewed.
 	ExposureReasons map[string]string `yaml:"-" json:"-"`
+	// SignerReasons explains, per signer name, which image's signature a proposed `signers:` entry
+	// was read from.
+	//
+	// Not serialized, for the same reason as ExposureReasons, and needed more. A signer is a
+	// statement about who is trusted to sign, so a reader reviewing one is being asked to accept a
+	// policy rather than to correct an inventory, and the question they have is which image this
+	// came off.
+	SignerReasons map[string]string `yaml:"-" json:"-"`
 	// Source names the file this fragment was read from, so what it contributes can be attributed
 	// to it. Set by the resolver, and empty for a fragment a surveyor built in memory.
 	//
