@@ -260,3 +260,18 @@ func TestTwoRunsWriteTheSameFile(t *testing.T) {
 		}
 	}
 }
+
+// TestAnOwnerThatAlreadyNamesTheRepositoryDoesNotStutter. `chainguard-images/images` is a real
+// one, and joined blindly it reads as a fault in the tool rather than as a name.
+func TestAnOwnerThatAlreadyNamesTheRepositoryDoesNotStutter(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ id, want string }{
+		{"https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main", "chainguard-images"},
+		{"https://github.com/acme/acme/.github/workflows/r.yml@refs/tags/v1", "acme"},
+		{"https://github.com/acme/ci/.github/workflows/r.yml@refs/tags/v1", "acme-ci"},
+	} {
+		if got := signerName(c.id, "ghcr.io/x/y:1"); got != c.want {
+			t.Errorf("signerName(%q) = %q, want %q", c.id, got, c.want)
+		}
+	}
+}

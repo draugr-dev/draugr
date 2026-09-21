@@ -155,7 +155,14 @@ func signerName(id, ref string) string {
 	if rest, ok := strings.CutPrefix(id, "https://github.com/"); ok {
 		if owner, tail, ok := strings.Cut(rest, "/"); ok {
 			repo, _, _ := strings.Cut(tail, "/")
-			if repo != "" {
+			switch {
+			case repo == "":
+			// An owner already naming the repository. "chainguard-images/images" is a real one,
+			// and joined blindly it reads as a stutter that looks like a bug in the tool rather
+			// than a name.
+			case owner == repo, strings.HasSuffix(owner, "-"+repo):
+				return slug(owner)
+			default:
 				return slug(owner + "-" + repo)
 			}
 		}
