@@ -154,11 +154,31 @@ func TestASkippedComponentIsListedRatherThanOmitted(t *testing.T) {
 	}
 }
 
-// TestFindingsTiedToNoComponentAreCounted. Project-wide controls produce them, and a table that
+// TestFindingsTiedToNoComponentAreCounted. Project-wide controls produce them, and a breakdown that
 // omits them makes the parts look like the whole.
+//
+// One sentence across all three formats. Each renderer wrote its own, and the one with room for a
+// longer version used it, so the same fact reached a reader as three different claims and only the
+// terse two were saying it in the product's own words.
 func TestFindingsTiedToNoComponentAreCounted(t *testing.T) {
-	if got := renderHTML(t, componentData()); !strings.Contains(got, "4 findings are not tied to a component") {
-		t.Error("findings belonging to no component went unreported")
+	const said = "not tied to a component (project-wide controls)"
+	for _, r := range []Reporter{consoleReporter{}, markdownReporter{}, htmlReporter{}} {
+		t.Run(r.Format(), func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := r.Render(&buf, componentData()); err != nil {
+				t.Fatal(err)
+			}
+			// Compared as the reader meets it. A sentence wrapped in the source is one line on
+			// screen, in a terminal and in a browser alike, so a newline between two of its words
+			// is not a difference in what anybody was told.
+			out := strings.Join(strings.Fields(buf.String()), " ")
+			if !strings.Contains(out, said) {
+				t.Errorf("findings belonging to no component are not reported as %q", said)
+			}
+			if !strings.Contains(out, "4 findings") {
+				t.Error("the count is missing")
+			}
+		})
 	}
 }
 
