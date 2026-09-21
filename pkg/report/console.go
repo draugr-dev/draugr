@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -336,7 +337,7 @@ func fixFirstHeading(col tui.Painter, s summary, shown, total int) string {
 		// Say what was filtered, or a short list reads as a contradiction of the counts above.
 		filter = fmt.Sprintf(", %s and above", strings.ToUpper(s.minPriority))
 		if s.hidden > 0 {
-			filter += fmt.Sprintf("; %d lower-priority finding(s) hidden", s.hidden)
+			filter += "; " + plural(s.hidden, "lower-priority finding") + " hidden"
 		}
 	}
 	switch {
@@ -1067,9 +1068,7 @@ func sortedKeys(m map[string][]string) []string {
 
 // plural renders a count with its noun, pluralized the simple way. Only used for the SBOM
 // summary line, where "1 documents" would look like a bug in the tool.
-func plural(n int, word string) string {
-	return fmt.Sprintf("%d %s", n, noun(n, word))
-}
+func plural(n int, word string) string { return english.Count(n, word) }
 
 // writeMeasuredAgainst records what each scanner measured and against what, under the controls it
 // describes.
@@ -1943,20 +1942,9 @@ func actionDetail(col tui.Painter, a action, locations int) string {
 
 // noun agrees a bare noun with a count, for sentences that put the number elsewhere.
 //
-// Handles the one irregularity the vocabulary here actually contains: a word ending in a
-// consonant and "y" takes "ies". "repositorys" is the sort of thing a reader notices and a tool
-// does not, and it makes everything around it look less carefully made than it is.
-func noun(n int, word string) string {
-	if n == 1 {
-		return word
-	}
-	if len(word) > 1 && word[len(word)-1] == 'y' && !isVowel(word[len(word)-2]) {
-		return word[:len(word)-1] + "ies"
-	}
-	return word + "s"
-}
-
-func isVowel(b byte) bool { return strings.IndexByte("aeiou", b) >= 0 }
+// Shared with the differential report and with the gate's own error message, which say the same
+// things about the same nouns and used to say them each in their own way.
+func noun(n int, word string) string { return english.Noun(n, word) }
 
 // elide shortens the last line of a wrapped message, at a word boundary where there is one.
 //

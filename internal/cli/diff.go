@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/diff"
 	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
@@ -133,7 +134,8 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 
 	if len(result.Tripped) > 0 {
 		return alsoPublish(
-			fmt.Errorf("differential gate: %d new finding(s) at or above the threshold", len(result.Tripped)),
+			fmt.Errorf("differential gate: %s at or above the threshold",
+				english.Count(len(result.Tripped), "new finding")),
 			publishErr)
 	}
 	// The gate passed and only delivery failed, which is still non-zero. But the message has to

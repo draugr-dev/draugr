@@ -94,7 +94,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	if s.minPriority != "" {
 		heading := fmt.Sprintf("### Fix first (%s and above", strings.ToUpper(s.minPriority))
 		if s.hidden > 0 {
-			heading += fmt.Sprintf("; %d lower-priority finding(s) hidden", s.hidden)
+			heading += "; " + plural(s.hidden, "lower-priority finding") + " hidden"
 		}
 		_, _ = fmt.Fprintf(w, "%s)\n\n", heading)
 	} else {
@@ -132,7 +132,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 			dash(upgradeLabel(f)), findingTitle(f))
 	}
 	if len(s.findings) > markdownTopN {
-		_, _ = fmt.Fprintf(w, "\n_…and %d more finding(s)._\n", len(s.findings)-markdownTopN)
+		_, _ = fmt.Fprintf(w, "\n_…and %s more._\n", plural(len(s.findings)-markdownTopN, "finding"))
 	}
 	_, _ = fmt.Fprintln(w)
 	writeRunEvidence(w, d, s)
