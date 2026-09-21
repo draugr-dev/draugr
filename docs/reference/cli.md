@@ -784,10 +784,37 @@ belong to:
 | `draugr survey github repos` | repositories in a GitHub organization | `--org` |
 | `draugr survey gitlab projects` | projects in a GitLab group, subgroups included | `--group` |
 | `draugr survey azure repos` | Git repositories in an Azure DevOps organization or project | `--org`, `--project` |
+| `draugr survey provenance` | who signs the images the descriptor already declares | `--trust-root` |
 
 Shared by all of them: `-o, --output` (default stdout), `--replace`, `--fragment`, `--name`,
 `--version`. The `k8s` group also takes `--context`, which selects the cluster for both of its
 surveyors.
+
+`provenance` is the one that reads `--output` as well as writing it. The images it asks about are
+the ones the descriptor already declares, so there is no system to point it at instead, and a
+descriptor that does not exist yet is an error rather than an empty result.
+
+### Discovering who signs your images
+
+Writing `signers:` by hand means already knowing the identity a build signs with. A job calling a
+reusable workflow is signed as that workflow's repository rather than as the caller, so the obvious
+value is the wrong one, and it fails later as a mismatch rather than as a syntax error.
+
+```bash
+draugr survey provenance -o draugr.saga.yaml
+```
+
+It writes the exact identity and the exact image, never a pattern, and groups images sharing an
+identity under one signer. An unsigned image produces no signer and is not an error.
+
+**Read what it proposes.** A signer is a statement about who is trusted to sign, and one derived
+from what signs an image today cannot fail the check it was derived from. That is what makes it
+useful, because it is a tripwire for the signature changing rather than proof that today's is
+right, and it is worth what the first observation was worth. The command names each identity it adopted and
+the image it came from, and writes the same note beside the value in the descriptor.
+
+An organization running its own Sigstore passes `--trust-root`, naming the same file
+`config.controls.provenance.trustRoot` does.
 
 ### Writing a fragment instead of a descriptor
 

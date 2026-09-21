@@ -96,6 +96,7 @@ reference](saga-schema.md#sbom-generation).
 | `github-org-repos` | repositories in a GitHub org | `GITHUB_TOKEN` | ✅ | [doc](../../internal/surveyors/github-org-repos.md) |
 | `gitlab-group-projects` | projects in a GitLab group, subgroups included | `GITLAB_TOKEN` | ✅ | [doc](../../internal/surveyors/gitlab-group-projects.md) |
 | `azure-devops-repos` | Git repositories in an Azure DevOps organization or project | `AZURE_DEVOPS_EXT_PAT` | ✅ | [doc](../../internal/surveyors/azure-devops-repos.md) |
+| `provenance-signers` | who signs the images the descriptor already declares | none | ✅ | [doc](../../internal/surveyors/provenance-signers.md) |
 
 ## Reporters
 
