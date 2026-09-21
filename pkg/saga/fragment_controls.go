@@ -177,3 +177,29 @@ func joinKeyed(keys []string) string {
 	}
 	return out
 }
+
+// AppendFragmentControls adds one fragment's control settings to another's, for a caller merging
+// fragments before any of them reaches a descriptor.
+//
+// The same append mergeFragmentControls performs into a Config, against a FragmentConfig. Two
+// surveys proposing signers both contribute, which is the rule every option on the list is
+// admitted under. No attribution, because neither side is a file yet: a fragment a surveyor built
+// in memory has no Source to name.
+func AppendFragmentControls(into *FragmentConfig, from map[string]ControllerSettings) {
+	for _, name := range slices.Sorted(maps.Keys(from)) {
+		for _, opt := range slices.Sorted(maps.Keys(from[name])) {
+			added, ok := asSequence(from[name][opt])
+			if !ok || len(added) == 0 {
+				continue
+			}
+			if into.Controls == nil {
+				into.Controls = map[string]ControllerSettings{}
+			}
+			if into.Controls[name] == nil {
+				into.Controls[name] = ControllerSettings{}
+			}
+			existing, _ := asSequence(into.Controls[name][opt])
+			into.Controls[name][opt] = append(append([]any{}, existing...), added...)
+		}
+	}
+}

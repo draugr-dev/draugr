@@ -68,3 +68,70 @@ func AnnotateExposures(data []byte, reasons map[string]string) ([]byte, error) {
 	_ = enc.Close()
 	return buf.Bytes(), nil
 }
+
+// AnnotateSigners adds a trailing comment to each named signer, saying which image's signature it
+// was read from.
+//
+// A signer is a statement about who is trusted to sign, so somebody reviewing one is accepting a
+// policy rather than correcting an inventory. The question they have is where it came from, and
+// the descriptor is where they will be when they ask it:
+//
+//   - name: acme-ci   # read from the signature on ghcr.io/acme/api:1.0
+//
+// Only signers in reasons are touched, so one written by hand is left without a comment rather
+// than described as something a survey found.
+func AnnotateSigners(data []byte, reasons map[string]string) ([]byte, error) {
+	if len(reasons) == 0 {
+		return data, nil
+	}
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return nil, fmt.Errorf("parse saga: %w", err)
+	}
+	if len(root.Content) == 0 {
+		return data, nil
+	}
+	config := mappingValue(root.Content[0], "config")
+	if config == nil {
+		return data, nil
+	}
+	controls := mappingValue(config, "controls")
+	if controls == nil {
+		return data, nil
+	}
+	provenance := mappingValue(controls, "provenance")
+	if provenance == nil {
+		return data, nil
+	}
+	signers := mappingValue(provenance, "signers")
+	if signers == nil || signers.Kind != yaml.SequenceNode {
+		return data, nil
+	}
+
+	annotated := false
+	for _, signer := range signers.Content {
+		if signer.Kind != yaml.MappingNode {
+			continue
+		}
+		name := mappingValue(signer, "name")
+		if name == nil {
+			continue
+		}
+		if reason := reasons[name.Value]; reason != "" {
+			name.LineComment = reason
+			annotated = true
+		}
+	}
+	if !annotated {
+		return data, nil
+	}
+
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(Indent)
+	if err := enc.Encode(&root); err != nil {
+		return nil, fmt.Errorf("encode saga: %w", err)
+	}
+	_ = enc.Close()
+	return buf.Bytes(), nil
+}

@@ -60,5 +60,6 @@ func SurveyorRegistry() *surveyor.Registry {
 	reg.Register(dsurveyors.NewGitHubOrgRepos())
 	reg.Register(dsurveyors.NewGitLabGroupProjects())
 	reg.Register(dsurveyors.NewAzureDevOpsRepos())
+	reg.Register(dsurveyors.NewProvenanceSigners())
 	return reg
 }
