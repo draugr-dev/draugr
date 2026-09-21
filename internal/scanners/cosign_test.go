@@ -3,6 +3,7 @@ package scanners
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -305,9 +306,9 @@ func TestCosignSaysWhenTheIdentityCouldNotBeRead(t *testing.T) {
 	if got := describeObserved(signature{}); !strings.Contains(got, "could not be read") {
 		t.Errorf("describeObserved = %q", got)
 	}
-	got := observedNote("ghcr.io/acme/p", signature{})
+	got := observedIdentity("ghcr.io/acme/p", "", "")
 	if !strings.HasPrefix(got, "ghcr.io/acme/p\t") || !strings.Contains(got, "identity not reported") {
-		t.Errorf("observedNote = %q, want the image recorded with the gap named", got)
+		t.Errorf("observedIdentity = %q, want the image recorded with the gap named", got)
 	}
 }
 
@@ -374,5 +375,93 @@ func TestCosignDoesNotProbeABareSignature(t *testing.T) {
 	}
 	if len(*calls) != 1 {
 		t.Errorf("a signature carries its own identity, so one read is enough: %d calls", len(*calls))
+	}
+}
+
+// TestWhoSignedIsTheReadDiscoveryAndVerificationShare.
+//
+// The surveyor that proposes signers and the control that checks them have to ask the registry the
+// same question. Asked separately they diverge on the case that decides whether discovery is worth
+// running: a GitHub artifact attestation answers a plain read with an empty identity, so the naive
+// version reports nothing for exactly the images most likely to carry provenance.
+func TestWhoSignedIsTheReadDiscoveryAndVerificationShare(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name    string
+		answers []func([]string) ([]byte, []byte, int, error)
+		want    Signature
+	}{
+		{
+			name:    "a plain signature carries its identity in the payload",
+			answers: []func([]string) ([]byte, []byte, int, error){ok(`[{"critical":{"type":"cosign container image signature"},"optional":{"Subject":"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3","Issuer":"https://token.actions.githubusercontent.com"}}]`)},
+			want: Signature{
+				Identity: "https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3",
+				Issuer:   "https://token.actions.githubusercontent.com",
+				Signed:   true,
+			},
+		},
+		{
+			// An attestation's identity is in the certificate, not the payload, so the first read
+			// succeeds with nothing in it and a second read has to ask.
+			name: "an attestation needs the second read",
+			answers: []func([]string) ([]byte, []byte, int, error){
+				ok(`[{"critical":{"type":"https://slsa.dev/provenance/v1"},"optional":{}}]`),
+				said(`no matching attestations: failed to verify certificate identity: got "https://github.com/acme/build/.github/workflows/attest.yml@refs/heads/main"`),
+			},
+			want: Signature{
+				Identity: "https://github.com/acme/build/.github/workflows/attest.yml@refs/heads/main",
+				Issuer:   githubOIDCIssuer,
+				Signed:   true,
+			},
+		},
+		{
+			// Most of what a project runs is published by somebody else. Not an error, and not a
+			// signer: proposing one for an image nobody signed would be proposing a policy that
+			// can only fail.
+			name:    "nothing signed it",
+			answers: []func([]string) ([]byte, []byte, int, error){exits(cosignExitNoSignature)},
+			want:    Signature{},
+		},
+		{
+			name:    "the image is not there",
+			answers: []func([]string) ([]byte, []byte, int, error){exits(cosignExitNonExistent)},
+			want:    Signature{},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s, _ := stubCosign(t, c.answers...)
+			got, err := s.whoSigned(context.Background(), "ghcr.io/acme/p:1.0", expectation{})
+			if err != nil {
+				t.Fatalf("whoSigned: %v", err)
+			}
+			if got != c.want {
+				t.Errorf("whoSigned = %+v,\n          want %+v", got, c.want)
+			}
+		})
+	}
+}
+
+// A registry that did not answer is not an image nobody signed. Read as one, discovery would
+// propose no signer for an image that has one, and verification would report a clean inventory
+// for a registry it could not reach.
+func TestWhoSignedRefusesToCallAnUnreadableAnswerUnsigned(t *testing.T) {
+	t.Parallel()
+	s, _ := stubCosign(t, exits(1))
+	if _, err := s.whoSigned(context.Background(), "ghcr.io/acme/p:1.0", expectation{}); err == nil {
+		t.Error("an unreadable answer was reported as a definite absence of signature")
+	}
+}
+
+// The descriptor's own Sigstore root reaches the read. Without it discovery reports nothing for
+// exactly the organizations running their own Sigstore, whose signers are the least guessable.
+func TestWhoSignedCarriesTheTrustRoot(t *testing.T) {
+	t.Parallel()
+	s, calls := stubCosign(t, ok(`[{"critical":{"type":"cosign container image signature"},"optional":{"Subject":"s","Issuer":"i"}}]`))
+	if _, err := s.whoSigned(context.Background(), "ghcr.io/acme/p:1.0", expectation{TrustRoot: "/etc/roots.json"}); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains((*calls)[0], "--trusted-root") || !slices.Contains((*calls)[0], "/etc/roots.json") {
+		t.Errorf("the trust root did not reach cosign: %v", (*calls)[0])
 	}
 }

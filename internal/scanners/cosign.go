@@ -275,25 +275,61 @@ func (s *cosignVerifier) check(ctx context.Context, ref string, expect expectati
 	return nil, "", fmt.Errorf("cosign: verifying %s: %w", ref, err)
 }
 
+// Signature is who a registry says signed an image.
+//
+// Unsigned and unreadable are separate answers. An image nobody signed is the ordinary case for
+// anything published by somebody else, and an image signed by an identity that could not be read
+// is a signature the reader should go and look at.
+type Signature struct {
+	Identity string // the Fulcio SAN, empty where a signature is present and its identity is not
+	Issuer   string // the OIDC issuer that vouched for it
+	Signed   bool   // whether the registry holds a signature at all
+}
+
+// WhoSigned reports the Sigstore signature on an image, for a caller proposing who should be
+// trusted to sign it.
+//
+// The same read the control performs when a descriptor has declared no signer, exported so that
+// discovery and verification ask the registry the same question. Written twice they would answer
+// differently on the case that matters: an attestation carries its identity in the certificate
+// rather than the payload, so the naive read succeeds with an empty answer and the images most
+// likely to have provenance are the ones discovery would say nothing about.
+// trustRoot is the descriptor's own Sigstore root where it set one, and empty for the public
+// root. A discovery that skipped it would report nothing for exactly the organizations that run
+// their own Sigstore, which are the ones whose signers are least guessable.
+func WhoSigned(ctx context.Context, ref, trustRoot string) (Signature, error) {
+	return (&cosignVerifier{run: runCosign}).whoSigned(ctx, ref, expectation{TrustRoot: trustRoot})
+}
+
+func (s *cosignVerifier) whoSigned(ctx context.Context, ref string, expect expectation) (Signature, error) {
+	sig, code, err := s.identityOf(ctx, ref, expect)
+	switch code {
+	case 0:
+		if sig.Optional.Subject == "" && sig.Critical.Type != cosignSignatureType {
+			subject, issuer := s.attestedBy(ctx, ref, expect)
+			return Signature{Identity: subject, Issuer: issuer, Signed: true}, nil
+		}
+		return Signature{Identity: sig.Optional.Subject, Issuer: sig.Optional.Issuer, Signed: true}, nil
+	case cosignExitNoSignature, cosignExitNonExistent:
+		return Signature{}, nil
+	}
+	return Signature{}, fmt.Errorf("cosign: reading the signature on %s: %w", ref, err)
+}
+
 // observe reads back whoever signed the image, for a descriptor that has not said who should
 // have. Never a pass and never a failure on its own: it reports what is there so somebody can
 // decide, which is the step before a policy exists.
 func (s *cosignVerifier) observe(ctx context.Context, ref string, expect expectation) (*sarif.Result, string, error) {
-	sig, code, err := s.identityOf(ctx, ref, expect)
-	switch code {
-	case 0:
+	sig, err := s.whoSigned(ctx, ref, expect)
+	switch {
+	case err != nil:
+		return nil, "", err
+	case sig.Signed:
 		// No finding. An image somebody else signed, that this descriptor has not claimed, is not
 		// something to fix, and a note per image is how an inventory of fourteen becomes fourteen
 		// rows nobody reads. It is recorded instead, where the control accounts for the run.
-		if sig.Optional.Subject == "" && sig.Critical.Type != cosignSignatureType {
-			// An attestation. Its identity is in the certificate and not in the payload, so it
-			// has to be asked for separately; without this the images most likely to carry
-			// provenance are the ones discovery says nothing about.
-			subject, issuer := s.attestedBy(ctx, ref, expect)
-			return nil, observedIdentity(ref, subject, issuer), nil
-		}
-		return nil, observedNote(ref, sig), nil
-	case cosignExitNoSignature, cosignExitNonExistent:
+		return nil, observedIdentity(ref, sig.Identity, sig.Issuer), nil
+	default:
 		if expect.Unmatched != unmatchedWarn && expect.Unmatched != unmatchedFail {
 			return nil, unsignedNote(ref), nil
 		}
@@ -310,7 +346,6 @@ func (s *cosignVerifier) observe(ctx context.Context, ref string, expect expecta
 			Message:  "No signer covers this image and it carries no signature in the registry.",
 		}, unsignedNote(ref), nil
 	}
-	return nil, "", fmt.Errorf("cosign: reading the signature on %s: %w", ref, err)
 }
 
 // The two shapes an observation takes, so the control can tell them apart when it aggregates.
@@ -331,11 +366,6 @@ func (s *cosignVerifier) attestedBy(ctx context.Context, ref string, expect expe
 // githubOIDCIssuer is the issuer every GitHub Actions attestation carries, and the one the probe
 // above has to name to get as far as the identity check.
 const githubOIDCIssuer = "https://token.actions.githubusercontent.com"
-
-// observedNote records who signed an image, for the control's account of the run.
-func observedNote(ref string, sig signature) string {
-	return observedIdentity(ref, sig.Optional.Subject, sig.Optional.Issuer)
-}
 
 // observedIdentity records one image and who signed it. An unreadable identity is still recorded,
 // because an image that carries something is a different fact from one that carries nothing.
