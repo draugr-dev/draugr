@@ -1,1 +1,0 @@
-A component nothing was able to scan no longer reads as passing in the markdown report. Its scans failed, so there were no findings to have, and a row of zeros beside the word "pass" claimed a result nothing established. Such a component now reads ERROR and the row says what went unexamined, which is what the terminal has printed for a while.

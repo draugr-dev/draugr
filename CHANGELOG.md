@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.129.0] - 2026-09-21
+
+### Added
+
+`draugr survey provenance` reads the signature on each image your descriptor declares and writes the `signers:` that would accept it. Writing one by hand means already knowing the identity a build signs with, and a job calling a reusable workflow is signed as that workflow's repository rather than as the caller, so the obvious value is the wrong one and it fails later as a mismatch rather than as a syntax error. It writes the exact identity and the exact image, never a pattern, and says which image each signer came from both on the way out and beside the value in the file.
+
+The HTML report says which component is failing. A table beside the controls gives each component its own verdict against the same gate, what the descriptor declared it to be, how its findings ranked, and whether anything went unscanned, which is the breakdown the terminal already printed and the shared copy dropped. Narrowing the findings to one component adds a strip above the list carrying that component's verdict, its bands and the controls it did not pass.
+
+The markdown report's component table names what each component was declared to be, so the exposure and criticality behind a band are in the summary a pull request comment carries.
+
+### Fixed
+
+A component nothing was able to scan no longer reads as passing in the markdown report. Its scans failed, so there were no findings to have, and a row of zeros beside the word "pass" claimed a result nothing established. Such a component now reads ERROR and the row says what went unexamined, which is what the terminal has printed for a while.
+
+One finding is a finding. The console, the markdown report, the differential report and the differential gate's own error each wrote `1 finding(s)` where a count could be one, a form nobody would write by hand which survives because the digit beside it is always right.
+
+The HTML report says which findings belong to no component in the same words as the terminal and the markdown summary. It explained the mechanism instead, in a sentence the other two did not carry.
+
+The issue raised when the integration suite fails on main described the suite as optional. It said the suite is skipped on a pull request that does not touch its paths and that a failure does not block a merge, both of which stopped being true when the suite became required and unconditional. The paragraph is the only thing on that page telling a reader how much a red main matters, and it was telling them it does not.
+
 ## [0.128.0] - 2026-09-20
 
 ### Added
@@ -5827,7 +5847,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.128.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.129.0...HEAD
+[0.129.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.129.0
 [0.128.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.128.0
 [0.127.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.127.0
 [0.126.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.126.0
