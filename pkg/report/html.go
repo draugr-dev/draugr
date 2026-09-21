@@ -1330,8 +1330,8 @@ as the run.</p>
 </tr>{{end}}
 </tbody>
 </table>
-{{if .Unattributed}}<p class="note">{{plural .Unattributed "finding"}} are not tied to a component,
-because the control that found them runs against the project rather than a part of it.</p>{{end}}
+{{if .Unattributed}}<p class="note">{{plural .Unattributed "finding"}} not tied to a component
+(project-wide controls).</p>{{end}}
 </details>
 {{end}}
 
