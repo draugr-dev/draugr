@@ -246,6 +246,15 @@ type FeedProvenance struct {
 // different and usually less useful question than "is my service".
 type ComponentVerdict struct {
 	Name string
+	// Exposure and Criticality are what the descriptor declared this component to be, and empty
+	// where it declared nothing.
+	//
+	// Carried beside the verdict because they are half of why the verdict is what it is: the same
+	// finding bands differently on a public, critical service and an internal, supporting one, and
+	// a reader comparing two rows of this table without them is comparing two numbers whose
+	// difference has no visible cause.
+	Exposure    string
+	Criticality string
 	// Verdict is the run's policy applied to this component's findings alone. Computed by
 	// running the same norn.Policy rather than re-deciding, so the parts cannot disagree with
 	// the whole about what failing means.

@@ -837,7 +837,11 @@ func componentVerdicts(
 	sort.Strings(names)
 	for _, name := range names {
 		res := policy.Evaluate(byComponent[name])
-		cv := report.ComponentVerdict{Name: name, Verdict: res.Verdict}
+		cv := report.ComponentVerdict{
+			Name: name, Verdict: res.Verdict,
+			Exposure:    string(byName[name].Exposure),
+			Criticality: string(byName[name].Criticality),
+		}
 		for _, c := range res.Controls {
 			if c.Verdict == norn.Fail {
 				cv.Controls = append(cv.Controls, c.Control)

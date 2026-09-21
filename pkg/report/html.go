@@ -29,7 +29,17 @@ type htmlView struct {
 	Prioritized    bool
 	P1, P2, P3, P4 int
 	Controls       []htmlControl
-	Findings       []htmlFinding
+	// Components breaks the verdict down by the part of the application it belongs to.
+	//
+	// The controls table answers whether the project is shippable. A component is the unit a team
+	// owns and the unit exposure and criticality are declared on, so with several of them a failing
+	// control says the project has a problem and stops short of saying whose.
+	//
+	// Unattributed is how many findings belong to no component, because project-wide controls
+	// produce those and a table that omits them makes the parts look like the whole.
+	Components   []htmlComponent
+	Unattributed int
+	Findings     []htmlFinding
 	// Provenance is what each scanner said about its own run, the standard applied, how much of it
 	// was decided, what it was scoped to. A shared HTML report is the copy that reaches someone who
 	// did not run the scan, so it is the one that most needs to say what was measured rather than
@@ -113,6 +123,32 @@ type htmlTiming struct {
 }
 
 type htmlError struct{ Control, Message string }
+
+// htmlComponent is one component's row: what it was declared to be, how its own findings ranked,
+// and what nothing was able to look at.
+type htmlComponent struct {
+	Name string
+	// Class is the exposure and criticality the descriptor declared, as one string, and empty
+	// where it declared neither. Half of why two components with the same finding hold different
+	// bands, and without it the difference between two rows has no visible cause.
+	Class   string
+	Verdict string // "PASS" | "FAIL" | "ERROR" | "not scanned"
+	Fail    bool
+	// Errored marks a component whose scans failed and which therefore found nothing in the sense
+	// that nothing was possible. Distinct from a pass, which this row must not be read as.
+	Errored bool
+	// Skipped marks a declared component this run's scope left out. Listed rather than omitted,
+	// because an absent row reads exactly like one that passed.
+	Skipped        bool
+	Prioritized    bool
+	P1, P2, P3, P4 int
+	Findings       int
+	Unscanned      string // "2/3 repositories not scanned", empty where everything was reached
+	// Failed names the controls this component did not pass. Carried for the strip and not for the
+	// table: which control failed is the next question once somebody has narrowed to one component,
+	// and a column of it across every row is a second controls table read sideways.
+	Failed []string
+}
 
 type htmlControl struct {
 	Control  string
@@ -282,6 +318,8 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	for _, name := range s.errored {
 		view.Controls = append(view.Controls, htmlControl{Control: name, Errored: true, NoReport: true})
 	}
+	view.Components = htmlComponents(d, s)
+	view.Unattributed = d.UnattributedFindings
 	prio, sev, ctl, comp := map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
 	for _, f := range s.findings {
 		hf := toHTMLFinding(f)
@@ -326,6 +364,60 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.ControlNames = theirVocabulary(ctl)
 	view.ComponentNames = theirVocabulary(comp)
 	return htmlTemplate.Execute(w, view)
+}
+
+// htmlComponents is the per-component verdict the console prints, as table rows.
+//
+// The clean components are the point as much as the failing ones: a pass against a named component
+// is what somebody takes back to their team, and a shared report is the copy that reaches the
+// people who did not run the scan and cannot read it off the findings table by eye.
+func htmlComponents(d Data, s summary) []htmlComponent {
+	if len(d.Components) == 0 {
+		return nil
+	}
+	out := make([]htmlComponent, 0, len(d.Components))
+	for _, c := range d.Components {
+		row := htmlComponent{
+			Name: c.Name, Verdict: "PASS", Fail: c.Verdict == norn.Fail,
+			Class:       classification(c.Exposure, c.Criticality),
+			Prioritized: s.prioritized,
+			P1:          c.Priorities[0], P2: c.Priorities[1], P3: c.Priorities[2], P4: c.Priorities[3],
+			Findings: c.Findings,
+			Failed:   c.Controls,
+		}
+		if row.Fail {
+			row.Verdict = "FAIL"
+		}
+		// A component nothing was able to look at has not passed. Its scans failed, so "no
+		// findings" is true only in the sense that none were possible, which is the reading this
+		// row must not invite.
+		if len(c.Unscanned) > 0 {
+			row.Unscanned = unscannedDetail(c.Unscanned, c.Declared)
+			if c.Findings == 0 {
+				row.Verdict, row.Errored, row.Fail = "ERROR", true, false
+			}
+		}
+		out = append(out, row)
+	}
+	if d.Scope != nil {
+		for _, name := range d.Scope.SkippedComponents {
+			out = append(out, htmlComponent{Name: name, Verdict: "not scanned", Skipped: true})
+		}
+	}
+	return out
+}
+
+// classification renders what the descriptor declared a component to be, and nothing where it
+// declared neither half.
+func classification(exposure, criticality string) string {
+	switch {
+	case exposure != "" && criticality != "":
+		return exposure + " · " + criticality
+	case exposure != "":
+		return exposure
+	default:
+		return criticality
+	}
 }
 
 // htmlSignals is what argued with this run's ranking, named the way the console names it.
@@ -561,6 +653,7 @@ var htmlTemplate = template.Must(template.New("report").Funcs(template.FuncMap{
 	// is a sentence nobody would write by hand and the only reason it survives is that it is never
 	// read aloud.
 	"plural": plural,
+	"join":   func(items []string) string { return strings.Join(items, ", ") },
 }).Parse(htmlDoc))
 
 const htmlDoc = `<!doctype html>
@@ -856,6 +949,22 @@ const htmlDoc = `<!doctype html>
   .sev.s-p4 { background: var(--p4); color: var(--on-p4); }
   .sev.off { background: transparent; color: var(--faint); border-color: var(--line); }
 
+  /* Components as a table, where the controls above them are rows: a reader compares components
+   * against each other and a control against the gate, and comparing means a column to run down.
+   * The same chips, because a component's bands and the strip in the header are one measurement. */
+  table.components th[scope="row"] { font-weight: 600; white-space: nowrap; }
+  table.components .sevs { display: inline-flex; margin-left: 0; vertical-align: middle; }
+  table.components td:nth-child(3) {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .76rem; letter-spacing: .1em; white-space: nowrap;
+  }
+  .cls { color: var(--muted); white-space: nowrap; }
+  .none { color: var(--faint); font-style: italic; }
+  /* The gap sits under the bands rather than beside them. A component can be partly scanned and
+   * hold findings worth acting on, and either fact read alone is wrong. */
+  .gap { display: block; margin-top: .25rem; color: var(--p1); font-size: .82rem; }
+  tr.skipped th[scope="row"] { color: var(--muted); font-weight: 500; }
+
   /* What moved a band, beside the rating it moved. Muted: the row is already found by its band,
    * and the mark is the reason rather than the alarm. */
   .moved { color: var(--muted); font-size: .74rem; white-space: nowrap; }
@@ -1048,6 +1157,17 @@ const htmlDoc = `<!doctype html>
   /* What is on, beside what turns it off. A reader has to be able to see the state of the list
    * without opening a menu, and a filtered list nobody can tell is filtered is one somebody reads
    * as the whole set. */
+  /* The component the reader narrowed to, between the menus and the count. Above the list rather
+   * than in it, because it describes the whole of what is below and nothing in the list says it. */
+  .focus {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .7rem;
+    padding: .5rem .75rem; margin: 0 0 .45rem;
+    border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: var(--radius); background: var(--surface);
+  }
+  .focus-name { font-weight: 600; }
+  .focus-verdict { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .76rem; letter-spacing: .1em; }
+  .focus-facts { color: var(--muted); font-size: .84rem; margin-left: auto; }
   .state { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; margin: 0 0 1rem; }
   .count { color: var(--faint); font-size: .82rem; }
   .tokens { display: flex; flex-wrap: wrap; gap: .3rem; }
@@ -1112,6 +1232,7 @@ const htmlDoc = `<!doctype html>
 <nav class="tabs" aria-label="Sections of this report">
   {{if .Signals}}<a class="tab" href="#signals">Signals</a>{{end}}
   {{if .Controls}}<a class="tab" href="#controls">Controls</a>{{end}}
+  {{if .Components}}<a class="tab" href="#components">Components</a>{{end}}
   {{if .Errors}}<a class="tab err" href="#errors">Errors</a>{{end}}
   <a class="tab" href="#findings-h">Findings</a>
   {{if or .Suppressed .Decisions .Unmatched .Excluded}}<a class="tab" href="#suppressed">Accepted</a>{{end}}
@@ -1178,6 +1299,41 @@ the component is, so the same issue ranks differently on a public API than on an
 </ul>
 </details>
 {{end}}
+{{if .Components}}
+<details class="fold" open><summary id="components"><span class="sec">Components</span></summary>
+<p class="note">The verdict for each part of the application on its own findings, under the same gate
+as the run.</p>
+<table class="components">
+<thead><tr>
+  <th scope="col">Component</th>
+  <th scope="col">Declared</th>
+  <th scope="col">Verdict</th>
+  <th scope="col">{{if .Prioritized}}Priority{{else}}Findings{{end}}</th>
+</tr></thead>
+<tbody>
+{{range .Components}}<tr{{if .Skipped}} class="skipped"{{end}}>
+  <th scope="row">{{.Name}}</th>
+  <td class="cls">{{if .Class}}{{.Class}}{{else}}<span class="none">not declared</span>{{end}}</td>
+  <td>{{if .Skipped}}<span class="none">not scanned</span>{{else if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">PASS</span>{{end}}</td>
+  <td>
+    {{if .Skipped}}
+    {{else if and .Prioritized .Findings}}<span class="sevs">
+      <span class="sev s-p1{{if not .P1}} off{{end}}">P1 {{.P1}}</span>
+      <span class="sev s-p2{{if not .P2}} off{{end}}">P2 {{.P2}}</span>
+      <span class="sev s-p3{{if not .P3}} off{{end}}">P3 {{.P3}}</span>
+      <span class="sev s-p4{{if not .P4}} off{{end}}">P4 {{.P4}}</span>
+    </span>
+    {{else if .Findings}}{{plural .Findings "finding"}}
+    {{else}}<span class="none">no findings</span>{{end}}
+    {{if .Unscanned}}<span class="gap">{{.Unscanned}}</span>{{end}}
+  </td>
+</tr>{{end}}
+</tbody>
+</table>
+{{if .Unattributed}}<p class="note">{{plural .Unattributed "finding"}} are not tied to a component,
+because the control that found them runs against the project rather than a part of it.</p>{{end}}
+</details>
+{{end}}
 
 {{if .Errors}}
 <h3 id="errors" class="err">Controls that could not run</h3>
@@ -1232,6 +1388,22 @@ about what they would have found. For everything the tool printed, re-run with
     {{template "menu" dict "K" "c" "Label" "Control" "Options" .ControlNames}}
     {{template "menu" dict "K" "m" "Label" "Component" "Options" .ComponentNames}}
   </div>
+  {{range .Components}}{{if not .Skipped}}
+  <div class="focus" data-m="{{.Name}}" hidden>
+    <span class="focus-name">{{.Name}}</span>
+    {{if .Class}}<span class="cls">{{.Class}}</span>{{end}}
+    <span class="focus-verdict">{{if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">PASS</span>{{end}}</span>
+    {{if and .Prioritized .Findings}}<span class="sevs">
+      <span class="sev s-p1{{if not .P1}} off{{end}}">P1 {{.P1}}</span>
+      <span class="sev s-p2{{if not .P2}} off{{end}}">P2 {{.P2}}</span>
+      <span class="sev s-p3{{if not .P3}} off{{end}}">P3 {{.P3}}</span>
+      <span class="sev s-p4{{if not .P4}} off{{end}}">P4 {{.P4}}</span>
+    </span>{{end}}
+    <span class="focus-facts">
+      {{plural .Findings "finding"}}{{if .Failed}} · failing {{join .Failed}}{{end}}{{if .Unscanned}} · {{.Unscanned}}{{end}}
+    </span>
+  </div>
+  {{end}}{{end}}
   <p class="state">
     <span class="count" id="count"></span>
     <span class="tokens" id="tokens"></span>
@@ -1579,12 +1751,22 @@ about what they would have found. For everything the tool printed, re-run with
       badge.hidden = !n;
       button.classList.toggle("on", n > 0);
     });
+    focus(m);
     a11yRows();
     tokens();
     count.textContent = shown === rows.length
       ? shown + (shown === 1 ? " finding" : " findings")
       : "showing " + shown + " of " + rows.length;
     none.hidden = shown > 0;
+  }
+
+  // What the reader narrowed to, said once above the list they narrowed. Only for a single
+  // component: the facts on it are that component's verdict, its failing controls and its gaps, and
+  // there is no such thing for two — a strip that averaged them would be a number nothing holds.
+  var strips = Array.prototype.slice.call(document.querySelectorAll(".focus"));
+  function focus(m) {
+    var only = m && m.length === 1 ? m[0] : "";
+    strips.forEach(function (el) { el.hidden = el.dataset.m !== only; });
   }
 
   function a11yRows() {
