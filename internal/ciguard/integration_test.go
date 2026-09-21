@@ -199,3 +199,67 @@ func TestTheRaisedIssueDescribesTheSuiteItRaises(t *testing.T) {
 		}
 	}
 }
+
+// TestAnEntryIsRefusedOnAChangeNobodyCanObserve.
+//
+// Everything else guarding the CHANGELOG guards its mechanism: one file per change so branches
+// cannot collide, no hand-editing so a section cannot land in the wrong place, released sections
+// frozen so history is not rewritten. None of them asks whether the change reaches anybody outside
+// this repository, and a fix to the text of an issue raised by our own CI carried an entry all the
+// way into published release notes, correct in form at every step.
+func TestAnEntryIsRefusedOnAChangeNobodyCanObserve(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		changed []string
+		refused bool
+	}{
+		// The one that got through, exactly as it was merged.
+		"a workflow's own prose": {
+			changed: []string{
+				".github/workflows/integration.yml",
+				"changelog.d/the-issue-raised-when-the-integration-suite-fail.fixed.md",
+				"internal/ciguard/integration_test.go",
+			},
+			refused: true,
+		},
+		"our own tooling":  {[]string{"scripts/check-slop.py", "changelog.d/a.fixed.md"}, true},
+		"tests alone":      {[]string{"pkg/report/html_test.go", "changelog.d/a.fixed.md"}, true},
+		"contributor docs": {[]string{"docs/contributing/naming.md", "changelog.d/a.fixed.md"}, true},
+
+		// Anything a user meets keeps its entry, and these are the shapes that must never be
+		// refused: suppressing a real entry ships a capability nobody is told about, which is
+		// invisible rather than noisy.
+		"a surveyor": {[]string{
+			"internal/surveyors/provenance_signers.go",
+			"docs/guides/provenance.md",
+			"changelog.d/draugr-survey-provenance.added.md",
+		}, false},
+		"a renderer":          {[]string{"pkg/report/console.go", "changelog.d/a.fixed.md"}, false},
+		"a user-facing guide": {[]string{"docs/guides/provenance.md", "changelog.d/a.fixed.md"}, false},
+		"the README":          {[]string{"README.md", "changelog.d/a.fixed.md"}, false},
+		"code beside a test":  {[]string{"pkg/saga/model.go", "pkg/saga/model_test.go", "changelog.d/a.added.md"}, false},
+		"a workflow beside code": {[]string{
+			".github/workflows/release.yml", "internal/cli/scan.go", "changelog.d/a.fixed.md",
+		}, false},
+
+		// No entry is the other failure and is not decidable here: a user-facing commit is often
+		// the second on a branch whose first one carried the entry.
+		"no entry at all": {[]string{".github/workflows/integration.yml"}, false},
+		"nothing changed": {nil, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			cmd := exec.Command("../../scripts/check-changelog-earns-it.sh")
+			cmd.Stdin = strings.NewReader(strings.Join(tc.changed, "\n") + "\n")
+			var errs bytes.Buffer
+			cmd.Stderr = &errs
+			err := cmd.Run()
+			if refused := err != nil; refused != tc.refused {
+				t.Errorf("refused = %v, want %v, for %v\n%s", refused, tc.refused, tc.changed, errs.String())
+			}
+			if tc.refused && !strings.Contains(errs.String(), "no user can observe") {
+				t.Errorf("the refusal does not say why:\n%s", errs.String())
+			}
+		})
+	}
+}

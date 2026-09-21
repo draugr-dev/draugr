@@ -107,6 +107,11 @@ echo "▶ spelling"
 
 echo "▶ changelog"
 ./scripts/changelog.sh check
+# Against the commit this branch left main at, so the question is what this change did rather than
+# what the tree contains. On main itself the diff is empty and the check has nothing to say.
+if base=$(git merge-base origin/main HEAD 2>/dev/null); then
+	git diff --name-only "$base" HEAD | ./scripts/check-changelog-earns-it.sh
+fi
 
 echo "▶ govulncheck"
 if command -v govulncheck >/dev/null 2>&1; then
