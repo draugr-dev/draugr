@@ -1765,8 +1765,8 @@ about what they would have found. For everything the tool printed, re-run with
   }
 
   // What the reader narrowed to, said once above the list they narrowed. Only for a single
-  // component: the facts on it are that component's verdict, its failing controls and its gaps, and
-  // there is no such thing for two — a strip that averaged them would be a number nothing holds.
+  // component: the facts on it are that component's verdict, its failing controls and its gaps,
+  // and there is no such thing for two, because a strip averaging them is a number nothing holds.
   var strips = Array.prototype.slice.call(document.querySelectorAll(".focus"));
   function focus(m) {
     var only = m && m.length === 1 ? m[0] : "";

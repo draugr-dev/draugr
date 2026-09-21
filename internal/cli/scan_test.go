@@ -871,6 +871,28 @@ func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
 	}
 }
 
+// TestComponentVerdictsCarryWhatTheDescriptorDeclared: the report shows two components banding the
+// same severity differently, and exposure and criticality are the reason. Read from the descriptor
+// rather than from the findings, so a component with nothing found still says what it is.
+func TestComponentVerdictsCarryWhatTheDescriptorDeclared(t *testing.T) {
+	model := &saga.Model{Components: []saga.Component{
+		{Name: "api", Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical},
+		{Name: "quiet"},
+	}}
+	got, _ := componentVerdicts(norn.Policy{FailOn: sarif.SeverityHigh}, model, nil, engine.Scope{}, nil)
+	if len(got) != 2 {
+		t.Fatalf("got %d rows, want both components", len(got))
+	}
+	if got[0].Exposure != "public" || got[0].Criticality != "critical" {
+		t.Errorf("api: exposure %q criticality %q, want what the descriptor declared", got[0].Exposure, got[0].Criticality)
+	}
+	// Empty rather than a default. A report that prints "internal" over a descriptor that said
+	// nothing is stating a classification nobody chose.
+	if got[1].Exposure != "" || got[1].Criticality != "" {
+		t.Errorf("quiet declared neither, got exposure %q criticality %q", got[1].Exposure, got[1].Criticality)
+	}
+}
+
 func TestComponentVerdictsIncludeAComponentWithNoFindings(t *testing.T) {
 	// Building the list from the findings drops exactly the component a reader most wants to see.
 	// The clean one they can take back to their team.
