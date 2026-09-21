@@ -72,6 +72,36 @@ func TestComponentWithFindingsAndAGapReportsBoth(t *testing.T) {
 	}
 }
 
+// TestEveryFormatRefusesToPassAComponentNobodyScanned. The rule is the console's and it has to
+// hold wherever the breakdown is drawn: a row of four zeros beside the word "pass" asserts
+// something no scanner established, and in a table it reads most like a result.
+func TestEveryFormatRefusesToPassAComponentNobodyScanned(t *testing.T) {
+	d := Data{
+		Release: saga.Release{Version: "1.0"},
+		Verdict: norn.Result{Verdict: norn.Fail},
+		Components: []ComponentVerdict{{
+			Name: "mesh", Verdict: norn.Pass,
+			Unscanned: []engine.Unscanned{{Control: "images", Kind: "image", Target: "r/a:1"}},
+			Declared:  map[string]int{"image": 1},
+		}},
+	}
+	for _, r := range []Reporter{consoleReporter{}, markdownReporter{}, htmlReporter{}} {
+		t.Run(r.Format(), func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := r.Render(&buf, d); err != nil {
+				t.Fatal(err)
+			}
+			out := buf.String()
+			if !strings.Contains(out, "ERROR") {
+				t.Errorf("a component nothing was scanned for is not a pass:\n%s", out)
+			}
+			if !strings.Contains(out, "1/1 image not scanned") {
+				t.Errorf("the row does not say what went unexamined:\n%s", out)
+			}
+		})
+	}
+}
+
 // TestUnscannedDetailSaysHowMuchOfTheComponent covers the difference between a component nothing
 // looked at and a gap in one that was mostly covered. The bare count reads as the first either
 // way, and only one of them is a reason to stop and fix the scan.

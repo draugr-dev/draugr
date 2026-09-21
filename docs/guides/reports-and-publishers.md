@@ -577,6 +577,17 @@ finding, offered as ordinary download links:
 The TSV covers **every** finding including suppressed ones, each marked with the reason it was set
 aside. The download is the record, and you can filter in the spreadsheet.
 
+**Each component gets its own verdict**, in a table beside the controls: what the descriptor
+declared it to be, whether its own findings pass the run's gate, how they ranked, and whether
+anything went unscanned. The controls table answers whether the project is shippable; this one
+answers which part of it is not, which is the answer somebody takes back to a team. A component the
+scope left out is listed as not scanned rather than omitted, and a component whose scans all failed
+reads `ERROR` rather than passing on findings that were never possible.
+
+Narrowing the findings to a single component adds a strip above the list carrying that component's
+verdict, its bands and the controls it did not pass. It appears for one component and not for two,
+because there is no verdict that describes two.
+
 **Search and filtering** are progressive enhancement. The page renders complete without
 JavaScript: the full table, both downloads, and every section. The script only reveals a search
 box and per-priority, per-severity and per-control toggles, so a reader whose viewer strips

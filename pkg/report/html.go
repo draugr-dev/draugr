@@ -1324,7 +1324,7 @@ as the run.</p>
       <span class="sev s-p4{{if not .P4}} off{{end}}">P4 {{.P4}}</span>
     </span>
     {{else if .Findings}}{{plural .Findings "finding"}}
-    {{else}}<span class="none">no findings</span>{{end}}
+    {{else if not .Errored}}<span class="none">no findings</span>{{end}}
     {{if .Unscanned}}<span class="gap">{{.Unscanned}}</span>{{end}}
   </td>
 </tr>{{end}}
@@ -1400,7 +1400,11 @@ about what they would have found. For everything the tool printed, re-run with
       <span class="sev s-p4{{if not .P4}} off{{end}}">P4 {{.P4}}</span>
     </span>{{end}}
     <span class="focus-facts">
-      {{plural .Findings "finding"}}{{if .Failed}} · failing {{join .Failed}}{{end}}{{if .Unscanned}} · {{.Unscanned}}{{end}}
+      {{/* The count only where the bands are not shown. With them it is their sum, and the line
+           under this one already says how many the filter left. */}}
+      {{if not (and .Prioritized .Findings)}}{{plural .Findings "finding"}}{{if or .Failed .Unscanned}} · {{end}}{{end}}
+      {{- if .Failed}}failing {{join .Failed}}{{if .Unscanned}} · {{end}}{{end}}
+      {{- if .Unscanned}}{{.Unscanned}}{{end}}
     </span>
   </div>
   {{end}}{{end}}

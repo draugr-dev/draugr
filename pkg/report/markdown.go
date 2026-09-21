@@ -334,16 +334,30 @@ func writeComponentTable(w io.Writer, d Data) {
 	}
 	_, _ = fmt.Fprintln(w, "### Components")
 	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "| Component | Verdict | P1 | P2 | P3 | P4 | Failing controls |")
-	_, _ = fmt.Fprintln(w, "|---|---|---:|---:|---:|---:|---|")
+	_, _ = fmt.Fprintln(w, "| Component | Declared | Verdict | P1 | P2 | P3 | P4 | Failing controls |")
+	_, _ = fmt.Fprintln(w, "|---|---|---|---:|---:|---:|---:|---|")
 	for _, c := range d.Components {
 		v := "pass"
 		if c.Verdict == norn.Fail {
 			v = "**FAIL**"
 		}
-		_, _ = fmt.Fprintf(w, "| %s | %s | %d | %d | %d | %d | %s |\n",
-			c.Name, v, c.Priorities[0], c.Priorities[1], c.Priorities[2], c.Priorities[3],
-			dash(strings.Join(c.Controls, ", ")))
+		// A component nothing was able to look at has not passed. Its scans failed, so a row of
+		// four zeros beside the word "pass" is the report asserting something no scanner
+		// established, and a table is where that reads most like a result.
+		var notes []string
+		if len(c.Controls) > 0 {
+			notes = append(notes, strings.Join(c.Controls, ", "))
+		}
+		if len(c.Unscanned) > 0 {
+			if c.Findings == 0 {
+				v = "**ERROR**"
+			}
+			notes = append(notes, unscannedDetail(c.Unscanned, c.Declared))
+		}
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %d | %d | %d | %d | %s |\n",
+			c.Name, dash(classification(c.Exposure, c.Criticality)), v,
+			c.Priorities[0], c.Priorities[1], c.Priorities[2], c.Priorities[3],
+			dash(strings.Join(notes, "; ")))
 	}
 	_, _ = fmt.Fprintln(w)
 	if d.UnattributedFindings > 0 {

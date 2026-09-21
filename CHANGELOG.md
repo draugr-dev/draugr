@@ -10,7 +10,9 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+The HTML report says which component is failing. A table beside the controls gives each component its own verdict against the same gate, what the descriptor declared it to be, how its findings ranked, and whether anything went unscanned — the breakdown the terminal already printed and the shared copy dropped. Narrowing the findings to one component adds a strip above the list carrying that component's verdict, its bands and the controls it did not pass.
 
 ## [0.128.0] - 2026-09-20
 
