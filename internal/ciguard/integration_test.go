@@ -171,3 +171,31 @@ func TestTheDecisionRunsAnythingItHasNotBeenTold(t *testing.T) {
 		})
 	}
 }
+
+// TestTheRaisedIssueDescribesTheSuiteItRaises. The issue opened when main goes red carries a
+// paragraph saying why the failure matters, and that paragraph is a claim about this workflow's own
+// configuration. A reader told the suite is advisory reads a red main as something to get to later,
+// and the sentence is the only thing on the page that tells them how much it matters.
+//
+// So the two claims it must not make are the two that were true before the suite became required:
+// that it can be skipped, and that a failure does not block a merge. Both are checkable against the
+// file that makes them.
+func TestTheRaisedIssueDescribesTheSuiteItRaises(t *testing.T) {
+	raw, err := os.ReadFile("../../.github/workflows/integration.yml")
+	if err != nil {
+		t.Fatalf("read the integration workflow: %v", err)
+	}
+	body := string(raw)
+
+	for _, wrong := range []string{
+		"not a required check",
+		"does not block a merge",
+		"is skipped on a pull request",
+		"can reach main without it ever having run",
+	} {
+		if strings.Contains(body, wrong) {
+			t.Errorf("the workflow says %q, which stopped being true when the suite became required "+
+				"and unconditional; the issue it raises is where a reader learns how much a red main matters", wrong)
+		}
+	}
+}

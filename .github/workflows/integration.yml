@@ -245,7 +245,7 @@ jobs:
               "",
               `[The run](${process.env.RUN_URL}) has the log.`,
               "",
-              "**This suite is the only place several behaviors are checked against real tools and real registries rather than fixtures.** It is skipped on a pull request whose diff does not touch the paths it covers, so a change can reach main without it ever having run, and it is not a required check, so a failure does not block a merge either.",
+              "**This suite is the only place several behaviors are checked against real tools, real registries and a real cluster rather than against fixtures.** Every pull request runs it and it is required to pass, so main going red means something reached it that the gate on each branch did not catch: a merge race, a nightly run against an upstream image that moved, or a registry answering differently than it did an hour ago.",
               "",
               "This issue closes itself when the suite is green again.",
             ].join("\n");
